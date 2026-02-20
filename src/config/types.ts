@@ -10,6 +10,20 @@ export interface WatchConfig {
   pollIntervalMs?: number;
   /** Whether to use polling instead of native watchers. */
   usePolling?: boolean;
+  /** Debounce delay in milliseconds for file change events. */
+  debounceMs?: number;
+  /** Time in milliseconds a file must be stable before processing. */
+  stabilityThresholdMs?: number;
+}
+
+/**
+ * Configuration watch settings.
+ */
+export interface ConfigWatchConfig {
+  /** Whether config file watching is enabled. */
+  enabled?: boolean;
+  /** Debounce delay in milliseconds for config change events. */
+  debounceMs?: number;
 }
 
 /**
@@ -24,6 +38,14 @@ export interface EmbeddingConfig {
   chunkSize?: number;
   /** Overlap between chunks in tokens. */
   chunkOverlap?: number;
+  /** Embedding vector dimensions. */
+  dimensions?: number;
+  /** API key for the embedding provider. */
+  apiKey?: string;
+  /** Maximum embedding requests per minute. */
+  rateLimitPerMinute?: number;
+  /** Maximum concurrent embedding requests. */
+  concurrency?: number;
 }
 
 /**
@@ -75,7 +97,7 @@ export interface JeevesWatcherConfig {
   /** File system watch configuration. */
   watch: WatchConfig;
   /** Configuration file watch settings. */
-  configWatch?: WatchConfig;
+  configWatch?: ConfigWatchConfig;
   /** Embedding model configuration. */
   embedding: EmbeddingConfig;
   /** Vector store configuration. */
@@ -90,4 +112,6 @@ export interface JeevesWatcherConfig {
   inferenceRules?: InferenceRule[];
   /** Logging configuration. */
   logging?: LoggingConfig;
+  /** Timeout in milliseconds for graceful shutdown. */
+  shutdownTimeoutMs?: number;
 }

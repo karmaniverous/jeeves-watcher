@@ -6,6 +6,7 @@
 
 export type {
   ApiConfig,
+  ConfigWatchConfig,
   EmbeddingConfig,
   InferenceRule,
   JeevesWatcherConfig,
@@ -14,3 +15,4 @@ export type {
   WatchConfig,
 } from './config';
 export { loadConfig } from './config';
+export { createLogger } from './logger';
