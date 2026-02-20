@@ -26,5 +26,7 @@ export {
   writeMetadata,
 } from './metadata';
 export { pointId } from './pointId';
+export type { EventQueueOptions, ProcessFn, WatchEvent } from './queue';
+export { EventQueue } from './queue';
 export type { CompiledRule, FileAttributes } from './rules';
 export { applyRules, buildAttributes, compileRules } from './rules';
