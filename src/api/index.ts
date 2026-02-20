@@ -126,10 +126,10 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
     '/config-reindex',
     async (request, reply) => {
       try {
-        const scope = request.body?.scope ?? 'rules';
+        const scope = request.body.scope ?? 'rules';
 
         // Return immediately and run async
-        setImmediate(async () => {
+        void (async () => {
           try {
             if (scope === 'rules') {
               // Re-apply inference rules to all files, update Qdrant payloads (no re-embedding)
@@ -139,8 +139,8 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
               );
 
               for (const file of files) {
-                // Process metadata-only update for each file
-                await processor.processMetadataUpdate(file, {});
+                // Use the new processRulesUpdate method
+                await processor.processRulesUpdate(file);
               }
 
               logger.info(
@@ -166,11 +166,9 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
           } catch (error) {
             logger.error({ error, scope }, 'Config reindex failed');
           }
-        });
+        })();
 
-        return await reply
-          .status(200)
-          .send({ status: 'started', scope: scope });
+        return await reply.status(200).send({ status: 'started', scope });
       } catch (error) {
         logger.error({ error }, 'Config reindex request failed');
         return await reply.status(500).send({ error: 'Internal server error' });

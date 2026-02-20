@@ -151,7 +151,29 @@ cli
 
 cli
   .command('config-reindex')
-  .description('Reindex configuration files')
-  .action(stubAction('config-reindex'));
+  .description('Reindex after configuration changes (POST /config-reindex)')
+  .option('-s, --scope <scope>', 'Reindex scope (rules|full)', 'rules')
+  .option('-p, --port <port>', 'API port', '3458')
+  .option('-H, --host <host>', 'API host', '127.0.0.1')
+  .action(async (options) => {
+    const scope = options.scope;
+    if (scope !== 'rules' && scope !== 'full') {
+      console.error('Invalid scope. Must be "rules" or "full"');
+      process.exit(1);
+    }
+
+    const url = `${apiBase(options.host, options.port)}/config-reindex`;
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ scope }),
+    });
+    const text = await res.text();
+    if (!res.ok) {
+      console.error(text);
+      process.exit(1);
+    }
+    console.log(text);
+  });
 
 cli.parse();

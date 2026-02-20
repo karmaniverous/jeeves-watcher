@@ -1,5 +1,6 @@
 import { readFile } from 'node:fs/promises';
 
+import * as cheerio from 'cheerio';
 import yaml from 'js-yaml';
 
 /**
@@ -112,8 +113,13 @@ export async function extractText(
   }
 
   if (ext === '.html' || ext === '.htm') {
-    // TODO: Implement HTML extraction (e.g., via jsdom + readability).
-    throw new Error('HTML extraction not yet implemented');
+    const raw = await readFile(filePath, 'utf8');
+    const $ = cheerio.load(raw);
+    // Remove script and style elements
+    $('script, style').remove();
+    // Extract text content
+    const text = $('body').text().trim() || $.text().trim();
+    return { text };
   }
 
   // Default: treat as plaintext.

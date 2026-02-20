@@ -231,7 +231,7 @@ describe('API endpoints', () => {
     expect(meta!['title']).toBe('Rebuilt Title');
   });
 
-  it('POST /config-reindex should return 501', async () => {
+  it('POST /config-reindex should start reindex asynchronously', async () => {
     const server = createApiServer({
       processor,
       vectorStore,
@@ -244,9 +244,13 @@ describe('API endpoints', () => {
     const res = await server.inject({
       method: 'POST',
       url: '/config-reindex',
-      payload: { action: 'pause' },
+      payload: { scope: 'rules' },
     });
-    expect(res.statusCode).toBe(501);
+    expect(res.statusCode).toBe(200);
+
+    const body = JSON.parse(res.body) as { status: string; scope: string };
+    expect(body.status).toBe('started');
+    expect(body.scope).toBe('rules');
   });
 });
 

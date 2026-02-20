@@ -20,6 +20,7 @@
     "@qdrant/js-client-rest": "*",
     "ajv": "^8.18.0",
     "ajv-formats": "*",
+    "cheerio": "^1.2.0",
     "chokidar": "*",
     "commander": "^14.0.2",
     "cosmiconfig": "*",

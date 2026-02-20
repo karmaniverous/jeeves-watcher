@@ -54,4 +54,20 @@ describe('extractText', () => {
     expect(result.text).toBe('Subj');
     expect(result.json).toEqual({ subject: 'Subj', other: 1 });
   });
+
+  it('extracts HTML content without tags', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'jeeves-watcher-'));
+    const file = join(dir, 'doc.html');
+    await writeFile(
+      file,
+      '<html><head><title>Test</title><script>alert("hi")</script></head><body><h1>Hello</h1><p>World</p></body></html>',
+      'utf8',
+    );
+
+    const result = await extractText(file, '.html');
+    expect(result.text).toContain('Hello');
+    expect(result.text).toContain('World');
+    expect(result.text).not.toContain('alert');
+    expect(result.text).not.toContain('<h1>');
+  });
 });
