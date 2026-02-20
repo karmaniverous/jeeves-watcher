@@ -15,4 +15,12 @@ export type {
   WatchConfig,
 } from './config';
 export { loadConfig } from './config';
+export { contentHash } from './hash';
 export { createLogger } from './logger';
+export {
+  deleteMetadata,
+  metadataPath,
+  readMetadata,
+  writeMetadata,
+} from './metadata';
+export { pointId } from './pointId';

@@ -13,7 +13,6 @@
     "json5",
     "picomatch",
     "tiktoken",
-    "uuid",
     "@types/js-yaml",
     "@types/picomatch",
     "@types/uuid"
