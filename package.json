@@ -31,6 +31,7 @@
     "picomatch": "*",
     "pino": "*",
     "tiktoken": "*",
+    "unpdf": "^1.4.0",
     "uuid": "*"
   },
   "description": "Filesystem watcher that keeps a Qdrant vector store in sync with document changes",

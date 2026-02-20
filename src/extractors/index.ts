@@ -104,8 +104,13 @@ export async function extractText(
   }
 
   if (ext === '.pdf') {
-    // TODO: Implement using @langchain/community document loaders.
-    throw new Error('PDF extraction not yet implemented');
+    const buffer = await readFile(filePath);
+    const uint8Array = new Uint8Array(buffer);
+    const { extractText: extractPdfText } = await import('unpdf');
+    const { text } = await extractPdfText(uint8Array);
+    // unpdf returns an array of strings (one per page)
+    const content = Array.isArray(text) ? text.join('\n\n') : text;
+    return { text: content };
   }
 
   if (ext === '.docx') {
