@@ -8,10 +8,8 @@
     "@qdrant/js-client-rest",
     "chokidar",
     "fastify",
-    "js-yaml",
     "json5",
     "tiktoken",
-    "@types/js-yaml",
     "@types/uuid"
   ],
   "project": ["*/**", "!docs/**"],

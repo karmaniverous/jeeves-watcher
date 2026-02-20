@@ -15,6 +15,8 @@ export type {
   WatchConfig,
 } from './config';
 export { loadConfig } from './config';
+export type { ExtractedText } from './extractors';
+export { extractText } from './extractors';
 export { contentHash } from './hash';
 export { createLogger } from './logger';
 export {
