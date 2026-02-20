@@ -5,7 +5,6 @@
     "@langchain/google-genai",
     "@langchain/qdrant",
     "@langchain/textsplitters",
-    "@qdrant/js-client-rest",
     "chokidar",
     "fastify",
     "json5",
