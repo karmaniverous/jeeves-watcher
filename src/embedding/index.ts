@@ -1,5 +1,7 @@
 import { createHash } from 'node:crypto';
 
+import { GoogleGenerativeAIEmbeddings } from '@langchain/google-genai';
+
 import type { EmbeddingConfig } from '../config/types';
 
 /**
@@ -38,7 +40,45 @@ function createMockProvider(dimensions: number): EmbeddingProvider {
   };
 }
 
-// TODO: Implement Gemini provider using @langchain/google-genai
+/**
+ * Create a Gemini embedding provider using the Google Generative AI SDK.
+ *
+ * @param config - The embedding configuration.
+ * @returns A Gemini {@link EmbeddingProvider}.
+ * @throws If the API key is missing.
+ */
+function createGeminiProvider(config: EmbeddingConfig): EmbeddingProvider {
+  if (!config.apiKey) {
+    throw new Error(
+      'Gemini embedding provider requires config.embedding.apiKey',
+    );
+  }
+
+  const dimensions = config.dimensions ?? 3072;
+  const embedder = new GoogleGenerativeAIEmbeddings({
+    apiKey: config.apiKey,
+    model: config.model,
+  });
+
+  return {
+    dimensions,
+    async embed(texts: string[]): Promise<number[][]> {
+      // embedDocuments returns vectors for multiple texts
+      const vectors = await embedder.embedDocuments(texts);
+
+      // Validate dimensions
+      for (const vector of vectors) {
+        if (vector.length !== dimensions) {
+          throw new Error(
+            `Gemini embedding returned invalid dimensions: expected ${String(dimensions)}, got ${String(vector.length)}`,
+          );
+        }
+      }
+
+      return vectors;
+    },
+  };
+}
 
 /**
  * Create an embedding provider based on the given configuration.
@@ -55,6 +95,8 @@ export function createEmbeddingProvider(
   switch (config.provider) {
     case 'mock':
       return createMockProvider(dimensions);
+    case 'gemini':
+      return createGeminiProvider(config);
     default:
       throw new Error(`Unsupported embedding provider: ${config.provider}`);
   }

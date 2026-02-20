@@ -2,7 +2,6 @@
   "entry": ["src/**/index.ts"],
   "ignoreBinaries": ["plantuml"],
   "ignoreDependencies": [
-    "@langchain/google-genai",
     "@langchain/qdrant",
     "json5",
     "tiktoken",
