@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 
+import { writeFile } from 'node:fs/promises';
+
 import { Command } from '@commander-js/extra-typings';
 
 import { startFromConfig } from '../../app';
@@ -19,6 +21,10 @@ function apiBase(host: string, port: string): string {
 const stubAction = (name: string) => () => {
   console.log(`${name}: Not implemented yet`);
 };
+
+async function writeJsonFile(path: string, data: unknown): Promise<void> {
+  await writeFile(path, `${JSON.stringify(data, null, 2)}\n`, 'utf8');
+}
 
 cli
   .command('start')
@@ -76,8 +82,44 @@ cli
 
 cli
   .command('init')
-  .description('Initialize a new configuration')
-  .action(stubAction('init'));
+  .description('Initialize a new configuration (jeeves-watcher.config.json)')
+  .option(
+    '-o, --output <path>',
+    'Output config file path',
+    'jeeves-watcher.config.json',
+  )
+  .action(async (options) => {
+    try {
+      const config = {
+        watch: {
+          paths: ['**/*.{md,markdown,txt,text,json,html,htm,pdf,docx}'],
+          ignored: [
+            '**/node_modules/**',
+            '**/.git/**',
+            '**/.jeeves-watcher/**',
+          ],
+        },
+        configWatch: { enabled: true, debounceMs: 1000 },
+        embedding: {
+          provider: 'gemini',
+          model: 'text-embedding-004',
+        },
+        vectorStore: {
+          url: 'http://127.0.0.1:6333',
+          collectionName: 'jeeves-watcher',
+        },
+        metadataDir: '.jeeves-watcher',
+        api: { host: '127.0.0.1', port: 3100 },
+        logging: { level: 'info' },
+      };
+
+      await writeJsonFile(options.output, config);
+      console.log(`Wrote ${options.output}`);
+    } catch (error) {
+      console.error('Failed to initialize config:', error);
+      process.exit(1);
+    }
+  });
 
 cli
   .command('reindex')
