@@ -12,6 +12,10 @@ const cli = new Command()
   )
   .version('0.7.0');
 
+function apiBase(host: string, port: string): string {
+  return `http://${host}:${port}`;
+}
+
 const stubAction = (name: string) => () => {
   console.log(`${name}: Not implemented yet`);
 };
@@ -77,18 +81,63 @@ cli
 
 cli
   .command('reindex')
-  .description('Reindex all watched files')
-  .action(stubAction('reindex'));
+  .description('Reindex all watched files (POST /reindex)')
+  .option('-p, --port <port>', 'API port', '3458')
+  .option('-H, --host <host>', 'API host', '127.0.0.1')
+  .action(async (options) => {
+    const url = `${apiBase(options.host, options.port)}/reindex`;
+    const res = await fetch(url, { method: 'POST' });
+    const text = await res.text();
+    if (!res.ok) {
+      console.error(text);
+      process.exit(1);
+    }
+    console.log(text);
+  });
 
 cli
   .command('rebuild-metadata')
-  .description('Rebuild metadata for all watched files')
-  .action(stubAction('rebuild-metadata'));
+  .description('Rebuild metadata store from Qdrant (POST /rebuild-metadata)')
+  .option('-p, --port <port>', 'API port', '3458')
+  .option('-H, --host <host>', 'API host', '127.0.0.1')
+  .action(async (options) => {
+    const url = `${apiBase(options.host, options.port)}/rebuild-metadata`;
+    const res = await fetch(url, { method: 'POST' });
+    const text = await res.text();
+    if (!res.ok) {
+      console.error(text);
+      process.exit(1);
+    }
+    console.log(text);
+  });
 
 cli
   .command('search')
-  .description('Search the vector store')
-  .action(stubAction('search'));
+  .description('Search the vector store (POST /search)')
+  .argument('<query>', 'Search query')
+  .option('-l, --limit <limit>', 'Max results', '10')
+  .option('-p, --port <port>', 'API port', '3458')
+  .option('-H, --host <host>', 'API host', '127.0.0.1')
+  .action(async (query, options) => {
+    const url = `${apiBase(options.host, options.port)}/search`;
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ query, limit: Number(options.limit) }),
+    });
+    const text = await res.text();
+    if (!res.ok) {
+      console.error(text);
+      process.exit(1);
+    }
+
+    try {
+      const parsed = JSON.parse(text) as unknown;
+      console.log(JSON.stringify(parsed, null, 2));
+    } catch {
+      console.log(text);
+    }
+  });
 
 cli
   .command('enrich')
