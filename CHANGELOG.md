@@ -2,15 +2,23 @@
 
 All notable changes to this project will be documented in this file. Dates are displayed in UTC.
 
-#### Unreleased
+#### 0.1.0
 
 - Initial commit [`5981aa4`](https://github.com/karmaniverous/jeeves-watcher/commit/5981aa4a62c69e1c87ea5b4c3fda7b8111aa31f2)
 - updated docs [`688bb79`](https://github.com/karmaniverous/jeeves-watcher/commit/688bb796b3e89ed81c589946e68a5b3ae0c3b998)
+- fix: resolve typedoc cross-reference anchors and add highlight languages [`1a05a39`](https://github.com/karmaniverous/jeeves-watcher/commit/1a05a39e896c5912204b204e2cb35f4cfc5af2c7)
 - feat: initial scaffolding for jeeves-watcher [`b2aa733`](https://github.com/karmaniverous/jeeves-watcher/commit/b2aa733558c36ed460404fcebc70648cd07acee5)
+- docs: add comprehensive guide pages and update typedoc config [`9c79760`](https://github.com/karmaniverous/jeeves-watcher/commit/9c797601e4ccc974b3f29aa092af47398d1689b3)
+- chore: update package.json keywords [`a9147f6`](https://github.com/karmaniverous/jeeves-watcher/commit/a9147f6fdaedad2147ece8d536ed2a818c8869b0)
+- updated docs [`d65d32b`](https://github.com/karmaniverous/jeeves-watcher/commit/d65d32bc6618721280b187e78e056ee365064273)
+- chore: replace npm-package-template-ts with jeeves-watcher [`d1a8014`](https://github.com/karmaniverous/jeeves-watcher/commit/d1a8014995a53e2a2fb2b907b369c9949312703e)
+- updated changelog [`ec215ea`](https://github.com/karmaniverous/jeeves-watcher/commit/ec215ea092fcebc647e773cb4d18afff8ebd3cb2)
 - feat: add inference rules engine with glob matching and templated metadata [`0b1a60b`](https://github.com/karmaniverous/jeeves-watcher/commit/0b1a60b282fc767923f8517e46fe80add1dff685)
+- chore: regenerate typedoc output [`c751fd6`](https://github.com/karmaniverous/jeeves-watcher/commit/c751fd6044f707c9cd391258c8f00a5e66cd846f)
 - feat: add config reindex endpoint and CLI [`b103059`](https://github.com/karmaniverous/jeeves-watcher/commit/b1030594cfc8f1e58dedba0d8b6580ef2c6bf030)
 - test: add Qdrant integration tests [`129070f`](https://github.com/karmaniverous/jeeves-watcher/commit/129070f17a320c73ee8b0a82b93164dabd4b005f)
 - feat: document processor pipeline [`fc3f239`](https://github.com/karmaniverous/jeeves-watcher/commit/fc3f239627fd854490d202607881ea04c52fe3f2)
+- docs: add contributing guide [`549231f`](https://github.com/karmaniverous/jeeves-watcher/commit/549231fa761c400b0fc2991413857174337386f0)
 - docs: expand README with comprehensive documentation [`558eb10`](https://github.com/karmaniverous/jeeves-watcher/commit/558eb10fe6de21b1314652e67e487378517df171)
 - feat: implement DOCX text extractor [`a0e3eb8`](https://github.com/karmaniverous/jeeves-watcher/commit/a0e3eb8f83d19d73b76c1cc5fcea938b5697921d)
 - feat(api): implement reindex and rebuild-metadata [`45a6fd7`](https://github.com/karmaniverous/jeeves-watcher/commit/45a6fd7c9e72a9339a473b615380af6dbebc47d8)
