@@ -2,6 +2,9 @@
 
 import { Command } from '@commander-js/extra-typings';
 
+import { startFromConfig } from '../../app';
+import { loadConfig } from '../../config';
+
 const cli = new Command()
   .name('jeeves-watcher')
   .description(
@@ -16,17 +19,61 @@ const stubAction = (name: string) => () => {
 cli
   .command('start')
   .description('Start the filesystem watcher')
-  .action(stubAction('start'));
+  .option('-c, --config <path>', 'Path to configuration file')
+  .action(async (options) => {
+    try {
+      await startFromConfig(options.config);
+    } catch (error) {
+      console.error('Failed to start:', error);
+      process.exit(1);
+    }
+  });
+
+cli
+  .command('validate')
+  .description('Validate the configuration')
+  .option('-c, --config <path>', 'Path to configuration file')
+  .action(async (options) => {
+    try {
+      const config = await loadConfig(options.config);
+      console.log('Config valid');
+      console.log(`  Watch paths: ${config.watch.paths.join(', ')}`);
+      console.log(
+        `  Embedding: ${config.embedding.provider}/${config.embedding.model}`,
+      );
+      console.log(
+        `  Vector store: ${config.vectorStore.url} (${config.vectorStore.collectionName})`,
+      );
+      console.log(
+        `  API: ${config.api?.host ?? '127.0.0.1'}:${String(config.api?.port ?? 3458)}`,
+      );
+    } catch (error) {
+      console.error('Config invalid:', error);
+      process.exit(1);
+    }
+  });
+
+cli
+  .command('status')
+  .description('Show watcher status')
+  .option('-p, --port <port>', 'API port', '3458')
+  .option('-H, --host <host>', 'API host', '127.0.0.1')
+  .action(async (options) => {
+    try {
+      const url = `http://${options.host}:${options.port}/status`;
+      const response = await fetch(url);
+      const data = (await response.json()) as Record<string, unknown>;
+      console.log(JSON.stringify(data, null, 2));
+    } catch {
+      console.error('Could not connect to jeeves-watcher. Is it running?');
+      process.exit(1);
+    }
+  });
 
 cli
   .command('init')
   .description('Initialize a new configuration')
   .action(stubAction('init'));
-
-cli
-  .command('status')
-  .description('Show watcher status')
-  .action(stubAction('status'));
 
 cli
   .command('reindex')
@@ -47,11 +94,6 @@ cli
   .command('enrich')
   .description('Enrich document metadata')
   .action(stubAction('enrich'));
-
-cli
-  .command('validate')
-  .description('Validate the configuration')
-  .action(stubAction('validate'));
 
 cli
   .command('service')
