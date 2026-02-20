@@ -1,3 +1,4 @@
+import chokidar, { type FSWatcher } from 'chokidar';
 import type { FastifyInstance } from 'fastify';
 import type pino from 'pino';
 
@@ -17,19 +18,27 @@ import { FileSystemWatcher } from '../watcher';
  * Main application class that wires together all components.
  */
 export class JeevesWatcher {
-  private readonly config: JeevesWatcherConfig;
+  private config: JeevesWatcherConfig;
+  private readonly configPath?: string;
+
   private logger: pino.Logger | undefined;
   private watcher: FileSystemWatcher | undefined;
   private queue: EventQueue | undefined;
   private server: FastifyInstance | undefined;
+  private processor: DocumentProcessor | undefined;
+
+  private configWatcher: FSWatcher | undefined;
+  private configDebounce: NodeJS.Timeout | undefined;
 
   /**
    * Create a new JeevesWatcher instance.
    *
    * @param config - The application configuration.
+   * @param configPath - Optional config file path to watch for changes.
    */
-  constructor(config: JeevesWatcherConfig) {
+  constructor(config: JeevesWatcherConfig, configPath?: string) {
     this.config = config;
+    this.configPath = configPath;
   }
 
   /**
@@ -62,6 +71,7 @@ export class JeevesWatcher {
       compiledRules,
       logger,
     );
+    this.processor = processor;
 
     const queue = new EventQueue({
       debounceMs: this.config.watch.debounceMs ?? 2000,
@@ -94,6 +104,9 @@ export class JeevesWatcher {
     });
 
     watcher.start();
+
+    this.startConfigWatch();
+
     logger.info('jeeves-watcher started');
   }
 
@@ -101,6 +114,8 @@ export class JeevesWatcher {
    * Gracefully stop all components.
    */
   async stop(): Promise<void> {
+    await this.stopConfigWatch();
+
     if (this.watcher) {
       await this.watcher.stop();
     }
@@ -121,6 +136,74 @@ export class JeevesWatcher {
 
     this.logger?.info('jeeves-watcher stopped');
   }
+
+  private startConfigWatch(): void {
+    const logger = this.logger;
+    if (!logger) return;
+
+    const enabled = this.config.configWatch?.enabled ?? true;
+    if (!enabled) return;
+
+    if (!this.configPath) {
+      logger.debug('Config watch enabled, but no config path was provided');
+      return;
+    }
+
+    const debounceMs = this.config.configWatch?.debounceMs ?? 10000;
+
+    this.configWatcher = chokidar.watch(this.configPath, {
+      ignoreInitial: true,
+    });
+
+    this.configWatcher.on('change', () => {
+      if (this.configDebounce) clearTimeout(this.configDebounce);
+      this.configDebounce = setTimeout(() => {
+        void this.reloadConfig();
+      }, debounceMs);
+    });
+
+    this.configWatcher.on('error', (error) => {
+      logger.error({ error }, 'Config watcher error');
+    });
+
+    logger.info(
+      { configPath: this.configPath, debounceMs },
+      'Config watcher started',
+    );
+  }
+
+  private async stopConfigWatch(): Promise<void> {
+    if (this.configDebounce) {
+      clearTimeout(this.configDebounce);
+      this.configDebounce = undefined;
+    }
+
+    if (this.configWatcher) {
+      await this.configWatcher.close();
+      this.configWatcher = undefined;
+    }
+  }
+
+  private async reloadConfig(): Promise<void> {
+    const logger = this.logger;
+    const processor = this.processor;
+    if (!logger || !processor || !this.configPath) return;
+
+    try {
+      const newConfig = await loadConfig(this.configPath);
+      this.config = newConfig;
+
+      const compiledRules = compileRules(newConfig.inferenceRules ?? []);
+      processor.updateRules(compiledRules);
+
+      logger.info(
+        { configPath: this.configPath, rules: compiledRules.length },
+        'Config reloaded',
+      );
+    } catch (error) {
+      logger.error({ error }, 'Failed to reload config');
+    }
+  }
 }
 
 /**
@@ -133,7 +216,7 @@ export async function startFromConfig(
   configPath?: string,
 ): Promise<JeevesWatcher> {
   const config = await loadConfig(configPath);
-  const app = new JeevesWatcher(config);
+  const app = new JeevesWatcher(config, configPath);
 
   const shutdown = async () => {
     await app.stop();

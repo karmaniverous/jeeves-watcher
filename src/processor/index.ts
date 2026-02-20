@@ -26,7 +26,7 @@ export class DocumentProcessor {
   private readonly config: JeevesWatcherConfig;
   private readonly embeddingProvider: EmbeddingProvider;
   private readonly vectorStore: VectorStoreClient;
-  private readonly compiledRules: CompiledRule[];
+  private compiledRules: CompiledRule[];
   private readonly logger: pino.Logger;
   private readonly metadataDir: string;
 
@@ -209,6 +209,19 @@ export class DocumentProcessor {
       this.logger.error({ filePath, error }, 'Failed to update metadata');
       return null;
     }
+  }
+
+  /**
+   * Update compiled inference rules for subsequent file processing.
+   *
+   * @param compiledRules - The newly compiled rules.
+   */
+  updateRules(compiledRules: CompiledRule[]): void {
+    this.compiledRules = compiledRules;
+    this.logger.info(
+      { rules: compiledRules.length },
+      'Inference rules updated',
+    );
   }
 
   /**
