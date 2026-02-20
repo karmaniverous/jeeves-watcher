@@ -1,7 +1,7 @@
 import { v5 as uuidV5 } from 'uuid';
 
 /** Namespace UUID for jeeves-watcher point IDs. */
-const NAMESPACE = '6a6f686e-6761-6c74-2d6a-656576657321';
+const NAMESPACE = '6a6f686e-6761-4c74-ad6a-656576657321';
 
 /**
  * Normalise a file path for deterministic point ID generation.
