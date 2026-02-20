@@ -1,0 +1,519 @@
+<!DOCTYPE html><html class="default" lang="en" data-base="../"><head><meta charset="utf-8"/><meta http-equiv="x-ua-compatible" content="IE=edge"/><title>Deployment Guide | @karmaniverous/jeeves-watcher</title><meta name="description" content="Documentation for @karmaniverous/jeeves-watcher"/><meta name="viewport" content="width=device-width, initial-scale=1"/><link rel="stylesheet" href="../assets/style.css"/><link rel="stylesheet" href="../assets/highlight.css"/><script defer src="../assets/main.js"></script><script async src="../assets/icons.js" id="tsd-icons-script"></script><script async src="../assets/search.js" id="tsd-search-script"></script><script async src="../assets/navigation.js" id="tsd-nav-script"></script></head><body><script>document.documentElement.dataset.theme = localStorage.getItem("tsd-theme") || "os";document.body.style.display="none";setTimeout(() => window.app?app.showPage():document.body.style.removeProperty("display"),500)</script><header class="tsd-page-toolbar"><div class="tsd-toolbar-contents container"><a href="../index.html" class="title">@karmaniverous/jeeves-watcher</a><div id="tsd-toolbar-links"><a href="https://github.com/karmaniverous/jeeves-watcher">GitHub</a></div><button id="tsd-search-trigger" class="tsd-widget" aria-label="Search"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-search"></use></svg></button><dialog id="tsd-search" aria-label="Search"><input role="combobox" id="tsd-search-input" aria-controls="tsd-search-results" aria-autocomplete="list" aria-expanded="true" autocapitalize="off" autocomplete="off" placeholder="Search the docs" maxLength="100"/><ul role="listbox" id="tsd-search-results"></ul><div id="tsd-search-status" aria-live="polite" aria-atomic="true"><div>Preparing search index...</div></div></dialog><a href="#" class="tsd-widget menu" id="tsd-toolbar-menu-trigger" data-toggle="menu" aria-label="Menu"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-menu"></use></svg></a></div></header><div class="container container-main"><div class="col-content"><div class="tsd-page-title"><ul class="tsd-breadcrumb" aria-label="Breadcrumb"><li><a href="" aria-current="page">Deployment Guide</a></li></ul></div><div class="tsd-panel tsd-typography"><h1 id="deployment-guide" class="tsd-anchor-link">Deployment Guide<a href="#deployment-guide" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h1><p>Production deployment recommendations for <code>jeeves-watcher</code>.</p>
+<hr>
+<h2 id="prerequisites" class="tsd-anchor-link">Prerequisites<a href="#prerequisites" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h2><h3 id="nodejs" class="tsd-anchor-link">Node.js<a href="#nodejs" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3><p><strong>Version:</strong> Node.js 20+ (Node.js 24+ recommended)</p>
+<p><strong>Installation:</strong></p>
+<ul>
+<li><strong>Windows:</strong> Download from <a href="https://nodejs.org/" target="_blank" class="external">nodejs.org</a></li>
+<li><strong>Linux:</strong> Use nvm or distribution package manager</li>
+<li><strong>macOS:</strong> Use nvm or Homebrew</li>
+</ul>
+<p><strong>Verify:</strong></p>
+<pre><code class="bash"><span class="hl-0">node</span><span class="hl-1"> </span><span class="hl-3">--version</span><span class="hl-1">  </span><span class="hl-9"># Should be v20.0.0 or higher</span>
+</code><button type="button">Copy</button></pre>
+
+<h3 id="qdrant" class="tsd-anchor-link">Qdrant<a href="#qdrant" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3><p><strong>Required:</strong> Qdrant must be accessible before starting the watcher.</p>
+<hr>
+<h2 id="qdrant-setup" class="tsd-anchor-link">Qdrant Setup<a href="#qdrant-setup" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h2><h3 id="option-1-windows-native-binary" class="tsd-anchor-link">Option 1: Windows (Native Binary)<a href="#option-1-windows-native-binary" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3><p><strong>Download:</strong></p>
+<ol>
+<li>Go to <a href="https://github.com/qdrant/qdrant/releases" target="_blank" class="external">Qdrant Releases</a></li>
+<li>Download the latest Windows x86_64 binary (e.g., <code>qdrant-x86_64-pc-windows-msvc.zip</code>)</li>
+<li>Extract to a permanent location (e.g., <code>C:\qdrant</code>)</li>
+</ol>
+<p><strong>Run directly:</strong></p>
+<pre><code class="powershell">cd C:\qdrant
+.\qdrant.exe
+</code><button type="button">Copy</button></pre>
+
+<p><strong>Default settings:</strong></p>
+<ul>
+<li><strong>Port:</strong> 6333</li>
+<li><strong>Data:</strong> <code>./storage/</code> (relative to binary location)</li>
+<li><strong>Dashboard:</strong> <code>http://localhost:6333/dashboard</code></li>
+</ul>
+<p><strong>Install as service (NSSM):</strong></p>
+<pre><code class="powershell"># Install NSSM if not already installed
+# Download from https://nssm.cc/download
+
+nssm install qdrant "C:\qdrant\qdrant.exe"
+nssm set qdrant AppDirectory "C:\qdrant"
+nssm set qdrant Start SERVICE_AUTO_START
+nssm start qdrant
+</code><button type="button">Copy</button></pre>
+
+<p><strong>Verify:</strong></p>
+<pre><code class="bash"><span class="hl-0">curl</span><span class="hl-1"> </span><span class="hl-2">http://localhost:6333/healthz</span>
+</code><button type="button">Copy</button></pre>
+
+<p>Output:</p>
+<pre><code class="json"><span class="hl-1">{</span><span class="hl-4">&quot;title&quot;</span><span class="hl-1">:</span><span class="hl-2">&quot;qdrant - vector search engine&quot;</span><span class="hl-1">,</span><span class="hl-4">&quot;version&quot;</span><span class="hl-1">:</span><span class="hl-2">&quot;1.x.x&quot;</span><span class="hl-1">}</span>
+</code><button type="button">Copy</button></pre>
+
+<h3 id="option-2-linux-native-binary" class="tsd-anchor-link">Option 2: Linux (Native Binary)<a href="#option-2-linux-native-binary" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3><p><strong>Download:</strong></p>
+<pre><code class="bash"><span class="hl-0">wget</span><span class="hl-1"> </span><span class="hl-2">https://github.com/qdrant/qdrant/releases/download/v1.x.x/qdrant-x86_64-unknown-linux-musl.tar.gz</span><br/><span class="hl-0">tar</span><span class="hl-1"> </span><span class="hl-3">-xzf</span><span class="hl-1"> </span><span class="hl-2">qdrant-x86_64-unknown-linux-musl.tar.gz</span><br/><span class="hl-0">sudo</span><span class="hl-1"> </span><span class="hl-2">mv</span><span class="hl-1"> </span><span class="hl-2">qdrant</span><span class="hl-1"> </span><span class="hl-2">/usr/local/bin/</span>
+</code><button type="button">Copy</button></pre>
+
+<p><strong>Run directly:</strong></p>
+<pre><code class="bash"><span class="hl-0">qdrant</span>
+</code><button type="button">Copy</button></pre>
+
+<p><strong>Install as systemd service:</strong></p>
+<p>Create <code>/etc/systemd/system/qdrant.service</code>:</p>
+<pre><code class="ini">[Unit]
+Description=Qdrant Vector Search Engine
+After=network.target
+
+[Service]
+Type=simple
+User=qdrant
+Group=qdrant
+WorkingDirectory=/var/lib/qdrant
+ExecStart=/usr/local/bin/qdrant
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
+</code><button type="button">Copy</button></pre>
+
+<p><strong>Setup:</strong></p>
+<pre><code class="bash"><span class="hl-9"># Create user and data directory</span><br/><span class="hl-0">sudo</span><span class="hl-1"> </span><span class="hl-2">useradd</span><span class="hl-1"> </span><span class="hl-3">-r</span><span class="hl-1"> </span><span class="hl-3">-s</span><span class="hl-1"> </span><span class="hl-2">/bin/</span><span class="hl-3">false</span><span class="hl-1"> </span><span class="hl-2">qdrant</span><br/><span class="hl-0">sudo</span><span class="hl-1"> </span><span class="hl-2">mkdir</span><span class="hl-1"> </span><span class="hl-3">-p</span><span class="hl-1"> </span><span class="hl-2">/var/lib/qdrant</span><br/><span class="hl-0">sudo</span><span class="hl-1"> </span><span class="hl-2">chown</span><span class="hl-1"> </span><span class="hl-2">qdrant:qdrant</span><span class="hl-1"> </span><span class="hl-2">/var/lib/qdrant</span><br/><br/><span class="hl-9"># Enable and start</span><br/><span class="hl-0">sudo</span><span class="hl-1"> </span><span class="hl-2">systemctl</span><span class="hl-1"> </span><span class="hl-2">daemon-reload</span><br/><span class="hl-0">sudo</span><span class="hl-1"> </span><span class="hl-2">systemctl</span><span class="hl-1"> </span><span class="hl-2">enable</span><span class="hl-1"> </span><span class="hl-3">--now</span><span class="hl-1"> </span><span class="hl-2">qdrant</span>
+</code><button type="button">Copy</button></pre>
+
+<p><strong>Verify:</strong></p>
+<pre><code class="bash"><span class="hl-0">curl</span><span class="hl-1"> </span><span class="hl-2">http://localhost:6333/healthz</span>
+</code><button type="button">Copy</button></pre>
+
+<h3 id="option-3-docker" class="tsd-anchor-link">Option 3: Docker<a href="#option-3-docker" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3><p><strong>Run Qdrant in a container:</strong></p>
+<pre><code class="bash"><span class="hl-0">docker</span><span class="hl-1"> </span><span class="hl-2">run</span><span class="hl-1"> </span><span class="hl-3">-d</span><span class="hl-1"> </span><span class="hl-6">\</span><br/><span class="hl-1">  </span><span class="hl-3">--name</span><span class="hl-1"> </span><span class="hl-2">qdrant</span><span class="hl-1"> </span><span class="hl-6">\</span><br/><span class="hl-1">  </span><span class="hl-3">-p</span><span class="hl-1"> </span><span class="hl-2">6333:6333</span><span class="hl-1"> </span><span class="hl-6">\</span><br/><span class="hl-1">  </span><span class="hl-3">-p</span><span class="hl-1"> </span><span class="hl-2">6334:6334</span><span class="hl-1"> </span><span class="hl-6">\</span><br/><span class="hl-1">  </span><span class="hl-3">-v</span><span class="hl-1"> $(</span><span class="hl-0">pwd</span><span class="hl-1">)</span><span class="hl-2">/qdrant_storage:/qdrant/storage</span><span class="hl-1"> </span><span class="hl-6">\</span><br/><span class="hl-1">  </span><span class="hl-2">qdrant/qdrant</span>
+</code><button type="button">Copy</button></pre>
+
+<p><strong>Persistent storage:</strong> The <code>-v</code> flag mounts a local directory for data persistence.</p>
+<p><strong>Verify:</strong></p>
+<pre><code class="bash"><span class="hl-0">curl</span><span class="hl-1"> </span><span class="hl-2">http://localhost:6333/healthz</span>
+</code><button type="button">Copy</button></pre>
+
+<h3 id="qdrant-configuration" class="tsd-anchor-link">Qdrant Configuration<a href="#qdrant-configuration" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3><p><strong>Config file:</strong> <code>config/config.yaml</code> (relative to Qdrant binary or Docker mount)</p>
+<p><strong>Common settings:</strong></p>
+<pre><code class="yaml"><span class="hl-16">service</span><span class="hl-1">:</span><br/><span class="hl-1">  </span><span class="hl-16">host</span><span class="hl-1">: </span><span class="hl-5">0.0.0.0</span><span class="hl-1">         </span><span class="hl-9"># Bind to all interfaces (default: 127.0.0.1)</span><br/><span class="hl-1">  </span><span class="hl-16">http_port</span><span class="hl-1">: </span><span class="hl-5">6333</span><span class="hl-1">       </span><span class="hl-9"># HTTP API port</span><br/><span class="hl-1">  </span><span class="hl-16">grpc_port</span><span class="hl-1">: </span><span class="hl-5">6334</span><span class="hl-1">       </span><span class="hl-9"># gRPC port</span><br/><br/><span class="hl-16">storage</span><span class="hl-1">:</span><br/><span class="hl-1">  </span><span class="hl-16">storage_path</span><span class="hl-1">: </span><span class="hl-17">./storage</span><span class="hl-1">  </span><span class="hl-9"># Data directory</span><br/><br/><span class="hl-16">telemetry_disabled</span><span class="hl-1">: </span><span class="hl-3">true</span><span class="hl-1">   </span><span class="hl-9"># Disable telemetry</span>
+</code><button type="button">Copy</button></pre>
+
+<p>For production, consider:</p>
+<ul>
+<li><strong>Snapshots:</strong> Enable automatic snapshots for backups</li>
+<li><strong>Resource limits:</strong> Set memory limits in <code>config.yaml</code></li>
+<li><strong>Authentication:</strong> Enable API key authentication for remote access</li>
+</ul>
+<p>See <a href="https://qdrant.tech/documentation/" target="_blank" class="external">Qdrant Documentation</a> for full configuration options.</p>
+<hr>
+<h2 id="watcher-installation" class="tsd-anchor-link">Watcher Installation<a href="#watcher-installation" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h2><h3 id="global-install-recommended-for-services" class="tsd-anchor-link">Global Install (Recommended for Services)<a href="#global-install-recommended-for-services" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3><pre><code class="bash"><span class="hl-0">npm</span><span class="hl-1"> </span><span class="hl-2">install</span><span class="hl-1"> </span><span class="hl-3">-g</span><span class="hl-1"> </span><span class="hl-2">@karmaniverous/jeeves-watcher</span>
+</code><button type="button">Copy</button></pre>
+
+<p><strong>Verify:</strong></p>
+<pre><code class="bash"><span class="hl-0">jeeves-watcher</span><span class="hl-1"> </span><span class="hl-3">--version</span>
+</code><button type="button">Copy</button></pre>
+
+<h3 id="project-install-development" class="tsd-anchor-link">Project Install (Development)<a href="#project-install-development" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3><pre><code class="bash"><span class="hl-0">npm</span><span class="hl-1"> </span><span class="hl-2">install</span><span class="hl-1"> </span><span class="hl-3">--save-dev</span><span class="hl-1"> </span><span class="hl-2">@karmaniverous/jeeves-watcher</span>
+</code><button type="button">Copy</button></pre>
+
+<p><strong>Run via npx:</strong></p>
+<pre><code class="bash"><span class="hl-0">npx</span><span class="hl-1"> </span><span class="hl-2">jeeves-watcher</span><span class="hl-1"> </span><span class="hl-2">start</span>
+</code><button type="button">Copy</button></pre>
+
+<hr>
+<h2 id="configuration" class="tsd-anchor-link">Configuration<a href="#configuration" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h2><h3 id="initialize-config" class="tsd-anchor-link">Initialize Config<a href="#initialize-config" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3><pre><code class="bash"><span class="hl-0">jeeves-watcher</span><span class="hl-1"> </span><span class="hl-2">init</span><span class="hl-1"> </span><span class="hl-3">--output</span><span class="hl-1"> </span><span class="hl-2">/path/to/config.json</span>
+</code><button type="button">Copy</button></pre>
+
+<h3 id="edit-config" class="tsd-anchor-link">Edit Config<a href="#edit-config" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3><p>Key settings for production:</p>
+<pre><code class="json"><span class="hl-1">{</span><br/><span class="hl-1">  </span><span class="hl-4">&quot;watch&quot;</span><span class="hl-1">: {</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;paths&quot;</span><span class="hl-1">: [</span><br/><span class="hl-1">      </span><span class="hl-2">&quot;/data/documents/**/*.{md,txt,pdf,docx}&quot;</span><span class="hl-1">,</span><br/><span class="hl-1">      </span><span class="hl-2">&quot;/data/archives/**/*.json&quot;</span><br/><span class="hl-1">    ],</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;ignored&quot;</span><span class="hl-1">: [</span><span class="hl-2">&quot;**/node_modules/**&quot;</span><span class="hl-1">, </span><span class="hl-2">&quot;**/.git/**&quot;</span><span class="hl-1">],</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;debounceMs&quot;</span><span class="hl-1">: </span><span class="hl-5">2000</span><span class="hl-1">,</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;stabilityThresholdMs&quot;</span><span class="hl-1">: </span><span class="hl-5">500</span><br/><span class="hl-1">  },</span><br/><span class="hl-1">  </span><span class="hl-4">&quot;embedding&quot;</span><span class="hl-1">: {</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;provider&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;gemini&quot;</span><span class="hl-1">,</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;model&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;text-embedding-004&quot;</span><span class="hl-1">,</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;apiKey&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;${GOOGLE_API_KEY}&quot;</span><span class="hl-1">,</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;chunkSize&quot;</span><span class="hl-1">: </span><span class="hl-5">1000</span><span class="hl-1">,</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;chunkOverlap&quot;</span><span class="hl-1">: </span><span class="hl-5">200</span><span class="hl-1">,</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;dimensions&quot;</span><span class="hl-1">: </span><span class="hl-5">768</span><span class="hl-1">,</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;rateLimitPerMinute&quot;</span><span class="hl-1">: </span><span class="hl-5">1000</span><span class="hl-1">,</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;concurrency&quot;</span><span class="hl-1">: </span><span class="hl-5">5</span><br/><span class="hl-1">  },</span><br/><span class="hl-1">  </span><span class="hl-4">&quot;vectorStore&quot;</span><span class="hl-1">: {</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;url&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;http://localhost:6333&quot;</span><span class="hl-1">,</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;collectionName&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;production_docs&quot;</span><br/><span class="hl-1">  },</span><br/><span class="hl-1">  </span><span class="hl-4">&quot;metadataDir&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;/data/jeeves-watcher-metadata&quot;</span><span class="hl-1">,</span><br/><span class="hl-1">  </span><span class="hl-4">&quot;api&quot;</span><span class="hl-1">: {</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;host&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;127.0.0.1&quot;</span><span class="hl-1">,</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;port&quot;</span><span class="hl-1">: </span><span class="hl-5">3458</span><br/><span class="hl-1">  },</span><br/><span class="hl-1">  </span><span class="hl-4">&quot;logging&quot;</span><span class="hl-1">: {</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;level&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;info&quot;</span><span class="hl-1">,</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;file&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;/var/log/jeeves-watcher/watcher.log&quot;</span><br/><span class="hl-1">  },</span><br/><span class="hl-1">  </span><span class="hl-4">&quot;shutdownTimeoutMs&quot;</span><span class="hl-1">: </span><span class="hl-5">30000</span><br/><span class="hl-1">}</span>
+</code><button type="button">Copy</button></pre>
+
+<h3 id="environment-variables" class="tsd-anchor-link">Environment Variables<a href="#environment-variables" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3><p><strong>Set API keys:</strong></p>
+<pre><code class="bash"><span class="hl-9"># Windows (PowerShell)</span><br/><span class="hl-8">$env</span><span class="hl-1">:GOOGLE_API_KEY = </span><span class="hl-2">&quot;your-key-here&quot;</span><br/><br/><span class="hl-9"># Linux/macOS</span><br/><span class="hl-3">export</span><span class="hl-1"> </span><span class="hl-8">GOOGLE_API_KEY</span><span class="hl-1">=</span><span class="hl-2">&quot;your-key-here&quot;</span>
+</code><button type="button">Copy</button></pre>
+
+<p><strong>For systemd services:</strong> Add to unit file:</p>
+<pre><code class="ini">[Service]
+Environment="GOOGLE_API_KEY=your-key-here"
+</code><button type="button">Copy</button></pre>
+
+<p><strong>For NSSM services:</strong> Set environment variables via NSSM:</p>
+<pre><code class="powershell">nssm set jeeves-watcher AppEnvironmentExtra "GOOGLE_API_KEY=your-key-here"
+</code><button type="button">Copy</button></pre>
+
+<h3 id="validate-config" class="tsd-anchor-link">Validate Config<a href="#validate-config" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3><pre><code class="bash"><span class="hl-0">jeeves-watcher</span><span class="hl-1"> </span><span class="hl-2">validate</span><span class="hl-1"> </span><span class="hl-3">--config</span><span class="hl-1"> </span><span class="hl-2">/path/to/config.json</span>
+</code><button type="button">Copy</button></pre>
+
+<hr>
+<h2 id="running-as-a-service" class="tsd-anchor-link">Running as a Service<a href="#running-as-a-service" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h2><h3 id="windows-nssm" class="tsd-anchor-link">Windows (NSSM)<a href="#windows-nssm" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3><p><strong>Install NSSM:</strong> Download from <a href="https://nssm.cc/download" target="_blank" class="external">nssm.cc</a></p>
+<p><strong>Generate install command:</strong></p>
+<pre><code class="bash"><span class="hl-0">jeeves-watcher</span><span class="hl-1"> </span><span class="hl-2">service</span><span class="hl-1"> </span><span class="hl-2">install</span><span class="hl-1"> </span><span class="hl-3">--config</span><span class="hl-1"> </span><span class="hl-2">C:</span><span class="hl-6">\p</span><span class="hl-2">ath</span><span class="hl-6">\t</span><span class="hl-2">o</span><span class="hl-6">\c</span><span class="hl-2">onfig.json</span>
+</code><button type="button">Copy</button></pre>
+
+<p>Follow the printed instructions:</p>
+<pre><code class="powershell">nssm install jeeves-watcher node "C:\Users\YourUser\AppData\Roaming\npm\node_modules\@karmaniverous\jeeves-watcher\dist\cli\jeeves-watcher\index.js" start --config "C:\path\to\config.json"
+nssm set jeeves-watcher AppDirectory "C:\working\directory"
+nssm set jeeves-watcher Start SERVICE_AUTO_START
+nssm set jeeves-watcher AppEnvironmentExtra "GOOGLE_API_KEY=your-key-here"
+nssm start jeeves-watcher
+</code><button type="button">Copy</button></pre>
+
+<p><strong>Manage service:</strong></p>
+<pre><code class="powershell">nssm status jeeves-watcher
+nssm stop jeeves-watcher
+nssm restart jeeves-watcher
+</code><button type="button">Copy</button></pre>
+
+<p><strong>View logs:</strong></p>
+<pre><code class="powershell">nssm set jeeves-watcher AppStdout "C:\logs\jeeves-watcher-stdout.log"
+nssm set jeeves-watcher AppStderr "C:\logs\jeeves-watcher-stderr.log"
+</code><button type="button">Copy</button></pre>
+
+<p><strong>Uninstall:</strong></p>
+<pre><code class="powershell">nssm stop jeeves-watcher
+nssm remove jeeves-watcher confirm
+</code><button type="button">Copy</button></pre>
+
+<h3 id="linux-systemd" class="tsd-anchor-link">Linux (systemd)<a href="#linux-systemd" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3><p><strong>Generate unit file:</strong></p>
+<pre><code class="bash"><span class="hl-0">jeeves-watcher</span><span class="hl-1"> </span><span class="hl-2">service</span><span class="hl-1"> </span><span class="hl-2">install</span><span class="hl-1"> </span><span class="hl-3">--config</span><span class="hl-1"> </span><span class="hl-2">/etc/jeeves-watcher/config.json</span>
+</code><button type="button">Copy</button></pre>
+
+<p>Follow the printed instructions. Create <code>~/.config/systemd/user/jeeves-watcher.service</code>:</p>
+<pre><code class="ini">[Unit]
+Description=Jeeves Watcher
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/youruser
+ExecStart=/usr/bin/env jeeves-watcher start --config /etc/jeeves-watcher/config.json
+Environment="GOOGLE_API_KEY=your-key-here"
+Restart=on-failure
+StandardOutput=append:/var/log/jeeves-watcher/watcher.log
+StandardError=append:/var/log/jeeves-watcher/error.log
+
+[Install]
+WantedBy=default.target
+</code><button type="button">Copy</button></pre>
+
+<p><strong>Enable and start:</strong></p>
+<pre><code class="bash"><span class="hl-0">systemctl</span><span class="hl-1"> </span><span class="hl-3">--user</span><span class="hl-1"> </span><span class="hl-2">daemon-reload</span><br/><span class="hl-0">systemctl</span><span class="hl-1"> </span><span class="hl-3">--user</span><span class="hl-1"> </span><span class="hl-2">enable</span><span class="hl-1"> </span><span class="hl-3">--now</span><span class="hl-1"> </span><span class="hl-2">jeeves-watcher.service</span>
+</code><button type="button">Copy</button></pre>
+
+<p><strong>Manage service:</strong></p>
+<pre><code class="bash"><span class="hl-0">systemctl</span><span class="hl-1"> </span><span class="hl-3">--user</span><span class="hl-1"> </span><span class="hl-2">status</span><span class="hl-1"> </span><span class="hl-2">jeeves-watcher</span><br/><span class="hl-0">systemctl</span><span class="hl-1"> </span><span class="hl-3">--user</span><span class="hl-1"> </span><span class="hl-2">stop</span><span class="hl-1"> </span><span class="hl-2">jeeves-watcher</span><br/><span class="hl-0">systemctl</span><span class="hl-1"> </span><span class="hl-3">--user</span><span class="hl-1"> </span><span class="hl-2">restart</span><span class="hl-1"> </span><span class="hl-2">jeeves-watcher</span>
+</code><button type="button">Copy</button></pre>
+
+<p><strong>View logs:</strong></p>
+<pre><code class="bash"><span class="hl-0">journalctl</span><span class="hl-1"> </span><span class="hl-3">--user</span><span class="hl-1"> </span><span class="hl-3">-u</span><span class="hl-1"> </span><span class="hl-2">jeeves-watcher</span><span class="hl-1"> </span><span class="hl-3">-f</span>
+</code><button type="button">Copy</button></pre>
+
+<p><strong>Uninstall:</strong></p>
+<pre><code class="bash"><span class="hl-0">systemctl</span><span class="hl-1"> </span><span class="hl-3">--user</span><span class="hl-1"> </span><span class="hl-2">disable</span><span class="hl-1"> </span><span class="hl-3">--now</span><span class="hl-1"> </span><span class="hl-2">jeeves-watcher.service</span><br/><span class="hl-0">rm</span><span class="hl-1"> </span><span class="hl-2">~/.config/systemd/user/jeeves-watcher.service</span><br/><span class="hl-0">systemctl</span><span class="hl-1"> </span><span class="hl-3">--user</span><span class="hl-1"> </span><span class="hl-2">daemon-reload</span>
+</code><button type="button">Copy</button></pre>
+
+<hr>
+<h2 id="resource-profile" class="tsd-anchor-link">Resource Profile<a href="#resource-profile" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h2><h3 id="memory" class="tsd-anchor-link">Memory<a href="#memory" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3><table>
+<thead>
+<tr>
+<th>State</th>
+<th>Memory Usage</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Idle</strong> (no events)</td>
+<td>~50–100MB</td>
+</tr>
+<tr>
+<td><strong>Processing single file</strong></td>
+<td>+5–20MB (document text in memory)</td>
+</tr>
+<tr>
+<td><strong>Burst processing</strong></td>
+<td>Bounded by <code>embedding.concurrency</code> × avg document size</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Recommendation:</strong> 512MB minimum, 1GB comfortable for moderate workloads.</p>
+<h3 id="cpu" class="tsd-anchor-link">CPU<a href="#cpu" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3><p><strong>I/O-wait dominated</strong> — most time is spent waiting for embedding API responses.</p>
+<table>
+<thead>
+<tr>
+<th>State</th>
+<th>CPU Usage</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Idle</strong></td>
+<td>~0%</td>
+</tr>
+<tr>
+<td><strong>File extraction</strong></td>
+<td>Brief spike (PDF/DOCX parsing)</td>
+</tr>
+<tr>
+<td><strong>Embedding API waits</strong></td>
+<td>~0% (blocking I/O)</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Recommendation:</strong> 1 CPU core sufficient for most workloads.</p>
+<h3 id="disk" class="tsd-anchor-link">Disk<a href="#disk" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3><p><strong>Data:</strong></p>
+<ul>
+<li><strong>Metadata store:</strong> ~1KB per enriched file (<code>.meta.json</code> sidecars)</li>
+<li><strong>Logs:</strong> Depends on <code>logging.level</code> and rotation policy</li>
+</ul>
+<p><strong>Qdrant storage:</strong></p>
+<ul>
+<li>~100MB per million 768-dim vectors (varies by compression)</li>
+</ul>
+<p><strong>Recommendation:</strong> 10GB minimum for moderate document corpora.</p>
+<h3 id="network" class="tsd-anchor-link">Network<a href="#network" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3><p><strong>Embedding API traffic:</strong></p>
+<ul>
+<li>Average: ~1–2KB per embedding request (text payload)</li>
+<li>Burst: Up to <code>embedding.concurrency</code> concurrent requests</li>
+</ul>
+<p><strong>Qdrant traffic:</strong></p>
+<ul>
+<li>Upsert: ~3KB per point (vector + payload)</li>
+<li>Search: ~1KB request, ~5KB response (varies by limit)</li>
+</ul>
+<p><strong>Recommendation:</strong> 10 Mbps sufficient for most workloads.</p>
+<hr>
+<h2 id="co-location-recommendations" class="tsd-anchor-link">Co-location Recommendations<a href="#co-location-recommendations" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h2><p>The watcher is designed to co-locate with other services on a single machine.</p>
+<h3 id="typical-stack" class="tsd-anchor-link">Typical Stack<a href="#typical-stack" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3><table>
+<thead>
+<tr>
+<th>Service</th>
+<th>Port</th>
+<th>Memory</th>
+<th>CPU</th>
+<th>Role</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Qdrant</strong></td>
+<td>6333</td>
+<td>200MB–2GB</td>
+<td>~0%</td>
+<td>Vector store</td>
+</tr>
+<tr>
+<td><strong>jeeves-watcher</strong></td>
+<td>3458</td>
+<td>100MB–1GB</td>
+<td>~5%</td>
+<td>Indexing + search API</td>
+</tr>
+<tr>
+<td><strong>jeeves-server</strong></td>
+<td>3456</td>
+<td>50MB</td>
+<td>~1%</td>
+<td>File browser + web UI</td>
+</tr>
+<tr>
+<td><strong>n8n</strong></td>
+<td>5678</td>
+<td>500MB–2GB</td>
+<td>10–50%</td>
+<td>Workflow automation</td>
+</tr>
+<tr>
+<td><strong>OpenClaw</strong></td>
+<td>varies</td>
+<td>2–8GB</td>
+<td>50–100%</td>
+<td>LLM inference</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Total:</strong> ~8–16GB RAM, 4 CPU cores recommended.</p>
+<p><strong>Contention:</strong></p>
+<ul>
+<li><strong>Gemini API:</strong> Watcher and OpenClaw use different providers (minimal contention)</li>
+<li><strong>Qdrant:</strong> Watcher writes, n8n/jeeves-server read (native concurrent access)</li>
+<li><strong>Disk I/O:</strong> All services write logs; stagger heavy operations</li>
+</ul>
+<hr>
+<h2 id="initial-indexing" class="tsd-anchor-link">Initial Indexing<a href="#initial-indexing" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h2><h3 id="estimate-time-and-cost" class="tsd-anchor-link">Estimate Time and Cost<a href="#estimate-time-and-cost" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3><table>
+<thead>
+<tr>
+<th>Corpus Size</th>
+<th>Time (5 concurrent, 1000 req/min)</th>
+<th>Gemini Cost ($0.15/1M tokens)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1,000 files</td>
+<td>~1 minute</td>
+<td>~$0.03</td>
+</tr>
+<tr>
+<td>10,000 files</td>
+<td>~10 minutes</td>
+<td>~$0.30</td>
+</tr>
+<tr>
+<td>100,000 files</td>
+<td>~100 minutes</td>
+<td>~$3.00</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Assumptions:</strong> Average 500 tokens per document. Chunked documents (&gt;1000 chars) require multiple embeddings.</p>
+<p><strong>Schedule:</strong> For large corpora, run initial indexing during off-hours to avoid rate limit contention.</p>
+<h3 id="run-initial-indexing" class="tsd-anchor-link">Run Initial Indexing<a href="#run-initial-indexing" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3><pre><code class="bash"><span class="hl-9"># Start watcher (performs initial scan automatically)</span><br/><span class="hl-0">jeeves-watcher</span><span class="hl-1"> </span><span class="hl-2">start</span><span class="hl-1"> </span><span class="hl-3">--config</span><span class="hl-1"> </span><span class="hl-2">/path/to/config.json</span>
+</code><button type="button">Copy</button></pre>
+
+<p>Or manually trigger:</p>
+<pre><code class="bash"><span class="hl-0">jeeves-watcher</span><span class="hl-1"> </span><span class="hl-2">reindex</span><span class="hl-1"> </span><span class="hl-3">--port</span><span class="hl-1"> </span><span class="hl-5">3458</span>
+</code><button type="button">Copy</button></pre>
+
+<p><strong>Monitor progress:</strong> Check logs for <code>File processed successfully</code> entries.</p>
+<hr>
+<h2 id="monitoring" class="tsd-anchor-link">Monitoring<a href="#monitoring" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h2><h3 id="health-checks" class="tsd-anchor-link">Health Checks<a href="#health-checks" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3><p><strong>HTTP endpoint:</strong></p>
+<pre><code class="bash"><span class="hl-0">curl</span><span class="hl-1"> </span><span class="hl-2">http://localhost:3458/status</span>
+</code><button type="button">Copy</button></pre>
+
+<p>Output:</p>
+<pre><code class="json"><span class="hl-1">{</span><br/><span class="hl-1">  </span><span class="hl-4">&quot;status&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;ok&quot;</span><span class="hl-1">,</span><br/><span class="hl-1">  </span><span class="hl-4">&quot;uptime&quot;</span><span class="hl-1">: </span><span class="hl-5">86400</span><br/><span class="hl-1">}</span>
+</code><button type="button">Copy</button></pre>
+
+<p><strong>Use in monitoring:</strong> Poll <code>/status</code> every 60s. Alert if non-200 response.</p>
+<h3 id="logs" class="tsd-anchor-link">Logs<a href="#logs" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3><p><strong>Structured JSON logging</strong> via pino. Example log entry:</p>
+<pre><code class="json"><span class="hl-1">{</span><br/><span class="hl-1">  </span><span class="hl-4">&quot;level&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;info&quot;</span><span class="hl-1">,</span><br/><span class="hl-1">  </span><span class="hl-4">&quot;time&quot;</span><span class="hl-1">: </span><span class="hl-5">1708435200000</span><span class="hl-1">,</span><br/><span class="hl-1">  </span><span class="hl-4">&quot;filePath&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;d:/docs/readme.md&quot;</span><span class="hl-1">,</span><br/><span class="hl-1">  </span><span class="hl-4">&quot;chunks&quot;</span><span class="hl-1">: </span><span class="hl-5">2</span><span class="hl-1">,</span><br/><span class="hl-1">  </span><span class="hl-4">&quot;msg&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;File processed successfully&quot;</span><br/><span class="hl-1">}</span>
+</code><button type="button">Copy</button></pre>
+
+<p><strong>Parse with standard tools:</strong> jq, Splunk, ELK stack, etc.</p>
+<p><strong>Log rotation:</strong> Use external tools (logrotate on Linux, nssm log rotation on Windows).</p>
+<h3 id="alerts" class="tsd-anchor-link">Alerts<a href="#alerts" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3><p><strong>Critical events to alert on:</strong></p>
+<ul>
+<li><code>level: &quot;error&quot;</code> entries (embedding API failures, Qdrant write failures)</li>
+<li><code>/status</code> endpoint down for &gt;5 minutes</li>
+<li>Dead-letter list growth (indicates persistent failures)</li>
+</ul>
+<hr>
+<h2 id="backup-and-recovery" class="tsd-anchor-link">Backup and Recovery<a href="#backup-and-recovery" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h2><h3 id="backup-strategy" class="tsd-anchor-link">Backup Strategy<a href="#backup-strategy" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3><p><strong>Qdrant:</strong></p>
+<ul>
+<li>Use Qdrant's built-in <a href="https://qdrant.tech/documentation/concepts/snapshots/" target="_blank" class="external">snapshot feature</a></li>
+<li>Automated snapshots to persistent storage</li>
+<li>Alternatively: copy <code>{qdrant_storage_path}</code> directory while Qdrant is stopped</li>
+</ul>
+<p><strong>Metadata store:</strong></p>
+<ul>
+<li>Backup <code>{metadataDir}</code> directory</li>
+<li>Simple filesystem copy (no special handling needed)</li>
+</ul>
+<p><strong>Config:</strong></p>
+<ul>
+<li>Backup <code>config.json</code></li>
+<li>Store in version control (git)</li>
+</ul>
+<h3 id="recovery" class="tsd-anchor-link">Recovery<a href="#recovery" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3><p><strong>Scenario 1: Qdrant data lost</strong></p>
+<ol>
+<li>Restore Qdrant snapshot (if available)</li>
+<li>OR run full reindex:</li>
+</ol>
+<pre><code class="bash"><span class="hl-0">jeeves-watcher</span><span class="hl-1"> </span><span class="hl-2">reindex</span><span class="hl-1"> </span><span class="hl-3">--port</span><span class="hl-1"> </span><span class="hl-5">3458</span>
+</code><button type="button">Copy</button></pre>
+
+<p>This rebuilds Qdrant from filesystem + metadata store.</p>
+<p><strong>Scenario 2: Metadata store lost</strong></p>
+<ol>
+<li>Rebuild from Qdrant:</li>
+</ol>
+<pre><code class="bash"><span class="hl-0">jeeves-watcher</span><span class="hl-1"> </span><span class="hl-2">rebuild-metadata</span><span class="hl-1"> </span><span class="hl-3">--port</span><span class="hl-1"> </span><span class="hl-5">3458</span>
+</code><button type="button">Copy</button></pre>
+
+<p><strong>Scenario 3: Both lost</strong></p>
+<ol>
+<li>Restore from backups</li>
+<li>OR reindex from scratch (metadata enrichment is lost, but can be re-applied via API)</li>
+</ol>
+<hr>
+<h2 id="scaling-considerations" class="tsd-anchor-link">Scaling Considerations<a href="#scaling-considerations" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h2><h3 id="vertical-scaling" class="tsd-anchor-link">Vertical Scaling<a href="#vertical-scaling" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3><p><strong>When to scale up:</strong></p>
+<ul>
+<li>Large corpus (&gt;100K documents)</li>
+<li>High embedding API throughput</li>
+<li>Frequent bulk operations</li>
+</ul>
+<p><strong>Recommendations:</strong></p>
+<ul>
+<li><strong>CPU:</strong> 2–4 cores (parallel chunk processing)</li>
+<li><strong>Memory:</strong> 2–4GB (large document buffering)</li>
+<li><strong>Embedding concurrency:</strong> Increase <code>embedding.concurrency</code> (bounded by API rate limits)</li>
+</ul>
+<h3 id="horizontal-scaling" class="tsd-anchor-link">Horizontal Scaling<a href="#horizontal-scaling" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3><p><strong>Current limitation:</strong> Single-writer design (only one watcher instance per Qdrant collection).</p>
+<p><strong>Future:</strong> Planned support for distributed processing via job queue (Bull/BullMQ).</p>
+<hr>
+<h2 id="security" class="tsd-anchor-link">Security<a href="#security" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h2><h3 id="api-access" class="tsd-anchor-link">API Access<a href="#api-access" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3><p><strong>Default:</strong> Binds to <code>127.0.0.1</code> (localhost only).</p>
+<p><strong>For remote access:</strong></p>
+<ol>
+<li>Bind to <code>0.0.0.0</code> (all interfaces)</li>
+<li>Add reverse proxy with authentication (nginx, Caddy)</li>
+<li>Use TLS/HTTPS</li>
+</ol>
+<p><strong>Example nginx config:</strong></p>
+<pre><code class="nginx">location /watcher/ {
+    proxy_pass http://127.0.0.1:3458/;
+    proxy_set_header Host $host;
+    auth_basic "Restricted";
+    auth_basic_user_file /etc/nginx/.htpasswd;
+}
+</code><button type="button">Copy</button></pre>
+
+<h3 id="api-keys" class="tsd-anchor-link">API Keys<a href="#api-keys" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3><p><strong>Store securely:</strong></p>
+<ul>
+<li>Use environment variables (not hardcoded in config)</li>
+<li>Use secret management (AWS Secrets Manager, HashiCorp Vault, etc.)</li>
+<li>Rotate keys regularly</li>
+</ul>
+<h3 id="qdrant-1" class="tsd-anchor-link">Qdrant<a href="#qdrant-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3><p><strong>For production:</strong></p>
+<ul>
+<li>Enable Qdrant API key authentication</li>
+<li>Use TLS for Qdrant HTTP/gRPC</li>
+<li>Restrict network access (firewall rules)</li>
+</ul>
+<hr>
+<h2 id="troubleshooting" class="tsd-anchor-link">Troubleshooting<a href="#troubleshooting" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h2><h3 id="watcher-wont-start" class="tsd-anchor-link">Watcher won't start<a href="#watcher-wont-start" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3><p><strong>Check:</strong></p>
+<ol>
+<li>Is Qdrant running? <code>curl http://localhost:6333/healthz</code></li>
+<li>Is config valid? <code>jeeves-watcher validate --config /path/to/config.json</code></li>
+<li>Are API keys set? <code>echo $GOOGLE_API_KEY</code></li>
+<li>Check logs for errors</li>
+</ol>
+<h3 id="files-not-being-indexed" class="tsd-anchor-link">Files not being indexed<a href="#files-not-being-indexed" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3><p><strong>Check:</strong></p>
+<ol>
+<li>Are files matched by <code>watch.paths</code> globs?</li>
+<li>Are files excluded by <code>watch.ignored</code> globs?</li>
+<li>Is file extraction supported? (Check extractor for file type)</li>
+<li>Check logs for <code>Skipping empty file</code> or extraction errors</li>
+</ol>
+<h3 id="search-returns-no-results" class="tsd-anchor-link">Search returns no results<a href="#search-returns-no-results" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3><p><strong>Check:</strong></p>
+<ol>
+<li>Are files indexed? <code>jeeves-watcher status</code></li>
+<li>Is query relevant to corpus content?</li>
+<li>Is embedding provider working? (Check logs for embedding errors)</li>
+<li>Try broader query terms</li>
+</ol>
+<h3 id="high-memory-usage" class="tsd-anchor-link">High memory usage<a href="#high-memory-usage" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3><p><strong>Possible causes:</strong></p>
+<ul>
+<li>Large documents buffered during processing</li>
+<li>High <code>embedding.concurrency</code> (multiple documents in memory)</li>
+</ul>
+<p><strong>Solutions:</strong></p>
+<ul>
+<li>Reduce <code>embedding.concurrency</code></li>
+<li>Reduce <code>embedding.chunkSize</code> (smaller chunks = less memory per document)</li>
+<li>Add memory limits in service config</li>
+</ul>
+<hr>
+<h2 id="next-steps" class="tsd-anchor-link">Next Steps<a href="#next-steps" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h2><ul>
+<li><a href="Configuration_Reference.html">Configuration Reference</a> — Tune performance settings</li>
+<li><a href="API_Reference.html">API Reference</a> — Monitor via HTTP endpoints</li>
+<li><a href="Architecture.html">Architecture Guide</a> — Understand internals for debugging</li>
+</ul>
+</div></div><div class="col-sidebar"><div class="page-menu"><div class="tsd-navigation settings"><details class="tsd-accordion"><summary class="tsd-accordion-summary"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg><h3>Settings</h3></summary><div class="tsd-accordion-details"><div class="tsd-filter-visibility"><span class="settings-label">Member Visibility</span><ul id="tsd-filter-options"><li class="tsd-filter-item"><label class="tsd-filter-input"><input type="checkbox" id="tsd-filter-protected" name="protected"/><svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true"><rect class="tsd-checkbox-background" width="30" height="30" x="1" y="1" rx="6" fill="none"></rect><path class="tsd-checkbox-checkmark" d="M8.35422 16.8214L13.2143 21.75L24.6458 10.25" stroke="none" stroke-width="3.5" stroke-linejoin="round" fill="none"></path></svg><span>Protected</span></label></li><li class="tsd-filter-item"><label class="tsd-filter-input"><input type="checkbox" id="tsd-filter-inherited" name="inherited" checked/><svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true"><rect class="tsd-checkbox-background" width="30" height="30" x="1" y="1" rx="6" fill="none"></rect><path class="tsd-checkbox-checkmark" d="M8.35422 16.8214L13.2143 21.75L24.6458 10.25" stroke="none" stroke-width="3.5" stroke-linejoin="round" fill="none"></path></svg><span>Inherited</span></label></li><li class="tsd-filter-item"><label class="tsd-filter-input"><input type="checkbox" id="tsd-filter-external" name="external"/><svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true"><rect class="tsd-checkbox-background" width="30" height="30" x="1" y="1" rx="6" fill="none"></rect><path class="tsd-checkbox-checkmark" d="M8.35422 16.8214L13.2143 21.75L24.6458 10.25" stroke="none" stroke-width="3.5" stroke-linejoin="round" fill="none"></path></svg><span>External</span></label></li></ul></div><div class="tsd-theme-toggle"><label class="settings-label" for="tsd-theme">Theme</label><select id="tsd-theme"><option value="os">OS</option><option value="light">Light</option><option value="dark">Dark</option></select></div></div></details></div><details open class="tsd-accordion tsd-page-navigation"><summary class="tsd-accordion-summary"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg><h3>On This Page</h3></summary><div class="tsd-accordion-details"><a href="#deployment-guide"><span>Deployment <wbr/>Guide</span></a><ul><li><a href="#prerequisites"><span>Prerequisites</span></a></li><li><ul><li><a href="#nodejs"><span>Node.js</span></a></li><li><a href="#qdrant"><span>Qdrant</span></a></li></ul></li><li><a href="#qdrant-setup"><span>Qdrant <wbr/>Setup</span></a></li><li><ul><li><a href="#option-1-windows-native-binary"><span>Option 1: <wbr/>Windows (<wbr/>Native <wbr/>Binary)</span></a></li><li><a href="#option-2-linux-native-binary"><span>Option 2: <wbr/>Linux (<wbr/>Native <wbr/>Binary)</span></a></li><li><a href="#option-3-docker"><span>Option 3: <wbr/>Docker</span></a></li><li><a href="#qdrant-configuration"><span>Qdrant <wbr/>Configuration</span></a></li></ul></li><li><a href="#watcher-installation"><span>Watcher <wbr/>Installation</span></a></li><li><ul><li><a href="#global-install-recommended-for-services"><span>Global <wbr/>Install (<wbr/>Recommended for <wbr/>Services)</span></a></li><li><a href="#project-install-development"><span>Project <wbr/>Install (<wbr/>Development)</span></a></li></ul></li><li><a href="#configuration"><span>Configuration</span></a></li><li><ul><li><a href="#initialize-config"><span>Initialize <wbr/>Config</span></a></li><li><a href="#edit-config"><span>Edit <wbr/>Config</span></a></li><li><a href="#environment-variables"><span>Environment <wbr/>Variables</span></a></li><li><a href="#validate-config"><span>Validate <wbr/>Config</span></a></li></ul></li><li><a href="#running-as-a-service"><span>Running as a <wbr/>Service</span></a></li><li><ul><li><a href="#windows-nssm"><span>Windows (<wbr/>NSSM)</span></a></li><li><a href="#linux-systemd"><span>Linux (systemd)</span></a></li></ul></li><li><a href="#resource-profile"><span>Resource <wbr/>Profile</span></a></li><li><ul><li><a href="#memory"><span>Memory</span></a></li><li><a href="#cpu"><span>CPU</span></a></li><li><a href="#disk"><span>Disk</span></a></li><li><a href="#network"><span>Network</span></a></li></ul></li><li><a href="#co-location-recommendations"><span>Co-<wbr/>location <wbr/>Recommendations</span></a></li><li><ul><li><a href="#typical-stack"><span>Typical <wbr/>Stack</span></a></li></ul></li><li><a href="#initial-indexing"><span>Initial <wbr/>Indexing</span></a></li><li><ul><li><a href="#estimate-time-and-cost"><span>Estimate <wbr/>Time and <wbr/>Cost</span></a></li><li><a href="#run-initial-indexing"><span>Run <wbr/>Initial <wbr/>Indexing</span></a></li></ul></li><li><a href="#monitoring"><span>Monitoring</span></a></li><li><ul><li><a href="#health-checks"><span>Health <wbr/>Checks</span></a></li><li><a href="#logs"><span>Logs</span></a></li><li><a href="#alerts"><span>Alerts</span></a></li></ul></li><li><a href="#backup-and-recovery"><span>Backup and <wbr/>Recovery</span></a></li><li><ul><li><a href="#backup-strategy"><span>Backup <wbr/>Strategy</span></a></li><li><a href="#recovery"><span>Recovery</span></a></li></ul></li><li><a href="#scaling-considerations"><span>Scaling <wbr/>Considerations</span></a></li><li><ul><li><a href="#vertical-scaling"><span>Vertical <wbr/>Scaling</span></a></li><li><a href="#horizontal-scaling"><span>Horizontal <wbr/>Scaling</span></a></li></ul></li><li><a href="#security"><span>Security</span></a></li><li><ul><li><a href="#api-access"><span>API <wbr/>Access</span></a></li><li><a href="#api-keys"><span>API <wbr/>Keys</span></a></li><li><a href="#qdrant-1"><span>Qdrant</span></a></li></ul></li><li><a href="#troubleshooting"><span>Troubleshooting</span></a></li><li><ul><li><a href="#watcher-wont-start"><span>Watcher won&#39;t start</span></a></li><li><a href="#files-not-being-indexed"><span>Files not being indexed</span></a></li><li><a href="#search-returns-no-results"><span>Search returns no results</span></a></li><li><a href="#high-memory-usage"><span>High memory usage</span></a></li></ul></li><li><a href="#next-steps"><span>Next <wbr/>Steps</span></a></li></ul></div></details></div><div class="site-menu"><nav id="tsd-sidebar-links" class="tsd-navigation"><a href="https://github.com/karmaniverous/jeeves-watcher" class="tsd-nav-link">GitHub</a></nav><nav class="tsd-navigation"><a href="../modules.html">@karmaniverous/jeeves-watcher</a><ul class="tsd-small-nested-navigation" id="tsd-nav-container"><li>Loading...</li></ul></nav></div></div></div><footer><p class="tsd-generator">Generated using <a href="https://typedoc.org/" target="_blank">TypeDoc</a></p></footer><div class="overlay"></div></body></html>

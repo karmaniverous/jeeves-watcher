@@ -10,7 +10,7 @@ The watcher exposes a lightweight HTTP API for search, metadata enrichment, and 
 
 ---
 
-## `GET /status`
+## GET /status
 
 Health check and service stats.
 
@@ -39,7 +39,7 @@ curl http://localhost:3100/status
 
 ---
 
-## `POST /metadata`
+## POST /metadata
 
 Enrich a document's metadata without re-embedding.
 
@@ -98,7 +98,7 @@ curl -X POST http://localhost:3100/metadata \
 
 ---
 
-## `POST /search`
+## POST /search
 
 Semantic search across indexed documents.
 
@@ -186,7 +186,7 @@ Each result is a Qdrant point:
 
 ---
 
-## `POST /reindex`
+## POST /reindex
 
 Trigger a full reindex of all watched files.
 
@@ -234,7 +234,7 @@ curl -X POST http://localhost:3100/reindex
 
 ---
 
-## `POST /rebuild-metadata`
+## POST /rebuild-metadata
 
 Rebuild the metadata store from Qdrant payloads.
 
@@ -279,7 +279,7 @@ curl -X POST http://localhost:3100/rebuild-metadata
 
 ---
 
-## `POST /config-reindex`
+## POST /config-reindex
 
 Reindex after configuration changes (rules update or full reindex).
 

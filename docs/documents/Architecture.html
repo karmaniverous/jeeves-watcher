@@ -1,0 +1,447 @@
+<!DOCTYPE html><html class="default" lang="en" data-base="../"><head><meta charset="utf-8"/><meta http-equiv="x-ua-compatible" content="IE=edge"/><title>Architecture | @karmaniverous/jeeves-watcher</title><meta name="description" content="Documentation for @karmaniverous/jeeves-watcher"/><meta name="viewport" content="width=device-width, initial-scale=1"/><link rel="stylesheet" href="../assets/style.css"/><link rel="stylesheet" href="../assets/highlight.css"/><script defer src="../assets/main.js"></script><script async src="../assets/icons.js" id="tsd-icons-script"></script><script async src="../assets/search.js" id="tsd-search-script"></script><script async src="../assets/navigation.js" id="tsd-nav-script"></script></head><body><script>document.documentElement.dataset.theme = localStorage.getItem("tsd-theme") || "os";document.body.style.display="none";setTimeout(() => window.app?app.showPage():document.body.style.removeProperty("display"),500)</script><header class="tsd-page-toolbar"><div class="tsd-toolbar-contents container"><a href="../index.html" class="title">@karmaniverous/jeeves-watcher</a><div id="tsd-toolbar-links"><a href="https://github.com/karmaniverous/jeeves-watcher">GitHub</a></div><button id="tsd-search-trigger" class="tsd-widget" aria-label="Search"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-search"></use></svg></button><dialog id="tsd-search" aria-label="Search"><input role="combobox" id="tsd-search-input" aria-controls="tsd-search-results" aria-autocomplete="list" aria-expanded="true" autocapitalize="off" autocomplete="off" placeholder="Search the docs" maxLength="100"/><ul role="listbox" id="tsd-search-results"></ul><div id="tsd-search-status" aria-live="polite" aria-atomic="true"><div>Preparing search index...</div></div></dialog><a href="#" class="tsd-widget menu" id="tsd-toolbar-menu-trigger" data-toggle="menu" aria-label="Menu"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-menu"></use></svg></a></div></header><div class="container container-main"><div class="col-content"><div class="tsd-page-title"><ul class="tsd-breadcrumb" aria-label="Breadcrumb"><li><a href="" aria-current="page">Architecture</a></li></ul></div><div class="tsd-panel tsd-typography"><h1 id="architecture" class="tsd-anchor-link">Architecture<a href="#architecture" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h1><p>High-level architectural overview of <code>jeeves-watcher</code> for contributors and advanced users.</p>
+<h2 id="design-principles" class="tsd-anchor-link">Design Principles<a href="#design-principles" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h2><ol>
+<li><strong>Files are just files</strong> — Processes write to the filesystem normally. The watcher discovers changes passively.</li>
+<li><strong>Config-driven, no domain logic</strong> — The watcher doesn't know what an &quot;email&quot; or &quot;meeting&quot; is. Domain semantics live in config (inference rules).</li>
+<li><strong>Embedding is swappable</strong> — Change embedding providers by changing one config line. No code changes.</li>
+<li><strong>Metadata enrichment is optional</strong> — The watcher works without it, but callers can enrich documents for better search quality.</li>
+<li><strong>Three sources of truth</strong> — Filesystem owns content, metadata store owns enrichment, Qdrant is a derived index (fully rebuildable).</li>
+</ol>
+<hr>
+<h2 id="three-sources-of-truth" class="tsd-anchor-link">Three Sources of Truth<a href="#three-sources-of-truth" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h2><table>
+<thead>
+<tr>
+<th>Store</th>
+<th>Source of Truth For</th>
+<th>Written By</th>
+<th>Protection</th>
+<th>Rebuildable</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Filesystem</strong> (watched dirs)</td>
+<td>Document content</td>
+<td>Humans, scripts, assistant</td>
+<td>None (watcher adapts)</td>
+<td>N/A (primary source)</td>
+</tr>
+<tr>
+<td><strong>Metadata store</strong> (<code>.meta.json</code> files)</td>
+<td>Enrichment metadata</td>
+<td>Watcher only (via API)</td>
+<td>Architectural policy</td>
+<td>Yes (from Qdrant)</td>
+</tr>
+<tr>
+<td><strong>Qdrant</strong></td>
+<td>Nothing (derived index)</td>
+<td>Watcher only</td>
+<td>N/A</td>
+<td>Yes (from filesystem + metadata store)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="rebuild-flows" class="tsd-anchor-link">Rebuild Flows<a href="#rebuild-flows" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3><p><strong>Qdrant lost → Rebuild from filesystem + metadata store:</strong></p>
+<pre><code class="bash"><span class="hl-0">jeeves-watcher</span><span class="hl-1"> </span><span class="hl-2">reindex</span>
+</code><button type="button">Copy</button></pre>
+
+<p>Reads files from disk, reads <code>.meta.json</code> sidecars, re-embeds content, upserts to Qdrant.</p>
+<p><strong>Metadata store lost → Rebuild from Qdrant:</strong></p>
+<pre><code class="bash"><span class="hl-0">jeeves-watcher</span><span class="hl-1"> </span><span class="hl-2">rebuild-metadata</span>
+</code><button type="button">Copy</button></pre>
+
+<p>Scrolls Qdrant points, extracts enrichment metadata from payloads, writes <code>.meta.json</code> files.</p>
+<hr>
+<h2 id="data-flow" class="tsd-anchor-link">Data Flow<a href="#data-flow" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h2><h3 id="1-file-change-event" class="tsd-anchor-link">1. File Change Event<a href="#1-file-change-event" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3><pre><code class="mermaid">graph LR
+    A[File Created/Modified] --> B[Chokidar Event]
+    B --> C[Debounce]
+    C --> D[Stability Check]
+    D --> E[Event Queue]
+</code><button type="button">Copy</button></pre>
+
+<p><strong>Debounce:</strong> Wait <code>watch.debounceMs</code> after the last change event (prevents re-embedding during rapid edits).</p>
+<p><strong>Stability Check:</strong> File size must be unchanged for <code>watch.stabilityThresholdMs</code> (prevents embedding partial writes).</p>
+<h3 id="2-document-processing-pipeline" class="tsd-anchor-link">2. Document Processing Pipeline<a href="#2-document-processing-pipeline" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3><pre><code class="mermaid">graph TD
+    A[File Path] --> B[Extract Text]
+    B --> C[Content Hash]
+    C --> D{Hash Changed?}
+    D -->|No| E[Skip]
+    D -->|Yes| F[Build Attributes]
+    F --> G[Apply Inference Rules]
+    G --> H[Read Enrichment Metadata]
+    H --> I[Merge Metadata]
+    I --> J[Chunk Text]
+    J --> K[Embed Chunks]
+    K --> L[Upsert to Qdrant]
+    L --> M[Cleanup Orphaned Chunks]
+</code><button type="button">Copy</button></pre>
+
+<p><strong>Hash Check:</strong> Compare <code>sha256(extracted_text)</code> with existing Qdrant payload. If unchanged, skip re-embedding.</p>
+<p><strong>Chunking:</strong> Large documents (&gt;<code>embedding.chunkSize</code>) are split into overlapping chunks. Each chunk becomes a separate Qdrant point.</p>
+<p><strong>Orphan Cleanup:</strong> If a file previously had 5 chunks but now has 3, delete chunks 3–4 from Qdrant.</p>
+<h3 id="3-metadata-enrichment-api" class="tsd-anchor-link">3. Metadata Enrichment (API)<a href="#3-metadata-enrichment-api" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3><pre><code class="mermaid">graph TD
+    A[POST /metadata] --> B[Read Existing Enrichment]
+    B --> C[Merge New Metadata]
+    C --> D[Write .meta.json]
+    D --> E[Update Qdrant Payloads]
+</code><button type="button">Copy</button></pre>
+
+<p><strong>No re-embedding:</strong> Metadata updates only touch Qdrant payloads, not vectors.</p>
+<p><strong>All chunks updated:</strong> If a file has 3 chunks, all 3 payloads are updated with the same metadata.</p>
+<h3 id="4-search-flow" class="tsd-anchor-link">4. Search Flow<a href="#4-search-flow" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3><pre><code class="mermaid">graph TD
+    A[POST /search] --> B[Embed Query]
+    B --> C[Qdrant Cosine Search]
+    C --> D[Return Top Results]
+</code><button type="button">Copy</button></pre>
+
+<p><strong>Chunk deduplication:</strong> Search returns individual chunks. Callers group by <code>file_path</code> to get unique documents.</p>
+<hr>
+<h2 id="chunking-strategy" class="tsd-anchor-link">Chunking Strategy<a href="#chunking-strategy" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h2><p>Documents exceeding <code>embedding.chunkSize</code> (default: 1000 characters) are split into chunks.</p>
+<p><strong>Splitters:</strong></p>
+<ul>
+<li><strong>Markdown files</strong> (<code>.md</code>, <code>.markdown</code>) — <code>MarkdownTextSplitter</code> (splits on heading boundaries, preserves structure)</li>
+<li><strong>All other files</strong> — <code>RecursiveCharacterTextSplitter</code> (splits on <code>\n\n</code>, then <code>\n</code>, then <code>. </code>, then characters)</li>
+</ul>
+<p>Both splitters use:</p>
+<ul>
+<li><code>chunkSize</code> — max characters per chunk</li>
+<li><code>chunkOverlap</code> — overlap between consecutive chunks (helps preserve context at boundaries)</li>
+</ul>
+<p><strong>Chunk Points:</strong></p>
+<p>Each chunk becomes a separate Qdrant point with:</p>
+<ul>
+<li><strong>Unique ID:</strong> <code>pointId(filePath, chunkIndex)</code> (deterministic UUID)</li>
+<li><strong>Shared payload:</strong> <code>file_path</code>, <code>domain</code>, metadata (same across all chunks)</li>
+<li><strong>Chunk-specific:</strong> <code>chunk_index</code>, <code>total_chunks</code>, <code>chunk_text</code></li>
+</ul>
+<p><strong>Example:</strong></p>
+<p>File with 3 chunks → 3 Qdrant points:</p>
+<table>
+<thead>
+<tr>
+<th>Point ID</th>
+<th><code>chunk_index</code></th>
+<th><code>total_chunks</code></th>
+<th><code>chunk_text</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>uuid-0</code></td>
+<td><code>0</code></td>
+<td><code>3</code></td>
+<td>&quot;First chunk...&quot;</td>
+</tr>
+<tr>
+<td><code>uuid-1</code></td>
+<td><code>1</code></td>
+<td><code>3</code></td>
+<td>&quot;Second chunk...&quot;</td>
+</tr>
+<tr>
+<td><code>uuid-2</code></td>
+<td><code>2</code></td>
+<td><code>3</code></td>
+<td>&quot;Third chunk...&quot;</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="content-hashing" class="tsd-anchor-link">Content Hashing<a href="#content-hashing" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h2><p>Every processed file gets a content hash (<code>sha256</code> of extracted text) stored in the Qdrant payload.</p>
+<p><strong>On file modify events:</strong></p>
+<ol>
+<li>Extract text</li>
+<li>Compute hash</li>
+<li>Query Qdrant for existing point</li>
+<li>If <code>content_hash</code> matches → <strong>skip</strong> (no re-embed, no API call)</li>
+<li>If hash differs → re-embed and upsert</li>
+</ol>
+<p><strong>Benefits:</strong></p>
+<ul>
+<li>Saves embedding API calls on cosmetic changes (whitespace, metadata-only edits)</li>
+<li>Prevents unnecessary Qdrant writes</li>
+<li>Speeds up reindex (only changed files are re-embedded)</li>
+</ul>
+<hr>
+<h2 id="point-id-generation" class="tsd-anchor-link">Point ID Generation<a href="#point-id-generation" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h2><p>Qdrant point IDs are <strong>deterministic UUIDs</strong> derived from file paths:</p>
+<pre><code class="javascript"><span class="hl-10">import</span><span class="hl-1"> { </span><span class="hl-8">v5</span><span class="hl-1"> </span><span class="hl-10">as</span><span class="hl-1"> </span><span class="hl-8">uuidv5</span><span class="hl-1"> } </span><span class="hl-10">from</span><span class="hl-1"> </span><span class="hl-2">&#39;uuid&#39;</span><span class="hl-1">;</span><br/><br/><span class="hl-3">const</span><span class="hl-1"> </span><span class="hl-11">NAMESPACE</span><span class="hl-1"> = </span><span class="hl-2">&#39;6a6f686e-6761-6c74-2d6a-656576657321&#39;</span><span class="hl-1">; </span><span class="hl-9">// fixed</span><br/><br/><span class="hl-3">function</span><span class="hl-1"> </span><span class="hl-0">pointId</span><span class="hl-1">(</span><span class="hl-8">filePath</span><span class="hl-1">: </span><span class="hl-12">string</span><span class="hl-1">, </span><span class="hl-8">chunkIndex</span><span class="hl-1">: </span><span class="hl-12">number</span><span class="hl-1">): </span><span class="hl-12">string</span><span class="hl-1"> {</span><br/><span class="hl-1">  </span><span class="hl-3">const</span><span class="hl-1"> </span><span class="hl-11">normalized</span><span class="hl-1"> = </span><span class="hl-8">filePath</span><span class="hl-1">.</span><span class="hl-0">toLowerCase</span><span class="hl-1">().</span><span class="hl-0">replace</span><span class="hl-1">(</span><span class="hl-13">/</span><span class="hl-6">\\</span><span class="hl-13">/</span><span class="hl-3">g</span><span class="hl-1">, </span><span class="hl-2">&#39;/&#39;</span><span class="hl-1">);</span><br/><span class="hl-1">  </span><span class="hl-10">return</span><span class="hl-1"> </span><span class="hl-0">uuidv5</span><span class="hl-1">(</span><span class="hl-2">`</span><span class="hl-3">${</span><span class="hl-8">normalized</span><span class="hl-3">}</span><span class="hl-2">:</span><span class="hl-3">${</span><span class="hl-8">chunkIndex</span><span class="hl-3">}</span><span class="hl-2">`</span><span class="hl-1">, </span><span class="hl-11">NAMESPACE</span><span class="hl-1">);</span><br/><span class="hl-1">}</span>
+</code><button type="button">Copy</button></pre>
+
+<p><strong>Why deterministic:</strong></p>
+<ul>
+<li>Same file always produces the same ID</li>
+<li>No need to store ID anywhere — it's computable from the path</li>
+<li>Renames are a delete + insert (old ID removed, new ID created)</li>
+</ul>
+<p><strong>Trade-off:</strong> Renaming/moving files changes their identity in the index. Acceptable — the watcher handles it transparently.</p>
+<hr>
+<h2 id="event-processing" class="tsd-anchor-link">Event Processing<a href="#event-processing" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h2><h3 id="event-queue" class="tsd-anchor-link">Event Queue<a href="#event-queue" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3><p>File events are queued and processed <strong>sequentially</strong> to maintain consistency.</p>
+<p><strong>Concurrency:</strong> Embedding API calls are parallelized (up to <code>embedding.concurrency</code>), bounded by a rate limiter (<code>embedding.rateLimitPerMinute</code>).</p>
+<p><strong>Same-path serialization:</strong> Events for the same file path are always processed in order (prevents race conditions).</p>
+<h3 id="startup-behavior" class="tsd-anchor-link">Startup Behavior<a href="#startup-behavior" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3><p>On service start:</p>
+<ol>
+<li>Scan all <code>watch.paths</code> globs</li>
+<li>Compare filesystem state against Qdrant (by point ID)</li>
+<li>Index new files (in filesystem but not Qdrant)</li>
+<li>Remove stale entries (in Qdrant but file no longer exists)</li>
+<li>Re-embed modified files (content hash mismatch)</li>
+</ol>
+<p>This ensures consistency after service downtime or crashes.</p>
+<h3 id="config-change-handling" class="tsd-anchor-link">Config Change Handling<a href="#config-change-handling" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3><p>When <code>configWatch.enabled</code> is <code>true</code>, the watcher monitors its own config file.</p>
+<p><strong>On config change:</strong></p>
+<ol>
+<li>Debounce for <code>configWatch.debounceMs</code> (default: 10 seconds)</li>
+<li>Reload and validate config</li>
+<li>Recompile inference rules</li>
+<li>Queue a <strong>scoped metadata reindex</strong> (only files matching changed rules)</li>
+</ol>
+<p><strong>Scoped reindex:</strong></p>
+<ul>
+<li>If a rule targeting <code>d:/meetings/**</code> changes, only files under <code>d:/meetings/</code> are re-evaluated</li>
+<li>No re-embedding — just metadata updates to Qdrant payloads</li>
+</ul>
+<p><strong>Pause/resume:</strong></p>
+<pre><code class="bash"><span class="hl-0">POST</span><span class="hl-1"> </span><span class="hl-2">/config-reindex</span><span class="hl-1"> </span><span class="hl-2">{&quot;action&quot;:</span><span class="hl-1"> </span><span class="hl-2">&quot;pause&quot;}</span><span class="hl-1">   </span><span class="hl-9"># Suppress auto-reindex</span><br/><span class="hl-0">POST</span><span class="hl-1"> </span><span class="hl-2">/config-reindex</span><span class="hl-1"> </span><span class="hl-2">{&quot;action&quot;:</span><span class="hl-1"> </span><span class="hl-2">&quot;resume&quot;}</span><span class="hl-1">  </span><span class="hl-9"># Diff accumulated changes, single reindex</span>
+</code><button type="button">Copy</button></pre>
+
+<hr>
+<h2 id="metadata-store-design" class="tsd-anchor-link">Metadata Store Design<a href="#metadata-store-design" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h2><h3 id="path-derivation" class="tsd-anchor-link">Path Derivation<a href="#path-derivation" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3><p>Metadata sidecars mirror the watched filesystem hierarchy:</p>
+<pre><code><span class="hl-7">File</span><span class="hl-1">:     </span><span class="hl-7">D</span><span class="hl-1">:\</span><span class="hl-8">projects</span><span class="hl-1">\</span><span class="hl-8">readme</span><span class="hl-1">.</span><span class="hl-8">md</span><br/><span class="hl-7">Sidecar</span><span class="hl-1">:  {</span><span class="hl-8">metadataDir</span><span class="hl-1">}/</span><span class="hl-8">d</span><span class="hl-1">/</span><span class="hl-8">projects</span><span class="hl-1">/</span><span class="hl-8">readme</span><span class="hl-1">.</span><span class="hl-8">md</span><span class="hl-1">.</span><span class="hl-8">meta</span><span class="hl-1">.</span><span class="hl-8">json</span>
+</code><button>Copy</button></pre>
+
+<p><strong>Algorithm:</strong></p>
+<pre><code class="javascript"><span class="hl-3">function</span><span class="hl-1"> </span><span class="hl-0">metadataPath</span><span class="hl-1">(</span><span class="hl-8">filePath</span><span class="hl-1">: </span><span class="hl-12">string</span><span class="hl-1">, </span><span class="hl-8">metadataDir</span><span class="hl-1">: </span><span class="hl-12">string</span><span class="hl-1">): </span><span class="hl-12">string</span><span class="hl-1"> {</span><br/><span class="hl-1">  </span><span class="hl-3">const</span><span class="hl-1"> </span><span class="hl-11">normalized</span><span class="hl-1"> = </span><span class="hl-8">filePath</span><span class="hl-1">.</span><span class="hl-0">replace</span><span class="hl-1">(</span><span class="hl-13">/</span><span class="hl-14">^</span><span class="hl-15">([</span><span class="hl-13">A-Z</span><span class="hl-15">])</span><span class="hl-13">:/</span><span class="hl-3">i</span><span class="hl-1">, (</span><span class="hl-8">_</span><span class="hl-1">, </span><span class="hl-8">d</span><span class="hl-1">) </span><span class="hl-3">=&gt;</span><span class="hl-1"> </span><span class="hl-8">d</span><span class="hl-1">.</span><span class="hl-0">toLowerCase</span><span class="hl-1">());</span><br/><span class="hl-1">  </span><span class="hl-10">return</span><span class="hl-1"> </span><span class="hl-8">path</span><span class="hl-1">.</span><span class="hl-0">join</span><span class="hl-1">(</span><span class="hl-8">metadataDir</span><span class="hl-1">, </span><span class="hl-8">normalized</span><span class="hl-1"> + </span><span class="hl-2">&#39;.meta.json&#39;</span><span class="hl-1">);</span><br/><span class="hl-1">}</span>
+</code><button type="button">Copy</button></pre>
+
+<p><strong>Lookup:</strong> O(1) — <code>fs.existsSync(metadataPath)</code>. No index required.</p>
+<h3 id="file-format" class="tsd-anchor-link">File Format<a href="#file-format" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3><p>Each <code>.meta.json</code> contains <strong>only enrichment metadata</strong> (not content or embeddings):</p>
+<pre><code class="json"><span class="hl-1">{</span><br/><span class="hl-1">  </span><span class="hl-4">&quot;title&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;Project Overview&quot;</span><span class="hl-1">,</span><br/><span class="hl-1">  </span><span class="hl-4">&quot;labels&quot;</span><span class="hl-1">: [</span><span class="hl-2">&quot;documentation&quot;</span><span class="hl-1">, </span><span class="hl-2">&quot;important&quot;</span><span class="hl-1">],</span><br/><span class="hl-1">  </span><span class="hl-4">&quot;author&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;jeeves&quot;</span><span class="hl-1">,</span><br/><span class="hl-1">  </span><span class="hl-4">&quot;enriched_at&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;2026-02-20T08:00:00Z&quot;</span><br/><span class="hl-1">}</span>
+</code><button type="button">Copy</button></pre>
+
+<h3 id="write-policy" class="tsd-anchor-link">Write Policy<a href="#write-policy" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3><p>The metadata store is <strong>watcher-owned</strong>. Only the watcher process writes to it, only via the <code>POST /metadata</code> API.</p>
+<p><strong>Enforcement:</strong> Architectural policy (no filesystem permissions, cross-platform consistency).</p>
+<hr>
+<h2 id="inference-rules-engine" class="tsd-anchor-link">Inference Rules Engine<a href="#inference-rules-engine" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h2><p>Rules are <strong>JSON Schema <code>match</code> + <code>set</code> actions</strong>, evaluated in order against file attributes.</p>
+<p><strong>Attributes:</strong></p>
+<pre><code class="json"><span class="hl-1">{</span><br/><span class="hl-1">  </span><span class="hl-4">&quot;file&quot;</span><span class="hl-1">: {</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;path&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;d:/meetings/2026-02-20/transcript.md&quot;</span><span class="hl-1">,</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;directory&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;d:/meetings/2026-02-20&quot;</span><span class="hl-1">,</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;filename&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;transcript.md&quot;</span><span class="hl-1">,</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;extension&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;.md&quot;</span><span class="hl-1">,</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;sizeBytes&quot;</span><span class="hl-1">: </span><span class="hl-5">4523</span><span class="hl-1">,</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;modified&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;2026-02-20T08:15:00Z&quot;</span><br/><span class="hl-1">  },</span><br/><span class="hl-1">  </span><span class="hl-4">&quot;frontmatter&quot;</span><span class="hl-1">: { </span><span class="hl-4">&quot;title&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;Meeting Notes&quot;</span><span class="hl-1">, </span><span class="hl-4">&quot;author&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;jeeves&quot;</span><span class="hl-1"> },</span><br/><span class="hl-1">  </span><span class="hl-4">&quot;json&quot;</span><span class="hl-1">: { </span><span class="hl-4">&quot;participants&quot;</span><span class="hl-1">: [</span><span class="hl-2">&quot;Jason&quot;</span><span class="hl-1">, </span><span class="hl-2">&quot;Devin&quot;</span><span class="hl-1">] }</span><br/><span class="hl-1">}</span>
+</code><button type="button">Copy</button></pre>
+
+<p><strong>Rule example:</strong></p>
+<pre><code class="json"><span class="hl-1">{</span><br/><span class="hl-1">  </span><span class="hl-4">&quot;match&quot;</span><span class="hl-1">: {</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;properties&quot;</span><span class="hl-1">: {</span><br/><span class="hl-1">      </span><span class="hl-4">&quot;file&quot;</span><span class="hl-1">: {</span><br/><span class="hl-1">        </span><span class="hl-4">&quot;properties&quot;</span><span class="hl-1">: {</span><br/><span class="hl-1">          </span><span class="hl-4">&quot;path&quot;</span><span class="hl-1">: { </span><span class="hl-4">&quot;type&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;string&quot;</span><span class="hl-1">, </span><span class="hl-4">&quot;glob&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;d:/meetings/**&quot;</span><span class="hl-1"> }</span><br/><span class="hl-1">        }</span><br/><span class="hl-1">      }</span><br/><span class="hl-1">    }</span><br/><span class="hl-1">  },</span><br/><span class="hl-1">  </span><span class="hl-4">&quot;set&quot;</span><span class="hl-1">: {</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;domain&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;meetings&quot;</span><br/><span class="hl-1">  }</span><br/><span class="hl-1">}</span>
+</code><button type="button">Copy</button></pre>
+
+<p><strong>Custom <code>glob</code> format:</strong> Picomatch glob matching registered as an ajv custom keyword. This is the only custom format — everything else is pure JSON Schema.</p>
+<p><strong>Template interpolation in <code>set</code>:</strong></p>
+<pre><code class="json"><span class="hl-1">{</span><br/><span class="hl-1">  </span><span class="hl-4">&quot;set&quot;</span><span class="hl-1">: {</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;title&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;${frontmatter.title}&quot;</span><span class="hl-1">,</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;directory&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;${file.directory}&quot;</span><br/><span class="hl-1">  }</span><br/><span class="hl-1">}</span>
+</code><button type="button">Copy</button></pre>
+
+<p>See <a href="Inference_Rules.html">Inference Rules Guide</a> for full details.</p>
+<hr>
+<h2 id="text-extraction" class="tsd-anchor-link">Text Extraction<a href="#text-extraction" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h2><h3 id="extractors-by-file-type" class="tsd-anchor-link">Extractors by File Type<a href="#extractors-by-file-type" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3><table>
+<thead>
+<tr>
+<th>Extension</th>
+<th>Extractor</th>
+<th>Strategy</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>.md</code>, <code>.markdown</code></td>
+<td><code>markdown</code></td>
+<td>Strip YAML frontmatter (extract as metadata), return body text</td>
+</tr>
+<tr>
+<td><code>.txt</code>, <code>.text</code></td>
+<td><code>plaintext</code></td>
+<td>Return as-is</td>
+</tr>
+<tr>
+<td><code>.json</code></td>
+<td><code>json-content</code></td>
+<td>Extract string values from known content fields (<code>content</code>, <code>body</code>, <code>text</code>, <code>subject</code>)</td>
+</tr>
+<tr>
+<td><code>.pdf</code></td>
+<td><code>pdf-parse</code></td>
+<td>Extract text via <code>unpdf</code> library</td>
+</tr>
+<tr>
+<td><code>.docx</code></td>
+<td><code>docx-extract</code></td>
+<td>Extract text via <code>mammoth</code> library</td>
+</tr>
+<tr>
+<td><code>.html</code>, <code>.htm</code></td>
+<td><code>html-to-text</code></td>
+<td>Strip tags via <code>cheerio</code> library</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Binary files without extractors</strong> (e.g., <code>.png</code>, <code>.svg</code>) are <strong>skipped</strong> — no embedding, no Qdrant entry.</p>
+<hr>
+<h2 id="error-handling-retry" class="tsd-anchor-link">Error Handling &amp; Retry<a href="#error-handling-retry" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h2><p>Transient failures (Gemini API, Qdrant) are handled with exponential backoff:</p>
+<table>
+<thead>
+<tr>
+<th>Failure Type</th>
+<th>Retry Policy</th>
+<th>Max Retries</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Gemini 429 (rate limit)</td>
+<td>Backoff from 1s, respect <code>Retry-After</code></td>
+<td>5</td>
+</tr>
+<tr>
+<td>Gemini 500/503</td>
+<td>Backoff from 2s</td>
+<td>3</td>
+</tr>
+<tr>
+<td>Qdrant connection refused</td>
+<td>Backoff from 5s</td>
+<td>10</td>
+</tr>
+<tr>
+<td>Text extraction error</td>
+<td>No retry (log and skip)</td>
+<td>0</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Dead-letter list:</strong> Files that fail all retries are moved to an in-memory dead-letter list (persisted to <code>{metadataDir}/.dead-letter.json</code>). Surfaced via <code>GET /status</code> and retried on next restart.</p>
+<hr>
+<h2 id="graceful-shutdown" class="tsd-anchor-link">Graceful Shutdown<a href="#graceful-shutdown" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h2><p>On SIGTERM/SIGINT:</p>
+<ol>
+<li>Stop accepting new filesystem events</li>
+<li>Drain current in-flight operations (wait up to <code>shutdownTimeoutMs</code>)</li>
+<li>Flush pending Qdrant writes</li>
+<li>Persist dead-letter list</li>
+<li>Exit cleanly</li>
+</ol>
+<p>Partially processed files are safe — startup behavior re-processes them by comparing filesystem state against Qdrant.</p>
+<hr>
+<h2 id="collection-bootstrap" class="tsd-anchor-link">Collection Bootstrap<a href="#collection-bootstrap" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h2><p>On first startup, if the Qdrant collection doesn't exist, the watcher creates it:</p>
+<pre><code class="javascript"><span class="hl-10">await</span><span class="hl-1"> </span><span class="hl-8">qdrant</span><span class="hl-1">.</span><span class="hl-0">createCollection</span><span class="hl-1">(</span><span class="hl-8">collectionName</span><span class="hl-1">, {</span><br/><span class="hl-1">  </span><span class="hl-8">vectors:</span><span class="hl-1"> {</span><br/><span class="hl-1">    </span><span class="hl-8">size:</span><span class="hl-1"> </span><span class="hl-8">config</span><span class="hl-1">.</span><span class="hl-8">embedding</span><span class="hl-1">.</span><span class="hl-8">dimensions</span><span class="hl-1">,</span><br/><span class="hl-1">    </span><span class="hl-8">distance:</span><span class="hl-1"> </span><span class="hl-2">&#39;Cosine&#39;</span><br/><span class="hl-1">  }</span><br/><span class="hl-1">});</span>
+</code><button type="button">Copy</button></pre>
+
+<p><strong>Dimension mismatch:</strong> If the collection exists with different dimensions (e.g., after switching embedding providers), the watcher logs an error and refuses to start.</p>
+<p><strong>Recovery:</strong> Delete the collection manually (or rename <code>collectionName</code> in config), then restart.</p>
+<hr>
+<h2 id="logging" class="tsd-anchor-link">Logging<a href="#logging" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h2><p>Structured JSON logging via <a href="https://github.com/pinojs/pino" target="_blank" class="external">pino</a>:</p>
+<table>
+<thead>
+<tr>
+<th>Level</th>
+<th>Events</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>info</code></td>
+<td>File indexed, file deleted, reindex started/completed, config reloaded</td>
+</tr>
+<tr>
+<td><code>warn</code></td>
+<td>Extraction failed, dead-letter entry, dimension mismatch</td>
+</tr>
+<tr>
+<td><code>error</code></td>
+<td>Embedding API failure (after retries), Qdrant write failure, startup failure</td>
+</tr>
+<tr>
+<td><code>debug</code></td>
+<td>Hash match (skip), debounce, queue depth, chunk processing</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Log format:</strong> JSON lines (parseable by standard log aggregators).</p>
+<hr>
+<h2 id="technology-choices" class="tsd-anchor-link">Technology Choices<a href="#technology-choices" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h2><table>
+<thead>
+<tr>
+<th>Component</th>
+<th>Library</th>
+<th>Rationale</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Filesystem watcher</td>
+<td><code>chokidar</code></td>
+<td>Cross-platform, glob support, battle-tested</td>
+</tr>
+<tr>
+<td>HTTP framework</td>
+<td><code>fastify</code></td>
+<td>Lightweight, fast, schema validation</td>
+</tr>
+<tr>
+<td>Text splitting</td>
+<td><code>@langchain/textsplitters</code></td>
+<td>Markdown-aware + recursive splitting</td>
+</tr>
+<tr>
+<td>JSON Schema validation</td>
+<td><code>ajv</code></td>
+<td>Fast, extensible (custom <code>glob</code> format)</td>
+</tr>
+<tr>
+<td>Embedding client</td>
+<td>Direct HTTP (Gemini REST API)</td>
+<td>No SDK bloat</td>
+</tr>
+<tr>
+<td>Qdrant client</td>
+<td><code>@qdrant/js-client-rest</code></td>
+<td>Official client, typed</td>
+</tr>
+<tr>
+<td>Logging</td>
+<td><code>pino</code></td>
+<td>Structured JSON, low overhead</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="extending-the-watcher" class="tsd-anchor-link">Extending the Watcher<a href="#extending-the-watcher" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h2><h3 id="add-a-new-extractor" class="tsd-anchor-link">Add a New Extractor<a href="#add-a-new-extractor" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3><ol>
+<li>Implement extractor function in <code>src/extractors/index.ts</code>:</li>
+</ol>
+<pre><code class="typescript"><span class="hl-3">async</span><span class="hl-1"> </span><span class="hl-3">function</span><span class="hl-1"> </span><span class="hl-0">extractYaml</span><span class="hl-1">(</span><span class="hl-8">filePath</span><span class="hl-1">: </span><span class="hl-12">string</span><span class="hl-1">): </span><span class="hl-12">Promise</span><span class="hl-1">&lt;</span><span class="hl-12">ExtractionResult</span><span class="hl-1">&gt; {</span><br/><span class="hl-1">  </span><span class="hl-3">const</span><span class="hl-1"> </span><span class="hl-11">content</span><span class="hl-1"> = </span><span class="hl-10">await</span><span class="hl-1"> </span><span class="hl-8">fs</span><span class="hl-1">.</span><span class="hl-0">readFile</span><span class="hl-1">(</span><span class="hl-8">filePath</span><span class="hl-1">, </span><span class="hl-2">&#39;utf8&#39;</span><span class="hl-1">);</span><br/><span class="hl-1">  </span><span class="hl-3">const</span><span class="hl-1"> </span><span class="hl-11">parsed</span><span class="hl-1"> = </span><span class="hl-11">YAML</span><span class="hl-1">.</span><span class="hl-0">parse</span><span class="hl-1">(</span><span class="hl-8">content</span><span class="hl-1">);</span><br/><span class="hl-1">  </span><span class="hl-10">return</span><span class="hl-1"> {</span><br/><span class="hl-1">    </span><span class="hl-8">text:</span><span class="hl-1"> </span><span class="hl-11">JSON</span><span class="hl-1">.</span><span class="hl-0">stringify</span><span class="hl-1">(</span><span class="hl-8">parsed</span><span class="hl-1">, </span><span class="hl-3">null</span><span class="hl-1">, </span><span class="hl-5">2</span><span class="hl-1">),</span><br/><span class="hl-1">    </span><span class="hl-8">frontmatter:</span><span class="hl-1"> </span><span class="hl-3">undefined</span><span class="hl-1">,</span><br/><span class="hl-1">    </span><span class="hl-8">json:</span><span class="hl-1"> </span><span class="hl-8">parsed</span><br/><span class="hl-1">  };</span><br/><span class="hl-1">}</span>
+</code><button type="button">Copy</button></pre>
+
+<ol start="2">
+<li>Register in config:</li>
+</ol>
+<pre><code class="json"><span class="hl-1">{</span><br/><span class="hl-1">  </span><span class="hl-4">&quot;extractors&quot;</span><span class="hl-1">: {</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;.yaml&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;yaml-content&quot;</span><br/><span class="hl-1">  }</span><br/><span class="hl-1">}</span>
+</code><button type="button">Copy</button></pre>
+
+<h3 id="add-a-new-embedding-provider" class="tsd-anchor-link">Add a New Embedding Provider<a href="#add-a-new-embedding-provider" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3><ol>
+<li>Implement provider in <code>src/embedding/index.ts</code>:</li>
+</ol>
+<pre><code class="typescript"><span class="hl-3">class</span><span class="hl-1"> </span><span class="hl-12">MyEmbeddingProvider</span><span class="hl-1"> </span><span class="hl-3">implements</span><span class="hl-1"> </span><span class="hl-12">EmbeddingProvider</span><span class="hl-1"> {</span><br/><span class="hl-1">  </span><span class="hl-3">async</span><span class="hl-1"> </span><span class="hl-0">embed</span><span class="hl-1">(</span><span class="hl-8">texts</span><span class="hl-1">: </span><span class="hl-12">string</span><span class="hl-1">[]): </span><span class="hl-12">Promise</span><span class="hl-1">&lt;</span><span class="hl-12">number</span><span class="hl-1">[][]&gt; {</span><br/><span class="hl-1">    </span><span class="hl-9">// Call your provider&#39;s API</span><br/><span class="hl-1">  }</span><br/><span class="hl-1">}</span>
+</code><button type="button">Copy</button></pre>
+
+<ol start="2">
+<li>Register in factory:</li>
+</ol>
+<pre><code class="typescript"><span class="hl-10">export</span><span class="hl-1"> </span><span class="hl-3">function</span><span class="hl-1"> </span><span class="hl-0">createEmbeddingProvider</span><span class="hl-1">(</span><span class="hl-8">config</span><span class="hl-1">: </span><span class="hl-12">EmbeddingConfig</span><span class="hl-1">): </span><span class="hl-12">EmbeddingProvider</span><span class="hl-1"> {</span><br/><span class="hl-1">  </span><span class="hl-10">if</span><span class="hl-1"> (</span><span class="hl-8">config</span><span class="hl-1">.</span><span class="hl-8">provider</span><span class="hl-1"> === </span><span class="hl-2">&#39;my-provider&#39;</span><span class="hl-1">) </span><span class="hl-10">return</span><span class="hl-1"> </span><span class="hl-3">new</span><span class="hl-1"> </span><span class="hl-0">MyEmbeddingProvider</span><span class="hl-1">(</span><span class="hl-8">config</span><span class="hl-1">);</span><br/><span class="hl-1">  </span><span class="hl-9">// ...</span><br/><span class="hl-1">}</span>
+</code><button type="button">Copy</button></pre>
+
+<ol start="3">
+<li>Use in config:</li>
+</ol>
+<pre><code class="json"><span class="hl-1">{</span><br/><span class="hl-1">  </span><span class="hl-4">&quot;embedding&quot;</span><span class="hl-1">: {</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;provider&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;my-provider&quot;</span><span class="hl-1">,</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;model&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;my-model&quot;</span><span class="hl-1">,</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;apiKey&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;${MY_API_KEY}&quot;</span><br/><span class="hl-1">  }</span><br/><span class="hl-1">}</span>
+</code><button type="button">Copy</button></pre>
+
+<hr>
+<h2 id="next-steps" class="tsd-anchor-link">Next Steps<a href="#next-steps" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h2><ul>
+<li><a href="Configuration_Reference.html">Configuration Reference</a> — All config options</li>
+<li><a href="Inference_Rules.html">Inference Rules Guide</a> — Rules engine deep dive</li>
+<li><a href="API_Reference.html">API Reference</a> — HTTP endpoints</li>
+<li><a href="Deployment_Guide.html">Deployment Guide</a> — Production setup</li>
+</ul>
+</div></div><div class="col-sidebar"><div class="page-menu"><div class="tsd-navigation settings"><details class="tsd-accordion"><summary class="tsd-accordion-summary"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg><h3>Settings</h3></summary><div class="tsd-accordion-details"><div class="tsd-filter-visibility"><span class="settings-label">Member Visibility</span><ul id="tsd-filter-options"><li class="tsd-filter-item"><label class="tsd-filter-input"><input type="checkbox" id="tsd-filter-protected" name="protected"/><svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true"><rect class="tsd-checkbox-background" width="30" height="30" x="1" y="1" rx="6" fill="none"></rect><path class="tsd-checkbox-checkmark" d="M8.35422 16.8214L13.2143 21.75L24.6458 10.25" stroke="none" stroke-width="3.5" stroke-linejoin="round" fill="none"></path></svg><span>Protected</span></label></li><li class="tsd-filter-item"><label class="tsd-filter-input"><input type="checkbox" id="tsd-filter-inherited" name="inherited" checked/><svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true"><rect class="tsd-checkbox-background" width="30" height="30" x="1" y="1" rx="6" fill="none"></rect><path class="tsd-checkbox-checkmark" d="M8.35422 16.8214L13.2143 21.75L24.6458 10.25" stroke="none" stroke-width="3.5" stroke-linejoin="round" fill="none"></path></svg><span>Inherited</span></label></li><li class="tsd-filter-item"><label class="tsd-filter-input"><input type="checkbox" id="tsd-filter-external" name="external"/><svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true"><rect class="tsd-checkbox-background" width="30" height="30" x="1" y="1" rx="6" fill="none"></rect><path class="tsd-checkbox-checkmark" d="M8.35422 16.8214L13.2143 21.75L24.6458 10.25" stroke="none" stroke-width="3.5" stroke-linejoin="round" fill="none"></path></svg><span>External</span></label></li></ul></div><div class="tsd-theme-toggle"><label class="settings-label" for="tsd-theme">Theme</label><select id="tsd-theme"><option value="os">OS</option><option value="light">Light</option><option value="dark">Dark</option></select></div></div></details></div><details open class="tsd-accordion tsd-page-navigation"><summary class="tsd-accordion-summary"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg><h3>On This Page</h3></summary><div class="tsd-accordion-details"><a href="#architecture"><span>Architecture</span></a><ul><li><a href="#design-principles"><span>Design <wbr/>Principles</span></a></li><li><a href="#three-sources-of-truth"><span>Three <wbr/>Sources of <wbr/>Truth</span></a></li><li><ul><li><a href="#rebuild-flows"><span>Rebuild <wbr/>Flows</span></a></li></ul></li><li><a href="#data-flow"><span>Data <wbr/>Flow</span></a></li><li><ul><li><a href="#1-file-change-event"><span>1. <wbr/>File <wbr/>Change <wbr/>Event</span></a></li><li><a href="#2-document-processing-pipeline"><span>2. <wbr/>Document <wbr/>Processing <wbr/>Pipeline</span></a></li><li><a href="#3-metadata-enrichment-api"><span>3. <wbr/>Metadata <wbr/>Enrichment (<wbr/>API)</span></a></li><li><a href="#4-search-flow"><span>4. <wbr/>Search <wbr/>Flow</span></a></li></ul></li><li><a href="#chunking-strategy"><span>Chunking <wbr/>Strategy</span></a></li><li><a href="#content-hashing"><span>Content <wbr/>Hashing</span></a></li><li><a href="#point-id-generation"><span>Point <wbr/>ID <wbr/>Generation</span></a></li><li><a href="#event-processing"><span>Event <wbr/>Processing</span></a></li><li><ul><li><a href="#event-queue"><span>Event <wbr/>Queue</span></a></li><li><a href="#startup-behavior"><span>Startup <wbr/>Behavior</span></a></li><li><a href="#config-change-handling"><span>Config <wbr/>Change <wbr/>Handling</span></a></li></ul></li><li><a href="#metadata-store-design"><span>Metadata <wbr/>Store <wbr/>Design</span></a></li><li><ul><li><a href="#path-derivation"><span>Path <wbr/>Derivation</span></a></li><li><a href="#file-format"><span>File <wbr/>Format</span></a></li><li><a href="#write-policy"><span>Write <wbr/>Policy</span></a></li></ul></li><li><a href="#inference-rules-engine"><span>Inference <wbr/>Rules <wbr/>Engine</span></a></li><li><a href="#text-extraction"><span>Text <wbr/>Extraction</span></a></li><li><ul><li><a href="#extractors-by-file-type"><span>Extractors by <wbr/>File <wbr/>Type</span></a></li></ul></li><li><a href="#error-handling-retry"><span>Error <wbr/>Handling &amp; <wbr/>Retry</span></a></li><li><a href="#graceful-shutdown"><span>Graceful <wbr/>Shutdown</span></a></li><li><a href="#collection-bootstrap"><span>Collection <wbr/>Bootstrap</span></a></li><li><a href="#logging"><span>Logging</span></a></li><li><a href="#technology-choices"><span>Technology <wbr/>Choices</span></a></li><li><a href="#extending-the-watcher"><span>Extending the <wbr/>Watcher</span></a></li><li><ul><li><a href="#add-a-new-extractor"><span>Add a <wbr/>New <wbr/>Extractor</span></a></li><li><a href="#add-a-new-embedding-provider"><span>Add a <wbr/>New <wbr/>Embedding <wbr/>Provider</span></a></li></ul></li><li><a href="#next-steps"><span>Next <wbr/>Steps</span></a></li></ul></div></details></div><div class="site-menu"><nav id="tsd-sidebar-links" class="tsd-navigation"><a href="https://github.com/karmaniverous/jeeves-watcher" class="tsd-nav-link">GitHub</a></nav><nav class="tsd-navigation"><a href="../modules.html">@karmaniverous/jeeves-watcher</a><ul class="tsd-small-nested-navigation" id="tsd-nav-container"><li>Loading...</li></ul></nav></div></div></div><footer><p class="tsd-generator">Generated using <a href="https://typedoc.org/" target="_blank">TypeDoc</a></p></footer><div class="overlay"></div></body></html>

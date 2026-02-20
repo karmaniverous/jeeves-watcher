@@ -489,4 +489,4 @@ interface InferenceRule {
 }
 ```
 
-See [Configuration Reference](./configuration.md#inferencerules--metadata-enrichment-rules) for integration into the main config.
+See [Configuration Reference](./configuration.md#-metadata-enrichment-rules) for integration into the main config.

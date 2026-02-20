@@ -1,0 +1,358 @@
+<!DOCTYPE html><html class="default" lang="en" data-base="../"><head><meta charset="utf-8"/><meta http-equiv="x-ua-compatible" content="IE=edge"/><title>Configuration Reference | @karmaniverous/jeeves-watcher</title><meta name="description" content="Documentation for @karmaniverous/jeeves-watcher"/><meta name="viewport" content="width=device-width, initial-scale=1"/><link rel="stylesheet" href="../assets/style.css"/><link rel="stylesheet" href="../assets/highlight.css"/><script defer src="../assets/main.js"></script><script async src="../assets/icons.js" id="tsd-icons-script"></script><script async src="../assets/search.js" id="tsd-search-script"></script><script async src="../assets/navigation.js" id="tsd-nav-script"></script></head><body><script>document.documentElement.dataset.theme = localStorage.getItem("tsd-theme") || "os";document.body.style.display="none";setTimeout(() => window.app?app.showPage():document.body.style.removeProperty("display"),500)</script><header class="tsd-page-toolbar"><div class="tsd-toolbar-contents container"><a href="../index.html" class="title">@karmaniverous/jeeves-watcher</a><div id="tsd-toolbar-links"><a href="https://github.com/karmaniverous/jeeves-watcher">GitHub</a></div><button id="tsd-search-trigger" class="tsd-widget" aria-label="Search"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-search"></use></svg></button><dialog id="tsd-search" aria-label="Search"><input role="combobox" id="tsd-search-input" aria-controls="tsd-search-results" aria-autocomplete="list" aria-expanded="true" autocapitalize="off" autocomplete="off" placeholder="Search the docs" maxLength="100"/><ul role="listbox" id="tsd-search-results"></ul><div id="tsd-search-status" aria-live="polite" aria-atomic="true"><div>Preparing search index...</div></div></dialog><a href="#" class="tsd-widget menu" id="tsd-toolbar-menu-trigger" data-toggle="menu" aria-label="Menu"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-menu"></use></svg></a></div></header><div class="container container-main"><div class="col-content"><div class="tsd-page-title"><ul class="tsd-breadcrumb" aria-label="Breadcrumb"><li><a href="" aria-current="page">Configuration Reference</a></li></ul></div><div class="tsd-panel tsd-typography"><h1 id="configuration-reference" class="tsd-anchor-link">Configuration Reference<a href="#configuration-reference" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h1><p>Complete reference for all <code>jeeves-watcher</code> configuration options.</p>
+<h2 id="configuration-file" class="tsd-anchor-link">Configuration File<a href="#configuration-file" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h2><p>The configuration file is auto-discovered in this order:</p>
+<ol>
+<li><code>--config &lt;path&gt;</code> CLI flag (explicit)</li>
+<li><code>JEEVES_WATCHER_CONFIG</code> environment variable</li>
+<li><code>./jeeves-watcher.config.json</code> (current directory)</li>
+<li><code>~/.jeeves-watcher/config.json</code> (user home)</li>
+</ol>
+<p>Supported formats: JSON, JSON5, YAML (via <code>.yaml</code>/<code>.yml</code> extension).</p>
+<h2 id="top-level-schema" class="tsd-anchor-link">Top-Level Schema<a href="#top-level-schema" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h2><pre><code class="typescript"><span class="hl-3">interface</span><span class="hl-1"> </span><span class="hl-12">JeevesWatcherConfig</span><span class="hl-1"> {</span><br/><span class="hl-1">  </span><span class="hl-8">watch</span><span class="hl-1">: </span><span class="hl-12">WatchConfig</span><span class="hl-1">;</span><br/><span class="hl-1">  </span><span class="hl-8">configWatch</span><span class="hl-1">?: </span><span class="hl-12">ConfigWatchConfig</span><span class="hl-1">;</span><br/><span class="hl-1">  </span><span class="hl-8">embedding</span><span class="hl-1">: </span><span class="hl-12">EmbeddingConfig</span><span class="hl-1">;</span><br/><span class="hl-1">  </span><span class="hl-8">vectorStore</span><span class="hl-1">: </span><span class="hl-12">VectorStoreConfig</span><span class="hl-1">;</span><br/><span class="hl-1">  </span><span class="hl-8">metadataDir</span><span class="hl-1">?: </span><span class="hl-12">string</span><span class="hl-1">;</span><br/><span class="hl-1">  </span><span class="hl-8">api</span><span class="hl-1">?: </span><span class="hl-12">ApiConfig</span><span class="hl-1">;</span><br/><span class="hl-1">  </span><span class="hl-8">extractors</span><span class="hl-1">?: </span><span class="hl-12">Record</span><span class="hl-1">&lt;</span><span class="hl-12">string</span><span class="hl-1">, </span><span class="hl-12">unknown</span><span class="hl-1">&gt;;</span><br/><span class="hl-1">  </span><span class="hl-8">inferenceRules</span><span class="hl-1">?: </span><span class="hl-12">InferenceRule</span><span class="hl-1">[];</span><br/><span class="hl-1">  </span><span class="hl-8">logging</span><span class="hl-1">?: </span><span class="hl-12">LoggingConfig</span><span class="hl-1">;</span><br/><span class="hl-1">  </span><span class="hl-8">shutdownTimeoutMs</span><span class="hl-1">?: </span><span class="hl-12">number</span><span class="hl-1">;</span><br/><span class="hl-1">}</span>
+</code><button type="button">Copy</button></pre>
+
+<hr>
+<h2 id="-filesystem-watching" class="tsd-anchor-link"><code>watch</code> — Filesystem Watching<a href="#-filesystem-watching" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h2><pre><code class="json"><span class="hl-1">{</span><br/><span class="hl-1">  </span><span class="hl-4">&quot;watch&quot;</span><span class="hl-1">: {</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;paths&quot;</span><span class="hl-1">: [</span><span class="hl-2">&quot;./docs/**/*.md&quot;</span><span class="hl-1">, </span><span class="hl-2">&quot;./notes/**/*.txt&quot;</span><span class="hl-1">],</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;ignored&quot;</span><span class="hl-1">: [</span><span class="hl-2">&quot;**/node_modules/**&quot;</span><span class="hl-1">, </span><span class="hl-2">&quot;**/.git/**&quot;</span><span class="hl-1">],</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;debounceMs&quot;</span><span class="hl-1">: </span><span class="hl-5">2000</span><span class="hl-1">,</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;stabilityThresholdMs&quot;</span><span class="hl-1">: </span><span class="hl-5">500</span><span class="hl-1">,</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;pollIntervalMs&quot;</span><span class="hl-1">: </span><span class="hl-5">1000</span><span class="hl-1">,</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;usePolling&quot;</span><span class="hl-1">: </span><span class="hl-3">false</span><br/><span class="hl-1">  }</span><br/><span class="hl-1">}</span>
+</code><button type="button">Copy</button></pre>
+
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>paths</code></td>
+<td><code>string[]</code></td>
+<td><strong>Required</strong></td>
+<td>Glob patterns for files to watch. Supports picomatch syntax.</td>
+</tr>
+<tr>
+<td><code>ignored</code></td>
+<td><code>string[]</code></td>
+<td><code>[]</code></td>
+<td>Glob patterns to exclude from watching.</td>
+</tr>
+<tr>
+<td><code>debounceMs</code></td>
+<td><code>number</code></td>
+<td><code>1000</code></td>
+<td>Wait this long after last change before processing (prevents re-embedding during rapid edits).</td>
+</tr>
+<tr>
+<td><code>stabilityThresholdMs</code></td>
+<td><code>number</code></td>
+<td><code>500</code></td>
+<td>File must be stable (no size changes) for this long before processing.</td>
+</tr>
+<tr>
+<td><code>pollIntervalMs</code></td>
+<td><code>number</code></td>
+<td><code>1000</code></td>
+<td>Polling interval if <code>usePolling</code> is enabled.</td>
+</tr>
+<tr>
+<td><code>usePolling</code></td>
+<td><code>boolean</code></td>
+<td><code>false</code></td>
+<td>Use polling instead of native filesystem events. Enable for network drives or Docker volumes.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Glob examples:</strong></p>
+<pre><code class="json"><span class="hl-1">{</span><br/><span class="hl-1">  </span><span class="hl-4">&quot;paths&quot;</span><span class="hl-1">: [</span><br/><span class="hl-1">    </span><span class="hl-2">&quot;d:/email/archive/**/*.json&quot;</span><span class="hl-1">,      </span><span class="hl-9">// All .json files under archive (Windows)</span><br/><span class="hl-1">    </span><span class="hl-2">&quot;./meetings/**/*.{txt,md}&quot;</span><span class="hl-1">,        </span><span class="hl-9">// .txt or .md files under meetings</span><br/><span class="hl-1">    </span><span class="hl-2">&quot;**/*.pdf&quot;</span><span class="hl-1">,                        </span><span class="hl-9">// All PDFs recursively</span><br/><span class="hl-1">    </span><span class="hl-2">&quot;/absolute/path/to/docs/**&quot;</span><span class="hl-1">        </span><span class="hl-9">// Absolute path (Linux/macOS)</span><br/><span class="hl-1">  ]</span><br/><span class="hl-1">}</span>
+</code><button type="button">Copy</button></pre>
+
+<hr>
+<h2 id="-config-file-watching" class="tsd-anchor-link"><code>configWatch</code> — Config File Watching<a href="#-config-file-watching" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h2><pre><code class="json"><span class="hl-1">{</span><br/><span class="hl-1">  </span><span class="hl-4">&quot;configWatch&quot;</span><span class="hl-1">: {</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;enabled&quot;</span><span class="hl-1">: </span><span class="hl-3">true</span><span class="hl-1">,</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;debounceMs&quot;</span><span class="hl-1">: </span><span class="hl-5">10000</span><br/><span class="hl-1">  }</span><br/><span class="hl-1">}</span>
+</code><button type="button">Copy</button></pre>
+
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>enabled</code></td>
+<td><code>boolean</code></td>
+<td><code>true</code></td>
+<td>Watch config file for changes and trigger scoped reindex.</td>
+</tr>
+<tr>
+<td><code>debounceMs</code></td>
+<td><code>number</code></td>
+<td><code>10000</code></td>
+<td>Debounce window for config changes. Longer than file debounce to allow editing multiple rules.</td>
+</tr>
+</tbody>
+</table>
+<p>When the config file changes:</p>
+<ol>
+<li>Watcher reloads and validates the new config</li>
+<li>Inference rules are recompiled</li>
+<li>A <strong>metadata-only reindex</strong> is triggered for files matching changed rules (no re-embedding)</li>
+</ol>
+<hr>
+<h2 id="-embedding-provider" class="tsd-anchor-link"><code>embedding</code> — Embedding Provider<a href="#-embedding-provider" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h2><pre><code class="json"><span class="hl-1">{</span><br/><span class="hl-1">  </span><span class="hl-4">&quot;embedding&quot;</span><span class="hl-1">: {</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;provider&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;gemini&quot;</span><span class="hl-1">,</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;model&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;text-embedding-004&quot;</span><span class="hl-1">,</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;apiKey&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;${GOOGLE_API_KEY}&quot;</span><span class="hl-1">,</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;chunkSize&quot;</span><span class="hl-1">: </span><span class="hl-5">1000</span><span class="hl-1">,</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;chunkOverlap&quot;</span><span class="hl-1">: </span><span class="hl-5">200</span><span class="hl-1">,</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;dimensions&quot;</span><span class="hl-1">: </span><span class="hl-5">3072</span><span class="hl-1">,</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;rateLimitPerMinute&quot;</span><span class="hl-1">: </span><span class="hl-5">1000</span><span class="hl-1">,</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;concurrency&quot;</span><span class="hl-1">: </span><span class="hl-5">5</span><br/><span class="hl-1">  }</span><br/><span class="hl-1">}</span>
+</code><button type="button">Copy</button></pre>
+
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>provider</code></td>
+<td><code>string</code></td>
+<td><strong>Required</strong></td>
+<td>Embedding provider: <code>&quot;gemini&quot;</code>, <code>&quot;openai&quot;</code>, <code>&quot;mock&quot;</code>.</td>
+</tr>
+<tr>
+<td><code>model</code></td>
+<td><code>string</code></td>
+<td><strong>Required</strong></td>
+<td>Model name (e.g., <code>&quot;text-embedding-004&quot;</code> for Gemini).</td>
+</tr>
+<tr>
+<td><code>apiKey</code></td>
+<td><code>string</code></td>
+<td><code>undefined</code></td>
+<td>API key. Supports <code>${ENV_VAR}</code> template syntax.</td>
+</tr>
+<tr>
+<td><code>chunkSize</code></td>
+<td><code>number</code></td>
+<td><code>1000</code></td>
+<td>Maximum characters per chunk for text splitting.</td>
+</tr>
+<tr>
+<td><code>chunkOverlap</code></td>
+<td><code>number</code></td>
+<td><code>200</code></td>
+<td>Overlap between consecutive chunks (helps preserve context at boundaries).</td>
+</tr>
+<tr>
+<td><code>dimensions</code></td>
+<td><code>number</code></td>
+<td>Provider default</td>
+<td>Vector dimensions. Gemini <code>text-embedding-004</code> = 768; older <code>embedding-001</code> = 3072.</td>
+</tr>
+<tr>
+<td><code>rateLimitPerMinute</code></td>
+<td><code>number</code></td>
+<td><code>1000</code></td>
+<td>Max embedding requests per minute (provider rate limit).</td>
+</tr>
+<tr>
+<td><code>concurrency</code></td>
+<td><code>number</code></td>
+<td><code>5</code></td>
+<td>Max concurrent embedding requests. Bounded by rate limiter.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="supported-providers" class="tsd-anchor-link">Supported Providers<a href="#supported-providers" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3><h4 id="google-gemini" class="tsd-anchor-link">Google Gemini<a href="#google-gemini" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><pre><code class="json"><span class="hl-1">{</span><br/><span class="hl-1">  </span><span class="hl-4">&quot;embedding&quot;</span><span class="hl-1">: {</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;provider&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;gemini&quot;</span><span class="hl-1">,</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;model&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;text-embedding-004&quot;</span><span class="hl-1">,</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;apiKey&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;${GOOGLE_API_KEY}&quot;</span><span class="hl-1">,</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;dimensions&quot;</span><span class="hl-1">: </span><span class="hl-5">768</span><br/><span class="hl-1">  }</span><br/><span class="hl-1">}</span>
+</code><button type="button">Copy</button></pre>
+
+<p><strong>Models:</strong></p>
+<ul>
+<li><code>text-embedding-004</code> — 768 dimensions (latest, recommended)</li>
+<li><code>embedding-001</code> — 3072 dimensions (legacy)</li>
+</ul>
+<h4 id="mock-testing" class="tsd-anchor-link">Mock (Testing)<a href="#mock-testing" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><pre><code class="json"><span class="hl-1">{</span><br/><span class="hl-1">  </span><span class="hl-4">&quot;embedding&quot;</span><span class="hl-1">: {</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;provider&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;mock&quot;</span><span class="hl-1">,</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;dimensions&quot;</span><span class="hl-1">: </span><span class="hl-5">3072</span><br/><span class="hl-1">  }</span><br/><span class="hl-1">}</span>
+</code><button type="button">Copy</button></pre>
+
+<p>Generates deterministic embeddings from content hashes. No API calls, no cost. Ideal for CI/CD tests.</p>
+<hr>
+<h2 id="-qdrant-configuration" class="tsd-anchor-link"><code>vectorStore</code> — Qdrant Configuration<a href="#-qdrant-configuration" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h2><pre><code class="json"><span class="hl-1">{</span><br/><span class="hl-1">  </span><span class="hl-4">&quot;vectorStore&quot;</span><span class="hl-1">: {</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;url&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;http://localhost:6333&quot;</span><span class="hl-1">,</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;collectionName&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;jeeves-watcher&quot;</span><span class="hl-1">,</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;apiKey&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;${QDRANT_API_KEY}&quot;</span><br/><span class="hl-1">  }</span><br/><span class="hl-1">}</span>
+</code><button type="button">Copy</button></pre>
+
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>url</code></td>
+<td><code>string</code></td>
+<td><strong>Required</strong></td>
+<td>Qdrant server URL.</td>
+</tr>
+<tr>
+<td><code>collectionName</code></td>
+<td><code>string</code></td>
+<td><strong>Required</strong></td>
+<td>Qdrant collection name. Created automatically if it doesn't exist.</td>
+</tr>
+<tr>
+<td><code>apiKey</code></td>
+<td><code>string</code></td>
+<td><code>undefined</code></td>
+<td>Qdrant API key (for Qdrant Cloud).</td>
+</tr>
+</tbody>
+</table>
+<p><strong>On startup</strong>, the watcher:</p>
+<ol>
+<li>Checks if the collection exists</li>
+<li>If not, creates it with the configured vector dimensions</li>
+<li>If it exists with <strong>different dimensions</strong>, logs an error and refuses to start (dimension mismatch)</li>
+</ol>
+<p>To change embedding providers (e.g., Gemini 3072-dim → 768-dim), you must:</p>
+<ol>
+<li>Delete the old collection (or rename <code>collectionName</code> in config)</li>
+<li>Run <code>POST /reindex?force=true</code> to re-embed with the new provider</li>
+</ol>
+<hr>
+<h2 id="-metadata-storage" class="tsd-anchor-link"><code>metadataDir</code> — Metadata Storage<a href="#-metadata-storage" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h2><pre><code class="json"><span class="hl-1">{</span><br/><span class="hl-1">  </span><span class="hl-4">&quot;metadataDir&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;.jeeves-watcher&quot;</span><br/><span class="hl-1">}</span>
+</code><button type="button">Copy</button></pre>
+
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>metadataDir</code></td>
+<td><code>string</code></td>
+<td><code>&quot;.jeeves-watcher&quot;</code></td>
+<td>Directory for <code>.meta.json</code> sidecar files. Mirrors watched filesystem hierarchy.</td>
+</tr>
+</tbody>
+</table>
+<p>Metadata enrichment (via <code>POST /metadata</code>) is persisted here, separate from Qdrant. This ensures enrichment survives Qdrant rebuilds.</p>
+<p><strong>Directory structure:</strong></p>
+<pre><code><span class="hl-1">.</span><span class="hl-8">jeeves</span><span class="hl-1">-</span><span class="hl-8">watcher</span><span class="hl-1">/</span><br/><span class="hl-1">  </span><span class="hl-8">d</span><span class="hl-1">/</span><br/><span class="hl-1">    </span><span class="hl-8">projects</span><span class="hl-1">/</span><br/><span class="hl-1">      </span><span class="hl-8">my</span><span class="hl-1">-</span><span class="hl-8">project</span><span class="hl-1">/</span><br/><span class="hl-1">        </span><span class="hl-8">readme</span><span class="hl-1">.</span><span class="hl-8">md</span><span class="hl-1">.</span><span class="hl-8">meta</span><span class="hl-1">.</span><span class="hl-8">json</span>
+</code><button>Copy</button></pre>
+
+<p>For a file at <code>D:\projects\my-project\readme.md</code>, the metadata sidecar is at <code>.jeeves-watcher/d/projects/my-project/readme.md.meta.json</code>.</p>
+<hr>
+<h2 id="-http-api-server" class="tsd-anchor-link"><code>api</code> — HTTP API Server<a href="#-http-api-server" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h2><pre><code class="json"><span class="hl-1">{</span><br/><span class="hl-1">  </span><span class="hl-4">&quot;api&quot;</span><span class="hl-1">: {</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;host&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;127.0.0.1&quot;</span><span class="hl-1">,</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;port&quot;</span><span class="hl-1">: </span><span class="hl-5">3100</span><br/><span class="hl-1">  }</span><br/><span class="hl-1">}</span>
+</code><button type="button">Copy</button></pre>
+
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>host</code></td>
+<td><code>string</code></td>
+<td><code>&quot;127.0.0.1&quot;</code></td>
+<td>Host to bind to. Use <code>&quot;0.0.0.0&quot;</code> to accept external connections.</td>
+</tr>
+<tr>
+<td><code>port</code></td>
+<td><code>number</code></td>
+<td><code>3100</code></td>
+<td>Port to listen on.</td>
+</tr>
+</tbody>
+</table>
+<p>The API provides endpoints for search, metadata enrichment, reindexing, and status. See <a href="API_Reference.html">API Reference</a>.</p>
+<hr>
+<h2 id="-text-extraction-advanced" class="tsd-anchor-link"><code>extractors</code> — Text Extraction (Advanced)<a href="#-text-extraction-advanced" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h2><pre><code class="json"><span class="hl-1">{</span><br/><span class="hl-1">  </span><span class="hl-4">&quot;extractors&quot;</span><span class="hl-1">: {</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;.md&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;markdown&quot;</span><span class="hl-1">,</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;.txt&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;plaintext&quot;</span><span class="hl-1">,</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;.json&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;json-content&quot;</span><span class="hl-1">,</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;.pdf&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;pdf-parse&quot;</span><span class="hl-1">,</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;.docx&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;docx-extract&quot;</span><span class="hl-1">,</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;.html&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;html-to-text&quot;</span><br/><span class="hl-1">  }</span><br/><span class="hl-1">}</span>
+</code><button type="button">Copy</button></pre>
+
+<p>Maps file extensions to extraction strategies. <strong>Usually not needed</strong> — defaults cover common formats.</p>
+<hr>
+<h2 id="-metadata-enrichment-rules" class="tsd-anchor-link"><code>inferenceRules</code> — Metadata Enrichment Rules<a href="#-metadata-enrichment-rules" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h2><pre><code class="json"><span class="hl-1">{</span><br/><span class="hl-1">  </span><span class="hl-4">&quot;inferenceRules&quot;</span><span class="hl-1">: [</span><br/><span class="hl-1">    {</span><br/><span class="hl-1">      </span><span class="hl-4">&quot;match&quot;</span><span class="hl-1">: {</span><br/><span class="hl-1">        </span><span class="hl-4">&quot;properties&quot;</span><span class="hl-1">: {</span><br/><span class="hl-1">          </span><span class="hl-4">&quot;file&quot;</span><span class="hl-1">: {</span><br/><span class="hl-1">            </span><span class="hl-4">&quot;properties&quot;</span><span class="hl-1">: {</span><br/><span class="hl-1">              </span><span class="hl-4">&quot;path&quot;</span><span class="hl-1">: { </span><span class="hl-4">&quot;type&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;string&quot;</span><span class="hl-1">, </span><span class="hl-4">&quot;glob&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;**/meetings/**&quot;</span><span class="hl-1"> }</span><br/><span class="hl-1">            }</span><br/><span class="hl-1">          }</span><br/><span class="hl-1">        }</span><br/><span class="hl-1">      },</span><br/><span class="hl-1">      </span><span class="hl-4">&quot;set&quot;</span><span class="hl-1">: {</span><br/><span class="hl-1">        </span><span class="hl-4">&quot;domain&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;meetings&quot;</span><br/><span class="hl-1">      }</span><br/><span class="hl-1">    },</span><br/><span class="hl-1">    {</span><br/><span class="hl-1">      </span><span class="hl-4">&quot;match&quot;</span><span class="hl-1">: {</span><br/><span class="hl-1">        </span><span class="hl-4">&quot;properties&quot;</span><span class="hl-1">: {</span><br/><span class="hl-1">          </span><span class="hl-4">&quot;frontmatter&quot;</span><span class="hl-1">: {</span><br/><span class="hl-1">            </span><span class="hl-4">&quot;properties&quot;</span><span class="hl-1">: {</span><br/><span class="hl-1">              </span><span class="hl-4">&quot;title&quot;</span><span class="hl-1">: { </span><span class="hl-4">&quot;type&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;string&quot;</span><span class="hl-1"> }</span><br/><span class="hl-1">            },</span><br/><span class="hl-1">            </span><span class="hl-4">&quot;required&quot;</span><span class="hl-1">: [</span><span class="hl-2">&quot;title&quot;</span><span class="hl-1">]</span><br/><span class="hl-1">          }</span><br/><span class="hl-1">        }</span><br/><span class="hl-1">      },</span><br/><span class="hl-1">      </span><span class="hl-4">&quot;set&quot;</span><span class="hl-1">: {</span><br/><span class="hl-1">        </span><span class="hl-4">&quot;title&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;${frontmatter.title}&quot;</span><br/><span class="hl-1">      }</span><br/><span class="hl-1">    }</span><br/><span class="hl-1">  ]</span><br/><span class="hl-1">}</span>
+</code><button type="button">Copy</button></pre>
+
+<p>Each rule is a <strong>JSON Schema <code>match</code></strong> paired with a <strong><code>set</code> action</strong>. See <a href="Inference_Rules.html">Inference Rules Guide</a> for full details.</p>
+<hr>
+<h2 id="-logging-configuration" class="tsd-anchor-link"><code>logging</code> — Logging Configuration<a href="#-logging-configuration" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h2><pre><code class="json"><span class="hl-1">{</span><br/><span class="hl-1">  </span><span class="hl-4">&quot;logging&quot;</span><span class="hl-1">: {</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;level&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;info&quot;</span><span class="hl-1">,</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;file&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;./logs/watcher.log&quot;</span><br/><span class="hl-1">  }</span><br/><span class="hl-1">}</span>
+</code><button type="button">Copy</button></pre>
+
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>level</code></td>
+<td><code>string</code></td>
+<td><code>&quot;info&quot;</code></td>
+<td>Log level: <code>&quot;debug&quot;</code>, <code>&quot;info&quot;</code>, <code>&quot;warn&quot;</code>, <code>&quot;error&quot;</code>, <code>&quot;silent&quot;</code>.</td>
+</tr>
+<tr>
+<td><code>file</code></td>
+<td><code>string</code></td>
+<td><code>undefined</code></td>
+<td>Log file path. If omitted, logs to stdout.</td>
+</tr>
+</tbody>
+</table>
+<p>Uses structured JSON logging via <a href="https://github.com/pinojs/pino" target="_blank" class="external">pino</a>.</p>
+<hr>
+<h2 id="-graceful-shutdown" class="tsd-anchor-link"><code>shutdownTimeoutMs</code> — Graceful Shutdown<a href="#-graceful-shutdown" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h2><pre><code class="json"><span class="hl-1">{</span><br/><span class="hl-1">  </span><span class="hl-4">&quot;shutdownTimeoutMs&quot;</span><span class="hl-1">: </span><span class="hl-5">30000</span><br/><span class="hl-1">}</span>
+</code><button type="button">Copy</button></pre>
+
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>shutdownTimeoutMs</code></td>
+<td><code>number</code></td>
+<td><code>30000</code></td>
+<td>Max time (ms) to wait for in-flight operations on shutdown (SIGTERM/SIGINT).</td>
+</tr>
+</tbody>
+</table>
+<p>On shutdown, the watcher:</p>
+<ol>
+<li>Stops accepting new file events</li>
+<li>Drains current in-flight embeddings/upserts (up to timeout)</li>
+<li>Exits cleanly</li>
+</ol>
+<hr>
+<h2 id="environment-variable-substitution" class="tsd-anchor-link">Environment Variable Substitution<a href="#environment-variable-substitution" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h2><p>All string fields support <code>${ENV_VAR}</code> template syntax:</p>
+<pre><code class="json"><span class="hl-1">{</span><br/><span class="hl-1">  </span><span class="hl-4">&quot;embedding&quot;</span><span class="hl-1">: {</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;apiKey&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;${GOOGLE_API_KEY}&quot;</span><br/><span class="hl-1">  },</span><br/><span class="hl-1">  </span><span class="hl-4">&quot;vectorStore&quot;</span><span class="hl-1">: {</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;apiKey&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;${QDRANT_API_KEY}&quot;</span><br/><span class="hl-1">  }</span><br/><span class="hl-1">}</span>
+</code><button type="button">Copy</button></pre>
+
+<p>At runtime, these are replaced with actual environment variable values.</p>
+<hr>
+<h2 id="example-full-configuration" class="tsd-anchor-link">Example: Full Configuration<a href="#example-full-configuration" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h2><pre><code class="json"><span class="hl-1">{</span><br/><span class="hl-1">  </span><span class="hl-4">&quot;watch&quot;</span><span class="hl-1">: {</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;paths&quot;</span><span class="hl-1">: [</span><br/><span class="hl-1">      </span><span class="hl-2">&quot;d:/email/archive/**/*.json&quot;</span><span class="hl-1">,</span><br/><span class="hl-1">      </span><span class="hl-2">&quot;d:/meetings/**/*.{txt,md}&quot;</span><span class="hl-1">,</span><br/><span class="hl-1">      </span><span class="hl-2">&quot;d:/projects/**/*.{md,pdf,docx}&quot;</span><br/><span class="hl-1">    ],</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;ignored&quot;</span><span class="hl-1">: [</span><span class="hl-2">&quot;**/node_modules/**&quot;</span><span class="hl-1">, </span><span class="hl-2">&quot;**/.git/**&quot;</span><span class="hl-1">],</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;debounceMs&quot;</span><span class="hl-1">: </span><span class="hl-5">2000</span><span class="hl-1">,</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;stabilityThresholdMs&quot;</span><span class="hl-1">: </span><span class="hl-5">500</span><br/><span class="hl-1">  },</span><br/><span class="hl-1">  </span><span class="hl-4">&quot;configWatch&quot;</span><span class="hl-1">: {</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;enabled&quot;</span><span class="hl-1">: </span><span class="hl-3">true</span><span class="hl-1">,</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;debounceMs&quot;</span><span class="hl-1">: </span><span class="hl-5">10000</span><br/><span class="hl-1">  },</span><br/><span class="hl-1">  </span><span class="hl-4">&quot;embedding&quot;</span><span class="hl-1">: {</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;provider&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;gemini&quot;</span><span class="hl-1">,</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;model&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;text-embedding-004&quot;</span><span class="hl-1">,</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;apiKey&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;${GOOGLE_API_KEY}&quot;</span><span class="hl-1">,</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;chunkSize&quot;</span><span class="hl-1">: </span><span class="hl-5">1000</span><span class="hl-1">,</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;chunkOverlap&quot;</span><span class="hl-1">: </span><span class="hl-5">200</span><span class="hl-1">,</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;dimensions&quot;</span><span class="hl-1">: </span><span class="hl-5">768</span><span class="hl-1">,</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;rateLimitPerMinute&quot;</span><span class="hl-1">: </span><span class="hl-5">1000</span><span class="hl-1">,</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;concurrency&quot;</span><span class="hl-1">: </span><span class="hl-5">5</span><br/><span class="hl-1">  },</span><br/><span class="hl-1">  </span><span class="hl-4">&quot;vectorStore&quot;</span><span class="hl-1">: {</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;url&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;http://localhost:6333&quot;</span><span class="hl-1">,</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;collectionName&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;jeeves_archive&quot;</span><br/><span class="hl-1">  },</span><br/><span class="hl-1">  </span><span class="hl-4">&quot;metadataDir&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;.jeeves-watcher&quot;</span><span class="hl-1">,</span><br/><span class="hl-1">  </span><span class="hl-4">&quot;api&quot;</span><span class="hl-1">: {</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;host&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;127.0.0.1&quot;</span><span class="hl-1">,</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;port&quot;</span><span class="hl-1">: </span><span class="hl-5">3458</span><br/><span class="hl-1">  },</span><br/><span class="hl-1">  </span><span class="hl-4">&quot;inferenceRules&quot;</span><span class="hl-1">: [</span><br/><span class="hl-1">    {</span><br/><span class="hl-1">      </span><span class="hl-4">&quot;match&quot;</span><span class="hl-1">: {</span><br/><span class="hl-1">        </span><span class="hl-4">&quot;properties&quot;</span><span class="hl-1">: {</span><br/><span class="hl-1">          </span><span class="hl-4">&quot;file&quot;</span><span class="hl-1">: {</span><br/><span class="hl-1">            </span><span class="hl-4">&quot;properties&quot;</span><span class="hl-1">: {</span><br/><span class="hl-1">              </span><span class="hl-4">&quot;path&quot;</span><span class="hl-1">: { </span><span class="hl-4">&quot;type&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;string&quot;</span><span class="hl-1">, </span><span class="hl-4">&quot;glob&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;d:/meetings/**&quot;</span><span class="hl-1"> }</span><br/><span class="hl-1">            }</span><br/><span class="hl-1">          }</span><br/><span class="hl-1">        }</span><br/><span class="hl-1">      },</span><br/><span class="hl-1">      </span><span class="hl-4">&quot;set&quot;</span><span class="hl-1">: { </span><span class="hl-4">&quot;domain&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;meetings&quot;</span><span class="hl-1"> }</span><br/><span class="hl-1">    }</span><br/><span class="hl-1">  ],</span><br/><span class="hl-1">  </span><span class="hl-4">&quot;logging&quot;</span><span class="hl-1">: {</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;level&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;info&quot;</span><span class="hl-1">,</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;file&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;./logs/watcher.log&quot;</span><br/><span class="hl-1">  }</span><br/><span class="hl-1">}</span>
+</code><button type="button">Copy</button></pre>
+
+</div></div><div class="col-sidebar"><div class="page-menu"><div class="tsd-navigation settings"><details class="tsd-accordion"><summary class="tsd-accordion-summary"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg><h3>Settings</h3></summary><div class="tsd-accordion-details"><div class="tsd-filter-visibility"><span class="settings-label">Member Visibility</span><ul id="tsd-filter-options"><li class="tsd-filter-item"><label class="tsd-filter-input"><input type="checkbox" id="tsd-filter-protected" name="protected"/><svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true"><rect class="tsd-checkbox-background" width="30" height="30" x="1" y="1" rx="6" fill="none"></rect><path class="tsd-checkbox-checkmark" d="M8.35422 16.8214L13.2143 21.75L24.6458 10.25" stroke="none" stroke-width="3.5" stroke-linejoin="round" fill="none"></path></svg><span>Protected</span></label></li><li class="tsd-filter-item"><label class="tsd-filter-input"><input type="checkbox" id="tsd-filter-inherited" name="inherited" checked/><svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true"><rect class="tsd-checkbox-background" width="30" height="30" x="1" y="1" rx="6" fill="none"></rect><path class="tsd-checkbox-checkmark" d="M8.35422 16.8214L13.2143 21.75L24.6458 10.25" stroke="none" stroke-width="3.5" stroke-linejoin="round" fill="none"></path></svg><span>Inherited</span></label></li><li class="tsd-filter-item"><label class="tsd-filter-input"><input type="checkbox" id="tsd-filter-external" name="external"/><svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true"><rect class="tsd-checkbox-background" width="30" height="30" x="1" y="1" rx="6" fill="none"></rect><path class="tsd-checkbox-checkmark" d="M8.35422 16.8214L13.2143 21.75L24.6458 10.25" stroke="none" stroke-width="3.5" stroke-linejoin="round" fill="none"></path></svg><span>External</span></label></li></ul></div><div class="tsd-theme-toggle"><label class="settings-label" for="tsd-theme">Theme</label><select id="tsd-theme"><option value="os">OS</option><option value="light">Light</option><option value="dark">Dark</option></select></div></div></details></div><details open class="tsd-accordion tsd-page-navigation"><summary class="tsd-accordion-summary"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg><h3>On This Page</h3></summary><div class="tsd-accordion-details"><a href="#configuration-reference"><span>Configuration <wbr/>Reference</span></a><ul><li><a href="#configuration-file"><span>Configuration <wbr/>File</span></a></li><li><a href="#top-level-schema"><span>Top-<wbr/>Level <wbr/>Schema</span></a></li><li><a href="#-filesystem-watching"><span> — <wbr/>Filesystem <wbr/>Watching</span></a></li><li><a href="#-config-file-watching"><span> — <wbr/>Config <wbr/>File <wbr/>Watching</span></a></li><li><a href="#-embedding-provider"><span> — <wbr/>Embedding <wbr/>Provider</span></a></li><li><ul><li><a href="#supported-providers"><span>Supported <wbr/>Providers</span></a></li><li><ul><li><a href="#google-gemini"><span>Google <wbr/>Gemini</span></a></li><li><a href="#mock-testing"><span>Mock (<wbr/>Testing)</span></a></li></ul></li></ul></li><li><a href="#-qdrant-configuration"><span> — <wbr/>Qdrant <wbr/>Configuration</span></a></li><li><a href="#-metadata-storage"><span> — <wbr/>Metadata <wbr/>Storage</span></a></li><li><a href="#-http-api-server"><span> — <wbr/>HTTP <wbr/>API <wbr/>Server</span></a></li><li><a href="#-text-extraction-advanced"><span> — <wbr/>Text <wbr/>Extraction (<wbr/>Advanced)</span></a></li><li><a href="#-metadata-enrichment-rules"><span> — <wbr/>Metadata <wbr/>Enrichment <wbr/>Rules</span></a></li><li><a href="#-logging-configuration"><span> — <wbr/>Logging <wbr/>Configuration</span></a></li><li><a href="#-graceful-shutdown"><span> — <wbr/>Graceful <wbr/>Shutdown</span></a></li><li><a href="#environment-variable-substitution"><span>Environment <wbr/>Variable <wbr/>Substitution</span></a></li><li><a href="#example-full-configuration"><span>Example: <wbr/>Full <wbr/>Configuration</span></a></li></ul></div></details></div><div class="site-menu"><nav id="tsd-sidebar-links" class="tsd-navigation"><a href="https://github.com/karmaniverous/jeeves-watcher" class="tsd-nav-link">GitHub</a></nav><nav class="tsd-navigation"><a href="../modules.html">@karmaniverous/jeeves-watcher</a><ul class="tsd-small-nested-navigation" id="tsd-nav-container"><li>Loading...</li></ul></nav></div></div></div><footer><p class="tsd-generator">Generated using <a href="https://typedoc.org/" target="_blank">TypeDoc</a></p></footer><div class="overlay"></div></body></html>

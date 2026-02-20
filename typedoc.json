@@ -1,5 +1,7 @@
 {
-  "entryPoints": ["./src/index.ts"],
+  "entryPoints": [
+    "./src/index.ts"
+  ],
   "highlightLanguages": [
     "bash",
     "console",
@@ -13,15 +15,25 @@
     "tsx",
     "typescript",
     "yaml",
-    "yml"
+    "yml",
+    "mermaid",
+    "powershell",
+    "ini",
+    "nginx"
   ],
   "hostedBaseUrl": "https://docs.karmanivero.us/jeeves-watcher",
   "navigationLinks": {
     "GitHub": "https://github.com/karmaniverous/jeeves-watcher"
   },
   "out": "./docs/",
-  "plugin": ["typedoc-plugin-mdn-links", "typedoc-plugin-replace-text"],
-  "projectDocuments": ["./CHANGELOG.md", "./guides/*.md"],
+  "plugin": [
+    "typedoc-plugin-mdn-links",
+    "typedoc-plugin-replace-text"
+  ],
+  "projectDocuments": [
+    "./CHANGELOG.md",
+    "./guides/*.md"
+  ],
   "replaceText": {
     "replacements": [
       {
