@@ -4,6 +4,9 @@
  * @packageDocumentation
  */
 
+export type { ApiServerOptions } from './api';
+export { createApiServer } from './api';
+export { JeevesWatcher, startFromConfig } from './app';
 export type {
   ApiConfig,
   ConfigWatchConfig,
@@ -15,6 +18,8 @@ export type {
   WatchConfig,
 } from './config';
 export { loadConfig } from './config';
+export type { EmbeddingProvider } from './embedding';
+export { createEmbeddingProvider } from './embedding';
 export type { ExtractedText } from './extractors';
 export { extractText } from './extractors';
 export { contentHash } from './hash';
@@ -26,7 +31,11 @@ export {
   writeMetadata,
 } from './metadata';
 export { pointId } from './pointId';
+export { DocumentProcessor } from './processor';
 export type { EventQueueOptions, ProcessFn, WatchEvent } from './queue';
 export { EventQueue } from './queue';
 export type { CompiledRule, FileAttributes } from './rules';
 export { applyRules, buildAttributes, compileRules } from './rules';
+export type { ScrolledPoint, SearchResult, VectorPoint } from './vectorStore';
+export { VectorStoreClient } from './vectorStore';
+export { FileSystemWatcher } from './watcher';
