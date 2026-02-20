@@ -212,6 +212,67 @@ export class DocumentProcessor {
   }
 
   /**
+   * Re-apply inference rules to a file without re-embedding.
+   * Reads file attributes, applies current rules, merges with enrichment metadata,
+   * and updates Qdrant payloads.
+   *
+   * @param filePath - The file to update.
+   * @returns The merged metadata, or `null` if the file is not indexed.
+   */
+  async processRulesUpdate(
+    filePath: string,
+  ): Promise<Record<string, unknown> | null> {
+    try {
+      const baseId = pointId(filePath, 0);
+      const existingPayload = await this.vectorStore.getPayload(baseId);
+      if (!existingPayload) {
+        this.logger.debug({ filePath }, 'File not indexed, skipping');
+        return null;
+      }
+
+      const ext = extname(filePath);
+      const stats = await stat(filePath);
+
+      // Extract frontmatter/json for attribute building (lightweight)
+      const extracted = await extractText(filePath, ext);
+
+      // Build attributes + apply current rules
+      const attributes = buildAttributes(
+        filePath,
+        stats,
+        extracted.frontmatter,
+        extracted.json,
+      );
+      const inferred = applyRules(this.compiledRules, attributes);
+
+      // Read enrichment metadata (merge, enrichment wins)
+      const enrichment = await readMetadata(filePath, this.metadataDir);
+      const metadata: Record<string, unknown> = {
+        ...inferred,
+        ...(enrichment ?? {}),
+      };
+
+      // Update all chunk payloads
+      const totalChunks =
+        typeof existingPayload['total_chunks'] === 'number'
+          ? existingPayload['total_chunks']
+          : 1;
+
+      const ids: string[] = [];
+      for (let i = 0; i < totalChunks; i++) {
+        ids.push(pointId(filePath, i));
+      }
+      await this.vectorStore.setPayload(ids, metadata);
+
+      this.logger.info({ filePath, chunks: totalChunks }, 'Rules re-applied');
+      return metadata;
+    } catch (error) {
+      this.logger.error({ filePath, error }, 'Failed to re-apply rules');
+      return null;
+    }
+  }
+
+  /**
    * Update compiled inference rules for subsequent file processing.
    *
    * @param compiledRules - The newly compiled rules.

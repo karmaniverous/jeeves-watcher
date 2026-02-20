@@ -122,9 +122,61 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
     }
   });
 
-  app.post('/config-reindex', async (_request, reply) => {
-    return await reply.status(501).send({ error: 'Not implemented' });
-  });
+  app.post<{ Body: { scope?: 'rules' | 'full' } }>(
+    '/config-reindex',
+    async (request, reply) => {
+      try {
+        const scope = request.body?.scope ?? 'rules';
+
+        // Return immediately and run async
+        setImmediate(async () => {
+          try {
+            if (scope === 'rules') {
+              // Re-apply inference rules to all files, update Qdrant payloads (no re-embedding)
+              const files = await listFilesFromGlobs(
+                options.config.watch.paths,
+                options.config.watch.ignored,
+              );
+
+              for (const file of files) {
+                // Process metadata-only update for each file
+                await processor.processMetadataUpdate(file, {});
+              }
+
+              logger.info(
+                { scope, filesProcessed: files.length },
+                'Config reindex (rules) completed',
+              );
+            } else {
+              // Full reindex: re-extract, re-embed, re-upsert
+              const files = await listFilesFromGlobs(
+                options.config.watch.paths,
+                options.config.watch.ignored,
+              );
+
+              for (const file of files) {
+                await processor.processFile(file);
+              }
+
+              logger.info(
+                { scope, filesProcessed: files.length },
+                'Config reindex (full) completed',
+              );
+            }
+          } catch (error) {
+            logger.error({ error, scope }, 'Config reindex failed');
+          }
+        });
+
+        return await reply
+          .status(200)
+          .send({ status: 'started', scope: scope });
+      } catch (error) {
+        logger.error({ error }, 'Config reindex request failed');
+        return await reply.status(500).send({ error: 'Internal server error' });
+      }
+    },
+  );
 
   return app;
 }
