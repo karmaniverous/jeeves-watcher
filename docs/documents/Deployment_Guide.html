@@ -20,8 +20,7 @@
 <li>Extract to a permanent location (e.g., <code>C:\qdrant</code>)</li>
 </ol>
 <p><strong>Run directly:</strong></p>
-<pre><code class="powershell">cd C:\qdrant
-.\qdrant.exe
+<pre><code class="powershell"><span class="hl-1">cd C:\qdrant</span><br/><span class="hl-1">.\</span><span class="hl-0">qdrant.exe</span>
 </code><button type="button">Copy</button></pre>
 
 <p><strong>Default settings:</strong></p>
@@ -31,13 +30,7 @@
 <li><strong>Dashboard:</strong> <code>http://localhost:6333/dashboard</code></li>
 </ul>
 <p><strong>Install as service (NSSM):</strong></p>
-<pre><code class="powershell"># Install NSSM if not already installed
-# Download from https://nssm.cc/download
-
-nssm install qdrant "C:\qdrant\qdrant.exe"
-nssm set qdrant AppDirectory "C:\qdrant"
-nssm set qdrant Start SERVICE_AUTO_START
-nssm start qdrant
+<pre><code class="powershell"><span class="hl-9"># Install NSSM if not already installed</span><br/><span class="hl-9"># Download from https://nssm.cc/download</span><br/><br/><span class="hl-1">nssm install qdrant </span><span class="hl-2">&quot;C:\qdrant\qdrant.exe&quot;</span><br/><span class="hl-1">nssm set qdrant AppDirectory </span><span class="hl-2">&quot;C:\qdrant&quot;</span><br/><span class="hl-1">nssm set qdrant Start SERVICE_AUTO_START</span><br/><span class="hl-1">nssm start qdrant</span>
 </code><button type="button">Copy</button></pre>
 
 <p><strong>Verify:</strong></p>
@@ -58,20 +51,7 @@ nssm start qdrant
 
 <p><strong>Install as systemd service:</strong></p>
 <p>Create <code>/etc/systemd/system/qdrant.service</code>:</p>
-<pre><code class="ini">[Unit]
-Description=Qdrant Vector Search Engine
-After=network.target
-
-[Service]
-Type=simple
-User=qdrant
-Group=qdrant
-WorkingDirectory=/var/lib/qdrant
-ExecStart=/usr/local/bin/qdrant
-Restart=on-failure
-
-[Install]
-WantedBy=multi-user.target
+<pre><code class="ini"><span class="hl-1">[Unit]</span><br/><span class="hl-3">Description</span><span class="hl-1">=Qdrant Vector Search Engine</span><br/><span class="hl-3">After</span><span class="hl-1">=network.target</span><br/><br/><span class="hl-1">[Service]</span><br/><span class="hl-3">Type</span><span class="hl-1">=simple</span><br/><span class="hl-3">User</span><span class="hl-1">=qdrant</span><br/><span class="hl-3">Group</span><span class="hl-1">=qdrant</span><br/><span class="hl-3">WorkingDirectory</span><span class="hl-1">=/var/lib/qdrant</span><br/><span class="hl-3">ExecStart</span><span class="hl-1">=/usr/local/bin/qdrant</span><br/><span class="hl-3">Restart</span><span class="hl-1">=on-failure</span><br/><br/><span class="hl-1">[Install]</span><br/><span class="hl-3">WantedBy</span><span class="hl-1">=multi-user.target</span>
 </code><button type="button">Copy</button></pre>
 
 <p><strong>Setup:</strong></p>
@@ -131,12 +111,11 @@ WantedBy=multi-user.target
 </code><button type="button">Copy</button></pre>
 
 <p><strong>For systemd services:</strong> Add to unit file:</p>
-<pre><code class="ini">[Service]
-Environment="GOOGLE_API_KEY=your-key-here"
+<pre><code class="ini"><span class="hl-1">[Service]</span><br/><span class="hl-3">Environment</span><span class="hl-1">=</span><span class="hl-2">&quot;GOOGLE_API_KEY=your-key-here&quot;</span>
 </code><button type="button">Copy</button></pre>
 
 <p><strong>For NSSM services:</strong> Set environment variables via NSSM:</p>
-<pre><code class="powershell">nssm set jeeves-watcher AppEnvironmentExtra "GOOGLE_API_KEY=your-key-here"
+<pre><code class="powershell"><span class="hl-1">nssm set jeeves-watcher AppEnvironmentExtra </span><span class="hl-2">&quot;GOOGLE_API_KEY=your-key-here&quot;</span>
 </code><button type="button">Copy</button></pre>
 
 <h3 id="validate-config" class="tsd-anchor-link">Validate Config<a href="#validate-config" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3><pre><code class="bash"><span class="hl-0">jeeves-watcher</span><span class="hl-1"> </span><span class="hl-2">validate</span><span class="hl-1"> </span><span class="hl-3">--config</span><span class="hl-1"> </span><span class="hl-2">/path/to/config.json</span>
@@ -149,27 +128,19 @@ Environment="GOOGLE_API_KEY=your-key-here"
 </code><button type="button">Copy</button></pre>
 
 <p>Follow the printed instructions:</p>
-<pre><code class="powershell">nssm install jeeves-watcher node "C:\Users\YourUser\AppData\Roaming\npm\node_modules\@karmaniverous\jeeves-watcher\dist\cli\jeeves-watcher\index.js" start --config "C:\path\to\config.json"
-nssm set jeeves-watcher AppDirectory "C:\working\directory"
-nssm set jeeves-watcher Start SERVICE_AUTO_START
-nssm set jeeves-watcher AppEnvironmentExtra "GOOGLE_API_KEY=your-key-here"
-nssm start jeeves-watcher
+<pre><code class="powershell"><span class="hl-1">nssm install jeeves-watcher node </span><span class="hl-2">&quot;C:\Users\YourUser\AppData\Roaming\npm\node_modules\@karmaniverous\jeeves-watcher\dist\cli\jeeves-watcher\index.js&quot;</span><span class="hl-1"> start --config </span><span class="hl-2">&quot;C:\path\to\config.json&quot;</span><br/><span class="hl-1">nssm set jeeves-watcher AppDirectory </span><span class="hl-2">&quot;C:\working\directory&quot;</span><br/><span class="hl-1">nssm set jeeves-watcher Start SERVICE_AUTO_START</span><br/><span class="hl-1">nssm set jeeves-watcher AppEnvironmentExtra </span><span class="hl-2">&quot;GOOGLE_API_KEY=your-key-here&quot;</span><br/><span class="hl-1">nssm start jeeves-watcher</span>
 </code><button type="button">Copy</button></pre>
 
 <p><strong>Manage service:</strong></p>
-<pre><code class="powershell">nssm status jeeves-watcher
-nssm stop jeeves-watcher
-nssm restart jeeves-watcher
+<pre><code class="powershell"><span class="hl-1">nssm status jeeves-watcher</span><br/><span class="hl-1">nssm stop jeeves-watcher</span><br/><span class="hl-1">nssm restart jeeves-watcher</span>
 </code><button type="button">Copy</button></pre>
 
 <p><strong>View logs:</strong></p>
-<pre><code class="powershell">nssm set jeeves-watcher AppStdout "C:\logs\jeeves-watcher-stdout.log"
-nssm set jeeves-watcher AppStderr "C:\logs\jeeves-watcher-stderr.log"
+<pre><code class="powershell"><span class="hl-1">nssm set jeeves-watcher AppStdout </span><span class="hl-2">&quot;C:\logs\jeeves-watcher-stdout.log&quot;</span><br/><span class="hl-1">nssm set jeeves-watcher AppStderr </span><span class="hl-2">&quot;C:\logs\jeeves-watcher-stderr.log&quot;</span>
 </code><button type="button">Copy</button></pre>
 
 <p><strong>Uninstall:</strong></p>
-<pre><code class="powershell">nssm stop jeeves-watcher
-nssm remove jeeves-watcher confirm
+<pre><code class="powershell"><span class="hl-1">nssm stop jeeves-watcher</span><br/><span class="hl-1">nssm remove jeeves-watcher confirm</span>
 </code><button type="button">Copy</button></pre>
 
 <h3 id="linux-systemd" class="tsd-anchor-link">Linux (systemd)<a href="#linux-systemd" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3><p><strong>Generate unit file:</strong></p>
@@ -177,21 +148,7 @@ nssm remove jeeves-watcher confirm
 </code><button type="button">Copy</button></pre>
 
 <p>Follow the printed instructions. Create <code>~/.config/systemd/user/jeeves-watcher.service</code>:</p>
-<pre><code class="ini">[Unit]
-Description=Jeeves Watcher
-After=network.target
-
-[Service]
-Type=simple
-WorkingDirectory=/home/youruser
-ExecStart=/usr/bin/env jeeves-watcher start --config /etc/jeeves-watcher/config.json
-Environment="GOOGLE_API_KEY=your-key-here"
-Restart=on-failure
-StandardOutput=append:/var/log/jeeves-watcher/watcher.log
-StandardError=append:/var/log/jeeves-watcher/error.log
-
-[Install]
-WantedBy=default.target
+<pre><code class="ini"><span class="hl-1">[Unit]</span><br/><span class="hl-3">Description</span><span class="hl-1">=Jeeves Watcher</span><br/><span class="hl-3">After</span><span class="hl-1">=network.target</span><br/><br/><span class="hl-1">[Service]</span><br/><span class="hl-3">Type</span><span class="hl-1">=simple</span><br/><span class="hl-3">WorkingDirectory</span><span class="hl-1">=/home/youruser</span><br/><span class="hl-3">ExecStart</span><span class="hl-1">=/usr/bin/env jeeves-watcher start --config /etc/jeeves-watcher/config.json</span><br/><span class="hl-3">Environment</span><span class="hl-1">=</span><span class="hl-2">&quot;GOOGLE_API_KEY=your-key-here&quot;</span><br/><span class="hl-3">Restart</span><span class="hl-1">=on-failure</span><br/><span class="hl-3">StandardOutput</span><span class="hl-1">=append:/var/log/jeeves-watcher/watcher.log</span><br/><span class="hl-3">StandardError</span><span class="hl-1">=append:/var/log/jeeves-watcher/error.log</span><br/><br/><span class="hl-1">[Install]</span><br/><span class="hl-3">WantedBy</span><span class="hl-1">=default.target</span>
 </code><button type="button">Copy</button></pre>
 
 <p><strong>Enable and start:</strong></p>
@@ -457,12 +414,7 @@ WantedBy=default.target
 <li>Use TLS/HTTPS</li>
 </ol>
 <p><strong>Example nginx config:</strong></p>
-<pre><code class="nginx">location /watcher/ {
-    proxy_pass http://127.0.0.1:3458/;
-    proxy_set_header Host $host;
-    auth_basic "Restricted";
-    auth_basic_user_file /etc/nginx/.htpasswd;
-}
+<pre><code class="nginx"><span class="hl-3">location</span><span class="hl-1"> /watcher/ {</span><br/><span class="hl-1">   </span><span class="hl-3"> proxy_pass </span><span class="hl-1">http://127.0.0.1:3458/;</span><br/><span class="hl-1">   </span><span class="hl-3"> proxy_set_header </span><span class="hl-1">Host $</span><span class="hl-8">host</span><span class="hl-1">;</span><br/><span class="hl-1">   </span><span class="hl-3"> auth_basic </span><span class="hl-2">&quot;Restricted&quot;</span><span class="hl-1">;</span><br/><span class="hl-1">   </span><span class="hl-3"> auth_basic_user_file </span><span class="hl-1">/etc/nginx/.htpasswd;</span><br/><span class="hl-1">}</span>
 </code><button type="button">Copy</button></pre>
 
 <h3 id="api-keys" class="tsd-anchor-link">API Keys<a href="#api-keys" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3><p><strong>Store securely:</strong></p>

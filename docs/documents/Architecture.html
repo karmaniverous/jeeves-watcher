@@ -52,46 +52,23 @@
 
 <p>Scrolls Qdrant points, extracts enrichment metadata from payloads, writes <code>.meta.json</code> files.</p>
 <hr>
-<h2 id="data-flow" class="tsd-anchor-link">Data Flow<a href="#data-flow" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h2><h3 id="1-file-change-event" class="tsd-anchor-link">1. File Change Event<a href="#1-file-change-event" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3><pre><code class="mermaid">graph LR
-    A[File Created/Modified] --> B[Chokidar Event]
-    B --> C[Debounce]
-    C --> D[Stability Check]
-    D --> E[Event Queue]
+<h2 id="data-flow" class="tsd-anchor-link">Data Flow<a href="#data-flow" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h2><h3 id="1-file-change-event" class="tsd-anchor-link">1. File Change Event<a href="#1-file-change-event" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3><pre><code class="mermaid"><span class="hl-1">graph LR</span><br/><span class="hl-1">    A[File Created/Modified] --&gt; B[Chokidar Event]</span><br/><span class="hl-1">    B --&gt; C[Debounce]</span><br/><span class="hl-1">    C --&gt; D[Stability Check]</span><br/><span class="hl-1">    D --&gt; E[Event Queue]</span>
 </code><button type="button">Copy</button></pre>
 
 <p><strong>Debounce:</strong> Wait <code>watch.debounceMs</code> after the last change event (prevents re-embedding during rapid edits).</p>
 <p><strong>Stability Check:</strong> File size must be unchanged for <code>watch.stabilityThresholdMs</code> (prevents embedding partial writes).</p>
-<h3 id="2-document-processing-pipeline" class="tsd-anchor-link">2. Document Processing Pipeline<a href="#2-document-processing-pipeline" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3><pre><code class="mermaid">graph TD
-    A[File Path] --> B[Extract Text]
-    B --> C[Content Hash]
-    C --> D{Hash Changed?}
-    D -->|No| E[Skip]
-    D -->|Yes| F[Build Attributes]
-    F --> G[Apply Inference Rules]
-    G --> H[Read Enrichment Metadata]
-    H --> I[Merge Metadata]
-    I --> J[Chunk Text]
-    J --> K[Embed Chunks]
-    K --> L[Upsert to Qdrant]
-    L --> M[Cleanup Orphaned Chunks]
+<h3 id="2-document-processing-pipeline" class="tsd-anchor-link">2. Document Processing Pipeline<a href="#2-document-processing-pipeline" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3><pre><code class="mermaid"><span class="hl-1">graph TD</span><br/><span class="hl-1">    A[File Path] --&gt; B[Extract Text]</span><br/><span class="hl-1">    B --&gt; C[Content Hash]</span><br/><span class="hl-1">    C --&gt; D{Hash Changed?}</span><br/><span class="hl-1">    D --&gt;|No| E[Skip]</span><br/><span class="hl-1">    D --&gt;|Yes| F[Build Attributes]</span><br/><span class="hl-1">    F --&gt; G[Apply Inference Rules]</span><br/><span class="hl-1">    G --&gt; H[Read Enrichment Metadata]</span><br/><span class="hl-1">    H --&gt; I[Merge Metadata]</span><br/><span class="hl-1">    I --&gt; J[Chunk Text]</span><br/><span class="hl-1">    J --&gt; K[Embed Chunks]</span><br/><span class="hl-1">    K --&gt; L[Upsert to Qdrant]</span><br/><span class="hl-1">    L --&gt; M[Cleanup Orphaned Chunks]</span>
 </code><button type="button">Copy</button></pre>
 
 <p><strong>Hash Check:</strong> Compare <code>sha256(extracted_text)</code> with existing Qdrant payload. If unchanged, skip re-embedding.</p>
 <p><strong>Chunking:</strong> Large documents (&gt;<code>embedding.chunkSize</code>) are split into overlapping chunks. Each chunk becomes a separate Qdrant point.</p>
 <p><strong>Orphan Cleanup:</strong> If a file previously had 5 chunks but now has 3, delete chunks 3–4 from Qdrant.</p>
-<h3 id="3-metadata-enrichment-api" class="tsd-anchor-link">3. Metadata Enrichment (API)<a href="#3-metadata-enrichment-api" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3><pre><code class="mermaid">graph TD
-    A[POST /metadata] --> B[Read Existing Enrichment]
-    B --> C[Merge New Metadata]
-    C --> D[Write .meta.json]
-    D --> E[Update Qdrant Payloads]
+<h3 id="3-metadata-enrichment-api" class="tsd-anchor-link">3. Metadata Enrichment (API)<a href="#3-metadata-enrichment-api" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3><pre><code class="mermaid"><span class="hl-1">graph TD</span><br/><span class="hl-1">    A[POST /metadata] --&gt; B[Read Existing Enrichment]</span><br/><span class="hl-1">    B --&gt; C[Merge New Metadata]</span><br/><span class="hl-1">    C --&gt; D[Write .meta.json]</span><br/><span class="hl-1">    D --&gt; E[Update Qdrant Payloads]</span>
 </code><button type="button">Copy</button></pre>
 
 <p><strong>No re-embedding:</strong> Metadata updates only touch Qdrant payloads, not vectors.</p>
 <p><strong>All chunks updated:</strong> If a file has 3 chunks, all 3 payloads are updated with the same metadata.</p>
-<h3 id="4-search-flow" class="tsd-anchor-link">4. Search Flow<a href="#4-search-flow" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3><pre><code class="mermaid">graph TD
-    A[POST /search] --> B[Embed Query]
-    B --> C[Qdrant Cosine Search]
-    C --> D[Return Top Results]
+<h3 id="4-search-flow" class="tsd-anchor-link">4. Search Flow<a href="#4-search-flow" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3><pre><code class="mermaid"><span class="hl-1">graph TD</span><br/><span class="hl-1">    A[POST /search] --&gt; B[Embed Query]</span><br/><span class="hl-1">    B --&gt; C[Qdrant Cosine Search]</span><br/><span class="hl-1">    C --&gt; D[Return Top Results]</span>
 </code><button type="button">Copy</button></pre>
 
 <p><strong>Chunk deduplication:</strong> Search returns individual chunks. Callers group by <code>file_path</code> to get unique documents.</p>
