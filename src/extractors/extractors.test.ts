@@ -70,4 +70,10 @@ describe('extractText', () => {
     expect(result.text).not.toContain('alert');
     expect(result.text).not.toContain('<h1>');
   });
+
+  it('extracts DOCX raw text content', async () => {
+    const fixturePath = join(import.meta.dirname, '__fixtures__', 'test.docx');
+    const result = await extractText(fixturePath, '.docx');
+    expect(result.text).toContain('Hello DOCX World');
+  });
 });

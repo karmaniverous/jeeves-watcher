@@ -2,6 +2,7 @@ import { readFile } from 'node:fs/promises';
 
 import * as cheerio from 'cheerio';
 import yaml from 'js-yaml';
+import mammoth from 'mammoth';
 
 /**
  * Result of extracting text and structured data from a file.
@@ -108,8 +109,9 @@ export async function extractText(
   }
 
   if (ext === '.docx') {
-    // TODO: Implement using @langchain/community document loaders.
-    throw new Error('DOCX extraction not yet implemented');
+    const buffer = await readFile(filePath);
+    const result = await mammoth.extractRawText({ buffer });
+    return { text: result.value };
   }
 
   if (ext === '.html' || ext === '.htm') {

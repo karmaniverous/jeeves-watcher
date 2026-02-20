@@ -27,6 +27,7 @@
     "fastify": "*",
     "js-yaml": "*",
     "json5": "*",
+    "mammoth": "^1.11.0",
     "picomatch": "*",
     "pino": "*",
     "tiktoken": "*",
