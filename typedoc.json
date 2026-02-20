@@ -15,9 +15,9 @@
     "yaml",
     "yml"
   ],
-  "hostedBaseUrl": "https://docs.karmanivero.us/npm-package-template-ts",
+  "hostedBaseUrl": "https://docs.karmanivero.us/jeeves-watcher",
   "navigationLinks": {
-    "GitHub": "https://github.com/karmaniverous/npm-package-template-ts"
+    "GitHub": "https://github.com/karmaniverous/jeeves-watcher"
   },
   "out": "./docs/",
   "plugin": ["typedoc-plugin-mdn-links", "typedoc-plugin-replace-text"],
