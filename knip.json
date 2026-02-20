@@ -4,7 +4,6 @@
   "ignoreDependencies": [
     "@langchain/google-genai",
     "@langchain/qdrant",
-    "fastify",
     "json5",
     "tiktoken",
     "@types/uuid"
