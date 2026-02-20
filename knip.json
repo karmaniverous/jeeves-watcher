@@ -4,7 +4,6 @@
   "ignoreDependencies": [
     "@langchain/google-genai",
     "@langchain/qdrant",
-    "@langchain/textsplitters",
     "chokidar",
     "fastify",
     "json5",

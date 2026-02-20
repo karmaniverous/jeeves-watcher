@@ -111,6 +111,26 @@ export class VectorStoreClient {
   }
 
   /**
+   * Set payload fields for the specified point IDs.
+   *
+   * This merges the given payload object into each point's existing payload.
+   *
+   * @param ids - Point IDs to update.
+   * @param payload - Payload fields to set.
+   */
+  async setPayload(
+    ids: string[],
+    payload: Record<string, unknown>,
+  ): Promise<void> {
+    if (ids.length === 0) return;
+    await this.client.setPayload(this.collectionName, {
+      wait: true,
+      points: ids,
+      payload,
+    });
+  }
+
+  /**
    * Get the payload of a point by ID.
    *
    * @param id - The point ID.
