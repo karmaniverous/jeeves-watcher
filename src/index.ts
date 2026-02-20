@@ -1,7 +1,16 @@
 /**
- * This is the main entry point for the library.
+ * Filesystem watcher that keeps a Qdrant vector store in sync with document changes.
  *
  * @packageDocumentation
  */
 
-export { foo, type FooTarget } from './foo';
+export type {
+  ApiConfig,
+  EmbeddingConfig,
+  InferenceRule,
+  JeevesWatcherConfig,
+  LoggingConfig,
+  VectorStoreConfig,
+  WatchConfig,
+} from './config';
+export { loadConfig } from './config';

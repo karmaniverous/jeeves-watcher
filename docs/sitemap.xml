@@ -2,30 +2,54 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
 	<url>
 		<loc>https://docs.karmanivero.us/npm-package-template-ts/index.html</loc>
-		<lastmod>2025-09-21T12:40:16.425Z</lastmod>
+		<lastmod>2026-02-20T11:12:13.625Z</lastmod>
 	</url>
 	<url>
 		<loc>https://docs.karmanivero.us/npm-package-template-ts/modules.html</loc>
-		<lastmod>2025-09-21T12:40:16.425Z</lastmod>
+		<lastmod>2026-02-20T11:12:13.625Z</lastmod>
 	</url>
 	<url>
 		<loc>https://docs.karmanivero.us/npm-package-template-ts/hierarchy.html</loc>
-		<lastmod>2025-09-21T12:40:16.425Z</lastmod>
+		<lastmod>2026-02-20T11:12:13.625Z</lastmod>
 	</url>
 	<url>
 		<loc>https://docs.karmanivero.us/npm-package-template-ts/documents/CHANGELOG.html</loc>
-		<lastmod>2025-09-21T12:40:16.425Z</lastmod>
+		<lastmod>2026-02-20T11:12:13.625Z</lastmod>
 	</url>
 	<url>
 		<loc>https://docs.karmanivero.us/npm-package-template-ts/modules/index.html</loc>
-		<lastmod>2025-09-21T12:40:16.425Z</lastmod>
+		<lastmod>2026-02-20T11:12:13.625Z</lastmod>
 	</url>
 	<url>
-		<loc>https://docs.karmanivero.us/npm-package-template-ts/types/index.FooTarget.html</loc>
-		<lastmod>2025-09-21T12:40:16.425Z</lastmod>
+		<loc>https://docs.karmanivero.us/npm-package-template-ts/interfaces/index.ApiConfig.html</loc>
+		<lastmod>2026-02-20T11:12:13.625Z</lastmod>
 	</url>
 	<url>
-		<loc>https://docs.karmanivero.us/npm-package-template-ts/functions/index.foo.html</loc>
-		<lastmod>2025-09-21T12:40:16.425Z</lastmod>
+		<loc>https://docs.karmanivero.us/npm-package-template-ts/interfaces/index.EmbeddingConfig.html</loc>
+		<lastmod>2026-02-20T11:12:13.625Z</lastmod>
+	</url>
+	<url>
+		<loc>https://docs.karmanivero.us/npm-package-template-ts/interfaces/index.InferenceRule.html</loc>
+		<lastmod>2026-02-20T11:12:13.625Z</lastmod>
+	</url>
+	<url>
+		<loc>https://docs.karmanivero.us/npm-package-template-ts/interfaces/index.JeevesWatcherConfig.html</loc>
+		<lastmod>2026-02-20T11:12:13.625Z</lastmod>
+	</url>
+	<url>
+		<loc>https://docs.karmanivero.us/npm-package-template-ts/interfaces/index.LoggingConfig.html</loc>
+		<lastmod>2026-02-20T11:12:13.625Z</lastmod>
+	</url>
+	<url>
+		<loc>https://docs.karmanivero.us/npm-package-template-ts/interfaces/index.VectorStoreConfig.html</loc>
+		<lastmod>2026-02-20T11:12:13.625Z</lastmod>
+	</url>
+	<url>
+		<loc>https://docs.karmanivero.us/npm-package-template-ts/interfaces/index.WatchConfig.html</loc>
+		<lastmod>2026-02-20T11:12:13.625Z</lastmod>
+	</url>
+	<url>
+		<loc>https://docs.karmanivero.us/npm-package-template-ts/functions/index.loadConfig.html</loc>
+		<lastmod>2026-02-20T11:12:13.625Z</lastmod>
 	</url>
 </urlset>

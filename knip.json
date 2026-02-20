@@ -1,6 +1,25 @@
 {
   "entry": ["src/**/index.ts"],
   "ignoreBinaries": ["plantuml"],
+  "ignoreDependencies": [
+    "@langchain/google-genai",
+    "@langchain/qdrant",
+    "@langchain/textsplitters",
+    "@qdrant/js-client-rest",
+    "ajv",
+    "ajv-formats",
+    "chokidar",
+    "fastify",
+    "js-yaml",
+    "json5",
+    "picomatch",
+    "pino",
+    "tiktoken",
+    "uuid",
+    "@types/js-yaml",
+    "@types/picomatch",
+    "@types/uuid"
+  ],
   "project": ["*/**", "!docs/**"],
   "rules": {
     "exports": "off",

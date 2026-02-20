@@ -1,7 +1,7 @@
 {
   "author": "Jason Williscroft",
   "bin": {
-    "mycli": "./dist/cli/mycli/index.js"
+    "jeeves-watcher": "./dist/cli/jeeves-watcher/index.js"
   },
   "auto-changelog": {
     "output": "CHANGELOG.md",
@@ -10,14 +10,29 @@
     "hideCredit": true
   },
   "bugs": {
-    "url": "https://github.com/karmaniverous/npm-package-template-ts/issues"
+    "url": "https://github.com/karmaniverous/jeeves-watcher/issues"
   },
   "dependencies": {
-    "commander": "^14.0.2"
-  },
-  "description": "A feature-rich NPM package template for TypeScript projects.",
-  "devDependencies": {
     "@commander-js/extra-typings": "^14.0.0",
+    "@langchain/google-genai": "*",
+    "@langchain/qdrant": "*",
+    "@langchain/textsplitters": "*",
+    "@qdrant/js-client-rest": "*",
+    "ajv": "*",
+    "ajv-formats": "*",
+    "chokidar": "*",
+    "commander": "^14.0.2",
+    "cosmiconfig": "*",
+    "fastify": "*",
+    "js-yaml": "*",
+    "json5": "*",
+    "picomatch": "*",
+    "pino": "*",
+    "tiktoken": "*",
+    "uuid": "*"
+  },
+  "description": "Filesystem watcher that keeps a Qdrant vector store in sync with document changes",
+  "devDependencies": {
     "@dotenvx/dotenvx": "^1.51.4",
     "@eslint/js": "^9.39.2",
     "@rollup/plugin-alias": "^6.0.0",
@@ -27,6 +42,9 @@
     "@rollup/plugin-terser": "^0.4.4",
     "@rollup/plugin-typescript": "^12.3.0",
     "@types/fs-extra": "^11.0.4",
+    "@types/js-yaml": "*",
+    "@types/picomatch": "*",
+    "@types/uuid": "*",
     "@types/node": "^25.0.3",
     "@vitest/coverage-v8": "^4.0.16",
     "@vitest/eslint-plugin": "^1.6.4",
@@ -72,7 +90,7 @@
   "files": [
     "dist"
   ],
-  "homepage": "https://github.com/karmaniverous/npm-package-template-ts#readme",
+  "homepage": "https://github.com/karmaniverous/jeeves-watcher#readme",
   "keywords": [
     "eslint",
     "lefthook",
@@ -86,7 +104,7 @@
   "license": "BSD-3-Clause",
   "main": "dist/cjs/index.js",
   "module": "dist/mjs/index.js",
-  "name": "@karmaniverous/npm-package-template-ts",
+  "name": "@karmaniverous/jeeves-watcher",
   "publishConfig": {
     "access": "public"
   },
@@ -123,7 +141,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/karmaniverous/npm-package-template-ts.git"
+    "url": "git+https://github.com/karmaniverous/jeeves-watcher.git"
   },
   "scripts": {
     "build": "rimraf dist && cross-env NO_COLOR=1 rollup --config rollup.config.ts --configPlugin @rollup/plugin-typescript",
