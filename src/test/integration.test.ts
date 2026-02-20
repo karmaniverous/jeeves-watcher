@@ -423,6 +423,8 @@ describe('Search endpoint', () => {
 
     // With mock embeddings, we can't guarantee order, but we should get results
     const texts = results.map((r) => r.payload['chunk_text']);
-    expect(texts.some((t) => typeof t === 'string' && t.includes('machine'))).toBe(true);
+    expect(
+      texts.some((t) => typeof t === 'string' && t.includes('machine')),
+    ).toBe(true);
   });
 });
