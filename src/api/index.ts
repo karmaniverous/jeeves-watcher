@@ -3,9 +3,11 @@ import type pino from 'pino';
 
 import type { JeevesWatcherConfig } from '../config/types';
 import type { EmbeddingProvider } from '../embedding';
+import { writeMetadata } from '../metadata';
 import type { DocumentProcessor } from '../processor';
 import type { EventQueue } from '../queue';
 import type { VectorStoreClient } from '../vectorStore';
+import { listFilesFromGlobs } from './fileScan';
 
 /**
  * Options for {@link createApiServer}.
@@ -72,16 +74,56 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
   );
 
   app.post('/reindex', async (_request, reply) => {
-    return reply.status(202).send({ message: 'reindex queued' });
+    try {
+      const files = await listFilesFromGlobs(
+        options.config.watch.paths,
+        options.config.watch.ignored,
+      );
+
+      for (const file of files) {
+        // Sequential on purpose to avoid surprising load.
+        // Queue integration can come later.
+        await processor.processFile(file);
+      }
+
+      return await reply
+        .status(200)
+        .send({ ok: true, filesIndexed: files.length });
+    } catch (error) {
+      logger.error({ error }, 'Reindex failed');
+      return await reply.status(500).send({ error: 'Internal server error' });
+    }
   });
 
   app.post('/rebuild-metadata', async (_request, reply) => {
-    return reply.status(202).send({ message: 'rebuild queued' });
+    try {
+      const metadataDir = options.config.metadataDir ?? '.jeeves-metadata';
+
+      for await (const point of vectorStore.scroll()) {
+        const payload = point.payload;
+        const filePath = payload['file_path'];
+        if (typeof filePath !== 'string' || filePath.length === 0) continue;
+
+        // Persist only enrichment-ish fields, not chunking/index fields.
+        const rest: Record<string, unknown> = { ...payload };
+        delete rest.file_path;
+        delete rest.chunk_index;
+        delete rest.total_chunks;
+        delete rest.content_hash;
+        delete rest.chunk_text;
+
+        await writeMetadata(filePath, metadataDir, rest);
+      }
+
+      return await reply.status(200).send({ ok: true });
+    } catch (error) {
+      logger.error({ error }, 'Rebuild metadata failed');
+      return await reply.status(500).send({ error: 'Internal server error' });
+    }
   });
 
-  app.post<{ Body: { action: string } }>('/config-reindex', (request) => {
-    const { action } = request.body;
-    return { ok: true, action };
+  app.post('/config-reindex', async (_request, reply) => {
+    return await reply.status(501).send({ error: 'Not implemented' });
   });
 
   return app;

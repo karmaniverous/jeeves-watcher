@@ -11,10 +11,13 @@ import {
   it,
 } from 'vitest';
 
+import { createApiServer } from '../api';
 import { createEmbeddingProvider } from '../embedding';
 import { createLogger } from '../logger';
+import { readMetadata } from '../metadata';
 import { pointId } from '../pointId';
 import { DocumentProcessor } from '../processor';
+import { EventQueue } from '../queue';
 import { compileRules } from '../rules';
 import { VectorStoreClient } from '../vectorStore';
 import {
@@ -25,24 +28,19 @@ import {
 } from './helpers';
 
 const config = createTestConfig();
+const embeddingProvider = createEmbeddingProvider(config.embedding);
+const logger = createLogger({ level: 'silent' });
+
 let vectorStore: VectorStoreClient;
 let processor: DocumentProcessor;
 
 beforeAll(async () => {
-  const embeddingProvider = createEmbeddingProvider(config.embedding);
   vectorStore = new VectorStoreClient(
     config.vectorStore,
     embeddingProvider.dimensions,
   );
 
-  // Drop collection if it exists, then create fresh
-  try {
-    await vectorStore.delete([]); // no-op, just to test connection
-  } catch {
-    // ignore
-  }
-
-  // Use raw Qdrant client to ensure clean collection
+  // Use raw Qdrant HTTP to ensure clean collection
   const url = config.vectorStore.url;
   const collectionName = config.vectorStore.collectionName;
   try {
@@ -52,7 +50,6 @@ beforeAll(async () => {
   }
   await vectorStore.ensureCollection();
 
-  const logger = createLogger({ level: 'silent' });
   const compiledRules = compileRules(config.inferenceRules ?? []);
 
   processor = new DocumentProcessor(
@@ -182,6 +179,77 @@ describe('Metadata update', () => {
   });
 });
 
+describe('API endpoints', () => {
+  it('POST /reindex should index files from watched dirs', async () => {
+    const filePath1 = join(getWatchDir(), 'api-1.txt');
+    const filePath2 = join(getWatchDir(), 'api-2.txt');
+    await writeFile(filePath1, 'First file', 'utf8');
+    await writeFile(filePath2, 'Second file', 'utf8');
+
+    const server = createApiServer({
+      processor,
+      vectorStore,
+      embeddingProvider,
+      queue: new EventQueue({ debounceMs: 0, concurrency: 1 }),
+      config,
+      logger,
+    });
+
+    const res = await server.inject({ method: 'POST', url: '/reindex' });
+    expect(res.statusCode).toBe(200);
+
+    expect(await vectorStore.getPayload(pointId(filePath1, 0))).not.toBeNull();
+    expect(await vectorStore.getPayload(pointId(filePath2, 0))).not.toBeNull();
+  });
+
+  it('POST /rebuild-metadata should write meta files from Qdrant payloads', async () => {
+    const filePath = join(getWatchDir(), 'rebuild.txt');
+    await writeFile(filePath, 'Rebuild metadata content', 'utf8');
+    await processor.processFile(filePath);
+    await processor.processMetadataUpdate(filePath, { title: 'Rebuilt Title' });
+
+    const server = createApiServer({
+      processor,
+      vectorStore,
+      embeddingProvider,
+      queue: new EventQueue({ debounceMs: 0, concurrency: 1 }),
+      config,
+      logger,
+    });
+
+    const res = await server.inject({
+      method: 'POST',
+      url: '/rebuild-metadata',
+    });
+    expect(res.statusCode).toBe(200);
+
+    const meta = await readMetadata(
+      filePath,
+      config.metadataDir ?? '.jeeves-metadata',
+    );
+    expect(meta).not.toBeNull();
+    expect(meta!['title']).toBe('Rebuilt Title');
+  });
+
+  it('POST /config-reindex should return 501', async () => {
+    const server = createApiServer({
+      processor,
+      vectorStore,
+      embeddingProvider,
+      queue: new EventQueue({ debounceMs: 0, concurrency: 1 }),
+      config,
+      logger,
+    });
+
+    const res = await server.inject({
+      method: 'POST',
+      url: '/config-reindex',
+      payload: { action: 'pause' },
+    });
+    expect(res.statusCode).toBe(501);
+  });
+});
+
 describe('Rules engine', () => {
   it('should apply inferred metadata from rules', async () => {
     const watchDir = getWatchDir();
@@ -213,8 +281,6 @@ describe('Rules engine', () => {
       ],
     };
 
-    const embeddingProvider = createEmbeddingProvider(config.embedding);
-    const logger = createLogger({ level: 'silent' });
     const compiledRules = compileRules(rulesConfig.inferenceRules);
     const rulesProcessor = new DocumentProcessor(
       rulesConfig,
