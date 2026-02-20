@@ -302,3 +302,127 @@ describe('Rules engine', () => {
     expect(payload!['domain']).toBe('meetings');
   });
 });
+
+describe('Full document lifecycle', () => {
+  it('should handle complete add/update/delete cycle', async () => {
+    const filePath = join(getWatchDir(), 'lifecycle.txt');
+
+    // Step 1: Add file
+    await writeFile(filePath, 'Initial content for lifecycle test.', 'utf8');
+    await processor.processFile(filePath);
+
+    const id = pointId(filePath, 0);
+    let payload = await vectorStore.getPayload(id);
+    expect(payload).not.toBeNull();
+    expect(payload!['chunk_text']).toContain('Initial content');
+    const initialHash = payload!['content_hash'];
+
+    // Step 2: Update file
+    await writeFile(
+      filePath,
+      'Updated content that is completely different.',
+      'utf8',
+    );
+    await processor.processFile(filePath);
+
+    payload = await vectorStore.getPayload(id);
+    expect(payload).not.toBeNull();
+    expect(payload!['chunk_text']).toContain('Updated content');
+    expect(payload!['content_hash']).not.toBe(initialHash);
+
+    // Step 3: Delete file
+    await processor.deleteFile(filePath);
+
+    payload = await vectorStore.getPayload(id);
+    expect(payload).toBeNull();
+  });
+});
+
+describe('Metadata enrichment via API', () => {
+  it('should enrich metadata via POST /metadata', async () => {
+    const filePath = join(getWatchDir(), 'enrich-api.txt');
+    await writeFile(filePath, 'Content for API enrichment test.', 'utf8');
+    await processor.processFile(filePath);
+
+    const server = createApiServer({
+      processor,
+      vectorStore,
+      embeddingProvider,
+      queue: new EventQueue({ debounceMs: 0, concurrency: 1 }),
+      config,
+      logger,
+    });
+
+    // Enrich via API
+    const res = await server.inject({
+      method: 'POST',
+      url: '/metadata',
+      payload: {
+        path: filePath,
+        metadata: { category: 'documentation', priority: 'high' },
+      },
+    });
+
+    expect(res.statusCode).toBe(200);
+    const body = JSON.parse(res.body) as { ok: boolean };
+    expect(body.ok).toBe(true);
+
+    // Verify metadata in Qdrant
+    const id = pointId(filePath, 0);
+    const payload = await vectorStore.getPayload(id);
+    expect(payload).not.toBeNull();
+    expect(payload!['category']).toBe('documentation');
+    expect(payload!['priority']).toBe('high');
+  });
+});
+
+describe('Search endpoint', () => {
+  it('should return relevant results from POST /search', async () => {
+    const filePath1 = join(getWatchDir(), 'search-doc1.txt');
+    const filePath2 = join(getWatchDir(), 'search-doc2.txt');
+
+    await writeFile(
+      filePath1,
+      'This document is about machine learning algorithms.',
+      'utf8',
+    );
+    await writeFile(
+      filePath2,
+      'This document discusses natural language processing.',
+      'utf8',
+    );
+
+    await processor.processFile(filePath1);
+    await processor.processFile(filePath2);
+
+    const server = createApiServer({
+      processor,
+      vectorStore,
+      embeddingProvider,
+      queue: new EventQueue({ debounceMs: 0, concurrency: 1 }),
+      config,
+      logger,
+    });
+
+    // Search for "machine learning"
+    const res = await server.inject({
+      method: 'POST',
+      url: '/search',
+      payload: { query: 'machine learning', limit: 5 },
+    });
+
+    expect(res.statusCode).toBe(200);
+    const results = JSON.parse(res.body) as Array<{
+      id: string;
+      score: number;
+      payload: Record<string, unknown>;
+    }>;
+
+    expect(results).toBeInstanceOf(Array);
+    expect(results.length).toBeGreaterThan(0);
+
+    // With mock embeddings, we can't guarantee order, but we should get results
+    const texts = results.map((r) => r.payload['chunk_text']);
+    expect(texts.some((t) => typeof t === 'string' && t.includes('machine'))).toBe(true);
+  });
+});
