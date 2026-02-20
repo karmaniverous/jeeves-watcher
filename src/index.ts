@@ -24,3 +24,5 @@ export {
   writeMetadata,
 } from './metadata';
 export { pointId } from './pointId';
+export type { CompiledRule, FileAttributes } from './rules';
+export { applyRules, buildAttributes, compileRules } from './rules';

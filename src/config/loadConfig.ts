@@ -165,8 +165,11 @@ export async function loadConfig(
   if (!validate(raw)) {
     const errors = validate.errors
       ?.map((e) => {
-        const path = 'instancePath' in e ? String(e.instancePath) : '/';
-        return `${path || '/'}: ${e.message ?? 'unknown error'}`;
+        const instancePath =
+          'instancePath' in e
+            ? (e as unknown as { instancePath?: string }).instancePath
+            : undefined;
+        return `${instancePath ?? '/'}: ${e.message ?? 'unknown error'}`;
       })
       .join('; ');
     throw new Error(
