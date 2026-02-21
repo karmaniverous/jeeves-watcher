@@ -21,7 +21,9 @@ export interface RunApiCommandOptions {
  *
  * @param options - API call options.
  */
-export async function runApiCommand(options: RunApiCommandOptions): Promise<void> {
+export async function runApiCommand(
+  options: RunApiCommandOptions,
+): Promise<void> {
   try {
     const text = await apiCall(
       options.host,
