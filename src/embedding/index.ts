@@ -96,7 +96,13 @@ function createGeminiProvider(
           jitter: 0.2,
           onRetry: ({ attempt, delayMs, error }) => {
             log.warn(
-              { attempt, delayMs, provider: 'gemini', model: config.model, error },
+              {
+                attempt,
+                delayMs,
+                provider: 'gemini',
+                model: config.model,
+                error,
+              },
               'Embedding call failed; will retry',
             );
           },
