@@ -7,7 +7,7 @@
 const MAX_DEPTH = 10;
 
 /**
- * Expand a single string value, resolving ${VAR} and ${VAR:default} syntax recursively.
+ * Expand a single string value, resolving $\{VAR\} and $\{VAR:default\} syntax recursively.
  *
  * @param value - The string to expand.
  * @param env - Environment variable map.
@@ -22,19 +22,18 @@ export function expandEnv(
   if (depth > MAX_DEPTH) return value;
 
   const pattern = /\$\{([^}:]+)(?::([^}]*))?\}/g;
-  let result = value;
-  let hasReplacement = false;
 
-  result = result.replace(pattern, (match, varName, defaultValue) => {
-    hasReplacement = true;
-    const envValue = env[varName];
-    if (envValue !== undefined) return envValue;
-    if (defaultValue !== undefined) return defaultValue;
-    return '';
-  });
+  const result = value.replace(
+    pattern,
+    (_match, varName: string, defaultValue?: string) => {
+      const envValue = env[varName];
+      if (envValue !== undefined) return envValue;
+      return defaultValue ?? '';
+    },
+  );
 
-  // Recurse if any replacements were made and result still contains ${...}
-  if (hasReplacement && /\$\{[^}]+\}/.test(result)) {
+  // Recurse if any replacements were made and result still contains $\{...\}
+  if (result !== value && /\$\{[^}]+\}/.test(result)) {
     return expandEnv(result, env, depth + 1);
   }
 
