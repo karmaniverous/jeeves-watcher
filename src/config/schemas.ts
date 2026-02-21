@@ -250,6 +250,20 @@ export const jeevesWatcherConfigSchema = z.object({
     .number()
     .optional()
     .describe('Timeout in milliseconds for graceful shutdown.'),
+  /** Maximum consecutive system-level failures before triggering fatal error. Default: Infinity. */
+  maxRetries: z
+    .number()
+    .optional()
+    .describe(
+      'Maximum consecutive system-level failures before triggering fatal error. Default: Infinity.',
+    ),
+  /** Maximum backoff delay in milliseconds for system errors. Default: 60000. */
+  maxBackoffMs: z
+    .number()
+    .optional()
+    .describe(
+      'Maximum backoff delay in milliseconds for system errors. Default: 60000.',
+    ),
 });
 
 /** Top-level jeeves-watcher configuration: watch paths, embedding, vector store, rules, maps, API, and logging. */

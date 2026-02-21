@@ -9,6 +9,7 @@ export { createApiServer } from './api';
 export {
   JeevesWatcher,
   type JeevesWatcherFactories,
+  type JeevesWatcherRuntimeOptions,
   startFromConfig,
 } from './app';
 export type {
@@ -58,4 +59,7 @@ export {
 } from './rules';
 export type { ScrolledPoint, SearchResult, VectorPoint } from './vectorStore';
 export { VectorStoreClient } from './vectorStore';
+export type { SystemHealthOptions } from './health';
+export { SystemHealth } from './health';
+export type { FileSystemWatcherOptions } from './watcher';
 export { FileSystemWatcher } from './watcher';

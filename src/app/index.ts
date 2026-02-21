@@ -12,7 +12,10 @@ import { EventQueue } from '../queue';
 import { compileRules } from '../rules';
 import { normalizeError } from '../util/normalizeError';
 import { VectorStoreClient } from '../vectorStore';
-import { FileSystemWatcher } from '../watcher';
+import {
+  FileSystemWatcher,
+  type FileSystemWatcherOptions,
+} from '../watcher';
 import { ConfigWatcher } from './configWatcher';
 import { installShutdownHandlers } from './shutdown';
 
@@ -52,6 +55,7 @@ export interface JeevesWatcherFactories {
     queue: EventQueue,
     processor: DocumentProcessor,
     logger: pino.Logger,
+    options?: FileSystemWatcherOptions,
   ) => FileSystemWatcher;
   /** Create the HTTP API server. */
   createApiServer: typeof createApiServer;
@@ -79,18 +83,27 @@ const defaultFactories: JeevesWatcherFactories = {
       logger,
     ),
   createEventQueue: (options) => new EventQueue(options),
-  createFileSystemWatcher: (config, queue, processor, logger) =>
-    new FileSystemWatcher(config, queue, processor, logger),
+  createFileSystemWatcher: (config, queue, processor, logger, options) =>
+    new FileSystemWatcher(config, queue, processor, logger, options),
   createApiServer,
 };
 
 /**
  * Main application class that wires together all components.
  */
+/**
+ * Runtime options for {@link JeevesWatcher} that aren't serializable in config.
+ */
+export interface JeevesWatcherRuntimeOptions {
+  /** Callback invoked on unrecoverable system error. If not set, throws. */
+  onFatalError?: (error: unknown) => void;
+}
+
 export class JeevesWatcher {
   private config: JeevesWatcherConfig;
   private readonly configPath?: string;
   private readonly factories: JeevesWatcherFactories;
+  private readonly runtimeOptions: JeevesWatcherRuntimeOptions;
 
   private logger: pino.Logger | undefined;
   private watcher: FileSystemWatcher | undefined;
@@ -105,15 +118,18 @@ export class JeevesWatcher {
    * @param config - The application configuration.
    * @param configPath - Optional config file path to watch for changes.
    * @param factories - Optional component factories (for dependency injection).
+   * @param runtimeOptions - Optional runtime-only options (e.g., onFatalError).
    */
   constructor(
     config: JeevesWatcherConfig,
     configPath?: string,
     factories: Partial<JeevesWatcherFactories> = {},
+    runtimeOptions: JeevesWatcherRuntimeOptions = {},
   ) {
     this.config = config;
     this.configPath = configPath;
     this.factories = { ...defaultFactories, ...factories };
+    this.runtimeOptions = runtimeOptions;
   }
 
   /**
@@ -176,6 +192,11 @@ export class JeevesWatcher {
       queue,
       processor,
       logger,
+      {
+        maxRetries: this.config.maxRetries,
+        maxBackoffMs: this.config.maxBackoffMs,
+        onFatalError: this.runtimeOptions.onFatalError,
+      },
     );
     this.watcher = watcher;
 

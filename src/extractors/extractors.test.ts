@@ -92,6 +92,48 @@ describe('extractText', () => {
     expect(result.text).toContain('Hello DOCX World');
   });
 
+  it('strips BOM from plaintext', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'jeeves-watcher-'));
+    const file = join(dir, 'bom.txt');
+    await writeFile(file, '\uFEFFhello world', 'utf8');
+
+    const result = await extractText(file, '.txt');
+    expect(result.text).toBe('hello world');
+  });
+
+  it('strips BOM from JSON', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'jeeves-watcher-'));
+    const file = join(dir, 'bom.json');
+    await writeFile(file, '\uFEFF{"content": "test"}', 'utf8');
+
+    const result = await extractText(file, '.json');
+    expect(result.text).toBe('test');
+    expect(result.json).toEqual({ content: 'test' });
+  });
+
+  it('strips BOM from HTML', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'jeeves-watcher-'));
+    const file = join(dir, 'bom.html');
+    await writeFile(
+      file,
+      '\uFEFF<html><body><p>Hello BOM</p></body></html>',
+      'utf8',
+    );
+
+    const result = await extractText(file, '.html');
+    expect(result.text).toContain('Hello BOM');
+  });
+
+  it('strips BOM from markdown', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'jeeves-watcher-'));
+    const file = join(dir, 'bom.md');
+    await writeFile(file, '\uFEFF---\ntitle: BOM\n---\n\nContent', 'utf8');
+
+    const result = await extractText(file, '.md');
+    expect(result.frontmatter).toEqual({ title: 'BOM' });
+    expect(result.text).toContain('Content');
+  });
+
   it('extracts PDF text content', async () => {
     const dir = await mkdtemp(join(tmpdir(), 'jeeves-watcher-'));
     const file = join(dir, 'test.pdf');
