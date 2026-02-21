@@ -50,7 +50,7 @@ Example minimal configuration:
   },
   "embedding": {
     "provider": "google",
-    "model": "text-embedding-004",
+    "model": "gemini-embedding-001",
     "apiKey": "${GOOGLE_API_KEY}"
   },
   "vectorStore": {
@@ -110,7 +110,7 @@ The watcher will:
 {
   "embedding": {
     "provider": "google",
-    "model": "text-embedding-004",
+    "model": "gemini-embedding-001",
     "apiKey": "${GOOGLE_API_KEY}"
   }
 }

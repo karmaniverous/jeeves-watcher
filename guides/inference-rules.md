@@ -401,10 +401,10 @@ When you edit `inferenceRules` in the config file (and `configWatch.enabled` is 
 
 ```bash
 # Pause auto-reindex while editing rules
-curl -X POST http://localhost:3100/config-reindex -d '{"action": "pause"}'
+curl -X POST http://localhost:3456/config-reindex -d '{"action": "pause"}'
 
 # Resume (diffs all accumulated changes, single scoped reindex)
-curl -X POST http://localhost:3100/config-reindex -d '{"action": "resume"}'
+curl -X POST http://localhost:3456/config-reindex -d '{"action": "resume"}'
 ```
 
 ---
@@ -434,7 +434,7 @@ Look for log entries like:
 Then query Qdrant to inspect the payload:
 
 ```bash
-curl -X POST http://localhost:3100/search \
+curl -X POST http://localhost:3456/search \
   -H "Content-Type: application/json" \
   -d '{"query": "test", "limit": 1}'
 ```
@@ -461,7 +461,7 @@ For complex rule sets, store rules in a separate file:
 ```json
 {
   "watch": { "paths": ["./docs/**"] },
-  "embedding": { "provider": "gemini", "model": "text-embedding-004" },
+  "embedding": { "provider": "gemini", "model": "gemini-embedding-001" },
   "vectorStore": { "url": "http://localhost:6333", "collectionName": "docs" },
   "inferenceRulesFile": "./rules.json"
 }

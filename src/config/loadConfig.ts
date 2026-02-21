@@ -1,10 +1,7 @@
 import { cosmiconfig } from 'cosmiconfig';
 import { ZodError } from 'zod';
 
-import {
-  jeevesWatcherConfigSchema,
-  type JeevesWatcherConfig,
-} from './schemas';
+import { type JeevesWatcherConfig, jeevesWatcherConfigSchema } from './schemas';
 
 const MODULE_NAME = 'jeeves-watcher';
 
@@ -12,7 +9,7 @@ const MODULE_NAME = 'jeeves-watcher';
 const DEFAULTS: Partial<JeevesWatcherConfig> = {
   configWatch: { enabled: true, debounceMs: 1000 },
   metadataDir: '.jeeves-watcher',
-  api: { host: '127.0.0.1', port: 3100 },
+  api: { host: '127.0.0.1', port: 3456 },
   logging: { level: 'info' },
   shutdownTimeoutMs: 10000,
 };

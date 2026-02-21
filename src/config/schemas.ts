@@ -37,9 +37,9 @@ export type ConfigWatchConfig = z.infer<typeof configWatchConfigSchema>;
  */
 export const embeddingConfigSchema = z.object({
   /** The embedding model provider. */
-  provider: z.string(),
+  provider: z.string().default('gemini'),
   /** The embedding model name. */
-  model: z.string(),
+  model: z.string().default('gemini-embedding-001'),
   /** Maximum tokens per chunk for splitting. */
   chunkSize: z.number().optional(),
   /** Overlap between chunks in tokens. */

@@ -36,7 +36,7 @@ interface JeevesWatcherConfig {
 
 ---
 
-## `watch` — Filesystem Watching
+## `watch` - Filesystem Watching
 
 ```json
 {
@@ -75,7 +75,7 @@ interface JeevesWatcherConfig {
 
 ---
 
-## `configWatch` — Config File Watching
+## `configWatch` - Config File Watching
 
 ```json
 {
@@ -98,13 +98,13 @@ When the config file changes:
 
 ---
 
-## `embedding` — Embedding Provider
+## `embedding` - Embedding Provider
 
 ```json
 {
   "embedding": {
     "provider": "gemini",
-    "model": "text-embedding-004",
+    "model": "gemini-embedding-001",
     "apiKey": "${GOOGLE_API_KEY}",
     "chunkSize": 1000,
     "chunkOverlap": 200,
@@ -118,11 +118,11 @@ When the config file changes:
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `provider` | `string` | **Required** | Embedding provider: `"gemini"`, `"openai"`, `"mock"`. |
-| `model` | `string` | **Required** | Model name (e.g., `"text-embedding-004"` for Gemini). |
+| `model` | `string` | **Required** | Model name (e.g., `"gemini-embedding-001"` for Gemini). |
 | `apiKey` | `string` | `undefined` | API key. Supports `${ENV_VAR}` template syntax. |
 | `chunkSize` | `number` | `1000` | Maximum characters per chunk for text splitting. |
 | `chunkOverlap` | `number` | `200` | Overlap between consecutive chunks (helps preserve context at boundaries). |
-| `dimensions` | `number` | Provider default | Vector dimensions. Gemini `text-embedding-004` = 768; older `embedding-001` = 3072. |
+| `dimensions` | `number` | Provider default | Vector dimensions. Gemini `gemini-embedding-001` = 3072. |
 | `rateLimitPerMinute` | `number` | `1000` | Max embedding requests per minute (provider rate limit). |
 | `concurrency` | `number` | `5` | Max concurrent embedding requests. Bounded by rate limiter. |
 
@@ -134,16 +134,15 @@ When the config file changes:
 {
   "embedding": {
     "provider": "gemini",
-    "model": "text-embedding-004",
+    "model": "gemini-embedding-001",
     "apiKey": "${GOOGLE_API_KEY}",
-    "dimensions": 768
+    "dimensions": 3072
   }
 }
 ```
 
 **Models:**
-- `text-embedding-004` — 768 dimensions (latest, recommended)
-- `embedding-001` — 3072 dimensions (legacy)
+- `gemini-embedding-001` - 3072 dimensions (recommended)
 
 #### Mock (Testing)
 
@@ -160,7 +159,7 @@ Generates deterministic embeddings from content hashes. No API calls, no cost. I
 
 ---
 
-## `vectorStore` — Qdrant Configuration
+## `vectorStore` - Qdrant Configuration
 
 ```json
 {
@@ -183,13 +182,13 @@ Generates deterministic embeddings from content hashes. No API calls, no cost. I
 2. If not, creates it with the configured vector dimensions
 3. If it exists with **different dimensions**, logs an error and refuses to start (dimension mismatch)
 
-To change embedding providers (e.g., Gemini 3072-dim → 768-dim), you must:
+To change embedding settings that affect vector dimensions, you must:
 1. Delete the old collection (or rename `collectionName` in config)
 2. Run `POST /reindex?force=true` to re-embed with the new provider
 
 ---
 
-## `metadataDir` — Metadata Storage
+## `metadataDir` - Metadata Storage
 
 ```json
 {
@@ -217,13 +216,13 @@ For a file at `D:\projects\my-project\readme.md`, the metadata sidecar is at `.j
 
 ---
 
-## `api` — HTTP API Server
+## `api` - HTTP API Server
 
 ```json
 {
   "api": {
     "host": "127.0.0.1",
-    "port": 3100
+    "port": 3456
   }
 }
 ```
@@ -231,13 +230,13 @@ For a file at `D:\projects\my-project\readme.md`, the metadata sidecar is at `.j
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `host` | `string` | `"127.0.0.1"` | Host to bind to. Use `"0.0.0.0"` to accept external connections. |
-| `port` | `number` | `3100` | Port to listen on. |
+| `port` | `number` | `3456` | Port to listen on. |
 
 The API provides endpoints for search, metadata enrichment, reindexing, and status. See [API Reference](./api-reference.md).
 
 ---
 
-## `extractors` — Text Extraction (Advanced)
+## `extractors` - Text Extraction (Advanced)
 
 ```json
 {
@@ -252,11 +251,11 @@ The API provides endpoints for search, metadata enrichment, reindexing, and stat
 }
 ```
 
-Maps file extensions to extraction strategies. **Usually not needed** — defaults cover common formats.
+Maps file extensions to extraction strategies. **Usually not needed** - defaults cover common formats.
 
 ---
 
-## `inferenceRules` — Metadata Enrichment Rules
+## `inferenceRules` - Metadata Enrichment Rules
 
 ```json
 {
@@ -298,7 +297,7 @@ Each rule is a **JSON Schema `match`** paired with a **`set` action**. See [Infe
 
 ---
 
-## `logging` — Logging Configuration
+## `logging` - Logging Configuration
 
 ```json
 {
@@ -318,7 +317,7 @@ Uses structured JSON logging via [pino](https://github.com/pinojs/pino).
 
 ---
 
-## `shutdownTimeoutMs` — Graceful Shutdown
+## `shutdownTimeoutMs` - Graceful Shutdown
 
 ```json
 {
@@ -376,11 +375,11 @@ At runtime, these are replaced with actual environment variable values.
   },
   "embedding": {
     "provider": "gemini",
-    "model": "text-embedding-004",
+    "model": "gemini-embedding-001",
     "apiKey": "${GOOGLE_API_KEY}",
     "chunkSize": 1000,
     "chunkOverlap": 200,
-    "dimensions": 768,
+    "dimensions": 3072,
     "rateLimitPerMinute": 1000,
     "concurrency": 5
   },
@@ -391,7 +390,7 @@ At runtime, these are replaced with actual environment variable values.
   "metadataDir": ".jeeves-watcher",
   "api": {
     "host": "127.0.0.1",
-    "port": 3458
+    "port": 3456
   },
   "inferenceRules": [
     {

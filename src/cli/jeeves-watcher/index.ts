@@ -55,7 +55,7 @@ cli
         `  Vector store: ${config.vectorStore.url} (${config.vectorStore.collectionName})`,
       );
       console.log(
-        `  API: ${config.api?.host ?? '127.0.0.1'}:${String(config.api?.port ?? 3458)}`,
+        `  API: ${config.api?.host ?? '127.0.0.1'}:${String(config.api?.port ?? 3456)}`,
       );
     } catch (error) {
       console.error('Config invalid:', error);
@@ -66,7 +66,7 @@ cli
 cli
   .command('status')
   .description('Show watcher status')
-  .option('-p, --port <port>', 'API port', '3458')
+  .option('-p, --port <port>', 'API port', '3456')
   .option('-H, --host <host>', 'API host', '127.0.0.1')
   .action(async (options) => {
     try {
@@ -91,6 +91,8 @@ cli
   .action(async (options) => {
     try {
       const config = {
+        $schema:
+          'node_modules/@karmaniverous/jeeves-watcher/config.schema.json',
         watch: {
           paths: ['**/*.{md,markdown,txt,text,json,html,htm,pdf,docx}'],
           ignored: [
@@ -102,14 +104,15 @@ cli
         configWatch: { enabled: true, debounceMs: 1000 },
         embedding: {
           provider: 'gemini',
-          model: 'text-embedding-004',
+          model: 'gemini-embedding-001',
+          dimensions: 3072,
         },
         vectorStore: {
           url: 'http://127.0.0.1:6333',
           collectionName: 'jeeves-watcher',
         },
         metadataDir: '.jeeves-watcher',
-        api: { host: '127.0.0.1', port: 3100 },
+        api: { host: '127.0.0.1', port: 3456 },
         logging: { level: 'info' },
       };
 
@@ -124,7 +127,7 @@ cli
 cli
   .command('reindex')
   .description('Reindex all watched files (POST /reindex)')
-  .option('-p, --port <port>', 'API port', '3458')
+  .option('-p, --port <port>', 'API port', '3456')
   .option('-H, --host <host>', 'API host', '127.0.0.1')
   .action(async (options) => {
     const url = `${apiBase(options.host, options.port)}/reindex`;
@@ -140,7 +143,7 @@ cli
 cli
   .command('rebuild-metadata')
   .description('Rebuild metadata store from Qdrant (POST /rebuild-metadata)')
-  .option('-p, --port <port>', 'API port', '3458')
+  .option('-p, --port <port>', 'API port', '3456')
   .option('-H, --host <host>', 'API host', '127.0.0.1')
   .action(async (options) => {
     const url = `${apiBase(options.host, options.port)}/rebuild-metadata`;
@@ -158,7 +161,7 @@ cli
   .description('Search the vector store (POST /search)')
   .argument('<query>', 'Search query')
   .option('-l, --limit <limit>', 'Max results', '10')
-  .option('-p, --port <port>', 'API port', '3458')
+  .option('-p, --port <port>', 'API port', '3456')
   .option('-H, --host <host>', 'API host', '127.0.0.1')
   .action(async (query, options) => {
     const url = `${apiBase(options.host, options.port)}/search`;
@@ -248,7 +251,7 @@ cli
   .command('config-reindex')
   .description('Reindex after configuration changes (POST /config-reindex)')
   .option('-s, --scope <scope>', 'Reindex scope (rules|full)', 'rules')
-  .option('-p, --port <port>', 'API port', '3458')
+  .option('-p, --port <port>', 'API port', '3456')
   .option('-H, --host <host>', 'API host', '127.0.0.1')
   .action(async (options) => {
     const scope = options.scope;

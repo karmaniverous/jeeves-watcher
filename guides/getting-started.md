@@ -49,7 +49,7 @@ This generates `jeeves-watcher.config.json` with sensible defaults:
   },
   "embedding": {
     "provider": "gemini",
-    "model": "text-embedding-004"
+    "model": "gemini-embedding-001"
   },
   "vectorStore": {
     "url": "http://127.0.0.1:6333",
@@ -58,7 +58,7 @@ This generates `jeeves-watcher.config.json` with sensible defaults:
   "metadataDir": ".jeeves-watcher",
   "api": {
     "host": "127.0.0.1",
-    "port": 3100
+    "port": 3456
   },
   "logging": {
     "level": "info"
@@ -112,7 +112,7 @@ The config references it via template syntax:
 {
   "embedding": {
     "provider": "gemini",
-    "model": "text-embedding-004",
+    "model": "gemini-embedding-001",
     "apiKey": "${GOOGLE_API_KEY}"
   }
 }
@@ -156,9 +156,9 @@ Output:
 ```
 Config valid
   Watch paths: ./docs/**/*.md, ./notes/**/*.{md,txt}
-  Embedding: gemini/text-embedding-004
+  Embedding: gemini/gemini-embedding-001
   Vector store: http://127.0.0.1:6333 (jeeves-watcher)
-  API: 127.0.0.1:3100
+  API: 127.0.0.1:3456
 ```
 
 ## Start the Watcher
@@ -184,7 +184,7 @@ You should see output like:
 [info] File processed successfully: ./docs/readme.md (chunks: 2)
 [info] File processed successfully: ./notes/meeting-2026-02-20.md (chunks: 1)
 ...
-[info] API server listening on http://127.0.0.1:3100
+[info] API server listening on http://127.0.0.1:3456
 ```
 
 ## First Search
@@ -198,7 +198,7 @@ jeeves-watcher search "machine learning" --limit 5
 Or via HTTP:
 
 ```bash
-curl -X POST http://127.0.0.1:3100/search \
+curl -X POST http://127.0.0.1:3456/search \
   -H "Content-Type: application/json" \
   -d '{"query": "machine learning", "limit": 5}'
 ```
