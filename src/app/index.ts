@@ -12,10 +12,7 @@ import { EventQueue } from '../queue';
 import { compileRules } from '../rules';
 import { normalizeError } from '../util/normalizeError';
 import { VectorStoreClient } from '../vectorStore';
-import {
-  FileSystemWatcher,
-  type FileSystemWatcherOptions,
-} from '../watcher';
+import { FileSystemWatcher, type FileSystemWatcherOptions } from '../watcher';
 import { ConfigWatcher } from './configWatcher';
 import { installShutdownHandlers } from './shutdown';
 

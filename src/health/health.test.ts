@@ -114,7 +114,9 @@ describe('SystemHealth', () => {
 
     health.recordFailure(new Error('fail'));
     const controller = new AbortController();
-    setTimeout(() => controller.abort(), 10);
+    setTimeout(() => {
+      controller.abort();
+    }, 10);
 
     await expect(health.backoff(controller.signal)).rejects.toThrow(
       'Backoff aborted',

@@ -38,6 +38,8 @@ export { createEmbeddingProvider } from './embedding';
 export type { ExtractedText } from './extractors';
 export { extractText } from './extractors';
 export { contentHash } from './hash';
+export type { SystemHealthOptions } from './health';
+export { SystemHealth } from './health';
 export { createLogger } from './logger';
 export {
   deleteMetadata,
@@ -59,7 +61,5 @@ export {
 } from './rules';
 export type { ScrolledPoint, SearchResult, VectorPoint } from './vectorStore';
 export { VectorStoreClient } from './vectorStore';
-export type { SystemHealthOptions } from './health';
-export { SystemHealth } from './health';
 export type { FileSystemWatcherOptions } from './watcher';
 export { FileSystemWatcher } from './watcher';
