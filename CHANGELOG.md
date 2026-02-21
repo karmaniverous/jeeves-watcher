@@ -2,9 +2,17 @@
 
 All notable changes to this project will be documented in this file. Dates are displayed in UTC.
 
+#### [0.2.3](https://github.com/karmaniverous/jeeves-watcher/compare/0.2.2...0.2.3)
+
+- fix: leave unresolvable env var expressions untouched in config [`#9`](https://github.com/karmaniverous/jeeves-watcher/pull/9)
+- [ISSUE-8] fix: leave unresolvable env var expressions untouched in config (closes #8) [`#8`](https://github.com/karmaniverous/jeeves-watcher/issues/8)
+
 #### [0.2.2](https://github.com/karmaniverous/jeeves-watcher/compare/0.2.1...0.2.2)
 
+> 21 February 2026
+
 - fix: resolve issues #4 and #5 [`#7`](https://github.com/karmaniverous/jeeves-watcher/pull/7)
+- chore: release v0.2.2 [`3d07303`](https://github.com/karmaniverous/jeeves-watcher/commit/3d07303226b3c04a520556d2ad65ff16d2f251c5)
 - [ISSUES-4] fix: improve error serialization for pino logging [`021d18c`](https://github.com/karmaniverous/jeeves-watcher/commit/021d18c84d421b978c04478ccd0167e87c603c27)
 - [ISSUES-4] feat: implement ${ENV_VAR} substitution in config strings [`5bbb09f`](https://github.com/karmaniverous/jeeves-watcher/commit/5bbb09fad11c10341e742a06b0d228f34b4ec1de)
 - lint:fix [`b6446c5`](https://github.com/karmaniverous/jeeves-watcher/commit/b6446c5ab3692bbaa450a9c5c5e5d79057be59ac)
