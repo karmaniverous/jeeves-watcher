@@ -1,0 +1,100 @@
+@startuml document-processing-pipeline
+
+skinparam backgroundColor #FFFFFF
+skinparam defaultTextAlignment center
+skinparam ActivityBackgroundColor #E3F2FD
+skinparam ActivityBorderColor #1976D2
+skinparam ActivityFontColor #000000
+skinparam ActivityFontSize 12
+skinparam ArrowColor #1976D2
+skinparam DiamondBackgroundColor #FFF9C4
+skinparam DiamondBorderColor #F57C00
+skinparam NoteBorderColor #BDBDBD
+skinparam NoteBackgroundColor #FAFAFA
+
+title Document Processing Pipeline
+
+start
+
+:File Change Event;
+note right
+  Chokidar detects
+  file create/modify
+end note
+
+:Extract Text;
+note right
+  PDF → pdfjs
+  DOCX → mammoth
+  TXT/MD → raw
+end note
+
+:Calculate Content Hash;
+note right
+  SHA-256 of
+  extracted text
+end note
+
+if (Hash Changed?) then (yes)
+  :Build File Attributes;
+  note right
+    path, size, modified,
+    frontmatter, JSON
+  end note
+  
+  :Apply Inference Rules;
+  note right
+    For each rule:
+    • Match (JSON Schema + glob)
+    • Set (template interpolation)
+    • Map (JsonMap transform)
+    • Merge output
+  end note
+  
+  :Read Enrichment Metadata;
+  note right
+    Load .meta.json
+    sidecar if exists
+  end note
+  
+  :Merge Metadata;
+  note right
+    inference rules →
+    enrichment metadata
+    (enrichment wins)
+  end note
+  
+  :Chunk Text;
+  note right
+    Split if > chunkSize
+    with overlap
+  end note
+  
+  :Embed Chunks;
+  note right
+    Generate vectors
+    via embedding provider
+  end note
+  
+  :Upsert to Qdrant;
+  note right
+    Store vectors +
+    metadata payloads
+  end note
+  
+  :Cleanup Orphaned Chunks;
+  note right
+    Delete old chunks
+    if count decreased
+  end note
+else (no)
+  :Skip Processing;
+  note right
+    Content unchanged,
+    vectors still valid
+  end note
+endif
+
+stop
+
+@enduml

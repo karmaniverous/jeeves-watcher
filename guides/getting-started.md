@@ -35,21 +35,21 @@ Create a new configuration file:
 jeeves-watcher init
 ```
 
-This generates `jeeves-watcher.config.json` with sensible defaults:
+This generates `jeeves-watcher.config.json` with sensible defaults and a `$schema` pointer for IDE autocomplete:
 
 ```json
 {
+  "$schema": "node_modules/@karmaniverous/jeeves-watcher/config.schema.json",
   "watch": {
     "paths": ["**/*.{md,markdown,txt,text,json,html,htm,pdf,docx}"],
     "ignored": ["**/node_modules/**", "**/.git/**", "**/.jeeves-watcher/**"]
   },
   "configWatch": {
-    "enabled": true,
-    "debounceMs": 1000
+    "enabled": true
   },
   "embedding": {
     "provider": "gemini",
-    "model": "text-embedding-004"
+    "model": "gemini-embedding-001"
   },
   "vectorStore": {
     "url": "http://127.0.0.1:6333",
@@ -58,7 +58,7 @@ This generates `jeeves-watcher.config.json` with sensible defaults:
   "metadataDir": ".jeeves-watcher",
   "api": {
     "host": "127.0.0.1",
-    "port": 3100
+    "port": 3456
   },
   "logging": {
     "level": "info"
@@ -112,7 +112,7 @@ The config references it via template syntax:
 {
   "embedding": {
     "provider": "gemini",
-    "model": "text-embedding-004",
+    "model": "gemini-embedding-001",
     "apiKey": "${GOOGLE_API_KEY}"
   }
 }
@@ -143,6 +143,16 @@ For testing without API costs, use the mock provider:
 
 The mock provider generates deterministic embeddings from content hashes.
 
+## Configuration Discovery
+
+If you don't specify `--config`, the watcher searches for a config file in this order:
+
+1. `JEEVES_WATCHER_CONFIG` environment variable
+2. `./jeeves-watcher.config.json` (current directory)
+3. `~/.jeeves-watcher/config.json` (user home)
+
+Supported formats: JSON, JSON5, YAML (`.yaml` or `.yml` extension).
+
 ## Validate Configuration
 
 Check that your configuration is valid:
@@ -156,9 +166,9 @@ Output:
 ```
 Config valid
   Watch paths: ./docs/**/*.md, ./notes/**/*.{md,txt}
-  Embedding: gemini/text-embedding-004
+  Embedding: gemini/gemini-embedding-001
   Vector store: http://127.0.0.1:6333 (jeeves-watcher)
-  API: 127.0.0.1:3100
+  API: 127.0.0.1:3456
 ```
 
 ## Start the Watcher
@@ -184,7 +194,7 @@ You should see output like:
 [info] File processed successfully: ./docs/readme.md (chunks: 2)
 [info] File processed successfully: ./notes/meeting-2026-02-20.md (chunks: 1)
 ...
-[info] API server listening on http://127.0.0.1:3100
+[info] API server listening on http://127.0.0.1:3456
 ```
 
 ## First Search
@@ -198,7 +208,7 @@ jeeves-watcher search "machine learning" --limit 5
 Or via HTTP:
 
 ```bash
-curl -X POST http://127.0.0.1:3100/search \
+curl -X POST http://127.0.0.1:3456/search \
   -H "Content-Type: application/json" \
   -d '{"query": "machine learning", "limit": 5}'
 ```

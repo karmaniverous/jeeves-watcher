@@ -52,8 +52,15 @@ beforeAll(async () => {
 
   const compiledRules = compileRules(config.inferenceRules ?? []);
 
+  const processorConfig = {
+    metadataDir: config.metadataDir ?? '.jeeves-metadata',
+    chunkSize: config.embedding.chunkSize,
+    chunkOverlap: config.embedding.chunkOverlap,
+    maps: config.maps,
+  };
+
   processor = new DocumentProcessor(
-    config,
+    processorConfig,
     embeddingProvider,
     vectorStore,
     compiledRules,
@@ -286,8 +293,14 @@ describe('Rules engine', () => {
     };
 
     const compiledRules = compileRules(rulesConfig.inferenceRules);
+    const rulesProcessorConfig = {
+      metadataDir: rulesConfig.metadataDir ?? '.jeeves-metadata',
+      chunkSize: rulesConfig.embedding.chunkSize,
+      chunkOverlap: rulesConfig.embedding.chunkOverlap,
+      maps: rulesConfig.maps,
+    };
     const rulesProcessor = new DocumentProcessor(
-      rulesConfig,
+      rulesProcessorConfig,
       embeddingProvider,
       vectorStore,
       compiledRules,

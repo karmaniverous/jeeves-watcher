@@ -50,7 +50,10 @@ export class JeevesWatcher {
 
     let embeddingProvider: EmbeddingProvider;
     try {
-      embeddingProvider = createEmbeddingProvider(this.config.embedding);
+      embeddingProvider = createEmbeddingProvider(
+        this.config.embedding,
+        logger,
+      );
     } catch (error) {
       logger.fatal({ error }, 'Failed to create embedding provider');
       throw error;
@@ -59,13 +62,21 @@ export class JeevesWatcher {
     const vectorStore = new VectorStoreClient(
       this.config.vectorStore,
       embeddingProvider.dimensions,
+      logger,
     );
     await vectorStore.ensureCollection();
 
     const compiledRules = compileRules(this.config.inferenceRules ?? []);
 
+    const processorConfig = {
+      metadataDir: this.config.metadataDir ?? '.jeeves-metadata',
+      chunkSize: this.config.embedding.chunkSize,
+      chunkOverlap: this.config.embedding.chunkOverlap,
+      maps: this.config.maps,
+    };
+
     const processor = new DocumentProcessor(
-      this.config,
+      processorConfig,
       embeddingProvider,
       vectorStore,
       compiledRules,
@@ -100,7 +111,7 @@ export class JeevesWatcher {
 
     await server.listen({
       host: this.config.api?.host ?? '127.0.0.1',
-      port: this.config.api?.port ?? 3458,
+      port: this.config.api?.port ?? 3456,
     });
 
     watcher.start();
@@ -122,12 +133,21 @@ export class JeevesWatcher {
 
     if (this.queue) {
       const timeout = this.config.shutdownTimeoutMs ?? 10000;
-      await Promise.race([
-        this.queue.drain(),
-        new Promise<void>((resolve) => {
-          setTimeout(resolve, timeout);
+      const drained = await Promise.race<boolean>([
+        this.queue.drain().then(() => true),
+        new Promise<boolean>((resolve) => {
+          setTimeout(() => {
+            resolve(false);
+          }, timeout);
         }),
       ]);
+
+      if (!drained) {
+        this.logger?.warn(
+          { timeoutMs: timeout },
+          'Queue drain timeout hit, forcing shutdown',
+        );
+      }
     }
 
     if (this.server) {
@@ -188,6 +208,11 @@ export class JeevesWatcher {
     const logger = this.logger;
     const processor = this.processor;
     if (!logger || !processor || !this.configPath) return;
+
+    logger.info(
+      { configPath: this.configPath },
+      'Config change detected, reloading...',
+    );
 
     try {
       const newConfig = await loadConfig(this.configPath);

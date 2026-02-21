@@ -1,3 +1,7 @@
+/**
+ * @module watcher
+ * Filesystem watcher wrapping chokidar. I/O: watches files/directories for add/change/unlink events, enqueues to processing queue.
+ */
 import chokidar, { type FSWatcher } from 'chokidar';
 import type pino from 'pino';
 

@@ -179,6 +179,63 @@ All must pass.
 
 ---
 
+## Diagrams
+
+Architecture diagrams are created with **PlantUML** and embedded in documentation.
+
+### Directory Structure
+
+- **Source files**: `diagrams/*.pu` — PlantUML source code
+- **Rendered output**: `assets/*.png` — Generated PNG images
+
+### VS Code Extension (Recommended)
+
+The [jebbs.plantuml](https://marketplace.visualstudio.com/items?itemName=jebbs.plantuml) extension is configured in `.vscode/settings.json` for live preview and rendering.
+
+Install it for:
+- Live diagram preview (Alt+D)
+- Export to PNG/SVG directly from the editor
+- Syntax highlighting and validation
+
+### Rendering from CLI
+
+To render all diagrams:
+
+```bash
+plantuml -tpng -o "../assets" diagrams/*.pu
+```
+
+To render a single diagram:
+
+```bash
+plantuml -tpng -o "../assets" diagrams/my-diagram.pu
+```
+
+The `diagrams` STAN job automatically renders all diagrams and verifies outputs.
+
+### Embedding in Documentation
+
+Use relative paths from the doc file to the rendered diagram:
+
+```markdown
+![Diagram Description](../assets/diagram-name.png)
+```
+
+Example (from `guides/architecture.md`):
+
+```markdown
+![System Architecture](../assets/system-architecture.png)
+```
+
+### Style Guidelines
+
+- Use clean, readable PlantUML (not overly complex)
+- Apply consistent `skinparam` styling across diagrams
+- Keep diagrams focused — one concept per diagram
+- Use proper diagram types (activity, component, sequence, etc.)
+
+---
+
 ## Commit Conventions
 
 Use **Conventional Commits**:

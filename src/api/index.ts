@@ -1,5 +1,6 @@
 import Fastify, { type FastifyInstance } from 'fastify';
 import type pino from 'pino';
+import { omit } from 'radash';
 
 import type { JeevesWatcherConfig } from '../config/types';
 import type { EmbeddingProvider } from '../embedding';
@@ -7,7 +8,7 @@ import { writeMetadata } from '../metadata';
 import type { DocumentProcessor } from '../processor';
 import type { EventQueue } from '../queue';
 import type { VectorStoreClient } from '../vectorStore';
-import { listFilesFromGlobs } from './fileScan';
+import { processAllFiles } from './processAllFiles';
 
 /**
  * Options for {@link createApiServer}.
@@ -75,20 +76,14 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
 
   app.post('/reindex', async (_request, reply) => {
     try {
-      const files = await listFilesFromGlobs(
+      const count = await processAllFiles(
         options.config.watch.paths,
         options.config.watch.ignored,
+        processor,
+        'processFile',
       );
 
-      for (const file of files) {
-        // Sequential on purpose to avoid surprising load.
-        // Queue integration can come later.
-        await processor.processFile(file);
-      }
-
-      return await reply
-        .status(200)
-        .send({ ok: true, filesIndexed: files.length });
+      return await reply.status(200).send({ ok: true, filesIndexed: count });
     } catch (error) {
       logger.error({ error }, 'Reindex failed');
       return await reply.status(500).send({ error: 'Internal server error' });
@@ -98,6 +93,13 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
   app.post('/rebuild-metadata', async (_request, reply) => {
     try {
       const metadataDir = options.config.metadataDir ?? '.jeeves-metadata';
+      const SYSTEM_KEYS: string[] = [
+        'file_path',
+        'chunk_index',
+        'total_chunks',
+        'content_hash',
+        'chunk_text',
+      ];
 
       for await (const point of vectorStore.scroll()) {
         const payload = point.payload;
@@ -105,14 +107,9 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
         if (typeof filePath !== 'string' || filePath.length === 0) continue;
 
         // Persist only enrichment-ish fields, not chunking/index fields.
-        const rest: Record<string, unknown> = { ...payload };
-        delete rest.file_path;
-        delete rest.chunk_index;
-        delete rest.total_chunks;
-        delete rest.content_hash;
-        delete rest.chunk_text;
+        const enrichment = omit(payload, SYSTEM_KEYS);
 
-        await writeMetadata(filePath, metadataDir, rest);
+        await writeMetadata(filePath, metadataDir, enrichment);
       }
 
       return await reply.status(200).send({ ok: true });
@@ -133,33 +130,28 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
           try {
             if (scope === 'rules') {
               // Re-apply inference rules to all files, update Qdrant payloads (no re-embedding)
-              const files = await listFilesFromGlobs(
+              const count = await processAllFiles(
                 options.config.watch.paths,
                 options.config.watch.ignored,
+                processor,
+                'processRulesUpdate',
               );
 
-              for (const file of files) {
-                // Use the new processRulesUpdate method
-                await processor.processRulesUpdate(file);
-              }
-
               logger.info(
-                { scope, filesProcessed: files.length },
+                { scope, filesProcessed: count },
                 'Config reindex (rules) completed',
               );
             } else {
               // Full reindex: re-extract, re-embed, re-upsert
-              const files = await listFilesFromGlobs(
+              const count = await processAllFiles(
                 options.config.watch.paths,
                 options.config.watch.ignored,
+                processor,
+                'processFile',
               );
 
-              for (const file of files) {
-                await processor.processFile(file);
-              }
-
               logger.info(
-                { scope, filesProcessed: files.length },
+                { scope, filesProcessed: count },
                 'Config reindex (full) completed',
               );
             }

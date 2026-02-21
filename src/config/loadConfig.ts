@@ -1,124 +1,17 @@
-import Ajv from 'ajv';
 import { cosmiconfig } from 'cosmiconfig';
+import { ZodError } from 'zod';
 
-import type { JeevesWatcherConfig } from './types';
+import {
+  API_DEFAULTS,
+  CONFIG_WATCH_DEFAULTS,
+  EMBEDDING_DEFAULTS,
+  LOGGING_DEFAULTS,
+  ROOT_DEFAULTS,
+  WATCH_DEFAULTS,
+} from './defaults';
+import { type JeevesWatcherConfig, jeevesWatcherConfigSchema } from './schemas';
 
 const MODULE_NAME = 'jeeves-watcher';
-
-/** JSON Schema for validating jeeves-watcher configuration. */
-const configSchema = {
-  type: 'object',
-  required: ['watch', 'embedding', 'vectorStore'],
-  properties: {
-    watch: {
-      type: 'object',
-      required: ['paths'],
-      properties: {
-        paths: { type: 'array', items: { type: 'string' }, minItems: 1 },
-        ignored: { type: 'array', items: { type: 'string' } },
-        pollIntervalMs: { type: 'number' },
-        usePolling: { type: 'boolean' },
-        debounceMs: { type: 'number' },
-        stabilityThresholdMs: { type: 'number' },
-      },
-      additionalProperties: false,
-    },
-    configWatch: {
-      type: 'object',
-      properties: {
-        enabled: { type: 'boolean' },
-        debounceMs: { type: 'number' },
-      },
-      additionalProperties: false,
-    },
-    embedding: {
-      type: 'object',
-      required: ['provider', 'model'],
-      properties: {
-        provider: { type: 'string' },
-        model: { type: 'string' },
-        chunkSize: { type: 'number' },
-        chunkOverlap: { type: 'number' },
-        dimensions: { type: 'number' },
-        apiKey: { type: 'string' },
-        rateLimitPerMinute: { type: 'number' },
-        concurrency: { type: 'number' },
-      },
-      additionalProperties: false,
-    },
-    vectorStore: {
-      type: 'object',
-      required: ['url', 'collectionName'],
-      properties: {
-        url: { type: 'string' },
-        collectionName: { type: 'string' },
-        apiKey: { type: 'string' },
-      },
-      additionalProperties: false,
-    },
-    metadataDir: { type: 'string' },
-    api: {
-      type: 'object',
-      properties: {
-        host: { type: 'string' },
-        port: { type: 'number' },
-      },
-      additionalProperties: false,
-    },
-    extractors: { type: 'object' },
-    inferenceRules: {
-      type: 'array',
-      items: {
-        type: 'object',
-        required: ['match', 'set'],
-        properties: {
-          match: { type: 'object' },
-          set: { type: 'object' },
-        },
-        additionalProperties: false,
-      },
-    },
-    logging: {
-      type: 'object',
-      properties: {
-        level: { type: 'string' },
-        file: { type: 'string' },
-      },
-      additionalProperties: false,
-    },
-    shutdownTimeoutMs: { type: 'number' },
-  },
-  additionalProperties: false,
-} as const;
-
-const ajv = new Ajv({ allErrors: true });
-const validate = ajv.compile(configSchema);
-
-/** Default values for optional configuration fields. */
-const DEFAULTS: Partial<JeevesWatcherConfig> = {
-  configWatch: { enabled: true, debounceMs: 1000 },
-  metadataDir: '.jeeves-watcher',
-  api: { host: '127.0.0.1', port: 3100 },
-  logging: { level: 'info' },
-  shutdownTimeoutMs: 10000,
-};
-
-/** Default values for watch configuration. */
-const WATCH_DEFAULTS = {
-  debounceMs: 300,
-  stabilityThresholdMs: 500,
-  usePolling: false,
-  pollIntervalMs: 1000,
-};
-
-/** Default values for embedding configuration. */
-const EMBEDDING_DEFAULTS = {
-  chunkSize: 1000,
-  chunkOverlap: 200,
-  dimensions: 768,
-  rateLimitPerMinute: 300,
-  concurrency: 5,
-};
 
 /**
  * Merge sensible defaults into a loaded configuration.
@@ -128,13 +21,13 @@ const EMBEDDING_DEFAULTS = {
  */
 function applyDefaults(raw: JeevesWatcherConfig): JeevesWatcherConfig {
   return {
-    ...DEFAULTS,
+    ...ROOT_DEFAULTS,
     ...raw,
     watch: { ...WATCH_DEFAULTS, ...raw.watch },
-    configWatch: { ...DEFAULTS.configWatch, ...raw.configWatch },
+    configWatch: { ...CONFIG_WATCH_DEFAULTS, ...raw.configWatch },
     embedding: { ...EMBEDDING_DEFAULTS, ...raw.embedding },
-    api: { ...DEFAULTS.api, ...raw.api },
-    logging: { ...DEFAULTS.logging, ...raw.logging },
+    api: { ...API_DEFAULTS, ...raw.api },
+    logging: { ...LOGGING_DEFAULTS, ...raw.logging },
   };
 }
 
@@ -160,22 +53,16 @@ export async function loadConfig(
     );
   }
 
-  const raw = result.config as JeevesWatcherConfig;
-
-  if (!validate(raw)) {
-    const errors = validate.errors
-      ?.map((e) => {
-        const instancePath =
-          'instancePath' in e
-            ? (e as unknown as { instancePath?: string }).instancePath
-            : undefined;
-        return `${instancePath ?? '/'}: ${e.message ?? 'unknown error'}`;
-      })
-      .join('; ');
-    throw new Error(
-      `Invalid jeeves-watcher configuration: ${errors ?? 'unknown error'}`,
-    );
+  try {
+    const validated = jeevesWatcherConfigSchema.parse(result.config);
+    return applyDefaults(validated);
+  } catch (error) {
+    if (error instanceof ZodError) {
+      const errors = error.issues
+        .map((issue) => `${issue.path.join('.')}: ${issue.message}`)
+        .join('; ');
+      throw new Error(`Invalid jeeves-watcher configuration: ${errors}`);
+    }
+    throw error;
   }
-
-  return applyDefaults(raw);
 }

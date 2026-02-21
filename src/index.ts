@@ -17,7 +17,17 @@ export type {
   VectorStoreConfig,
   WatchConfig,
 } from './config';
-export { loadConfig } from './config';
+export {
+  apiConfigSchema,
+  configWatchConfigSchema,
+  embeddingConfigSchema,
+  inferenceRuleSchema,
+  jeevesWatcherConfigSchema,
+  loadConfig,
+  loggingConfigSchema,
+  vectorStoreConfigSchema,
+  watchConfigSchema,
+} from './config';
 export type { EmbeddingProvider } from './embedding';
 export { createEmbeddingProvider } from './embedding';
 export type { ExtractedText } from './extractors';
@@ -31,6 +41,7 @@ export {
   writeMetadata,
 } from './metadata';
 export { pointId } from './pointId';
+export type { ProcessorConfig } from './processor';
 export { DocumentProcessor } from './processor';
 export type { EventQueueOptions, ProcessFn, WatchEvent } from './queue';
 export { EventQueue } from './queue';

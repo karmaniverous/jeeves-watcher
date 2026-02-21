@@ -110,7 +110,7 @@ Generates a JSON config file with sensible defaults:
   },
   "embedding": {
     "provider": "gemini",
-    "model": "text-embedding-004"
+    "model": "gemini-embedding-001"
   },
   "vectorStore": {
     "url": "http://127.0.0.1:6333",
@@ -119,7 +119,7 @@ Generates a JSON config file with sensible defaults:
   "metadataDir": ".jeeves-watcher",
   "api": {
     "host": "127.0.0.1",
-    "port": 3100
+    "port": 3456
   },
   "logging": {
     "level": "info"
@@ -162,9 +162,9 @@ jeeves-watcher validate --config ./my-config.json
 ```
 Config valid
   Watch paths: ./docs/**/*.md, ./notes/**/*.txt
-  Embedding: gemini/text-embedding-004
+  Embedding: gemini/gemini-embedding-001
   Vector store: http://127.0.0.1:6333 (jeeves-watcher)
-  API: 127.0.0.1:3100
+  API: 127.0.0.1:3456
 ```
 
 **Failure:**
@@ -193,7 +193,7 @@ jeeves-watcher status [options]
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `-p, --port <port>` | `3458` | API port |
+| `-p, --port <port>` | `3456` | API port |
 | `-H, --host <host>` | `127.0.0.1` | API host |
 
 ### Examples
@@ -203,10 +203,10 @@ jeeves-watcher status [options]
 jeeves-watcher status
 
 # Check status on custom port
-jeeves-watcher status --port 3100
+jeeves-watcher status --port 3456
 
 # Check remote instance
-jeeves-watcher status --host 192.168.1.100 --port 3100
+jeeves-watcher status --host 192.168.1.100 --port 3456
 ```
 
 ### Output
@@ -246,7 +246,7 @@ jeeves-watcher reindex [options]
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `-p, --port <port>` | `3458` | API port |
+| `-p, --port <port>` | `3456` | API port |
 | `-H, --host <host>` | `127.0.0.1` | API host |
 
 ### Examples
@@ -256,7 +256,7 @@ jeeves-watcher reindex [options]
 jeeves-watcher reindex
 
 # Reindex on custom port
-jeeves-watcher reindex --port 3100
+jeeves-watcher reindex --port 3456
 ```
 
 ### Behavior
@@ -296,7 +296,7 @@ jeeves-watcher rebuild-metadata [options]
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `-p, --port <port>` | `3458` | API port |
+| `-p, --port <port>` | `3456` | API port |
 | `-H, --host <host>` | `127.0.0.1` | API host |
 
 ### Examples
@@ -306,7 +306,7 @@ jeeves-watcher rebuild-metadata [options]
 jeeves-watcher rebuild-metadata
 
 # Rebuild on custom port
-jeeves-watcher rebuild-metadata --port 3100
+jeeves-watcher rebuild-metadata --port 3456
 ```
 
 ### Behavior
@@ -346,7 +346,7 @@ jeeves-watcher search <query> [options]
 | Option | Default | Description |
 |--------|---------|-------------|
 | `-l, --limit <limit>` | `10` | Maximum results to return |
-| `-p, --port <port>` | `3458` | API port |
+| `-p, --port <port>` | `3456` | API port |
 | `-H, --host <host>` | `127.0.0.1` | API host |
 
 ### Examples
@@ -359,7 +359,7 @@ jeeves-watcher search "machine learning algorithms"
 jeeves-watcher search "billing integration" --limit 5
 
 # Search on custom port
-jeeves-watcher search "project status" --port 3100
+jeeves-watcher search "project status" --port 3456
 ```
 
 ### Output
@@ -403,7 +403,7 @@ jeeves-watcher config-reindex [options]
 | Option | Default | Description |
 |--------|---------|-------------|
 | `-s, --scope <scope>` | `rules` | Reindex scope: `rules` (metadata-only) or `full` (re-embed) |
-| `-p, --port <port>` | `3458` | API port |
+| `-p, --port <port>` | `3456` | API port |
 | `-H, --host <host>` | `127.0.0.1` | API host |
 
 ### Examples
@@ -455,7 +455,7 @@ jeeves-watcher enrich <path> --title "..." --labels "a,b" --author "..."
 **Workaround:** Use `POST /metadata` via `curl`:
 
 ```bash
-curl -X POST http://localhost:3100/metadata \
+curl -X POST http://localhost:3456/metadata \
   -H "Content-Type: application/json" \
   -d '{"path": "d:/file.md", "metadata": {"title": "..."}}'
 ```

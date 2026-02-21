@@ -6,7 +6,7 @@ title: API Reference
 
 The watcher exposes a lightweight HTTP API for search, metadata enrichment, and operational control.
 
-**Default address:** `http://127.0.0.1:3100` (configurable via `api.host` and `api.port`)
+**Default address:** `http://127.0.0.1:3456` (configurable via `api.host` and `api.port`)
 
 ---
 
@@ -17,7 +17,7 @@ Health check and service stats.
 ### Request
 
 ```bash
-curl http://localhost:3100/status
+curl http://localhost:3456/status
 ```
 
 ### Response
@@ -46,7 +46,7 @@ Enrich a document's metadata without re-embedding.
 ### Request
 
 ```bash
-curl -X POST http://localhost:3100/metadata \
+curl -X POST http://localhost:3456/metadata \
   -H "Content-Type: application/json" \
   -d '{
     "path": "D:/projects/readme.md",
@@ -105,7 +105,7 @@ Semantic search across indexed documents.
 ### Request
 
 ```bash
-curl -X POST http://localhost:3100/search \
+curl -X POST http://localhost:3456/search \
   -H "Content-Type: application/json" \
   -d '{
     "query": "machine learning algorithms",
@@ -193,7 +193,7 @@ Trigger a full reindex of all watched files.
 ### Request
 
 ```bash
-curl -X POST http://localhost:3100/reindex
+curl -X POST http://localhost:3456/reindex
 ```
 
 ### Response
@@ -241,7 +241,7 @@ Rebuild the metadata store from Qdrant payloads.
 ### Request
 
 ```bash
-curl -X POST http://localhost:3100/rebuild-metadata
+curl -X POST http://localhost:3456/rebuild-metadata
 ```
 
 ### Response
@@ -288,7 +288,7 @@ Reindex after configuration changes (rules update or full reindex).
 **Scope: `rules` (default) — metadata-only reindex:**
 
 ```bash
-curl -X POST http://localhost:3100/config-reindex \
+curl -X POST http://localhost:3456/config-reindex \
   -H "Content-Type: application/json" \
   -d '{"scope": "rules"}'
 ```
@@ -296,7 +296,7 @@ curl -X POST http://localhost:3100/config-reindex \
 **Scope: `full` — re-extract, re-embed, re-upsert:**
 
 ```bash
-curl -X POST http://localhost:3100/config-reindex \
+curl -X POST http://localhost:3456/config-reindex \
   -H "Content-Type: application/json" \
   -d '{"scope": "full"}'
 ```
@@ -394,7 +394,7 @@ For high-traffic deployments, add rate limiting at the reverse proxy layer.
 ### Search and Display Results
 
 ```bash
-curl -X POST http://localhost:3100/search \
+curl -X POST http://localhost:3456/search \
   -H "Content-Type: application/json" \
   -d '{"query": "billing integration", "limit": 5}' \
   | jq '.[] | {score, path: .payload.file_path, title: .payload.title}'
@@ -412,7 +412,7 @@ Output:
 
 ```bash
 for file in file1.md file2.md file3.md; do
-  curl -X POST http://localhost:3100/metadata \
+  curl -X POST http://localhost:3456/metadata \
     -H "Content-Type: application/json" \
     -d "{\"path\": \"$file\", \"metadata\": {\"reviewed\": true}}"
 done
@@ -421,7 +421,7 @@ done
 ### Check Service Health
 
 ```bash
-curl http://localhost:3100/status | jq '.uptime'
+curl http://localhost:3456/status | jq '.uptime'
 ```
 
 Output: `86400` (uptime in seconds)

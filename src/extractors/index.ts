@@ -1,3 +1,9 @@
+/**
+ * @module extractors
+ *
+ * Text extraction registry for supported file formats.
+ */
+
 import { readFile } from 'node:fs/promises';
 
 import * as cheerio from 'cheerio';
@@ -69,6 +75,65 @@ function extractJsonText(obj: unknown): string {
   return JSON.stringify(obj);
 }
 
+type Extractor = (filePath: string) => Promise<ExtractedText>;
+
+async function extractMarkdown(filePath: string): Promise<ExtractedText> {
+  const raw = await readFile(filePath, 'utf8');
+  const { frontmatter, body } = extractMarkdownFrontmatter(raw);
+  return { text: body, frontmatter };
+}
+
+async function extractPlaintext(filePath: string): Promise<ExtractedText> {
+  const raw = await readFile(filePath, 'utf8');
+  return { text: raw };
+}
+
+async function extractJson(filePath: string): Promise<ExtractedText> {
+  const raw = await readFile(filePath, 'utf8');
+  const parsed = JSON.parse(raw) as unknown;
+  const json =
+    parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+      ? (parsed as Record<string, unknown>)
+      : undefined;
+  return { text: extractJsonText(parsed), json };
+}
+
+async function extractPdf(filePath: string): Promise<ExtractedText> {
+  const buffer = await readFile(filePath);
+  const uint8Array = new Uint8Array(buffer);
+  const { extractText: extractPdfText } = await import('unpdf');
+  const { text } = await extractPdfText(uint8Array);
+  // unpdf returns an array of strings (one per page)
+  const content = Array.isArray(text) ? text.join('\n\n') : text;
+  return { text: content };
+}
+
+async function extractDocx(filePath: string): Promise<ExtractedText> {
+  const buffer = await readFile(filePath);
+  const result = await mammoth.extractRawText({ buffer });
+  return { text: result.value };
+}
+
+async function extractHtml(filePath: string): Promise<ExtractedText> {
+  const raw = await readFile(filePath, 'utf8');
+  const $ = cheerio.load(raw);
+  $('script, style').remove();
+  const text = $('body').text().trim() || $.text().trim();
+  return { text };
+}
+
+const extractorRegistry = new Map<string, Extractor>([
+  ['.md', extractMarkdown],
+  ['.markdown', extractMarkdown],
+  ['.txt', extractPlaintext],
+  ['.text', extractPlaintext],
+  ['.json', extractJson],
+  ['.pdf', extractPdf],
+  ['.docx', extractDocx],
+  ['.html', extractHtml],
+  ['.htm', extractHtml],
+]);
+
 /**
  * Extract text from a file based on extension.
  *
@@ -80,56 +145,9 @@ export async function extractText(
   filePath: string,
   extension: string,
 ): Promise<ExtractedText> {
-  const ext = extension.toLowerCase();
-
-  if (ext === '.md' || ext === '.markdown') {
-    const raw = await readFile(filePath, 'utf8');
-    const { frontmatter, body } = extractMarkdownFrontmatter(raw);
-    return { text: body, frontmatter };
-  }
-
-  if (ext === '.txt' || ext === '.text') {
-    const raw = await readFile(filePath, 'utf8');
-    return { text: raw };
-  }
-
-  if (ext === '.json') {
-    const raw = await readFile(filePath, 'utf8');
-    const parsed = JSON.parse(raw) as unknown;
-    const json =
-      parsed && typeof parsed === 'object' && !Array.isArray(parsed)
-        ? (parsed as Record<string, unknown>)
-        : undefined;
-    return { text: extractJsonText(parsed), json };
-  }
-
-  if (ext === '.pdf') {
-    const buffer = await readFile(filePath);
-    const uint8Array = new Uint8Array(buffer);
-    const { extractText: extractPdfText } = await import('unpdf');
-    const { text } = await extractPdfText(uint8Array);
-    // unpdf returns an array of strings (one per page)
-    const content = Array.isArray(text) ? text.join('\n\n') : text;
-    return { text: content };
-  }
-
-  if (ext === '.docx') {
-    const buffer = await readFile(filePath);
-    const result = await mammoth.extractRawText({ buffer });
-    return { text: result.value };
-  }
-
-  if (ext === '.html' || ext === '.htm') {
-    const raw = await readFile(filePath, 'utf8');
-    const $ = cheerio.load(raw);
-    // Remove script and style elements
-    $('script, style').remove();
-    // Extract text content
-    const text = $('body').text().trim() || $.text().trim();
-    return { text };
-  }
+  const extractor = extractorRegistry.get(extension.toLowerCase());
+  if (extractor) return extractor(filePath);
 
   // Default: treat as plaintext.
-  const raw = await readFile(filePath, 'utf8');
-  return { text: raw };
+  return extractPlaintext(filePath);
 }

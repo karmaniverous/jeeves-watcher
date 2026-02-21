@@ -17,21 +17,25 @@ When a file is processed, the watcher:
 
 This creates a flexible, declarative metadata pipeline.
 
+![Inference Rules Engine](../assets/inference-rules-engine.png)
+
 ---
 
 ## Rule Structure
 
-Each inference rule has two parts:
+Each inference rule has three parts:
 
 ```json
 {
   "match": { /* JSON Schema */ },
-  "set": { /* Metadata to apply */ }
+  "set": { /* Metadata to apply */ },
+  "map": { /* Optional JsonMap transform (inline or named reference) */ }
 }
 ```
 
 - **`match`**: A JSON Schema object that the file attributes must satisfy
 - **`set`**: Key-value pairs to merge into the document metadata
+- **`map`** (optional): A [JsonMap](https://github.com/karmaniverous/jsonmap) definition (or a string reference to a named map)
 
 ---
 
@@ -133,6 +137,107 @@ The watcher registers a custom `glob` keyword for path matching using [picomatch
 This is the **only custom format** — everything else is pure JSON Schema.
 
 ---
+
+## Rule Processing Order
+
+When a rule matches, metadata is built in this order:
+
+1. **`set`** — Static values and template interpolation (`${...}`) are resolved
+2. **`map`** — JsonMap transformation executes (if present)
+3. **Merge** — `map` output overrides `set` output on field conflict
+
+After all matching rules are processed (in definition order, later rules override earlier ones), the inferred metadata is merged with enrichment metadata from `.meta.json` (enrichment wins).
+
+---
+
+## JsonMap Transformations (`map`)
+
+In addition to static `set` values, rules can run a **JsonMap** transform to derive metadata from the file attributes.
+
+- `map` can be an **inline JsonMap** object, or a **string reference** to a named map defined in top-level config `maps`.
+- **Merge priority:** `map` output overrides `set` output on field conflict.
+
+### Example: Inline `map` extracts a path segment
+
+```json
+{
+  "match": { "type": "object" },
+  "set": { "domain": "docs" },
+  "map": {
+    "project": {
+      "$": [
+        { "method": "$.lib.split", "params": ["$.input.file.path", "/"] },
+        { "method": "$.lib.slice", "params": ["$[0]", 0, 1] },
+        { "method": "$.lib.join", "params": ["$[0]", ""] }
+      ]
+    }
+  }
+}
+```
+
+For a file path `docs/readme.md`, this produces:
+
+```json
+{ "domain": "docs", "project": "docs" }
+```
+
+### Example: Named map reference
+
+```json
+{
+  "maps": {
+    "extractProject": {
+      "project": {
+        "$": [
+          { "method": "$.lib.split", "params": ["$.input.file.path", "/"] },
+          { "method": "$.lib.slice", "params": ["$[0]", 0, 1] },
+          { "method": "$.lib.join", "params": ["$[0]", ""] }
+        ]
+      }
+    }
+  },
+  "inferenceRules": [
+    {
+      "match": { "type": "object" },
+      "set": {},
+      "map": "extractProject"
+    }
+  ]
+}
+```
+
+If a rule references a missing named map, the watcher warns and skips the map.
+
+### JsonMap Library Functions
+
+The watcher provides these utility functions for use in JsonMap transformations:
+
+| Function | Signature | Description |
+|----------|-----------|-------------|
+| `split` | `(str: string, separator: string) => string[]` | Split a string by separator |
+| `slice` | `<T>(arr: T[], start: number, end?: number) => T[]` | Extract array slice |
+| `join` | `(arr: string[], separator: string) => string` | Join array elements |
+| `toLowerCase` | `(str: string) => string` | Convert to lowercase |
+| `replace` | `(str: string, search: string \| RegExp, replacement: string) => string` | Replace pattern in string |
+| `get` | `(obj: unknown, path: string) => unknown` | Get nested property by dot path |
+
+**Usage in JsonMap:**
+
+```json
+{
+  "map": {
+    "project": {
+      "$": [
+        { "method": "$.lib.split", "params": ["$.input.file.path", "/"] },
+        { "method": "$.lib.slice", "params": ["$[0]", 0, 1] },
+        { "method": "$.lib.join", "params": ["$[0]", ""] }
+      ]
+    }
+  }
+}
+```
+
+This extracts the first path segment (e.g., `"docs"` from `"docs/readme.md"`).
 
 ## Template Interpolation in `set`
 
@@ -364,25 +469,42 @@ Matches Markdown files under `d:/projects/` and sets both `domain` and `category
 
 ## Metadata Priority
 
-Metadata is derived in layers:
+Metadata is built in layers with clear precedence:
 
-1. **Inference rules** — applied in order, later rules override earlier ones
-2. **API enrichment** — `POST /metadata` overrides everything
+### 1. Inference Rules (Base Layer)
+
+Rules are evaluated **in order**. For each matching rule:
+- `set` fields are applied with template interpolation
+- `map` (JsonMap) transformation runs (if present)
+- `map` output overrides `set` output on field conflict
+
+Later rules override earlier rules on field conflict.
+
+### 2. Enrichment Metadata (Override Layer)
+
+Metadata from `.meta.json` sidecars (written via `POST /metadata` API) **overrides** all inference rule output.
+
+### Final Merge Order
+
+```
+inferred (from rules) → enrichment (from .meta.json) → final payload
+                        ↑ wins conflicts
+```
 
 **Example:**
 
 ```json
-// Inference rule
-{ "set": { "title": "Untitled", "domain": "meetings" } }
+// Rule output
+{ "title": "Untitled", "domain": "meetings" }
 
-// POST /metadata
+// Enrichment (POST /metadata)
 { "title": "Architecture Discussion" }
 
-// Final payload
+// Final Qdrant payload
 { "title": "Architecture Discussion", "domain": "meetings" }
 ```
 
-The API enrichment wins for `title`, but `domain` (not provided via API) comes from the inference rule.
+Enrichment wins for `title`, but `domain` (not in enrichment) comes from the rule.
 
 ---
 
@@ -401,10 +523,10 @@ When you edit `inferenceRules` in the config file (and `configWatch.enabled` is 
 
 ```bash
 # Pause auto-reindex while editing rules
-curl -X POST http://localhost:3100/config-reindex -d '{"action": "pause"}'
+curl -X POST http://localhost:3456/config-reindex -d '{"action": "pause"}'
 
 # Resume (diffs all accumulated changes, single scoped reindex)
-curl -X POST http://localhost:3100/config-reindex -d '{"action": "resume"}'
+curl -X POST http://localhost:3456/config-reindex -d '{"action": "resume"}'
 ```
 
 ---
@@ -434,7 +556,7 @@ Look for log entries like:
 Then query Qdrant to inspect the payload:
 
 ```bash
-curl -X POST http://localhost:3100/search \
+curl -X POST http://localhost:3456/search \
   -H "Content-Type: application/json" \
   -d '{"query": "test", "limit": 1}'
 ```
@@ -461,7 +583,7 @@ For complex rule sets, store rules in a separate file:
 ```json
 {
   "watch": { "paths": ["./docs/**"] },
-  "embedding": { "provider": "gemini", "model": "text-embedding-004" },
+  "embedding": { "provider": "gemini", "model": "gemini-embedding-001" },
   "vectorStore": { "url": "http://localhost:6333", "collectionName": "docs" },
   "inferenceRulesFile": "./rules.json"
 }
@@ -484,8 +606,9 @@ For complex rule sets, store rules in a separate file:
 
 ```typescript
 interface InferenceRule {
-  match: Record<string, unknown>;  // JSON Schema object
-  set: Record<string, unknown>;    // Key-value pairs with optional ${template} vars
+  match: Record<string, unknown>; // JSON Schema object
+  set: Record<string, unknown>; // Key-value pairs with optional ${template} vars
+  map?: Record<string, unknown> | string; // JsonMap definition or named map reference
 }
 ```
 

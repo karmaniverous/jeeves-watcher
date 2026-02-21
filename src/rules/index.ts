@@ -1,9 +1,17 @@
 import type { Stats } from 'node:fs';
 import { basename, dirname, extname } from 'node:path';
 
+import {
+  type Json,
+  JsonMap,
+  type JsonMapLib,
+  type JsonMapMap,
+} from '@karmaniverous/jsonmap';
 import Ajv from 'ajv';
 import addFormats from 'ajv-formats';
 import picomatch from 'picomatch';
+import type pino from 'pino';
+import { get } from 'radash';
 
 import type { InferenceRule } from '../config/types';
 
@@ -121,12 +129,7 @@ function resolveTemplateVars(
 ): unknown {
   if (typeof value !== 'string') return value;
   return value.replace(/\$\{([^}]+)\}/g, (_match, varPath: string) => {
-    const parts = varPath.split('.');
-    let current: unknown = attributes;
-    for (const part of parts) {
-      if (current === null || current === undefined) return '';
-      current = (current as Record<string, unknown>)[part];
-    }
+    const current = get(attributes, varPath);
     if (current === null || current === undefined) return '';
     return typeof current === 'string' ? current : JSON.stringify(current);
   });
@@ -151,23 +154,96 @@ function resolveSet(
 }
 
 /**
+ * Create the lib object for JsonMap transformations.
+ * Provides utility functions for path manipulation.
+ *
+ * @returns The lib object.
+ */
+function createJsonMapLib() {
+  return {
+    split: (str: string, separator: string) => str.split(separator),
+    slice: <T>(arr: T[], start: number, end?: number) => arr.slice(start, end),
+    join: (arr: string[], separator: string) => arr.join(separator),
+    toLowerCase: (str: string) => str.toLowerCase(),
+    replace: (str: string, search: string | RegExp, replacement: string) =>
+      str.replace(search, replacement),
+    get: (obj: unknown, path: string) => get(obj, path),
+  };
+}
+
+/**
  * Apply compiled inference rules to file attributes, returning merged metadata.
  *
  * Rules are evaluated in order; later rules override earlier ones.
+ * If a rule has a `map`, the JsonMap transformation is applied after `set` resolution,
+ * and map output overrides set output on conflict.
  *
  * @param compiledRules - The compiled rules to evaluate.
  * @param attributes - The file attributes to match against.
+ * @param namedMaps - Optional record of named JsonMap definitions.
+ * @param logger - Optional pino logger for warnings (falls back to console.warn).
  * @returns The merged metadata from all matching rules.
  */
-export function applyRules(
+export async function applyRules(
   compiledRules: CompiledRule[],
   attributes: FileAttributes,
-): Record<string, unknown> {
+  namedMaps?: Record<string, JsonMapMap>,
+  logger?: pino.Logger,
+): Promise<Record<string, unknown>> {
+  // JsonMap's type definitions expect a generic JsonMapLib shape with unary functions.
+  // Our helper functions accept multiple args, which JsonMap supports at runtime.
+  const lib = createJsonMapLib() as unknown as JsonMapLib;
   let merged: Record<string, unknown> = {};
+  const log = logger ?? console;
+
   for (const { rule, validate } of compiledRules) {
     if (validate(attributes)) {
-      merged = { ...merged, ...resolveSet(rule.set, attributes) };
+      // Apply set resolution
+      const setOutput = resolveSet(rule.set, attributes);
+      merged = { ...merged, ...setOutput };
+
+      // Apply map transformation if present
+      if (rule.map) {
+        let mapDef: JsonMapMap | undefined;
+
+        // Resolve map reference
+        if (typeof rule.map === 'string') {
+          mapDef = namedMaps?.[rule.map];
+          if (!mapDef) {
+            log.warn(
+              `Map reference "${rule.map}" not found in named maps. Skipping map transformation.`,
+            );
+            continue;
+          }
+        } else {
+          mapDef = rule.map;
+        }
+
+        // Execute JsonMap transformation
+        try {
+          const jsonMap = new JsonMap(mapDef, lib);
+          const mapOutput = await jsonMap.transform(
+            attributes as unknown as Json,
+          );
+          if (
+            mapOutput &&
+            typeof mapOutput === 'object' &&
+            !Array.isArray(mapOutput)
+          ) {
+            merged = { ...merged, ...(mapOutput as Record<string, unknown>) };
+          } else {
+            log.warn(
+              `JsonMap transformation did not return an object; skipping merge.`,
+            );
+          }
+        } catch (error) {
+          log.warn(
+            `JsonMap transformation failed: ${error instanceof Error ? error.message : String(error)}`,
+          );
+        }
+      }
     }
   }
+
   return merged;
 }
