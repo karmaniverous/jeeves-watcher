@@ -32,7 +32,7 @@ export function registerEnrichCommand(cli: Command): void {
         if (options.json) {
           try {
             metadata = JSON.parse(options.json) as Record<string, unknown>;
-          } catch (error) {
+          } catch {
             console.error('Invalid JSON:', options.json);
             process.exit(1);
           }
