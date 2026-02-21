@@ -6,117 +6,392 @@
       "type": "object",
       "properties": {
         "paths": {
-          "minItems": 1,
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/__schema0"
-          }
+          "$ref": "#/definitions/__schema0"
         },
         "ignored": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
+          "$ref": "#/definitions/__schema2"
         },
         "pollIntervalMs": {
-          "type": "number"
+          "$ref": "#/definitions/__schema4"
         },
         "usePolling": {
-          "type": "boolean"
+          "$ref": "#/definitions/__schema6"
         },
         "debounceMs": {
-          "type": "number"
+          "$ref": "#/definitions/__schema8"
         },
         "stabilityThresholdMs": {
-          "type": "number"
+          "$ref": "#/definitions/__schema10"
         }
       },
       "required": [
         "paths"
-      ]
+      ],
+      "description": "File system watch configuration."
     },
     "configWatch": {
-      "type": "object",
-      "properties": {
-        "enabled": {
-          "type": "boolean"
-        },
-        "debounceMs": {
-          "type": "number"
+      "description": "Configuration file watch settings.",
+      "allOf": [
+        {
+          "$ref": "#/definitions/__schema12"
         }
-      }
+      ]
     },
     "embedding": {
       "type": "object",
       "properties": {
         "provider": {
-          "default": "gemini",
-          "type": "string"
+          "$ref": "#/definitions/__schema15"
         },
         "model": {
-          "default": "gemini-embedding-001",
-          "type": "string"
+          "$ref": "#/definitions/__schema17"
         },
         "chunkSize": {
-          "type": "number"
+          "$ref": "#/definitions/__schema19"
         },
         "chunkOverlap": {
-          "type": "number"
+          "$ref": "#/definitions/__schema21"
         },
         "dimensions": {
-          "type": "number"
+          "$ref": "#/definitions/__schema23"
         },
         "apiKey": {
-          "type": "string"
+          "$ref": "#/definitions/__schema25"
         },
         "rateLimitPerMinute": {
-          "type": "number"
+          "$ref": "#/definitions/__schema27"
         },
         "concurrency": {
-          "type": "number"
+          "$ref": "#/definitions/__schema29"
         }
-      }
+      },
+      "description": "Embedding model configuration."
     },
     "vectorStore": {
       "type": "object",
       "properties": {
         "url": {
-          "type": "string"
+          "$ref": "#/definitions/__schema31"
         },
         "collectionName": {
-          "type": "string"
+          "$ref": "#/definitions/__schema32"
         },
         "apiKey": {
-          "type": "string"
+          "$ref": "#/definitions/__schema33"
         }
       },
       "required": [
         "url",
         "collectionName"
-      ]
+      ],
+      "description": "Qdrant vector store configuration."
     },
     "metadataDir": {
-      "type": "string"
+      "description": "Directory for persisted metadata sidecar files.",
+      "allOf": [
+        {
+          "$ref": "#/definitions/__schema35"
+        }
+      ]
     },
     "api": {
+      "description": "API server configuration.",
+      "allOf": [
+        {
+          "$ref": "#/definitions/__schema36"
+        }
+      ]
+    },
+    "extractors": {
+      "description": "Extractor configurations keyed by name.",
+      "allOf": [
+        {
+          "$ref": "#/definitions/__schema39"
+        }
+      ]
+    },
+    "inferenceRules": {
+      "description": "Rules for inferring metadata from file attributes.",
+      "allOf": [
+        {
+          "$ref": "#/definitions/__schema40"
+        }
+      ]
+    },
+    "maps": {
+      "description": "Reusable named JsonMap transformations.",
+      "allOf": [
+        {
+          "$ref": "#/definitions/__schema48"
+        }
+      ]
+    },
+    "logging": {
+      "description": "Logging configuration.",
+      "allOf": [
+        {
+          "$ref": "#/definitions/__schema49"
+        }
+      ]
+    },
+    "shutdownTimeoutMs": {
+      "description": "Timeout in milliseconds for graceful shutdown.",
+      "allOf": [
+        {
+          "$ref": "#/definitions/__schema52"
+        }
+      ]
+    }
+  },
+  "required": [
+    "watch",
+    "embedding",
+    "vectorStore"
+  ],
+  "definitions": {
+    "__schema0": {
+      "minItems": 1,
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/__schema1"
+      },
+      "description": "Glob patterns for files to watch (e.g., \"**/*.md\"). At least one required."
+    },
+    "__schema1": {
+      "type": "string"
+    },
+    "__schema2": {
+      "description": "Glob patterns to exclude from watching (e.g., \"**/node_modules/**\").",
+      "allOf": [
+        {
+          "$ref": "#/definitions/__schema3"
+        }
+      ]
+    },
+    "__schema3": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "__schema4": {
+      "description": "Polling interval in milliseconds when usePolling is enabled.",
+      "allOf": [
+        {
+          "$ref": "#/definitions/__schema5"
+        }
+      ]
+    },
+    "__schema5": {
+      "type": "number"
+    },
+    "__schema6": {
+      "description": "Use polling instead of native file system events (for network drives).",
+      "allOf": [
+        {
+          "$ref": "#/definitions/__schema7"
+        }
+      ]
+    },
+    "__schema7": {
+      "type": "boolean"
+    },
+    "__schema8": {
+      "description": "Debounce delay in milliseconds for file change events.",
+      "allOf": [
+        {
+          "$ref": "#/definitions/__schema9"
+        }
+      ]
+    },
+    "__schema9": {
+      "type": "number"
+    },
+    "__schema10": {
+      "description": "Time in milliseconds a file must remain unchanged before processing.",
+      "allOf": [
+        {
+          "$ref": "#/definitions/__schema11"
+        }
+      ]
+    },
+    "__schema11": {
+      "type": "number"
+    },
+    "__schema12": {
       "type": "object",
       "properties": {
-        "host": {
-          "type": "string"
+        "enabled": {
+          "description": "Enable automatic reloading when config file changes.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/__schema13"
+            }
+          ]
         },
-        "port": {
-          "type": "number"
+        "debounceMs": {
+          "description": "Debounce delay in milliseconds for config file change detection.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/__schema14"
+            }
+          ]
         }
       }
     },
-    "extractors": {
+    "__schema13": {
+      "type": "boolean"
+    },
+    "__schema14": {
+      "type": "number"
+    },
+    "__schema15": {
+      "default": "gemini",
+      "description": "Embedding provider name (e.g., \"gemini\", \"openai\").",
+      "allOf": [
+        {
+          "$ref": "#/definitions/__schema16"
+        }
+      ]
+    },
+    "__schema16": {
+      "type": "string"
+    },
+    "__schema17": {
+      "default": "gemini-embedding-001",
+      "description": "Embedding model identifier (e.g., \"gemini-embedding-001\", \"text-embedding-3-small\").",
+      "allOf": [
+        {
+          "$ref": "#/definitions/__schema18"
+        }
+      ]
+    },
+    "__schema18": {
+      "type": "string"
+    },
+    "__schema19": {
+      "description": "Maximum chunk size in characters for text splitting.",
+      "allOf": [
+        {
+          "$ref": "#/definitions/__schema20"
+        }
+      ]
+    },
+    "__schema20": {
+      "type": "number"
+    },
+    "__schema21": {
+      "description": "Character overlap between consecutive chunks.",
+      "allOf": [
+        {
+          "$ref": "#/definitions/__schema22"
+        }
+      ]
+    },
+    "__schema22": {
+      "type": "number"
+    },
+    "__schema23": {
+      "description": "Embedding vector dimensions (must match model output).",
+      "allOf": [
+        {
+          "$ref": "#/definitions/__schema24"
+        }
+      ]
+    },
+    "__schema24": {
+      "type": "number"
+    },
+    "__schema25": {
+      "description": "API key for embedding provider (supports ${ENV_VAR} substitution).",
+      "allOf": [
+        {
+          "$ref": "#/definitions/__schema26"
+        }
+      ]
+    },
+    "__schema26": {
+      "type": "string"
+    },
+    "__schema27": {
+      "description": "Maximum embedding API requests per minute (rate limiting).",
+      "allOf": [
+        {
+          "$ref": "#/definitions/__schema28"
+        }
+      ]
+    },
+    "__schema28": {
+      "type": "number"
+    },
+    "__schema29": {
+      "description": "Maximum concurrent embedding requests.",
+      "allOf": [
+        {
+          "$ref": "#/definitions/__schema30"
+        }
+      ]
+    },
+    "__schema30": {
+      "type": "number"
+    },
+    "__schema31": {
+      "type": "string",
+      "description": "Qdrant server URL (e.g., \"http://localhost:6333\")."
+    },
+    "__schema32": {
+      "type": "string",
+      "description": "Qdrant collection name for vector storage."
+    },
+    "__schema33": {
+      "description": "Qdrant API key for authentication (supports ${ENV_VAR} substitution).",
+      "allOf": [
+        {
+          "$ref": "#/definitions/__schema34"
+        }
+      ]
+    },
+    "__schema34": {
+      "type": "string"
+    },
+    "__schema35": {
+      "type": "string"
+    },
+    "__schema36": {
+      "type": "object",
+      "properties": {
+        "host": {
+          "description": "Host address for API server (e.g., \"127.0.0.1\", \"0.0.0.0\").",
+          "allOf": [
+            {
+              "$ref": "#/definitions/__schema37"
+            }
+          ]
+        },
+        "port": {
+          "description": "Port for API server (e.g., 3456).",
+          "allOf": [
+            {
+              "$ref": "#/definitions/__schema38"
+            }
+          ]
+        }
+      }
+    },
+    "__schema37": {
+      "type": "string"
+    },
+    "__schema38": {
+      "type": "number"
+    },
+    "__schema39": {
       "type": "object",
       "propertyNames": {
         "type": "string"
       },
       "additionalProperties": {}
     },
-    "inferenceRules": {
+    "__schema40": {
       "type": "array",
       "items": {
         "type": "object",
@@ -124,24 +399,28 @@
           "match": {
             "type": "object",
             "propertyNames": {
-              "type": "string"
+              "$ref": "#/definitions/__schema41"
             },
-            "additionalProperties": {}
+            "additionalProperties": {
+              "$ref": "#/definitions/__schema42"
+            },
+            "description": "JSON Schema object to match against file attributes."
           },
           "set": {
             "type": "object",
             "propertyNames": {
-              "type": "string"
+              "$ref": "#/definitions/__schema43"
             },
-            "additionalProperties": {}
+            "additionalProperties": {
+              "$ref": "#/definitions/__schema44"
+            },
+            "description": "Metadata fields to set when match succeeds."
           },
           "map": {
-            "anyOf": [
+            "description": "JsonMap transformation (inline definition or named map reference).",
+            "allOf": [
               {
-                "$ref": "#/definitions/__schema1"
-              },
-              {
-                "type": "string"
+                "$ref": "#/definitions/__schema45"
               }
             ]
           }
@@ -152,40 +431,25 @@
         ]
       }
     },
-    "maps": {
-      "type": "object",
-      "propertyNames": {
-        "type": "string"
-      },
-      "additionalProperties": {
-        "$ref": "#/definitions/__schema1"
-      }
-    },
-    "logging": {
-      "type": "object",
-      "properties": {
-        "level": {
-          "type": "string"
-        },
-        "file": {
-          "type": "string"
-        }
-      }
-    },
-    "shutdownTimeoutMs": {
-      "type": "number"
-    }
-  },
-  "required": [
-    "watch",
-    "embedding",
-    "vectorStore"
-  ],
-  "definitions": {
-    "__schema0": {
+    "__schema41": {
       "type": "string"
     },
-    "__schema1": {
+    "__schema42": {},
+    "__schema43": {
+      "type": "string"
+    },
+    "__schema44": {},
+    "__schema45": {
+      "anyOf": [
+        {
+          "$ref": "#/definitions/__schema46"
+        },
+        {
+          "type": "string"
+        }
+      ]
+    },
+    "__schema46": {
       "anyOf": [
         {
           "anyOf": [
@@ -211,7 +475,7 @@
           "additionalProperties": {
             "anyOf": [
               {
-                "$ref": "#/definitions/__schema1"
+                "$ref": "#/definitions/__schema46"
               },
               {
                 "type": "object",
@@ -219,12 +483,12 @@
                   "$": {
                     "anyOf": [
                       {
-                        "$ref": "#/definitions/__schema2"
+                        "$ref": "#/definitions/__schema47"
                       },
                       {
                         "type": "array",
                         "items": {
-                          "$ref": "#/definitions/__schema2"
+                          "$ref": "#/definitions/__schema47"
                         }
                       }
                     ]
@@ -240,12 +504,12 @@
         {
           "type": "array",
           "items": {
-            "$ref": "#/definitions/__schema1"
+            "$ref": "#/definitions/__schema46"
           }
         }
       ]
     },
-    "__schema2": {
+    "__schema47": {
       "type": "object",
       "properties": {
         "method": {
@@ -269,6 +533,45 @@
         "method",
         "params"
       ]
+    },
+    "__schema48": {
+      "type": "object",
+      "propertyNames": {
+        "type": "string"
+      },
+      "additionalProperties": {
+        "$ref": "#/definitions/__schema46"
+      }
+    },
+    "__schema49": {
+      "type": "object",
+      "properties": {
+        "level": {
+          "description": "Logging level (trace, debug, info, warn, error, fatal).",
+          "allOf": [
+            {
+              "$ref": "#/definitions/__schema50"
+            }
+          ]
+        },
+        "file": {
+          "description": "Path to log file (logs to stdout if omitted).",
+          "allOf": [
+            {
+              "$ref": "#/definitions/__schema51"
+            }
+          ]
+        }
+      }
+    },
+    "__schema50": {
+      "type": "string"
+    },
+    "__schema51": {
+      "type": "string"
+    },
+    "__schema52": {
+      "type": "number"
     }
   }
 }
