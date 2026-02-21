@@ -12,6 +12,7 @@ import { EventQueue } from '../queue';
 import { compileRules } from '../rules';
 import { VectorStoreClient } from '../vectorStore';
 import { FileSystemWatcher } from '../watcher';
+import { normalizeError } from '../util/normalizeError';
 import { ConfigWatcher } from './configWatcher';
 import { installShutdownHandlers } from './shutdown';
 
@@ -129,7 +130,7 @@ export class JeevesWatcher {
         logger,
       );
     } catch (error) {
-      logger.fatal({ error }, 'Failed to create embedding provider');
+      logger.fatal({ err: normalizeError(error) }, 'Failed to create embedding provider');
       throw error;
     }
 
@@ -289,7 +290,7 @@ export class JeevesWatcher {
         'Config reloaded',
       );
     } catch (error) {
-      logger.error({ error }, 'Failed to reload config');
+      logger.error({ err: normalizeError(error) }, 'Failed to reload config');
     }
   }
 }

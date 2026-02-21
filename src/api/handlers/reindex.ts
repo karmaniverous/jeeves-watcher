@@ -8,6 +8,7 @@ import type pino from 'pino';
 
 import type { JeevesWatcherConfig } from '../../config/types';
 import type { DocumentProcessor } from '../../processor';
+import { normalizeError } from '../../util/normalizeError';
 import { processAllFiles } from '../processAllFiles';
 
 export interface ReindexRouteDeps {
@@ -33,7 +34,7 @@ export function createReindexHandler(deps: ReindexRouteDeps) {
 
       return await reply.status(200).send({ ok: true, filesIndexed: count });
     } catch (error) {
-      deps.logger.error({ error }, 'Reindex failed');
+      deps.logger.error({ err: normalizeError(error) }, 'Reindex failed');
       return await reply.status(500).send({ error: 'Internal server error' });
     }
   };

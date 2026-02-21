@@ -7,6 +7,7 @@ import type { FastifyReply, FastifyRequest } from 'fastify';
 import type pino from 'pino';
 
 import type { EmbeddingProvider } from '../../embedding';
+import { normalizeError } from '../../util/normalizeError';
 import type { VectorStoreClient } from '../../vectorStore';
 
 export interface SearchRouteDeps {
@@ -32,7 +33,7 @@ export function createSearchHandler(deps: SearchRouteDeps) {
       const results = await deps.vectorStore.search(vectors[0], limit);
       return results;
     } catch (error) {
-      deps.logger.error({ error }, 'Search failed');
+      deps.logger.error({ err: normalizeError(error) }, 'Search failed');
       return reply.status(500).send({ error: 'Internal server error' });
     }
   };

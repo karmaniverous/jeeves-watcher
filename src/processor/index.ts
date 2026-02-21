@@ -15,6 +15,7 @@ import { deleteMetadata, readMetadata, writeMetadata } from '../metadata';
 import { pointId } from '../pointId';
 import type { CompiledRule } from '../rules';
 import type { VectorStoreClient } from '../vectorStore';
+import { normalizeError } from '../util/normalizeError';
 import { buildMergedMetadata } from './buildMetadata';
 import { chunkIds, getChunkCount } from './chunkIds';
 import { createSplitter } from './splitter';
@@ -138,7 +139,10 @@ export class DocumentProcessor {
         'File processed successfully',
       );
     } catch (error) {
-      this.logger.error({ filePath, error }, 'Failed to process file');
+      this.logger.error(
+        { filePath, err: normalizeError(error) },
+        'Failed to process file',
+      );
     }
   }
 
@@ -160,7 +164,10 @@ export class DocumentProcessor {
 
       this.logger.info({ filePath }, 'File deleted from index');
     } catch (error) {
-      this.logger.error({ filePath, error }, 'Failed to delete file');
+      this.logger.error(
+        { filePath, err: normalizeError(error) },
+        'Failed to delete file',
+      );
     }
   }
 
@@ -194,7 +201,10 @@ export class DocumentProcessor {
       this.logger.info({ filePath, chunks: totalChunks }, 'Metadata updated');
       return merged;
     } catch (error) {
-      this.logger.error({ filePath, error }, 'Failed to update metadata');
+      this.logger.error(
+        { filePath, err: normalizeError(error) },
+        'Failed to update metadata',
+      );
       return null;
     }
   }
@@ -235,7 +245,10 @@ export class DocumentProcessor {
       this.logger.info({ filePath, chunks: totalChunks }, 'Rules re-applied');
       return metadata;
     } catch (error) {
-      this.logger.error({ filePath, error }, 'Failed to re-apply rules');
+      this.logger.error(
+        { filePath, err: normalizeError(error) },
+        'Failed to re-apply rules',
+      );
       return null;
     }
   }
