@@ -43,7 +43,10 @@ export function createRebuildMetadataHandler(deps: RebuildMetadataRouteDeps) {
 
       return await reply.status(200).send({ ok: true });
     } catch (error) {
-      deps.logger.error({ err: normalizeError(error) }, 'Rebuild metadata failed');
+      deps.logger.error(
+        { err: normalizeError(error) },
+        'Rebuild metadata failed',
+      );
       return await reply.status(500).send({ error: 'Internal server error' });
     }
   };

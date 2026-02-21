@@ -60,13 +60,19 @@ export function createConfigReindexHandler(deps: ConfigReindexRouteDeps) {
             );
           }
         } catch (error) {
-          deps.logger.error({ err: normalizeError(error), scope }, 'Config reindex failed');
+          deps.logger.error(
+            { err: normalizeError(error), scope },
+            'Config reindex failed',
+          );
         }
       })();
 
       return await reply.status(200).send({ status: 'started', scope });
     } catch (error) {
-      deps.logger.error({ err: normalizeError(error) }, 'Config reindex request failed');
+      deps.logger.error(
+        { err: normalizeError(error) },
+        'Config reindex request failed',
+      );
       return await reply.status(500).send({ error: 'Internal server error' });
     }
   };

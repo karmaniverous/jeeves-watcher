@@ -43,7 +43,10 @@ export class ConfigWatcher {
     });
 
     this.watcher.on('error', (error: unknown) => {
-      this.options.logger.error({ err: normalizeError(error) }, 'Config watcher error');
+      this.options.logger.error(
+        { err: normalizeError(error) },
+        'Config watcher error',
+      );
     });
 
     this.options.logger.info(

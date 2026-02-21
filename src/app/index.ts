@@ -10,9 +10,9 @@ import { createLogger } from '../logger';
 import { DocumentProcessor } from '../processor';
 import { EventQueue } from '../queue';
 import { compileRules } from '../rules';
+import { normalizeError } from '../util/normalizeError';
 import { VectorStoreClient } from '../vectorStore';
 import { FileSystemWatcher } from '../watcher';
-import { normalizeError } from '../util/normalizeError';
 import { ConfigWatcher } from './configWatcher';
 import { installShutdownHandlers } from './shutdown';
 
@@ -130,7 +130,10 @@ export class JeevesWatcher {
         logger,
       );
     } catch (error) {
-      logger.fatal({ err: normalizeError(error) }, 'Failed to create embedding provider');
+      logger.fatal(
+        { err: normalizeError(error) },
+        'Failed to create embedding provider',
+      );
       throw error;
     }
 

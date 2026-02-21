@@ -30,7 +30,10 @@ export function createMetadataHandler(deps: MetadataRouteDeps) {
       await deps.processor.processMetadataUpdate(path, metadata);
       return { ok: true };
     } catch (error) {
-      deps.logger.error({ err: normalizeError(error) }, 'Metadata update failed');
+      deps.logger.error(
+        { err: normalizeError(error) },
+        'Metadata update failed',
+      );
       return reply.status(500).send({ error: 'Internal server error' });
     }
   };

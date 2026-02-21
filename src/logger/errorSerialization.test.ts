@@ -29,10 +29,7 @@ describe('pino error serialization', () => {
       stream,
     );
 
-    logger.error(
-      { err: normalizeError('boom') },
-      'Something went wrong',
-    );
+    logger.error({ err: normalizeError('boom') }, 'Something went wrong');
 
     const line = chunks.join('').trim().split('\n').filter(Boolean).at(-1);
     expect(line).toBeDefined();
