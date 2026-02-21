@@ -10,17 +10,12 @@ const ENV_PATTERN = /\$\{([^}]+)\}/g;
  * Replace `${VAR_NAME}` patterns in a string with `process.env.VAR_NAME`.
  *
  * @param value - The string to process.
- * @returns The string with env vars substituted.
- * @throws If a referenced env var is not set.
+ * @returns The string with resolved env vars; unresolvable expressions left untouched.
  */
 function substituteString(value: string): string {
   return value.replace(ENV_PATTERN, (match, varName: string) => {
     const envValue = process.env[varName];
-    if (envValue === undefined) {
-      throw new Error(
-        `Environment variable \${${varName}} referenced in config is not set.`,
-      );
-    }
+    if (envValue === undefined) return match;
     return envValue;
   });
 }
