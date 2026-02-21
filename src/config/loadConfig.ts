@@ -1,98 +1,12 @@
-import Ajv from 'ajv';
 import { cosmiconfig } from 'cosmiconfig';
+import { ZodError } from 'zod';
 
-import type { JeevesWatcherConfig } from './types';
+import {
+  jeevesWatcherConfigSchema,
+  type JeevesWatcherConfig,
+} from './schemas';
 
 const MODULE_NAME = 'jeeves-watcher';
-
-/** JSON Schema for validating jeeves-watcher configuration. */
-const configSchema = {
-  type: 'object',
-  required: ['watch', 'embedding', 'vectorStore'],
-  properties: {
-    watch: {
-      type: 'object',
-      required: ['paths'],
-      properties: {
-        paths: { type: 'array', items: { type: 'string' }, minItems: 1 },
-        ignored: { type: 'array', items: { type: 'string' } },
-        pollIntervalMs: { type: 'number' },
-        usePolling: { type: 'boolean' },
-        debounceMs: { type: 'number' },
-        stabilityThresholdMs: { type: 'number' },
-      },
-      additionalProperties: false,
-    },
-    configWatch: {
-      type: 'object',
-      properties: {
-        enabled: { type: 'boolean' },
-        debounceMs: { type: 'number' },
-      },
-      additionalProperties: false,
-    },
-    embedding: {
-      type: 'object',
-      required: ['provider', 'model'],
-      properties: {
-        provider: { type: 'string' },
-        model: { type: 'string' },
-        chunkSize: { type: 'number' },
-        chunkOverlap: { type: 'number' },
-        dimensions: { type: 'number' },
-        apiKey: { type: 'string' },
-        rateLimitPerMinute: { type: 'number' },
-        concurrency: { type: 'number' },
-      },
-      additionalProperties: false,
-    },
-    vectorStore: {
-      type: 'object',
-      required: ['url', 'collectionName'],
-      properties: {
-        url: { type: 'string' },
-        collectionName: { type: 'string' },
-        apiKey: { type: 'string' },
-      },
-      additionalProperties: false,
-    },
-    metadataDir: { type: 'string' },
-    api: {
-      type: 'object',
-      properties: {
-        host: { type: 'string' },
-        port: { type: 'number' },
-      },
-      additionalProperties: false,
-    },
-    extractors: { type: 'object' },
-    inferenceRules: {
-      type: 'array',
-      items: {
-        type: 'object',
-        required: ['match', 'set'],
-        properties: {
-          match: { type: 'object' },
-          set: { type: 'object' },
-        },
-        additionalProperties: false,
-      },
-    },
-    logging: {
-      type: 'object',
-      properties: {
-        level: { type: 'string' },
-        file: { type: 'string' },
-      },
-      additionalProperties: false,
-    },
-    shutdownTimeoutMs: { type: 'number' },
-  },
-  additionalProperties: false,
-} as const;
-
-const ajv = new Ajv({ allErrors: true });
-const validate = ajv.compile(configSchema);
 
 /** Default values for optional configuration fields. */
 const DEFAULTS: Partial<JeevesWatcherConfig> = {
@@ -115,7 +29,7 @@ const WATCH_DEFAULTS = {
 const EMBEDDING_DEFAULTS = {
   chunkSize: 1000,
   chunkOverlap: 200,
-  dimensions: 768,
+  dimensions: 3072,
   rateLimitPerMinute: 300,
   concurrency: 5,
 };
@@ -160,22 +74,16 @@ export async function loadConfig(
     );
   }
 
-  const raw = result.config as JeevesWatcherConfig;
-
-  if (!validate(raw)) {
-    const errors = validate.errors
-      ?.map((e) => {
-        const instancePath =
-          'instancePath' in e
-            ? (e as unknown as { instancePath?: string }).instancePath
-            : undefined;
-        return `${instancePath ?? '/'}: ${e.message ?? 'unknown error'}`;
-      })
-      .join('; ');
-    throw new Error(
-      `Invalid jeeves-watcher configuration: ${errors ?? 'unknown error'}`,
-    );
+  try {
+    const validated = jeevesWatcherConfigSchema.parse(result.config);
+    return applyDefaults(validated);
+  } catch (error) {
+    if (error instanceof ZodError) {
+      const errors = error.issues
+        .map((issue) => `${issue.path.join('.')}: ${issue.message}`)
+        .join('; ');
+      throw new Error(`Invalid jeeves-watcher configuration: ${errors}`);
+    }
+    throw error;
   }
-
-  return applyDefaults(raw);
 }
