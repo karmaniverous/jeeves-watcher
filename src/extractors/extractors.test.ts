@@ -22,6 +22,21 @@ describe('extractText', () => {
     expect(result.text).toContain('Body text.');
   });
 
+  it('handles markdown with horizontal rules without YAML errors', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'jeeves-watcher-'));
+    const file = join(dir, 'doc.md');
+    await writeFile(
+      file,
+      `# Title\n\nSome intro text.\n\n---\n\nSection after rule.\n\n---\n\nAnother section.\n`,
+      'utf8',
+    );
+
+    const result = await extractText(file, '.md');
+    expect(result.frontmatter).toBeUndefined();
+    expect(result.text).toContain('# Title');
+    expect(result.text).toContain('Section after rule.');
+  });
+
   it('extracts markdown without frontmatter', async () => {
     const dir = await mkdtemp(join(tmpdir(), 'jeeves-watcher-'));
     const file = join(dir, 'doc.md');

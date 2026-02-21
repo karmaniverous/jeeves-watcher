@@ -6,6 +6,8 @@
 import chokidar, { type FSWatcher } from 'chokidar';
 import type pino from 'pino';
 
+import { normalizeError } from '../util/normalizeError';
+
 export interface ConfigWatcherOptions {
   configPath: string;
   enabled: boolean;
@@ -41,7 +43,7 @@ export class ConfigWatcher {
     });
 
     this.watcher.on('error', (error: unknown) => {
-      this.options.logger.error({ error }, 'Config watcher error');
+      this.options.logger.error({ err: normalizeError(error) }, 'Config watcher error');
     });
 
     this.options.logger.info(

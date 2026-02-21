@@ -68,6 +68,44 @@ describe('loadConfig', () => {
     expect(config.api?.port).toBe(3456);
     expect(config.logging?.level).toBe('info');
   });
+
+  it('substitutes ${ENV_VAR} in config string values', async () => {
+    const envKey = 'JW_TEST_CONFIG_API_KEY';
+    process.env[envKey] = 'secret-key-123';
+
+    try {
+      const dir = await mkdtemp(join(tmpdir(), 'jw-cfg-'));
+      const cfgPath = join(dir, 'jeeves-watcher.config.json');
+      await writeFile(
+        cfgPath,
+        JSON.stringify({
+          ...minimalValidConfig,
+          embedding: { apiKey: `\${${envKey}}` },
+        }),
+        'utf8',
+      );
+
+      const config = await loadConfig(cfgPath);
+      expect(config.embedding.apiKey).toBe('secret-key-123');
+    } finally {
+      process.env[envKey] = undefined;
+    }
+  });
+
+  it('throws for missing env var in config', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'jw-cfg-'));
+    const cfgPath = join(dir, 'jeeves-watcher.config.json');
+    await writeFile(
+      cfgPath,
+      JSON.stringify({
+        ...minimalValidConfig,
+        embedding: { apiKey: '${MISSING_JW_VAR_99}' },
+      }),
+      'utf8',
+    );
+
+    await expect(loadConfig(cfgPath)).rejects.toThrow(/MISSING_JW_VAR_99/);
+  });
 });
 
 describe('jeevesWatcherConfigSchema', () => {

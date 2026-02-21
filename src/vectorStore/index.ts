@@ -3,6 +3,7 @@ import type pino from 'pino';
 
 import type { VectorStoreConfig } from '../config/types';
 import { getLogger, type MinimalLogger } from '../util/logger';
+import { normalizeError } from '../util/normalizeError';
 import { retry } from '../util/retry';
 
 /**
@@ -124,7 +125,12 @@ export class VectorStoreClient {
         jitter: 0.2,
         onRetry: ({ attempt, delayMs, error }) => {
           this.log.warn(
-            { attempt, delayMs, operation: 'qdrant.upsert', error },
+            {
+              attempt,
+              delayMs,
+              operation: 'qdrant.upsert',
+              err: normalizeError(error),
+            },
             'Qdrant upsert failed; will retry',
           );
         },
@@ -161,7 +167,12 @@ export class VectorStoreClient {
         jitter: 0.2,
         onRetry: ({ attempt, delayMs, error }) => {
           this.log.warn(
-            { attempt, delayMs, operation: 'qdrant.delete', error },
+            {
+              attempt,
+              delayMs,
+              operation: 'qdrant.delete',
+              err: normalizeError(error),
+            },
             'Qdrant delete failed; will retry',
           );
         },

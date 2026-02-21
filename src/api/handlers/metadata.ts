@@ -7,6 +7,7 @@ import type { FastifyReply, FastifyRequest } from 'fastify';
 import type pino from 'pino';
 
 import type { DocumentProcessor } from '../../processor';
+import { normalizeError } from '../../util/normalizeError';
 
 export interface MetadataRouteDeps {
   processor: DocumentProcessor;
@@ -29,7 +30,7 @@ export function createMetadataHandler(deps: MetadataRouteDeps) {
       await deps.processor.processMetadataUpdate(path, metadata);
       return { ok: true };
     } catch (error) {
-      deps.logger.error({ error }, 'Metadata update failed');
+      deps.logger.error({ err: normalizeError(error) }, 'Metadata update failed');
       return reply.status(500).send({ error: 'Internal server error' });
     }
   };

@@ -11,6 +11,7 @@ import type pino from 'pino';
 
 import type { EmbeddingConfig } from '../config/types';
 import { getLogger } from '../util/logger';
+import { normalizeError } from '../util/normalizeError';
 import { retry } from '../util/retry';
 
 /**
@@ -101,7 +102,7 @@ function createGeminiProvider(
                 delayMs,
                 provider: 'gemini',
                 model: config.model,
-                error,
+                err: normalizeError(error),
               },
               'Embedding call failed; will retry',
             );

@@ -10,6 +10,7 @@ import {
   WATCH_DEFAULTS,
 } from './defaults';
 import { type JeevesWatcherConfig, jeevesWatcherConfigSchema } from './schemas';
+import { substituteEnvVars } from './substituteEnvVars';
 
 const MODULE_NAME = 'jeeves-watcher';
 
@@ -55,7 +56,8 @@ export async function loadConfig(
 
   try {
     const validated = jeevesWatcherConfigSchema.parse(result.config);
-    return applyDefaults(validated);
+    const withDefaults = applyDefaults(validated);
+    return substituteEnvVars(withDefaults);
   } catch (error) {
     if (error instanceof ZodError) {
       const errors = error.issues

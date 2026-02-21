@@ -10,6 +10,7 @@ import { omit } from 'radash';
 import type { JeevesWatcherConfig } from '../../config/types';
 import { writeMetadata } from '../../metadata';
 import { SYSTEM_METADATA_KEYS } from '../../metadata/constants';
+import { normalizeError } from '../../util/normalizeError';
 import type { VectorStoreClient } from '../../vectorStore';
 
 export interface RebuildMetadataRouteDeps {
@@ -42,7 +43,7 @@ export function createRebuildMetadataHandler(deps: RebuildMetadataRouteDeps) {
 
       return await reply.status(200).send({ ok: true });
     } catch (error) {
-      deps.logger.error({ error }, 'Rebuild metadata failed');
+      deps.logger.error({ err: normalizeError(error) }, 'Rebuild metadata failed');
       return await reply.status(500).send({ error: 'Internal server error' });
     }
   };

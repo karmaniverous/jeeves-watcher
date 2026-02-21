@@ -33,6 +33,10 @@ function extractMarkdownFrontmatter(markdown: string): {
   body: string;
 } {
   const trimmed = markdown.replace(/^\uFEFF/, '');
+
+  // Only attempt frontmatter parsing if the file starts with ---
+  if (!/^\s*---/.test(trimmed)) return { body: markdown };
+
   const match = /^---\s*\n([\s\S]*?)\n---\s*\n?([\s\S]*)$/m.exec(trimmed);
   if (!match) return { body: markdown };
 

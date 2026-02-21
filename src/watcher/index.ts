@@ -8,6 +8,7 @@ import type pino from 'pino';
 import type { WatchConfig } from '../config/types';
 import type { DocumentProcessor } from '../processor';
 import type { EventQueue } from '../queue';
+import { normalizeError } from '../util/normalizeError';
 
 /**
  * Filesystem watcher that maps chokidar events to the processing queue.
@@ -75,7 +76,7 @@ export class FileSystemWatcher {
     });
 
     this.watcher.on('error', (error: unknown) => {
-      this.logger.error({ error }, 'Watcher error');
+      this.logger.error({ err: normalizeError(error) }, 'Watcher error');
     });
 
     this.queue.process();
