@@ -35,17 +35,17 @@ Create a new configuration file:
 jeeves-watcher init
 ```
 
-This generates `jeeves-watcher.config.json` with sensible defaults:
+This generates `jeeves-watcher.config.json` with sensible defaults and a `$schema` pointer for IDE autocomplete:
 
 ```json
 {
+  "$schema": "node_modules/@karmaniverous/jeeves-watcher/config.schema.json",
   "watch": {
     "paths": ["**/*.{md,markdown,txt,text,json,html,htm,pdf,docx}"],
     "ignored": ["**/node_modules/**", "**/.git/**", "**/.jeeves-watcher/**"]
   },
   "configWatch": {
-    "enabled": true,
-    "debounceMs": 1000
+    "enabled": true
   },
   "embedding": {
     "provider": "gemini",
@@ -142,6 +142,16 @@ For testing without API costs, use the mock provider:
 ```
 
 The mock provider generates deterministic embeddings from content hashes.
+
+## Configuration Discovery
+
+If you don't specify `--config`, the watcher searches for a config file in this order:
+
+1. `JEEVES_WATCHER_CONFIG` environment variable
+2. `./jeeves-watcher.config.json` (current directory)
+3. `~/.jeeves-watcher/config.json` (user home)
+
+Supported formats: JSON, JSON5, YAML (`.yaml` or `.yml` extension).
 
 ## Validate Configuration
 

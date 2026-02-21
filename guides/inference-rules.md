@@ -136,13 +136,24 @@ This is the **only custom format** — everything else is pure JSON Schema.
 
 ---
 
+## Rule Processing Order
+
+When a rule matches, metadata is built in this order:
+
+1. **`set`** — Static values and template interpolation (`${...}`) are resolved
+2. **`map`** — JsonMap transformation executes (if present)
+3. **Merge** — `map` output overrides `set` output on field conflict
+
+After all matching rules are processed (in definition order, later rules override earlier ones), the inferred metadata is merged with enrichment metadata from `.meta.json` (enrichment wins).
+
+---
+
 ## JsonMap Transformations (`map`)
 
 In addition to static `set` values, rules can run a **JsonMap** transform to derive metadata from the file attributes.
 
 - `map` can be an **inline JsonMap** object, or a **string reference** to a named map defined in top-level config `maps`.
-- When a rule matches, `set` is applied first, then `map` is executed.
-- **Merge order:** `map` output overrides `set` output on field conflict.
+- **Merge priority:** `map` output overrides `set` output on field conflict.
 
 ### Example: Inline `map` extracts a path segment
 
@@ -194,6 +205,37 @@ For a file path `docs/readme.md`, this produces:
 ```
 
 If a rule references a missing named map, the watcher warns and skips the map.
+
+### JsonMap Library Functions
+
+The watcher provides these utility functions for use in JsonMap transformations:
+
+| Function | Signature | Description |
+|----------|-----------|-------------|
+| `split` | `(str: string, separator: string) => string[]` | Split a string by separator |
+| `slice` | `<T>(arr: T[], start: number, end?: number) => T[]` | Extract array slice |
+| `join` | `(arr: string[], separator: string) => string` | Join array elements |
+| `toLowerCase` | `(str: string) => string` | Convert to lowercase |
+| `replace` | `(str: string, search: string \| RegExp, replacement: string) => string` | Replace pattern in string |
+| `get` | `(obj: unknown, path: string) => unknown` | Get nested property by dot path |
+
+**Usage in JsonMap:**
+
+```json
+{
+  "map": {
+    "project": {
+      "$": [
+        { "method": "$.lib.split", "params": ["$.input.file.path", "/"] },
+        { "method": "$.lib.slice", "params": ["$[0]", 0, 1] },
+        { "method": "$.lib.join", "params": ["$[0]", ""] }
+      ]
+    }
+  }
+}
+```
+
+This extracts the first path segment (e.g., `"docs"` from `"docs/readme.md"`).
 
 ## Template Interpolation in `set`
 
@@ -425,25 +467,42 @@ Matches Markdown files under `d:/projects/` and sets both `domain` and `category
 
 ## Metadata Priority
 
-Metadata is derived in layers:
+Metadata is built in layers with clear precedence:
 
-1. **Inference rules** — applied in order, later rules override earlier ones
-2. **API enrichment** — `POST /metadata` overrides everything
+### 1. Inference Rules (Base Layer)
+
+Rules are evaluated **in order**. For each matching rule:
+- `set` fields are applied with template interpolation
+- `map` (JsonMap) transformation runs (if present)
+- `map` output overrides `set` output on field conflict
+
+Later rules override earlier rules on field conflict.
+
+### 2. Enrichment Metadata (Override Layer)
+
+Metadata from `.meta.json` sidecars (written via `POST /metadata` API) **overrides** all inference rule output.
+
+### Final Merge Order
+
+```
+inferred (from rules) → enrichment (from .meta.json) → final payload
+                        ↑ wins conflicts
+```
 
 **Example:**
 
 ```json
-// Inference rule
-{ "set": { "title": "Untitled", "domain": "meetings" } }
+// Rule output
+{ "title": "Untitled", "domain": "meetings" }
 
-// POST /metadata
+// Enrichment (POST /metadata)
 { "title": "Architecture Discussion" }
 
-// Final payload
+// Final Qdrant payload
 { "title": "Architecture Discussion", "domain": "meetings" }
 ```
 
-The API enrichment wins for `title`, but `domain` (not provided via API) comes from the inference rule.
+Enrichment wins for `title`, but `domain` (not in enrichment) comes from the rule.
 
 ---
 

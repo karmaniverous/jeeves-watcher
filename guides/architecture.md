@@ -314,9 +314,17 @@ Rules are **JSON Schema `match` + `set` actions**, evaluated in order against fi
   },
   "set": {
     "domain": "meetings"
-  }
+  },
+  "map": "extractProject"
 }
 ```
+
+**Processing order for each matching rule:**
+
+1. **`match`** — JSON Schema validation against file attributes
+2. **`set`** — Template interpolation (`${...}`) resolves against attributes
+3. **`map`** — JsonMap transformation (inline or named reference)
+4. **Merge** — `map` output overrides `set` output on field conflict
 
 **Custom `glob` format:** Picomatch glob matching registered as an ajv custom keyword. This is the only custom format — everything else is pure JSON Schema.
 
@@ -330,6 +338,10 @@ Rules are **JSON Schema `match` + `set` actions**, evaluated in order against fi
   }
 }
 ```
+
+**JsonMap transformations (`map`):**
+
+Rules can reference named maps from the top-level `maps` config, or include inline JsonMap definitions. The watcher provides lib functions for path manipulation: `split`, `slice`, `join`, `toLowerCase`, `replace`, `get`.
 
 See [Inference Rules Guide](./inference-rules.md) for full details.
 

@@ -17,6 +17,19 @@ The configuration file is auto-discovered in this order:
 
 Supported formats: JSON, JSON5, YAML (via `.yaml`/`.yml` extension).
 
+### Schema Validation
+
+The `init` command generates a config with a `$schema` pointer for IDE autocomplete and validation:
+
+```json
+{
+  "$schema": "node_modules/@karmaniverous/jeeves-watcher/config.schema.json",
+  "watch": { ... }
+}
+```
+
+This enables IntelliSense in VSCode and other editors that support JSON Schema.
+
 ## Top-Level Schema
 
 ```typescript
@@ -90,7 +103,7 @@ interface JeevesWatcherConfig {
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `enabled` | `boolean` | `true` | Watch config file for changes and trigger scoped reindex. |
-| `debounceMs` | `number` | `10000` | Debounce window for config changes. Longer than file debounce to allow editing multiple rules. |
+| `debounceMs` | `number` | `1000` | Debounce window for config changes. |
 
 When the config file changes:
 1. Watcher reloads and validates the new config
@@ -118,9 +131,9 @@ When the config file changes:
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `provider` | `string` | **Required** | Embedding provider: `"gemini"`, `"openai"`, `"mock"`. |
-| `model` | `string` | **Required** | Model name (e.g., `"gemini-embedding-001"` for Gemini). |
-| `apiKey` | `string` | `undefined` | API key. Supports `${ENV_VAR}` template syntax. |
+| `provider` | `string` | `"gemini"` | Embedding provider: `"gemini"`, `"mock"`. |
+| `model` | `string` | `"gemini-embedding-001"` | Model name (e.g., `"gemini-embedding-001"` for Gemini). |
+| `apiKey` | `string` | `undefined` | API key. Supports `${ENV_VAR}` template syntax. Required for production providers (not mock). |
 | `chunkSize` | `number` | `1000` | Maximum characters per chunk for text splitting. |
 | `chunkOverlap` | `number` | `200` | Overlap between consecutive chunks (helps preserve context at boundaries). |
 | `dimensions` | `number` | Provider default | Vector dimensions. Gemini `gemini-embedding-001` = 3072. |
@@ -253,6 +266,21 @@ The API provides endpoints for search, metadata enrichment, reindexing, and stat
 ```
 
 Maps file extensions to extraction strategies. **Usually not needed** - defaults cover common formats.
+
+### JSON Content Extraction
+
+For `.json` files, the extractor looks for text content in these fields (in order):
+
+1. `content`
+2. `body`
+3. `text`
+4. `snippet`
+5. `subject`
+6. `description`
+7. `summary`
+8. `transcript`
+
+If none are found, the entire JSON is stringified for embedding.
 
 ---
 
@@ -396,7 +424,7 @@ At runtime, these are replaced with actual environment variable values.
   },
   "configWatch": {
     "enabled": true,
-    "debounceMs": 10000
+    "debounceMs": 1000
   },
   "embedding": {
     "provider": "gemini",

@@ -81,7 +81,7 @@ The watcher will:
 | `jeeves-watcher reindex` | Reindex all watched files |
 | `jeeves-watcher rebuild-metadata` | Rebuild metadata files from Qdrant payloads |
 | `jeeves-watcher search <query>` | Search the vector store |
-| `jeeves-watcher enrich <path>` | Enrich document metadata |
+| `jeeves-watcher enrich <path>` | Enrich document metadata (planned) |
 | `jeeves-watcher validate` | Validate the configuration |
 | `jeeves-watcher service` | Manage the watcher as a system service |
 | `jeeves-watcher config-reindex` | Reindex after configuration changes (rules only or full) |
@@ -168,9 +168,11 @@ Automatically enrich metadata based on file patterns:
 
 ### Chunking
 
+Chunking settings are configured under `embedding`:
+
 ```json
 {
-  "chunking": {
+  "embedding": {
     "chunkSize": 1000,
     "chunkOverlap": 200
   }
