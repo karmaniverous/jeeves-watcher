@@ -32,6 +32,39 @@ describe('extractText', () => {
     expect(result.text).toContain('Body');
   });
 
+  it('does not misinterpret horizontal rules as frontmatter', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'jeeves-watcher-'));
+    const file = join(dir, 'doc.md');
+    await writeFile(
+      file,
+      '# Heading\n\nSome content.\n\n---\n\nMore content after horizontal rule.',
+      'utf8',
+    );
+
+    const result = await extractText(file, '.md');
+    expect(result.frontmatter).toBeUndefined();
+    expect(result.text).toContain('# Heading');
+    expect(result.text).toContain('---');
+    expect(result.text).toContain('More content after horizontal rule');
+  });
+
+  it('extracts frontmatter only when file starts with ---', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'jeeves-watcher-'));
+    const file = join(dir, 'doc.md');
+    await writeFile(
+      file,
+      '---\nauthor: Alice\n---\n\n# Content\n\n---\n\nMore text.',
+      'utf8',
+    );
+
+    const result = await extractText(file, '.md');
+    expect(result.frontmatter).toEqual({ author: 'Alice' });
+    expect(result.text).toContain('# Content');
+    expect(result.text).toContain('More text');
+    // Body should include the second --- horizontal rule
+    expect(result.text).toContain('---');
+  });
+
   it('extracts plaintext as-is', async () => {
     const dir = await mkdtemp(join(tmpdir(), 'jeeves-watcher-'));
     const file = join(dir, 'doc.txt');

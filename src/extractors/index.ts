@@ -33,7 +33,12 @@ function extractMarkdownFrontmatter(markdown: string): {
   body: string;
 } {
   const trimmed = markdown.replace(/^\uFEFF/, '');
-  const match = /^---\s*\n([\s\S]*?)\n---\s*\n?([\s\S]*)$/m.exec(trimmed);
+
+  // Only attempt frontmatter if file starts with ---
+  if (!/^---\s*\n/.test(trimmed)) return { body: markdown };
+
+  // Then extract between first --- pair
+  const match = /^---\s*\n([\s\S]*?)\n---\s*\n?([\s\S]*)$/.exec(trimmed);
   if (!match) return { body: markdown };
 
   const [, rawYaml, body] = match;
