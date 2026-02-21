@@ -93,13 +93,13 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
   app.post('/rebuild-metadata', async (_request, reply) => {
     try {
       const metadataDir = options.config.metadataDir ?? '.jeeves-metadata';
-      const SYSTEM_KEYS = [
+      const SYSTEM_KEYS: string[] = [
         'file_path',
         'chunk_index',
         'total_chunks',
         'content_hash',
         'chunk_text',
-      ] as const;
+      ];
 
       for await (const point of vectorStore.scroll()) {
         const payload = point.payload;
@@ -107,10 +107,7 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
         if (typeof filePath !== 'string' || filePath.length === 0) continue;
 
         // Persist only enrichment-ish fields, not chunking/index fields.
-        const enrichment = omit(
-          payload as Record<string, unknown>,
-          SYSTEM_KEYS,
-        );
+        const enrichment = omit(payload, SYSTEM_KEYS);
 
         await writeMetadata(filePath, metadataDir, enrichment);
       }
