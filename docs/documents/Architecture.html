@@ -9,41 +9,26 @@
 <li><strong>Three sources of truth</strong> — Filesystem owns content, metadata store owns enrichment, Qdrant is a derived index (fully rebuildable).</li>
 </ol>
 <hr>
+<h2 id="system-architecture" class="tsd-anchor-link">System Architecture<a href="#system-architecture" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h2>
+<p><img src="../media/system-architecture.png" alt="System Architecture"></p>
+<p>The watcher consists of several layered components:</p>
+<ul>
+<li><strong>Configuration Layer</strong> — Zod-validated config with environment variable substitution</li>
+<li><strong>Watch Layer</strong> — Chokidar filesystem watcher + event queue</li>
+<li><strong>Processing Layer</strong> — Document processor with extractors, chunking, and inference rules engine</li>
+<li><strong>External Services</strong> — Configurable embedding provider + Qdrant vector store</li>
+<li><strong>API Layer</strong> — Fastify HTTP server for enrichment and search</li>
+<li><strong>CLI Layer</strong> — Command-line interface for operations</li>
+</ul>
+<hr>
 <h2 id="three-sources-of-truth" class="tsd-anchor-link">Three Sources of Truth<a href="#three-sources-of-truth" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h2>
-<table>
-<thead>
-<tr>
-<th>Store</th>
-<th>Source of Truth For</th>
-<th>Written By</th>
-<th>Protection</th>
-<th>Rebuildable</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><strong>Filesystem</strong> (watched dirs)</td>
-<td>Document content</td>
-<td>Humans, scripts, assistant</td>
-<td>None (watcher adapts)</td>
-<td>N/A (primary source)</td>
-</tr>
-<tr>
-<td><strong>Metadata store</strong> (<code>.meta.json</code> files)</td>
-<td>Enrichment metadata</td>
-<td>Watcher only (via API)</td>
-<td>Architectural policy</td>
-<td>Yes (from Qdrant)</td>
-</tr>
-<tr>
-<td><strong>Qdrant</strong></td>
-<td>Nothing (derived index)</td>
-<td>Watcher only</td>
-<td>N/A</td>
-<td>Yes (from filesystem + metadata store)</td>
-</tr>
-</tbody>
-</table>
+<p><img src="../media/three-sources-of-truth.png" alt="Three Sources of Truth"></p>
+<p>The system maintains three distinct stores:</p>
+<ul>
+<li><strong>Filesystem</strong> (watched directories) — Primary source of document content</li>
+<li><strong>Metadata Store</strong> (<code>.meta.json</code> sidecars) — Enrichment metadata added via API</li>
+<li><strong>Qdrant</strong> (vector database) — Derived index, fully rebuildable</li>
+</ul>
 <h3 id="rebuild-flows" class="tsd-anchor-link">Rebuild Flows<a href="#rebuild-flows" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <p><strong>Qdrant lost → Rebuild from filesystem + metadata store:</strong></p>
 <pre><code class="bash"><span class="hl-0">jeeves-watcher</span><span class="hl-1"> </span><span class="hl-2">reindex</span>
@@ -64,18 +49,32 @@
 <p><strong>Debounce:</strong> Wait <code>watch.debounceMs</code> after the last change event (prevents re-embedding during rapid edits).</p>
 <p><strong>Stability Check:</strong> File size must be unchanged for <code>watch.stabilityThresholdMs</code> (prevents embedding partial writes).</p>
 <h3 id="2-document-processing-pipeline" class="tsd-anchor-link">2. Document Processing Pipeline<a href="#2-document-processing-pipeline" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
-<pre><code class="mermaid"><span class="hl-1">graph TD</span><br/><span class="hl-1">    A[File Path] --&gt; B[Extract Text]</span><br/><span class="hl-1">    B --&gt; C[Content Hash]</span><br/><span class="hl-1">    C --&gt; D{Hash Changed?}</span><br/><span class="hl-1">    D --&gt;|No| E[Skip]</span><br/><span class="hl-1">    D --&gt;|Yes| F[Build Attributes]</span><br/><span class="hl-1">    F --&gt; G[Apply Inference Rules]</span><br/><span class="hl-1">    G --&gt; H[Read Enrichment Metadata]</span><br/><span class="hl-1">    H --&gt; I[Merge Metadata]</span><br/><span class="hl-1">    I --&gt; J[Chunk Text]</span><br/><span class="hl-1">    J --&gt; K[Embed Chunks]</span><br/><span class="hl-1">    K --&gt; L[Upsert to Qdrant]</span><br/><span class="hl-1">    L --&gt; M[Cleanup Orphaned Chunks]</span>
-</code><button type="button">Copy</button></pre>
-
-<p><strong>Hash Check:</strong> Compare <code>sha256(extracted_text)</code> with existing Qdrant payload. If unchanged, skip re-embedding.</p>
-<p><strong>Chunking:</strong> Large documents (&gt;<code>embedding.chunkSize</code>) are split into overlapping chunks. Each chunk becomes a separate Qdrant point.</p>
-<p><strong>Orphan Cleanup:</strong> If a file previously had 5 chunks but now has 3, delete chunks 3–4 from Qdrant.</p>
+<p><img src="../media/document-processing-pipeline.png" alt="Document Processing Pipeline"></p>
+<p>The core processing flow transforms file changes into searchable vectors:</p>
+<ol>
+<li><strong>Extract Text</strong> — Format-specific extraction (PDF, DOCX, Markdown, etc.)</li>
+<li><strong>Content Hash</strong> — SHA-256 hash of extracted text for change detection</li>
+<li><strong>Hash Check</strong> — Skip re-embedding if content unchanged</li>
+<li><strong>Build Attributes</strong> — Collect file metadata (path, size, modified, frontmatter, JSON)</li>
+<li><strong>Apply Inference Rules</strong> — Match → Set → Map → Merge (see <a href="Inference_Rules.html">Inference Rules</a>)</li>
+<li><strong>Read Enrichment Metadata</strong> — Load <code>.meta.json</code> sidecar if exists</li>
+<li><strong>Merge Metadata</strong> — Combine inference rules + enrichment (enrichment wins)</li>
+<li><strong>Chunk Text</strong> — Split large documents with overlap</li>
+<li><strong>Embed Chunks</strong> — Generate vectors via embedding provider</li>
+<li><strong>Upsert to Qdrant</strong> — Store vectors + payloads</li>
+<li><strong>Cleanup Orphaned Chunks</strong> — Remove old chunks if document shrunk</li>
+</ol>
 <h3 id="3-metadata-enrichment-api" class="tsd-anchor-link">3. Metadata Enrichment (API)<a href="#3-metadata-enrichment-api" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
-<pre><code class="mermaid"><span class="hl-1">graph TD</span><br/><span class="hl-1">    A[POST /metadata] --&gt; B[Read Existing Enrichment]</span><br/><span class="hl-1">    B --&gt; C[Merge New Metadata]</span><br/><span class="hl-1">    C --&gt; D[Write .meta.json]</span><br/><span class="hl-1">    D --&gt; E[Update Qdrant Payloads]</span>
-</code><button type="button">Copy</button></pre>
-
-<p><strong>No re-embedding:</strong> Metadata updates only touch Qdrant payloads, not vectors.</p>
-<p><strong>All chunks updated:</strong> If a file has 3 chunks, all 3 payloads are updated with the same metadata.</p>
+<p><img src="../media/metadata-enrichment.png" alt="Metadata Enrichment Flow"></p>
+<p>The enrichment API allows external callers to add metadata without re-embedding:</p>
+<ol>
+<li><strong>POST /metadata</strong> with file path and metadata</li>
+<li><strong>Read existing</strong> <code>.meta.json</code> sidecar (if exists)</li>
+<li><strong>Merge metadata</strong> — new metadata overrides existing (deep merge)</li>
+<li><strong>Write <code>.meta.json</code></strong> — atomic write via temp file + rename</li>
+<li><strong>Update Qdrant payloads</strong> — modify all chunk payloads for the file</li>
+</ol>
+<p><strong>Key principle:</strong> Enrichment updates metadata only. No text extraction, no re-embedding, no hash check. Fast metadata updates without changing vectors.</p>
 <h3 id="4-search-flow" class="tsd-anchor-link">4. Search Flow<a href="#4-search-flow" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <pre><code class="mermaid"><span class="hl-1">graph TD</span><br/><span class="hl-1">    A[POST /search] --&gt; B[Embed Query]</span><br/><span class="hl-1">    B --&gt; C[Qdrant Cosine Search]</span><br/><span class="hl-1">    C --&gt; D[Return Top Results]</span>
 </code><button type="button">Copy</button></pre>
@@ -225,14 +224,23 @@
 </code><button type="button">Copy</button></pre>
 
 <p><strong>Rule example:</strong></p>
-<pre><code class="json"><span class="hl-1">{</span><br/><span class="hl-1">  </span><span class="hl-4">&quot;match&quot;</span><span class="hl-1">: {</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;properties&quot;</span><span class="hl-1">: {</span><br/><span class="hl-1">      </span><span class="hl-4">&quot;file&quot;</span><span class="hl-1">: {</span><br/><span class="hl-1">        </span><span class="hl-4">&quot;properties&quot;</span><span class="hl-1">: {</span><br/><span class="hl-1">          </span><span class="hl-4">&quot;path&quot;</span><span class="hl-1">: { </span><span class="hl-4">&quot;type&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;string&quot;</span><span class="hl-1">, </span><span class="hl-4">&quot;glob&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;d:/meetings/**&quot;</span><span class="hl-1"> }</span><br/><span class="hl-1">        }</span><br/><span class="hl-1">      }</span><br/><span class="hl-1">    }</span><br/><span class="hl-1">  },</span><br/><span class="hl-1">  </span><span class="hl-4">&quot;set&quot;</span><span class="hl-1">: {</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;domain&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;meetings&quot;</span><br/><span class="hl-1">  }</span><br/><span class="hl-1">}</span>
+<pre><code class="json"><span class="hl-1">{</span><br/><span class="hl-1">  </span><span class="hl-4">&quot;match&quot;</span><span class="hl-1">: {</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;properties&quot;</span><span class="hl-1">: {</span><br/><span class="hl-1">      </span><span class="hl-4">&quot;file&quot;</span><span class="hl-1">: {</span><br/><span class="hl-1">        </span><span class="hl-4">&quot;properties&quot;</span><span class="hl-1">: {</span><br/><span class="hl-1">          </span><span class="hl-4">&quot;path&quot;</span><span class="hl-1">: { </span><span class="hl-4">&quot;type&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;string&quot;</span><span class="hl-1">, </span><span class="hl-4">&quot;glob&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;d:/meetings/**&quot;</span><span class="hl-1"> }</span><br/><span class="hl-1">        }</span><br/><span class="hl-1">      }</span><br/><span class="hl-1">    }</span><br/><span class="hl-1">  },</span><br/><span class="hl-1">  </span><span class="hl-4">&quot;set&quot;</span><span class="hl-1">: {</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;domain&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;meetings&quot;</span><br/><span class="hl-1">  },</span><br/><span class="hl-1">  </span><span class="hl-4">&quot;map&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;extractProject&quot;</span><br/><span class="hl-1">}</span>
 </code><button type="button">Copy</button></pre>
 
+<p><strong>Processing order for each matching rule:</strong></p>
+<ol>
+<li><strong><code>match</code></strong> — JSON Schema validation against file attributes</li>
+<li><strong><code>set</code></strong> — Template interpolation (<code>${...}</code>) resolves against attributes</li>
+<li><strong><code>map</code></strong> — JsonMap transformation (inline or named reference)</li>
+<li><strong>Merge</strong> — <code>map</code> output overrides <code>set</code> output on field conflict</li>
+</ol>
 <p><strong>Custom <code>glob</code> format:</strong> Picomatch glob matching registered as an ajv custom keyword. This is the only custom format — everything else is pure JSON Schema.</p>
 <p><strong>Template interpolation in <code>set</code>:</strong></p>
 <pre><code class="json"><span class="hl-1">{</span><br/><span class="hl-1">  </span><span class="hl-4">&quot;set&quot;</span><span class="hl-1">: {</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;title&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;${frontmatter.title}&quot;</span><span class="hl-1">,</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;directory&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;${file.directory}&quot;</span><br/><span class="hl-1">  }</span><br/><span class="hl-1">}</span>
 </code><button type="button">Copy</button></pre>
 
+<p><strong>JsonMap transformations (<code>map</code>):</strong></p>
+<p>Rules can reference named maps from the top-level <code>maps</code> config, or include inline JsonMap definitions. The watcher provides lib functions for path manipulation: <code>split</code>, <code>slice</code>, <code>join</code>, <code>toLowerCase</code>, <code>replace</code>, <code>get</code>.</p>
 <p>See <a href="Inference_Rules.html">Inference Rules Guide</a> for full details.</p>
 <hr>
 <h2 id="text-extraction" class="tsd-anchor-link">Text Extraction<a href="#text-extraction" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h2>
@@ -453,4 +461,4 @@
 <li><a href="API_Reference.html">API Reference</a> — HTTP endpoints</li>
 <li><a href="Deployment_Guide.html">Deployment Guide</a> — Production setup</li>
 </ul>
-</div></div><div class="col-sidebar"><div class="page-menu"><div class="tsd-navigation settings"><details class="tsd-accordion"><summary class="tsd-accordion-summary"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg><h3>Settings</h3></summary><div class="tsd-accordion-details"><div class="tsd-filter-visibility"><span class="settings-label">Member Visibility</span><ul id="tsd-filter-options"><li class="tsd-filter-item"><label class="tsd-filter-input"><input type="checkbox" id="tsd-filter-protected" name="protected"/><svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true"><rect class="tsd-checkbox-background" width="30" height="30" x="1" y="1" rx="6" fill="none"></rect><path class="tsd-checkbox-checkmark" d="M8.35422 16.8214L13.2143 21.75L24.6458 10.25" stroke="none" stroke-width="3.5" stroke-linejoin="round" fill="none"></path></svg><span>Protected</span></label></li><li class="tsd-filter-item"><label class="tsd-filter-input"><input type="checkbox" id="tsd-filter-inherited" name="inherited" checked/><svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true"><rect class="tsd-checkbox-background" width="30" height="30" x="1" y="1" rx="6" fill="none"></rect><path class="tsd-checkbox-checkmark" d="M8.35422 16.8214L13.2143 21.75L24.6458 10.25" stroke="none" stroke-width="3.5" stroke-linejoin="round" fill="none"></path></svg><span>Inherited</span></label></li><li class="tsd-filter-item"><label class="tsd-filter-input"><input type="checkbox" id="tsd-filter-external" name="external"/><svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true"><rect class="tsd-checkbox-background" width="30" height="30" x="1" y="1" rx="6" fill="none"></rect><path class="tsd-checkbox-checkmark" d="M8.35422 16.8214L13.2143 21.75L24.6458 10.25" stroke="none" stroke-width="3.5" stroke-linejoin="round" fill="none"></path></svg><span>External</span></label></li></ul></div><div class="tsd-theme-toggle"><label class="settings-label" for="tsd-theme">Theme</label><select id="tsd-theme"><option value="os">OS</option><option value="light">Light</option><option value="dark">Dark</option></select></div></div></details></div><details open class="tsd-accordion tsd-page-navigation"><summary class="tsd-accordion-summary"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg><h3>On This Page</h3></summary><div class="tsd-accordion-details"><a href="#architecture"><span>Architecture</span></a><ul><li><a href="#design-principles"><span>Design <wbr/>Principles</span></a></li><li><a href="#three-sources-of-truth"><span>Three <wbr/>Sources of <wbr/>Truth</span></a></li><li><ul><li><a href="#rebuild-flows"><span>Rebuild <wbr/>Flows</span></a></li></ul></li><li><a href="#data-flow"><span>Data <wbr/>Flow</span></a></li><li><ul><li><a href="#1-file-change-event"><span>1. <wbr/>File <wbr/>Change <wbr/>Event</span></a></li><li><a href="#2-document-processing-pipeline"><span>2. <wbr/>Document <wbr/>Processing <wbr/>Pipeline</span></a></li><li><a href="#3-metadata-enrichment-api"><span>3. <wbr/>Metadata <wbr/>Enrichment (<wbr/>API)</span></a></li><li><a href="#4-search-flow"><span>4. <wbr/>Search <wbr/>Flow</span></a></li></ul></li><li><a href="#chunking-strategy"><span>Chunking <wbr/>Strategy</span></a></li><li><a href="#content-hashing"><span>Content <wbr/>Hashing</span></a></li><li><a href="#point-id-generation"><span>Point <wbr/>ID <wbr/>Generation</span></a></li><li><a href="#event-processing"><span>Event <wbr/>Processing</span></a></li><li><ul><li><a href="#event-queue"><span>Event <wbr/>Queue</span></a></li><li><a href="#startup-behavior"><span>Startup <wbr/>Behavior</span></a></li><li><a href="#config-change-handling"><span>Config <wbr/>Change <wbr/>Handling</span></a></li></ul></li><li><a href="#metadata-store-design"><span>Metadata <wbr/>Store <wbr/>Design</span></a></li><li><ul><li><a href="#path-derivation"><span>Path <wbr/>Derivation</span></a></li><li><a href="#file-format"><span>File <wbr/>Format</span></a></li><li><a href="#write-policy"><span>Write <wbr/>Policy</span></a></li></ul></li><li><a href="#inference-rules-engine"><span>Inference <wbr/>Rules <wbr/>Engine</span></a></li><li><a href="#text-extraction"><span>Text <wbr/>Extraction</span></a></li><li><ul><li><a href="#extractors-by-file-type"><span>Extractors by <wbr/>File <wbr/>Type</span></a></li></ul></li><li><a href="#error-handling-retry"><span>Error <wbr/>Handling &amp; <wbr/>Retry</span></a></li><li><a href="#graceful-shutdown"><span>Graceful <wbr/>Shutdown</span></a></li><li><a href="#collection-bootstrap"><span>Collection <wbr/>Bootstrap</span></a></li><li><a href="#logging"><span>Logging</span></a></li><li><a href="#technology-choices"><span>Technology <wbr/>Choices</span></a></li><li><a href="#extending-the-watcher"><span>Extending the <wbr/>Watcher</span></a></li><li><ul><li><a href="#add-a-new-extractor"><span>Add a <wbr/>New <wbr/>Extractor</span></a></li><li><a href="#add-a-new-embedding-provider"><span>Add a <wbr/>New <wbr/>Embedding <wbr/>Provider</span></a></li></ul></li><li><a href="#next-steps"><span>Next <wbr/>Steps</span></a></li></ul></div></details></div><div class="site-menu"><nav id="tsd-sidebar-links" class="tsd-navigation"><a href="https://github.com/karmaniverous/jeeves-watcher" class="tsd-nav-link">GitHub</a></nav><nav class="tsd-navigation"><a href="../modules.html">@karmaniverous/jeeves-watcher</a><ul class="tsd-small-nested-navigation" id="tsd-nav-container"><li>Loading...</li></ul></nav></div></div></div><footer><p class="tsd-generator">Generated using <a href="https://typedoc.org/" target="_blank">TypeDoc</a></p></footer><div class="overlay"></div></body></html>
+</div></div><div class="col-sidebar"><div class="page-menu"><div class="tsd-navigation settings"><details class="tsd-accordion"><summary class="tsd-accordion-summary"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg><h3>Settings</h3></summary><div class="tsd-accordion-details"><div class="tsd-filter-visibility"><span class="settings-label">Member Visibility</span><ul id="tsd-filter-options"><li class="tsd-filter-item"><label class="tsd-filter-input"><input type="checkbox" id="tsd-filter-protected" name="protected"/><svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true"><rect class="tsd-checkbox-background" width="30" height="30" x="1" y="1" rx="6" fill="none"></rect><path class="tsd-checkbox-checkmark" d="M8.35422 16.8214L13.2143 21.75L24.6458 10.25" stroke="none" stroke-width="3.5" stroke-linejoin="round" fill="none"></path></svg><span>Protected</span></label></li><li class="tsd-filter-item"><label class="tsd-filter-input"><input type="checkbox" id="tsd-filter-inherited" name="inherited" checked/><svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true"><rect class="tsd-checkbox-background" width="30" height="30" x="1" y="1" rx="6" fill="none"></rect><path class="tsd-checkbox-checkmark" d="M8.35422 16.8214L13.2143 21.75L24.6458 10.25" stroke="none" stroke-width="3.5" stroke-linejoin="round" fill="none"></path></svg><span>Inherited</span></label></li><li class="tsd-filter-item"><label class="tsd-filter-input"><input type="checkbox" id="tsd-filter-external" name="external"/><svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true"><rect class="tsd-checkbox-background" width="30" height="30" x="1" y="1" rx="6" fill="none"></rect><path class="tsd-checkbox-checkmark" d="M8.35422 16.8214L13.2143 21.75L24.6458 10.25" stroke="none" stroke-width="3.5" stroke-linejoin="round" fill="none"></path></svg><span>External</span></label></li></ul></div><div class="tsd-theme-toggle"><label class="settings-label" for="tsd-theme">Theme</label><select id="tsd-theme"><option value="os">OS</option><option value="light">Light</option><option value="dark">Dark</option></select></div></div></details></div><details open class="tsd-accordion tsd-page-navigation"><summary class="tsd-accordion-summary"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg><h3>On This Page</h3></summary><div class="tsd-accordion-details"><a href="#architecture"><span>Architecture</span></a><ul><li><a href="#design-principles"><span>Design <wbr/>Principles</span></a></li><li><a href="#system-architecture"><span>System <wbr/>Architecture</span></a></li><li><a href="#three-sources-of-truth"><span>Three <wbr/>Sources of <wbr/>Truth</span></a></li><li><ul><li><a href="#rebuild-flows"><span>Rebuild <wbr/>Flows</span></a></li></ul></li><li><a href="#data-flow"><span>Data <wbr/>Flow</span></a></li><li><ul><li><a href="#1-file-change-event"><span>1. <wbr/>File <wbr/>Change <wbr/>Event</span></a></li><li><a href="#2-document-processing-pipeline"><span>2. <wbr/>Document <wbr/>Processing <wbr/>Pipeline</span></a></li><li><a href="#3-metadata-enrichment-api"><span>3. <wbr/>Metadata <wbr/>Enrichment (<wbr/>API)</span></a></li><li><a href="#4-search-flow"><span>4. <wbr/>Search <wbr/>Flow</span></a></li></ul></li><li><a href="#chunking-strategy"><span>Chunking <wbr/>Strategy</span></a></li><li><a href="#content-hashing"><span>Content <wbr/>Hashing</span></a></li><li><a href="#point-id-generation"><span>Point <wbr/>ID <wbr/>Generation</span></a></li><li><a href="#event-processing"><span>Event <wbr/>Processing</span></a></li><li><ul><li><a href="#event-queue"><span>Event <wbr/>Queue</span></a></li><li><a href="#startup-behavior"><span>Startup <wbr/>Behavior</span></a></li><li><a href="#config-change-handling"><span>Config <wbr/>Change <wbr/>Handling</span></a></li></ul></li><li><a href="#metadata-store-design"><span>Metadata <wbr/>Store <wbr/>Design</span></a></li><li><ul><li><a href="#path-derivation"><span>Path <wbr/>Derivation</span></a></li><li><a href="#file-format"><span>File <wbr/>Format</span></a></li><li><a href="#write-policy"><span>Write <wbr/>Policy</span></a></li></ul></li><li><a href="#inference-rules-engine"><span>Inference <wbr/>Rules <wbr/>Engine</span></a></li><li><a href="#text-extraction"><span>Text <wbr/>Extraction</span></a></li><li><ul><li><a href="#extractors-by-file-type"><span>Extractors by <wbr/>File <wbr/>Type</span></a></li></ul></li><li><a href="#error-handling-retry"><span>Error <wbr/>Handling &amp; <wbr/>Retry</span></a></li><li><a href="#graceful-shutdown"><span>Graceful <wbr/>Shutdown</span></a></li><li><a href="#collection-bootstrap"><span>Collection <wbr/>Bootstrap</span></a></li><li><a href="#logging"><span>Logging</span></a></li><li><a href="#technology-choices"><span>Technology <wbr/>Choices</span></a></li><li><a href="#extending-the-watcher"><span>Extending the <wbr/>Watcher</span></a></li><li><ul><li><a href="#add-a-new-extractor"><span>Add a <wbr/>New <wbr/>Extractor</span></a></li><li><a href="#add-a-new-embedding-provider"><span>Add a <wbr/>New <wbr/>Embedding <wbr/>Provider</span></a></li></ul></li><li><a href="#next-steps"><span>Next <wbr/>Steps</span></a></li></ul></div></details></div><div class="site-menu"><nav id="tsd-sidebar-links" class="tsd-navigation"><a href="https://github.com/karmaniverous/jeeves-watcher" class="tsd-nav-link">GitHub</a></nav><nav class="tsd-navigation"><a href="../modules.html">@karmaniverous/jeeves-watcher</a><ul class="tsd-small-nested-navigation" id="tsd-nav-container"><li>Loading...</li></ul></nav></div></div></div><footer><p class="tsd-generator">Generated using <a href="https://typedoc.org/" target="_blank">TypeDoc</a></p></footer><div class="overlay"></div></body></html>

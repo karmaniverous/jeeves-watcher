@@ -2,7 +2,47 @@
 
 All notable changes to this project will be documented in this file. Dates are displayed in UTC.
 
+#### [0.2.0](https://github.com/karmaniverous/jeeves-watcher/compare/0.1.0...0.2.0)
+
+- feat: schema-first config (Zod 4), JsonMap integration, DRY/SOLID refactor [`#3`](https://github.com/karmaniverous/jeeves-watcher/pull/3)
+- rendered diagrams [`ecdef44`](https://github.com/karmaniverous/jeeves-watcher/commit/ecdef44a7f7082064f36f562bfff81a34bdc7f17)
+- merge: resolve package-lock conflict with main [`a358b80`](https://github.com/karmaniverous/jeeves-watcher/commit/a358b808836c254ba6eb362fc6f99a417082aa0d)
+- fix: resolve typedoc warnings, export schemas, update deps, add logging [`9b75e80`](https://github.com/karmaniverous/jeeves-watcher/commit/9b75e808750f0fa7238557b45c702b57784a5c47)
+- feat: add Zod schema descriptions [`531939f`](https://github.com/karmaniverous/jeeves-watcher/commit/531939fbe3c6f80e25df9ed36ad9d048618edcc8)
+- refactor: DRY API routes and CLI commands [`1b8cb4f`](https://github.com/karmaniverous/jeeves-watcher/commit/1b8cb4f1b6ac9ac6f05ae202c8fdb07dfa695de4)
+- docs: add PlantUML architecture diagrams and embed in documentation [`79daf6b`](https://github.com/karmaniverous/jeeves-watcher/commit/79daf6b8f79af03be9e9f3cb175fbf3478447abb)
+- test: add CLI command tests (status, search, reindex, configReindex, rebuildMetadata, service) [`094c333`](https://github.com/karmaniverous/jeeves-watcher/commit/094c333bc20b4961f8cd15a7a9ea3f77c2cc9d14)
+- feat: schema-first config with Zod 4 [`fd8987b`](https://github.com/karmaniverous/jeeves-watcher/commit/fd8987b4796e62d28e40b0cca4c80f465ed43954)
+- feat: generate config JSON schema and standardize defaults [`d56659f`](https://github.com/karmaniverous/jeeves-watcher/commit/d56659f72f293e7b3b8ac3094f3163a91648d182)
+- refactor: decompose DocumentProcessor (SRP) [`99db65f`](https://github.com/karmaniverous/jeeves-watcher/commit/99db65f8b590a92688de2ba60fa64000ceee3f47)
+- feat: execute jsonmap in inference rules [`2f48426`](https://github.com/karmaniverous/jeeves-watcher/commit/2f484267a4deec45dcfc8700735f91b7ac6343a2)
+- docs: document jsonmap maps and regenerate schema [`a6db501`](https://github.com/karmaniverous/jeeves-watcher/commit/a6db501b8316340db12d6fe9f61127675ea140c1)
+- test: add integration error-path coverage (skip if qdrant down) [`fb4e646`](https://github.com/karmaniverous/jeeves-watcher/commit/fb4e646086409fb5b69145991ed1047e3507ce61)
+- docs: fix all documentation gaps and inaccuracies [`1c7128d`](https://github.com/karmaniverous/jeeves-watcher/commit/1c7128d39fb0ce509968487eb5343c5c51ea3bb4)
+- refactor: extractor and embedding provider registries (OCP) [`9fbf9e3`](https://github.com/karmaniverous/jeeves-watcher/commit/9fbf9e3fdd0d275b5ccaf0015d1c0bd108c33c3c)
+- test: add config loading and schema validation edge cases [`878a888`](https://github.com/karmaniverous/jeeves-watcher/commit/878a888053e1460660b21ff2a52c97414cfa99fa)
+- feat: centralize config defaults [`4310e75`](https://github.com/karmaniverous/jeeves-watcher/commit/4310e7588d4c4a49b1513e0288c51dd321cba030)
+- fix: replace console.warn with pino logger in retry logic [`63a9888`](https://github.com/karmaniverous/jeeves-watcher/commit/63a9888e4c3f2363a038954ca502cb2ce96ab67e)
+- feat: implement enrich CLI command [`1abda09`](https://github.com/karmaniverous/jeeves-watcher/commit/1abda0918bece26c61aa4f6f3758fa0df78f6353)
+- test: cover rules engine edge cases [`e631e48`](https://github.com/karmaniverous/jeeves-watcher/commit/e631e48ca9229c1025ad21f627318c7a69f4a1e2)
+- feat: add @module TSDoc, checkCompatibility, mark enrich as planned [`d3aae8a`](https://github.com/karmaniverous/jeeves-watcher/commit/d3aae8a3d90d277cf51299ff300b80c38fa048ad)
+- refactor: narrow processor interface (ISP) + misc cleanup [`975daf1`](https://github.com/karmaniverous/jeeves-watcher/commit/975daf1ded93dc407acf1de3f47c7b57b7b66100)
+- feat: add jsonmap to config schema (maps + map on rules) [`5e70229`](https://github.com/karmaniverous/jeeves-watcher/commit/5e702298a702be8045856af417f54d83a34a3c2f)
+- refactor: replace hand-rolled utilities with radash (get) [`ae1e537`](https://github.com/karmaniverous/jeeves-watcher/commit/ae1e537b6ed763545e8a7c09ddddccc1d47e4965)
+- fix: align diagram paths with .vscode/settings.json conventions [`9430b98`](https://github.com/karmaniverous/jeeves-watcher/commit/9430b98ccdf4c0b21cef98fea00c7795ea77f02b)
+- updated plantuml settings [`002dbf2`](https://github.com/karmaniverous/jeeves-watcher/commit/002dbf2dcd2cce71829f2b179751bb6befa64cf5)
+- docs: remove OpenAI embedding provider (not implemented) [`abf0b9c`](https://github.com/karmaniverous/jeeves-watcher/commit/abf0b9c0c6501dbc8139f745ab16cc107a14b961)
+- chore: install radash [`30a456d`](https://github.com/karmaniverous/jeeves-watcher/commit/30a456def10505fa2dec42df5d7ff68db7c78289)
+- fix: make rebuild-metadata system keys mutable [`93fbb42`](https://github.com/karmaniverous/jeeves-watcher/commit/93fbb42e11e413e08dab9ba655f416301024d300)
+- fix: make queue drain timeout check lint-friendly [`8cd217e`](https://github.com/karmaniverous/jeeves-watcher/commit/8cd217ef7ed1c50a8b1134f12473ed7daf00163a)
+- fix: make queue drain timeout check lint-friendly [`7dd8534`](https://github.com/karmaniverous/jeeves-watcher/commit/7dd8534b263f1d7ce24b1994db20b2bbde9c9e30)
+- fix: relax search command header assertion to satisfy lint [`82a6a68`](https://github.com/karmaniverous/jeeves-watcher/commit/82a6a68bddf2ec4832725421a3fa79c17dd84f70)
+- fix: align buildMergedMetadata logger type with applyRules [`78455eb`](https://github.com/karmaniverous/jeeves-watcher/commit/78455eb06c8c9bf0fc86d958e91ab0fc177cf04f)
+- fix: remove unused error variable in enrich command [`cd61437`](https://github.com/karmaniverous/jeeves-watcher/commit/cd61437259b11b55a44919962f1d1d058d32869d)
+
 #### 0.1.0
+
+> 20 February 2026
 
 - Initial commit [`5981aa4`](https://github.com/karmaniverous/jeeves-watcher/commit/5981aa4a62c69e1c87ea5b4c3fda7b8111aa31f2)
 - updated docs [`688bb79`](https://github.com/karmaniverous/jeeves-watcher/commit/688bb796b3e89ed81c589946e68a5b3ae0c3b998)
@@ -10,6 +50,7 @@ All notable changes to this project will be documented in this file. Dates are d
 - feat: initial scaffolding for jeeves-watcher [`b2aa733`](https://github.com/karmaniverous/jeeves-watcher/commit/b2aa733558c36ed460404fcebc70648cd07acee5)
 - docs: add comprehensive guide pages and update typedoc config [`9c79760`](https://github.com/karmaniverous/jeeves-watcher/commit/9c797601e4ccc974b3f29aa092af47398d1689b3)
 - chore: update package.json keywords [`a9147f6`](https://github.com/karmaniverous/jeeves-watcher/commit/a9147f6fdaedad2147ece8d536ed2a818c8869b0)
+- chore: release v0.1.0 [`87b4650`](https://github.com/karmaniverous/jeeves-watcher/commit/87b4650ad9ef6399bfa598a3ddbaf1e4acd5ece5)
 - updated docs [`d65d32b`](https://github.com/karmaniverous/jeeves-watcher/commit/d65d32bc6618721280b187e78e056ee365064273)
 - chore: replace npm-package-template-ts with jeeves-watcher [`d1a8014`](https://github.com/karmaniverous/jeeves-watcher/commit/d1a8014995a53e2a2fb2b907b369c9949312703e)
 - updated changelog [`ec215ea`](https://github.com/karmaniverous/jeeves-watcher/commit/ec215ea092fcebc647e773cb4d18afff8ebd3cb2)

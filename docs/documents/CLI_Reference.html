@@ -98,7 +98,7 @@
 
 <h3 id="output" class="tsd-anchor-link">Output<a href="#output" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <p>Generates a JSON config file with sensible defaults:</p>
-<pre><code class="json"><span class="hl-1">{</span><br/><span class="hl-1">  </span><span class="hl-4">&quot;watch&quot;</span><span class="hl-1">: {</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;paths&quot;</span><span class="hl-1">: [</span><span class="hl-2">&quot;**/*.{md,markdown,txt,text,json,html,htm,pdf,docx}&quot;</span><span class="hl-1">],</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;ignored&quot;</span><span class="hl-1">: [</span><span class="hl-2">&quot;**/node_modules/**&quot;</span><span class="hl-1">, </span><span class="hl-2">&quot;**/.git/**&quot;</span><span class="hl-1">, </span><span class="hl-2">&quot;**/.jeeves-watcher/**&quot;</span><span class="hl-1">]</span><br/><span class="hl-1">  },</span><br/><span class="hl-1">  </span><span class="hl-4">&quot;embedding&quot;</span><span class="hl-1">: {</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;provider&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;gemini&quot;</span><span class="hl-1">,</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;model&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;text-embedding-004&quot;</span><br/><span class="hl-1">  },</span><br/><span class="hl-1">  </span><span class="hl-4">&quot;vectorStore&quot;</span><span class="hl-1">: {</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;url&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;http://127.0.0.1:6333&quot;</span><span class="hl-1">,</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;collectionName&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;jeeves-watcher&quot;</span><br/><span class="hl-1">  },</span><br/><span class="hl-1">  </span><span class="hl-4">&quot;metadataDir&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;.jeeves-watcher&quot;</span><span class="hl-1">,</span><br/><span class="hl-1">  </span><span class="hl-4">&quot;api&quot;</span><span class="hl-1">: {</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;host&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;127.0.0.1&quot;</span><span class="hl-1">,</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;port&quot;</span><span class="hl-1">: </span><span class="hl-5">3100</span><br/><span class="hl-1">  },</span><br/><span class="hl-1">  </span><span class="hl-4">&quot;logging&quot;</span><span class="hl-1">: {</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;level&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;info&quot;</span><br/><span class="hl-1">  }</span><br/><span class="hl-1">}</span>
+<pre><code class="json"><span class="hl-1">{</span><br/><span class="hl-1">  </span><span class="hl-4">&quot;watch&quot;</span><span class="hl-1">: {</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;paths&quot;</span><span class="hl-1">: [</span><span class="hl-2">&quot;**/*.{md,markdown,txt,text,json,html,htm,pdf,docx}&quot;</span><span class="hl-1">],</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;ignored&quot;</span><span class="hl-1">: [</span><span class="hl-2">&quot;**/node_modules/**&quot;</span><span class="hl-1">, </span><span class="hl-2">&quot;**/.git/**&quot;</span><span class="hl-1">, </span><span class="hl-2">&quot;**/.jeeves-watcher/**&quot;</span><span class="hl-1">]</span><br/><span class="hl-1">  },</span><br/><span class="hl-1">  </span><span class="hl-4">&quot;embedding&quot;</span><span class="hl-1">: {</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;provider&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;gemini&quot;</span><span class="hl-1">,</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;model&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;gemini-embedding-001&quot;</span><br/><span class="hl-1">  },</span><br/><span class="hl-1">  </span><span class="hl-4">&quot;vectorStore&quot;</span><span class="hl-1">: {</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;url&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;http://127.0.0.1:6333&quot;</span><span class="hl-1">,</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;collectionName&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;jeeves-watcher&quot;</span><br/><span class="hl-1">  },</span><br/><span class="hl-1">  </span><span class="hl-4">&quot;metadataDir&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;.jeeves-watcher&quot;</span><span class="hl-1">,</span><br/><span class="hl-1">  </span><span class="hl-4">&quot;api&quot;</span><span class="hl-1">: {</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;host&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;127.0.0.1&quot;</span><span class="hl-1">,</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;port&quot;</span><span class="hl-1">: </span><span class="hl-5">3456</span><br/><span class="hl-1">  },</span><br/><span class="hl-1">  </span><span class="hl-4">&quot;logging&quot;</span><span class="hl-1">: {</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;level&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;info&quot;</span><br/><span class="hl-1">  }</span><br/><span class="hl-1">}</span>
 </code><button type="button">Copy</button></pre>
 
 <hr>
@@ -129,7 +129,7 @@
 
 <h3 id="output-1" class="tsd-anchor-link">Output<a href="#output-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <p><strong>Success:</strong></p>
-<pre><code><span class="hl-8">Config</span><span class="hl-1"> </span><span class="hl-8">valid</span><br/><span class="hl-1">  </span><span class="hl-8">Watch</span><span class="hl-1"> </span><span class="hl-7">paths</span><span class="hl-1">: ./</span><span class="hl-8">docs</span><span class="hl-9">/**/</span><span class="hl-1">*.</span><span class="hl-8">md</span><span class="hl-1">, ./</span><span class="hl-8">notes</span><span class="hl-9">/**/</span><span class="hl-1">*.</span><span class="hl-8">txt</span><br/><span class="hl-1">  </span><span class="hl-7">Embedding</span><span class="hl-1">: </span><span class="hl-8">gemini</span><span class="hl-1">/</span><span class="hl-8">text</span><span class="hl-1">-</span><span class="hl-8">embedding</span><span class="hl-1">-</span><span class="hl-5">004</span><br/><span class="hl-1">  </span><span class="hl-8">Vector</span><span class="hl-1"> </span><span class="hl-7">store</span><span class="hl-1">: </span><span class="hl-7">http</span><span class="hl-1">:</span><span class="hl-9">//127.0.0.1:6333 (jeeves-watcher)</span><br/><span class="hl-1">  </span><span class="hl-7">API</span><span class="hl-1">: </span><span class="hl-5">127.0</span><span class="hl-1">.</span><span class="hl-5">0.1</span><span class="hl-1">:</span><span class="hl-5">3100</span>
+<pre><code><span class="hl-8">Config</span><span class="hl-1"> </span><span class="hl-8">valid</span><br/><span class="hl-1">  </span><span class="hl-8">Watch</span><span class="hl-1"> </span><span class="hl-7">paths</span><span class="hl-1">: ./</span><span class="hl-8">docs</span><span class="hl-9">/**/</span><span class="hl-1">*.</span><span class="hl-8">md</span><span class="hl-1">, ./</span><span class="hl-8">notes</span><span class="hl-9">/**/</span><span class="hl-1">*.</span><span class="hl-8">txt</span><br/><span class="hl-1">  </span><span class="hl-7">Embedding</span><span class="hl-1">: </span><span class="hl-8">gemini</span><span class="hl-1">/</span><span class="hl-8">gemini</span><span class="hl-1">-</span><span class="hl-8">embedding</span><span class="hl-1">-</span><span class="hl-5">001</span><br/><span class="hl-1">  </span><span class="hl-8">Vector</span><span class="hl-1"> </span><span class="hl-7">store</span><span class="hl-1">: </span><span class="hl-7">http</span><span class="hl-1">:</span><span class="hl-9">//127.0.0.1:6333 (jeeves-watcher)</span><br/><span class="hl-1">  </span><span class="hl-7">API</span><span class="hl-1">: </span><span class="hl-5">127.0</span><span class="hl-1">.</span><span class="hl-5">0.1</span><span class="hl-1">:</span><span class="hl-5">3456</span>
 </code><button>Copy</button></pre>
 
 <p><strong>Failure:</strong></p>
@@ -160,7 +160,7 @@
 <tbody>
 <tr>
 <td><code>-p, --port &lt;port&gt;</code></td>
-<td><code>3458</code></td>
+<td><code>3456</code></td>
 <td>API port</td>
 </tr>
 <tr>
@@ -171,7 +171,7 @@
 </tbody>
 </table>
 <h3 id="examples-3" class="tsd-anchor-link">Examples<a href="#examples-3" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
-<pre><code class="bash"><span class="hl-9"># Check status on default port</span><br/><span class="hl-0">jeeves-watcher</span><span class="hl-1"> </span><span class="hl-2">status</span><br/><br/><span class="hl-9"># Check status on custom port</span><br/><span class="hl-0">jeeves-watcher</span><span class="hl-1"> </span><span class="hl-2">status</span><span class="hl-1"> </span><span class="hl-3">--port</span><span class="hl-1"> </span><span class="hl-5">3100</span><br/><br/><span class="hl-9"># Check remote instance</span><br/><span class="hl-0">jeeves-watcher</span><span class="hl-1"> </span><span class="hl-2">status</span><span class="hl-1"> </span><span class="hl-3">--host</span><span class="hl-1"> </span><span class="hl-5">192.168.1.100</span><span class="hl-1"> </span><span class="hl-3">--port</span><span class="hl-1"> </span><span class="hl-5">3100</span>
+<pre><code class="bash"><span class="hl-9"># Check status on default port</span><br/><span class="hl-0">jeeves-watcher</span><span class="hl-1"> </span><span class="hl-2">status</span><br/><br/><span class="hl-9"># Check status on custom port</span><br/><span class="hl-0">jeeves-watcher</span><span class="hl-1"> </span><span class="hl-2">status</span><span class="hl-1"> </span><span class="hl-3">--port</span><span class="hl-1"> </span><span class="hl-5">3456</span><br/><br/><span class="hl-9"># Check remote instance</span><br/><span class="hl-0">jeeves-watcher</span><span class="hl-1"> </span><span class="hl-2">status</span><span class="hl-1"> </span><span class="hl-3">--host</span><span class="hl-1"> </span><span class="hl-5">192.168.1.100</span><span class="hl-1"> </span><span class="hl-3">--port</span><span class="hl-1"> </span><span class="hl-5">3456</span>
 </code><button type="button">Copy</button></pre>
 
 <h3 id="output-2" class="tsd-anchor-link">Output<a href="#output-2" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
@@ -207,7 +207,7 @@
 <tbody>
 <tr>
 <td><code>-p, --port &lt;port&gt;</code></td>
-<td><code>3458</code></td>
+<td><code>3456</code></td>
 <td>API port</td>
 </tr>
 <tr>
@@ -218,7 +218,7 @@
 </tbody>
 </table>
 <h3 id="examples-4" class="tsd-anchor-link">Examples<a href="#examples-4" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
-<pre><code class="bash"><span class="hl-9"># Reindex on default port</span><br/><span class="hl-0">jeeves-watcher</span><span class="hl-1"> </span><span class="hl-2">reindex</span><br/><br/><span class="hl-9"># Reindex on custom port</span><br/><span class="hl-0">jeeves-watcher</span><span class="hl-1"> </span><span class="hl-2">reindex</span><span class="hl-1"> </span><span class="hl-3">--port</span><span class="hl-1"> </span><span class="hl-5">3100</span>
+<pre><code class="bash"><span class="hl-9"># Reindex on default port</span><br/><span class="hl-0">jeeves-watcher</span><span class="hl-1"> </span><span class="hl-2">reindex</span><br/><br/><span class="hl-9"># Reindex on custom port</span><br/><span class="hl-0">jeeves-watcher</span><span class="hl-1"> </span><span class="hl-2">reindex</span><span class="hl-1"> </span><span class="hl-3">--port</span><span class="hl-1"> </span><span class="hl-5">3456</span>
 </code><button type="button">Copy</button></pre>
 
 <h3 id="behavior-1" class="tsd-anchor-link">Behavior<a href="#behavior-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
@@ -251,7 +251,7 @@
 <tbody>
 <tr>
 <td><code>-p, --port &lt;port&gt;</code></td>
-<td><code>3458</code></td>
+<td><code>3456</code></td>
 <td>API port</td>
 </tr>
 <tr>
@@ -262,7 +262,7 @@
 </tbody>
 </table>
 <h3 id="examples-5" class="tsd-anchor-link">Examples<a href="#examples-5" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
-<pre><code class="bash"><span class="hl-9"># Rebuild metadata on default port</span><br/><span class="hl-0">jeeves-watcher</span><span class="hl-1"> </span><span class="hl-2">rebuild-metadata</span><br/><br/><span class="hl-9"># Rebuild on custom port</span><br/><span class="hl-0">jeeves-watcher</span><span class="hl-1"> </span><span class="hl-2">rebuild-metadata</span><span class="hl-1"> </span><span class="hl-3">--port</span><span class="hl-1"> </span><span class="hl-5">3100</span>
+<pre><code class="bash"><span class="hl-9"># Rebuild metadata on default port</span><br/><span class="hl-0">jeeves-watcher</span><span class="hl-1"> </span><span class="hl-2">rebuild-metadata</span><br/><br/><span class="hl-9"># Rebuild on custom port</span><br/><span class="hl-0">jeeves-watcher</span><span class="hl-1"> </span><span class="hl-2">rebuild-metadata</span><span class="hl-1"> </span><span class="hl-3">--port</span><span class="hl-1"> </span><span class="hl-5">3456</span>
 </code><button type="button">Copy</button></pre>
 
 <h3 id="behavior-2" class="tsd-anchor-link">Behavior<a href="#behavior-2" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
@@ -311,7 +311,7 @@
 </tr>
 <tr>
 <td><code>-p, --port &lt;port&gt;</code></td>
-<td><code>3458</code></td>
+<td><code>3456</code></td>
 <td>API port</td>
 </tr>
 <tr>
@@ -322,7 +322,7 @@
 </tbody>
 </table>
 <h3 id="examples-6" class="tsd-anchor-link">Examples<a href="#examples-6" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
-<pre><code class="bash"><span class="hl-9"># Basic search</span><br/><span class="hl-0">jeeves-watcher</span><span class="hl-1"> </span><span class="hl-2">search</span><span class="hl-1"> </span><span class="hl-2">&quot;machine learning algorithms&quot;</span><br/><br/><span class="hl-9"># Search with limit</span><br/><span class="hl-0">jeeves-watcher</span><span class="hl-1"> </span><span class="hl-2">search</span><span class="hl-1"> </span><span class="hl-2">&quot;billing integration&quot;</span><span class="hl-1"> </span><span class="hl-3">--limit</span><span class="hl-1"> </span><span class="hl-5">5</span><br/><br/><span class="hl-9"># Search on custom port</span><br/><span class="hl-0">jeeves-watcher</span><span class="hl-1"> </span><span class="hl-2">search</span><span class="hl-1"> </span><span class="hl-2">&quot;project status&quot;</span><span class="hl-1"> </span><span class="hl-3">--port</span><span class="hl-1"> </span><span class="hl-5">3100</span>
+<pre><code class="bash"><span class="hl-9"># Basic search</span><br/><span class="hl-0">jeeves-watcher</span><span class="hl-1"> </span><span class="hl-2">search</span><span class="hl-1"> </span><span class="hl-2">&quot;machine learning algorithms&quot;</span><br/><br/><span class="hl-9"># Search with limit</span><br/><span class="hl-0">jeeves-watcher</span><span class="hl-1"> </span><span class="hl-2">search</span><span class="hl-1"> </span><span class="hl-2">&quot;billing integration&quot;</span><span class="hl-1"> </span><span class="hl-3">--limit</span><span class="hl-1"> </span><span class="hl-5">5</span><br/><br/><span class="hl-9"># Search on custom port</span><br/><span class="hl-0">jeeves-watcher</span><span class="hl-1"> </span><span class="hl-2">search</span><span class="hl-1"> </span><span class="hl-2">&quot;project status&quot;</span><span class="hl-1"> </span><span class="hl-3">--port</span><span class="hl-1"> </span><span class="hl-5">3456</span>
 </code><button type="button">Copy</button></pre>
 
 <h3 id="output-5" class="tsd-anchor-link">Output<a href="#output-5" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
@@ -358,7 +358,7 @@
 </tr>
 <tr>
 <td><code>-p, --port &lt;port&gt;</code></td>
-<td><code>3458</code></td>
+<td><code>3456</code></td>
 <td>API port</td>
 </tr>
 <tr>
@@ -397,7 +397,7 @@
 </code><button type="button">Copy</button></pre>
 
 <p><strong>Workaround:</strong> Use <code>POST /metadata</code> via <code>curl</code>:</p>
-<pre><code class="bash"><span class="hl-0">curl</span><span class="hl-1"> </span><span class="hl-3">-X</span><span class="hl-1"> </span><span class="hl-2">POST</span><span class="hl-1"> </span><span class="hl-2">http://localhost:3100/metadata</span><span class="hl-1"> </span><span class="hl-6">\</span><br/><span class="hl-1">  </span><span class="hl-3">-H</span><span class="hl-1"> </span><span class="hl-2">&quot;Content-Type: application/json&quot;</span><span class="hl-1"> </span><span class="hl-6">\</span><br/><span class="hl-1">  </span><span class="hl-3">-d</span><span class="hl-1"> </span><span class="hl-2">&#39;{&quot;path&quot;: &quot;d:/file.md&quot;, &quot;metadata&quot;: {&quot;title&quot;: &quot;...&quot;}}&#39;</span>
+<pre><code class="bash"><span class="hl-0">curl</span><span class="hl-1"> </span><span class="hl-3">-X</span><span class="hl-1"> </span><span class="hl-2">POST</span><span class="hl-1"> </span><span class="hl-2">http://localhost:3456/metadata</span><span class="hl-1"> </span><span class="hl-6">\</span><br/><span class="hl-1">  </span><span class="hl-3">-H</span><span class="hl-1"> </span><span class="hl-2">&quot;Content-Type: application/json&quot;</span><span class="hl-1"> </span><span class="hl-6">\</span><br/><span class="hl-1">  </span><span class="hl-3">-d</span><span class="hl-1"> </span><span class="hl-2">&#39;{&quot;path&quot;: &quot;d:/file.md&quot;, &quot;metadata&quot;: {&quot;title&quot;: &quot;...&quot;}}&#39;</span>
 </code><button type="button">Copy</button></pre>
 
 <hr>
