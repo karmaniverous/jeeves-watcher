@@ -122,18 +122,6 @@ The watcher will:
 }
 ```
 
-#### OpenAI
-
-```json
-{
-  "embedding": {
-    "provider": "openai",
-    "model": "text-embedding-3-small",
-    "apiKey": "${OPENAI_API_KEY}"
-  }
-}
-```
-
 ### Vector Store
 
 ```json
