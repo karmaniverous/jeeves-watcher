@@ -1,3 +1,9 @@
+/**
+ * @module embedding
+ *
+ * Embedding provider abstractions and registry-backed factory.
+ */
+
 import { createHash } from 'node:crypto';
 
 import { GoogleGenerativeAIEmbeddings } from '@langchain/google-genai';
@@ -80,8 +86,22 @@ function createGeminiProvider(config: EmbeddingConfig): EmbeddingProvider {
   };
 }
 
+type ProviderFactory = (config: EmbeddingConfig) => EmbeddingProvider;
+
+function createMockFromConfig(config: EmbeddingConfig): EmbeddingProvider {
+  const dimensions = config.dimensions ?? 768;
+  return createMockProvider(dimensions);
+}
+
+const embeddingProviderRegistry = new Map<string, ProviderFactory>([
+  ['mock', createMockFromConfig],
+  ['gemini', createGeminiProvider],
+]);
+
 /**
  * Create an embedding provider based on the given configuration.
+ *
+ * Each provider is responsible for its own default dimensions.
  *
  * @param config - The embedding configuration.
  * @returns An {@link EmbeddingProvider} instance.
@@ -90,14 +110,10 @@ function createGeminiProvider(config: EmbeddingConfig): EmbeddingProvider {
 export function createEmbeddingProvider(
   config: EmbeddingConfig,
 ): EmbeddingProvider {
-  const dimensions = config.dimensions ?? 768;
-
-  switch (config.provider) {
-    case 'mock':
-      return createMockProvider(dimensions);
-    case 'gemini':
-      return createGeminiProvider(config);
-    default:
-      throw new Error(`Unsupported embedding provider: ${config.provider}`);
+  const factory = embeddingProviderRegistry.get(config.provider);
+  if (!factory) {
+    throw new Error(`Unsupported embedding provider: ${config.provider}`);
   }
+
+  return factory(config);
 }
