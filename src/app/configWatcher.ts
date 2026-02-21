@@ -45,7 +45,10 @@ export class ConfigWatcher {
     });
 
     this.options.logger.info(
-      { configPath: this.options.configPath, debounceMs: this.options.debounceMs },
+      {
+        configPath: this.options.configPath,
+        debounceMs: this.options.debounceMs,
+      },
       'Config watcher started',
     );
   }

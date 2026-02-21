@@ -18,7 +18,8 @@ import { resolveSet } from './templates';
 /**
  * A minimal logger interface for rule application warnings.
  */
-interface RuleLogger {
+export interface RuleLogger {
+  /** Log a warning message during rule application. */
   warn(msg: string): void;
 }
 

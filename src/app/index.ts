@@ -19,15 +19,21 @@ import { installShutdownHandlers } from './shutdown';
  * Component factories for {@link JeevesWatcher}. Override in tests to inject mocks.
  */
 export interface JeevesWatcherFactories {
+  /** Load and validate a {@link JeevesWatcherConfig} from disk. */
   loadConfig: (configPath?: string) => Promise<JeevesWatcherConfig>;
+  /** Create a pino logger instance. */
   createLogger: typeof createLogger;
+  /** Create an embedding provider from config. */
   createEmbeddingProvider: typeof createEmbeddingProvider;
+  /** Create a vector-store client for similarity search and upsert. */
   createVectorStoreClient: (
     config: JeevesWatcherConfig['vectorStore'],
     dimensions: number,
     logger: pino.Logger,
   ) => VectorStoreClient;
+  /** Compile inference rules from config. */
   compileRules: typeof compileRules;
+  /** Create a document processor for file ingestion. */
   createDocumentProcessor: (
     config: ConstructorParameters<typeof DocumentProcessor>[0],
     embeddingProvider: EmbeddingProvider,
@@ -35,13 +41,18 @@ export interface JeevesWatcherFactories {
     compiledRules: ConstructorParameters<typeof DocumentProcessor>[3],
     logger: pino.Logger,
   ) => DocumentProcessor;
-  createEventQueue: (options: ConstructorParameters<typeof EventQueue>[0]) => EventQueue;
+  /** Create an event queue for batching file-system events. */
+  createEventQueue: (
+    options: ConstructorParameters<typeof EventQueue>[0],
+  ) => EventQueue;
+  /** Create a file-system watcher for the configured watch paths. */
   createFileSystemWatcher: (
     config: JeevesWatcherConfig['watch'],
     queue: EventQueue,
     processor: DocumentProcessor,
     logger: pino.Logger,
   ) => FileSystemWatcher;
+  /** Create the HTTP API server. */
   createApiServer: typeof createApiServer;
 }
 
@@ -58,7 +69,14 @@ const defaultFactories: JeevesWatcherFactories = {
     vectorStore,
     compiledRules,
     logger,
-  ) => new DocumentProcessor(config, embeddingProvider, vectorStore, compiledRules, logger),
+  ) =>
+    new DocumentProcessor(
+      config,
+      embeddingProvider,
+      vectorStore,
+      compiledRules,
+      logger,
+    ),
   createEventQueue: (options) => new EventQueue(options),
   createFileSystemWatcher: (config, queue, processor, logger) =>
     new FileSystemWatcher(config, queue, processor, logger),
