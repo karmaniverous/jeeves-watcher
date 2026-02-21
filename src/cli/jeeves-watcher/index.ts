@@ -10,6 +10,7 @@ import { Command } from '@commander-js/extra-typings';
 
 import { startFromConfig } from '../../app';
 import { loadConfig } from '../../config';
+import { INIT_CONFIG_TEMPLATE } from '../../config/defaults';
 import { registerConfigReindexCommand } from './commands/configReindex';
 import { registerRebuildMetadataCommand } from './commands/rebuildMetadata';
 import { registerReindexCommand } from './commands/reindex';
@@ -76,33 +77,7 @@ cli
   )
   .action(async (options) => {
     try {
-      const config = {
-        $schema:
-          'node_modules/@karmaniverous/jeeves-watcher/config.schema.json',
-        watch: {
-          paths: ['**/*.{md,markdown,txt,text,json,html,htm,pdf,docx}'],
-          ignored: [
-            '**/node_modules/**',
-            '**/.git/**',
-            '**/.jeeves-watcher/**',
-          ],
-        },
-        configWatch: { enabled: true, debounceMs: 1000 },
-        embedding: {
-          provider: 'gemini',
-          model: 'gemini-embedding-001',
-          dimensions: 3072,
-        },
-        vectorStore: {
-          url: 'http://127.0.0.1:6333',
-          collectionName: 'jeeves-watcher',
-        },
-        metadataDir: '.jeeves-watcher',
-        api: { host: '127.0.0.1', port: 3456 },
-        logging: { level: 'info' },
-      };
-
-      await writeJsonFile(options.output, config);
+      await writeJsonFile(options.output, INIT_CONFIG_TEMPLATE);
       console.log(`Wrote ${options.output}`);
     } catch (error) {
       console.error('Failed to initialize config:', error);

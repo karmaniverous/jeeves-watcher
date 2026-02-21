@@ -1,35 +1,17 @@
 import { cosmiconfig } from 'cosmiconfig';
 import { ZodError } from 'zod';
 
+import {
+  API_DEFAULTS,
+  CONFIG_WATCH_DEFAULTS,
+  EMBEDDING_DEFAULTS,
+  LOGGING_DEFAULTS,
+  ROOT_DEFAULTS,
+  WATCH_DEFAULTS,
+} from './defaults';
 import { type JeevesWatcherConfig, jeevesWatcherConfigSchema } from './schemas';
 
 const MODULE_NAME = 'jeeves-watcher';
-
-/** Default values for optional configuration fields. */
-const DEFAULTS: Partial<JeevesWatcherConfig> = {
-  configWatch: { enabled: true, debounceMs: 1000 },
-  metadataDir: '.jeeves-watcher',
-  api: { host: '127.0.0.1', port: 3456 },
-  logging: { level: 'info' },
-  shutdownTimeoutMs: 10000,
-};
-
-/** Default values for watch configuration. */
-const WATCH_DEFAULTS = {
-  debounceMs: 300,
-  stabilityThresholdMs: 500,
-  usePolling: false,
-  pollIntervalMs: 1000,
-};
-
-/** Default values for embedding configuration. */
-const EMBEDDING_DEFAULTS = {
-  chunkSize: 1000,
-  chunkOverlap: 200,
-  dimensions: 3072,
-  rateLimitPerMinute: 300,
-  concurrency: 5,
-};
 
 /**
  * Merge sensible defaults into a loaded configuration.
@@ -39,13 +21,13 @@ const EMBEDDING_DEFAULTS = {
  */
 function applyDefaults(raw: JeevesWatcherConfig): JeevesWatcherConfig {
   return {
-    ...DEFAULTS,
+    ...ROOT_DEFAULTS,
     ...raw,
     watch: { ...WATCH_DEFAULTS, ...raw.watch },
-    configWatch: { ...DEFAULTS.configWatch, ...raw.configWatch },
+    configWatch: { ...CONFIG_WATCH_DEFAULTS, ...raw.configWatch },
     embedding: { ...EMBEDDING_DEFAULTS, ...raw.embedding },
-    api: { ...DEFAULTS.api, ...raw.api },
-    logging: { ...DEFAULTS.logging, ...raw.logging },
+    api: { ...API_DEFAULTS, ...raw.api },
+    logging: { ...LOGGING_DEFAULTS, ...raw.logging },
   };
 }
 

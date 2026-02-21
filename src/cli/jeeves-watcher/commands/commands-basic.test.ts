@@ -147,6 +147,7 @@ describe('search command', () => {
       expect.objectContaining({
         method: 'POST',
         headers: expect.objectContaining({
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
           'content-type': 'application/json',
         }),
         body: JSON.stringify({ query: 'test query', limit: 5 }),
