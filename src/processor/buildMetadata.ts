@@ -1,7 +1,6 @@
 /**
- * @module buildMetadata
- *
- * Shared logic for building merged metadata from inference rules and enrichment files.
+ * @module processor/buildMetadata
+ * Builds merged metadata from file content, inference rules, and enrichment. I/O: reads files, extracts text, loads enrichment .meta.json.
  */
 
 import { stat } from 'node:fs/promises';

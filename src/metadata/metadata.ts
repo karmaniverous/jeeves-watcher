@@ -1,3 +1,7 @@
+/**
+ * @module metadata/metadata
+ * Persists file metadata as .meta.json. I/O: reads/writes/deletes metadata files under metadataDir. Path mapping via SHA-256 hash.
+ */
 import { createHash } from 'node:crypto';
 import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';

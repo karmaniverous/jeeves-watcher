@@ -1,4 +1,9 @@
 /**
+ * @module queue
+ * Debounced, rate-limited, concurrent event queue for file watchers. Manages priority queuing and async callbacks. No direct I/O; orchestrates processing.
+ */
+
+/**
  * A watch event.
  */
 export type WatchEvent = {

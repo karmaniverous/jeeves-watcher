@@ -1,7 +1,6 @@
 /**
- * @module writeJsonFile
- *
- * Utility for writing pretty-printed JSON from CLI commands.
+ * @module cli/jeeves-watcher/writeJsonFile
+ * Writes pretty-printed JSON files for CLI commands. I/O: writes JSON with stable formatting (2-space indent, trailing newline) to disk.
  */
 
 import { writeFile } from 'node:fs/promises';

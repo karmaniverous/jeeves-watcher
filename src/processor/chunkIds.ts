@@ -1,7 +1,6 @@
 /**
- * @module chunkIds
- *
- * Utilities for generating and managing chunk identifiers.
+ * @module processor/chunkIds
+ * Generates chunk point IDs from file paths and chunk indices. Extracts chunk counts from Qdrant payloads. Pure functions, no I/O.
  */
 
 import { pointId } from '../pointId';

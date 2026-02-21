@@ -1,3 +1,7 @@
+/**
+ * @module hash
+ * Provides SHA-256 content hashing. Pure function: given text string, returns hex digest. No I/O or side effects.
+ */
 import { createHash } from 'node:crypto';
 
 /**

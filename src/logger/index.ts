@@ -1,3 +1,7 @@
+/**
+ * @module logger
+ * Creates pino logger instances. I/O: optionally writes logs to file via pino/file transport. Defaults to stdout at info level.
+ */
 import pino from 'pino';
 
 import type { LoggingConfig } from '../config/types';

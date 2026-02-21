@@ -1,7 +1,6 @@
 /**
- * @module splitter
- *
- * Text splitter factory for different file types.
+ * @module processor/splitter
+ * Factory for LangChain text splitters. Returns MarkdownTextSplitter or RecursiveCharacterTextSplitter based on file extension. No I/O.
  */
 
 import {

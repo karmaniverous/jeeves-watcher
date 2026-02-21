@@ -1,6 +1,6 @@
 /**
- * Re-exports of types derived from Zod schemas.
- * Import from './schemas' for schema-first development.
+ * @module config/types
+ * Re-exports TypeScript types inferred from Zod schemas. Supports schema-first development. No I/O. Import from './schemas' for runtime validation.
  */
 export type {
   ApiConfig,

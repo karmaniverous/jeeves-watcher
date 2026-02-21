@@ -1,3 +1,7 @@
+/**
+ * @module pointId
+ * Generates deterministic UUIDv5 point IDs for file paths and chunk indices. Pure function: normalizes paths, returns stable IDs. No I/O.
+ */
 import { v5 as uuidV5 } from 'uuid';
 
 /** Namespace UUID for jeeves-watcher point IDs. */

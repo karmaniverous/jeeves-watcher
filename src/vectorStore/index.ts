@@ -54,6 +54,7 @@ export class VectorStoreClient {
     this.client = new QdrantClient({
       url: config.url,
       apiKey: config.apiKey,
+      checkCompatibility: false,
     });
     this.collectionName = config.collectionName;
     this.dims = dimensions;
