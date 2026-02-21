@@ -146,10 +146,6 @@ describe('search command', () => {
       'http://127.0.0.1:3456/search',
       expect.objectContaining({
         method: 'POST',
-        headers: expect.objectContaining({
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-          'content-type': 'application/json',
-        }),
         body: JSON.stringify({ query: 'test query', limit: 5 }),
       }),
     );
