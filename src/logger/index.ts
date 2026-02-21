@@ -6,6 +6,21 @@ import pino from 'pino';
 
 import type { LoggingConfig } from '../config/types';
 
+const serializers = {
+  err: pino.stdSerializers.err,
+  error: (err: unknown) => {
+    if (err instanceof Error) {
+      return {
+        message: err.message,
+        name: err.name,
+        stack: err.stack,
+        ...(err.cause ? { cause: err.cause } : {}),
+      };
+    }
+    return { message: String(err), raw: err };
+  },
+};
+
 /**
  * Create a pino logger instance.
  *
@@ -20,8 +35,8 @@ export function createLogger(config?: LoggingConfig): pino.Logger {
       target: 'pino/file',
       options: { destination: config.file, mkdir: true },
     });
-    return pino({ level }, transport);
+    return pino({ level, serializers }, transport);
   }
 
-  return pino({ level });
+  return pino({ level, serializers });
 }

@@ -138,7 +138,12 @@ export class DocumentProcessor {
         'File processed successfully',
       );
     } catch (error) {
-      this.logger.error({ filePath, error }, 'Failed to process file');
+      const normalizedError =
+        error instanceof Error ? error : new Error(String(error));
+      this.logger.error(
+        { filePath, error: normalizedError },
+        'Failed to process file',
+      );
     }
   }
 
@@ -160,7 +165,12 @@ export class DocumentProcessor {
 
       this.logger.info({ filePath }, 'File deleted from index');
     } catch (error) {
-      this.logger.error({ filePath, error }, 'Failed to delete file');
+      const normalizedError =
+        error instanceof Error ? error : new Error(String(error));
+      this.logger.error(
+        { filePath, error: normalizedError },
+        'Failed to delete file',
+      );
     }
   }
 
@@ -194,7 +204,12 @@ export class DocumentProcessor {
       this.logger.info({ filePath, chunks: totalChunks }, 'Metadata updated');
       return merged;
     } catch (error) {
-      this.logger.error({ filePath, error }, 'Failed to update metadata');
+      const normalizedError =
+        error instanceof Error ? error : new Error(String(error));
+      this.logger.error(
+        { filePath, error: normalizedError },
+        'Failed to update metadata',
+      );
       return null;
     }
   }
@@ -235,7 +250,12 @@ export class DocumentProcessor {
       this.logger.info({ filePath, chunks: totalChunks }, 'Rules re-applied');
       return metadata;
     } catch (error) {
-      this.logger.error({ filePath, error }, 'Failed to re-apply rules');
+      const normalizedError =
+        error instanceof Error ? error : new Error(String(error));
+      this.logger.error(
+        { filePath, error: normalizedError },
+        'Failed to re-apply rules',
+      );
       return null;
     }
   }
