@@ -50,7 +50,10 @@ export class JeevesWatcher {
 
     let embeddingProvider: EmbeddingProvider;
     try {
-      embeddingProvider = createEmbeddingProvider(this.config.embedding);
+      embeddingProvider = createEmbeddingProvider(
+        this.config.embedding,
+        logger,
+      );
     } catch (error) {
       logger.fatal({ error }, 'Failed to create embedding provider');
       throw error;
@@ -59,6 +62,7 @@ export class JeevesWatcher {
     const vectorStore = new VectorStoreClient(
       this.config.vectorStore,
       embeddingProvider.dimensions,
+      logger,
     );
     await vectorStore.ensureCollection();
 
