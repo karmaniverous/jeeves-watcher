@@ -185,8 +185,8 @@ Architecture diagrams are created with **PlantUML** and embedded in documentatio
 
 ### Directory Structure
 
-- **Source files**: `diagrams/src/*.pu` — PlantUML source code
-- **Rendered output**: `diagrams/out/*.png` — Generated PNG images
+- **Source files**: `diagrams/*.pu` — PlantUML source code
+- **Rendered output**: `assets/*.png` — Generated PNG images
 
 ### VS Code Extension (Recommended)
 
@@ -202,13 +202,13 @@ Install it for:
 To render all diagrams:
 
 ```bash
-plantuml -tpng -o "../out" diagrams/src/*.pu
+plantuml -tpng -o "../assets" diagrams/*.pu
 ```
 
 To render a single diagram:
 
 ```bash
-plantuml -tpng -o "../out" diagrams/src/my-diagram.pu
+plantuml -tpng -o "../assets" diagrams/my-diagram.pu
 ```
 
 The `diagrams` STAN job automatically renders all diagrams and verifies outputs.
@@ -218,13 +218,13 @@ The `diagrams` STAN job automatically renders all diagrams and verifies outputs.
 Use relative paths from the doc file to the rendered diagram:
 
 ```markdown
-![Diagram Description](../diagrams/out/diagram-name.png)
+![Diagram Description](../assets/diagram-name.png)
 ```
 
 Example (from `guides/architecture.md`):
 
 ```markdown
-![System Architecture](../diagrams/out/system-architecture.png)
+![System Architecture](../assets/system-architecture.png)
 ```
 
 ### Style Guidelines

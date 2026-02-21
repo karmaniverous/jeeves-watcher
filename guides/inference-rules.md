@@ -17,7 +17,7 @@ When a file is processed, the watcher:
 
 This creates a flexible, declarative metadata pipeline.
 
-![Inference Rules Engine](../diagrams/out/inference-rules-engine.png)
+![Inference Rules Engine](../assets/inference-rules-engine.png)
 
 ---
 

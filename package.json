@@ -159,7 +159,7 @@
     "generate:schema": "tsx src/config/generate-schema.ts",
     "build": "npm run generate:schema && rimraf dist && cross-env NO_COLOR=1 rollup --config rollup.config.ts --configPlugin @rollup/plugin-typescript",
     "changelog": "auto-changelog",
-    "diagrams": "cd diagrams/src && plantuml -tpng -o ../out -r .",
+    "diagrams": "cd diagrams && plantuml -tpng -o ../assets -r .",
     "docs": "typedoc",
     "knip": "knip",
     "lint": "eslint .",

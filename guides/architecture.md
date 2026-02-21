@@ -18,7 +18,7 @@ High-level architectural overview of `jeeves-watcher` for contributors and advan
 
 ## System Architecture
 
-![System Architecture](../diagrams/out/system-architecture.png)
+![System Architecture](../assets/system-architecture.png)
 
 The watcher consists of several layered components:
 
@@ -33,7 +33,7 @@ The watcher consists of several layered components:
 
 ## Three Sources of Truth
 
-![Three Sources of Truth](../diagrams/out/three-sources-of-truth.png)
+![Three Sources of Truth](../assets/three-sources-of-truth.png)
 
 The system maintains three distinct stores:
 
@@ -79,7 +79,7 @@ graph LR
 
 ### 2. Document Processing Pipeline
 
-![Document Processing Pipeline](../diagrams/out/document-processing-pipeline.png)
+![Document Processing Pipeline](../assets/document-processing-pipeline.png)
 
 The core processing flow transforms file changes into searchable vectors:
 
@@ -97,7 +97,7 @@ The core processing flow transforms file changes into searchable vectors:
 
 ### 3. Metadata Enrichment (API)
 
-![Metadata Enrichment Flow](../diagrams/out/metadata-enrichment.png)
+![Metadata Enrichment Flow](../assets/metadata-enrichment.png)
 
 The enrichment API allows external callers to add metadata without re-embedding:
 

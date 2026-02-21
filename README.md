@@ -15,7 +15,7 @@ Filesystem watcher that keeps a Qdrant vector store in sync with document change
 
 ### Architecture
 
-![System Architecture](diagrams/out/system-architecture.png)
+![System Architecture](assets/system-architecture.png)
 
 For detailed architecture documentation, see [guides/architecture.md](guides/architecture.md).
 
