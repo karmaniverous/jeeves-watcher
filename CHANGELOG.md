@@ -2,10 +2,21 @@
 
 All notable changes to this project will be documented in this file. Dates are displayed in UTC.
 
+#### [0.2.2](https://github.com/karmaniverous/jeeves-watcher/compare/0.2.1...0.2.2)
+
+- fix: resolve issues #4 and #5 [`#7`](https://github.com/karmaniverous/jeeves-watcher/pull/7)
+- [ISSUES-4] fix: improve error serialization for pino logging [`021d18c`](https://github.com/karmaniverous/jeeves-watcher/commit/021d18c84d421b978c04478ccd0167e87c603c27)
+- [ISSUES-4] feat: implement ${ENV_VAR} substitution in config strings [`5bbb09f`](https://github.com/karmaniverous/jeeves-watcher/commit/5bbb09fad11c10341e742a06b0d228f34b4ec1de)
+- lint:fix [`b6446c5`](https://github.com/karmaniverous/jeeves-watcher/commit/b6446c5ab3692bbaa450a9c5c5e5d79057be59ac)
+- [ISSUES-4] fix: skip frontmatter parsing when markdown doesn't start with --- [`468c71a`](https://github.com/karmaniverous/jeeves-watcher/commit/468c71a047abe477af1ab023850a0ce5030d5178)
+
 #### [0.2.1](https://github.com/karmaniverous/jeeves-watcher/compare/0.2.0...0.2.1)
+
+> 21 February 2026
 
 - feat: schema-first config with Zod + JsonMap, SOLID/DRY refactor [`#6`](https://github.com/karmaniverous/jeeves-watcher/pull/6)
 - refactor: decompose rules module into focused submodules (ajvSetup, attributes, compile, templates, apply) [`5fc1fe8`](https://github.com/karmaniverous/jeeves-watcher/commit/5fc1fe80a46eb640f742c16a4567b22761b78cc3)
+- chore: release v0.2.1 [`1f9b997`](https://github.com/karmaniverous/jeeves-watcher/commit/1f9b9979b4596b539f4d29b5ab94223c5156da80)
 - refactor: extract API route handlers into api/handlers with narrow deps [`058d6f3`](https://github.com/karmaniverous/jeeves-watcher/commit/058d6f30597501c5fcac4063621ba780b0f8e85a)
 - refactor: extract shared utilities (normalizePath, errors, logger, constants, CLI defaults) [`880e9a2`](https://github.com/karmaniverous/jeeves-watcher/commit/880e9a2cdcdce83d43e5950398f447064937308c)
 - refactor: decompose JeevesWatcher with ConfigWatcher + injectable factories [`ee92af5`](https://github.com/karmaniverous/jeeves-watcher/commit/ee92af53b2867a7edb5b2ff5939b4a718e6f5b9d)
