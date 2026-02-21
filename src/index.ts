@@ -17,7 +17,17 @@ export type {
   VectorStoreConfig,
   WatchConfig,
 } from './config';
-export { loadConfig } from './config';
+export {
+  apiConfigSchema,
+  configWatchConfigSchema,
+  embeddingConfigSchema,
+  inferenceRuleSchema,
+  jeevesWatcherConfigSchema,
+  loadConfig,
+  loggingConfigSchema,
+  vectorStoreConfigSchema,
+  watchConfigSchema,
+} from './config';
 export type { EmbeddingProvider } from './embedding';
 export { createEmbeddingProvider } from './embedding';
 export type { ExtractedText } from './extractors';

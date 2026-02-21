@@ -42,7 +42,10 @@ function sleep(ms: number, signal?: AbortSignal): Promise<void> {
     };
 
     if (signal) {
-      if (signal.aborted) return onAbort();
+      if (signal.aborted) {
+        onAbort();
+        return;
+      }
       signal.addEventListener('abort', onAbort, { once: true });
     }
   });

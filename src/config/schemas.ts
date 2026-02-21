@@ -16,7 +16,9 @@ export const watchConfigSchema = z.object({
   ignored: z
     .array(z.string())
     .optional()
-    .describe('Glob patterns to exclude from watching (e.g., "**/node_modules/**").'),
+    .describe(
+      'Glob patterns to exclude from watching (e.g., "**/node_modules/**").',
+    ),
   /** Polling interval in milliseconds. */
   pollIntervalMs: z
     .number()
@@ -26,7 +28,9 @@ export const watchConfigSchema = z.object({
   usePolling: z
     .boolean()
     .optional()
-    .describe('Use polling instead of native file system events (for network drives).'),
+    .describe(
+      'Use polling instead of native file system events (for network drives).',
+    ),
   /** Debounce delay in milliseconds for file change events. */
   debounceMs: z
     .number()
@@ -36,9 +40,12 @@ export const watchConfigSchema = z.object({
   stabilityThresholdMs: z
     .number()
     .optional()
-    .describe('Time in milliseconds a file must remain unchanged before processing.'),
+    .describe(
+      'Time in milliseconds a file must remain unchanged before processing.',
+    ),
 });
 
+/** Watch configuration for file system monitoring paths, ignore patterns, and debounce/stability settings. */
 export type WatchConfig = z.infer<typeof watchConfigSchema>;
 
 /**
@@ -54,9 +61,12 @@ export const configWatchConfigSchema = z.object({
   debounceMs: z
     .number()
     .optional()
-    .describe('Debounce delay in milliseconds for config file change detection.'),
+    .describe(
+      'Debounce delay in milliseconds for config file change detection.',
+    ),
 });
 
+/** Configuration file watch settings controlling auto-reload behavior on config changes. */
 export type ConfigWatchConfig = z.infer<typeof configWatchConfigSchema>;
 
 /**
@@ -72,7 +82,9 @@ export const embeddingConfigSchema = z.object({
   model: z
     .string()
     .default('gemini-embedding-001')
-    .describe('Embedding model identifier (e.g., "gemini-embedding-001", "text-embedding-3-small").'),
+    .describe(
+      'Embedding model identifier (e.g., "gemini-embedding-001", "text-embedding-3-small").',
+    ),
   /** Maximum tokens per chunk for splitting. */
   chunkSize: z
     .number()
@@ -92,7 +104,9 @@ export const embeddingConfigSchema = z.object({
   apiKey: z
     .string()
     .optional()
-    .describe('API key for embedding provider (supports ${ENV_VAR} substitution).'),
+    .describe(
+      'API key for embedding provider (supports ${ENV_VAR} substitution).',
+    ),
   /** Maximum embedding requests per minute. */
   rateLimitPerMinute: z
     .number()
@@ -105,6 +119,7 @@ export const embeddingConfigSchema = z.object({
     .describe('Maximum concurrent embedding requests.'),
 });
 
+/** Embedding model configuration: provider, model, chunking, dimensions, rate limits, and API key. */
 export type EmbeddingConfig = z.infer<typeof embeddingConfigSchema>;
 
 /**
@@ -112,16 +127,23 @@ export type EmbeddingConfig = z.infer<typeof embeddingConfigSchema>;
  */
 export const vectorStoreConfigSchema = z.object({
   /** Qdrant server URL. */
-  url: z.string().describe('Qdrant server URL (e.g., "http://localhost:6333").'),
+  url: z
+    .string()
+    .describe('Qdrant server URL (e.g., "http://localhost:6333").'),
   /** Qdrant collection name. */
-  collectionName: z.string().describe('Qdrant collection name for vector storage.'),
+  collectionName: z
+    .string()
+    .describe('Qdrant collection name for vector storage.'),
   /** Qdrant API key. */
   apiKey: z
     .string()
     .optional()
-    .describe('Qdrant API key for authentication (supports ${ENV_VAR} substitution).'),
+    .describe(
+      'Qdrant API key for authentication (supports ${ENV_VAR} substitution).',
+    ),
 });
 
+/** Qdrant vector store connection configuration: server URL, collection name, and optional API key. */
 export type VectorStoreConfig = z.infer<typeof vectorStoreConfigSchema>;
 
 /**
@@ -137,6 +159,7 @@ export const apiConfigSchema = z.object({
   port: z.number().optional().describe('Port for API server (e.g., 3456).'),
 });
 
+/** API server configuration: host binding and port. */
 export type ApiConfig = z.infer<typeof apiConfigSchema>;
 
 /**
@@ -155,6 +178,7 @@ export const loggingConfigSchema = z.object({
     .describe('Path to log file (logs to stdout if omitted).'),
 });
 
+/** Logging configuration: level and optional file output path. */
 export type LoggingConfig = z.infer<typeof loggingConfigSchema>;
 
 /**
@@ -173,9 +197,12 @@ export const inferenceRuleSchema = z.object({
   map: z
     .union([jsonMapMapSchema, z.string()])
     .optional()
-    .describe('JsonMap transformation (inline definition or named map reference).'),
+    .describe(
+      'JsonMap transformation (inline definition or named map reference).',
+    ),
 });
 
+/** An inference rule: JSON Schema match condition, set fields, and optional JsonMap transformation. */
 export type InferenceRule = z.infer<typeof inferenceRuleSchema>;
 
 /**
@@ -191,7 +218,9 @@ export const jeevesWatcherConfigSchema = z.object({
   /** Embedding model configuration. */
   embedding: embeddingConfigSchema.describe('Embedding model configuration.'),
   /** Vector store configuration. */
-  vectorStore: vectorStoreConfigSchema.describe('Qdrant vector store configuration.'),
+  vectorStore: vectorStoreConfigSchema.describe(
+    'Qdrant vector store configuration.',
+  ),
   /** Directory for persisted metadata. */
   metadataDir: z
     .string()
@@ -223,4 +252,5 @@ export const jeevesWatcherConfigSchema = z.object({
     .describe('Timeout in milliseconds for graceful shutdown.'),
 });
 
+/** Top-level jeeves-watcher configuration: watch paths, embedding, vector store, rules, maps, API, and logging. */
 export type JeevesWatcherConfig = z.infer<typeof jeevesWatcherConfigSchema>;

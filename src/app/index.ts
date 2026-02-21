@@ -129,12 +129,19 @@ export class JeevesWatcher {
 
     if (this.queue) {
       const timeout = this.config.shutdownTimeoutMs ?? 10000;
-      await Promise.race([
-        this.queue.drain(),
-        new Promise<void>((resolve) => {
-          setTimeout(resolve, timeout);
+      const drained = await Promise.race<boolean>([
+        this.queue.drain().then(() => true),
+        new Promise<boolean>((resolve) => {
+          setTimeout(() => resolve(false), timeout);
         }),
       ]);
+
+      if (!drained) {
+        this.logger?.warn(
+          { timeoutMs: timeout },
+          'Queue drain timeout hit, forcing shutdown',
+        );
+      }
     }
 
     if (this.server) {
@@ -195,6 +202,11 @@ export class JeevesWatcher {
     const logger = this.logger;
     const processor = this.processor;
     if (!logger || !processor || !this.configPath) return;
+
+    logger.info(
+      { configPath: this.configPath },
+      'Config change detected, reloading...',
+    );
 
     try {
       const newConfig = await loadConfig(this.configPath);
