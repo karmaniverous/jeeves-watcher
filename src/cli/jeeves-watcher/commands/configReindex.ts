@@ -7,14 +7,15 @@
 import type { Command } from '@commander-js/extra-typings';
 
 import { apiCall } from '../api';
+import { DEFAULT_HOST, DEFAULT_PORT } from '../defaults';
 
 export function registerConfigReindexCommand(cli: Command): void {
   cli
     .command('config-reindex')
     .description('Reindex after configuration changes (POST /config-reindex)')
     .option('-s, --scope <scope>', 'Reindex scope (rules|full)', 'rules')
-    .option('-p, --port <port>', 'API port', '3456')
-    .option('-H, --host <host>', 'API host', '127.0.0.1')
+    .option('-p, --port <port>', 'API port', DEFAULT_PORT)
+    .option('-H, --host <host>', 'API host', DEFAULT_HOST)
     .action(async (options) => {
       const scope = options.scope;
       if (scope !== 'rules' && scope !== 'full') {

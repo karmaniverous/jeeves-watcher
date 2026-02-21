@@ -10,6 +10,7 @@ import { GoogleGenerativeAIEmbeddings } from '@langchain/google-genai';
 import type pino from 'pino';
 
 import type { EmbeddingConfig } from '../config/types';
+import { getLogger } from '../util/logger';
 import { retry } from '../util/retry';
 
 /**
@@ -67,6 +68,7 @@ function createGeminiProvider(
   }
 
   const dimensions = config.dimensions ?? 3072;
+  const log = getLogger(logger);
   const embedder = new GoogleGenerativeAIEmbeddings({
     apiKey: config.apiKey,
     model: config.model,
@@ -78,16 +80,10 @@ function createGeminiProvider(
       const vectors = await retry(
         async (attempt) => {
           if (attempt > 1) {
-            const msg = {
-              attempt,
-              provider: 'gemini',
-              model: config.model,
-            };
-            if (logger) {
-              logger.warn(msg, 'Retrying embedding request');
-            } else {
-              console.warn(msg, 'Retrying embedding request');
-            }
+            log.warn(
+              { attempt, provider: 'gemini', model: config.model },
+              'Retrying embedding request',
+            );
           }
 
           // embedDocuments returns vectors for multiple texts
@@ -99,18 +95,10 @@ function createGeminiProvider(
           maxDelayMs: 10_000,
           jitter: 0.2,
           onRetry: ({ attempt, delayMs, error }) => {
-            const msg = {
-              attempt,
-              delayMs,
-              provider: 'gemini',
-              model: config.model,
-              error,
-            };
-            if (logger) {
-              logger.warn(msg, 'Embedding call failed; will retry');
-            } else {
-              console.warn(msg, 'Embedding call failed; will retry');
-            }
+            log.warn(
+              { attempt, delayMs, provider: 'gemini', model: config.model, error },
+              'Embedding call failed; will retry',
+            );
           },
         },
       );

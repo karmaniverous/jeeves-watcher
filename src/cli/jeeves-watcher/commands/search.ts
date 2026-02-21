@@ -7,6 +7,7 @@
 import type { Command } from '@commander-js/extra-typings';
 
 import { apiCall } from '../api';
+import { DEFAULT_HOST, DEFAULT_PORT } from '../defaults';
 
 export function registerSearchCommand(cli: Command): void {
   cli
@@ -14,8 +15,8 @@ export function registerSearchCommand(cli: Command): void {
     .description('Search the vector store (POST /search)')
     .argument('<query>', 'Search query')
     .option('-l, --limit <limit>', 'Max results', '10')
-    .option('-p, --port <port>', 'API port', '3456')
-    .option('-H, --host <host>', 'API host', '127.0.0.1')
+    .option('-p, --port <port>', 'API port', DEFAULT_PORT)
+    .option('-H, --host <host>', 'API host', DEFAULT_HOST)
     .action(async (query, options) => {
       try {
         const text = await apiCall(

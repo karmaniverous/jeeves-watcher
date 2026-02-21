@@ -6,18 +6,7 @@ import { createHash } from 'node:crypto';
 import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 
-/**
- * Normalise a file path for deterministic mapping: lowercase, forward slashes, strip leading drive letter colon.
- *
- * @param filePath - The original file path.
- * @returns The normalised path string.
- */
-function normalisePath(filePath: string): string {
-  return filePath
-    .replace(/\\/g, '/')
-    .replace(/^([A-Za-z]):/, (_m, letter: string) => letter.toLowerCase())
-    .toLowerCase();
-}
+import { normalizePath } from '../util/normalizePath';
 
 /**
  * Derive a deterministic `.meta.json` path for a given file.
@@ -27,7 +16,7 @@ function normalisePath(filePath: string): string {
  * @returns The full path to the metadata file.
  */
 export function metadataPath(filePath: string, metadataDir: string): string {
-  const normalised = normalisePath(filePath);
+  const normalised = normalizePath(filePath, true);
   const hash = createHash('sha256').update(normalised, 'utf8').digest('hex');
   return join(metadataDir, `${hash}.meta.json`);
 }

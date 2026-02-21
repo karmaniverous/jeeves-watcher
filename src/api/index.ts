@@ -5,6 +5,7 @@ import { omit } from 'radash';
 import type { JeevesWatcherConfig } from '../config/types';
 import type { EmbeddingProvider } from '../embedding';
 import { writeMetadata } from '../metadata';
+import { SYSTEM_METADATA_KEYS } from '../metadata/constants';
 import type { DocumentProcessor } from '../processor';
 import type { EventQueue } from '../queue';
 import type { VectorStoreClient } from '../vectorStore';
@@ -93,13 +94,7 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
   app.post('/rebuild-metadata', async (_request, reply) => {
     try {
       const metadataDir = options.config.metadataDir ?? '.jeeves-metadata';
-      const SYSTEM_KEYS: string[] = [
-        'file_path',
-        'chunk_index',
-        'total_chunks',
-        'content_hash',
-        'chunk_text',
-      ];
+      const SYSTEM_KEYS = [...SYSTEM_METADATA_KEYS];
 
       for await (const point of vectorStore.scroll()) {
         const payload = point.payload;

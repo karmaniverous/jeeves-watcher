@@ -2,6 +2,7 @@ import { QdrantClient } from '@qdrant/js-client-rest';
 import type pino from 'pino';
 
 import type { VectorStoreConfig } from '../config/types';
+import { getLogger, type MinimalLogger } from '../util/logger';
 import { retry } from '../util/retry';
 
 /**
@@ -45,7 +46,7 @@ export class VectorStoreClient {
   private readonly client: QdrantClient;
   private readonly collectionName: string;
   private readonly dims: number;
-  private readonly logger?: pino.Logger;
+  private readonly log: MinimalLogger;
 
   /**
    * Create a new VectorStoreClient.
@@ -66,7 +67,7 @@ export class VectorStoreClient {
     });
     this.collectionName = config.collectionName;
     this.dims = dimensions;
-    this.logger = logger;
+    this.log = getLogger(logger);
   }
 
   /**
@@ -101,16 +102,10 @@ export class VectorStoreClient {
     await retry(
       async (attempt) => {
         if (attempt > 1) {
-          const msg = {
-            attempt,
-            operation: 'qdrant.upsert',
-            points: points.length,
-          };
-          if (this.logger) {
-            this.logger.warn(msg, 'Retrying Qdrant upsert');
-          } else {
-            console.warn(msg, 'Retrying Qdrant upsert');
-          }
+          this.log.warn(
+            { attempt, operation: 'qdrant.upsert', points: points.length },
+            'Retrying Qdrant upsert',
+          );
         }
 
         await this.client.upsert(this.collectionName, {
@@ -128,12 +123,10 @@ export class VectorStoreClient {
         maxDelayMs: 10_000,
         jitter: 0.2,
         onRetry: ({ attempt, delayMs, error }) => {
-          const msg = { attempt, delayMs, operation: 'qdrant.upsert', error };
-          if (this.logger) {
-            this.logger.warn(msg, 'Qdrant upsert failed; will retry');
-          } else {
-            console.warn(msg, 'Qdrant upsert failed; will retry');
-          }
+          this.log.warn(
+            { attempt, delayMs, operation: 'qdrant.upsert', error },
+            'Qdrant upsert failed; will retry',
+          );
         },
       },
     );
@@ -150,16 +143,10 @@ export class VectorStoreClient {
     await retry(
       async (attempt) => {
         if (attempt > 1) {
-          const msg = {
-            attempt,
-            operation: 'qdrant.delete',
-            ids: ids.length,
-          };
-          if (this.logger) {
-            this.logger.warn(msg, 'Retrying Qdrant delete');
-          } else {
-            console.warn(msg, 'Retrying Qdrant delete');
-          }
+          this.log.warn(
+            { attempt, operation: 'qdrant.delete', ids: ids.length },
+            'Retrying Qdrant delete',
+          );
         }
 
         await this.client.delete(this.collectionName, {
@@ -173,12 +160,10 @@ export class VectorStoreClient {
         maxDelayMs: 10_000,
         jitter: 0.2,
         onRetry: ({ attempt, delayMs, error }) => {
-          const msg = { attempt, delayMs, operation: 'qdrant.delete', error };
-          if (this.logger) {
-            this.logger.warn(msg, 'Qdrant delete failed; will retry');
-          } else {
-            console.warn(msg, 'Qdrant delete failed; will retry');
-          }
+          this.log.warn(
+            { attempt, delayMs, operation: 'qdrant.delete', error },
+            'Qdrant delete failed; will retry',
+          );
         },
       },
     );
