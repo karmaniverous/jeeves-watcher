@@ -134,12 +134,31 @@
               "type": "string"
             },
             "additionalProperties": {}
+          },
+          "map": {
+            "anyOf": [
+              {
+                "$ref": "#/definitions/__schema1"
+              },
+              {
+                "type": "string"
+              }
+            ]
           }
         },
         "required": [
           "match",
           "set"
         ]
+      }
+    },
+    "maps": {
+      "type": "object",
+      "propertyNames": {
+        "type": "string"
+      },
+      "additionalProperties": {
+        "$ref": "#/definitions/__schema1"
       }
     },
     "logging": {
@@ -165,6 +184,91 @@
   "definitions": {
     "__schema0": {
       "type": "string"
+    },
+    "__schema1": {
+      "anyOf": [
+        {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        {
+          "type": "object",
+          "propertyNames": {
+            "type": "string"
+          },
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "$ref": "#/definitions/__schema1"
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "$": {
+                    "anyOf": [
+                      {
+                        "$ref": "#/definitions/__schema2"
+                      },
+                      {
+                        "type": "array",
+                        "items": {
+                          "$ref": "#/definitions/__schema2"
+                        }
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "$"
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/__schema1"
+          }
+        }
+      ]
+    },
+    "__schema2": {
+      "type": "object",
+      "properties": {
+        "method": {
+          "type": "string"
+        },
+        "params": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          ]
+        }
+      },
+      "required": [
+        "method",
+        "params"
+      ]
     }
   }
 }

@@ -42,7 +42,7 @@ export default [
       'assets/**/*',
       'coverage/**/*',
       'diagrams/out/**/*',
-      'dist/**/*',
+      '**/dist/**',
       'docs/**/*',
       'node_modules/**/*',
     ],

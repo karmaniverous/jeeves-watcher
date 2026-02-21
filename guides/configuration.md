@@ -29,6 +29,7 @@ interface JeevesWatcherConfig {
   api?: ApiConfig;
   extractors?: Record<string, unknown>;
   inferenceRules?: InferenceRule[];
+  maps?: Record<string, unknown>; // Named JsonMap definitions
   logging?: LoggingConfig;
   shutdownTimeoutMs?: number;
 }
@@ -293,7 +294,31 @@ Maps file extensions to extraction strategies. **Usually not needed** - defaults
 }
 ```
 
-Each rule is a **JSON Schema `match`** paired with a **`set` action**. See [Inference Rules Guide](./inference-rules.md) for full details.
+Each rule is a **JSON Schema `match`** paired with a **`set` action** and optional **`map` (JsonMap) transform**. See [Inference Rules Guide](./inference-rules.md) for full details.
+
+---
+
+## `maps` - Named JsonMap Definitions
+
+`maps` is an optional dictionary of reusable [JsonMap](https://github.com/karmaniverous/jsonmap) definitions.
+
+Rules can reference these by name via `inferenceRules[*].map: "mapName"`.
+
+```json
+{
+  "maps": {
+    "extractProject": {
+      "project": {
+        "$": [
+          { "method": "$.lib.split", "params": ["$.input.file.path", "/"] },
+          { "method": "$.lib.slice", "params": ["$[0]", 0, 1] },
+          { "method": "$.lib.join", "params": ["$[0]", ""] }
+        ]
+      }
+    }
+  }
+}
+```
 
 ---
 

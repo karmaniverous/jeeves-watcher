@@ -21,17 +21,19 @@ This creates a flexible, declarative metadata pipeline.
 
 ## Rule Structure
 
-Each inference rule has two parts:
+Each inference rule has three parts:
 
 ```json
 {
   "match": { /* JSON Schema */ },
-  "set": { /* Metadata to apply */ }
+  "set": { /* Metadata to apply */ },
+  "map": { /* Optional JsonMap transform (inline or named reference) */ }
 }
 ```
 
 - **`match`**: A JSON Schema object that the file attributes must satisfy
 - **`set`**: Key-value pairs to merge into the document metadata
+- **`map`** (optional): A [JsonMap](https://github.com/karmaniverous/jsonmap) definition (or a string reference to a named map)
 
 ---
 
@@ -133,6 +135,65 @@ The watcher registers a custom `glob` keyword for path matching using [picomatch
 This is the **only custom format** — everything else is pure JSON Schema.
 
 ---
+
+## JsonMap Transformations (`map`)
+
+In addition to static `set` values, rules can run a **JsonMap** transform to derive metadata from the file attributes.
+
+- `map` can be an **inline JsonMap** object, or a **string reference** to a named map defined in top-level config `maps`.
+- When a rule matches, `set` is applied first, then `map` is executed.
+- **Merge order:** `map` output overrides `set` output on field conflict.
+
+### Example: Inline `map` extracts a path segment
+
+```json
+{
+  "match": { "type": "object" },
+  "set": { "domain": "docs" },
+  "map": {
+    "project": {
+      "$": [
+        { "method": "$.lib.split", "params": ["$.input.file.path", "/"] },
+        { "method": "$.lib.slice", "params": ["$[0]", 0, 1] },
+        { "method": "$.lib.join", "params": ["$[0]", ""] }
+      ]
+    }
+  }
+}
+```
+
+For a file path `docs/readme.md`, this produces:
+
+```json
+{ "domain": "docs", "project": "docs" }
+```
+
+### Example: Named map reference
+
+```json
+{
+  "maps": {
+    "extractProject": {
+      "project": {
+        "$": [
+          { "method": "$.lib.split", "params": ["$.input.file.path", "/"] },
+          { "method": "$.lib.slice", "params": ["$[0]", 0, 1] },
+          { "method": "$.lib.join", "params": ["$[0]", ""] }
+        ]
+      }
+    }
+  },
+  "inferenceRules": [
+    {
+      "match": { "type": "object" },
+      "set": {},
+      "map": "extractProject"
+    }
+  ]
+}
+```
+
+If a rule references a missing named map, the watcher warns and skips the map.
 
 ## Template Interpolation in `set`
 
@@ -484,8 +545,9 @@ For complex rule sets, store rules in a separate file:
 
 ```typescript
 interface InferenceRule {
-  match: Record<string, unknown>;  // JSON Schema object
-  set: Record<string, unknown>;    // Key-value pairs with optional ${template} vars
+  match: Record<string, unknown>; // JSON Schema object
+  set: Record<string, unknown>; // Key-value pairs with optional ${template} vars
+  map?: Record<string, unknown> | string; // JsonMap definition or named map reference
 }
 ```
 

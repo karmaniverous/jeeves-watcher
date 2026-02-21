@@ -1,14 +1,14 @@
 import type { Stats } from 'node:fs';
 import { basename, dirname, extname } from 'node:path';
 
-import Ajv from 'ajv';
-import addFormats from 'ajv-formats';
 import {
-  JsonMap,
   type Json,
+  JsonMap,
   type JsonMapLib,
   type JsonMapMap,
 } from '@karmaniverous/jsonmap';
+import Ajv from 'ajv';
+import addFormats from 'ajv-formats';
 import picomatch from 'picomatch';
 
 import type { InferenceRule } from '../config/types';
@@ -230,7 +230,9 @@ export async function applyRules(
         // Execute JsonMap transformation
         try {
           const jsonMap = new JsonMap(mapDef, lib);
-          const mapOutput = await jsonMap.transform(attributes as unknown as Json);
+          const mapOutput = await jsonMap.transform(
+            attributes as unknown as Json,
+          );
           if (
             mapOutput &&
             typeof mapOutput === 'object' &&
