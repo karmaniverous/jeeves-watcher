@@ -4,5 +4,5 @@
  */
 
 export { applyRules } from './apply';
-export { type FileAttributes, buildAttributes } from './attributes';
+export { buildAttributes, type FileAttributes } from './attributes';
 export { type CompiledRule, compileRules } from './compile';

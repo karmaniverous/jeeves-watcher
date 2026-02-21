@@ -6,8 +6,8 @@
 
 import type { Command } from '@commander-js/extra-typings';
 
-import { apiCall } from '../api';
 import { DEFAULT_HOST, DEFAULT_PORT } from '../defaults';
+import { runApiCommand } from '../runApiCommand';
 
 export function registerConfigReindexCommand(cli: Command): void {
   cli
@@ -23,18 +23,12 @@ export function registerConfigReindexCommand(cli: Command): void {
         process.exit(1);
       }
 
-      try {
-        const text = await apiCall(
-          options.host,
-          options.port,
-          'POST',
-          '/config-reindex',
-          { scope },
-        );
-        console.log(text);
-      } catch (error) {
-        console.error(error instanceof Error ? error.message : String(error));
-        process.exit(1);
-      }
+      await runApiCommand({
+        host: options.host,
+        port: options.port,
+        method: 'POST',
+        path: '/config-reindex',
+        body: { scope },
+      });
     });
 }

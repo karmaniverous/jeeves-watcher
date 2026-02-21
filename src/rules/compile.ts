@@ -4,7 +4,6 @@
  */
 
 import type { InferenceRule } from '../config/types';
-
 import { createRuleAjv } from './ajvSetup';
 
 /**
