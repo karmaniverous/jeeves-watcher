@@ -8,6 +8,7 @@ import { stat } from 'node:fs/promises';
 import { extname } from 'node:path';
 
 import type { JsonMapMap } from '@karmaniverous/jsonmap';
+import type pino from 'pino';
 
 import { type ExtractedText, extractText } from '../extractors';
 import { readMetadata } from '../metadata';
@@ -45,7 +46,7 @@ export async function buildMergedMetadata(
   compiledRules: CompiledRule[],
   metadataDir: string,
   maps?: Record<string, JsonMapMap>,
-  logger?: { warn: (msg: string) => void },
+  logger?: pino.Logger,
 ): Promise<MergedMetadata> {
   const ext = extname(filePath);
   const stats = await stat(filePath);
