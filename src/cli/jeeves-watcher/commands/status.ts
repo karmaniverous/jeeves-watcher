@@ -16,7 +16,12 @@ export function registerStatusCommand(cli: Command): void {
     .option('-H, --host <host>', 'API host', '127.0.0.1')
     .action(async (options) => {
       try {
-        const text = await apiCall(options.host, options.port, 'GET', '/status');
+        const text = await apiCall(
+          options.host,
+          options.port,
+          'GET',
+          '/status',
+        );
 
         try {
           const parsed = JSON.parse(text) as unknown;

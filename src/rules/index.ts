@@ -10,6 +10,7 @@ import {
 import Ajv from 'ajv';
 import addFormats from 'ajv-formats';
 import picomatch from 'picomatch';
+import type pino from 'pino';
 import { get } from 'radash';
 
 import type { InferenceRule } from '../config/types';
@@ -187,7 +188,7 @@ export async function applyRules(
   compiledRules: CompiledRule[],
   attributes: FileAttributes,
   namedMaps?: Record<string, JsonMapMap>,
-  logger?: { warn: (msg: string) => void },
+  logger?: pino.Logger,
 ): Promise<Record<string, unknown>> {
   // JsonMap's type definitions expect a generic JsonMapLib shape with unary functions.
   // Our helper functions accept multiple args, which JsonMap supports at runtime.

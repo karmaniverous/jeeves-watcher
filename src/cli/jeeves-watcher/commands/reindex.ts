@@ -16,7 +16,12 @@ export function registerReindexCommand(cli: Command): void {
     .option('-H, --host <host>', 'API host', '127.0.0.1')
     .action(async (options) => {
       try {
-        const text = await apiCall(options.host, options.port, 'POST', '/reindex');
+        const text = await apiCall(
+          options.host,
+          options.port,
+          'POST',
+          '/reindex',
+        );
         console.log(text);
       } catch (error) {
         console.error(error instanceof Error ? error.message : String(error));

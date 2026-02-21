@@ -110,7 +110,10 @@ cli
     }
   });
 
-cli.command('enrich').description('Enrich document metadata').action(stubAction('enrich'));
+cli
+  .command('enrich')
+  .description('Enrich document metadata')
+  .action(stubAction('enrich'));
 
 // API-backed commands
 registerStatusCommand(cli);

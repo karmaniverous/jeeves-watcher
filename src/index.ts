@@ -31,6 +31,7 @@ export {
   writeMetadata,
 } from './metadata';
 export { pointId } from './pointId';
+export type { ProcessorConfig } from './processor';
 export { DocumentProcessor } from './processor';
 export type { EventQueueOptions, ProcessFn, WatchEvent } from './queue';
 export { EventQueue } from './queue';

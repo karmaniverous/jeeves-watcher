@@ -12,6 +12,9 @@ import { writeFile } from 'node:fs/promises';
  * @param path - Destination path.
  * @param data - JSON-serializable data.
  */
-export async function writeJsonFile(path: string, data: unknown): Promise<void> {
+export async function writeJsonFile(
+  path: string,
+  data: unknown,
+): Promise<void> {
   await writeFile(path, `${JSON.stringify(data, null, 2)}\n`, 'utf8');
 }

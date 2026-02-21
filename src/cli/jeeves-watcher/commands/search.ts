@@ -18,10 +18,16 @@ export function registerSearchCommand(cli: Command): void {
     .option('-H, --host <host>', 'API host', '127.0.0.1')
     .action(async (query, options) => {
       try {
-        const text = await apiCall(options.host, options.port, 'POST', '/search', {
-          query,
-          limit: Number(options.limit),
-        });
+        const text = await apiCall(
+          options.host,
+          options.port,
+          'POST',
+          '/search',
+          {
+            query,
+            limit: Number(options.limit),
+          },
+        );
 
         try {
           const parsed = JSON.parse(text) as unknown;
