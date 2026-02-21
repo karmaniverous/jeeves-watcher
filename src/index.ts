@@ -6,7 +6,11 @@
 
 export type { ApiServerOptions } from './api';
 export { createApiServer } from './api';
-export { JeevesWatcher, startFromConfig } from './app';
+export {
+  JeevesWatcher,
+  type JeevesWatcherFactories,
+  startFromConfig,
+} from './app';
 export type {
   ApiConfig,
   ConfigWatchConfig,
@@ -46,7 +50,12 @@ export { DocumentProcessor } from './processor';
 export type { EventQueueOptions, ProcessFn, WatchEvent } from './queue';
 export { EventQueue } from './queue';
 export type { CompiledRule, FileAttributes } from './rules';
-export { applyRules, buildAttributes, compileRules } from './rules';
+export {
+  applyRules,
+  buildAttributes,
+  compileRules,
+  type RuleLogger,
+} from './rules';
 export type { ScrolledPoint, SearchResult, VectorPoint } from './vectorStore';
 export { VectorStoreClient } from './vectorStore';
 export { FileSystemWatcher } from './watcher';

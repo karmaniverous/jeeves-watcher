@@ -6,7 +6,8 @@
 
 import type { Command } from '@commander-js/extra-typings';
 
-import { apiCall } from '../api';
+import { DEFAULT_HOST, DEFAULT_PORT } from '../defaults';
+import { runApiCommand } from '../runApiCommand';
 
 export function registerEnrichCommand(cli: Command): void {
   cli
@@ -22,8 +23,8 @@ export function registerEnrichCommand(cli: Command): void {
       '-j, --json <json>',
       'Metadata as JSON string (e.g., \'{"key":"value"}\')',
     )
-    .option('-p, --port <port>', 'API port', '3456')
-    .option('-H, --host <host>', 'API host', '127.0.0.1')
+    .option('-p, --port <port>', 'API port', DEFAULT_PORT)
+    .option('-H, --host <host>', 'API host', DEFAULT_HOST)
     .action(async (path, options) => {
       try {
         let metadata: Record<string, unknown> = {};
@@ -58,23 +59,13 @@ export function registerEnrichCommand(cli: Command): void {
           process.exit(1);
         }
 
-        const text = await apiCall(
-          options.host,
-          options.port,
-          'POST',
-          '/metadata',
-          {
-            path,
-            metadata,
-          },
-        );
-
-        try {
-          const parsed = JSON.parse(text) as unknown;
-          console.log(JSON.stringify(parsed, null, 2));
-        } catch {
-          console.log(text);
-        }
+        await runApiCommand({
+          host: options.host,
+          port: options.port,
+          method: 'POST',
+          path: '/metadata',
+          body: { path, metadata },
+        });
       } catch (error) {
         console.error(error instanceof Error ? error.message : String(error));
         process.exit(1);
