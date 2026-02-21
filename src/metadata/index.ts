@@ -3,4 +3,4 @@ export {
   metadataPath,
   readMetadata,
   writeMetadata,
-} from './metadataPath';
+} from './metadata';
