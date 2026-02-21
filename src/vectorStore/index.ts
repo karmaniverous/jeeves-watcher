@@ -1,6 +1,7 @@
 import { QdrantClient } from '@qdrant/js-client-rest';
 
 import type { VectorStoreConfig } from '../config/types';
+import { retry } from '../util/retry';
 
 /**
  * A point to upsert into the vector store.
@@ -88,14 +89,38 @@ export class VectorStoreClient {
    */
   async upsert(points: VectorPoint[]): Promise<void> {
     if (points.length === 0) return;
-    await this.client.upsert(this.collectionName, {
-      wait: true,
-      points: points.map((p) => ({
-        id: p.id,
-        vector: p.vector,
-        payload: p.payload,
-      })),
-    });
+
+    await retry(
+      async (attempt) => {
+        if (attempt > 1) {
+          console.warn(
+            { attempt, operation: 'qdrant.upsert', points: points.length },
+            'Retrying Qdrant upsert',
+          );
+        }
+
+        await this.client.upsert(this.collectionName, {
+          wait: true,
+          points: points.map((p) => ({
+            id: p.id,
+            vector: p.vector,
+            payload: p.payload,
+          })),
+        });
+      },
+      {
+        attempts: 5,
+        baseDelayMs: 500,
+        maxDelayMs: 10_000,
+        jitter: 0.2,
+        onRetry: ({ attempt, delayMs, error }) => {
+          console.warn(
+            { attempt, delayMs, operation: 'qdrant.upsert', error },
+            'Qdrant upsert failed; will retry',
+          );
+        },
+      },
+    );
   }
 
   /**
@@ -105,10 +130,34 @@ export class VectorStoreClient {
    */
   async delete(ids: string[]): Promise<void> {
     if (ids.length === 0) return;
-    await this.client.delete(this.collectionName, {
-      wait: true,
-      points: ids,
-    });
+
+    await retry(
+      async (attempt) => {
+        if (attempt > 1) {
+          console.warn(
+            { attempt, operation: 'qdrant.delete', ids: ids.length },
+            'Retrying Qdrant delete',
+          );
+        }
+
+        await this.client.delete(this.collectionName, {
+          wait: true,
+          points: ids,
+        });
+      },
+      {
+        attempts: 5,
+        baseDelayMs: 500,
+        maxDelayMs: 10_000,
+        jitter: 0.2,
+        onRetry: ({ attempt, delayMs, error }) => {
+          console.warn(
+            { attempt, delayMs, operation: 'qdrant.delete', error },
+            'Qdrant delete failed; will retry',
+          );
+        },
+      },
+    );
   }
 
   /**
