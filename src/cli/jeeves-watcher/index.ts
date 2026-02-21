@@ -12,6 +12,7 @@ import { startFromConfig } from '../../app';
 import { loadConfig } from '../../config';
 import { INIT_CONFIG_TEMPLATE } from '../../config/defaults';
 import { registerConfigReindexCommand } from './commands/configReindex';
+import { registerEnrichCommand } from './commands/enrich';
 import { registerRebuildMetadataCommand } from './commands/rebuildMetadata';
 import { registerReindexCommand } from './commands/reindex';
 import { registerSearchCommand } from './commands/search';
@@ -25,10 +26,6 @@ const cli = new Command()
     'Filesystem watcher that keeps a Qdrant vector store in sync with document changes',
   )
   .version('0.7.0');
-
-const stubAction = (name: string) => () => {
-  console.log(`${name}: Not implemented yet`);
-};
 
 cli
   .command('start')
@@ -85,16 +82,12 @@ cli
     }
   });
 
-cli
-  .command('enrich')
-  .description('Enrich document metadata')
-  .action(stubAction('enrich'));
-
 // API-backed commands
 registerStatusCommand(cli);
 registerReindexCommand(cli);
 registerRebuildMetadataCommand(cli);
 registerSearchCommand(cli);
+registerEnrichCommand(cli);
 registerConfigReindexCommand(cli);
 registerServiceCommand(cli);
 
