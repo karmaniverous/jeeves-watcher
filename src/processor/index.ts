@@ -91,7 +91,11 @@ export class DocumentProcessor {
         extracted.frontmatter,
         extracted.json,
       );
-      const inferred = applyRules(this.compiledRules, attributes);
+      const inferred = await applyRules(
+        this.compiledRules,
+        attributes,
+        this.config.maps,
+      );
 
       // 4. Read enrichment metadata (merge, enrichment wins)
       const enrichment = await readMetadata(filePath, this.metadataDir);
@@ -243,7 +247,11 @@ export class DocumentProcessor {
         extracted.frontmatter,
         extracted.json,
       );
-      const inferred = applyRules(this.compiledRules, attributes);
+      const inferred = await applyRules(
+        this.compiledRules,
+        attributes,
+        this.config.maps,
+      );
 
       // Read enrichment metadata (merge, enrichment wins)
       const enrichment = await readMetadata(filePath, this.metadataDir);

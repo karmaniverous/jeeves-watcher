@@ -3,6 +3,12 @@ import { basename, dirname, extname } from 'node:path';
 
 import Ajv from 'ajv';
 import addFormats from 'ajv-formats';
+import {
+  JsonMap,
+  type Json,
+  type JsonMapLib,
+  type JsonMapMap,
+} from '@karmaniverous/jsonmap';
 import picomatch from 'picomatch';
 
 import type { InferenceRule } from '../config/types';
@@ -151,23 +157,99 @@ function resolveSet(
 }
 
 /**
+ * Create the lib object for JsonMap transformations.
+ * Provides utility functions for path manipulation.
+ *
+ * @returns The lib object.
+ */
+function createJsonMapLib() {
+  return {
+    split: (str: string, separator: string) => str.split(separator),
+    slice: <T>(arr: T[], start: number, end?: number) => arr.slice(start, end),
+    join: (arr: string[], separator: string) => arr.join(separator),
+    toLowerCase: (str: string) => str.toLowerCase(),
+    replace: (str: string, search: string | RegExp, replacement: string) =>
+      str.replace(search, replacement),
+    get: (obj: unknown, path: string) => {
+      const parts = path.split('.');
+      let current = obj;
+      for (const part of parts) {
+        if (current === null || current === undefined) return undefined;
+        current = (current as Record<string, unknown>)[part];
+      }
+      return current;
+    },
+  };
+}
+
+/**
  * Apply compiled inference rules to file attributes, returning merged metadata.
  *
  * Rules are evaluated in order; later rules override earlier ones.
+ * If a rule has a `map`, the JsonMap transformation is applied after `set` resolution,
+ * and map output overrides set output on conflict.
  *
  * @param compiledRules - The compiled rules to evaluate.
  * @param attributes - The file attributes to match against.
+ * @param namedMaps - Optional record of named JsonMap definitions.
  * @returns The merged metadata from all matching rules.
  */
-export function applyRules(
+export async function applyRules(
   compiledRules: CompiledRule[],
   attributes: FileAttributes,
-): Record<string, unknown> {
+  namedMaps?: Record<string, JsonMapMap>,
+): Promise<Record<string, unknown>> {
+  // JsonMap's type definitions expect a generic JsonMapLib shape with unary functions.
+  // Our helper functions accept multiple args, which JsonMap supports at runtime.
+  const lib = createJsonMapLib() as unknown as JsonMapLib;
   let merged: Record<string, unknown> = {};
+
   for (const { rule, validate } of compiledRules) {
     if (validate(attributes)) {
-      merged = { ...merged, ...resolveSet(rule.set, attributes) };
+      // Apply set resolution
+      const setOutput = resolveSet(rule.set, attributes);
+      merged = { ...merged, ...setOutput };
+
+      // Apply map transformation if present
+      if (rule.map) {
+        let mapDef: JsonMapMap | undefined;
+
+        // Resolve map reference
+        if (typeof rule.map === 'string') {
+          mapDef = namedMaps?.[rule.map];
+          if (!mapDef) {
+            console.warn(
+              `Map reference "${rule.map}" not found in named maps. Skipping map transformation.`,
+            );
+            continue;
+          }
+        } else {
+          mapDef = rule.map;
+        }
+
+        // Execute JsonMap transformation
+        try {
+          const jsonMap = new JsonMap(mapDef, lib);
+          const mapOutput = await jsonMap.transform(attributes as unknown as Json);
+          if (
+            mapOutput &&
+            typeof mapOutput === 'object' &&
+            !Array.isArray(mapOutput)
+          ) {
+            merged = { ...merged, ...(mapOutput as Record<string, unknown>) };
+          } else {
+            console.warn(
+              `JsonMap transformation did not return an object; skipping merge.`,
+            );
+          }
+        } catch (error) {
+          console.warn(
+            `JsonMap transformation failed: ${error instanceof Error ? error.message : String(error)}`,
+          );
+        }
+      }
     }
   }
+
   return merged;
 }

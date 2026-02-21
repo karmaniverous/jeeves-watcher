@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import type { InferenceRule } from '../config/types';
 import type { FileAttributes } from './index';
@@ -21,7 +21,7 @@ function makeAttributes(
 }
 
 describe('rules engine', () => {
-  it('matches glob patterns on file path', () => {
+  it('matches glob patterns on file path', async () => {
     const rules: InferenceRule[] = [
       {
         match: {
@@ -42,11 +42,11 @@ describe('rules engine', () => {
       },
     ];
     const compiled = compileRules(rules);
-    const result = applyRules(compiled, makeAttributes());
+    const result = await applyRules(compiled, makeAttributes());
     expect(result).toEqual({ category: 'documentation' });
   });
 
-  it('does not match when glob does not match', () => {
+  it('does not match when glob does not match', async () => {
     const rules: InferenceRule[] = [
       {
         match: {
@@ -67,11 +67,11 @@ describe('rules engine', () => {
       },
     ];
     const compiled = compileRules(rules);
-    const result = applyRules(compiled, makeAttributes());
+    const result = await applyRules(compiled, makeAttributes());
     expect(result).toEqual({});
   });
 
-  it('matches frontmatter properties', () => {
+  it('matches frontmatter properties', async () => {
     const rules: InferenceRule[] = [
       {
         match: {
@@ -95,11 +95,11 @@ describe('rules engine', () => {
     ];
     const compiled = compileRules(rules);
     const attrs = makeAttributes({ frontmatter: { tags: ['api', 'v2'] } });
-    const result = applyRules(compiled, attrs);
+    const result = await applyRules(compiled, attrs);
     expect(result).toEqual({ docType: 'api-reference' });
   });
 
-  it('resolves template variables', () => {
+  it('resolves template variables', async () => {
     const rules: InferenceRule[] = [
       {
         match: { type: 'object' },
@@ -110,14 +110,14 @@ describe('rules engine', () => {
       },
     ];
     const compiled = compileRules(rules);
-    const result = applyRules(compiled, makeAttributes());
+    const result = await applyRules(compiled, makeAttributes());
     expect(result).toEqual({
       source: 'docs/readme.md',
       dir: 'docs',
     });
   });
 
-  it('later rules override earlier ones', () => {
+  it('later rules override earlier ones', async () => {
     const rules: InferenceRule[] = [
       {
         match: { type: 'object' },
@@ -129,7 +129,100 @@ describe('rules engine', () => {
       },
     ];
     const compiled = compileRules(rules);
-    const result = applyRules(compiled, makeAttributes());
+    const result = await applyRules(compiled, makeAttributes());
     expect(result).toEqual({ priority: 'high', source: 'first' });
+  });
+
+  it('applies inline JsonMap to extract path segment', async () => {
+    const rules: InferenceRule[] = [
+      {
+        match: { type: 'object' },
+        set: {},
+        map: {
+          project: {
+            $: [
+              { method: '$.lib.split', params: ['$.input.file.path', '/'] },
+              { method: '$.lib.slice', params: ['$[0]', 0, 1] },
+              { method: '$.lib.join', params: ['$[0]', ''] },
+            ],
+          },
+        },
+      },
+    ];
+    const compiled = compileRules(rules);
+    const result = await applyRules(compiled, makeAttributes());
+    expect(result).toEqual({ project: 'docs' });
+  });
+
+  it('applies named JsonMap via string reference', async () => {
+    const namedMaps = {
+      extractDirectory: {
+        dir: {
+          $: [
+            { method: '$.lib.split', params: ['$.input.file.path', '/'] },
+            { method: '$.lib.slice', params: ['$[0]', 0, 1] },
+            { method: '$.lib.join', params: ['$[0]', ''] },
+          ],
+        },
+      },
+    };
+
+    const rules: InferenceRule[] = [
+      {
+        match: { type: 'object' },
+        set: {},
+        map: 'extractDirectory',
+      },
+    ];
+
+    const compiled = compileRules(rules);
+    const result = await applyRules(compiled, makeAttributes(), namedMaps);
+    expect(result).toEqual({ dir: 'docs' });
+  });
+
+  it('merges set and map outputs with map overriding set', async () => {
+    const rules: InferenceRule[] = [
+      {
+        match: { type: 'object' },
+        set: { field: 'from-set', other: 'value' },
+        map: {
+          field: {
+            $: [
+              { method: '$.lib.split', params: ['$.input.file.filename', '.'] },
+              { method: '$.lib.slice', params: ['$[0]', 0, 1] },
+              { method: '$.lib.join', params: ['$[0]', ''] },
+            ],
+          },
+        },
+      },
+    ];
+
+    const compiled = compileRules(rules);
+    const result = await applyRules(compiled, makeAttributes());
+    expect(result).toEqual({ field: 'readme', other: 'value' });
+  });
+
+  it('warns and skips when named map reference is not found', async () => {
+    const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {
+      /* no-op */
+    });
+
+    const rules: InferenceRule[] = [
+      {
+        match: { type: 'object' },
+        set: { fallback: 'value' },
+        map: 'nonexistent',
+      },
+    ];
+
+    const compiled = compileRules(rules);
+    const result = await applyRules(compiled, makeAttributes());
+
+    expect(result).toEqual({ fallback: 'value' });
+    expect(consoleWarnSpy).toHaveBeenCalledWith(
+      'Map reference "nonexistent" not found in named maps. Skipping map transformation.',
+    );
+
+    consoleWarnSpy.mockRestore();
   });
 });
