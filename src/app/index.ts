@@ -64,8 +64,15 @@ export class JeevesWatcher {
 
     const compiledRules = compileRules(this.config.inferenceRules ?? []);
 
+    const processorConfig = {
+      metadataDir: this.config.metadataDir ?? '.jeeves-metadata',
+      chunkSize: this.config.embedding.chunkSize,
+      chunkOverlap: this.config.embedding.chunkOverlap,
+      maps: this.config.maps,
+    };
+
     const processor = new DocumentProcessor(
-      this.config,
+      processorConfig,
       embeddingProvider,
       vectorStore,
       compiledRules,
