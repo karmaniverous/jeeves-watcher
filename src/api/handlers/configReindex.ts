@@ -16,7 +16,9 @@ export interface ConfigReindexRouteDeps {
   logger: pino.Logger;
 }
 
-type ConfigReindexRequest = FastifyRequest<{ Body: { scope?: 'rules' | 'full' } }>;
+type ConfigReindexRequest = FastifyRequest<{
+  Body: { scope?: 'rules' | 'full' };
+}>;
 
 /**
  * Create handler for POST /config-reindex.

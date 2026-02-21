@@ -1,4 +1,3 @@
-import chokidar, { type FSWatcher } from 'chokidar';
 import type { FastifyInstance } from 'fastify';
 import type pino from 'pino';
 
@@ -13,6 +12,58 @@ import { EventQueue } from '../queue';
 import { compileRules } from '../rules';
 import { VectorStoreClient } from '../vectorStore';
 import { FileSystemWatcher } from '../watcher';
+import { ConfigWatcher } from './configWatcher';
+import { installShutdownHandlers } from './shutdown';
+
+/**
+ * Component factories for {@link JeevesWatcher}. Override in tests to inject mocks.
+ */
+export interface JeevesWatcherFactories {
+  loadConfig: (configPath?: string) => Promise<JeevesWatcherConfig>;
+  createLogger: typeof createLogger;
+  createEmbeddingProvider: typeof createEmbeddingProvider;
+  createVectorStoreClient: (
+    config: JeevesWatcherConfig['vectorStore'],
+    dimensions: number,
+    logger: pino.Logger,
+  ) => VectorStoreClient;
+  compileRules: typeof compileRules;
+  createDocumentProcessor: (
+    config: ConstructorParameters<typeof DocumentProcessor>[0],
+    embeddingProvider: EmbeddingProvider,
+    vectorStore: VectorStoreClient,
+    compiledRules: ConstructorParameters<typeof DocumentProcessor>[3],
+    logger: pino.Logger,
+  ) => DocumentProcessor;
+  createEventQueue: (options: ConstructorParameters<typeof EventQueue>[0]) => EventQueue;
+  createFileSystemWatcher: (
+    config: JeevesWatcherConfig['watch'],
+    queue: EventQueue,
+    processor: DocumentProcessor,
+    logger: pino.Logger,
+  ) => FileSystemWatcher;
+  createApiServer: typeof createApiServer;
+}
+
+const defaultFactories: JeevesWatcherFactories = {
+  loadConfig,
+  createLogger,
+  createEmbeddingProvider,
+  createVectorStoreClient: (config, dimensions, logger) =>
+    new VectorStoreClient(config, dimensions, logger),
+  compileRules,
+  createDocumentProcessor: (
+    config,
+    embeddingProvider,
+    vectorStore,
+    compiledRules,
+    logger,
+  ) => new DocumentProcessor(config, embeddingProvider, vectorStore, compiledRules, logger),
+  createEventQueue: (options) => new EventQueue(options),
+  createFileSystemWatcher: (config, queue, processor, logger) =>
+    new FileSystemWatcher(config, queue, processor, logger),
+  createApiServer,
+};
 
 /**
  * Main application class that wires together all components.
@@ -20,37 +71,42 @@ import { FileSystemWatcher } from '../watcher';
 export class JeevesWatcher {
   private config: JeevesWatcherConfig;
   private readonly configPath?: string;
+  private readonly factories: JeevesWatcherFactories;
 
   private logger: pino.Logger | undefined;
   private watcher: FileSystemWatcher | undefined;
   private queue: EventQueue | undefined;
   private server: FastifyInstance | undefined;
   private processor: DocumentProcessor | undefined;
-
-  private configWatcher: FSWatcher | undefined;
-  private configDebounce: NodeJS.Timeout | undefined;
+  private configWatcher: ConfigWatcher | undefined;
 
   /**
    * Create a new JeevesWatcher instance.
    *
    * @param config - The application configuration.
    * @param configPath - Optional config file path to watch for changes.
+   * @param factories - Optional component factories (for dependency injection).
    */
-  constructor(config: JeevesWatcherConfig, configPath?: string) {
+  constructor(
+    config: JeevesWatcherConfig,
+    configPath?: string,
+    factories: Partial<JeevesWatcherFactories> = {},
+  ) {
     this.config = config;
     this.configPath = configPath;
+    this.factories = { ...defaultFactories, ...factories };
   }
 
   /**
    * Start the watcher, API server, and all components.
    */
   async start(): Promise<void> {
-    const logger = createLogger(this.config.logging);
+    const logger = this.factories.createLogger(this.config.logging);
     this.logger = logger;
 
     let embeddingProvider: EmbeddingProvider;
     try {
-      embeddingProvider = createEmbeddingProvider(
+      embeddingProvider = this.factories.createEmbeddingProvider(
         this.config.embedding,
         logger,
       );
@@ -59,14 +115,16 @@ export class JeevesWatcher {
       throw error;
     }
 
-    const vectorStore = new VectorStoreClient(
+    const vectorStore = this.factories.createVectorStoreClient(
       this.config.vectorStore,
       embeddingProvider.dimensions,
       logger,
     );
     await vectorStore.ensureCollection();
 
-    const compiledRules = compileRules(this.config.inferenceRules ?? []);
+    const compiledRules = this.factories.compileRules(
+      this.config.inferenceRules ?? [],
+    );
 
     const processorConfig = {
       metadataDir: this.config.metadataDir ?? '.jeeves-metadata',
@@ -75,7 +133,7 @@ export class JeevesWatcher {
       maps: this.config.maps,
     };
 
-    const processor = new DocumentProcessor(
+    const processor = this.factories.createDocumentProcessor(
       processorConfig,
       embeddingProvider,
       vectorStore,
@@ -84,14 +142,14 @@ export class JeevesWatcher {
     );
     this.processor = processor;
 
-    const queue = new EventQueue({
+    const queue = this.factories.createEventQueue({
       debounceMs: this.config.watch.debounceMs ?? 2000,
       concurrency: this.config.embedding.concurrency ?? 5,
       rateLimitPerMinute: this.config.embedding.rateLimitPerMinute,
     });
     this.queue = queue;
 
-    const watcher = new FileSystemWatcher(
+    const watcher = this.factories.createFileSystemWatcher(
       this.config.watch,
       queue,
       processor,
@@ -99,7 +157,7 @@ export class JeevesWatcher {
     );
     this.watcher = watcher;
 
-    const server = createApiServer({
+    const server = this.factories.createApiServer({
       processor,
       vectorStore,
       embeddingProvider,
@@ -171,35 +229,20 @@ export class JeevesWatcher {
 
     const debounceMs = this.config.configWatch?.debounceMs ?? 10000;
 
-    this.configWatcher = chokidar.watch(this.configPath, {
-      ignoreInitial: true,
+    this.configWatcher = new ConfigWatcher({
+      configPath: this.configPath,
+      enabled,
+      debounceMs,
+      logger,
+      onChange: async () => this.reloadConfig(),
     });
 
-    this.configWatcher.on('change', () => {
-      if (this.configDebounce) clearTimeout(this.configDebounce);
-      this.configDebounce = setTimeout(() => {
-        void this.reloadConfig();
-      }, debounceMs);
-    });
-
-    this.configWatcher.on('error', (error) => {
-      logger.error({ error }, 'Config watcher error');
-    });
-
-    logger.info(
-      { configPath: this.configPath, debounceMs },
-      'Config watcher started',
-    );
+    this.configWatcher.start();
   }
 
   private async stopConfigWatch(): Promise<void> {
-    if (this.configDebounce) {
-      clearTimeout(this.configDebounce);
-      this.configDebounce = undefined;
-    }
-
     if (this.configWatcher) {
-      await this.configWatcher.close();
+      await this.configWatcher.stop();
       this.configWatcher = undefined;
     }
   }
@@ -215,10 +258,12 @@ export class JeevesWatcher {
     );
 
     try {
-      const newConfig = await loadConfig(this.configPath);
+      const newConfig = await this.factories.loadConfig(this.configPath);
       this.config = newConfig;
 
-      const compiledRules = compileRules(newConfig.inferenceRules ?? []);
+      const compiledRules = this.factories.compileRules(
+        newConfig.inferenceRules ?? [],
+      );
       processor.updateRules(compiledRules);
 
       logger.info(
@@ -243,13 +288,7 @@ export async function startFromConfig(
   const config = await loadConfig(configPath);
   const app = new JeevesWatcher(config, configPath);
 
-  const shutdown = async () => {
-    await app.stop();
-    process.exit(0);
-  };
-
-  process.on('SIGTERM', () => void shutdown());
-  process.on('SIGINT', () => void shutdown());
+  installShutdownHandlers(() => app.stop());
 
   await app.start();
   return app;

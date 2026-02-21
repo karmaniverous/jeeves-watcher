@@ -6,7 +6,10 @@
 /**
  * Create handler for GET /status.
  */
-export function createStatusHandler(): () => { status: string; uptime: number } {
+export function createStatusHandler(): () => {
+  status: string;
+  uptime: number;
+} {
   return () => ({
     status: 'ok',
     uptime: process.uptime(),
