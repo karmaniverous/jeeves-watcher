@@ -1,0 +1,100 @@
+@startuml system-architecture
+
+skinparam backgroundColor #FFFFFF
+skinparam componentBackgroundColor #E8EAF6
+skinparam componentBorderColor #3F51B5
+skinparam componentFontSize 13
+skinparam componentFontStyle bold
+skinparam packageBackgroundColor #F5F5F5
+skinparam packageBorderColor #9E9E9E
+skinparam packageFontSize 14
+skinparam databaseBackgroundColor #E3F2FD
+skinparam databaseBorderColor #1976D2
+skinparam ArrowColor #424242
+skinparam ArrowFontSize 11
+skinparam NoteBorderColor #BDBDBD
+skinparam NoteBackgroundColor #FAFAFA
+
+title System Architecture
+
+package "Configuration Layer" {
+  [Config Loader] as CFG
+  note bottom of CFG
+    Zod schema validation
+    Environment variables
+    Inference rules
+  end note
+}
+
+package "Watch Layer" {
+  [Chokidar Watcher] as WATCH
+  [Event Queue] as QUEUE
+  
+  WATCH -down-> QUEUE : File change events
+}
+
+package "Processing Layer" {
+  [Document Processor] as PROC
+  
+  package "Extractors" {
+    [PDF Extractor\n(pdfjs)] as PDF
+    [DOCX Extractor\n(mammoth)] as DOCX
+    [Text Extractor] as TXT
+  }
+  
+  [Inference Rules Engine] as RULES
+  [Chunking Service] as CHUNK
+  
+  PROC -down-> PDF
+  PROC -down-> DOCX
+  PROC -down-> TXT
+  PROC -down-> RULES
+  PROC -down-> CHUNK
+}
+
+package "External Services" {
+  [Embedding Provider] as EMBED
+  note bottom of EMBED
+    Configurable:
+    OpenAI, Voyage, etc.
+  end note
+  
+  database "Qdrant\n(Vector DB)" as QD
+}
+
+package "API Layer" {
+  [Fastify HTTP Server] as API
+  note bottom of API
+    /metadata - Enrichment
+    /search - Semantic search
+    /health - Status
+  end note
+}
+
+package "CLI Layer" {
+  [CLI Commands] as CLI
+  note bottom of CLI
+    start - Launch watcher
+    reindex - Rebuild Qdrant
+    rebuild-metadata - Restore .meta.json
+  end note
+}
+
+' Connections
+CFG -down-> WATCH : Config
+CFG -down-> PROC : Config
+CFG -down-> API : Config
+CFG -down-> CLI : Config
+
+QUEUE -down-> PROC : Process file
+
+PROC -right-> EMBED : Generate vectors
+PROC -right-> QD : Upsert points
+
+API -down-> PROC : Trigger enrichment
+API -down-> QD : Search queries
+
+CLI -down-> PROC : Trigger operations
+CLI -down-> QD : Rebuild operations
+
+@enduml

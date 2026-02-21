@@ -16,13 +16,30 @@ High-level architectural overview of `jeeves-watcher` for contributors and advan
 
 ---
 
+## System Architecture
+
+![System Architecture](../diagrams/out/system-architecture.png)
+
+The watcher consists of several layered components:
+
+- **Configuration Layer** — Zod-validated config with environment variable substitution
+- **Watch Layer** — Chokidar filesystem watcher + event queue
+- **Processing Layer** — Document processor with extractors, chunking, and inference rules engine
+- **External Services** — Configurable embedding provider + Qdrant vector store
+- **API Layer** — Fastify HTTP server for enrichment and search
+- **CLI Layer** — Command-line interface for operations
+
+---
+
 ## Three Sources of Truth
 
-| Store | Source of Truth For | Written By | Protection | Rebuildable |
-|-------|-------------------|------------|------------|-------------|
-| **Filesystem** (watched dirs) | Document content | Humans, scripts, assistant | None (watcher adapts) | N/A (primary source) |
-| **Metadata store** (`.meta.json` files) | Enrichment metadata | Watcher only (via API) | Architectural policy | Yes (from Qdrant) |
-| **Qdrant** | Nothing (derived index) | Watcher only | N/A | Yes (from filesystem + metadata store) |
+![Three Sources of Truth](../diagrams/out/three-sources-of-truth.png)
+
+The system maintains three distinct stores:
+
+- **Filesystem** (watched directories) — Primary source of document content
+- **Metadata Store** (`.meta.json` sidecars) — Enrichment metadata added via API
+- **Qdrant** (vector database) — Derived index, fully rebuildable
 
 ### Rebuild Flows
 
@@ -62,41 +79,35 @@ graph LR
 
 ### 2. Document Processing Pipeline
 
-```mermaid
-graph TD
-    A[File Path] --> B[Extract Text]
-    B --> C[Content Hash]
-    C --> D{Hash Changed?}
-    D -->|No| E[Skip]
-    D -->|Yes| F[Build Attributes]
-    F --> G[Apply Inference Rules]
-    G --> H[Read Enrichment Metadata]
-    H --> I[Merge Metadata]
-    I --> J[Chunk Text]
-    J --> K[Embed Chunks]
-    K --> L[Upsert to Qdrant]
-    L --> M[Cleanup Orphaned Chunks]
-```
+![Document Processing Pipeline](../diagrams/out/document-processing-pipeline.png)
 
-**Hash Check:** Compare `sha256(extracted_text)` with existing Qdrant payload. If unchanged, skip re-embedding.
+The core processing flow transforms file changes into searchable vectors:
 
-**Chunking:** Large documents (>`embedding.chunkSize`) are split into overlapping chunks. Each chunk becomes a separate Qdrant point.
-
-**Orphan Cleanup:** If a file previously had 5 chunks but now has 3, delete chunks 3–4 from Qdrant.
+1. **Extract Text** — Format-specific extraction (PDF, DOCX, Markdown, etc.)
+2. **Content Hash** — SHA-256 hash of extracted text for change detection
+3. **Hash Check** — Skip re-embedding if content unchanged
+4. **Build Attributes** — Collect file metadata (path, size, modified, frontmatter, JSON)
+5. **Apply Inference Rules** — Match → Set → Map → Merge (see [Inference Rules](inference-rules.md))
+6. **Read Enrichment Metadata** — Load `.meta.json` sidecar if exists
+7. **Merge Metadata** — Combine inference rules + enrichment (enrichment wins)
+8. **Chunk Text** — Split large documents with overlap
+9. **Embed Chunks** — Generate vectors via embedding provider
+10. **Upsert to Qdrant** — Store vectors + payloads
+11. **Cleanup Orphaned Chunks** — Remove old chunks if document shrunk
 
 ### 3. Metadata Enrichment (API)
 
-```mermaid
-graph TD
-    A[POST /metadata] --> B[Read Existing Enrichment]
-    B --> C[Merge New Metadata]
-    C --> D[Write .meta.json]
-    D --> E[Update Qdrant Payloads]
-```
+![Metadata Enrichment Flow](../diagrams/out/metadata-enrichment.png)
 
-**No re-embedding:** Metadata updates only touch Qdrant payloads, not vectors.
+The enrichment API allows external callers to add metadata without re-embedding:
 
-**All chunks updated:** If a file has 3 chunks, all 3 payloads are updated with the same metadata.
+1. **POST /metadata** with file path and metadata
+2. **Read existing** `.meta.json` sidecar (if exists)
+3. **Merge metadata** — new metadata overrides existing (deep merge)
+4. **Write `.meta.json`** — atomic write via temp file + rename
+5. **Update Qdrant payloads** — modify all chunk payloads for the file
+
+**Key principle:** Enrichment updates metadata only. No text extraction, no re-embedding, no hash check. Fast metadata updates without changing vectors.
 
 ### 4. Search Flow
 

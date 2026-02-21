@@ -1,0 +1,57 @@
+@startuml three-sources-of-truth
+
+skinparam backgroundColor #FFFFFF
+skinparam componentBackgroundColor #E8F5E9
+skinparam componentBorderColor #388E3C
+skinparam componentFontSize 14
+skinparam componentFontStyle bold
+skinparam databaseBackgroundColor #E3F2FD
+skinparam databaseBorderColor #1976D2
+skinparam databaseFontSize 14
+skinparam databaseFontStyle bold
+skinparam ArrowColor #424242
+skinparam ArrowFontSize 11
+skinparam NoteBorderColor #BDBDBD
+skinparam NoteBackgroundColor #FAFAFA
+
+title Three Sources of Truth
+
+package "Primary Source" {
+  [Filesystem] as FS
+  note bottom of FS
+    **Source of Truth:** Document content
+    **Written By:** Humans, scripts, assistant
+    **Protection:** None (watcher adapts)
+    **Rebuildable:** N/A (primary source)
+  end note
+}
+
+package "Enrichment Layer" {
+  database "Metadata Store\n(.meta.json)" as META
+  note bottom of META
+    **Source of Truth:** Enrichment metadata
+    **Written By:** Watcher only (via API)
+    **Protection:** Architectural policy
+    **Rebuildable:** Yes (from Qdrant)
+  end note
+}
+
+package "Derived Index" {
+  database "Qdrant\n(Vector DB)" as QD
+  note bottom of QD
+    **Source of Truth:** Nothing (derived)
+    **Written By:** Watcher only
+    **Protection:** N/A
+    **Rebuildable:** Yes (from FS + META)
+  end note
+}
+
+FS -down-> QD : **Normal flow**\nFile change →\nextract → embed\n→ upsert
+FS -down-> META : **Enrichment flow**\nAPI call →\nwrite .meta.json
+
+QD -up-> META : **Rebuild metadata**\n//jeeves-watcher//\n//rebuild-metadata//\nExtract payloads\n→ write .meta.json
+
+FS -right-> QD : **Rebuild index**\n//jeeves-watcher reindex//\nRe-read files\n+ .meta.json\n→ re-embed → upsert
+META -left-> QD
+
+@enduml

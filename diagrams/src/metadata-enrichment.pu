@@ -1,0 +1,91 @@
+@startuml metadata-enrichment
+
+skinparam backgroundColor #FFFFFF
+skinparam sequenceParticipantBackgroundColor #E1F5FE
+skinparam sequenceParticipantBorderColor #0277BD
+skinparam sequenceParticipantFontSize 13
+skinparam sequenceParticipantFontStyle bold
+skinparam sequenceActorBackgroundColor #F3E5F5
+skinparam sequenceActorBorderColor #6A1B9A
+skinparam ArrowColor #424242
+skinparam ArrowFontSize 11
+skinparam NoteBorderColor #BDBDBD
+skinparam NoteBackgroundColor #FAFAFA
+
+title Metadata Enrichment Flow
+
+actor "API Caller" as CALLER
+participant "Fastify API" as API
+participant "Document Processor" as PROC
+participant "Filesystem" as FS
+database "Qdrant" as QD
+
+CALLER -> API : POST /metadata\n{filePath, metadata}
+
+activate API
+note right of API
+  Example payload:
+  {
+    "filePath": "d:/meetings/transcript.md",
+    "metadata": {
+      "summary": "Architecture discussion",
+      "participants": ["Jason", "Devin"],
+      "topics": ["inference rules", "embedding"]
+    }
+  }
+end note
+
+API -> PROC : enrich(filePath, metadata)
+activate PROC
+
+PROC -> FS : Read .meta.json\n(if exists)
+activate FS
+FS --> PROC : Existing metadata\n(or empty)
+deactivate FS
+
+PROC -> PROC : Merge metadata
+note right of PROC
+  New metadata overrides
+  existing enrichment
+  (deep merge)
+end note
+
+PROC -> FS : Write .meta.json
+activate FS
+note right of FS
+  Atomic write:
+  .meta.json.tmp →
+  rename to .meta.json
+end note
+FS --> PROC : Success
+deactivate FS
+
+PROC -> QD : Query points\nby file path
+activate QD
+QD --> PROC : All chunks\nfor file
+deactivate QD
+
+PROC -> QD : Update payloads\n(no re-embedding)
+activate QD
+note right of QD
+  For each chunk:
+  update payload.metadata
+  
+  Vectors unchanged
+end note
+QD --> PROC : Success
+deactivate QD
+
+PROC --> API : Enrichment complete
+deactivate PROC
+
+API --> CALLER : 200 OK
+deactivate API
+
+note over CALLER, QD
+  **Key principle:** Enrichment updates metadata only.
+  No text extraction, no re-embedding, no hash check.
+  Fast metadata updates without changing vectors.
+end note
+
+@enduml

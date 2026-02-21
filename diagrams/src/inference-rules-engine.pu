@@ -1,0 +1,78 @@
+@startuml inference-rules-engine
+
+skinparam backgroundColor #FFFFFF
+skinparam defaultTextAlignment center
+skinparam ActivityBackgroundColor #FFF3E0
+skinparam ActivityBorderColor #E65100
+skinparam ActivityFontColor #000000
+skinparam ActivityFontSize 12
+skinparam ArrowColor #E65100
+skinparam DiamondBackgroundColor #FFF9C4
+skinparam DiamondBorderColor #F57C00
+skinparam NoteBorderColor #BDBDBD
+skinparam NoteBackgroundColor #FAFAFA
+
+title Inference Rules Engine
+
+start
+
+:Build File Attributes;
+note right
+  {
+    file: {path, size, modified, ...},
+    frontmatter: {...},
+    json: {...}
+  }
+end note
+
+:Load Inference Rules;
+note right
+  Array of rules from config:
+  {match, set, map}
+end note
+
+partition "For Each Rule" {
+  :Evaluate Match;
+  note right
+    JSON Schema validation
+    + glob pattern matching
+  end note
+  
+  if (Match Success?) then (yes)
+    :Evaluate Set;
+    note right
+      Template interpolation
+      using file attributes:
+      "{{file.filename}}"
+      "{{frontmatter.author}}"
+    end note
+    
+    if (Map Defined?) then (yes)
+      :Apply JsonMap Transform;
+      note right
+        Transform attributes
+        using JsonMap definition
+        (inline or named reference)
+      end note
+    else (no)
+    endif
+    
+    :Merge into Output;
+    note right
+      Later rules override
+      earlier ones
+    end note
+  else (no)
+    :Skip Rule;
+  endif
+}
+
+:Return Merged Metadata;
+note right
+  Combined output from
+  all matching rules
+end note
+
+stop
+
+@enduml

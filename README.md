@@ -13,6 +13,12 @@ Filesystem watcher that keeps a Qdrant vector store in sync with document change
 - **Syncs** to Qdrant for fast semantic search
 - **Enriches** metadata via rules and API endpoints
 
+### Architecture
+
+![System Architecture](diagrams/out/system-architecture.png)
+
+For detailed architecture documentation, see [guides/architecture.md](guides/architecture.md).
+
 ## Quick Start
 
 ### Installation
