@@ -10,6 +10,7 @@ import {
 import Ajv from 'ajv';
 import addFormats from 'ajv-formats';
 import picomatch from 'picomatch';
+import { get } from 'radash';
 
 import type { InferenceRule } from '../config/types';
 
@@ -127,12 +128,7 @@ function resolveTemplateVars(
 ): unknown {
   if (typeof value !== 'string') return value;
   return value.replace(/\$\{([^}]+)\}/g, (_match, varPath: string) => {
-    const parts = varPath.split('.');
-    let current: unknown = attributes;
-    for (const part of parts) {
-      if (current === null || current === undefined) return '';
-      current = (current as Record<string, unknown>)[part];
-    }
+    const current = get(attributes, varPath);
     if (current === null || current === undefined) return '';
     return typeof current === 'string' ? current : JSON.stringify(current);
   });
@@ -170,15 +166,7 @@ function createJsonMapLib() {
     toLowerCase: (str: string) => str.toLowerCase(),
     replace: (str: string, search: string | RegExp, replacement: string) =>
       str.replace(search, replacement),
-    get: (obj: unknown, path: string) => {
-      const parts = path.split('.');
-      let current = obj;
-      for (const part of parts) {
-        if (current === null || current === undefined) return undefined;
-        current = (current as Record<string, unknown>)[part];
-      }
-      return current;
-    },
+    get: (obj: unknown, path: string) => get(obj, path),
   };
 }
 
@@ -192,17 +180,20 @@ function createJsonMapLib() {
  * @param compiledRules - The compiled rules to evaluate.
  * @param attributes - The file attributes to match against.
  * @param namedMaps - Optional record of named JsonMap definitions.
+ * @param logger - Optional pino logger for warnings (falls back to console.warn).
  * @returns The merged metadata from all matching rules.
  */
 export async function applyRules(
   compiledRules: CompiledRule[],
   attributes: FileAttributes,
   namedMaps?: Record<string, JsonMapMap>,
+  logger?: { warn: (msg: string) => void },
 ): Promise<Record<string, unknown>> {
   // JsonMap's type definitions expect a generic JsonMapLib shape with unary functions.
   // Our helper functions accept multiple args, which JsonMap supports at runtime.
   const lib = createJsonMapLib() as unknown as JsonMapLib;
   let merged: Record<string, unknown> = {};
+  const log = logger ?? console;
 
   for (const { rule, validate } of compiledRules) {
     if (validate(attributes)) {
@@ -218,7 +209,7 @@ export async function applyRules(
         if (typeof rule.map === 'string') {
           mapDef = namedMaps?.[rule.map];
           if (!mapDef) {
-            console.warn(
+            log.warn(
               `Map reference "${rule.map}" not found in named maps. Skipping map transformation.`,
             );
             continue;
@@ -240,12 +231,12 @@ export async function applyRules(
           ) {
             merged = { ...merged, ...(mapOutput as Record<string, unknown>) };
           } else {
-            console.warn(
+            log.warn(
               `JsonMap transformation did not return an object; skipping merge.`,
             );
           }
         } catch (error) {
-          console.warn(
+          log.warn(
             `JsonMap transformation failed: ${error instanceof Error ? error.message : String(error)}`,
           );
         }
