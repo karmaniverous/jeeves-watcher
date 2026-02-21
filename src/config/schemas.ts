@@ -1,3 +1,4 @@
+import { jsonMapMapSchema } from '@karmaniverous/jsonmap';
 import { z } from 'zod';
 
 /**
@@ -102,6 +103,8 @@ export const inferenceRuleSchema = z.object({
   match: z.record(z.string(), z.unknown()),
   /** Metadata fields to set when the rule matches. */
   set: z.record(z.string(), z.unknown()),
+  /** JsonMap transformation (inline or reference to named map). */
+  map: z.union([jsonMapMapSchema, z.string()]).optional(),
 });
 
 export type InferenceRule = z.infer<typeof inferenceRuleSchema>;
@@ -126,6 +129,8 @@ export const jeevesWatcherConfigSchema = z.object({
   extractors: z.record(z.string(), z.unknown()).optional(),
   /** Rules for inferring metadata from document properties. */
   inferenceRules: z.array(inferenceRuleSchema).optional(),
+  /** Reusable named JsonMap transformations. */
+  maps: z.record(z.string(), jsonMapMapSchema).optional(),
   /** Logging configuration. */
   logging: loggingConfigSchema.optional(),
   /** Timeout in milliseconds for graceful shutdown. */
