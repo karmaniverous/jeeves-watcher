@@ -96,6 +96,9 @@ export interface JeevesWatcherRuntimeOptions {
   onFatalError?: (error: unknown) => void;
 }
 
+/**
+ * Main application class that wires together all components.
+ */
 export class JeevesWatcher {
   private config: JeevesWatcherConfig;
   private readonly configPath?: string;
