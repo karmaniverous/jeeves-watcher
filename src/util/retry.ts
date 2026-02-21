@@ -6,11 +6,11 @@
 export interface RetryOptions {
   /** Maximum number of attempts (including the first try). */
   attempts: number;
-  /** Base delay in milliseconds for exponential backoff (attempt 1 => baseDelayMs). */
+  /** Base delay in milliseconds for exponential backoff (attempt 1 uses baseDelayMs). */
   baseDelayMs: number;
   /** Maximum delay in milliseconds between attempts. */
   maxDelayMs: number;
-  /** Random jitter factor in [0, jitter], applied to delay (e.g., 0.2 => up to +20%). */
+  /** Random jitter factor in [0, jitter], applied to delay (e.g., 0.2 means up to +20%). */
   jitter?: number;
   /** Called before sleeping between retries (not called on final failure). */
   onRetry?: (context: {
