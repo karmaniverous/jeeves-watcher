@@ -94,6 +94,20 @@ The watcher will:
 
 ## Configuration
 
+### Environment Variable Substitution
+
+Config strings support `${VAR_NAME}` syntax for environment variable injection:
+
+```json
+{
+  "embedding": {
+    "apiKey": "${GOOGLE_API_KEY}"
+  }
+}
+```
+
+If `GOOGLE_API_KEY` is set in the environment, the value is substituted at config load time. **Unresolvable expressions are left untouched** — this allows `${...}` template syntax used in inference rule `set` values (e.g. `${frontmatter.title}`, `${file.path}`) to pass through for later resolution by the rules engine.
+
 ### Watch Paths
 
 ```json
