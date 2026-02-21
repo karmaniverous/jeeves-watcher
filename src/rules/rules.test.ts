@@ -225,4 +225,92 @@ describe('rules engine', () => {
 
     consoleWarnSpy.mockRestore();
   });
+
+  it('applies multiple matching rules in order (all applied, later overrides)', async () => {
+    const rules: InferenceRule[] = [
+      {
+        match: { type: 'object' },
+        set: { a: 1, shared: 'first' },
+      },
+      {
+        match: { type: 'object' },
+        set: { b: 2, shared: 'second' },
+      },
+    ];
+
+    const compiled = compileRules(rules);
+    const result = await applyRules(compiled, makeAttributes());
+
+    expect(result).toEqual({ a: 1, b: 2, shared: 'second' });
+  });
+
+  it('treats missing template variables as empty string', async () => {
+    const rules: InferenceRule[] = [
+      {
+        match: { type: 'object' },
+        set: { title: '${frontmatter.title}', path: '${file.path}' },
+      },
+    ];
+
+    const compiled = compileRules(rules);
+    const result = await applyRules(compiled, makeAttributes());
+
+    expect(result).toEqual({ title: '', path: 'docs/readme.md' });
+  });
+
+  it('warns and skips when JsonMap transform throws', async () => {
+    const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {
+      /* no-op */
+    });
+
+    const rules: InferenceRule[] = [
+      {
+        match: { type: 'object' },
+        set: { ok: true },
+        map: {
+          willFail: {
+            $: [
+              // Force a runtime error: $.input.file is an object, not a string.
+              { method: '$.lib.split', params: ['$.input.file', '/'] },
+            ],
+          },
+        },
+      },
+    ];
+
+    const compiled = compileRules(rules);
+    const result = await applyRules(compiled, makeAttributes());
+
+    expect(result).toEqual({ ok: true });
+    expect(consoleWarnSpy).toHaveBeenCalledWith(
+      expect.stringContaining('JsonMap transformation failed:'),
+    );
+
+    consoleWarnSpy.mockRestore();
+  });
+
+  it('rejects invalid JSON Schema definitions in match', () => {
+    const rules: InferenceRule[] = [
+      {
+        // Ajv should throw on invalid `type`.
+        match: { type: 'not-a-real-json-schema-type' },
+        set: { a: 1 },
+      },
+    ];
+
+    expect(() => compileRules(rules)).toThrow();
+  });
+
+  it('supports rules with only match (empty set, no map)', async () => {
+    const rules: InferenceRule[] = [
+      {
+        match: { type: 'object' },
+        set: {},
+      },
+    ];
+
+    const compiled = compileRules(rules);
+    const result = await applyRules(compiled, makeAttributes());
+    expect(result).toEqual({});
+  });
 });
