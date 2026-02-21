@@ -92,7 +92,7 @@ describe('loadConfig', () => {
     }
   });
 
-  it('throws for missing env var in config', async () => {
+  it('leaves unresolvable ${...} expressions in config untouched', async () => {
     const dir = await mkdtemp(join(tmpdir(), 'jw-cfg-'));
     const cfgPath = join(dir, 'jeeves-watcher.config.json');
     await writeFile(
@@ -104,7 +104,8 @@ describe('loadConfig', () => {
       'utf8',
     );
 
-    await expect(loadConfig(cfgPath)).rejects.toThrow(/MISSING_JW_VAR_99/);
+    const config = await loadConfig(cfgPath);
+    expect(config.embedding.apiKey).toBe('${MISSING_JW_VAR_99}');
   });
 });
 

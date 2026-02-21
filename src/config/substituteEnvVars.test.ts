@@ -38,9 +38,15 @@ describe('substituteEnvVars', () => {
     expect(substituteEnvVars(input)).toEqual(input);
   });
 
-  it('throws for missing env var', () => {
-    expect(() => substituteEnvVars('${MISSING_JW_VAR_XYZ}')).toThrow(
-      /MISSING_JW_VAR_XYZ.*not set/,
+  it('leaves unresolvable ${...} expressions untouched', () => {
+    expect(substituteEnvVars('${MISSING_JW_VAR_XYZ}')).toBe(
+      '${MISSING_JW_VAR_XYZ}',
+    );
+  });
+
+  it('leaves template expressions like ${frontmatter.title} untouched', () => {
+    expect(substituteEnvVars('${frontmatter.title}')).toBe(
+      '${frontmatter.title}',
     );
   });
 });
