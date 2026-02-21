@@ -132,7 +132,9 @@ export class JeevesWatcher {
       const drained = await Promise.race<boolean>([
         this.queue.drain().then(() => true),
         new Promise<boolean>((resolve) => {
-          setTimeout(() => resolve(false), timeout);
+          setTimeout(() => {
+            resolve(false);
+          }, timeout);
         }),
       ]);
 
