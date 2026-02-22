@@ -2,10 +2,17 @@
 
 All notable changes to this project will be documented in this file. Dates are displayed in UTC.
 
+#### [0.3.1](https://github.com/karmaniverous/jeeves-watcher/compare/0.3.0...0.3.1)
+
+- fix: restore shebang in CLI output for correct npm .cmd wrapper generation [`#20`](https://github.com/karmaniverous/jeeves-watcher/pull/20)
+
 #### [0.3.0](https://github.com/karmaniverous/jeeves-watcher/compare/0.2.6...0.3.0)
+
+> 22 February 2026
 
 - feat: OpenClaw plugin with agent tools and skill (v0.3.0) [`#19`](https://github.com/karmaniverous/jeeves-watcher/pull/19)
 - docs: sync all documentation with implementation [`#17`](https://github.com/karmaniverous/jeeves-watcher/pull/17)
+- chore: release v0.3.0 [`0e03c00`](https://github.com/karmaniverous/jeeves-watcher/commit/0e03c000e94d776a6724b8e92de4a7a432808785)
 - docs: sync documentation with implementation [`8442160`](https://github.com/karmaniverous/jeeves-watcher/commit/844216071098d3e2672cd284df06723d3af6c71e)
 
 #### [0.2.6](https://github.com/karmaniverous/jeeves-watcher/compare/0.2.5...0.2.6)
