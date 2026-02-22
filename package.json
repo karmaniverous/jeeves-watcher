@@ -118,7 +118,9 @@
   "main": "dist/cjs/index.js",
   "module": "dist/mjs/index.js",
   "openclaw": {
-    "extensions": ["./dist/plugin/index.js"]
+    "extensions": [
+      "./dist/plugin/index.js"
+    ]
   },
   "name": "@karmaniverous/jeeves-watcher",
   "publishConfig": {
@@ -175,5 +177,5 @@
   },
   "type": "module",
   "types": "dist/index.d.ts",
-  "version": "0.2.6"
+  "version": "0.3.0"
 }

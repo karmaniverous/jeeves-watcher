@@ -182,7 +182,7 @@
 <p>When <code>configWatch.enabled</code> is <code>true</code>, the watcher monitors its own config file.</p>
 <p><strong>On config change:</strong></p>
 <ol>
-<li>Debounce for <code>configWatch.debounceMs</code> (default: 10 seconds)</li>
+<li>Debounce for <code>configWatch.debounceMs</code> (default: 1000ms)</li>
 <li>Reload and validate config</li>
 <li>Recompile inference rules</li>
 <li>Queue a <strong>scoped metadata reindex</strong> (only files matching changed rules)</li>
@@ -192,10 +192,6 @@
 <li>If a rule targeting <code>d:/meetings/**</code> changes, only files under <code>d:/meetings/</code> are re-evaluated</li>
 <li>No re-embedding — just metadata updates to Qdrant payloads</li>
 </ul>
-<p><strong>Pause/resume:</strong></p>
-<pre><code class="bash"><span class="hl-0">POST</span><span class="hl-1"> </span><span class="hl-2">/config-reindex</span><span class="hl-1"> </span><span class="hl-2">{&quot;action&quot;:</span><span class="hl-1"> </span><span class="hl-2">&quot;pause&quot;}</span><span class="hl-1">   </span><span class="hl-9"># Suppress auto-reindex</span><br/><span class="hl-0">POST</span><span class="hl-1"> </span><span class="hl-2">/config-reindex</span><span class="hl-1"> </span><span class="hl-2">{&quot;action&quot;:</span><span class="hl-1"> </span><span class="hl-2">&quot;resume&quot;}</span><span class="hl-1">  </span><span class="hl-9"># Diff accumulated changes, single reindex</span>
-</code><button type="button">Copy</button></pre>
-
 <hr>
 <h2 id="metadata-store-design" class="tsd-anchor-link">Metadata Store Design<a href="#metadata-store-design" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h2>
 <h3 id="path-derivation" class="tsd-anchor-link">Path Derivation<a href="#path-derivation" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
