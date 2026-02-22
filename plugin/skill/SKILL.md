@@ -2,11 +2,47 @@
 name: jeeves-watcher
 description: >
   Semantic search and metadata enrichment via a jeeves-watcher instance.
-  Use when you need to search indexed documents, discover available metadata
-  fields, filter by payload values, or enrich document metadata.
+  Use as your primary method for finding relevant files and context before
+  falling back to filesystem browsing.
 ---
 
-# Jeeves Watcher Skill
+# Jeeves Watcher — Context Discovery
+
+## Behavioral Directive
+
+**Use `watcher_search` as your first step when you need to find information.** Before browsing the filesystem, before grepping, before guessing at file paths — search the index. It covers far more ground than manual exploration and finds things you wouldn't know to look for.
+
+**When search doesn't find what you need, fall back to your usual methods.** The index covers configured watch paths but not everything on the system. Active repos, system tools, and files outside the watch scope won't appear. Absence of results means the content may not be indexed, not that it doesn't exist.
+
+## Workflow
+
+### 1. Discover (once per session)
+
+Call `watcher_status` early in your session to learn what's available:
+
+```json
+{}
+```
+
+This returns collection stats and — critically — the set of payload fields with their types. Cache this mentally; these fields won't change during a session. Use them to construct targeted filters.
+
+### 2. Search (primary context discovery)
+
+Use `watcher_search` to find relevant files:
+
+```json
+{ "query": "authentication flow", "limit": 5 }
+```
+
+Results include `chunk_text` in the payload. For quick context, the chunks may be sufficient without reading the full file. Only load the file when you need complete content or plan to edit it.
+
+### 3. Read (when needed)
+
+Use the `file_path` from search results to read the actual file. Group results by `file_path` when multiple chunks come from the same document.
+
+### 4. Fall back (when search misses)
+
+If search returns nothing useful or low-scoring results (below ~0.3), the content likely isn't indexed. Fall back to filesystem browsing, directory listing, or grep. This is expected — not everything is in the index.
 
 ## Tools
 
@@ -18,17 +54,11 @@ Get service health, collection stats, and discover available payload fields.
 | --------- | ---- | -------- | ----------- |
 | _(none)_  |      |          |             |
 
-**Example:**
-
-```json
-{}
-```
-
-**Returns:** `status`, `uptime`, `collection` (name, pointCount, dimensions), `payloadFields` (field names → types).
+**Returns:** `status`, `uptime`, `collection` (name, pointCount, dimensions), `payloadFields` (field names with types).
 
 ### `watcher_search`
 
-Semantic similarity search over indexed documents with optional Qdrant filters.
+Semantic similarity search with optional Qdrant filters.
 
 | Parameter | Type   | Required | Description                          |
 | --------- | ------ | -------- | ------------------------------------ |
@@ -36,13 +66,13 @@ Semantic similarity search over indexed documents with optional Qdrant filters.
 | `limit`   | number | no       | Max results to return (default: 10)  |
 | `filter`  | object | no       | Qdrant filter object (see below)     |
 
-**Example (plain search):**
+**Plain search:**
 
 ```json
-{ "query": "authentication flow", "limit": 5 }
+{ "query": "error handling", "limit": 5 }
 ```
 
-**Example (filtered search):**
+**Filtered search:**
 
 ```json
 {
@@ -60,10 +90,8 @@ Set or update metadata on a document by file path.
 
 | Parameter  | Type   | Required | Description                         |
 | ---------- | ------ | -------- | ----------------------------------- |
-| `path`     | string | yes      | Relative file path of the document  |
+| `path`     | string | yes      | File path of the document           |
 | `metadata` | object | yes      | Key-value metadata to set           |
-
-**Example:**
 
 ```json
 {
@@ -72,66 +100,50 @@ Set or update metadata on a document by file path.
 }
 ```
 
-## Schema Discovery
-
-Always call `watcher_status` first to discover available payload fields and their types. This tells you what fields exist in the collection and can be used in filters.
-
 ## Qdrant Filter Patterns
 
-### Single field match (exact)
+Build filters using fields discovered via `watcher_status`.
+
+**Exact match:**
 
 ```json
 { "must": [{ "key": "domain", "match": { "value": "email" } }] }
 ```
 
-### Multi-field filter
-
-Combine conditions in the `must` array:
+**Multiple conditions:**
 
 ```json
 {
   "must": [
-    { "key": "domain", "match": { "value": "backend" } },
-    { "key": "language", "match": { "value": "typescript" } }
+    { "key": "domain", "match": { "value": "codebase" } },
+    { "key": "file_path", "match": { "text": "auth" } }
   ]
 }
 ```
 
-### Negation
-
-Use `must_not` to exclude results:
+**Exclude results:**
 
 ```json
 {
-  "must_not": [{ "key": "status", "match": { "value": "archived" } }]
+  "must_not": [{ "key": "domain", "match": { "value": "codebase" } }]
 }
 ```
 
-### Full-text vs exact match
+**Full-text match** (tokenized, for longer text fields):
 
-- **Exact match:** `{ "key": "domain", "match": { "value": "email" } }` — matches the exact value.
-- **Full-text match:** `{ "key": "content", "match": { "text": "authentication" } }` — tokenized substring match on text fields.
+```json
+{ "must": [{ "key": "chunk_text", "match": { "text": "authentication" } }] }
+```
 
-## Search Strategies
+## Score Interpretation
 
-1. **Start broad:** Use a plain query without filters to gauge what's available.
-2. **Then narrow:** Add filters based on payload fields discovered via `watcher_status`.
-3. **Interpreting scores:** Higher scores (closer to 1.0) indicate stronger semantic similarity. Scores below 0.3 are usually noise.
-4. **Grouping chunks:** Multiple results may come from the same file (check the `path` payload field). Group them to get the full picture.
+- **0.7+** — Strong semantic match. Trust these results.
+- **0.4–0.7** — Relevant but may need verification. Worth reading.
+- **Below 0.3** — Likely noise. The content you need may not be indexed.
 
-## Workflow Patterns
+## Tips
 
-### Find then read
-
-1. Search for relevant documents with `watcher_search`.
-2. Read the actual files using the `path` from search results.
-3. Use the file contents for deeper analysis.
-
-### Find and summarize
-
-1. Search with a focused query and reasonable limit (5–10).
-2. Summarize the returned payload content directly from search results.
-
-### Enrichment
-
-Use `watcher_enrich` when you want to tag documents with metadata for future filtering — e.g., after reviewing a document, set `{ "reviewed": true, "domain": "auth" }` so future searches can filter by those fields.
+- **Start broad, then narrow.** A plain query without filters shows you what's available. Add filters once you know which payload field values are relevant.
+- **Group by file.** Multiple chunks from the same file appear as separate results. Look at `file_path` to see when you're getting multiple views of one document.
+- **Chunk text is a preview.** It's useful for quick triage but may be truncated or split mid-sentence. Read the actual file for complete context.
+- **Enrich after analysis.** When you review a document and learn something about it, use `watcher_enrich` to tag it. Future searches can filter on those tags.
