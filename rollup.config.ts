@@ -146,10 +146,11 @@ const config: RollupOptions[] = [
         dir: `${outputPath}/cli/${c}`,
         extend: true,
         format: 'esm',
-        // No shebang banner: npm's bin wrapper handles invocation on all
-        // platforms, and Node v24's ESM parser does not strip shebangs,
-        // breaking direct `node.exe <file>` calls (e.g. NSSM on Windows).
-        // See: https://github.com/karmaniverous/jeeves-watcher/issues/15
+        banner: '#!/usr/bin/env node',
+        // Shebang required: npm uses it to generate correct .cmd wrappers
+        // on Windows (prefixing with node.exe). Without it, Windows Script
+        // Host intercepts .js files. NSSM calls node.exe directly so the
+        // shebang is harmless there.
       },
     ],
   })),
