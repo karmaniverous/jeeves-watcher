@@ -2,9 +2,22 @@
 
 All notable changes to this project will be documented in this file. Dates are displayed in UTC.
 
+#### [0.2.5](https://github.com/karmaniverous/jeeves-watcher/compare/0.2.4...0.2.5)
+
+- feat: respect .gitignore patterns in watched directories [`#14`](https://github.com/karmaniverous/jeeves-watcher/pull/14)
+- feat: add gitignore filter service with ignore package [`b840a9d`](https://github.com/karmaniverous/jeeves-watcher/commit/b840a9dd8f994be1215bc4c475c9fe58d18336b5)
+- feat: add respectGitignore config option [`ec34a48`](https://github.com/karmaniverous/jeeves-watcher/commit/ec34a4833bc3c7842a1a49e5c221fb558f7ba07f)
+- test: add gitignore integration test [`4993208`](https://github.com/karmaniverous/jeeves-watcher/commit/4993208194b933711addfdbe7b649070c5ae9092)
+- fix: support glob watch paths in gitignore filter scan [`dbccaf0`](https://github.com/karmaniverous/jeeves-watcher/commit/dbccaf08092ead8e0eb575766102580120616c2b)
+- feat: integrate gitignore filtering into processing pipeline [`9f5bf1b`](https://github.com/karmaniverous/jeeves-watcher/commit/9f5bf1b47583b7a9bd6a60d3bdeda1287c429aaa)
+- docs: document gitignore support in README [`86d1329`](https://github.com/karmaniverous/jeeves-watcher/commit/86d1329388b0618c5e733230157461ca0c80e8a0)
+
 #### [0.2.4](https://github.com/karmaniverous/jeeves-watcher/compare/0.2.3...0.2.4)
 
+> 22 February 2026
+
 - feat: graceful error handling with BOM stripping, system health tracking, and exponential backoff [`#12`](https://github.com/karmaniverous/jeeves-watcher/pull/12)
+- chore: release v0.2.4 [`6d4d18e`](https://github.com/karmaniverous/jeeves-watcher/commit/6d4d18ef894b842a06d3d5c59ded83efa36a2fe0)
 - feat: graceful error handling with BOM stripping, system health tracking, and exponential backoff (#11) [`ad01be1`](https://github.com/karmaniverous/jeeves-watcher/commit/ad01be1d3115a0643f211ed4429c9b0530396b3f)
 - chore: lint fixes and regenerate config schema (#11) [`eb5d57b`](https://github.com/karmaniverous/jeeves-watcher/commit/eb5d57b9dbcf6494ba520a557e83d380041e10ee)
 - docs: add JSDoc to JeevesWatcher class (#11) [`c3825fc`](https://github.com/karmaniverous/jeeves-watcher/commit/c3825fcbbad7a5c5f5506668686e062e4399dee2)
