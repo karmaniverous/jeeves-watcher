@@ -33,8 +33,7 @@ interface ToolResult {
 const DEFAULT_API_URL = 'http://127.0.0.1:3458';
 
 function getApiUrl(api: PluginApi): string {
-  const url =
-    api.config?.plugins?.entries?.['jeeves-watcher']?.config?.apiUrl;
+  const url = api.config?.plugins?.entries?.['jeeves-watcher']?.config?.apiUrl;
   return typeof url === 'string' ? url : DEFAULT_API_URL;
 }
 
@@ -52,15 +51,12 @@ function fail(error: unknown): ToolResult {
   };
 }
 
-async function fetchJson(
-  url: string,
-  init?: RequestInit,
-): Promise<unknown> {
+async function fetchJson(url: string, init?: RequestInit): Promise<unknown> {
   const res = await fetch(url, init);
   if (!res.ok) {
     throw new Error(`HTTP ${String(res.status)}: ${await res.text()}`);
   }
-  return res.json() as Promise<unknown>;
+  return res.json();
 }
 
 /** Register all jeeves-watcher tools with the OpenClaw plugin API. */
@@ -113,9 +109,7 @@ export default function register(api: PluginApi): void {
             body: JSON.stringify({
               query: params.query,
               ...(params.limit !== undefined ? { limit: params.limit } : {}),
-              ...(params.filter !== undefined
-                ? { filter: params.filter }
-                : {}),
+              ...(params.filter !== undefined ? { filter: params.filter } : {}),
             }),
           });
           return ok(data);
@@ -130,8 +124,7 @@ export default function register(api: PluginApi): void {
   api.registerTool(
     {
       name: 'watcher_enrich',
-      description:
-        'Set or update metadata on a document by file path.',
+      description: 'Set or update metadata on a document by file path.',
       parameters: {
         type: 'object',
         required: ['path', 'metadata'],

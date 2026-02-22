@@ -4,9 +4,11 @@ import type { SearchRouteDeps } from './search';
 import { createSearchHandler } from './search';
 
 describe('createSearchHandler', () => {
-  const searchMock = vi.fn().mockResolvedValue([
-    { id: 'p1', score: 0.95, payload: { path: '/a.txt' } },
-  ]);
+  const searchMock = vi
+    .fn()
+    .mockResolvedValue([
+      { id: 'p1', score: 0.95, payload: { path: '/a.txt' } },
+    ]);
 
   const mockDeps = {
     embeddingProvider: {
