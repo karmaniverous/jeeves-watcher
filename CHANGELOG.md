@@ -2,9 +2,17 @@
 
 All notable changes to this project will be documented in this file. Dates are displayed in UTC.
 
+#### [0.2.6](https://github.com/karmaniverous/jeeves-watcher/compare/0.2.5...0.2.6)
+
+- fix: remove shebang from ESM CLI output [`#16`](https://github.com/karmaniverous/jeeves-watcher/pull/16)
+- [ISSUE-15] fix: remove shebang from ESM CLI output (closes #15) [`#15`](https://github.com/karmaniverous/jeeves-watcher/issues/15)
+
 #### [0.2.5](https://github.com/karmaniverous/jeeves-watcher/compare/0.2.4...0.2.5)
 
+> 22 February 2026
+
 - feat: respect .gitignore patterns in watched directories [`#14`](https://github.com/karmaniverous/jeeves-watcher/pull/14)
+- chore: release v0.2.5 [`6e86776`](https://github.com/karmaniverous/jeeves-watcher/commit/6e867768970a01718a219f49fc1f4e58eb1d6453)
 - feat: add gitignore filter service with ignore package [`b840a9d`](https://github.com/karmaniverous/jeeves-watcher/commit/b840a9dd8f994be1215bc4c475c9fe58d18336b5)
 - feat: add respectGitignore config option [`ec34a48`](https://github.com/karmaniverous/jeeves-watcher/commit/ec34a4833bc3c7842a1a49e5c221fb558f7ba07f)
 - test: add gitignore integration test [`4993208`](https://github.com/karmaniverous/jeeves-watcher/commit/4993208194b933711addfdbe7b649070c5ae9092)
