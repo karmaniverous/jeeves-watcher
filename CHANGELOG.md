@@ -2,10 +2,23 @@
 
 All notable changes to this project will be documented in this file. Dates are displayed in UTC.
 
+#### [0.2.4](https://github.com/karmaniverous/jeeves-watcher/compare/0.2.3...0.2.4)
+
+- feat: graceful error handling with BOM stripping, system health tracking, and exponential backoff [`#12`](https://github.com/karmaniverous/jeeves-watcher/pull/12)
+- feat: graceful error handling with BOM stripping, system health tracking, and exponential backoff (#11) [`ad01be1`](https://github.com/karmaniverous/jeeves-watcher/commit/ad01be1d3115a0643f211ed4429c9b0530396b3f)
+- chore: lint fixes and regenerate config schema (#11) [`eb5d57b`](https://github.com/karmaniverous/jeeves-watcher/commit/eb5d57b9dbcf6494ba520a557e83d380041e10ee)
+- docs: add JSDoc to JeevesWatcher class (#11) [`c3825fc`](https://github.com/karmaniverous/jeeves-watcher/commit/c3825fcbbad7a5c5f5506668686e062e4399dee2)
+- updated diagrams [`22eaf09`](https://github.com/karmaniverous/jeeves-watcher/commit/22eaf09d499c15c4734c1b129c62f67d87a8ba19)
+
 #### [0.2.3](https://github.com/karmaniverous/jeeves-watcher/compare/0.2.2...0.2.3)
 
+> 21 February 2026
+
+- docs: document env var pass-through behavior [`#10`](https://github.com/karmaniverous/jeeves-watcher/pull/10)
 - fix: leave unresolvable env var expressions untouched in config [`#9`](https://github.com/karmaniverous/jeeves-watcher/pull/9)
 - [ISSUE-8] fix: leave unresolvable env var expressions untouched in config (closes #8) [`#8`](https://github.com/karmaniverous/jeeves-watcher/issues/8)
+- chore: release v0.2.3 [`d7d9a90`](https://github.com/karmaniverous/jeeves-watcher/commit/d7d9a905ba8c74433f8e3de69fdbae89a836ac57)
+- [ISSUE-8] docs: document env var pass-through behavior in README [`ca379f3`](https://github.com/karmaniverous/jeeves-watcher/commit/ca379f32aabc2ca6acab8b87033e2126aa69be89)
 
 #### [0.2.2](https://github.com/karmaniverous/jeeves-watcher/compare/0.2.1...0.2.2)
 
