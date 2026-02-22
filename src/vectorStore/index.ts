@@ -40,6 +40,24 @@ export interface ScrolledPoint {
   payload: Record<string, unknown>;
 }
 
+/** Payload field schema information as reported by Qdrant. */
+export interface PayloadFieldSchema {
+  /** Qdrant data type for the field (e.g. `keyword`, `text`, `integer`). */
+  type: string;
+}
+
+/**
+ * Collection stats and payload schema information.
+ */
+export interface CollectionInfo {
+  /** Total number of points in the collection. */
+  pointCount: number;
+  /** Vector dimensions for the collection's configured vector params. */
+  dimensions: number;
+  /** Payload field schema keyed by field name. */
+  payloadFields: Record<string, PayloadFieldSchema>;
+}
+
 /**
  * Client wrapper for Qdrant vector store operations.
  */
@@ -223,11 +241,7 @@ export class VectorStoreClient {
   /**
    * Get collection info including point count, dimensions, and payload field schema.
    */
-  async getCollectionInfo(): Promise<{
-    pointCount: number;
-    dimensions: number;
-    payloadFields: Record<string, { type: string }>;
-  }> {
+  async getCollectionInfo(): Promise<CollectionInfo> {
     const info = await this.client.getCollection(this.collectionName);
     const pointCount = info.points_count ?? 0;
     const vectorsConfig = info.config.params.vectors;

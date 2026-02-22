@@ -17,6 +17,6 @@
     "tsBuildInfoFile": "./.tsbuildinfo",
     "types": ["node", "vitest/globals"]
   },
-  "exclude": ["coverage", "dist", "docs", "node_modules"],
+  "exclude": ["coverage", "dist", "docs", "node_modules", ".rollup.cache", ".stan"],
   "include": ["**/*"]
 }

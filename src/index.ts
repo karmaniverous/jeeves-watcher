@@ -60,7 +60,13 @@ export {
   compileRules,
   type RuleLogger,
 } from './rules';
-export type { ScrolledPoint, SearchResult, VectorPoint } from './vectorStore';
+export type {
+  CollectionInfo,
+  PayloadFieldSchema,
+  ScrolledPoint,
+  SearchResult,
+  VectorPoint,
+} from './vectorStore';
 export { VectorStoreClient } from './vectorStore';
 export type { FileSystemWatcherOptions } from './watcher';
 export { FileSystemWatcher } from './watcher';
