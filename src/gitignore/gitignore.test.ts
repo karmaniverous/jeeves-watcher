@@ -42,6 +42,17 @@ describe('GitignoreFilter', () => {
       expect(filter.isIgnored(join(testDir, 'error.log'))).toBe(true);
       expect(filter.isIgnored(join(testDir, 'src', 'index.ts'))).toBe(false);
     });
+
+    it('should scan repo root when watch paths are globs', () => {
+      makeRepo(testDir);
+      writeGitignore(testDir, '*.log\n');
+
+      const globPath = join(testDir, '**', '*.md');
+      const filter = new GitignoreFilter([globPath]);
+
+      expect(filter.isIgnored(join(testDir, 'error.log'))).toBe(true);
+      expect(filter.isIgnored(join(testDir, 'readme.md'))).toBe(false);
+    });
   });
 
   describe('nested gitignore scoping', () => {

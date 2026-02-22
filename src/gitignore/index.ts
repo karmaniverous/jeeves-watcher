@@ -50,6 +50,37 @@ function findRepoRoot(startDir: string): string | undefined {
 }
 
 /**
+ * Convert a watch path (directory, file path, or glob) to a concrete directory
+ * that can be scanned for a repo root.
+ */
+function watchPathToScanDir(watchPath: string): string | undefined {
+  const absPath = resolve(watchPath);
+
+  try {
+    return statSync(absPath).isDirectory() ? absPath : dirname(absPath);
+  } catch {
+    // ignore
+  }
+
+  // If this is a glob, fall back to the non-glob prefix.
+  const globMatch = /[*?[{]/.exec(watchPath);
+  if (!globMatch) return undefined;
+
+  const prefix = watchPath.slice(0, globMatch.index);
+  const trimmed = prefix.trim();
+  const baseDir =
+    trimmed.length === 0
+      ? '.'
+      : trimmed.endsWith('/') || trimmed.endsWith('\\')
+        ? trimmed
+        : dirname(trimmed);
+  const resolved = resolve(baseDir);
+  if (!existsSync(resolved)) return undefined;
+
+  return resolved;
+}
+
+/**
  * Recursively find all `.gitignore` files under `dir`.
  * Skips `.git` and `node_modules` directories for performance.
  */
@@ -120,13 +151,8 @@ export class GitignoreFilter {
     const scannedDirs = new Set<string>();
 
     for (const watchPath of watchPaths) {
-      const absPath = resolve(watchPath);
-      let scanDir: string;
-      try {
-        scanDir = statSync(absPath).isDirectory() ? absPath : dirname(absPath);
-      } catch {
-        continue;
-      }
+      const scanDir = watchPathToScanDir(watchPath);
+      if (!scanDir) continue;
 
       if (scannedDirs.has(scanDir)) continue;
       scannedDirs.add(scanDir);
