@@ -6,6 +6,7 @@ import { loadConfig } from '../config';
 import type { JeevesWatcherConfig } from '../config/types';
 import type { EmbeddingProvider } from '../embedding';
 import { createEmbeddingProvider } from '../embedding';
+import { GitignoreFilter } from '../gitignore';
 import { createLogger } from '../logger';
 import { DocumentProcessor } from '../processor';
 import { EventQueue } from '../queue';
@@ -187,6 +188,11 @@ export class JeevesWatcher {
     });
     this.queue = queue;
 
+    const respectGitignore = this.config.watch.respectGitignore ?? true;
+    const gitignoreFilter = respectGitignore
+      ? new GitignoreFilter(this.config.watch.paths)
+      : undefined;
+
     const watcher = this.factories.createFileSystemWatcher(
       this.config.watch,
       queue,
@@ -196,6 +202,7 @@ export class JeevesWatcher {
         maxRetries: this.config.maxRetries,
         maxBackoffMs: this.config.maxBackoffMs,
         onFatalError: this.runtimeOptions.onFatalError,
+        gitignoreFilter,
       },
     );
     this.watcher = watcher;
