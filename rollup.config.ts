@@ -26,7 +26,7 @@ const typescript = typescriptPlugin({
   outputToFilesystem: false,
   // Only compile bundled sources; prevents transient Rollup config artifacts
   // (e.g. rollup.config-*.mjs) from being pulled into the TS program.
-  include: ['src/**/*.ts'],
+  include: ['src/**/*.ts', 'plugin/**/*.ts'],
   exclude: ['**/*.test.ts', '**/*.test.tsx', '**/__tests__/**'],
 
   // Override repo tsconfig settings for bundling.
@@ -123,6 +123,19 @@ const config: RollupOptions[] = [
 
   // Type definitions output (single .d.ts)
   buildTypes(outputPath),
+
+  // Plugin output (OpenClaw)
+  {
+    ...commonInputOptions,
+    input: 'plugin/index.ts',
+    output: [
+      {
+        dir: `${outputPath}/plugin`,
+        extend: true,
+        format: 'esm',
+      },
+    ],
+  },
 
   // CLI output.
   ...cliCommands.map<RollupOptions>((c) => ({

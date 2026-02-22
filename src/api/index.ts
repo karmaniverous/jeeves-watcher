@@ -43,7 +43,7 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
   const { processor, vectorStore, embeddingProvider, logger, config } = options;
   const app = Fastify({ logger: false });
 
-  app.get('/status', createStatusHandler());
+  app.get('/status', createStatusHandler({ vectorStore, config }));
 
   app.post('/metadata', createMetadataHandler({ processor, logger }));
 
