@@ -517,17 +517,7 @@ When you edit `inferenceRules` in the config file (and `configWatch.enabled` is 
 3. A **scoped metadata reindex** is triggered (only files matching changed rules)
 4. No re-embedding occurs — just metadata upserts to Qdrant
 
-**Debounce:** Config changes are debounced for `configWatch.debounceMs` (default: 10 seconds) to allow editing multiple rules before triggering reindex.
-
-**Pause/resume reindex:**
-
-```bash
-# Pause auto-reindex while editing rules
-curl -X POST http://localhost:3456/config-reindex -d '{"action": "pause"}'
-
-# Resume (diffs all accumulated changes, single scoped reindex)
-curl -X POST http://localhost:3456/config-reindex -d '{"action": "resume"}'
-```
+**Debounce:** Config changes are debounced for `configWatch.debounceMs` (default: 1000ms) to allow editing multiple rules before triggering reindex.
 
 ---
 

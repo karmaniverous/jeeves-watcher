@@ -227,7 +227,7 @@ When `configWatch.enabled` is `true`, the watcher monitors its own config file.
 
 **On config change:**
 
-1. Debounce for `configWatch.debounceMs` (default: 10 seconds)
+1. Debounce for `configWatch.debounceMs` (default: 1000ms)
 2. Reload and validate config
 3. Recompile inference rules
 4. Queue a **scoped metadata reindex** (only files matching changed rules)
@@ -236,13 +236,6 @@ When `configWatch.enabled` is `true`, the watcher monitors its own config file.
 
 - If a rule targeting `d:/meetings/**` changes, only files under `d:/meetings/` are re-evaluated
 - No re-embedding — just metadata updates to Qdrant payloads
-
-**Pause/resume:**
-
-```bash
-POST /config-reindex {"action": "pause"}   # Suppress auto-reindex
-POST /config-reindex {"action": "resume"}  # Diff accumulated changes, single reindex
-```
 
 ---
 

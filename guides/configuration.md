@@ -8,14 +8,15 @@ Complete reference for all `jeeves-watcher` configuration options.
 
 ## Configuration File
 
-The configuration file is auto-discovered in this order:
+The configuration file is auto-discovered via [cosmiconfig](https://github.com/cosmiconfig/cosmiconfig) in this order:
 
-1. `--config <path>` CLI flag (explicit)
-2. `JEEVES_WATCHER_CONFIG` environment variable
-3. `./jeeves-watcher.config.json` (current directory)
-4. `~/.jeeves-watcher/config.json` (user home)
-
-Supported formats: JSON, JSON5, YAML (via `.yaml`/`.yml` extension).
+1. `--config <path>` CLI flag (explicit path)
+2. Cosmiconfig search (current directory upward):
+   - `jeeves-watcher` property in `package.json`
+   - `.jeeves-watcherrc` (JSON or YAML)
+   - `.jeeves-watcherrc.json`, `.jeeves-watcherrc.yaml`, `.jeeves-watcherrc.yml`
+   - `.jeeves-watcherrc.js`, `.jeeves-watcherrc.ts`, `.jeeves-watcherrc.cjs`
+   - `jeeves-watcher.config.js`, `jeeves-watcher.config.ts`, `jeeves-watcher.config.cjs`
 
 ### Schema Validation
 
@@ -45,6 +46,8 @@ interface JeevesWatcherConfig {
   maps?: Record<string, unknown>; // Named JsonMap definitions
   logging?: LoggingConfig;
   shutdownTimeoutMs?: number;
+  maxRetries?: number;
+  maxBackoffMs?: number;
 }
 ```
 
@@ -60,7 +63,8 @@ interface JeevesWatcherConfig {
     "debounceMs": 2000,
     "stabilityThresholdMs": 500,
     "pollIntervalMs": 1000,
-    "usePolling": false
+    "usePolling": false,
+    "respectGitignore": true
   }
 }
 ```
@@ -69,10 +73,11 @@ interface JeevesWatcherConfig {
 |-------|------|---------|-------------|
 | `paths` | `string[]` | **Required** | Glob patterns for files to watch. Supports picomatch syntax. |
 | `ignored` | `string[]` | `[]` | Glob patterns to exclude from watching. |
-| `debounceMs` | `number` | `1000` | Wait this long after last change before processing (prevents re-embedding during rapid edits). |
+| `debounceMs` | `number` | `300` | Wait this long after last change before processing (prevents re-embedding during rapid edits). |
 | `stabilityThresholdMs` | `number` | `500` | File must be stable (no size changes) for this long before processing. |
 | `pollIntervalMs` | `number` | `1000` | Polling interval if `usePolling` is enabled. |
 | `usePolling` | `boolean` | `false` | Use polling instead of native filesystem events. Enable for network drives or Docker volumes. |
+| `respectGitignore` | `boolean` | `true` | Skip files ignored by `.gitignore` in git repositories. Nested `.gitignore` files are respected within their subtree. Only applies to repos with a `.git` directory. |
 
 **Glob examples:**
 
@@ -123,7 +128,7 @@ When the config file changes:
     "chunkSize": 1000,
     "chunkOverlap": 200,
     "dimensions": 3072,
-    "rateLimitPerMinute": 1000,
+    "rateLimitPerMinute": 300,
     "concurrency": 5
   }
 }
@@ -137,7 +142,7 @@ When the config file changes:
 | `chunkSize` | `number` | `1000` | Maximum characters per chunk for text splitting. |
 | `chunkOverlap` | `number` | `200` | Overlap between consecutive chunks (helps preserve context at boundaries). |
 | `dimensions` | `number` | Provider default | Vector dimensions. Gemini `gemini-embedding-001` = 3072. |
-| `rateLimitPerMinute` | `number` | `1000` | Max embedding requests per minute (provider rate limit). |
+| `rateLimitPerMinute` | `number` | `300` | Max embedding requests per minute (provider rate limit). |
 | `concurrency` | `number` | `5` | Max concurrent embedding requests. Bounded by rate limiter. |
 
 ### Supported Providers
@@ -198,7 +203,7 @@ Generates deterministic embeddings from content hashes. No API calls, no cost. I
 
 To change embedding settings that affect vector dimensions, you must:
 1. Delete the old collection (or rename `collectionName` in config)
-2. Run `POST /reindex?force=true` to re-embed with the new provider
+2. Restart the watcher (it will recreate the collection and reindex)
 
 ---
 
@@ -374,18 +379,34 @@ Uses structured JSON logging via [pino](https://github.com/pinojs/pino).
 
 ```json
 {
-  "shutdownTimeoutMs": 30000
+  "shutdownTimeoutMs": 10000
 }
 ```
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `shutdownTimeoutMs` | `number` | `30000` | Max time (ms) to wait for in-flight operations on shutdown (SIGTERM/SIGINT). |
+| `shutdownTimeoutMs` | `number` | `10000` | Max time (ms) to wait for in-flight operations on shutdown (SIGTERM/SIGINT). |
 
 On shutdown, the watcher:
 1. Stops accepting new file events
 2. Drains current in-flight embeddings/upserts (up to timeout)
 3. Exits cleanly
+
+---
+
+## `maxRetries` / `maxBackoffMs` - Error Resilience
+
+```json
+{
+  "maxRetries": 10,
+  "maxBackoffMs": 60000
+}
+```
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `maxRetries` | `number` | `Infinity` | Maximum consecutive system-level failures before triggering fatal error. |
+| `maxBackoffMs` | `number` | `60000` | Maximum backoff delay in milliseconds for system errors. |
 
 ---
 
@@ -404,7 +425,7 @@ All string fields support `${ENV_VAR}` template syntax:
 }
 ```
 
-At runtime, these are replaced with actual environment variable values.
+At runtime, these are replaced with actual environment variable values. **Unresolvable expressions are left untouched** — this allows `${...}` template syntax used in inference rule `set` values (e.g. `${frontmatter.title}`, `${file.path}`) to pass through for later resolution by the rules engine.
 
 ---
 
@@ -433,7 +454,7 @@ At runtime, these are replaced with actual environment variable values.
     "chunkSize": 1000,
     "chunkOverlap": 200,
     "dimensions": 3072,
-    "rateLimitPerMinute": 1000,
+    "rateLimitPerMinute": 300,
     "concurrency": 5
   },
   "vectorStore": {

@@ -45,11 +45,13 @@ This generates `jeeves-watcher.config.json` with sensible defaults and a `$schem
     "ignored": ["**/node_modules/**", "**/.git/**", "**/.jeeves-watcher/**"]
   },
   "configWatch": {
-    "enabled": true
+    "enabled": true,
+    "debounceMs": 1000
   },
   "embedding": {
     "provider": "gemini",
-    "model": "gemini-embedding-001"
+    "model": "gemini-embedding-001",
+    "dimensions": 3072
   },
   "vectorStore": {
     "url": "http://127.0.0.1:6333",
@@ -118,6 +120,8 @@ The config references it via template syntax:
 }
 ```
 
+**Note:** Unresolvable `${...}` expressions are left untouched. This allows inference rule `set` templates like `${frontmatter.title}` to pass through env var substitution for later resolution by the rules engine.
+
 Or hardcode the key (not recommended for committed configs):
 
 ```json
@@ -145,13 +149,13 @@ The mock provider generates deterministic embeddings from content hashes.
 
 ## Configuration Discovery
 
-If you don't specify `--config`, the watcher searches for a config file in this order:
+If you don't specify `--config`, the watcher uses [cosmiconfig](https://github.com/cosmiconfig/cosmiconfig) to search for configuration (from current directory upward):
 
-1. `JEEVES_WATCHER_CONFIG` environment variable
-2. `./jeeves-watcher.config.json` (current directory)
-3. `~/.jeeves-watcher/config.json` (user home)
-
-Supported formats: JSON, JSON5, YAML (`.yaml` or `.yml` extension).
+- `jeeves-watcher` property in `package.json`
+- `.jeeves-watcherrc` (JSON or YAML)
+- `.jeeves-watcherrc.json`, `.jeeves-watcherrc.yaml`, `.jeeves-watcherrc.yml`
+- `.jeeves-watcherrc.js`, `.jeeves-watcherrc.ts`, `.jeeves-watcherrc.cjs`
+- `jeeves-watcher.config.js`, `jeeves-watcher.config.ts`, `jeeves-watcher.config.cjs`
 
 ## Validate Configuration
 

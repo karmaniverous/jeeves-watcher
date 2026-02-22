@@ -239,8 +239,8 @@ Key settings for production:
     "apiKey": "${GOOGLE_API_KEY}",
     "chunkSize": 1000,
     "chunkOverlap": 200,
-    "dimensions": 768,
-    "rateLimitPerMinute": 1000,
+    "dimensions": 3072,
+    "rateLimitPerMinute": 300,
     "concurrency": 5
   },
   "vectorStore": {
