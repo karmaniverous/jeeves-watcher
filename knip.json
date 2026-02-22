@@ -1,5 +1,5 @@
 {
-  "entry": ["src/**/index.ts"],
+  "entry": ["src/**/index.ts", "plugin/index.ts"],
   "ignoreBinaries": ["plantuml"],
   "ignoreDependencies": [
     "@langchain/qdrant",
