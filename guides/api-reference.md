@@ -25,7 +25,19 @@ curl http://localhost:3456/status
 ```json
 {
   "status": "ok",
-  "uptime": 86400
+  "uptime": 86400,
+  "collection": {
+    "name": "jeeves_archive",
+    "pointCount": 10498,
+    "dimensions": 3072
+  },
+  "payloadFields": {
+    "domain": { "type": "keyword" },
+    "title": { "type": "keyword" },
+    "file_path": { "type": "keyword" },
+    "chunk_index": { "type": "integer" },
+    "chunk_text": { "type": "text" }
+  }
 }
 ```
 
@@ -33,6 +45,13 @@ curl http://localhost:3456/status
 |-------|------|-------------|
 | `status` | `string` | Always `"ok"` if the server is responding. |
 | `uptime` | `number` | Process uptime in seconds. |
+| `collection` | `object` | Qdrant collection stats. |
+| `collection.name` | `string` | Collection name. |
+| `collection.pointCount` | `number` | Total indexed points (chunks). |
+| `collection.dimensions` | `number` | Embedding vector dimensions. |
+| `payloadFields` | `object` | Discovered payload field names and types. |
+
+**Payload field discovery:** If the collection has Qdrant payload indexes, field types come from the index schema. Otherwise, the watcher samples points and infers types from values (`keyword`, `text`, `integer`, `float`, `bool`, `keyword[]`). Text fields longer than 256 characters are classified as `text`; shorter strings as `keyword`.
 
 **Status codes:**
 - `200 OK` — Service is healthy
@@ -117,10 +136,32 @@ curl -X POST http://localhost:3456/search \
 
 ```typescript
 {
-  query: string;   // Natural language search query
-  limit?: number;  // Max results (default: 10)
+  query: string;                    // Natural language search query
+  limit?: number;                   // Max results (default: 10)
+  filter?: Record<string, unknown>; // Qdrant filter object (optional)
 }
 ```
+
+**Filtered search example:**
+
+```bash
+curl -X POST http://localhost:3456/search \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "authentication flow",
+    "limit": 5,
+    "filter": {
+      "must": [{ "key": "domain", "match": { "value": "backend" } }]
+    }
+  }'
+```
+
+The `filter` parameter accepts a native [Qdrant filter object](https://qdrant.tech/documentation/concepts/filtering/). Use `watcher_status` (or `GET /status`) to discover available payload fields and their types, then construct filters accordingly. Common patterns:
+
+- **Exact match:** `{ "must": [{ "key": "domain", "match": { "value": "email" } }] }`
+- **Negation:** `{ "must_not": [{ "key": "domain", "match": { "value": "codebase" } }] }`
+- **Multi-field:** Combine conditions in the `must` array
+- **Full-text:** `{ "key": "chunk_text", "match": { "text": "keyword" } }` (tokenized)
 
 ### Response
 
