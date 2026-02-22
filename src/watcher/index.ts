@@ -6,6 +6,7 @@ import chokidar, { type FSWatcher } from 'chokidar';
 import type pino from 'pino';
 
 import type { WatchConfig } from '../config/types';
+import type { GitignoreFilter } from '../gitignore';
 import { SystemHealth, type SystemHealthOptions } from '../health';
 import type { DocumentProcessor } from '../processor';
 import type { EventQueue } from '../queue';
@@ -21,6 +22,8 @@ export interface FileSystemWatcherOptions {
   maxBackoffMs?: number;
   /** Callback invoked on unrecoverable system error. If not set, throws. */
   onFatalError?: (error: unknown) => void;
+  /** Optional gitignore filter for processor-level filtering. */
+  gitignoreFilter?: GitignoreFilter;
 }
 
 /**
@@ -32,6 +35,7 @@ export class FileSystemWatcher {
   private readonly processor: DocumentProcessor;
   private readonly logger: pino.Logger;
   private readonly health: SystemHealth;
+  private readonly gitignoreFilter?: GitignoreFilter;
   private watcher: FSWatcher | undefined;
 
   /**
@@ -54,6 +58,8 @@ export class FileSystemWatcher {
     this.queue = queue;
     this.processor = processor;
     this.logger = logger;
+
+    this.gitignoreFilter = options.gitignoreFilter;
 
     const healthOptions: SystemHealthOptions = {
       maxRetries: options.maxRetries,
@@ -79,6 +85,8 @@ export class FileSystemWatcher {
     });
 
     this.watcher.on('add', (path: string) => {
+      this.handleGitignoreChange(path);
+      if (this.isGitignored(path)) return;
       this.logger.debug({ path }, 'File added');
       this.queue.enqueue({ type: 'create', path, priority: 'normal' }, () =>
         this.wrapProcessing(() => this.processor.processFile(path)),
@@ -86,6 +94,8 @@ export class FileSystemWatcher {
     });
 
     this.watcher.on('change', (path: string) => {
+      this.handleGitignoreChange(path);
+      if (this.isGitignored(path)) return;
       this.logger.debug({ path }, 'File changed');
       this.queue.enqueue({ type: 'modify', path, priority: 'normal' }, () =>
         this.wrapProcessing(() => this.processor.processFile(path)),
@@ -93,6 +103,8 @@ export class FileSystemWatcher {
     });
 
     this.watcher.on('unlink', (path: string) => {
+      this.handleGitignoreChange(path);
+      if (this.isGitignored(path)) return;
       this.logger.debug({ path }, 'File removed');
       this.queue.enqueue({ type: 'delete', path, priority: 'normal' }, () =>
         this.wrapProcessing(() => this.processor.deleteFile(path)),
@@ -127,6 +139,29 @@ export class FileSystemWatcher {
    */
   get systemHealth(): SystemHealth {
     return this.health;
+  }
+
+  /**
+   * Check if a path is gitignored and should be skipped.
+   */
+  private isGitignored(path: string): boolean {
+    if (!this.gitignoreFilter) return false;
+    const ignored = this.gitignoreFilter.isIgnored(path);
+    if (ignored) {
+      this.logger.debug({ path }, 'Skipping gitignored file');
+    }
+    return ignored;
+  }
+
+  /**
+   * If the changed file is a `.gitignore`, invalidate the filter cache.
+   */
+  private handleGitignoreChange(path: string): void {
+    if (!this.gitignoreFilter) return;
+    if (path.endsWith('.gitignore')) {
+      this.logger.info({ path }, 'Gitignore file changed, refreshing filter');
+      this.gitignoreFilter.invalidate(path);
+    }
   }
 
   /**

@@ -34,6 +34,7 @@ export const WATCH_DEFAULTS = {
   stabilityThresholdMs: 500,
   usePolling: false,
   pollIntervalMs: 1000,
+  respectGitignore: true,
 };
 
 /** Default embedding configuration. */

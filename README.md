@@ -121,6 +121,7 @@ If `GOOGLE_API_KEY` is set in the environment, the value is substituted at confi
 
 - **`paths`**: Array of glob patterns or directories to watch
 - **`ignored`**: Array of patterns to exclude
+- **`respectGitignore`**: (default: `true`) Skip processing files ignored by `.gitignore` in git repositories. Nested `.gitignore` files are respected within their subtree.
 
 ### Embedding Provider
 
