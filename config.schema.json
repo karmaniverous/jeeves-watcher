@@ -141,6 +141,22 @@
           "$ref": "#/definitions/__schema52"
         }
       ]
+    },
+    "maxRetries": {
+      "description": "Maximum consecutive system-level failures before triggering fatal error. Default: Infinity.",
+      "allOf": [
+        {
+          "$ref": "#/definitions/__schema53"
+        }
+      ]
+    },
+    "maxBackoffMs": {
+      "description": "Maximum backoff delay in milliseconds for system errors. Default: 60000.",
+      "allOf": [
+        {
+          "$ref": "#/definitions/__schema54"
+        }
+      ]
     }
   },
   "required": [
@@ -571,6 +587,12 @@
       "type": "string"
     },
     "__schema52": {
+      "type": "number"
+    },
+    "__schema53": {
+      "type": "number"
+    },
+    "__schema54": {
       "type": "number"
     }
   }

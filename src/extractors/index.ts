@@ -89,12 +89,12 @@ async function extractMarkdown(filePath: string): Promise<ExtractedText> {
 
 async function extractPlaintext(filePath: string): Promise<ExtractedText> {
   const raw = await readFile(filePath, 'utf8');
-  return { text: raw };
+  return { text: raw.replace(/^\uFEFF/, '') };
 }
 
 async function extractJson(filePath: string): Promise<ExtractedText> {
   const raw = await readFile(filePath, 'utf8');
-  const parsed = JSON.parse(raw) as unknown;
+  const parsed = JSON.parse(raw.replace(/^\uFEFF/, '')) as unknown;
   const json =
     parsed && typeof parsed === 'object' && !Array.isArray(parsed)
       ? (parsed as Record<string, unknown>)
@@ -120,7 +120,7 @@ async function extractDocx(filePath: string): Promise<ExtractedText> {
 
 async function extractHtml(filePath: string): Promise<ExtractedText> {
   const raw = await readFile(filePath, 'utf8');
-  const $ = cheerio.load(raw);
+  const $ = cheerio.load(raw.replace(/^\uFEFF/, ''));
   $('script, style').remove();
   const text = $('body').text().trim() || $.text().trim();
   return { text };
