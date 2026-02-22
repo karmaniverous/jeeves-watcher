@@ -58,6 +58,20 @@ export interface CollectionInfo {
   payloadFields: Record<string, PayloadFieldSchema>;
 }
 
+/** Infer a Qdrant-style type name from a JS value. */
+function inferPayloadType(value: unknown): string {
+  if (value === null || value === undefined) return 'keyword';
+  if (typeof value === 'number') {
+    return Number.isInteger(value) ? 'integer' : 'float';
+  }
+  if (typeof value === 'boolean') return 'bool';
+  if (Array.isArray(value)) return 'keyword[]';
+  if (typeof value === 'string') {
+    return value.length > 256 ? 'text' : 'keyword';
+  }
+  return 'keyword';
+}
+
 /**
  * Client wrapper for Qdrant vector store operations.
  */
@@ -240,6 +254,9 @@ export class VectorStoreClient {
 
   /**
    * Get collection info including point count, dimensions, and payload field schema.
+   *
+   * When Qdrant has payload indexes, uses `payload_schema` directly. Otherwise
+   * samples points to discover fields and infer types.
    */
   async getCollectionInfo(): Promise<CollectionInfo> {
     const info = await this.client.getCollection(this.collectionName);
@@ -249,13 +266,48 @@ export class VectorStoreClient {
       vectorsConfig !== undefined && 'size' in vectorsConfig
         ? (vectorsConfig as { size: number }).size
         : 0;
-    const payloadFields: Record<string, { type: string }> = {};
-    for (const [key, schema] of Object.entries(info.payload_schema)) {
-      payloadFields[key] = {
-        type: (schema as { data_type?: string }).data_type ?? 'unknown',
-      };
+
+    // Try indexed payload_schema first.
+    const payloadFields: Record<string, PayloadFieldSchema> = {};
+    const schemaEntries = Object.entries(info.payload_schema);
+    if (schemaEntries.length > 0) {
+      for (const [key, schema] of schemaEntries) {
+        payloadFields[key] = {
+          type: (schema as { data_type?: string }).data_type ?? 'unknown',
+        };
+      }
+    } else if (pointCount > 0) {
+      // No indexed schema — sample points to discover fields.
+      await this.discoverPayloadFields(payloadFields);
     }
+
     return { pointCount, dimensions, payloadFields };
+  }
+
+  /**
+   * Sample points and discover payload field names and inferred types.
+   *
+   * @param target - Object to populate with discovered fields.
+   * @param sampleSize - Number of points to sample.
+   */
+  private async discoverPayloadFields(
+    target: Record<string, PayloadFieldSchema>,
+    sampleSize = 100,
+  ): Promise<void> {
+    const result = await this.client.scroll(this.collectionName, {
+      limit: sampleSize,
+      with_payload: true,
+      with_vector: false,
+    });
+
+    for (const point of result.points) {
+      const payload = point.payload as Record<string, unknown> | undefined;
+      if (!payload) continue;
+      for (const [key, value] of Object.entries(payload)) {
+        if (key in target) continue;
+        target[key] = { type: inferPayloadType(value) };
+      }
+    }
   }
 
   /**
