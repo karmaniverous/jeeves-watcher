@@ -204,8 +204,8 @@ The watcher provides a REST API (default port: 3456):
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/status` | GET | Health check and uptime |
-| `/search` | POST | Semantic search (`{ query: string, limit?: number }`) |
+| `/status` | GET | Health check, uptime, and collection stats |
+| `/search` | POST | Semantic search (`{ query: string, limit?: number, filter?: object }`) |
 | `/metadata` | POST | Update document metadata (`{ path: string, metadata: object }`) |
 | `/reindex` | POST | Reindex all watched files |
 | `/rebuild-metadata` | POST | Rebuild metadata files from Qdrant |
@@ -217,6 +217,20 @@ The watcher provides a REST API (default port: 3456):
 curl -X POST http://localhost:3456/search \
   -H "Content-Type: application/json" \
   -d '{"query": "machine learning algorithms", "limit": 5}'
+```
+
+### Example: Search With Filter
+
+```bash
+curl -X POST http://localhost:3456/search \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "error handling",
+    "limit": 10,
+    "filter": {
+      "must": [{ "key": "domain", "match": { "value": "backend" } }]
+    }
+  }'
 ```
 
 ### Example: Update Metadata
@@ -232,6 +246,22 @@ curl -X POST http://localhost:3456/metadata \
     }
   }'
 ```
+
+## OpenClaw Plugin
+
+This repo ships an OpenClaw plugin that exposes the jeeves-watcher API as native agent tools:
+
+- `watcher_status` (GET `/status`)
+- `watcher_search` (POST `/search`)
+- `watcher_enrich` (POST `/metadata`)
+
+Build output:
+
+- Plugin entry: `dist/plugin/index.js`
+- Plugin manifest: `dist/plugin/openclaw.plugin.json`
+- Skill: `dist/plugin/skill/SKILL.md`
+
+Plugin configuration supports `apiUrl` (defaults to `http://127.0.0.1:3458`).
 
 ## Supported File Formats
 
