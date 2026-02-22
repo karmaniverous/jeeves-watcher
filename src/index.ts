@@ -33,11 +33,11 @@ export {
   vectorStoreConfigSchema,
   watchConfigSchema,
 } from './config';
-export { GitignoreFilter } from './gitignore';
 export type { EmbeddingProvider } from './embedding';
 export { createEmbeddingProvider } from './embedding';
 export type { ExtractedText } from './extractors';
 export { extractText } from './extractors';
+export { GitignoreFilter } from './gitignore';
 export { contentHash } from './hash';
 export type { SystemHealthOptions } from './health';
 export { SystemHealth } from './health';
