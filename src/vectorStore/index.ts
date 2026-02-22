@@ -221,6 +221,34 @@ export class VectorStoreClient {
   }
 
   /**
+   * Get collection info including point count, dimensions, and payload field schema.
+   */
+  async getCollectionInfo(): Promise<{
+    pointCount: number;
+    dimensions: number;
+    payloadFields: Record<string, { type: string }>;
+  }> {
+    const info = await this.client.getCollection(this.collectionName);
+    const pointCount = info.points_count ?? 0;
+    const vectorsConfig = info.config?.params?.vectors;
+    const dimensions =
+      typeof vectorsConfig === 'object' &&
+      vectorsConfig !== null &&
+      'size' in vectorsConfig
+        ? (vectorsConfig as { size: number }).size
+        : 0;
+    const payloadFields: Record<string, { type: string }> = {};
+    if (info.payload_schema) {
+      for (const [key, schema] of Object.entries(info.payload_schema)) {
+        payloadFields[key] = {
+          type: (schema as { data_type?: string }).data_type ?? 'unknown',
+        };
+      }
+    }
+    return { pointCount, dimensions, payloadFields };
+  }
+
+  /**
    * Search for similar vectors.
    *
    * @param vector - The query vector.
