@@ -104,13 +104,19 @@ Generates a JSON config file with sensible defaults:
 
 ```json
 {
+  "$schema": "node_modules/@karmaniverous/jeeves-watcher/config.schema.json",
   "watch": {
     "paths": ["**/*.{md,markdown,txt,text,json,html,htm,pdf,docx}"],
     "ignored": ["**/node_modules/**", "**/.git/**", "**/.jeeves-watcher/**"]
   },
+  "configWatch": {
+    "enabled": true,
+    "debounceMs": 1000
+  },
   "embedding": {
     "provider": "gemini",
-    "model": "gemini-embedding-001"
+    "model": "gemini-embedding-001",
+    "dimensions": 3072
   },
   "vectorStore": {
     "url": "http://127.0.0.1:6333",
@@ -442,23 +448,45 @@ Sends `POST /config-reindex` to the API. See [API Reference](./api-reference.md#
 
 ## `jeeves-watcher enrich`
 
-*(Not yet implemented — planned for future release)*
+Enrich document metadata from the CLI (sends `POST /metadata` to the API).
 
-Enrich document metadata from the CLI.
-
-### Planned Usage
+### Usage
 
 ```bash
-jeeves-watcher enrich <path> --title "..." --labels "a,b" --author "..."
+jeeves-watcher enrich <path> [options]
 ```
 
-**Workaround:** Use `POST /metadata` via `curl`:
+### Arguments
+
+| Argument | Description |
+|----------|-------------|
+| `<path>` | File path to enrich (required) |
+
+### Options
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `-k, --key <key=value...>` | `[]` | Metadata key-value pairs (repeatable) |
+| `-j, --json <json>` | — | Metadata as JSON string |
+| `-p, --port <port>` | `3456` | API port |
+| `-H, --host <host>` | `127.0.0.1` | API host |
+
+### Examples
 
 ```bash
-curl -X POST http://localhost:3456/metadata \
-  -H "Content-Type: application/json" \
-  -d '{"path": "d:/file.md", "metadata": {"title": "..."}}'
+# Set metadata via key-value pairs
+jeeves-watcher enrich ./docs/readme.md --key title="Project Overview" --key priority=high
+
+# Set metadata via JSON
+jeeves-watcher enrich ./docs/readme.md --json '{"title": "Project Overview", "labels": ["important"]}'
+
+# Combine both (JSON is applied first, then key-value pairs override)
+jeeves-watcher enrich ./docs/readme.md --json '{"category": "docs"}' --key priority=high
 ```
+
+### Behavior
+
+Sends `POST /metadata` with `{ path, metadata }` to the running watcher API. At least one of `--key` or `--json` must be provided.
 
 ---
 
@@ -599,13 +627,13 @@ Output:
 
 ## Configuration Discovery
 
-When `--config` is not provided, the CLI searches in this order:
+When `--config` is not provided, the CLI uses [cosmiconfig](https://github.com/cosmiconfig/cosmiconfig) to search for configuration (from current directory upward):
 
-1. `JEEVES_WATCHER_CONFIG` environment variable
-2. `./jeeves-watcher.config.json` (current directory)
-3. `~/.jeeves-watcher/config.json` (user home)
-
-**Supported formats:** JSON, JSON5, YAML (`.yaml` or `.yml` extension)
+- `jeeves-watcher` property in `package.json`
+- `.jeeves-watcherrc` (JSON or YAML)
+- `.jeeves-watcherrc.json`, `.jeeves-watcherrc.yaml`, `.jeeves-watcherrc.yml`
+- `.jeeves-watcherrc.js`, `.jeeves-watcherrc.ts`, `.jeeves-watcherrc.cjs`
+- `jeeves-watcher.config.js`, `jeeves-watcher.config.ts`, `jeeves-watcher.config.cjs`
 
 ---
 

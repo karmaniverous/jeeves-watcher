@@ -9,7 +9,7 @@ Filesystem watcher that keeps a Qdrant vector store in sync with document change
 - **Watches** directories for file additions, modifications, and deletions
 - **Extracts** text from various formats (Markdown, PDF, DOCX, HTML, JSON, plain text)
 - **Chunks** large documents for optimal embedding
-- **Embeds** content using configurable providers (Google Gemini, OpenAI, etc.)
+- **Embeds** content using configurable providers (Google Gemini, mock for testing)
 - **Syncs** to Qdrant for fast semantic search
 - **Enriches** metadata via rules and API endpoints
 
@@ -35,14 +35,14 @@ Create a new configuration file in your project:
 jeeves-watcher init
 ```
 
-This generates a `.jeeves-watcher.json` file with sensible defaults.
+This generates a `jeeves-watcher.config.json` file with sensible defaults.
 
 ### Configure
 
-Edit `.jeeves-watcher.json` to specify:
+Edit `jeeves-watcher.config.json` to specify:
 
 - **Watch paths**: Directories to monitor
-- **Embedding provider**: Google Gemini, OpenAI, or custom
+- **Embedding provider**: Google Gemini or mock (for testing)
 - **Qdrant connection**: URL and collection name
 - **Inference rules**: Automatic metadata enrichment based on file patterns
 
@@ -55,7 +55,7 @@ Example minimal configuration:
     "ignored": ["**/node_modules/**", "**/.git/**"]
   },
   "embedding": {
-    "provider": "google",
+    "provider": "gemini",
     "model": "gemini-embedding-001",
     "apiKey": "${GOOGLE_API_KEY}"
   },
@@ -130,7 +130,7 @@ If `GOOGLE_API_KEY` is set in the environment, the value is substituted at confi
 ```json
 {
   "embedding": {
-    "provider": "google",
+    "provider": "gemini",
     "model": "gemini-embedding-001",
     "apiKey": "${GOOGLE_API_KEY}"
   }
@@ -192,7 +192,7 @@ Chunking settings are configured under `embedding`:
 
 ```json
 {
-  "metadataDir": ".jeeves-metadata"
+  "metadataDir": ".jeeves-watcher"
 }
 ```
 
