@@ -22,6 +22,9 @@
         },
         "stabilityThresholdMs": {
           "$ref": "#/definitions/__schema10"
+        },
+        "respectGitignore": {
+          "$ref": "#/definitions/__schema12"
         }
       },
       "required": [
@@ -33,7 +36,7 @@
       "description": "Configuration file watch settings.",
       "allOf": [
         {
-          "$ref": "#/definitions/__schema12"
+          "$ref": "#/definitions/__schema14"
         }
       ]
     },
@@ -41,28 +44,28 @@
       "type": "object",
       "properties": {
         "provider": {
-          "$ref": "#/definitions/__schema15"
-        },
-        "model": {
           "$ref": "#/definitions/__schema17"
         },
-        "chunkSize": {
+        "model": {
           "$ref": "#/definitions/__schema19"
         },
-        "chunkOverlap": {
+        "chunkSize": {
           "$ref": "#/definitions/__schema21"
         },
-        "dimensions": {
+        "chunkOverlap": {
           "$ref": "#/definitions/__schema23"
         },
-        "apiKey": {
+        "dimensions": {
           "$ref": "#/definitions/__schema25"
         },
-        "rateLimitPerMinute": {
+        "apiKey": {
           "$ref": "#/definitions/__schema27"
         },
-        "concurrency": {
+        "rateLimitPerMinute": {
           "$ref": "#/definitions/__schema29"
+        },
+        "concurrency": {
+          "$ref": "#/definitions/__schema31"
         }
       },
       "description": "Embedding model configuration."
@@ -71,13 +74,13 @@
       "type": "object",
       "properties": {
         "url": {
-          "$ref": "#/definitions/__schema31"
+          "$ref": "#/definitions/__schema33"
         },
         "collectionName": {
-          "$ref": "#/definitions/__schema32"
+          "$ref": "#/definitions/__schema34"
         },
         "apiKey": {
-          "$ref": "#/definitions/__schema33"
+          "$ref": "#/definitions/__schema35"
         }
       },
       "required": [
@@ -90,7 +93,7 @@
       "description": "Directory for persisted metadata sidecar files.",
       "allOf": [
         {
-          "$ref": "#/definitions/__schema35"
+          "$ref": "#/definitions/__schema37"
         }
       ]
     },
@@ -98,7 +101,7 @@
       "description": "API server configuration.",
       "allOf": [
         {
-          "$ref": "#/definitions/__schema36"
+          "$ref": "#/definitions/__schema38"
         }
       ]
     },
@@ -106,7 +109,7 @@
       "description": "Extractor configurations keyed by name.",
       "allOf": [
         {
-          "$ref": "#/definitions/__schema39"
+          "$ref": "#/definitions/__schema41"
         }
       ]
     },
@@ -114,7 +117,7 @@
       "description": "Rules for inferring metadata from file attributes.",
       "allOf": [
         {
-          "$ref": "#/definitions/__schema40"
+          "$ref": "#/definitions/__schema42"
         }
       ]
     },
@@ -122,7 +125,7 @@
       "description": "Reusable named JsonMap transformations.",
       "allOf": [
         {
-          "$ref": "#/definitions/__schema48"
+          "$ref": "#/definitions/__schema50"
         }
       ]
     },
@@ -130,7 +133,7 @@
       "description": "Logging configuration.",
       "allOf": [
         {
-          "$ref": "#/definitions/__schema49"
+          "$ref": "#/definitions/__schema51"
         }
       ]
     },
@@ -138,7 +141,7 @@
       "description": "Timeout in milliseconds for graceful shutdown.",
       "allOf": [
         {
-          "$ref": "#/definitions/__schema52"
+          "$ref": "#/definitions/__schema54"
         }
       ]
     },
@@ -146,7 +149,7 @@
       "description": "Maximum consecutive system-level failures before triggering fatal error. Default: Infinity.",
       "allOf": [
         {
-          "$ref": "#/definitions/__schema53"
+          "$ref": "#/definitions/__schema55"
         }
       ]
     },
@@ -154,7 +157,7 @@
       "description": "Maximum backoff delay in milliseconds for system errors. Default: 60000.",
       "allOf": [
         {
-          "$ref": "#/definitions/__schema54"
+          "$ref": "#/definitions/__schema56"
         }
       ]
     }
@@ -235,13 +238,24 @@
       "type": "number"
     },
     "__schema12": {
+      "description": "Skip files ignored by .gitignore in git repositories. Only applies to repos with a .git directory. Default: true.",
+      "allOf": [
+        {
+          "$ref": "#/definitions/__schema13"
+        }
+      ]
+    },
+    "__schema13": {
+      "type": "boolean"
+    },
+    "__schema14": {
       "type": "object",
       "properties": {
         "enabled": {
           "description": "Enable automatic reloading when config file changes.",
           "allOf": [
             {
-              "$ref": "#/definitions/__schema13"
+              "$ref": "#/definitions/__schema15"
             }
           ]
         },
@@ -249,33 +263,21 @@
           "description": "Debounce delay in milliseconds for config file change detection.",
           "allOf": [
             {
-              "$ref": "#/definitions/__schema14"
+              "$ref": "#/definitions/__schema16"
             }
           ]
         }
       }
     },
-    "__schema13": {
+    "__schema15": {
       "type": "boolean"
     },
-    "__schema14": {
+    "__schema16": {
       "type": "number"
     },
-    "__schema15": {
+    "__schema17": {
       "default": "gemini",
       "description": "Embedding provider name (e.g., \"gemini\", \"openai\").",
-      "allOf": [
-        {
-          "$ref": "#/definitions/__schema16"
-        }
-      ]
-    },
-    "__schema16": {
-      "type": "string"
-    },
-    "__schema17": {
-      "default": "gemini-embedding-001",
-      "description": "Embedding model identifier (e.g., \"gemini-embedding-001\", \"text-embedding-3-small\").",
       "allOf": [
         {
           "$ref": "#/definitions/__schema18"
@@ -286,7 +288,8 @@
       "type": "string"
     },
     "__schema19": {
-      "description": "Maximum chunk size in characters for text splitting.",
+      "default": "gemini-embedding-001",
+      "description": "Embedding model identifier (e.g., \"gemini-embedding-001\", \"text-embedding-3-small\").",
       "allOf": [
         {
           "$ref": "#/definitions/__schema20"
@@ -294,10 +297,10 @@
       ]
     },
     "__schema20": {
-      "type": "number"
+      "type": "string"
     },
     "__schema21": {
-      "description": "Character overlap between consecutive chunks.",
+      "description": "Maximum chunk size in characters for text splitting.",
       "allOf": [
         {
           "$ref": "#/definitions/__schema22"
@@ -308,7 +311,7 @@
       "type": "number"
     },
     "__schema23": {
-      "description": "Embedding vector dimensions (must match model output).",
+      "description": "Character overlap between consecutive chunks.",
       "allOf": [
         {
           "$ref": "#/definitions/__schema24"
@@ -319,7 +322,7 @@
       "type": "number"
     },
     "__schema25": {
-      "description": "API key for embedding provider (supports ${ENV_VAR} substitution).",
+      "description": "Embedding vector dimensions (must match model output).",
       "allOf": [
         {
           "$ref": "#/definitions/__schema26"
@@ -327,10 +330,10 @@
       ]
     },
     "__schema26": {
-      "type": "string"
+      "type": "number"
     },
     "__schema27": {
-      "description": "Maximum embedding API requests per minute (rate limiting).",
+      "description": "API key for embedding provider (supports ${ENV_VAR} substitution).",
       "allOf": [
         {
           "$ref": "#/definitions/__schema28"
@@ -338,10 +341,10 @@
       ]
     },
     "__schema28": {
-      "type": "number"
+      "type": "string"
     },
     "__schema29": {
-      "description": "Maximum concurrent embedding requests.",
+      "description": "Maximum embedding API requests per minute (rate limiting).",
       "allOf": [
         {
           "$ref": "#/definitions/__schema30"
@@ -352,35 +355,46 @@
       "type": "number"
     },
     "__schema31": {
-      "type": "string",
-      "description": "Qdrant server URL (e.g., \"http://localhost:6333\")."
-    },
-    "__schema32": {
-      "type": "string",
-      "description": "Qdrant collection name for vector storage."
-    },
-    "__schema33": {
-      "description": "Qdrant API key for authentication (supports ${ENV_VAR} substitution).",
+      "description": "Maximum concurrent embedding requests.",
       "allOf": [
         {
-          "$ref": "#/definitions/__schema34"
+          "$ref": "#/definitions/__schema32"
         }
       ]
     },
+    "__schema32": {
+      "type": "number"
+    },
+    "__schema33": {
+      "type": "string",
+      "description": "Qdrant server URL (e.g., \"http://localhost:6333\")."
+    },
     "__schema34": {
-      "type": "string"
+      "type": "string",
+      "description": "Qdrant collection name for vector storage."
     },
     "__schema35": {
-      "type": "string"
+      "description": "Qdrant API key for authentication (supports ${ENV_VAR} substitution).",
+      "allOf": [
+        {
+          "$ref": "#/definitions/__schema36"
+        }
+      ]
     },
     "__schema36": {
+      "type": "string"
+    },
+    "__schema37": {
+      "type": "string"
+    },
+    "__schema38": {
       "type": "object",
       "properties": {
         "host": {
           "description": "Host address for API server (e.g., \"127.0.0.1\", \"0.0.0.0\").",
           "allOf": [
             {
-              "$ref": "#/definitions/__schema37"
+              "$ref": "#/definitions/__schema39"
             }
           ]
         },
@@ -388,26 +402,26 @@
           "description": "Port for API server (e.g., 3456).",
           "allOf": [
             {
-              "$ref": "#/definitions/__schema38"
+              "$ref": "#/definitions/__schema40"
             }
           ]
         }
       }
     },
-    "__schema37": {
+    "__schema39": {
       "type": "string"
     },
-    "__schema38": {
+    "__schema40": {
       "type": "number"
     },
-    "__schema39": {
+    "__schema41": {
       "type": "object",
       "propertyNames": {
         "type": "string"
       },
       "additionalProperties": {}
     },
-    "__schema40": {
+    "__schema42": {
       "type": "array",
       "items": {
         "type": "object",
@@ -415,20 +429,20 @@
           "match": {
             "type": "object",
             "propertyNames": {
-              "$ref": "#/definitions/__schema41"
+              "$ref": "#/definitions/__schema43"
             },
             "additionalProperties": {
-              "$ref": "#/definitions/__schema42"
+              "$ref": "#/definitions/__schema44"
             },
             "description": "JSON Schema object to match against file attributes."
           },
           "set": {
             "type": "object",
             "propertyNames": {
-              "$ref": "#/definitions/__schema43"
+              "$ref": "#/definitions/__schema45"
             },
             "additionalProperties": {
-              "$ref": "#/definitions/__schema44"
+              "$ref": "#/definitions/__schema46"
             },
             "description": "Metadata fields to set when match succeeds."
           },
@@ -436,7 +450,7 @@
             "description": "JsonMap transformation (inline definition or named map reference).",
             "allOf": [
               {
-                "$ref": "#/definitions/__schema45"
+                "$ref": "#/definitions/__schema47"
               }
             ]
           }
@@ -447,25 +461,25 @@
         ]
       }
     },
-    "__schema41": {
-      "type": "string"
-    },
-    "__schema42": {},
     "__schema43": {
       "type": "string"
     },
     "__schema44": {},
     "__schema45": {
+      "type": "string"
+    },
+    "__schema46": {},
+    "__schema47": {
       "anyOf": [
         {
-          "$ref": "#/definitions/__schema46"
+          "$ref": "#/definitions/__schema48"
         },
         {
           "type": "string"
         }
       ]
     },
-    "__schema46": {
+    "__schema48": {
       "anyOf": [
         {
           "anyOf": [
@@ -491,7 +505,7 @@
           "additionalProperties": {
             "anyOf": [
               {
-                "$ref": "#/definitions/__schema46"
+                "$ref": "#/definitions/__schema48"
               },
               {
                 "type": "object",
@@ -499,12 +513,12 @@
                   "$": {
                     "anyOf": [
                       {
-                        "$ref": "#/definitions/__schema47"
+                        "$ref": "#/definitions/__schema49"
                       },
                       {
                         "type": "array",
                         "items": {
-                          "$ref": "#/definitions/__schema47"
+                          "$ref": "#/definitions/__schema49"
                         }
                       }
                     ]
@@ -520,12 +534,12 @@
         {
           "type": "array",
           "items": {
-            "$ref": "#/definitions/__schema46"
+            "$ref": "#/definitions/__schema48"
           }
         }
       ]
     },
-    "__schema47": {
+    "__schema49": {
       "type": "object",
       "properties": {
         "method": {
@@ -550,23 +564,23 @@
         "params"
       ]
     },
-    "__schema48": {
+    "__schema50": {
       "type": "object",
       "propertyNames": {
         "type": "string"
       },
       "additionalProperties": {
-        "$ref": "#/definitions/__schema46"
+        "$ref": "#/definitions/__schema48"
       }
     },
-    "__schema49": {
+    "__schema51": {
       "type": "object",
       "properties": {
         "level": {
           "description": "Logging level (trace, debug, info, warn, error, fatal).",
           "allOf": [
             {
-              "$ref": "#/definitions/__schema50"
+              "$ref": "#/definitions/__schema52"
             }
           ]
         },
@@ -574,25 +588,25 @@
           "description": "Path to log file (logs to stdout if omitted).",
           "allOf": [
             {
-              "$ref": "#/definitions/__schema51"
+              "$ref": "#/definitions/__schema53"
             }
           ]
         }
       }
     },
-    "__schema50": {
-      "type": "string"
-    },
-    "__schema51": {
-      "type": "string"
-    },
     "__schema52": {
-      "type": "number"
+      "type": "string"
     },
     "__schema53": {
-      "type": "number"
+      "type": "string"
     },
     "__schema54": {
+      "type": "number"
+    },
+    "__schema55": {
+      "type": "number"
+    },
+    "__schema56": {
       "type": "number"
     }
   }

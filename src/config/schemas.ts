@@ -43,6 +43,13 @@ export const watchConfigSchema = z.object({
     .describe(
       'Time in milliseconds a file must remain unchanged before processing.',
     ),
+  /** Whether to respect .gitignore files when processing. */
+  respectGitignore: z
+    .boolean()
+    .optional()
+    .describe(
+      'Skip files ignored by .gitignore in git repositories. Only applies to repos with a .git directory. Default: true.',
+    ),
 });
 
 /** Watch configuration for file system monitoring paths, ignore patterns, and debounce/stability settings. */
