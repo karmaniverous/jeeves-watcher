@@ -2,9 +2,16 @@
 
 All notable changes to this project will be documented in this file. Dates are displayed in UTC.
 
+#### [0.4.2](https://github.com/karmaniverous/jeeves-watcher/compare/0.4.1...0.4.2)
+
+- fix: resolve file path references in named maps config [`#28`](https://github.com/karmaniverous/jeeves-watcher/pull/28)
+
 #### [0.4.1](https://github.com/karmaniverous/jeeves-watcher/compare/0.4.0...0.4.1)
 
+> 23 February 2026
+
 - fix: resolve chokidar v5 ignored glob patterns via picomatch matchers [`#27`](https://github.com/karmaniverous/jeeves-watcher/pull/27)
+- chore: release v0.4.1 [`c736409`](https://github.com/karmaniverous/jeeves-watcher/commit/c7364099798bc494ea633f376bf747e1cb995209)
 - lintfix [`c36da17`](https://github.com/karmaniverous/jeeves-watcher/commit/c36da17951cdbe955e620cf8a8626d2f1bb8a8c1)
 
 #### [0.4.0](https://github.com/karmaniverous/jeeves-watcher/compare/0.3.1...0.4.0)
