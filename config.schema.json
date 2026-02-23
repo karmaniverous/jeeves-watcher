@@ -125,7 +125,23 @@
       "description": "Reusable named JsonMap transformations.",
       "allOf": [
         {
-          "$ref": "#/definitions/__schema50"
+          "$ref": "#/definitions/__schema51"
+        }
+      ]
+    },
+    "templates": {
+      "description": "Named reusable Handlebars templates (inline strings or .hbs/.handlebars file paths).",
+      "allOf": [
+        {
+          "$ref": "#/definitions/__schema52"
+        }
+      ]
+    },
+    "templateHelpers": {
+      "description": "Custom Handlebars helper registration.",
+      "allOf": [
+        {
+          "$ref": "#/definitions/__schema53"
         }
       ]
     },
@@ -133,7 +149,7 @@
       "description": "Logging configuration.",
       "allOf": [
         {
-          "$ref": "#/definitions/__schema51"
+          "$ref": "#/definitions/__schema55"
         }
       ]
     },
@@ -141,7 +157,7 @@
       "description": "Timeout in milliseconds for graceful shutdown.",
       "allOf": [
         {
-          "$ref": "#/definitions/__schema54"
+          "$ref": "#/definitions/__schema58"
         }
       ]
     },
@@ -149,7 +165,7 @@
       "description": "Maximum consecutive system-level failures before triggering fatal error. Default: Infinity.",
       "allOf": [
         {
-          "$ref": "#/definitions/__schema55"
+          "$ref": "#/definitions/__schema59"
         }
       ]
     },
@@ -157,7 +173,7 @@
       "description": "Maximum backoff delay in milliseconds for system errors. Default: 60000.",
       "allOf": [
         {
-          "$ref": "#/definitions/__schema56"
+          "$ref": "#/definitions/__schema60"
         }
       ]
     }
@@ -447,10 +463,18 @@
             "description": "Metadata fields to set when match succeeds."
           },
           "map": {
-            "description": "JsonMap transformation (inline definition or named map reference).",
+            "description": "JsonMap transformation (inline definition, named map reference, or .json file path).",
             "allOf": [
               {
                 "$ref": "#/definitions/__schema47"
+              }
+            ]
+          },
+          "template": {
+            "description": "Handlebars content template (inline string, named ref, or .hbs/.handlebars file path).",
+            "allOf": [
+              {
+                "$ref": "#/definitions/__schema50"
               }
             ]
           }
@@ -565,6 +589,9 @@
       ]
     },
     "__schema50": {
+      "type": "string"
+    },
+    "__schema51": {
       "type": "object",
       "propertyNames": {
         "type": "string"
@@ -573,14 +600,42 @@
         "$ref": "#/definitions/__schema48"
       }
     },
-    "__schema51": {
+    "__schema52": {
+      "type": "object",
+      "propertyNames": {
+        "type": "string"
+      },
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "__schema53": {
+      "type": "object",
+      "properties": {
+        "paths": {
+          "description": "File paths to custom helper modules.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/__schema54"
+            }
+          ]
+        }
+      }
+    },
+    "__schema54": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "__schema55": {
       "type": "object",
       "properties": {
         "level": {
           "description": "Logging level (trace, debug, info, warn, error, fatal).",
           "allOf": [
             {
-              "$ref": "#/definitions/__schema52"
+              "$ref": "#/definitions/__schema56"
             }
           ]
         },
@@ -588,25 +643,25 @@
           "description": "Path to log file (logs to stdout if omitted).",
           "allOf": [
             {
-              "$ref": "#/definitions/__schema53"
+              "$ref": "#/definitions/__schema57"
             }
           ]
         }
       }
     },
-    "__schema52": {
-      "type": "string"
-    },
-    "__schema53": {
-      "type": "string"
-    },
-    "__schema54": {
-      "type": "number"
-    },
-    "__schema55": {
-      "type": "number"
-    },
     "__schema56": {
+      "type": "string"
+    },
+    "__schema57": {
+      "type": "string"
+    },
+    "__schema58": {
+      "type": "number"
+    },
+    "__schema59": {
+      "type": "number"
+    },
+    "__schema60": {
       "type": "number"
     }
   }

@@ -14,6 +14,7 @@ import { contentHash } from '../hash';
 import { deleteMetadata, readMetadata, writeMetadata } from '../metadata';
 import { pointId } from '../pointId';
 import type { CompiledRule } from '../rules';
+import type { TemplateEngine } from '../templates';
 import { normalizeError } from '../util/normalizeError';
 import type { VectorStoreClient } from '../vectorStore';
 import { buildMergedMetadata } from './buildMetadata';
@@ -32,6 +33,8 @@ export interface ProcessorConfig {
   chunkOverlap?: number;
   /** Named JsonMap definitions for rule transformations. */
   maps?: Record<string, JsonMapMap>;
+  /** Config directory for resolving relative file paths. */
+  configDir?: string;
 }
 
 /**
@@ -45,6 +48,7 @@ export class DocumentProcessor {
   private readonly vectorStore: VectorStoreClient;
   private compiledRules: CompiledRule[];
   private readonly logger: pino.Logger;
+  private templateEngine?: TemplateEngine;
 
   /**
    * Create a new DocumentProcessor.
@@ -54,6 +58,7 @@ export class DocumentProcessor {
    * @param vectorStore - The vector store client.
    * @param compiledRules - The compiled inference rules.
    * @param logger - The logger instance.
+   * @param templateEngine - Optional template engine for content templates.
    */
   constructor(
     config: ProcessorConfig,
@@ -61,12 +66,14 @@ export class DocumentProcessor {
     vectorStore: VectorStoreClient,
     compiledRules: CompiledRule[],
     logger: pino.Logger,
+    templateEngine?: TemplateEngine,
   ) {
     this.config = config;
     this.embeddingProvider = embeddingProvider;
     this.vectorStore = vectorStore;
     this.compiledRules = compiledRules;
     this.logger = logger;
+    this.templateEngine = templateEngine;
   }
 
   /**
@@ -79,21 +86,27 @@ export class DocumentProcessor {
       const ext = extname(filePath);
 
       // 1. Build merged metadata + extract text
-      const { metadata, extracted } = await buildMergedMetadata(
-        filePath,
-        this.compiledRules,
-        this.config.metadataDir,
-        this.config.maps,
-        this.logger,
-      );
+      const { metadata, extracted, renderedContent } =
+        await buildMergedMetadata(
+          filePath,
+          this.compiledRules,
+          this.config.metadataDir,
+          this.config.maps,
+          this.logger,
+          this.templateEngine,
+          this.config.configDir,
+        );
 
-      if (!extracted.text.trim()) {
+      // Use rendered template content if available, otherwise raw extracted text
+      const textToEmbed = renderedContent ?? extracted.text;
+
+      if (!textToEmbed.trim()) {
         this.logger.debug({ filePath }, 'Skipping empty file');
         return;
       }
 
       // 2. Content hash check — skip if unchanged
-      const hash = contentHash(extracted.text);
+      const hash = contentHash(textToEmbed);
       const baseId = pointId(filePath, 0);
       const existingPayload = await this.vectorStore.getPayload(baseId);
       if (existingPayload && existingPayload['content_hash'] === hash) {
@@ -106,7 +119,7 @@ export class DocumentProcessor {
       const chunkSize = this.config.chunkSize ?? 1000;
       const chunkOverlap = this.config.chunkOverlap ?? 200;
       const splitter = createSplitter(ext, chunkSize, chunkOverlap);
-      const chunks = await splitter.splitText(extracted.text);
+      const chunks = await splitter.splitText(textToEmbed);
 
       // 4. Embed all chunks
       const vectors = await this.embeddingProvider.embed(chunks);
@@ -235,6 +248,8 @@ export class DocumentProcessor {
         this.config.metadataDir,
         this.config.maps,
         this.logger,
+        this.templateEngine,
+        this.config.configDir,
       );
 
       // Update all chunk payloads
@@ -258,8 +273,20 @@ export class DocumentProcessor {
    *
    * @param compiledRules - The newly compiled rules.
    */
-  updateRules(compiledRules: CompiledRule[]): void {
+  /**
+   * Update compiled inference rules and optionally the template engine.
+   *
+   * @param compiledRules - The newly compiled rules.
+   * @param templateEngine - Optional updated template engine.
+   */
+  updateRules(
+    compiledRules: CompiledRule[],
+    templateEngine?: TemplateEngine,
+  ): void {
     this.compiledRules = compiledRules;
+    if (templateEngine) {
+      this.templateEngine = templateEngine;
+    }
     this.logger.info(
       { rules: compiledRules.length },
       'Inference rules updated',

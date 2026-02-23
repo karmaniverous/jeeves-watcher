@@ -13,6 +13,7 @@ import { type ExtractedText, extractText } from '../extractors';
 import { readMetadata } from '../metadata';
 import type { CompiledRule } from '../rules';
 import { applyRules, buildAttributes } from '../rules';
+import type { TemplateEngine } from '../templates';
 
 /**
  * The result of building merged metadata for a file.
@@ -28,6 +29,8 @@ export interface MergedMetadata {
   attributes: ReturnType<typeof buildAttributes>;
   /** Extracted text and structured data. */
   extracted: ExtractedText;
+  /** Rendered template content, or null if no template matched. */
+  renderedContent: string | null;
 }
 
 /**
@@ -38,6 +41,8 @@ export interface MergedMetadata {
  * @param metadataDir - The metadata directory for enrichment files.
  * @param maps - Optional named JsonMap definitions.
  * @param logger - Optional logger for rule warnings.
+ * @param templateEngine - Optional template engine for content templates.
+ * @param configDir - Optional config directory for resolving file paths.
  * @returns The merged metadata and intermediate data.
  */
 export async function buildMergedMetadata(
@@ -46,6 +51,8 @@ export async function buildMergedMetadata(
   metadataDir: string,
   maps?: Record<string, JsonMapMap>,
   logger?: pino.Logger,
+  templateEngine?: TemplateEngine,
+  configDir?: string,
 ): Promise<MergedMetadata> {
   const ext = extname(filePath);
   const stats = await stat(filePath);
@@ -60,7 +67,14 @@ export async function buildMergedMetadata(
     extracted.frontmatter,
     extracted.json,
   );
-  const inferred = await applyRules(compiledRules, attributes, maps, logger);
+  const { metadata: inferred, renderedContent } = await applyRules(
+    compiledRules,
+    attributes,
+    maps,
+    logger,
+    templateEngine,
+    configDir,
+  );
 
   // 3. Read enrichment metadata (merge, enrichment wins)
   const enrichment = await readMetadata(filePath, metadataDir);
@@ -69,5 +83,12 @@ export async function buildMergedMetadata(
     ...(enrichment ?? {}),
   };
 
-  return { inferred, enrichment, metadata, attributes, extracted };
+  return {
+    inferred,
+    enrichment,
+    metadata,
+    attributes,
+    extracted,
+    renderedContent,
+  };
 }
