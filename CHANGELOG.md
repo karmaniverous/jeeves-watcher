@@ -2,9 +2,16 @@
 
 All notable changes to this project will be documented in this file. Dates are displayed in UTC.
 
+#### [0.4.3](https://github.com/karmaniverous/jeeves-watcher/compare/0.4.2...0.4.3)
+
+- feat: support custom JsonMap lib functions via config [`#29`](https://github.com/karmaniverous/jeeves-watcher/pull/29)
+
 #### [0.4.2](https://github.com/karmaniverous/jeeves-watcher/compare/0.4.1...0.4.2)
 
+> 23 February 2026
+
 - fix: resolve file path references in named maps config [`#28`](https://github.com/karmaniverous/jeeves-watcher/pull/28)
+- chore: release v0.4.2 [`4ea9215`](https://github.com/karmaniverous/jeeves-watcher/commit/4ea9215f5ae9506bf497fffdcbf414160ae03310)
 
 #### [0.4.1](https://github.com/karmaniverous/jeeves-watcher/compare/0.4.0...0.4.1)
 
