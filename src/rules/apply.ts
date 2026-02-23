@@ -30,9 +30,25 @@ export interface RuleLogger {
 /**
  * Create the lib object for JsonMap transformations.
  *
+ * @param configDir - Optional config directory for resolving relative file paths in lookups.
  * @returns The lib object.
  */
-function createJsonMapLib() {
+function createJsonMapLib(
+  configDir?: string,
+  customLib?: Record<string, (...args: unknown[]) => unknown>,
+) {
+  // Cache loaded JSON files within a single applyRules invocation.
+  const jsonCache = new Map<string, unknown>();
+
+  const loadJson = (filePath: string): Record<string, unknown> => {
+    const resolvedPath = configDir ? resolve(configDir, filePath) : filePath;
+    if (!jsonCache.has(resolvedPath)) {
+      const raw = readFileSync(resolvedPath, 'utf-8');
+      jsonCache.set(resolvedPath, JSON.parse(raw) as unknown);
+    }
+    return jsonCache.get(resolvedPath) as Record<string, unknown>;
+  };
+
   return {
     split: (str: string, separator: string) => str.split(separator),
     slice: <T>(arr: T[], start: number, end?: number) => arr.slice(start, end),
@@ -41,7 +57,87 @@ function createJsonMapLib() {
     replace: (str: string, search: string | RegExp, replacement: string) =>
       str.replace(search, replacement),
     get: (obj: unknown, path: string) => get(obj, path),
+
+    /**
+     * Load a JSON file (relative to configDir) and look up a value by key,
+     * optionally drilling into a sub-path.
+     *
+     * @param filePath - Path to a JSON file (resolved relative to configDir).
+     * @param key - Top-level key to look up.
+     * @param field - Optional dot-path into the looked-up entry.
+     * @returns The resolved value, or null if not found.
+     */
+    lookupJson: (filePath: string, key: string, field?: string) => {
+      const data = loadJson(filePath);
+      const entry = data[key];
+      if (entry === undefined || entry === null) return null;
+      if (field) return get(entry, field) ?? null;
+      return entry;
+    },
+
+    /**
+     * Map an array of keys through a JSON lookup file, collecting a specific
+     * field from each matching entry. Non-matching keys are silently skipped.
+     * Array-valued fields are flattened into the result.
+     *
+     * @param filePath - Path to a JSON file (resolved relative to configDir).
+     * @param keys - Array of top-level keys to look up.
+     * @param field - Dot-path into each looked-up entry.
+     * @returns Flat array of resolved values.
+     */
+    mapLookup: (filePath: string, keys: unknown[], field: string) => {
+      if (!Array.isArray(keys)) return [];
+      const data = loadJson(filePath);
+      const results: unknown[] = [];
+      for (const k of keys) {
+        if (typeof k !== 'string') continue;
+        const entry = data[k];
+        if (entry === undefined || entry === null) continue;
+        const val = get(entry, field);
+        if (val === undefined || val === null) continue;
+        if (Array.isArray(val)) {
+          for (const item of val) {
+            results.push(item);
+          }
+        } else {
+          results.push(val);
+        }
+      }
+      return results;
+    },
+    ...customLib,
   };
+}
+
+/**
+ * Load custom JsonMap lib functions from file paths.
+ *
+ * Each module should default-export an object of functions,
+ * or use named exports. Only function-valued exports are merged.
+ *
+ * @param paths - File paths to custom lib modules.
+ * @param configDir - Directory to resolve relative paths against.
+ * @returns The merged custom lib functions.
+ */
+export async function loadCustomMapHelpers(
+  paths: string[],
+  configDir: string,
+): Promise<Record<string, (...args: unknown[]) => unknown>> {
+  const merged: Record<string, (...args: unknown[]) => unknown> = {};
+  for (const p of paths) {
+    const resolved = resolve(configDir, p);
+    const mod = (await import(resolved)) as Record<string, unknown>;
+    const fns =
+      typeof mod.default === 'object' && mod.default !== null
+        ? (mod.default as Record<string, unknown>)
+        : mod;
+    for (const [key, val] of Object.entries(fns)) {
+      if (typeof val === 'function') {
+        merged[key] = val as (...args: unknown[]) => unknown;
+      }
+    }
+  }
+  return merged;
 }
 
 /**
@@ -76,10 +172,14 @@ export async function applyRules(
   logger?: RuleLogger,
   templateEngine?: TemplateEngine,
   configDir?: string,
+  customMapLib?: Record<string, (...args: unknown[]) => unknown>,
 ): Promise<ApplyRulesResult> {
   // JsonMap's type definitions expect a generic JsonMapLib shape with unary functions.
   // Our helper functions accept multiple args, which JsonMap supports at runtime.
-  const lib = createJsonMapLib() as unknown as JsonMapLib;
+  const lib = createJsonMapLib(
+    configDir,
+    customMapLib,
+  ) as unknown as JsonMapLib;
   let merged: Record<string, unknown> = {};
   let renderedContent: string | null = null;
   const log: RuleLogger = logger ?? console;
