@@ -53,13 +53,22 @@ export type { ProcessorConfig } from './processor';
 export { DocumentProcessor } from './processor';
 export type { EventQueueOptions, ProcessFn, WatchEvent } from './queue';
 export { EventQueue } from './queue';
-export type { CompiledRule, FileAttributes } from './rules';
+export type { ApplyRulesResult, CompiledRule, FileAttributes } from './rules';
 export {
   applyRules,
   buildAttributes,
   compileRules,
   type RuleLogger,
 } from './rules';
+export type { CompiledTemplate } from './templates';
+export {
+  buildTemplateEngine,
+  createHandlebarsInstance,
+  loadCustomHelpers,
+  registerBuiltinHelpers,
+  resolveTemplateSource,
+  TemplateEngine,
+} from './templates';
 export type {
   CollectionInfo,
   PayloadFieldSchema,
