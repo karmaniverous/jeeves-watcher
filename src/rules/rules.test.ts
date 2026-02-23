@@ -43,7 +43,7 @@ describe('rules engine', () => {
     ];
     const compiled = compileRules(rules);
     const result = await applyRules(compiled, makeAttributes());
-    expect(result).toEqual({ category: 'documentation' });
+    expect(result.metadata).toEqual({ category: 'documentation' });
   });
 
   it('does not match when glob does not match', async () => {
@@ -68,7 +68,7 @@ describe('rules engine', () => {
     ];
     const compiled = compileRules(rules);
     const result = await applyRules(compiled, makeAttributes());
-    expect(result).toEqual({});
+    expect(result.metadata).toEqual({});
   });
 
   it('matches frontmatter properties', async () => {
@@ -96,7 +96,7 @@ describe('rules engine', () => {
     const compiled = compileRules(rules);
     const attrs = makeAttributes({ frontmatter: { tags: ['api', 'v2'] } });
     const result = await applyRules(compiled, attrs);
-    expect(result).toEqual({ docType: 'api-reference' });
+    expect(result.metadata).toEqual({ docType: 'api-reference' });
   });
 
   it('resolves template variables', async () => {
@@ -111,7 +111,7 @@ describe('rules engine', () => {
     ];
     const compiled = compileRules(rules);
     const result = await applyRules(compiled, makeAttributes());
-    expect(result).toEqual({
+    expect(result.metadata).toEqual({
       source: 'docs/readme.md',
       dir: 'docs',
     });
@@ -130,7 +130,7 @@ describe('rules engine', () => {
     ];
     const compiled = compileRules(rules);
     const result = await applyRules(compiled, makeAttributes());
-    expect(result).toEqual({ priority: 'high', source: 'first' });
+    expect(result.metadata).toEqual({ priority: 'high', source: 'first' });
   });
 
   it('applies inline JsonMap to extract path segment', async () => {
@@ -151,7 +151,7 @@ describe('rules engine', () => {
     ];
     const compiled = compileRules(rules);
     const result = await applyRules(compiled, makeAttributes());
-    expect(result).toEqual({ project: 'docs' });
+    expect(result.metadata).toEqual({ project: 'docs' });
   });
 
   it('applies named JsonMap via string reference', async () => {
@@ -177,7 +177,7 @@ describe('rules engine', () => {
 
     const compiled = compileRules(rules);
     const result = await applyRules(compiled, makeAttributes(), namedMaps);
-    expect(result).toEqual({ dir: 'docs' });
+    expect(result.metadata).toEqual({ dir: 'docs' });
   });
 
   it('merges set and map outputs with map overriding set', async () => {
@@ -199,7 +199,7 @@ describe('rules engine', () => {
 
     const compiled = compileRules(rules);
     const result = await applyRules(compiled, makeAttributes());
-    expect(result).toEqual({ field: 'readme', other: 'value' });
+    expect(result.metadata).toEqual({ field: 'readme', other: 'value' });
   });
 
   it('warns and skips when named map reference is not found', async () => {
@@ -218,7 +218,7 @@ describe('rules engine', () => {
     const compiled = compileRules(rules);
     const result = await applyRules(compiled, makeAttributes());
 
-    expect(result).toEqual({ fallback: 'value' });
+    expect(result.metadata).toEqual({ fallback: 'value' });
     expect(consoleWarnSpy).toHaveBeenCalledWith(
       'Map reference "nonexistent" not found in named maps. Skipping map transformation.',
     );
@@ -241,7 +241,7 @@ describe('rules engine', () => {
     const compiled = compileRules(rules);
     const result = await applyRules(compiled, makeAttributes());
 
-    expect(result).toEqual({ a: 1, b: 2, shared: 'second' });
+    expect(result.metadata).toEqual({ a: 1, b: 2, shared: 'second' });
   });
 
   it('treats missing template variables as empty string', async () => {
@@ -255,7 +255,7 @@ describe('rules engine', () => {
     const compiled = compileRules(rules);
     const result = await applyRules(compiled, makeAttributes());
 
-    expect(result).toEqual({ title: '', path: 'docs/readme.md' });
+    expect(result.metadata).toEqual({ title: '', path: 'docs/readme.md' });
   });
 
   it('warns and skips when JsonMap transform throws', async () => {
@@ -281,7 +281,7 @@ describe('rules engine', () => {
     const compiled = compileRules(rules);
     const result = await applyRules(compiled, makeAttributes());
 
-    expect(result).toEqual({ ok: true });
+    expect(result.metadata).toEqual({ ok: true });
     expect(consoleWarnSpy).toHaveBeenCalledWith(
       expect.stringContaining('JsonMap transformation failed:'),
     );
@@ -311,6 +311,6 @@ describe('rules engine', () => {
 
     const compiled = compileRules(rules);
     const result = await applyRules(compiled, makeAttributes());
-    expect(result).toEqual({});
+    expect(result.metadata).toEqual({});
   });
 });
