@@ -11,6 +11,7 @@ import { SystemHealth, type SystemHealthOptions } from '../health';
 import type { DocumentProcessor } from '../processor';
 import type { EventQueue } from '../queue';
 import { normalizeError } from '../util/normalizeError';
+import { resolveWatchPaths } from './globToDir';
 
 /**
  * Options for {@link FileSystemWatcher} beyond basic config.
@@ -36,6 +37,7 @@ export class FileSystemWatcher {
   private readonly logger: pino.Logger;
   private readonly health: SystemHealth;
   private readonly gitignoreFilter?: GitignoreFilter;
+  private globMatches: (filePath: string) => boolean;
   private watcher: FSWatcher | undefined;
 
   /**
@@ -60,6 +62,7 @@ export class FileSystemWatcher {
     this.logger = logger;
 
     this.gitignoreFilter = options.gitignoreFilter;
+    this.globMatches = () => true;
 
     const healthOptions: SystemHealthOptions = {
       maxRetries: options.maxRetries,
@@ -74,7 +77,14 @@ export class FileSystemWatcher {
    * Start watching the filesystem and processing events.
    */
   start(): void {
-    this.watcher = chokidar.watch(this.config.paths, {
+    // Chokidar v4+ removed glob support (paulmillr/chokidar#1350).
+    // Glob patterns are silently treated as literal strings, producing zero
+    // events. We extract static directory roots for chokidar to watch, then
+    // filter emitted events against the original globs via picomatch.
+    const { roots, matches } = resolveWatchPaths(this.config.paths);
+    this.globMatches = matches;
+
+    this.watcher = chokidar.watch(roots, {
       ignored: this.config.ignored,
       usePolling: this.config.usePolling,
       interval: this.config.pollIntervalMs,
@@ -86,6 +96,7 @@ export class FileSystemWatcher {
 
     this.watcher.on('add', (path: string) => {
       this.handleGitignoreChange(path);
+      if (!this.globMatches(path)) return;
       if (this.isGitignored(path)) return;
       this.logger.debug({ path }, 'File added');
       this.queue.enqueue({ type: 'create', path, priority: 'normal' }, () =>
@@ -95,6 +106,7 @@ export class FileSystemWatcher {
 
     this.watcher.on('change', (path: string) => {
       this.handleGitignoreChange(path);
+      if (!this.globMatches(path)) return;
       if (this.isGitignored(path)) return;
       this.logger.debug({ path }, 'File changed');
       this.queue.enqueue({ type: 'modify', path, priority: 'normal' }, () =>
@@ -104,6 +116,7 @@ export class FileSystemWatcher {
 
     this.watcher.on('unlink', (path: string) => {
       this.handleGitignoreChange(path);
+      if (!this.globMatches(path)) return;
       if (this.isGitignored(path)) return;
       this.logger.debug({ path }, 'File removed');
       this.queue.enqueue({ type: 'delete', path, priority: 'normal' }, () =>
