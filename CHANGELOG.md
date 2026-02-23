@@ -2,9 +2,17 @@
 
 All notable changes to this project will be documented in this file. Dates are displayed in UTC.
 
+#### [0.4.4](https://github.com/karmaniverous/jeeves-watcher/compare/0.4.3...0.4.4)
+
+- fix: use pathToFileURL for dynamic imports on Windows [`#31`](https://github.com/karmaniverous/jeeves-watcher/pull/31)
+- fix: use pathToFileURL for dynamic imports on Windows (#31) [`#30`](https://github.com/karmaniverous/jeeves-watcher/issues/30)
+
 #### [0.4.3](https://github.com/karmaniverous/jeeves-watcher/compare/0.4.2...0.4.3)
 
+> 23 February 2026
+
 - feat: support custom JsonMap lib functions via config [`#29`](https://github.com/karmaniverous/jeeves-watcher/pull/29)
+- chore: release v0.4.3 [`8b82d0c`](https://github.com/karmaniverous/jeeves-watcher/commit/8b82d0cf01dee60ab3a135ac6c0c70ae726d31fd)
 
 #### [0.4.2](https://github.com/karmaniverous/jeeves-watcher/compare/0.4.1...0.4.2)
 
