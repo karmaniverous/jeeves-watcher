@@ -11,7 +11,7 @@ import { SystemHealth, type SystemHealthOptions } from '../health';
 import type { DocumentProcessor } from '../processor';
 import type { EventQueue } from '../queue';
 import { normalizeError } from '../util/normalizeError';
-import { resolveWatchPaths } from './globToDir';
+import { resolveIgnored, resolveWatchPaths } from './globToDir';
 
 /**
  * Options for {@link FileSystemWatcher} beyond basic config.
@@ -84,8 +84,15 @@ export class FileSystemWatcher {
     const { roots, matches } = resolveWatchPaths(this.config.paths);
     this.globMatches = matches;
 
+    // Chokidar v5's inline anymatch does exact string equality for string
+    // matchers, breaking glob-based ignored patterns. Convert to picomatch
+    // functions that chokidar passes through as-is.
+    const ignored = this.config.ignored
+      ? resolveIgnored(this.config.ignored as string[])
+      : undefined;
+
     this.watcher = chokidar.watch(roots, {
-      ignored: this.config.ignored,
+      ignored,
       usePolling: this.config.usePolling,
       interval: this.config.pollIntervalMs,
       awaitWriteFinish: this.config.stabilityThresholdMs

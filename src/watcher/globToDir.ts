@@ -83,3 +83,33 @@ export function resolveWatchPaths(globs: string[]): {
   const matches = buildGlobMatcher(globs);
   return { roots, matches };
 }
+
+/**
+ * Convert ignored glob patterns to picomatch matcher functions.
+ *
+ * Chokidar v5 replaced the external `anymatch` dependency with an inline
+ * implementation that does **exact string equality** for string matchers,
+ * breaking glob-based `ignored` patterns. This function converts glob strings
+ * to picomatch functions that chokidar's `createPattern` passes through
+ * unchanged (`typeof matcher === 'function'`).
+ *
+ * Non-string entries (functions, RegExps) are passed through as-is.
+ *
+ * @param ignored - Array of ignored patterns (globs, functions, RegExps).
+ * @returns Array with glob strings replaced by picomatch matcher functions.
+ */
+export function resolveIgnored(
+  ignored: (string | RegExp | ((path: string) => boolean))[],
+): (string | RegExp | ((path: string) => boolean))[] {
+  return ignored.map((entry) => {
+    if (typeof entry !== 'string') return entry;
+    // If the string contains glob characters, convert to a picomatch function.
+    // Literal strings (exact paths) are also converted for consistent matching.
+    const normalizedPattern = entry.replace(/\\/g, '/');
+    const matcher = picomatch(normalizedPattern, { dot: true, nocase: true });
+    return (filePath: string) => {
+      const normalized = filePath.replace(/\\/g, '/');
+      return matcher(normalized);
+    };
+  });
+}
