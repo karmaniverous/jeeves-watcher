@@ -5,6 +5,7 @@
 
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { pathToFileURL } from 'node:url';
 
 import Handlebars from 'handlebars';
 
@@ -83,7 +84,7 @@ export async function loadCustomHelpers(
 ): Promise<void> {
   for (const p of paths) {
     const resolved = resolve(configDir, p);
-    const mod = (await import(resolved)) as {
+    const mod = (await import(pathToFileURL(resolved).href)) as {
       default?: (h: typeof Handlebars) => void;
     };
     if (typeof mod.default === 'function') {
