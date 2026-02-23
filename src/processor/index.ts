@@ -35,6 +35,8 @@ export interface ProcessorConfig {
   maps?: Record<string, JsonMapMap>;
   /** Config directory for resolving relative file paths. */
   configDir?: string;
+  /** Custom JsonMap lib functions loaded from mapHelpers config. */
+  customMapLib?: Record<string, (...args: unknown[]) => unknown>;
 }
 
 /**
@@ -43,7 +45,7 @@ export interface ProcessorConfig {
  * Handles extracting text, computing embeddings, and syncing with the vector store.
  */
 export class DocumentProcessor {
-  private readonly config: ProcessorConfig;
+  private config: ProcessorConfig;
   private readonly embeddingProvider: EmbeddingProvider;
   private readonly vectorStore: VectorStoreClient;
   private compiledRules: CompiledRule[];
@@ -95,6 +97,7 @@ export class DocumentProcessor {
           this.logger,
           this.templateEngine,
           this.config.configDir,
+          this.config.customMapLib,
         );
 
       // Use rendered template content if available, otherwise raw extracted text
@@ -250,6 +253,7 @@ export class DocumentProcessor {
         this.logger,
         this.templateEngine,
         this.config.configDir,
+        this.config.customMapLib,
       );
 
       // Update all chunk payloads
@@ -269,23 +273,23 @@ export class DocumentProcessor {
   }
 
   /**
-   * Update compiled inference rules for subsequent file processing.
-   *
-   * @param compiledRules - The newly compiled rules.
-   */
-  /**
-   * Update compiled inference rules and optionally the template engine.
+   * Update compiled inference rules, template engine, and custom map lib.
    *
    * @param compiledRules - The newly compiled rules.
    * @param templateEngine - Optional updated template engine.
+   * @param customMapLib - Optional updated custom JsonMap lib functions.
    */
   updateRules(
     compiledRules: CompiledRule[],
     templateEngine?: TemplateEngine,
+    customMapLib?: Record<string, (...args: unknown[]) => unknown>,
   ): void {
     this.compiledRules = compiledRules;
     if (templateEngine) {
       this.templateEngine = templateEngine;
+    }
+    if (customMapLib !== undefined) {
+      this.config = { ...this.config, customMapLib };
     }
     this.logger.info(
       { rules: compiledRules.length },

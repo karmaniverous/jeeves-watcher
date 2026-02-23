@@ -12,6 +12,7 @@ import type { JeevesWatcherConfig } from '../config/types';
 import { GitignoreFilter } from '../gitignore';
 import type { DocumentProcessor } from '../processor';
 import type { EventQueue } from '../queue';
+import { loadCustomMapHelpers } from '../rules/apply';
 import { buildTemplateEngine } from '../templates';
 import { normalizeError } from '../util/normalizeError';
 import type { FileSystemWatcher } from '../watcher';
@@ -88,6 +89,12 @@ export class JeevesWatcher {
       configDir,
     );
 
+    // Load custom JsonMap lib functions
+    const customMapLib =
+      this.config.mapHelpers?.paths?.length && configDir
+        ? await loadCustomMapHelpers(this.config.mapHelpers.paths, configDir)
+        : undefined;
+
     const processor = this.factories.createDocumentProcessor(
       {
         metadataDir: this.config.metadataDir ?? '.jeeves-metadata',
@@ -95,6 +102,7 @@ export class JeevesWatcher {
         chunkOverlap: this.config.embedding.chunkOverlap,
         maps: this.config.maps,
         configDir,
+        customMapLib,
       },
       embeddingProvider,
       vectorStore,
@@ -291,7 +299,16 @@ export class JeevesWatcher {
         newConfig.templateHelpers?.paths,
         reloadConfigDir,
       );
-      processor.updateRules(compiledRules, newTemplateEngine);
+
+      const newCustomMapLib =
+        newConfig.mapHelpers?.paths?.length && reloadConfigDir
+          ? await loadCustomMapHelpers(
+              newConfig.mapHelpers.paths,
+              reloadConfigDir,
+            )
+          : undefined;
+
+      processor.updateRules(compiledRules, newTemplateEngine, newCustomMapLib);
 
       logger.info(
         { configPath: this.configPath, rules: compiledRules.length },

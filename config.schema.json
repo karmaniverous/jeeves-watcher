@@ -145,11 +145,19 @@
         }
       ]
     },
+    "mapHelpers": {
+      "description": "Custom JsonMap lib function registration.",
+      "allOf": [
+        {
+          "$ref": "#/definitions/__schema55"
+        }
+      ]
+    },
     "logging": {
       "description": "Logging configuration.",
       "allOf": [
         {
-          "$ref": "#/definitions/__schema55"
+          "$ref": "#/definitions/__schema57"
         }
       ]
     },
@@ -157,7 +165,7 @@
       "description": "Timeout in milliseconds for graceful shutdown.",
       "allOf": [
         {
-          "$ref": "#/definitions/__schema58"
+          "$ref": "#/definitions/__schema60"
         }
       ]
     },
@@ -165,7 +173,7 @@
       "description": "Maximum consecutive system-level failures before triggering fatal error. Default: Infinity.",
       "allOf": [
         {
-          "$ref": "#/definitions/__schema59"
+          "$ref": "#/definitions/__schema61"
         }
       ]
     },
@@ -173,7 +181,7 @@
       "description": "Maximum backoff delay in milliseconds for system errors. Default: 60000.",
       "allOf": [
         {
-          "$ref": "#/definitions/__schema60"
+          "$ref": "#/definitions/__schema62"
         }
       ]
     }
@@ -638,11 +646,30 @@
     "__schema55": {
       "type": "object",
       "properties": {
+        "paths": {
+          "description": "File paths to JS modules exporting functions to merge into the JsonMap lib.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/__schema56"
+            }
+          ]
+        }
+      }
+    },
+    "__schema56": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "__schema57": {
+      "type": "object",
+      "properties": {
         "level": {
           "description": "Logging level (trace, debug, info, warn, error, fatal).",
           "allOf": [
             {
-              "$ref": "#/definitions/__schema56"
+              "$ref": "#/definitions/__schema58"
             }
           ]
         },
@@ -650,25 +677,25 @@
           "description": "Path to log file (logs to stdout if omitted).",
           "allOf": [
             {
-              "$ref": "#/definitions/__schema57"
+              "$ref": "#/definitions/__schema59"
             }
           ]
         }
       }
     },
-    "__schema56": {
-      "type": "string"
-    },
-    "__schema57": {
-      "type": "string"
-    },
     "__schema58": {
-      "type": "number"
+      "type": "string"
     },
     "__schema59": {
-      "type": "number"
+      "type": "string"
     },
     "__schema60": {
+      "type": "number"
+    },
+    "__schema61": {
+      "type": "number"
+    },
+    "__schema62": {
       "type": "number"
     }
   }

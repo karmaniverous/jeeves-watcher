@@ -277,6 +277,19 @@ export const jeevesWatcherConfigSchema = z.object({
     })
     .optional()
     .describe('Custom Handlebars helper registration.'),
+  /** Custom JsonMap lib function registration. */
+  mapHelpers: z
+    .object({
+      /** File paths to custom lib modules (each exports functions to merge into the JsonMap lib). */
+      paths: z
+        .array(z.string())
+        .optional()
+        .describe(
+          'File paths to JS modules exporting functions to merge into the JsonMap lib.',
+        ),
+    })
+    .optional()
+    .describe('Custom JsonMap lib function registration.'),
   /** Logging configuration. */
   logging: loggingConfigSchema.optional().describe('Logging configuration.'),
   /** Timeout in milliseconds for graceful shutdown. */

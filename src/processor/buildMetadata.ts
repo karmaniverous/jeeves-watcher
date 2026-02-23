@@ -53,6 +53,7 @@ export async function buildMergedMetadata(
   logger?: pino.Logger,
   templateEngine?: TemplateEngine,
   configDir?: string,
+  customMapLib?: Record<string, (...args: unknown[]) => unknown>,
 ): Promise<MergedMetadata> {
   const ext = extname(filePath);
   const stats = await stat(filePath);
@@ -74,6 +75,7 @@ export async function buildMergedMetadata(
     logger,
     templateEngine,
     configDir,
+    customMapLib,
   );
 
   // 3. Read enrichment metadata (merge, enrichment wins)
