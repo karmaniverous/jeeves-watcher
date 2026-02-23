@@ -5,6 +5,7 @@
 
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { pathToFileURL } from 'node:url';
 
 import {
   type Json,
@@ -126,7 +127,10 @@ export async function loadCustomMapHelpers(
   const merged: Record<string, (...args: unknown[]) => unknown> = {};
   for (const p of paths) {
     const resolved = resolve(configDir, p);
-    const mod = (await import(resolved)) as Record<string, unknown>;
+    const mod = (await import(pathToFileURL(resolved).href)) as Record<
+      string,
+      unknown
+    >;
     const fns =
       typeof mod.default === 'object' && mod.default !== null
         ? (mod.default as Record<string, unknown>)
