@@ -125,9 +125,9 @@ describe('resolveIgnored', () => {
     const [matcher] = resolveIgnored(['**/node_modules/**']) as ((
       path: string,
     ) => boolean)[];
-    expect(
-      matcher('j:/jeeves/temp/node_modules/@types/node/net.d.ts'),
-    ).toBe(true);
+    expect(matcher('j:/jeeves/temp/node_modules/@types/node/net.d.ts')).toBe(
+      true,
+    );
     expect(
       matcher(
         'j:/domains/projects/tiny-poems/book/node_modules/puppeteer-core/lib/foo.js',
@@ -171,7 +171,9 @@ describe('resolveIgnored', () => {
       '**/package-lock.json',
     ]);
     expect(resolved).toHaveLength(3);
-    resolved.forEach((m) => expect(typeof m).toBe('function'));
+    resolved.forEach((m) => {
+      expect(typeof m).toBe('function');
+    });
 
     const matchers = resolved as ((path: string) => boolean)[];
     expect(matchers[0]('j:/foo/node_modules/bar.js')).toBe(true);

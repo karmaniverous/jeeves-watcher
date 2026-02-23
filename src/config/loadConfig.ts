@@ -1,3 +1,7 @@
+import { readFileSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
+
+import type { JsonMapMap } from '@karmaniverous/jsonmap';
 import { cosmiconfig } from 'cosmiconfig';
 import { ZodError } from 'zod';
 
@@ -56,6 +60,20 @@ export async function loadConfig(
 
   try {
     const validated = jeevesWatcherConfigSchema.parse(result.config);
+
+    // Resolve file-path map references relative to config directory.
+    // After this block, all map values are inline JsonMapMap objects.
+    if (validated.maps) {
+      const configDir = dirname(result.filepath);
+      for (const [name, value] of Object.entries(validated.maps)) {
+        if (typeof value === 'string') {
+          const mapPath = resolve(configDir, value);
+          const raw = readFileSync(mapPath, 'utf-8');
+          validated.maps[name] = JSON.parse(raw) as JsonMapMap;
+        }
+      }
+    }
+
     const withDefaults = applyDefaults(validated);
     return substituteEnvVars(withDefaults);
   } catch (error) {

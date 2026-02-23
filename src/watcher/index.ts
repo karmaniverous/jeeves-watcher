@@ -88,7 +88,7 @@ export class FileSystemWatcher {
     // matchers, breaking glob-based ignored patterns. Convert to picomatch
     // functions that chokidar passes through as-is.
     const ignored = this.config.ignored
-      ? resolveIgnored(this.config.ignored as string[])
+      ? resolveIgnored(this.config.ignored)
       : undefined;
 
     this.watcher = chokidar.watch(roots, {

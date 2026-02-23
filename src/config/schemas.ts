@@ -252,11 +252,13 @@ export const jeevesWatcherConfigSchema = z.object({
     .array(inferenceRuleSchema)
     .optional()
     .describe('Rules for inferring metadata from file attributes.'),
-  /** Reusable named JsonMap transformations. */
+  /** Reusable named JsonMap transformations (inline objects or .json file paths). */
   maps: z
-    .record(z.string(), jsonMapMapSchema)
+    .record(z.string(), jsonMapMapSchema.or(z.string()))
     .optional()
-    .describe('Reusable named JsonMap transformations.'),
+    .describe(
+      'Reusable named JsonMap transformations (inline definition or .json file path resolved relative to config directory).',
+    ),
   /** Reusable named Handlebars templates (inline strings or .hbs/.handlebars file paths). */
   templates: z
     .record(z.string(), z.string())
