@@ -268,9 +268,168 @@
 
 <p>(Note: <code>inferenceRulesFile</code> is a planned feature — currently rules must be inline.)</p>
 <hr>
+<h2 id="content-templates" class="tsd-anchor-link">Content Templates<a href="#content-templates" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h2>
+<p>Rules can include a <code>template</code> field — a Handlebars template that renders the file's data into embeddable markdown. When a template is present, the rendered output replaces the raw file content for embedding.</p>
+<h3 id="why-templates" class="tsd-anchor-link">Why Templates?<a href="#why-templates" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
+<p>Raw JSON from API responses embeds poorly — deeply nested fields, internal IDs, and rich text formats (ADF, HTML) produce noisy vectors. Templates transform structured data into clean, readable markdown at index time.</p>
+<h3 id="template-resolution" class="tsd-anchor-link">Template Resolution<a href="#template-resolution" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
+<p>The <code>template</code> value is resolved in this order:</p>
+<ol>
+<li><strong>File path</strong> — ends in <code>.hbs</code> or <code>.handlebars</code> → loaded from file (relative to config dir)</li>
+<li><strong>Named ref</strong> — matches a key in top-level <code>config.templates</code> → recursively resolved</li>
+<li><strong>Inline</strong> — used as a Handlebars template string directly</li>
+</ol>
+<h3 id="template-context" class="tsd-anchor-link">Template Context<a href="#template-context" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
+<p>Templates render against a context object built from:</p>
+<ul>
+<li>The parsed file content (JSON parsed if <code>.json</code>, raw text otherwise)</li>
+<li>Fields added by <code>map</code> transforms</li>
+</ul>
+<p>For JSON files, the parsed JSON is spread at the top level of the context, with mapped fields merged in.</p>
+<h3 id="example-jira-issue-template" class="tsd-anchor-link">Example: Jira Issue Template<a href="#example-jira-issue-template" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
+<pre><code class="json"><span class="hl-1">{</span><br/><span class="hl-1">  </span><span class="hl-4">&quot;match&quot;</span><span class="hl-1">: {</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;properties&quot;</span><span class="hl-1">: {</span><br/><span class="hl-1">      </span><span class="hl-4">&quot;file&quot;</span><span class="hl-1">: {</span><br/><span class="hl-1">        </span><span class="hl-4">&quot;properties&quot;</span><span class="hl-1">: {</span><br/><span class="hl-1">          </span><span class="hl-4">&quot;path&quot;</span><span class="hl-1">: { </span><span class="hl-4">&quot;type&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;string&quot;</span><span class="hl-1">, </span><span class="hl-4">&quot;glob&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;j:/domains/jira/**/*.json&quot;</span><span class="hl-1"> }</span><br/><span class="hl-1">        }</span><br/><span class="hl-1">      }</span><br/><span class="hl-1">    }</span><br/><span class="hl-1">  },</span><br/><span class="hl-1">  </span><span class="hl-4">&quot;map&quot;</span><span class="hl-1">: {</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;key&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;current.entityKey&quot;</span><span class="hl-1">,</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;summary&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;current.current.fields.summary&quot;</span><span class="hl-1">,</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;status&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;current.current.fields.status.name&quot;</span><br/><span class="hl-1">  },</span><br/><span class="hl-1">  </span><span class="hl-4">&quot;set&quot;</span><span class="hl-1">: {</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;domain&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;jira&quot;</span><span class="hl-1">,</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;key&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;${key}&quot;</span><span class="hl-1">,</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;status&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;${status}&quot;</span><br/><span class="hl-1">  },</span><br/><span class="hl-1">  </span><span class="hl-4">&quot;template&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;templates/jira-issue.hbs&quot;</span><br/><span class="hl-1">}</span>
+</code><button type="button">Copy</button></pre>
+
+<p><strong><code>templates/jira-issue.hbs</code>:</strong></p>
+<pre><code class="handlebars"># {{summary}}
+
+**Key:** {{key}} | **Status:** {{status}}
+
+---
+
+{{adfToMarkdown current.current.fields.description}}
+</code><button type="button">Copy</button></pre>
+
+<h3 id="named-templates" class="tsd-anchor-link">Named Templates<a href="#named-templates" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
+<p>Define reusable templates in top-level config:</p>
+<pre><code class="json"><span class="hl-1">{</span><br/><span class="hl-1">  </span><span class="hl-4">&quot;templates&quot;</span><span class="hl-1">: {</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;jira-issue&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;templates/jira-issue.hbs&quot;</span><span class="hl-1">,</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;simple-doc&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;# {{heading}}</span><span class="hl-6">\n\n</span><span class="hl-2">{{body}}&quot;</span><br/><span class="hl-1">  }</span><br/><span class="hl-1">}</span>
+</code><button type="button">Copy</button></pre>
+
+<p>Reference by name in rules: <code>&quot;template&quot;: &quot;jira-issue&quot;</code></p>
+<h3 id="built-in-helpers" class="tsd-anchor-link">Built-in Helpers<a href="#built-in-helpers" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
+<table>
+<thead>
+<tr>
+<th>Helper</th>
+<th>Description</th>
+<th>Example</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>adfToMarkdown</code></td>
+<td>ADF → Markdown</td>
+<td><code>{{adfToMarkdown description}}</code></td>
+</tr>
+<tr>
+<td><code>markdownify</code></td>
+<td>HTML → Markdown</td>
+<td><code>{{markdownify body.html}}</code></td>
+</tr>
+<tr>
+<td><code>dateFormat</code></td>
+<td>Format dates</td>
+<td><code>{{dateFormat created 'YYYY-MM-DD'}}</code></td>
+</tr>
+<tr>
+<td><code>join</code></td>
+<td>Join array</td>
+<td><code>{{join labels &quot;, &quot;}}</code></td>
+</tr>
+<tr>
+<td><code>pluck</code></td>
+<td>Extract field from array</td>
+<td><code>{{join (pluck labels &quot;name&quot;) &quot;, &quot;}}</code></td>
+</tr>
+<tr>
+<td><code>default</code></td>
+<td>Fallback value</td>
+<td><code>{{default assignee &quot;Unassigned&quot;}}</code></td>
+</tr>
+<tr>
+<td><code>eq</code></td>
+<td>Deep equality</td>
+<td><code>{{#if (eq status &quot;Done&quot;)}}✅{{/if}}</code></td>
+</tr>
+<tr>
+<td><code>json</code></td>
+<td>Pretty-print JSON</td>
+<td><code>{{json data}}</code></td>
+</tr>
+<tr>
+<td><code>lowercase</code></td>
+<td>Lowercase</td>
+<td><code>{{lowercase text}}</code></td>
+</tr>
+<tr>
+<td><code>uppercase</code></td>
+<td>Uppercase</td>
+<td><code>{{uppercase text}}</code></td>
+</tr>
+<tr>
+<td><code>capitalize</code></td>
+<td>Capitalize first</td>
+<td><code>{{capitalize text}}</code></td>
+</tr>
+<tr>
+<td><code>title</code></td>
+<td>Title Case</td>
+<td><code>{{title text}}</code></td>
+</tr>
+<tr>
+<td><code>camel</code></td>
+<td>camelCase</td>
+<td><code>{{camel text}}</code></td>
+</tr>
+<tr>
+<td><code>snake</code></td>
+<td>snake_case</td>
+<td><code>{{snake text}}</code></td>
+</tr>
+<tr>
+<td><code>dash</code></td>
+<td>dash-case</td>
+<td><code>{{dash text}}</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="custom-helpers" class="tsd-anchor-link">Custom Helpers<a href="#custom-helpers" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
+<p>Register custom helpers via config:</p>
+<pre><code class="json"><span class="hl-1">{</span><br/><span class="hl-1">  </span><span class="hl-4">&quot;templateHelpers&quot;</span><span class="hl-1">: {</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;paths&quot;</span><span class="hl-1">: [</span><span class="hl-2">&quot;./helpers/custom.js&quot;</span><span class="hl-1">]</span><br/><span class="hl-1">  }</span><br/><span class="hl-1">}</span>
+</code><button type="button">Copy</button></pre>
+
+<p>Each file exports a default function receiving the Handlebars instance:</p>
+<pre><code class="javascript"><span class="hl-10">export</span><span class="hl-1"> </span><span class="hl-10">default</span><span class="hl-1"> </span><span class="hl-3">function</span><span class="hl-1">(</span><span class="hl-8">Handlebars</span><span class="hl-1">) {</span><br/><span class="hl-1">  </span><span class="hl-8">Handlebars</span><span class="hl-1">.</span><span class="hl-0">registerHelper</span><span class="hl-1">(</span><span class="hl-2">&#39;ticketUrl&#39;</span><span class="hl-1">, (</span><span class="hl-8">key</span><span class="hl-1">) </span><span class="hl-3">=&gt;</span><br/><span class="hl-1">    </span><span class="hl-2">`https://myorg.atlassian.net/browse/</span><span class="hl-3">${</span><span class="hl-8">key</span><span class="hl-3">}</span><span class="hl-2">`</span><br/><span class="hl-1">  );</span><br/><span class="hl-1">}</span>
+</code><button type="button">Copy</button></pre>
+
+<h3 id="production-directory-structure" class="tsd-anchor-link">Production Directory Structure<a href="#production-directory-structure" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
+<p>For production deployments, store maps and templates as individual files alongside your config. The config JSON becomes an orchestration object — it references external files rather than inlining large definitions:</p>
+<pre><code><span class="hl-8">config</span><span class="hl-1">/</span><br/><span class="hl-1">├── </span><span class="hl-8">jeeves</span><span class="hl-1">-</span><span class="hl-8">watcher</span><span class="hl-1">.</span><span class="hl-8">config</span><span class="hl-1">.</span><span class="hl-8">json</span><span class="hl-1">    ← </span><span class="hl-8">orchestration</span><br/><span class="hl-1">├── </span><span class="hl-8">maps</span><span class="hl-1">/</span><br/><span class="hl-1">│   ├── </span><span class="hl-8">jira</span><span class="hl-1">-</span><span class="hl-8">issue</span><span class="hl-1">.</span><span class="hl-8">json</span><br/><span class="hl-1">│   ├── </span><span class="hl-8">jira</span><span class="hl-1">-</span><span class="hl-8">sprint</span><span class="hl-1">.</span><span class="hl-8">json</span><br/><span class="hl-1">│   ├── </span><span class="hl-8">email</span><span class="hl-1">-</span><span class="hl-8">thread</span><span class="hl-1">.</span><span class="hl-8">json</span><br/><span class="hl-1">│   └── </span><span class="hl-8">slack</span><span class="hl-1">-</span><span class="hl-8">message</span><span class="hl-1">.</span><span class="hl-8">json</span><br/><span class="hl-1">└── </span><span class="hl-8">templates</span><span class="hl-1">/</span><br/><span class="hl-1">    ├── </span><span class="hl-8">jira</span><span class="hl-1">-</span><span class="hl-8">entity</span><span class="hl-1">.</span><span class="hl-8">hbs</span><br/><span class="hl-1">    ├── </span><span class="hl-8">html</span><span class="hl-1">-</span><span class="hl-8">document</span><span class="hl-1">.</span><span class="hl-8">hbs</span><br/><span class="hl-1">    ├── </span><span class="hl-8">chat</span><span class="hl-1">-</span><span class="hl-8">message</span><span class="hl-1">.</span><span class="hl-8">hbs</span><br/><span class="hl-1">    └── </span><span class="hl-8">metadata</span><span class="hl-1">-</span><span class="hl-8">record</span><span class="hl-1">.</span><span class="hl-8">hbs</span>
+</code><button>Copy</button></pre>
+
+<p><strong>Why separate files:</strong></p>
+<ul>
+<li><strong>Version control</strong> — each map and template has its own diff history</li>
+<li><strong>Editability</strong> — <code>.hbs</code> files get syntax highlighting and editor support; JSON maps are easier to read without config noise around them</li>
+<li><strong>Reuse</strong> — multiple rules can reference the same template (e.g., Jira issues and sprints share <code>jira-entity.hbs</code> with different maps normalizing their field paths)</li>
+<li><strong>Testing</strong> — templates can be validated independently</li>
+</ul>
+<p><strong>Config references:</strong></p>
+<pre><code class="json"><span class="hl-1">{</span><br/><span class="hl-1">  </span><span class="hl-4">&quot;templates&quot;</span><span class="hl-1">: {</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;jira-entity&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;templates/jira-entity.hbs&quot;</span><span class="hl-1">,</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;html-document&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;templates/html-document.hbs&quot;</span><br/><span class="hl-1">  },</span><br/><span class="hl-1">  </span><span class="hl-4">&quot;maps&quot;</span><span class="hl-1">: {</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;jira-issue&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;maps/jira-issue.json&quot;</span><span class="hl-1">,</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;jira-sprint&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;maps/jira-sprint.json&quot;</span><br/><span class="hl-1">  },</span><br/><span class="hl-1">  </span><span class="hl-4">&quot;inferenceRules&quot;</span><span class="hl-1">: [</span><br/><span class="hl-1">    {</span><br/><span class="hl-1">      </span><span class="hl-4">&quot;match&quot;</span><span class="hl-1">: { </span><span class="hl-4">&quot;...&quot;</span><span class="hl-1"> },</span><br/><span class="hl-1">      </span><span class="hl-4">&quot;map&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;jira-issue&quot;</span><span class="hl-1">,</span><br/><span class="hl-1">      </span><span class="hl-4">&quot;set&quot;</span><span class="hl-1">: { </span><span class="hl-4">&quot;...&quot;</span><span class="hl-1"> },</span><br/><span class="hl-1">      </span><span class="hl-4">&quot;template&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;jira-entity&quot;</span><br/><span class="hl-1">    }</span><br/><span class="hl-1">  ]</span><br/><span class="hl-1">}</span>
+</code><button type="button">Copy</button></pre>
+
+<p>File paths are resolved relative to the config file's directory. Auto-detection works by extension: <code>.json</code> → map file, <code>.hbs</code>/<code>.handlebars</code> → template file.</p>
+<p><strong>Inline definitions are still supported</strong> for simple cases (short templates, small maps). Use the approach that fits the complexity.</p>
+<h3 id="error-handling" class="tsd-anchor-link">Error Handling<a href="#error-handling" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
+<ul>
+<li>Template render failure → <strong>warn</strong> and fall back to raw content (file still indexed)</li>
+<li>Empty render output → <strong>warn</strong> and fall back to raw content</li>
+<li>No template on rule → unchanged behavior (raw content embedded)</li>
+</ul>
+<hr>
 <h2 id="reference-full-schema" class="tsd-anchor-link">Reference: Full Schema<a href="#reference-full-schema" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h2>
-<pre><code class="typescript"><span class="hl-3">interface</span><span class="hl-1"> </span><span class="hl-12">InferenceRule</span><span class="hl-1"> {</span><br/><span class="hl-1">  </span><span class="hl-8">match</span><span class="hl-1">: </span><span class="hl-12">Record</span><span class="hl-1">&lt;</span><span class="hl-12">string</span><span class="hl-1">, </span><span class="hl-12">unknown</span><span class="hl-1">&gt;; </span><span class="hl-9">// JSON Schema object</span><br/><span class="hl-1">  </span><span class="hl-8">set</span><span class="hl-1">: </span><span class="hl-12">Record</span><span class="hl-1">&lt;</span><span class="hl-12">string</span><span class="hl-1">, </span><span class="hl-12">unknown</span><span class="hl-1">&gt;; </span><span class="hl-9">// Key-value pairs with optional ${template} vars</span><br/><span class="hl-1">  </span><span class="hl-8">map</span><span class="hl-1">?: </span><span class="hl-12">Record</span><span class="hl-1">&lt;</span><span class="hl-12">string</span><span class="hl-1">, </span><span class="hl-12">unknown</span><span class="hl-1">&gt; | </span><span class="hl-12">string</span><span class="hl-1">; </span><span class="hl-9">// JsonMap definition or named map reference</span><br/><span class="hl-1">}</span>
+<pre><code class="typescript"><span class="hl-3">interface</span><span class="hl-1"> </span><span class="hl-12">InferenceRule</span><span class="hl-1"> {</span><br/><span class="hl-1">  </span><span class="hl-8">match</span><span class="hl-1">: </span><span class="hl-12">Record</span><span class="hl-1">&lt;</span><span class="hl-12">string</span><span class="hl-1">, </span><span class="hl-12">unknown</span><span class="hl-1">&gt;; </span><span class="hl-9">// JSON Schema object</span><br/><span class="hl-1">  </span><span class="hl-8">set</span><span class="hl-1">: </span><span class="hl-12">Record</span><span class="hl-1">&lt;</span><span class="hl-12">string</span><span class="hl-1">, </span><span class="hl-12">unknown</span><span class="hl-1">&gt;; </span><span class="hl-9">// Key-value pairs with optional ${template} vars</span><br/><span class="hl-1">  </span><span class="hl-8">map</span><span class="hl-1">?: </span><span class="hl-12">Record</span><span class="hl-1">&lt;</span><span class="hl-12">string</span><span class="hl-1">, </span><span class="hl-12">unknown</span><span class="hl-1">&gt; | </span><span class="hl-12">string</span><span class="hl-1">; </span><span class="hl-9">// JsonMap definition, named map ref, or .json file path</span><br/><span class="hl-1">  </span><span class="hl-8">template</span><span class="hl-1">?: </span><span class="hl-12">string</span><span class="hl-1">; </span><span class="hl-9">// Handlebars template (inline, named ref, or .hbs file path)</span><br/><span class="hl-1">}</span>
 </code><button type="button">Copy</button></pre>
 
 <p>See <a href="Configuration_Reference.html#-metadata-enrichment-rules">Configuration Reference</a> for integration into the main config.</p>
-</div></div><div class="col-sidebar"><div class="page-menu"><div class="tsd-navigation settings"><details class="tsd-accordion"><summary class="tsd-accordion-summary"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg><h3>Settings</h3></summary><div class="tsd-accordion-details"><div class="tsd-filter-visibility"><span class="settings-label">Member Visibility</span><ul id="tsd-filter-options"><li class="tsd-filter-item"><label class="tsd-filter-input"><input type="checkbox" id="tsd-filter-protected" name="protected"/><svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true"><rect class="tsd-checkbox-background" width="30" height="30" x="1" y="1" rx="6" fill="none"></rect><path class="tsd-checkbox-checkmark" d="M8.35422 16.8214L13.2143 21.75L24.6458 10.25" stroke="none" stroke-width="3.5" stroke-linejoin="round" fill="none"></path></svg><span>Protected</span></label></li><li class="tsd-filter-item"><label class="tsd-filter-input"><input type="checkbox" id="tsd-filter-inherited" name="inherited" checked/><svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true"><rect class="tsd-checkbox-background" width="30" height="30" x="1" y="1" rx="6" fill="none"></rect><path class="tsd-checkbox-checkmark" d="M8.35422 16.8214L13.2143 21.75L24.6458 10.25" stroke="none" stroke-width="3.5" stroke-linejoin="round" fill="none"></path></svg><span>Inherited</span></label></li><li class="tsd-filter-item"><label class="tsd-filter-input"><input type="checkbox" id="tsd-filter-external" name="external"/><svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true"><rect class="tsd-checkbox-background" width="30" height="30" x="1" y="1" rx="6" fill="none"></rect><path class="tsd-checkbox-checkmark" d="M8.35422 16.8214L13.2143 21.75L24.6458 10.25" stroke="none" stroke-width="3.5" stroke-linejoin="round" fill="none"></path></svg><span>External</span></label></li></ul></div><div class="tsd-theme-toggle"><label class="settings-label" for="tsd-theme">Theme</label><select id="tsd-theme"><option value="os">OS</option><option value="light">Light</option><option value="dark">Dark</option></select></div></div></details></div><details open class="tsd-accordion tsd-page-navigation"><summary class="tsd-accordion-summary"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg><h3>On This Page</h3></summary><div class="tsd-accordion-details"><a href="#inference-rules"><span>Inference <wbr/>Rules</span></a><ul><li><a href="#overview"><span>Overview</span></a></li><li><a href="#rule-structure"><span>Rule <wbr/>Structure</span></a></li><li><a href="#attributes-object"><span>Attributes <wbr/>Object</span></a></li><li><a href="#matching-with-json-schema"><span>Matching with <wbr/>JSON <wbr/>Schema</span></a></li><li><ul><li><a href="#example-match-by-path-pattern"><span>Example: <wbr/>Match by <wbr/>Path <wbr/>Pattern</span></a></li></ul></li><li><a href="#custom-format"><span>Custom  <wbr/>Format</span></a></li><li><a href="#rule-processing-order"><span>Rule <wbr/>Processing <wbr/>Order</span></a></li><li><a href="#jsonmap-transformations-"><span>Json<wbr/>Map <wbr/>Transformations ()</span></a></li><li><ul><li><a href="#example-inline-extracts-a-path-segment"><span>Example: <wbr/>Inline  extracts a path segment</span></a></li><li><a href="#example-named-map-reference"><span>Example: <wbr/>Named map reference</span></a></li><li><a href="#jsonmap-library-functions"><span>Json<wbr/>Map <wbr/>Library <wbr/>Functions</span></a></li></ul></li><li><a href="#template-interpolation-in"><span>Template <wbr/>Interpolation in </span></a></li><li><a href="#rule-evaluation-order"><span>Rule <wbr/>Evaluation <wbr/>Order</span></a></li><li><a href="#practical-examples"><span>Practical <wbr/>Examples</span></a></li><li><ul><li><a href="#1-domain-classification-by-directory"><span>1. <wbr/>Domain <wbr/>Classification by <wbr/>Directory</span></a></li><li><a href="#2-extract-frontmatter-fields"><span>2. <wbr/>Extract <wbr/>Frontmatter <wbr/>Fields</span></a></li><li><a href="#3-extract-json-fields"><span>3. <wbr/>Extract <wbr/>JSON <wbr/>Fields</span></a></li><li><a href="#4-label-pdf-files"><span>4. <wbr/>Label <wbr/>PDF <wbr/>Files</span></a></li><li><a href="#5-tag-large-files"><span>5. <wbr/>Tag <wbr/>Large <wbr/>Files</span></a></li><li><a href="#6-combine-multiple-conditions"><span>6. <wbr/>Combine <wbr/>Multiple <wbr/>Conditions</span></a></li></ul></li><li><a href="#metadata-priority"><span>Metadata <wbr/>Priority</span></a></li><li><ul><li><a href="#1-inference-rules-base-layer"><span>1. <wbr/>Inference <wbr/>Rules (<wbr/>Base <wbr/>Layer)</span></a></li><li><a href="#2-enrichment-metadata-override-layer"><span>2. <wbr/>Enrichment <wbr/>Metadata (<wbr/>Override <wbr/>Layer)</span></a></li><li><a href="#final-merge-order"><span>Final <wbr/>Merge <wbr/>Order</span></a></li></ul></li><li><a href="#config-change-handling"><span>Config <wbr/>Change <wbr/>Handling</span></a></li><li><a href="#testing-rules"><span>Testing <wbr/>Rules</span></a></li><li><a href="#best-practices"><span>Best <wbr/>Practices</span></a></li><li><a href="#advanced-external-rules-file"><span>Advanced: <wbr/>External <wbr/>Rules <wbr/>File</span></a></li><li><a href="#reference-full-schema"><span>Reference: <wbr/>Full <wbr/>Schema</span></a></li></ul></div></details></div><div class="site-menu"><nav id="tsd-sidebar-links" class="tsd-navigation"><a href="https://github.com/karmaniverous/jeeves-watcher" class="tsd-nav-link">GitHub</a></nav><nav class="tsd-navigation"><a href="../modules.html">@karmaniverous/jeeves-watcher</a><ul class="tsd-small-nested-navigation" id="tsd-nav-container"><li>Loading...</li></ul></nav></div></div></div><footer><p class="tsd-generator">Generated using <a href="https://typedoc.org/" target="_blank">TypeDoc</a></p></footer><div class="overlay"></div></body></html>
+</div></div><div class="col-sidebar"><div class="page-menu"><div class="tsd-navigation settings"><details class="tsd-accordion"><summary class="tsd-accordion-summary"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg><h3>Settings</h3></summary><div class="tsd-accordion-details"><div class="tsd-filter-visibility"><span class="settings-label">Member Visibility</span><ul id="tsd-filter-options"><li class="tsd-filter-item"><label class="tsd-filter-input"><input type="checkbox" id="tsd-filter-protected" name="protected"/><svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true"><rect class="tsd-checkbox-background" width="30" height="30" x="1" y="1" rx="6" fill="none"></rect><path class="tsd-checkbox-checkmark" d="M8.35422 16.8214L13.2143 21.75L24.6458 10.25" stroke="none" stroke-width="3.5" stroke-linejoin="round" fill="none"></path></svg><span>Protected</span></label></li><li class="tsd-filter-item"><label class="tsd-filter-input"><input type="checkbox" id="tsd-filter-inherited" name="inherited" checked/><svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true"><rect class="tsd-checkbox-background" width="30" height="30" x="1" y="1" rx="6" fill="none"></rect><path class="tsd-checkbox-checkmark" d="M8.35422 16.8214L13.2143 21.75L24.6458 10.25" stroke="none" stroke-width="3.5" stroke-linejoin="round" fill="none"></path></svg><span>Inherited</span></label></li><li class="tsd-filter-item"><label class="tsd-filter-input"><input type="checkbox" id="tsd-filter-external" name="external"/><svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true"><rect class="tsd-checkbox-background" width="30" height="30" x="1" y="1" rx="6" fill="none"></rect><path class="tsd-checkbox-checkmark" d="M8.35422 16.8214L13.2143 21.75L24.6458 10.25" stroke="none" stroke-width="3.5" stroke-linejoin="round" fill="none"></path></svg><span>External</span></label></li></ul></div><div class="tsd-theme-toggle"><label class="settings-label" for="tsd-theme">Theme</label><select id="tsd-theme"><option value="os">OS</option><option value="light">Light</option><option value="dark">Dark</option></select></div></div></details></div><details open class="tsd-accordion tsd-page-navigation"><summary class="tsd-accordion-summary"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg><h3>On This Page</h3></summary><div class="tsd-accordion-details"><a href="#inference-rules"><span>Inference <wbr/>Rules</span></a><ul><li><a href="#overview"><span>Overview</span></a></li><li><a href="#rule-structure"><span>Rule <wbr/>Structure</span></a></li><li><a href="#attributes-object"><span>Attributes <wbr/>Object</span></a></li><li><a href="#matching-with-json-schema"><span>Matching with <wbr/>JSON <wbr/>Schema</span></a></li><li><ul><li><a href="#example-match-by-path-pattern"><span>Example: <wbr/>Match by <wbr/>Path <wbr/>Pattern</span></a></li></ul></li><li><a href="#custom-format"><span>Custom  <wbr/>Format</span></a></li><li><a href="#rule-processing-order"><span>Rule <wbr/>Processing <wbr/>Order</span></a></li><li><a href="#jsonmap-transformations-"><span>Json<wbr/>Map <wbr/>Transformations ()</span></a></li><li><ul><li><a href="#example-inline-extracts-a-path-segment"><span>Example: <wbr/>Inline  extracts a path segment</span></a></li><li><a href="#example-named-map-reference"><span>Example: <wbr/>Named map reference</span></a></li><li><a href="#jsonmap-library-functions"><span>Json<wbr/>Map <wbr/>Library <wbr/>Functions</span></a></li></ul></li><li><a href="#template-interpolation-in"><span>Template <wbr/>Interpolation in </span></a></li><li><a href="#rule-evaluation-order"><span>Rule <wbr/>Evaluation <wbr/>Order</span></a></li><li><a href="#practical-examples"><span>Practical <wbr/>Examples</span></a></li><li><ul><li><a href="#1-domain-classification-by-directory"><span>1. <wbr/>Domain <wbr/>Classification by <wbr/>Directory</span></a></li><li><a href="#2-extract-frontmatter-fields"><span>2. <wbr/>Extract <wbr/>Frontmatter <wbr/>Fields</span></a></li><li><a href="#3-extract-json-fields"><span>3. <wbr/>Extract <wbr/>JSON <wbr/>Fields</span></a></li><li><a href="#4-label-pdf-files"><span>4. <wbr/>Label <wbr/>PDF <wbr/>Files</span></a></li><li><a href="#5-tag-large-files"><span>5. <wbr/>Tag <wbr/>Large <wbr/>Files</span></a></li><li><a href="#6-combine-multiple-conditions"><span>6. <wbr/>Combine <wbr/>Multiple <wbr/>Conditions</span></a></li></ul></li><li><a href="#metadata-priority"><span>Metadata <wbr/>Priority</span></a></li><li><ul><li><a href="#1-inference-rules-base-layer"><span>1. <wbr/>Inference <wbr/>Rules (<wbr/>Base <wbr/>Layer)</span></a></li><li><a href="#2-enrichment-metadata-override-layer"><span>2. <wbr/>Enrichment <wbr/>Metadata (<wbr/>Override <wbr/>Layer)</span></a></li><li><a href="#final-merge-order"><span>Final <wbr/>Merge <wbr/>Order</span></a></li></ul></li><li><a href="#config-change-handling"><span>Config <wbr/>Change <wbr/>Handling</span></a></li><li><a href="#testing-rules"><span>Testing <wbr/>Rules</span></a></li><li><a href="#best-practices"><span>Best <wbr/>Practices</span></a></li><li><a href="#advanced-external-rules-file"><span>Advanced: <wbr/>External <wbr/>Rules <wbr/>File</span></a></li><li><a href="#content-templates"><span>Content <wbr/>Templates</span></a></li><li><ul><li><a href="#why-templates"><span>Why <wbr/>Templates?</span></a></li><li><a href="#template-resolution"><span>Template <wbr/>Resolution</span></a></li><li><a href="#template-context"><span>Template <wbr/>Context</span></a></li><li><a href="#example-jira-issue-template"><span>Example: <wbr/>Jira <wbr/>Issue <wbr/>Template</span></a></li><li><a href="#named-templates"><span>Named <wbr/>Templates</span></a></li><li><a href="#built-in-helpers"><span>Built-<wbr/>in <wbr/>Helpers</span></a></li><li><a href="#custom-helpers"><span>Custom <wbr/>Helpers</span></a></li><li><a href="#production-directory-structure"><span>Production <wbr/>Directory <wbr/>Structure</span></a></li><li><a href="#error-handling"><span>Error <wbr/>Handling</span></a></li></ul></li><li><a href="#reference-full-schema"><span>Reference: <wbr/>Full <wbr/>Schema</span></a></li></ul></div></details></div><div class="site-menu"><nav id="tsd-sidebar-links" class="tsd-navigation"><a href="https://github.com/karmaniverous/jeeves-watcher" class="tsd-nav-link">GitHub</a></nav><nav class="tsd-navigation"><a href="../modules.html">@karmaniverous/jeeves-watcher</a><ul class="tsd-small-nested-navigation" id="tsd-nav-container"><li>Loading...</li></ul></nav></div></div></div><footer><p class="tsd-generator">Generated using <a href="https://typedoc.org/" target="_blank">TypeDoc</a></p></footer><div class="overlay"></div></body></html>

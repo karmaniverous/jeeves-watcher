@@ -2,9 +2,27 @@
 
 All notable changes to this project will be documented in this file. Dates are displayed in UTC.
 
+#### [0.4.0](https://github.com/karmaniverous/jeeves-watcher/compare/0.3.1...0.4.0)
+
+- fix: adapt to chokidar v4 glob removal — watch directory roots with picomatch filtering [`#26`](https://github.com/karmaniverous/jeeves-watcher/pull/26)
+- feat: Content Templates (v0.4.0) — Handlebars-based content transformation at index time [`#23`](https://github.com/karmaniverous/jeeves-watcher/pull/23)
+- fix: resolve chokidar glob pattern failure on Windows by extracting directory roots [`#25`](https://github.com/karmaniverous/jeeves-watcher/issues/25)
+- feat: add template engine dependencies (handlebars, mdast-util-from-adf, etc.) [`f6d090c`](https://github.com/karmaniverous/jeeves-watcher/commit/f6d090cfe710adf94013e2d5a6f791ce72474f7a)
+- chore: update deps (hast, knip, rollup) [`3790582`](https://github.com/karmaniverous/jeeves-watcher/commit/3790582cdd5f984fc3101ed93580e34de0fccc4d)
+- feat: export template engine types, fix knip (add hast dep) [`7ae0597`](https://github.com/karmaniverous/jeeves-watcher/commit/7ae059712e46ecabcbf7539814a0783bb9410dc6)
+- refactor: decompose app/index.ts into factories and startFromConfig modules (300 LOC limit) [`33736c2`](https://github.com/karmaniverous/jeeves-watcher/commit/33736c2f2418c85c4b2c81cd48dc08758de62dcb)
+- feat: add template engine module and config schema changes [`968132f`](https://github.com/karmaniverous/jeeves-watcher/commit/968132f71cc7159afd574a4d3e90a67784a8e0ac)
+- feat: integrate template engine into pipeline (applyRules, processFile, config reload) [`64cc135`](https://github.com/karmaniverous/jeeves-watcher/commit/64cc13509c54532a09d04647e08df8795bbcff57)
+- test: add template engine tests and update existing rule tests for new return shape [`d6ef7d7`](https://github.com/karmaniverous/jeeves-watcher/commit/d6ef7d7a54f20d54e0b88a36505eca74606751f5)
+- docs: add content templates section to inference-rules guide [`ebf74ef`](https://github.com/karmaniverous/jeeves-watcher/commit/ebf74efc7fdba17dc4c90f7b477be3d415f716f1)
+- docs: add production directory structure guidance for maps and templates [`14c51c8`](https://github.com/karmaniverous/jeeves-watcher/commit/14c51c83fedb4d626e56a021870260ccf13eefcf)
+
 #### [0.3.1](https://github.com/karmaniverous/jeeves-watcher/compare/0.3.0...0.3.1)
 
+> 23 February 2026
+
 - fix: restore shebang in CLI output for correct npm .cmd wrapper generation [`#20`](https://github.com/karmaniverous/jeeves-watcher/pull/20)
+- chore: release v0.3.1 [`8a6de18`](https://github.com/karmaniverous/jeeves-watcher/commit/8a6de183a9ab5214f83d395cebd547da799f7834)
 
 #### [0.3.0](https://github.com/karmaniverous/jeeves-watcher/compare/0.2.6...0.3.0)
 
