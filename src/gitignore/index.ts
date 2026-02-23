@@ -186,14 +186,23 @@ export class GitignoreFilter {
     for (const [, repo] of this.repos) {
       // Check if file is within this repo
       const relToRepo = relative(repo.root, absPath);
-      if (relToRepo.startsWith('..') || relToRepo.startsWith(resolve('/'))) {
+      // On Windows, path.relative() across drives (e.g. D:\ → J:\) produces
+      // an absolute path with a drive letter instead of a relative one. The
+      // `ignore` library rejects these with a RangeError. Skip repos on
+      // different drives to avoid cross-drive gitignore mismatches.
+      if (
+        relToRepo.startsWith('..') ||
+        relToRepo.startsWith(resolve('/')) ||
+        /^[a-zA-Z]:/.test(relToRepo)
+      ) {
         continue;
       }
 
       // Check each `.gitignore` entry (deepest-first)
       for (const entry of repo.entries) {
         const relToEntry = relative(entry.dir, absPath);
-        if (relToEntry.startsWith('..')) continue;
+        if (relToEntry.startsWith('..') || /^[a-zA-Z]:/.test(relToEntry))
+          continue;
 
         const normalized = toForwardSlash(relToEntry);
         if (entry.ig.ignores(normalized)) {
