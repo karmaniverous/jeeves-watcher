@@ -2,12 +2,20 @@
 
 All notable changes to this project will be documented in this file. Dates are displayed in UTC.
 
+#### [0.4.1](https://github.com/karmaniverous/jeeves-watcher/compare/0.4.0...0.4.1)
+
+- fix: resolve chokidar v5 ignored glob patterns via picomatch matchers [`#27`](https://github.com/karmaniverous/jeeves-watcher/pull/27)
+- lintfix [`c36da17`](https://github.com/karmaniverous/jeeves-watcher/commit/c36da17951cdbe955e620cf8a8626d2f1bb8a8c1)
+
 #### [0.4.0](https://github.com/karmaniverous/jeeves-watcher/compare/0.3.1...0.4.0)
+
+> 23 February 2026
 
 - fix: adapt to chokidar v4 glob removal — watch directory roots with picomatch filtering [`#26`](https://github.com/karmaniverous/jeeves-watcher/pull/26)
 - feat: Content Templates (v0.4.0) — Handlebars-based content transformation at index time [`#23`](https://github.com/karmaniverous/jeeves-watcher/pull/23)
 - fix: resolve chokidar glob pattern failure on Windows by extracting directory roots [`#25`](https://github.com/karmaniverous/jeeves-watcher/issues/25)
 - feat: add template engine dependencies (handlebars, mdast-util-from-adf, etc.) [`f6d090c`](https://github.com/karmaniverous/jeeves-watcher/commit/f6d090cfe710adf94013e2d5a6f791ce72474f7a)
+- chore: release v0.4.0 [`79f7f8d`](https://github.com/karmaniverous/jeeves-watcher/commit/79f7f8d002f7deae4d4923e9e490f0e3d4e8ca3a)
 - chore: update deps (hast, knip, rollup) [`3790582`](https://github.com/karmaniverous/jeeves-watcher/commit/3790582cdd5f984fc3101ed93580e34de0fccc4d)
 - feat: export template engine types, fix knip (add hast dep) [`7ae0597`](https://github.com/karmaniverous/jeeves-watcher/commit/7ae059712e46ecabcbf7539814a0783bb9410dc6)
 - refactor: decompose app/index.ts into factories and startFromConfig modules (300 LOC limit) [`33736c2`](https://github.com/karmaniverous/jeeves-watcher/commit/33736c2f2418c85c4b2c81cd48dc08758de62dcb)
