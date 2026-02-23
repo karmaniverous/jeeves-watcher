@@ -1,100 +1,27 @@
+/**
+ * @module app
+ * Main application orchestrator. Wires components, manages lifecycle (start/stop/reload).
+ */
+
 import { dirname } from 'node:path';
 
 import type { FastifyInstance } from 'fastify';
 import type pino from 'pino';
 
-import { createApiServer } from '../api';
-import { loadConfig } from '../config';
 import type { JeevesWatcherConfig } from '../config/types';
-import type { EmbeddingProvider } from '../embedding';
-import { createEmbeddingProvider } from '../embedding';
 import { GitignoreFilter } from '../gitignore';
-import { createLogger } from '../logger';
-import { DocumentProcessor } from '../processor';
-import { EventQueue } from '../queue';
-import { compileRules } from '../rules';
+import type { DocumentProcessor } from '../processor';
+import type { EventQueue } from '../queue';
 import { buildTemplateEngine } from '../templates';
 import { normalizeError } from '../util/normalizeError';
-import { VectorStoreClient } from '../vectorStore';
-import { FileSystemWatcher, type FileSystemWatcherOptions } from '../watcher';
+import type { FileSystemWatcher } from '../watcher';
 import { ConfigWatcher } from './configWatcher';
-import { installShutdownHandlers } from './shutdown';
+import { defaultFactories, type JeevesWatcherFactories } from './factories';
 
-/**
- * Component factories for {@link JeevesWatcher}. Override in tests to inject mocks.
- */
-export interface JeevesWatcherFactories {
-  /** Load and validate a {@link JeevesWatcherConfig} from disk. */
-  loadConfig: (configPath?: string) => Promise<JeevesWatcherConfig>;
-  /** Create a pino logger instance. */
-  createLogger: typeof createLogger;
-  /** Create an embedding provider from config. */
-  createEmbeddingProvider: typeof createEmbeddingProvider;
-  /** Create a vector-store client for similarity search and upsert. */
-  createVectorStoreClient: (
-    config: JeevesWatcherConfig['vectorStore'],
-    dimensions: number,
-    logger: pino.Logger,
-  ) => VectorStoreClient;
-  /** Compile inference rules from config. */
-  compileRules: typeof compileRules;
-  /** Create a document processor for file ingestion. */
-  createDocumentProcessor: (
-    config: ConstructorParameters<typeof DocumentProcessor>[0],
-    embeddingProvider: EmbeddingProvider,
-    vectorStore: VectorStoreClient,
-    compiledRules: ConstructorParameters<typeof DocumentProcessor>[3],
-    logger: pino.Logger,
-    templateEngine?: ConstructorParameters<typeof DocumentProcessor>[5],
-  ) => DocumentProcessor;
-  /** Create an event queue for batching file-system events. */
-  createEventQueue: (
-    options: ConstructorParameters<typeof EventQueue>[0],
-  ) => EventQueue;
-  /** Create a file-system watcher for the configured watch paths. */
-  createFileSystemWatcher: (
-    config: JeevesWatcherConfig['watch'],
-    queue: EventQueue,
-    processor: DocumentProcessor,
-    logger: pino.Logger,
-    options?: FileSystemWatcherOptions,
-  ) => FileSystemWatcher;
-  /** Create the HTTP API server. */
-  createApiServer: typeof createApiServer;
-}
+export type { JeevesWatcherFactories } from './factories';
+export { defaultFactories } from './factories';
+export { startFromConfig } from './startFromConfig';
 
-const defaultFactories: JeevesWatcherFactories = {
-  loadConfig,
-  createLogger,
-  createEmbeddingProvider,
-  createVectorStoreClient: (config, dimensions, logger) =>
-    new VectorStoreClient(config, dimensions, logger),
-  compileRules,
-  createDocumentProcessor: (
-    config,
-    embeddingProvider,
-    vectorStore,
-    compiledRules,
-    logger,
-    templateEngine,
-  ) =>
-    new DocumentProcessor(
-      config,
-      embeddingProvider,
-      vectorStore,
-      compiledRules,
-      logger,
-      templateEngine,
-    ),
-  createEventQueue: (options) => new EventQueue(options),
-  createFileSystemWatcher: (config, queue, processor, logger, options) =>
-    new FileSystemWatcher(config, queue, processor, logger, options),
-  createApiServer,
-};
-
-/**
- * Main application class that wires together all components.
- */
 /**
  * Runtime options for {@link JeevesWatcher} that aren't serializable in config.
  */
@@ -146,26 +73,8 @@ export class JeevesWatcher {
     const logger = this.factories.createLogger(this.config.logging);
     this.logger = logger;
 
-    let embeddingProvider: EmbeddingProvider;
-    try {
-      embeddingProvider = this.factories.createEmbeddingProvider(
-        this.config.embedding,
-        logger,
-      );
-    } catch (error) {
-      logger.fatal(
-        { err: normalizeError(error) },
-        'Failed to create embedding provider',
-      );
-      throw error;
-    }
-
-    const vectorStore = this.factories.createVectorStoreClient(
-      this.config.vectorStore,
-      embeddingProvider.dimensions,
-      logger,
-    );
-    await vectorStore.ensureCollection();
+    const { embeddingProvider, vectorStore } =
+      await this.initEmbeddingAndStore(logger);
 
     const compiledRules = this.factories.compileRules(
       this.config.inferenceRules ?? [],
@@ -179,16 +88,14 @@ export class JeevesWatcher {
       configDir,
     );
 
-    const processorConfig = {
-      metadataDir: this.config.metadataDir ?? '.jeeves-metadata',
-      chunkSize: this.config.embedding.chunkSize,
-      chunkOverlap: this.config.embedding.chunkOverlap,
-      maps: this.config.maps,
-      configDir,
-    };
-
     const processor = this.factories.createDocumentProcessor(
-      processorConfig,
+      {
+        metadataDir: this.config.metadataDir ?? '.jeeves-metadata',
+        chunkSize: this.config.embedding.chunkSize,
+        chunkOverlap: this.config.embedding.chunkOverlap,
+        maps: this.config.maps,
+        configDir,
+      },
       embeddingProvider,
       vectorStore,
       compiledRules,
@@ -197,49 +104,21 @@ export class JeevesWatcher {
     );
     this.processor = processor;
 
-    const queue = this.factories.createEventQueue({
+    this.queue = this.factories.createEventQueue({
       debounceMs: this.config.watch.debounceMs ?? 2000,
       concurrency: this.config.embedding.concurrency ?? 5,
       rateLimitPerMinute: this.config.embedding.rateLimitPerMinute,
     });
-    this.queue = queue;
 
-    const respectGitignore = this.config.watch.respectGitignore ?? true;
-    const gitignoreFilter = respectGitignore
-      ? new GitignoreFilter(this.config.watch.paths)
-      : undefined;
-
-    const watcher = this.factories.createFileSystemWatcher(
-      this.config.watch,
-      queue,
-      processor,
-      logger,
-      {
-        maxRetries: this.config.maxRetries,
-        maxBackoffMs: this.config.maxBackoffMs,
-        onFatalError: this.runtimeOptions.onFatalError,
-        gitignoreFilter,
-      },
-    );
-    this.watcher = watcher;
-
-    const server = this.factories.createApiServer({
+    this.watcher = this.createWatcher(this.queue, processor, logger);
+    this.server = await this.startApiServer(
       processor,
       vectorStore,
       embeddingProvider,
-      queue,
-      config: this.config,
       logger,
-    });
-    this.server = server;
+    );
 
-    await server.listen({
-      host: this.config.api?.host ?? '127.0.0.1',
-      port: this.config.api?.port ?? 3456,
-    });
-
-    watcher.start();
-
+    this.watcher.start();
     this.startConfigWatch();
 
     logger.info('jeeves-watcher started');
@@ -281,24 +160,98 @@ export class JeevesWatcher {
     this.logger?.info('jeeves-watcher stopped');
   }
 
+  private async initEmbeddingAndStore(logger: pino.Logger) {
+    let embeddingProvider;
+    try {
+      embeddingProvider = this.factories.createEmbeddingProvider(
+        this.config.embedding,
+        logger,
+      );
+    } catch (error) {
+      logger.fatal(
+        { err: normalizeError(error) },
+        'Failed to create embedding provider',
+      );
+      throw error;
+    }
+
+    const vectorStore = this.factories.createVectorStoreClient(
+      this.config.vectorStore,
+      embeddingProvider.dimensions,
+      logger,
+    );
+    await vectorStore.ensureCollection();
+
+    return { embeddingProvider, vectorStore };
+  }
+
+  private createWatcher(
+    queue: EventQueue,
+    processor: DocumentProcessor,
+    logger: pino.Logger,
+  ): FileSystemWatcher {
+    const respectGitignore = this.config.watch.respectGitignore ?? true;
+    const gitignoreFilter = respectGitignore
+      ? new GitignoreFilter(this.config.watch.paths)
+      : undefined;
+
+    return this.factories.createFileSystemWatcher(
+      this.config.watch,
+      queue,
+      processor,
+      logger,
+      {
+        maxRetries: this.config.maxRetries,
+        maxBackoffMs: this.config.maxBackoffMs,
+        onFatalError: this.runtimeOptions.onFatalError,
+        gitignoreFilter,
+      },
+    );
+  }
+
+  private async startApiServer(
+    processor: DocumentProcessor,
+    vectorStore: Parameters<
+      JeevesWatcherFactories['createApiServer']
+    >[0]['vectorStore'],
+    embeddingProvider: Parameters<
+      JeevesWatcherFactories['createApiServer']
+    >[0]['embeddingProvider'],
+    logger: pino.Logger,
+  ) {
+    const server = this.factories.createApiServer({
+      processor,
+      vectorStore,
+      embeddingProvider,
+      queue: this.queue!,
+      config: this.config,
+      logger,
+    });
+
+    await server.listen({
+      host: this.config.api?.host ?? '127.0.0.1',
+      port: this.config.api?.port ?? 3456,
+    });
+
+    return server;
+  }
+
   private startConfigWatch(): void {
     const logger = this.logger;
     if (!logger) return;
 
     const enabled = this.config.configWatch?.enabled ?? true;
-    if (!enabled) return;
-
-    if (!this.configPath) {
-      logger.debug('Config watch enabled, but no config path was provided');
+    if (!enabled || !this.configPath) {
+      if (!this.configPath) {
+        logger.debug('Config watch enabled, but no config path was provided');
+      }
       return;
     }
-
-    const debounceMs = this.config.configWatch?.debounceMs ?? 10000;
 
     this.configWatcher = new ConfigWatcher({
       configPath: this.configPath,
       enabled,
-      debounceMs,
+      debounceMs: this.config.configWatch?.debounceMs ?? 10000,
       logger,
       onChange: async () => this.reloadConfig(),
     });
@@ -331,7 +284,7 @@ export class JeevesWatcher {
         newConfig.inferenceRules ?? [],
       );
 
-      const reloadConfigDir = this.configPath ? dirname(this.configPath) : '.';
+      const reloadConfigDir = dirname(this.configPath);
       const newTemplateEngine = await buildTemplateEngine(
         newConfig.inferenceRules ?? [],
         newConfig.templates,
@@ -350,20 +303,4 @@ export class JeevesWatcher {
   }
 }
 
-/**
- * Create and start a JeevesWatcher from a config file path.
- *
- * @param configPath - Optional path to the configuration file.
- * @returns The running JeevesWatcher instance.
- */
-export async function startFromConfig(
-  configPath?: string,
-): Promise<JeevesWatcher> {
-  const config = await loadConfig(configPath);
-  const app = new JeevesWatcher(config, configPath);
-
-  installShutdownHandlers(() => app.stop());
-
-  await app.start();
-  return app;
-}
+// startFromConfig re-exported from ./startFromConfig
