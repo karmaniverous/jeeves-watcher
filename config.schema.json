@@ -122,7 +122,7 @@
       ]
     },
     "maps": {
-      "description": "Reusable named JsonMap transformations.",
+      "description": "Reusable named JsonMap transformations (inline definition or .json file path resolved relative to config directory).",
       "allOf": [
         {
           "$ref": "#/definitions/__schema51"
@@ -597,7 +597,14 @@
         "type": "string"
       },
       "additionalProperties": {
-        "$ref": "#/definitions/__schema48"
+        "anyOf": [
+          {
+            "$ref": "#/definitions/__schema48"
+          },
+          {
+            "type": "string"
+          }
+        ]
       }
     },
     "__schema52": {
