@@ -1,3 +1,5 @@
+import { dirname } from 'node:path';
+
 import type { FastifyInstance } from 'fastify';
 import type pino from 'pino';
 
@@ -11,6 +13,7 @@ import { createLogger } from '../logger';
 import { DocumentProcessor } from '../processor';
 import { EventQueue } from '../queue';
 import { compileRules } from '../rules';
+import { buildTemplateEngine } from '../templates';
 import { normalizeError } from '../util/normalizeError';
 import { VectorStoreClient } from '../vectorStore';
 import { FileSystemWatcher, type FileSystemWatcherOptions } from '../watcher';
@@ -42,6 +45,7 @@ export interface JeevesWatcherFactories {
     vectorStore: VectorStoreClient,
     compiledRules: ConstructorParameters<typeof DocumentProcessor>[3],
     logger: pino.Logger,
+    templateEngine?: ConstructorParameters<typeof DocumentProcessor>[5],
   ) => DocumentProcessor;
   /** Create an event queue for batching file-system events. */
   createEventQueue: (
@@ -72,6 +76,7 @@ const defaultFactories: JeevesWatcherFactories = {
     vectorStore,
     compiledRules,
     logger,
+    templateEngine,
   ) =>
     new DocumentProcessor(
       config,
@@ -79,6 +84,7 @@ const defaultFactories: JeevesWatcherFactories = {
       vectorStore,
       compiledRules,
       logger,
+      templateEngine,
     ),
   createEventQueue: (options) => new EventQueue(options),
   createFileSystemWatcher: (config, queue, processor, logger, options) =>
@@ -165,11 +171,20 @@ export class JeevesWatcher {
       this.config.inferenceRules ?? [],
     );
 
+    const configDir = this.configPath ? dirname(this.configPath) : '.';
+    const templateEngine = await buildTemplateEngine(
+      this.config.inferenceRules ?? [],
+      this.config.templates,
+      this.config.templateHelpers?.paths,
+      configDir,
+    );
+
     const processorConfig = {
       metadataDir: this.config.metadataDir ?? '.jeeves-metadata',
       chunkSize: this.config.embedding.chunkSize,
       chunkOverlap: this.config.embedding.chunkOverlap,
       maps: this.config.maps,
+      configDir,
     };
 
     const processor = this.factories.createDocumentProcessor(
@@ -178,6 +193,7 @@ export class JeevesWatcher {
       vectorStore,
       compiledRules,
       logger,
+      templateEngine,
     );
     this.processor = processor;
 
@@ -314,7 +330,15 @@ export class JeevesWatcher {
       const compiledRules = this.factories.compileRules(
         newConfig.inferenceRules ?? [],
       );
-      processor.updateRules(compiledRules);
+
+      const reloadConfigDir = this.configPath ? dirname(this.configPath) : '.';
+      const newTemplateEngine = await buildTemplateEngine(
+        newConfig.inferenceRules ?? [],
+        newConfig.templates,
+        newConfig.templateHelpers?.paths,
+        reloadConfigDir,
+      );
+      processor.updateRules(compiledRules, newTemplateEngine);
 
       logger.info(
         { configPath: this.configPath, rules: compiledRules.length },
