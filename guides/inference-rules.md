@@ -592,13 +592,142 @@ For complex rule sets, store rules in a separate file:
 
 ---
 
+## Content Templates
+
+Rules can include a `template` field — a Handlebars template that renders the file's data into embeddable markdown. When a template is present, the rendered output replaces the raw file content for embedding.
+
+### Why Templates?
+
+Raw JSON from API responses embeds poorly — deeply nested fields, internal IDs, and rich text formats (ADF, HTML) produce noisy vectors. Templates transform structured data into clean, readable markdown at index time.
+
+### Template Resolution
+
+The `template` value is resolved in this order:
+
+1. **File path** — ends in `.hbs` or `.handlebars` → loaded from file (relative to config dir)
+2. **Named ref** — matches a key in top-level `config.templates` → recursively resolved
+3. **Inline** — used as a Handlebars template string directly
+
+### Template Context
+
+Templates render against a context object built from:
+- The parsed file content (JSON parsed if `.json`, raw text otherwise)
+- Fields added by `map` transforms
+
+For JSON files, the parsed JSON is spread at the top level of the context, with mapped fields merged in.
+
+### Example: Jira Issue Template
+
+```json
+{
+  "match": {
+    "properties": {
+      "file": {
+        "properties": {
+          "path": { "type": "string", "glob": "j:/domains/jira/**/*.json" }
+        }
+      }
+    }
+  },
+  "map": {
+    "key": "current.entityKey",
+    "summary": "current.current.fields.summary",
+    "status": "current.current.fields.status.name"
+  },
+  "set": {
+    "domain": "jira",
+    "key": "${key}",
+    "status": "${status}"
+  },
+  "template": "templates/jira-issue.hbs"
+}
+```
+
+**`templates/jira-issue.hbs`:**
+
+```handlebars
+# {{summary}}
+
+**Key:** {{key}} | **Status:** {{status}}
+
+---
+
+{{adfToMarkdown current.current.fields.description}}
+```
+
+### Named Templates
+
+Define reusable templates in top-level config:
+
+```json
+{
+  "templates": {
+    "jira-issue": "templates/jira-issue.hbs",
+    "simple-doc": "# {{heading}}\n\n{{body}}"
+  }
+}
+```
+
+Reference by name in rules: `"template": "jira-issue"`
+
+### Built-in Helpers
+
+| Helper | Description | Example |
+|--------|-------------|---------|
+| `adfToMarkdown` | ADF → Markdown | `{{adfToMarkdown description}}` |
+| `markdownify` | HTML → Markdown | `{{markdownify body.html}}` |
+| `dateFormat` | Format dates | `{{dateFormat created 'YYYY-MM-DD'}}` |
+| `join` | Join array | `{{join labels ", "}}` |
+| `pluck` | Extract field from array | `{{join (pluck labels "name") ", "}}` |
+| `default` | Fallback value | `{{default assignee "Unassigned"}}` |
+| `eq` | Deep equality | `{{#if (eq status "Done")}}✅{{/if}}` |
+| `json` | Pretty-print JSON | `{{json data}}` |
+| `lowercase` | Lowercase | `{{lowercase text}}` |
+| `uppercase` | Uppercase | `{{uppercase text}}` |
+| `capitalize` | Capitalize first | `{{capitalize text}}` |
+| `title` | Title Case | `{{title text}}` |
+| `camel` | camelCase | `{{camel text}}` |
+| `snake` | snake_case | `{{snake text}}` |
+| `dash` | dash-case | `{{dash text}}` |
+
+### Custom Helpers
+
+Register custom helpers via config:
+
+```json
+{
+  "templateHelpers": {
+    "paths": ["./helpers/custom.js"]
+  }
+}
+```
+
+Each file exports a default function receiving the Handlebars instance:
+
+```javascript
+export default function(Handlebars) {
+  Handlebars.registerHelper('ticketUrl', (key) =>
+    `https://myorg.atlassian.net/browse/${key}`
+  );
+}
+```
+
+### Error Handling
+
+- Template render failure → **warn** and fall back to raw content (file still indexed)
+- Empty render output → **warn** and fall back to raw content
+- No template on rule → unchanged behavior (raw content embedded)
+
+---
+
 ## Reference: Full Schema
 
 ```typescript
 interface InferenceRule {
   match: Record<string, unknown>; // JSON Schema object
   set: Record<string, unknown>; // Key-value pairs with optional ${template} vars
-  map?: Record<string, unknown> | string; // JsonMap definition or named map reference
+  map?: Record<string, unknown> | string; // JsonMap definition, named map ref, or .json file path
+  template?: string; // Handlebars template (inline, named ref, or .hbs file path)
 }
 ```
 
