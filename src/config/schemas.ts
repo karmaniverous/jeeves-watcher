@@ -205,7 +205,14 @@ export const inferenceRuleSchema = z.object({
     .union([jsonMapMapSchema, z.string()])
     .optional()
     .describe(
-      'JsonMap transformation (inline definition or named map reference).',
+      'JsonMap transformation (inline definition, named map reference, or .json file path).',
+    ),
+  /** Handlebars template (inline string, named ref, or .hbs/.handlebars file path). */
+  template: z
+    .string()
+    .optional()
+    .describe(
+      'Handlebars content template (inline string, named ref, or .hbs/.handlebars file path).',
     ),
 });
 
@@ -250,6 +257,24 @@ export const jeevesWatcherConfigSchema = z.object({
     .record(z.string(), jsonMapMapSchema)
     .optional()
     .describe('Reusable named JsonMap transformations.'),
+  /** Reusable named Handlebars templates (inline strings or .hbs/.handlebars file paths). */
+  templates: z
+    .record(z.string(), z.string())
+    .optional()
+    .describe(
+      'Named reusable Handlebars templates (inline strings or .hbs/.handlebars file paths).',
+    ),
+  /** Custom Handlebars helper registration. */
+  templateHelpers: z
+    .object({
+      /** File paths to custom helper modules. */
+      paths: z
+        .array(z.string())
+        .optional()
+        .describe('File paths to custom helper modules.'),
+    })
+    .optional()
+    .describe('Custom Handlebars helper registration.'),
   /** Logging configuration. */
   logging: loggingConfigSchema.optional().describe('Logging configuration.'),
   /** Timeout in milliseconds for graceful shutdown. */
