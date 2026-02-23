@@ -712,6 +712,59 @@ export default function(Handlebars) {
 }
 ```
 
+### Production Directory Structure
+
+For production deployments, store maps and templates as individual files alongside your config. The config JSON becomes an orchestration object — it references external files rather than inlining large definitions:
+
+```
+config/
+├── jeeves-watcher.config.json    ← orchestration
+├── maps/
+│   ├── jira-issue.json
+│   ├── jira-sprint.json
+│   ├── email-thread.json
+│   └── slack-message.json
+└── templates/
+    ├── jira-entity.hbs
+    ├── html-document.hbs
+    ├── chat-message.hbs
+    └── metadata-record.hbs
+```
+
+**Why separate files:**
+
+- **Version control** — each map and template has its own diff history
+- **Editability** — `.hbs` files get syntax highlighting and editor support; JSON maps are easier to read without config noise around them
+- **Reuse** — multiple rules can reference the same template (e.g., Jira issues and sprints share `jira-entity.hbs` with different maps normalizing their field paths)
+- **Testing** — templates can be validated independently
+
+**Config references:**
+
+```json
+{
+  "templates": {
+    "jira-entity": "templates/jira-entity.hbs",
+    "html-document": "templates/html-document.hbs"
+  },
+  "maps": {
+    "jira-issue": "maps/jira-issue.json",
+    "jira-sprint": "maps/jira-sprint.json"
+  },
+  "inferenceRules": [
+    {
+      "match": { "..." },
+      "map": "jira-issue",
+      "set": { "..." },
+      "template": "jira-entity"
+    }
+  ]
+}
+```
+
+File paths are resolved relative to the config file's directory. Auto-detection works by extension: `.json` → map file, `.hbs`/`.handlebars` → template file.
+
+**Inline definitions are still supported** for simple cases (short templates, small maps). Use the approach that fits the complexity.
+
 ### Error Handling
 
 - Template render failure → **warn** and fall back to raw content (file still indexed)
