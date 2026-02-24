@@ -30,7 +30,7 @@ describe('getLogger', () => {
     const logger = getLogger();
 
     expect(logger).toBeDefined();
-    expect(logger.warn).toBeTypeOf('function');
+    expect(typeof logger.warn).toBe('function');
   });
 
   it('should call console.warn with both obj and msg', () => {
@@ -56,7 +56,7 @@ describe('getLogger', () => {
     const logger = getLogger(undefined);
 
     expect(logger).toBeDefined();
-    expect(logger.warn).toBeTypeOf('function');
+    expect(typeof logger.warn).toBe('function');
 
     logger.warn({ test: 'data' }, 'test message');
     expect(consoleWarnSpy).toHaveBeenCalled();

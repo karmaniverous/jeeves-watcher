@@ -19,7 +19,7 @@ describe('wrapHandler', () => {
     const handler = vi.fn().mockResolvedValue(mockResult);
     const wrapped = wrapHandler(handler, logger, 'test');
 
-    const result = await wrapped(mockRequest, mockReply);
+    const result: unknown = await wrapped(mockRequest, mockReply);
 
     expect(handler).toHaveBeenCalledWith(mockRequest, mockReply);
     expect(result).toEqual(mockResult);
@@ -71,7 +71,7 @@ describe('wrapHandler', () => {
       expect.objectContaining({
         err: expect.objectContaining({
           message: 'string error',
-        }),
+        }) as unknown,
       }),
       'TestOp failed',
     );

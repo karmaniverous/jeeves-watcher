@@ -52,13 +52,13 @@ describe('logError', () => {
 
   it('should normalize non-Error values', () => {
     const logger = pino({ level: 'silent' });
-    const errorSpy = vi.spyOn(logger, 'error');
+    vi.spyOn(logger, 'error');
 
     logError(logger, 'string error', 'Operation failed');
 
-    expect(errorSpy).toHaveBeenCalledWith(
+    expect(logger.error).toHaveBeenCalledWith(
       expect.objectContaining({
-        err: expect.objectContaining({ message: 'string error' }),
+        err: expect.objectContaining({ message: 'string error' }) as unknown,
       }),
       'Operation failed',
     );
