@@ -56,12 +56,21 @@
 <li><strong>Content Hash</strong> — SHA-256 hash of extracted text for change detection</li>
 <li><strong>Hash Check</strong> — Skip re-embedding if content unchanged</li>
 <li><strong>Build Attributes</strong> — Collect file metadata (path, size, modified, frontmatter, JSON)</li>
-<li><strong>Apply Inference Rules</strong> — Match → Set → Map → Merge (see <a href="Inference_Rules.html">Inference Rules</a>)</li>
+<li><strong>Apply Inference Rules</strong> — Match → Schema Merge → Type Coercion → Map → Merge (see <a href="Inference_Rules.html">Inference Rules</a>)
+<ul>
+<li>Match rules against file attributes (JSON Schema validation)</li>
+<li>Merge schema references (global schemas + inline) left-to-right</li>
+<li>Resolve <code>set</code> templates and coerce to declared types (v0.5.0+)</li>
+<li>Apply JsonMap transformations (if present)</li>
+<li>Track matched rule names in <code>matched_rules</code> array (v0.5.0+)</li>
+</ul>
+</li>
 <li><strong>Read Enrichment Metadata</strong> — Load <code>.meta.json</code> sidecar if exists</li>
 <li><strong>Merge Metadata</strong> — Combine inference rules + enrichment (enrichment wins)</li>
 <li><strong>Chunk Text</strong> — Split large documents with overlap</li>
 <li><strong>Embed Chunks</strong> — Generate vectors via embedding provider</li>
-<li><strong>Upsert to Qdrant</strong> — Store vectors + payloads</li>
+<li><strong>Upsert to Qdrant</strong> — Store vectors + payloads (including <code>matched_rules</code>)</li>
+<li><strong>Update Values Index</strong> — Track distinct values per property per rule (v0.5.0+)</li>
 <li><strong>Cleanup Orphaned Chunks</strong> — Remove old chunks if document shrunk</li>
 </ol>
 <h3 id="3-metadata-enrichment-api" class="tsd-anchor-link">3. Metadata Enrichment (API)<a href="#3-metadata-enrichment-api" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
@@ -132,6 +141,106 @@
 </tr>
 </tbody>
 </table>
+<hr>
+<h2 id="v050-processing-details" class="tsd-anchor-link">v0.5.0 Processing Details<a href="#v050-processing-details" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h2>
+<h3 id="schema-merge-flow" class="tsd-anchor-link">Schema Merge Flow<a href="#schema-merge-flow" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
+<p>The v0.5.0 inference rules system uses declarative JSON Schemas with type coercion. When a rule matches a file, the watcher merges schema references and applies type coercion:</p>
+<pre><code class="plantuml">@startuml
+skinparam backgroundColor #FEFEFE
+skinparam defaultFontName Arial
+
+rectangle "Rule Schema Array" as schemas {
+  rectangle "Global Schema\n'base'" as global1 #LightBlue
+  rectangle "Global Schema\n'jira-common'" as global2 #LightBlue
+  rectangle "Inline Schema\n{properties: {...}}" as inline #LightGreen
+}
+
+rectangle "Schema Merge\n(Left-to-Right)" as merge #LightYellow {
+  rectangle "Merged Properties" as merged
+}
+
+rectangle "Set Resolution\n& Type Coercion" as coerce #LightCoral {
+  rectangle "Interpolate ${...}" as interp
+  rectangle "Coerce to Type" as types
+}
+
+rectangle "Final Metadata" as final #LightGreen
+
+schemas --> merge
+merge --> coerce
+coerce --> final
+
+note right of merge
+  Property-level merge
+  Later entries override earlier
+end note
+
+note right of coerce
+  string → integer/number/boolean/array/object
+  Empty strings → undefined (non-string types)
+end note
+@enduml
+</code><button type="button">Copy</button></pre>
+
+<p><strong>Key steps:</strong></p>
+<ol>
+<li><strong>Resolve named references</strong> from global <code>schemas</code> collection</li>
+<li><strong>Merge properties</strong> left-to-right (later entries override earlier ones)</li>
+<li><strong>Validate completeness</strong> — every property must have a <code>type</code></li>
+<li><strong>Resolve <code>set</code> templates</strong> — interpolate <code>${...}</code> expressions against file attributes</li>
+<li><strong>Coerce values</strong> — convert strings to declared types (integer, number, boolean, array, object)</li>
+<li><strong>Omit failures</strong> — properties that fail coercion are excluded from payload</li>
+</ol>
+<h3 id="config-watch-reindex-flow" class="tsd-anchor-link">Config Watch Reindex Flow<a href="#config-watch-reindex-flow" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
+<p>When config files change, the watcher can trigger different reindex modes based on <code>configWatch.reindex</code>:</p>
+<pre><code class="plantuml">@startuml
+skinparam backgroundColor #FEFEFE
+skinparam defaultFontName Arial
+
+rectangle "Config File Changed" as config #LightBlue
+rectangle "Debounce\n(configWatch.debounceMs)" as debounce #LightYellow
+rectangle "Reload & Validate Config" as reload #LightCoral
+rectangle "Recompile Rules" as compile #LightGreen
+
+rectangle "Reindex Mode?" as mode #LightYellow {
+  rectangle "'issues'\n(default)" as issues #LightGreen
+  rectangle "'full'" as full #LightCoral
+  rectangle "'none'" as none #LightGray
+}
+
+rectangle "Re-process\nIssues File Only" as proc_issues #LightGreen
+rectangle "Re-process\nAll Files" as proc_full #LightCoral
+rectangle "No Reindex" as proc_none #LightGray
+
+config --> debounce
+debounce --> reload
+reload --> compile
+compile --> mode
+mode --> issues
+mode --> full
+mode --> none
+issues --> proc_issues
+full --> proc_full
+none --> proc_none
+
+note right of proc_issues
+  Targeted: only files that failed
+  Metadata-only (no re-embedding)
+end note
+
+note right of proc_full
+  Re-extract, re-embed, re-upsert
+  Use when types/properties change
+end note
+@enduml
+</code><button type="button">Copy</button></pre>
+
+<p><strong>Modes:</strong></p>
+<ul>
+<li><strong><code>issues</code></strong> (default) — Re-process only files in <code>issues.json</code> (cheap, targeted)</li>
+<li><strong><code>full</code></strong> — Re-process all watched files (expensive, comprehensive)</li>
+<li><strong><code>none</code></strong> — No automatic reindex (manual <code>POST /reindex</code> required)</li>
+</ul>
 <hr>
 <h2 id="content-hashing" class="tsd-anchor-link">Content Hashing<a href="#content-hashing" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h2>
 <p>Every processed file gets a content hash (<code>sha256</code> of extracted text) stored in the Qdrant payload.</p>
@@ -457,4 +566,4 @@
 <li><a href="API_Reference.html">API Reference</a> — HTTP endpoints</li>
 <li><a href="Deployment_Guide.html">Deployment Guide</a> — Production setup</li>
 </ul>
-</div></div><div class="col-sidebar"><div class="page-menu"><div class="tsd-navigation settings"><details class="tsd-accordion"><summary class="tsd-accordion-summary"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg><h3>Settings</h3></summary><div class="tsd-accordion-details"><div class="tsd-filter-visibility"><span class="settings-label">Member Visibility</span><ul id="tsd-filter-options"><li class="tsd-filter-item"><label class="tsd-filter-input"><input type="checkbox" id="tsd-filter-protected" name="protected"/><svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true"><rect class="tsd-checkbox-background" width="30" height="30" x="1" y="1" rx="6" fill="none"></rect><path class="tsd-checkbox-checkmark" d="M8.35422 16.8214L13.2143 21.75L24.6458 10.25" stroke="none" stroke-width="3.5" stroke-linejoin="round" fill="none"></path></svg><span>Protected</span></label></li><li class="tsd-filter-item"><label class="tsd-filter-input"><input type="checkbox" id="tsd-filter-inherited" name="inherited" checked/><svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true"><rect class="tsd-checkbox-background" width="30" height="30" x="1" y="1" rx="6" fill="none"></rect><path class="tsd-checkbox-checkmark" d="M8.35422 16.8214L13.2143 21.75L24.6458 10.25" stroke="none" stroke-width="3.5" stroke-linejoin="round" fill="none"></path></svg><span>Inherited</span></label></li><li class="tsd-filter-item"><label class="tsd-filter-input"><input type="checkbox" id="tsd-filter-external" name="external"/><svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true"><rect class="tsd-checkbox-background" width="30" height="30" x="1" y="1" rx="6" fill="none"></rect><path class="tsd-checkbox-checkmark" d="M8.35422 16.8214L13.2143 21.75L24.6458 10.25" stroke="none" stroke-width="3.5" stroke-linejoin="round" fill="none"></path></svg><span>External</span></label></li></ul></div><div class="tsd-theme-toggle"><label class="settings-label" for="tsd-theme">Theme</label><select id="tsd-theme"><option value="os">OS</option><option value="light">Light</option><option value="dark">Dark</option></select></div></div></details></div><details open class="tsd-accordion tsd-page-navigation"><summary class="tsd-accordion-summary"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg><h3>On This Page</h3></summary><div class="tsd-accordion-details"><a href="#architecture"><span>Architecture</span></a><ul><li><a href="#design-principles"><span>Design <wbr/>Principles</span></a></li><li><a href="#system-architecture"><span>System <wbr/>Architecture</span></a></li><li><a href="#three-sources-of-truth"><span>Three <wbr/>Sources of <wbr/>Truth</span></a></li><li><ul><li><a href="#rebuild-flows"><span>Rebuild <wbr/>Flows</span></a></li></ul></li><li><a href="#data-flow"><span>Data <wbr/>Flow</span></a></li><li><ul><li><a href="#1-file-change-event"><span>1. <wbr/>File <wbr/>Change <wbr/>Event</span></a></li><li><a href="#2-document-processing-pipeline"><span>2. <wbr/>Document <wbr/>Processing <wbr/>Pipeline</span></a></li><li><a href="#3-metadata-enrichment-api"><span>3. <wbr/>Metadata <wbr/>Enrichment (<wbr/>API)</span></a></li><li><a href="#4-search-flow"><span>4. <wbr/>Search <wbr/>Flow</span></a></li></ul></li><li><a href="#chunking-strategy"><span>Chunking <wbr/>Strategy</span></a></li><li><a href="#content-hashing"><span>Content <wbr/>Hashing</span></a></li><li><a href="#point-id-generation"><span>Point <wbr/>ID <wbr/>Generation</span></a></li><li><a href="#event-processing"><span>Event <wbr/>Processing</span></a></li><li><ul><li><a href="#event-queue"><span>Event <wbr/>Queue</span></a></li><li><a href="#startup-behavior"><span>Startup <wbr/>Behavior</span></a></li><li><a href="#config-change-handling"><span>Config <wbr/>Change <wbr/>Handling</span></a></li></ul></li><li><a href="#metadata-store-design"><span>Metadata <wbr/>Store <wbr/>Design</span></a></li><li><ul><li><a href="#path-derivation"><span>Path <wbr/>Derivation</span></a></li><li><a href="#file-format"><span>File <wbr/>Format</span></a></li><li><a href="#write-policy"><span>Write <wbr/>Policy</span></a></li></ul></li><li><a href="#inference-rules-engine"><span>Inference <wbr/>Rules <wbr/>Engine</span></a></li><li><a href="#text-extraction"><span>Text <wbr/>Extraction</span></a></li><li><ul><li><a href="#extractors-by-file-type"><span>Extractors by <wbr/>File <wbr/>Type</span></a></li></ul></li><li><a href="#error-handling-retry"><span>Error <wbr/>Handling &amp; <wbr/>Retry</span></a></li><li><a href="#graceful-shutdown"><span>Graceful <wbr/>Shutdown</span></a></li><li><a href="#collection-bootstrap"><span>Collection <wbr/>Bootstrap</span></a></li><li><a href="#logging"><span>Logging</span></a></li><li><a href="#technology-choices"><span>Technology <wbr/>Choices</span></a></li><li><a href="#extending-the-watcher"><span>Extending the <wbr/>Watcher</span></a></li><li><ul><li><a href="#add-a-new-extractor"><span>Add a <wbr/>New <wbr/>Extractor</span></a></li><li><a href="#add-a-new-embedding-provider"><span>Add a <wbr/>New <wbr/>Embedding <wbr/>Provider</span></a></li></ul></li><li><a href="#next-steps"><span>Next <wbr/>Steps</span></a></li></ul></div></details></div><div class="site-menu"><nav id="tsd-sidebar-links" class="tsd-navigation"><a href="https://github.com/karmaniverous/jeeves-watcher" class="tsd-nav-link">GitHub</a></nav><nav class="tsd-navigation"><a href="../modules.html">@karmaniverous/jeeves-watcher</a><ul class="tsd-small-nested-navigation" id="tsd-nav-container"><li>Loading...</li></ul></nav></div></div></div><footer><p class="tsd-generator">Generated using <a href="https://typedoc.org/" target="_blank">TypeDoc</a></p></footer><div class="overlay"></div></body></html>
+</div></div><div class="col-sidebar"><div class="page-menu"><div class="tsd-navigation settings"><details class="tsd-accordion"><summary class="tsd-accordion-summary"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg><h3>Settings</h3></summary><div class="tsd-accordion-details"><div class="tsd-filter-visibility"><span class="settings-label">Member Visibility</span><ul id="tsd-filter-options"><li class="tsd-filter-item"><label class="tsd-filter-input"><input type="checkbox" id="tsd-filter-protected" name="protected"/><svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true"><rect class="tsd-checkbox-background" width="30" height="30" x="1" y="1" rx="6" fill="none"></rect><path class="tsd-checkbox-checkmark" d="M8.35422 16.8214L13.2143 21.75L24.6458 10.25" stroke="none" stroke-width="3.5" stroke-linejoin="round" fill="none"></path></svg><span>Protected</span></label></li><li class="tsd-filter-item"><label class="tsd-filter-input"><input type="checkbox" id="tsd-filter-inherited" name="inherited" checked/><svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true"><rect class="tsd-checkbox-background" width="30" height="30" x="1" y="1" rx="6" fill="none"></rect><path class="tsd-checkbox-checkmark" d="M8.35422 16.8214L13.2143 21.75L24.6458 10.25" stroke="none" stroke-width="3.5" stroke-linejoin="round" fill="none"></path></svg><span>Inherited</span></label></li><li class="tsd-filter-item"><label class="tsd-filter-input"><input type="checkbox" id="tsd-filter-external" name="external"/><svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true"><rect class="tsd-checkbox-background" width="30" height="30" x="1" y="1" rx="6" fill="none"></rect><path class="tsd-checkbox-checkmark" d="M8.35422 16.8214L13.2143 21.75L24.6458 10.25" stroke="none" stroke-width="3.5" stroke-linejoin="round" fill="none"></path></svg><span>External</span></label></li></ul></div><div class="tsd-theme-toggle"><label class="settings-label" for="tsd-theme">Theme</label><select id="tsd-theme"><option value="os">OS</option><option value="light">Light</option><option value="dark">Dark</option></select></div></div></details></div><details open class="tsd-accordion tsd-page-navigation"><summary class="tsd-accordion-summary"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg><h3>On This Page</h3></summary><div class="tsd-accordion-details"><a href="#architecture"><span>Architecture</span></a><ul><li><a href="#design-principles"><span>Design <wbr/>Principles</span></a></li><li><a href="#system-architecture"><span>System <wbr/>Architecture</span></a></li><li><a href="#three-sources-of-truth"><span>Three <wbr/>Sources of <wbr/>Truth</span></a></li><li><ul><li><a href="#rebuild-flows"><span>Rebuild <wbr/>Flows</span></a></li></ul></li><li><a href="#data-flow"><span>Data <wbr/>Flow</span></a></li><li><ul><li><a href="#1-file-change-event"><span>1. <wbr/>File <wbr/>Change <wbr/>Event</span></a></li><li><a href="#2-document-processing-pipeline"><span>2. <wbr/>Document <wbr/>Processing <wbr/>Pipeline</span></a></li><li><a href="#3-metadata-enrichment-api"><span>3. <wbr/>Metadata <wbr/>Enrichment (<wbr/>API)</span></a></li><li><a href="#4-search-flow"><span>4. <wbr/>Search <wbr/>Flow</span></a></li></ul></li><li><a href="#chunking-strategy"><span>Chunking <wbr/>Strategy</span></a></li><li><a href="#v050-processing-details"><span>v0.5.0 <wbr/>Processing <wbr/>Details</span></a></li><li><ul><li><a href="#schema-merge-flow"><span>Schema <wbr/>Merge <wbr/>Flow</span></a></li><li><a href="#config-watch-reindex-flow"><span>Config <wbr/>Watch <wbr/>Reindex <wbr/>Flow</span></a></li></ul></li><li><a href="#content-hashing"><span>Content <wbr/>Hashing</span></a></li><li><a href="#point-id-generation"><span>Point <wbr/>ID <wbr/>Generation</span></a></li><li><a href="#event-processing"><span>Event <wbr/>Processing</span></a></li><li><ul><li><a href="#event-queue"><span>Event <wbr/>Queue</span></a></li><li><a href="#startup-behavior"><span>Startup <wbr/>Behavior</span></a></li><li><a href="#config-change-handling"><span>Config <wbr/>Change <wbr/>Handling</span></a></li></ul></li><li><a href="#metadata-store-design"><span>Metadata <wbr/>Store <wbr/>Design</span></a></li><li><ul><li><a href="#path-derivation"><span>Path <wbr/>Derivation</span></a></li><li><a href="#file-format"><span>File <wbr/>Format</span></a></li><li><a href="#write-policy"><span>Write <wbr/>Policy</span></a></li></ul></li><li><a href="#inference-rules-engine"><span>Inference <wbr/>Rules <wbr/>Engine</span></a></li><li><a href="#text-extraction"><span>Text <wbr/>Extraction</span></a></li><li><ul><li><a href="#extractors-by-file-type"><span>Extractors by <wbr/>File <wbr/>Type</span></a></li></ul></li><li><a href="#error-handling-retry"><span>Error <wbr/>Handling &amp; <wbr/>Retry</span></a></li><li><a href="#graceful-shutdown"><span>Graceful <wbr/>Shutdown</span></a></li><li><a href="#collection-bootstrap"><span>Collection <wbr/>Bootstrap</span></a></li><li><a href="#logging"><span>Logging</span></a></li><li><a href="#technology-choices"><span>Technology <wbr/>Choices</span></a></li><li><a href="#extending-the-watcher"><span>Extending the <wbr/>Watcher</span></a></li><li><ul><li><a href="#add-a-new-extractor"><span>Add a <wbr/>New <wbr/>Extractor</span></a></li><li><a href="#add-a-new-embedding-provider"><span>Add a <wbr/>New <wbr/>Embedding <wbr/>Provider</span></a></li></ul></li><li><a href="#next-steps"><span>Next <wbr/>Steps</span></a></li></ul></div></details></div><div class="site-menu"><nav id="tsd-sidebar-links" class="tsd-navigation"><a href="https://github.com/karmaniverous/jeeves-watcher" class="tsd-nav-link">GitHub</a></nav><nav class="tsd-navigation"><a href="../modules.html">@karmaniverous/jeeves-watcher</a><ul class="tsd-small-nested-navigation" id="tsd-nav-container"><li>Loading...</li></ul></nav></div></div></div><footer><p class="tsd-generator">Generated using <a href="https://typedoc.org/" target="_blank">TypeDoc</a></p></footer><div class="overlay"></div></body></html>

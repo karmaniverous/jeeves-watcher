@@ -103,7 +103,7 @@
 <pre><code class="json"><span class="hl-1">{</span><br/><span class="hl-1">  </span><span class="hl-4">&quot;embedding&quot;</span><span class="hl-1">: {</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;apiKey&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;${GOOGLE_API_KEY}&quot;</span><br/><span class="hl-1">  }</span><br/><span class="hl-1">}</span>
 </code><button type="button">Copy</button></pre>
 
-<p>If <code>GOOGLE_API_KEY</code> is set in the environment, the value is substituted at config load time. <strong>Unresolvable expressions are left untouched</strong> — this allows <code>${...}</code> template syntax used in inference rule <code>set</code> values (e.g. <code>${frontmatter.title}</code>, <code>${file.path}</code>) to pass through for later resolution by the rules engine.</p>
+<p>If <code>GOOGLE_API_KEY</code> is set in the environment, the value is substituted at config load time. <strong>Unresolvable expressions are left untouched</strong> — this allows <code>${...}</code> template syntax used in inference rule property schemas (e.g. <code>${frontmatter.title}</code>, <code>${file.path}</code>) to pass through for later resolution by the rules engine.</p>
 <h3 id="watch-paths" class="tsd-anchor-link">Watch Paths<a href="#watch-paths" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <pre><code class="json"><span class="hl-1">{</span><br/><span class="hl-1">  </span><span class="hl-4">&quot;watch&quot;</span><span class="hl-1">: {</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;paths&quot;</span><span class="hl-1">: [</span><span class="hl-2">&quot;./docs&quot;</span><span class="hl-1">, </span><span class="hl-2">&quot;./notes&quot;</span><span class="hl-1">],</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;ignored&quot;</span><span class="hl-1">: [</span><span class="hl-2">&quot;**/node_modules/**&quot;</span><span class="hl-1">, </span><span class="hl-2">&quot;**/*.tmp&quot;</span><span class="hl-1">]</span><br/><span class="hl-1">  }</span><br/><span class="hl-1">}</span>
 </code><button type="button">Copy</button></pre>
@@ -123,10 +123,11 @@
 </code><button type="button">Copy</button></pre>
 
 <h3 id="inference-rules" class="tsd-anchor-link">Inference Rules<a href="#inference-rules" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h3>
-<p>Automatically enrich metadata based on file patterns:</p>
-<pre><code class="json"><span class="hl-1">{</span><br/><span class="hl-1">  </span><span class="hl-4">&quot;inferenceRules&quot;</span><span class="hl-1">: [</span><br/><span class="hl-1">    {</span><br/><span class="hl-1">      </span><span class="hl-4">&quot;match&quot;</span><span class="hl-1">: {</span><br/><span class="hl-1">        </span><span class="hl-4">&quot;properties&quot;</span><span class="hl-1">: {</span><br/><span class="hl-1">          </span><span class="hl-4">&quot;file&quot;</span><span class="hl-1">: {</span><br/><span class="hl-1">            </span><span class="hl-4">&quot;type&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;object&quot;</span><span class="hl-1">,</span><br/><span class="hl-1">            </span><span class="hl-4">&quot;properties&quot;</span><span class="hl-1">: {</span><br/><span class="hl-1">              </span><span class="hl-4">&quot;path&quot;</span><span class="hl-1">: { </span><span class="hl-4">&quot;type&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;string&quot;</span><span class="hl-1">, </span><span class="hl-4">&quot;glob&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;**/meetings/**&quot;</span><span class="hl-1"> }</span><br/><span class="hl-1">            }</span><br/><span class="hl-1">          }</span><br/><span class="hl-1">        }</span><br/><span class="hl-1">      },</span><br/><span class="hl-1">      </span><span class="hl-4">&quot;set&quot;</span><span class="hl-1">: {</span><br/><span class="hl-1">        </span><span class="hl-4">&quot;domain&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;meetings&quot;</span><span class="hl-1">,</span><br/><span class="hl-1">        </span><span class="hl-4">&quot;category&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;notes&quot;</span><br/><span class="hl-1">      }</span><br/><span class="hl-1">    }</span><br/><span class="hl-1">  ]</span><br/><span class="hl-1">}</span>
+<p>Automatically enrich metadata based on file patterns using declarative JSON Schemas:</p>
+<pre><code class="json"><span class="hl-1">{</span><br/><span class="hl-1">  </span><span class="hl-4">&quot;schemas&quot;</span><span class="hl-1">: {</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;base&quot;</span><span class="hl-1">: {</span><br/><span class="hl-1">      </span><span class="hl-4">&quot;type&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;object&quot;</span><span class="hl-1">,</span><br/><span class="hl-1">      </span><span class="hl-4">&quot;properties&quot;</span><span class="hl-1">: {</span><br/><span class="hl-1">        </span><span class="hl-4">&quot;domain&quot;</span><span class="hl-1">: {</span><br/><span class="hl-1">          </span><span class="hl-4">&quot;type&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;string&quot;</span><span class="hl-1">,</span><br/><span class="hl-1">          </span><span class="hl-4">&quot;description&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;Content domain&quot;</span><br/><span class="hl-1">        }</span><br/><span class="hl-1">      }</span><br/><span class="hl-1">    }</span><br/><span class="hl-1">  },</span><br/><span class="hl-1">  </span><span class="hl-4">&quot;inferenceRules&quot;</span><span class="hl-1">: [</span><br/><span class="hl-1">    {</span><br/><span class="hl-1">      </span><span class="hl-4">&quot;name&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;meeting-classifier&quot;</span><span class="hl-1">,</span><br/><span class="hl-1">      </span><span class="hl-4">&quot;description&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;Classify files under meetings directory&quot;</span><span class="hl-1">,</span><br/><span class="hl-1">      </span><span class="hl-4">&quot;match&quot;</span><span class="hl-1">: {</span><br/><span class="hl-1">        </span><span class="hl-4">&quot;properties&quot;</span><span class="hl-1">: {</span><br/><span class="hl-1">          </span><span class="hl-4">&quot;file&quot;</span><span class="hl-1">: {</span><br/><span class="hl-1">            </span><span class="hl-4">&quot;type&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;object&quot;</span><span class="hl-1">,</span><br/><span class="hl-1">            </span><span class="hl-4">&quot;properties&quot;</span><span class="hl-1">: {</span><br/><span class="hl-1">              </span><span class="hl-4">&quot;path&quot;</span><span class="hl-1">: { </span><span class="hl-4">&quot;type&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;string&quot;</span><span class="hl-1">, </span><span class="hl-4">&quot;glob&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;**/meetings/**&quot;</span><span class="hl-1"> }</span><br/><span class="hl-1">            }</span><br/><span class="hl-1">          }</span><br/><span class="hl-1">        }</span><br/><span class="hl-1">      },</span><br/><span class="hl-1">      </span><span class="hl-4">&quot;schema&quot;</span><span class="hl-1">: [</span><br/><span class="hl-1">        </span><span class="hl-2">&quot;base&quot;</span><span class="hl-1">,</span><br/><span class="hl-1">        {</span><br/><span class="hl-1">          </span><span class="hl-4">&quot;properties&quot;</span><span class="hl-1">: {</span><br/><span class="hl-1">            </span><span class="hl-4">&quot;domain&quot;</span><span class="hl-1">: { </span><span class="hl-4">&quot;set&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;meetings&quot;</span><span class="hl-1"> },</span><br/><span class="hl-1">            </span><span class="hl-4">&quot;category&quot;</span><span class="hl-1">: { </span><span class="hl-4">&quot;type&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;string&quot;</span><span class="hl-1">, </span><span class="hl-4">&quot;set&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;notes&quot;</span><span class="hl-1"> }</span><br/><span class="hl-1">          }</span><br/><span class="hl-1">        }</span><br/><span class="hl-1">      ]</span><br/><span class="hl-1">    }</span><br/><span class="hl-1">  ]</span><br/><span class="hl-1">}</span>
 </code><button type="button">Copy</button></pre>
 
+<p><strong>New in v0.5.0:</strong> Inference rules now use <code>schema</code> arrays that reference global named schemas. Type coercion automatically converts string interpolation results to declared types (integer, number, boolean, array, object). See <a href="documents/Inference_Rules.html">Inference Rules Guide</a> for details.</p>
 <h3 id="chunking" class="tsd-anchor-link">Chunking<a href="#chunking" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <p>Chunking settings are configured under <code>embedding</code>:</p>
 <pre><code class="json"><span class="hl-1">{</span><br/><span class="hl-1">  </span><span class="hl-4">&quot;embedding&quot;</span><span class="hl-1">: {</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;chunkSize&quot;</span><span class="hl-1">: </span><span class="hl-5">1000</span><span class="hl-1">,</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;chunkOverlap&quot;</span><span class="hl-1">: </span><span class="hl-5">200</span><br/><span class="hl-1">  }</span><br/><span class="hl-1">}</span>
@@ -161,7 +162,7 @@
 <tr>
 <td><code>/metadata</code></td>
 <td>POST</td>
-<td>Update document metadata (<code>{ path: string, metadata: object }</code>)</td>
+<td>Update document metadata with schema validation (<code>{ path: string, metadata: object }</code>)</td>
 </tr>
 <tr>
 <td><code>/reindex</code></td>
@@ -177,6 +178,26 @@
 <td><code>/config-reindex</code></td>
 <td>POST</td>
 <td>Reindex after config changes (<code>{ scope?: &quot;rules&quot; | &quot;full&quot; }</code>)</td>
+</tr>
+<tr>
+<td><code>/config/schema</code></td>
+<td>GET</td>
+<td>JSON Schema of merged virtual document (v0.5.0+)</td>
+</tr>
+<tr>
+<td><code>/config/query</code></td>
+<td>POST</td>
+<td>JSONPath query over config (<code>{ path: string, resolve?: string[] }</code>) (v0.5.0+)</td>
+</tr>
+<tr>
+<td><code>/config/match</code></td>
+<td>POST</td>
+<td>Test paths against inference rules (<code>{ paths: string[] }</code>) (v0.5.0+)</td>
+</tr>
+<tr>
+<td><code>/issues</code></td>
+<td>GET</td>
+<td>Current embedding failures and processing errors (v0.5.0+)</td>
 </tr>
 </tbody>
 </table>
