@@ -8,19 +8,14 @@ import { existsSync, readFileSync, statSync } from 'node:fs';
 import type { FastifyRequest } from 'fastify';
 import type pino from 'pino';
 
-import { jeevesWatcherConfigSchema } from '../../config/schemas';
 import type { JeevesWatcherConfig } from '../../config/types';
 import { applyRules } from '../../rules/apply';
 import { buildAttributes } from '../../rules/attributes';
 import { compileRules } from '../../rules/compile';
 import { normalizeError } from '../../util/normalizeError';
+import { type ValidationError } from './configMerge';
+import { mergeAndValidateConfig } from './mergeAndValidate';
 import { wrapHandler } from './wrapHandler';
-
-/** A validation error entry. */
-export interface ValidationError {
-  path: string;
-  message: string;
-}
 
 /** A test result for a single path. */
 export interface TestResult {
@@ -41,38 +36,9 @@ type ConfigValidateRequest = FastifyRequest<{
 }>;
 
 /**
- * Merge inference rules by name: submitted rules replace existing by name, new ones are appended.
- */
-export function mergeInferenceRules(
-  existing: Record<string, unknown>[] | undefined,
-  incoming: Record<string, unknown>[] | undefined,
-): Record<string, unknown>[] {
-  if (!incoming) return existing ?? [];
-  if (!existing) return incoming;
-
-  const merged = [...existing];
-  for (const rule of incoming) {
-    const name = rule['name'] as string | undefined;
-    if (!name) {
-      merged.push(rule);
-      continue;
-    }
-    const idx = merged.findIndex((r) => r['name'] === name);
-    if (idx >= 0) {
-      merged[idx] = rule;
-    } else {
-      merged.push(rule);
-    }
-  }
-  return merged;
-}
-
-/**
  * Validate helper file references (mapHelpers, templateHelpers).
  */
-function validateHelperFiles(
-  config: Record<string, unknown>,
-): ValidationError[] {
+function validateHelperFiles(config: Record<string, unknown>): ValidationError[] {
   const errors: ValidationError[] = [];
   for (const section of ['mapHelpers', 'templateHelpers']) {
     const helpers = config[section] as
@@ -111,48 +77,23 @@ export function createConfigValidateHandler(deps: ConfigValidateRouteDeps) {
     async (request: ConfigValidateRequest) => {
       const { config: submittedConfig, testPaths } = request.body;
 
-      let candidateRaw: Record<string, unknown> = {
-        ...(deps.config as unknown as Record<string, unknown>),
-      };
+      const { candidateRaw, parsed, errors } = mergeAndValidateConfig(
+        deps.config,
+        submittedConfig,
+      );
 
-      if (submittedConfig) {
-        const mergedRules = mergeInferenceRules(
-          candidateRaw['inferenceRules'] as
-            | Record<string, unknown>[]
-            | undefined,
-          submittedConfig['inferenceRules'] as
-            | Record<string, unknown>[]
-            | undefined,
-        );
-        candidateRaw = {
-          ...candidateRaw,
-          ...submittedConfig,
-          inferenceRules: mergedRules,
-        };
-      }
-
-      const parseResult = jeevesWatcherConfigSchema.safeParse(candidateRaw);
-      const errors: ValidationError[] = [];
-
-      if (!parseResult.success) {
-        for (const issue of parseResult.error.issues) {
-          errors.push({
-            path: issue.path.join('.'),
-            message: issue.message,
-          });
-        }
+      if (errors.length > 0) {
         return { valid: false, errors };
       }
 
-      // Validate helper files
       const helperErrors = validateHelperFiles(candidateRaw);
       if (helperErrors.length > 0) {
         return { valid: false, errors: helperErrors };
       }
 
       const testResults: TestResult[] = [];
-      if (testPaths && parseResult.data.inferenceRules) {
-        const compiled = compileRules(parseResult.data.inferenceRules);
+      if (testPaths && parsed?.inferenceRules) {
+        const compiled = compileRules(parsed.inferenceRules);
 
         for (const testPath of testPaths) {
           try {

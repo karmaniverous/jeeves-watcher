@@ -1,11 +1,14 @@
+/**
+ * @module api/handlers/configValidate.test
+ */
+
 import { describe, expect, it, vi } from 'vitest';
 import pino from 'pino';
 
 import type { ConfigValidateRouteDeps } from './configValidate';
-import {
-  createConfigValidateHandler,
-  mergeInferenceRules,
-} from './configValidate';
+import { createConfigValidateHandler } from './configValidate';
+import { mergeInferenceRules } from './configMerge';
+import type { JeevesWatcherConfig } from '../../config/types';
 
 // Minimal valid config for Zod schema
 function minimalConfig() {
@@ -20,20 +23,23 @@ function createDeps(
   configOverrides: Record<string, unknown> = {},
 ): ConfigValidateRouteDeps {
   return {
-    config: { ...minimalConfig(), ...configOverrides } as any,
+    config: {
+      ...minimalConfig(),
+      ...configOverrides,
+    } as unknown as JeevesWatcherConfig,
     logger: pino({ level: 'silent' }),
   };
 }
 
-function mockRequest(body: Record<string, unknown>) {
-  return { body } as any;
+function mockRequest<TReq>(body: Record<string, unknown>): TReq {
+  return { body } as unknown as TReq;
 }
 
-function mockReply() {
+function mockReply<TReply>(): TReply {
   return {
     status: vi.fn().mockReturnThis(),
     send: vi.fn().mockImplementation((d: unknown) => d),
-  } as any;
+  } as unknown as TReply;
 }
 
 describe('mergeInferenceRules', () => {
@@ -61,7 +67,9 @@ describe('mergeInferenceRules', () => {
     const incoming = [{ name: 'a', set: { updated: true } }];
     const result = mergeInferenceRules(existing, incoming);
     expect(result).toHaveLength(2);
-    expect(result.find((r) => r['name'] === 'b')).toBeDefined();
+    expect(
+      result.find((r: Record<string, unknown>) => r['name'] === 'b'),
+    ).toBeDefined();
   });
 
   it('returns existing when incoming is undefined', () => {
@@ -79,7 +87,15 @@ describe('createConfigValidateHandler', () => {
   it('returns valid: true for valid config', async () => {
     const deps = createDeps();
     const handler = createConfigValidateHandler(deps);
-    const result = await handler(mockRequest({}), mockReply());
+    type Req = Parameters<typeof handler>[0];
+    type Rep = Parameters<typeof handler>[1];
+
+    const result = (await handler(
+      mockRequest<Req>({}),
+      mockReply<Rep>(),
+    )) as unknown as {
+      valid: boolean;
+    };
 
     expect(result).toEqual({ valid: true });
   });
@@ -87,11 +103,13 @@ describe('createConfigValidateHandler', () => {
   it('returns valid: false with errors for invalid config', async () => {
     const deps = createDeps();
     const handler = createConfigValidateHandler(deps);
-    // Submit config that breaks schema (watch.paths must be non-empty array)
-    const result = await handler(
-      mockRequest({ config: { watch: { paths: [] } } }),
-      mockReply(),
-    );
+    type Req = Parameters<typeof handler>[0];
+    type Rep = Parameters<typeof handler>[1];
+
+    const result = (await handler(
+      mockRequest<Req>({ config: { watch: { paths: [] } } }),
+      mockReply<Rep>(),
+    )) as unknown as { valid: boolean; errors: unknown[] };
 
     expect(result.valid).toBe(false);
     expect(result.errors).toBeDefined();
@@ -101,16 +119,22 @@ describe('createConfigValidateHandler', () => {
   it('validates helper files: missing file returns error', async () => {
     const deps = createDeps();
     const handler = createConfigValidateHandler(deps);
-    const result = await handler(
-      mockRequest({
+    type Req = Parameters<typeof handler>[0];
+    type Rep = Parameters<typeof handler>[1];
+
+    const result = (await handler(
+      mockRequest<Req>({
         config: {
           mapHelpers: {
             myHelper: { path: '/nonexistent/helper.js' },
           },
         },
       }),
-      mockReply(),
-    );
+      mockReply<Rep>(),
+    )) as unknown as {
+      valid: boolean;
+      errors: Array<{ path: string; message: string }>;
+    };
 
     expect(result.valid).toBe(false);
     expect(result.errors[0].path).toBe('mapHelpers.myHelper.path');

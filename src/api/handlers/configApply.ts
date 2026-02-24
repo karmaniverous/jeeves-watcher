@@ -8,10 +8,9 @@ import { writeFile } from 'node:fs/promises';
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import type pino from 'pino';
 
-import { jeevesWatcherConfigSchema } from '../../config/schemas';
 import type { JeevesWatcherConfig } from '../../config/types';
 import type { ReindexTracker } from '../ReindexTracker';
-import { mergeInferenceRules, type ValidationError } from './configValidate';
+import { mergeAndValidateConfig } from './mergeAndValidate';
 import { wrapHandler } from './wrapHandler';
 
 /** Dependencies for the config apply route handler. */
@@ -37,30 +36,12 @@ export function createConfigApplyHandler(deps: ConfigApplyRouteDeps) {
     async (request: ConfigApplyRequest, reply: FastifyReply) => {
       const { config: submittedConfig } = request.body;
 
-      let candidateRaw: Record<string, unknown> = {
-        ...(deps.config as unknown as Record<string, unknown>),
-      };
-
-      const mergedRules = mergeInferenceRules(
-        candidateRaw['inferenceRules'] as Record<string, unknown>[] | undefined,
-        submittedConfig['inferenceRules'] as
-          | Record<string, unknown>[]
-          | undefined,
+      const { candidateRaw, errors } = mergeAndValidateConfig(
+        deps.config,
+        submittedConfig,
       );
-      candidateRaw = {
-        ...candidateRaw,
-        ...submittedConfig,
-        inferenceRules: mergedRules,
-      };
 
-      const parseResult = jeevesWatcherConfigSchema.safeParse(candidateRaw);
-      if (!parseResult.success) {
-        const errors: ValidationError[] = parseResult.error.issues.map(
-          (issue) => ({
-            path: issue.path.join('.'),
-            message: issue.message,
-          }),
-        );
+      if (errors.length > 0) {
         return await reply.status(400).send({ valid: false, errors });
       }
 
@@ -70,7 +51,6 @@ export function createConfigApplyHandler(deps: ConfigApplyRouteDeps) {
         'utf-8',
       );
 
-      // Determine reindex scope
       const reindexScope =
         deps.config.configWatch?.reindex === 'none'
           ? undefined

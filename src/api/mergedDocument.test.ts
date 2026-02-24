@@ -87,6 +87,7 @@ describe('buildMergedDocument', () => {
           mapHelpers: {
             myLib: { exports: { myFn: 'function' } },
           },
+          templateHelpers: {},
         },
       }),
     );
