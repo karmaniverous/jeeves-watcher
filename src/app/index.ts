@@ -3,47 +3,28 @@
  * Main application orchestrator. Wires components, manages lifecycle (start/stop/reload).
  */
 
-import { dirname } from 'node:path';
-
-import type { JsonMapMap } from '@karmaniverous/jsonmap';
 import type { FastifyInstance } from 'fastify';
 import type pino from 'pino';
 
 import { executeReindex } from '../api/executeReindex';
 import type { JeevesWatcherConfig } from '../config/types';
-import { GitignoreFilter } from '../gitignore';
-import { type AllHelpersIntrospection, introspectAllHelpers } from '../helpers';
+import type { AllHelpersIntrospection } from '../helpers';
 import { IssuesManager } from '../issues';
 import type { DocumentProcessorInterface } from '../processor';
 import type { EventQueue } from '../queue';
-import { loadCustomMapHelpers } from '../rules/apply';
-import { buildTemplateEngine } from '../templates';
 import { normalizeError } from '../util/normalizeError';
 import { ValuesManager } from '../values';
 import type { FileSystemWatcher } from '../watcher';
 import { ConfigWatcher } from './configWatcher';
 import { defaultFactories, type JeevesWatcherFactories } from './factories';
-
-/**
- * Resolve maps config entries to plain JsonMapMap records.
- * Handles string | JsonMapMap | \{ map, description \} union format.
- */
-function resolveMapsConfig(
-  maps?: Record<string, unknown>,
-): Record<string, JsonMapMap | string> | undefined {
-  if (!maps) return undefined;
-  const resolved: Record<string, JsonMapMap | string> = {};
-  for (const [key, value] of Object.entries(maps)) {
-    if (typeof value === 'string') {
-      resolved[key] = value;
-    } else if (value && typeof value === 'object' && 'map' in value) {
-      resolved[key] = (value as { map: JsonMapMap | string }).map;
-    } else {
-      resolved[key] = value as JsonMapMap;
-    }
-  }
-  return resolved;
-}
+import {
+  buildTemplateEngineAndCustomMapLib,
+  createProcessorConfig,
+  createWatcher,
+  getConfigDir,
+  initEmbeddingAndStore,
+  introspectHelpers,
+} from './initialization';
 
 export type { JeevesWatcherFactories } from './factories';
 export { defaultFactories } from './factories';
@@ -103,36 +84,33 @@ export class JeevesWatcher {
     const logger = this.factories.createLogger(this.config.logging);
     this.logger = logger;
 
-    const { embeddingProvider, vectorStore } =
-      await this.initEmbeddingAndStore(logger);
+    const { embeddingProvider, vectorStore } = await initEmbeddingAndStore(
+      this.config,
+      this.factories,
+      logger,
+    );
 
     const compiledRules = this.factories.compileRules(
       this.config.inferenceRules ?? [],
     );
 
-    const configDir = this.configPath ? dirname(this.configPath) : '.';
+    const configDir = getConfigDir(this.configPath);
     const { templateEngine, customMapLib } =
-      await this.buildTemplateEngineAndCustomMapLib(this.config, configDir);
+      await buildTemplateEngineAndCustomMapLib(this.config, configDir);
 
-    // Introspect helpers for merged document
-    this.helperIntrospection = await introspectAllHelpers(
-      {
-        mapHelpers: this.config.mapHelpers,
-        templateHelpers: this.config.templateHelpers,
-      },
+    this.helperIntrospection = await introspectHelpers(
+      this.config,
       configDir,
     );
 
+    const processorConfig = createProcessorConfig(
+      this.config,
+      configDir,
+      customMapLib,
+    );
+
     const processor = this.factories.createDocumentProcessor({
-      config: {
-        metadataDir: this.config.metadataDir ?? '.jeeves-metadata',
-        chunkSize: this.config.embedding.chunkSize,
-        chunkOverlap: this.config.embedding.chunkOverlap,
-        maps: resolveMapsConfig(this.config.maps as Record<string, unknown>),
-        configDir,
-        customMapLib,
-        globalSchemas: this.config.schemas,
-      },
+      config: processorConfig,
       embeddingProvider,
       vectorStore,
       compiledRules,
@@ -147,7 +125,15 @@ export class JeevesWatcher {
       rateLimitPerMinute: this.config.embedding.rateLimitPerMinute,
     });
 
-    this.watcher = this.createWatcher(this.queue, processor, logger);
+    this.watcher = createWatcher(
+      this.config,
+      this.factories,
+      this.queue,
+      processor,
+      logger,
+      this.runtimeOptions,
+    );
+
     const stateDir =
       this.config.stateDir ?? this.config.metadataDir ?? '.jeeves-metadata';
     this.issuesManager = new IssuesManager(stateDir, logger);
@@ -205,55 +191,6 @@ export class JeevesWatcher {
     this.logger?.info('jeeves-watcher stopped');
   }
 
-  private async initEmbeddingAndStore(logger: pino.Logger) {
-    let embeddingProvider;
-    try {
-      embeddingProvider = this.factories.createEmbeddingProvider(
-        this.config.embedding,
-        logger,
-      );
-    } catch (error) {
-      logger.fatal(
-        { err: normalizeError(error) },
-        'Failed to create embedding provider',
-      );
-      throw error;
-    }
-
-    const vectorStore = this.factories.createVectorStoreClient(
-      this.config.vectorStore,
-      embeddingProvider.dimensions,
-      logger,
-    );
-    await vectorStore.ensureCollection();
-
-    return { embeddingProvider, vectorStore };
-  }
-
-  private createWatcher(
-    queue: EventQueue,
-    processor: DocumentProcessorInterface,
-    logger: pino.Logger,
-  ): FileSystemWatcher {
-    const respectGitignore = this.config.watch.respectGitignore ?? true;
-    const gitignoreFilter = respectGitignore
-      ? new GitignoreFilter(this.config.watch.paths)
-      : undefined;
-
-    return this.factories.createFileSystemWatcher(
-      this.config.watch,
-      queue,
-      processor,
-      logger,
-      {
-        maxRetries: this.config.maxRetries,
-        maxBackoffMs: this.config.maxBackoffMs,
-        onFatalError: this.runtimeOptions.onFatalError,
-        gitignoreFilter,
-      },
-    );
-  }
-
   private async startApiServer(
     processor: DocumentProcessorInterface,
     vectorStore: Parameters<
@@ -286,28 +223,6 @@ export class JeevesWatcher {
     });
 
     return server;
-  }
-
-  private async buildTemplateEngineAndCustomMapLib(
-    config: JeevesWatcherConfig,
-    configDir: string,
-  ): Promise<{
-    templateEngine: Awaited<ReturnType<typeof buildTemplateEngine>>;
-    customMapLib: Record<string, (...args: unknown[]) => unknown> | undefined;
-  }> {
-    const templateEngine = await buildTemplateEngine(
-      config.inferenceRules ?? [],
-      config.templates,
-      config.templateHelpers,
-      configDir,
-    );
-
-    const customMapLib =
-      config.mapHelpers && configDir
-        ? await loadCustomMapHelpers(config.mapHelpers, configDir)
-        : undefined;
-
-    return { templateEngine, customMapLib };
   }
 
   private startConfigWatch(): void {
@@ -358,14 +273,11 @@ export class JeevesWatcher {
         newConfig.inferenceRules ?? [],
       );
 
-      const reloadConfigDir = dirname(this.configPath);
+      const reloadConfigDir = getConfigDir(this.configPath);
       const {
         templateEngine: newTemplateEngine,
         customMapLib: newCustomMapLib,
-      } = await this.buildTemplateEngineAndCustomMapLib(
-        newConfig,
-        reloadConfigDir,
-      );
+      } = await buildTemplateEngineAndCustomMapLib(newConfig, reloadConfigDir);
 
       processor.updateRules(compiledRules, newTemplateEngine, newCustomMapLib);
 
