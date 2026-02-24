@@ -9,8 +9,8 @@ import type pino from 'pino';
 import type { JeevesWatcherConfig } from '../../config/types';
 import type { DocumentProcessor } from '../../processor';
 import { normalizeError } from '../../util/normalizeError';
-import type { ReindexTracker } from '../ReindexTracker';
 import { processAllFiles } from '../processAllFiles';
+import type { ReindexTracker } from '../ReindexTracker';
 
 export interface ConfigReindexRouteDeps {
   config: JeevesWatcherConfig;

@@ -111,21 +111,22 @@ function createJsonMapLib(
 }
 
 /**
- * Load custom JsonMap lib functions from file paths.
+ * Load custom JsonMap lib functions from named helper config.
  *
  * Each module should default-export an object of functions,
  * or use named exports. Only function-valued exports are merged.
+ * Exports are namespace-prefixed as `<namespace>_<exportName>`.
  *
- * @param paths - File paths to custom lib modules.
+ * @param helpers - Named helper config: Record of namespace to path/description.
  * @param configDir - Directory to resolve relative paths against.
- * @returns The merged custom lib functions.
+ * @returns The merged custom lib functions with namespace prefixes.
  */
 export async function loadCustomMapHelpers(
-  paths: string[],
+  helpers: Record<string, { path: string; description?: string }>,
   configDir: string,
 ): Promise<Record<string, (...args: unknown[]) => unknown>> {
   const merged: Record<string, (...args: unknown[]) => unknown> = {};
-  for (const p of paths) {
+  for (const [namespace, { path: p }] of Object.entries(helpers)) {
     const resolved = resolve(configDir, p);
     const mod = (await import(pathToFileURL(resolved).href)) as Record<
       string,
@@ -137,7 +138,7 @@ export async function loadCustomMapHelpers(
         : mod;
     for (const [key, val] of Object.entries(fns)) {
       if (typeof val === 'function') {
-        merged[key] = val as (...args: unknown[]) => unknown;
+        merged[`${namespace}_${key}`] = val as (...args: unknown[]) => unknown;
       }
     }
   }

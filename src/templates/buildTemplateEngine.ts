@@ -31,8 +31,11 @@ function resolveTemplateEntry(
 
 export async function buildTemplateEngine(
   rules: InferenceRule[],
-  namedTemplates?: Record<string, string | { template: string; description?: string }>,
-  templateHelperPaths?: string[],
+  namedTemplates?: Record<
+    string,
+    string | { template: string; description?: string }
+  >,
+  templateHelpers?: Record<string, { path: string; description?: string }>,
   configDir?: string,
 ): Promise<TemplateEngine | undefined> {
   const rulesWithTemplates = rules.filter((r) => r.template);
@@ -41,8 +44,8 @@ export async function buildTemplateEngine(
   const hbs = createHandlebarsInstance();
 
   // Load custom helpers
-  if (templateHelperPaths?.length && configDir) {
-    await loadCustomHelpers(hbs, templateHelperPaths, configDir);
+  if (templateHelpers && Object.keys(templateHelpers).length > 0 && configDir) {
+    await loadCustomHelpers(hbs, templateHelpers, configDir);
   }
 
   const engine = new TemplateEngine(hbs);

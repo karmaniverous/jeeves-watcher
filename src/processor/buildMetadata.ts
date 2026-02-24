@@ -70,7 +70,11 @@ export async function buildMergedMetadata(
     extracted.frontmatter,
     extracted.json,
   );
-  const { metadata: inferred, renderedContent, matchedRules } = await applyRules(
+  const {
+    metadata: inferred,
+    renderedContent,
+    matchedRules,
+  } = await applyRules(
     compiledRules,
     attributes,
     maps,

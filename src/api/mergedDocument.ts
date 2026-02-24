@@ -6,6 +6,7 @@
 import { readFileSync } from 'node:fs';
 
 import type { JeevesWatcherConfig } from '../config/types';
+import type { AllHelpersIntrospection } from '../helpers';
 import type { IssuesManager } from '../issues';
 import type { ValuesManager } from '../values';
 
@@ -15,6 +16,38 @@ export interface BuildMergedDocumentOptions {
   valuesManager: ValuesManager;
   issuesManager: IssuesManager;
   helperExports?: Record<string, unknown>;
+  helperIntrospection?: AllHelpersIntrospection;
+}
+
+/**
+ * Build a helper section for the merged document, injecting introspection exports per namespace.
+ */
+function buildHelperSection(
+  configHelpers:
+    | Record<string, { path: string; description?: string }>
+    | undefined,
+  legacyExports: Record<string, unknown> | undefined,
+  introspection:
+    | Record<string, { exports: Record<string, string> }>
+    | undefined,
+): Record<string, unknown> {
+  if (!configHelpers) return {};
+
+  const result: Record<string, unknown> = {};
+  for (const [name, entry] of Object.entries(configHelpers)) {
+    result[name] = {
+      ...entry,
+      ...(introspection?.[name]?.exports
+        ? { exports: introspection[name].exports }
+        : {}),
+    };
+  }
+
+  if (legacyExports) {
+    result['_exports'] = legacyExports;
+  }
+
+  return result;
 }
 
 /**
@@ -26,7 +59,13 @@ export interface BuildMergedDocumentOptions {
 export function buildMergedDocument(
   options: BuildMergedDocumentOptions,
 ): Record<string, unknown> {
-  const { config, valuesManager, issuesManager, helperExports } = options;
+  const {
+    config,
+    valuesManager,
+    issuesManager,
+    helperExports,
+    helperIntrospection,
+  } = options;
 
   const inferenceRules = (config.inferenceRules ?? []).map((rule) => ({
     ...rule,
@@ -38,18 +77,16 @@ export function buildMergedDocument(
     search: config.search ?? {},
     schemas: [],
     inferenceRules,
-    mapHelpers: {
-      ...config.mapHelpers,
-      ...(helperExports?.mapHelpers
-        ? { _exports: helperExports.mapHelpers }
-        : {}),
-    },
-    templateHelpers: {
-      ...config.templateHelpers,
-      ...(helperExports?.templateHelpers
-        ? { _exports: helperExports.templateHelpers }
-        : {}),
-    },
+    mapHelpers: buildHelperSection(
+      config.mapHelpers,
+      helperExports?.mapHelpers as Record<string, unknown> | undefined,
+      helperIntrospection?.mapHelpers,
+    ),
+    templateHelpers: buildHelperSection(
+      config.templateHelpers,
+      helperExports?.templateHelpers as Record<string, unknown> | undefined,
+      helperIntrospection?.templateHelpers,
+    ),
     maps: config.maps ?? {},
     templates: config.templates ?? {},
     slots: config.slots ?? {},

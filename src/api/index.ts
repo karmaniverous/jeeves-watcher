@@ -13,7 +13,6 @@ import type { DocumentProcessor } from '../processor';
 import type { EventQueue } from '../queue';
 import type { ValuesManager } from '../values';
 import type { VectorStoreClient } from '../vectorStore';
-import { ReindexTracker } from './ReindexTracker';
 import { createConfigApplyHandler } from './handlers/configApply';
 import { createConfigQueryHandler } from './handlers/configQuery';
 import { createConfigReindexHandler } from './handlers/configReindex';
@@ -25,6 +24,7 @@ import { createReindexHandler } from './handlers/reindex';
 import { createSearchHandler } from './handlers/search';
 import { createStatusHandler } from './handlers/status';
 import { processAllFiles } from './processAllFiles';
+import { ReindexTracker } from './ReindexTracker';
 
 /**
  * Options for {@link createApiServer}.
@@ -79,8 +79,7 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
     reindexTracker.start(scope);
     void (async () => {
       try {
-        const method =
-          scope === 'rules' ? 'processRulesUpdate' : 'processFile';
+        const method = scope === 'rules' ? 'processRulesUpdate' : 'processFile';
         const count = await processAllFiles(
           config.watch.paths,
           config.watch.ignored,
@@ -132,10 +131,7 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
     }),
   );
 
-  app.post(
-    '/config/validate',
-    createConfigValidateHandler({ config, logger }),
-  );
+  app.post('/config/validate', createConfigValidateHandler({ config, logger }));
 
   app.post(
     '/config/apply',

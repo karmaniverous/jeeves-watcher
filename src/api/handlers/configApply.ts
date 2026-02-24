@@ -42,9 +42,7 @@ export function createConfigApplyHandler(deps: ConfigApplyRouteDeps) {
       };
 
       const mergedRules = mergeInferenceRules(
-        candidateRaw['inferenceRules'] as
-          | Record<string, unknown>[]
-          | undefined,
+        candidateRaw['inferenceRules'] as Record<string, unknown>[] | undefined,
         submittedConfig['inferenceRules'] as
           | Record<string, unknown>[]
           | undefined,
@@ -76,9 +74,7 @@ export function createConfigApplyHandler(deps: ConfigApplyRouteDeps) {
       const reindexScope =
         deps.config.configWatch?.reindex === 'none'
           ? undefined
-          : ((deps.config.configWatch?.reindex ?? 'rules') as
-              | 'rules'
-              | 'full');
+          : (deps.config.configWatch?.reindex ?? 'rules');
 
       if (reindexScope && deps.triggerReindex) {
         deps.triggerReindex(reindexScope);
@@ -90,10 +86,7 @@ export function createConfigApplyHandler(deps: ConfigApplyRouteDeps) {
         ...(reindexScope ? { scope: reindexScope } : {}),
       };
     } catch (error) {
-      deps.logger.error(
-        { err: normalizeError(error) },
-        'Config apply failed',
-      );
+      deps.logger.error({ err: normalizeError(error) }, 'Config apply failed');
       return reply.status(500).send({ error: 'Internal server error' });
     }
   };

@@ -14,10 +14,10 @@ import { GitignoreFilter } from '../gitignore';
 import { IssuesManager } from '../issues';
 import type { DocumentProcessor } from '../processor';
 import type { EventQueue } from '../queue';
-import { ValuesManager } from '../values';
 import { loadCustomMapHelpers } from '../rules/apply';
 import { buildTemplateEngine } from '../templates';
 import { normalizeError } from '../util/normalizeError';
+import { ValuesManager } from '../values';
 import type { FileSystemWatcher } from '../watcher';
 import { ConfigWatcher } from './configWatcher';
 import { defaultFactories, type JeevesWatcherFactories } from './factories';
@@ -34,12 +34,8 @@ function resolveMapsConfig(
   for (const [key, value] of Object.entries(maps)) {
     if (typeof value === 'string') {
       resolved[key] = value;
-    } else if (
-      value &&
-      typeof value === 'object' &&
-      'map' in value
-    ) {
-      resolved[key] = (value as { map: JsonMapMap | string }).map as JsonMapMap | string;
+    } else if (value && typeof value === 'object' && 'map' in value) {
+      resolved[key] = (value as { map: JsonMapMap | string }).map;
     } else {
       resolved[key] = value as JsonMapMap;
     }
@@ -110,23 +106,17 @@ export class JeevesWatcher {
     );
 
     const configDir = this.configPath ? dirname(this.configPath) : '.';
-    const templateHelperPaths = this.config.templateHelpers
-      ? Object.values(this.config.templateHelpers).map((h) => h.path)
-      : undefined;
     const templateEngine = await buildTemplateEngine(
       this.config.inferenceRules ?? [],
       this.config.templates,
-      templateHelperPaths,
+      this.config.templateHelpers,
       configDir,
     );
 
     // Load custom JsonMap lib functions
-    const mapHelperPaths = this.config.mapHelpers
-      ? Object.values(this.config.mapHelpers).map((h) => h.path)
-      : undefined;
     const customMapLib =
-      mapHelperPaths?.length && configDir
-        ? await loadCustomMapHelpers(mapHelperPaths, configDir)
+      this.config.mapHelpers && configDir
+        ? await loadCustomMapHelpers(this.config.mapHelpers, configDir)
         : undefined;
 
     const processor = this.factories.createDocumentProcessor(
@@ -134,7 +124,7 @@ export class JeevesWatcher {
         metadataDir: this.config.metadataDir ?? '.jeeves-metadata',
         chunkSize: this.config.embedding.chunkSize,
         chunkOverlap: this.config.embedding.chunkOverlap,
-        maps: resolveMapsConfig(this.config.maps as Record<string, unknown>) as Record<string, JsonMapMap> | undefined,
+        maps: resolveMapsConfig(this.config.maps as Record<string, unknown>),
         configDir,
         customMapLib,
       },
@@ -154,9 +144,7 @@ export class JeevesWatcher {
 
     this.watcher = this.createWatcher(this.queue, processor, logger);
     const stateDir =
-      this.config.stateDir ??
-      this.config.metadataDir ??
-      '.jeeves-metadata';
+      this.config.stateDir ?? this.config.metadataDir ?? '.jeeves-metadata';
     const issuesManager = new IssuesManager(stateDir, logger);
     const valuesManager = new ValuesManager(stateDir, logger);
 
@@ -341,22 +329,16 @@ export class JeevesWatcher {
       );
 
       const reloadConfigDir = dirname(this.configPath);
-      const reloadTemplateHelperPaths = newConfig.templateHelpers
-        ? Object.values(newConfig.templateHelpers).map((h) => h.path)
-        : undefined;
       const newTemplateEngine = await buildTemplateEngine(
         newConfig.inferenceRules ?? [],
         newConfig.templates,
-        reloadTemplateHelperPaths,
+        newConfig.templateHelpers,
         reloadConfigDir,
       );
 
-      const reloadMapHelperPaths = newConfig.mapHelpers
-        ? Object.values(newConfig.mapHelpers).map((h) => h.path)
-        : undefined;
       const newCustomMapLib =
-        reloadMapHelperPaths?.length && reloadConfigDir
-          ? await loadCustomMapHelpers(reloadMapHelperPaths, reloadConfigDir)
+        newConfig.mapHelpers && reloadConfigDir
+          ? await loadCustomMapHelpers(newConfig.mapHelpers, reloadConfigDir)
           : undefined;
 
       processor.updateRules(compiledRules, newTemplateEngine, newCustomMapLib);

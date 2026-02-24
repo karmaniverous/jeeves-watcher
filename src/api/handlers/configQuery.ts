@@ -11,10 +11,7 @@ import type { JeevesWatcherConfig } from '../../config/types';
 import type { IssuesManager } from '../../issues';
 import { normalizeError } from '../../util/normalizeError';
 import type { ValuesManager } from '../../values';
-import {
-  buildMergedDocument,
-  resolveReferences,
-} from '../mergedDocument';
+import { buildMergedDocument, resolveReferences } from '../mergedDocument';
 
 /** Dependencies for the config query route handler. */
 export interface ConfigQueryRouteDeps {
@@ -48,7 +45,7 @@ export function createConfigQueryHandler(deps: ConfigQueryRouteDeps) {
         doc = resolveReferences(doc, resolve);
       }
 
-      const result = JSONPath({ path, json: doc }) as unknown[];
+      const result = JSONPath({ path, json: doc });
       return { result, count: result.length };
     } catch (error) {
       const err = normalizeError(error);

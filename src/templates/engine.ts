@@ -69,26 +69,43 @@ export function createHandlebarsInstance(): typeof Handlebars {
 }
 
 /**
- * Load custom helpers from file paths.
+ * Load custom helpers from named helper config.
  *
- * Each file should export a default function that receives the Handlebars instance.
+ * Each file should export a default function that receives the Handlebars instance
+ * and a namespace prefix string. The function should register helpers with the
+ * namespace prefix applied.
+ *
+ * If the module does not accept a namespace argument, helpers are registered
+ * with namespace prefixing applied automatically to any helpers registered
+ * during the call.
  *
  * @param hbs - The Handlebars instance.
- * @param paths - File paths to custom helper modules.
+ * @param helpers - Named helper config: Record of namespace to path/description.
  * @param configDir - Directory to resolve relative paths against.
  */
 export async function loadCustomHelpers(
   hbs: typeof Handlebars,
-  paths: string[],
+  helpers: Record<string, { path: string; description?: string }>,
   configDir: string,
 ): Promise<void> {
-  for (const p of paths) {
+  for (const [namespace, { path: p }] of Object.entries(helpers)) {
     const resolved = resolve(configDir, p);
     const mod = (await import(pathToFileURL(resolved).href)) as {
-      default?: (h: typeof Handlebars) => void;
+      default?: (h: typeof Handlebars, ns?: string) => void;
     };
     if (typeof mod.default === 'function') {
-      mod.default(hbs);
+      // Capture helpers registered before the call
+      const before = new Set(Object.keys(hbs.helpers));
+      mod.default(hbs, namespace);
+      // Re-register any new helpers with namespace prefix
+      const after = Object.keys(hbs.helpers);
+      for (const name of after) {
+        if (!before.has(name) && !name.startsWith(`${namespace}_`)) {
+          const fn = hbs.helpers[name];
+          hbs.registerHelper(`${namespace}_${name}`, fn);
+          hbs.unregisterHelper(name);
+        }
+      }
     }
   }
 }

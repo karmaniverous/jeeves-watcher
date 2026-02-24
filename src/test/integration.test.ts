@@ -202,8 +202,14 @@ describe('API endpoints', () => {
       queue: new EventQueue({ debounceMs: 0, concurrency: 1 }),
       config,
       logger,
-      issuesManager: new IssuesManager(config.metadataDir ?? '.jeeves-metadata', logger),
-      valuesManager: new ValuesManager(config.metadataDir ?? '.jeeves-metadata', logger),
+      issuesManager: new IssuesManager(
+        config.metadataDir ?? '.jeeves-metadata',
+        logger,
+      ),
+      valuesManager: new ValuesManager(
+        config.metadataDir ?? '.jeeves-metadata',
+        logger,
+      ),
       configPath: '',
     });
 
@@ -227,8 +233,14 @@ describe('API endpoints', () => {
       queue: new EventQueue({ debounceMs: 0, concurrency: 1 }),
       config,
       logger,
-      issuesManager: new IssuesManager(config.metadataDir ?? '.jeeves-metadata', logger),
-      valuesManager: new ValuesManager(config.metadataDir ?? '.jeeves-metadata', logger),
+      issuesManager: new IssuesManager(
+        config.metadataDir ?? '.jeeves-metadata',
+        logger,
+      ),
+      valuesManager: new ValuesManager(
+        config.metadataDir ?? '.jeeves-metadata',
+        logger,
+      ),
       configPath: '',
     });
 
@@ -254,8 +266,14 @@ describe('API endpoints', () => {
       queue: new EventQueue({ debounceMs: 0, concurrency: 1 }),
       config,
       logger,
-      issuesManager: new IssuesManager(config.metadataDir ?? '.jeeves-metadata', logger),
-      valuesManager: new ValuesManager(config.metadataDir ?? '.jeeves-metadata', logger),
+      issuesManager: new IssuesManager(
+        config.metadataDir ?? '.jeeves-metadata',
+        logger,
+      ),
+      valuesManager: new ValuesManager(
+        config.metadataDir ?? '.jeeves-metadata',
+        logger,
+      ),
       configPath: '',
     });
 
@@ -376,8 +394,14 @@ describe('Metadata enrichment via API', () => {
       queue: new EventQueue({ debounceMs: 0, concurrency: 1 }),
       config,
       logger,
-      issuesManager: new IssuesManager(config.metadataDir ?? '.jeeves-metadata', logger),
-      valuesManager: new ValuesManager(config.metadataDir ?? '.jeeves-metadata', logger),
+      issuesManager: new IssuesManager(
+        config.metadataDir ?? '.jeeves-metadata',
+        logger,
+      ),
+      valuesManager: new ValuesManager(
+        config.metadataDir ?? '.jeeves-metadata',
+        logger,
+      ),
       configPath: '',
     });
 
@@ -430,8 +454,14 @@ describe('Search endpoint', () => {
       queue: new EventQueue({ debounceMs: 0, concurrency: 1 }),
       config,
       logger,
-      issuesManager: new IssuesManager(config.metadataDir ?? '.jeeves-metadata', logger),
-      valuesManager: new ValuesManager(config.metadataDir ?? '.jeeves-metadata', logger),
+      issuesManager: new IssuesManager(
+        config.metadataDir ?? '.jeeves-metadata',
+        logger,
+      ),
+      valuesManager: new ValuesManager(
+        config.metadataDir ?? '.jeeves-metadata',
+        logger,
+      ),
       configPath: '',
     });
 

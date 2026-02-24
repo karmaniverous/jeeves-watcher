@@ -35,7 +35,10 @@ export class IssuesManager {
         this.cache = {};
       }
     } catch {
-      this.logger.warn({ filePath: this.filePath }, 'Failed to read issues file, starting fresh');
+      this.logger.warn(
+        { filePath: this.filePath },
+        'Failed to read issues file, starting fresh',
+      );
       this.cache = {};
     }
     return this.cache;

@@ -17,7 +17,12 @@ export interface SearchRouteDeps {
 }
 
 type SearchRequest = FastifyRequest<{
-  Body: { query: string; limit?: number; offset?: number; filter?: Record<string, unknown> };
+  Body: {
+    query: string;
+    limit?: number;
+    offset?: number;
+    filter?: Record<string, unknown>;
+  };
 }>;
 
 /**
@@ -30,7 +35,12 @@ export function createSearchHandler(deps: SearchRouteDeps) {
     try {
       const { query, limit = 10, offset, filter } = request.body;
       const vectors = await deps.embeddingProvider.embed([query]);
-      const results = await deps.vectorStore.search(vectors[0], limit, filter, offset);
+      const results = await deps.vectorStore.search(
+        vectors[0],
+        limit,
+        filter,
+        offset,
+      );
       return results;
     } catch (error) {
       deps.logger.error({ err: normalizeError(error) }, 'Search failed');
