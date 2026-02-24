@@ -79,7 +79,7 @@ export async function buildTemplateEngineAndCustomMapLib(
   config: JeevesWatcherConfig,
   configDir: string,
 ): Promise<{
-  templateEngine: TemplateEngine;
+  templateEngine: TemplateEngine | undefined;
   customMapLib: Record<string, (...args: unknown[]) => unknown> | undefined;
 }> {
   const templateEngine = await buildTemplateEngine(

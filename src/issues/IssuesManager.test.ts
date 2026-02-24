@@ -125,7 +125,7 @@ describe('IssuesManager', () => {
         "Failed to resolve ${json.from.email}: 'from' is null",
         {
           property: 'author_email',
-          rule: 'email-archive',
+          rules: ['email-archive'],
         },
       );
 
@@ -135,7 +135,7 @@ describe('IssuesManager', () => {
       expect(issues[0]).toMatchObject({
         type: 'interpolation_error',
         property: 'author_email',
-        rule: 'email-archive',
+        rules: ['email-archive'],
         message: "Failed to resolve ${json.from.email}: 'from' is null",
       });
       expect(issues[0].timestamp).toBeTypeOf('number');
@@ -146,7 +146,7 @@ describe('IssuesManager', () => {
     it('clears issue on successful reprocess', () => {
       manager.record('healing.md', 'interpolation_error', 'Initial error', {
         property: 'title',
-        rule: 'frontmatter-title',
+        rules: ['frontmatter-title'],
       });
       expect(manager.getAll()['healing.md']).toBeDefined();
 

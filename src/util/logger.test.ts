@@ -9,7 +9,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { getLogger } from './logger';
 
 describe('getLogger', () => {
-  let consoleWarnSpy: ReturnType<typeof vi.spyOn<[unknown, string?], void>>;
+  let consoleWarnSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
     consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});

@@ -75,7 +75,12 @@ describe('initialization helpers integration', () => {
 
     const config: Partial<JeevesWatcherConfig> = {
       metadataDir: '.metadata',
-      embedding: { chunkSize: 500, chunkOverlap: 100 },
+      embedding: {
+        provider: 'gemini',
+        model: 'test-model',
+        chunkSize: 500,
+        chunkOverlap: 100,
+      },
       maps: {
         transform1: { transformations: [] },
       },
