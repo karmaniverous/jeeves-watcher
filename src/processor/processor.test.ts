@@ -175,7 +175,7 @@ describe('DocumentProcessor', () => {
       );
     });
 
-    it('records issue on error', async () => {
+    it('does not record a v2 issue on generic error', async () => {
       const { vectorStore, embeddingProvider, issuesManager, config, logger } =
         createMocks();
       mockedBuildMergedMetadata.mockRejectedValue(new Error('read fail'));
@@ -190,12 +190,7 @@ describe('DocumentProcessor', () => {
       });
       await processor.processFile('/test.txt');
 
-      expect(issuesManager.record).toHaveBeenCalledWith(
-        '/test.txt',
-        'processFile',
-        'read fail',
-        'read_failure',
-      );
+      expect(issuesManager.record).not.toHaveBeenCalled();
     });
 
     it('cleans up orphan chunks when new count < old', async () => {

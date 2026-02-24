@@ -17,6 +17,10 @@ export interface IssuesRouteDeps {
  */
 export function createIssuesHandler(deps: IssuesRouteDeps) {
   return () => {
-    return deps.issuesManager.getAll();
+    const issues = deps.issuesManager.getAll();
+    return {
+      count: Object.keys(issues).length,
+      issues,
+    };
   };
 }

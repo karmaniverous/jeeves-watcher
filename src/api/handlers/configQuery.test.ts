@@ -93,7 +93,7 @@ describe('createConfigQueryHandler', () => {
     expect(reply.status).toHaveBeenCalledWith(400);
   });
 
-  it('resolves file references when resolve includes files', async () => {
+  it('resolves references when resolve includes files', async () => {
     const deps = createDeps();
     const doc = { description: 'test' };
     const resolvedDoc = { description: 'resolved' };

@@ -25,21 +25,30 @@ export class IssuesManager extends JsonFileStore<IssuesFile> {
   /** Record or update an issue for a file path. */
   record(
     filePath: string,
-    rule: string,
-    error: string,
-    errorType: IssueRecord['errorType'],
+    type: IssueRecord['type'],
+    message: string,
+    options?: {
+      property?: string;
+      rules?: string[];
+      types?: string[];
+    },
   ): void {
     const issues = this.load();
-    const existing = issues[filePath] as IssueRecord | undefined;
-    issues[filePath] = {
-      rule,
-      error,
-      errorType,
-      timestamp: new Date().toISOString(),
-      attempts: (existing?.attempts ?? 0) + 1,
+    const newIssue: IssueRecord = {
+      type,
+      message,
+      timestamp: Math.floor(Date.now() / 1000),
+      ...options,
     };
+
+    // Append to or create the issues array for this file
+    if (!issues[filePath]) {
+      issues[filePath] = [];
+    }
+    issues[filePath].push(newIssue);
+
     this.save();
-    this.logger.debug({ filePath, errorType }, 'Issue recorded');
+    this.logger.debug({ filePath, type }, 'Issue recorded');
   }
 
   /** Clear an issue for a file path (called on successful processing). */

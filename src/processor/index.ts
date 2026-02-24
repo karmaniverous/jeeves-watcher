@@ -164,12 +164,8 @@ export class DocumentProcessor implements DocumentProcessorInterface {
       }
     } catch (error) {
       logError(this.logger, error, { filePath }, 'Failed to process file');
-      this.issuesManager?.record(
-        filePath,
-        'processFile',
-        error instanceof Error ? error.message : String(error),
-        'read_failure',
-      );
+      // Note: Generic processing errors are not recorded as issues in v2 spec
+      // Only type_collision and interpolation_error are tracked
     }
   }
 
@@ -279,12 +275,8 @@ export class DocumentProcessor implements DocumentProcessorInterface {
       return metadataWithRules;
     } catch (error) {
       logError(this.logger, error, { filePath }, 'Failed to re-apply rules');
-      this.issuesManager?.record(
-        filePath,
-        'processRulesUpdate',
-        error instanceof Error ? error.message : String(error),
-        'read_failure',
-      );
+      // Note: Generic processing errors are not recorded as issues in v2 spec
+      // Only type_collision and interpolation_error are tracked
       return null;
     }
   }

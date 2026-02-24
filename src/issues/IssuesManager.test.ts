@@ -26,23 +26,30 @@ describe('IssuesManager', () => {
   });
 
   it('records an issue', () => {
-    manager.record('test.md', 'rule-a', 'fail', 'read_failure');
+    manager.record('test.md', 'interpolation_error', 'Template failed', {
+      property: 'title',
+      rules: ['rule-a'],
+    });
     const all = manager.getAll();
     expect(all['test.md']).toBeDefined();
-    expect(all['test.md'].rule).toBe('rule-a');
-    expect(all['test.md'].attempts).toBe(1);
-    expect(all['test.md'].errorType).toBe('read_failure');
+    const issues = all['test.md']!;
+    expect(issues.length).toBe(1);
+    expect(issues[0].type).toBe('interpolation_error');
+    expect(issues[0].property).toBe('title');
   });
 
-  it('increments attempts on repeated record', () => {
-    manager.record('test.md', 'rule-a', 'fail', 'read_failure');
-    manager.record('test.md', 'rule-a', 'fail again', 'read_failure');
-    expect(manager.getAll()['test.md'].attempts).toBe(2);
+  it('appends multiple issues for the same file', () => {
+    manager.record('test.md', 'interpolation_error', 'First error');
+    manager.record('test.md', 'type_collision', 'Second error');
+    const issues = manager.getAll()['test.md']!;
+    expect(issues.length).toBe(2);
+    expect(issues[0].type).toBe('interpolation_error');
+    expect(issues[1].type).toBe('type_collision');
   });
 
   it('clears a specific issue', () => {
-    manager.record('a.md', 'r', 'e', 'embedding');
-    manager.record('b.md', 'r', 'e', 'embedding');
+    manager.record('a.md', 'interpolation_error', 'Error A');
+    manager.record('b.md', 'interpolation_error', 'Error B');
     manager.clear('a.md');
     const all = manager.getAll();
     expect(all['a.md']).toBeUndefined();
@@ -50,15 +57,21 @@ describe('IssuesManager', () => {
   });
 
   it('clears all issues', () => {
-    manager.record('a.md', 'r', 'e', 'embedding');
-    manager.record('b.md', 'r', 'e', 'embedding');
+    manager.record('a.md', 'interpolation_error', 'Error A');
+    manager.record('b.md', 'interpolation_error', 'Error B');
     manager.clearAll();
     expect(manager.getAll()).toEqual({});
   });
 
   it('persists across instances', () => {
-    manager.record('test.md', 'rule-a', 'fail', 'type_collision');
+    manager.record('test.md', 'type_collision', 'Type mismatch', {
+      property: 'status',
+      rules: ['rule-a', 'rule-b'],
+      types: ['string', 'integer'],
+    });
     const manager2 = new IssuesManager(tempDir, logger);
-    expect(manager2.getAll()['test.md'].rule).toBe('rule-a');
+    const issues = manager2.getAll()['test.md']!;
+    expect(issues[0].rules).toEqual(['rule-a', 'rule-b']);
+    expect(issues[0].types).toEqual(['string', 'integer']);
   });
 });

@@ -7,24 +7,28 @@ import { z } from 'zod';
 
 /** Schema for a single issue record tracking a processing failure. */
 export const issueRecordSchema = z.object({
-  /** Name of the rule that triggered the issue. */
-  rule: z.string(),
-  /** Error message describing the failure. */
-  error: z.string(),
-  /** Category of the error: type_collision, interpolation, read_failure, or embedding. */
-  errorType: z
-    .enum(['type_collision', 'interpolation', 'read_failure', 'embedding'])
+  /** Category of the error: type_collision or interpolation_error. */
+  type: z
+    .enum(['type_collision', 'interpolation_error'])
     .describe(
-      'Error category: type_collision (conflicting metadata types), interpolation (template rendering failure), read_failure (file read error), embedding (vector embedding failure).',
+      'Error category: type_collision (conflicting metadata types), interpolation_error (template rendering failure).',
     ),
-  /** ISO 8601 timestamp of the last occurrence. */
-  timestamp: z.string(),
-  /** Number of consecutive failed attempts. */
-  attempts: z.number().int().min(1),
+  /** Property name where the issue occurred. */
+  property: z.string().optional(),
+  /** Name(s) of the rule(s) involved in the issue. */
+  rules: z.array(z.string()).optional(),
+  /** Rule name for single-rule issues (for backward compatibility). */
+  rule: z.string().optional(),
+  /** Declared types for type collision issues. */
+  types: z.array(z.string()).optional(),
+  /** Error message describing the failure. */
+  message: z.string(),
+  /** Unix timestamp (seconds) or ISO string of the last occurrence. */
+  timestamp: z.union([z.number(), z.string()]),
 });
 
 /** A single issue record tracking a processing failure for a file. */
 export type IssueRecord = z.infer<typeof issueRecordSchema>;
 
-/** Issues file: a record of issue records keyed by file path. */
-export type IssuesFile = Record<string, IssueRecord>;
+/** Issues file: array of issue records per file path. */
+export type IssuesFile = Partial<Record<string, IssueRecord[]>>;

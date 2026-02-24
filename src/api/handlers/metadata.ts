@@ -8,6 +8,7 @@ import type pino from 'pino';
 
 import type { JeevesWatcherConfig } from '../../config/types';
 import type { DocumentProcessorInterface } from '../../processor';
+import { validateMetadataPayload } from './metadataValidation';
 import { wrapHandler } from './wrapHandler';
 
 export interface MetadataRouteDeps {
@@ -27,12 +28,16 @@ type MetadataRequest = FastifyRequest<{
  */
 export function createMetadataHandler(deps: MetadataRouteDeps) {
   return wrapHandler(
-    async (request: MetadataRequest) => {
+    async (request: MetadataRequest, reply) => {
       const { path, metadata } = request.body;
-      // TODO: Add metadata validation against matched rule schemas (Phase 3 item 15)
-      // For now, pass through to processor without validation
+
+      const validation = validateMetadataPayload(deps.config, path, metadata);
+      if (!validation.ok) {
+        return reply.code(400).send({ error: validation.error });
+      }
+
       await deps.processor.processMetadataUpdate(path, metadata);
-      return { ok: true };
+      return { ok: true, matched_rules: validation.matchedRules };
     },
     deps.logger,
     'Metadata update',
