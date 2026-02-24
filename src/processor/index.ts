@@ -15,7 +15,7 @@ import { deleteMetadata, readMetadata, writeMetadata } from '../metadata';
 import { pointId } from '../pointId';
 import type { CompiledRule } from '../rules';
 import type { TemplateEngine } from '../templates';
-import { normalizeError } from '../util/normalizeError';
+import { logError } from '../util/logError';
 import type { ValuesManager } from '../values';
 import type { VectorStore } from '../vectorStore';
 import { buildMergedMetadata } from './buildMetadata';
@@ -155,10 +155,7 @@ export class DocumentProcessor implements DocumentProcessorInterface {
         }
       }
     } catch (error) {
-      this.logger.error(
-        { filePath, err: normalizeError(error) },
-        'Failed to process file',
-      );
+      logError(this.logger, error, { filePath }, 'Failed to process file');
       this.issuesManager?.record(
         filePath,
         'processFile',
@@ -186,10 +183,7 @@ export class DocumentProcessor implements DocumentProcessorInterface {
 
       this.logger.info({ filePath }, 'File deleted from index');
     } catch (error) {
-      this.logger.error(
-        { filePath, err: normalizeError(error) },
-        'Failed to delete file',
-      );
+      logError(this.logger, error, { filePath }, 'Failed to delete file');
     }
   }
 
@@ -223,10 +217,7 @@ export class DocumentProcessor implements DocumentProcessorInterface {
       this.logger.info({ filePath, chunks: totalChunks }, 'Metadata updated');
       return merged;
     } catch (error) {
-      this.logger.error(
-        { filePath, err: normalizeError(error) },
-        'Failed to update metadata',
-      );
+      logError(this.logger, error, { filePath }, 'Failed to update metadata');
       return null;
     }
   }
@@ -272,10 +263,7 @@ export class DocumentProcessor implements DocumentProcessorInterface {
       this.logger.info({ filePath, chunks: totalChunks }, 'Rules re-applied');
       return metadata;
     } catch (error) {
-      this.logger.error(
-        { filePath, err: normalizeError(error) },
-        'Failed to re-apply rules',
-      );
+      logError(this.logger, error, { filePath }, 'Failed to re-apply rules');
       this.issuesManager?.record(
         filePath,
         'processRulesUpdate',
