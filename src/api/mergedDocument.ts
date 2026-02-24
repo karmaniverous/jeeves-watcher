@@ -90,7 +90,7 @@ export function buildMergedDocument(
   return {
     description: (config as Record<string, unknown>)['description'] ?? '',
     search: config.search ?? {},
-    schemas: [],
+    schemas: config.schemas ?? {},
     inferenceRules,
     mapHelpers: buildHelperSection(
       config.mapHelpers,
@@ -112,10 +112,11 @@ export function buildMergedDocument(
 /**
  * Resolve file references in known config reference positions only.
  *
- * Only resolves strings in:
- * - `inferenceRules[*].map` when ending in `.json`
- * - `maps[*]` when a string (file path)
- * - `templates[*]` when a string (file path)
+ * Resolves strings in:
+ * - `inferenceRules[*].map` when ending in `.json` (if 'files' in resolveTypes)
+ * - `maps[*]` when a string (file path) (if 'files' in resolveTypes)
+ * - `templates[*]` when a string (file path) (if 'files' in resolveTypes)
+ * - `inferenceRules[*].schema` named references (if 'globals' in resolveTypes)
  *
  * @param doc - The document to resolve.
  * @param resolveTypes - Which resolution types to apply.
@@ -125,24 +126,50 @@ export function resolveReferences(
   doc: Record<string, unknown>,
   resolveTypes: ('files' | 'globals')[],
 ): Record<string, unknown> {
-  if (!resolveTypes.includes('files')) return doc;
-
   const resolved = { ...doc };
 
-  // Resolve inferenceRules[*].map file references
+  // Resolve inferenceRules[*] references
   if (Array.isArray(resolved['inferenceRules'])) {
     resolved['inferenceRules'] = (
       resolved['inferenceRules'] as Record<string, unknown>[]
     ).map((rule) => {
-      if (typeof rule['map'] === 'string' && rule['map'].endsWith('.json')) {
-        return { ...rule, map: readFileReference(rule['map']) };
+      let updatedRule = { ...rule };
+
+      // Resolve map file references (if 'files' requested)
+      if (
+        resolveTypes.includes('files') &&
+        typeof rule['map'] === 'string' &&
+        rule['map'].endsWith('.json')
+      ) {
+        updatedRule = { ...updatedRule, map: readFileReference(rule['map']) };
       }
-      return rule;
+
+      // Resolve schema named references (if 'globals' requested)
+      if (
+        resolveTypes.includes('globals') &&
+        Array.isArray(rule['schema']) &&
+        typeof resolved['schemas'] === 'object'
+      ) {
+        const globalSchemas = resolved['schemas'] as Record<string, unknown>;
+        const expandedSchemas = (rule['schema'] as unknown[]).map((ref) => {
+          if (typeof ref === 'string' && globalSchemas[ref]) {
+            return globalSchemas[ref];
+          }
+          return ref;
+        });
+        updatedRule = { ...updatedRule, schema: expandedSchemas };
+      }
+
+      return updatedRule;
     });
   }
 
-  // Resolve maps[*] file references
-  if (resolved['maps'] && typeof resolved['maps'] === 'object') {
+  // Resolve maps[*] file references (if 'files' requested)
+  if (
+    resolveTypes.includes('files') &&
+    resolved['maps'] &&
+    typeof resolved['maps'] === 'object'
+  ) {
     const maps = { ...(resolved['maps'] as Record<string, unknown>) };
     for (const [key, value] of Object.entries(maps)) {
       if (typeof value === 'string') {
@@ -152,8 +179,12 @@ export function resolveReferences(
     resolved['maps'] = maps;
   }
 
-  // Resolve templates[*] file references
-  if (resolved['templates'] && typeof resolved['templates'] === 'object') {
+  // Resolve templates[*] file references (if 'files' requested)
+  if (
+    resolveTypes.includes('files') &&
+    resolved['templates'] &&
+    typeof resolved['templates'] === 'object'
+  ) {
     const templates = {
       ...(resolved['templates'] as Record<string, unknown>),
     };

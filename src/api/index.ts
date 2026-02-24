@@ -15,8 +15,10 @@ import type { ValuesManager } from '../values';
 import type { VectorStoreClient } from '../vectorStore';
 import { executeReindex } from './executeReindex';
 import { createConfigApplyHandler } from './handlers/configApply';
+import { createConfigMatchHandler } from './handlers/configMatch';
 import { createConfigQueryHandler } from './handlers/configQuery';
 import { createConfigReindexHandler } from './handlers/configReindex';
+import { createConfigSchemaHandler } from './handlers/configSchema';
 import { createConfigValidateHandler } from './handlers/configValidate';
 import { createIssuesHandler } from './handlers/issues';
 import { createMetadataHandler } from './handlers/metadata';
@@ -101,7 +103,7 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
     }),
   );
 
-  app.post('/metadata', createMetadataHandler({ processor, logger }));
+  app.post('/metadata', createMetadataHandler({ processor, config, logger }));
 
   app.post(
     '/search',
@@ -128,6 +130,10 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
   );
 
   app.get('/issues', createIssuesHandler({ issuesManager }));
+
+  app.get('/config/schema', createConfigSchemaHandler());
+
+  app.post('/config/match', createConfigMatchHandler({ config, logger }));
 
   app.post(
     '/config/query',

@@ -6,11 +6,13 @@
 import type { FastifyRequest } from 'fastify';
 import type pino from 'pino';
 
+import type { JeevesWatcherConfig } from '../../config/types';
 import type { DocumentProcessorInterface } from '../../processor';
 import { wrapHandler } from './wrapHandler';
 
 export interface MetadataRouteDeps {
   processor: DocumentProcessorInterface;
+  config: JeevesWatcherConfig;
   logger: pino.Logger;
 }
 
@@ -27,6 +29,8 @@ export function createMetadataHandler(deps: MetadataRouteDeps) {
   return wrapHandler(
     async (request: MetadataRequest) => {
       const { path, metadata } = request.body;
+      // TODO: Add metadata validation against matched rule schemas (Phase 3 item 15)
+      // For now, pass through to processor without validation
       await deps.processor.processMetadataUpdate(path, metadata);
       return { ok: true };
     },
