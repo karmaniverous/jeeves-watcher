@@ -2,8 +2,8 @@
   "id": "jeeves-watcher",
   "name": "Jeeves Watcher",
   "description": "Semantic search and metadata enrichment via a jeeves-watcher instance.",
-  "version": "0.3.0",
-  "skills": ["skill"],
+  "version": "0.5.0",
+  "skills": ["dist/skills/jeeves-watcher", "dist/skills/jeeves-watcher-admin"],
   "configSchema": {
     "type": "object",
     "additionalProperties": false,

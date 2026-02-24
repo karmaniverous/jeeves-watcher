@@ -1,63 +1,10 @@
 /**
  * @module plugin
- * OpenClaw plugin entry point. Registers watcher_search, watcher_enrich, and watcher_status tools.
+ * OpenClaw plugin entry point. Registers all jeeves-watcher tools.
  */
 
-/** Minimal OpenClaw plugin API surface used for tool registration. */
-interface PluginApi {
-  config?: {
-    plugins?: {
-      entries?: Record<string, { config?: Record<string, unknown> }>;
-    };
-  };
-  registerTool(
-    tool: {
-      name: string;
-      description: string;
-      parameters: Record<string, unknown>;
-      execute: (
-        id: string,
-        params: Record<string, unknown>,
-      ) => Promise<ToolResult>;
-    },
-    options?: { optional?: boolean },
-  ): void;
-}
-
-/** Result shape returned by each tool execution. */
-interface ToolResult {
-  content: Array<{ type: string; text: string }>;
-  isError?: boolean;
-}
-
-const DEFAULT_API_URL = 'http://127.0.0.1:3458';
-
-function getApiUrl(api: PluginApi): string {
-  const url = api.config?.plugins?.entries?.['jeeves-watcher']?.config?.apiUrl;
-  return typeof url === 'string' ? url : DEFAULT_API_URL;
-}
-
-function ok(data: unknown): ToolResult {
-  return {
-    content: [{ type: 'text', text: JSON.stringify(data, null, 2) }],
-  };
-}
-
-function fail(error: unknown): ToolResult {
-  const message = error instanceof Error ? error.message : String(error);
-  return {
-    content: [{ type: 'text', text: `Error: ${message}` }],
-    isError: true,
-  };
-}
-
-async function fetchJson(url: string, init?: RequestInit): Promise<unknown> {
-  const res = await fetch(url, init);
-  if (!res.ok) {
-    throw new Error(`HTTP ${String(res.status)}: ${await res.text()}`);
-  }
-  return res.json();
-}
+import type { PluginApi } from './helpers.js';
+import { fail, fetchJson, getApiUrl, ok } from './helpers.js';
 
 /** Register all jeeves-watcher tools with the OpenClaw plugin API. */
 export default function register(api: PluginApi): void {
@@ -67,12 +14,11 @@ export default function register(api: PluginApi): void {
     {
       name: 'watcher_status',
       description:
-        'Get jeeves-watcher status including collection stats and available payload fields.',
+        'Get jeeves-watcher service health, uptime, and collection statistics.',
       parameters: { type: 'object', properties: {} },
       execute: async () => {
         try {
-          const data = await fetchJson(`${baseUrl}/status`);
-          return ok(data);
+          return ok(await fetchJson(`${baseUrl}/status`));
         } catch (error) {
           return fail(error);
         }
@@ -95,6 +41,10 @@ export default function register(api: PluginApi): void {
             type: 'number',
             description: 'Max results (default 10).',
           },
+          offset: {
+            type: 'number',
+            description: 'Number of results to skip for pagination.',
+          },
           filter: {
             type: 'object',
             description: 'Qdrant filter object.',
@@ -103,16 +53,17 @@ export default function register(api: PluginApi): void {
       },
       execute: async (_id: string, params: Record<string, unknown>) => {
         try {
-          const data = await fetchJson(`${baseUrl}/search`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              query: params.query,
-              ...(params.limit !== undefined ? { limit: params.limit } : {}),
-              ...(params.filter !== undefined ? { filter: params.filter } : {}),
+          const body: Record<string, unknown> = { query: params.query };
+          if (params.limit !== undefined) body.limit = params.limit;
+          if (params.offset !== undefined) body.offset = params.offset;
+          if (params.filter !== undefined) body.filter = params.filter;
+          return ok(
+            await fetchJson(`${baseUrl}/search`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(body),
             }),
-          });
-          return ok(data);
+          );
         } catch (error) {
           return fail(error);
         }
@@ -141,15 +92,181 @@ export default function register(api: PluginApi): void {
       },
       execute: async (_id: string, params: Record<string, unknown>) => {
         try {
-          const data = await fetchJson(`${baseUrl}/metadata`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              path: params.path,
-              metadata: params.metadata,
+          return ok(
+            await fetchJson(`${baseUrl}/metadata`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                path: params.path,
+                metadata: params.metadata,
+              }),
             }),
-          });
-          return ok(data);
+          );
+        } catch (error) {
+          return fail(error);
+        }
+      },
+    },
+    { optional: true },
+  );
+
+  api.registerTool(
+    {
+      name: 'watcher_query',
+      description:
+        'Query the merged virtual document via JSONPath.',
+      parameters: {
+        type: 'object',
+        required: ['path'],
+        properties: {
+          path: {
+            type: 'string',
+            description: 'JSONPath expression.',
+          },
+          resolve: {
+            type: 'array',
+            items: { type: 'string', enum: ['files', 'globals'] },
+            description:
+              'Resolution scopes to include (e.g., ["files"], ["globals"], or both).',
+          },
+        },
+      },
+      execute: async (_id: string, params: Record<string, unknown>) => {
+        try {
+          const body: Record<string, unknown> = { path: params.path };
+          if (params.resolve !== undefined) body.resolve = params.resolve;
+          return ok(
+            await fetchJson(`${baseUrl}/config/query`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(body),
+            }),
+          );
+        } catch (error) {
+          return fail(error);
+        }
+      },
+    },
+    { optional: true },
+  );
+
+  api.registerTool(
+    {
+      name: 'watcher_validate',
+      description:
+        'Validate a candidate config (or current config if omitted). Optionally test file paths against the config to preview rule matching and metadata output.',
+      parameters: {
+        type: 'object',
+        properties: {
+          config: {
+            type: 'object',
+            description:
+              'Candidate config (partial or full). Omit to validate current config.',
+          },
+          testPaths: {
+            type: 'array',
+            items: { type: 'string' },
+            description:
+              'File paths to test against the config for dry-run preview.',
+          },
+        },
+      },
+      execute: async (_id: string, params: Record<string, unknown>) => {
+        try {
+          const body: Record<string, unknown> = {};
+          if (params.config !== undefined) body.config = params.config;
+          if (params.testPaths !== undefined)
+            body.testPaths = params.testPaths;
+          return ok(
+            await fetchJson(`${baseUrl}/config/validate`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(body),
+            }),
+          );
+        } catch (error) {
+          return fail(error);
+        }
+      },
+    },
+    { optional: true },
+  );
+
+  api.registerTool(
+    {
+      name: 'watcher_config_apply',
+      description:
+        'Apply a full or partial config. Validates, writes to disk, and triggers configured reindex behavior.',
+      parameters: {
+        type: 'object',
+        required: ['config'],
+        properties: {
+          config: {
+            type: 'object',
+            description: 'Full or partial config to apply.',
+          },
+        },
+      },
+      execute: async (_id: string, params: Record<string, unknown>) => {
+        try {
+          return ok(
+            await fetchJson(`${baseUrl}/config/apply`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ config: params.config }),
+            }),
+          );
+        } catch (error) {
+          return fail(error);
+        }
+      },
+    },
+    { optional: true },
+  );
+
+  api.registerTool(
+    {
+      name: 'watcher_reindex',
+      description: 'Trigger a reindex of the watched files.',
+      parameters: {
+        type: 'object',
+        properties: {
+          scope: {
+            type: 'string',
+            enum: ['rules', 'full'],
+            description:
+              'Reindex scope: "rules" (default) re-applies inference rules; "full" re-embeds everything.',
+          },
+        },
+      },
+      execute: async (_id: string, params: Record<string, unknown>) => {
+        try {
+          return ok(
+            await fetchJson(`${baseUrl}/config-reindex`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                scope: params.scope ?? 'rules',
+              }),
+            }),
+          );
+        } catch (error) {
+          return fail(error);
+        }
+      },
+    },
+    { optional: true },
+  );
+
+  api.registerTool(
+    {
+      name: 'watcher_issues',
+      description:
+        'Get runtime embedding failures. Shows files that failed processing and why.',
+      parameters: { type: 'object', properties: {} },
+      execute: async () => {
+        try {
+          return ok(await fetchJson(`${baseUrl}/issues`));
         } catch (error) {
           return fail(error);
         }
