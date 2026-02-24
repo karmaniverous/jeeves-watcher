@@ -3,10 +3,11 @@
  * Manages per-rule distinct metadata value tracking. Persists to disk with in-memory caching and sorted deduplication.
  */
 
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import type pino from 'pino';
+
+import { JsonFileStore } from '../util/JsonFileStore';
 
 /** Per-rule distinct values: rule name → field name → sorted unique values. */
 export type ValuesIndex = Record<string, Record<string, unknown[]>>;
@@ -14,38 +15,13 @@ export type ValuesIndex = Record<string, Record<string, unknown[]>>;
 /**
  * Manages a persistent values.json file tracking distinct metadata values per rule.
  */
-export class ValuesManager {
-  private readonly filePath: string;
-  private cache: ValuesIndex | null = null;
-  private readonly logger: pino.Logger;
-
+export class ValuesManager extends JsonFileStore<ValuesIndex> {
   constructor(stateDir: string, logger: pino.Logger) {
-    this.filePath = join(stateDir, 'values.json');
-    this.logger = logger;
-    mkdirSync(stateDir, { recursive: true });
+    super({ filePath: join(stateDir, 'values.json'), logger });
   }
 
-  private load(): ValuesIndex {
-    if (this.cache) return this.cache;
-    try {
-      if (existsSync(this.filePath)) {
-        const raw = readFileSync(this.filePath, 'utf-8');
-        this.cache = JSON.parse(raw) as ValuesIndex;
-      } else {
-        this.cache = {};
-      }
-    } catch {
-      this.logger.warn(
-        { filePath: this.filePath },
-        'Failed to read values file, starting fresh',
-      );
-      this.cache = {};
-    }
-    return this.cache;
-  }
-
-  private save(): void {
-    writeFileSync(this.filePath, JSON.stringify(this.cache, null, 2), 'utf-8');
+  protected createEmpty(): ValuesIndex {
+    return {};
   }
 
   /** Check if a value is a trackable primitive (string, number, boolean). */
