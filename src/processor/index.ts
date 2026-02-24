@@ -101,16 +101,16 @@ export class DocumentProcessor {
 
       // 1. Build merged metadata + extract text
       const { metadata, extracted, renderedContent, matchedRules } =
-        await buildMergedMetadata(
+        await buildMergedMetadata({
           filePath,
-          this.compiledRules,
-          this.config.metadataDir,
-          this.config.maps,
-          this.logger,
-          this.templateEngine,
-          this.config.configDir,
-          this.config.customMapLib,
-        );
+          compiledRules: this.compiledRules,
+          metadataDir: this.config.metadataDir,
+          maps: this.config.maps,
+          logger: this.logger,
+          templateEngine: this.templateEngine,
+          configDir: this.config.configDir,
+          customMapLib: this.config.customMapLib,
+        });
 
       // Use rendered template content if available, otherwise raw extracted text
       const textToEmbed = renderedContent ?? extracted.text;
@@ -249,16 +249,16 @@ export class DocumentProcessor {
       }
 
       // Build merged metadata (lightweight — no embedding)
-      const { metadata } = await buildMergedMetadata(
+      const { metadata } = await buildMergedMetadata({
         filePath,
-        this.compiledRules,
-        this.config.metadataDir,
-        this.config.maps,
-        this.logger,
-        this.templateEngine,
-        this.config.configDir,
-        this.config.customMapLib,
-      );
+        compiledRules: this.compiledRules,
+        metadataDir: this.config.metadataDir,
+        maps: this.config.maps,
+        logger: this.logger,
+        templateEngine: this.templateEngine,
+        configDir: this.config.configDir,
+        customMapLib: this.config.customMapLib,
+      });
 
       // Update all chunk payloads
       const totalChunks = getChunkCount(existingPayload);
