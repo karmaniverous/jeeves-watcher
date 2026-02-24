@@ -2,8 +2,15 @@
 
 All notable changes to this project will be documented in this file. Dates are displayed in UTC.
 
+#### [0.5.0-1](https://github.com/karmaniverous/jeeves-watcher/compare/0.5.0-0...0.5.0-1)
+
+- docs: export missing symbols, add TSDoc, fix typedoc warnings [`85f5f02`](https://github.com/karmaniverous/jeeves-watcher/commit/85f5f02c84c2ecf309ef799d186d689a5e8412ef)
+
 #### [0.5.0-0](https://github.com/karmaniverous/jeeves-watcher/compare/0.4.4...0.5.0-0)
 
+> 25 February 2026
+
+- chore: release v0.5.0-0 [`0c181d9`](https://github.com/karmaniverous/jeeves-watcher/commit/0c181d95303c04178aa7cb51a4ffe852354d6f02)
 - docs: complete v0.5.0 documentation pass [`e563ee8`](https://github.com/karmaniverous/jeeves-watcher/commit/e563ee870a92229be2fc71fb0fefdd7bbd23dbe7)
 - docs: fix TypeDoc warnings — constructor params, JsonFileStore props, handlebars highlight [`388bed4`](https://github.com/karmaniverous/jeeves-watcher/commit/388bed46c1d49360adca7109476d502abb13f007)
 - feat(schema): implement Phase 1 - core schema system [`4b538ad`](https://github.com/karmaniverous/jeeves-watcher/commit/4b538ad12dd4f68a093faf7e5460a2cfcc716d84)
