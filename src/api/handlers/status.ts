@@ -5,6 +5,7 @@
 
 import type { JeevesWatcherConfig } from '../../config/types';
 import type { VectorStoreClient } from '../../vectorStore';
+import type { ReindexTracker } from '../ReindexTracker';
 
 /** Dependencies for the status route handler. */
 export interface StatusRouteDeps {
@@ -12,6 +13,8 @@ export interface StatusRouteDeps {
   vectorStore: VectorStoreClient;
   /** The application configuration. */
   config: JeevesWatcherConfig;
+  /** The reindex tracker. */
+  reindexTracker: ReindexTracker;
 }
 
 /**
@@ -30,7 +33,7 @@ export function createStatusHandler(deps: StatusRouteDeps) {
         pointCount: collectionInfo.pointCount,
         dimensions: collectionInfo.dimensions,
       },
-      payloadFields: collectionInfo.payloadFields,
+      reindex: deps.reindexTracker.getStatus(),
     };
   };
 }

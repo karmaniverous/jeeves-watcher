@@ -11,8 +11,10 @@ import type pino from 'pino';
 
 import type { JeevesWatcherConfig } from '../config/types';
 import { GitignoreFilter } from '../gitignore';
+import { IssuesManager } from '../issues';
 import type { DocumentProcessor } from '../processor';
 import type { EventQueue } from '../queue';
+import { ValuesManager } from '../values';
 import { loadCustomMapHelpers } from '../rules/apply';
 import { buildTemplateEngine } from '../templates';
 import { normalizeError } from '../util/normalizeError';
@@ -151,11 +153,20 @@ export class JeevesWatcher {
     });
 
     this.watcher = this.createWatcher(this.queue, processor, logger);
+    const stateDir =
+      this.config.stateDir ??
+      this.config.metadataDir ??
+      '.jeeves-metadata';
+    const issuesManager = new IssuesManager(stateDir, logger);
+    const valuesManager = new ValuesManager(stateDir, logger);
+
     this.server = await this.startApiServer(
       processor,
       vectorStore,
       embeddingProvider,
       logger,
+      issuesManager,
+      valuesManager,
     );
 
     this.watcher.start();
@@ -258,6 +269,8 @@ export class JeevesWatcher {
       JeevesWatcherFactories['createApiServer']
     >[0]['embeddingProvider'],
     logger: pino.Logger,
+    issuesManager: IssuesManager,
+    valuesManager: ValuesManager,
   ) {
     const server = this.factories.createApiServer({
       processor,
@@ -266,6 +279,9 @@ export class JeevesWatcher {
       queue: this.queue!,
       config: this.config,
       logger,
+      issuesManager,
+      valuesManager,
+      configPath: this.configPath ?? '',
     });
 
     await server.listen({

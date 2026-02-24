@@ -322,12 +322,14 @@ export class VectorStoreClient {
     vector: number[],
     limit: number,
     filter?: Record<string, unknown>,
+    offset?: number,
   ): Promise<SearchResult[]> {
     const results = await this.client.search(this.collectionName, {
       vector,
       limit,
       with_payload: true,
       ...(filter ? { filter } : {}),
+      ...(offset !== undefined ? { offset } : {}),
     });
     return results.map((r) => ({
       id: String(r.id),

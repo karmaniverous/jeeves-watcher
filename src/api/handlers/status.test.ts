@@ -1,10 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
 
+import { ReindexTracker } from '../ReindexTracker';
 import type { StatusRouteDeps } from './status';
 import { createStatusHandler } from './status';
 
 describe('createStatusHandler', () => {
-  it('returns status with collection info and payload fields', async () => {
+  it('returns status with collection info and reindex status', async () => {
     const mockDeps = {
       vectorStore: {
         getCollectionInfo: vi.fn().mockResolvedValue({
@@ -19,6 +20,7 @@ describe('createStatusHandler', () => {
       config: {
         vectorStore: { collectionName: 'test-collection' },
       },
+      reindexTracker: new ReindexTracker(),
     } as unknown as StatusRouteDeps;
 
     const handler = createStatusHandler(mockDeps);
@@ -31,10 +33,7 @@ describe('createStatusHandler', () => {
         pointCount: 42,
         dimensions: 768,
       },
-      payloadFields: {
-        domain: { type: 'keyword' },
-        content: { type: 'text' },
-      },
+      reindex: { active: false },
     });
     expect(result.uptime).toBeGreaterThan(0);
   });

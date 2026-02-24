@@ -33,6 +33,7 @@
     "ignore": "^7.0.5",
     "js-yaml": "*",
     "json5": "*",
+    "jsonpath-plus": "^10.4.0",
     "mammoth": "^1.11.0",
     "mdast-util-from-adf": "^2.2.0",
     "mdast-util-to-markdown": "^2.1.2",

@@ -13,12 +13,14 @@ import {
 
 import { createApiServer } from '../api';
 import { createEmbeddingProvider } from '../embedding';
+import { IssuesManager } from '../issues';
 import { createLogger } from '../logger';
 import { readMetadata } from '../metadata';
 import { pointId } from '../pointId';
 import { DocumentProcessor } from '../processor';
 import { EventQueue } from '../queue';
 import { compileRules } from '../rules';
+import { ValuesManager } from '../values';
 import { VectorStoreClient } from '../vectorStore';
 import {
   cleanupTestDirs,
@@ -200,6 +202,9 @@ describe('API endpoints', () => {
       queue: new EventQueue({ debounceMs: 0, concurrency: 1 }),
       config,
       logger,
+      issuesManager: new IssuesManager(config.metadataDir ?? '.jeeves-metadata', logger),
+      valuesManager: new ValuesManager(config.metadataDir ?? '.jeeves-metadata', logger),
+      configPath: '',
     });
 
     const res = await server.inject({ method: 'POST', url: '/reindex' });
@@ -222,6 +227,9 @@ describe('API endpoints', () => {
       queue: new EventQueue({ debounceMs: 0, concurrency: 1 }),
       config,
       logger,
+      issuesManager: new IssuesManager(config.metadataDir ?? '.jeeves-metadata', logger),
+      valuesManager: new ValuesManager(config.metadataDir ?? '.jeeves-metadata', logger),
+      configPath: '',
     });
 
     const res = await server.inject({
@@ -246,6 +254,9 @@ describe('API endpoints', () => {
       queue: new EventQueue({ debounceMs: 0, concurrency: 1 }),
       config,
       logger,
+      issuesManager: new IssuesManager(config.metadataDir ?? '.jeeves-metadata', logger),
+      valuesManager: new ValuesManager(config.metadataDir ?? '.jeeves-metadata', logger),
+      configPath: '',
     });
 
     const res = await server.inject({
@@ -365,6 +376,9 @@ describe('Metadata enrichment via API', () => {
       queue: new EventQueue({ debounceMs: 0, concurrency: 1 }),
       config,
       logger,
+      issuesManager: new IssuesManager(config.metadataDir ?? '.jeeves-metadata', logger),
+      valuesManager: new ValuesManager(config.metadataDir ?? '.jeeves-metadata', logger),
+      configPath: '',
     });
 
     // Enrich via API
@@ -416,6 +430,9 @@ describe('Search endpoint', () => {
       queue: new EventQueue({ debounceMs: 0, concurrency: 1 }),
       config,
       logger,
+      issuesManager: new IssuesManager(config.metadataDir ?? '.jeeves-metadata', logger),
+      valuesManager: new ValuesManager(config.metadataDir ?? '.jeeves-metadata', logger),
+      configPath: '',
     });
 
     // Search for "machine learning"

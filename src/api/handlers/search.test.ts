@@ -27,7 +27,7 @@ describe('createSearchHandler', () => {
 
     await handler(request, reply);
 
-    expect(searchMock).toHaveBeenCalledWith([0.1, 0.2, 0.3], 5, filter);
+    expect(searchMock).toHaveBeenCalledWith([0.1, 0.2, 0.3], 5, filter, undefined);
   });
 
   it('defaults limit to 10 and filter to undefined', async () => {
@@ -37,6 +37,6 @@ describe('createSearchHandler', () => {
 
     await handler(request, reply);
 
-    expect(searchMock).toHaveBeenCalledWith([0.1, 0.2, 0.3], 10, undefined);
+    expect(searchMock).toHaveBeenCalledWith([0.1, 0.2, 0.3], 10, undefined, undefined);
   });
 });
