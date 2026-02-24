@@ -6,11 +6,11 @@
 
 import type { Command } from '@commander-js/extra-typings';
 
-import { DEFAULT_HOST, DEFAULT_PORT } from '../defaults';
 import { runApiCommand } from '../runApiCommand';
+import { withApiOptions } from '../withApiOptions';
 
 export function registerEnrichCommand(cli: Command): void {
-  cli
+  const command = cli
     .command('enrich')
     .description('Enrich document metadata (POST /metadata)')
     .argument('<path>', 'File path to enrich')
@@ -22,53 +22,52 @@ export function registerEnrichCommand(cli: Command): void {
     .option(
       '-j, --json <json>',
       'Metadata as JSON string (e.g., \'{"key":"value"}\')',
-    )
-    .option('-p, --port <port>', 'API port', DEFAULT_PORT)
-    .option('-H, --host <host>', 'API host', DEFAULT_HOST)
-    .action(async (path, options) => {
-      try {
-        let metadata: Record<string, unknown> = {};
+    );
 
-        // Parse --json option
-        if (options.json) {
-          try {
-            metadata = JSON.parse(options.json) as Record<string, unknown>;
-          } catch {
-            console.error('Invalid JSON:', options.json);
-            process.exit(1);
-          }
-        }
+  withApiOptions(command).action(async (path, options) => {
+    try {
+      let metadata: Record<string, unknown> = {};
 
-        // Parse --key options (key=value pairs)
-        if (Array.isArray(options.key) && options.key.length > 0) {
-          for (const pair of options.key) {
-            const eqIndex = pair.indexOf('=');
-            if (eqIndex === -1) {
-              console.error(`Invalid key-value pair: ${pair}`);
-              console.error('Expected format: key=value');
-              process.exit(1);
-            }
-            const key = pair.slice(0, eqIndex);
-            const value = pair.slice(eqIndex + 1);
-            metadata[key] = value;
-          }
-        }
-
-        if (Object.keys(metadata).length === 0) {
-          console.error('No metadata provided. Use --key or --json.');
+      // Parse --json option
+      if (options.json) {
+        try {
+          metadata = JSON.parse(options.json) as Record<string, unknown>;
+        } catch {
+          console.error('Invalid JSON:', options.json);
           process.exit(1);
         }
+      }
 
-        await runApiCommand({
-          host: options.host,
-          port: options.port,
-          method: 'POST',
-          path: '/metadata',
-          body: { path, metadata },
-        });
-      } catch (error) {
-        console.error(error instanceof Error ? error.message : String(error));
+      // Parse --key options (key=value pairs)
+      if (Array.isArray(options.key) && options.key.length > 0) {
+        for (const pair of options.key) {
+          const eqIndex = pair.indexOf('=');
+          if (eqIndex === -1) {
+            console.error(`Invalid key-value pair: ${pair}`);
+            console.error('Expected format: key=value');
+            process.exit(1);
+          }
+          const key = pair.slice(0, eqIndex);
+          const value = pair.slice(eqIndex + 1);
+          metadata[key] = value;
+        }
+      }
+
+      if (Object.keys(metadata).length === 0) {
+        console.error('No metadata provided. Use --key or --json.');
         process.exit(1);
       }
-    });
+
+      await runApiCommand({
+        host: options.host,
+        port: options.port,
+        method: 'POST',
+        path: '/metadata',
+        body: { path, metadata },
+      });
+    } catch (error) {
+      console.error(error instanceof Error ? error.message : String(error));
+      process.exit(1);
+    }
+  });
 }
