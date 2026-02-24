@@ -5,6 +5,7 @@ import type { VectorStoreConfig } from '../config/types';
 import { getLogger, type MinimalLogger } from '../util/logger';
 import { normalizeError } from '../util/normalizeError';
 import { retry } from '../util/retry';
+import { inferPayloadType } from './helpers';
 import type {
   CollectionInfo,
   PayloadFieldSchema,
@@ -23,20 +24,6 @@ export type {
   VectorPoint,
   VectorStore,
 };
-
-/** Infer a Qdrant-style type name from a JS value. */
-function inferPayloadType(value: unknown): string {
-  if (value === null || value === undefined) return 'keyword';
-  if (typeof value === 'number') {
-    return Number.isInteger(value) ? 'integer' : 'float';
-  }
-  if (typeof value === 'boolean') return 'bool';
-  if (Array.isArray(value)) return 'keyword[]';
-  if (typeof value === 'string') {
-    return value.length > 256 ? 'text' : 'keyword';
-  }
-  return 'keyword';
-}
 
 /**
  * Client wrapper for Qdrant vector store operations.
