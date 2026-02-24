@@ -3,8 +3,7 @@
  * Tests for app initialization utilities.
  */
 
-import pino from 'pino';
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
 import type { JeevesWatcherConfig } from '../config/types';
 import { getConfigDir, resolveMapsConfig } from './initialization';

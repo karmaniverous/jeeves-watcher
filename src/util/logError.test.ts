@@ -68,8 +68,9 @@ describe('logError', () => {
     const logger = pino({ level: 'silent' });
     const errorSpy = vi.spyOn(logger, 'error');
     const testError = new Error('Test error');
+    const emptyContext: Record<string, unknown> = {};
 
-    logError(logger, testError, 'Message', {});
+    logError(logger, testError, 'Message', emptyContext);
 
     expect(errorSpy).toHaveBeenCalledWith(
       expect.objectContaining({ err: testError }),

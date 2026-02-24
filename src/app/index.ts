@@ -98,10 +98,7 @@ export class JeevesWatcher {
     const { templateEngine, customMapLib } =
       await buildTemplateEngineAndCustomMapLib(this.config, configDir);
 
-    this.helperIntrospection = await introspectHelpers(
-      this.config,
-      configDir,
-    );
+    this.helperIntrospection = await introspectHelpers(this.config, configDir);
 
     const processorConfig = createProcessorConfig(
       this.config,

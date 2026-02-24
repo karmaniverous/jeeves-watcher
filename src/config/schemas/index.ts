@@ -6,40 +6,37 @@
 
 // Base schemas
 export {
-  apiConfigSchema,
-  configWatchConfigSchema,
-  loggingConfigSchema,
-  watchConfigSchema,
   type ApiConfig,
+  apiConfigSchema,
   type ConfigWatchConfig,
+  configWatchConfigSchema,
   type LoggingConfig,
+  loggingConfigSchema,
   type WatchConfig,
+  watchConfigSchema,
 } from './base';
 
 // Inference schemas
 export {
-  inferenceRuleSchema,
-  propertySchemaSchema,
-  schemaEntrySchema,
-  schemaObjectSchema,
-  schemaReferenceSchema,
   type InferenceRule,
+  inferenceRuleSchema,
   type PropertySchema,
+  propertySchemaSchema,
   type SchemaEntry,
+  schemaEntrySchema,
   type SchemaObject,
+  schemaObjectSchema,
   type SchemaReference,
+  schemaReferenceSchema,
 } from './inference';
 
 // Root schema
-export {
-  jeevesWatcherConfigSchema,
-  type JeevesWatcherConfig,
-} from './root';
+export { type JeevesWatcherConfig, jeevesWatcherConfigSchema } from './root';
 
 // Service schemas
 export {
-  embeddingConfigSchema,
-  vectorStoreConfigSchema,
   type EmbeddingConfig,
+  embeddingConfigSchema,
   type VectorStoreConfig,
+  vectorStoreConfigSchema,
 } from './services';

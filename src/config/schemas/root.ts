@@ -14,8 +14,8 @@ import {
 } from './base';
 import {
   inferenceRuleSchema,
-  schemaEntrySchema,
   type SchemaEntry,
+  schemaEntrySchema,
 } from './inference';
 import { embeddingConfigSchema, vectorStoreConfigSchema } from './services';
 
