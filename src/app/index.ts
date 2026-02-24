@@ -12,7 +12,7 @@ import type pino from 'pino';
 import type { JeevesWatcherConfig } from '../config/types';
 import { GitignoreFilter } from '../gitignore';
 import { IssuesManager } from '../issues';
-import type { DocumentProcessor } from '../processor';
+import type { DocumentProcessorInterface } from '../processor';
 import type { EventQueue } from '../queue';
 import { loadCustomMapHelpers } from '../rules/apply';
 import { buildTemplateEngine } from '../templates';
@@ -68,7 +68,7 @@ export class JeevesWatcher {
   private watcher: FileSystemWatcher | undefined;
   private queue: EventQueue | undefined;
   private server: FastifyInstance | undefined;
-  private processor: DocumentProcessor | undefined;
+  private processor: DocumentProcessorInterface | undefined;
   private configWatcher: ConfigWatcher | undefined;
 
   /**
@@ -216,7 +216,7 @@ export class JeevesWatcher {
 
   private createWatcher(
     queue: EventQueue,
-    processor: DocumentProcessor,
+    processor: DocumentProcessorInterface,
     logger: pino.Logger,
   ): FileSystemWatcher {
     const respectGitignore = this.config.watch.respectGitignore ?? true;
@@ -239,7 +239,7 @@ export class JeevesWatcher {
   }
 
   private async startApiServer(
-    processor: DocumentProcessor,
+    processor: DocumentProcessorInterface,
     vectorStore: Parameters<
       JeevesWatcherFactories['createApiServer']
     >[0]['vectorStore'],

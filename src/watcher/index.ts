@@ -8,7 +8,7 @@ import type pino from 'pino';
 import type { WatchConfig } from '../config/types';
 import type { GitignoreFilter } from '../gitignore';
 import { SystemHealth, type SystemHealthOptions } from '../health';
-import type { DocumentProcessor } from '../processor';
+import type { DocumentProcessorInterface } from '../processor';
 import type { EventQueue } from '../queue';
 import { normalizeError } from '../util/normalizeError';
 import { resolveIgnored, resolveWatchPaths } from './globToDir';
@@ -33,7 +33,7 @@ export interface FileSystemWatcherOptions {
 export class FileSystemWatcher {
   private readonly config: WatchConfig;
   private readonly queue: EventQueue;
-  private readonly processor: DocumentProcessor;
+  private readonly processor: DocumentProcessorInterface;
   private readonly logger: pino.Logger;
   private readonly health: SystemHealth;
   private readonly gitignoreFilter?: GitignoreFilter;
@@ -52,7 +52,7 @@ export class FileSystemWatcher {
   constructor(
     config: WatchConfig,
     queue: EventQueue,
-    processor: DocumentProcessor,
+    processor: DocumentProcessorInterface,
     logger: pino.Logger,
     options: FileSystemWatcherOptions = {},
   ) {

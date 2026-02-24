@@ -10,7 +10,10 @@ import { loadConfig } from '../config';
 import type { JeevesWatcherConfig } from '../config/types';
 import { createEmbeddingProvider } from '../embedding';
 import { createLogger } from '../logger';
-import { DocumentProcessor } from '../processor';
+import {
+  DocumentProcessor,
+  type DocumentProcessorInterface,
+} from '../processor';
 import { EventQueue } from '../queue';
 import { compileRules } from '../rules';
 import { VectorStoreClient } from '../vectorStore';
@@ -37,7 +40,7 @@ export interface JeevesWatcherFactories {
   /** Create a document processor for file ingestion. */
   createDocumentProcessor: (
     deps: ConstructorParameters<typeof DocumentProcessor>[0],
-  ) => DocumentProcessor;
+  ) => DocumentProcessorInterface;
   /** Create an event queue for batching file-system events. */
   createEventQueue: (
     options: ConstructorParameters<typeof EventQueue>[0],
@@ -46,7 +49,7 @@ export interface JeevesWatcherFactories {
   createFileSystemWatcher: (
     config: JeevesWatcherConfig['watch'],
     queue: EventQueue,
-    processor: DocumentProcessor,
+    processor: DocumentProcessorInterface,
     logger: pino.Logger,
     options?: FileSystemWatcherOptions,
   ) => FileSystemWatcher;

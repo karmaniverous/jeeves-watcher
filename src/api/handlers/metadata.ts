@@ -6,11 +6,11 @@
 import type { FastifyRequest } from 'fastify';
 import type pino from 'pino';
 
-import type { DocumentProcessor } from '../../processor';
+import type { DocumentProcessorInterface } from '../../processor';
 import { wrapHandler } from './wrapHandler';
 
 export interface MetadataRouteDeps {
-  processor: DocumentProcessor;
+  processor: DocumentProcessorInterface;
   logger: pino.Logger;
 }
 

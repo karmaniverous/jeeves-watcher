@@ -6,7 +6,7 @@
 import type pino from 'pino';
 
 import type { JeevesWatcherConfig } from '../config/types';
-import type { DocumentProcessor } from '../processor';
+import type { DocumentProcessorInterface } from '../processor';
 import { normalizeError } from '../util/normalizeError';
 import { retry } from '../util/retry';
 import type { ValuesManager } from '../values';
@@ -16,7 +16,7 @@ import type { ReindexTracker } from './ReindexTracker';
 /** Dependencies for executeReindex. */
 export interface ExecuteReindexDeps {
   config: JeevesWatcherConfig;
-  processor: DocumentProcessor;
+  processor: DocumentProcessorInterface;
   logger: pino.Logger;
   reindexTracker?: ReindexTracker;
   valuesManager?: ValuesManager;

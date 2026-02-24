@@ -9,7 +9,7 @@ import type pino from 'pino';
 import type { JeevesWatcherConfig } from '../config/types';
 import type { EmbeddingProvider } from '../embedding';
 import type { IssuesManager } from '../issues';
-import type { DocumentProcessor } from '../processor';
+import type { DocumentProcessorInterface } from '../processor';
 import type { EventQueue } from '../queue';
 import type { ValuesManager } from '../values';
 import type { VectorStoreClient } from '../vectorStore';
@@ -34,7 +34,7 @@ export { ReindexTracker } from './ReindexTracker';
  */
 export interface ApiServerOptions {
   /** The document processor. */
-  processor: DocumentProcessor;
+  processor: DocumentProcessorInterface;
   /** The vector store client. */
   vectorStore: VectorStoreClient;
   /** The embedding provider. */

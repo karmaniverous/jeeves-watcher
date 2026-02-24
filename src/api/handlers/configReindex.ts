@@ -7,14 +7,14 @@ import type { FastifyReply, FastifyRequest } from 'fastify';
 import type pino from 'pino';
 
 import type { JeevesWatcherConfig } from '../../config/types';
-import type { DocumentProcessor } from '../../processor';
+import type { DocumentProcessorInterface } from '../../processor';
 import { executeReindex } from '../executeReindex';
 import type { ReindexTracker } from '../ReindexTracker';
 import { wrapHandler } from './wrapHandler';
 
 export interface ConfigReindexRouteDeps {
   config: JeevesWatcherConfig;
-  processor: DocumentProcessor;
+  processor: DocumentProcessorInterface;
   logger: pino.Logger;
   reindexTracker: ReindexTracker;
 }

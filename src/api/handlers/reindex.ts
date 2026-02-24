@@ -7,13 +7,13 @@ import type { FastifyReply, FastifyRequest } from 'fastify';
 import type pino from 'pino';
 
 import type { WatchConfig } from '../../config/types';
-import type { DocumentProcessor } from '../../processor';
+import type { DocumentProcessorInterface } from '../../processor';
 import { processAllFiles } from '../processAllFiles';
 import { wrapHandler } from './wrapHandler';
 
 export interface ReindexRouteDeps {
   watch: WatchConfig;
-  processor: DocumentProcessor;
+  processor: DocumentProcessorInterface;
   logger: pino.Logger;
 }
 

@@ -23,8 +23,10 @@ import { chunkIds, getChunkCount } from './chunkIds';
 import { embedAndUpsert } from './processingPipeline';
 import type { ProcessorConfig } from './ProcessorConfig';
 import { createSplitter } from './splitter';
+import type { DocumentProcessorInterface } from './types';
 
 export type { ProcessorConfig } from './ProcessorConfig';
+export type { DocumentProcessorInterface } from './types';
 
 /**
  * Core document processing pipeline.
@@ -55,7 +57,7 @@ export interface DocumentProcessorDeps {
  *
  * Handles extracting text, computing embeddings, and syncing with the vector store.
  */
-export class DocumentProcessor {
+export class DocumentProcessor implements DocumentProcessorInterface {
   private config: ProcessorConfig;
   private readonly embeddingProvider: EmbeddingProvider;
   private readonly vectorStore: VectorStore;
