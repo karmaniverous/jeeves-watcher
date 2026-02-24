@@ -14,11 +14,17 @@ import {
 } from '@karmaniverous/jsonmap';
 import { get } from 'radash';
 
+import type { SchemaEntry } from '../config/schemas';
 import { loadNamespacedExports } from '../helpers/loadModule';
 import type { TemplateEngine } from '../templates';
 import type { FileAttributes } from './attributes';
 import type { CompiledRule } from './compile';
-import { resolveSet } from './templates';
+import {
+  mergeSchemas,
+  resolveAndCoerce,
+  type SchemaReference,
+  validateSchemaCompleteness,
+} from './schemaMerge';
 
 /**
  * A minimal logger interface for rule application warnings.
@@ -164,6 +170,7 @@ export interface ApplyRulesResult {
  * @param logger - Optional logger for warnings (falls back to console.warn).
  * @param templateEngine - Optional template engine for rendering content templates.
  * @param configDir - Optional config directory for resolving .json map file paths.
+ * @param globalSchemas - Optional global schemas collection for resolving schema references.
  * @returns The merged metadata and optional rendered content.
  */
 export async function applyRules(
@@ -174,6 +181,7 @@ export async function applyRules(
   templateEngine?: TemplateEngine,
   configDir?: string,
   customMapLib?: Record<string, (...args: unknown[]) => unknown>,
+  globalSchemas?: Record<string, SchemaEntry>,
 ): Promise<ApplyRulesResult> {
   // JsonMap's type definitions expect a generic JsonMapLib shape with unary functions.
   // Our helper functions accept multiple args, which JsonMap supports at runtime.
@@ -190,9 +198,28 @@ export async function applyRules(
     if (validate(attributes)) {
       matchedRules.push(rule.name);
 
-      // Apply set resolution
-      const setOutput = resolveSet(rule.set, attributes);
-      merged = { ...merged, ...setOutput };
+      // Apply schema-based metadata extraction
+      if (rule.schema && rule.schema.length > 0) {
+        try {
+          // Merge schemas
+          const mergedSchema = mergeSchemas(rule.schema as SchemaReference[], {
+            globalSchemas,
+            configDir,
+          });
+
+          // Validate schema completeness
+          validateSchemaCompleteness(mergedSchema, rule.name);
+
+          // Resolve and coerce metadata
+          const schemaOutput = resolveAndCoerce(mergedSchema, attributes);
+          merged = { ...merged, ...schemaOutput };
+        } catch (error) {
+          log.warn(
+            `Schema processing failed for rule "${rule.name}": ${error instanceof Error ? error.message : String(error)}`,
+          );
+          continue;
+        }
+      }
 
       // Apply map transformation if present
       if (rule.map) {

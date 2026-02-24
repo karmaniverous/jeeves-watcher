@@ -19,7 +19,7 @@ export interface ConfigApplyRouteDeps {
   configPath: string;
   reindexTracker: ReindexTracker;
   logger: pino.Logger;
-  triggerReindex?: (scope: 'rules' | 'full') => void;
+  triggerReindex?: (scope: 'issues' | 'full') => void;
 }
 
 type ConfigApplyRequest = FastifyRequest<{
@@ -51,10 +51,7 @@ export function createConfigApplyHandler(deps: ConfigApplyRouteDeps) {
         'utf-8',
       );
 
-      const reindexScope =
-        deps.config.configWatch?.reindex === 'none'
-          ? undefined
-          : (deps.config.configWatch?.reindex ?? 'rules');
+      const reindexScope = deps.config.configWatch?.reindex ?? 'issues';
 
       if (reindexScope && deps.triggerReindex) {
         deps.triggerReindex(reindexScope);

@@ -73,9 +73,9 @@ export const configWatchConfigSchema = z.object({
     ),
   /** Reindex scope triggered on config change. */
   reindex: z
-    .enum(['rules', 'full', 'none'])
+    .enum(['issues', 'full'])
     .optional()
-    .describe('Reindex scope triggered on config change. Default: rules.'),
+    .describe('Reindex scope triggered on config change. Default: issues.'),
 });
 
 /** Configuration file watch settings controlling auto-reload behavior on config changes. */
@@ -194,6 +194,48 @@ export const loggingConfigSchema = z.object({
 export type LoggingConfig = z.infer<typeof loggingConfigSchema>;
 
 /**
+ * A JSON Schema property definition with optional custom keywords.
+ * Supports standard JSON Schema keywords plus custom `set` and `uiHint`.
+ */
+export const propertySchemaSchema = z.record(z.string(), z.unknown());
+
+/** A JSON Schema property definition. */
+export type PropertySchema = z.infer<typeof propertySchemaSchema>;
+
+/**
+ * A schema object: properties with JSON Schema definitions.
+ */
+export const schemaObjectSchema = z.object({
+  type: z.literal('object').optional(),
+  properties: z.record(z.string(), propertySchemaSchema).optional(),
+});
+
+/** A schema object. */
+export type SchemaObject = z.infer<typeof schemaObjectSchema>;
+
+/**
+ * Global schema entry: inline object or file path.
+ */
+export const schemaEntrySchema = z.union([
+  schemaObjectSchema,
+  z.string().describe('File path to a JSON schema file.'),
+]);
+
+/** Global schema entry. */
+export type SchemaEntry = z.infer<typeof schemaEntrySchema>;
+
+/**
+ * Schema reference: either a named schema reference (string) or an inline schema object.
+ */
+export const schemaReferenceSchema = z.union([
+  z.string().describe('Named reference to a global schema.'),
+  schemaObjectSchema,
+]);
+
+/** Schema reference. */
+export type SchemaReference = z.infer<typeof schemaReferenceSchema>;
+
+/**
  * An inference rule that enriches document metadata.
  */
 export const inferenceRuleSchema = z.object({
@@ -202,19 +244,22 @@ export const inferenceRuleSchema = z.object({
     .string()
     .min(1)
     .describe('Unique name identifying this inference rule.'),
-  /** Optional human-readable description. */
+  /** Human-readable description of what this rule does. */
   description: z
     .string()
-    .optional()
+    .min(1)
     .describe('Human-readable description of what this rule does.'),
   /** JSON Schema object to match against document metadata. */
   match: z
     .record(z.string(), z.unknown())
     .describe('JSON Schema object to match against file attributes.'),
-  /** Metadata fields to set when the rule matches. */
-  set: z
-    .record(z.string(), z.unknown())
-    .describe('Metadata fields to set when match succeeds.'),
+  /** Array of schema references to merge (named refs and/or inline objects). */
+  schema: z
+    .array(schemaReferenceSchema)
+    .optional()
+    .describe(
+      'Array of schema references (named schema refs or inline objects) merged left-to-right.',
+    ),
   /** JsonMap transformation (inline or reference to named map). */
   map: z
     .union([jsonMapMapSchema, z.string()])
@@ -231,13 +276,27 @@ export const inferenceRuleSchema = z.object({
     ),
 });
 
-/** An inference rule: JSON Schema match condition, set fields, and optional JsonMap transformation. */
+/** An inference rule: JSON Schema match condition, schema array, and optional JsonMap transformation. */
 export type InferenceRule = z.infer<typeof inferenceRuleSchema>;
 
 /**
  * Top-level configuration for jeeves-watcher.
  */
 export const jeevesWatcherConfigSchema = z.object({
+  /** Optional description of this watcher deployment's organizational strategy. */
+  description: z
+    .string()
+    .optional()
+    .describe(
+      "Human-readable description of this deployment's organizational strategy and content domains.",
+    ),
+  /** Global named schema collection. */
+  schemas: z
+    .record(z.string(), schemaEntrySchema)
+    .optional()
+    .describe(
+      'Global named schema definitions (inline objects or file paths) referenced by inference rules.',
+    ),
   /** File system watch configuration. */
   watch: watchConfigSchema.describe('File system watch configuration.'),
   /** Configuration file watch settings. */

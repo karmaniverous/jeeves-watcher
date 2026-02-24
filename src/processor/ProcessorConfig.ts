@@ -5,6 +5,8 @@
 
 import type { JsonMapMap } from '@karmaniverous/jsonmap';
 
+import type { SchemaEntry } from '../config/schemas';
+
 /**
  * Configuration needed by DocumentProcessor (ISP — narrow interface).
  */
@@ -21,4 +23,6 @@ export interface ProcessorConfig {
   configDir?: string;
   /** Custom JsonMap lib functions loaded from mapHelpers config. */
   customMapLib?: Record<string, (...args: unknown[]) => unknown>;
+  /** Global schemas collection for inference rule schema references. */
+  globalSchemas?: Record<string, SchemaEntry>;
 }

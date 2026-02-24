@@ -9,6 +9,7 @@ import { extname } from 'node:path';
 import type { JsonMapMap } from '@karmaniverous/jsonmap';
 import type pino from 'pino';
 
+import type { SchemaEntry } from '../config/schemas';
 import { type ExtractedText, extractText } from '../extractors';
 import { readMetadata } from '../metadata';
 import type { CompiledRule } from '../rules';
@@ -55,6 +56,8 @@ export interface BuildMergedMetadataOptions {
   configDir?: string;
   /** Optional custom JsonMap transform library. */
   customMapLib?: Record<string, (...args: unknown[]) => unknown>;
+  /** Optional global schemas collection. */
+  globalSchemas?: Record<string, SchemaEntry>;
 }
 
 /**
@@ -75,6 +78,7 @@ export async function buildMergedMetadata(
     templateEngine,
     configDir,
     customMapLib,
+    globalSchemas,
   } = options;
   const ext = extname(filePath);
   const stats = await stat(filePath);
@@ -101,6 +105,7 @@ export async function buildMergedMetadata(
     templateEngine,
     configDir,
     customMapLib,
+    globalSchemas,
   );
 
   // 3. Read enrichment metadata (merge, enrichment wins)

@@ -20,6 +20,7 @@ export interface ExecuteReindexDeps {
   logger: pino.Logger;
   reindexTracker?: ReindexTracker;
   valuesManager?: ValuesManager;
+  issuesManager?: { getAll: () => Record<string, unknown[]> };
 }
 
 /** Result of a reindex execution. */
@@ -64,12 +65,12 @@ async function fireCallback(
  * Execute a reindex operation: process all files, track progress, and fire callback if configured.
  *
  * @param deps - Dependencies.
- * @param scope - 'rules' for rules-only reindex, 'full' for full reprocessing.
+ * @param scope - 'issues' for reprocessing files with errors, 'full' for full reprocessing.
  * @returns The reindex result.
  */
 export async function executeReindex(
   deps: ExecuteReindexDeps,
-  scope: 'rules' | 'full',
+  scope: 'issues' | 'full',
 ): Promise<ExecuteReindexResult> {
   const { config, processor, logger, reindexTracker, valuesManager } = deps;
 
@@ -84,13 +85,29 @@ export async function executeReindex(
       valuesManager.clearAll();
     }
 
-    const method = scope === 'rules' ? 'processRulesUpdate' : 'processFile';
-    filesProcessed = await processAllFiles(
-      config.watch.paths,
-      config.watch.ignored,
-      processor,
-      method,
-    );
+    if (scope === 'issues' && deps.issuesManager) {
+      // Reprocess only files with issues
+      const issues = deps.issuesManager.getAll();
+      const issuePaths = Object.keys(issues);
+      filesProcessed = 0;
+      for (const filePath of issuePaths) {
+        try {
+          await processor.processFile(filePath);
+          filesProcessed++;
+        } catch (error) {
+          errors++;
+          logger.warn({ filePath, err: normalizeError(error) }, 'Failed to reprocess issue file');
+        }
+      }
+    } else {
+      // Full reindex - process all watched files
+      filesProcessed = await processAllFiles(
+        config.watch.paths,
+        config.watch.ignored,
+        processor,
+        'processFile',
+      );
+    }
 
     const durationMs = Date.now() - startTime;
     logger.info(

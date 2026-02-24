@@ -112,6 +112,7 @@ export class DocumentProcessor implements DocumentProcessorInterface {
           templateEngine: this.templateEngine,
           configDir: this.config.configDir,
           customMapLib: this.config.customMapLib,
+          globalSchemas: this.config.globalSchemas,
         });
 
       // Use rendered template content if available, otherwise raw extracted text
@@ -134,6 +135,13 @@ export class DocumentProcessor implements DocumentProcessorInterface {
       const chunkSize = this.config.chunkSize ?? 1000;
       const chunkOverlap = this.config.chunkOverlap ?? 200;
       const splitter = createSplitter(ext, chunkSize, chunkOverlap);
+
+      // Add matched_rules to metadata payload
+      const metadataWithRules = {
+        ...metadata,
+        matched_rules: matchedRules,
+      };
+
       await embedAndUpsert(
         {
           embeddingProvider: this.embeddingProvider,
@@ -143,7 +151,7 @@ export class DocumentProcessor implements DocumentProcessorInterface {
         },
         textToEmbed,
         filePath,
-        metadata,
+        metadataWithRules,
         existingPayload,
       );
 
@@ -242,7 +250,7 @@ export class DocumentProcessor implements DocumentProcessorInterface {
       }
 
       // Build merged metadata (lightweight — no embedding)
-      const { metadata } = await buildMergedMetadata({
+      const { metadata, matchedRules } = await buildMergedMetadata({
         filePath,
         compiledRules: this.compiledRules,
         metadataDir: this.config.metadataDir,
@@ -251,17 +259,24 @@ export class DocumentProcessor implements DocumentProcessorInterface {
         templateEngine: this.templateEngine,
         configDir: this.config.configDir,
         customMapLib: this.config.customMapLib,
+        globalSchemas: this.config.globalSchemas,
       });
+
+      // Add matched_rules to metadata
+      const metadataWithRules = {
+        ...metadata,
+        matched_rules: matchedRules,
+      };
 
       // Update all chunk payloads
       const totalChunks = getChunkCount(existingPayload);
       const ids = chunkIds(filePath, totalChunks);
-      await this.vectorStore.setPayload(ids, metadata);
+      await this.vectorStore.setPayload(ids, metadataWithRules);
 
       this.issuesManager?.clear(filePath);
 
       this.logger.info({ filePath, chunks: totalChunks }, 'Rules re-applied');
-      return metadata;
+      return metadataWithRules;
     } catch (error) {
       logError(this.logger, error, { filePath }, 'Failed to re-apply rules');
       this.issuesManager?.record(

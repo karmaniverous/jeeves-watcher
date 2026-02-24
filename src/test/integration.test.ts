@@ -308,6 +308,7 @@ describe('Rules engine', () => {
       inferenceRules: [
         {
           name: 'meetings-rule',
+          description: 'Extract domain for meetings files',
           match: {
             properties: {
               file: {
@@ -317,7 +318,13 @@ describe('Rules engine', () => {
               },
             },
           },
-          set: { domain: 'meetings' },
+          schema: [
+            {
+              properties: {
+                domain: { type: 'string', set: 'meetings' },
+              },
+            },
+          ],
         },
       ],
     };

@@ -117,6 +117,7 @@ export class JeevesWatcher {
         maps: resolveMapsConfig(this.config.maps as Record<string, unknown>),
         configDir,
         customMapLib,
+        globalSchemas: this.config.schemas,
       },
       embeddingProvider,
       vectorStore,

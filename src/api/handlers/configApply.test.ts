@@ -117,12 +117,12 @@ describe('createConfigApplyHandler', () => {
     expect(triggerReindex).toHaveBeenCalledWith('full');
   });
 
-  it('does not trigger reindex when configWatch.reindex is none', async () => {
+  it('triggers issues reindex by default when configWatch is empty', async () => {
     const triggerReindex = vi.fn();
     const deps = createDeps({
       config: {
         ...minimalConfig(),
-        configWatch: { reindex: 'none' },
+        configWatch: {},
       } as JeevesWatcherConfig,
       triggerReindex,
     });
@@ -132,7 +132,7 @@ describe('createConfigApplyHandler', () => {
       mockReply() as unknown as FastifyReply,
     );
 
-    expect(result).toMatchObject({ applied: true, reindexTriggered: false });
-    expect(triggerReindex).not.toHaveBeenCalled();
+    expect(result).toMatchObject({ applied: true, reindexTriggered: true, scope: 'issues' });
+    expect(triggerReindex).toHaveBeenCalledWith('issues');
   });
 });

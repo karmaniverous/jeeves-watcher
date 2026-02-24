@@ -20,7 +20,7 @@ export interface ConfigReindexRouteDeps {
 }
 
 type ConfigReindexRequest = FastifyRequest<{
-  Body: { scope?: 'rules' | 'full' };
+  Body: { scope?: 'issues' | 'full' };
 }>;
 
 /**
@@ -31,7 +31,7 @@ type ConfigReindexRequest = FastifyRequest<{
 export function createConfigReindexHandler(deps: ConfigReindexRouteDeps) {
   return wrapHandler(
     async (request: ConfigReindexRequest, reply: FastifyReply) => {
-      const scope = request.body.scope ?? 'rules';
+      const scope = request.body.scope ?? 'issues';
 
       void executeReindex(
         {

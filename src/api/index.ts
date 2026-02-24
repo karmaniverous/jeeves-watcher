@@ -78,9 +78,9 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
   const reindexTracker = options.reindexTracker ?? new ReindexTracker();
   const app = Fastify({ logger: false });
 
-  const triggerReindex = (scope: 'rules' | 'full') => {
+  const triggerReindex = (scope: 'issues' | 'full') => {
     void executeReindex(
-      { config, processor, logger, reindexTracker, valuesManager },
+      { config, processor, logger, reindexTracker, valuesManager, issuesManager },
       scope,
     );
   };
