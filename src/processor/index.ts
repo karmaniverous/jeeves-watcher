@@ -6,7 +6,6 @@
 
 import { extname } from 'node:path';
 
-import type { JsonMapMap } from '@karmaniverous/jsonmap';
 import type pino from 'pino';
 
 import type { EmbeddingProvider } from '../embedding';
@@ -21,31 +20,28 @@ import type { ValuesManager } from '../values';
 import type { VectorStoreClient } from '../vectorStore';
 import { buildMergedMetadata } from './buildMetadata';
 import { chunkIds, getChunkCount } from './chunkIds';
+import { embedAndUpsert } from './processingPipeline';
+import type { ProcessorConfig } from './ProcessorConfig';
 import { createSplitter } from './splitter';
 
-/**
- * Configuration needed by DocumentProcessor (ISP — narrow interface).
- */
-export interface ProcessorConfig {
-  /** Metadata directory for enrichment files. */
-  metadataDir: string;
-  /** Maximum chunk size in characters. */
-  chunkSize?: number;
-  /** Overlap between chunks in characters. */
-  chunkOverlap?: number;
-  /** Named JsonMap definitions for rule transformations. */
-  maps?: Record<string, JsonMapMap>;
-  /** Config directory for resolving relative file paths. */
-  configDir?: string;
-  /** Custom JsonMap lib functions loaded from mapHelpers config. */
-  customMapLib?: Record<string, (...args: unknown[]) => unknown>;
-}
+export type { ProcessorConfig } from './ProcessorConfig';
 
 /**
  * Core document processing pipeline.
  *
  * Handles extracting text, computing embeddings, and syncing with the vector store.
  */
+export interface DocumentProcessorDeps {
+  config: ProcessorConfig;
+  embeddingProvider: EmbeddingProvider;
+  vectorStore: VectorStoreClient;
+  compiledRules: CompiledRule[];
+  logger: pino.Logger;
+  templateEngine?: TemplateEngine;
+  issuesManager?: IssuesManager;
+  valuesManager?: ValuesManager;
+}
+
 export class DocumentProcessor {
   private config: ProcessorConfig;
   private readonly embeddingProvider: EmbeddingProvider;
@@ -66,16 +62,16 @@ export class DocumentProcessor {
    * @param logger - The logger instance.
    * @param templateEngine - Optional template engine for content templates.
    */
-  constructor(
-    config: ProcessorConfig,
-    embeddingProvider: EmbeddingProvider,
-    vectorStore: VectorStoreClient,
-    compiledRules: CompiledRule[],
-    logger: pino.Logger,
-    templateEngine?: TemplateEngine,
-    issuesManager?: IssuesManager,
-    valuesManager?: ValuesManager,
-  ) {
+  constructor({
+    config,
+    embeddingProvider,
+    vectorStore,
+    compiledRules,
+    logger,
+    templateEngine,
+    issuesManager,
+    valuesManager,
+  }: DocumentProcessorDeps) {
     this.config = config;
     this.embeddingProvider = embeddingProvider;
     this.vectorStore = vectorStore;
@@ -124,52 +120,30 @@ export class DocumentProcessor {
         this.logger.debug({ filePath }, 'Content unchanged, skipping');
         return;
       }
-      const oldTotalChunks = getChunkCount(existingPayload);
-
-      // 3. Chunk text
+      // 3. Embed→chunk→upsert pipeline
       const chunkSize = this.config.chunkSize ?? 1000;
       const chunkOverlap = this.config.chunkOverlap ?? 200;
       const splitter = createSplitter(ext, chunkSize, chunkOverlap);
-      const chunks = await splitter.splitText(textToEmbed);
-
-      // 4. Embed all chunks
-      const vectors = await this.embeddingProvider.embed(chunks);
-
-      // 5. Upsert all chunk points
-      const points = chunks.map((chunk, i) => ({
-        id: pointId(filePath, i),
-        vector: vectors[i],
-        payload: {
-          ...metadata,
-          file_path: filePath.replace(/\\/g, '/'),
-          chunk_index: i,
-          total_chunks: chunks.length,
-          content_hash: hash,
-          chunk_text: chunk,
+      await embedAndUpsert(
+        {
+          embeddingProvider: this.embeddingProvider,
+          vectorStore: this.vectorStore,
+          splitter,
+          logger: this.logger,
         },
-      }));
-      await this.vectorStore.upsert(points);
+        textToEmbed,
+        filePath,
+        metadata,
+        existingPayload,
+      );
 
-      // 6. Clean up orphaned chunks
-      if (oldTotalChunks > chunks.length) {
-        const orphanIds = chunkIds(filePath, oldTotalChunks).slice(
-          chunks.length,
-        );
-        await this.vectorStore.delete(orphanIds);
-      }
-
-      // 7. Track success: clear issues, update values
+      // 4. Track success: clear issues, update values
       this.issuesManager?.clear(filePath);
       if (this.valuesManager) {
         for (const ruleName of matchedRules) {
           this.valuesManager.update(ruleName, metadata);
         }
       }
-
-      this.logger.info(
-        { filePath, chunks: chunks.length },
-        'File processed successfully',
-      );
     } catch (error) {
       this.logger.error(
         { filePath, err: normalizeError(error) },

@@ -119,8 +119,8 @@ export class JeevesWatcher {
         ? await loadCustomMapHelpers(this.config.mapHelpers, configDir)
         : undefined;
 
-    const processor = this.factories.createDocumentProcessor(
-      {
+    const processor = this.factories.createDocumentProcessor({
+      config: {
         metadataDir: this.config.metadataDir ?? '.jeeves-metadata',
         chunkSize: this.config.embedding.chunkSize,
         chunkOverlap: this.config.embedding.chunkOverlap,
@@ -133,7 +133,7 @@ export class JeevesWatcher {
       compiledRules,
       logger,
       templateEngine,
-    );
+    });
     this.processor = processor;
 
     this.queue = this.factories.createEventQueue({

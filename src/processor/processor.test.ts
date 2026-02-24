@@ -85,9 +85,13 @@ describe('DocumentProcessor', () => {
         extracted: { text: '   ', frontmatter: null, json: null },
       });
 
-      const processor = new DocumentProcessor(
-        config, embeddingProvider, vectorStore as unknown as VectorStoreClient, [], logger,
-      );
+      const processor = new DocumentProcessor({
+        config,
+        embeddingProvider,
+        vectorStore: vectorStore as unknown as VectorStoreClient,
+        compiledRules: [],
+        logger,
+      });
       await processor.processFile('/test.txt');
 
       expect((vectorStore as any).upsert).not.toHaveBeenCalled();
@@ -106,9 +110,13 @@ describe('DocumentProcessor', () => {
         total_chunks: 1,
       });
 
-      const processor = new DocumentProcessor(
-        config, embeddingProvider, vectorStore as unknown as VectorStoreClient, [], logger,
-      );
+      const processor = new DocumentProcessor({
+        config,
+        embeddingProvider,
+        vectorStore: vectorStore as unknown as VectorStoreClient,
+        compiledRules: [],
+        logger,
+      });
       await processor.processFile('/test.txt');
 
       expect((vectorStore as any).upsert).not.toHaveBeenCalled();
@@ -119,29 +127,44 @@ describe('DocumentProcessor', () => {
       mockedBuildMergedMetadata.mockResolvedValue(defaultMergedMetadata());
       (vectorStore.getPayload as Mock).mockResolvedValue(null);
 
-      const processor = new DocumentProcessor(
-        config, embeddingProvider, vectorStore as unknown as VectorStoreClient, [],
-        logger, undefined, issuesManager, valuesManager,
-      );
+      const processor = new DocumentProcessor({
+        config,
+        embeddingProvider,
+        vectorStore: vectorStore as unknown as VectorStoreClient,
+        compiledRules: [],
+        logger,
+        issuesManager,
+        valuesManager,
+      });
       await processor.processFile('/test.txt');
 
       expect((vectorStore as any).upsert).toHaveBeenCalledOnce();
       expect(issuesManager.clear).toHaveBeenCalledWith('/test.txt');
-      expect(valuesManager.update).toHaveBeenCalledWith('rule1', expect.objectContaining({ domain: 'test' }));
+      expect(valuesManager.update).toHaveBeenCalledWith(
+        'rule1',
+        expect.objectContaining({ domain: 'test' }),
+      );
     });
 
     it('records issue on error', async () => {
       const { vectorStore, embeddingProvider, issuesManager, config, logger } = createMocks();
       mockedBuildMergedMetadata.mockRejectedValue(new Error('read fail'));
 
-      const processor = new DocumentProcessor(
-        config, embeddingProvider, vectorStore as unknown as VectorStoreClient, [],
-        logger, undefined, issuesManager,
-      );
+      const processor = new DocumentProcessor({
+        config,
+        embeddingProvider,
+        vectorStore: vectorStore as unknown as VectorStoreClient,
+        compiledRules: [],
+        logger,
+        issuesManager,
+      });
       await processor.processFile('/test.txt');
 
       expect(issuesManager.record).toHaveBeenCalledWith(
-        '/test.txt', 'processFile', 'read fail', 'read_failure',
+        '/test.txt',
+        'processFile',
+        'read fail',
+        'read_failure',
       );
     });
 
@@ -155,9 +178,13 @@ describe('DocumentProcessor', () => {
         total_chunks: 3,
       });
 
-      const processor = new DocumentProcessor(
-        config, embeddingProvider, vectorStore as unknown as VectorStoreClient, [], logger,
-      );
+      const processor = new DocumentProcessor({
+        config,
+        embeddingProvider,
+        vectorStore: vectorStore as unknown as VectorStoreClient,
+        compiledRules: [],
+        logger,
+      });
       await processor.processFile('/test.txt');
 
       // Should delete orphan chunk IDs (indices 1 and 2)
@@ -172,9 +199,13 @@ describe('DocumentProcessor', () => {
       const { vectorStore, embeddingProvider, config, logger } = createMocks();
       (vectorStore.getPayload as Mock).mockResolvedValue(null);
 
-      const processor = new DocumentProcessor(
-        config, embeddingProvider, vectorStore as unknown as VectorStoreClient, [], logger,
-      );
+      const processor = new DocumentProcessor({
+        config,
+        embeddingProvider,
+        vectorStore: vectorStore as unknown as VectorStoreClient,
+        compiledRules: [],
+        logger,
+      });
       const result = await processor.processRulesUpdate('/test.txt');
 
       expect(result).toBeNull();
@@ -185,10 +216,15 @@ describe('DocumentProcessor', () => {
       (vectorStore.getPayload as Mock).mockResolvedValue({ total_chunks: 2 });
       mockedBuildMergedMetadata.mockResolvedValue(defaultMergedMetadata());
 
-      const processor = new DocumentProcessor(
-        config, embeddingProvider, vectorStore as unknown as VectorStoreClient, [],
-        logger, undefined, issuesManager, valuesManager,
-      );
+      const processor = new DocumentProcessor({
+        config,
+        embeddingProvider,
+        vectorStore: vectorStore as unknown as VectorStoreClient,
+        compiledRules: [],
+        logger,
+        issuesManager,
+        valuesManager,
+      });
       const result = await processor.processRulesUpdate('/test.txt');
 
       expect(result).toEqual(expect.objectContaining({ domain: 'test' }));
@@ -204,9 +240,13 @@ describe('DocumentProcessor', () => {
       mockedReadMetadata.mockResolvedValue({ existing: 'old' });
       (vectorStore.getPayload as Mock).mockResolvedValue({ total_chunks: 2 });
 
-      const processor = new DocumentProcessor(
-        config, embeddingProvider, vectorStore as unknown as VectorStoreClient, [], logger,
-      );
+      const processor = new DocumentProcessor({
+        config,
+        embeddingProvider,
+        vectorStore: vectorStore as unknown as VectorStoreClient,
+        compiledRules: [],
+        logger,
+      });
       const result = await processor.processMetadataUpdate('/test.txt', { newKey: 'val' });
 
       expect(mockedWriteMetadata).toHaveBeenCalledWith(
@@ -221,9 +261,13 @@ describe('DocumentProcessor', () => {
       mockedReadMetadata.mockResolvedValue(null);
       (vectorStore.getPayload as Mock).mockResolvedValue(null);
 
-      const processor = new DocumentProcessor(
-        config, embeddingProvider, vectorStore as unknown as VectorStoreClient, [], logger,
-      );
+      const processor = new DocumentProcessor({
+        config,
+        embeddingProvider,
+        vectorStore: vectorStore as unknown as VectorStoreClient,
+        compiledRules: [],
+        logger,
+      });
       const result = await processor.processMetadataUpdate('/test.txt', { key: 'val' });
 
       expect(result).toBeNull();
@@ -235,9 +279,13 @@ describe('DocumentProcessor', () => {
       const { vectorStore, embeddingProvider, config, logger } = createMocks();
       (vectorStore.getPayload as Mock).mockResolvedValue({ total_chunks: 3 });
 
-      const processor = new DocumentProcessor(
-        config, embeddingProvider, vectorStore as unknown as VectorStoreClient, [], logger,
-      );
+      const processor = new DocumentProcessor({
+        config,
+        embeddingProvider,
+        vectorStore: vectorStore as unknown as VectorStoreClient,
+        compiledRules: [],
+        logger,
+      });
       await processor.deleteFile('/test.txt');
 
       expect((vectorStore as any).delete).toHaveBeenCalledOnce();

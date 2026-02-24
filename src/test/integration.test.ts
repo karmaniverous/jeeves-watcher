@@ -61,13 +61,13 @@ beforeAll(async () => {
     maps: config.maps,
   };
 
-  processor = new DocumentProcessor(
-    processorConfig,
+  processor = new DocumentProcessor({
+    config: processorConfig,
     embeddingProvider,
     vectorStore,
     compiledRules,
     logger,
-  );
+  });
 });
 
 afterAll(async () => {
@@ -329,13 +329,13 @@ describe('Rules engine', () => {
       chunkOverlap: rulesConfig.embedding.chunkOverlap,
       maps: rulesConfig.maps,
     };
-    const rulesProcessor = new DocumentProcessor(
-      rulesProcessorConfig,
+    const rulesProcessor = new DocumentProcessor({
+      config: rulesProcessorConfig,
       embeddingProvider,
       vectorStore,
       compiledRules,
       logger,
-    );
+    });
 
     await rulesProcessor.processFile(filePath);
 

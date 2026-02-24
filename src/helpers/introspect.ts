@@ -5,7 +5,8 @@
 
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { pathToFileURL } from 'node:url';
+
+import { loadNamespacedExports } from './loadModule';
 
 /** Result of introspecting a single helper module. */
 export interface HelperModuleIntrospection {
@@ -63,15 +64,15 @@ export async function introspectHelperModule(
 ): Promise<HelperModuleIntrospection> {
   const exports: Record<string, string> = {};
 
-  // Load the module to enumerate exports
-  const mod = (await import(pathToFileURL(filePath).href)) as Record<
-    string,
-    unknown
-  >;
+  // Load module exports using shared utility (use parent dir as configDir, path as relative)
+  const namespaced = await loadNamespacedExports(
+    { [namespace]: { path: filePath } },
+    '',
+    (val) => typeof val === 'function',
+  );
 
   // Try to read source for JSDoc extraction
   let jsDocMap: Record<string, string> = {};
-  // Try .ts source first, then fall back to .js
   for (const ext of ['.ts', '.js', '']) {
     const sourcePath = filePath.replace(/\.[jt]s$/, '') + ext;
     try {
@@ -83,16 +84,9 @@ export async function introspectHelperModule(
     }
   }
 
-  // Enumerate function exports
-  const fns =
-    typeof mod.default === 'object' && mod.default !== null
-      ? (mod.default as Record<string, unknown>)
-      : mod;
-
-  for (const [key, val] of Object.entries(fns)) {
-    if (typeof val === 'function') {
-      exports[`${namespace}_${key}`] = jsDocMap[key] ?? '';
-    }
+  const nsExports = namespaced[namespace] ?? {};
+  for (const key of Object.keys(nsExports)) {
+    exports[`${namespace}_${key}`] = jsDocMap[key] ?? '';
   }
 
   return { exports };

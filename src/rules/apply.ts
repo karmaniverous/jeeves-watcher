@@ -5,7 +5,6 @@
 
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { pathToFileURL } from 'node:url';
 
 import {
   type Json,
@@ -15,6 +14,7 @@ import {
 } from '@karmaniverous/jsonmap';
 import { get } from 'radash';
 
+import { loadNamespacedExports } from '../helpers/loadModule';
 import type { TemplateEngine } from '../templates';
 import type { FileAttributes } from './attributes';
 import type { CompiledRule } from './compile';
@@ -125,21 +125,15 @@ export async function loadCustomMapHelpers(
   helpers: Record<string, { path: string; description?: string }>,
   configDir: string,
 ): Promise<Record<string, (...args: unknown[]) => unknown>> {
+  const namespaced = await loadNamespacedExports(
+    helpers,
+    configDir,
+    (val) => typeof val === 'function',
+  );
   const merged: Record<string, (...args: unknown[]) => unknown> = {};
-  for (const [namespace, { path: p }] of Object.entries(helpers)) {
-    const resolved = resolve(configDir, p);
-    const mod = (await import(pathToFileURL(resolved).href)) as Record<
-      string,
-      unknown
-    >;
-    const fns =
-      typeof mod.default === 'object' && mod.default !== null
-        ? (mod.default as Record<string, unknown>)
-        : mod;
-    for (const [key, val] of Object.entries(fns)) {
-      if (typeof val === 'function') {
-        merged[`${namespace}_${key}`] = val as (...args: unknown[]) => unknown;
-      }
+  for (const [namespace, exports] of Object.entries(namespaced)) {
+    for (const [key, val] of Object.entries(exports)) {
+      merged[`${namespace}_${key}`] = val as (...args: unknown[]) => unknown;
     }
   }
   return merged;
