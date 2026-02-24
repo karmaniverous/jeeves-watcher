@@ -278,6 +278,7 @@ describe('Rules engine', () => {
       ...config,
       inferenceRules: [
         {
+          name: 'meetings-rule',
           match: {
             properties: {
               file: {

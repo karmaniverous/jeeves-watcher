@@ -165,7 +165,7 @@ describe('jeevesWatcherConfigSchema', () => {
   it('validates inference rules structure', () => {
     const result = jeevesWatcherConfigSchema.safeParse({
       ...minimalValidConfig,
-      inferenceRules: [{ match: { type: 'object' }, set: { a: 1 } }],
+      inferenceRules: [{ name: 'test-rule', match: { type: 'object' }, set: { a: 1 } }],
     });
     expect(result.success).toBe(true);
   });
@@ -173,7 +173,7 @@ describe('jeevesWatcherConfigSchema', () => {
   it('rejects inference rules missing required set field', () => {
     const result = jeevesWatcherConfigSchema.safeParse({
       ...minimalValidConfig,
-      inferenceRules: [{ match: { type: 'object' } }],
+      inferenceRules: [{ name: 'test-rule', match: { type: 'object' } }],
     });
     expect(result.success).toBe(false);
   });

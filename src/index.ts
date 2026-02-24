@@ -34,6 +34,8 @@ export {
   watchConfigSchema,
 } from './config';
 export type { EmbeddingProvider } from './embedding';
+export { IssuesManager, issueRecordSchema } from './issues';
+export type { IssueRecord, IssuesFile } from './issues';
 export { createEmbeddingProvider } from './embedding';
 export type { ExtractedText } from './extractors';
 export { extractText } from './extractors';
@@ -61,6 +63,7 @@ export {
   type RuleLogger,
 } from './rules';
 export type { CompiledTemplate } from './templates';
+export { type ValuesIndex, ValuesManager } from './values';
 export {
   buildTemplateEngine,
   createHandlebarsInstance,

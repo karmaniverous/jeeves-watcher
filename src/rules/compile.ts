@@ -24,10 +24,10 @@ export interface CompiledRule {
  */
 export function compileRules(rules: InferenceRule[]): CompiledRule[] {
   const ajv = createRuleAjv();
-  return rules.map((rule, idx) => ({
+  return rules.map((rule) => ({
     rule,
     validate: ajv.compile({
-      $id: `rule-${String(idx)}`,
+      $id: rule.name,
       ...rule.match,
     }) as (data: unknown) => boolean,
   }));

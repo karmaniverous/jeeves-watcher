@@ -24,6 +24,7 @@ describe('rules engine', () => {
   it('matches glob patterns on file path', async () => {
     const rules: InferenceRule[] = [
       {
+        name: 'docs-glob',
         match: {
           type: 'object',
           properties: {
@@ -49,6 +50,7 @@ describe('rules engine', () => {
   it('does not match when glob does not match', async () => {
     const rules: InferenceRule[] = [
       {
+        name: 'src-glob',
         match: {
           type: 'object',
           properties: {
@@ -74,6 +76,7 @@ describe('rules engine', () => {
   it('matches frontmatter properties', async () => {
     const rules: InferenceRule[] = [
       {
+        name: 'frontmatter-tags',
         match: {
           type: 'object',
           properties: {
@@ -102,6 +105,7 @@ describe('rules engine', () => {
   it('resolves template variables', async () => {
     const rules: InferenceRule[] = [
       {
+        name: 'template-vars',
         match: { type: 'object' },
         set: {
           source: '${file.path}',
@@ -120,10 +124,12 @@ describe('rules engine', () => {
   it('later rules override earlier ones', async () => {
     const rules: InferenceRule[] = [
       {
+        name: 'first-rule',
         match: { type: 'object' },
         set: { priority: 'low', source: 'first' },
       },
       {
+        name: 'second-rule',
         match: { type: 'object' },
         set: { priority: 'high' },
       },
@@ -136,6 +142,7 @@ describe('rules engine', () => {
   it('applies inline JsonMap to extract path segment', async () => {
     const rules: InferenceRule[] = [
       {
+        name: 'inline-map',
         match: { type: 'object' },
         set: {},
         map: {
@@ -169,6 +176,7 @@ describe('rules engine', () => {
 
     const rules: InferenceRule[] = [
       {
+        name: 'named-map-ref',
         match: { type: 'object' },
         set: {},
         map: 'extractDirectory',
@@ -183,6 +191,7 @@ describe('rules engine', () => {
   it('merges set and map outputs with map overriding set', async () => {
     const rules: InferenceRule[] = [
       {
+        name: 'set-map-merge',
         match: { type: 'object' },
         set: { field: 'from-set', other: 'value' },
         map: {
@@ -209,6 +218,7 @@ describe('rules engine', () => {
 
     const rules: InferenceRule[] = [
       {
+        name: 'missing-map-ref',
         match: { type: 'object' },
         set: { fallback: 'value' },
         map: 'nonexistent',
@@ -229,10 +239,12 @@ describe('rules engine', () => {
   it('applies multiple matching rules in order (all applied, later overrides)', async () => {
     const rules: InferenceRule[] = [
       {
+        name: 'multi-first',
         match: { type: 'object' },
         set: { a: 1, shared: 'first' },
       },
       {
+        name: 'multi-second',
         match: { type: 'object' },
         set: { b: 2, shared: 'second' },
       },
@@ -247,6 +259,7 @@ describe('rules engine', () => {
   it('treats missing template variables as empty string', async () => {
     const rules: InferenceRule[] = [
       {
+        name: 'missing-vars',
         match: { type: 'object' },
         set: { title: '${frontmatter.title}', path: '${file.path}' },
       },
@@ -265,6 +278,7 @@ describe('rules engine', () => {
 
     const rules: InferenceRule[] = [
       {
+        name: 'map-throws',
         match: { type: 'object' },
         set: { ok: true },
         map: {
@@ -292,6 +306,7 @@ describe('rules engine', () => {
   it('rejects invalid JSON Schema definitions in match', () => {
     const rules: InferenceRule[] = [
       {
+        name: 'invalid-schema',
         // Ajv should throw on invalid `type`.
         match: { type: 'not-a-real-json-schema-type' },
         set: { a: 1 },
@@ -304,6 +319,7 @@ describe('rules engine', () => {
   it('supports rules with only match (empty set, no map)', async () => {
     const rules: InferenceRule[] = [
       {
+        name: 'empty-set',
         match: { type: 'object' },
         set: {},
       },

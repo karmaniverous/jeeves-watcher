@@ -11,11 +11,13 @@ import type pino from 'pino';
 
 import type { EmbeddingProvider } from '../embedding';
 import { contentHash } from '../hash';
+import type { IssuesManager } from '../issues';
 import { deleteMetadata, readMetadata, writeMetadata } from '../metadata';
 import { pointId } from '../pointId';
 import type { CompiledRule } from '../rules';
 import type { TemplateEngine } from '../templates';
 import { normalizeError } from '../util/normalizeError';
+import type { ValuesManager } from '../values';
 import type { VectorStoreClient } from '../vectorStore';
 import { buildMergedMetadata } from './buildMetadata';
 import { chunkIds, getChunkCount } from './chunkIds';
@@ -51,6 +53,8 @@ export class DocumentProcessor {
   private compiledRules: CompiledRule[];
   private readonly logger: pino.Logger;
   private templateEngine?: TemplateEngine;
+  private readonly issuesManager?: IssuesManager;
+  private readonly valuesManager?: ValuesManager;
 
   /**
    * Create a new DocumentProcessor.
@@ -69,6 +73,8 @@ export class DocumentProcessor {
     compiledRules: CompiledRule[],
     logger: pino.Logger,
     templateEngine?: TemplateEngine,
+    issuesManager?: IssuesManager,
+    valuesManager?: ValuesManager,
   ) {
     this.config = config;
     this.embeddingProvider = embeddingProvider;
@@ -76,6 +82,8 @@ export class DocumentProcessor {
     this.compiledRules = compiledRules;
     this.logger = logger;
     this.templateEngine = templateEngine;
+    this.issuesManager = issuesManager;
+    this.valuesManager = valuesManager;
   }
 
   /**
@@ -88,7 +96,7 @@ export class DocumentProcessor {
       const ext = extname(filePath);
 
       // 1. Build merged metadata + extract text
-      const { metadata, extracted, renderedContent } =
+      const { metadata, extracted, renderedContent, matchedRules } =
         await buildMergedMetadata(
           filePath,
           this.compiledRules,
@@ -150,6 +158,14 @@ export class DocumentProcessor {
         await this.vectorStore.delete(orphanIds);
       }
 
+      // 7. Track success: clear issues, update values
+      this.issuesManager?.clear(filePath);
+      if (this.valuesManager) {
+        for (const ruleName of matchedRules) {
+          this.valuesManager.update(ruleName, metadata);
+        }
+      }
+
       this.logger.info(
         { filePath, chunks: chunks.length },
         'File processed successfully',
@@ -158,6 +174,12 @@ export class DocumentProcessor {
       this.logger.error(
         { filePath, err: normalizeError(error) },
         'Failed to process file',
+      );
+      this.issuesManager?.record(
+        filePath,
+        'processFile',
+        error instanceof Error ? error.message : String(error),
+        'read_failure',
       );
     }
   }
@@ -261,12 +283,20 @@ export class DocumentProcessor {
       const ids = chunkIds(filePath, totalChunks);
       await this.vectorStore.setPayload(ids, metadata);
 
+      this.issuesManager?.clear(filePath);
+
       this.logger.info({ filePath, chunks: totalChunks }, 'Rules re-applied');
       return metadata;
     } catch (error) {
       this.logger.error(
         { filePath, err: normalizeError(error) },
         'Failed to re-apply rules',
+      );
+      this.issuesManager?.record(
+        filePath,
+        'processRulesUpdate',
+        error instanceof Error ? error.message : String(error),
+        'read_failure',
       );
       return null;
     }

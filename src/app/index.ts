@@ -5,6 +5,7 @@
 
 import { dirname } from 'node:path';
 
+import type { JsonMapMap } from '@karmaniverous/jsonmap';
 import type { FastifyInstance } from 'fastify';
 import type pino from 'pino';
 
@@ -18,6 +19,31 @@ import { normalizeError } from '../util/normalizeError';
 import type { FileSystemWatcher } from '../watcher';
 import { ConfigWatcher } from './configWatcher';
 import { defaultFactories, type JeevesWatcherFactories } from './factories';
+
+/**
+ * Resolve maps config entries to plain JsonMapMap records.
+ * Handles string | JsonMapMap | { map, description } union format.
+ */
+function resolveMapsConfig(
+  maps?: Record<string, unknown>,
+): Record<string, JsonMapMap | string> | undefined {
+  if (!maps) return undefined;
+  const resolved: Record<string, JsonMapMap | string> = {};
+  for (const [key, value] of Object.entries(maps)) {
+    if (typeof value === 'string') {
+      resolved[key] = value;
+    } else if (
+      value &&
+      typeof value === 'object' &&
+      'map' in value
+    ) {
+      resolved[key] = (value as { map: JsonMapMap | string }).map as JsonMapMap | string;
+    } else {
+      resolved[key] = value as JsonMapMap;
+    }
+  }
+  return resolved;
+}
 
 export type { JeevesWatcherFactories } from './factories';
 export { defaultFactories } from './factories';
@@ -82,17 +108,23 @@ export class JeevesWatcher {
     );
 
     const configDir = this.configPath ? dirname(this.configPath) : '.';
+    const templateHelperPaths = this.config.templateHelpers
+      ? Object.values(this.config.templateHelpers).map((h) => h.path)
+      : undefined;
     const templateEngine = await buildTemplateEngine(
       this.config.inferenceRules ?? [],
       this.config.templates,
-      this.config.templateHelpers?.paths,
+      templateHelperPaths,
       configDir,
     );
 
     // Load custom JsonMap lib functions
+    const mapHelperPaths = this.config.mapHelpers
+      ? Object.values(this.config.mapHelpers).map((h) => h.path)
+      : undefined;
     const customMapLib =
-      this.config.mapHelpers?.paths?.length && configDir
-        ? await loadCustomMapHelpers(this.config.mapHelpers.paths, configDir)
+      mapHelperPaths?.length && configDir
+        ? await loadCustomMapHelpers(mapHelperPaths, configDir)
         : undefined;
 
     const processor = this.factories.createDocumentProcessor(
@@ -100,7 +132,7 @@ export class JeevesWatcher {
         metadataDir: this.config.metadataDir ?? '.jeeves-metadata',
         chunkSize: this.config.embedding.chunkSize,
         chunkOverlap: this.config.embedding.chunkOverlap,
-        maps: this.config.maps,
+        maps: resolveMapsConfig(this.config.maps as Record<string, unknown>) as Record<string, JsonMapMap> | undefined,
         configDir,
         customMapLib,
       },
@@ -293,19 +325,22 @@ export class JeevesWatcher {
       );
 
       const reloadConfigDir = dirname(this.configPath);
+      const reloadTemplateHelperPaths = newConfig.templateHelpers
+        ? Object.values(newConfig.templateHelpers).map((h) => h.path)
+        : undefined;
       const newTemplateEngine = await buildTemplateEngine(
         newConfig.inferenceRules ?? [],
         newConfig.templates,
-        newConfig.templateHelpers?.paths,
+        reloadTemplateHelperPaths,
         reloadConfigDir,
       );
 
+      const reloadMapHelperPaths = newConfig.mapHelpers
+        ? Object.values(newConfig.mapHelpers).map((h) => h.path)
+        : undefined;
       const newCustomMapLib =
-        newConfig.mapHelpers?.paths?.length && reloadConfigDir
-          ? await loadCustomMapHelpers(
-              newConfig.mapHelpers.paths,
-              reloadConfigDir,
-            )
+        reloadMapHelperPaths?.length && reloadConfigDir
+          ? await loadCustomMapHelpers(reloadMapHelperPaths, reloadConfigDir)
           : undefined;
 
       processor.updateRules(compiledRules, newTemplateEngine, newCustomMapLib);

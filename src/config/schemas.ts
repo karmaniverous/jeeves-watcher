@@ -71,6 +71,11 @@ export const configWatchConfigSchema = z.object({
     .describe(
       'Debounce delay in milliseconds for config file change detection.',
     ),
+  /** Reindex scope triggered on config change. */
+  reindex: z
+    .enum(['rules', 'full', 'none'])
+    .optional()
+    .describe('Reindex scope triggered on config change. Default: rules.'),
 });
 
 /** Configuration file watch settings controlling auto-reload behavior on config changes. */
@@ -192,6 +197,16 @@ export type LoggingConfig = z.infer<typeof loggingConfigSchema>;
  * An inference rule that enriches document metadata.
  */
 export const inferenceRuleSchema = z.object({
+  /** Unique name for this inference rule. */
+  name: z
+    .string()
+    .min(1)
+    .describe('Unique name identifying this inference rule.'),
+  /** Optional human-readable description. */
+  description: z
+    .string()
+    .optional()
+    .describe('Human-readable description of what this rule does.'),
   /** JSON Schema object to match against document metadata. */
   match: z
     .record(z.string(), z.unknown())
@@ -247,6 +262,13 @@ export const jeevesWatcherConfigSchema = z.object({
     .record(z.string(), z.unknown())
     .optional()
     .describe('Extractor configurations keyed by name.'),
+  /** Directory for persistent state files (issues.json, values.json). Defaults to metadataDir. */
+  stateDir: z
+    .string()
+    .optional()
+    .describe(
+      'Directory for persistent state files (issues.json, values.json). Defaults to metadataDir.',
+    ),
   /** Rules for inferring metadata from document properties. */
   inferenceRules: z
     .array(inferenceRuleSchema)
@@ -254,42 +276,84 @@ export const jeevesWatcherConfigSchema = z.object({
     .describe('Rules for inferring metadata from file attributes.'),
   /** Reusable named JsonMap transformations (inline objects or .json file paths). */
   maps: z
-    .record(z.string(), jsonMapMapSchema.or(z.string()))
+    .record(
+      z.string(),
+      z.union([
+        jsonMapMapSchema,
+        z.string(),
+        z.object({
+          map: jsonMapMapSchema.or(z.string()),
+          description: z.string().optional(),
+        }),
+      ]),
+    )
     .optional()
     .describe(
       'Reusable named JsonMap transformations (inline definition or .json file path resolved relative to config directory).',
     ),
   /** Reusable named Handlebars templates (inline strings or .hbs/.handlebars file paths). */
   templates: z
-    .record(z.string(), z.string())
+    .record(
+      z.string(),
+      z.union([
+        z.string(),
+        z.object({
+          template: z.string(),
+          description: z.string().optional(),
+        }),
+      ]),
+    )
     .optional()
     .describe(
       'Named reusable Handlebars templates (inline strings or .hbs/.handlebars file paths).',
     ),
   /** Custom Handlebars helper registration. */
   templateHelpers: z
-    .object({
-      /** File paths to custom helper modules. */
-      paths: z
-        .array(z.string())
-        .optional()
-        .describe('File paths to custom helper modules.'),
-    })
+    .record(
+      z.string(),
+      z.object({
+        path: z.string(),
+        description: z.string().optional(),
+      }),
+    )
     .optional()
     .describe('Custom Handlebars helper registration.'),
   /** Custom JsonMap lib function registration. */
   mapHelpers: z
-    .object({
-      /** File paths to custom lib modules (each exports functions to merge into the JsonMap lib). */
-      paths: z
-        .array(z.string())
-        .optional()
-        .describe(
-          'File paths to JS modules exporting functions to merge into the JsonMap lib.',
-        ),
-    })
+    .record(
+      z.string(),
+      z.object({
+        path: z.string(),
+        description: z.string().optional(),
+      }),
+    )
     .optional()
     .describe('Custom JsonMap lib function registration.'),
+  /** Reindex configuration. */
+  reindex: z
+    .object({
+      callbackUrl: z.string().url().optional(),
+    })
+    .optional()
+    .describe('Reindex configuration.'),
+  /** Named Qdrant filter patterns for skill-activated behaviors. */
+  slots: z
+    .record(z.string(), z.unknown())
+    .optional()
+    .describe('Named Qdrant filter patterns for skill-activated behaviors.'),
+  /** Search configuration including score thresholds. */
+  search: z
+    .object({
+      scoreThresholds: z
+        .object({
+          strong: z.number(),
+          relevant: z.number(),
+          noise: z.number(),
+        })
+        .optional(),
+    })
+    .optional()
+    .describe('Search configuration including score thresholds.'),
   /** Logging configuration. */
   logging: loggingConfigSchema.optional().describe('Logging configuration.'),
   /** Timeout in milliseconds for graceful shutdown. */

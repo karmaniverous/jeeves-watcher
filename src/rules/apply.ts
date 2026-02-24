@@ -152,6 +152,8 @@ export interface ApplyRulesResult {
   metadata: Record<string, unknown>;
   /** Rendered template content from the last matching rule with a template, or null. */
   renderedContent: string | null;
+  /** Names of rules that matched. */
+  matchedRules: string[];
 }
 
 /**
@@ -186,10 +188,13 @@ export async function applyRules(
   ) as unknown as JsonMapLib;
   let merged: Record<string, unknown> = {};
   let renderedContent: string | null = null;
+  const matchedRules: string[] = [];
   const log: RuleLogger = logger ?? console;
 
   for (const [ruleIndex, { rule, validate }] of compiledRules.entries()) {
     if (validate(attributes)) {
+      matchedRules.push(rule.name);
+
       // Apply set resolution
       const setOutput = resolveSet(rule.set, attributes);
       merged = { ...merged, ...setOutput };
@@ -251,7 +256,7 @@ export async function applyRules(
 
       // Render template if present
       if (rule.template && templateEngine) {
-        const templateKey = `rule-${String(ruleIndex)}`;
+        const templateKey = rule.name;
         // Build template context: attributes (with json spread at top) + map output
         const context: Record<string, unknown> = {
           ...(attributes.json ?? {}),
@@ -265,17 +270,17 @@ export async function applyRules(
             renderedContent = result;
           } else {
             log.warn(
-              `Template for rule ${String(ruleIndex)} rendered empty output. Falling back to raw content.`,
+              `Template for rule "${rule.name}" rendered empty output. Falling back to raw content.`,
             );
           }
         } catch (error) {
           log.warn(
-            `Template render failed for rule ${String(ruleIndex)}: ${error instanceof Error ? error.message : String(error)}. Falling back to raw content.`,
+            `Template render failed for rule "${rule.name}": ${error instanceof Error ? error.message : String(error)}. Falling back to raw content.`,
           );
         }
       }
     }
   }
 
-  return { metadata: merged, renderedContent };
+  return { metadata: merged, renderedContent, matchedRules };
 }

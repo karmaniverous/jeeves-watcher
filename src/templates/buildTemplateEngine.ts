@@ -20,9 +20,18 @@ import {
  * @param configDir - Directory to resolve relative paths against.
  * @returns The configured TemplateEngine, or undefined if no templates are used.
  */
+/**
+ * Resolve a template config entry to its source string.
+ */
+function resolveTemplateEntry(
+  entry: string | { template: string; description?: string },
+): string {
+  return typeof entry === 'string' ? entry : entry.template;
+}
+
 export async function buildTemplateEngine(
   rules: InferenceRule[],
-  namedTemplates?: Record<string, string>,
+  namedTemplates?: Record<string, string | { template: string; description?: string }>,
   templateHelperPaths?: string[],
   configDir?: string,
 ): Promise<TemplateEngine | undefined> {
@@ -38,15 +47,25 @@ export async function buildTemplateEngine(
 
   const engine = new TemplateEngine(hbs);
 
+  // Flatten named templates to plain string map for resolution
+  const flatTemplates: Record<string, string> | undefined = namedTemplates
+    ? Object.fromEntries(
+        Object.entries(namedTemplates).map(([k, v]) => [
+          k,
+          resolveTemplateEntry(v),
+        ]),
+      )
+    : undefined;
+
   // Compile all rule templates
-  for (const [index, rule] of rules.entries()) {
+  for (const rule of rules) {
     if (!rule.template) continue;
     const source = resolveTemplateSource(
       rule.template,
-      namedTemplates,
+      flatTemplates,
       configDir ?? '.',
     );
-    engine.compile(`rule-${String(index)}`, source);
+    engine.compile(rule.name, source);
   }
 
   return engine;

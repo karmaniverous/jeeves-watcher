@@ -31,6 +31,8 @@ export interface MergedMetadata {
   extracted: ExtractedText;
   /** Rendered template content, or null if no template matched. */
   renderedContent: string | null;
+  /** Names of rules that matched. */
+  matchedRules: string[];
 }
 
 /**
@@ -68,7 +70,7 @@ export async function buildMergedMetadata(
     extracted.frontmatter,
     extracted.json,
   );
-  const { metadata: inferred, renderedContent } = await applyRules(
+  const { metadata: inferred, renderedContent, matchedRules } = await applyRules(
     compiledRules,
     attributes,
     maps,
@@ -92,5 +94,6 @@ export async function buildMergedMetadata(
     attributes,
     extracted,
     renderedContent,
+    matchedRules,
   };
 }
