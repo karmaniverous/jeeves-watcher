@@ -51,6 +51,21 @@ function buildHelperSection(
 }
 
 /**
+ * Safely read and parse a file reference. Returns the original string on failure.
+ */
+function readFileReference(filePath: string): unknown {
+  try {
+    const content = readFileSync(filePath, 'utf-8');
+    if (filePath.endsWith('.json')) {
+      return JSON.parse(content) as unknown;
+    }
+    return content;
+  } catch {
+    return filePath;
+  }
+}
+
+/**
  * Build a merged virtual document combining config, values, and issues.
  *
  * @param options - The build options.
@@ -95,7 +110,12 @@ export function buildMergedDocument(
 }
 
 /**
- * Resolve file references in a document. Reads JSON files at paths found in string values.
+ * Resolve file references in known config reference positions only.
+ *
+ * Only resolves strings in:
+ * - `inferenceRules[*].map` when ending in `.json`
+ * - `maps[*]` when a string (file path)
+ * - `templates[*]` when a string (file path)
  *
  * @param doc - The document to resolve.
  * @param resolveTypes - Which resolution types to apply.
@@ -107,23 +127,43 @@ export function resolveReferences(
 ): Record<string, unknown> {
   if (!resolveTypes.includes('files')) return doc;
 
-  return JSON.parse(
-    JSON.stringify(doc, (_key, value: unknown) => {
-      if (
-        typeof value === 'string' &&
-        (value.endsWith('.json') || value.endsWith('.js'))
-      ) {
-        try {
-          const content = readFileSync(value, 'utf-8');
-          if (value.endsWith('.json')) {
-            return JSON.parse(content) as unknown;
-          }
-          return content;
-        } catch {
-          return value;
-        }
+  const resolved = { ...doc };
+
+  // Resolve inferenceRules[*].map file references
+  if (Array.isArray(resolved['inferenceRules'])) {
+    resolved['inferenceRules'] = (
+      resolved['inferenceRules'] as Record<string, unknown>[]
+    ).map((rule) => {
+      if (typeof rule['map'] === 'string' && rule['map'].endsWith('.json')) {
+        return { ...rule, map: readFileReference(rule['map']) };
       }
-      return value;
-    }),
-  ) as Record<string, unknown>;
+      return rule;
+    });
+  }
+
+  // Resolve maps[*] file references
+  if (resolved['maps'] && typeof resolved['maps'] === 'object') {
+    const maps = { ...(resolved['maps'] as Record<string, unknown>) };
+    for (const [key, value] of Object.entries(maps)) {
+      if (typeof value === 'string') {
+        maps[key] = readFileReference(value);
+      }
+    }
+    resolved['maps'] = maps;
+  }
+
+  // Resolve templates[*] file references
+  if (resolved['templates'] && typeof resolved['templates'] === 'object') {
+    const templates = {
+      ...(resolved['templates'] as Record<string, unknown>),
+    };
+    for (const [key, value] of Object.entries(templates)) {
+      if (typeof value === 'string') {
+        templates[key] = readFileReference(value);
+      }
+    }
+    resolved['templates'] = templates;
+  }
+
+  return resolved;
 }
