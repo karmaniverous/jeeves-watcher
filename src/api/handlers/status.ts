@@ -3,7 +3,6 @@
  * Fastify route handler for GET /status. Returns process health, uptime, and collection stats.
  */
 
-import type { JeevesWatcherConfig } from '../../config/types';
 import type { VectorStore } from '../../vectorStore';
 import type { ReindexTracker } from '../ReindexTracker';
 
@@ -11,8 +10,8 @@ import type { ReindexTracker } from '../ReindexTracker';
 export interface StatusRouteDeps {
   /** The vector store. */
   vectorStore: VectorStore;
-  /** The application configuration. */
-  config: JeevesWatcherConfig;
+  /** Vector store collection name. */
+  collectionName: string;
   /** The reindex tracker. */
   reindexTracker: ReindexTracker;
 }
@@ -29,7 +28,7 @@ export function createStatusHandler(deps: StatusRouteDeps) {
       status: 'ok',
       uptime: process.uptime(),
       collection: {
-        name: deps.config.vectorStore.collectionName,
+        name: deps.collectionName,
         pointCount: collectionInfo.pointCount,
         dimensions: collectionInfo.dimensions,
       },

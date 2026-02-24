@@ -7,7 +7,6 @@ import type { FastifyReply, FastifyRequest } from 'fastify';
 import type pino from 'pino';
 import { omit } from 'radash';
 
-import type { JeevesWatcherConfig } from '../../config/types';
 import { writeMetadata } from '../../metadata';
 import { SYSTEM_METADATA_KEYS } from '../../metadata/constants';
 import { FIELD_FILE_PATH } from '../../processor/payloadFields';
@@ -15,7 +14,7 @@ import type { VectorStore } from '../../vectorStore';
 import { wrapHandler } from './wrapHandler';
 
 export interface RebuildMetadataRouteDeps {
-  config: JeevesWatcherConfig;
+  metadataDir?: string;
   vectorStore: VectorStore;
   logger: pino.Logger;
 }
@@ -28,7 +27,7 @@ export interface RebuildMetadataRouteDeps {
 export function createRebuildMetadataHandler(deps: RebuildMetadataRouteDeps) {
   return wrapHandler(
     async (_request: FastifyRequest, reply: FastifyReply) => {
-      const metadataDir = deps.config.metadataDir ?? '.jeeves-metadata';
+      const metadataDir = deps.metadataDir ?? '.jeeves-metadata';
       const systemKeys = [...SYSTEM_METADATA_KEYS];
 
       for await (const point of deps.vectorStore.scroll()) {

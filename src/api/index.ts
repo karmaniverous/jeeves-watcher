@@ -87,7 +87,11 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
 
   app.get(
     '/status',
-    createStatusHandler({ vectorStore, config, reindexTracker }),
+    createStatusHandler({
+      vectorStore,
+      collectionName: config.vectorStore.collectionName,
+      reindexTracker,
+    }),
   );
 
   app.post('/metadata', createMetadataHandler({ processor, logger }));
@@ -97,11 +101,18 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
     createSearchHandler({ embeddingProvider, vectorStore, logger }),
   );
 
-  app.post('/reindex', createReindexHandler({ config, processor, logger }));
+  app.post(
+    '/reindex',
+    createReindexHandler({ watch: config.watch, processor, logger }),
+  );
 
   app.post(
     '/rebuild-metadata',
-    createRebuildMetadataHandler({ config, vectorStore, logger }),
+    createRebuildMetadataHandler({
+      metadataDir: config.metadataDir,
+      vectorStore,
+      logger,
+    }),
   );
 
   app.post(

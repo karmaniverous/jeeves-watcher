@@ -1,27 +1,27 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import { ReindexTracker } from '../ReindexTracker';
-import type { StatusRouteDeps } from './status';
+import type { VectorStore } from '../../vectorStore';
 import { createStatusHandler } from './status';
 
 describe('createStatusHandler', () => {
   it('returns status with collection info and reindex status', async () => {
+    const vectorStore: Partial<VectorStore> = {
+      getCollectionInfo: vi.fn().mockResolvedValue({
+        pointCount: 42,
+        dimensions: 768,
+        payloadFields: {
+          domain: { type: 'keyword' },
+          content: { type: 'text' },
+        },
+      }),
+    };
+
     const mockDeps = {
-      vectorStore: {
-        getCollectionInfo: vi.fn().mockResolvedValue({
-          pointCount: 42,
-          dimensions: 768,
-          payloadFields: {
-            domain: { type: 'keyword' },
-            content: { type: 'text' },
-          },
-        }),
-      },
-      config: {
-        vectorStore: { collectionName: 'test-collection' },
-      },
+      vectorStore: vectorStore as VectorStore,
+      collectionName: 'test-collection',
       reindexTracker: new ReindexTracker(),
-    } as unknown as StatusRouteDeps;
+    };
 
     const handler = createStatusHandler(mockDeps);
     const result = await handler();

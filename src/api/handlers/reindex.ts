@@ -6,13 +6,13 @@
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import type pino from 'pino';
 
-import type { JeevesWatcherConfig } from '../../config/types';
+import type { WatchConfig } from '../../config/types';
 import type { DocumentProcessor } from '../../processor';
 import { processAllFiles } from '../processAllFiles';
 import { wrapHandler } from './wrapHandler';
 
 export interface ReindexRouteDeps {
-  config: JeevesWatcherConfig;
+  watch: WatchConfig;
   processor: DocumentProcessor;
   logger: pino.Logger;
 }
@@ -26,8 +26,8 @@ export function createReindexHandler(deps: ReindexRouteDeps) {
   return wrapHandler(
     async (_request: FastifyRequest, reply: FastifyReply) => {
       const count = await processAllFiles(
-        deps.config.watch.paths,
-        deps.config.watch.ignored,
+        deps.watch.paths,
+        deps.watch.ignored,
         deps.processor,
         'processFile',
       );
