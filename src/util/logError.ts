@@ -20,8 +20,29 @@ import { normalizeError } from './normalizeError';
 export function logError(
   logger: pino.Logger,
   error: unknown,
+  context: Record<string, unknown>,
   message: string,
-  context: Record<string, unknown> = {},
+): void;
+export function logError(
+  logger: pino.Logger,
+  error: unknown,
+  message: string,
+  context?: Record<string, unknown>,
+): void;
+export function logError(
+  logger: pino.Logger,
+  error: unknown,
+  a: string | Record<string, unknown>,
+  b?: string | Record<string, unknown>,
 ): void {
+  if (typeof a === 'string') {
+    const message = a;
+    const context = (b ?? {}) as Record<string, unknown>;
+    logger.error({ ...context, err: normalizeError(error) }, message);
+    return;
+  }
+
+  const context = a;
+  const message = typeof b === 'string' ? b : '';
   logger.error({ ...context, err: normalizeError(error) }, message);
 }
