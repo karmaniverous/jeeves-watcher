@@ -9,7 +9,7 @@
 </code><button type="button">Copy</button></pre>
 
 <h3 id="response" class="tsd-anchor-link">Response<a href="#response" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
-<pre><code class="json"><span class="hl-1">{</span><br/><span class="hl-1">  </span><span class="hl-4">&quot;status&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;ok&quot;</span><span class="hl-1">,</span><br/><span class="hl-1">  </span><span class="hl-4">&quot;uptime&quot;</span><span class="hl-1">: </span><span class="hl-5">86400</span><span class="hl-1">,</span><br/><span class="hl-1">  </span><span class="hl-4">&quot;collection&quot;</span><span class="hl-1">: {</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;name&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;jeeves_archive&quot;</span><span class="hl-1">,</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;pointCount&quot;</span><span class="hl-1">: </span><span class="hl-5">10498</span><span class="hl-1">,</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;dimensions&quot;</span><span class="hl-1">: </span><span class="hl-5">3072</span><br/><span class="hl-1">  },</span><br/><span class="hl-1">  </span><span class="hl-4">&quot;payloadFields&quot;</span><span class="hl-1">: {</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;domain&quot;</span><span class="hl-1">: { </span><span class="hl-4">&quot;type&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;keyword&quot;</span><span class="hl-1"> },</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;title&quot;</span><span class="hl-1">: { </span><span class="hl-4">&quot;type&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;keyword&quot;</span><span class="hl-1"> },</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;file_path&quot;</span><span class="hl-1">: { </span><span class="hl-4">&quot;type&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;keyword&quot;</span><span class="hl-1"> },</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;chunk_index&quot;</span><span class="hl-1">: { </span><span class="hl-4">&quot;type&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;integer&quot;</span><span class="hl-1"> },</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;chunk_text&quot;</span><span class="hl-1">: { </span><span class="hl-4">&quot;type&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;text&quot;</span><span class="hl-1"> }</span><br/><span class="hl-1">  }</span><br/><span class="hl-1">}</span>
+<pre><code class="json"><span class="hl-1">{</span><br/><span class="hl-1">  </span><span class="hl-4">&quot;status&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;ok&quot;</span><span class="hl-1">,</span><br/><span class="hl-1">  </span><span class="hl-4">&quot;uptime&quot;</span><span class="hl-1">: </span><span class="hl-5">86400</span><span class="hl-1">,</span><br/><span class="hl-1">  </span><span class="hl-4">&quot;collection&quot;</span><span class="hl-1">: {</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;name&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;jeeves_archive&quot;</span><span class="hl-1">,</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;pointCount&quot;</span><span class="hl-1">: </span><span class="hl-5">10498</span><span class="hl-1">,</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;dimensions&quot;</span><span class="hl-1">: </span><span class="hl-5">3072</span><br/><span class="hl-1">  },</span><br/><span class="hl-1">  </span><span class="hl-4">&quot;reindex&quot;</span><span class="hl-1">: {</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;active&quot;</span><span class="hl-1">: </span><span class="hl-3">false</span><br/><span class="hl-1">  }</span><br/><span class="hl-1">}</span>
 </code><button type="button">Copy</button></pre>
 
 <table>
@@ -52,13 +52,30 @@
 <td>Embedding vector dimensions.</td>
 </tr>
 <tr>
-<td><code>payloadFields</code></td>
+<td><code>reindex</code></td>
 <td><code>object</code></td>
-<td>Discovered payload field names and types.</td>
+<td>Active reindex status.</td>
+</tr>
+<tr>
+<td><code>reindex.active</code></td>
+<td><code>boolean</code></td>
+<td>Whether a reindex is currently running.</td>
+</tr>
+<tr>
+<td><code>reindex.scope</code></td>
+<td><code>string?</code></td>
+<td>Reindex scope (<code>&quot;rules&quot;</code> or <code>&quot;full&quot;</code>) if active.</td>
+</tr>
+<tr>
+<td><code>reindex.startedAt</code></td>
+<td><code>string?</code></td>
+<td>ISO-8601 timestamp when reindex started, if active.</td>
 </tr>
 </tbody>
 </table>
-<p><strong>Payload field discovery:</strong> If the collection has Qdrant payload indexes, field types come from the index schema. Otherwise, the watcher samples points and infers types from values (<code>keyword</code>, <code>text</code>, <code>integer</code>, <code>float</code>, <code>bool</code>, <code>keyword[]</code>). Text fields longer than 256 characters are classified as <code>text</code>; shorter strings as <code>keyword</code>.</p>
+<blockquote>
+<p><strong>v0.5.0 change:</strong> <code>payloadFields</code> has been removed from the status response. Use <a href="#post-configquery"><code>POST /config/query</code></a> to discover schema and payload field information.</p>
+</blockquote>
 <p><strong>Status codes:</strong></p>
 <ul>
 <li><code>200 OK</code> — Service is healthy</li>
@@ -79,6 +96,13 @@
 <pre><code class="json"><span class="hl-1">{</span><br/><span class="hl-1">  </span><span class="hl-4">&quot;ok&quot;</span><span class="hl-1">: </span><span class="hl-3">true</span><br/><span class="hl-1">}</span>
 </code><button type="button">Copy</button></pre>
 
+<p><strong>Validation error (400 Bad Request):</strong></p>
+<pre><code class="json"><span class="hl-1">{</span><br/><span class="hl-1">  </span><span class="hl-4">&quot;error&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;Metadata validation failed&quot;</span><span class="hl-1">,</span><br/><span class="hl-1">  </span><span class="hl-4">&quot;details&quot;</span><span class="hl-1">: [</span><br/><span class="hl-1">    { </span><span class="hl-4">&quot;field&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;priority&quot;</span><span class="hl-1">, </span><span class="hl-4">&quot;message&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;must be one of: low, medium, high&quot;</span><span class="hl-1"> }</span><br/><span class="hl-1">  ]</span><br/><span class="hl-1">}</span>
+</code><button type="button">Copy</button></pre>
+
+<blockquote>
+<p><strong>v0.5.0:</strong> Metadata is validated against the schema defined by matched inference rules. If the file matches a rule with a <code>schema</code> block, provided metadata must conform to it.</p>
+</blockquote>
 <p><strong>Error (500 Internal Server Error):</strong></p>
 <pre><code class="json"><span class="hl-1">{</span><br/><span class="hl-1">  </span><span class="hl-4">&quot;error&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;Internal server error&quot;</span><br/><span class="hl-1">}</span>
 </code><button type="button">Copy</button></pre>
@@ -103,11 +127,15 @@
 </code><button type="button">Copy</button></pre>
 
 <p><strong>Body schema:</strong></p>
-<pre><code class="typescript"><span class="hl-1">{</span><br/><span class="hl-1">  </span><span class="hl-7">query</span><span class="hl-1">: </span><span class="hl-8">string</span><span class="hl-1">;                    </span><span class="hl-9">// Natural language search query</span><br/><span class="hl-1">  </span><span class="hl-8">limit</span><span class="hl-1">?: </span><span class="hl-8">number</span><span class="hl-1">;                   </span><span class="hl-9">// Max results (default: 10)</span><br/><span class="hl-1">  </span><span class="hl-8">filter</span><span class="hl-1">?: </span><span class="hl-8">Record</span><span class="hl-1">&lt;</span><span class="hl-8">string</span><span class="hl-1">, </span><span class="hl-8">unknown</span><span class="hl-1">&gt;; </span><span class="hl-9">// Qdrant filter object (optional)</span><br/><span class="hl-1">}</span>
+<pre><code class="typescript"><span class="hl-1">{</span><br/><span class="hl-1">  </span><span class="hl-7">query</span><span class="hl-1">: </span><span class="hl-8">string</span><span class="hl-1">;                    </span><span class="hl-9">// Natural language search query</span><br/><span class="hl-1">  </span><span class="hl-8">limit</span><span class="hl-1">?: </span><span class="hl-8">number</span><span class="hl-1">;                   </span><span class="hl-9">// Max results (default: 10)</span><br/><span class="hl-1">  </span><span class="hl-8">offset</span><span class="hl-1">?: </span><span class="hl-8">number</span><span class="hl-1">;                  </span><span class="hl-9">// Skip N results for pagination (default: 0)</span><br/><span class="hl-1">  </span><span class="hl-8">filter</span><span class="hl-1">?: </span><span class="hl-8">Record</span><span class="hl-1">&lt;</span><span class="hl-8">string</span><span class="hl-1">, </span><span class="hl-8">unknown</span><span class="hl-1">&gt;; </span><span class="hl-9">// Qdrant filter object (optional)</span><br/><span class="hl-1">}</span>
 </code><button type="button">Copy</button></pre>
 
 <p><strong>Filtered search example:</strong></p>
 <pre><code class="bash"><span class="hl-0">curl</span><span class="hl-1"> </span><span class="hl-3">-X</span><span class="hl-1"> </span><span class="hl-2">POST</span><span class="hl-1"> </span><span class="hl-2">http://localhost:3456/search</span><span class="hl-1"> </span><span class="hl-6">\</span><br/><span class="hl-1">  </span><span class="hl-3">-H</span><span class="hl-1"> </span><span class="hl-2">&quot;Content-Type: application/json&quot;</span><span class="hl-1"> </span><span class="hl-6">\</span><br/><span class="hl-1">  </span><span class="hl-3">-d</span><span class="hl-1"> </span><span class="hl-2">&#39;{</span><br/><span class="hl-2">    &quot;query&quot;: &quot;authentication flow&quot;,</span><br/><span class="hl-2">    &quot;limit&quot;: 5,</span><br/><span class="hl-2">    &quot;filter&quot;: {</span><br/><span class="hl-2">      &quot;must&quot;: [{ &quot;key&quot;: &quot;domain&quot;, &quot;match&quot;: { &quot;value&quot;: &quot;backend&quot; } }]</span><br/><span class="hl-2">    }</span><br/><span class="hl-2">  }&#39;</span>
+</code><button type="button">Copy</button></pre>
+
+<p><strong>Paginated search example:</strong></p>
+<pre><code class="bash"><span class="hl-0">curl</span><span class="hl-1"> </span><span class="hl-3">-X</span><span class="hl-1"> </span><span class="hl-2">POST</span><span class="hl-1"> </span><span class="hl-2">http://localhost:3456/search</span><span class="hl-1"> </span><span class="hl-6">\</span><br/><span class="hl-1">  </span><span class="hl-3">-H</span><span class="hl-1"> </span><span class="hl-2">&quot;Content-Type: application/json&quot;</span><span class="hl-1"> </span><span class="hl-6">\</span><br/><span class="hl-1">  </span><span class="hl-3">-d</span><span class="hl-1"> </span><span class="hl-2">&#39;{</span><br/><span class="hl-2">    &quot;query&quot;: &quot;authentication flow&quot;,</span><br/><span class="hl-2">    &quot;limit&quot;: 10,</span><br/><span class="hl-2">    &quot;offset&quot;: 20</span><br/><span class="hl-2">  }&#39;</span>
 </code><button type="button">Copy</button></pre>
 
 <p>The <code>filter</code> parameter accepts a native <a href="https://qdrant.tech/documentation/concepts/filtering/" target="_blank" class="external">Qdrant filter object</a>. Use <code>watcher_status</code> (or <code>GET /status</code>) to discover available payload fields and their types, then construct filters accordingly. Common patterns:</p>
@@ -314,6 +342,141 @@
 <li>Re-upserts to Qdrant</li>
 </ol>
 <p><strong>Use case:</strong> You changed embedding providers (e.g., Gemini 3072-dim → 768-dim) or chunk size.</p>
+<h3 id="reindex-tracking" class="tsd-anchor-link">Reindex Tracking<a href="#reindex-tracking" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
+<p>While a reindex is running, <code>GET /status</code> shows the active reindex state:</p>
+<pre><code class="json"><span class="hl-1">{</span><br/><span class="hl-1">  </span><span class="hl-4">&quot;reindex&quot;</span><span class="hl-1">: { </span><span class="hl-4">&quot;active&quot;</span><span class="hl-1">: </span><span class="hl-3">true</span><span class="hl-1">, </span><span class="hl-4">&quot;scope&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;rules&quot;</span><span class="hl-1">, </span><span class="hl-4">&quot;startedAt&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;2026-02-24T08:00:00Z&quot;</span><span class="hl-1"> }</span><br/><span class="hl-1">}</span>
+</code><button type="button">Copy</button></pre>
+
+<h3 id="completion-callback" class="tsd-anchor-link">Completion Callback<a href="#completion-callback" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
+<p>If <code>reindex.callbackUrl</code> is configured, the watcher sends a POST request to that URL when the reindex completes:</p>
+<pre><code class="json"><span class="hl-1">{</span><br/><span class="hl-1">  </span><span class="hl-4">&quot;scope&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;rules&quot;</span><span class="hl-1">,</span><br/><span class="hl-1">  </span><span class="hl-4">&quot;filesProcessed&quot;</span><span class="hl-1">: </span><span class="hl-5">1234</span><span class="hl-1">,</span><br/><span class="hl-1">  </span><span class="hl-4">&quot;durationMs&quot;</span><span class="hl-1">: </span><span class="hl-5">45000</span><span class="hl-1">,</span><br/><span class="hl-1">  </span><span class="hl-4">&quot;status&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;completed&quot;</span><br/><span class="hl-1">}</span>
+</code><button type="button">Copy</button></pre>
+
+<p>The callback retries with exponential backoff (3 attempts, starting at 1 second).</p>
+<hr>
+<h2 id="get-issues" class="tsd-anchor-link">GET /issues<a href="#get-issues" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h2>
+<p>Returns runtime embedding failures and processing errors.</p>
+<h3 id="request-6" class="tsd-anchor-link">Request<a href="#request-6" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
+<pre><code class="bash"><span class="hl-0">curl</span><span class="hl-1"> </span><span class="hl-2">http://localhost:3456/issues</span>
+</code><button type="button">Copy</button></pre>
+
+<h3 id="response-6" class="tsd-anchor-link">Response<a href="#response-6" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
+<p><strong>Success (200 OK):</strong></p>
+<pre><code class="json"><span class="hl-1">[</span><br/><span class="hl-1">  {</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;rule&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;email-classifier&quot;</span><span class="hl-1">,</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;error&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;Template render failed: missing helper &#39;customFormat&#39;&quot;</span><span class="hl-1">,</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;errorType&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;template&quot;</span><span class="hl-1">,</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;timestamp&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;2026-02-24T08:15:00Z&quot;</span><span class="hl-1">,</span><br/><span class="hl-1">    </span><span class="hl-4">&quot;attempts&quot;</span><span class="hl-1">: </span><span class="hl-5">3</span><br/><span class="hl-1">  }</span><br/><span class="hl-1">]</span>
+</code><button type="button">Copy</button></pre>
+
+<h3 id="issuerecord-schema" class="tsd-anchor-link">IssueRecord Schema<a href="#issuerecord-schema" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>rule</code></td>
+<td><code>string</code></td>
+<td>Name of the inference rule that failed.</td>
+</tr>
+<tr>
+<td><code>error</code></td>
+<td><code>string</code></td>
+<td>Human-readable error message.</td>
+</tr>
+<tr>
+<td><code>errorType</code></td>
+<td><code>string</code></td>
+<td>Error category: <code>&quot;template&quot;</code>, <code>&quot;embedding&quot;</code>, <code>&quot;extraction&quot;</code>, <code>&quot;validation&quot;</code>.</td>
+</tr>
+<tr>
+<td><code>timestamp</code></td>
+<td><code>string</code></td>
+<td>ISO-8601 timestamp of last occurrence.</td>
+</tr>
+<tr>
+<td><code>attempts</code></td>
+<td><code>number</code></td>
+<td>Number of retry attempts made.</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="post-configquery" class="tsd-anchor-link">POST /config/query<a href="#post-configquery" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h2>
+<p>Query the merged virtual configuration document using JSONPath expressions.</p>
+<h3 id="request-7" class="tsd-anchor-link">Request<a href="#request-7" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
+<pre><code class="bash"><span class="hl-0">curl</span><span class="hl-1"> </span><span class="hl-3">-X</span><span class="hl-1"> </span><span class="hl-2">POST</span><span class="hl-1"> </span><span class="hl-2">http://localhost:3456/config/query</span><span class="hl-1"> </span><span class="hl-6">\</span><br/><span class="hl-1">  </span><span class="hl-3">-H</span><span class="hl-1"> </span><span class="hl-2">&quot;Content-Type: application/json&quot;</span><span class="hl-1"> </span><span class="hl-6">\</span><br/><span class="hl-1">  </span><span class="hl-3">-d</span><span class="hl-1"> </span><span class="hl-2">&#39;{</span><br/><span class="hl-2">    &quot;path&quot;: &quot;$.inferenceRules[*].name&quot;,</span><br/><span class="hl-2">    &quot;resolve&quot;: [&quot;files&quot;, &quot;globals&quot;]</span><br/><span class="hl-2">  }&#39;</span>
+</code><button type="button">Copy</button></pre>
+
+<p><strong>Body schema:</strong></p>
+<pre><code class="typescript"><span class="hl-1">{</span><br/><span class="hl-1">  </span><span class="hl-7">path</span><span class="hl-1">: </span><span class="hl-8">string</span><span class="hl-1">;                    </span><span class="hl-9">// JSONPath expression</span><br/><span class="hl-1">  </span><span class="hl-8">resolve</span><span class="hl-1">?: </span><span class="hl-8">string</span><span class="hl-1">[];              </span><span class="hl-9">// Resolution scopes: &quot;files&quot;, &quot;globals&quot; (default: all)</span><br/><span class="hl-1">}</span>
+</code><button type="button">Copy</button></pre>
+
+<h3 id="response-7" class="tsd-anchor-link">Response<a href="#response-7" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
+<p><strong>Success (200 OK):</strong></p>
+<pre><code class="json"><span class="hl-1">{</span><br/><span class="hl-1">  </span><span class="hl-4">&quot;result&quot;</span><span class="hl-1">: [</span><span class="hl-2">&quot;email-classifier&quot;</span><span class="hl-1">, </span><span class="hl-2">&quot;meeting-tagger&quot;</span><span class="hl-1">, </span><span class="hl-2">&quot;project-labeler&quot;</span><span class="hl-1">]</span><br/><span class="hl-1">}</span>
+</code><button type="button">Copy</button></pre>
+
+<h3 id="merged-document-shape" class="tsd-anchor-link">Merged Document Shape<a href="#merged-document-shape" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
+<p>The query runs against a virtual document that merges:</p>
+<ul>
+<li><strong>config</strong> — current configuration (rules, watch paths, etc.)</li>
+<li><strong>values</strong> — discovered payload field names and types (replaces old <code>payloadFields</code> from status)</li>
+<li><strong>helpers</strong> — loaded map helpers and template helpers</li>
+<li><strong>issues</strong> — current runtime issues</li>
+</ul>
+<p>See <a href="Inference_Rules.html">Inference Rules Guide</a> for rule structure details.</p>
+<hr>
+<h2 id="post-configvalidate" class="tsd-anchor-link">POST /config/validate<a href="#post-configvalidate" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h2>
+<p>Pre-flight validation of configuration changes without applying them.</p>
+<h3 id="request-8" class="tsd-anchor-link">Request<a href="#request-8" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
+<pre><code class="bash"><span class="hl-0">curl</span><span class="hl-1"> </span><span class="hl-3">-X</span><span class="hl-1"> </span><span class="hl-2">POST</span><span class="hl-1"> </span><span class="hl-2">http://localhost:3456/config/validate</span><span class="hl-1"> </span><span class="hl-6">\</span><br/><span class="hl-1">  </span><span class="hl-3">-H</span><span class="hl-1"> </span><span class="hl-2">&quot;Content-Type: application/json&quot;</span><span class="hl-1"> </span><span class="hl-6">\</span><br/><span class="hl-1">  </span><span class="hl-3">-d</span><span class="hl-1"> </span><span class="hl-2">&#39;{</span><br/><span class="hl-2">    &quot;config&quot;: {</span><br/><span class="hl-2">      &quot;inferenceRules&quot;: [</span><br/><span class="hl-2">        { &quot;name&quot;: &quot;new-rule&quot;, &quot;match&quot;: { &quot;type&quot;: &quot;object&quot; }, &quot;set&quot;: { &quot;domain&quot;: &quot;test&quot; } }</span><br/><span class="hl-2">      ]</span><br/><span class="hl-2">    },</span><br/><span class="hl-2">    &quot;testPaths&quot;: [&quot;d:/docs/sample.md&quot;]</span><br/><span class="hl-2">  }&#39;</span>
+</code><button type="button">Copy</button></pre>
+
+<p><strong>Body schema:</strong></p>
+<pre><code class="typescript"><span class="hl-1">{</span><br/><span class="hl-1">  </span><span class="hl-8">config</span><span class="hl-1">?: </span><span class="hl-8">Record</span><span class="hl-1">&lt;</span><span class="hl-8">string</span><span class="hl-1">, </span><span class="hl-8">unknown</span><span class="hl-1">&gt;;  </span><span class="hl-9">// Partial or full config to validate</span><br/><span class="hl-1">  </span><span class="hl-8">testPaths</span><span class="hl-1">?: </span><span class="hl-8">string</span><span class="hl-1">[];              </span><span class="hl-9">// File paths to test rules against</span><br/><span class="hl-1">}</span>
+</code><button type="button">Copy</button></pre>
+
+<h3 id="merge-semantics" class="tsd-anchor-link">Merge Semantics<a href="#merge-semantics" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
+<p>When <code>config</code> is partial, rules are merged by <code>name</code>: provided rules replace existing rules with the same name; unmatched existing rules are preserved.</p>
+<h3 id="response-8" class="tsd-anchor-link">Response<a href="#response-8" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
+<p><strong>Valid (200 OK):</strong></p>
+<pre><code class="json"><span class="hl-1">{</span><br/><span class="hl-1">  </span><span class="hl-4">&quot;valid&quot;</span><span class="hl-1">: </span><span class="hl-3">true</span><span class="hl-1">,</span><br/><span class="hl-1">  </span><span class="hl-4">&quot;testResults&quot;</span><span class="hl-1">: [</span><br/><span class="hl-1">    {</span><br/><span class="hl-1">      </span><span class="hl-4">&quot;path&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;d:/docs/sample.md&quot;</span><span class="hl-1">,</span><br/><span class="hl-1">      </span><span class="hl-4">&quot;matchedRules&quot;</span><span class="hl-1">: [</span><span class="hl-2">&quot;new-rule&quot;</span><span class="hl-1">],</span><br/><span class="hl-1">      </span><span class="hl-4">&quot;metadata&quot;</span><span class="hl-1">: { </span><span class="hl-4">&quot;domain&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;test&quot;</span><span class="hl-1"> }</span><br/><span class="hl-1">    }</span><br/><span class="hl-1">  ]</span><br/><span class="hl-1">}</span>
+</code><button type="button">Copy</button></pre>
+
+<p><strong>Invalid (400 Bad Request):</strong></p>
+<pre><code class="json"><span class="hl-1">{</span><br/><span class="hl-1">  </span><span class="hl-4">&quot;valid&quot;</span><span class="hl-1">: </span><span class="hl-3">false</span><span class="hl-1">,</span><br/><span class="hl-1">  </span><span class="hl-4">&quot;errors&quot;</span><span class="hl-1">: [</span><br/><span class="hl-1">    { </span><span class="hl-4">&quot;path&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;inferenceRules[0].match&quot;</span><span class="hl-1">, </span><span class="hl-4">&quot;message&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;Invalid JSON Schema&quot;</span><span class="hl-1"> }</span><br/><span class="hl-1">  ]</span><br/><span class="hl-1">}</span>
+</code><button type="button">Copy</button></pre>
+
+<p>Validation includes checking that referenced helper files can be loaded.</p>
+<hr>
+<h2 id="post-configapply" class="tsd-anchor-link">POST /config/apply<a href="#post-configapply" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h2>
+<p>Atomically validate, write, and reload configuration.</p>
+<h3 id="request-9" class="tsd-anchor-link">Request<a href="#request-9" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
+<pre><code class="bash"><span class="hl-0">curl</span><span class="hl-1"> </span><span class="hl-3">-X</span><span class="hl-1"> </span><span class="hl-2">POST</span><span class="hl-1"> </span><span class="hl-2">http://localhost:3456/config/apply</span><span class="hl-1"> </span><span class="hl-6">\</span><br/><span class="hl-1">  </span><span class="hl-3">-H</span><span class="hl-1"> </span><span class="hl-2">&quot;Content-Type: application/json&quot;</span><span class="hl-1"> </span><span class="hl-6">\</span><br/><span class="hl-1">  </span><span class="hl-3">-d</span><span class="hl-1"> </span><span class="hl-2">&#39;{</span><br/><span class="hl-2">    &quot;config&quot;: {</span><br/><span class="hl-2">      &quot;inferenceRules&quot;: [</span><br/><span class="hl-2">        { &quot;name&quot;: &quot;new-rule&quot;, &quot;match&quot;: { &quot;type&quot;: &quot;object&quot; }, &quot;set&quot;: { &quot;domain&quot;: &quot;test&quot; } }</span><br/><span class="hl-2">      ]</span><br/><span class="hl-2">    }</span><br/><span class="hl-2">  }&#39;</span>
+</code><button type="button">Copy</button></pre>
+
+<p><strong>Body schema:</strong></p>
+<pre><code class="typescript"><span class="hl-1">{</span><br/><span class="hl-1">  </span><span class="hl-7">config</span><span class="hl-1">: </span><span class="hl-8">Record</span><span class="hl-1">&lt;</span><span class="hl-8">string</span><span class="hl-1">, </span><span class="hl-8">unknown</span><span class="hl-1">&gt;;  </span><span class="hl-9">// Configuration to apply</span><br/><span class="hl-1">}</span>
+</code><button type="button">Copy</button></pre>
+
+<h3 id="response-9" class="tsd-anchor-link">Response<a href="#response-9" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
+<p><strong>Success (200 OK):</strong></p>
+<pre><code class="json"><span class="hl-1">{</span><br/><span class="hl-1">  </span><span class="hl-4">&quot;applied&quot;</span><span class="hl-1">: </span><span class="hl-3">true</span><span class="hl-1">,</span><br/><span class="hl-1">  </span><span class="hl-4">&quot;reindexTriggered&quot;</span><span class="hl-1">: </span><span class="hl-3">true</span><span class="hl-1">,</span><br/><span class="hl-1">  </span><span class="hl-4">&quot;scope&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;rules&quot;</span><br/><span class="hl-1">}</span>
+</code><button type="button">Copy</button></pre>
+
+<p><strong>Validation failure (400 Bad Request):</strong></p>
+<pre><code class="json"><span class="hl-1">{</span><br/><span class="hl-1">  </span><span class="hl-4">&quot;applied&quot;</span><span class="hl-1">: </span><span class="hl-3">false</span><span class="hl-1">,</span><br/><span class="hl-1">  </span><span class="hl-4">&quot;errors&quot;</span><span class="hl-1">: [</span><br/><span class="hl-1">    { </span><span class="hl-4">&quot;path&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;inferenceRules[0].match&quot;</span><span class="hl-1">, </span><span class="hl-4">&quot;message&quot;</span><span class="hl-1">: </span><span class="hl-2">&quot;Invalid JSON Schema&quot;</span><span class="hl-1"> }</span><br/><span class="hl-1">  ]</span><br/><span class="hl-1">}</span>
+</code><button type="button">Copy</button></pre>
+
+<h3 id="behavior-5" class="tsd-anchor-link">Behavior<a href="#behavior-5" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
+<ol>
+<li>Validates the provided config (same as <code>POST /config/validate</code>)</li>
+<li>Writes the merged config to disk</li>
+<li>Reloads the running watcher with new config</li>
+<li>Triggers a scoped reindex if rules changed</li>
+</ol>
 <hr>
 <h2 id="error-handling" class="tsd-anchor-link">Error Handling<a href="#error-handling" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h2>
 <p>All endpoints return JSON errors with this schema:</p>
@@ -362,4 +525,4 @@
 <li><a href="Configuration_Reference.html">Configuration Reference</a> — API server settings</li>
 <li><a href="Architecture.html">Architecture Guide</a> — How the API fits into the system</li>
 </ul>
-</div></div><div class="col-sidebar"><div class="page-menu"><div class="tsd-navigation settings"><details class="tsd-accordion"><summary class="tsd-accordion-summary"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg><h3>Settings</h3></summary><div class="tsd-accordion-details"><div class="tsd-filter-visibility"><span class="settings-label">Member Visibility</span><ul id="tsd-filter-options"><li class="tsd-filter-item"><label class="tsd-filter-input"><input type="checkbox" id="tsd-filter-protected" name="protected"/><svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true"><rect class="tsd-checkbox-background" width="30" height="30" x="1" y="1" rx="6" fill="none"></rect><path class="tsd-checkbox-checkmark" d="M8.35422 16.8214L13.2143 21.75L24.6458 10.25" stroke="none" stroke-width="3.5" stroke-linejoin="round" fill="none"></path></svg><span>Protected</span></label></li><li class="tsd-filter-item"><label class="tsd-filter-input"><input type="checkbox" id="tsd-filter-inherited" name="inherited" checked/><svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true"><rect class="tsd-checkbox-background" width="30" height="30" x="1" y="1" rx="6" fill="none"></rect><path class="tsd-checkbox-checkmark" d="M8.35422 16.8214L13.2143 21.75L24.6458 10.25" stroke="none" stroke-width="3.5" stroke-linejoin="round" fill="none"></path></svg><span>Inherited</span></label></li><li class="tsd-filter-item"><label class="tsd-filter-input"><input type="checkbox" id="tsd-filter-external" name="external"/><svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true"><rect class="tsd-checkbox-background" width="30" height="30" x="1" y="1" rx="6" fill="none"></rect><path class="tsd-checkbox-checkmark" d="M8.35422 16.8214L13.2143 21.75L24.6458 10.25" stroke="none" stroke-width="3.5" stroke-linejoin="round" fill="none"></path></svg><span>External</span></label></li></ul></div><div class="tsd-theme-toggle"><label class="settings-label" for="tsd-theme">Theme</label><select id="tsd-theme"><option value="os">OS</option><option value="light">Light</option><option value="dark">Dark</option></select></div></div></details></div><details open class="tsd-accordion tsd-page-navigation"><summary class="tsd-accordion-summary"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg><h3>On This Page</h3></summary><div class="tsd-accordion-details"><a href="#api-reference"><span>API <wbr/>Reference</span></a><ul><li><a href="#get-status"><span>GET /status</span></a></li><li><ul><li><a href="#request"><span>Request</span></a></li><li><a href="#response"><span>Response</span></a></li></ul></li><li><a href="#post-metadata"><span>POST /metadata</span></a></li><li><ul><li><a href="#request-1"><span>Request</span></a></li><li><a href="#response-1"><span>Response</span></a></li><li><a href="#behavior"><span>Behavior</span></a></li></ul></li><li><a href="#post-search"><span>POST /search</span></a></li><li><ul><li><a href="#request-2"><span>Request</span></a></li><li><a href="#response-2"><span>Response</span></a></li><li><a href="#response-schema"><span>Response <wbr/>Schema</span></a></li><li><a href="#behavior-1"><span>Behavior</span></a></li></ul></li><li><a href="#post-reindex"><span>POST /reindex</span></a></li><li><ul><li><a href="#request-3"><span>Request</span></a></li><li><a href="#response-3"><span>Response</span></a></li><li><a href="#behavior-2"><span>Behavior</span></a></li></ul></li><li><a href="#post-rebuild-metadata"><span>POST /rebuild-<wbr/>metadata</span></a></li><li><ul><li><a href="#request-4"><span>Request</span></a></li><li><a href="#response-4"><span>Response</span></a></li><li><a href="#behavior-3"><span>Behavior</span></a></li></ul></li><li><a href="#post-config-reindex"><span>POST /config-<wbr/>reindex</span></a></li><li><ul><li><a href="#request-5"><span>Request</span></a></li><li><a href="#response-5"><span>Response</span></a></li><li><a href="#behavior-4"><span>Behavior</span></a></li><li><ul><li><a href="#scope"><span>Scope: </span></a></li><li><a href="#scope-1"><span>Scope: </span></a></li></ul></li></ul></li><li><a href="#error-handling"><span>Error <wbr/>Handling</span></a></li><li><a href="#authentication"><span>Authentication</span></a></li><li><a href="#rate-limiting"><span>Rate <wbr/>Limiting</span></a></li><li><a href="#cors"><span>CORS</span></a></li><li><a href="#examples"><span>Examples</span></a></li><li><ul><li><a href="#search-and-display-results"><span>Search and <wbr/>Display <wbr/>Results</span></a></li><li><a href="#enrich-multiple-files"><span>Enrich <wbr/>Multiple <wbr/>Files</span></a></li><li><a href="#check-service-health"><span>Check <wbr/>Service <wbr/>Health</span></a></li></ul></li><li><a href="#next-steps"><span>Next <wbr/>Steps</span></a></li></ul></div></details></div><div class="site-menu"><nav id="tsd-sidebar-links" class="tsd-navigation"><a href="https://github.com/karmaniverous/jeeves-watcher" class="tsd-nav-link">GitHub</a></nav><nav class="tsd-navigation"><a href="../modules.html">@karmaniverous/jeeves-watcher</a><ul class="tsd-small-nested-navigation" id="tsd-nav-container"><li>Loading...</li></ul></nav></div></div></div><footer><p class="tsd-generator">Generated using <a href="https://typedoc.org/" target="_blank">TypeDoc</a></p></footer><div class="overlay"></div></body></html>
+</div></div><div class="col-sidebar"><div class="page-menu"><div class="tsd-navigation settings"><details class="tsd-accordion"><summary class="tsd-accordion-summary"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg><h3>Settings</h3></summary><div class="tsd-accordion-details"><div class="tsd-filter-visibility"><span class="settings-label">Member Visibility</span><ul id="tsd-filter-options"><li class="tsd-filter-item"><label class="tsd-filter-input"><input type="checkbox" id="tsd-filter-protected" name="protected"/><svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true"><rect class="tsd-checkbox-background" width="30" height="30" x="1" y="1" rx="6" fill="none"></rect><path class="tsd-checkbox-checkmark" d="M8.35422 16.8214L13.2143 21.75L24.6458 10.25" stroke="none" stroke-width="3.5" stroke-linejoin="round" fill="none"></path></svg><span>Protected</span></label></li><li class="tsd-filter-item"><label class="tsd-filter-input"><input type="checkbox" id="tsd-filter-inherited" name="inherited" checked/><svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true"><rect class="tsd-checkbox-background" width="30" height="30" x="1" y="1" rx="6" fill="none"></rect><path class="tsd-checkbox-checkmark" d="M8.35422 16.8214L13.2143 21.75L24.6458 10.25" stroke="none" stroke-width="3.5" stroke-linejoin="round" fill="none"></path></svg><span>Inherited</span></label></li><li class="tsd-filter-item"><label class="tsd-filter-input"><input type="checkbox" id="tsd-filter-external" name="external"/><svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true"><rect class="tsd-checkbox-background" width="30" height="30" x="1" y="1" rx="6" fill="none"></rect><path class="tsd-checkbox-checkmark" d="M8.35422 16.8214L13.2143 21.75L24.6458 10.25" stroke="none" stroke-width="3.5" stroke-linejoin="round" fill="none"></path></svg><span>External</span></label></li></ul></div><div class="tsd-theme-toggle"><label class="settings-label" for="tsd-theme">Theme</label><select id="tsd-theme"><option value="os">OS</option><option value="light">Light</option><option value="dark">Dark</option></select></div></div></details></div><details open class="tsd-accordion tsd-page-navigation"><summary class="tsd-accordion-summary"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg><h3>On This Page</h3></summary><div class="tsd-accordion-details"><a href="#api-reference"><span>API <wbr/>Reference</span></a><ul><li><a href="#get-status"><span>GET /status</span></a></li><li><ul><li><a href="#request"><span>Request</span></a></li><li><a href="#response"><span>Response</span></a></li></ul></li><li><a href="#post-metadata"><span>POST /metadata</span></a></li><li><ul><li><a href="#request-1"><span>Request</span></a></li><li><a href="#response-1"><span>Response</span></a></li><li><a href="#behavior"><span>Behavior</span></a></li></ul></li><li><a href="#post-search"><span>POST /search</span></a></li><li><ul><li><a href="#request-2"><span>Request</span></a></li><li><a href="#response-2"><span>Response</span></a></li><li><a href="#response-schema"><span>Response <wbr/>Schema</span></a></li><li><a href="#behavior-1"><span>Behavior</span></a></li></ul></li><li><a href="#post-reindex"><span>POST /reindex</span></a></li><li><ul><li><a href="#request-3"><span>Request</span></a></li><li><a href="#response-3"><span>Response</span></a></li><li><a href="#behavior-2"><span>Behavior</span></a></li></ul></li><li><a href="#post-rebuild-metadata"><span>POST /rebuild-<wbr/>metadata</span></a></li><li><ul><li><a href="#request-4"><span>Request</span></a></li><li><a href="#response-4"><span>Response</span></a></li><li><a href="#behavior-3"><span>Behavior</span></a></li></ul></li><li><a href="#post-config-reindex"><span>POST /config-<wbr/>reindex</span></a></li><li><ul><li><a href="#request-5"><span>Request</span></a></li><li><a href="#response-5"><span>Response</span></a></li><li><a href="#behavior-4"><span>Behavior</span></a></li><li><ul><li><a href="#scope"><span>Scope: </span></a></li><li><a href="#scope-1"><span>Scope: </span></a></li></ul></li><li><a href="#reindex-tracking"><span>Reindex <wbr/>Tracking</span></a></li><li><a href="#completion-callback"><span>Completion <wbr/>Callback</span></a></li></ul></li><li><a href="#get-issues"><span>GET /issues</span></a></li><li><ul><li><a href="#request-6"><span>Request</span></a></li><li><a href="#response-6"><span>Response</span></a></li><li><a href="#issuerecord-schema"><span>Issue<wbr/>Record <wbr/>Schema</span></a></li></ul></li><li><a href="#post-configquery"><span>POST /config/query</span></a></li><li><ul><li><a href="#request-7"><span>Request</span></a></li><li><a href="#response-7"><span>Response</span></a></li><li><a href="#merged-document-shape"><span>Merged <wbr/>Document <wbr/>Shape</span></a></li></ul></li><li><a href="#post-configvalidate"><span>POST /config/validate</span></a></li><li><ul><li><a href="#request-8"><span>Request</span></a></li><li><a href="#merge-semantics"><span>Merge <wbr/>Semantics</span></a></li><li><a href="#response-8"><span>Response</span></a></li></ul></li><li><a href="#post-configapply"><span>POST /config/apply</span></a></li><li><ul><li><a href="#request-9"><span>Request</span></a></li><li><a href="#response-9"><span>Response</span></a></li><li><a href="#behavior-5"><span>Behavior</span></a></li></ul></li><li><a href="#error-handling"><span>Error <wbr/>Handling</span></a></li><li><a href="#authentication"><span>Authentication</span></a></li><li><a href="#rate-limiting"><span>Rate <wbr/>Limiting</span></a></li><li><a href="#cors"><span>CORS</span></a></li><li><a href="#examples"><span>Examples</span></a></li><li><ul><li><a href="#search-and-display-results"><span>Search and <wbr/>Display <wbr/>Results</span></a></li><li><a href="#enrich-multiple-files"><span>Enrich <wbr/>Multiple <wbr/>Files</span></a></li><li><a href="#check-service-health"><span>Check <wbr/>Service <wbr/>Health</span></a></li></ul></li><li><a href="#next-steps"><span>Next <wbr/>Steps</span></a></li></ul></div></details></div><div class="site-menu"><nav id="tsd-sidebar-links" class="tsd-navigation"><a href="https://github.com/karmaniverous/jeeves-watcher" class="tsd-nav-link">GitHub</a></nav><nav class="tsd-navigation"><a href="../modules.html">@karmaniverous/jeeves-watcher</a><ul class="tsd-small-nested-navigation" id="tsd-nav-container"><li>Loading...</li></ul></nav></div></div></div><footer><p class="tsd-generator">Generated using <a href="https://typedoc.org/" target="_blank">TypeDoc</a></p></footer><div class="overlay"></div></body></html>

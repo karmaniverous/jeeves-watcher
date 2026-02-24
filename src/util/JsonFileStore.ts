@@ -22,8 +22,11 @@ export interface JsonFileStoreOptions {
  * @typeParam T - The JSON-serializable data structure stored.
  */
 export abstract class JsonFileStore<T> {
+  /** Path to the JSON file on disk. */
   protected readonly filePath: string;
+  /** In-memory cache of the parsed file contents, or `null` if not yet loaded. */
   protected cache: T | null = null;
+  /** Logger instance for warnings and diagnostics. */
   protected readonly logger: pino.Logger;
 
   protected constructor(options: JsonFileStoreOptions) {

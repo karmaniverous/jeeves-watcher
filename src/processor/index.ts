@@ -32,16 +32,29 @@ export type { ProcessorConfig } from './ProcessorConfig';
  * Handles extracting text, computing embeddings, and syncing with the vector store.
  */
 export interface DocumentProcessorDeps {
+  /** Processor configuration (chunk sizes, directories, maps). */
   config: ProcessorConfig;
+  /** Provider for generating text embeddings. */
   embeddingProvider: EmbeddingProvider;
+  /** Client for the Qdrant vector store. */
   vectorStore: VectorStoreClient;
+  /** Pre-compiled inference rules for metadata extraction. */
   compiledRules: CompiledRule[];
+  /** Pino logger instance. */
   logger: pino.Logger;
+  /** Optional Handlebars template engine for content templates. */
   templateEngine?: TemplateEngine;
+  /** Optional issues manager for tracking processing errors. */
   issuesManager?: IssuesManager;
+  /** Optional values manager for tracking rule-extracted values. */
   valuesManager?: ValuesManager;
 }
 
+/**
+ * Core document processing pipeline.
+ *
+ * Handles extracting text, computing embeddings, and syncing with the vector store.
+ */
 export class DocumentProcessor {
   private config: ProcessorConfig;
   private readonly embeddingProvider: EmbeddingProvider;
@@ -55,12 +68,7 @@ export class DocumentProcessor {
   /**
    * Create a new DocumentProcessor.
    *
-   * @param config - The processor configuration.
-   * @param embeddingProvider - The embedding provider.
-   * @param vectorStore - The vector store client.
-   * @param compiledRules - The compiled inference rules.
-   * @param logger - The logger instance.
-   * @param templateEngine - Optional template engine for content templates.
+   * @param deps - The processor dependencies.
    */
   constructor({
     config,
