@@ -10,8 +10,8 @@ import { omit } from 'radash';
 import type { JeevesWatcherConfig } from '../../config/types';
 import { writeMetadata } from '../../metadata';
 import { SYSTEM_METADATA_KEYS } from '../../metadata/constants';
-import type { VectorStoreClient } from '../../vectorStore';
 import { FIELD_FILE_PATH } from '../../processor/payloadFields';
+import type { VectorStoreClient } from '../../vectorStore';
 import { wrapHandler } from './wrapHandler';
 
 export interface RebuildMetadataRouteDeps {

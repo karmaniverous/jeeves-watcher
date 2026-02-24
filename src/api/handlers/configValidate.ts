@@ -38,7 +38,9 @@ type ConfigValidateRequest = FastifyRequest<{
 /**
  * Validate helper file references (mapHelpers, templateHelpers).
  */
-function validateHelperFiles(config: Record<string, unknown>): ValidationError[] {
+function validateHelperFiles(
+  config: Record<string, unknown>,
+): ValidationError[] {
   const errors: ValidationError[] = [];
   for (const section of ['mapHelpers', 'templateHelpers']) {
     const helpers = config[section] as

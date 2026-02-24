@@ -1,9 +1,10 @@
-import { existsSync, mkdirSync, writeFileSync, readFileSync } from 'node:fs';
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-return, @typescript-eslint/restrict-template-expressions */
+import { existsSync, mkdirSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import pino from 'pino';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ReindexTracker } from '../ReindexTracker';
 import type { ConfigApplyRouteDeps } from './configApply';
@@ -69,10 +70,7 @@ describe('createConfigApplyHandler', () => {
     const handler = createConfigApplyHandler(deps);
     const reply = mockReply();
 
-    await handler(
-      mockRequest({ config: { watch: { paths: [] } } }),
-      reply,
-    );
+    await handler(mockRequest({ config: { watch: { paths: [] } } }), reply);
 
     expect(reply.status).toHaveBeenCalledWith(400);
     expect(existsSync(tempConfigPath)).toBe(false);
@@ -85,12 +83,13 @@ describe('createConfigApplyHandler', () => {
       triggerReindex,
     });
     const handler = createConfigApplyHandler(deps);
-    const result = await handler(
-      mockRequest({ config: {} }),
-      mockReply(),
-    );
+    const result = await handler(mockRequest({ config: {} }), mockReply());
 
-    expect(result).toMatchObject({ applied: true, reindexTriggered: true, scope: 'full' });
+    expect(result).toMatchObject({
+      applied: true,
+      reindexTriggered: true,
+      scope: 'full',
+    });
     expect(triggerReindex).toHaveBeenCalledWith('full');
   });
 
@@ -101,10 +100,7 @@ describe('createConfigApplyHandler', () => {
       triggerReindex,
     });
     const handler = createConfigApplyHandler(deps);
-    const result = await handler(
-      mockRequest({ config: {} }),
-      mockReply(),
-    );
+    const result = await handler(mockRequest({ config: {} }), mockReply());
 
     expect(result).toMatchObject({ applied: true, reindexTriggered: false });
     expect(triggerReindex).not.toHaveBeenCalled();

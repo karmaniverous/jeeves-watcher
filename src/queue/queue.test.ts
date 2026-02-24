@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/require-await */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { EventQueue, type ProcessFn, type WatchEvent } from './index';
@@ -23,7 +24,11 @@ describe('EventQueue', () => {
     });
     queue.process();
 
-    const event: WatchEvent = { type: 'modify', path: '/a.txt', priority: 'normal' };
+    const event: WatchEvent = {
+      type: 'modify',
+      path: '/a.txt',
+      priority: 'normal',
+    };
     queue.enqueue(event, fn);
     queue.enqueue(event, fn);
     queue.enqueue(event, fn);
@@ -98,8 +103,9 @@ describe('EventQueue', () => {
     });
     queue.process();
 
-    // Should resolve immediately
+    // Should resolve immediately without hanging
     await queue.drain();
+    expect(true).toBe(true);
   });
 
   it('prioritizes normal events over low priority', async () => {
@@ -115,7 +121,10 @@ describe('EventQueue', () => {
 
     // Enqueue low first, then normal - but don't start processing yet
     queue.enqueue({ type: 'modify', path: '/low.txt', priority: 'low' }, fn);
-    queue.enqueue({ type: 'modify', path: '/normal.txt', priority: 'normal' }, fn);
+    queue.enqueue(
+      { type: 'modify', path: '/normal.txt', priority: 'normal' },
+      fn,
+    );
 
     // Advance past debounce so both are queued
     await vi.advanceTimersByTimeAsync(20);

@@ -8,7 +8,6 @@ import type pino from 'pino';
 import { createApiServer } from '../api';
 import { loadConfig } from '../config';
 import type { JeevesWatcherConfig } from '../config/types';
-import type { EmbeddingProvider } from '../embedding';
 import { createEmbeddingProvider } from '../embedding';
 import { createLogger } from '../logger';
 import { DocumentProcessor } from '../processor';
@@ -36,7 +35,9 @@ export interface JeevesWatcherFactories {
   /** Compile inference rules from config. */
   compileRules: typeof compileRules;
   /** Create a document processor for file ingestion. */
-  createDocumentProcessor: (deps: ConstructorParameters<typeof DocumentProcessor>[0]) => DocumentProcessor;
+  createDocumentProcessor: (
+    deps: ConstructorParameters<typeof DocumentProcessor>[0],
+  ) => DocumentProcessor;
   /** Create an event queue for batching file-system events. */
   createEventQueue: (
     options: ConstructorParameters<typeof EventQueue>[0],

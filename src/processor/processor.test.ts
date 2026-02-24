@@ -1,10 +1,11 @@
-import { describe, expect, it, vi, beforeEach, type Mock } from 'vitest';
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/unbound-method */
 import pino from 'pino';
+import { beforeEach, describe, expect, it, type Mock, vi } from 'vitest';
 
 import type { EmbeddingProvider } from '../embedding';
-import type { VectorStoreClient } from '../vectorStore';
 import type { IssuesManager } from '../issues';
 import type { ValuesManager } from '../values';
+import type { VectorStoreClient } from '../vectorStore';
 import { DocumentProcessor, type ProcessorConfig } from './index';
 
 // Mock buildMergedMetadata so we don't touch the filesystem
@@ -19,8 +20,8 @@ vi.mock('../metadata', () => ({
   deleteMetadata: vi.fn(),
 }));
 
+import { deleteMetadata, readMetadata, writeMetadata } from '../metadata';
 import { buildMergedMetadata } from './buildMetadata';
-import { readMetadata, writeMetadata, deleteMetadata } from '../metadata';
 
 const mockedBuildMergedMetadata = buildMergedMetadata as Mock;
 const mockedReadMetadata = readMetadata as Mock;
@@ -57,7 +58,14 @@ function createMocks() {
 
   const logger = pino({ level: 'silent' });
 
-  return { vectorStore, embeddingProvider, issuesManager, valuesManager, config, logger };
+  return {
+    vectorStore,
+    embeddingProvider,
+    issuesManager,
+    valuesManager,
+    config,
+    logger,
+  };
 }
 
 function defaultMergedMetadata(overrides: Record<string, unknown> = {}) {
@@ -123,7 +131,14 @@ describe('DocumentProcessor', () => {
     });
 
     it('processes successfully: clears issues, updates values', async () => {
-      const { vectorStore, embeddingProvider, issuesManager, valuesManager, config, logger } = createMocks();
+      const {
+        vectorStore,
+        embeddingProvider,
+        issuesManager,
+        valuesManager,
+        config,
+        logger,
+      } = createMocks();
       mockedBuildMergedMetadata.mockResolvedValue(defaultMergedMetadata());
       (vectorStore.getPayload as Mock).mockResolvedValue(null);
 
@@ -147,7 +162,8 @@ describe('DocumentProcessor', () => {
     });
 
     it('records issue on error', async () => {
-      const { vectorStore, embeddingProvider, issuesManager, config, logger } = createMocks();
+      const { vectorStore, embeddingProvider, issuesManager, config, logger } =
+        createMocks();
       mockedBuildMergedMetadata.mockRejectedValue(new Error('read fail'));
 
       const processor = new DocumentProcessor({
@@ -189,7 +205,8 @@ describe('DocumentProcessor', () => {
 
       // Should delete orphan chunk IDs (indices 1 and 2)
       expect((vectorStore as any).delete).toHaveBeenCalledOnce();
-      const deletedIds = (vectorStore.delete as Mock).mock.calls[0][0] as string[];
+      const deletedIds = (vectorStore.delete as Mock).mock
+        .calls[0][0] as string[];
       expect(deletedIds).toHaveLength(2);
     });
   });
@@ -212,7 +229,14 @@ describe('DocumentProcessor', () => {
     });
 
     it('clears issues but does NOT update values', async () => {
-      const { vectorStore, embeddingProvider, issuesManager, valuesManager, config, logger } = createMocks();
+      const {
+        vectorStore,
+        embeddingProvider,
+        issuesManager,
+        valuesManager,
+        config,
+        logger,
+      } = createMocks();
       (vectorStore.getPayload as Mock).mockResolvedValue({ total_chunks: 2 });
       mockedBuildMergedMetadata.mockResolvedValue(defaultMergedMetadata());
 
@@ -247,10 +271,14 @@ describe('DocumentProcessor', () => {
         compiledRules: [],
         logger,
       });
-      const result = await processor.processMetadataUpdate('/test.txt', { newKey: 'val' });
+      const result = await processor.processMetadataUpdate('/test.txt', {
+        newKey: 'val',
+      });
 
       expect(mockedWriteMetadata).toHaveBeenCalledWith(
-        '/test.txt', '/tmp/meta', { existing: 'old', newKey: 'val' },
+        '/test.txt',
+        '/tmp/meta',
+        { existing: 'old', newKey: 'val' },
       );
       expect((vectorStore as any).setPayload).toHaveBeenCalledOnce();
       expect(result).toEqual({ existing: 'old', newKey: 'val' });
@@ -268,7 +296,9 @@ describe('DocumentProcessor', () => {
         compiledRules: [],
         logger,
       });
-      const result = await processor.processMetadataUpdate('/test.txt', { key: 'val' });
+      const result = await processor.processMetadataUpdate('/test.txt', {
+        key: 'val',
+      });
 
       expect(result).toBeNull();
     });
@@ -289,9 +319,13 @@ describe('DocumentProcessor', () => {
       await processor.deleteFile('/test.txt');
 
       expect((vectorStore as any).delete).toHaveBeenCalledOnce();
-      const deletedIds = (vectorStore.delete as Mock).mock.calls[0][0] as string[];
+      const deletedIds = (vectorStore.delete as Mock).mock
+        .calls[0][0] as string[];
       expect(deletedIds).toHaveLength(3);
-      expect(mockedDeleteMetadata).toHaveBeenCalledWith('/test.txt', '/tmp/meta');
+      expect(mockedDeleteMetadata).toHaveBeenCalledWith(
+        '/test.txt',
+        '/tmp/meta',
+      );
     });
   });
 });

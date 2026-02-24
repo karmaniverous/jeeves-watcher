@@ -1,5 +1,6 @@
-import { describe, expect, it, vi } from 'vitest';
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-return */
 import pino from 'pino';
+import { describe, expect, it, vi } from 'vitest';
 
 import { ReindexTracker } from '../ReindexTracker';
 import { createConfigReindexHandler } from './configReindex';
@@ -13,8 +14,9 @@ vi.mock('../executeReindex', () => ({
   }),
 }));
 
-import { executeReindex } from '../executeReindex';
 import type { Mock } from 'vitest';
+
+import { executeReindex } from '../executeReindex';
 
 const mockedExecuteReindex = executeReindex as Mock;
 
@@ -50,7 +52,10 @@ describe('createConfigReindexHandler', () => {
     await handler(mockRequest({}), reply);
 
     expect(reply.status).toHaveBeenCalledWith(200);
-    expect(reply.send).toHaveBeenCalledWith({ status: 'started', scope: 'rules' });
+    expect(reply.send).toHaveBeenCalledWith({
+      status: 'started',
+      scope: 'rules',
+    });
   });
 
   it('passes full scope when requested', async () => {
@@ -59,7 +64,10 @@ describe('createConfigReindexHandler', () => {
     const reply = mockReply();
     await handler(mockRequest({ scope: 'full' }), reply);
 
-    expect(reply.send).toHaveBeenCalledWith({ status: 'started', scope: 'full' });
+    expect(reply.send).toHaveBeenCalledWith({
+      status: 'started',
+      scope: 'full',
+    });
     expect(mockedExecuteReindex).toHaveBeenCalledWith(
       expect.objectContaining({ config: deps.config }),
       'full',

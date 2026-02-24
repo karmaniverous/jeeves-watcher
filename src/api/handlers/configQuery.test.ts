@@ -1,5 +1,6 @@
-import { describe, expect, it, vi } from 'vitest';
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-return */
 import pino from 'pino';
+import { describe, expect, it, vi } from 'vitest';
 
 import type { ConfigQueryRouteDeps } from './configQuery';
 import { createConfigQueryHandler } from './configQuery';
@@ -10,16 +11,22 @@ vi.mock('../mergedDocument', () => ({
   resolveReferences: vi.fn(),
 }));
 
-import { buildMergedDocument, resolveReferences } from '../mergedDocument';
 import type { Mock } from 'vitest';
+
+import { buildMergedDocument, resolveReferences } from '../mergedDocument';
 
 const mockedBuild = buildMergedDocument as Mock;
 const mockedResolve = resolveReferences as Mock;
 
-function createDeps(configOverrides: Record<string, unknown> = {}): ConfigQueryRouteDeps {
+function createDeps(
+  configOverrides: Record<string, unknown> = {},
+): ConfigQueryRouteDeps {
   return {
     config: { inferenceRules: [], ...configOverrides } as any,
-    valuesManager: { getAll: vi.fn().mockReturnValue({}), getForRule: vi.fn().mockReturnValue({}) } as any,
+    valuesManager: {
+      getAll: vi.fn().mockReturnValue({}),
+      getForRule: vi.fn().mockReturnValue({}),
+    } as any,
     issuesManager: { getAll: vi.fn().mockReturnValue({}) } as any,
     logger: pino({ level: 'silent' }),
   };

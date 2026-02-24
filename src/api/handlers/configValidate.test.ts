@@ -2,13 +2,13 @@
  * @module api/handlers/configValidate.test
  */
 
-import { describe, expect, it, vi } from 'vitest';
 import pino from 'pino';
+import { describe, expect, it, vi } from 'vitest';
 
+import type { JeevesWatcherConfig } from '../../config/types';
+import { mergeInferenceRules } from './configMerge';
 import type { ConfigValidateRouteDeps } from './configValidate';
 import { createConfigValidateHandler } from './configValidate';
-import { mergeInferenceRules } from './configMerge';
-import type { JeevesWatcherConfig } from '../../config/types';
 
 // Minimal valid config for Zod schema
 function minimalConfig() {
@@ -31,15 +31,17 @@ function createDeps(
   };
 }
 
-function mockRequest<TReq>(body: Record<string, unknown>): TReq {
-  return { body } as unknown as TReq;
+type Handler = ReturnType<typeof createConfigValidateHandler>;
+
+function mockRequest(body: Record<string, unknown>) {
+  return { body } as unknown as Parameters<Handler>[0];
 }
 
-function mockReply<TReply>(): TReply {
+function mockReply() {
   return {
     status: vi.fn().mockReturnThis(),
     send: vi.fn().mockImplementation((d: unknown) => d),
-  } as unknown as TReply;
+  } as unknown as Parameters<Handler>[1];
 }
 
 describe('mergeInferenceRules', () => {
@@ -87,13 +89,8 @@ describe('createConfigValidateHandler', () => {
   it('returns valid: true for valid config', async () => {
     const deps = createDeps();
     const handler = createConfigValidateHandler(deps);
-    type Req = Parameters<typeof handler>[0];
-    type Rep = Parameters<typeof handler>[1];
 
-    const result = (await handler(
-      mockRequest<Req>({}),
-      mockReply<Rep>(),
-    )) as unknown as {
+    const result = (await handler(mockRequest({}), mockReply())) as {
       valid: boolean;
     };
 
@@ -103,13 +100,11 @@ describe('createConfigValidateHandler', () => {
   it('returns valid: false with errors for invalid config', async () => {
     const deps = createDeps();
     const handler = createConfigValidateHandler(deps);
-    type Req = Parameters<typeof handler>[0];
-    type Rep = Parameters<typeof handler>[1];
 
     const result = (await handler(
-      mockRequest<Req>({ config: { watch: { paths: [] } } }),
-      mockReply<Rep>(),
-    )) as unknown as { valid: boolean; errors: unknown[] };
+      mockRequest({ config: { watch: { paths: [] } } }),
+      mockReply(),
+    )) as { valid: boolean; errors: unknown[] };
 
     expect(result.valid).toBe(false);
     expect(result.errors).toBeDefined();
@@ -119,19 +114,17 @@ describe('createConfigValidateHandler', () => {
   it('validates helper files: missing file returns error', async () => {
     const deps = createDeps();
     const handler = createConfigValidateHandler(deps);
-    type Req = Parameters<typeof handler>[0];
-    type Rep = Parameters<typeof handler>[1];
 
     const result = (await handler(
-      mockRequest<Req>({
+      mockRequest({
         config: {
           mapHelpers: {
             myHelper: { path: '/nonexistent/helper.js' },
           },
         },
       }),
-      mockReply<Rep>(),
-    )) as unknown as {
+      mockReply(),
+    )) as {
       valid: boolean;
       errors: Array<{ path: string; message: string }>;
     };

@@ -1,9 +1,10 @@
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access */
 import { describe, expect, it, vi } from 'vitest';
 
 import {
   buildMergedDocument,
-  resolveReferences,
   type BuildMergedDocumentOptions,
+  resolveReferences,
 } from './mergedDocument';
 
 function createOptions(
@@ -14,9 +15,7 @@ function createOptions(
       watch: { paths: ['**/*.md'] },
       embedding: { provider: 'mock', model: 'test', dimensions: 3 },
       vectorStore: { url: 'http://localhost:6333', collectionName: 'test' },
-      inferenceRules: [
-        { name: 'rule1', match: {}, set: { domain: 'docs' } },
-      ],
+      inferenceRules: [{ name: 'rule1', match: {}, set: { domain: 'docs' } }],
     } as any,
     valuesManager: {
       getAll: vi.fn().mockReturnValue({ rule1: { domain: ['docs'] } }),
