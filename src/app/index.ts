@@ -106,18 +106,8 @@ export class JeevesWatcher {
     );
 
     const configDir = this.configPath ? dirname(this.configPath) : '.';
-    const templateEngine = await buildTemplateEngine(
-      this.config.inferenceRules ?? [],
-      this.config.templates,
-      this.config.templateHelpers,
-      configDir,
-    );
-
-    // Load custom JsonMap lib functions
-    const customMapLib =
-      this.config.mapHelpers && configDir
-        ? await loadCustomMapHelpers(this.config.mapHelpers, configDir)
-        : undefined;
+    const { templateEngine, customMapLib } =
+      await this.buildTemplateEngineAndCustomMapLib(this.config, configDir);
 
     const processor = this.factories.createDocumentProcessor({
       config: {
@@ -280,6 +270,28 @@ export class JeevesWatcher {
     return server;
   }
 
+  private async buildTemplateEngineAndCustomMapLib(
+    config: JeevesWatcherConfig,
+    configDir: string,
+  ): Promise<{
+    templateEngine: Awaited<ReturnType<typeof buildTemplateEngine>>;
+    customMapLib: Record<string, (...args: unknown[]) => unknown> | undefined;
+  }> {
+    const templateEngine = await buildTemplateEngine(
+      config.inferenceRules ?? [],
+      config.templates,
+      config.templateHelpers,
+      configDir,
+    );
+
+    const customMapLib =
+      config.mapHelpers && configDir
+        ? await loadCustomMapHelpers(config.mapHelpers, configDir)
+        : undefined;
+
+    return { templateEngine, customMapLib };
+  }
+
   private startConfigWatch(): void {
     const logger = this.logger;
     if (!logger) return;
@@ -329,17 +341,13 @@ export class JeevesWatcher {
       );
 
       const reloadConfigDir = dirname(this.configPath);
-      const newTemplateEngine = await buildTemplateEngine(
-        newConfig.inferenceRules ?? [],
-        newConfig.templates,
-        newConfig.templateHelpers,
+      const {
+        templateEngine: newTemplateEngine,
+        customMapLib: newCustomMapLib,
+      } = await this.buildTemplateEngineAndCustomMapLib(
+        newConfig,
         reloadConfigDir,
       );
-
-      const newCustomMapLib =
-        newConfig.mapHelpers && reloadConfigDir
-          ? await loadCustomMapHelpers(newConfig.mapHelpers, reloadConfigDir)
-          : undefined;
 
       processor.updateRules(compiledRules, newTemplateEngine, newCustomMapLib);
 

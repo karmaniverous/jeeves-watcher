@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { ReindexTracker } from '../ReindexTracker';
 import type { VectorStore } from '../../vectorStore';
+import { ReindexTracker } from '../ReindexTracker';
 import { createStatusHandler } from './status';
 
 describe('createStatusHandler', () => {
