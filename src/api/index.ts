@@ -13,6 +13,7 @@ import type { DocumentProcessor } from '../processor';
 import type { EventQueue } from '../queue';
 import type { ValuesManager } from '../values';
 import type { VectorStoreClient } from '../vectorStore';
+import { executeReindex } from './executeReindex';
 import { createConfigApplyHandler } from './handlers/configApply';
 import { createConfigQueryHandler } from './handlers/configQuery';
 import { createConfigReindexHandler } from './handlers/configReindex';
@@ -23,7 +24,6 @@ import { createRebuildMetadataHandler } from './handlers/rebuildMetadata';
 import { createReindexHandler } from './handlers/reindex';
 import { createSearchHandler } from './handlers/search';
 import { createStatusHandler } from './handlers/status';
-import { processAllFiles } from './processAllFiles';
 import { ReindexTracker } from './ReindexTracker';
 
 export type { ReindexStatus } from './ReindexTracker';
@@ -79,23 +79,10 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
   const app = Fastify({ logger: false });
 
   const triggerReindex = (scope: 'rules' | 'full') => {
-    reindexTracker.start(scope);
-    void (async () => {
-      try {
-        const method = scope === 'rules' ? 'processRulesUpdate' : 'processFile';
-        const count = await processAllFiles(
-          config.watch.paths,
-          config.watch.ignored,
-          processor,
-          method,
-        );
-        logger.info({ scope, filesProcessed: count }, 'Reindex completed');
-      } catch (error) {
-        logger.error({ error }, 'Reindex failed');
-      } finally {
-        reindexTracker.complete();
-      }
-    })();
+    void executeReindex(
+      { config, processor, logger, reindexTracker, valuesManager },
+      scope,
+    );
   };
 
   app.get(
