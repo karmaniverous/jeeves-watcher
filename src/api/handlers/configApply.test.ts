@@ -132,7 +132,11 @@ describe('createConfigApplyHandler', () => {
       mockReply() as unknown as FastifyReply,
     );
 
-    expect(result).toMatchObject({ applied: true, reindexTriggered: true, scope: 'issues' });
+    expect(result).toMatchObject({
+      applied: true,
+      reindexTriggered: true,
+      scope: 'issues',
+    });
     expect(triggerReindex).toHaveBeenCalledWith('issues');
   });
 });

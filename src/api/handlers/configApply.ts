@@ -53,14 +53,14 @@ export function createConfigApplyHandler(deps: ConfigApplyRouteDeps) {
 
       const reindexScope = deps.config.configWatch?.reindex ?? 'issues';
 
-      if (reindexScope && deps.triggerReindex) {
+      if (deps.triggerReindex) {
         deps.triggerReindex(reindexScope);
       }
 
       return {
         applied: true,
-        reindexTriggered: !!reindexScope,
-        ...(reindexScope ? { scope: reindexScope } : {}),
+        reindexTriggered: !!deps.triggerReindex,
+        scope: reindexScope,
       };
     },
     deps.logger,

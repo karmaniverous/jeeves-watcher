@@ -80,7 +80,14 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
 
   const triggerReindex = (scope: 'issues' | 'full') => {
     void executeReindex(
-      { config, processor, logger, reindexTracker, valuesManager, issuesManager },
+      {
+        config,
+        processor,
+        logger,
+        reindexTracker,
+        valuesManager,
+        issuesManager,
+      },
       scope,
     );
   };

@@ -189,7 +189,14 @@ describe('resolveAndCoerce', () => {
     };
 
     const attributes = {
-      file: { path: 'test.json', directory: '', filename: '', extension: '', sizeBytes: 0, modified: '' },
+      file: {
+        path: 'test.json',
+        directory: '',
+        filename: '',
+        extension: '',
+        sizeBytes: 0,
+        modified: '',
+      },
       json: {
         entityKey: 'WEB-123',
         current: { fields: { created: '1735689600' } },
@@ -215,7 +222,14 @@ describe('resolveAndCoerce', () => {
     };
 
     const attributes = {
-      file: { path: 'test.json', directory: '', filename: '', extension: '', sizeBytes: 0, modified: '' },
+      file: {
+        path: 'test.json',
+        directory: '',
+        filename: '',
+        extension: '',
+        sizeBytes: 0,
+        modified: '',
+      },
       json: { count: 'not-a-number' },
     };
 
@@ -233,7 +247,14 @@ describe('resolveAndCoerce', () => {
     };
 
     const attributes = {
-      file: { path: 'test.json', directory: '', filename: '', extension: '', sizeBytes: 0, modified: '' },
+      file: {
+        path: 'test.json',
+        directory: '',
+        filename: '',
+        extension: '',
+        sizeBytes: 0,
+        modified: '',
+      },
       json: {},
     };
 

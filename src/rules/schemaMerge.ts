@@ -119,15 +119,12 @@ export function mergeSchemas(
     // Merge properties at the property level
     if (schema.properties) {
       for (const [propName, propDef] of Object.entries(schema.properties)) {
-        if (!merged.properties[propName]) {
-          merged.properties[propName] = propDef as ResolvedProperty;
-        } else {
-          // Merge keywords: later wins
-          merged.properties[propName] = {
-            ...merged.properties[propName],
-            ...(propDef as Record<string, unknown>),
-          };
-        }
+        const existing = merged.properties[propName] as
+          | ResolvedProperty
+          | undefined;
+        merged.properties[propName] = existing
+          ? { ...existing, ...(propDef as Record<string, unknown>) }
+          : (propDef as ResolvedProperty);
       }
     }
   }
@@ -149,8 +146,8 @@ export function extractSetValues(
 
   for (const [propName, propDef] of Object.entries(schema.properties)) {
     const setVal = propDef.set;
-    if (setVal !== undefined && setVal !== null) {
-      setValues[propName] = typeof setVal === 'string' ? setVal : String(setVal);
+    if (setVal !== undefined) {
+      setValues[propName] = setVal;
     }
   }
 
@@ -170,21 +167,31 @@ export function coerceType(value: unknown, type?: string): unknown {
   }
 
   switch (type) {
-    case 'string':
+    case 'string': {
+      if (typeof value === 'string') return value;
+      if (typeof value === 'number' || typeof value === 'boolean') {
+        return String(value);
+      }
+      if (typeof value === 'object' && value !== null) {
+        return JSON.stringify(value);
+      }
       return String(value);
+    }
 
     case 'integer': {
       if (typeof value === 'string') {
         // For strings, check that parsing yields an integer that matches the trimmed input
         const trimmed = value.trim();
         const num = parseInt(trimmed, 10);
-        if (Number.isInteger(num) && String(num) === trimmed) {
+        if (Number.isInteger(num) && num.toString() === trimmed) {
           return num;
         }
         return undefined;
       }
-      const num = Number(value);
-      return Number.isInteger(num) ? num : undefined;
+      if (typeof value === 'number') {
+        return Number.isInteger(value) ? value : undefined;
+      }
+      return undefined;
     }
 
     case 'number': {
@@ -206,34 +213,37 @@ export function coerceType(value: unknown, type?: string): unknown {
       if (Array.isArray(value)) return value;
       if (typeof value === 'string') {
         try {
-          const parsed: unknown = JSON.parse(value);
-          return Array.isArray(parsed) ? parsed : undefined;
+          const parsed = JSON.parse(value) as unknown;
+          if (Array.isArray(parsed)) return parsed;
         } catch {
-          return undefined;
+          // Invalid JSON
         }
       }
       return undefined;
     }
 
     case 'object': {
+      if (typeof value === 'string') {
+        try {
+          const parsed = JSON.parse(value) as unknown;
+          if (
+            typeof parsed === 'object' &&
+            parsed !== null &&
+            !Array.isArray(parsed)
+          ) {
+            return parsed;
+          }
+        } catch {
+          // Invalid JSON
+        }
+        return undefined;
+      }
       if (
         typeof value === 'object' &&
         value !== null &&
         !Array.isArray(value)
       ) {
         return value;
-      }
-      if (typeof value === 'string') {
-        try {
-          const parsed: unknown = JSON.parse(value);
-          return typeof parsed === 'object' &&
-            parsed !== null &&
-            !Array.isArray(parsed)
-            ? parsed
-            : undefined;
-        } catch {
-          return undefined;
-        }
       }
       return undefined;
     }
@@ -258,7 +268,7 @@ export function resolveAndCoerce(
 
   for (const [propName, propDef] of Object.entries(schema.properties)) {
     const setTemplate = propDef.set;
-    if (setTemplate === undefined || setTemplate === null) continue;
+    if (setTemplate === undefined) continue;
 
     // Resolve template
     const rawValue = resolveTemplateVars(setTemplate, attributes);

@@ -25,6 +25,7 @@ describe('rules engine', () => {
     const rules: InferenceRule[] = [
       {
         name: 'docs-glob',
+        description: 'Match documentation files',
         match: {
           type: 'object',
           properties: {
@@ -39,7 +40,11 @@ describe('rules engine', () => {
             },
           },
         },
-        set: { category: 'documentation' },
+        schema: [
+          {
+            properties: { category: { type: 'string', set: 'documentation' } },
+          },
+        ],
       },
     ];
     const compiled = compileRules(rules);
@@ -51,6 +56,7 @@ describe('rules engine', () => {
     const rules: InferenceRule[] = [
       {
         name: 'src-glob',
+        description: 'Match source files',
         match: {
           type: 'object',
           properties: {
@@ -65,7 +71,9 @@ describe('rules engine', () => {
             },
           },
         },
-        set: { category: 'source' },
+        schema: [
+          { properties: { category: { type: 'string', set: 'source' } } },
+        ],
       },
     ];
     const compiled = compileRules(rules);
@@ -77,6 +85,7 @@ describe('rules engine', () => {
     const rules: InferenceRule[] = [
       {
         name: 'frontmatter-tags',
+        description: 'Match API docs by tags',
         match: {
           type: 'object',
           properties: {
@@ -93,7 +102,9 @@ describe('rules engine', () => {
           },
           required: ['frontmatter'],
         },
-        set: { docType: 'api-reference' },
+        schema: [
+          { properties: { docType: { type: 'string', set: 'api-reference' } } },
+        ],
       },
     ];
     const compiled = compileRules(rules);
@@ -106,11 +117,16 @@ describe('rules engine', () => {
     const rules: InferenceRule[] = [
       {
         name: 'template-vars',
+        description: 'Resolve template variables',
         match: { type: 'object' },
-        set: {
-          source: '${file.path}',
-          dir: '${file.directory}',
-        },
+        schema: [
+          {
+            properties: {
+              source: { type: 'string', set: '${file.path}' },
+              dir: { type: 'string', set: '${file.directory}' },
+            },
+          },
+        ],
       },
     ];
     const compiled = compileRules(rules);
@@ -125,13 +141,28 @@ describe('rules engine', () => {
     const rules: InferenceRule[] = [
       {
         name: 'first-rule',
+        description: 'First rule',
         match: { type: 'object' },
-        set: { priority: 'low', source: 'first' },
+        schema: [
+          {
+            properties: {
+              priority: { type: 'string', set: 'low' },
+              source: { type: 'string', set: 'first' },
+            },
+          },
+        ],
       },
       {
         name: 'second-rule',
+        description: 'Second rule overrides priority',
         match: { type: 'object' },
-        set: { priority: 'high' },
+        schema: [
+          {
+            properties: {
+              priority: { type: 'string', set: 'high' },
+            },
+          },
+        ],
       },
     ];
     const compiled = compileRules(rules);
@@ -143,8 +174,9 @@ describe('rules engine', () => {
     const rules: InferenceRule[] = [
       {
         name: 'inline-map',
+        description: 'Apply inline JsonMap',
         match: { type: 'object' },
-        set: {},
+        schema: [],
         map: {
           project: {
             $: [
@@ -177,8 +209,9 @@ describe('rules engine', () => {
     const rules: InferenceRule[] = [
       {
         name: 'named-map-ref',
+        description: 'Apply named JsonMap',
         match: { type: 'object' },
-        set: {},
+        schema: [],
         map: 'extractDirectory',
       },
     ];
@@ -192,8 +225,16 @@ describe('rules engine', () => {
     const rules: InferenceRule[] = [
       {
         name: 'set-map-merge',
+        description: 'Merge schema and map outputs',
         match: { type: 'object' },
-        set: { field: 'from-set', other: 'value' },
+        schema: [
+          {
+            properties: {
+              field: { type: 'string', set: 'from-set' },
+              other: { type: 'string', set: 'value' },
+            },
+          },
+        ],
         map: {
           field: {
             $: [
@@ -219,8 +260,15 @@ describe('rules engine', () => {
     const rules: InferenceRule[] = [
       {
         name: 'missing-map-ref',
+        description: 'Handle missing map ref',
         match: { type: 'object' },
-        set: { fallback: 'value' },
+        schema: [
+          {
+            properties: {
+              fallback: { type: 'string', set: 'value' },
+            },
+          },
+        ],
         map: 'nonexistent',
       },
     ];
@@ -240,13 +288,29 @@ describe('rules engine', () => {
     const rules: InferenceRule[] = [
       {
         name: 'multi-first',
+        description: 'First matching rule',
         match: { type: 'object' },
-        set: { a: 1, shared: 'first' },
+        schema: [
+          {
+            properties: {
+              a: { type: 'integer', set: '1' },
+              shared: { type: 'string', set: 'first' },
+            },
+          },
+        ],
       },
       {
         name: 'multi-second',
+        description: 'Second matching rule',
         match: { type: 'object' },
-        set: { b: 2, shared: 'second' },
+        schema: [
+          {
+            properties: {
+              b: { type: 'integer', set: '2' },
+              shared: { type: 'string', set: 'second' },
+            },
+          },
+        ],
       },
     ];
 
@@ -260,8 +324,16 @@ describe('rules engine', () => {
     const rules: InferenceRule[] = [
       {
         name: 'missing-vars',
+        description: 'Handle missing template variables',
         match: { type: 'object' },
-        set: { title: '${frontmatter.title}', path: '${file.path}' },
+        schema: [
+          {
+            properties: {
+              title: { type: 'string', set: '${frontmatter.title}' },
+              path: { type: 'string', set: '${file.path}' },
+            },
+          },
+        ],
       },
     ];
 
@@ -279,8 +351,15 @@ describe('rules engine', () => {
     const rules: InferenceRule[] = [
       {
         name: 'map-throws',
+        description: 'Handle JsonMap errors',
         match: { type: 'object' },
-        set: { ok: true },
+        schema: [
+          {
+            properties: {
+              ok: { type: 'boolean', set: 'true' },
+            },
+          },
+        ],
         map: {
           willFail: {
             $: [
@@ -307,9 +386,16 @@ describe('rules engine', () => {
     const rules: InferenceRule[] = [
       {
         name: 'invalid-schema',
+        description: 'Test invalid schema',
         // Ajv should throw on invalid `type`.
         match: { type: 'not-a-real-json-schema-type' },
-        set: { a: 1 },
+        schema: [
+          {
+            properties: {
+              a: { type: 'integer', set: '1' },
+            },
+          },
+        ],
       },
     ];
 
@@ -320,8 +406,9 @@ describe('rules engine', () => {
     const rules: InferenceRule[] = [
       {
         name: 'empty-set',
+        description: 'Rule with empty schema',
         match: { type: 'object' },
-        set: {},
+        schema: [],
       },
     ];
 

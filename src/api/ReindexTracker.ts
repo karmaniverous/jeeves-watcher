@@ -22,7 +22,7 @@ export class ReindexTracker {
   private _startedAt?: string;
 
   /** Mark a reindex as started. */
-  start(scope: 'rules' | 'full'): void {
+  start(scope: 'issues' | 'full'): void {
     this._active = true;
     this._scope = scope;
     this._startedAt = new Date().toISOString();

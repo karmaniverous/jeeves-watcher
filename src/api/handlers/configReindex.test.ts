@@ -23,7 +23,7 @@ import { executeReindex } from '../executeReindex';
 const mockedExecuteReindex = executeReindex as Mock;
 
 type ConfigReindexRequest = FastifyRequest<{
-  Body: { scope?: 'rules' | 'full' };
+  Body: { scope?: 'issues' | 'full' };
 }>;
 
 interface MockReply {
@@ -56,7 +56,7 @@ function mockReply(): MockReply {
 }
 
 describe('createConfigReindexHandler', () => {
-  it('returns started status with default rules scope', async () => {
+  it('returns started status with default issues scope', async () => {
     const deps = createDeps();
     const handler = createConfigReindexHandler(deps);
     const reply = mockReply();
@@ -65,7 +65,7 @@ describe('createConfigReindexHandler', () => {
     expect(reply.status).toHaveBeenCalledWith(200);
     expect(reply.send).toHaveBeenCalledWith({
       status: 'started',
-      scope: 'rules',
+      scope: 'issues',
     });
   });
 

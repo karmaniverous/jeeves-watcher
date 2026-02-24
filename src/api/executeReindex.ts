@@ -20,7 +20,7 @@ export interface ExecuteReindexDeps {
   logger: pino.Logger;
   reindexTracker?: ReindexTracker;
   valuesManager?: ValuesManager;
-  issuesManager?: { getAll: () => Record<string, unknown[]> };
+  issuesManager?: { getAll: () => Record<string, unknown> };
 }
 
 /** Result of a reindex execution. */
@@ -96,7 +96,10 @@ export async function executeReindex(
           filesProcessed++;
         } catch (error) {
           errors++;
-          logger.warn({ filePath, err: normalizeError(error) }, 'Failed to reprocess issue file');
+          logger.warn(
+            { filePath, err: normalizeError(error) },
+            'Failed to reprocess issue file',
+          );
         }
       }
     } else {

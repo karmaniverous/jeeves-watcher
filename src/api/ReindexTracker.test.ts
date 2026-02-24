@@ -8,12 +8,12 @@ describe('ReindexTracker', () => {
     expect(tracker.getStatus()).toEqual({ active: false });
   });
 
-  it('start(rules) sets active state with scope and timestamp', () => {
+  it('start(issues) sets active state with scope and timestamp', () => {
     const tracker = new ReindexTracker();
-    tracker.start('rules');
+    tracker.start('issues');
     const status = tracker.getStatus();
     expect(status.active).toBe(true);
-    expect(status.scope).toBe('rules');
+    expect(status.scope).toBe('issues');
     expect(status.startedAt).toBeDefined();
     // Verify ISO 8601 format
     expect(new Date(status.startedAt!).toISOString()).toBe(status.startedAt);
@@ -27,7 +27,7 @@ describe('ReindexTracker', () => {
 
   it('complete() resets to inactive', () => {
     const tracker = new ReindexTracker();
-    tracker.start('rules');
+    tracker.start('issues');
     tracker.complete();
     expect(tracker.getStatus()).toEqual({ active: false });
   });
