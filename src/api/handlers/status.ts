@@ -4,13 +4,13 @@
  */
 
 import type { JeevesWatcherConfig } from '../../config/types';
-import type { VectorStoreClient } from '../../vectorStore';
+import type { VectorStore } from '../../vectorStore';
 import type { ReindexTracker } from '../ReindexTracker';
 
 /** Dependencies for the status route handler. */
 export interface StatusRouteDeps {
-  /** The vector store client. */
-  vectorStore: VectorStoreClient;
+  /** The vector store. */
+  vectorStore: VectorStore;
   /** The application configuration. */
   config: JeevesWatcherConfig;
   /** The reindex tracker. */

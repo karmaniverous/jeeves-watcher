@@ -5,58 +5,24 @@ import type { VectorStoreConfig } from '../config/types';
 import { getLogger, type MinimalLogger } from '../util/logger';
 import { normalizeError } from '../util/normalizeError';
 import { retry } from '../util/retry';
+import type {
+  CollectionInfo,
+  PayloadFieldSchema,
+  ScrolledPoint,
+  SearchResult,
+  VectorPoint,
+  VectorStore,
+} from './types';
 
-/**
- * A point to upsert into the vector store.
- */
-export interface VectorPoint {
-  /** The point ID. */
-  id: string;
-  /** The embedding vector. */
-  vector: number[];
-  /** The payload metadata. */
-  payload: Record<string, unknown>;
-}
-
-/**
- * A search result from the vector store.
- */
-export interface SearchResult {
-  /** The point ID. */
-  id: string;
-  /** The similarity score. */
-  score: number;
-  /** The payload metadata. */
-  payload: Record<string, unknown>;
-}
-
-/**
- * A scrolled point from the vector store.
- */
-export interface ScrolledPoint {
-  /** The point ID. */
-  id: string;
-  /** The payload metadata. */
-  payload: Record<string, unknown>;
-}
-
-/** Payload field schema information as reported by Qdrant. */
-export interface PayloadFieldSchema {
-  /** Qdrant data type for the field (e.g. `keyword`, `text`, `integer`). */
-  type: string;
-}
-
-/**
- * Collection stats and payload schema information.
- */
-export interface CollectionInfo {
-  /** Total number of points in the collection. */
-  pointCount: number;
-  /** Vector dimensions for the collection's configured vector params. */
-  dimensions: number;
-  /** Payload field schema keyed by field name. */
-  payloadFields: Record<string, PayloadFieldSchema>;
-}
+// Re-export types for public API
+export type {
+  CollectionInfo,
+  PayloadFieldSchema,
+  ScrolledPoint,
+  SearchResult,
+  VectorPoint,
+  VectorStore,
+};
 
 /** Infer a Qdrant-style type name from a JS value. */
 function inferPayloadType(value: unknown): string {
@@ -74,8 +40,10 @@ function inferPayloadType(value: unknown): string {
 
 /**
  * Client wrapper for Qdrant vector store operations.
+ *
+ * Implements the {@link VectorStore} interface for dependency inversion.
  */
-export class VectorStoreClient {
+export class VectorStoreClient implements VectorStore {
   private readonly client: QdrantClient;
   private readonly collectionName: string;
   private readonly dims: number;

@@ -9,7 +9,7 @@ import type { EmbeddingProvider } from '../embedding';
 import { contentHash } from '../hash';
 import { pointId } from '../pointId';
 import { normalizeSlashes } from '../util/normalizeSlashes';
-import type { VectorStoreClient } from '../vectorStore';
+import type { VectorStore } from '../vectorStore';
 import { chunkIds, getChunkCount } from './chunkIds';
 import {
   FIELD_CHUNK_INDEX,
@@ -25,7 +25,7 @@ import type { Splitter } from './splitter';
  */
 export interface PipelineDeps {
   embeddingProvider: EmbeddingProvider;
-  vectorStore: VectorStoreClient;
+  vectorStore: VectorStore;
   splitter: Splitter;
   logger: pino.Logger;
 }

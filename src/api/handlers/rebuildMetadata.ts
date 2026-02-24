@@ -11,12 +11,12 @@ import type { JeevesWatcherConfig } from '../../config/types';
 import { writeMetadata } from '../../metadata';
 import { SYSTEM_METADATA_KEYS } from '../../metadata/constants';
 import { FIELD_FILE_PATH } from '../../processor/payloadFields';
-import type { VectorStoreClient } from '../../vectorStore';
+import type { VectorStore } from '../../vectorStore';
 import { wrapHandler } from './wrapHandler';
 
 export interface RebuildMetadataRouteDeps {
   config: JeevesWatcherConfig;
-  vectorStore: VectorStoreClient;
+  vectorStore: VectorStore;
   logger: pino.Logger;
 }
 

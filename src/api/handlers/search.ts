@@ -7,12 +7,12 @@ import type { FastifyRequest } from 'fastify';
 import type pino from 'pino';
 
 import type { EmbeddingProvider } from '../../embedding';
-import type { VectorStoreClient } from '../../vectorStore';
+import type { VectorStore } from '../../vectorStore';
 import { wrapHandler } from './wrapHandler';
 
 export interface SearchRouteDeps {
   embeddingProvider: EmbeddingProvider;
-  vectorStore: VectorStoreClient;
+  vectorStore: VectorStore;
   logger: pino.Logger;
 }
 

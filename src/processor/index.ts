@@ -17,7 +17,7 @@ import type { CompiledRule } from '../rules';
 import type { TemplateEngine } from '../templates';
 import { normalizeError } from '../util/normalizeError';
 import type { ValuesManager } from '../values';
-import type { VectorStoreClient } from '../vectorStore';
+import type { VectorStore } from '../vectorStore';
 import { buildMergedMetadata } from './buildMetadata';
 import { chunkIds, getChunkCount } from './chunkIds';
 import { embedAndUpsert } from './processingPipeline';
@@ -36,8 +36,8 @@ export interface DocumentProcessorDeps {
   config: ProcessorConfig;
   /** Provider for generating text embeddings. */
   embeddingProvider: EmbeddingProvider;
-  /** Client for the Qdrant vector store. */
-  vectorStore: VectorStoreClient;
+  /** Vector store for persistence. */
+  vectorStore: VectorStore;
   /** Pre-compiled inference rules for metadata extraction. */
   compiledRules: CompiledRule[];
   /** Pino logger instance. */
@@ -58,7 +58,7 @@ export interface DocumentProcessorDeps {
 export class DocumentProcessor {
   private config: ProcessorConfig;
   private readonly embeddingProvider: EmbeddingProvider;
-  private readonly vectorStore: VectorStoreClient;
+  private readonly vectorStore: VectorStore;
   private compiledRules: CompiledRule[];
   private readonly logger: pino.Logger;
   private templateEngine?: TemplateEngine;
