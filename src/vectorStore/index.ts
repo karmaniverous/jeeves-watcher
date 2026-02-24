@@ -350,8 +350,7 @@ export class VectorStoreClient {
     limit = 100,
   ): AsyncGenerator<ScrolledPoint> {
     let offset: string | number | undefined = undefined;
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-    while (true) {
+    for (;;) {
       const result = await this.client.scroll(this.collectionName, {
         limit,
         with_payload: true,

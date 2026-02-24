@@ -4,16 +4,24 @@
  * Tests for advanced CLI commands (configReindex, rebuildMetadata, service).
  */
 
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  type MockInstance,
+  vi,
+} from 'vitest';
 
 import { registerConfigReindexCommand } from './configReindex';
 import { registerRebuildMetadataCommand } from './rebuildMetadata';
 import { registerServiceCommand } from './service';
 
 // Mock console methods
-let consoleLogSpy: ReturnType<typeof vi.spyOn>;
-let consoleErrorSpy: ReturnType<typeof vi.spyOn>;
-let processExitSpy: ReturnType<typeof vi.spyOn>;
+let consoleLogSpy: MockInstance;
+let consoleErrorSpy: MockInstance;
+let processExitSpy: MockInstance;
 
 // Mock fetch globally
 const mockFetch = vi.fn();
@@ -29,11 +37,8 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
   consoleLogSpy.mockRestore();
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
   consoleErrorSpy.mockRestore();
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
   processExitSpy.mockRestore();
 });
 
@@ -45,8 +50,7 @@ describe('configReindex command', () => {
 
     mockFetch.mockResolvedValue({
       ok: true,
-      // eslint-disable-next-line @typescript-eslint/require-await
-      text: async () => 'Config reindex started',
+      text: () => Promise.resolve('Config reindex started'),
     });
 
     await cli.parseAsync([
@@ -72,8 +76,7 @@ describe('configReindex command', () => {
 
     mockFetch.mockResolvedValue({
       ok: true,
-      // eslint-disable-next-line @typescript-eslint/require-await
-      text: async () => 'Full reindex started',
+      text: () => Promise.resolve('Full reindex started'),
     });
 
     await cli.parseAsync(['node', 'test', 'config-reindex', '--scope', 'full']);
@@ -112,8 +115,7 @@ describe('configReindex command', () => {
 
     mockFetch.mockResolvedValue({
       ok: true,
-      // eslint-disable-next-line @typescript-eslint/require-await
-      text: async () => 'OK',
+      text: () => Promise.resolve('OK'),
     });
 
     await cli.parseAsync(['node', 'test', 'config-reindex']);
@@ -135,8 +137,7 @@ describe('rebuildMetadata command', () => {
 
     mockFetch.mockResolvedValue({
       ok: true,
-      // eslint-disable-next-line @typescript-eslint/require-await
-      text: async () => 'Metadata rebuild started',
+      text: () => Promise.resolve('Metadata rebuild started'),
     });
 
     await cli.parseAsync(['node', 'test', 'rebuild-metadata']);

@@ -11,8 +11,8 @@ import picomatch from 'picomatch';
  */
 export function globBase(pattern: string): string {
   const normalised = pattern.replace(/\\/g, '/');
-  // eslint-disable-next-line no-useless-escape
-  const globIdx = normalised.search(/[*?\[]/);
+  const globIdx = normalised.search(/[*?[]/);
+
   if (globIdx === -1) return resolve(pattern);
   const prefix = normalised.slice(0, globIdx);
   // If prefix ends mid-segment, dirname to get a real directory

@@ -1,7 +1,9 @@
-/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-return */
+import type { FastifyReply, FastifyRequest } from 'fastify';
 import pino from 'pino';
 import { describe, expect, it, vi } from 'vitest';
 
+import type { JeevesWatcherConfig } from '../../config/types';
+import type { DocumentProcessor } from '../../processor';
 import { ReindexTracker } from '../ReindexTracker';
 import { createConfigReindexHandler } from './configReindex';
 
@@ -20,28 +22,37 @@ import { executeReindex } from '../executeReindex';
 
 const mockedExecuteReindex = executeReindex as Mock;
 
+type ConfigReindexRequest = FastifyRequest<{
+  Body: { scope?: 'rules' | 'full' };
+}>;
+
+interface MockReply {
+  status: ReturnType<typeof vi.fn>;
+  send: ReturnType<typeof vi.fn>;
+}
+
 function createDeps() {
   return {
     config: {
       watch: { paths: ['**/*.md'] },
       embedding: { provider: 'mock', model: 'test', dimensions: 3 },
       vectorStore: { url: 'http://localhost:6333', collectionName: 'test' },
-    } as any,
-    processor: {} as any,
+    } as unknown as JeevesWatcherConfig,
+    processor: {} as unknown as DocumentProcessor,
     logger: pino({ level: 'silent' }),
     reindexTracker: new ReindexTracker(),
   };
 }
 
-function mockRequest(body: Record<string, unknown> = {}) {
-  return { body } as any;
+function mockRequest(body: Record<string, unknown> = {}): ConfigReindexRequest {
+  return { body } as unknown as ConfigReindexRequest;
 }
 
-function mockReply() {
+function mockReply(): MockReply {
   return {
     status: vi.fn().mockReturnThis(),
     send: vi.fn().mockImplementation((d: unknown) => d),
-  } as any;
+  };
 }
 
 describe('createConfigReindexHandler', () => {
@@ -49,7 +60,7 @@ describe('createConfigReindexHandler', () => {
     const deps = createDeps();
     const handler = createConfigReindexHandler(deps);
     const reply = mockReply();
-    await handler(mockRequest({}), reply);
+    await handler(mockRequest({}), reply as unknown as FastifyReply);
 
     expect(reply.status).toHaveBeenCalledWith(200);
     expect(reply.send).toHaveBeenCalledWith({
@@ -62,7 +73,10 @@ describe('createConfigReindexHandler', () => {
     const deps = createDeps();
     const handler = createConfigReindexHandler(deps);
     const reply = mockReply();
-    await handler(mockRequest({ scope: 'full' }), reply);
+    await handler(
+      mockRequest({ scope: 'full' }),
+      reply as unknown as FastifyReply,
+    );
 
     expect(reply.send).toHaveBeenCalledWith({
       status: 'started',

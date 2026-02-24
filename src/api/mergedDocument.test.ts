@@ -1,6 +1,8 @@
-/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access */
 import { describe, expect, it, vi } from 'vitest';
 
+import type { JeevesWatcherConfig } from '../config/types';
+import type { IssuesManager } from '../issues';
+import type { ValuesManager } from '../values';
 import {
   buildMergedDocument,
   type BuildMergedDocumentOptions,
@@ -16,14 +18,14 @@ function createOptions(
       embedding: { provider: 'mock', model: 'test', dimensions: 3 },
       vectorStore: { url: 'http://localhost:6333', collectionName: 'test' },
       inferenceRules: [{ name: 'rule1', match: {}, set: { domain: 'docs' } }],
-    } as any,
+    } as unknown as JeevesWatcherConfig,
     valuesManager: {
       getAll: vi.fn().mockReturnValue({ rule1: { domain: ['docs'] } }),
       getForRule: vi.fn().mockReturnValue({ domain: ['docs'] }),
-    } as any,
+    } as unknown as ValuesManager,
     issuesManager: {
       getAll: vi.fn().mockReturnValue({ '/bad.txt': { error: 'fail' } }),
-    } as any,
+    } as unknown as IssuesManager,
     ...overrides,
   };
 }
@@ -46,7 +48,7 @@ describe('buildMergedDocument', () => {
 
   it('inference rules include per-rule values', () => {
     const doc = buildMergedDocument(createOptions());
-    const rules = doc['inferenceRules'] as any[];
+    const rules = doc['inferenceRules'] as Array<Record<string, unknown>>;
     expect(rules[0]).toMatchObject({
       name: 'rule1',
       values: { domain: ['docs'] },
@@ -64,8 +66,10 @@ describe('buildMergedDocument', () => {
         valuesManager: {
           getAll: vi.fn().mockReturnValue({}),
           getForRule: vi.fn().mockReturnValue({}),
-        } as any,
-        issuesManager: { getAll: vi.fn().mockReturnValue({}) } as any,
+        } as unknown as ValuesManager,
+        issuesManager: {
+          getAll: vi.fn().mockReturnValue({}),
+        } as unknown as IssuesManager,
       }),
     );
     expect(doc['issues']).toEqual({});
@@ -81,7 +85,7 @@ describe('buildMergedDocument', () => {
           mapHelpers: {
             myLib: { path: '/helpers/my.js', description: 'My lib' },
           },
-        } as any,
+        } as unknown as JeevesWatcherConfig,
         helperIntrospection: {
           mapHelpers: {
             myLib: { exports: { myFn: 'function' } },
@@ -91,7 +95,10 @@ describe('buildMergedDocument', () => {
       }),
     );
 
-    const mapHelpers = doc['mapHelpers'] as Record<string, any>;
+    const mapHelpers = doc['mapHelpers'] as Record<
+      string,
+      Record<string, unknown>
+    >;
     expect(mapHelpers['myLib']).toMatchObject({
       path: '/helpers/my.js',
       exports: { myFn: 'function' },
@@ -120,10 +127,10 @@ describe('resolveReferences', () => {
     const result = resolveReferences(doc, ['files']);
 
     // Non-.json map references should not be resolved
-    const rules = result['inferenceRules'] as any[];
+    const rules = result['inferenceRules'] as Array<Record<string, unknown>>;
     // /nonexistent.json fails to read, returns the path string
-    expect(rules[0].map).toBe('/nonexistent.json');
+    expect(rules[0]['map']).toBe('/nonexistent.json');
     // Non-string map is left alone
-    expect(rules[1].map).toEqual({ inline: true });
+    expect(rules[1]['map']).toEqual({ inline: true });
   });
 });

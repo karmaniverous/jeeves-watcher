@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/unbound-method */
 import pino from 'pino';
 import { beforeEach, describe, expect, it, type Mock, vi } from 'vitest';
 
@@ -28,27 +27,43 @@ const mockedReadMetadata = readMetadata as Mock;
 const mockedWriteMetadata = writeMetadata as Mock;
 const mockedDeleteMetadata = deleteMetadata as Mock;
 
+interface MockVectorStore {
+  getPayload: Mock;
+  upsert: Mock;
+  delete: Mock;
+  setPayload: Mock;
+}
+
+interface MockIssuesManager {
+  record: Mock;
+  clear: Mock;
+}
+
+interface MockValuesManager {
+  update: Mock;
+}
+
 function createMocks() {
-  const vectorStore = {
+  const vectorStore: MockVectorStore = {
     getPayload: vi.fn().mockResolvedValue(null),
     upsert: vi.fn().mockResolvedValue(undefined),
     delete: vi.fn().mockResolvedValue(undefined),
     setPayload: vi.fn().mockResolvedValue(undefined),
-  } as unknown as VectorStoreClient;
+  };
 
   const embeddingProvider: EmbeddingProvider = {
     dimensions: 3,
     embed: vi.fn().mockResolvedValue([[0.1, 0.2, 0.3]]),
   };
 
-  const issuesManager = {
+  const issuesManager: MockIssuesManager = {
     record: vi.fn(),
     clear: vi.fn(),
-  } as unknown as IssuesManager;
+  };
 
-  const valuesManager = {
+  const valuesManager: MockValuesManager = {
     update: vi.fn(),
-  } as unknown as ValuesManager;
+  };
 
   const config: ProcessorConfig = {
     metadataDir: '/tmp/meta',
@@ -102,7 +117,7 @@ describe('DocumentProcessor', () => {
       });
       await processor.processFile('/test.txt');
 
-      expect((vectorStore as any).upsert).not.toHaveBeenCalled();
+      expect(vectorStore.upsert).not.toHaveBeenCalled();
     });
 
     it('skips when content hash is unchanged', async () => {
@@ -110,10 +125,9 @@ describe('DocumentProcessor', () => {
       mockedBuildMergedMetadata.mockResolvedValue(defaultMergedMetadata());
 
       // Simulate existing payload with matching hash
-      // content_hash of 'hello world' via crypto
       const { contentHash } = await import('../hash');
       const hash = contentHash('hello world');
-      (vectorStore.getPayload as Mock).mockResolvedValue({
+      vectorStore.getPayload.mockResolvedValue({
         content_hash: hash,
         total_chunks: 1,
       });
@@ -127,7 +141,7 @@ describe('DocumentProcessor', () => {
       });
       await processor.processFile('/test.txt');
 
-      expect((vectorStore as any).upsert).not.toHaveBeenCalled();
+      expect(vectorStore.upsert).not.toHaveBeenCalled();
     });
 
     it('processes successfully: clears issues, updates values', async () => {
@@ -140,7 +154,7 @@ describe('DocumentProcessor', () => {
         logger,
       } = createMocks();
       mockedBuildMergedMetadata.mockResolvedValue(defaultMergedMetadata());
-      (vectorStore.getPayload as Mock).mockResolvedValue(null);
+      vectorStore.getPayload.mockResolvedValue(null);
 
       const processor = new DocumentProcessor({
         config,
@@ -148,12 +162,12 @@ describe('DocumentProcessor', () => {
         vectorStore: vectorStore as unknown as VectorStoreClient,
         compiledRules: [],
         logger,
-        issuesManager,
-        valuesManager,
+        issuesManager: issuesManager as unknown as IssuesManager,
+        valuesManager: valuesManager as unknown as ValuesManager,
       });
       await processor.processFile('/test.txt');
 
-      expect((vectorStore as any).upsert).toHaveBeenCalledOnce();
+      expect(vectorStore.upsert).toHaveBeenCalledOnce();
       expect(issuesManager.clear).toHaveBeenCalledWith('/test.txt');
       expect(valuesManager.update).toHaveBeenCalledWith(
         'rule1',
@@ -172,7 +186,7 @@ describe('DocumentProcessor', () => {
         vectorStore: vectorStore as unknown as VectorStoreClient,
         compiledRules: [],
         logger,
-        issuesManager,
+        issuesManager: issuesManager as unknown as IssuesManager,
       });
       await processor.processFile('/test.txt');
 
@@ -189,7 +203,7 @@ describe('DocumentProcessor', () => {
       mockedBuildMergedMetadata.mockResolvedValue(defaultMergedMetadata());
 
       // Old payload had 3 chunks, new text produces 1 chunk
-      (vectorStore.getPayload as Mock).mockResolvedValue({
+      vectorStore.getPayload.mockResolvedValue({
         content_hash: 'old-hash',
         total_chunks: 3,
       });
@@ -204,9 +218,8 @@ describe('DocumentProcessor', () => {
       await processor.processFile('/test.txt');
 
       // Should delete orphan chunk IDs (indices 1 and 2)
-      expect((vectorStore as any).delete).toHaveBeenCalledOnce();
-      const deletedIds = (vectorStore.delete as Mock).mock
-        .calls[0][0] as string[];
+      expect(vectorStore.delete).toHaveBeenCalledOnce();
+      const deletedIds = vectorStore.delete.mock.calls[0][0] as string[];
       expect(deletedIds).toHaveLength(2);
     });
   });
@@ -214,7 +227,7 @@ describe('DocumentProcessor', () => {
   describe('processRulesUpdate', () => {
     it('returns null when file is not indexed', async () => {
       const { vectorStore, embeddingProvider, config, logger } = createMocks();
-      (vectorStore.getPayload as Mock).mockResolvedValue(null);
+      vectorStore.getPayload.mockResolvedValue(null);
 
       const processor = new DocumentProcessor({
         config,
@@ -237,7 +250,7 @@ describe('DocumentProcessor', () => {
         config,
         logger,
       } = createMocks();
-      (vectorStore.getPayload as Mock).mockResolvedValue({ total_chunks: 2 });
+      vectorStore.getPayload.mockResolvedValue({ total_chunks: 2 });
       mockedBuildMergedMetadata.mockResolvedValue(defaultMergedMetadata());
 
       const processor = new DocumentProcessor({
@@ -246,15 +259,15 @@ describe('DocumentProcessor', () => {
         vectorStore: vectorStore as unknown as VectorStoreClient,
         compiledRules: [],
         logger,
-        issuesManager,
-        valuesManager,
+        issuesManager: issuesManager as unknown as IssuesManager,
+        valuesManager: valuesManager as unknown as ValuesManager,
       });
       const result = await processor.processRulesUpdate('/test.txt');
 
       expect(result).toEqual(expect.objectContaining({ domain: 'test' }));
       expect(issuesManager.clear).toHaveBeenCalledWith('/test.txt');
       expect(valuesManager.update).not.toHaveBeenCalled();
-      expect((vectorStore as any).setPayload).toHaveBeenCalledOnce();
+      expect(vectorStore.setPayload).toHaveBeenCalledOnce();
     });
   });
 
@@ -262,7 +275,7 @@ describe('DocumentProcessor', () => {
     it('merges metadata and updates Qdrant payloads', async () => {
       const { vectorStore, embeddingProvider, config, logger } = createMocks();
       mockedReadMetadata.mockResolvedValue({ existing: 'old' });
-      (vectorStore.getPayload as Mock).mockResolvedValue({ total_chunks: 2 });
+      vectorStore.getPayload.mockResolvedValue({ total_chunks: 2 });
 
       const processor = new DocumentProcessor({
         config,
@@ -280,14 +293,14 @@ describe('DocumentProcessor', () => {
         '/tmp/meta',
         { existing: 'old', newKey: 'val' },
       );
-      expect((vectorStore as any).setPayload).toHaveBeenCalledOnce();
+      expect(vectorStore.setPayload).toHaveBeenCalledOnce();
       expect(result).toEqual({ existing: 'old', newKey: 'val' });
     });
 
     it('returns null when file is not indexed', async () => {
       const { vectorStore, embeddingProvider, config, logger } = createMocks();
       mockedReadMetadata.mockResolvedValue(null);
-      (vectorStore.getPayload as Mock).mockResolvedValue(null);
+      vectorStore.getPayload.mockResolvedValue(null);
 
       const processor = new DocumentProcessor({
         config,
@@ -307,7 +320,7 @@ describe('DocumentProcessor', () => {
   describe('deleteFile', () => {
     it('removes chunks and metadata', async () => {
       const { vectorStore, embeddingProvider, config, logger } = createMocks();
-      (vectorStore.getPayload as Mock).mockResolvedValue({ total_chunks: 3 });
+      vectorStore.getPayload.mockResolvedValue({ total_chunks: 3 });
 
       const processor = new DocumentProcessor({
         config,
@@ -318,9 +331,8 @@ describe('DocumentProcessor', () => {
       });
       await processor.deleteFile('/test.txt');
 
-      expect((vectorStore as any).delete).toHaveBeenCalledOnce();
-      const deletedIds = (vectorStore.delete as Mock).mock
-        .calls[0][0] as string[];
+      expect(vectorStore.delete).toHaveBeenCalledOnce();
+      const deletedIds = vectorStore.delete.mock.calls[0][0] as string[];
       expect(deletedIds).toHaveLength(3);
       expect(mockedDeleteMetadata).toHaveBeenCalledWith(
         '/test.txt',

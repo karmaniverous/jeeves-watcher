@@ -46,8 +46,7 @@ export class IssuesManager extends JsonFileStore<IssuesFile> {
   clear(filePath: string): void {
     const issues = this.load();
     if (filePath in issues) {
-      // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
-      delete issues[filePath];
+      Reflect.deleteProperty(issues, filePath);
       this.save();
       this.logger.debug({ filePath }, 'Issue cleared');
     }

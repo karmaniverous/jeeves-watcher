@@ -1,7 +1,10 @@
-/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-return */
+import type { FastifyReply, FastifyRequest } from 'fastify';
 import pino from 'pino';
 import { describe, expect, it, vi } from 'vitest';
 
+import type { JeevesWatcherConfig } from '../../config/types';
+import type { IssuesManager } from '../../issues';
+import type { ValuesManager } from '../../values';
 import type { ConfigQueryRouteDeps } from './configQuery';
 import { createConfigQueryHandler } from './configQuery';
 
@@ -18,30 +21,43 @@ import { buildMergedDocument, resolveReferences } from '../mergedDocument';
 const mockedBuild = buildMergedDocument as Mock;
 const mockedResolve = resolveReferences as Mock;
 
+type ConfigQueryRequest = FastifyRequest<{
+  Body: { path: string; resolve?: ('files' | 'globals')[] };
+}>;
+
+interface MockReply {
+  status: ReturnType<typeof vi.fn>;
+  send: ReturnType<typeof vi.fn>;
+}
+
 function createDeps(
-  configOverrides: Record<string, unknown> = {},
+  configOverrides: Partial<JeevesWatcherConfig> = {},
 ): ConfigQueryRouteDeps {
   return {
-    config: { inferenceRules: [], ...configOverrides } as any,
+    config: {
+      inferenceRules: [],
+      ...configOverrides,
+    } as unknown as JeevesWatcherConfig,
     valuesManager: {
       getAll: vi.fn().mockReturnValue({}),
       getForRule: vi.fn().mockReturnValue({}),
-    } as any,
-    issuesManager: { getAll: vi.fn().mockReturnValue({}) } as any,
+    } as unknown as ValuesManager,
+    issuesManager: {
+      getAll: vi.fn().mockReturnValue({}),
+    } as unknown as IssuesManager,
     logger: pino({ level: 'silent' }),
   };
 }
 
-function mockRequest(body: Record<string, unknown>) {
-  return { body } as any;
+function mockRequest(body: Record<string, unknown>): ConfigQueryRequest {
+  return { body } as unknown as ConfigQueryRequest;
 }
 
-function mockReply() {
-  const reply = {
+function mockReply(): MockReply {
+  return {
     status: vi.fn().mockReturnThis(),
     send: vi.fn().mockImplementation((data: unknown) => data),
   };
-  return reply as any;
 }
 
 describe('createConfigQueryHandler', () => {
@@ -55,7 +71,7 @@ describe('createConfigQueryHandler', () => {
     const handler = createConfigQueryHandler(deps);
     const result = await handler(
       mockRequest({ path: '$.inferenceRules[*].name' }),
-      mockReply(),
+      mockReply() as unknown as FastifyReply,
     );
 
     expect(result).toEqual({ result: ['r1', 'r2'], count: 2 });
@@ -69,7 +85,10 @@ describe('createConfigQueryHandler', () => {
 
     const handler = createConfigQueryHandler(deps);
     const reply = mockReply();
-    await handler(mockRequest({ path: '$.anything' }), reply);
+    await handler(
+      mockRequest({ path: '$.anything' }),
+      reply as unknown as FastifyReply,
+    );
 
     expect(reply.status).toHaveBeenCalledWith(400);
   });
@@ -84,7 +103,7 @@ describe('createConfigQueryHandler', () => {
     const handler = createConfigQueryHandler(deps);
     await handler(
       mockRequest({ path: '$.description', resolve: ['files'] }),
-      mockReply(),
+      mockReply() as unknown as FastifyReply,
     );
 
     expect(mockedResolve).toHaveBeenCalledWith(doc, ['files']);
@@ -97,7 +116,7 @@ describe('createConfigQueryHandler', () => {
     const handler = createConfigQueryHandler(deps);
     const result = await handler(
       mockRequest({ path: '$.nonexistent' }),
-      mockReply(),
+      mockReply() as unknown as FastifyReply,
     );
 
     expect(result).toEqual({ result: [], count: 0 });

@@ -45,9 +45,7 @@ export function createConfigQueryHandler(deps: ConfigQueryRouteDeps) {
         doc = resolveReferences(doc, resolve);
       }
 
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-      const rawResult = JSONPath({ path, json: doc });
-      const result = rawResult as unknown[];
+      const result: unknown[] = JSONPath({ path, json: doc });
       return { result, count: result.length };
     } catch (error) {
       const err = normalizeError(error);

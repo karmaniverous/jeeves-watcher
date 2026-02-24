@@ -1,18 +1,28 @@
-/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-return, @typescript-eslint/restrict-template-expressions */
 import { existsSync, mkdirSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
+import type { FastifyReply, FastifyRequest } from 'fastify';
 import pino from 'pino';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import type { JeevesWatcherConfig } from '../../config/types';
 import { ReindexTracker } from '../ReindexTracker';
 import type { ConfigApplyRouteDeps } from './configApply';
 import { createConfigApplyHandler } from './configApply';
 
+type ConfigApplyRequest = FastifyRequest<{
+  Body: { config: Record<string, unknown> };
+}>;
+
+interface MockReply {
+  status: ReturnType<typeof vi.fn>;
+  send: ReturnType<typeof vi.fn>;
+}
+
 let tempConfigPath: string;
 
-function minimalConfig() {
+function minimalConfig(): Partial<JeevesWatcherConfig> {
   return {
     watch: { paths: ['**/*.md'] },
     embedding: { provider: 'mock', model: 'test', dimensions: 3 },
@@ -24,7 +34,7 @@ function createDeps(
   overrides: Partial<ConfigApplyRouteDeps> = {},
 ): ConfigApplyRouteDeps {
   return {
-    config: minimalConfig() as any,
+    config: minimalConfig() as JeevesWatcherConfig,
     configPath: tempConfigPath,
     reindexTracker: new ReindexTracker(),
     logger: pino({ level: 'silent' }),
@@ -33,20 +43,20 @@ function createDeps(
   };
 }
 
-function mockRequest(body: Record<string, unknown>) {
-  return { body } as any;
+function mockRequest(body: Record<string, unknown>): ConfigApplyRequest {
+  return { body } as unknown as ConfigApplyRequest;
 }
 
-function mockReply() {
+function mockReply(): MockReply {
   return {
     status: vi.fn().mockReturnThis(),
     send: vi.fn().mockImplementation((d: unknown) => d),
-  } as any;
+  };
 }
 
 describe('createConfigApplyHandler', () => {
   beforeEach(() => {
-    const dir = join(tmpdir(), `configApply-test-${Date.now()}`);
+    const dir = join(tmpdir(), `configApply-test-${String(Date.now())}`);
     mkdirSync(dir, { recursive: true });
     tempConfigPath = join(dir, 'config.json');
   });
@@ -56,13 +66,18 @@ describe('createConfigApplyHandler', () => {
     const handler = createConfigApplyHandler(deps);
     const result = await handler(
       mockRequest({ config: { watch: { paths: ['**/*.txt'] } } }),
-      mockReply(),
+      mockReply() as unknown as FastifyReply,
     );
 
     expect(result).toMatchObject({ applied: true });
     expect(existsSync(tempConfigPath)).toBe(true);
-    const written = JSON.parse(readFileSync(tempConfigPath, 'utf-8'));
-    expect(written.watch.paths).toEqual(['**/*.txt']);
+    const written = JSON.parse(readFileSync(tempConfigPath, 'utf-8')) as Record<
+      string,
+      unknown
+    >;
+    expect((written['watch'] as Record<string, unknown>)['paths']).toEqual([
+      '**/*.txt',
+    ]);
   });
 
   it('invalid config returns validation errors and does NOT write', async () => {
@@ -70,7 +85,10 @@ describe('createConfigApplyHandler', () => {
     const handler = createConfigApplyHandler(deps);
     const reply = mockReply();
 
-    await handler(mockRequest({ config: { watch: { paths: [] } } }), reply);
+    await handler(
+      mockRequest({ config: { watch: { paths: [] } } }),
+      reply as unknown as FastifyReply,
+    );
 
     expect(reply.status).toHaveBeenCalledWith(400);
     expect(existsSync(tempConfigPath)).toBe(false);
@@ -79,11 +97,17 @@ describe('createConfigApplyHandler', () => {
   it('triggers reindex based on configWatch.reindex setting', async () => {
     const triggerReindex = vi.fn();
     const deps = createDeps({
-      config: { ...minimalConfig(), configWatch: { reindex: 'full' } } as any,
+      config: {
+        ...minimalConfig(),
+        configWatch: { reindex: 'full' },
+      } as JeevesWatcherConfig,
       triggerReindex,
     });
     const handler = createConfigApplyHandler(deps);
-    const result = await handler(mockRequest({ config: {} }), mockReply());
+    const result = await handler(
+      mockRequest({ config: {} }),
+      mockReply() as unknown as FastifyReply,
+    );
 
     expect(result).toMatchObject({
       applied: true,
@@ -96,11 +120,17 @@ describe('createConfigApplyHandler', () => {
   it('does not trigger reindex when configWatch.reindex is none', async () => {
     const triggerReindex = vi.fn();
     const deps = createDeps({
-      config: { ...minimalConfig(), configWatch: { reindex: 'none' } } as any,
+      config: {
+        ...minimalConfig(),
+        configWatch: { reindex: 'none' },
+      } as JeevesWatcherConfig,
       triggerReindex,
     });
     const handler = createConfigApplyHandler(deps);
-    const result = await handler(mockRequest({ config: {} }), mockReply());
+    const result = await handler(
+      mockRequest({ config: {} }),
+      mockReply() as unknown as FastifyReply,
+    );
 
     expect(result).toMatchObject({ applied: true, reindexTriggered: false });
     expect(triggerReindex).not.toHaveBeenCalled();

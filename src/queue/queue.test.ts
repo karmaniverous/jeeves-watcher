@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/require-await */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { EventQueue, type ProcessFn, type WatchEvent } from './index';
@@ -14,7 +13,7 @@ describe('EventQueue', () => {
 
   it('debounces events for the same file within the window', async () => {
     const processed: string[] = [];
-    const fn: ProcessFn = async (event) => {
+    const fn: ProcessFn = (event) => {
       processed.push(event.path);
     };
 
@@ -42,7 +41,7 @@ describe('EventQueue', () => {
 
   it('processes different files independently', async () => {
     const processed: string[] = [];
-    const fn: ProcessFn = async (event) => {
+    const fn: ProcessFn = (event) => {
       processed.push(event.path);
     };
 
@@ -110,7 +109,7 @@ describe('EventQueue', () => {
 
   it('prioritizes normal events over low priority', async () => {
     const processed: string[] = [];
-    const fn: ProcessFn = async (event) => {
+    const fn: ProcessFn = (event) => {
       processed.push(event.path);
     };
 
@@ -141,7 +140,7 @@ describe('EventQueue', () => {
 
   it('debounce keeps the latest event for a path', async () => {
     const types: string[] = [];
-    const fn: ProcessFn = async (event) => {
+    const fn: ProcessFn = (event) => {
       types.push(event.type);
     };
 
