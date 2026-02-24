@@ -9,8 +9,10 @@ import type { JsonMapMap } from '@karmaniverous/jsonmap';
 import type { FastifyInstance } from 'fastify';
 import type pino from 'pino';
 
+import { executeReindex } from '../api/executeReindex';
 import type { JeevesWatcherConfig } from '../config/types';
 import { GitignoreFilter } from '../gitignore';
+import { type AllHelpersIntrospection, introspectAllHelpers } from '../helpers';
 import { IssuesManager } from '../issues';
 import type { DocumentProcessorInterface } from '../processor';
 import type { EventQueue } from '../queue';
@@ -70,6 +72,9 @@ export class JeevesWatcher {
   private server: FastifyInstance | undefined;
   private processor: DocumentProcessorInterface | undefined;
   private configWatcher: ConfigWatcher | undefined;
+  private issuesManager: IssuesManager | undefined;
+  private valuesManager: ValuesManager | undefined;
+  private helperIntrospection: AllHelpersIntrospection | undefined;
 
   /**
    * Create a new JeevesWatcher instance.
@@ -109,6 +114,15 @@ export class JeevesWatcher {
     const { templateEngine, customMapLib } =
       await this.buildTemplateEngineAndCustomMapLib(this.config, configDir);
 
+    // Introspect helpers for merged document
+    this.helperIntrospection = await introspectAllHelpers(
+      {
+        mapHelpers: this.config.mapHelpers,
+        templateHelpers: this.config.templateHelpers,
+      },
+      configDir,
+    );
+
     const processor = this.factories.createDocumentProcessor({
       config: {
         metadataDir: this.config.metadataDir ?? '.jeeves-metadata',
@@ -136,16 +150,17 @@ export class JeevesWatcher {
     this.watcher = this.createWatcher(this.queue, processor, logger);
     const stateDir =
       this.config.stateDir ?? this.config.metadataDir ?? '.jeeves-metadata';
-    const issuesManager = new IssuesManager(stateDir, logger);
-    const valuesManager = new ValuesManager(stateDir, logger);
+    this.issuesManager = new IssuesManager(stateDir, logger);
+    this.valuesManager = new ValuesManager(stateDir, logger);
 
     this.server = await this.startApiServer(
       processor,
       vectorStore,
       embeddingProvider,
       logger,
-      issuesManager,
-      valuesManager,
+      this.issuesManager,
+      this.valuesManager,
+      this.helperIntrospection,
     );
 
     this.watcher.start();
@@ -250,6 +265,7 @@ export class JeevesWatcher {
     logger: pino.Logger,
     issuesManager: IssuesManager,
     valuesManager: ValuesManager,
+    helperIntrospection: AllHelpersIntrospection | undefined,
   ) {
     const server = this.factories.createApiServer({
       processor,
@@ -261,6 +277,7 @@ export class JeevesWatcher {
       issuesManager,
       valuesManager,
       configPath: this.configPath ?? '',
+      helperIntrospection,
     });
 
     await server.listen({
@@ -355,6 +372,24 @@ export class JeevesWatcher {
       logger.info(
         { configPath: this.configPath, rules: compiledRules.length },
         'Config reloaded',
+      );
+
+      // Trigger reindex based on configWatch.reindex setting
+      const reindexScope = newConfig.configWatch?.reindex ?? 'issues';
+      logger.info(
+        { scope: reindexScope },
+        `Config watch triggering ${reindexScope} reindex`,
+      );
+
+      await executeReindex(
+        {
+          config: newConfig,
+          processor,
+          logger,
+          valuesManager: this.valuesManager,
+          issuesManager: this.issuesManager,
+        },
+        reindexScope,
       );
     } catch (error) {
       logger.error({ err: normalizeError(error) }, 'Failed to reload config');

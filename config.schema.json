@@ -853,13 +853,19 @@
           "type": "object",
           "properties": {
             "strong": {
-              "type": "number"
+              "type": "number",
+              "minimum": -1,
+              "maximum": 1
             },
             "relevant": {
-              "type": "number"
+              "type": "number",
+              "minimum": -1,
+              "maximum": 1
             },
             "noise": {
-              "type": "number"
+              "type": "number",
+              "minimum": -1,
+              "maximum": 1
             }
           },
           "required": [

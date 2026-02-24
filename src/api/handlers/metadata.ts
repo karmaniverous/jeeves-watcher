@@ -33,7 +33,9 @@ export function createMetadataHandler(deps: MetadataRouteDeps) {
 
       const validation = validateMetadataPayload(deps.config, path, metadata);
       if (!validation.ok) {
-        return reply.code(400).send({ error: validation.error });
+        return reply
+          .code(400)
+          .send({ error: validation.error, details: validation.details });
       }
 
       await deps.processor.processMetadataUpdate(path, metadata);

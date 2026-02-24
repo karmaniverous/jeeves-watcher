@@ -8,6 +8,7 @@ import type pino from 'pino';
 
 import type { JeevesWatcherConfig } from '../config/types';
 import type { EmbeddingProvider } from '../embedding';
+import type { AllHelpersIntrospection } from '../helpers';
 import type { IssuesManager } from '../issues';
 import type { DocumentProcessorInterface } from '../processor';
 import type { EventQueue } from '../queue';
@@ -55,6 +56,8 @@ export interface ApiServerOptions {
   reindexTracker?: ReindexTracker;
   /** Path to the config file on disk. */
   configPath: string;
+  /** Helper introspection for merged document. */
+  helperIntrospection?: AllHelpersIntrospection;
 }
 
 /**
@@ -75,6 +78,7 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
     issuesManager,
     valuesManager,
     configPath,
+    helperIntrospection,
   } = options;
 
   const reindexTracker = options.reindexTracker ?? new ReindexTracker();
@@ -142,6 +146,7 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
       valuesManager,
       issuesManager,
       logger,
+      helperIntrospection,
     }),
   );
 

@@ -416,11 +416,11 @@ export const jeevesWatcherConfigSchema = z.object({
       scoreThresholds: z
         .object({
           /** Minimum score for a result to be considered a strong match. */
-          strong: z.number(),
+          strong: z.number().min(-1).max(1),
           /** Minimum score for a result to be considered relevant. */
-          relevant: z.number(),
+          relevant: z.number().min(-1).max(1),
           /** Maximum score below which results are considered noise. */
-          noise: z.number(),
+          noise: z.number().min(-1).max(1),
         })
         .optional(),
     })

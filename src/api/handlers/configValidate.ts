@@ -12,6 +12,10 @@ import type { JeevesWatcherConfig } from '../../config/types';
 import { applyRules } from '../../rules/apply';
 import { buildAttributes } from '../../rules/attributes';
 import { compileRules } from '../../rules/compile';
+import {
+  mergeSchemas,
+  validateSchemaCompleteness,
+} from '../../rules/schemaMerge';
 import { normalizeError } from '../../util/normalizeError';
 import { type ValidationError } from './configMerge';
 import { mergeAndValidateConfig } from './mergeAndValidate';
@@ -91,6 +95,29 @@ export function createConfigValidateHandler(deps: ConfigValidateRouteDeps) {
       const helperErrors = validateHelperFiles(candidateRaw);
       if (helperErrors.length > 0) {
         return { valid: false, errors: helperErrors };
+      }
+
+      // Validate schema completeness for all inference rules
+      if (parsed?.inferenceRules) {
+        for (const rule of parsed.inferenceRules) {
+          if (!rule.schema || rule.schema.length === 0) continue;
+          try {
+            const merged = mergeSchemas(rule.schema, {
+              globalSchemas: parsed.schemas ?? {},
+            });
+            validateSchemaCompleteness(merged, rule.name);
+          } catch (error) {
+            return {
+              valid: false,
+              errors: [
+                {
+                  path: `inferenceRules[${rule.name}]`,
+                  message: normalizeError(error).message,
+                },
+              ],
+            };
+          }
+        }
       }
 
       const testResults: TestResult[] = [];

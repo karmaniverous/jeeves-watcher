@@ -63,8 +63,27 @@ describe('validateMetadataPayload', () => {
     });
 
     expect(result.ok).toBe(false);
-    const err = result as { ok: false; error: string; matchedRules: string[] };
-    expect(err.error).toContain('count');
+    const err = result as {
+      ok: false;
+      error: string;
+      matchedRules: string[];
+      details: Array<{
+        property: string;
+        expected: string;
+        received: string;
+        rule: string;
+        message: string;
+      }>;
+    };
+    expect(err.error).toBe('Validation failed');
+    expect(err.details).toHaveLength(1);
+    expect(err.details[0]).toMatchObject({
+      property: 'count',
+      expected: 'integer',
+      received: 'string',
+      rule: 'match-all',
+    });
+    expect(err.details[0].message).toContain('count');
     expect(err.matchedRules).toEqual(['match-all']);
   });
 

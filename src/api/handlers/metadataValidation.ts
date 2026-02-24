@@ -11,6 +11,14 @@ import { compileRules } from '../../rules/compile';
 import { mergeSchemas } from '../../rules/schemaMerge';
 import { normalizeSlashes } from '../../util/normalizeSlashes';
 
+export interface ValidationDetail {
+  property: string;
+  expected: string;
+  received: string;
+  rule: string;
+  message: string;
+}
+
 export interface MetadataValidationResult {
   ok: true;
   matchedRules: string[];
@@ -19,6 +27,7 @@ export interface MetadataValidationResult {
 export interface MetadataValidationError {
   ok: false;
   error: string;
+  details: ValidationDetail[];
   matchedRules: string[];
 }
 
@@ -47,6 +56,15 @@ function isValueValidForType(value: unknown, expectedType: string): boolean {
     default:
       return true;
   }
+}
+
+function getValueType(value: unknown): string {
+  if (value === null) return 'null';
+  if (Array.isArray(value)) return 'array';
+  if (typeof value === 'number') {
+    return Number.isInteger(value) ? 'integer' : 'number';
+  }
+  return typeof value;
 }
 
 /**
@@ -89,6 +107,8 @@ export function validateMetadataPayload(
     globalSchemas: config.schemas ?? {},
   });
 
+  const details: ValidationDetail[] = [];
+
   for (const [key, value] of Object.entries(metadata)) {
     // Allow null/undefined through (interpreted as clear/no-op by downstream)
     if (value === null || value === undefined) continue;
@@ -99,12 +119,42 @@ export function validateMetadataPayload(
     if (!expectedType) continue;
 
     if (!isValueValidForType(value, expectedType)) {
-      return {
-        ok: false,
-        matchedRules: matchedNames,
-        error: `Invalid type for property "${key}": expected ${expectedType}`,
-      };
+      const receivedType = getValueType(value);
+
+      // Find which rule(s) declared this property with this type
+      const declaringRules = matched.filter((m) => {
+        if (!m.rule.schema) return false;
+        const ruleSchema = mergeSchemas(m.rule.schema, {
+          globalSchemas: config.schemas ?? {},
+        });
+        return (
+          Object.hasOwn(ruleSchema.properties, key) &&
+          ruleSchema.properties[key].type === expectedType
+        );
+      });
+
+      const ruleName =
+        declaringRules.length > 0
+          ? declaringRules[0].rule.name
+          : (matchedNames[0] ?? 'unknown');
+
+      details.push({
+        property: key,
+        expected: expectedType,
+        received: receivedType,
+        rule: ruleName,
+        message: `Property '${key}' is declared as ${expectedType} in ${ruleName} schema, received ${receivedType}`,
+      });
     }
+  }
+
+  if (details.length > 0) {
+    return {
+      ok: false,
+      matchedRules: matchedNames,
+      error: 'Validation failed',
+      details,
+    };
   }
 
   return { ok: true, matchedRules: matchedNames };

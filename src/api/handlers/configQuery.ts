@@ -8,6 +8,7 @@ import { JSONPath } from 'jsonpath-plus';
 import type pino from 'pino';
 
 import type { JeevesWatcherConfig } from '../../config/types';
+import type { AllHelpersIntrospection } from '../../helpers';
 import type { IssuesManager } from '../../issues';
 import { normalizeError } from '../../util/normalizeError';
 import type { ValuesManager } from '../../values';
@@ -19,6 +20,7 @@ export interface ConfigQueryRouteDeps {
   valuesManager: ValuesManager;
   issuesManager: IssuesManager;
   logger: pino.Logger;
+  helperIntrospection?: AllHelpersIntrospection;
 }
 
 type ConfigQueryRequest = FastifyRequest<{
@@ -39,6 +41,7 @@ export function createConfigQueryHandler(deps: ConfigQueryRouteDeps) {
         config: deps.config,
         valuesManager: deps.valuesManager,
         issuesManager: deps.issuesManager,
+        helperIntrospection: deps.helperIntrospection,
       });
 
       if (resolve && resolve.length > 0) {
