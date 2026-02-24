@@ -166,7 +166,7 @@ File with 3 chunks → 3 Qdrant points:
 
 The v0.5.0 inference rules system uses declarative JSON Schemas with type coercion. When a rule matches a file, the watcher merges schema references and applies type coercion:
 
-```plantuml
+```text
 @startuml
 skinparam backgroundColor #FEFEFE
 skinparam defaultFontName Arial
@@ -216,7 +216,7 @@ end note
 
 When config files change, the watcher can trigger different reindex modes based on `configWatch.reindex`:
 
-```plantuml
+```text
 @startuml
 skinparam backgroundColor #FEFEFE
 skinparam defaultFontName Arial

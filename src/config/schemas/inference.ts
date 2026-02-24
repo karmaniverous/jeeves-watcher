@@ -19,12 +19,23 @@ export type PropertySchema = z.infer<typeof propertySchemaSchema>;
  * A schema object: properties with JSON Schema definitions.
  */
 export const schemaObjectSchema = z.object({
-  type: z.literal('object').optional(),
-  properties: z.record(z.string(), propertySchemaSchema).optional(),
+  type: z
+    .literal('object')
+    .optional()
+    .describe('JSON Schema type (always "object" for schema definitions).'),
+  properties: z
+    .record(z.string(), propertySchemaSchema)
+    .optional()
+    .describe('Map of property names to JSON Schema property definitions.'),
 });
 
-/** A schema object. */
-export type SchemaObject = z.infer<typeof schemaObjectSchema>;
+/** A schema object containing typed property definitions. */
+export interface SchemaObject {
+  /** JSON Schema type (always "object" for schema definitions). */
+  type?: 'object';
+  /** Map of property names to JSON Schema property definitions. */
+  properties?: Record<string, PropertySchema>;
+}
 
 /**
  * Global schema entry: inline object or file path.

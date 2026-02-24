@@ -584,7 +584,7 @@ For a file path `docs/readme.md`, this produces:
 { "domain": "docs", "project": "docs" }
 ```
 
-See [Configuration Reference](./configuration.md#maps) for details on maps.
+See [Configuration Reference](./configuration.md) for details on maps.
 
 ---
 
@@ -919,4 +919,4 @@ interface ResolvedProperty {
 }
 ```
 
-See [Configuration Reference](./configuration.md#inference-rules) for integration into the main config.
+See [Configuration Reference](./configuration.md) for integration into the main config.

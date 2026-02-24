@@ -77,7 +77,12 @@ export const configWatchConfigSchema = z.object({
     ),
   /** Reindex scope triggered on config change. */
   reindex: z
-    .enum(['issues', 'full'])
+    .union([
+      z
+        .literal('issues')
+        .describe('Re-process only files with recorded issues.'),
+      z.literal('full').describe('Full reindex of all watched files.'),
+    ])
     .optional()
     .describe('Reindex scope triggered on config change. Default: issues.'),
 });

@@ -16,7 +16,9 @@ export interface HelperModuleIntrospection {
 
 /** Result of introspecting all helper modules. */
 export interface AllHelpersIntrospection {
+  /** Introspection results for map helper modules, keyed by config name. */
   mapHelpers: Record<string, HelperModuleIntrospection>;
+  /** Introspection results for template helper modules, keyed by config name. */
   templateHelpers: Record<string, HelperModuleIntrospection>;
 }
 

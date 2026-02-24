@@ -33,14 +33,18 @@ export {
   vectorStoreConfigSchema,
   watchConfigSchema,
 } from './config';
-export type { EmbeddingProvider } from './embedding';
+export type { EmbeddingProvider, ProviderFactory } from './embedding';
 export { createEmbeddingProvider } from './embedding';
-export type { ExtractedText } from './extractors';
+export type { ExtractedText, Extractor } from './extractors';
 export { extractText } from './extractors';
 export { GitignoreFilter } from './gitignore';
 export { contentHash } from './hash';
 export type { SystemHealthOptions } from './health';
 export { SystemHealth } from './health';
+export type {
+  AllHelpersIntrospection,
+  HelperModuleIntrospection,
+} from './helpers';
 export type { IssueRecord, IssuesFile } from './issues';
 export { issueRecordSchema, IssuesManager } from './issues';
 export { createLogger } from './logger';
@@ -51,7 +55,11 @@ export {
   writeMetadata,
 } from './metadata';
 export { pointId } from './pointId';
-export type { DocumentProcessorDeps, ProcessorConfig } from './processor';
+export type {
+  DocumentProcessorDeps,
+  DocumentProcessorInterface,
+  ProcessorConfig,
+} from './processor';
 export { DocumentProcessor } from './processor';
 export type { EventQueueOptions, ProcessFn, WatchEvent } from './queue';
 export { EventQueue } from './queue';
@@ -78,6 +86,7 @@ export type {
   ScrolledPoint,
   SearchResult,
   VectorPoint,
+  VectorStore,
 } from './vectorStore';
 export { VectorStoreClient } from './vectorStore';
 export type { FileSystemWatcherOptions } from './watcher';

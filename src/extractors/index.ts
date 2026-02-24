@@ -79,6 +79,7 @@ function extractJsonText(obj: unknown): string {
   return JSON.stringify(obj);
 }
 
+/** A function that extracts text content from a file for embedding. */
 type Extractor = (filePath: string) => Promise<ExtractedText>;
 
 async function extractMarkdown(filePath: string): Promise<ExtractedText> {

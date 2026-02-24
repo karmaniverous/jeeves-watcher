@@ -9,7 +9,14 @@ import { z } from 'zod';
 export const issueRecordSchema = z.object({
   /** Category of the error: type_collision or interpolation_error. */
   type: z
-    .enum(['type_collision', 'interpolation_error'])
+    .union([
+      z
+        .literal('type_collision')
+        .describe('Conflicting metadata types from multiple rules.'),
+      z
+        .literal('interpolation_error')
+        .describe('Template variable resolution failure.'),
+    ])
     .describe(
       'Error category: type_collision (conflicting metadata types), interpolation_error (template rendering failure).',
     ),
