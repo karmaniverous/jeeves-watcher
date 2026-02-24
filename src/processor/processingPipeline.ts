@@ -8,6 +8,7 @@ import type pino from 'pino';
 import type { EmbeddingProvider } from '../embedding';
 import { contentHash } from '../hash';
 import { pointId } from '../pointId';
+import { normalizeSlashes } from '../util/normalizeSlashes';
 import type { VectorStoreClient } from '../vectorStore';
 import { chunkIds, getChunkCount } from './chunkIds';
 import {
@@ -62,7 +63,7 @@ export async function embedAndUpsert(
     vector: vectors[i],
     payload: {
       ...metadata,
-      [FIELD_FILE_PATH]: filePath.replace(/\\/g, '/'),
+      [FIELD_FILE_PATH]: normalizeSlashes(filePath),
       [FIELD_CHUNK_INDEX]: i,
       [FIELD_TOTAL_CHUNKS]: chunks.length,
       [FIELD_CONTENT_HASH]: hash,

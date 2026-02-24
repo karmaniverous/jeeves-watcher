@@ -125,30 +125,24 @@ export class VectorStoreClient {
   }
 
   /**
-   * Upsert points into the collection.
+   * Retry a Qdrant operation with standardized config and logging.
    *
-   * @param points - The points to upsert.
+   * @param operation - Operation name for logging (e.g., 'upsert', 'delete').
+   * @param fn - Async function to retry.
    */
-  async upsert(points: VectorPoint[]): Promise<void> {
-    if (points.length === 0) return;
-
+  private async retryOperation(
+    operation: string,
+    fn: () => Promise<void>,
+  ): Promise<void> {
     await retry(
       async (attempt) => {
         if (attempt > 1) {
           this.log.warn(
-            { attempt, operation: 'qdrant.upsert', points: points.length },
-            'Retrying Qdrant upsert',
+            { attempt, operation: `qdrant.${operation}` },
+            `Retrying Qdrant ${operation}`,
           );
         }
-
-        await this.client.upsert(this.collectionName, {
-          wait: true,
-          points: points.map((p) => ({
-            id: p.id,
-            vector: p.vector,
-            payload: p.payload,
-          })),
-        });
+        await fn();
       },
       {
         attempts: 5,
@@ -160,14 +154,34 @@ export class VectorStoreClient {
             {
               attempt,
               delayMs,
-              operation: 'qdrant.upsert',
+              operation: `qdrant.${operation}`,
               err: normalizeError(error),
             },
-            'Qdrant upsert failed; will retry',
+            `Qdrant ${operation} failed; will retry`,
           );
         },
       },
     );
+  }
+
+  /**
+   * Upsert points into the collection.
+   *
+   * @param points - The points to upsert.
+   */
+  async upsert(points: VectorPoint[]): Promise<void> {
+    if (points.length === 0) return;
+
+    await this.retryOperation('upsert', async () => {
+      await this.client.upsert(this.collectionName, {
+        wait: true,
+        points: points.map((p) => ({
+          id: p.id,
+          vector: p.vector,
+          payload: p.payload,
+        })),
+      });
+    });
   }
 
   /**
@@ -178,38 +192,12 @@ export class VectorStoreClient {
   async delete(ids: string[]): Promise<void> {
     if (ids.length === 0) return;
 
-    await retry(
-      async (attempt) => {
-        if (attempt > 1) {
-          this.log.warn(
-            { attempt, operation: 'qdrant.delete', ids: ids.length },
-            'Retrying Qdrant delete',
-          );
-        }
-
-        await this.client.delete(this.collectionName, {
-          wait: true,
-          points: ids,
-        });
-      },
-      {
-        attempts: 5,
-        baseDelayMs: 500,
-        maxDelayMs: 10_000,
-        jitter: 0.2,
-        onRetry: ({ attempt, delayMs, error }) => {
-          this.log.warn(
-            {
-              attempt,
-              delayMs,
-              operation: 'qdrant.delete',
-              err: normalizeError(error),
-            },
-            'Qdrant delete failed; will retry',
-          );
-        },
-      },
-    );
+    await this.retryOperation('delete', async () => {
+      await this.client.delete(this.collectionName, {
+        wait: true,
+        points: ids,
+      });
+    });
   }
 
   /**

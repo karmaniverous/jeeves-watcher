@@ -8,6 +8,7 @@ import type pino from 'pino';
 import type { JeevesWatcherConfig } from '../config/types';
 import type { DocumentProcessor } from '../processor';
 import { normalizeError } from '../util/normalizeError';
+import { retry } from '../util/retry';
 import type { ValuesManager } from '../values';
 import { processAllFiles } from './processAllFiles';
 import type { ReindexTracker } from './ReindexTracker';
@@ -34,33 +35,29 @@ async function fireCallback(
   payload: Record<string, unknown>,
   logger: pino.Logger,
 ): Promise<void> {
-  const maxAttempts = 3;
-  let delayMs = 1000;
-
-  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-    try {
+  await retry(
+    async () => {
       const response = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
-      if (response.ok) return;
-      logger.warn(
-        { attempt, status: response.status, url },
-        'Reindex callback non-OK response',
-      );
-    } catch (error) {
-      logger.warn(
-        { attempt, err: normalizeError(error), url },
-        'Reindex callback failed',
-      );
-    }
-    if (attempt < maxAttempts) {
-      await new Promise((resolve) => setTimeout(resolve, delayMs));
-      delayMs *= 2;
-    }
-  }
-  logger.error({ url }, 'Reindex callback exhausted all retry attempts');
+      if (!response.ok) {
+        throw new Error(`Non-OK response: ${String(response.status)}`);
+      }
+    },
+    {
+      attempts: 3,
+      baseDelayMs: 1000,
+      maxDelayMs: 4000,
+      onRetry: ({ attempt, error }) => {
+        logger.warn(
+          { attempt, err: normalizeError(error), url },
+          'Reindex callback failed; will retry',
+        );
+      },
+    },
+  );
 }
 
 /**

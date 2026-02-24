@@ -6,6 +6,8 @@
 import type { Stats } from 'node:fs';
 import { basename, dirname, extname } from 'node:path';
 
+import { normalizeSlashes } from '../util/normalizeSlashes';
+
 /**
  * Attributes derived from a watched file for rule matching.
  */
@@ -46,11 +48,11 @@ export function buildAttributes(
   extractedFrontmatter?: Record<string, unknown>,
   extractedJson?: Record<string, unknown>,
 ): FileAttributes {
-  const normalised = filePath.replace(/\\/g, '/');
+  const normalised = normalizeSlashes(filePath);
   const attrs: FileAttributes = {
     file: {
       path: normalised,
-      directory: dirname(normalised).replace(/\\/g, '/'),
+      directory: normalizeSlashes(dirname(normalised)),
       filename: basename(normalised),
       extension: extname(normalised),
       sizeBytes: stats.size,
