@@ -172,7 +172,8 @@
   },
   "scripts": {
     "generate:schema": "tsx src/config/generate-schema.ts",
-    "build": "npm run generate:schema && rimraf dist && cross-env NO_COLOR=1 rollup --config rollup.config.ts --configPlugin @rollup/plugin-typescript && node -e \"const fs=require('fs-extra');fs.copySync('plugin/openclaw.plugin.json','dist/plugin/openclaw.plugin.json');fs.copySync('plugin/skill','dist/plugin/skill');\"",
+    "build:skills": "node scripts/build-skills.js",
+    "build": "npm run generate:schema && rimraf dist && cross-env NO_COLOR=1 rollup --config rollup.config.ts --configPlugin @rollup/plugin-typescript && npm run build:skills && node -e \"const fs=require('fs-extra');fs.copySync('plugin/openclaw.plugin.json','dist/plugin/openclaw.plugin.json');\"",
     "changelog": "auto-changelog",
     "diagrams": "cd diagrams && plantuml -tpng -o ../assets -r .",
     "docs": "typedoc",
