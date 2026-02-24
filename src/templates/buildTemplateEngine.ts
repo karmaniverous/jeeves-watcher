@@ -12,15 +12,6 @@ import {
 } from './engine';
 
 /**
- * Build a TemplateEngine from configuration, pre-compiling all rule templates.
- *
- * @param rules - The inference rules (may contain template fields).
- * @param namedTemplates - Named template definitions from config.
- * @param templateHelperPaths - Paths to custom helper modules.
- * @param configDir - Directory to resolve relative paths against.
- * @returns The configured TemplateEngine, or undefined if no templates are used.
- */
-/**
  * Resolve a template config entry to its source string.
  */
 function resolveTemplateEntry(
@@ -29,6 +20,15 @@ function resolveTemplateEntry(
   return typeof entry === 'string' ? entry : entry.template;
 }
 
+/**
+ * Build a TemplateEngine from configuration, pre-compiling all rule templates.
+ *
+ * @param rules - The inference rules (may contain template fields).
+ * @param namedTemplates - Named template definitions from config.
+ * @param templateHelpers - Custom helper registrations with paths and descriptions.
+ * @param configDir - Directory to resolve relative paths against.
+ * @returns The configured TemplateEngine, or undefined if no templates are used.
+ */
 export async function buildTemplateEngine(
   rules: InferenceRule[],
   namedTemplates?: Record<

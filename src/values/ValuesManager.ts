@@ -57,12 +57,12 @@ export class ValuesManager {
   /** Update distinct values for a rule from metadata. */
   update(ruleName: string, metadata: Record<string, unknown>): void {
     const index = this.load();
-    if (!index[ruleName]) index[ruleName] = {};
+    index[ruleName] ??= {};
     const ruleValues = index[ruleName];
 
     for (const [key, value] of Object.entries(metadata)) {
       if (!this.isTrackable(value)) continue;
-      if (!ruleValues[key]) ruleValues[key] = [];
+      ruleValues[key] ??= [];
       const arr = ruleValues[key];
       if (!arr.includes(value)) {
         arr.push(value);
@@ -93,6 +93,6 @@ export class ValuesManager {
   /** Get values for a specific rule. */
   getForRule(ruleName: string): Record<string, unknown[]> {
     const index = this.load();
-    return index[ruleName] ? { ...index[ruleName] } : {};
+    return { ...index[ruleName] };
   }
 }

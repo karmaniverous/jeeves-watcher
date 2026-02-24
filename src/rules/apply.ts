@@ -192,7 +192,7 @@ export async function applyRules(
   const matchedRules: string[] = [];
   const log: RuleLogger = logger ?? console;
 
-  for (const [ruleIndex, { rule, validate }] of compiledRules.entries()) {
+  for (const [, { rule, validate }] of compiledRules.entries()) {
     if (validate(attributes)) {
       matchedRules.push(rule.name);
 

@@ -57,13 +57,13 @@ export class IssuesManager {
     errorType: IssueRecord['errorType'],
   ): void {
     const issues = this.load();
-    const existing = issues[filePath];
+    const existing = issues[filePath] as IssueRecord | undefined;
     issues[filePath] = {
       rule,
       error,
       errorType,
       timestamp: new Date().toISOString(),
-      attempts: existing ? existing.attempts + 1 : 1,
+      attempts: (existing?.attempts ?? 0) + 1,
     };
     this.save();
     this.logger.debug({ filePath, errorType }, 'Issue recorded');

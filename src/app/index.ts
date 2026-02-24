@@ -24,7 +24,7 @@ import { defaultFactories, type JeevesWatcherFactories } from './factories';
 
 /**
  * Resolve maps config entries to plain JsonMapMap records.
- * Handles string | JsonMapMap | { map, description } union format.
+ * Handles string | JsonMapMap | \{ map, description \} union format.
  */
 function resolveMapsConfig(
   maps?: Record<string, unknown>,

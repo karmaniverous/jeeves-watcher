@@ -1,3 +1,4 @@
+/* global console */
 /**
  * @module scripts/build-skills
  * Compiles SKILL.src.md files with Handlebars partials into dist/skills/.

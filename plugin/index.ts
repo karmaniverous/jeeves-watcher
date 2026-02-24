@@ -113,8 +113,7 @@ export default function register(api: PluginApi): void {
   api.registerTool(
     {
       name: 'watcher_query',
-      description:
-        'Query the merged virtual document via JSONPath.',
+      description: 'Query the merged virtual document via JSONPath.',
       parameters: {
         type: 'object',
         required: ['path'],
@@ -175,8 +174,7 @@ export default function register(api: PluginApi): void {
         try {
           const body: Record<string, unknown> = {};
           if (params.config !== undefined) body.config = params.config;
-          if (params.testPaths !== undefined)
-            body.testPaths = params.testPaths;
+          if (params.testPaths !== undefined) body.testPaths = params.testPaths;
           return ok(
             await fetchJson(`${baseUrl}/config/validate`, {
               method: 'POST',

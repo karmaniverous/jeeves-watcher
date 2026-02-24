@@ -11,13 +11,12 @@ export const issueRecordSchema = z.object({
   rule: z.string(),
   /** Error message describing the failure. */
   error: z.string(),
-  /** Category of the error. */
-  errorType: z.enum([
-    'type_collision',
-    'interpolation',
-    'read_failure',
-    'embedding',
-  ]),
+  /** Category of the error: type_collision, interpolation, read_failure, or embedding. */
+  errorType: z
+    .enum(['type_collision', 'interpolation', 'read_failure', 'embedding'])
+    .describe(
+      'Error category: type_collision (conflicting metadata types), interpolation (template rendering failure), read_failure (file read error), embedding (vector embedding failure).',
+    ),
   /** ISO 8601 timestamp of the last occurrence. */
   timestamp: z.string(),
   /** Number of consecutive failed attempts. */

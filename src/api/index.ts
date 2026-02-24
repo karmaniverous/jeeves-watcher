@@ -26,6 +26,9 @@ import { createStatusHandler } from './handlers/status';
 import { processAllFiles } from './processAllFiles';
 import { ReindexTracker } from './ReindexTracker';
 
+export type { ReindexStatus } from './ReindexTracker';
+export { ReindexTracker } from './ReindexTracker';
+
 /**
  * Options for {@link createApiServer}.
  */

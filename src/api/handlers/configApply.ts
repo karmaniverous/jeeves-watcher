@@ -61,7 +61,7 @@ export function createConfigApplyHandler(deps: ConfigApplyRouteDeps) {
             message: issue.message,
           }),
         );
-        return reply.status(400).send({ valid: false, errors });
+        return await reply.status(400).send({ valid: false, errors });
       }
 
       writeFileSync(

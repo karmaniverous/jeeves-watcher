@@ -45,12 +45,14 @@ export function createConfigQueryHandler(deps: ConfigQueryRouteDeps) {
         doc = resolveReferences(doc, resolve);
       }
 
-      const result = JSONPath({ path, json: doc });
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+      const rawResult = JSONPath({ path, json: doc });
+      const result = rawResult as unknown[];
       return { result, count: result.length };
     } catch (error) {
       const err = normalizeError(error);
       deps.logger.error({ err }, 'Config query failed');
-      return reply.status(400).send({ error: err.message ?? 'Query failed' });
+      return reply.status(400).send({ error: err.message || 'Query failed' });
     }
   };
 }

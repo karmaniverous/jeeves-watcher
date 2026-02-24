@@ -4,8 +4,8 @@
  * @packageDocumentation
  */
 
-export type { ApiServerOptions } from './api';
-export { createApiServer } from './api';
+export type { ApiServerOptions, ReindexStatus } from './api';
+export { createApiServer, ReindexTracker } from './api';
 export {
   JeevesWatcher,
   type JeevesWatcherFactories,

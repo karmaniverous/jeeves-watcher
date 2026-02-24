@@ -3,10 +3,13 @@
  * Tracks reindex operation state for status reporting. Single instance shared across handlers.
  */
 
-/** Reindex status snapshot. */
+/** Reindex status snapshot for API consumers. */
 export interface ReindexStatus {
+  /** Whether a reindex operation is currently in progress. */
   active: boolean;
+  /** The active reindex scope (when {@link active} is true). */
   scope?: string;
+  /** ISO 8601 timestamp when the current reindex started (when {@link active} is true). */
   startedAt?: string;
 }
 

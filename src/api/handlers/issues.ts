@@ -16,7 +16,7 @@ export interface IssuesRouteDeps {
  * @param deps - Route dependencies.
  */
 export function createIssuesHandler(deps: IssuesRouteDeps) {
-  return async () => {
+  return () => {
     return deps.issuesManager.getAll();
   };
 }

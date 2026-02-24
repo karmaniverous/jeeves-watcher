@@ -282,7 +282,9 @@ export const jeevesWatcherConfigSchema = z.object({
         jsonMapMapSchema,
         z.string(),
         z.object({
+          /** The JsonMap definition (inline object or file path). */
           map: jsonMapMapSchema.or(z.string()),
+          /** Optional human-readable description of this map. */
           description: z.string().optional(),
         }),
       ]),
@@ -298,7 +300,9 @@ export const jeevesWatcherConfigSchema = z.object({
       z.union([
         z.string(),
         z.object({
+          /** The Handlebars template source (inline string or file path). */
           template: z.string(),
+          /** Optional human-readable description of this template. */
           description: z.string().optional(),
         }),
       ]),
@@ -312,7 +316,9 @@ export const jeevesWatcherConfigSchema = z.object({
     .record(
       z.string(),
       z.object({
+        /** File path to the helper module (resolved relative to config directory). */
         path: z.string(),
+        /** Optional human-readable description of this helper. */
         description: z.string().optional(),
       }),
     )
@@ -323,7 +329,9 @@ export const jeevesWatcherConfigSchema = z.object({
     .record(
       z.string(),
       z.object({
+        /** File path to the helper module (resolved relative to config directory). */
         path: z.string(),
+        /** Optional human-readable description of this helper. */
         description: z.string().optional(),
       }),
     )
@@ -332,7 +340,8 @@ export const jeevesWatcherConfigSchema = z.object({
   /** Reindex configuration. */
   reindex: z
     .object({
-      callbackUrl: z.string().url().optional(),
+      /** URL to call when reindex completes. */
+      callbackUrl: z.url().optional(),
     })
     .optional()
     .describe('Reindex configuration.'),
@@ -344,10 +353,14 @@ export const jeevesWatcherConfigSchema = z.object({
   /** Search configuration including score thresholds. */
   search: z
     .object({
+      /** Score thresholds for categorizing search result quality. */
       scoreThresholds: z
         .object({
+          /** Minimum score for a result to be considered a strong match. */
           strong: z.number(),
+          /** Minimum score for a result to be considered relevant. */
           relevant: z.number(),
+          /** Maximum score below which results are considered noise. */
           noise: z.number(),
         })
         .optional(),
