@@ -40,10 +40,17 @@ interface JeevesWatcherConfig {
   embedding: EmbeddingConfig;
   vectorStore: VectorStoreConfig;
   metadataDir?: string;
+  stateDir?: string;                              // Directory for persistent state files
   api?: ApiConfig;
   extractors?: Record<string, unknown>;
   inferenceRules?: InferenceRule[];
-  maps?: Record<string, unknown>; // Named JsonMap definitions
+  maps?: Record<string, unknown>;                 // Named JsonMap definitions
+  templates?: Record<string, unknown>;            // Named template definitions
+  mapHelpers?: Record<string, HelperRef>;         // Named map helper modules
+  templateHelpers?: Record<string, HelperRef>;    // Named template helper modules
+  slots?: Record<string, QdrantFilter>;           // Named Qdrant filter patterns
+  search?: SearchConfig;                          // Search behavior settings
+  reindex?: ReindexConfig;                        // Reindex behavior settings
   logging?: LoggingConfig;
   shutdownTimeoutMs?: number;
   maxRetries?: number;
@@ -109,6 +116,7 @@ interface JeevesWatcherConfig {
 |-------|------|---------|-------------|
 | `enabled` | `boolean` | `true` | Watch config file for changes and trigger scoped reindex. |
 | `debounceMs` | `number` | `1000` | Debounce window for config changes. |
+| `reindex` | `string` | `"rules"` | Reindex behavior on config change: `"rules"` (metadata-only), `"full"` (re-embed), `"none"` (no reindex). |
 
 When the config file changes:
 1. Watcher reloads and validates the new config
@@ -295,6 +303,8 @@ If none are found, the entire JSON is stringified for embedding.
 {
   "inferenceRules": [
     {
+      "name": "meeting-classifier",
+      "description": "Classify files under meetings directory",
       "match": {
         "properties": {
           "file": {
@@ -309,6 +319,8 @@ If none are found, the entire JSON is stringified for embedding.
       }
     },
     {
+      "name": "frontmatter-title",
+      "description": "Extract title from frontmatter",
       "match": {
         "properties": {
           "frontmatter": {
@@ -327,7 +339,9 @@ If none are found, the entire JSON is stringified for embedding.
 }
 ```
 
-Each rule is a **JSON Schema `match`** paired with a **`set` action** and optional **`map` (JsonMap) transform**. See [Inference Rules Guide](./inference-rules.md) for full details.
+Each rule requires a **`name`** (unique identifier) and has an optional **`description`**, a **JSON Schema `match`**, a **`set` action**, and optional **`map` (JsonMap) transform**. See [Inference Rules Guide](./inference-rules.md) for full details.
+
+> **v0.5.0:** The `name` field is now required on all inference rules. The optional `description` field documents the rule's purpose.
 
 ---
 
@@ -337,10 +351,13 @@ Each rule is a **JSON Schema `match`** paired with a **`set` action** and option
 
 Rules can reference these by name via `inferenceRules[*].map: "mapName"`.
 
+Maps support an optional description wrapper format:
+
 ```json
 {
   "maps": {
     "extractProject": {
+      "description": "Extract project name from first path segment",
       "project": {
         "$": [
           { "method": "$.lib.split", "params": ["$.input.file.path", "/"] },
@@ -352,6 +369,128 @@ Rules can reference these by name via `inferenceRules[*].map: "mapName"`.
   }
 }
 ```
+
+---
+
+## `mapHelpers` - Map Helper Modules
+
+```json
+{
+  "mapHelpers": {
+    "dateUtils": { "path": "./helpers/date-utils.js", "description": "Date parsing utilities" },
+    "pathUtils": { "path": "./helpers/path-utils.js" }
+  }
+}
+```
+
+Named object format (`Record<string, { path, description? }>`). Helper names are namespace-prefixed when loaded (e.g., `dateUtils.parseDate`).
+
+---
+
+## `templateHelpers` - Template Helper Modules
+
+```json
+{
+  "templateHelpers": {
+    "jira": { "path": "./helpers/jira-helpers.js", "description": "Jira-specific Handlebars helpers" },
+    "formatting": { "path": "./helpers/formatting.js" }
+  }
+}
+```
+
+Named object format (`Record<string, { path, description? }>`). Helper names are namespace-prefixed when registered with Handlebars (e.g., `jira.ticketUrl`).
+
+---
+
+## `templates` - Named Template Definitions
+
+```json
+{
+  "templates": {
+    "jira-issue": "templates/jira-issue.hbs",
+    "simple-doc": {
+      "description": "Simple document template",
+      "template": "# {{heading}}\n\n{{body}}"
+    }
+  }
+}
+```
+
+Templates support an optional description wrapper format alongside direct string values.
+
+---
+
+## `slots` - Named Qdrant Filter Patterns
+
+Reusable filter patterns referenced by name in search operations.
+
+```json
+{
+  "slots": {
+    "meetings-only": {
+      "must": [{ "key": "domain", "match": { "value": "meetings" } }]
+    },
+    "recent-projects": {
+      "must": [{ "key": "domain", "match": { "value": "projects" } }],
+      "must_not": [{ "key": "labels", "match": { "value": "archived" } }]
+    }
+  }
+}
+```
+
+Each slot is a standard [Qdrant filter object](https://qdrant.tech/documentation/concepts/filtering/).
+
+---
+
+## `search` - Search Behavior
+
+```json
+{
+  "search": {
+    "scoreThresholds": {
+      "strong": 0.85,
+      "relevant": 0.70,
+      "noise": 0.50
+    }
+  }
+}
+```
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `scoreThresholds.strong` | `number` | `0.85` | Score above which results are considered strong matches. |
+| `scoreThresholds.relevant` | `number` | `0.70` | Score above which results are considered relevant. |
+| `scoreThresholds.noise` | `number` | `0.50` | Score below which results are considered noise. |
+
+---
+
+## `stateDir` - Persistent State
+
+```json
+{
+  "stateDir": ".jeeves-watcher/state"
+}
+```
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `stateDir` | `string` | `".jeeves-watcher/state"` | Directory for persistent state files (reindex tracking, issue records, etc.). |
+
+---
+
+## `reindex` - Reindex Behavior
+
+```json
+{
+  "reindex": {
+    "callbackUrl": "http://localhost:8080/webhook/reindex-complete"
+  }
+}
+```
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `callbackUrl` | `string` | `undefined` | URL to POST when a reindex completes. Retries with exponential backoff (3 attempts, 1s start). |
 
 ---
 

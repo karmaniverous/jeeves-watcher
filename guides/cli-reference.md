@@ -625,6 +625,119 @@ Output:
 
 ---
 
+## `jeeves-watcher query`
+
+Query the merged configuration document using JSONPath.
+
+### Usage
+
+```bash
+jeeves-watcher query '<jsonpath>' [options]
+```
+
+### Arguments
+
+| Argument | Description |
+|----------|-------------|
+| `<jsonpath>` | JSONPath expression (required) |
+
+### Options
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--resolve <scopes>` | all | Comma-separated resolution scopes: `files`, `globals` |
+| `-p, --port <port>` | `3456` | API port |
+| `-H, --host <host>` | `127.0.0.1` | API host |
+
+### Examples
+
+```bash
+# List all rule names
+jeeves-watcher query '$.inferenceRules[*].name'
+
+# Query with specific resolution scopes
+jeeves-watcher query '$.values' --resolve files,globals
+```
+
+### Behavior
+
+Sends `POST /config/query` to the API. See [API Reference](./api-reference.md#post-configquery) for details.
+
+---
+
+## `jeeves-watcher issues`
+
+Show runtime embedding failures and processing errors.
+
+### Usage
+
+```bash
+jeeves-watcher issues [options]
+```
+
+### Options
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `-p, --port <port>` | `3456` | API port |
+| `-H, --host <host>` | `127.0.0.1` | API host |
+
+### Behavior
+
+Sends `GET /issues` to the API. See [API Reference](./api-reference.md#get-issues) for details.
+
+---
+
+## `jeeves-watcher helpers`
+
+Show a formatted reference of all loaded map and template helpers.
+
+### Usage
+
+```bash
+jeeves-watcher helpers [options]
+```
+
+### Options
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `-p, --port <port>` | `3456` | API port |
+| `-H, --host <host>` | `127.0.0.1` | API host |
+
+---
+
+## `jeeves-watcher config-apply`
+
+Atomically validate, write, and reload configuration from a file.
+
+### Usage
+
+```bash
+jeeves-watcher config-apply --file <path> [options]
+```
+
+### Options
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `-f, --file <path>` | **Required** | Path to config JSON file to apply |
+| `-p, --port <port>` | `3456` | API port |
+| `-H, --host <host>` | `127.0.0.1` | API host |
+
+### Examples
+
+```bash
+# Apply config changes from file
+jeeves-watcher config-apply --file ./updated-config.json
+```
+
+### Behavior
+
+Sends `POST /config/apply` to the API. See [API Reference](./api-reference.md#post-configapply) for details.
+
+---
+
 ## Configuration Discovery
 
 When `--config` is not provided, the CLI uses [cosmiconfig](https://github.com/cosmiconfig/cosmiconfig) to search for configuration (from current directory upward):

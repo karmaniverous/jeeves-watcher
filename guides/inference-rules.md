@@ -23,19 +23,25 @@ This creates a flexible, declarative metadata pipeline.
 
 ## Rule Structure
 
-Each inference rule has three parts:
+Each inference rule has these fields:
 
 ```json
 {
+  "name": "meeting-classifier",
+  "description": "Classify files under meetings directory",
   "match": { /* JSON Schema */ },
   "set": { /* Metadata to apply */ },
   "map": { /* Optional JsonMap transform (inline or named reference) */ }
 }
 ```
 
+- **`name`** (required): Unique identifier for the rule. Used for merge-by-name semantics in config updates.
+- **`description`** (optional): Human-readable description of the rule's purpose.
 - **`match`**: A JSON Schema object that the file attributes must satisfy
 - **`set`**: Key-value pairs to merge into the document metadata
 - **`map`** (optional): A [JsonMap](https://github.com/karmaniverous/jsonmap) definition (or a string reference to a named map)
+
+> **v0.5.0:** The `name` field is now required (rules were anonymous in v0.4.x). Rules are matched by name during config merges — a new rule with the same name replaces the existing one.
 
 ---
 
@@ -93,6 +99,8 @@ Rules use standard **JSON Schema** for matching. The watcher uses [ajv](https://
 
 ```json
 {
+  "name": "meeting-domain",
+  "description": "Tag files under meetings directory",
   "match": {
     "properties": {
       "file": {
@@ -285,16 +293,18 @@ The `set` resolves to:
 
 ## Rule Evaluation Order
 
-Rules are evaluated **in order** — later rules override earlier ones on field conflict:
+Rules are evaluated **in order** with **last-match-wins** semantics — later rules override earlier ones on field conflict:
 
 ```json
 {
   "inferenceRules": [
     {
+      "name": "default-category",
       "match": { /* all files */ },
       "set": { "category": "general" }
     },
     {
+      "name": "important-override",
       "match": {
         "properties": {
           "file": {
@@ -777,10 +787,12 @@ File paths are resolved relative to the config file's directory. Auto-detection 
 
 ```typescript
 interface InferenceRule {
-  match: Record<string, unknown>; // JSON Schema object
-  set: Record<string, unknown>; // Key-value pairs with optional ${template} vars
+  name: string;                    // Required unique identifier
+  description?: string;            // Optional human-readable description
+  match: Record<string, unknown>;  // JSON Schema object
+  set: Record<string, unknown>;    // Key-value pairs with optional ${template} vars
   map?: Record<string, unknown> | string; // JsonMap definition, named map ref, or .json file path
-  template?: string; // Handlebars template (inline, named ref, or .hbs file path)
+  template?: string;               // Handlebars template (inline, named ref, or .hbs file path)
 }
 ```
 
