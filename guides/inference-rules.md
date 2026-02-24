@@ -4,7 +4,7 @@ title: Inference Rules
 
 # Inference Rules
 
-The inference rules engine automatically enriches document metadata based on file attributes. Rules are config-driven — no domain-specific logic is hardcoded in the watcher.
+The inference rules engine automatically enriches document metadata based on file attributes using a declarative JSON Schema-based system with type coercion and runtime values tracking.
 
 ## Overview
 
@@ -12,12 +12,29 @@ When a file is processed, the watcher:
 
 1. **Collects attributes** from the file (path, size, modified date, frontmatter, JSON content)
 2. **Evaluates rules** against these attributes using JSON Schema matching
-3. **Merges metadata** from all matching rules (later rules override earlier ones)
-4. **Applies enrichment** from `POST /metadata` API (overrides everything)
+3. **Merges schemas** from matching rules (left-to-right, property-level merge)
+4. **Resolves `set` templates** and coerces values to declared types
+5. **Applies enrichment** from `POST /metadata` API (overrides everything)
 
-This creates a flexible, declarative metadata pipeline.
+This creates a flexible, declarative metadata pipeline with strong type guarantees.
 
-![Inference Rules Engine](../assets/inference-rules-engine.png)
+---
+
+## Inference Rules v2 (Schema-Based Metadata)
+
+**v0.5.0** introduces a complete redesign of the inference rules system. The v1 `set` property has been replaced by declarative JSON Schemas with type coercion, UI hints, and runtime values tracking.
+
+### Key Changes from v1
+
+| Aspect | v1 (≤ 0.4.x) | v2 (≥ 0.5.0) |
+|--------|-------------|--------------|
+| Metadata definition | `set` object with template strings | `schema` arrays referencing global schemas |
+| Type handling | All values are strings | Type coercion to declared `type` |
+| Rule identity | Anonymous | Requires `name` and `description` |
+| Schema definition | Inline only | Global `schemas` collection + inline |
+| Property metadata | None | `uiHint`, `description`, `enum` |
+| Values tracking | None | Runtime values index per rule |
+| Matched rules | Not tracked | `matched_rules` array in payload |
 
 ---
 
@@ -27,21 +44,248 @@ Each inference rule has these fields:
 
 ```json
 {
-  "name": "meeting-classifier",
-  "description": "Classify files under meetings directory",
+  "name": "jira-issue",
+  "description": "Jira issue metadata from JSON exports",
   "match": { /* JSON Schema */ },
-  "set": { /* Metadata to apply */ },
-  "map": { /* Optional JsonMap transform (inline or named reference) */ }
+  "schema": [
+    "base",
+    "jira-common",
+    { "properties": { "status": { "type": "string", "set": "${json.current.fields.status.name}" } } }
+  ],
+  "map": { /* Optional JsonMap transform */ },
+  "template": "jira-issue"
 }
 ```
 
-- **`name`** (required): Unique identifier for the rule. Used for merge-by-name semantics in config updates.
-- **`description`** (optional): Human-readable description of the rule's purpose.
-- **`match`**: A JSON Schema object that the file attributes must satisfy
-- **`set`**: Key-value pairs to merge into the document metadata
-- **`map`** (optional): A [JsonMap](https://github.com/karmaniverous/jsonmap) definition (or a string reference to a named map)
+- **`name`** (required): Unique identifier for the rule
+- **`description`** (required): Human-readable description of the rule's purpose
+- **`match`**: JSON Schema object that file attributes must satisfy
+- **`schema`**: Array of schema references (named strings or inline objects), merged left-to-right
+- **`map`** (optional): JsonMap transformation (inline or named reference)
+- **`template`** (optional): Handlebars content template (inline, named ref, or file path)
 
-> **v0.5.0:** The `name` field is now required (rules were anonymous in v0.4.x). Rules are matched by name during config merges — a new rule with the same name replaces the existing one.
+---
+
+## Global Schemas Collection
+
+Define reusable schemas in the top-level `schemas` config:
+
+```json
+{
+  "schemas": {
+    "base": {
+      "type": "object",
+      "properties": {
+        "domain": {
+          "type": "string",
+          "description": "Content domain",
+          "uiHint": "select"
+        },
+        "created": {
+          "type": "integer",
+          "description": "Record creation date as unix timestamp (seconds)",
+          "uiHint": "date"
+        }
+      }
+    },
+    "jira-common": "schemas/jira-common.json"
+  }
+}
+```
+
+Schema entries can be:
+- **Inline objects** - Schema definitions directly in config
+- **File paths** - Relative to config directory (e.g., `"schemas/base.json"`)
+
+---
+
+## Schema Arrays on Rules
+
+The `schema` property accepts an array of schema references, merged left-to-right at the property level:
+
+```json
+{
+  "inferenceRules": [
+    {
+      "name": "jira-issue",
+      "description": "Jira issue metadata",
+      "match": { "..." },
+      "schema": [
+        "base",
+        "jira-common",
+        {
+          "properties": {
+            "domain": { "set": "jira" },
+            "status": {
+              "type": "string",
+              "description": "Current workflow status",
+              "uiHint": "select",
+              "set": "${json.current.fields.status.name}"
+            },
+            "created": { "set": "${json.current.fields.created}" }
+          }
+        }
+      ]
+    }
+  ]
+}
+```
+
+**Merge semantics:**
+- Named references (e.g., `"base"`) are resolved from global `schemas` collection
+- Inline objects are used directly
+- Properties merge left-to-right: later entries override earlier ones
+- Each property accumulates: `type`, `description`, `uiHint`, `enum`, `set` from whichever schema last defines them
+
+This pattern promotes DRY: `base` defines that `domain` is `type: "string"` with a description, and each rule's inline tail provides `set: "jira"` or `set: "email"`.
+
+---
+
+## The `set` Keyword
+
+The `set` keyword within a property schema serves three purposes:
+
+1. **Build time:** Interpolation template for value assignment
+2. **Type coercion:** After interpolation, the result is coerced to the declared `type`
+3. **Query time:** Provenance metadata — consumers can distinguish static values (`"set": "jira"`) from extracted values (`"set": "${json.status}"`)
+
+**Template interpolation:**
+```json
+{
+  "status": {
+    "type": "string",
+    "set": "${json.current.fields.status.name}"
+  },
+  "domain": {
+    "type": "string",
+    "set": "jira"
+  }
+}
+```
+
+Templates use `${path.to.field}` syntax to reference the file attributes object. Undefined paths resolve to empty string.
+
+---
+
+## Type Coercion
+
+After template interpolation, values are automatically coerced to their declared `type`:
+
+| Type | Coercion Rules | Examples |
+|------|----------------|----------|
+| `string` | No coercion (interpolation already produces strings) | `"42"` → `"42"` |
+| `integer` | Parse as integer; empty/invalid → `undefined` | `"42"` → `42`, `""` → `undefined` |
+| `number` | Parse as float; empty/invalid → `undefined` | `"3.14"` → `3.14`, `""` → `undefined` |
+| `boolean` | `"true"` → `true`, `"false"` → `false`; else → `undefined` | `"true"` → `true`, `""` → `undefined` |
+| `array` | Parse JSON array string; already array → passthrough | `"[1,2,3]"` → `[1,2,3]`, `[1,2]` → `[1,2]` |
+| `object` | Parse JSON object string; already object → passthrough | `"{\"x\":1}"` → `{x:1}` |
+
+**Empty string behavior:** Empty strings (`""`) coerce to `undefined` for all non-string types. This prevents invalid data from reaching Qdrant.
+
+**Example:**
+
+```json
+{
+  "created": {
+    "type": "integer",
+    "description": "Creation date as unix timestamp",
+    "set": "${json.current.fields.created}"
+  }
+}
+```
+
+If `json.current.fields.created` is the string `"1735689600"`, coercion converts it to the integer `1735689600` for storage in Qdrant.
+
+---
+
+## The `uiHint` Keyword
+
+The `uiHint` keyword tells consuming UIs how to render a property for search filtering:
+
+| Value | Renders as | Use with |
+|-------|-----------|----------|
+| `text` | Free text input | Text fields, substring search |
+| `number` | Numeric input / range slider | Numeric fields with range queries |
+| `date` | Date picker / date range | Integer timestamps (unix seconds) |
+| `select` | Single-value dropdown | Enum fields, known values |
+| `multiselect` | Multi-value dropdown | Array fields with enum-like values |
+| `check` | Boolean toggle / checkbox | Boolean fields |
+
+**Properties without `uiHint` are not displayed in the UI.** This is an explicit opt-in: removing a `uiHint` hides the field; adding one exposes it.
+
+**`uiHint` also serves as intent metadata for LLM consumers.** It augments the property description by signaling how the property is meant to be used in queries.
+
+**Example:**
+
+```json
+{
+  "created": {
+    "type": "integer",
+    "description": "Record creation date as unix timestamp (seconds)",
+    "uiHint": "date",
+    "set": "${json.current.fields.created}"
+  },
+  "priority": {
+    "type": "string",
+    "description": "Issue priority",
+    "enum": ["Highest", "High", "Medium", "Low", "Lowest"],
+    "uiHint": "select",
+    "set": "${json.current.fields.priority.name}"
+  }
+}
+```
+
+**`uiHint` changes take effect immediately on config reload (no reindex needed).**
+
+---
+
+## Schema Completeness Validation
+
+Every property in a resolved (merged) rule schema must have a declared `type`. If a property appears in an inline tail with only `set` and was never declared with a `type` in any named schema in the merge chain, config validation fails on load.
+
+**Why:** This prevents silent string-defaulting and ensures the resolved schema is always self-describing.
+
+**Example - valid:**
+
+```json
+{
+  "schemas": {
+    "base": {
+      "properties": {
+        "domain": { "type": "string" }
+      }
+    }
+  },
+  "inferenceRules": [
+    {
+      "name": "example",
+      "description": "...",
+      "match": { "..." },
+      "schema": [
+        "base",
+        { "properties": { "domain": { "set": "jira" } } }
+      ]
+    }
+  ]
+}
+```
+
+**Example - invalid:**
+
+```json
+{
+  "inferenceRules": [
+    {
+      "name": "example",
+      "description": "...",
+      "match": { "..." },
+      "schema": [
+        { "properties": { "domain": { "set": "jira" } } }  // ERROR: no type
+      ]
+    }
+  ]
+}
+```
 
 ---
 
@@ -64,22 +308,27 @@ interface FileAttributes {
 }
 ```
 
-**Example** (for `d:/meetings/2026-02-20/transcript.md`):
+**Example** (for `j:/domains/jira/VCN/issue/WEB-123.json`):
 
 ```json
 {
   "file": {
-    "path": "d:/meetings/2026-02-20/transcript.md",
-    "directory": "d:/meetings/2026-02-20",
-    "filename": "transcript.md",
-    "extension": ".md",
-    "sizeBytes": 4523,
-    "modified": "2026-02-20T08:15:00Z"
+    "path": "j:/domains/jira/vcn/issue/web-123.json",
+    "directory": "j:/domains/jira/vcn/issue",
+    "filename": "web-123.json",
+    "extension": ".json",
+    "sizeBytes": 8452,
+    "modified": "2026-02-24T08:15:00Z"
   },
-  "frontmatter": {
-    "title": "Architecture Discussion",
-    "author": "jeeves",
-    "participants": ["Jason", "Devin"]
+  "json": {
+    "entityKey": "WEB-123",
+    "current": {
+      "fields": {
+        "summary": "Fix login bug",
+        "status": { "name": "In Progress" },
+        "created": "1735689600"
+      }
+    }
   }
 }
 ```
@@ -88,50 +337,21 @@ interface FileAttributes {
 
 ## Matching with JSON Schema
 
-Rules use standard **JSON Schema** for matching. The watcher uses [ajv](https://ajv.js.org/) with full support for:
+Rules use standard **JSON Schema** for matching. The watcher uses [ajv](https://ajv.js.org/) with full support for `properties`, `required`, `type`, `const`, `enum`, nested objects, arrays, and string patterns.
 
-- `properties`, `required`, `type`, `const`, `enum`
-- Nested object matching
-- Arrays and string patterns
-- Custom `glob` format for path matching
-
-### Example: Match by Path Pattern
-
-```json
-{
-  "name": "meeting-domain",
-  "description": "Tag files under meetings directory",
-  "match": {
-    "properties": {
-      "file": {
-        "properties": {
-          "path": { "type": "string", "glob": "d:/meetings/**" }
-        },
-        "required": ["path"]
-      }
-    }
-  },
-  "set": {
-    "domain": "meetings"
-  }
-}
-```
-
-**Matches**: Any file under `d:/meetings/` (recursively).
-
-**Sets**: `{ "domain": "meetings" }`
-
----
-
-## Custom `glob` Format
+### Custom `glob` Format
 
 The watcher registers a custom `glob` keyword for path matching using [picomatch](https://github.com/micromatch/picomatch):
 
 ```json
 {
-  "file": {
+  "match": {
     "properties": {
-      "path": { "type": "string", "glob": "**/projects/**/*.md" }
+      "file": {
+        "properties": {
+          "path": { "type": "string", "glob": "j:/domains/jira/**/*.json" }
+        }
+      }
     }
   }
 }
@@ -148,29 +368,204 @@ This is the **only custom format** — everything else is pure JSON Schema.
 
 ## Rule Processing Order
 
-When a rule matches, metadata is built in this order:
+When multiple rules match a file, they are processed **in order** with **last-match-wins** semantics at the property level:
 
-1. **`set`** — Static values and template interpolation (`${...}`) are resolved
-2. **`map`** — JsonMap transformation executes (if present)
-3. **Merge** — `map` output overrides `set` output on field conflict
+```json
+{
+  "inferenceRules": [
+    {
+      "name": "default-category",
+      "description": "Default category for all files",
+      "match": { "type": "object" },
+      "schema": [
+        { "properties": { "category": { "type": "string", "set": "general" } } }
+      ]
+    },
+    {
+      "name": "important-override",
+      "description": "Override category for important files",
+      "match": {
+        "properties": {
+          "file": {
+            "properties": {
+              "path": { "glob": "**/important/**" }
+            }
+          }
+        }
+      },
+      "schema": [
+        { "properties": { "category": { "type": "string", "set": "important" } } }
+      ]
+    }
+  ]
+}
+```
 
-After all matching rules are processed (in definition order, later rules override earlier ones), the inferred metadata is merged with enrichment metadata from `.meta.json` (enrichment wins).
+Files under `**/important/**` get `category: "important"` (second rule wins).
+
+---
+
+## Matched Rules in Metadata
+
+Every embedded point includes a `matched_rules` field: a keyword array of the inference rule names that matched the file.
+
+**Benefits:**
+- **Schema lookup:** Consumers can query which rules produced a result's metadata
+- **Impact analysis:** `{ "key": "matched_rules", "match": { "value": "jira-issue" } }` returns all documents processed by that rule
+- **Diagnostics:** Which rules touched this document?
+
+**Example Qdrant payload:**
+
+```json
+{
+  "file_path": "j:/domains/jira/VCN/issue/WEB-123.json",
+  "chunk_index": 0,
+  "matched_rules": ["jira-issue", "json-subject"],
+  "domain": "jira",
+  "status": "In Progress",
+  "created": 1735689600
+}
+```
+
+---
+
+## Values Index (Runtime)
+
+The watcher maintains a **values index** (`values.json` in `stateDir`) tracking distinct values per property per rule. Only trackable primitives (string, number, boolean) are indexed.
+
+**Purpose:** Populate dropdowns for `select` and `multiselect` fields when no `enum` is declared in the schema.
+
+**Storage structure:**
+
+```json
+{
+  "jira-issue": {
+    "status": ["To Do", "In Progress", "In Review", "Done"],
+    "priority": ["Highest", "High", "Medium", "Low", "Lowest"],
+    "assignee": ["Jason Williscroft", "Devin Becker"]
+  },
+  "slack-message": {
+    "channel_name": ["general", "project-jeeves-watcher"],
+    "userName": ["Jason Williscroft", "Jeeves"]
+  }
+}
+```
+
+**Update dynamics:**
+- **On each embed:** Values are upserted (set-add) for matched rules' properties
+- **Prior to full reindex:** Entire values index is cleared, then rebuilt from scratch
+- **Prior to issues reindex:** Values index is not cleared (only issue files are re-processed)
+
+**Deletion behavior:** When a file is deleted, its chunks are removed from Qdrant but the values index is **not updated** (no reference counting). Stale values persist until the next full reindex. This is acceptable: a stale value in a dropdown is cosmetic, not a correctness issue.
+
+**Queryable via JSONPath:**
+
+```
+$.inferenceRules[?(@.name=='jira-issue')].values.status
+```
+
+Returns `["To Do", "In Progress", "In Review", "Done"]` when queried through `POST /config/query`.
+
+---
+
+## Issues File (Self-Healing Errors)
+
+**Location:** `{stateDir}/issues.json`
+
+A persistent, self-healing ledger of files that failed to embed. Keyed by file path, with one entry per issue per file.
+
+**Structure:**
+
+```json
+{
+  "j:/domains/jira/VCN/issue/WEB-123.json": [
+    {
+      "type": "type_collision",
+      "property": "created",
+      "rules": ["jira-issue", "frontmatter-created"],
+      "types": ["integer", "string"],
+      "message": "Type collision on 'created': jira-issue declares integer, frontmatter-created declares string",
+      "timestamp": 1771865063
+    }
+  ],
+  "j:/domains/email/archive/msg-456.json": [
+    {
+      "type": "interpolation_error",
+      "property": "author_email",
+      "rule": "email-archive",
+      "message": "Failed to resolve ${json.from.email}: 'from' is null",
+      "timestamp": 1771865100
+    }
+  ]
+}
+```
+
+**Issue types:**
+- `type_collision` — Multiple rules declare the same property with incompatible types
+- `interpolation_error` — `set` template path doesn't resolve (null, undefined, wrong structure)
+
+**Behavior:**
+- When a file hits an issue, it is logged to the issues file and **embedding is skipped**
+- When a file is re-processed successfully (config fix, file edit, reindex), its entry is **cleared**
+- The file always represents the **current** set of unresolved problems: a live todo list
+
+**API:** `GET /issues` returns the issues file contents.
+
+---
+
+## Config Watch Reindex
+
+When `configWatch.enabled` is true, the watcher monitors its config file. On config change:
+
+1. Debounce for `configWatch.debounceMs` (default: 1000ms)
+2. Reload and validate config
+3. Recompile inference rules
+4. Trigger reindex based on `configWatch.reindex` setting
+
+**Reindex modes:**
+
+```json
+{
+  "configWatch": {
+    "enabled": true,
+    "debounceMs": 10000,
+    "reindex": "issues"
+  }
+}
+```
+
+| Mode | Behavior |
+|------|----------|
+| `"issues"` (default) | Re-process only files in the issues file (cheap, targeted) |
+| `"full"` | Full reindex of all watched files (use when broad config changes affect already-embedded files) |
+| `"none"` | No automatic reindex (manual `POST /reindex` required) |
+
+**Issues reindex** is the default because config changes typically fix issues: a type collision is resolved by editing a rule, and re-processing just the affected file is sufficient.
+
+**Full reindex** is needed when:
+- Renaming a property across all rules
+- Changing a type on a widely-matched rule
+- Adding a new global schema that should apply to already-indexed files
 
 ---
 
 ## JsonMap Transformations (`map`)
 
-In addition to static `set` values, rules can run a **JsonMap** transform to derive metadata from the file attributes.
+In addition to schema-based `set` values, rules can run a **JsonMap** transform to derive metadata from the file attributes.
 
-- `map` can be an **inline JsonMap** object, or a **string reference** to a named map defined in top-level config `maps`.
-- **Merge priority:** `map` output overrides `set` output on field conflict.
+- `map` can be an **inline JsonMap** object, or a **string reference** to a named map defined in top-level config `maps`
+- **Merge priority:** `map` output overrides schema `set` output on field conflict
 
 ### Example: Inline `map` extracts a path segment
 
 ```json
 {
+  "name": "extract-project",
+  "description": "Extract project name from path",
   "match": { "type": "object" },
-  "set": { "domain": "docs" },
+  "schema": [
+    { "properties": { "domain": { "type": "string", "set": "docs" } } }
+  ],
   "map": {
     "project": {
       "$": [
@@ -189,291 +584,17 @@ For a file path `docs/readme.md`, this produces:
 { "domain": "docs", "project": "docs" }
 ```
 
-### Example: Named map reference
-
-```json
-{
-  "maps": {
-    "extractProject": {
-      "project": {
-        "$": [
-          { "method": "$.lib.split", "params": ["$.input.file.path", "/"] },
-          { "method": "$.lib.slice", "params": ["$[0]", 0, 1] },
-          { "method": "$.lib.join", "params": ["$[0]", ""] }
-        ]
-      }
-    }
-  },
-  "inferenceRules": [
-    {
-      "match": { "type": "object" },
-      "set": {},
-      "map": "extractProject"
-    }
-  ]
-}
-```
-
-If a rule references a missing named map, the watcher warns and skips the map.
-
-### JsonMap Library Functions
-
-The watcher provides these utility functions for use in JsonMap transformations:
-
-| Function | Signature | Description |
-|----------|-----------|-------------|
-| `split` | `(str: string, separator: string) => string[]` | Split a string by separator |
-| `slice` | `<T>(arr: T[], start: number, end?: number) => T[]` | Extract array slice |
-| `join` | `(arr: string[], separator: string) => string` | Join array elements |
-| `toLowerCase` | `(str: string) => string` | Convert to lowercase |
-| `replace` | `(str: string, search: string \| RegExp, replacement: string) => string` | Replace pattern in string |
-| `get` | `(obj: unknown, path: string) => unknown` | Get nested property by dot path |
-
-**Usage in JsonMap:**
-
-```json
-{
-  "map": {
-    "project": {
-      "$": [
-        { "method": "$.lib.split", "params": ["$.input.file.path", "/"] },
-        { "method": "$.lib.slice", "params": ["$[0]", 0, 1] },
-        { "method": "$.lib.join", "params": ["$[0]", ""] }
-      ]
-    }
-  }
-}
-```
-
-This extracts the first path segment (e.g., `"docs"` from `"docs/readme.md"`).
-
-## Template Interpolation in `set`
-
-The `set` object supports template variables referencing the attributes object:
-
-```json
-{
-  "set": {
-    "title": "${frontmatter.title}",
-    "author": "${frontmatter.author}",
-    "directory": "${file.directory}"
-  }
-}
-```
-
-**Template syntax:**
-- `${path.to.field}` — resolves against the attributes object
-- Handles nested properties (e.g., `${frontmatter.participants}`)
-- Returns empty string if the path is undefined
-
-**Example:**
-
-For a file with:
-
-```json
-{
-  "frontmatter": {
-    "title": "Meeting Notes",
-    "author": "jeeves"
-  }
-}
-```
-
-The `set` resolves to:
-
-```json
-{
-  "title": "Meeting Notes",
-  "author": "jeeves",
-  "directory": "d:/meetings/2026-02-20"
-}
-```
+See [Configuration Reference](./configuration.md#maps) for details on maps.
 
 ---
 
-## Rule Evaluation Order
+## Content Templates
 
-Rules are evaluated **in order** with **last-match-wins** semantics — later rules override earlier ones on field conflict:
+Rules can include a `template` field — a Handlebars template that renders the file's data into embeddable markdown. When a template is present, the rendered output replaces the raw file content for embedding.
 
-```json
-{
-  "inferenceRules": [
-    {
-      "name": "default-category",
-      "match": { /* all files */ },
-      "set": { "category": "general" }
-    },
-    {
-      "name": "important-override",
-      "match": {
-        "properties": {
-          "file": {
-            "properties": {
-              "path": { "glob": "**/important/**" }
-            }
-          }
-        }
-      },
-      "set": { "category": "important" }  // Overrides "general"
-    }
-  ]
-}
-```
+**Why:** Raw JSON from API responses embeds poorly. Templates transform structured data into clean, readable markdown at index time.
 
-Files under `**/important/**` get `category: "important"` (second rule wins).
-
----
-
-## Practical Examples
-
-### 1. Domain Classification by Directory
-
-```json
-{
-  "inferenceRules": [
-    {
-      "match": {
-        "properties": {
-          "file": {
-            "properties": {
-              "path": { "glob": "d:/email/archive/**" }
-            }
-          }
-        }
-      },
-      "set": { "domain": "email" }
-    },
-    {
-      "match": {
-        "properties": {
-          "file": {
-            "properties": {
-              "path": { "glob": "d:/meetings/**" }
-            }
-          }
-        }
-      },
-      "set": { "domain": "meetings" }
-    },
-    {
-      "match": {
-        "properties": {
-          "file": {
-            "properties": {
-              "path": { "glob": "d:/projects/**" }
-            }
-          }
-        }
-      },
-      "set": { "domain": "projects" }
-    }
-  ]
-}
-```
-
-### 2. Extract Frontmatter Fields
-
-```json
-{
-  "match": {
-    "properties": {
-      "frontmatter": {
-        "required": ["title"]
-      }
-    }
-  },
-  "set": {
-    "title": "${frontmatter.title}"
-  }
-}
-```
-
-If the Markdown file has a YAML frontmatter block with a `title` field, it's extracted into the Qdrant payload.
-
-### 3. Extract JSON Fields
-
-```json
-{
-  "match": {
-    "properties": {
-      "json": {
-        "required": ["participants"]
-      }
-    }
-  },
-  "set": {
-    "participants": "${json.participants}"
-  }
-}
-```
-
-For JSON files with a `participants` array, it's copied to the payload.
-
-### 4. Label PDF Files
-
-```json
-{
-  "match": {
-    "properties": {
-      "file": {
-        "properties": {
-          "extension": { "const": ".pdf" }
-        }
-      }
-    }
-  },
-  "set": {
-    "labels": ["binary/pdf"]
-  }
-}
-```
-
-All `.pdf` files get a `labels` array with `"binary/pdf"`.
-
-### 5. Tag Large Files
-
-```json
-{
-  "match": {
-    "properties": {
-      "file": {
-        "properties": {
-          "sizeBytes": { "type": "number", "minimum": 1000000 }
-        }
-      }
-    }
-  },
-  "set": {
-    "labels": ["large-file"]
-  }
-}
-```
-
-Files larger than 1MB get labeled `"large-file"`.
-
-### 6. Combine Multiple Conditions
-
-```json
-{
-  "match": {
-    "properties": {
-      "file": {
-        "properties": {
-          "path": { "glob": "d:/projects/**" },
-          "extension": { "const": ".md" }
-        },
-        "required": ["path", "extension"]
-      }
-    }
-  },
-  "set": {
-    "domain": "projects",
-    "category": "documentation"
-  }
-}
-```
-
-Matches Markdown files under `d:/projects/` and sets both `domain` and `category`.
+See the v0.4.0 section in [Inference Rules Guide (legacy)](./inference-rules.md#content-templates) for template details.
 
 ---
 
@@ -484,7 +605,8 @@ Metadata is built in layers with clear precedence:
 ### 1. Inference Rules (Base Layer)
 
 Rules are evaluated **in order**. For each matching rule:
-- `set` fields are applied with template interpolation
+- Schema is merged (left-to-right, property-level)
+- `set` templates are resolved and coerced
 - `map` (JsonMap) transformation runs (if present)
 - `map` output overrides `set` output on field conflict
 
@@ -494,6 +616,8 @@ Later rules override earlier rules on field conflict.
 
 Metadata from `.meta.json` sidecars (written via `POST /metadata` API) **overrides** all inference rule output.
 
+**Note:** Enrichment metadata is now **validated** against the resolved schema for the file's matched rules. Invalid metadata is rejected with descriptive errors.
+
 ### Final Merge Order
 
 ```
@@ -501,33 +625,165 @@ inferred (from rules) → enrichment (from .meta.json) → final payload
                         ↑ wins conflicts
 ```
 
-**Example:**
-
-```json
-// Rule output
-{ "title": "Untitled", "domain": "meetings" }
-
-// Enrichment (POST /metadata)
-{ "title": "Architecture Discussion" }
-
-// Final Qdrant payload
-{ "title": "Architecture Discussion", "domain": "meetings" }
-```
-
-Enrichment wins for `title`, but `domain` (not in enrichment) comes from the rule.
-
 ---
 
-## Config Change Handling
+## Practical Examples
 
-When you edit `inferenceRules` in the config file (and `configWatch.enabled` is `true`):
+### 1. Domain Classification by Directory
 
-1. The watcher reloads and validates the config
-2. Rules are recompiled
-3. A **scoped metadata reindex** is triggered (only files matching changed rules)
-4. No re-embedding occurs — just metadata upserts to Qdrant
+```json
+{
+  "schemas": {
+    "base": {
+      "properties": {
+        "domain": { "type": "string", "description": "Content domain", "uiHint": "select" }
+      }
+    }
+  },
+  "inferenceRules": [
+    {
+      "name": "email-domain",
+      "description": "Email archive messages",
+      "match": {
+        "properties": {
+          "file": {
+            "properties": {
+              "path": { "glob": "j:/domains/email/archive/**" }
+            }
+          }
+        }
+      },
+      "schema": [
+        "base",
+        { "properties": { "domain": { "set": "email" } } }
+      ]
+    },
+    {
+      "name": "meetings-domain",
+      "description": "Meeting transcripts and notes",
+      "match": {
+        "properties": {
+          "file": {
+            "properties": {
+              "path": { "glob": "j:/domains/meetings/**" }
+            }
+          }
+        }
+      },
+      "schema": [
+        "base",
+        { "properties": { "domain": { "set": "meetings" } } }
+      ]
+    }
+  ]
+}
+```
 
-**Debounce:** Config changes are debounced for `configWatch.debounceMs` (default: 1000ms) to allow editing multiple rules before triggering reindex.
+### 2. Extract Frontmatter Fields with Type Coercion
+
+```json
+{
+  "name": "frontmatter-metadata",
+  "description": "Extract metadata from YAML frontmatter",
+  "match": {
+    "properties": {
+      "frontmatter": {
+        "required": ["title"]
+      }
+    }
+  },
+  "schema": [
+    {
+      "properties": {
+        "title": {
+          "type": "string",
+          "description": "Document title",
+          "uiHint": "text",
+          "set": "${frontmatter.title}"
+        },
+        "created": {
+          "type": "integer",
+          "description": "Creation date as unix timestamp",
+          "uiHint": "date",
+          "set": "${frontmatter.created}"
+        }
+      }
+    }
+  ]
+}
+```
+
+If frontmatter has `created: "1735689600"`, type coercion converts it to integer `1735689600`.
+
+### 3. Extract JSON Fields with Enum and UI Hint
+
+```json
+{
+  "name": "jira-issue",
+  "description": "Jira issue metadata from JSON exports",
+  "match": {
+    "properties": {
+      "json": {
+        "required": ["entityKey"]
+      }
+    }
+  },
+  "schema": [
+    {
+      "properties": {
+        "issue_key": {
+          "type": "string",
+          "description": "Jira issue key",
+          "uiHint": "text",
+          "set": "${json.entityKey}"
+        },
+        "status": {
+          "type": "string",
+          "description": "Current workflow status",
+          "uiHint": "select",
+          "set": "${json.current.fields.status.name}"
+        },
+        "priority": {
+          "type": "string",
+          "description": "Issue priority",
+          "enum": ["Highest", "High", "Medium", "Low", "Lowest"],
+          "uiHint": "select",
+          "set": "${json.current.fields.priority.name}"
+        }
+      }
+    }
+  ]
+}
+```
+
+### 4. Combine Multiple Conditions
+
+```json
+{
+  "name": "project-docs",
+  "description": "Markdown documentation under projects",
+  "match": {
+    "properties": {
+      "file": {
+        "properties": {
+          "path": { "glob": "j:/domains/projects/**" },
+          "extension": { "const": ".md" }
+        },
+        "required": ["path", "extension"]
+      }
+    }
+  },
+  "schema": [
+    "base",
+    {
+      "properties": {
+        "domain": { "set": "projects" },
+        "category": { "type": "string", "set": "documentation" }
+      }
+    }
+  ]
+}
+```
 
 ---
 
@@ -539,21 +795,13 @@ Use `jeeves-watcher validate` to check rule syntax:
 jeeves-watcher validate --config ./my-config.json
 ```
 
-This compiles the rules and reports any JSON Schema errors.
-
-For runtime testing, add a rule and watch the logs:
+For runtime testing, check logs:
 
 ```bash
 jeeves-watcher start --config ./my-config.json
 ```
 
-Look for log entries like:
-
-```json
-{"level":"info","filePath":"d:/meetings/transcript.md","msg":"File processed successfully"}
-```
-
-Then query Qdrant to inspect the payload:
+Query Qdrant to inspect payloads:
 
 ```bash
 curl -X POST http://localhost:3456/search \
@@ -561,225 +809,88 @@ curl -X POST http://localhost:3456/search \
   -d '{"query": "test", "limit": 1}'
 ```
 
+Use `POST /config/match` to test paths against rules without indexing:
+
+```bash
+curl -X POST http://localhost:3456/config/match \
+  -H "Content-Type: application/json" \
+  -d '{"paths": ["j:/domains/jira/VCN/issue/WEB-123.json"]}'
+```
+
 ---
 
 ## Best Practices
 
-1. **Start simple** — add domain rules first, then layer on complexity
-2. **Test incrementally** — add one rule at a time and verify output
-3. **Use globs wisely** — prefer specific patterns over broad `**` (reduces reindex scope)
-4. **Template carefully** — check that referenced fields exist (undefined → empty string)
-5. **Order matters** — put broad rules first, specific overrides last
-6. **Document your rules** — add comments in the config (JSON5 supports comments)
+1. **Define global schemas for shared properties** — `domain`, `created`, `updated` belong in `base` schema
+2. **Use schema arrays effectively** — global schemas for shape, inline tail for `set` wiring
+3. **Declare types explicitly** — Schema completeness validation catches missing types
+4. **Add `uiHint` deliberately** — Every exposed filter field is a conscious decision
+5. **Test type coercion** — Verify integer/number fields parse correctly (check logs)
+6. **Order rules intentionally** — Later rules override earlier ones on conflict
+7. **Monitor issues file** — `GET /issues` surfaces problems before they become mysteries
+8. **Use values index for dropdowns** — Pair `uiHint: "select"` with runtime values for dynamic enums
 
 ---
 
-## Advanced: External Rules File
+## Migration from v1 to v2
 
-For complex rule sets, store rules in a separate file:
-
-**`jeeves-watcher.config.json`:**
+**Before (v0.4.x):**
 
 ```json
 {
-  "watch": { "paths": ["./docs/**"] },
-  "embedding": { "provider": "gemini", "model": "gemini-embedding-001" },
-  "vectorStore": { "url": "http://localhost:6333", "collectionName": "docs" },
-  "inferenceRulesFile": "./rules.json"
-}
-```
-
-**`rules.json`:**
-
-```json
-[
-  { "match": { /* ... */ }, "set": { /* ... */ } },
-  { "match": { /* ... */ }, "set": { /* ... */ } }
-]
-```
-
-(Note: `inferenceRulesFile` is a planned feature — currently rules must be inline.)
-
----
-
-## Content Templates
-
-Rules can include a `template` field — a Handlebars template that renders the file's data into embeddable markdown. When a template is present, the rendered output replaces the raw file content for embedding.
-
-### Why Templates?
-
-Raw JSON from API responses embeds poorly — deeply nested fields, internal IDs, and rich text formats (ADF, HTML) produce noisy vectors. Templates transform structured data into clean, readable markdown at index time.
-
-### Template Resolution
-
-The `template` value is resolved in this order:
-
-1. **File path** — ends in `.hbs` or `.handlebars` → loaded from file (relative to config dir)
-2. **Named ref** — matches a key in top-level `config.templates` → recursively resolved
-3. **Inline** — used as a Handlebars template string directly
-
-### Template Context
-
-Templates render against a context object built from:
-- The parsed file content (JSON parsed if `.json`, raw text otherwise)
-- Fields added by `map` transforms
-
-For JSON files, the parsed JSON is spread at the top level of the context, with mapped fields merged in.
-
-### Example: Jira Issue Template
-
-```json
-{
-  "match": {
-    "properties": {
-      "file": {
-        "properties": {
-          "path": { "type": "string", "glob": "j:/domains/jira/**/*.json" }
-        }
-      }
-    }
-  },
-  "map": {
-    "key": "current.entityKey",
-    "summary": "current.current.fields.summary",
-    "status": "current.current.fields.status.name"
-  },
-  "set": {
-    "domain": "jira",
-    "key": "${key}",
-    "status": "${status}"
-  },
-  "template": "templates/jira-issue.hbs"
-}
-```
-
-**`templates/jira-issue.hbs`:**
-
-```handlebars
-# {{summary}}
-
-**Key:** {{key}} | **Status:** {{status}}
-
----
-
-{{adfToMarkdown current.current.fields.description}}
-```
-
-### Named Templates
-
-Define reusable templates in top-level config:
-
-```json
-{
-  "templates": {
-    "jira-issue": "templates/jira-issue.hbs",
-    "simple-doc": "# {{heading}}\n\n{{body}}"
-  }
-}
-```
-
-Reference by name in rules: `"template": "jira-issue"`
-
-### Built-in Helpers
-
-| Helper | Description | Example |
-|--------|-------------|---------|
-| `adfToMarkdown` | ADF → Markdown | `{{adfToMarkdown description}}` |
-| `markdownify` | HTML → Markdown | `{{markdownify body.html}}` |
-| `dateFormat` | Format dates | `{{dateFormat created 'YYYY-MM-DD'}}` |
-| `join` | Join array | `{{join labels ", "}}` |
-| `pluck` | Extract field from array | `{{join (pluck labels "name") ", "}}` |
-| `default` | Fallback value | `{{default assignee "Unassigned"}}` |
-| `eq` | Deep equality | `{{#if (eq status "Done")}}✅{{/if}}` |
-| `json` | Pretty-print JSON | `{{json data}}` |
-| `lowercase` | Lowercase | `{{lowercase text}}` |
-| `uppercase` | Uppercase | `{{uppercase text}}` |
-| `capitalize` | Capitalize first | `{{capitalize text}}` |
-| `title` | Title Case | `{{title text}}` |
-| `camel` | camelCase | `{{camel text}}` |
-| `snake` | snake_case | `{{snake text}}` |
-| `dash` | dash-case | `{{dash text}}` |
-
-### Custom Helpers
-
-Register custom helpers via config:
-
-```json
-{
-  "templateHelpers": {
-    "paths": ["./helpers/custom.js"]
-  }
-}
-```
-
-Each file exports a default function receiving the Handlebars instance:
-
-```javascript
-export default function(Handlebars) {
-  Handlebars.registerHelper('ticketUrl', (key) =>
-    `https://myorg.atlassian.net/browse/${key}`
-  );
-}
-```
-
-### Production Directory Structure
-
-For production deployments, store maps and templates as individual files alongside your config. The config JSON becomes an orchestration object — it references external files rather than inlining large definitions:
-
-```
-config/
-├── jeeves-watcher.config.json    ← orchestration
-├── maps/
-│   ├── jira-issue.json
-│   ├── jira-sprint.json
-│   ├── email-thread.json
-│   └── slack-message.json
-└── templates/
-    ├── jira-entity.hbs
-    ├── html-document.hbs
-    ├── chat-message.hbs
-    └── metadata-record.hbs
-```
-
-**Why separate files:**
-
-- **Version control** — each map and template has its own diff history
-- **Editability** — `.hbs` files get syntax highlighting and editor support; JSON maps are easier to read without config noise around them
-- **Reuse** — multiple rules can reference the same template (e.g., Jira issues and sprints share `jira-entity.hbs` with different maps normalizing their field paths)
-- **Testing** — templates can be validated independently
-
-**Config references:**
-
-```json
-{
-  "templates": {
-    "jira-entity": "templates/jira-entity.hbs",
-    "html-document": "templates/html-document.hbs"
-  },
-  "maps": {
-    "jira-issue": "maps/jira-issue.json",
-    "jira-sprint": "maps/jira-sprint.json"
-  },
   "inferenceRules": [
     {
       "match": { "..." },
-      "map": "jira-issue",
-      "set": { "..." },
-      "template": "jira-entity"
+      "set": {
+        "domain": "jira",
+        "status": "${json.current.fields.status.name}"
+      }
     }
   ]
 }
 ```
 
-File paths are resolved relative to the config file's directory. Auto-detection works by extension: `.json` → map file, `.hbs`/`.handlebars` → template file.
+**After (v0.5.0+):**
 
-**Inline definitions are still supported** for simple cases (short templates, small maps). Use the approach that fits the complexity.
+```json
+{
+  "schemas": {
+    "base": {
+      "properties": {
+        "domain": { "type": "string", "description": "Content domain" }
+      }
+    }
+  },
+  "inferenceRules": [
+    {
+      "name": "jira-issue",
+      "description": "Jira issue metadata",
+      "match": { "..." },
+      "schema": [
+        "base",
+        {
+          "properties": {
+            "domain": { "set": "jira" },
+            "status": {
+              "type": "string",
+              "description": "Current workflow status",
+              "set": "${json.current.fields.status.name}"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
+```
 
-### Error Handling
-
-- Template render failure → **warn** and fall back to raw content (file still indexed)
-- Empty render output → **warn** and fall back to raw content
-- No template on rule → unchanged behavior (raw content embedded)
+**Key migration steps:**
+1. Add `name` and `description` to every rule
+2. Define global schemas for shared properties
+3. Replace `set` object with `schema` array
+4. Declare `type` for every property
+5. Add `uiHint` for search-filterable fields
+6. Test with `jeeves-watcher validate`
 
 ---
 
@@ -788,12 +899,24 @@ File paths are resolved relative to the config file's directory. Auto-detection 
 ```typescript
 interface InferenceRule {
   name: string;                    // Required unique identifier
-  description?: string;            // Optional human-readable description
+  description: string;             // Required human-readable description
   match: Record<string, unknown>;  // JSON Schema object
-  set: Record<string, unknown>;    // Key-value pairs with optional ${template} vars
-  map?: Record<string, unknown> | string; // JsonMap definition, named map ref, or .json file path
-  template?: string;               // Handlebars template (inline, named ref, or .hbs file path)
+  schema: SchemaReference[];       // Array of named refs and inline objects
+  map?: Record<string, unknown> | string; // JsonMap definition, named map ref, or file path
+  template?: string;               // Handlebars template (inline, named ref, or file path)
+}
+
+interface SchemaReference {
+  // Either a named string reference or an inline schema object
+}
+
+interface ResolvedProperty {
+  type?: string;                   // JSON Schema type
+  description?: string;            // Human-readable description
+  uiHint?: string;                 // UI rendering hint
+  enum?: unknown[];                // Enum values
+  set?: string;                    // Interpolation template
 }
 ```
 
-See [Configuration Reference](./configuration.md#-metadata-enrichment-rules) for integration into the main config.
+See [Configuration Reference](./configuration.md#inference-rules) for integration into the main config.

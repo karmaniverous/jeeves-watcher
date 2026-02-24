@@ -50,7 +50,7 @@ curl http://localhost:3456/status
 | `reindex.scope` | `string?` | Reindex scope (`"rules"` or `"full"`) if active. |
 | `reindex.startedAt` | `string?` | ISO-8601 timestamp when reindex started, if active. |
 
-> **v0.5.0 change:** `payloadFields` has been removed from the status response. Use [`POST /config/query`](#post-configquery) to discover schema and payload field information.
+> **v0.5.0 change:** `payloadFields` has been removed from the status response. Use [`POST /config/query`](#post-configquery) or [`GET /config/schema`](#get-configschema) to discover schema and payload field information.
 
 **Status codes:**
 - `200 OK` — Service is healthy
@@ -444,7 +444,9 @@ The callback retries with exponential backoff (3 attempts, starting at 1 second)
 
 ## GET /issues
 
-Returns runtime embedding failures and processing errors.
+Returns the current issues file contents: all files that failed to embed, with error details.
+
+**v0.5.0+**
 
 ### Request
 
@@ -457,26 +459,66 @@ curl http://localhost:3456/issues
 **Success (200 OK):**
 
 ```json
-[
-  {
-    "rule": "email-classifier",
-    "error": "Template render failed: missing helper 'customFormat'",
-    "errorType": "template",
-    "timestamp": "2026-02-24T08:15:00Z",
-    "attempts": 3
+{
+  "count": 2,
+  "issues": {
+    "j:/domains/jira/VCN/issue/WEB-123.json": [
+      {
+        "type": "type_collision",
+        "property": "created",
+        "rules": ["jira-issue", "frontmatter-created"],
+        "types": ["integer", "string"],
+        "message": "Type collision on 'created': jira-issue declares integer, frontmatter-created declares string",
+        "timestamp": 1771865063
+      }
+    ],
+    "j:/domains/email/archive/msg-456.json": [
+      {
+        "type": "interpolation_error",
+        "property": "author_email",
+        "rule": "email-archive",
+        "message": "Failed to resolve ${json.from.email}: 'from' is null",
+        "timestamp": 1771865100
+      }
+    ]
   }
-]
+}
 ```
+
+### Response Schema
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `count` | `number` | Number of files with issues (not total issue count). |
+| `issues` | `object` | Issues keyed by file path. |
 
 ### IssueRecord Schema
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `rule` | `string` | Name of the inference rule that failed. |
-| `error` | `string` | Human-readable error message. |
-| `errorType` | `string` | Error category: `"template"`, `"embedding"`, `"extraction"`, `"validation"`. |
-| `timestamp` | `string` | ISO-8601 timestamp of last occurrence. |
-| `attempts` | `number` | Number of retry attempts made. |
+| `type` | `string` | Error category: `"type_collision"` or `"interpolation_error"`. |
+| `property` | `string?` | Property name where the issue occurred. |
+| `rules` | `string[]?` | Rule names involved in the issue (for type collisions). |
+| `rule` | `string?` | Rule name for single-rule issues (backward compat). |
+| `types` | `string[]?` | Declared types for type collision issues. |
+| `message` | `string` | Human-readable error message. |
+| `timestamp` | `number \| string` | Unix timestamp (seconds) or ISO string of last occurrence. |
+
+### Behavior
+
+The issues file is self-healing:
+- Files that hit issues are logged and **embedding is skipped**
+- Successful re-processing (config fix, file edit, reindex) **clears** the entry
+- The response always represents the **current** set of unresolved problems
+
+**Empty response:**
+
+```json
+{
+  "count": 0,
+  "issues": {}
+}
+```
 
 ---
 
@@ -527,6 +569,132 @@ See [Inference Rules Guide](./inference-rules.md) for rule structure details.
 
 ---
 
+## GET /config/schema
+
+Returns the JSON Schema describing the merged virtual document (authored config + runtime state).
+
+**v0.5.0+**
+
+### Request
+
+```bash
+curl http://localhost:3456/config/schema
+```
+
+### Response
+
+**Success (200 OK):**
+
+Returns a JSON Schema object describing the merged config document shape, including:
+- Top-level config fields (`description`, `search`, `schemas`, `inferenceRules`, etc.)
+- Runtime-injected fields (`inferenceRules[].values`, `issues`, helper introspection)
+
+The schema is generated from Zod using `z.toJSONSchema()` and describes the queryable surface exposed by `POST /config/query`.
+
+**Example response (excerpt):**
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "description": { "type": "string" },
+    "schemas": { "type": "array" },
+    "inferenceRules": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string" },
+          "description": { "type": "string" },
+          "values": {
+            "type": "object",
+            "additionalProperties": { "type": "array" }
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+### Use Cases
+
+- Introspection of the watcher's queryable config surface
+- UI generation for config editors
+- LLM agent orientation (understand structure before querying)
+
+---
+
+## POST /config/match
+
+Tests file paths against inference rules and watch scope without indexing.
+
+**v0.5.0+**
+
+### Request
+
+```bash
+curl -X POST http://localhost:3456/config/match \
+  -H "Content-Type: application/json" \
+  -d '{
+    "paths": [
+      "j:/domains/jira/VCN/issue/WEB-123.json",
+      "j:/domains/slack/C0ABC/1234567.json",
+      "j:/domains/unknown/file.txt"
+    ]
+  }'
+```
+
+**Body schema:**
+
+```typescript
+{
+  paths: string[];  // File paths to test
+}
+```
+
+### Response
+
+**Success (200 OK):**
+
+```json
+{
+  "matches": [
+    { "rules": ["jira-issue", "json-subject"], "watched": true },
+    { "rules": ["slack-message", "json-participants"], "watched": true },
+    { "rules": [], "watched": false }
+  ]
+}
+```
+
+### Response Schema
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `matches` | `PathMatch[]` | Match results for each input path (same order). |
+
+**PathMatch:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `rules` | `string[]` | Ordered list of matching inference rule names. |
+| `watched` | `boolean` | Whether the path is within watch scope (matches `watch.paths` and not in `watch.ignored`). |
+
+### Behavior
+
+- Each path is normalized and tested against all compiled inference rules
+- Rules are returned in definition order (same order as `inferenceRules` array)
+- `watched` tests against watch path matchers and ignore patterns
+- Empty `rules` array means no inference rules match (but file may still be watched)
+- `watched: false` means the path falls outside watch scope or is excluded by ignore patterns
+
+**Use cases:**
+- Pre-flight path testing before file creation
+- Debugging rule match logic
+- UI path validation in config editors
+
+---
+
 ## POST /config/validate
 
 Pre-flight validation of configuration changes without applying them.
@@ -539,7 +707,14 @@ curl -X POST http://localhost:3456/config/validate \
   -d '{
     "config": {
       "inferenceRules": [
-        { "name": "new-rule", "match": { "type": "object" }, "set": { "domain": "test" } }
+        {
+          "name": "new-rule",
+          "description": "Test rule",
+          "match": { "type": "object" },
+          "schema": [
+            { "properties": { "domain": { "type": "string", "set": "test" } } }
+          ]
+        }
       ]
     },
     "testPaths": ["d:/docs/sample.md"]
@@ -603,7 +778,14 @@ curl -X POST http://localhost:3456/config/apply \
   -d '{
     "config": {
       "inferenceRules": [
-        { "name": "new-rule", "match": { "type": "object" }, "set": { "domain": "test" } }
+        {
+          "name": "new-rule",
+          "description": "Test rule",
+          "match": { "type": "object" },
+          "schema": [
+            { "properties": { "domain": { "type": "string", "set": "test" } } }
+          ]
+        }
       ]
     }
   }'
