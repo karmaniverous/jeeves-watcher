@@ -11,6 +11,7 @@ import type { JeevesWatcherConfig } from '../../config/types';
 import { writeMetadata } from '../../metadata';
 import { SYSTEM_METADATA_KEYS } from '../../metadata/constants';
 import type { VectorStoreClient } from '../../vectorStore';
+import { FIELD_FILE_PATH } from '../../processor/payloadFields';
 import { wrapHandler } from './wrapHandler';
 
 export interface RebuildMetadataRouteDeps {
@@ -32,7 +33,7 @@ export function createRebuildMetadataHandler(deps: RebuildMetadataRouteDeps) {
 
       for await (const point of deps.vectorStore.scroll()) {
         const payload = point.payload;
-        const filePath = payload['file_path'];
+        const filePath = payload[FIELD_FILE_PATH];
         if (typeof filePath !== 'string' || filePath.length === 0) continue;
 
         const enrichment = omit(payload, systemKeys);

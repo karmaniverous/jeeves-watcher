@@ -10,6 +10,13 @@ import { contentHash } from '../hash';
 import { pointId } from '../pointId';
 import type { VectorStoreClient } from '../vectorStore';
 import { chunkIds, getChunkCount } from './chunkIds';
+import {
+  FIELD_CHUNK_INDEX,
+  FIELD_CHUNK_TEXT,
+  FIELD_CONTENT_HASH,
+  FIELD_FILE_PATH,
+  FIELD_TOTAL_CHUNKS,
+} from './payloadFields';
 import type { Splitter } from './splitter';
 
 /**
@@ -55,11 +62,11 @@ export async function embedAndUpsert(
     vector: vectors[i],
     payload: {
       ...metadata,
-      file_path: filePath.replace(/\\/g, '/'),
-      chunk_index: i,
-      total_chunks: chunks.length,
-      content_hash: hash,
-      chunk_text: chunk,
+      [FIELD_FILE_PATH]: filePath.replace(/\\/g, '/'),
+      [FIELD_CHUNK_INDEX]: i,
+      [FIELD_TOTAL_CHUNKS]: chunks.length,
+      [FIELD_CONTENT_HASH]: hash,
+      [FIELD_CHUNK_TEXT]: chunk,
     },
   }));
   await vectorStore.upsert(points);
