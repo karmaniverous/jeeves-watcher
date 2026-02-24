@@ -143,15 +143,28 @@ const extractorRegistry = new Map<string, Extractor>([
  *
  * @param filePath - Path to the file.
  * @param extension - File extension (including leading dot).
+ * @param additionalExtractors - Optional map of additional extractors by extension.
  * @returns Extracted text and optional structured data.
  */
 export async function extractText(
   filePath: string,
   extension: string,
+  additionalExtractors?: Map<string, Extractor>,
 ): Promise<ExtractedText> {
-  const extractor = extractorRegistry.get(extension.toLowerCase());
+  // Merge additional extractors with built-in registry
+  const registry = new Map(extractorRegistry);
+  if (additionalExtractors) {
+    for (const [ext, extractor] of additionalExtractors) {
+      registry.set(ext, extractor);
+    }
+  }
+
+  const extractor = registry.get(extension.toLowerCase());
   if (extractor) return extractor(filePath);
 
   // Default: treat as plaintext.
   return extractPlaintext(filePath);
 }
+
+// Export the Extractor type for custom extractor implementations
+export type { Extractor };
