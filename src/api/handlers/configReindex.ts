@@ -8,9 +8,9 @@ import type pino from 'pino';
 
 import type { JeevesWatcherConfig } from '../../config/types';
 import type { DocumentProcessor } from '../../processor';
-import { normalizeError } from '../../util/normalizeError';
 import { executeReindex } from '../executeReindex';
 import type { ReindexTracker } from '../ReindexTracker';
+import { wrapHandler } from './wrapHandler';
 
 export interface ConfigReindexRouteDeps {
   config: JeevesWatcherConfig;
@@ -29,11 +29,10 @@ type ConfigReindexRequest = FastifyRequest<{
  * @param deps - Route dependencies.
  */
 export function createConfigReindexHandler(deps: ConfigReindexRouteDeps) {
-  return async (request: ConfigReindexRequest, reply: FastifyReply) => {
-    try {
+  return wrapHandler(
+    async (request: ConfigReindexRequest, reply: FastifyReply) => {
       const scope = request.body.scope ?? 'rules';
 
-      // Return immediately and run async
       void executeReindex(
         {
           config: deps.config,
@@ -45,12 +44,8 @@ export function createConfigReindexHandler(deps: ConfigReindexRouteDeps) {
       );
 
       return await reply.status(200).send({ status: 'started', scope });
-    } catch (error) {
-      deps.logger.error(
-        { err: normalizeError(error) },
-        'Config reindex request failed',
-      );
-      return await reply.status(500).send({ error: 'Internal server error' });
-    }
-  };
+    },
+    deps.logger,
+    'Config reindex request',
+  );
 }

@@ -5,7 +5,7 @@
 
 import { existsSync, readFileSync, statSync } from 'node:fs';
 
-import type { FastifyReply, FastifyRequest } from 'fastify';
+import type { FastifyRequest } from 'fastify';
 import type pino from 'pino';
 
 import { jeevesWatcherConfigSchema } from '../../config/schemas';
@@ -14,6 +14,7 @@ import { applyRules } from '../../rules/apply';
 import { buildAttributes } from '../../rules/attributes';
 import { compileRules } from '../../rules/compile';
 import { normalizeError } from '../../util/normalizeError';
+import { wrapHandler } from './wrapHandler';
 
 /** A validation error entry. */
 export interface ValidationError {
@@ -106,8 +107,8 @@ function validateHelperFiles(
  * @param deps - Route dependencies.
  */
 export function createConfigValidateHandler(deps: ConfigValidateRouteDeps) {
-  return async (request: ConfigValidateRequest, reply: FastifyReply) => {
-    try {
+  return wrapHandler(
+    async (request: ConfigValidateRequest) => {
       const { config: submittedConfig, testPaths } = request.body;
 
       let candidateRaw: Record<string, unknown> = {
@@ -178,12 +179,8 @@ export function createConfigValidateHandler(deps: ConfigValidateRouteDeps) {
         valid: true,
         ...(testResults.length > 0 ? { testResults } : {}),
       };
-    } catch (error) {
-      deps.logger.error(
-        { err: normalizeError(error) },
-        'Config validate failed',
-      );
-      return reply.status(500).send({ error: 'Internal server error' });
-    }
-  };
+    },
+    deps.logger,
+    'Config validate',
+  );
 }

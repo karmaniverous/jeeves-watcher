@@ -10,8 +10,8 @@ import { omit } from 'radash';
 import type { JeevesWatcherConfig } from '../../config/types';
 import { writeMetadata } from '../../metadata';
 import { SYSTEM_METADATA_KEYS } from '../../metadata/constants';
-import { normalizeError } from '../../util/normalizeError';
 import type { VectorStoreClient } from '../../vectorStore';
+import { wrapHandler } from './wrapHandler';
 
 export interface RebuildMetadataRouteDeps {
   config: JeevesWatcherConfig;
@@ -25,8 +25,8 @@ export interface RebuildMetadataRouteDeps {
  * @param deps - Route dependencies.
  */
 export function createRebuildMetadataHandler(deps: RebuildMetadataRouteDeps) {
-  return async (_request: FastifyRequest, reply: FastifyReply) => {
-    try {
+  return wrapHandler(
+    async (_request: FastifyRequest, reply: FastifyReply) => {
       const metadataDir = deps.config.metadataDir ?? '.jeeves-metadata';
       const systemKeys = [...SYSTEM_METADATA_KEYS];
 
@@ -35,19 +35,13 @@ export function createRebuildMetadataHandler(deps: RebuildMetadataRouteDeps) {
         const filePath = payload['file_path'];
         if (typeof filePath !== 'string' || filePath.length === 0) continue;
 
-        // Persist only enrichment-ish fields, not chunking/index fields.
         const enrichment = omit(payload, systemKeys);
-
         await writeMetadata(filePath, metadataDir, enrichment);
       }
 
       return await reply.status(200).send({ ok: true });
-    } catch (error) {
-      deps.logger.error(
-        { err: normalizeError(error) },
-        'Rebuild metadata failed',
-      );
-      return await reply.status(500).send({ error: 'Internal server error' });
-    }
-  };
+    },
+    deps.logger,
+    'Rebuild metadata',
+  );
 }

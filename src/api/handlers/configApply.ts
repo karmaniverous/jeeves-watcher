@@ -3,16 +3,16 @@
  * Fastify route handler for POST /config/apply. Validates and writes config, optionally triggering reindex.
  */
 
-import { writeFileSync } from 'node:fs';
+import { writeFile } from 'node:fs/promises';
 
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import type pino from 'pino';
 
 import { jeevesWatcherConfigSchema } from '../../config/schemas';
 import type { JeevesWatcherConfig } from '../../config/types';
-import { normalizeError } from '../../util/normalizeError';
 import type { ReindexTracker } from '../ReindexTracker';
 import { mergeInferenceRules, type ValidationError } from './configValidate';
+import { wrapHandler } from './wrapHandler';
 
 /** Dependencies for the config apply route handler. */
 export interface ConfigApplyRouteDeps {
@@ -33,8 +33,8 @@ type ConfigApplyRequest = FastifyRequest<{
  * @param deps - Route dependencies.
  */
 export function createConfigApplyHandler(deps: ConfigApplyRouteDeps) {
-  return async (request: ConfigApplyRequest, reply: FastifyReply) => {
-    try {
+  return wrapHandler(
+    async (request: ConfigApplyRequest, reply: FastifyReply) => {
       const { config: submittedConfig } = request.body;
 
       let candidateRaw: Record<string, unknown> = {
@@ -64,7 +64,7 @@ export function createConfigApplyHandler(deps: ConfigApplyRouteDeps) {
         return await reply.status(400).send({ valid: false, errors });
       }
 
-      writeFileSync(
+      await writeFile(
         deps.configPath,
         JSON.stringify(candidateRaw, null, 2),
         'utf-8',
@@ -85,9 +85,8 @@ export function createConfigApplyHandler(deps: ConfigApplyRouteDeps) {
         reindexTriggered: !!reindexScope,
         ...(reindexScope ? { scope: reindexScope } : {}),
       };
-    } catch (error) {
-      deps.logger.error({ err: normalizeError(error) }, 'Config apply failed');
-      return reply.status(500).send({ error: 'Internal server error' });
-    }
-  };
+    },
+    deps.logger,
+    'Config apply',
+  );
 }
