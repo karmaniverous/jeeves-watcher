@@ -238,11 +238,12 @@ describe('resolveAndCoerce', () => {
     expect(result).toEqual({});
   });
 
-  it('omits properties with empty/null templates', () => {
+  it('includes empty strings for string types but omits for numeric types', () => {
     const schema: ResolvedSchema = {
       properties: {
         domain: { type: 'string', set: 'jira' },
-        missing: { type: 'string', set: '${json.missing}' },
+        missing_string: { type: 'string', set: '${json.missing}' },
+        missing_int: { type: 'integer', set: '${json.missing_num}' },
       },
     };
 
@@ -260,7 +261,8 @@ describe('resolveAndCoerce', () => {
 
     const result = resolveAndCoerce(schema, attributes);
 
-    expect(result).toEqual({ domain: 'jira' });
+    // Empty string for string type is included, but numeric types omit empty
+    expect(result).toEqual({ domain: 'jira', missing_string: '' });
   });
 });
 

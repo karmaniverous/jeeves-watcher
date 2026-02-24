@@ -166,16 +166,23 @@ describe('jeevesWatcherConfigSchema', () => {
     const result = jeevesWatcherConfigSchema.safeParse({
       ...minimalValidConfig,
       inferenceRules: [
-        { name: 'test-rule', match: { type: 'object' }, set: { a: 1 } },
+        {
+          name: 'test-rule',
+          description: 'Test rule',
+          match: { type: 'object' },
+          schema: [{ properties: { a: { type: 'integer', set: '1' } } }],
+        },
       ],
     });
     expect(result.success).toBe(true);
   });
 
-  it('rejects inference rules missing required set field', () => {
+  it('rejects inference rules missing required description field', () => {
     const result = jeevesWatcherConfigSchema.safeParse({
       ...minimalValidConfig,
-      inferenceRules: [{ name: 'test-rule', match: { type: 'object' } }],
+      inferenceRules: [
+        { name: 'test-rule', match: { type: 'object' }, schema: [] },
+      ],
     });
     expect(result.success).toBe(false);
   });
