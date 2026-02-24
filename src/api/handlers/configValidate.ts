@@ -3,13 +3,16 @@
  * Fastify route handler for POST /config/validate. Validates config against schema with optional test paths.
  */
 
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, statSync } from 'node:fs';
 
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import type pino from 'pino';
 
 import { jeevesWatcherConfigSchema } from '../../config/schemas';
 import type { JeevesWatcherConfig } from '../../config/types';
+import { applyRules } from '../../rules/apply';
+import { buildAttributes } from '../../rules/attributes';
+import { compileRules } from '../../rules/compile';
 import { normalizeError } from '../../util/normalizeError';
 
 /** A validation error entry. */
@@ -23,6 +26,7 @@ export interface TestResult {
   path: string;
   matchedRules: string[];
   metadata: Record<string, unknown>;
+  error?: string;
 }
 
 /** Dependencies for the config validate route handler. */
@@ -147,18 +151,26 @@ export function createConfigValidateHandler(deps: ConfigValidateRouteDeps) {
 
       const testResults: TestResult[] = [];
       if (testPaths && parseResult.data.inferenceRules) {
+        const compiled = compileRules(parseResult.data.inferenceRules);
+
         for (const testPath of testPaths) {
-          const matchedRules: string[] = [];
-          const metadata: Record<string, unknown> = {};
-
-          for (const rule of parseResult.data.inferenceRules) {
-            // Simple match: check if all match keys are present
-            // Full match compilation would require the processor; for now, always match
-            matchedRules.push(rule.name);
-            Object.assign(metadata, rule.set);
+          try {
+            const stats = statSync(testPath);
+            const attributes = buildAttributes(testPath, stats);
+            const result = await applyRules(compiled, attributes);
+            testResults.push({
+              path: testPath,
+              matchedRules: result.matchedRules,
+              metadata: result.metadata,
+            });
+          } catch {
+            testResults.push({
+              path: testPath,
+              matchedRules: [],
+              metadata: {},
+              error: 'File not found',
+            });
           }
-
-          testResults.push({ path: testPath, matchedRules, metadata });
         }
       }
 
