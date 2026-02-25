@@ -132,7 +132,7 @@
   "release-it": {
     "git": {
       "changelog": "npx auto-changelog --unreleased-only --stdout --template https://raw.githubusercontent.com/release-it/release-it/main/templates/changelog-compact.hbs",
-      "commitMessage": "chore: release v${version}",
+      "commitMessage": "chore: release @karmaniverous/jeeves-watcher v${version}",
       "requireBranch": "main"
     },
     "github": {
@@ -147,12 +147,12 @@
       ],
       "before:npm:release": [
         "npx auto-changelog -p",
-        "npm run docs",
+        "npm run docs -w ../..",
         "git add -A"
       ],
       "after:release": [
-        "git switch -c release/${version}",
-        "git push -u origin release/${version}",
+        "git switch -c release/service/${version}",
+        "git push -u origin release/service/${version}",
         "git switch ${branchName}"
       ]
     },

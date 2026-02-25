@@ -46,8 +46,16 @@
       "./dist/index.js"
     ]
   },
+  "auto-changelog": {
+    "output": "CHANGELOG.md",
+    "unreleased": true,
+    "commitLimit": false,
+    "hideCredit": true
+  },
   "devDependencies": {
+    "@dotenvx/dotenvx": "^1.52.0",
     "@rollup/plugin-typescript": "^12.3.0",
+    "auto-changelog": "^2.5.0",
     "cross-env": "^10.1.0",
     "handlebars": "^4.7.8",
     "release-it": "^19.2.4",
@@ -58,13 +66,17 @@
     "build:plugin": "rimraf dist && cross-env NO_COLOR=1 rollup --config rollup.config.ts --configPlugin @rollup/plugin-typescript",
     "build:skills": "tsx scripts/build-skills.ts",
     "build": "npm run build:plugin && npm run build:skills",
+    "changelog": "auto-changelog",
     "lint": "eslint .",
     "lint:fix": "eslint --fix .",
+    "release": "dotenvx run -f .env.local -- release-it",
+    "release:pre": "dotenvx run -f .env.local -- release-it --no-git.requireBranch --github.prerelease --preRelease",
     "typecheck": "tsc"
   },
   "release-it": {
     "git": {
-      "commitMessage": "chore: release openclaw plugin v${version}",
+      "changelog": "npx auto-changelog --unreleased-only --stdout --template https://raw.githubusercontent.com/release-it/release-it/main/templates/changelog-compact.hbs",
+      "commitMessage": "chore: release @karmaniverous/jeeves-watcher-openclaw v${version}",
       "requireBranch": "main"
     },
     "github": {
@@ -73,7 +85,17 @@
     "hooks": {
       "after:init": [
         "npm run lint",
+        "npm run typecheck",
         "npm run build"
+      ],
+      "before:npm:release": [
+        "npx auto-changelog -p",
+        "git add -A"
+      ],
+      "after:release": [
+        "git switch -c release/openclaw/${version}",
+        "git push -u origin release/openclaw/${version}",
+        "git switch ${branchName}"
       ]
     },
     "npm": {
