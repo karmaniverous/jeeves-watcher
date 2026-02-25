@@ -2,10 +2,20 @@
 
 All notable changes to this project will be documented in this file. Dates are displayed in UTC.
 
-#### [0.1.1](https://github.com/karmaniverous/jeeves-watcher/compare/0.5.1...0.1.1)
+#### [0.1.2](https://github.com/karmaniverous/jeeves-watcher/compare/0.5.1...0.1.2)
 
+- docs: document self-installer CLI and Windows workaround [`#41`](https://github.com/karmaniverous/jeeves-watcher/pull/41)
+- fix: resolve lint errors in openclaw CLI [`#40`](https://github.com/karmaniverous/jeeves-watcher/pull/40)
+- feat: add install/uninstall CLI for OpenClaw plugin [`#39`](https://github.com/karmaniverous/jeeves-watcher/pull/39)
 - chore: fix monorepo release-it tags, plugin id, and version sync [`#38`](https://github.com/karmaniverous/jeeves-watcher/pull/38)
 - chore: release @karmaniverous/jeeves-watcher-openclaw v0.1.0 [`97e2834`](https://github.com/karmaniverous/jeeves-watcher/commit/97e2834986f0ce53098d0299d0da3025a432e43f)
+- feat: add install/uninstall CLI to bypass OpenClaw spawn EINVAL bug on Windows [`1ad7fbb`](https://github.com/karmaniverous/jeeves-watcher/commit/1ad7fbb1f4947d852a5a16a2b564b27ccb0620d5)
+- fix: resolve lint errors in openclaw CLI and add rollup externals [`b4e8514`](https://github.com/karmaniverous/jeeves-watcher/commit/b4e8514d991daaed99bd7d7dff7028b4310109be)
+- docs: document self-installer CLI and Windows spawn EINVAL workaround [`e3d6351`](https://github.com/karmaniverous/jeeves-watcher/commit/e3d63512fe57b555e753c8f86bbfe57a1b97f70c)
+- fix: apply same conditional logic to tools.allow as plugins.allow [`4549569`](https://github.com/karmaniverous/jeeves-watcher/commit/4549569ea72e1bbe385fd7592497982bbc34ec39)
+- fix: remove plugins.allow management from CLI, only manage entries and tools.allow [`64106b4`](https://github.com/karmaniverous/jeeves-watcher/commit/64106b49be35f11c8e4b9a499b45067869decc4b)
+- fix: conditionally manage plugins.allow only when already populated [`c486c3a`](https://github.com/karmaniverous/jeeves-watcher/commit/c486c3a8bc12df5f1d233a0f974c0024e91e84b4)
+- chore: release @karmaniverous/jeeves-watcher-openclaw v0.1.1 [`008e757`](https://github.com/karmaniverous/jeeves-watcher/commit/008e757704e0cdf5bca7819a9b9eb36b7258a300)
 - package version 0 [`eda1c58`](https://github.com/karmaniverous/jeeves-watcher/commit/eda1c58217fc89a4f1d2ff3e048c13973b5056fd)
 
 #### [0.5.1](https://github.com/karmaniverous/jeeves-watcher/compare/0.5.0...0.5.1)
