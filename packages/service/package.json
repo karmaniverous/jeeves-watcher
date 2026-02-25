@@ -1,0 +1,173 @@
+{
+  "name": "@karmaniverous/jeeves-watcher",
+  "version": "0.5.0-1",
+  "author": "Jason Williscroft",
+  "description": "Filesystem watcher that keeps a Qdrant vector store in sync with document changes",
+  "license": "BSD-3-Clause",
+  "type": "module",
+  "main": "dist/cjs/index.js",
+  "module": "dist/mjs/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "jeeves-watcher": "./dist/cli/jeeves-watcher/index.js"
+  },
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/mjs/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/cjs/index.js"
+      }
+    }
+  },
+  "files": [
+    "dist",
+    "config.schema.json"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/karmaniverous/jeeves-watcher.git",
+    "directory": "packages/service"
+  },
+  "bugs": {
+    "url": "https://github.com/karmaniverous/jeeves-watcher/issues"
+  },
+  "homepage": "https://github.com/karmaniverous/jeeves-watcher#readme",
+  "keywords": [
+    "filesystem",
+    "watcher",
+    "qdrant",
+    "vector-store",
+    "embeddings",
+    "semantic-search",
+    "document-indexing",
+    "rag",
+    "langchain",
+    "gemini",
+    "typescript",
+    "cli"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@commander-js/extra-typings": "^14.0.0",
+    "@karmaniverous/jsonmap": "^2.1.0",
+    "@langchain/google-genai": "*",
+    "@langchain/qdrant": "*",
+    "@langchain/textsplitters": "*",
+    "@qdrant/js-client-rest": "*",
+    "ajv": "^8.18.0",
+    "ajv-formats": "*",
+    "cheerio": "^1.2.0",
+    "chokidar": "^5.0.0",
+    "commander": "^14.0.3",
+    "cosmiconfig": "*",
+    "dayjs": "^1.11.19",
+    "fastify": "*",
+    "handlebars": "^4.7.8",
+    "hast": "^1.0.0",
+    "hast-util-to-mdast": "^10.1.2",
+    "ignore": "^7.0.5",
+    "js-yaml": "*",
+    "json5": "*",
+    "jsonpath-plus": "^10.4.0",
+    "mammoth": "^1.11.0",
+    "mdast-util-from-adf": "^2.2.0",
+    "mdast-util-to-markdown": "^2.1.2",
+    "picomatch": "*",
+    "pino": "*",
+    "radash": "^12.1.1",
+    "rehype-parse": "^9.0.1",
+    "tiktoken": "*",
+    "unified": "^11.0.5",
+    "unpdf": "^1.4.0",
+    "uuid": "*",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@dotenvx/dotenvx": "^1.52.0",
+    "@rollup/plugin-alias": "^6.0.0",
+    "@rollup/plugin-commonjs": "^29.0.0",
+    "@rollup/plugin-json": "^6.1.0",
+    "@rollup/plugin-node-resolve": "^16.0.3",
+    "@rollup/plugin-terser": "^0.4.4",
+    "@rollup/plugin-typescript": "^12.3.0",
+    "@types/fs-extra": "^11.0.4",
+    "@types/js-yaml": "*",
+    "@types/node": "^25.3.0",
+    "@types/picomatch": "*",
+    "@types/uuid": "*",
+    "@vitest/coverage-v8": "^4.0.18",
+    "auto-changelog": "^2.5.0",
+    "cross-env": "^10.1.0",
+    "fs-extra": "^11.3.3",
+    "happy-dom": "^20.7.0",
+    "knip": "^5.85.0",
+    "release-it": "^19.2.4",
+    "rollup": "^4.59.0",
+    "rollup-plugin-dts": "^6.3.0",
+    "tslib": "^2.8.1",
+    "typedoc": "^0.28.17",
+    "typedoc-plugin-mdn-links": "^5.1.1",
+    "typedoc-plugin-replace-text": "^4.2.0",
+    "vitest": "^4.0.18"
+  },
+  "scripts": {
+    "generate:schema": "tsx src/config/generate-schema.ts",
+    "build": "npm run generate:schema && rimraf dist && cross-env NO_COLOR=1 rollup --config rollup.config.ts --configPlugin @rollup/plugin-typescript",
+    "changelog": "auto-changelog",
+    "diagrams": "cd diagrams && plantuml -tpng -o ../assets -r .",
+    "docs": "typedoc",
+    "knip": "knip",
+    "lint": "eslint .",
+    "lint:fix": "eslint --fix .",
+    "release": "dotenvx run -f .env.local -- release-it",
+    "release:pre": "dotenvx run -f .env.local -- release-it --no-git.requireBranch --github.prerelease --preRelease",
+    "test": "vitest run",
+    "typecheck": "tsc"
+  },
+  "auto-changelog": {
+    "output": "CHANGELOG.md",
+    "unreleased": true,
+    "commitLimit": false,
+    "hideCredit": true
+  },
+  "release-it": {
+    "git": {
+      "changelog": "npx auto-changelog --unreleased-only --stdout --template https://raw.githubusercontent.com/release-it/release-it/main/templates/changelog-compact.hbs",
+      "commitMessage": "chore: release v${version}",
+      "requireBranch": "main"
+    },
+    "github": {
+      "release": true
+    },
+    "hooks": {
+      "after:init": [
+        "npm run lint",
+        "npm run test",
+        "npm run knip",
+        "npm run build"
+      ],
+      "before:npm:release": [
+        "npx auto-changelog -p",
+        "npm run docs",
+        "git add -A"
+      ],
+      "after:release": [
+        "git switch -c release/${version}",
+        "git push -u origin release/${version}",
+        "git switch ${branchName}"
+      ]
+    },
+    "npm": {
+      "publish": true
+    }
+  }
+}

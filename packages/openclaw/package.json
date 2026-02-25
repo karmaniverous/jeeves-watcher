@@ -1,0 +1,83 @@
+{
+  "name": "@karmaniverous/jeeves-watcher-openclaw",
+  "version": "0.1.0",
+  "author": "Jason Williscroft",
+  "description": "OpenClaw plugin for jeeves-watcher — semantic search and metadata enrichment tools",
+  "license": "BSD-3-Clause",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      }
+    }
+  },
+  "files": [
+    "dist",
+    "openclaw.plugin.json",
+    "dist/skills"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/karmaniverous/jeeves-watcher.git",
+    "directory": "packages/openclaw"
+  },
+  "bugs": {
+    "url": "https://github.com/karmaniverous/jeeves-watcher/issues"
+  },
+  "homepage": "https://github.com/karmaniverous/jeeves-watcher#readme",
+  "keywords": [
+    "openclaw",
+    "plugin",
+    "jeeves-watcher",
+    "semantic-search"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "openclaw": {
+    "extensions": [
+      "./dist/index.js"
+    ]
+  },
+  "devDependencies": {
+    "@rollup/plugin-typescript": "^12.3.0",
+    "cross-env": "^10.1.0",
+    "handlebars": "^4.7.8",
+    "release-it": "^19.2.4",
+    "rollup": "^4.59.0",
+    "tslib": "^2.8.1"
+  },
+  "scripts": {
+    "build:plugin": "rimraf dist && cross-env NO_COLOR=1 rollup --config rollup.config.mjs",
+    "build:skills": "tsx scripts/build-skills.ts",
+    "build": "npm run build:plugin && npm run build:skills",
+    "lint": "eslint .",
+    "lint:fix": "eslint --fix .",
+    "typecheck": "tsc"
+  },
+  "release-it": {
+    "git": {
+      "commitMessage": "chore: release openclaw plugin v${version}",
+      "requireBranch": "main"
+    },
+    "github": {
+      "release": true
+    },
+    "hooks": {
+      "after:init": [
+        "npm run lint",
+        "npm run build"
+      ]
+    },
+    "npm": {
+      "publish": true
+    }
+  }
+}

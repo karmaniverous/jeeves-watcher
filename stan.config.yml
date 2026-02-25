@@ -17,11 +17,11 @@ stan-cli:
       script: npm run lint:fix
       warnPattern: \\d+:\\d+\\s+warning
     test: npm run test -- --no-color
-    diagrams: npm run diagrams
+    diagrams: npm run diagrams --workspace=packages/service
     docs:
-      script: npm run docs -- --emit none
+      script: npm run docs --workspace=packages/service -- --emit none
       warnPattern: "\\[warning\\](?!.*\\.__type\\.|.*Found \\d+ errors and \\d+ warnings)"
     build: cross-env NO_COLOR=1 npm run build
     knip:
-      script: npm run knip
+      script: npm run knip --workspace=packages/service
       warnPattern: hints
