@@ -1,12 +1,13 @@
 /**
  * @module rollup.config
- * Rollup configuration for the OpenClaw plugin package. Single ESM output.
+ * Rollup configuration for the OpenClaw plugin package.
+ * Two entry points: plugin (ESM + declarations) and CLI (ESM executable).
  */
 
 import typescriptPlugin from '@rollup/plugin-typescript';
 import type { RollupOptions } from 'rollup';
 
-const config: RollupOptions = {
+const pluginConfig: RollupOptions = {
   input: 'src/index.ts',
   output: {
     dir: 'dist',
@@ -25,4 +26,23 @@ const config: RollupOptions = {
   ],
 };
 
-export default config;
+const cliConfig: RollupOptions = {
+  input: 'src/cli.ts',
+  external: ['fs', 'path', 'os', 'url', 'node:fs', 'node:path', 'node:os', 'node:url'],
+  output: {
+    file: 'dist/cli.js',
+    format: 'esm',
+    banner: '#!/usr/bin/env node',
+  },
+  plugins: [
+    typescriptPlugin({
+      tsconfig: './tsconfig.json',
+      outputToFilesystem: false,
+      noEmit: false,
+      declaration: false,
+      incremental: false,
+    }),
+  ],
+};
+
+export default [pluginConfig, cliConfig];
