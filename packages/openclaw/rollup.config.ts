@@ -28,7 +28,16 @@ const pluginConfig: RollupOptions = {
 
 const cliConfig: RollupOptions = {
   input: 'src/cli.ts',
-  external: ['fs', 'path', 'os', 'url', 'node:fs', 'node:path', 'node:os', 'node:url'],
+  external: [
+    'fs',
+    'path',
+    'os',
+    'url',
+    'node:fs',
+    'node:path',
+    'node:os',
+    'node:url',
+  ],
   output: {
     file: 'dist/cli.js',
     format: 'esm',

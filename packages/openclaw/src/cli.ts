@@ -2,8 +2,8 @@
  * CLI for installing/uninstalling the jeeves-watcher OpenClaw plugin.
  *
  * Usage:
- *   npx @karmaniverous/jeeves-watcher-openclaw install
- *   npx @karmaniverous/jeeves-watcher-openclaw uninstall
+ *   npx \@karmaniverous/jeeves-watcher-openclaw install
+ *   npx \@karmaniverous/jeeves-watcher-openclaw uninstall
  *
  * Bypasses OpenClaw's `plugins install` command, which has a known
  * spawn EINVAL bug on Windows (https://github.com/openclaw/openclaw/issues/9224).
@@ -14,9 +14,16 @@
  *   - Default: ~/.openclaw/openclaw.json
  */
 
-import { existsSync, mkdirSync, readFileSync, writeFileSync, cpSync, rmSync } from 'fs';
-import { dirname, join, resolve } from 'path';
+import {
+  cpSync,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'fs';
 import { homedir } from 'os';
+import { dirname, join, resolve } from 'path';
 import { fileURLToPath } from 'url';
 
 const PLUGIN_ID = 'jeeves-watcher-openclaw';
@@ -83,21 +90,27 @@ function install(): void {
   // Validate OpenClaw home exists
   if (!existsSync(home)) {
     console.error(`Error: OpenClaw home directory not found at ${home}`);
-    console.error('Set OPENCLAW_HOME or OPENCLAW_CONFIG if using a non-default installation.');
+    console.error(
+      'Set OPENCLAW_HOME or OPENCLAW_CONFIG if using a non-default installation.',
+    );
     process.exit(1);
   }
 
   // Validate config exists
   if (!existsSync(configPath)) {
     console.error(`Error: OpenClaw config not found at ${configPath}`);
-    console.error('Set OPENCLAW_CONFIG if using a non-default config location.');
+    console.error(
+      'Set OPENCLAW_CONFIG if using a non-default config location.',
+    );
     process.exit(1);
   }
 
   // Validate package root has openclaw.plugin.json
   const pluginManifestPath = join(pkgRoot, 'openclaw.plugin.json');
   if (!existsSync(pluginManifestPath)) {
-    console.error(`Error: openclaw.plugin.json not found at ${pluginManifestPath}`);
+    console.error(
+      `Error: openclaw.plugin.json not found at ${pluginManifestPath}`,
+    );
     process.exit(1);
   }
 
@@ -210,7 +223,9 @@ function uninstall(): void {
 
       // Remove from plugins.allow
       if (Array.isArray(plugins.allow)) {
-        plugins.allow = (plugins.allow as string[]).filter((id) => id !== PLUGIN_ID);
+        plugins.allow = (plugins.allow as string[]).filter(
+          (id) => id !== PLUGIN_ID,
+        );
         console.log(`  ✓ Removed "${PLUGIN_ID}" from plugins.allow`);
       }
 
@@ -218,7 +233,7 @@ function uninstall(): void {
       if (plugins.entries && typeof plugins.entries === 'object') {
         const entries = plugins.entries as Record<string, unknown>;
         if (PLUGIN_ID in entries) {
-          delete entries[PLUGIN_ID];
+          Reflect.deleteProperty(entries, PLUGIN_ID);
           console.log(`  ✓ Removed "${PLUGIN_ID}" from plugins.entries`);
         }
       }
@@ -226,7 +241,9 @@ function uninstall(): void {
       // Remove from tools.allow
       const tools = (config.tools ?? {}) as Record<string, unknown>;
       if (Array.isArray(tools.allow)) {
-        tools.allow = (tools.allow as string[]).filter((id) => id !== PLUGIN_ID);
+        tools.allow = (tools.allow as string[]).filter(
+          (id) => id !== PLUGIN_ID,
+        );
         console.log(`  ✓ Removed "${PLUGIN_ID}" from tools.allow`);
       }
 
@@ -250,18 +267,29 @@ switch (command) {
     uninstall();
     break;
   default:
-    console.log(`@karmaniverous/jeeves-watcher-openclaw — OpenClaw plugin installer`);
+    console.log(
+      `@karmaniverous/jeeves-watcher-openclaw — OpenClaw plugin installer`,
+    );
     console.log();
     console.log('Usage:');
-    console.log('  npx @karmaniverous/jeeves-watcher-openclaw install    Install plugin');
-    console.log('  npx @karmaniverous/jeeves-watcher-openclaw uninstall  Remove plugin');
+    console.log(
+      '  npx @karmaniverous/jeeves-watcher-openclaw install    Install plugin',
+    );
+    console.log(
+      '  npx @karmaniverous/jeeves-watcher-openclaw uninstall  Remove plugin',
+    );
     console.log();
     console.log('Environment variables:');
     console.log('  OPENCLAW_CONFIG  Path to openclaw.json (overrides all)');
     console.log('  OPENCLAW_HOME    Path to .openclaw directory');
     console.log();
     console.log('Default: ~/.openclaw/openclaw.json');
-    if (command && command !== 'help' && command !== '--help' && command !== '-h') {
+    if (
+      command &&
+      command !== 'help' &&
+      command !== '--help' &&
+      command !== '-h'
+    ) {
       console.error(`\nUnknown command: ${command}`);
       process.exit(1);
     }
