@@ -10,7 +10,6 @@
     "typedoc",
     "knip",
     "eslint",
-    "dotenvx",
     "release-it",
     "vitest",
     "tsc"
@@ -18,18 +17,12 @@
   "ignoreDependencies": [
     "@langchain/qdrant",
     "json5",
-    "tiktoken",
-    "commander",
-    "@dotenvx/dotenvx",
-    "auto-changelog",
-    "cross-env",
-    "happy-dom",
-    "release-it",
-    "tslib",
-    "typedoc"
+    "tiktoken"
   ],
   "project": ["*/**", "!docs/**"],
   "rules": {
+    "binaries": "off",
+    "devDependencies": "off",
     "exports": "off",
     "types": "off"
   },

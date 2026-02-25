@@ -67,7 +67,6 @@
     "ajv-formats": "*",
     "cheerio": "^1.2.0",
     "chokidar": "^5.0.0",
-    "commander": "^14.0.3",
     "cosmiconfig": "*",
     "dayjs": "^1.11.19",
     "fastify": "*",
