@@ -1,19 +1,5 @@
 {
   "entry": ["src/**/index.ts"],
-  "ignoreBinaries": [
-    "plantuml",
-    "tsx",
-    "rimraf",
-    "cross-env",
-    "rollup",
-    "auto-changelog",
-    "typedoc",
-    "knip",
-    "eslint",
-    "release-it",
-    "vitest",
-    "tsc"
-  ],
   "ignoreDependencies": [
     "@langchain/qdrant",
     "json5",

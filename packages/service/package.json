@@ -5,22 +5,15 @@
   "description": "Filesystem watcher that keeps a Qdrant vector store in sync with document changes",
   "license": "BSD-3-Clause",
   "type": "module",
-  "main": "dist/cjs/index.js",
-  "module": "dist/mjs/index.js",
+  "module": "dist/index.js",
   "types": "dist/index.d.ts",
   "bin": {
     "jeeves-watcher": "./dist/cli/jeeves-watcher/index.js"
   },
   "exports": {
     ".": {
-      "import": {
-        "types": "./dist/index.d.ts",
-        "default": "./dist/mjs/index.js"
-      },
-      "require": {
-        "types": "./dist/index.d.ts",
-        "default": "./dist/cjs/index.js"
-      }
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
     }
   },
   "files": [
@@ -96,7 +89,6 @@
     "@rollup/plugin-commonjs": "^29.0.0",
     "@rollup/plugin-json": "^6.1.0",
     "@rollup/plugin-node-resolve": "^16.0.3",
-    "@rollup/plugin-terser": "^0.4.4",
     "@rollup/plugin-typescript": "^12.3.0",
     "@types/fs-extra": "^11.0.4",
     "@types/js-yaml": "*",
