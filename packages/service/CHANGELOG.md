@@ -2,10 +2,25 @@
 
 All notable changes to this project will be documented in this file. Dates are displayed in UTC.
 
+#### [0.5.1](https://github.com/karmaniverous/jeeves-watcher/compare/0.5.0...0.5.1)
+
+- feat: convert to monorepo with service and openclaw plugin packages [`#37`](https://github.com/karmaniverous/jeeves-watcher/pull/37)
+- chore: fix docs, READMEs, and rollup config for monorepo [`0b92399`](https://github.com/karmaniverous/jeeves-watcher/commit/0b92399eec0275c42ecb6a637c0c59756925c321)
+- chore: align release-it config for monorepo [`938a3e0`](https://github.com/karmaniverous/jeeves-watcher/commit/938a3e0deb686f9f224c90f7e585782e072a6e3e)
+- chore: make service package ESM-only, remove CJS and IIFE outputs [`9a16492`](https://github.com/karmaniverous/jeeves-watcher/commit/9a164923ae10e7a391520794440aa05420bd99f6)
+- chore: convert repo to npm workspaces monorepo [`d8fc6e8`](https://github.com/karmaniverous/jeeves-watcher/commit/d8fc6e821af4dde868f1c82b82f8c348788b4a65)
+- docs: add guides index pages for foldable typedoc sections [`1827505`](https://github.com/karmaniverous/jeeves-watcher/commit/1827505522859efbe89895f1b18d4c141c6f76f1)
+- chore: fix knip after monorepo split [`e16460b`](https://github.com/karmaniverous/jeeves-watcher/commit/e16460b90e5a695818bde2b47ac6577abf6cbf1c)
+- added env local template [`74aaa72`](https://github.com/karmaniverous/jeeves-watcher/commit/74aaa726761cb16d3f133a926e0a335b22417808)
+- removed docs from release script [`8878235`](https://github.com/karmaniverous/jeeves-watcher/commit/88782358db1a8ff2f1303d503d7086df4994d23b)
+
 #### [0.5.0](https://github.com/karmaniverous/jeeves-watcher/compare/0.5.0-1...0.5.0)
+
+> 25 February 2026
 
 - docs(skill): add theory of operation, remove stale SKILL.md [`#36`](https://github.com/karmaniverous/jeeves-watcher/pull/36)
 - feat: v0.5.0 — plugin expansion, two-skill architecture, API extensions [`#35`](https://github.com/karmaniverous/jeeves-watcher/pull/35)
+- chore: release v0.5.0 [`aa5a5aa`](https://github.com/karmaniverous/jeeves-watcher/commit/aa5a5aa2ed2f40f581ee28bf9946c1a065c5a9bd)
 - docs(skill): add theory of operation narrative, remove stale plugin/skill/SKILL.md [`979993d`](https://github.com/karmaniverous/jeeves-watcher/commit/979993dfbd19a8102441fb95d7be10ae0000c6e5)
 
 #### [0.5.0-1](https://github.com/karmaniverous/jeeves-watcher/compare/0.5.0-0...0.5.0-1)
