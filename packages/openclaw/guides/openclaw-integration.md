@@ -8,9 +8,44 @@ The `@karmaniverous/jeeves-watcher-openclaw` plugin gives your OpenClaw agent ac
 
 ## Installation
 
+### Standard (OpenClaw CLI)
+
 ```bash
 openclaw plugins install @karmaniverous/jeeves-watcher-openclaw
 ```
+
+### Self-Installer
+
+OpenClaw's `plugins install` command has a known bug on Windows where it fails with `spawn EINVAL` or `spawn npm ENOENT` ([#9224](https://github.com/openclaw/openclaw/issues/9224), [#4557](https://github.com/openclaw/openclaw/issues/4557), [#6086](https://github.com/openclaw/openclaw/issues/6086)). This package includes a self-installer that works around the issue:
+
+```bash
+npx @karmaniverous/jeeves-watcher-openclaw install
+```
+
+The installer:
+
+1. Copies the plugin into OpenClaw's extensions directory (`~/.openclaw/extensions/jeeves-watcher-openclaw/`)
+2. Adds the plugin to `plugins.entries` in `openclaw.json`
+3. If `plugins.allow` or `tools.allow` are already populated (explicit allowlists), adds the plugin to those lists
+
+To remove:
+
+```bash
+npx @karmaniverous/jeeves-watcher-openclaw uninstall
+```
+
+#### Non-default installations
+
+If OpenClaw is installed at a non-default location, set one of these environment variables:
+
+| Variable | Description |
+|----------|-------------|
+| `OPENCLAW_CONFIG` | Full path to `openclaw.json` (overrides all other detection) |
+| `OPENCLAW_HOME` | Path to the `.openclaw` directory |
+
+Default location: `~/.openclaw/openclaw.json`
+
+After install or uninstall, restart the OpenClaw gateway to apply changes.
 
 ## Configuration
 
