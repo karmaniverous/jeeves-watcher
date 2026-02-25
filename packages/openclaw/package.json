@@ -7,6 +7,9 @@
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "bin": {
+    "jeeves-watcher-openclaw": "./dist/cli.js"
+  },
   "exports": {
     ".": {
       "import": {
@@ -17,8 +20,7 @@
   },
   "files": [
     "dist",
-    "openclaw.plugin.json",
-    "dist/skills"
+    "openclaw.plugin.json"
   ],
   "publishConfig": {
     "access": "public"
