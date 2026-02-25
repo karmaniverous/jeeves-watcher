@@ -1,11 +1,32 @@
 {
   "entry": ["src/**/index.ts"],
-  "ignoreBinaries": ["plantuml"],
+  "ignoreBinaries": [
+    "plantuml",
+    "tsx",
+    "rimraf",
+    "cross-env",
+    "rollup",
+    "auto-changelog",
+    "typedoc",
+    "knip",
+    "eslint",
+    "dotenvx",
+    "release-it",
+    "vitest",
+    "tsc"
+  ],
   "ignoreDependencies": [
     "@langchain/qdrant",
     "json5",
     "tiktoken",
-    "@types/uuid"
+    "commander",
+    "@dotenvx/dotenvx",
+    "auto-changelog",
+    "cross-env",
+    "happy-dom",
+    "release-it",
+    "tslib",
+    "typedoc"
   ],
   "project": ["*/**", "!docs/**"],
   "rules": {
