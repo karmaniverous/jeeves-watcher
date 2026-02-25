@@ -1,35 +1,44 @@
 ---
 name: jeeves-watcher
 description: >
-  Semantic search and metadata enrichment via a jeeves-watcher instance.
-  Replaces native memory tools (memory_search/memory_get) with richer semantic
-  search across all indexed domains. Use for recall, document discovery,
-  metadata filtering, and enrichment.
+  Semantic search across a structured document archive. Use when you need to
+  recall prior context, find documents, answer questions that require searching
+  across domains (email, Slack, Jira, codebase, meetings, projects), or enrich
+  document metadata.
 ---
 
 # jeeves-watcher — Search & Discovery
 
-**Key principle:** The SKILL teaches procedure. The config provides specifics. The assistant discovers everything about a deployment at runtime; nothing about domains, field names, or organizational structure is hardcoded in the SKILL.
+## Theory of Operation
 
-## Native Memory Replacement
+You have access to a **semantic archive** of your human's working world: email, Slack messages, Jira tickets, code repositories, meeting notes, project documents, and more. Everything is indexed, chunked, embedded, and searchable. This is your long-term memory for anything beyond the current conversation.
 
-This skill **replaces `memory_search` and `memory_get`** for all recall tasks. The watcher indexes memory files alongside every other domain (email, Slack, Jira, codebase, etc.), providing:
+**When to reach for the watcher:**
 
-- **Cross-domain recall:** A single query searches memory, email, meetings, code, and project context simultaneously
-- **Metadata filtering:** Narrow by domain, date range, author, project, or any config-defined field
-- **Richer results:** Each result includes `matched_rules`, score, chunk text, and full metadata
+- **Someone asks about something that happened.** A meeting, a decision, a conversation, a ticket. You weren't there, but the archive was. Search it.
+- **You need context you don't have.** Before asking the human "what's the status of X?", search for X. The answer is probably already indexed.
+- **You're working on a project and need background.** Architecture decisions, prior discussions, related tickets, relevant code. Search by topic, filter by domain.
+- **You need to verify something.** Don't guess from stale memory. Search for the current state.
+- **You want to connect dots across domains.** The same topic might appear in a Jira ticket, a Slack thread, an email, and a code commit. A single semantic search surfaces all of them.
 
-**For any question about prior work, decisions, dates, people, preferences, or todos:**
-1. Use `watcher_search` (not `memory_search`)
-2. Use `read` with the result's `file_path` for full context (not `memory_get`)
-3. Include `Source: <file_path>` citations when referencing recalled content
+**When NOT to use it:**
 
-If the watcher is unreachable, fall back to `memory_search`/`memory_get` as a degraded alternative.
+- You already have the information in the current conversation
+- The question is about general knowledge, not the human's specific context
+- The watcher is unreachable (fall back to filesystem browsing)
+
+**How it works, conceptually:**
+
+The watcher monitors directories on the filesystem. When files change, it extracts text, applies **inference rules** (config-driven pattern matching) to derive structured metadata, and embeds everything into a vector store. Each inference rule defines a record type: what files it matches, what metadata schema applies, how to extract fields.
+
+You don't need to know the rules in advance. The config is introspectable at runtime. Orient once per session, then search with confidence.
+
+**Key mental model:** Think of it as a search engine scoped to your human's data, with structured metadata on every result. Plain semantic search works. Adding metadata filters makes it precise.
 
 ## Quick Start
 
-1. **Orient yourself** (once per session) — understand the deployment's organizational strategy and available record types
-2. **Search** — use semantic search with optional metadata filters to find relevant documents
+1. **Orient yourself** (once per session) — learn the deployment's organizational strategy and available record types
+2. **Search** — semantic search with optional metadata filters
 3. **Read source** — retrieve full file content for complete context
 
 ## Tools
