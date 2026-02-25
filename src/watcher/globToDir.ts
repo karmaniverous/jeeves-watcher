@@ -9,6 +9,8 @@
 
 import picomatch from 'picomatch';
 
+import { normalizeSlashes } from '../util/normalizeSlashes';
+
 /**
  * Extract the static directory root from a glob pattern.
  * Stops at the first segment containing glob characters (`*`, `{`, `?`, `[`).
@@ -17,7 +19,7 @@ import picomatch from 'picomatch';
  * @returns The static directory prefix (e.g., `j:/domains`).
  */
 export function globRoot(glob: string): string {
-  const normalized = glob.replace(/\\/g, '/');
+  const normalized = normalizeSlashes(glob);
   const segments = normalized.split('/');
   const staticSegments: string[] = [];
 
@@ -36,7 +38,7 @@ export function globRoot(glob: string): string {
  * @returns Deduplicated array with subdirectories removed.
  */
 export function deduplicateRoots(roots: string[]): string[] {
-  const normalized = roots.map((r) => r.replace(/\\/g, '/').toLowerCase());
+  const normalized = roots.map((r) => normalizeSlashes(r).toLowerCase());
   const sorted = [...new Set(normalized)].sort();
 
   return sorted.filter((root, _i, arr) => {
@@ -58,11 +60,11 @@ export function deduplicateRoots(roots: string[]): string[] {
 export function buildGlobMatcher(
   globs: string[],
 ): (filePath: string) => boolean {
-  const normalizedGlobs = globs.map((g) => g.replace(/\\/g, '/'));
+  const normalizedGlobs = globs.map((g) => normalizeSlashes(g));
   const isMatch = picomatch(normalizedGlobs, { dot: true, nocase: true });
 
   return (filePath: string) => {
-    const normalized = filePath.replace(/\\/g, '/');
+    const normalized = normalizeSlashes(filePath);
     return isMatch(normalized);
   };
 }
@@ -105,10 +107,10 @@ export function resolveIgnored(
     if (typeof entry !== 'string') return entry;
     // If the string contains glob characters, convert to a picomatch function.
     // Literal strings (exact paths) are also converted for consistent matching.
-    const normalizedPattern = entry.replace(/\\/g, '/');
+    const normalizedPattern = normalizeSlashes(entry);
     const matcher = picomatch(normalizedPattern, { dot: true, nocase: true });
     return (filePath: string) => {
-      const normalized = filePath.replace(/\\/g, '/');
+      const normalized = normalizeSlashes(filePath);
       return matcher(normalized);
     };
   });

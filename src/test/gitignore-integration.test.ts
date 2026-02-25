@@ -57,13 +57,13 @@ beforeAll(async () => {
     maps: config.maps,
   };
 
-  processor = new DocumentProcessor(
-    processorConfig,
+  processor = new DocumentProcessor({
+    config: processorConfig,
     embeddingProvider,
     vectorStore,
     compiledRules,
     logger,
-  );
+  });
 });
 
 afterAll(async () => {

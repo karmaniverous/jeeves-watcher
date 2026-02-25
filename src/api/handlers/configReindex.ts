@@ -7,18 +7,20 @@ import type { FastifyReply, FastifyRequest } from 'fastify';
 import type pino from 'pino';
 
 import type { JeevesWatcherConfig } from '../../config/types';
-import type { DocumentProcessor } from '../../processor';
-import { normalizeError } from '../../util/normalizeError';
-import { processAllFiles } from '../processAllFiles';
+import type { DocumentProcessorInterface } from '../../processor';
+import { executeReindex } from '../executeReindex';
+import type { ReindexTracker } from '../ReindexTracker';
+import { wrapHandler } from './wrapHandler';
 
 export interface ConfigReindexRouteDeps {
   config: JeevesWatcherConfig;
-  processor: DocumentProcessor;
+  processor: DocumentProcessorInterface;
   logger: pino.Logger;
+  reindexTracker: ReindexTracker;
 }
 
 type ConfigReindexRequest = FastifyRequest<{
-  Body: { scope?: 'rules' | 'full' };
+  Body: { scope?: 'issues' | 'full' };
 }>;
 
 /**
@@ -27,53 +29,23 @@ type ConfigReindexRequest = FastifyRequest<{
  * @param deps - Route dependencies.
  */
 export function createConfigReindexHandler(deps: ConfigReindexRouteDeps) {
-  return async (request: ConfigReindexRequest, reply: FastifyReply) => {
-    try {
-      const scope = request.body.scope ?? 'rules';
+  return wrapHandler(
+    async (request: ConfigReindexRequest, reply: FastifyReply) => {
+      const scope = request.body.scope ?? 'issues';
 
-      // Return immediately and run async
-      void (async () => {
-        try {
-          if (scope === 'rules') {
-            const count = await processAllFiles(
-              deps.config.watch.paths,
-              deps.config.watch.ignored,
-              deps.processor,
-              'processRulesUpdate',
-            );
-
-            deps.logger.info(
-              { scope, filesProcessed: count },
-              'Config reindex (rules) completed',
-            );
-          } else {
-            const count = await processAllFiles(
-              deps.config.watch.paths,
-              deps.config.watch.ignored,
-              deps.processor,
-              'processFile',
-            );
-
-            deps.logger.info(
-              { scope, filesProcessed: count },
-              'Config reindex (full) completed',
-            );
-          }
-        } catch (error) {
-          deps.logger.error(
-            { err: normalizeError(error), scope },
-            'Config reindex failed',
-          );
-        }
-      })();
+      void executeReindex(
+        {
+          config: deps.config,
+          processor: deps.processor,
+          logger: deps.logger,
+          reindexTracker: deps.reindexTracker,
+        },
+        scope,
+      );
 
       return await reply.status(200).send({ status: 'started', scope });
-    } catch (error) {
-      deps.logger.error(
-        { err: normalizeError(error) },
-        'Config reindex request failed',
-      );
-      return await reply.status(500).send({ error: 'Internal server error' });
-    }
-  };
+    },
+    deps.logger,
+    'Config reindex request',
+  );
 }

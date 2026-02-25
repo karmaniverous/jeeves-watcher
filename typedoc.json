@@ -19,7 +19,8 @@
     "mermaid",
     "powershell",
     "ini",
-    "nginx"
+    "nginx",
+    "handlebars"
   ],
   "hostedBaseUrl": "https://docs.karmanivero.us/jeeves-watcher",
   "navigationLinks": {

@@ -3,14 +3,17 @@
  * Fastify route handler for POST /metadata. Performs enrichment metadata updates via the document processor.
  */
 
-import type { FastifyReply, FastifyRequest } from 'fastify';
+import type { FastifyRequest } from 'fastify';
 import type pino from 'pino';
 
-import type { DocumentProcessor } from '../../processor';
-import { normalizeError } from '../../util/normalizeError';
+import type { JeevesWatcherConfig } from '../../config/types';
+import type { DocumentProcessorInterface } from '../../processor';
+import { validateMetadataPayload } from './metadataValidation';
+import { wrapHandler } from './wrapHandler';
 
 export interface MetadataRouteDeps {
-  processor: DocumentProcessor;
+  processor: DocumentProcessorInterface;
+  config: JeevesWatcherConfig;
   logger: pino.Logger;
 }
 
@@ -24,17 +27,21 @@ type MetadataRequest = FastifyRequest<{
  * @param deps - Route dependencies.
  */
 export function createMetadataHandler(deps: MetadataRouteDeps) {
-  return async (request: MetadataRequest, reply: FastifyReply) => {
-    try {
+  return wrapHandler(
+    async (request: MetadataRequest, reply) => {
       const { path, metadata } = request.body;
+
+      const validation = validateMetadataPayload(deps.config, path, metadata);
+      if (!validation.ok) {
+        return reply
+          .code(400)
+          .send({ error: validation.error, details: validation.details });
+      }
+
       await deps.processor.processMetadataUpdate(path, metadata);
-      return { ok: true };
-    } catch (error) {
-      deps.logger.error(
-        { err: normalizeError(error) },
-        'Metadata update failed',
-      );
-      return reply.status(500).send({ error: 'Internal server error' });
-    }
-  };
+      return { ok: true, matched_rules: validation.matchedRules };
+    },
+    deps.logger,
+    'Metadata update',
+  );
 }

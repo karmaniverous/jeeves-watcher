@@ -35,21 +35,88 @@ This enables IntelliSense in VSCode and other editors that support JSON Schema.
 
 ```typescript
 interface JeevesWatcherConfig {
+  description?: string;                           // Organizational strategy description (v0.5.0+)
+  schemas?: Record<string, SchemaEntry>;          // Global named schemas (v0.5.0+)
   watch: WatchConfig;
   configWatch?: ConfigWatchConfig;
   embedding: EmbeddingConfig;
   vectorStore: VectorStoreConfig;
   metadataDir?: string;
+  stateDir?: string;                              // Directory for persistent state files
   api?: ApiConfig;
   extractors?: Record<string, unknown>;
   inferenceRules?: InferenceRule[];
-  maps?: Record<string, unknown>; // Named JsonMap definitions
+  maps?: Record<string, unknown>;                 // Named JsonMap definitions
+  templates?: Record<string, unknown>;            // Named template definitions
+  mapHelpers?: Record<string, HelperRef>;         // Named map helper modules
+  templateHelpers?: Record<string, HelperRef>;    // Named template helper modules
+  slots?: Record<string, QdrantFilter>;           // Named Qdrant filter patterns
+  search?: SearchConfig;                          // Search behavior settings (scoreThresholds in v0.5.0+)
+  reindex?: ReindexConfig;                        // Reindex behavior settings
   logging?: LoggingConfig;
   shutdownTimeoutMs?: number;
   maxRetries?: number;
   maxBackoffMs?: number;
 }
 ```
+
+---
+
+## `description` - Deployment Description
+
+**v0.5.0+**
+
+```json
+{
+  "description": "This archive indexes documents across organizational domains (email, slack, jira, etc.). The domain property is the primary partition: every record belongs to exactly one domain."
+}
+```
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `description` | `string` | `undefined` | Human-readable description of this deployment's organizational strategy and content domains. Consumed by LLM agents for orientation. |
+
+This field provides organizational context for LLM consumers. Delivered alongside the JSON Schema from `GET /config/schema`.
+
+---
+
+## `schemas` - Global Schemas Collection
+
+**v0.5.0+**
+
+Define reusable named schemas referenced by inference rules:
+
+```json
+{
+  "schemas": {
+    "base": {
+      "type": "object",
+      "properties": {
+        "domain": {
+          "type": "string",
+          "description": "Content domain",
+          "uiHint": "select"
+        },
+        "created": {
+          "type": "integer",
+          "description": "Record creation date as unix timestamp (seconds)",
+          "uiHint": "date"
+        }
+      }
+    },
+    "jira-common": "schemas/jira-common.json"
+  }
+}
+```
+
+| Entry Type | Description |
+|------------|-------------|
+| Inline object | JSON Schema object defined directly in config |
+| File path (string) | Relative path to a JSON schema file (resolved from config directory) |
+
+Schema entries define property shapes (`type`, `description`, `uiHint`, `enum`) without `set` wiring. Inference rules reference these by name and layer on `set` templates in their inline tail objects.
+
+See [Inference Rules Guide](./inference-rules.md) for merge semantics and usage patterns.
 
 ---
 
@@ -109,6 +176,7 @@ interface JeevesWatcherConfig {
 |-------|------|---------|-------------|
 | `enabled` | `boolean` | `true` | Watch config file for changes and trigger scoped reindex. |
 | `debounceMs` | `number` | `1000` | Debounce window for config changes. |
+| `reindex` | `string` | `"rules"` | Reindex behavior on config change: `"rules"` (metadata-only), `"full"` (re-embed), `"none"` (no reindex). |
 
 When the config file changes:
 1. Watcher reloads and validates the new config
@@ -291,10 +359,22 @@ If none are found, the entire JSON is stringified for embedding.
 
 ## `inferenceRules` - Metadata Enrichment Rules
 
+**v0.5.0:** Inference rules now use `schema` arrays instead of `set` objects. Rules require `name` and `description` fields.
+
 ```json
 {
+  "schemas": {
+    "base": {
+      "type": "object",
+      "properties": {
+        "domain": { "type": "string", "description": "Content domain" }
+      }
+    }
+  },
   "inferenceRules": [
     {
+      "name": "meeting-classifier",
+      "description": "Classify files under meetings directory",
       "match": {
         "properties": {
           "file": {
@@ -304,11 +384,14 @@ If none are found, the entire JSON is stringified for embedding.
           }
         }
       },
-      "set": {
-        "domain": "meetings"
-      }
+      "schema": [
+        "base",
+        { "properties": { "domain": { "set": "meetings" } } }
+      ]
     },
     {
+      "name": "frontmatter-title",
+      "description": "Extract title from frontmatter",
       "match": {
         "properties": {
           "frontmatter": {
@@ -319,15 +402,34 @@ If none are found, the entire JSON is stringified for embedding.
           }
         }
       },
-      "set": {
-        "title": "${frontmatter.title}"
-      }
+      "schema": [
+        {
+          "properties": {
+            "title": {
+              "type": "string",
+              "description": "Document title",
+              "uiHint": "text",
+              "set": "${frontmatter.title}"
+            }
+          }
+        }
+      ]
     }
   ]
 }
 ```
 
-Each rule is a **JSON Schema `match`** paired with a **`set` action** and optional **`map` (JsonMap) transform**. See [Inference Rules Guide](./inference-rules.md) for full details.
+Each rule requires:
+- **`name`** (string, required, unique) — Rule identifier
+- **`description`** (string, required) — Human-readable purpose
+- **`match`** (JSON Schema object) — File attributes matcher
+- **`schema`** (array of schema references and/or inline objects) — Metadata schema with `set` templates
+
+Optional fields:
+- **`map`** (JsonMap or named reference) — Transformation to derive metadata
+- **`template`** (Handlebars template) — Content transformation for embedding
+
+See [Inference Rules Guide](./inference-rules.md) for full details on schema merge semantics, type coercion, and `uiHint`.
 
 ---
 
@@ -337,10 +439,13 @@ Each rule is a **JSON Schema `match`** paired with a **`set` action** and option
 
 Rules can reference these by name via `inferenceRules[*].map: "mapName"`.
 
+Maps support an optional description wrapper format:
+
 ```json
 {
   "maps": {
     "extractProject": {
+      "description": "Extract project name from first path segment",
       "project": {
         "$": [
           { "method": "$.lib.split", "params": ["$.input.file.path", "/"] },
@@ -352,6 +457,128 @@ Rules can reference these by name via `inferenceRules[*].map: "mapName"`.
   }
 }
 ```
+
+---
+
+## `mapHelpers` - Map Helper Modules
+
+```json
+{
+  "mapHelpers": {
+    "dateUtils": { "path": "./helpers/date-utils.js", "description": "Date parsing utilities" },
+    "pathUtils": { "path": "./helpers/path-utils.js" }
+  }
+}
+```
+
+Named object format (`Record<string, { path, description? }>`). Helper names are namespace-prefixed when loaded (e.g., `dateUtils.parseDate`).
+
+---
+
+## `templateHelpers` - Template Helper Modules
+
+```json
+{
+  "templateHelpers": {
+    "jira": { "path": "./helpers/jira-helpers.js", "description": "Jira-specific Handlebars helpers" },
+    "formatting": { "path": "./helpers/formatting.js" }
+  }
+}
+```
+
+Named object format (`Record<string, { path, description? }>`). Helper names are namespace-prefixed when registered with Handlebars (e.g., `jira.ticketUrl`).
+
+---
+
+## `templates` - Named Template Definitions
+
+```json
+{
+  "templates": {
+    "jira-issue": "templates/jira-issue.hbs",
+    "simple-doc": {
+      "description": "Simple document template",
+      "template": "# {{heading}}\n\n{{body}}"
+    }
+  }
+}
+```
+
+Templates support an optional description wrapper format alongside direct string values.
+
+---
+
+## `slots` - Named Qdrant Filter Patterns
+
+Reusable filter patterns referenced by name in search operations.
+
+```json
+{
+  "slots": {
+    "meetings-only": {
+      "must": [{ "key": "domain", "match": { "value": "meetings" } }]
+    },
+    "recent-projects": {
+      "must": [{ "key": "domain", "match": { "value": "projects" } }],
+      "must_not": [{ "key": "labels", "match": { "value": "archived" } }]
+    }
+  }
+}
+```
+
+Each slot is a standard [Qdrant filter object](https://qdrant.tech/documentation/concepts/filtering/).
+
+---
+
+## `search` - Search Behavior
+
+```json
+{
+  "search": {
+    "scoreThresholds": {
+      "strong": 0.85,
+      "relevant": 0.70,
+      "noise": 0.50
+    }
+  }
+}
+```
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `scoreThresholds.strong` | `number` | `0.85` | Score above which results are considered strong matches. |
+| `scoreThresholds.relevant` | `number` | `0.70` | Score above which results are considered relevant. |
+| `scoreThresholds.noise` | `number` | `0.50` | Score below which results are considered noise. |
+
+---
+
+## `stateDir` - Persistent State
+
+```json
+{
+  "stateDir": ".jeeves-watcher/state"
+}
+```
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `stateDir` | `string` | `".jeeves-watcher/state"` | Directory for persistent state files (reindex tracking, issue records, etc.). |
+
+---
+
+## `reindex` - Reindex Behavior
+
+```json
+{
+  "reindex": {
+    "callbackUrl": "http://localhost:8080/webhook/reindex-complete"
+  }
+}
+```
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `callbackUrl` | `string` | `undefined` | URL to POST when a reindex completes. Retries with exponential backoff (3 attempts, 1s start). |
 
 ---
 
@@ -425,7 +652,7 @@ All string fields support `${ENV_VAR}` template syntax:
 }
 ```
 
-At runtime, these are replaced with actual environment variable values. **Unresolvable expressions are left untouched** — this allows `${...}` template syntax used in inference rule `set` values (e.g. `${frontmatter.title}`, `${file.path}`) to pass through for later resolution by the rules engine.
+At runtime, these are replaced with actual environment variable values. **Unresolvable expressions are left untouched** — this allows `${...}` template syntax used in inference rule property schemas (e.g. `${frontmatter.title}`, `${file.path}`) to pass through for later resolution by the rules engine.
 
 ---
 
@@ -433,6 +660,19 @@ At runtime, these are replaced with actual environment variable values. **Unreso
 
 ```json
 {
+  "description": "Production watcher indexing organizational documents across email, meetings, and projects",
+  "schemas": {
+    "base": {
+      "type": "object",
+      "properties": {
+        "domain": {
+          "type": "string",
+          "description": "Content domain",
+          "uiHint": "select"
+        }
+      }
+    }
+  },
   "watch": {
     "paths": [
       "d:/email/archive/**/*.json",
@@ -445,7 +685,8 @@ At runtime, these are replaced with actual environment variable values. **Unreso
   },
   "configWatch": {
     "enabled": true,
-    "debounceMs": 1000
+    "debounceMs": 1000,
+    "reindex": "issues"
   },
   "embedding": {
     "provider": "gemini",
@@ -462,12 +703,15 @@ At runtime, these are replaced with actual environment variable values. **Unreso
     "collectionName": "jeeves_archive"
   },
   "metadataDir": ".jeeves-watcher",
+  "stateDir": ".jeeves-watcher/state",
   "api": {
     "host": "127.0.0.1",
     "port": 3456
   },
   "inferenceRules": [
     {
+      "name": "meetings-classifier",
+      "description": "Classify meeting transcripts and notes",
       "match": {
         "properties": {
           "file": {
@@ -477,9 +721,19 @@ At runtime, these are replaced with actual environment variable values. **Unreso
           }
         }
       },
-      "set": { "domain": "meetings" }
+      "schema": [
+        "base",
+        { "properties": { "domain": { "set": "meetings" } } }
+      ]
     }
   ],
+  "search": {
+    "scoreThresholds": {
+      "strong": 0.85,
+      "relevant": 0.70,
+      "noise": 0.50
+    }
+  },
   "logging": {
     "level": "info",
     "file": "./logs/watcher.log"

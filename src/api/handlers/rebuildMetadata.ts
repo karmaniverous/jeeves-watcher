@@ -7,15 +7,15 @@ import type { FastifyReply, FastifyRequest } from 'fastify';
 import type pino from 'pino';
 import { omit } from 'radash';
 
-import type { JeevesWatcherConfig } from '../../config/types';
 import { writeMetadata } from '../../metadata';
 import { SYSTEM_METADATA_KEYS } from '../../metadata/constants';
-import { normalizeError } from '../../util/normalizeError';
-import type { VectorStoreClient } from '../../vectorStore';
+import { FIELD_FILE_PATH } from '../../processor/payloadFields';
+import type { VectorStore } from '../../vectorStore';
+import { wrapHandler } from './wrapHandler';
 
 export interface RebuildMetadataRouteDeps {
-  config: JeevesWatcherConfig;
-  vectorStore: VectorStoreClient;
+  metadataDir?: string;
+  vectorStore: VectorStore;
   logger: pino.Logger;
 }
 
@@ -25,29 +25,23 @@ export interface RebuildMetadataRouteDeps {
  * @param deps - Route dependencies.
  */
 export function createRebuildMetadataHandler(deps: RebuildMetadataRouteDeps) {
-  return async (_request: FastifyRequest, reply: FastifyReply) => {
-    try {
-      const metadataDir = deps.config.metadataDir ?? '.jeeves-metadata';
+  return wrapHandler(
+    async (_request: FastifyRequest, reply: FastifyReply) => {
+      const metadataDir = deps.metadataDir ?? '.jeeves-metadata';
       const systemKeys = [...SYSTEM_METADATA_KEYS];
 
       for await (const point of deps.vectorStore.scroll()) {
         const payload = point.payload;
-        const filePath = payload['file_path'];
+        const filePath = payload[FIELD_FILE_PATH];
         if (typeof filePath !== 'string' || filePath.length === 0) continue;
 
-        // Persist only enrichment-ish fields, not chunking/index fields.
         const enrichment = omit(payload, systemKeys);
-
         await writeMetadata(filePath, metadataDir, enrichment);
       }
 
       return await reply.status(200).send({ ok: true });
-    } catch (error) {
-      deps.logger.error(
-        { err: normalizeError(error) },
-        'Rebuild metadata failed',
-      );
-      return await reply.status(500).send({ error: 'Internal server error' });
-    }
-  };
+    },
+    deps.logger,
+    'Rebuild metadata',
+  );
 }

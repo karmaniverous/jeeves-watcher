@@ -120,7 +120,7 @@ The config references it via template syntax:
 }
 ```
 
-**Note:** Unresolvable `${...}` expressions are left untouched. This allows inference rule `set` templates like `${frontmatter.title}` to pass through env var substitution for later resolution by the rules engine.
+**Note:** Unresolvable `${...}` expressions are left untouched. This allows inference rule property schema templates like `${frontmatter.title}` to pass through env var substitution for later resolution by the rules engine.
 
 Or hardcode the key (not recommended for committed configs):
 

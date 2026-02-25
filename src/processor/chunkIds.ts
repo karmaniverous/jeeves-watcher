@@ -4,6 +4,7 @@
  */
 
 import { pointId } from '../pointId';
+import { FIELD_TOTAL_CHUNKS } from './payloadFields';
 
 /**
  * Generate an array of chunk IDs for a file.
@@ -32,6 +33,6 @@ export function getChunkCount(
   fallback = 1,
 ): number {
   if (!payload) return fallback;
-  const count = payload['total_chunks'];
+  const count = payload[FIELD_TOTAL_CHUNKS];
   return typeof count === 'number' ? count : fallback;
 }

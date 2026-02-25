@@ -3,21 +3,28 @@
  * Main application orchestrator. Wires components, manages lifecycle (start/stop/reload).
  */
 
-import { dirname } from 'node:path';
-
 import type { FastifyInstance } from 'fastify';
 import type pino from 'pino';
 
+import { executeReindex } from '../api/executeReindex';
 import type { JeevesWatcherConfig } from '../config/types';
-import { GitignoreFilter } from '../gitignore';
-import type { DocumentProcessor } from '../processor';
+import type { AllHelpersIntrospection } from '../helpers';
+import { IssuesManager } from '../issues';
+import type { DocumentProcessorInterface } from '../processor';
 import type { EventQueue } from '../queue';
-import { loadCustomMapHelpers } from '../rules/apply';
-import { buildTemplateEngine } from '../templates';
 import { normalizeError } from '../util/normalizeError';
+import { ValuesManager } from '../values';
 import type { FileSystemWatcher } from '../watcher';
 import { ConfigWatcher } from './configWatcher';
 import { defaultFactories, type JeevesWatcherFactories } from './factories';
+import {
+  buildTemplateEngineAndCustomMapLib,
+  createProcessorConfig,
+  createWatcher,
+  getConfigDir,
+  initEmbeddingAndStore,
+  introspectHelpers,
+} from './initialization';
 
 export type { JeevesWatcherFactories } from './factories';
 export { defaultFactories } from './factories';
@@ -44,8 +51,11 @@ export class JeevesWatcher {
   private watcher: FileSystemWatcher | undefined;
   private queue: EventQueue | undefined;
   private server: FastifyInstance | undefined;
-  private processor: DocumentProcessor | undefined;
+  private processor: DocumentProcessorInterface | undefined;
   private configWatcher: ConfigWatcher | undefined;
+  private issuesManager: IssuesManager | undefined;
+  private valuesManager: ValuesManager | undefined;
+  private helperIntrospection: AllHelpersIntrospection | undefined;
 
   /**
    * Create a new JeevesWatcher instance.
@@ -74,42 +84,36 @@ export class JeevesWatcher {
     const logger = this.factories.createLogger(this.config.logging);
     this.logger = logger;
 
-    const { embeddingProvider, vectorStore } =
-      await this.initEmbeddingAndStore(logger);
+    const { embeddingProvider, vectorStore } = await initEmbeddingAndStore(
+      this.config,
+      this.factories,
+      logger,
+    );
 
     const compiledRules = this.factories.compileRules(
       this.config.inferenceRules ?? [],
     );
 
-    const configDir = this.configPath ? dirname(this.configPath) : '.';
-    const templateEngine = await buildTemplateEngine(
-      this.config.inferenceRules ?? [],
-      this.config.templates,
-      this.config.templateHelpers?.paths,
+    const configDir = getConfigDir(this.configPath);
+    const { templateEngine, customMapLib } =
+      await buildTemplateEngineAndCustomMapLib(this.config, configDir);
+
+    this.helperIntrospection = await introspectHelpers(this.config, configDir);
+
+    const processorConfig = createProcessorConfig(
+      this.config,
       configDir,
+      customMapLib,
     );
 
-    // Load custom JsonMap lib functions
-    const customMapLib =
-      this.config.mapHelpers?.paths?.length && configDir
-        ? await loadCustomMapHelpers(this.config.mapHelpers.paths, configDir)
-        : undefined;
-
-    const processor = this.factories.createDocumentProcessor(
-      {
-        metadataDir: this.config.metadataDir ?? '.jeeves-metadata',
-        chunkSize: this.config.embedding.chunkSize,
-        chunkOverlap: this.config.embedding.chunkOverlap,
-        maps: this.config.maps,
-        configDir,
-        customMapLib,
-      },
+    const processor = this.factories.createDocumentProcessor({
+      config: processorConfig,
       embeddingProvider,
       vectorStore,
       compiledRules,
       logger,
       templateEngine,
-    );
+    });
     this.processor = processor;
 
     this.queue = this.factories.createEventQueue({
@@ -118,12 +122,28 @@ export class JeevesWatcher {
       rateLimitPerMinute: this.config.embedding.rateLimitPerMinute,
     });
 
-    this.watcher = this.createWatcher(this.queue, processor, logger);
+    this.watcher = createWatcher(
+      this.config,
+      this.factories,
+      this.queue,
+      processor,
+      logger,
+      this.runtimeOptions,
+    );
+
+    const stateDir =
+      this.config.stateDir ?? this.config.metadataDir ?? '.jeeves-metadata';
+    this.issuesManager = new IssuesManager(stateDir, logger);
+    this.valuesManager = new ValuesManager(stateDir, logger);
+
     this.server = await this.startApiServer(
       processor,
       vectorStore,
       embeddingProvider,
       logger,
+      this.issuesManager,
+      this.valuesManager,
+      this.helperIntrospection,
     );
 
     this.watcher.start();
@@ -168,57 +188,8 @@ export class JeevesWatcher {
     this.logger?.info('jeeves-watcher stopped');
   }
 
-  private async initEmbeddingAndStore(logger: pino.Logger) {
-    let embeddingProvider;
-    try {
-      embeddingProvider = this.factories.createEmbeddingProvider(
-        this.config.embedding,
-        logger,
-      );
-    } catch (error) {
-      logger.fatal(
-        { err: normalizeError(error) },
-        'Failed to create embedding provider',
-      );
-      throw error;
-    }
-
-    const vectorStore = this.factories.createVectorStoreClient(
-      this.config.vectorStore,
-      embeddingProvider.dimensions,
-      logger,
-    );
-    await vectorStore.ensureCollection();
-
-    return { embeddingProvider, vectorStore };
-  }
-
-  private createWatcher(
-    queue: EventQueue,
-    processor: DocumentProcessor,
-    logger: pino.Logger,
-  ): FileSystemWatcher {
-    const respectGitignore = this.config.watch.respectGitignore ?? true;
-    const gitignoreFilter = respectGitignore
-      ? new GitignoreFilter(this.config.watch.paths)
-      : undefined;
-
-    return this.factories.createFileSystemWatcher(
-      this.config.watch,
-      queue,
-      processor,
-      logger,
-      {
-        maxRetries: this.config.maxRetries,
-        maxBackoffMs: this.config.maxBackoffMs,
-        onFatalError: this.runtimeOptions.onFatalError,
-        gitignoreFilter,
-      },
-    );
-  }
-
   private async startApiServer(
-    processor: DocumentProcessor,
+    processor: DocumentProcessorInterface,
     vectorStore: Parameters<
       JeevesWatcherFactories['createApiServer']
     >[0]['vectorStore'],
@@ -226,6 +197,9 @@ export class JeevesWatcher {
       JeevesWatcherFactories['createApiServer']
     >[0]['embeddingProvider'],
     logger: pino.Logger,
+    issuesManager: IssuesManager,
+    valuesManager: ValuesManager,
+    helperIntrospection: AllHelpersIntrospection | undefined,
   ) {
     const server = this.factories.createApiServer({
       processor,
@@ -234,6 +208,10 @@ export class JeevesWatcher {
       queue: this.queue!,
       config: this.config,
       logger,
+      issuesManager,
+      valuesManager,
+      configPath: this.configPath ?? '',
+      helperIntrospection,
     });
 
     await server.listen({
@@ -292,27 +270,35 @@ export class JeevesWatcher {
         newConfig.inferenceRules ?? [],
       );
 
-      const reloadConfigDir = dirname(this.configPath);
-      const newTemplateEngine = await buildTemplateEngine(
-        newConfig.inferenceRules ?? [],
-        newConfig.templates,
-        newConfig.templateHelpers?.paths,
-        reloadConfigDir,
-      );
-
-      const newCustomMapLib =
-        newConfig.mapHelpers?.paths?.length && reloadConfigDir
-          ? await loadCustomMapHelpers(
-              newConfig.mapHelpers.paths,
-              reloadConfigDir,
-            )
-          : undefined;
+      const reloadConfigDir = getConfigDir(this.configPath);
+      const {
+        templateEngine: newTemplateEngine,
+        customMapLib: newCustomMapLib,
+      } = await buildTemplateEngineAndCustomMapLib(newConfig, reloadConfigDir);
 
       processor.updateRules(compiledRules, newTemplateEngine, newCustomMapLib);
 
       logger.info(
         { configPath: this.configPath, rules: compiledRules.length },
         'Config reloaded',
+      );
+
+      // Trigger reindex based on configWatch.reindex setting
+      const reindexScope = newConfig.configWatch?.reindex ?? 'issues';
+      logger.info(
+        { scope: reindexScope },
+        `Config watch triggering ${reindexScope} reindex`,
+      );
+
+      await executeReindex(
+        {
+          config: newConfig,
+          processor,
+          logger,
+          valuesManager: this.valuesManager,
+          issuesManager: this.issuesManager,
+        },
+        reindexScope,
       );
     } catch (error) {
       logger.error({ err: normalizeError(error) }, 'Failed to reload config');

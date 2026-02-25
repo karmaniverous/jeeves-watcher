@@ -31,12 +31,8 @@ curl http://localhost:3456/status
     "pointCount": 10498,
     "dimensions": 3072
   },
-  "payloadFields": {
-    "domain": { "type": "keyword" },
-    "title": { "type": "keyword" },
-    "file_path": { "type": "keyword" },
-    "chunk_index": { "type": "integer" },
-    "chunk_text": { "type": "text" }
+  "reindex": {
+    "active": false
   }
 }
 ```
@@ -49,9 +45,12 @@ curl http://localhost:3456/status
 | `collection.name` | `string` | Collection name. |
 | `collection.pointCount` | `number` | Total indexed points (chunks). |
 | `collection.dimensions` | `number` | Embedding vector dimensions. |
-| `payloadFields` | `object` | Discovered payload field names and types. |
+| `reindex` | `object` | Active reindex status. |
+| `reindex.active` | `boolean` | Whether a reindex is currently running. |
+| `reindex.scope` | `string?` | Reindex scope (`"rules"` or `"full"`) if active. |
+| `reindex.startedAt` | `string?` | ISO-8601 timestamp when reindex started, if active. |
 
-**Payload field discovery:** If the collection has Qdrant payload indexes, field types come from the index schema. Otherwise, the watcher samples points and infers types from values (`keyword`, `text`, `integer`, `float`, `bool`, `keyword[]`). Text fields longer than 256 characters are classified as `text`; shorter strings as `keyword`.
+> **v0.5.0 change:** `payloadFields` has been removed from the status response. Use [`POST /config/query`](#post-configquery) or [`GET /config/schema`](#get-configschema) to discover schema and payload field information.
 
 **Status codes:**
 - `200 OK` — Service is healthy
@@ -96,6 +95,19 @@ curl -X POST http://localhost:3456/metadata \
 }
 ```
 
+**Validation error (400 Bad Request):**
+
+```json
+{
+  "error": "Metadata validation failed",
+  "details": [
+    { "field": "priority", "message": "must be one of: low, medium, high" }
+  ]
+}
+```
+
+> **v0.5.0:** Metadata is validated against the schema defined by matched inference rules. If the file matches a rule with a `schema` block, provided metadata must conform to it.
+
 **Error (500 Internal Server Error):**
 
 ```json
@@ -138,6 +150,7 @@ curl -X POST http://localhost:3456/search \
 {
   query: string;                    // Natural language search query
   limit?: number;                   // Max results (default: 10)
+  offset?: number;                  // Skip N results for pagination (default: 0)
   filter?: Record<string, unknown>; // Qdrant filter object (optional)
 }
 ```
@@ -153,6 +166,18 @@ curl -X POST http://localhost:3456/search \
     "filter": {
       "must": [{ "key": "domain", "match": { "value": "backend" } }]
     }
+  }'
+```
+
+**Paginated search example:**
+
+```bash
+curl -X POST http://localhost:3456/search \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "authentication flow",
+    "limit": 10,
+    "offset": 20
   }'
 ```
 
@@ -389,6 +414,420 @@ The reindex runs **asynchronously** — the API returns immediately.
 3. Re-upserts to Qdrant
 
 **Use case:** You changed embedding providers (e.g., Gemini 3072-dim → 768-dim) or chunk size.
+
+### Reindex Tracking
+
+While a reindex is running, `GET /status` shows the active reindex state:
+
+```json
+{
+  "reindex": { "active": true, "scope": "rules", "startedAt": "2026-02-24T08:00:00Z" }
+}
+```
+
+### Completion Callback
+
+If `reindex.callbackUrl` is configured, the watcher sends a POST request to that URL when the reindex completes:
+
+```json
+{
+  "scope": "rules",
+  "filesProcessed": 1234,
+  "durationMs": 45000,
+  "status": "completed"
+}
+```
+
+The callback retries with exponential backoff (3 attempts, starting at 1 second).
+
+---
+
+## GET /issues
+
+Returns the current issues file contents: all files that failed to embed, with error details.
+
+**v0.5.0+**
+
+### Request
+
+```bash
+curl http://localhost:3456/issues
+```
+
+### Response
+
+**Success (200 OK):**
+
+```json
+{
+  "count": 2,
+  "issues": {
+    "j:/domains/jira/VCN/issue/WEB-123.json": [
+      {
+        "type": "type_collision",
+        "property": "created",
+        "rules": ["jira-issue", "frontmatter-created"],
+        "types": ["integer", "string"],
+        "message": "Type collision on 'created': jira-issue declares integer, frontmatter-created declares string",
+        "timestamp": 1771865063
+      }
+    ],
+    "j:/domains/email/archive/msg-456.json": [
+      {
+        "type": "interpolation_error",
+        "property": "author_email",
+        "rule": "email-archive",
+        "message": "Failed to resolve ${json.from.email}: 'from' is null",
+        "timestamp": 1771865100
+      }
+    ]
+  }
+}
+```
+
+### Response Schema
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `count` | `number` | Number of files with issues (not total issue count). |
+| `issues` | `object` | Issues keyed by file path. |
+
+### IssueRecord Schema
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `type` | `string` | Error category: `"type_collision"` or `"interpolation_error"`. |
+| `property` | `string?` | Property name where the issue occurred. |
+| `rules` | `string[]?` | Rule names involved in the issue (for type collisions). |
+| `rule` | `string?` | Rule name for single-rule issues (backward compat). |
+| `types` | `string[]?` | Declared types for type collision issues. |
+| `message` | `string` | Human-readable error message. |
+| `timestamp` | `number \| string` | Unix timestamp (seconds) or ISO string of last occurrence. |
+
+### Behavior
+
+The issues file is self-healing:
+- Files that hit issues are logged and **embedding is skipped**
+- Successful re-processing (config fix, file edit, reindex) **clears** the entry
+- The response always represents the **current** set of unresolved problems
+
+**Empty response:**
+
+```json
+{
+  "count": 0,
+  "issues": {}
+}
+```
+
+---
+
+## POST /config/query
+
+Query the merged virtual configuration document using JSONPath expressions.
+
+### Request
+
+```bash
+curl -X POST http://localhost:3456/config/query \
+  -H "Content-Type: application/json" \
+  -d '{
+    "path": "$.inferenceRules[*].name",
+    "resolve": ["files", "globals"]
+  }'
+```
+
+**Body schema:**
+
+```typescript
+{
+  path: string;                    // JSONPath expression
+  resolve?: string[];              // Resolution scopes: "files", "globals" (default: all)
+}
+```
+
+### Response
+
+**Success (200 OK):**
+
+```json
+{
+  "result": ["email-classifier", "meeting-tagger", "project-labeler"]
+}
+```
+
+### Merged Document Shape
+
+The query runs against a virtual document that merges:
+
+- **config** — current configuration (rules, watch paths, etc.)
+- **values** — discovered payload field names and types (replaces old `payloadFields` from status)
+- **helpers** — loaded map helpers and template helpers
+- **issues** — current runtime issues
+
+See [Inference Rules Guide](./inference-rules.md) for rule structure details.
+
+---
+
+## GET /config/schema
+
+Returns the JSON Schema describing the merged virtual document (authored config + runtime state).
+
+**v0.5.0+**
+
+### Request
+
+```bash
+curl http://localhost:3456/config/schema
+```
+
+### Response
+
+**Success (200 OK):**
+
+Returns a JSON Schema object describing the merged config document shape, including:
+- Top-level config fields (`description`, `search`, `schemas`, `inferenceRules`, etc.)
+- Runtime-injected fields (`inferenceRules[].values`, `issues`, helper introspection)
+
+The schema is generated from Zod using `z.toJSONSchema()` and describes the queryable surface exposed by `POST /config/query`.
+
+**Example response (excerpt):**
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "description": { "type": "string" },
+    "schemas": { "type": "array" },
+    "inferenceRules": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string" },
+          "description": { "type": "string" },
+          "values": {
+            "type": "object",
+            "additionalProperties": { "type": "array" }
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+### Use Cases
+
+- Introspection of the watcher's queryable config surface
+- UI generation for config editors
+- LLM agent orientation (understand structure before querying)
+
+---
+
+## POST /config/match
+
+Tests file paths against inference rules and watch scope without indexing.
+
+**v0.5.0+**
+
+### Request
+
+```bash
+curl -X POST http://localhost:3456/config/match \
+  -H "Content-Type: application/json" \
+  -d '{
+    "paths": [
+      "j:/domains/jira/VCN/issue/WEB-123.json",
+      "j:/domains/slack/C0ABC/1234567.json",
+      "j:/domains/unknown/file.txt"
+    ]
+  }'
+```
+
+**Body schema:**
+
+```typescript
+{
+  paths: string[];  // File paths to test
+}
+```
+
+### Response
+
+**Success (200 OK):**
+
+```json
+{
+  "matches": [
+    { "rules": ["jira-issue", "json-subject"], "watched": true },
+    { "rules": ["slack-message", "json-participants"], "watched": true },
+    { "rules": [], "watched": false }
+  ]
+}
+```
+
+### Response Schema
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `matches` | `PathMatch[]` | Match results for each input path (same order). |
+
+**PathMatch:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `rules` | `string[]` | Ordered list of matching inference rule names. |
+| `watched` | `boolean` | Whether the path is within watch scope (matches `watch.paths` and not in `watch.ignored`). |
+
+### Behavior
+
+- Each path is normalized and tested against all compiled inference rules
+- Rules are returned in definition order (same order as `inferenceRules` array)
+- `watched` tests against watch path matchers and ignore patterns
+- Empty `rules` array means no inference rules match (but file may still be watched)
+- `watched: false` means the path falls outside watch scope or is excluded by ignore patterns
+
+**Use cases:**
+- Pre-flight path testing before file creation
+- Debugging rule match logic
+- UI path validation in config editors
+
+---
+
+## POST /config/validate
+
+Pre-flight validation of configuration changes without applying them.
+
+### Request
+
+```bash
+curl -X POST http://localhost:3456/config/validate \
+  -H "Content-Type: application/json" \
+  -d '{
+    "config": {
+      "inferenceRules": [
+        {
+          "name": "new-rule",
+          "description": "Test rule",
+          "match": { "type": "object" },
+          "schema": [
+            { "properties": { "domain": { "type": "string", "set": "test" } } }
+          ]
+        }
+      ]
+    },
+    "testPaths": ["d:/docs/sample.md"]
+  }'
+```
+
+**Body schema:**
+
+```typescript
+{
+  config?: Record<string, unknown>;  // Partial or full config to validate
+  testPaths?: string[];              // File paths to test rules against
+}
+```
+
+### Merge Semantics
+
+When `config` is partial, rules are merged by `name`: provided rules replace existing rules with the same name; unmatched existing rules are preserved.
+
+### Response
+
+**Valid (200 OK):**
+
+```json
+{
+  "valid": true,
+  "testResults": [
+    {
+      "path": "d:/docs/sample.md",
+      "matchedRules": ["new-rule"],
+      "metadata": { "domain": "test" }
+    }
+  ]
+}
+```
+
+**Invalid (400 Bad Request):**
+
+```json
+{
+  "valid": false,
+  "errors": [
+    { "path": "inferenceRules[0].match", "message": "Invalid JSON Schema" }
+  ]
+}
+```
+
+Validation includes checking that referenced helper files can be loaded.
+
+---
+
+## POST /config/apply
+
+Atomically validate, write, and reload configuration.
+
+### Request
+
+```bash
+curl -X POST http://localhost:3456/config/apply \
+  -H "Content-Type: application/json" \
+  -d '{
+    "config": {
+      "inferenceRules": [
+        {
+          "name": "new-rule",
+          "description": "Test rule",
+          "match": { "type": "object" },
+          "schema": [
+            { "properties": { "domain": { "type": "string", "set": "test" } } }
+          ]
+        }
+      ]
+    }
+  }'
+```
+
+**Body schema:**
+
+```typescript
+{
+  config: Record<string, unknown>;  // Configuration to apply
+}
+```
+
+### Response
+
+**Success (200 OK):**
+
+```json
+{
+  "applied": true,
+  "reindexTriggered": true,
+  "scope": "rules"
+}
+```
+
+**Validation failure (400 Bad Request):**
+
+```json
+{
+  "applied": false,
+  "errors": [
+    { "path": "inferenceRules[0].match", "message": "Invalid JSON Schema" }
+  ]
+}
+```
+
+### Behavior
+
+1. Validates the provided config (same as `POST /config/validate`)
+2. Writes the merged config to disk
+3. Reloads the running watcher with new config
+4. Triggers a scoped reindex if rules changed
 
 ---
 

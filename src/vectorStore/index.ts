@@ -5,77 +5,32 @@ import type { VectorStoreConfig } from '../config/types';
 import { getLogger, type MinimalLogger } from '../util/logger';
 import { normalizeError } from '../util/normalizeError';
 import { retry } from '../util/retry';
+import { inferPayloadType } from './helpers';
+import type {
+  CollectionInfo,
+  PayloadFieldSchema,
+  ScrolledPoint,
+  SearchResult,
+  VectorPoint,
+  VectorStore,
+} from './types';
 
-/**
- * A point to upsert into the vector store.
- */
-export interface VectorPoint {
-  /** The point ID. */
-  id: string;
-  /** The embedding vector. */
-  vector: number[];
-  /** The payload metadata. */
-  payload: Record<string, unknown>;
-}
-
-/**
- * A search result from the vector store.
- */
-export interface SearchResult {
-  /** The point ID. */
-  id: string;
-  /** The similarity score. */
-  score: number;
-  /** The payload metadata. */
-  payload: Record<string, unknown>;
-}
-
-/**
- * A scrolled point from the vector store.
- */
-export interface ScrolledPoint {
-  /** The point ID. */
-  id: string;
-  /** The payload metadata. */
-  payload: Record<string, unknown>;
-}
-
-/** Payload field schema information as reported by Qdrant. */
-export interface PayloadFieldSchema {
-  /** Qdrant data type for the field (e.g. `keyword`, `text`, `integer`). */
-  type: string;
-}
-
-/**
- * Collection stats and payload schema information.
- */
-export interface CollectionInfo {
-  /** Total number of points in the collection. */
-  pointCount: number;
-  /** Vector dimensions for the collection's configured vector params. */
-  dimensions: number;
-  /** Payload field schema keyed by field name. */
-  payloadFields: Record<string, PayloadFieldSchema>;
-}
-
-/** Infer a Qdrant-style type name from a JS value. */
-function inferPayloadType(value: unknown): string {
-  if (value === null || value === undefined) return 'keyword';
-  if (typeof value === 'number') {
-    return Number.isInteger(value) ? 'integer' : 'float';
-  }
-  if (typeof value === 'boolean') return 'bool';
-  if (Array.isArray(value)) return 'keyword[]';
-  if (typeof value === 'string') {
-    return value.length > 256 ? 'text' : 'keyword';
-  }
-  return 'keyword';
-}
+// Re-export types for public API
+export type {
+  CollectionInfo,
+  PayloadFieldSchema,
+  ScrolledPoint,
+  SearchResult,
+  VectorPoint,
+  VectorStore,
+};
 
 /**
  * Client wrapper for Qdrant vector store operations.
+ *
+ * Implements the {@link VectorStore} interface for dependency inversion.
  */
-export class VectorStoreClient {
+export class VectorStoreClient implements VectorStore {
   private readonly client: QdrantClient;
   private readonly collectionName: string;
   private readonly dims: number;
@@ -125,30 +80,24 @@ export class VectorStoreClient {
   }
 
   /**
-   * Upsert points into the collection.
+   * Retry a Qdrant operation with standardized config and logging.
    *
-   * @param points - The points to upsert.
+   * @param operation - Operation name for logging (e.g., 'upsert', 'delete').
+   * @param fn - Async function to retry.
    */
-  async upsert(points: VectorPoint[]): Promise<void> {
-    if (points.length === 0) return;
-
+  private async retryOperation(
+    operation: string,
+    fn: () => Promise<void>,
+  ): Promise<void> {
     await retry(
       async (attempt) => {
         if (attempt > 1) {
           this.log.warn(
-            { attempt, operation: 'qdrant.upsert', points: points.length },
-            'Retrying Qdrant upsert',
+            { attempt, operation: `qdrant.${operation}` },
+            `Retrying Qdrant ${operation}`,
           );
         }
-
-        await this.client.upsert(this.collectionName, {
-          wait: true,
-          points: points.map((p) => ({
-            id: p.id,
-            vector: p.vector,
-            payload: p.payload,
-          })),
-        });
+        await fn();
       },
       {
         attempts: 5,
@@ -160,14 +109,34 @@ export class VectorStoreClient {
             {
               attempt,
               delayMs,
-              operation: 'qdrant.upsert',
+              operation: `qdrant.${operation}`,
               err: normalizeError(error),
             },
-            'Qdrant upsert failed; will retry',
+            `Qdrant ${operation} failed; will retry`,
           );
         },
       },
     );
+  }
+
+  /**
+   * Upsert points into the collection.
+   *
+   * @param points - The points to upsert.
+   */
+  async upsert(points: VectorPoint[]): Promise<void> {
+    if (points.length === 0) return;
+
+    await this.retryOperation('upsert', async () => {
+      await this.client.upsert(this.collectionName, {
+        wait: true,
+        points: points.map((p) => ({
+          id: p.id,
+          vector: p.vector,
+          payload: p.payload,
+        })),
+      });
+    });
   }
 
   /**
@@ -178,38 +147,12 @@ export class VectorStoreClient {
   async delete(ids: string[]): Promise<void> {
     if (ids.length === 0) return;
 
-    await retry(
-      async (attempt) => {
-        if (attempt > 1) {
-          this.log.warn(
-            { attempt, operation: 'qdrant.delete', ids: ids.length },
-            'Retrying Qdrant delete',
-          );
-        }
-
-        await this.client.delete(this.collectionName, {
-          wait: true,
-          points: ids,
-        });
-      },
-      {
-        attempts: 5,
-        baseDelayMs: 500,
-        maxDelayMs: 10_000,
-        jitter: 0.2,
-        onRetry: ({ attempt, delayMs, error }) => {
-          this.log.warn(
-            {
-              attempt,
-              delayMs,
-              operation: 'qdrant.delete',
-              err: normalizeError(error),
-            },
-            'Qdrant delete failed; will retry',
-          );
-        },
-      },
-    );
+    await this.retryOperation('delete', async () => {
+      await this.client.delete(this.collectionName, {
+        wait: true,
+        points: ids,
+      });
+    });
   }
 
   /**
@@ -322,12 +265,14 @@ export class VectorStoreClient {
     vector: number[],
     limit: number,
     filter?: Record<string, unknown>,
+    offset?: number,
   ): Promise<SearchResult[]> {
     const results = await this.client.search(this.collectionName, {
       vector,
       limit,
       with_payload: true,
       ...(filter ? { filter } : {}),
+      ...(offset !== undefined ? { offset } : {}),
     });
     return results.map((r) => ({
       id: String(r.id),
@@ -348,8 +293,7 @@ export class VectorStoreClient {
     limit = 100,
   ): AsyncGenerator<ScrolledPoint> {
     let offset: string | number | undefined = undefined;
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-    while (true) {
+    for (;;) {
       const result = await this.client.scroll(this.collectionName, {
         limit,
         with_payload: true,

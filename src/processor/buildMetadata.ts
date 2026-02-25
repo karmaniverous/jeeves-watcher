@@ -9,6 +9,7 @@ import { extname } from 'node:path';
 import type { JsonMapMap } from '@karmaniverous/jsonmap';
 import type pino from 'pino';
 
+import type { SchemaEntry } from '../config/schemas';
 import { type ExtractedText, extractText } from '../extractors';
 import { readMetadata } from '../metadata';
 import type { CompiledRule } from '../rules';
@@ -31,30 +32,54 @@ export interface MergedMetadata {
   extracted: ExtractedText;
   /** Rendered template content, or null if no template matched. */
   renderedContent: string | null;
+  /** Names of rules that matched. */
+  matchedRules: string[];
+}
+
+/**
+ * Options for building merged metadata.
+ */
+export interface BuildMergedMetadataOptions {
+  /** The file to process. */
+  filePath: string;
+  /** The compiled inference rules. */
+  compiledRules: CompiledRule[];
+  /** The metadata directory for enrichment files. */
+  metadataDir: string;
+  /** Optional named JsonMap definitions. */
+  maps?: Record<string, JsonMapMap>;
+  /** Optional logger for rule warnings. */
+  logger?: pino.Logger;
+  /** Optional template engine for content templates. */
+  templateEngine?: TemplateEngine;
+  /** Optional config directory for resolving file paths. */
+  configDir?: string;
+  /** Optional custom JsonMap transform library. */
+  customMapLib?: Record<string, (...args: unknown[]) => unknown>;
+  /** Optional global schemas collection. */
+  globalSchemas?: Record<string, SchemaEntry>;
 }
 
 /**
  * Build merged metadata for a file by applying inference rules and merging with enrichment metadata.
  *
- * @param filePath - The file to process.
- * @param compiledRules - The compiled inference rules.
- * @param metadataDir - The metadata directory for enrichment files.
- * @param maps - Optional named JsonMap definitions.
- * @param logger - Optional logger for rule warnings.
- * @param templateEngine - Optional template engine for content templates.
- * @param configDir - Optional config directory for resolving file paths.
+ * @param options - Build options.
  * @returns The merged metadata and intermediate data.
  */
 export async function buildMergedMetadata(
-  filePath: string,
-  compiledRules: CompiledRule[],
-  metadataDir: string,
-  maps?: Record<string, JsonMapMap>,
-  logger?: pino.Logger,
-  templateEngine?: TemplateEngine,
-  configDir?: string,
-  customMapLib?: Record<string, (...args: unknown[]) => unknown>,
+  options: BuildMergedMetadataOptions,
 ): Promise<MergedMetadata> {
+  const {
+    filePath,
+    compiledRules,
+    metadataDir,
+    maps,
+    logger,
+    templateEngine,
+    configDir,
+    customMapLib,
+    globalSchemas,
+  } = options;
   const ext = extname(filePath);
   const stats = await stat(filePath);
 
@@ -68,7 +93,11 @@ export async function buildMergedMetadata(
     extracted.frontmatter,
     extracted.json,
   );
-  const { metadata: inferred, renderedContent } = await applyRules(
+  const {
+    metadata: inferred,
+    renderedContent,
+    matchedRules,
+  } = await applyRules(
     compiledRules,
     attributes,
     maps,
@@ -76,6 +105,7 @@ export async function buildMergedMetadata(
     templateEngine,
     configDir,
     customMapLib,
+    globalSchemas,
   );
 
   // 3. Read enrichment metadata (merge, enrichment wins)
@@ -92,5 +122,6 @@ export async function buildMergedMetadata(
     attributes,
     extracted,
     renderedContent,
+    matchedRules,
   };
 }

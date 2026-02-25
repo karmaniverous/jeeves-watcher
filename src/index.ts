@@ -4,8 +4,8 @@
  * @packageDocumentation
  */
 
-export type { ApiServerOptions } from './api';
-export { createApiServer } from './api';
+export type { ApiServerOptions, ReindexStatus } from './api';
+export { createApiServer, ReindexTracker } from './api';
 export {
   JeevesWatcher,
   type JeevesWatcherFactories,
@@ -33,14 +33,20 @@ export {
   vectorStoreConfigSchema,
   watchConfigSchema,
 } from './config';
-export type { EmbeddingProvider } from './embedding';
+export type { EmbeddingProvider, ProviderFactory } from './embedding';
 export { createEmbeddingProvider } from './embedding';
-export type { ExtractedText } from './extractors';
+export type { ExtractedText, Extractor } from './extractors';
 export { extractText } from './extractors';
 export { GitignoreFilter } from './gitignore';
 export { contentHash } from './hash';
 export type { SystemHealthOptions } from './health';
 export { SystemHealth } from './health';
+export type {
+  AllHelpersIntrospection,
+  HelperModuleIntrospection,
+} from './helpers';
+export type { IssueRecord, IssuesFile } from './issues';
+export { issueRecordSchema, IssuesManager } from './issues';
 export { createLogger } from './logger';
 export {
   deleteMetadata,
@@ -49,7 +55,11 @@ export {
   writeMetadata,
 } from './metadata';
 export { pointId } from './pointId';
-export type { ProcessorConfig } from './processor';
+export type {
+  DocumentProcessorDeps,
+  DocumentProcessorInterface,
+  ProcessorConfig,
+} from './processor';
 export { DocumentProcessor } from './processor';
 export type { EventQueueOptions, ProcessFn, WatchEvent } from './queue';
 export { EventQueue } from './queue';
@@ -69,12 +79,14 @@ export {
   resolveTemplateSource,
   TemplateEngine,
 } from './templates';
+export { type ValuesIndex, ValuesManager } from './values';
 export type {
   CollectionInfo,
   PayloadFieldSchema,
   ScrolledPoint,
   SearchResult,
   VectorPoint,
+  VectorStore,
 } from './vectorStore';
 export { VectorStoreClient } from './vectorStore';
 export type { FileSystemWatcherOptions } from './watcher';

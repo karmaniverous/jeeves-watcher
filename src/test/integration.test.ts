@@ -13,12 +13,14 @@ import {
 
 import { createApiServer } from '../api';
 import { createEmbeddingProvider } from '../embedding';
+import { IssuesManager } from '../issues';
 import { createLogger } from '../logger';
 import { readMetadata } from '../metadata';
 import { pointId } from '../pointId';
 import { DocumentProcessor } from '../processor';
 import { EventQueue } from '../queue';
 import { compileRules } from '../rules';
+import { ValuesManager } from '../values';
 import { VectorStoreClient } from '../vectorStore';
 import {
   cleanupTestDirs,
@@ -59,13 +61,13 @@ beforeAll(async () => {
     maps: config.maps,
   };
 
-  processor = new DocumentProcessor(
-    processorConfig,
+  processor = new DocumentProcessor({
+    config: processorConfig,
     embeddingProvider,
     vectorStore,
     compiledRules,
     logger,
-  );
+  });
 });
 
 afterAll(async () => {
@@ -200,6 +202,15 @@ describe('API endpoints', () => {
       queue: new EventQueue({ debounceMs: 0, concurrency: 1 }),
       config,
       logger,
+      issuesManager: new IssuesManager(
+        config.metadataDir ?? '.jeeves-metadata',
+        logger,
+      ),
+      valuesManager: new ValuesManager(
+        config.metadataDir ?? '.jeeves-metadata',
+        logger,
+      ),
+      configPath: '',
     });
 
     const res = await server.inject({ method: 'POST', url: '/reindex' });
@@ -222,6 +233,15 @@ describe('API endpoints', () => {
       queue: new EventQueue({ debounceMs: 0, concurrency: 1 }),
       config,
       logger,
+      issuesManager: new IssuesManager(
+        config.metadataDir ?? '.jeeves-metadata',
+        logger,
+      ),
+      valuesManager: new ValuesManager(
+        config.metadataDir ?? '.jeeves-metadata',
+        logger,
+      ),
+      configPath: '',
     });
 
     const res = await server.inject({
@@ -246,6 +266,15 @@ describe('API endpoints', () => {
       queue: new EventQueue({ debounceMs: 0, concurrency: 1 }),
       config,
       logger,
+      issuesManager: new IssuesManager(
+        config.metadataDir ?? '.jeeves-metadata',
+        logger,
+      ),
+      valuesManager: new ValuesManager(
+        config.metadataDir ?? '.jeeves-metadata',
+        logger,
+      ),
+      configPath: '',
     });
 
     const res = await server.inject({
@@ -278,6 +307,8 @@ describe('Rules engine', () => {
       ...config,
       inferenceRules: [
         {
+          name: 'meetings-rule',
+          description: 'Extract domain for meetings files',
           match: {
             properties: {
               file: {
@@ -287,7 +318,13 @@ describe('Rules engine', () => {
               },
             },
           },
-          set: { domain: 'meetings' },
+          schema: [
+            {
+              properties: {
+                domain: { type: 'string', set: 'meetings' },
+              },
+            },
+          ],
         },
       ],
     };
@@ -299,13 +336,13 @@ describe('Rules engine', () => {
       chunkOverlap: rulesConfig.embedding.chunkOverlap,
       maps: rulesConfig.maps,
     };
-    const rulesProcessor = new DocumentProcessor(
-      rulesProcessorConfig,
+    const rulesProcessor = new DocumentProcessor({
+      config: rulesProcessorConfig,
       embeddingProvider,
       vectorStore,
       compiledRules,
       logger,
-    );
+    });
 
     await rulesProcessor.processFile(filePath);
 
@@ -364,6 +401,15 @@ describe('Metadata enrichment via API', () => {
       queue: new EventQueue({ debounceMs: 0, concurrency: 1 }),
       config,
       logger,
+      issuesManager: new IssuesManager(
+        config.metadataDir ?? '.jeeves-metadata',
+        logger,
+      ),
+      valuesManager: new ValuesManager(
+        config.metadataDir ?? '.jeeves-metadata',
+        logger,
+      ),
+      configPath: '',
     });
 
     // Enrich via API
@@ -415,6 +461,15 @@ describe('Search endpoint', () => {
       queue: new EventQueue({ debounceMs: 0, concurrency: 1 }),
       config,
       logger,
+      issuesManager: new IssuesManager(
+        config.metadataDir ?? '.jeeves-metadata',
+        logger,
+      ),
+      valuesManager: new ValuesManager(
+        config.metadataDir ?? '.jeeves-metadata',
+        logger,
+      ),
+      configPath: '',
     });
 
     // Search for "machine learning"

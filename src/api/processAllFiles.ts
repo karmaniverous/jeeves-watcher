@@ -4,7 +4,7 @@
  * Shared helper for processing all files matching configured globs.
  */
 
-import type { DocumentProcessor } from '../processor';
+import type { DocumentProcessorInterface } from '../processor';
 import { listFilesFromGlobs } from './fileScan';
 
 /**
@@ -19,7 +19,7 @@ import { listFilesFromGlobs } from './fileScan';
 export async function processAllFiles(
   watchPaths: string[],
   ignoredPaths: string[] | undefined,
-  processor: DocumentProcessor,
+  processor: DocumentProcessorInterface,
   method: 'processFile' | 'processRulesUpdate',
 ): Promise<number> {
   const files = await listFilesFromGlobs(watchPaths, ignoredPaths);

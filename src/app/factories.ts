@@ -8,10 +8,12 @@ import type pino from 'pino';
 import { createApiServer } from '../api';
 import { loadConfig } from '../config';
 import type { JeevesWatcherConfig } from '../config/types';
-import type { EmbeddingProvider } from '../embedding';
 import { createEmbeddingProvider } from '../embedding';
 import { createLogger } from '../logger';
-import { DocumentProcessor } from '../processor';
+import {
+  DocumentProcessor,
+  type DocumentProcessorInterface,
+} from '../processor';
 import { EventQueue } from '../queue';
 import { compileRules } from '../rules';
 import { VectorStoreClient } from '../vectorStore';
@@ -37,13 +39,8 @@ export interface JeevesWatcherFactories {
   compileRules: typeof compileRules;
   /** Create a document processor for file ingestion. */
   createDocumentProcessor: (
-    config: ConstructorParameters<typeof DocumentProcessor>[0],
-    embeddingProvider: EmbeddingProvider,
-    vectorStore: VectorStoreClient,
-    compiledRules: ConstructorParameters<typeof DocumentProcessor>[3],
-    logger: pino.Logger,
-    templateEngine?: ConstructorParameters<typeof DocumentProcessor>[5],
-  ) => DocumentProcessor;
+    deps: ConstructorParameters<typeof DocumentProcessor>[0],
+  ) => DocumentProcessorInterface;
   /** Create an event queue for batching file-system events. */
   createEventQueue: (
     options: ConstructorParameters<typeof EventQueue>[0],
@@ -52,7 +49,7 @@ export interface JeevesWatcherFactories {
   createFileSystemWatcher: (
     config: JeevesWatcherConfig['watch'],
     queue: EventQueue,
-    processor: DocumentProcessor,
+    processor: DocumentProcessorInterface,
     logger: pino.Logger,
     options?: FileSystemWatcherOptions,
   ) => FileSystemWatcher;
@@ -68,22 +65,7 @@ export const defaultFactories: JeevesWatcherFactories = {
   createVectorStoreClient: (config, dimensions, logger) =>
     new VectorStoreClient(config, dimensions, logger),
   compileRules,
-  createDocumentProcessor: (
-    config,
-    embeddingProvider,
-    vectorStore,
-    compiledRules,
-    logger,
-    templateEngine,
-  ) =>
-    new DocumentProcessor(
-      config,
-      embeddingProvider,
-      vectorStore,
-      compiledRules,
-      logger,
-      templateEngine,
-    ),
+  createDocumentProcessor: (deps) => new DocumentProcessor(deps),
   createEventQueue: (options) => new EventQueue(options),
   createFileSystemWatcher: (config, queue, processor, logger, options) =>
     new FileSystemWatcher(config, queue, processor, logger, options),

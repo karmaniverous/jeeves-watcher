@@ -106,7 +106,7 @@ Config strings support `${VAR_NAME}` syntax for environment variable injection:
 }
 ```
 
-If `GOOGLE_API_KEY` is set in the environment, the value is substituted at config load time. **Unresolvable expressions are left untouched** — this allows `${...}` template syntax used in inference rule `set` values (e.g. `${frontmatter.title}`, `${file.path}`) to pass through for later resolution by the rules engine.
+If `GOOGLE_API_KEY` is set in the environment, the value is substituted at config load time. **Unresolvable expressions are left untouched** — this allows `${...}` template syntax used in inference rule property schemas (e.g. `${frontmatter.title}`, `${file.path}`) to pass through for later resolution by the rules engine.
 
 ### Watch Paths
 
@@ -150,12 +150,25 @@ If `GOOGLE_API_KEY` is set in the environment, the value is substituted at confi
 
 ### Inference Rules
 
-Automatically enrich metadata based on file patterns:
+Automatically enrich metadata based on file patterns using declarative JSON Schemas:
 
 ```json
 {
+  "schemas": {
+    "base": {
+      "type": "object",
+      "properties": {
+        "domain": {
+          "type": "string",
+          "description": "Content domain"
+        }
+      }
+    }
+  },
   "inferenceRules": [
     {
+      "name": "meeting-classifier",
+      "description": "Classify files under meetings directory",
       "match": {
         "properties": {
           "file": {
@@ -166,14 +179,21 @@ Automatically enrich metadata based on file patterns:
           }
         }
       },
-      "set": {
-        "domain": "meetings",
-        "category": "notes"
-      }
+      "schema": [
+        "base",
+        {
+          "properties": {
+            "domain": { "set": "meetings" },
+            "category": { "type": "string", "set": "notes" }
+          }
+        }
+      ]
     }
   ]
 }
 ```
+
+**New in v0.5.0:** Inference rules now use `schema` arrays that reference global named schemas. Type coercion automatically converts string interpolation results to declared types (integer, number, boolean, array, object). See [Inference Rules Guide](guides/inference-rules.md) for details.
 
 ### Chunking
 
@@ -206,10 +226,14 @@ The watcher provides a REST API (default port: 3456):
 |----------|--------|-------------|
 | `/status` | GET | Health check, uptime, and collection stats |
 | `/search` | POST | Semantic search (`{ query: string, limit?: number, filter?: object }`) |
-| `/metadata` | POST | Update document metadata (`{ path: string, metadata: object }`) |
+| `/metadata` | POST | Update document metadata with schema validation (`{ path: string, metadata: object }`) |
 | `/reindex` | POST | Reindex all watched files |
 | `/rebuild-metadata` | POST | Rebuild metadata files from Qdrant |
 | `/config-reindex` | POST | Reindex after config changes (`{ scope?: "rules" \| "full" }`) |
+| `/config/schema` | GET | JSON Schema of merged virtual document (v0.5.0+) |
+| `/config/query` | POST | JSONPath query over config (`{ path: string, resolve?: string[] }`) (v0.5.0+) |
+| `/config/match` | POST | Test paths against inference rules (`{ paths: string[] }`) (v0.5.0+) |
+| `/issues` | GET | Current embedding failures and processing errors (v0.5.0+) |
 
 ### Example: Search
 

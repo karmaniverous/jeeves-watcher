@@ -5,7 +5,6 @@
 
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { pathToFileURL } from 'node:url';
 
 import {
   type Json,
@@ -15,10 +14,17 @@ import {
 } from '@karmaniverous/jsonmap';
 import { get } from 'radash';
 
+import type { SchemaEntry } from '../config/schemas';
+import { loadNamespacedExports } from '../helpers/loadModule';
 import type { TemplateEngine } from '../templates';
 import type { FileAttributes } from './attributes';
 import type { CompiledRule } from './compile';
-import { resolveSet } from './templates';
+import {
+  mergeSchemas,
+  resolveAndCoerce,
+  type SchemaReference,
+  validateSchemaCompleteness,
+} from './schemaMerge';
 
 /**
  * A minimal logger interface for rule application warnings.
@@ -111,34 +117,29 @@ function createJsonMapLib(
 }
 
 /**
- * Load custom JsonMap lib functions from file paths.
+ * Load custom JsonMap lib functions from named helper config.
  *
  * Each module should default-export an object of functions,
  * or use named exports. Only function-valued exports are merged.
+ * Exports are namespace-prefixed as `<namespace>_<exportName>`.
  *
- * @param paths - File paths to custom lib modules.
+ * @param helpers - Named helper config: Record of namespace to path/description.
  * @param configDir - Directory to resolve relative paths against.
- * @returns The merged custom lib functions.
+ * @returns The merged custom lib functions with namespace prefixes.
  */
 export async function loadCustomMapHelpers(
-  paths: string[],
+  helpers: Record<string, { path: string; description?: string }>,
   configDir: string,
 ): Promise<Record<string, (...args: unknown[]) => unknown>> {
+  const namespaced = await loadNamespacedExports(
+    helpers,
+    configDir,
+    (val) => typeof val === 'function',
+  );
   const merged: Record<string, (...args: unknown[]) => unknown> = {};
-  for (const p of paths) {
-    const resolved = resolve(configDir, p);
-    const mod = (await import(pathToFileURL(resolved).href)) as Record<
-      string,
-      unknown
-    >;
-    const fns =
-      typeof mod.default === 'object' && mod.default !== null
-        ? (mod.default as Record<string, unknown>)
-        : mod;
-    for (const [key, val] of Object.entries(fns)) {
-      if (typeof val === 'function') {
-        merged[key] = val as (...args: unknown[]) => unknown;
-      }
+  for (const [namespace, exports] of Object.entries(namespaced)) {
+    for (const [key, val] of Object.entries(exports)) {
+      merged[`${namespace}_${key}`] = val as (...args: unknown[]) => unknown;
     }
   }
   return merged;
@@ -152,6 +153,8 @@ export interface ApplyRulesResult {
   metadata: Record<string, unknown>;
   /** Rendered template content from the last matching rule with a template, or null. */
   renderedContent: string | null;
+  /** Names of rules that matched. */
+  matchedRules: string[];
 }
 
 /**
@@ -167,6 +170,7 @@ export interface ApplyRulesResult {
  * @param logger - Optional logger for warnings (falls back to console.warn).
  * @param templateEngine - Optional template engine for rendering content templates.
  * @param configDir - Optional config directory for resolving .json map file paths.
+ * @param globalSchemas - Optional global schemas collection for resolving schema references.
  * @returns The merged metadata and optional rendered content.
  */
 export async function applyRules(
@@ -177,6 +181,7 @@ export async function applyRules(
   templateEngine?: TemplateEngine,
   configDir?: string,
   customMapLib?: Record<string, (...args: unknown[]) => unknown>,
+  globalSchemas?: Record<string, SchemaEntry>,
 ): Promise<ApplyRulesResult> {
   // JsonMap's type definitions expect a generic JsonMapLib shape with unary functions.
   // Our helper functions accept multiple args, which JsonMap supports at runtime.
@@ -186,13 +191,35 @@ export async function applyRules(
   ) as unknown as JsonMapLib;
   let merged: Record<string, unknown> = {};
   let renderedContent: string | null = null;
+  const matchedRules: string[] = [];
   const log: RuleLogger = logger ?? console;
 
-  for (const [ruleIndex, { rule, validate }] of compiledRules.entries()) {
+  for (const [, { rule, validate }] of compiledRules.entries()) {
     if (validate(attributes)) {
-      // Apply set resolution
-      const setOutput = resolveSet(rule.set, attributes);
-      merged = { ...merged, ...setOutput };
+      matchedRules.push(rule.name);
+
+      // Apply schema-based metadata extraction
+      if (rule.schema && rule.schema.length > 0) {
+        try {
+          // Merge schemas
+          const mergedSchema = mergeSchemas(rule.schema as SchemaReference[], {
+            globalSchemas,
+            configDir,
+          });
+
+          // Validate schema completeness
+          validateSchemaCompleteness(mergedSchema, rule.name);
+
+          // Resolve and coerce metadata
+          const schemaOutput = resolveAndCoerce(mergedSchema, attributes);
+          merged = { ...merged, ...schemaOutput };
+        } catch (error) {
+          log.warn(
+            `Schema processing failed for rule "${rule.name}": ${error instanceof Error ? error.message : String(error)}`,
+          );
+          continue;
+        }
+      }
 
       // Apply map transformation if present
       if (rule.map) {
@@ -251,7 +278,7 @@ export async function applyRules(
 
       // Render template if present
       if (rule.template && templateEngine) {
-        const templateKey = `rule-${String(ruleIndex)}`;
+        const templateKey = rule.name;
         // Build template context: attributes (with json spread at top) + map output
         const context: Record<string, unknown> = {
           ...(attributes.json ?? {}),
@@ -265,17 +292,17 @@ export async function applyRules(
             renderedContent = result;
           } else {
             log.warn(
-              `Template for rule ${String(ruleIndex)} rendered empty output. Falling back to raw content.`,
+              `Template for rule "${rule.name}" rendered empty output. Falling back to raw content.`,
             );
           }
         } catch (error) {
           log.warn(
-            `Template render failed for rule ${String(ruleIndex)}: ${error instanceof Error ? error.message : String(error)}. Falling back to raw content.`,
+            `Template render failed for rule "${rule.name}": ${error instanceof Error ? error.message : String(error)}. Falling back to raw content.`,
           );
         }
       }
     }
   }
 
-  return { metadata: merged, renderedContent };
+  return { metadata: merged, renderedContent, matchedRules };
 }

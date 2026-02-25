@@ -6,37 +6,50 @@
 
 import { extname } from 'node:path';
 
-import type { JsonMapMap } from '@karmaniverous/jsonmap';
 import type pino from 'pino';
 
 import type { EmbeddingProvider } from '../embedding';
 import { contentHash } from '../hash';
+import type { IssuesManager } from '../issues';
 import { deleteMetadata, readMetadata, writeMetadata } from '../metadata';
 import { pointId } from '../pointId';
 import type { CompiledRule } from '../rules';
 import type { TemplateEngine } from '../templates';
-import { normalizeError } from '../util/normalizeError';
-import type { VectorStoreClient } from '../vectorStore';
+import { logError } from '../util/logError';
+import type { ValuesManager } from '../values';
+import type { VectorStore } from '../vectorStore';
 import { buildMergedMetadata } from './buildMetadata';
 import { chunkIds, getChunkCount } from './chunkIds';
+import { embedAndUpsert } from './processingPipeline';
+import type { ProcessorConfig } from './ProcessorConfig';
 import { createSplitter } from './splitter';
+import type { DocumentProcessorInterface } from './types';
+
+export type { ProcessorConfig } from './ProcessorConfig';
+export type { DocumentProcessorInterface } from './types';
 
 /**
- * Configuration needed by DocumentProcessor (ISP — narrow interface).
+ * Core document processing pipeline.
+ *
+ * Handles extracting text, computing embeddings, and syncing with the vector store.
  */
-export interface ProcessorConfig {
-  /** Metadata directory for enrichment files. */
-  metadataDir: string;
-  /** Maximum chunk size in characters. */
-  chunkSize?: number;
-  /** Overlap between chunks in characters. */
-  chunkOverlap?: number;
-  /** Named JsonMap definitions for rule transformations. */
-  maps?: Record<string, JsonMapMap>;
-  /** Config directory for resolving relative file paths. */
-  configDir?: string;
-  /** Custom JsonMap lib functions loaded from mapHelpers config. */
-  customMapLib?: Record<string, (...args: unknown[]) => unknown>;
+export interface DocumentProcessorDeps {
+  /** Processor configuration (chunk sizes, directories, maps). */
+  config: ProcessorConfig;
+  /** Provider for generating text embeddings. */
+  embeddingProvider: EmbeddingProvider;
+  /** Vector store for persistence. */
+  vectorStore: VectorStore;
+  /** Pre-compiled inference rules for metadata extraction. */
+  compiledRules: CompiledRule[];
+  /** Pino logger instance. */
+  logger: pino.Logger;
+  /** Optional Handlebars template engine for content templates. */
+  templateEngine?: TemplateEngine;
+  /** Optional issues manager for tracking processing errors. */
+  issuesManager?: IssuesManager;
+  /** Optional values manager for tracking rule-extracted values. */
+  valuesManager?: ValuesManager;
 }
 
 /**
@@ -44,38 +57,39 @@ export interface ProcessorConfig {
  *
  * Handles extracting text, computing embeddings, and syncing with the vector store.
  */
-export class DocumentProcessor {
+export class DocumentProcessor implements DocumentProcessorInterface {
   private config: ProcessorConfig;
   private readonly embeddingProvider: EmbeddingProvider;
-  private readonly vectorStore: VectorStoreClient;
+  private readonly vectorStore: VectorStore;
   private compiledRules: CompiledRule[];
   private readonly logger: pino.Logger;
   private templateEngine?: TemplateEngine;
+  private readonly issuesManager?: IssuesManager;
+  private readonly valuesManager?: ValuesManager;
 
   /**
    * Create a new DocumentProcessor.
    *
-   * @param config - The processor configuration.
-   * @param embeddingProvider - The embedding provider.
-   * @param vectorStore - The vector store client.
-   * @param compiledRules - The compiled inference rules.
-   * @param logger - The logger instance.
-   * @param templateEngine - Optional template engine for content templates.
+   * @param deps - The processor dependencies.
    */
-  constructor(
-    config: ProcessorConfig,
-    embeddingProvider: EmbeddingProvider,
-    vectorStore: VectorStoreClient,
-    compiledRules: CompiledRule[],
-    logger: pino.Logger,
-    templateEngine?: TemplateEngine,
-  ) {
+  constructor({
+    config,
+    embeddingProvider,
+    vectorStore,
+    compiledRules,
+    logger,
+    templateEngine,
+    issuesManager,
+    valuesManager,
+  }: DocumentProcessorDeps) {
     this.config = config;
     this.embeddingProvider = embeddingProvider;
     this.vectorStore = vectorStore;
     this.compiledRules = compiledRules;
     this.logger = logger;
     this.templateEngine = templateEngine;
+    this.issuesManager = issuesManager;
+    this.valuesManager = valuesManager;
   }
 
   /**
@@ -88,17 +102,18 @@ export class DocumentProcessor {
       const ext = extname(filePath);
 
       // 1. Build merged metadata + extract text
-      const { metadata, extracted, renderedContent } =
-        await buildMergedMetadata(
+      const { metadata, extracted, renderedContent, matchedRules } =
+        await buildMergedMetadata({
           filePath,
-          this.compiledRules,
-          this.config.metadataDir,
-          this.config.maps,
-          this.logger,
-          this.templateEngine,
-          this.config.configDir,
-          this.config.customMapLib,
-        );
+          compiledRules: this.compiledRules,
+          metadataDir: this.config.metadataDir,
+          maps: this.config.maps,
+          logger: this.logger,
+          templateEngine: this.templateEngine,
+          configDir: this.config.configDir,
+          customMapLib: this.config.customMapLib,
+          globalSchemas: this.config.globalSchemas,
+        });
 
       // Use rendered template content if available, otherwise raw extracted text
       const textToEmbed = renderedContent ?? extracted.text;
@@ -116,49 +131,41 @@ export class DocumentProcessor {
         this.logger.debug({ filePath }, 'Content unchanged, skipping');
         return;
       }
-      const oldTotalChunks = getChunkCount(existingPayload);
-
-      // 3. Chunk text
+      // 3. Embed→chunk→upsert pipeline
       const chunkSize = this.config.chunkSize ?? 1000;
       const chunkOverlap = this.config.chunkOverlap ?? 200;
       const splitter = createSplitter(ext, chunkSize, chunkOverlap);
-      const chunks = await splitter.splitText(textToEmbed);
 
-      // 4. Embed all chunks
-      const vectors = await this.embeddingProvider.embed(chunks);
+      // Add matched_rules to metadata payload
+      const metadataWithRules = {
+        ...metadata,
+        matched_rules: matchedRules,
+      };
 
-      // 5. Upsert all chunk points
-      const points = chunks.map((chunk, i) => ({
-        id: pointId(filePath, i),
-        vector: vectors[i],
-        payload: {
-          ...metadata,
-          file_path: filePath.replace(/\\/g, '/'),
-          chunk_index: i,
-          total_chunks: chunks.length,
-          content_hash: hash,
-          chunk_text: chunk,
+      await embedAndUpsert(
+        {
+          embeddingProvider: this.embeddingProvider,
+          vectorStore: this.vectorStore,
+          splitter,
+          logger: this.logger,
         },
-      }));
-      await this.vectorStore.upsert(points);
+        textToEmbed,
+        filePath,
+        metadataWithRules,
+        existingPayload,
+      );
 
-      // 6. Clean up orphaned chunks
-      if (oldTotalChunks > chunks.length) {
-        const orphanIds = chunkIds(filePath, oldTotalChunks).slice(
-          chunks.length,
-        );
-        await this.vectorStore.delete(orphanIds);
+      // 4. Track success: clear issues, update values
+      this.issuesManager?.clear(filePath);
+      if (this.valuesManager) {
+        for (const ruleName of matchedRules) {
+          this.valuesManager.update(ruleName, metadata);
+        }
       }
-
-      this.logger.info(
-        { filePath, chunks: chunks.length },
-        'File processed successfully',
-      );
     } catch (error) {
-      this.logger.error(
-        { filePath, err: normalizeError(error) },
-        'Failed to process file',
-      );
+      logError(this.logger, error, { filePath }, 'Failed to process file');
+      // Note: Generic processing errors are not recorded as issues in v2 spec
+      // Only type_collision and interpolation_error are tracked
     }
   }
 
@@ -180,10 +187,7 @@ export class DocumentProcessor {
 
       this.logger.info({ filePath }, 'File deleted from index');
     } catch (error) {
-      this.logger.error(
-        { filePath, err: normalizeError(error) },
-        'Failed to delete file',
-      );
+      logError(this.logger, error, { filePath }, 'Failed to delete file');
     }
   }
 
@@ -217,10 +221,7 @@ export class DocumentProcessor {
       this.logger.info({ filePath, chunks: totalChunks }, 'Metadata updated');
       return merged;
     } catch (error) {
-      this.logger.error(
-        { filePath, err: normalizeError(error) },
-        'Failed to update metadata',
-      );
+      logError(this.logger, error, { filePath }, 'Failed to update metadata');
       return null;
     }
   }
@@ -245,29 +246,37 @@ export class DocumentProcessor {
       }
 
       // Build merged metadata (lightweight — no embedding)
-      const { metadata } = await buildMergedMetadata(
+      const { metadata, matchedRules } = await buildMergedMetadata({
         filePath,
-        this.compiledRules,
-        this.config.metadataDir,
-        this.config.maps,
-        this.logger,
-        this.templateEngine,
-        this.config.configDir,
-        this.config.customMapLib,
-      );
+        compiledRules: this.compiledRules,
+        metadataDir: this.config.metadataDir,
+        maps: this.config.maps,
+        logger: this.logger,
+        templateEngine: this.templateEngine,
+        configDir: this.config.configDir,
+        customMapLib: this.config.customMapLib,
+        globalSchemas: this.config.globalSchemas,
+      });
+
+      // Add matched_rules to metadata
+      const metadataWithRules = {
+        ...metadata,
+        matched_rules: matchedRules,
+      };
 
       // Update all chunk payloads
       const totalChunks = getChunkCount(existingPayload);
       const ids = chunkIds(filePath, totalChunks);
-      await this.vectorStore.setPayload(ids, metadata);
+      await this.vectorStore.setPayload(ids, metadataWithRules);
+
+      this.issuesManager?.clear(filePath);
 
       this.logger.info({ filePath, chunks: totalChunks }, 'Rules re-applied');
-      return metadata;
+      return metadataWithRules;
     } catch (error) {
-      this.logger.error(
-        { filePath, err: normalizeError(error) },
-        'Failed to re-apply rules',
-      );
+      logError(this.logger, error, { filePath }, 'Failed to re-apply rules');
+      // Note: Generic processing errors are not recorded as issues in v2 spec
+      // Only type_collision and interpolation_error are tracked
       return null;
     }
   }

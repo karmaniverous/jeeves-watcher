@@ -3,6 +3,8 @@ import { dirname, resolve } from 'node:path';
 
 import picomatch from 'picomatch';
 
+import { normalizeSlashes } from '../util/normalizeSlashes';
+
 /**
  * Best-effort base directory inference for a glob pattern.
  *
@@ -10,9 +12,9 @@ import picomatch from 'picomatch';
  * to scan the directory tree in integration tests.
  */
 export function globBase(pattern: string): string {
-  const normalised = pattern.replace(/\\/g, '/');
-  // eslint-disable-next-line no-useless-escape
-  const globIdx = normalised.search(/[*?\[]/);
+  const normalised = normalizeSlashes(pattern);
+  const globIdx = normalised.search(/[*?[]/);
+
   if (globIdx === -1) return resolve(pattern);
   const prefix = normalised.slice(0, globIdx);
   // If prefix ends mid-segment, dirname to get a real directory
@@ -55,8 +57,8 @@ export async function listFilesFromGlobs(
   patterns: string[],
   ignored: string[] = [],
 ): Promise<string[]> {
-  const normPatterns = patterns.map((p) => p.replace(/\\/g, '/'));
-  const normIgnored = ignored.map((p) => p.replace(/\\/g, '/'));
+  const normPatterns = patterns.map((p) => normalizeSlashes(p));
+  const normIgnored = ignored.map((p) => normalizeSlashes(p));
 
   const match = picomatch(normPatterns, { dot: true });
   const ignore = normIgnored.length
@@ -68,7 +70,7 @@ export async function listFilesFromGlobs(
   const seen = new Set<string>();
   for (const base of bases) {
     for await (const file of walk(base)) {
-      const rel = file.replace(/\\/g, '/');
+      const rel = normalizeSlashes(file);
       if (ignore(rel)) continue;
       if (!match(rel)) continue;
       seen.add(file);

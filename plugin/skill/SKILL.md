@@ -2,148 +2,143 @@
 name: jeeves-watcher
 description: >
   Semantic search and metadata enrichment via a jeeves-watcher instance.
-  Use as your primary method for finding relevant files and context before
-  falling back to filesystem browsing.
+  Discover record types and filterable fields at runtime via config introspection.
 ---
 
-# Jeeves Watcher — Context Discovery
+# Jeeves Watcher — Context Discovery (Inference Rules v2)
 
 ## Behavioral Directive
 
-**Use `watcher_search` as your first step when you need to find information.** Before browsing the filesystem, before grepping, before guessing at file paths — search the index. It covers far more ground than manual exploration and finds things you wouldn't know to look for.
+Use **`watcher_search`** first when you need to find relevant files or prior context.
 
-**When search doesn't find what you need, fall back to your usual methods.** The index covers configured watch paths but not everything on the system. Active repos, system tools, and files outside the watch scope won't appear. Absence of results means the content may not be indexed, not that it doesn't exist.
+When you need to **understand what fields exist**, **what types they are**, or **which filters are valid**, do not guess and do not rely on a flat payload-field dump. Instead, use config introspection:
+- `watcher_query` to discover rule names/descriptions and retrieve schemas
+- `watcher_schema` when you need the full JSON Schema for the merged virtual document
+
+If search results are empty or low-signal, fall back to filesystem browsing. Not everything is indexed.
+
+---
 
 ## Workflow
 
-### 1. Discover (once per session)
+### 1) Orientation (once per session)
 
-Call `watcher_status` early in your session to learn what's available:
+Build a mental model of the deployment (organization + score thresholds + available record types).
 
+Recommended (two calls):
+
+1. Query organizational context and score thresholds:
 ```json
-{}
+{ "path": "$.['description','search']" }
 ```
 
-This returns collection stats and — critically — the set of payload fields with their types. Cache this mentally; these fields won't change during a session. Use them to construct targeted filters.
-
-### 2. Search (primary context discovery)
-
-Use `watcher_search` to find relevant files:
-
+2. List available record types (inference rules):
 ```json
-{ "query": "authentication flow", "limit": 5 }
+{ "path": "$.inferenceRules[*].['name','description']" }
 ```
 
-Results include `chunk_text` in the payload. For quick context, the chunks may be sufficient without reading the full file. Only load the file when you need complete content or plan to edit it.
+Notes:
+- The **top-level `description`** explains how this watcher deployment is organized.
+- Each rule’s **`description`** explains what that record type represents.
 
-### 3. Read (when needed)
+### 2) Query planning (per search task)
 
-Use the `file_path` from search results to read the actual file. Group results by `file_path` when multiple chunks come from the same document.
+1. Identify the relevant rule(s) by name.
+2. Retrieve the fully-resolved schema for those rules:
+```json
+{
+  "path": "$.inferenceRules[?(@.name=='<rule>')].schema",
+  "resolve": ["files","globals"]
+}
+```
 
-### 4. Fall back (when search misses)
+3. For `select` / `multiselect` fields without `enum`, query the runtime values index:
+```json
+{ "path": "$.inferenceRules[?(@.name=='<rule>')].values.<field>" }
+```
 
-If search returns nothing useful or low-scoring results (below ~0.3), the content likely isn't indexed. Fall back to filesystem browsing, directory listing, or grep. This is expected — not everything is in the index.
+If search results span multiple rules (see `matched_rules` in result payload), query each unique rule’s schema and combine mentally.
+
+### 3) uiHint → Qdrant filter mapping
+
+Use `uiHint` from schema to choose the correct Qdrant filter construction:
+
+| uiHint | Qdrant filter | Notes |
+|---|---|---|
+| text | `{ "key": "<field>", "match": { "text": "<value>" } }` | substring/token match |
+| select | `{ "key": "<field>", "match": { "value": "<enum_value>" } }` | exact match |
+| multiselect | `{ "key": "<field>", "match": { "value": "<enum_value>" } }` | any-element match on array |
+| date | `{ "key": "<field>", "range": { "gte": <unix_ts>, "lt": <unix_ts> } }` | open-ended ok |
+| number | `{ "key": "<field>", "range": { "gte": <n>, "lte": <n> } }` | open-ended ok |
+| check | `{ "key": "<field>", "match": { "value": true } }` | boolean match |
+| (absent) | do not filter | internal/not intended |
+
+Compose conditions using Qdrant combinators:
+- `must` (AND)
+- `should` (OR)
+- `must_not` (exclude)
+
+### 4) Search execution
+
+Plain semantic search is often sufficient:
+```json
+{ "query": "authentication flow", "limit": 10 }
+```
+
+Add filters to narrow when necessary.
+
+Search results include watcher-managed system fields:
+- `file_path`, `chunk_index`, `total_chunks`, `chunk_text`, `content_hash`
+- `matched_rules` (inference rules that produced the metadata)
+
+All other payload fields are config-defined via inference rule schemas.
+
+### 5) Path testing
+
+When unsure whether a file is watched or which rules match it:
+```json
+{ "paths": ["j:/domains/jira/VCN/issue/WEB-123.json"] }
+```
+
+The response returns ordered matching rule names and `watched` scope status.
+
+### 6) Diagnostics
+
+If expected content is missing, check current embedding issues:
+- Use `watcher_issues` to see the live issues list
+- Issues are self-healing: successful reprocessing clears entries
+
+---
 
 ## Tools
 
 ### `watcher_status`
-
-Get service health, collection stats, and discover available payload fields.
-
-| Parameter | Type | Required | Description |
-| --------- | ---- | -------- | ----------- |
-| _(none)_  |      |          |             |
-
-**Returns:** `status`, `uptime`, `collection` (name, pointCount, dimensions), `payloadFields` (field names with types).
+Health/uptime and collection stats.
 
 ### `watcher_search`
-
-Semantic similarity search with optional Qdrant filters.
-
-| Parameter | Type   | Required | Description                          |
-| --------- | ------ | -------- | ------------------------------------ |
-| `query`   | string | yes      | Natural-language search query        |
-| `limit`   | number | no       | Max results to return (default: 10)  |
-| `filter`  | object | no       | Qdrant filter object (see below)     |
-
-**Plain search:**
-
-```json
-{ "query": "error handling", "limit": 5 }
-```
-
-**Filtered search:**
-
-```json
-{
-  "query": "error handling",
-  "limit": 10,
-  "filter": {
-    "must": [{ "key": "domain", "match": { "value": "backend" } }]
-  }
-}
-```
+Semantic search with optional Qdrant filter.
 
 ### `watcher_enrich`
+Set/update metadata on a document by file path.
 
-Set or update metadata on a document by file path.
+### `watcher_schema`
+Get the JSON Schema for the merged virtual document returned by `watcher_query`.
 
-| Parameter  | Type   | Required | Description                         |
-| ---------- | ------ | -------- | ----------------------------------- |
-| `path`     | string | yes      | File path of the document           |
-| `metadata` | object | yes      | Key-value metadata to set           |
+### `watcher_query`
+JSONPath query over the merged virtual document (authored config + runtime values). Optional `resolve`:
+- `resolve: ["files"]` resolve file references
+- `resolve: ["globals"]` expand named schema references
+- `resolve: ["files","globals"]` fully inline
 
-```json
-{
-  "path": "docs/auth.md",
-  "metadata": { "domain": "auth", "reviewed": true }
-}
-```
+### `watcher_match`
+Server-evaluated path testing against inference rules and watch scope.
 
-## Qdrant Filter Patterns
+### `watcher_issues`
+Get current embedding issues.
 
-Build filters using fields discovered via `watcher_status`.
+---
 
-**Exact match:**
+## References
 
-```json
-{ "must": [{ "key": "domain", "match": { "value": "email" } }] }
-```
-
-**Multiple conditions:**
-
-```json
-{
-  "must": [
-    { "key": "domain", "match": { "value": "codebase" } },
-    { "key": "file_path", "match": { "text": "auth" } }
-  ]
-}
-```
-
-**Exclude results:**
-
-```json
-{
-  "must_not": [{ "key": "domain", "match": { "value": "codebase" } }]
-}
-```
-
-**Full-text match** (tokenized, for longer text fields):
-
-```json
-{ "must": [{ "key": "chunk_text", "match": { "text": "authentication" } }] }
-```
-
-## Score Interpretation
-
-- **0.7+** — Strong semantic match. Trust these results.
-- **0.4–0.7** — Relevant but may need verification. Worth reading.
-- **Below 0.3** — Likely noise. The content you need may not be indexed.
-
-## Tips
-
-- **Start broad, then narrow.** A plain query without filters shows you what's available. Add filters once you know which payload field values are relevant.
-- **Group by file.** Multiple chunks from the same file appear as separate results. Look at `file_path` to see when you're getting multiple views of one document.
-- **Chunk text is a preview.** It's useful for quick triage but may be truncated or split mid-sentence. Read the actual file for complete context.
-- **Enrich after analysis.** When you review a document and learn something about it, use `watcher_enrich` to tag it. Future searches can filter on those tags.
+- JSONPath syntax: https://www.npmjs.com/package/jsonpath-plus
+- Qdrant filtering: https://qdrant.tech/documentation/concepts/filtering/
