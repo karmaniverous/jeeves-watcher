@@ -2,8 +2,10 @@
 
 All notable changes to this project will be documented in this file. Dates are displayed in UTC.
 
-#### [0.1.0](https://github.com/karmaniverous/jeeves-watcher/compare/0.5.1...0.1.0)
+#### [0.1.1](https://github.com/karmaniverous/jeeves-watcher/compare/0.5.1...0.1.1)
 
+- chore: fix monorepo release-it tags, plugin id, and version sync [`#38`](https://github.com/karmaniverous/jeeves-watcher/pull/38)
+- chore: release @karmaniverous/jeeves-watcher-openclaw v0.1.0 [`97e2834`](https://github.com/karmaniverous/jeeves-watcher/commit/97e2834986f0ce53098d0299d0da3025a432e43f)
 - package version 0 [`eda1c58`](https://github.com/karmaniverous/jeeves-watcher/commit/eda1c58217fc89a4f1d2ff3e048c13973b5056fd)
 
 #### [0.5.1](https://github.com/karmaniverous/jeeves-watcher/compare/0.5.0...0.5.1)
