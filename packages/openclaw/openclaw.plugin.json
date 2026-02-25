@@ -1,5 +1,5 @@
 {
-  "id": "jeeves-watcher",
+  "id": "jeeves-watcher-openclaw",
   "name": "Jeeves Watcher",
   "description": "Semantic search and metadata enrichment via a jeeves-watcher instance.",
   "version": "0.5.0",
