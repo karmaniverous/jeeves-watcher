@@ -2,9 +2,18 @@
 
 All notable changes to this project will be documented in this file. Dates are displayed in UTC.
 
+#### [0.5.0](https://github.com/karmaniverous/jeeves-watcher/compare/0.5.0-1...0.5.0)
+
+- docs(skill): add theory of operation, remove stale SKILL.md [`#36`](https://github.com/karmaniverous/jeeves-watcher/pull/36)
+- feat: v0.5.0 — plugin expansion, two-skill architecture, API extensions [`#35`](https://github.com/karmaniverous/jeeves-watcher/pull/35)
+- docs(skill): add theory of operation narrative, remove stale plugin/skill/SKILL.md [`979993d`](https://github.com/karmaniverous/jeeves-watcher/commit/979993dfbd19a8102441fb95d7be10ae0000c6e5)
+
 #### [0.5.0-1](https://github.com/karmaniverous/jeeves-watcher/compare/0.5.0-0...0.5.0-1)
 
+> 25 February 2026
+
 - docs: export missing symbols, add TSDoc, fix typedoc warnings [`85f5f02`](https://github.com/karmaniverous/jeeves-watcher/commit/85f5f02c84c2ecf309ef799d186d689a5e8412ef)
+- chore: release v0.5.0-1 [`2b330da`](https://github.com/karmaniverous/jeeves-watcher/commit/2b330dabb6f630394138a8132e51e49ae6f0cfb2)
 
 #### [0.5.0-0](https://github.com/karmaniverous/jeeves-watcher/compare/0.4.4...0.5.0-0)
 
