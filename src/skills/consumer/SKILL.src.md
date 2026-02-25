@@ -2,13 +2,29 @@
 name: jeeves-watcher
 description: >
   Semantic search and metadata enrichment via a jeeves-watcher instance.
-  Use when you need to search indexed documents, discover available metadata
-  fields, filter by payload values, or enrich document metadata.
+  Replaces native memory tools (memory_search/memory_get) with richer semantic
+  search across all indexed domains. Use for recall, document discovery,
+  metadata filtering, and enrichment.
 ---
 
 # jeeves-watcher — Search & Discovery
 
 **Key principle:** The SKILL teaches procedure. The config provides specifics. The assistant discovers everything about a deployment at runtime; nothing about domains, field names, or organizational structure is hardcoded in the SKILL.
+
+## Native Memory Replacement
+
+This skill **replaces `memory_search` and `memory_get`** for all recall tasks. The watcher indexes memory files alongside every other domain (email, Slack, Jira, codebase, etc.), providing:
+
+- **Cross-domain recall:** A single query searches memory, email, meetings, code, and project context simultaneously
+- **Metadata filtering:** Narrow by domain, date range, author, project, or any config-defined field
+- **Richer results:** Each result includes `matched_rules`, score, chunk text, and full metadata
+
+**For any question about prior work, decisions, dates, people, preferences, or todos:**
+1. Use `watcher_search` (not `memory_search`)
+2. Use `read` with the result's `file_path` for full context (not `memory_get`)
+3. Include `Source: <file_path>` citations when referencing recalled content
+
+If the watcher is unreachable, fall back to `memory_search`/`memory_get` as a degraded alternative.
 
 ## Quick Start
 
@@ -282,16 +298,6 @@ Use `watcher_enrich` to tag documents after analysis (e.g., `reviewed: true`, pr
   ]
 }
 ```
-
----
-
-## Memory Recall
-
-If `$.slots.memory` is present during orientation, this instance indexes memory files. Before answering questions about prior work, decisions, dates, people, preferences, or todos:
-
-1. Search with `watcher_search` using the memory slot filter
-2. Use `read` with offset/limit for full context from matched files
-3. Include `Source: <file_path>` citations in your response
 
 ---
 
