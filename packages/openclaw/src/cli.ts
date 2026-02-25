@@ -154,6 +154,15 @@ function install(): void {
   }
   const plugins = config.plugins as Record<string, unknown>;
 
+  // If plugins.allow exists and is populated, add ourselves to it
+  if (Array.isArray(plugins.allow) && plugins.allow.length > 0) {
+    const allow = plugins.allow as string[];
+    if (!allow.includes(PLUGIN_ID)) {
+      allow.push(PLUGIN_ID);
+      console.log(`  ✓ Added "${PLUGIN_ID}" to plugins.allow`);
+    }
+  }
+
   // Add to plugins.entries
   if (!plugins.entries || typeof plugins.entries !== 'object') {
     plugins.entries = {};
@@ -210,6 +219,14 @@ function uninstall(): void {
     const config = readJson(configPath);
     if (config) {
       const plugins = (config.plugins ?? {}) as Record<string, unknown>;
+
+      // Remove from plugins.allow if it exists and is populated
+      if (Array.isArray(plugins.allow) && plugins.allow.length > 0) {
+        plugins.allow = (plugins.allow as string[]).filter(
+          (id) => id !== PLUGIN_ID,
+        );
+        console.log(`  ✓ Removed "${PLUGIN_ID}" from plugins.allow`);
+      }
 
       // Remove from plugins.entries
       if (plugins.entries && typeof plugins.entries === 'object') {
