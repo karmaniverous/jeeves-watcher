@@ -173,18 +173,14 @@ function install(): void {
     console.log(`  ✓ Added "${PLUGIN_ID}" to plugins.entries`);
   }
 
-  // Ensure tools.allow includes the plugin
-  if (!config.tools || typeof config.tools !== 'object') {
-    config.tools = {};
-  }
-  const tools = config.tools as Record<string, unknown>;
-  if (!Array.isArray(tools.allow)) {
-    tools.allow = [];
-  }
-  const toolsAllow = tools.allow as string[];
-  if (!toolsAllow.includes(PLUGIN_ID)) {
-    toolsAllow.push(PLUGIN_ID);
-    console.log(`  ✓ Added "${PLUGIN_ID}" to tools.allow`);
+  // If tools.allow exists and is populated, add ourselves to it
+  const tools = (config.tools ?? {}) as Record<string, unknown>;
+  if (Array.isArray(tools.allow) && tools.allow.length > 0) {
+    const toolsAllow = tools.allow as string[];
+    if (!toolsAllow.includes(PLUGIN_ID)) {
+      toolsAllow.push(PLUGIN_ID);
+      console.log(`  ✓ Added "${PLUGIN_ID}" to tools.allow`);
+    }
   }
 
   writeJson(configPath, config);
@@ -237,9 +233,9 @@ function uninstall(): void {
         }
       }
 
-      // Remove from tools.allow
+      // Remove from tools.allow if it exists and is populated
       const tools = (config.tools ?? {}) as Record<string, unknown>;
-      if (Array.isArray(tools.allow)) {
+      if (Array.isArray(tools.allow) && tools.allow.length > 0) {
         tools.allow = (tools.allow as string[]).filter(
           (id) => id !== PLUGIN_ID,
         );
