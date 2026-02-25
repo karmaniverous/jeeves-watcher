@@ -4,9 +4,9 @@
  */
 
 import typescriptPlugin from '@rollup/plugin-typescript';
+import type { RollupOptions } from 'rollup';
 
-/** @type {import('rollup').RollupOptions} */
-const config = {
+const config: RollupOptions = {
   input: 'src/index.ts',
   output: {
     dir: 'dist',
