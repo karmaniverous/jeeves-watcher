@@ -44,7 +44,8 @@
     },
     {
       "tagName": "@category",
-      "syntaxKind": "block"
+      "syntaxKind": "block",
+      "allowMultiple": true
     },
     {
       "tagName": "@categoryDescription",

@@ -1,0 +1,12 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "allowJs": true,
+    "checkJs": true,
+    "incremental": true,
+    "tsBuildInfoFile": "./.tsbuildinfo",
+    "types": ["node", "vitest/globals"]
+  },
+  "include": ["**/*"],
+  "exclude": ["coverage", "dist", "docs", "node_modules", ".rollup.cache"]
+}

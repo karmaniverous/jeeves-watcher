@@ -37,13 +37,13 @@ const vitestRecommendedRules: Linter.RulesRecord =
 export default [
   {
     ignores: [
-      '.rollup.cache/**/*',
-      '.stan/**/*',
-      'assets/**/*',
-      'coverage/**/*',
-      'diagrams/out/**/*',
+      '**/.rollup.cache/**/*',
+      '**/.stan/**/*',
+      '**/assets/**/*',
+      '**/coverage/**/*',
+      '**/diagrams/out/**/*',
       '**/dist/**',
-      'docs/**/*',
+      '**/docs/**/*',
       'node_modules/**/*',
     ],
   },

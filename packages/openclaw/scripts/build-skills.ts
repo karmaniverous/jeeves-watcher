@@ -1,4 +1,3 @@
-/* global console */
 /**
  * @module scripts/build-skills
  * Compiles SKILL.src.md files with Handlebars partials into dist/skills/.
@@ -10,8 +9,8 @@ import path from 'node:path';
 import Handlebars from 'handlebars';
 
 const ROOT = path.resolve(import.meta.dirname, '..');
-const SHARED_DIR = path.join(ROOT, 'src', 'skills', 'shared');
-const SKILLS_DIR = path.join(ROOT, 'src', 'skills');
+const SHARED_DIR = path.join(ROOT, 'skills', 'shared');
+const SKILLS_DIR = path.join(ROOT, 'skills');
 const DIST_DIR = path.join(ROOT, 'dist', 'skills');
 
 // Register shared partials

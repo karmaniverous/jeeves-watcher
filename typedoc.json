@@ -1,6 +1,6 @@
 {
   "entryPoints": [
-    "./src/index.ts"
+    "./packages/service/src/index.ts"
   ],
   "highlightLanguages": [
     "bash",
@@ -33,7 +33,8 @@
   ],
   "projectDocuments": [
     "./CHANGELOG.md",
-    "./guides/*.md"
+    "./packages/service/guides/index.md",
+    "./packages/openclaw/guides/index.md"
   ],
   "replaceText": {
     "replacements": [

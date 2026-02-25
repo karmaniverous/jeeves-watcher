@@ -1,14 +1,14 @@
 {
-  "entry": ["src/**/index.ts", "plugin/index.ts"],
-  "ignoreBinaries": ["plantuml"],
+  "entry": ["src/**/index.ts"],
   "ignoreDependencies": [
     "@langchain/qdrant",
     "json5",
-    "tiktoken",
-    "@types/uuid"
+    "tiktoken"
   ],
   "project": ["*/**", "!docs/**"],
   "rules": {
+    "binaries": "off",
+    "devDependencies": "off",
     "exports": "off",
     "types": "off"
   },
