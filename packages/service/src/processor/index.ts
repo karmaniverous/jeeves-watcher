@@ -4,6 +4,7 @@
  * Core document processing pipeline. Handles extracting text, computing embeddings, syncing with vector store.
  */
 
+import { stat } from 'node:fs/promises';
 import { extname } from 'node:path';
 
 import type pino from 'pino';
@@ -131,7 +132,14 @@ export class DocumentProcessor implements DocumentProcessorInterface {
         this.logger.debug({ filePath }, 'Content unchanged, skipping');
         return;
       }
-      // 3. Embed→chunk→upsert pipeline
+      // 3. Filesystem date metadata
+      const fstat = await stat(filePath);
+      const fileDates = {
+        createdAt: Math.floor(fstat.birthtimeMs / 1000),
+        modifiedAt: Math.floor(fstat.mtimeMs / 1000),
+      };
+
+      // 4. Embed→chunk→upsert pipeline
       const chunkSize = this.config.chunkSize ?? 1000;
       const chunkOverlap = this.config.chunkOverlap ?? 200;
       const splitter = createSplitter(ext, chunkSize, chunkOverlap);
@@ -153,6 +161,7 @@ export class DocumentProcessor implements DocumentProcessorInterface {
         filePath,
         metadataWithRules,
         existingPayload,
+        fileDates,
       );
 
       // 4. Track success: clear issues, update values

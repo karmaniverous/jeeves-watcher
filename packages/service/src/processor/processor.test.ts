@@ -19,6 +19,14 @@ vi.mock('../metadata', () => ({
   deleteMetadata: vi.fn(),
 }));
 
+// Mock fs/promises stat for filesystem date metadata
+vi.mock('node:fs/promises', () => ({
+  stat: vi.fn().mockResolvedValue({
+    birthtimeMs: 1700000000000,
+    mtimeMs: 1700100000000,
+  }),
+}));
+
 import { deleteMetadata, readMetadata, writeMetadata } from '../metadata';
 import { buildMergedMetadata } from './buildMetadata';
 
@@ -173,6 +181,39 @@ describe('DocumentProcessor', () => {
         'rule1',
         expect.objectContaining({ domain: 'test' }),
       );
+    });
+
+    it('includes filesystem dates and line offsets in upserted payload', async () => {
+      const { vectorStore, embeddingProvider, config, logger } = createMocks();
+      mockedBuildMergedMetadata.mockResolvedValue(defaultMergedMetadata());
+      vectorStore.getPayload.mockResolvedValue(null);
+
+      const processor = new DocumentProcessor({
+        config,
+        embeddingProvider,
+        vectorStore: vectorStore as unknown as VectorStoreClient,
+        compiledRules: [],
+        logger,
+      });
+      await processor.processFile('/test.txt');
+
+      expect(vectorStore.upsert).toHaveBeenCalledOnce();
+      const points = vectorStore.upsert.mock.calls[0][0] as Array<{
+        payload: Record<string, unknown>;
+      }>;
+      expect(points.length).toBeGreaterThan(0);
+      const payload = points[0].payload;
+
+      // Filesystem dates (from mocked stat)
+      expect(payload).toHaveProperty('created_at', 1700000000);
+      expect(payload).toHaveProperty('modified_at', 1700100000);
+
+      // Line offsets
+      expect(payload).toHaveProperty('line_start');
+      expect(payload).toHaveProperty('line_end');
+      expect(typeof payload['line_start']).toBe('number');
+      expect(typeof payload['line_end']).toBe('number');
+      expect(payload['line_start']).toBeGreaterThanOrEqual(1);
     });
 
     it('does not record a v2 issue on generic error', async () => {
