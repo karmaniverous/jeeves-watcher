@@ -64,7 +64,8 @@ export function getWorkspacePath(api: PluginApi): string {
 
 /** Resolve the watcher API base URL from plugin config. */
 export function getApiUrl(api: PluginApi): string {
-  const url = api.config?.plugins?.entries?.['jeeves-watcher']?.config?.apiUrl;
+  const url =
+    api.config?.plugins?.entries?.['jeeves-watcher-openclaw']?.config?.apiUrl;
   return typeof url === 'string' ? url : DEFAULT_API_URL;
 }
 
@@ -102,7 +103,7 @@ export function connectionFail(error: unknown, baseUrl: string): ToolResult {
           text: [
             `Watcher service not reachable at ${baseUrl}.`,
             'Either start the watcher service, or if it runs on a different port,',
-            'set plugins.entries.jeeves-watcher.config.apiUrl in openclaw.json.',
+            'set plugins.entries.jeeves-watcher-openclaw.config.apiUrl in openclaw.json.',
           ].join('\n'),
         },
       ],
