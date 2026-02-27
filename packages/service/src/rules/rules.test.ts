@@ -81,6 +81,70 @@ describe('rules engine', () => {
     expect(result.metadata).toEqual({});
   });
 
+  it('matches glob patterns case-insensitively (Windows drive letters)', async () => {
+    const rules: InferenceRule[] = [
+      {
+        name: 'case-glob',
+        description: 'Match with different drive-letter casing',
+        match: {
+          properties: {
+            file: {
+              properties: {
+                path: { glob: 'J:/docs/**/*.md' },
+              },
+            },
+          },
+        },
+        schema: [{ properties: { matched: { type: 'string', set: 'yes' } } }],
+      },
+    ];
+    const compiled = compileRules(rules);
+    const attrs = makeAttributes({
+      file: {
+        path: 'j:/docs/readme.md',
+        directory: 'j:/docs',
+        filename: 'readme.md',
+        extension: '.md',
+        sizeBytes: 1024,
+        modified: '2026-01-01T00:00:00.000Z',
+      },
+    });
+    const result = await applyRules(compiled, attrs);
+    expect(result.metadata).toEqual({ matched: 'yes' });
+  });
+
+  it('matches glob patterns with dot files', async () => {
+    const rules: InferenceRule[] = [
+      {
+        name: 'dot-glob',
+        description: 'Match dotfiles',
+        match: {
+          properties: {
+            file: {
+              properties: {
+                path: { glob: 'j:/config/**' },
+              },
+            },
+          },
+        },
+        schema: [{ properties: { matched: { type: 'string', set: 'yes' } } }],
+      },
+    ];
+    const compiled = compileRules(rules);
+    const attrs = makeAttributes({
+      file: {
+        path: 'j:/config/.hidden/test.json',
+        directory: 'j:/config/.hidden',
+        filename: 'test.json',
+        extension: '.json',
+        sizeBytes: 512,
+        modified: '2026-01-01T00:00:00.000Z',
+      },
+    });
+    const result = await applyRules(compiled, attrs);
+    expect(result.metadata).toEqual({ matched: 'yes' });
+  });
+
   it('matches frontmatter properties', async () => {
     const rules: InferenceRule[] = [
       {
