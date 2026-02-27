@@ -138,7 +138,7 @@
       ]
     },
     "inferenceRules": {
-      "description": "Rules for inferring metadata from file attributes.",
+      "description": "Rules for inferring metadata from file attributes. Each entry may be an inline rule object or a file path to a JSON rule file (resolved relative to config directory).",
       "allOf": [
         {
           "$ref": "#/definitions/__schema49"
@@ -194,7 +194,7 @@
       ]
     },
     "search": {
-      "description": "Search configuration including score thresholds.",
+      "description": "Search configuration including score thresholds and hybrid search.",
       "allOf": [
         {
           "$ref": "#/definitions/__schema63"
@@ -579,57 +579,64 @@
     "__schema49": {
       "type": "array",
       "items": {
-        "type": "object",
-        "properties": {
-          "name": {
-            "type": "string",
-            "minLength": 1,
-            "description": "Unique name identifying this inference rule."
-          },
-          "description": {
-            "type": "string",
-            "minLength": 1,
-            "description": "Human-readable description of what this rule does."
-          },
-          "match": {
+        "anyOf": [
+          {
             "type": "object",
-            "propertyNames": {
-              "$ref": "#/definitions/__schema50"
+            "properties": {
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "description": "Unique name identifying this inference rule."
+              },
+              "description": {
+                "type": "string",
+                "minLength": 1,
+                "description": "Human-readable description of what this rule does."
+              },
+              "match": {
+                "type": "object",
+                "propertyNames": {
+                  "$ref": "#/definitions/__schema50"
+                },
+                "additionalProperties": {
+                  "$ref": "#/definitions/__schema51"
+                },
+                "description": "JSON Schema object to match against file attributes."
+              },
+              "schema": {
+                "description": "Array of schema references (named schema refs or inline objects) merged left-to-right.",
+                "allOf": [
+                  {
+                    "$ref": "#/definitions/__schema52"
+                  }
+                ]
+              },
+              "map": {
+                "description": "JsonMap transformation (inline definition, named map reference, or .json file path).",
+                "allOf": [
+                  {
+                    "$ref": "#/definitions/__schema53"
+                  }
+                ]
+              },
+              "template": {
+                "description": "Handlebars content template (inline string, named ref, or .hbs/.handlebars file path).",
+                "allOf": [
+                  {
+                    "$ref": "#/definitions/__schema56"
+                  }
+                ]
+              }
             },
-            "additionalProperties": {
-              "$ref": "#/definitions/__schema51"
-            },
-            "description": "JSON Schema object to match against file attributes."
-          },
-          "schema": {
-            "description": "Array of schema references (named schema refs or inline objects) merged left-to-right.",
-            "allOf": [
-              {
-                "$ref": "#/definitions/__schema52"
-              }
+            "required": [
+              "name",
+              "description",
+              "match"
             ]
           },
-          "map": {
-            "description": "JsonMap transformation (inline definition, named map reference, or .json file path).",
-            "allOf": [
-              {
-                "$ref": "#/definitions/__schema53"
-              }
-            ]
-          },
-          "template": {
-            "description": "Handlebars content template (inline string, named ref, or .hbs/.handlebars file path).",
-            "allOf": [
-              {
-                "$ref": "#/definitions/__schema56"
-              }
-            ]
+          {
+            "type": "string"
           }
-        },
-        "required": [
-          "name",
-          "description",
-          "match"
         ]
       }
     },
@@ -896,6 +903,21 @@
             "relevant",
             "noise"
           ]
+        },
+        "hybrid": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "default": false,
+              "type": "boolean"
+            },
+            "textWeight": {
+              "default": 0.3,
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            }
+          }
         }
       }
     },

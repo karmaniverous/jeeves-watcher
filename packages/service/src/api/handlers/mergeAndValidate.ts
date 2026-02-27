@@ -59,5 +59,12 @@ export function mergeAndValidateConfig(
     return { candidateRaw, errors };
   }
 
-  return { candidateRaw, parsed: parseResult.data, errors };
+  // Note: When accepting external config via API, string rule references are NOT resolved
+  // (no configDir context). API-submitted rules must always be inline objects.
+  // The cast is safe because API config never contains string rule refs.
+  return {
+    candidateRaw,
+    parsed: parseResult.data as unknown as JeevesWatcherConfig,
+    errors,
+  };
 }

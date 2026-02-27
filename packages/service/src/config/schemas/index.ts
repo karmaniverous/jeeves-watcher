@@ -31,7 +31,11 @@ export {
 } from './inference';
 
 // Root schema
-export { type JeevesWatcherConfig, jeevesWatcherConfigSchema } from './root';
+export {
+  type JeevesWatcherConfig,
+  type JeevesWatcherConfigInput,
+  jeevesWatcherConfigSchema,
+} from './root';
 
 // Service schemas
 export {
