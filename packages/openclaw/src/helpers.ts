@@ -44,7 +44,11 @@ export const PLUGIN_SOURCE = 'jeeves-watcher-openclaw';
 
 /** Normalize a path to forward slashes and lowercase drive letter on Windows. */
 export function normalizePath(p: string): string {
-  return p.replace(/\\/g, '/');
+  let result = p.replace(/\\/g, '/');
+  if (/^[A-Z]:/.test(result)) {
+    result = result[0].toLowerCase() + result.slice(1);
+  }
+  return result;
 }
 
 /**
