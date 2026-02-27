@@ -3,11 +3,51 @@ name: jeeves-watcher
 description: >
   Semantic search across a structured document archive. Use when you need to
   recall prior context, find documents, answer questions that require searching
-  across domains (email, Slack, Jira, codebase, meetings, projects), or enrich
-  document metadata.
+  across domains (email, Slack, Jira, codebase, meetings, projects), enrich
+  document metadata, manage watcher config, or diagnose indexing issues.
 ---
 
-# jeeves-watcher — Search & Discovery
+# jeeves-watcher — Search, Discovery & Administration
+
+## Service Architecture
+
+The watcher is an HTTP API running as a background service (typically NSSM on Windows, systemd on Linux).
+
+**Default port:** 3458 (configurable via `api.port` in watcher config)
+**Discover actual port:** Query `$.api.port` via `watcher_config_query`, or read the config file directly.
+
+**Health check:** `GET /status` returns uptime, point count, collection dimensions, and reindex status.
+
+**Mental model:** The `watcher_*` tools are thin HTTP wrappers. Each tool call translates to an HTTP request to the watcher API. When tools are available, use them. When they're not (e.g., different session, plugin not loaded), you can hit the API directly:
+
+```
+# Health check
+curl http://127.0.0.1:3458/status
+
+# Search
+curl -X POST http://127.0.0.1:3458/search \
+  -H "Content-Type: application/json" \
+  -d '{"query": "search text", "limit": 5}'
+
+# Query config
+curl -X POST http://127.0.0.1:3458/config/query \
+  -H "Content-Type: application/json" \
+  -d '{"path": "$.inferenceRules[*].name"}'
+```
+
+**Key endpoints:**
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/status` | GET | Health check, uptime, collection stats |
+| `/search` | POST | Semantic search (main query interface) |
+| `/config/query` | POST | JSONPath query over merged virtual document |
+| `/config/validate` | POST | Validate candidate config |
+| `/config/apply` | POST | Apply config changes |
+| `/config-reindex` | POST | Trigger reindex |
+| `/metadata` | POST | Enrich document metadata |
+| `/issues` | GET | Runtime embedding failures |
+
+**If the watcher is unreachable:** Check the service status (`nssm status jeeves-watcher` on Windows), check the configured port in the watcher config file, and check logs for startup errors.
 
 ## Theory of Operation
 
@@ -63,13 +103,99 @@ Query the merged virtual document via JSONPath.
 - `path` (string, required) — JSONPath expression
 - `resolve` (string[], optional) — `["files"]`, `["globals"]`, or `["files","globals"]`
 
-{{> qdrant-filters.md}}
+### `watcher_validate`
+Validate config and optionally test file paths.
+- `config` (object, optional) — candidate config (partial or full). Omit to validate current config.
+- `testPaths` (string[], optional) — file paths to test against the config
 
-{{> search-results.md}}
+Partial configs merge with current config by rule name. If `config` is omitted, tests against the running config.
 
-{{> jsonpath-patterns.md}}
+### `watcher_config_apply`
+Apply config changes atomically.
+- `config` (object, required) — full or partial config to apply
 
----
+Validates, writes to disk, and triggers configured reindex behavior. Returns validation errors if invalid.
+
+### `watcher_reindex`
+Trigger a reindex.
+- `scope` (string, optional) — `"rules"` (default) or `"full"`
+
+Rules scope re-applies inference rules without re-embedding (lightweight). Full scope re-processes all files.
+
+### `watcher_issues`
+Get runtime embedding failures. Returns `{ filePath: IssueRecord }` showing files that failed and why.
+
+## Qdrant Filter Syntax
+
+Filters use Qdrant's native JSON filter format, passed as the `filter` parameter to `watcher_search`.
+
+### Basic Patterns
+
+**Match exact value:**
+```json
+{ "must": [{ "key": "domain", "match": { "value": "email" } }] }
+```
+
+**Match text (full-text search within field):**
+```json
+{ "must": [{ "key": "chunk_text", "match": { "text": "authentication" } }] }
+```
+
+**Combine conditions (AND):**
+```json
+{
+  "must": [
+    { "key": "domain", "match": { "value": "jira" } },
+    { "key": "status", "match": { "value": "In Progress" } }
+  ]
+}
+```
+
+**Exclude (NOT):**
+```json
+{
+  "must_not": [{ "key": "domain", "match": { "value": "repos" } }]
+}
+```
+
+**Any of (OR):**
+```json
+{
+  "should": [
+    { "key": "domain", "match": { "value": "email" } },
+    { "key": "domain", "match": { "value": "slack" } }
+  ]
+}
+```
+
+**Nested (combine AND + NOT):**
+```json
+{
+  "must": [{ "key": "domain", "match": { "value": "jira" } }],
+  "must_not": [{ "key": "status", "match": { "value": "Done" } }]
+}
+```
+
+### Key Differences
+- `match.value` — exact match (case-sensitive, for keyword fields like `domain`, `status`)
+- `match.text` — full-text match (for text fields like `chunk_text`)
+
+## Search Result Shape
+
+Each result from `watcher_search` contains:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | string | Qdrant point ID |
+| `score` | number | Similarity score (0-1, higher = more relevant) |
+| `payload.file_path` | string | Source file path |
+| `payload.chunk_text` | string | The matched text chunk |
+| `payload.chunk_index` | number | Chunk position within the file |
+| `payload.total_chunks` | number | Total chunks for this file |
+| `payload.content_hash` | string | Hash of the full document content |
+| `payload.matched_rules` | string[] | Names of inference rules that matched |
+
+Additional metadata fields depend on the deployment's inference rules (e.g., `domain`, `status`, `author`). Use `watcher_query` to discover available fields.
 
 ## Orientation Pattern (Once Per Session)
 
@@ -120,6 +246,45 @@ The `resolve` parameter controls which reference layers are expanded in `watcher
 
 ---
 
+## JSONPath Patterns for Schema Discovery
+
+Use `watcher_query` to explore the merged virtual document. Common patterns:
+
+### Orientation
+```
+$.inferenceRules[*].['name','description']    — List all rules with descriptions
+$.search.scoreThresholds                       — Score interpretation thresholds
+$.slots                                        — Named filter patterns (e.g., memory)
+```
+
+### Schema Discovery
+```
+$.inferenceRules[?(@.name=='jira-issue')]               — Full rule details
+$.inferenceRules[?(@.name=='jira-issue')].values        — Distinct values for a rule
+$.inferenceRules[?(@.name=='jira-issue')].values.status — Values for a specific field
+```
+
+### Helper Enumeration
+```
+$.mapHelpers                        — All JsonMap helper namespaces
+$.mapHelpers.slack.exports          — Exports from the 'slack' helper
+$.templateHelpers                   — All Handlebars helper namespaces
+```
+
+### Issues
+```
+$.issues                            — All runtime embedding failures
+```
+
+### Full Config Introspection
+```
+$.schemas                           — Global named schemas
+$.maps                              — Named JsonMap transforms
+$.templates                         — Named Handlebars templates
+```
+
+---
+
 ## Query Planning (Per Search Task)
 
 Identify relevant rule(s) from the orientation model, then retrieve their schemas:
@@ -143,7 +308,7 @@ Retrieves valid filter values from the runtime values index (distinct values acc
 
 ---
 
-## uiHint → Qdrant Filter Mapping
+## uiHint → Filter Mapping
 
 Use `uiHint` to determine filter construction strategy. **This table is explicit, not intuited:**
 
@@ -204,38 +369,6 @@ A consuming UI will necessarily compose simple single-field filters. The assista
 
 ---
 
-## Search Result Shape
-
-**Qdrant output (stable across all configs):**
-```json
-{
-  "id": "<point_id>",
-  "score": 0.82,
-  "payload": {
-    "file_path": "j:/domains/jira/VCN/issue/WEB-123.json",
-    "chunk_index": 0,
-    "total_chunks": 1,
-    "chunk_text": "...",
-    "content_hash": "...",
-    "matched_rules": ["jira-issue", "json-subject"],
-    ...config-defined metadata fields...
-  }
-}
-```
-
-**System fields present on every result** (watcher-managed, not config-defined):
-- `file_path` — source file path
-- `chunk_index` / `total_chunks` — chunk position within document
-- `chunk_text` — the embedded text content
-- `content_hash` — content fingerprint for deduplication
-- `matched_rules` — inference rules that produced this point's metadata
-
-**All other payload fields are config-defined** (via inference rule schemas).
-
-Refer to Qdrant documentation for the complete search response envelope.
-
----
-
 ## Post-Processing Guidance
 
 ### Score Interpretation
@@ -273,18 +406,56 @@ Or check if a specific path would match:
 
 ---
 
+## Config Authoring
+
+### Rule Structure
+Each inference rule has:
+- `name` (required) — unique identifier
+- `description` (optional) — human-readable purpose
+- `match` — JSON Schema with picomatch glob for path matching
+- `set` — metadata fields to set on match
+- `map` (optional) — named JsonMap transform
+- `template` (optional) — named Handlebars template
+
+### Config Workflow
+1. Edit config (or build partial config object)
+2. Validate: `watcher_validate` with optional `testPaths` for dry-run preview
+3. Apply: `watcher_config_apply` — validates, writes, triggers reindex
+4. Monitor: `watcher_issues` for runtime embedding failures
+
+### When to Reindex
+- **Rules scope** (`"rules"`): Changed rule matching patterns, set expressions, schema mappings. No re-embedding needed.
+- **Full scope** (`"full"`): Changed embedding config, added watch paths, broad schema restructuring. Re-embeds everything.
+
+---
+
 ## Diagnostics
 
-Check the issues endpoint for failed embeddings:
-```
-watcher_query: path="$.issues"
-```
+### Escalation Path
+1. `watcher_status` — is the service healthy? Is a reindex running?
+2. `watcher_issues` — what files are failing and why?
+3. `watcher_query` with `$.issues` — same data via JSONPath
+4. Check logs at the configured log path
+
+### Error Categories
+- `type_collision` — metadata field type mismatch during extraction (includes `property`, `rules[]`, `types[]`)
+- `interpolation` / `interpolation_error` — template/set expression failed to resolve (includes `property`, `rule`)
+- `read_failure` — file couldn't be read (permissions, encoding)
+- `embedding` — embedding API error
 
 **Issues are self-healing:** resolved on successful re-process. The issues file always represents the current set of unresolved problems: a live todo list.
 
-**Issue types:**
-- `type_collision` — multiple rules declare the same property with incompatible types (includes `property`, `rules[]`, `types[]`)
-- `interpolation_error` — `set` template path doesn't resolve (includes `property`, `rule`)
+---
+
+## Helper Management
+
+Helpers use namespace prefixing: config key becomes prefix. A helper named `slack` exports `slack_extractParticipants`.
+
+Enumerate loaded helpers:
+```
+$.mapHelpers              — JsonMap helper namespaces with exports
+$.templateHelpers         — Handlebars helper namespaces with exports
+```
 
 ---
 
@@ -316,6 +487,16 @@ If the watcher is unreachable:
 - Inform the user that semantic search is temporarily unavailable
 - Fall back to direct `read` for known file paths
 - Do not retry silently in a loop
+
+If tools are unavailable (plugin not loaded in this session):
+- The watcher API is still accessible via direct HTTP calls
+- Use `exec` to call the endpoints listed in Service Architecture
+- Default: `http://127.0.0.1:3458`
+
+**CLI Fallbacks:**
+- `jeeves-watcher status` — check if the service is running
+- `jeeves-watcher validate` — validate config from CLI
+- Restart via NSSM (Windows) or systemctl (Linux)
 
 ---
 

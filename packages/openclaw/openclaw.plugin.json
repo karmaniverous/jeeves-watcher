@@ -1,12 +1,9 @@
 {
   "id": "jeeves-watcher-openclaw",
   "name": "Jeeves Watcher",
-  "description": "Semantic search and metadata enrichment via a jeeves-watcher instance.",
+  "description": "Semantic search, metadata enrichment, and instance administration for a jeeves-watcher deployment.",
   "version": "0.1.2",
-  "skills": [
-    "dist/skills/jeeves-watcher",
-    "dist/skills/jeeves-watcher-admin"
-  ],
+  "skills": ["dist/skills/jeeves-watcher"],
   "configSchema": {
     "type": "object",
     "additionalProperties": false,
