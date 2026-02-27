@@ -25,6 +25,7 @@ import {
 /** State for lazy init. */
 interface InitState {
   initialized: boolean;
+  lastWatcherUptime: number;
   workspace: string;
   baseUrl: string;
 }
@@ -106,16 +107,22 @@ export function createMemoryTools(api: PluginApi, baseUrl: string) {
   const workspace = getWorkspacePath(api);
   const state: InitState = {
     initialized: false,
+    lastWatcherUptime: 0,
     workspace,
     baseUrl,
   };
 
   /** Lazy init: register virtual rules with watcher. */
   async function ensureInit(): Promise<void> {
-    if (state.initialized) return;
+    // Check watcher is reachable and detect restarts
+    const status = (await fetchJson(`${state.baseUrl}/status`)) as {
+      uptime?: number;
+    };
+    const uptime = status.uptime ?? 0;
 
-    // Check watcher is reachable
-    await fetchJson(`${state.baseUrl}/status`);
+    // If watcher restarted (uptime decreased), re-register virtual rules
+    if (state.initialized && uptime >= state.lastWatcherUptime) return;
+    state.lastWatcherUptime = uptime;
 
     // Clear any stale rules
     await fetchJson(`${state.baseUrl}/rules/unregister`, {
