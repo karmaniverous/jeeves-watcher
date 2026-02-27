@@ -68,7 +68,6 @@ export async function initEmbeddingAndStore(
     logger,
   );
   await vectorStore.ensureCollection();
-  await vectorStore.ensureTextIndex('chunk_text');
 
   return { embeddingProvider, vectorStore };
 }
