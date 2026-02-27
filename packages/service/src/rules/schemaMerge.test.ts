@@ -108,7 +108,7 @@ describe('extractSetValues', () => {
     const schema: ResolvedSchema = {
       properties: {
         domain: { type: 'string', set: 'jira' },
-        status: { type: 'string', set: '${json.current.fields.status.name}' },
+        status: { type: 'string', set: '{{json.current.fields.status.name}}' },
         created: { type: 'integer' },
       },
     };
@@ -117,7 +117,7 @@ describe('extractSetValues', () => {
 
     expect(result).toEqual({
       domain: 'jira',
-      status: '${json.current.fields.status.name}',
+      status: '{{json.current.fields.status.name}}',
     });
   });
 
@@ -245,34 +245,6 @@ describe('resolveAndCoerce', () => {
     const result = resolveAndCoerce(schema, attributes, hbs);
 
     expect(result).toEqual({});
-  });
-
-  it('backward compat: resolves legacy ${...} syntax without hbs', () => {
-    const schema: ResolvedSchema = {
-      properties: {
-        domain: { type: 'string', set: 'jira' },
-        issue_key: { type: 'string', set: '${json.entityKey}' },
-      },
-    };
-
-    const attributes = {
-      file: {
-        path: 'test.json',
-        directory: '',
-        filename: '',
-        extension: '',
-        sizeBytes: 0,
-        modified: '',
-      },
-      json: { entityKey: 'WEB-123' },
-    };
-
-    const result = resolveAndCoerce(schema, attributes);
-
-    expect(result).toEqual({
-      domain: 'jira',
-      issue_key: 'WEB-123',
-    });
   });
 
   it('handles missing values with Handlebars', () => {

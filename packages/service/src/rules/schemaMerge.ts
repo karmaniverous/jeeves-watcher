@@ -281,7 +281,7 @@ export function coerceType(value: unknown, type?: string): unknown {
 export function resolveAndCoerce(
   schema: ResolvedSchema,
   attributes: FileAttributes,
-  hbs?: typeof Handlebars,
+  hbs: typeof Handlebars,
 ): Record<string, unknown> {
   const result: Record<string, unknown> = {};
 

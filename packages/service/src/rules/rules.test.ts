@@ -122,8 +122,8 @@ describe('rules engine', () => {
         schema: [
           {
             properties: {
-              source: { type: 'string', set: '${file.path}' },
-              dir: { type: 'string', set: '${file.directory}' },
+              source: { type: 'string', set: '{{file.path}}' },
+              dir: { type: 'string', set: '{{file.directory}}' },
             },
           },
         ],
@@ -329,8 +329,8 @@ describe('rules engine', () => {
         schema: [
           {
             properties: {
-              title: { type: 'string', set: '${frontmatter.title}' },
-              path: { type: 'string', set: '${file.path}' },
+              title: { type: 'string', set: '{{frontmatter.title}}' },
+              path: { type: 'string', set: '{{file.path}}' },
             },
           },
         ],
