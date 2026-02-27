@@ -1,13 +1,14 @@
-test: add test coverage for 8 untested service modules
+feat: composable array schema merge (concatenate set values)
 
-New test files:
-- executeReindex.test.ts (reindex orchestration, scope, callbacks)
-- hybridSearch.test.ts (RRF fusion, dedup, textWeight, empty results)
-- fileScan.test.ts (globBase edge cases, listFilesFromGlobs)
-- collectionInfo.test.ts (collection info retrieval)
-- metadata.test.ts (read/write/delete metadata)
-- JsonFileStore.test.ts (file-backed store, corrupt file handling)
-- scroll.test.ts (async generator pagination)
-- buildMetadata.test.ts (metadata assembly)
+When two schemas both define a set value for an array-typed property,
+the values are concatenated instead of the last schema winning.
 
-373 total tests (54 new), all passing.
+This enables composable domain tagging: a base schema contributes
+["email"] and a meta schema contributes ["meta"], producing
+["email", "meta"] in the merged result.
+
+- ResolvedProperty.set widened to string | unknown[]
+- mergeSchemas concatenates array sets instead of replacing
+- resolveAndCoerce resolves each array element individually
+- extractSetValues return type updated
+- 3 new tests: array concat, scalar-into-array, non-array last-wins
