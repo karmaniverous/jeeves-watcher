@@ -90,6 +90,10 @@ export class JeevesWatcher {
       logger,
     );
 
+    if (this.config.search?.hybrid?.enabled) {
+      await vectorStore.ensureTextIndex('chunk_text');
+    }
+
     const compiledRules = this.factories.compileRules(
       this.config.inferenceRules ?? [],
     );

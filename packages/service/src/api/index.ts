@@ -109,9 +109,21 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
 
   app.post('/metadata', createMetadataHandler({ processor, config, logger }));
 
+  const hybridConfig = config.search?.hybrid
+    ? {
+        enabled: config.search.hybrid.enabled,
+        textWeight: config.search.hybrid.textWeight,
+      }
+    : undefined;
+
   app.post(
     '/search',
-    createSearchHandler({ embeddingProvider, vectorStore, logger }),
+    createSearchHandler({
+      embeddingProvider,
+      vectorStore,
+      logger,
+      hybridConfig,
+    }),
   );
 
   app.post(

@@ -5,10 +5,13 @@ import type { VectorStoreConfig } from '../config/types';
 import { getLogger, type MinimalLogger } from '../util/logger';
 import { normalizeError } from '../util/normalizeError';
 import { retry } from '../util/retry';
-import { inferPayloadType } from './helpers';
+import { getCollectionInfo as getCollectionInfoHelper } from './collectionInfo';
+import {
+  ensureTextIndex as ensureTextIndexHelper,
+  hybridSearch as hybridSearchHelper,
+} from './hybridSearch';
 import type {
   CollectionInfo,
-  PayloadFieldSchema,
   ScrolledPoint,
   SearchResult,
   VectorPoint,
@@ -23,7 +26,7 @@ export type {
   SearchResult,
   VectorPoint,
   VectorStore,
-};
+} from './types';
 
 /**
  * Client wrapper for Qdrant vector store operations.
@@ -35,6 +38,7 @@ export class VectorStoreClient implements VectorStore {
   private readonly collectionName: string;
   private readonly dims: number;
   private readonly log: MinimalLogger;
+  private readonly pinoLogger?: pino.Logger;
 
   /**
    * Create a new VectorStoreClient.
@@ -56,6 +60,7 @@ export class VectorStoreClient implements VectorStore {
     this.collectionName = config.collectionName;
     this.dims = dimensions;
     this.log = getLogger(logger);
+    this.pinoLogger = logger;
   }
 
   /**
@@ -202,55 +207,7 @@ export class VectorStoreClient implements VectorStore {
    * samples points to discover fields and infer types.
    */
   async getCollectionInfo(): Promise<CollectionInfo> {
-    const info = await this.client.getCollection(this.collectionName);
-    const pointCount = info.points_count ?? 0;
-    const vectorsConfig = info.config.params.vectors;
-    const dimensions =
-      vectorsConfig !== undefined && 'size' in vectorsConfig
-        ? (vectorsConfig as { size: number }).size
-        : 0;
-
-    // Try indexed payload_schema first.
-    const payloadFields: Record<string, PayloadFieldSchema> = {};
-    const schemaEntries = Object.entries(info.payload_schema);
-    if (schemaEntries.length > 0) {
-      for (const [key, schema] of schemaEntries) {
-        payloadFields[key] = {
-          type: (schema as { data_type?: string }).data_type ?? 'unknown',
-        };
-      }
-    } else if (pointCount > 0) {
-      // No indexed schema — sample points to discover fields.
-      await this.discoverPayloadFields(payloadFields);
-    }
-
-    return { pointCount, dimensions, payloadFields };
-  }
-
-  /**
-   * Sample points and discover payload field names and inferred types.
-   *
-   * @param target - Object to populate with discovered fields.
-   * @param sampleSize - Number of points to sample.
-   */
-  private async discoverPayloadFields(
-    target: Record<string, PayloadFieldSchema>,
-    sampleSize = 100,
-  ): Promise<void> {
-    const result = await this.client.scroll(this.collectionName, {
-      limit: sampleSize,
-      with_payload: true,
-      with_vector: false,
-    });
-
-    for (const point of result.points) {
-      const payload = point.payload as Record<string, unknown> | undefined;
-      if (!payload) continue;
-      for (const [key, value] of Object.entries(payload)) {
-        if (key in target) continue;
-        target[key] = { type: inferPayloadType(value) };
-      }
-    }
+    return getCollectionInfoHelper(this.client, this.collectionName);
   }
 
   /**
@@ -279,6 +236,52 @@ export class VectorStoreClient implements VectorStore {
       score: r.score,
       payload: r.payload as Record<string, unknown>,
     }));
+  }
+
+  /**
+   * Create a full-text payload index on the specified field.
+   * Idempotent — skips if the field already has a text index.
+   *
+   * @param fieldName - The payload field to index.
+   */
+  async ensureTextIndex(fieldName: string): Promise<void> {
+    if (!this.pinoLogger) {
+      throw new Error('Logger required for ensureTextIndex');
+    }
+    await ensureTextIndexHelper(
+      this.client,
+      this.collectionName,
+      fieldName,
+      this.pinoLogger,
+    );
+  }
+
+  /**
+   * Hybrid search combining dense vector and full-text match with RRF fusion.
+   *
+   * @param vector - The query vector.
+   * @param queryText - The raw query text for full-text matching.
+   * @param limit - Maximum results to return.
+   * @param textWeight - Weight for text results in RRF (0–1).
+   * @param filter - Optional Qdrant filter.
+   * @returns An array of search results.
+   */
+  async hybridSearch(
+    vector: number[],
+    queryText: string,
+    limit: number,
+    textWeight: number,
+    filter?: Record<string, unknown>,
+  ): Promise<SearchResult[]> {
+    return hybridSearchHelper(
+      this.client,
+      this.collectionName,
+      vector,
+      queryText,
+      limit,
+      textWeight,
+      filter,
+    );
   }
 
   /**
