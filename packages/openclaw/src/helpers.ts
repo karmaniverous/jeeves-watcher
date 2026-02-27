@@ -54,6 +54,34 @@ export function fail(error: unknown): ToolResult {
   };
 }
 
+/** Format a connection error with actionable guidance. */
+export function connectionFail(error: unknown, baseUrl: string): ToolResult {
+  const message = error instanceof Error ? error.message : String(error);
+  const isConnectionError =
+    message.includes('ECONNREFUSED') ||
+    message.includes('fetch failed') ||
+    message.includes('ENOTFOUND') ||
+    message.includes('ETIMEDOUT');
+
+  if (isConnectionError) {
+    return {
+      content: [
+        {
+          type: 'text',
+          text: [
+            `Watcher service not reachable at ${baseUrl}.`,
+            'Either start the watcher service, or if it runs on a different port,',
+            'set plugins.entries.jeeves-watcher.config.apiUrl in openclaw.json.',
+          ].join('\n'),
+        },
+      ],
+      isError: true,
+    };
+  }
+
+  return fail(error);
+}
+
 /** Fetch JSON from a URL, throwing on non-OK responses. */
 export async function fetchJson(
   url: string,

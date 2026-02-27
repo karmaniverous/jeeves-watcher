@@ -4,7 +4,7 @@
  */
 
 import type { PluginApi } from './helpers.js';
-import { fail, fetchJson, getApiUrl, ok } from './helpers.js';
+import { connectionFail, fetchJson, getApiUrl, ok } from './helpers.js';
 
 /** Register all jeeves-watcher tools with the OpenClaw plugin API. */
 export default function register(api: PluginApi): void {
@@ -20,7 +20,7 @@ export default function register(api: PluginApi): void {
         try {
           return ok(await fetchJson(`${baseUrl}/status`));
         } catch (error) {
-          return fail(error);
+          return connectionFail(error, baseUrl);
         }
       },
     },
@@ -65,7 +65,7 @@ export default function register(api: PluginApi): void {
             }),
           );
         } catch (error) {
-          return fail(error);
+          return connectionFail(error, baseUrl);
         }
       },
     },
@@ -103,7 +103,7 @@ export default function register(api: PluginApi): void {
             }),
           );
         } catch (error) {
-          return fail(error);
+          return connectionFail(error, baseUrl);
         }
       },
     },
@@ -142,7 +142,7 @@ export default function register(api: PluginApi): void {
             }),
           );
         } catch (error) {
-          return fail(error);
+          return connectionFail(error, baseUrl);
         }
       },
     },
@@ -183,7 +183,7 @@ export default function register(api: PluginApi): void {
             }),
           );
         } catch (error) {
-          return fail(error);
+          return connectionFail(error, baseUrl);
         }
       },
     },
@@ -215,7 +215,7 @@ export default function register(api: PluginApi): void {
             }),
           );
         } catch (error) {
-          return fail(error);
+          return connectionFail(error, baseUrl);
         }
       },
     },
@@ -249,7 +249,7 @@ export default function register(api: PluginApi): void {
             }),
           );
         } catch (error) {
-          return fail(error);
+          return connectionFail(error, baseUrl);
         }
       },
     },
@@ -266,7 +266,7 @@ export default function register(api: PluginApi): void {
         try {
           return ok(await fetchJson(`${baseUrl}/issues`));
         } catch (error) {
-          return fail(error);
+          return connectionFail(error, baseUrl);
         }
       },
     },
