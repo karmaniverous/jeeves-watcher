@@ -132,9 +132,7 @@ export function createConfigValidateHandler(deps: ConfigValidateRouteDeps) {
         return { valid: false, errors: helperErrors };
       }
 
-      const schemaErrors = parsed
-        ? validateInferenceRuleSchemas(parsed)
-        : [];
+      const schemaErrors = parsed ? validateInferenceRuleSchemas(parsed) : [];
       if (schemaErrors.length > 0) {
         return { valid: false, errors: schemaErrors };
       }

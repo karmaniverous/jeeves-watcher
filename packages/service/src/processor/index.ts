@@ -143,8 +143,13 @@ export class DocumentProcessor implements DocumentProcessorInterface {
       'Failed to process file',
       async () => {
         const ext = extname(filePath);
-        const { metadata, extracted, renderedContent, matchedRules, metadataWithRules } =
-          await this.buildMetadataWithRules(filePath);
+        const {
+          metadata,
+          extracted,
+          renderedContent,
+          matchedRules,
+          metadataWithRules,
+        } = await this.buildMetadataWithRules(filePath);
 
         const textToEmbed = renderedContent ?? extracted.text;
         if (!textToEmbed.trim()) {

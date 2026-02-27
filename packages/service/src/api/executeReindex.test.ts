@@ -1,21 +1,37 @@
-import { describe, expect, it, vi } from 'vitest';
-
 import { pino } from 'pino';
+import { describe, expect, it, vi } from 'vitest';
 
 import { executeReindex, type ExecuteReindexDeps } from './executeReindex';
 
-function makeDeps(
-  overrides: Partial<ExecuteReindexDeps> = {},
-): ExecuteReindexDeps {
-  return {
+interface MockRefs {
+  trackerStart: ReturnType<typeof vi.fn>;
+  trackerComplete: ReturnType<typeof vi.fn>;
+  clearAll: ReturnType<typeof vi.fn>;
+  processFile: ReturnType<typeof vi.fn>;
+}
+
+function makeDeps(overrides: Partial<ExecuteReindexDeps> = {}): {
+  deps: ExecuteReindexDeps;
+  mocks: MockRefs;
+} {
+  const trackerStart = vi.fn();
+  const trackerComplete = vi.fn();
+  const clearAll = vi.fn();
+  const processFile = vi.fn().mockResolvedValue(undefined);
+
+  const deps: ExecuteReindexDeps = {
     config: {
       watch: { paths: ['src/**'], ignored: [] },
-      vectorStore: { url: 'http://localhost', collectionName: 'test', apiKey: '' },
+      vectorStore: {
+        url: 'http://localhost',
+        collectionName: 'test',
+        apiKey: '',
+      },
       metadataDir: '.meta',
-      ...((overrides.config as Record<string, unknown>) ?? {}),
-    } as ExecuteReindexDeps['config'],
+      ...((overrides.config ?? {}) as Record<string, unknown>),
+    } as unknown as ExecuteReindexDeps['config'],
     processor: {
-      processFile: vi.fn().mockResolvedValue(undefined),
+      processFile,
       deleteFile: vi.fn().mockResolvedValue(undefined),
       processMetadataUpdate: vi.fn().mockResolvedValue(null),
       processRulesUpdate: vi.fn().mockResolvedValue(null),
@@ -23,45 +39,49 @@ function makeDeps(
     },
     logger: pino({ level: 'silent' }),
     reindexTracker: {
-      start: vi.fn(),
-      complete: vi.fn(),
+      start: trackerStart,
+      complete: trackerComplete,
       getStatus: vi.fn(),
     } as unknown as ExecuteReindexDeps['reindexTracker'],
     valuesManager: {
-      clearAll: vi.fn(),
+      clearAll,
       update: vi.fn(),
     } as unknown as ExecuteReindexDeps['valuesManager'],
     ...overrides,
+  };
+
+  return {
+    deps,
+    mocks: { trackerStart, trackerComplete, clearAll, processFile },
   };
 }
 
 describe('executeReindex', () => {
   it('calls reindexTracker.start and complete on full scope', async () => {
-    const deps = makeDeps();
-    // processAllFiles is imported internally; we test via the tracker
+    const { deps, mocks } = makeDeps();
     await executeReindex(deps, 'full');
-    expect(deps.reindexTracker?.start).toHaveBeenCalledWith('full');
-    expect(deps.reindexTracker?.complete).toHaveBeenCalled();
+    expect(mocks.trackerStart).toHaveBeenCalledWith('full');
+    expect(mocks.trackerComplete).toHaveBeenCalled();
   });
 
   it('clears valuesManager on full scope', async () => {
-    const deps = makeDeps();
+    const { deps, mocks } = makeDeps();
     await executeReindex(deps, 'full');
-    expect(deps.valuesManager?.clearAll).toHaveBeenCalled();
+    expect(mocks.clearAll).toHaveBeenCalled();
   });
 
   it('does not clear valuesManager on issues scope', async () => {
-    const deps = makeDeps({
+    const { deps, mocks } = makeDeps({
       issuesManager: {
         getAll: () => ({ 'file.txt': { type: 'error' } }),
       },
     });
     await executeReindex(deps, 'issues');
-    expect(deps.valuesManager?.clearAll).not.toHaveBeenCalled();
+    expect(mocks.clearAll).not.toHaveBeenCalled();
   });
 
   it('reprocesses only issue files on issues scope', async () => {
-    const deps = makeDeps({
+    const { deps, mocks } = makeDeps({
       issuesManager: {
         getAll: () => ({
           'a.txt': { type: 'err' },
@@ -70,21 +90,21 @@ describe('executeReindex', () => {
       },
     });
     const result = await executeReindex(deps, 'issues');
-    expect(deps.processor.processFile).toHaveBeenCalledTimes(2);
+    expect(mocks.processFile).toHaveBeenCalledTimes(2);
     expect(result.filesProcessed).toBe(2);
     expect(result.errors).toBe(0);
   });
 
   it('counts errors when issue file processing fails', async () => {
-    const processor = {
-      processFile: vi.fn().mockRejectedValue(new Error('fail')),
-      deleteFile: vi.fn(),
-      processMetadataUpdate: vi.fn(),
-      processRulesUpdate: vi.fn(),
-      updateRules: vi.fn(),
-    };
-    const deps = makeDeps({
-      processor,
+    const failingProcessFile = vi.fn().mockRejectedValue(new Error('fail'));
+    const { deps } = makeDeps({
+      processor: {
+        processFile: failingProcessFile,
+        deleteFile: vi.fn(),
+        processMetadataUpdate: vi.fn(),
+        processRulesUpdate: vi.fn(),
+        updateRules: vi.fn(),
+      },
       issuesManager: { getAll: () => ({ 'a.txt': {} }) },
     });
     const result = await executeReindex(deps, 'issues');
@@ -93,16 +113,16 @@ describe('executeReindex', () => {
   });
 
   it('fires callback when configured', async () => {
-    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      new Response('ok', { status: 200 }),
-    );
-    const deps = makeDeps({
+    const fetchSpy = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValue(new Response('ok', { status: 200 }));
+    const { deps } = makeDeps({
       config: {
         watch: { paths: [], ignored: [] },
         vectorStore: { url: '', collectionName: '', apiKey: '' },
         metadataDir: '.meta',
         reindex: { callbackUrl: 'http://example.com/cb' },
-      } as ExecuteReindexDeps['config'],
+      } as unknown as ExecuteReindexDeps['config'],
       issuesManager: { getAll: () => ({}) },
     });
     await executeReindex(deps, 'issues');
@@ -114,7 +134,7 @@ describe('executeReindex', () => {
   });
 
   it('returns result with durationMs', async () => {
-    const deps = makeDeps({
+    const { deps } = makeDeps({
       issuesManager: { getAll: () => ({}) },
     });
     const result = await executeReindex(deps, 'issues');
