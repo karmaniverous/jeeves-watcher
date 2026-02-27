@@ -20,7 +20,7 @@ export function createRuleAjv(): Ajv {
     type: 'string',
     schemaType: 'string',
     validate: (pattern: string, data: string) =>
-      picomatch.isMatch(data, pattern),
+      picomatch.isMatch(data, pattern, { dot: true, nocase: true }),
   });
   return ajv;
 }
