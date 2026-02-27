@@ -1,7 +1,1 @@
-test(openclaw): add vitest infrastructure and plugin test suite
-
-- Set up vitest in openclaw package with test script
-- helpers.test.ts: 14 tests (normalizePath, getWorkspacePath, getApiUrl, ok, fail, connectionFail)
-- memoryTools.test.ts: 13 tests (lazy init flow, retry after failure, result mapping, from/to omission, minScore filtering, memory_get read/range/path validation)
-- watcherTools.test.ts: 3 tests (8 tools registered, all optional, status endpoint call)
-- Added test to release-it after:init hook
+chore: remove unused VirtualRuleStore barrel export (knip)
