@@ -128,6 +128,24 @@ export function patchConfig(
     messages.push(`Removed "${PLUGIN_ID}" from plugins.entries`);
   }
 
+  // plugins.slots — claim or release the memory slot
+  if (!plugins.slots || typeof plugins.slots !== 'object') {
+    plugins.slots = {};
+  }
+  const slots = plugins.slots as Record<string, unknown>;
+  if (mode === 'add') {
+    const prev = slots.memory;
+    slots.memory = PLUGIN_ID;
+    if (prev !== PLUGIN_ID) {
+      messages.push(
+        `Set plugins.slots.memory to "${PLUGIN_ID}"${prev ? ` (was "${prev as string}")` : ''}`,
+      );
+    }
+  } else if (slots.memory === PLUGIN_ID) {
+    slots.memory = 'memory-core';
+    messages.push(`Reverted plugins.slots.memory to "memory-core"`);
+  }
+
   // tools.allow
   const tools = (config.tools ?? {}) as Record<string, unknown>;
   const toolAllow = patchAllowList(tools, 'allow', 'tools.allow', mode);
