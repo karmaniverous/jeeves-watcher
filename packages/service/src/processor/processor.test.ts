@@ -21,7 +21,7 @@ vi.mock('../metadata', () => ({
 
 // Mock node:fs/promises stat() to return predictable values
 vi.mock('node:fs/promises', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('node:fs/promises')>()),
+  ...(await importOriginal()),
   stat: vi.fn().mockResolvedValue({
     birthtimeMs: 1700000000000,
     mtimeMs: 1700100000000,

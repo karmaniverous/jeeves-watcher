@@ -6,6 +6,8 @@
 import { readFileSync } from 'node:fs';
 import { resolve as resolvePath } from 'node:path';
 
+import type Handlebars from 'handlebars';
+
 import type { FileAttributes } from './attributes';
 import { resolveTemplateVars } from './templates';
 
@@ -279,6 +281,7 @@ export function coerceType(value: unknown, type?: string): unknown {
 export function resolveAndCoerce(
   schema: ResolvedSchema,
   attributes: FileAttributes,
+  hbs: typeof Handlebars,
 ): Record<string, unknown> {
   const result: Record<string, unknown> = {};
 
@@ -287,7 +290,7 @@ export function resolveAndCoerce(
     if (setTemplate === undefined) continue;
 
     // Resolve template
-    const rawValue = resolveTemplateVars(setTemplate, attributes);
+    const rawValue = resolveTemplateVars(setTemplate, attributes, hbs);
 
     // Coerce to declared type - returns undefined on failure
     const coerced = coerceType(rawValue, propDef.type) as

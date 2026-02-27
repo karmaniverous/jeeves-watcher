@@ -16,7 +16,7 @@ import { get } from 'radash';
 
 import type { SchemaEntry } from '../config/schemas';
 import { loadNamespacedExports } from '../helpers/loadModule';
-import type { TemplateEngine } from '../templates';
+import { createHandlebarsInstance, type TemplateEngine } from '../templates';
 import type { FileAttributes } from './attributes';
 import type { CompiledRule } from './compile';
 import {
@@ -183,6 +183,8 @@ export async function applyRules(
   customMapLib?: Record<string, (...args: unknown[]) => unknown>,
   globalSchemas?: Record<string, SchemaEntry>,
 ): Promise<ApplyRulesResult> {
+  const hbs = templateEngine?.hbs ?? createHandlebarsInstance();
+
   // JsonMap's type definitions expect a generic JsonMapLib shape with unary functions.
   // Our helper functions accept multiple args, which JsonMap supports at runtime.
   const lib = createJsonMapLib(
@@ -211,7 +213,7 @@ export async function applyRules(
           validateSchemaCompleteness(mergedSchema, rule.name);
 
           // Resolve and coerce metadata
-          const schemaOutput = resolveAndCoerce(mergedSchema, attributes);
+          const schemaOutput = resolveAndCoerce(mergedSchema, attributes, hbs);
           merged = { ...merged, ...schemaOutput };
         } catch (error) {
           log.warn(

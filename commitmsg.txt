@@ -1,0 +1,8 @@
+feat: Handlebars set expressions + date normalization helpers
+
+- Add toUnix and toUnixMs Handlebars helpers for date normalization
+- Replace regex-based ${...} template vars with Handlebars compilation
+  when hbs instance is available (backward compat preserved)
+- Expose hbs on TemplateEngine (private -> readonly)
+- Thread hbs through resolveAndCoerce -> resolveTemplateVars pipeline
+- Update tests for Handlebars syntax + backward compat + new helpers

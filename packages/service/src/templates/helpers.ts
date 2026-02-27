@@ -106,4 +106,20 @@ export function registerBuiltinHelpers(hbs: typeof Handlebars): void {
   hbs.registerHelper('json', function (value: unknown) {
     return new hbs.SafeString(JSON.stringify(value, null, 2));
   });
+
+  // Date → unix seconds (integer)
+  hbs.registerHelper('toUnix', function (value: unknown) {
+    if (value === null || value === undefined) return '';
+    const d = dayjs(value as string | number | Date);
+    if (!d.isValid()) return '';
+    return Math.floor(d.valueOf() / 1000).toString();
+  });
+
+  // Date → unix milliseconds (integer)
+  hbs.registerHelper('toUnixMs', function (value: unknown) {
+    if (value === null || value === undefined) return '';
+    const d = dayjs(value as string | number | Date);
+    if (!d.isValid()) return '';
+    return d.valueOf().toString();
+  });
 }
