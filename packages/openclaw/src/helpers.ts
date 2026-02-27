@@ -56,12 +56,13 @@ export function fail(error: unknown): ToolResult {
 
 /** Format a connection error with actionable guidance. */
 export function connectionFail(error: unknown, baseUrl: string): ToolResult {
-  const message = error instanceof Error ? error.message : String(error);
+  const cause = error instanceof Error ? error.cause : undefined;
+  const code =
+    cause && typeof cause === 'object' && 'code' in cause
+      ? String(cause.code)
+      : '';
   const isConnectionError =
-    message.includes('ECONNREFUSED') ||
-    message.includes('fetch failed') ||
-    message.includes('ENOTFOUND') ||
-    message.includes('ETIMEDOUT');
+    code === 'ECONNREFUSED' || code === 'ENOTFOUND' || code === 'ETIMEDOUT';
 
   if (isConnectionError) {
     return {
