@@ -146,24 +146,6 @@ export async function loadCustomMapHelpers(
 }
 
 /**
- * Optional parameters for {@link applyRules}.
- */
-export interface ApplyRulesOptions {
-  /** Optional record of named JsonMap definitions. */
-  namedMaps?: Record<string, JsonMapMap>;
-  /** Optional logger for warnings (falls back to console.warn). */
-  logger?: RuleLogger;
-  /** Optional template engine for rendering content templates. */
-  templateEngine?: TemplateEngine;
-  /** Optional config directory for resolving .json map file paths. */
-  configDir?: string;
-  /** Optional custom JsonMap lib functions. */
-  customMapLib?: Record<string, (...args: unknown[]) => unknown>;
-  /** Optional global schemas collection for resolving schema references. */
-  globalSchemas?: Record<string, SchemaEntry>;
-}
-
-/**
  * Result of applying inference rules.
  */
 export interface ApplyRulesResult {
@@ -176,6 +158,24 @@ export interface ApplyRulesResult {
 }
 
 /**
+ * Optional parameters for applyRules beyond the required compiledRules and attributes.
+ */
+export interface ApplyRulesOptions {
+  /** Optional record of named JsonMap definitions. */
+  namedMaps?: Record<string, JsonMapMap>;
+  /** Optional logger for warnings (falls back to console.warn). */
+  logger?: RuleLogger;
+  /** Optional template engine for rendering content templates. */
+  templateEngine?: TemplateEngine;
+  /** Optional config directory for resolving .json map file paths. */
+  configDir?: string;
+  /** Optional custom JsonMap transform library. */
+  customMapLib?: Record<string, (...args: unknown[]) => unknown>;
+  /** Optional global schemas collection for resolving schema references. */
+  globalSchemas?: Record<string, SchemaEntry>;
+}
+
+/**
  * Apply compiled inference rules to file attributes, returning merged metadata and optional rendered content.
  *
  * Rules are evaluated in order; later rules override earlier ones.
@@ -184,13 +184,13 @@ export interface ApplyRulesResult {
  *
  * @param compiledRules - The compiled rules to evaluate.
  * @param attributes - The file attributes to match against.
- * @param options - Optional parameters for rule application.
+ * @param options - Optional configuration for rule application.
  * @returns The merged metadata and optional rendered content.
  */
 export async function applyRules(
   compiledRules: CompiledRule[],
   attributes: FileAttributes,
-  options?: ApplyRulesOptions,
+  options: ApplyRulesOptions = {},
 ): Promise<ApplyRulesResult> {
   const {
     namedMaps,
@@ -199,7 +199,7 @@ export async function applyRules(
     configDir,
     customMapLib,
     globalSchemas,
-  } = options ?? {};
+  } = options;
   const hbs = templateEngine?.hbs ?? createHandlebarsInstance();
 
   // JsonMap's type definitions expect a generic JsonMapLib shape with unary functions.

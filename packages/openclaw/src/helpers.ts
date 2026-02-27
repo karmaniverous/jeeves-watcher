@@ -124,3 +124,12 @@ export async function fetchJson(
   }
   return res.json();
 }
+
+/** POST JSON to a URL and return parsed response. */
+export async function postJson(url: string, body: unknown): Promise<unknown> {
+  return fetchJson(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+}

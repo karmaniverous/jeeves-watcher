@@ -3,19 +3,47 @@
  * Watcher tool registrations (watcher_* tools) for the OpenClaw plugin.
  */
 
-import { connectionFail, fetchJson, ok, type PluginApi } from './helpers.js';
+import {
+  connectionFail,
+  fetchJson,
+  ok,
+  type PluginApi,
+  postJson,
+  type ToolResult,
+} from './helpers.js';
 
-/** Register all 8 watcher_* tools with the OpenClaw plugin API. */
-export function registerWatcherTools(api: PluginApi, baseUrl: string): void {
+/** Config for a watcher API tool. */
+interface ApiToolConfig {
+  name: string;
+  description: string;
+  parameters: Record<string, unknown>;
+  /** Build the request: return [endpoint, body?]. No body = GET. */
+  buildRequest: (params: Record<string, unknown>) => [string, unknown?];
+}
+
+/** Register a single API tool with standard try/catch + ok/connectionFail. */
+function registerApiTool(
+  api: PluginApi,
+  baseUrl: string,
+  config: ApiToolConfig,
+): void {
   api.registerTool(
     {
-      name: 'watcher_status',
-      description:
-        'Get jeeves-watcher service health, uptime, and collection statistics.',
-      parameters: { type: 'object', properties: {} },
-      execute: async () => {
+      name: config.name,
+      description: config.description,
+      parameters: config.parameters,
+      execute: async (
+        _id: string,
+        params: Record<string, unknown>,
+      ): Promise<ToolResult> => {
         try {
-          return ok(await fetchJson(`${baseUrl}/status`));
+          const [endpoint, body] = config.buildRequest(params);
+          const url = `${baseUrl}${endpoint}`;
+          const data =
+            body !== undefined
+              ? await postJson(url, body)
+              : await fetchJson(url);
+          return ok(data);
         } catch (error) {
           return connectionFail(error, baseUrl);
         }
@@ -23,8 +51,30 @@ export function registerWatcherTools(api: PluginApi, baseUrl: string): void {
     },
     { optional: true },
   );
+}
 
-  api.registerTool(
+/** Pick defined keys from params into a body object. */
+function pickDefined(
+  params: Record<string, unknown>,
+  keys: string[],
+): Record<string, unknown> {
+  const body: Record<string, unknown> = {};
+  for (const key of keys) {
+    if (params[key] !== undefined) body[key] = params[key];
+  }
+  return body;
+}
+
+/** Register all 8 watcher_* tools with the OpenClaw plugin API. */
+export function registerWatcherTools(api: PluginApi, baseUrl: string): void {
+  const tools: ApiToolConfig[] = [
+    {
+      name: 'watcher_status',
+      description:
+        'Get jeeves-watcher service health, uptime, and collection statistics.',
+      parameters: { type: 'object', properties: {} },
+      buildRequest: () => ['/status'],
+    },
     {
       name: 'watcher_search',
       description:
@@ -34,42 +84,24 @@ export function registerWatcherTools(api: PluginApi, baseUrl: string): void {
         required: ['query'],
         properties: {
           query: { type: 'string', description: 'Search query text.' },
-          limit: {
-            type: 'number',
-            description: 'Max results (default 10).',
-          },
+          limit: { type: 'number', description: 'Max results (default 10).' },
           offset: {
             type: 'number',
             description: 'Number of results to skip for pagination.',
           },
-          filter: {
-            type: 'object',
-            description: 'Qdrant filter object.',
-          },
+          filter: { type: 'object', description: 'Qdrant filter object.' },
         },
       },
-      execute: async (_id: string, params: Record<string, unknown>) => {
-        try {
-          const body: Record<string, unknown> = { query: params.query };
-          if (params.limit !== undefined) body.limit = params.limit;
-          if (params.offset !== undefined) body.offset = params.offset;
-          if (params.filter !== undefined) body.filter = params.filter;
-          return ok(
-            await fetchJson(`${baseUrl}/search`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(body),
-            }),
-          );
-        } catch (error) {
-          return connectionFail(error, baseUrl);
-        }
+      buildRequest: (params) => {
+        const body = pickDefined(params, [
+          'query',
+          'limit',
+          'offset',
+          'filter',
+        ]);
+        return ['/search', body];
       },
     },
-    { optional: true },
-  );
-
-  api.registerTool(
     {
       name: 'watcher_enrich',
       description: 'Set or update metadata on a document by file path.',
@@ -87,27 +119,11 @@ export function registerWatcherTools(api: PluginApi, baseUrl: string): void {
           },
         },
       },
-      execute: async (_id: string, params: Record<string, unknown>) => {
-        try {
-          return ok(
-            await fetchJson(`${baseUrl}/metadata`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                path: params.path,
-                metadata: params.metadata,
-              }),
-            }),
-          );
-        } catch (error) {
-          return connectionFail(error, baseUrl);
-        }
-      },
+      buildRequest: (params) => [
+        '/metadata',
+        { path: params.path, metadata: params.metadata },
+      ],
     },
-    { optional: true },
-  );
-
-  api.registerTool(
     {
       name: 'watcher_query',
       description: 'Query the merged virtual document via JSONPath.',
@@ -115,10 +131,7 @@ export function registerWatcherTools(api: PluginApi, baseUrl: string): void {
         type: 'object',
         required: ['path'],
         properties: {
-          path: {
-            type: 'string',
-            description: 'JSONPath expression.',
-          },
+          path: { type: 'string', description: 'JSONPath expression.' },
           resolve: {
             type: 'array',
             items: { type: 'string', enum: ['files', 'globals'] },
@@ -127,26 +140,11 @@ export function registerWatcherTools(api: PluginApi, baseUrl: string): void {
           },
         },
       },
-      execute: async (_id: string, params: Record<string, unknown>) => {
-        try {
-          const body: Record<string, unknown> = { path: params.path };
-          if (params.resolve !== undefined) body.resolve = params.resolve;
-          return ok(
-            await fetchJson(`${baseUrl}/config/query`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(body),
-            }),
-          );
-        } catch (error) {
-          return connectionFail(error, baseUrl);
-        }
+      buildRequest: (params) => {
+        const body = pickDefined(params, ['path', 'resolve']);
+        return ['/config/query', body];
       },
     },
-    { optional: true },
-  );
-
-  api.registerTool(
     {
       name: 'watcher_validate',
       description:
@@ -167,27 +165,11 @@ export function registerWatcherTools(api: PluginApi, baseUrl: string): void {
           },
         },
       },
-      execute: async (_id: string, params: Record<string, unknown>) => {
-        try {
-          const body: Record<string, unknown> = {};
-          if (params.config !== undefined) body.config = params.config;
-          if (params.testPaths !== undefined) body.testPaths = params.testPaths;
-          return ok(
-            await fetchJson(`${baseUrl}/config/validate`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(body),
-            }),
-          );
-        } catch (error) {
-          return connectionFail(error, baseUrl);
-        }
+      buildRequest: (params) => {
+        const body = pickDefined(params, ['config', 'testPaths']);
+        return ['/config/validate', body];
       },
     },
-    { optional: true },
-  );
-
-  api.registerTool(
     {
       name: 'watcher_config_apply',
       description:
@@ -202,24 +184,8 @@ export function registerWatcherTools(api: PluginApi, baseUrl: string): void {
           },
         },
       },
-      execute: async (_id: string, params: Record<string, unknown>) => {
-        try {
-          return ok(
-            await fetchJson(`${baseUrl}/config/apply`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ config: params.config }),
-            }),
-          );
-        } catch (error) {
-          return connectionFail(error, baseUrl);
-        }
-      },
+      buildRequest: (params) => ['/config/apply', { config: params.config }],
     },
-    { optional: true },
-  );
-
-  api.registerTool(
     {
       name: 'watcher_reindex',
       description: 'Trigger a reindex of the watched files.',
@@ -234,39 +200,21 @@ export function registerWatcherTools(api: PluginApi, baseUrl: string): void {
           },
         },
       },
-      execute: async (_id: string, params: Record<string, unknown>) => {
-        try {
-          return ok(
-            await fetchJson(`${baseUrl}/config-reindex`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                scope: params.scope ?? 'rules',
-              }),
-            }),
-          );
-        } catch (error) {
-          return connectionFail(error, baseUrl);
-        }
-      },
+      buildRequest: (params) => [
+        '/config-reindex',
+        { scope: params.scope ?? 'rules' },
+      ],
     },
-    { optional: true },
-  );
-
-  api.registerTool(
     {
       name: 'watcher_issues',
       description:
         'Get runtime embedding failures. Shows files that failed processing and why.',
       parameters: { type: 'object', properties: {} },
-      execute: async () => {
-        try {
-          return ok(await fetchJson(`${baseUrl}/issues`));
-        } catch (error) {
-          return connectionFail(error, baseUrl);
-        }
-      },
+      buildRequest: () => ['/issues'],
     },
-    { optional: true },
-  );
+  ];
+
+  for (const tool of tools) {
+    registerApiTool(api, baseUrl, tool);
+  }
 }

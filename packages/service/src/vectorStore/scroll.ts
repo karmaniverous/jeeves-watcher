@@ -1,6 +1,6 @@
 /**
  * @module vectorStore/scroll
- * Extracted scroll async generator for VectorStoreClient.
+ * Standalone scroll utility for paginating through Qdrant collection points.
  */
 
 import type { QdrantClient } from '@qdrant/js-client-rest';
@@ -8,7 +8,7 @@ import type { QdrantClient } from '@qdrant/js-client-rest';
 import type { ScrolledPoint } from './types';
 
 /**
- * Scroll through all points matching a filter in a Qdrant collection.
+ * Scroll through all points in a Qdrant collection matching a filter.
  *
  * @param client - The Qdrant client instance.
  * @param collectionName - The collection to scroll.
@@ -16,7 +16,7 @@ import type { ScrolledPoint } from './types';
  * @param limit - Page size for scrolling.
  * @yields Scrolled points.
  */
-export async function* scroll(
+export async function* scrollCollection(
   client: QdrantClient,
   collectionName: string,
   filter?: Record<string, unknown>,

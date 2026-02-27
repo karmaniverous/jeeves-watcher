@@ -188,6 +188,26 @@ describe('createMemoryTools', () => {
       expect(parsed[0]).not.toHaveProperty('to');
     });
 
+    it('forwards maxResults as limit in search body', async () => {
+      fetchMock
+        .mockResolvedValueOnce(mockFetchOk())
+        .mockResolvedValueOnce(mockFetchOk())
+        .mockResolvedValueOnce(mockFetchOk())
+        .mockResolvedValueOnce(mockFetchOk([]));
+
+      const api = makeApi(tempDir);
+      const { memorySearch } = createMemoryTools(api, 'http://localhost:3458');
+
+      await memorySearch('id1', { query: 'test', maxResults: 3 });
+
+      const searchCall = fetchMock.mock.calls[3] as [string, RequestInit];
+      const body = JSON.parse(searchCall[1].body as string) as Record<
+        string,
+        unknown
+      >;
+      expect(body.limit).toBe(3);
+    });
+
     it('filters by minScore', async () => {
       const searchResults = [
         {

@@ -8,12 +8,14 @@ import { existsSync, readFileSync, statSync } from 'node:fs';
 import type { FastifyRequest } from 'fastify';
 import type pino from 'pino';
 
+import type { SchemaEntry } from '../../config/schemas';
 import type { JeevesWatcherConfig } from '../../config/types';
 import { applyRules } from '../../rules/apply';
 import { buildAttributes } from '../../rules/attributes';
 import { compileRules } from '../../rules/compile';
 import {
   mergeSchemas,
+  type SchemaReference,
   validateSchemaCompleteness,
 } from '../../rules/schemaMerge';
 import { normalizeError } from '../../util/normalizeError';
@@ -74,6 +76,39 @@ function validateHelperFiles(
 }
 
 /**
+ * Validate schema completeness for all inference rules.
+ *
+ * @param parsed - The parsed config with inference rules.
+ * @returns Validation errors, if any.
+ */
+function validateInferenceRuleSchemas(parsed: {
+  inferenceRules?: Array<{
+    name: string;
+    schema?: unknown[];
+  }>;
+  schemas?: Record<string, unknown>;
+}): ValidationError[] {
+  if (!parsed.inferenceRules) return [];
+  for (const rule of parsed.inferenceRules) {
+    if (!rule.schema || rule.schema.length === 0) continue;
+    try {
+      const merged = mergeSchemas(rule.schema as SchemaReference[], {
+        globalSchemas: parsed.schemas as Record<string, SchemaEntry>,
+      });
+      validateSchemaCompleteness(merged, rule.name);
+    } catch (error) {
+      return [
+        {
+          path: `inferenceRules[${rule.name}]`,
+          message: normalizeError(error).message,
+        },
+      ];
+    }
+  }
+  return [];
+}
+
+/**
  * Create handler for POST /config/validate.
  *
  * @param deps - Route dependencies.
@@ -97,27 +132,11 @@ export function createConfigValidateHandler(deps: ConfigValidateRouteDeps) {
         return { valid: false, errors: helperErrors };
       }
 
-      // Validate schema completeness for all inference rules
-      if (parsed?.inferenceRules) {
-        for (const rule of parsed.inferenceRules) {
-          if (!rule.schema || rule.schema.length === 0) continue;
-          try {
-            const merged = mergeSchemas(rule.schema, {
-              globalSchemas: parsed.schemas ?? {},
-            });
-            validateSchemaCompleteness(merged, rule.name);
-          } catch (error) {
-            return {
-              valid: false,
-              errors: [
-                {
-                  path: `inferenceRules[${rule.name}]`,
-                  message: normalizeError(error).message,
-                },
-              ],
-            };
-          }
-        }
+      const schemaErrors = parsed
+        ? validateInferenceRuleSchemas(parsed)
+        : [];
+      if (schemaErrors.length > 0) {
+        return { valid: false, errors: schemaErrors };
       }
 
       const testResults: TestResult[] = [];
