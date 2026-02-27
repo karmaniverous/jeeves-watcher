@@ -71,7 +71,7 @@ describe('createMemoryTools', () => {
       fetchMock.mockClear();
 
       await memorySearch('id2', { query: 'second' });
-      expect(fetchMock).toHaveBeenCalledTimes(1); // only search
+      expect(fetchMock).toHaveBeenCalledTimes(2); // status check + search
     });
 
     it('retries init after failure', async () => {
