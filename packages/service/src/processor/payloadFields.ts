@@ -17,3 +17,15 @@ export const FIELD_CONTENT_HASH = 'content_hash';
 
 /** Qdrant payload field: the chunk text content. */
 export const FIELD_CHUNK_TEXT = 'chunk_text';
+
+/** Qdrant payload field: file creation timestamp (unix seconds from fs.stat birthtime). */
+export const FIELD_CREATED_AT = 'created_at';
+
+/** Qdrant payload field: file modification timestamp (unix seconds from fs.stat mtime). */
+export const FIELD_MODIFIED_AT = 'modified_at';
+
+/** Qdrant payload field: 1-indexed line number where this chunk starts in the source file. */
+export const FIELD_LINE_START = 'line_start';
+
+/** Qdrant payload field: 1-indexed line number where this chunk ends in the source file. */
+export const FIELD_LINE_END = 'line_end';

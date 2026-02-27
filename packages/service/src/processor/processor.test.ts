@@ -19,6 +19,15 @@ vi.mock('../metadata', () => ({
   deleteMetadata: vi.fn(),
 }));
 
+// Mock node:fs/promises stat() to return predictable values
+vi.mock('node:fs/promises', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('node:fs/promises')>()),
+  stat: vi.fn().mockResolvedValue({
+    birthtimeMs: 1700000000000,
+    mtimeMs: 1700100000000,
+  }),
+}));
+
 import { deleteMetadata, readMetadata, writeMetadata } from '../metadata';
 import { buildMergedMetadata } from './buildMetadata';
 

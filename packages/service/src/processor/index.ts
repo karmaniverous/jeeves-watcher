@@ -4,6 +4,7 @@
  * Core document processing pipeline. Handles extracting text, computing embeddings, syncing with vector store.
  */
 
+import { stat } from 'node:fs/promises';
 import { extname } from 'node:path';
 
 import type pino from 'pino';
@@ -142,6 +143,13 @@ export class DocumentProcessor implements DocumentProcessorInterface {
         matched_rules: matchedRules,
       };
 
+      // Get file dates from filesystem
+      const stats = await stat(filePath);
+      const fileDates = {
+        createdAt: Math.floor(stats.birthtimeMs / 1000),
+        modifiedAt: Math.floor(stats.mtimeMs / 1000),
+      };
+
       await embedAndUpsert(
         {
           embeddingProvider: this.embeddingProvider,
@@ -153,6 +161,7 @@ export class DocumentProcessor implements DocumentProcessorInterface {
         filePath,
         metadataWithRules,
         existingPayload,
+        fileDates,
       );
 
       // 4. Track success: clear issues, update values
