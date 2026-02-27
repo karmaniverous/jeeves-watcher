@@ -10,7 +10,7 @@ import {
   ensureTextIndex as ensureTextIndexHelper,
   hybridSearch as hybridSearchHelper,
 } from './hybridSearch';
-import { scroll as scrollHelper } from './scroll';
+import { scrollCollection } from './scroll';
 import type {
   CollectionInfo,
   ScrolledPoint,
@@ -19,6 +19,7 @@ import type {
   VectorStore,
 } from './types';
 
+// Re-export types for public API
 export type {
   CollectionInfo,
   PayloadFieldSchema,
@@ -295,6 +296,6 @@ export class VectorStoreClient implements VectorStore {
     filter?: Record<string, unknown>,
     limit = 100,
   ): AsyncGenerator<ScrolledPoint> {
-    yield* scrollHelper(this.client, this.collectionName, filter, limit);
+    yield* scrollCollection(this.client, this.collectionName, filter, limit);
   }
 }

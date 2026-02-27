@@ -30,17 +30,12 @@ const PLUGIN_ID = 'jeeves-watcher-openclaw';
 
 /** Resolve the OpenClaw home directory. */
 function resolveOpenClawHome(): string {
-  // 1. OPENCLAW_CONFIG points directly to the config file
   if (process.env.OPENCLAW_CONFIG) {
     return dirname(resolve(process.env.OPENCLAW_CONFIG));
   }
-
-  // 2. OPENCLAW_HOME points to the .openclaw directory
   if (process.env.OPENCLAW_HOME) {
     return resolve(process.env.OPENCLAW_HOME);
   }
-
-  // 3. Default location
   return join(homedir(), '.openclaw');
 }
 
@@ -55,8 +50,6 @@ function resolveConfigPath(home: string): string {
 /** Get the package root (where this CLI lives). */
 function getPackageRoot(): string {
   const thisFile = fileURLToPath(import.meta.url);
-  // In dist: dist/cli.js → package root is ..
-  // In src: src/cli.ts → package root is ..
   return resolve(dirname(thisFile), '..');
 }
 
@@ -74,6 +67,75 @@ function writeJson(path: string, data: unknown): void {
   writeFileSync(path, JSON.stringify(data, null, 2) + '\n');
 }
 
+/**
+ * Patch an allowlist array: add or remove the plugin ID.
+ * Returns a log message if a change was made, or undefined.
+ */
+function patchAllowList(
+  parent: Record<string, unknown>,
+  key: string,
+  label: string,
+  mode: 'add' | 'remove',
+): string | undefined {
+  if (!Array.isArray(parent[key]) || (parent[key] as unknown[]).length === 0)
+    return undefined;
+
+  const list = parent[key] as string[];
+  if (mode === 'add') {
+    if (!list.includes(PLUGIN_ID)) {
+      list.push(PLUGIN_ID);
+      return `Added "${PLUGIN_ID}" to ${label}`;
+    }
+  } else {
+    const filtered = list.filter((id) => id !== PLUGIN_ID);
+    if (filtered.length !== list.length) {
+      parent[key] = filtered;
+      return `Removed "${PLUGIN_ID}" from ${label}`;
+    }
+  }
+  return undefined;
+}
+
+/** Patch OpenClaw config for install or uninstall. Returns log messages. */
+export function patchConfig(
+  config: Record<string, unknown>,
+  mode: 'add' | 'remove',
+): string[] {
+  const messages: string[] = [];
+
+  // Ensure plugins section
+  if (!config.plugins || typeof config.plugins !== 'object') {
+    config.plugins = {};
+  }
+  const plugins = config.plugins as Record<string, unknown>;
+
+  // plugins.allow
+  const pluginAllow = patchAllowList(plugins, 'allow', 'plugins.allow', mode);
+  if (pluginAllow) messages.push(pluginAllow);
+
+  // plugins.entries
+  if (!plugins.entries || typeof plugins.entries !== 'object') {
+    plugins.entries = {};
+  }
+  const entries = plugins.entries as Record<string, unknown>;
+  if (mode === 'add') {
+    if (!entries[PLUGIN_ID]) {
+      entries[PLUGIN_ID] = { enabled: true };
+      messages.push(`Added "${PLUGIN_ID}" to plugins.entries`);
+    }
+  } else if (PLUGIN_ID in entries) {
+    Reflect.deleteProperty(entries, PLUGIN_ID);
+    messages.push(`Removed "${PLUGIN_ID}" from plugins.entries`);
+  }
+
+  // tools.allow
+  const tools = (config.tools ?? {}) as Record<string, unknown>;
+  const toolAllow = patchAllowList(tools, 'allow', 'tools.allow', mode);
+  if (toolAllow) messages.push(toolAllow);
+
+  return messages;
+}
+
 /** Install the plugin into OpenClaw's extensions directory. */
 function install(): void {
   const home = resolveOpenClawHome();
@@ -87,7 +149,6 @@ function install(): void {
   console.log(`Package root:   ${pkgRoot}`);
   console.log();
 
-  // Validate OpenClaw home exists
   if (!existsSync(home)) {
     console.error(`Error: OpenClaw home directory not found at ${home}`);
     console.error(
@@ -96,7 +157,6 @@ function install(): void {
     process.exit(1);
   }
 
-  // Validate config exists
   if (!existsSync(configPath)) {
     console.error(`Error: OpenClaw config not found at ${configPath}`);
     console.error(
@@ -105,7 +165,6 @@ function install(): void {
     process.exit(1);
   }
 
-  // Validate package root has openclaw.plugin.json
   const pluginManifestPath = join(pkgRoot, 'openclaw.plugin.json');
   if (!existsSync(pluginManifestPath)) {
     console.error(
@@ -121,9 +180,7 @@ function install(): void {
   }
   mkdirSync(extDir, { recursive: true });
 
-  // Copy dist/, openclaw.plugin.json, package.json
-  const filesToCopy = ['dist', 'openclaw.plugin.json', 'package.json'];
-  for (const file of filesToCopy) {
+  for (const file of ['dist', 'openclaw.plugin.json', 'package.json']) {
     const src = join(pkgRoot, file);
     const dest = join(extDir, file);
     if (existsSync(src)) {
@@ -132,14 +189,13 @@ function install(): void {
     }
   }
 
-  // Copy node_modules if present (for runtime dependencies)
   const nodeModulesSrc = join(pkgRoot, 'node_modules');
   if (existsSync(nodeModulesSrc)) {
     cpSync(nodeModulesSrc, join(extDir, 'node_modules'), { recursive: true });
     console.log('  ✓ node_modules');
   }
 
-  // Patch OpenClaw config
+  // Patch config
   console.log();
   console.log('Patching OpenClaw config...');
   const config = readJson(configPath);
@@ -148,41 +204,9 @@ function install(): void {
     process.exit(1);
   }
 
-  // Ensure plugins section exists
-  if (!config.plugins || typeof config.plugins !== 'object') {
-    config.plugins = {};
+  for (const msg of patchConfig(config, 'add')) {
+    console.log(`  ✓ ${msg}`);
   }
-  const plugins = config.plugins as Record<string, unknown>;
-
-  // If plugins.allow exists and is populated, add ourselves to it
-  if (Array.isArray(plugins.allow) && plugins.allow.length > 0) {
-    const allow = plugins.allow as string[];
-    if (!allow.includes(PLUGIN_ID)) {
-      allow.push(PLUGIN_ID);
-      console.log(`  ✓ Added "${PLUGIN_ID}" to plugins.allow`);
-    }
-  }
-
-  // Add to plugins.entries
-  if (!plugins.entries || typeof plugins.entries !== 'object') {
-    plugins.entries = {};
-  }
-  const entries = plugins.entries as Record<string, unknown>;
-  if (!entries[PLUGIN_ID]) {
-    entries[PLUGIN_ID] = { enabled: true };
-    console.log(`  ✓ Added "${PLUGIN_ID}" to plugins.entries`);
-  }
-
-  // If tools.allow exists and is populated, add ourselves to it
-  const tools = (config.tools ?? {}) as Record<string, unknown>;
-  if (Array.isArray(tools.allow) && tools.allow.length > 0) {
-    const toolsAllow = tools.allow as string[];
-    if (!toolsAllow.includes(PLUGIN_ID)) {
-      toolsAllow.push(PLUGIN_ID);
-      console.log(`  ✓ Added "${PLUGIN_ID}" to tools.allow`);
-    }
-  }
-
   writeJson(configPath, config);
 
   console.log();
@@ -201,7 +225,6 @@ function uninstall(): void {
   console.log(`Extensions dir: ${extDir}`);
   console.log();
 
-  // Remove extensions directory
   if (existsSync(extDir)) {
     rmSync(extDir, { recursive: true, force: true });
     console.log(`✓ Removed ${extDir}`);
@@ -209,39 +232,13 @@ function uninstall(): void {
     console.log(`  (extensions directory not found, skipping)`);
   }
 
-  // Patch OpenClaw config
   if (existsSync(configPath)) {
     console.log('Patching OpenClaw config...');
     const config = readJson(configPath);
     if (config) {
-      const plugins = (config.plugins ?? {}) as Record<string, unknown>;
-
-      // Remove from plugins.allow if it exists and is populated
-      if (Array.isArray(plugins.allow) && plugins.allow.length > 0) {
-        plugins.allow = (plugins.allow as string[]).filter(
-          (id) => id !== PLUGIN_ID,
-        );
-        console.log(`  ✓ Removed "${PLUGIN_ID}" from plugins.allow`);
+      for (const msg of patchConfig(config, 'remove')) {
+        console.log(`  ✓ ${msg}`);
       }
-
-      // Remove from plugins.entries
-      if (plugins.entries && typeof plugins.entries === 'object') {
-        const entries = plugins.entries as Record<string, unknown>;
-        if (PLUGIN_ID in entries) {
-          Reflect.deleteProperty(entries, PLUGIN_ID);
-          console.log(`  ✓ Removed "${PLUGIN_ID}" from plugins.entries`);
-        }
-      }
-
-      // Remove from tools.allow if it exists and is populated
-      const tools = (config.tools ?? {}) as Record<string, unknown>;
-      if (Array.isArray(tools.allow) && tools.allow.length > 0) {
-        tools.allow = (tools.allow as string[]).filter(
-          (id) => id !== PLUGIN_ID,
-        );
-        console.log(`  ✓ Removed "${PLUGIN_ID}" from tools.allow`);
-      }
-
       writeJson(configPath, config);
     }
   }

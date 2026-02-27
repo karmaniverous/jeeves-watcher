@@ -18,6 +18,7 @@ import {
   ok,
   PLUGIN_SOURCE,
   type PluginApi,
+  postJson,
   type ToolResult,
 } from './helpers.js';
 
@@ -124,13 +125,9 @@ export function createMemoryTools(api: PluginApi, baseUrl: string) {
     });
 
     // Register virtual rules
-    await fetchJson(`${state.baseUrl}/rules/register`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        source: PLUGIN_SOURCE,
-        rules: buildVirtualRules(state.workspace),
-      }),
+    await postJson(`${state.baseUrl}/rules/register`, {
+      source: PLUGIN_SOURCE,
+      rules: buildVirtualRules(state.workspace),
     });
 
     state.initialized = true;
@@ -151,11 +148,7 @@ export function createMemoryTools(api: PluginApi, baseUrl: string) {
       };
       if (params.maxResults !== undefined) body.limit = params.maxResults;
 
-      const raw = await fetchJson(`${state.baseUrl}/search`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      });
+      const raw = await postJson(`${state.baseUrl}/search`, body);
 
       // Map results to system-prompt-compatible format
       const results = (raw as Array<Record<string, unknown>>).map((r) => {
