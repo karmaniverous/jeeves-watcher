@@ -14,23 +14,23 @@ description: >
 The watcher is an HTTP API running as a background service (typically NSSM on Windows, systemd on Linux).
 
 **Default port:** 3458 (configurable via `api.port` in watcher config)
-**Discover actual port:** Query `$.api.port` via `watcher_config_query`, or read the config file directly.
+**Non-default port:** If the watcher runs on a different port, the user must set `plugins.entries.jeeves-watcher.config.apiUrl` in `openclaw.json`. The plugin cannot auto-discover a non-default port.
 
 **Health check:** `GET /status` returns uptime, point count, collection dimensions, and reindex status.
 
-**Mental model:** The `watcher_*` tools are thin HTTP wrappers. Each tool call translates to an HTTP request to the watcher API. When tools are available, use them. When they're not (e.g., different session, plugin not loaded), you can hit the API directly:
+**Mental model:** The `watcher_*` tools are thin HTTP wrappers. Each tool call translates to an HTTP request to the watcher API. When tools are available, use them. When they're not (e.g., different session, plugin not loaded), you can hit the API directly. Replace `<PORT>` below with the configured port (default 3458; check `plugins.entries.jeeves-watcher.config.apiUrl` in `openclaw.json` if overridden):
 
 ```
 # Health check
-curl http://127.0.0.1:3458/status
+curl http://127.0.0.1:<PORT>/status
 
 # Search
-curl -X POST http://127.0.0.1:3458/search \
+curl -X POST http://127.0.0.1:<PORT>/search \
   -H "Content-Type: application/json" \
   -d '{"query": "search text", "limit": 5}'
 
 # Query config
-curl -X POST http://127.0.0.1:3458/config/query \
+curl -X POST http://127.0.0.1:<PORT>/config/query \
   -H "Content-Type: application/json" \
   -d '{"path": "$.inferenceRules[*].name"}'
 ```
@@ -77,9 +77,9 @@ You don't need to know the rules in advance. The config is introspectable at run
 
 ## Quick Start
 
-1. **Orient yourself** (once per session) — learn the deployment's organizational strategy and available record types
-2. **Search** — semantic search with optional metadata filters
-3. **Read source** — retrieve full file content for complete context
+1. **Orient yourself** (once per session) — use `watcher_query` to learn the deployment's organizational strategy and available record types (see Orientation Pattern below)
+2. **Search** — use `watcher_search` with a natural language query and optional metadata filters
+3. **Read source** — use `read` (standard file read) with `file_path` from search results for full document content
 
 ## Tools
 
