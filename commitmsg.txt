@@ -1,8 +1,10 @@
-feat: Handlebars set expressions + date normalization helpers
+feat(service): add hybrid search with BM25 text index and RRF fusion
 
-- Add toUnix and toUnixMs Handlebars helpers for date normalization
-- Replace regex-based ${...} template vars with Handlebars compilation
-  when hbs instance is available (backward compat preserved)
-- Expose hbs on TemplateEngine (private -> readonly)
-- Thread hbs through resolveAndCoerce -> resolveTemplateVars pipeline
-- Update tests for Handlebars syntax + backward compat + new helpers
+- Add search.hybrid config section (enabled, textWeight)
+- Add ensureTextIndex() for BM25 full-text index on chunk_text
+- Implement hybridSearch() using Qdrant Query API with prefetch + RRF
+- Search handler switches between vector-only and hybrid based on config
+- Text index created at startup when hybrid is enabled
+- 2 new search handler tests (hybrid on/off paths)
+
+Closes #35

@@ -152,7 +152,7 @@ export const jeevesWatcherConfigSchema = z.object({
     .record(z.string(), z.unknown())
     .optional()
     .describe('Named Qdrant filter patterns for skill-activated behaviors.'),
-  /** Search configuration including score thresholds. */
+  /** Search configuration including score thresholds and hybrid search. */
   search: z
     .object({
       /** Score thresholds for categorizing search result quality. */
@@ -166,9 +166,20 @@ export const jeevesWatcherConfigSchema = z.object({
           noise: z.number().min(-1).max(1),
         })
         .optional(),
+      /** Hybrid search configuration combining vector and full-text search. */
+      hybrid: z
+        .object({
+          /** Enable hybrid search with RRF fusion. Default: false. */
+          enabled: z.boolean().default(false),
+          /** Weight for text (BM25) results in RRF fusion. Default: 0.3. */
+          textWeight: z.number().min(0).max(1).default(0.3),
+        })
+        .optional(),
     })
     .optional()
-    .describe('Search configuration including score thresholds.'),
+    .describe(
+      'Search configuration including score thresholds and hybrid search.',
+    ),
   /** Logging configuration. */
   logging: loggingConfigSchema.optional().describe('Logging configuration.'),
   /** Timeout in milliseconds for graceful shutdown. */

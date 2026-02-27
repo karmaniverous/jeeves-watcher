@@ -128,4 +128,29 @@ export interface VectorStore {
     filter?: Record<string, unknown>,
     limit?: number,
   ): AsyncGenerator<ScrolledPoint>;
+
+  /**
+   * Create a full-text payload index on the specified field.
+   *
+   * @param fieldName - The payload field to index.
+   */
+  ensureTextIndex(fieldName: string): Promise<void>;
+
+  /**
+   * Hybrid search combining dense vector and full-text match with RRF fusion.
+   *
+   * @param vector - The query vector.
+   * @param queryText - The raw query text for full-text matching.
+   * @param limit - Maximum results to return.
+   * @param textWeight - Weight for text results in RRF (0–1).
+   * @param filter - Optional Qdrant filter.
+   * @returns An array of search results.
+   */
+  hybridSearch(
+    vector: number[],
+    queryText: string,
+    limit: number,
+    textWeight: number,
+    filter?: Record<string, unknown>,
+  ): Promise<SearchResult[]>;
 }
