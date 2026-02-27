@@ -5,6 +5,7 @@
 
 export {
   applyRules,
+  type ApplyRulesOptions,
   type ApplyRulesResult,
   loadCustomMapHelpers,
   type RuleLogger,

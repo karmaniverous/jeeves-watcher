@@ -19,7 +19,10 @@ import type { TemplateEngine } from '../templates';
 import { logError } from '../util/logError';
 import type { ValuesManager } from '../values';
 import type { VectorStore } from '../vectorStore';
-import { buildMergedMetadata } from './buildMetadata';
+import {
+  buildMergedMetadata,
+  type BuildMergedMetadataOptions,
+} from './buildMetadata';
 import { chunkIds, getChunkCount } from './chunkIds';
 import { embedAndUpsert } from './processingPipeline';
 import type { ProcessorConfig } from './ProcessorConfig';
@@ -94,88 +97,118 @@ export class DocumentProcessor implements DocumentProcessorInterface {
   }
 
   /**
+   * Build metadata options from current processor state for a given file.
+   */
+  private buildMetadataOptions(filePath: string): BuildMergedMetadataOptions {
+    return {
+      filePath,
+      compiledRules: this.compiledRules,
+      metadataDir: this.config.metadataDir,
+      maps: this.config.maps,
+      logger: this.logger,
+      templateEngine: this.templateEngine,
+      configDir: this.config.configDir,
+      customMapLib: this.config.customMapLib,
+      globalSchemas: this.config.globalSchemas,
+    };
+  }
+
+  /**
+   * Execute an async operation with standardized file-level error handling.
+   *
+   * @param filePath - The file being processed (for log context).
+   * @param label - Human-readable operation label for error messages.
+   * @param fn - The async operation to execute.
+   * @returns The result of `fn`, or `fallback` on error.
+   */
+  private async withFileErrorHandling<T>(
+    filePath: string,
+    label: string,
+    fn: () => Promise<T>,
+    fallback: T,
+  ): Promise<T> {
+    try {
+      return await fn();
+    } catch (error) {
+      logError(this.logger, error, { filePath }, label);
+      return fallback;
+    }
+  }
+
+  /**
    * Process a file through the full pipeline: extract, hash, chunk, embed, upsert.
    *
    * @param filePath - The file to process.
    */
   async processFile(filePath: string): Promise<void> {
-    try {
-      const ext = extname(filePath);
+    await this.withFileErrorHandling(
+      filePath,
+      'Failed to process file',
+      async () => {
+        const ext = extname(filePath);
 
-      // 1. Build merged metadata + extract text
-      const { metadata, extracted, renderedContent, matchedRules } =
-        await buildMergedMetadata({
-          filePath,
-          compiledRules: this.compiledRules,
-          metadataDir: this.config.metadataDir,
-          maps: this.config.maps,
-          logger: this.logger,
-          templateEngine: this.templateEngine,
-          configDir: this.config.configDir,
-          customMapLib: this.config.customMapLib,
-          globalSchemas: this.config.globalSchemas,
-        });
+        // 1. Build merged metadata + extract text
+        const { metadata, extracted, renderedContent, matchedRules } =
+          await buildMergedMetadata(this.buildMetadataOptions(filePath));
 
-      // Use rendered template content if available, otherwise raw extracted text
-      const textToEmbed = renderedContent ?? extracted.text;
+        // Use rendered template content if available, otherwise raw extracted text
+        const textToEmbed = renderedContent ?? extracted.text;
 
-      if (!textToEmbed.trim()) {
-        this.logger.debug({ filePath }, 'Skipping empty file');
-        return;
-      }
-
-      // 2. Content hash check — skip if unchanged
-      const hash = contentHash(textToEmbed);
-      const baseId = pointId(filePath, 0);
-      const existingPayload = await this.vectorStore.getPayload(baseId);
-      if (existingPayload && existingPayload['content_hash'] === hash) {
-        this.logger.debug({ filePath }, 'Content unchanged, skipping');
-        return;
-      }
-      // 3. Embed→chunk→upsert pipeline
-      const chunkSize = this.config.chunkSize ?? 1000;
-      const chunkOverlap = this.config.chunkOverlap ?? 200;
-      const splitter = createSplitter(ext, chunkSize, chunkOverlap);
-
-      // Add matched_rules to metadata payload
-      const metadataWithRules = {
-        ...metadata,
-        matched_rules: matchedRules,
-      };
-
-      // Get file dates from filesystem
-      const stats = await stat(filePath);
-      const fileDates = {
-        createdAt: Math.floor(stats.birthtimeMs / 1000),
-        modifiedAt: Math.floor(stats.mtimeMs / 1000),
-      };
-
-      await embedAndUpsert(
-        {
-          embeddingProvider: this.embeddingProvider,
-          vectorStore: this.vectorStore,
-          splitter,
-          logger: this.logger,
-        },
-        textToEmbed,
-        filePath,
-        metadataWithRules,
-        existingPayload,
-        fileDates,
-      );
-
-      // 4. Track success: clear issues, update values
-      this.issuesManager?.clear(filePath);
-      if (this.valuesManager) {
-        for (const ruleName of matchedRules) {
-          this.valuesManager.update(ruleName, metadata);
+        if (!textToEmbed.trim()) {
+          this.logger.debug({ filePath }, 'Skipping empty file');
+          return;
         }
-      }
-    } catch (error) {
-      logError(this.logger, error, { filePath }, 'Failed to process file');
-      // Note: Generic processing errors are not recorded as issues in v2 spec
-      // Only type_collision and interpolation_error are tracked
-    }
+
+        // 2. Content hash check — skip if unchanged
+        const hash = contentHash(textToEmbed);
+        const baseId = pointId(filePath, 0);
+        const existingPayload = await this.vectorStore.getPayload(baseId);
+        if (existingPayload && existingPayload['content_hash'] === hash) {
+          this.logger.debug({ filePath }, 'Content unchanged, skipping');
+          return;
+        }
+        // 3. Embed→chunk→upsert pipeline
+        const chunkSize = this.config.chunkSize ?? 1000;
+        const chunkOverlap = this.config.chunkOverlap ?? 200;
+        const splitter = createSplitter(ext, chunkSize, chunkOverlap);
+
+        // Add matched_rules to metadata payload
+        const metadataWithRules = {
+          ...metadata,
+          matched_rules: matchedRules,
+        };
+
+        // Get file dates from filesystem
+        const stats = await stat(filePath);
+        const fileDates = {
+          createdAt: Math.floor(stats.birthtimeMs / 1000),
+          modifiedAt: Math.floor(stats.mtimeMs / 1000),
+        };
+
+        await embedAndUpsert(
+          {
+            embeddingProvider: this.embeddingProvider,
+            vectorStore: this.vectorStore,
+            splitter,
+            logger: this.logger,
+          },
+          textToEmbed,
+          filePath,
+          metadataWithRules,
+          existingPayload,
+          fileDates,
+        );
+
+        // 4. Track success: clear issues, update values
+        this.issuesManager?.clear(filePath);
+        if (this.valuesManager) {
+          for (const ruleName of matchedRules) {
+            this.valuesManager.update(ruleName, metadata);
+          }
+        }
+      },
+      undefined,
+    );
   }
 
   /**
@@ -184,20 +217,22 @@ export class DocumentProcessor implements DocumentProcessorInterface {
    * @param filePath - The file to delete.
    */
   async deleteFile(filePath: string): Promise<void> {
-    try {
-      // Get the existing payload to find total chunks
-      const baseId = pointId(filePath, 0);
-      const existingPayload = await this.vectorStore.getPayload(baseId);
-      const totalChunks = getChunkCount(existingPayload);
+    await this.withFileErrorHandling(
+      filePath,
+      'Failed to delete file',
+      async () => {
+        const baseId = pointId(filePath, 0);
+        const existingPayload = await this.vectorStore.getPayload(baseId);
+        const totalChunks = getChunkCount(existingPayload);
 
-      const ids = chunkIds(filePath, totalChunks);
-      await this.vectorStore.delete(ids);
-      await deleteMetadata(filePath, this.config.metadataDir);
+        const ids = chunkIds(filePath, totalChunks);
+        await this.vectorStore.delete(ids);
+        await deleteMetadata(filePath, this.config.metadataDir);
 
-      this.logger.info({ filePath }, 'File deleted from index');
-    } catch (error) {
-      logError(this.logger, error, { filePath }, 'Failed to delete file');
-    }
+        this.logger.info({ filePath }, 'File deleted from index');
+      },
+      undefined,
+    );
   }
 
   /**
@@ -211,28 +246,28 @@ export class DocumentProcessor implements DocumentProcessorInterface {
     filePath: string,
     metadata: Record<string, unknown>,
   ): Promise<Record<string, unknown> | null> {
-    try {
-      // Read existing enrichment metadata and merge
-      const existing =
-        (await readMetadata(filePath, this.config.metadataDir)) ?? {};
-      const merged = { ...existing, ...metadata };
-      await writeMetadata(filePath, this.config.metadataDir, merged);
+    return this.withFileErrorHandling(
+      filePath,
+      'Failed to update metadata',
+      async () => {
+        const existing =
+          (await readMetadata(filePath, this.config.metadataDir)) ?? {};
+        const merged = { ...existing, ...metadata };
+        await writeMetadata(filePath, this.config.metadataDir, merged);
 
-      // Update all chunk payloads in Qdrant
-      const baseId = pointId(filePath, 0);
-      const existingPayload = await this.vectorStore.getPayload(baseId);
-      if (!existingPayload) return null;
+        const baseId = pointId(filePath, 0);
+        const existingPayload = await this.vectorStore.getPayload(baseId);
+        if (!existingPayload) return null;
 
-      const totalChunks = getChunkCount(existingPayload);
-      const ids = chunkIds(filePath, totalChunks);
-      await this.vectorStore.setPayload(ids, merged);
+        const totalChunks = getChunkCount(existingPayload);
+        const ids = chunkIds(filePath, totalChunks);
+        await this.vectorStore.setPayload(ids, merged);
 
-      this.logger.info({ filePath, chunks: totalChunks }, 'Metadata updated');
-      return merged;
-    } catch (error) {
-      logError(this.logger, error, { filePath }, 'Failed to update metadata');
-      return null;
-    }
+        this.logger.info({ filePath, chunks: totalChunks }, 'Metadata updated');
+        return merged;
+      },
+      null,
+    );
   }
 
   /**
@@ -246,48 +281,38 @@ export class DocumentProcessor implements DocumentProcessorInterface {
   async processRulesUpdate(
     filePath: string,
   ): Promise<Record<string, unknown> | null> {
-    try {
-      const baseId = pointId(filePath, 0);
-      const existingPayload = await this.vectorStore.getPayload(baseId);
-      if (!existingPayload) {
-        this.logger.debug({ filePath }, 'File not indexed, skipping');
-        return null;
-      }
+    return this.withFileErrorHandling(
+      filePath,
+      'Failed to re-apply rules',
+      async () => {
+        const baseId = pointId(filePath, 0);
+        const existingPayload = await this.vectorStore.getPayload(baseId);
+        if (!existingPayload) {
+          this.logger.debug({ filePath }, 'File not indexed, skipping');
+          return null;
+        }
 
-      // Build merged metadata (lightweight — no embedding)
-      const { metadata, matchedRules } = await buildMergedMetadata({
-        filePath,
-        compiledRules: this.compiledRules,
-        metadataDir: this.config.metadataDir,
-        maps: this.config.maps,
-        logger: this.logger,
-        templateEngine: this.templateEngine,
-        configDir: this.config.configDir,
-        customMapLib: this.config.customMapLib,
-        globalSchemas: this.config.globalSchemas,
-      });
+        // Build merged metadata (lightweight — no embedding)
+        const { metadata, matchedRules } = await buildMergedMetadata(
+          this.buildMetadataOptions(filePath),
+        );
 
-      // Add matched_rules to metadata
-      const metadataWithRules = {
-        ...metadata,
-        matched_rules: matchedRules,
-      };
+        const metadataWithRules = {
+          ...metadata,
+          matched_rules: matchedRules,
+        };
 
-      // Update all chunk payloads
-      const totalChunks = getChunkCount(existingPayload);
-      const ids = chunkIds(filePath, totalChunks);
-      await this.vectorStore.setPayload(ids, metadataWithRules);
+        const totalChunks = getChunkCount(existingPayload);
+        const ids = chunkIds(filePath, totalChunks);
+        await this.vectorStore.setPayload(ids, metadataWithRules);
 
-      this.issuesManager?.clear(filePath);
+        this.issuesManager?.clear(filePath);
 
-      this.logger.info({ filePath, chunks: totalChunks }, 'Rules re-applied');
-      return metadataWithRules;
-    } catch (error) {
-      logError(this.logger, error, { filePath }, 'Failed to re-apply rules');
-      // Note: Generic processing errors are not recorded as issues in v2 spec
-      // Only type_collision and interpolation_error are tracked
-      return null;
-    }
+        this.logger.info({ filePath, chunks: totalChunks }, 'Rules re-applied');
+        return metadataWithRules;
+      },
+      null,
+    );
   }
 
   /**

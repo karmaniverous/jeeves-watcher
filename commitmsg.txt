@@ -1,1 +1,6 @@
-chore: remove unused VirtualRuleStore barrel export (knip)
+refactor(service): SOLID/DRY improvements across vectorStore, rules, and processor
+
+- Extract scroll() async generator from VectorStoreClient into scroll.ts (Fix 1: 300 LOC limit)
+- Create ApplyRulesOptions interface to replace 8 positional params in applyRules (Fix 2: ISP)
+- Extract buildMetadataOptions() private method to DRY metadata build config (Fix 3)
+- Extract withFileErrorHandling() wrapper to DRY try/catch+logError pattern (Fix 4)

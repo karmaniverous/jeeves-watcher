@@ -10,6 +10,7 @@ import {
   ensureTextIndex as ensureTextIndexHelper,
   hybridSearch as hybridSearchHelper,
 } from './hybridSearch';
+import { scroll as scrollHelper } from './scroll';
 import type {
   CollectionInfo,
   ScrolledPoint,
@@ -18,7 +19,6 @@ import type {
   VectorStore,
 } from './types';
 
-// Re-export types for public API
 export type {
   CollectionInfo,
   PayloadFieldSchema,
@@ -295,30 +295,6 @@ export class VectorStoreClient implements VectorStore {
     filter?: Record<string, unknown>,
     limit = 100,
   ): AsyncGenerator<ScrolledPoint> {
-    let offset: string | number | undefined = undefined;
-    for (;;) {
-      const result = await this.client.scroll(this.collectionName, {
-        limit,
-        with_payload: true,
-        with_vector: false,
-        ...(filter ? { filter } : {}),
-        ...(offset !== undefined ? { offset } : {}),
-      });
-      for (const point of result.points) {
-        yield {
-          id: String(point.id),
-          payload: point.payload as Record<string, unknown>,
-        };
-      }
-      const nextOffset = result.next_page_offset;
-      if (nextOffset === null || nextOffset === undefined) {
-        break;
-      }
-      if (typeof nextOffset === 'string' || typeof nextOffset === 'number') {
-        offset = nextOffset;
-      } else {
-        break;
-      }
-    }
+    yield* scrollHelper(this.client, this.collectionName, filter, limit);
   }
 }

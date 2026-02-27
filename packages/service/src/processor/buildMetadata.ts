@@ -97,16 +97,14 @@ export async function buildMergedMetadata(
     metadata: inferred,
     renderedContent,
     matchedRules,
-  } = await applyRules(
-    compiledRules,
-    attributes,
-    maps,
+  } = await applyRules(compiledRules, attributes, {
+    namedMaps: maps,
     logger,
     templateEngine,
     configDir,
     customMapLib,
     globalSchemas,
-  );
+  });
 
   // 3. Read enrichment metadata (merge, enrichment wins)
   const enrichment = await readMetadata(filePath, metadataDir);
