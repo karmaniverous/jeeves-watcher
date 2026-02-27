@@ -50,7 +50,7 @@ describe('createMemoryTools', () => {
 
       await memorySearch('id1', { query: 'test' });
 
-      expect(fetchMock).toHaveBeenCalledTimes(4); // status, unregister, register, search
+      expect(fetchMock).toHaveBeenCalledTimes(5); // status, unregister, register, reapply, search
       expect(fetchMock.mock.calls[0][0]).toBe('http://localhost:3458/status');
       expect(fetchMock.mock.calls[1][0]).toBe(
         'http://localhost:3458/rules/unregister',
@@ -58,7 +58,10 @@ describe('createMemoryTools', () => {
       expect(fetchMock.mock.calls[2][0]).toBe(
         'http://localhost:3458/rules/register',
       );
-      expect(fetchMock.mock.calls[3][0]).toBe('http://localhost:3458/search');
+      expect(fetchMock.mock.calls[3][0]).toBe(
+        'http://localhost:3458/rules/reapply',
+      );
+      expect(fetchMock.mock.calls[4][0]).toBe('http://localhost:3458/search');
     });
 
     it('skips init on subsequent calls', async () => {
@@ -132,8 +135,9 @@ describe('createMemoryTools', () => {
           },
         },
       ];
-      // Status, unregister, register return ok; search returns results
+      // Status, unregister, register, reapply return ok; search returns results
       fetchMock
+        .mockResolvedValueOnce(mockFetchOk())
         .mockResolvedValueOnce(mockFetchOk())
         .mockResolvedValueOnce(mockFetchOk())
         .mockResolvedValueOnce(mockFetchOk())
@@ -169,6 +173,7 @@ describe('createMemoryTools', () => {
         .mockResolvedValueOnce(mockFetchOk())
         .mockResolvedValueOnce(mockFetchOk())
         .mockResolvedValueOnce(mockFetchOk())
+        .mockResolvedValueOnce(mockFetchOk())
         .mockResolvedValueOnce(mockFetchOk(searchResults));
 
       const api = makeApi(tempDir);
@@ -193,6 +198,7 @@ describe('createMemoryTools', () => {
         .mockResolvedValueOnce(mockFetchOk())
         .mockResolvedValueOnce(mockFetchOk())
         .mockResolvedValueOnce(mockFetchOk())
+        .mockResolvedValueOnce(mockFetchOk())
         .mockResolvedValueOnce(mockFetchOk([]));
 
       const api = makeApi(tempDir);
@@ -200,7 +206,7 @@ describe('createMemoryTools', () => {
 
       await memorySearch('id1', { query: 'test', maxResults: 3 });
 
-      const searchCall = fetchMock.mock.calls[3] as [string, RequestInit];
+      const searchCall = fetchMock.mock.calls[4] as [string, RequestInit];
       const body = JSON.parse(searchCall[1].body as string) as Record<
         string,
         unknown
@@ -222,6 +228,7 @@ describe('createMemoryTools', () => {
         },
       ];
       fetchMock
+        .mockResolvedValueOnce(mockFetchOk())
         .mockResolvedValueOnce(mockFetchOk())
         .mockResolvedValueOnce(mockFetchOk())
         .mockResolvedValueOnce(mockFetchOk())

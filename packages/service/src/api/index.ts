@@ -28,6 +28,7 @@ import { createMetadataHandler } from './handlers/metadata';
 import { createPointsDeleteHandler } from './handlers/pointsDelete';
 import { createRebuildMetadataHandler } from './handlers/rebuildMetadata';
 import { createReindexHandler } from './handlers/reindex';
+import { createRulesReapplyHandler } from './handlers/rulesReapply';
 import { createRulesRegisterHandler } from './handlers/rulesRegister';
 import {
   createRulesUnregisterHandler,
@@ -227,6 +228,11 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
     app.post(
       '/points/delete',
       createPointsDeleteHandler({ vectorStore, logger }),
+    );
+
+    app.post(
+      '/rules/reapply',
+      createRulesReapplyHandler({ processor, vectorStore, logger }),
     );
   }
 

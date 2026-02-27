@@ -128,10 +128,30 @@ export function createMemoryTools(api: PluginApi, baseUrl: string) {
     });
 
     // Register virtual rules
+    const virtualRules = buildVirtualRules(state.workspace);
     await postJson(`${state.baseUrl}/rules/register`, {
       source: PLUGIN_SOURCE,
-      rules: buildVirtualRules(state.workspace),
+      rules: virtualRules,
     });
+
+    // Re-apply rules to already-indexed files matching virtual rule globs
+    const globs = virtualRules
+      .map((r) => {
+        const path = r.match.properties.file.properties.path as Record<
+          string,
+          unknown
+        >;
+        return typeof path.glob === 'string' ? path.glob : undefined;
+      })
+      .filter((g): g is string => g !== undefined);
+
+    if (globs.length > 0) {
+      try {
+        await postJson(`${state.baseUrl}/rules/reapply`, { globs });
+      } catch {
+        // Non-fatal: files will get correct rules on next change
+      }
+    }
 
     state.initialized = true;
   }
