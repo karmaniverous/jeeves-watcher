@@ -2,8 +2,11 @@
 
 All notable changes to this project will be documented in this file. Dates are displayed in UTC.
 
-#### [0.3.0](https://github.com/karmaniverous/jeeves-watcher/compare/0.5.1...0.3.0)
+#### [0.3.1](https://github.com/karmaniverous/jeeves-watcher/compare/0.5.1...0.3.1)
 
+- fix: update test fixture to include slots for idempotency check [`#58`](https://github.com/karmaniverous/jeeves-watcher/pull/58)
+- chore: bump @karmaniverous/jsonmap to 2.1.1 [`#57`](https://github.com/karmaniverous/jeeves-watcher/pull/57)
+- fix: plugin installer claims memory slot in OpenClaw config [`#56`](https://github.com/karmaniverous/jeeves-watcher/pull/56)
 - docs: update guides for v0.6.0 changes [`#54`](https://github.com/karmaniverous/jeeves-watcher/pull/54)
 - refactor: extract modules to fix 300 LOC violations [`#53`](https://github.com/karmaniverous/jeeves-watcher/pull/53)
 - refactor: DRY fixes and comprehensive test coverage for openclaw package [`#52`](https://github.com/karmaniverous/jeeves-watcher/pull/52)
@@ -30,12 +33,15 @@ All notable changes to this project will be documented in this file. Dates are d
 - docs: document self-installer CLI and Windows spawn EINVAL workaround [`e3d6351`](https://github.com/karmaniverous/jeeves-watcher/commit/e3d63512fe57b555e753c8f86bbfe57a1b97f70c)
 - chore: release @karmaniverous/jeeves-watcher v0.6.0 [`b7b207e`](https://github.com/karmaniverous/jeeves-watcher/commit/b7b207e96b1750bcacc4f5dd67ecf9c369415e25)
 - fix: apply same conditional logic to tools.allow as plugins.allow [`4549569`](https://github.com/karmaniverous/jeeves-watcher/commit/4549569ea72e1bbe385fd7592497982bbc34ec39)
+- chore: release @karmaniverous/jeeves-watcher-openclaw v0.3.0 [`3ce4950`](https://github.com/karmaniverous/jeeves-watcher/commit/3ce4950d10de13300db94e90247739a3f4a6514a)
+- fix: plugin installer now claims memory slot in OpenClaw config [`020c6cd`](https://github.com/karmaniverous/jeeves-watcher/commit/020c6cdd258ad8a6e092e173c88caabf05e5f323)
 - fix: remove plugins.allow management from CLI, only manage entries and tools.allow [`64106b4`](https://github.com/karmaniverous/jeeves-watcher/commit/64106b49be35f11c8e4b9a499b45067869decc4b)
 - fix: conditionally manage plugins.allow only when already populated [`c486c3a`](https://github.com/karmaniverous/jeeves-watcher/commit/c486c3a8bc12df5f1d233a0f974c0024e91e84b4)
 - chore: release @karmaniverous/jeeves-watcher-openclaw v0.2.0 [`a6d4d7e`](https://github.com/karmaniverous/jeeves-watcher/commit/a6d4d7e57424b482b737cb6983dc5c9a86b96160)
 - fix(openclaw): use error.cause for precise connection error detection [`3bdd267`](https://github.com/karmaniverous/jeeves-watcher/commit/3bdd267225d129186ee6d9263379ddcd6808d7df)
 - chore: release @karmaniverous/jeeves-watcher-openclaw v0.1.2 [`c019f41`](https://github.com/karmaniverous/jeeves-watcher/commit/c019f410d5cef94e653450b82966d64e1a70f900)
 - chore: release @karmaniverous/jeeves-watcher-openclaw v0.1.1 [`008e757`](https://github.com/karmaniverous/jeeves-watcher/commit/008e757704e0cdf5bca7819a9b9eb36b7258a300)
+- chore: release @karmaniverous/jeeves-watcher v0.6.1 [`037d9c9`](https://github.com/karmaniverous/jeeves-watcher/commit/037d9c924e1bc3020fb6b497f59261dd027718bd)
 - chore: remove temp commit script [`31d35a7`](https://github.com/karmaniverous/jeeves-watcher/commit/31d35a7341fdfe9d823ffbd04f4192396edcd638)
 - package version 0 [`eda1c58`](https://github.com/karmaniverous/jeeves-watcher/commit/eda1c58217fc89a4f1d2ff3e048c13973b5056fd)
 
