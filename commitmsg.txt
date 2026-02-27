@@ -1,16 +1,7 @@
-feat: memory slot takeover with virtual rules API
+test(openclaw): add vitest infrastructure and plugin test suite
 
-Service:
-- VirtualRuleStore: in-memory store for externally registered inference rules
-- POST /rules/register: accept { source, rules }, merge into pipeline
-- DELETE /rules/unregister: remove rules by source (body or :source param)
-- POST /points/delete: delete points matching a Qdrant filter
-- virtualRules key added to merged virtual document
-- onRulesChanged callback recompiles config + virtual rules
-
-Plugin (v0.3.0):
-- kind: "memory" in manifest (auto-disables memory-core)
-- memory_search: lazy init virtual rules, semantic search with domain filter
-- memory_get: filesystem read with workspace path validation
-- Refactored: watcher tools extracted to watcherTools.ts (300 LOC limit)
-- Updated skill documentation with memory tools and new API endpoints
+- Set up vitest in openclaw package with test script
+- helpers.test.ts: 14 tests (normalizePath, getWorkspacePath, getApiUrl, ok, fail, connectionFail)
+- memoryTools.test.ts: 13 tests (lazy init flow, retry after failure, result mapping, from/to omission, minScore filtering, memory_get read/range/path validation)
+- watcherTools.test.ts: 3 tests (8 tools registered, all optional, status endpoint call)
+- Added test to release-it after:init hook
