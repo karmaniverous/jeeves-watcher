@@ -13,6 +13,7 @@ import {
   ROOT_DEFAULTS,
   WATCH_DEFAULTS,
 } from './defaults';
+import type { InferenceRule } from './schemas';
 import { type JeevesWatcherConfig, jeevesWatcherConfigSchema } from './schemas';
 import { substituteEnvVars } from './substituteEnvVars';
 
@@ -59,12 +60,29 @@ export async function loadConfig(
   }
 
   try {
-    const validated = jeevesWatcherConfigSchema.parse(result.config);
+    const parsed = jeevesWatcherConfigSchema.parse(result.config);
+
+    const configDir = dirname(result.filepath);
+
+    // Resolve file-path rule references relative to config directory.
+    // After this block, all rule entries are inline InferenceRule objects.
+    const resolvedRules = parsed.inferenceRules?.map((entry) => {
+      if (typeof entry === 'string') {
+        const rulePath = resolve(configDir, entry);
+        const raw = readFileSync(rulePath, 'utf-8');
+        return JSON.parse(raw) as InferenceRule;
+      }
+      return entry;
+    });
+
+    const validated: JeevesWatcherConfig = {
+      ...parsed,
+      inferenceRules: resolvedRules,
+    };
 
     // Resolve file-path map references relative to config directory.
     // After this block, all map values are inline JsonMapMap objects.
     if (validated.maps) {
-      const configDir = dirname(result.filepath);
       for (const [name, value] of Object.entries(validated.maps)) {
         if (typeof value === 'string') {
           const mapPath = resolve(configDir, value);

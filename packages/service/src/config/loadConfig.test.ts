@@ -107,6 +107,87 @@ describe('loadConfig', () => {
     const config = await loadConfig(cfgPath);
     expect(config.embedding.apiKey).toBe('${MISSING_JW_VAR_99}');
   });
+  it('resolves string rule references to external JSON files', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'jw-cfg-'));
+
+    // Write an external rule file
+    const rule = {
+      name: 'external-rule',
+      description: 'Loaded from file',
+      match: { type: 'object', properties: { ext: { const: '.md' } } },
+      schema: [{ properties: { domain: { type: 'string', set: 'docs' } } }],
+    };
+    const rulePath = join(dir, 'rules', 'docs.json');
+    const { mkdir } = await import('node:fs/promises');
+    await mkdir(join(dir, 'rules'), { recursive: true });
+    await writeFile(rulePath, JSON.stringify(rule), 'utf8');
+
+    // Config references the rule by relative path
+    const cfgPath = join(dir, 'jeeves-watcher.config.json');
+    await writeFile(
+      cfgPath,
+      JSON.stringify({
+        ...minimalValidConfig,
+        inferenceRules: ['rules/docs.json'],
+      }),
+      'utf8',
+    );
+
+    const config = await loadConfig(cfgPath);
+    expect(config.inferenceRules).toHaveLength(1);
+    expect(config.inferenceRules![0].name).toBe('external-rule');
+    expect(config.inferenceRules![0].description).toBe('Loaded from file');
+  });
+
+  it('supports mixed inline and external rule references', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'jw-cfg-'));
+
+    const externalRule = {
+      name: 'external',
+      description: 'From file',
+      match: { type: 'object' },
+    };
+    const { mkdir } = await import('node:fs/promises');
+    await mkdir(join(dir, 'rules'), { recursive: true });
+    await writeFile(
+      join(dir, 'rules', 'ext.json'),
+      JSON.stringify(externalRule),
+      'utf8',
+    );
+
+    const cfgPath = join(dir, 'jeeves-watcher.config.json');
+    await writeFile(
+      cfgPath,
+      JSON.stringify({
+        ...minimalValidConfig,
+        inferenceRules: [
+          { name: 'inline', description: 'Inline rule', match: {} },
+          'rules/ext.json',
+        ],
+      }),
+      'utf8',
+    );
+
+    const config = await loadConfig(cfgPath);
+    expect(config.inferenceRules).toHaveLength(2);
+    expect(config.inferenceRules![0].name).toBe('inline');
+    expect(config.inferenceRules![1].name).toBe('external');
+  });
+
+  it('throws when external rule file does not exist', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'jw-cfg-'));
+    const cfgPath = join(dir, 'jeeves-watcher.config.json');
+    await writeFile(
+      cfgPath,
+      JSON.stringify({
+        ...minimalValidConfig,
+        inferenceRules: ['nonexistent/rule.json'],
+      }),
+      'utf8',
+    );
+
+    await expect(loadConfig(cfgPath)).rejects.toThrow();
+  });
 });
 
 describe('jeevesWatcherConfigSchema', () => {
@@ -185,5 +266,16 @@ describe('jeevesWatcherConfigSchema', () => {
       ],
     });
     expect(result.success).toBe(false);
+  });
+
+  it('accepts string file paths in inference rules array', () => {
+    const result = jeevesWatcherConfigSchema.safeParse({
+      ...minimalValidConfig,
+      inferenceRules: [
+        'rules/slack-message.json',
+        { name: 'inline', description: 'Inline rule', match: {} },
+      ],
+    });
+    expect(result.success).toBe(true);
   });
 });

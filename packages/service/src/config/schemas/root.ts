@@ -13,6 +13,7 @@ import {
   watchConfigSchema,
 } from './base';
 import {
+  type InferenceRule,
   inferenceRuleSchema,
   type SchemaEntry,
   schemaEntrySchema,
@@ -71,11 +72,13 @@ export const jeevesWatcherConfigSchema = z.object({
     .describe(
       'Directory for persistent state files (issues.json, values.json). Defaults to metadataDir.',
     ),
-  /** Rules for inferring metadata from document properties. */
+  /** Rules for inferring metadata from document properties (inline objects or file paths). */
   inferenceRules: z
-    .array(inferenceRuleSchema)
+    .array(z.union([inferenceRuleSchema, z.string()]))
     .optional()
-    .describe('Rules for inferring metadata from file attributes.'),
+    .describe(
+      'Rules for inferring metadata from file attributes. Each entry may be an inline rule object or a file path to a JSON rule file (resolved relative to config directory).',
+    ),
   /** Reusable named JsonMap transformations (inline objects or .json file paths). */
   maps: z
     .record(
@@ -203,5 +206,21 @@ export const jeevesWatcherConfigSchema = z.object({
     ),
 });
 
-/** Top-level jeeves-watcher configuration: watch paths, embedding, vector store, rules, maps, API, and logging. */
-export type JeevesWatcherConfig = z.infer<typeof jeevesWatcherConfigSchema>;
+/**
+ * Raw configuration as parsed from the Zod schema.
+ * May contain string file paths in `inferenceRules` that need resolution.
+ */
+export type JeevesWatcherConfigInput = z.infer<
+  typeof jeevesWatcherConfigSchema
+>;
+
+/**
+ * Resolved configuration with all file references loaded.
+ * After `loadConfig`, all string rule entries have been resolved to `InferenceRule` objects.
+ */
+export type JeevesWatcherConfig = Omit<
+  JeevesWatcherConfigInput,
+  'inferenceRules'
+> & {
+  inferenceRules?: InferenceRule[];
+};
