@@ -44,6 +44,7 @@ describe('patchConfig', () => {
         plugins: {
           allow: ['jeeves-watcher-openclaw'],
           entries: { 'jeeves-watcher-openclaw': { enabled: true } },
+          slots: { memory: 'jeeves-watcher-openclaw' },
         },
       };
       const msgs = patchConfig(config, 'add');
