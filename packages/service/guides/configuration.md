@@ -176,7 +176,7 @@ See [Inference Rules Guide](./inference-rules.md) for merge semantics and usage 
 |-------|------|---------|-------------|
 | `enabled` | `boolean` | `true` | Watch config file for changes and trigger scoped reindex. |
 | `debounceMs` | `number` | `1000` | Debounce window for config changes. |
-| `reindex` | `string` | `"rules"` | Reindex behavior on config change: `"rules"` (metadata-only), `"full"` (re-embed), `"none"` (no reindex). |
+| `reindex` | `string` | `"issues"` | Reindex behavior on config change: `"issues"` (re-process only files with recorded issues), `"full"` (re-embed all files). Omit to use default. |
 
 When the config file changes:
 1. Watcher reloads and validates the new config
@@ -409,7 +409,7 @@ If none are found, the entire JSON is stringified for embedding.
               "type": "string",
               "description": "Document title",
               "uiHint": "text",
-              "set": "${frontmatter.title}"
+              "set": "{{frontmatter.title}}"
             }
           }
         }
@@ -652,7 +652,7 @@ All string fields support `${ENV_VAR}` template syntax:
 }
 ```
 
-At runtime, these are replaced with actual environment variable values. **Unresolvable expressions are left untouched** — this allows `${...}` template syntax used in inference rule property schemas (e.g. `${frontmatter.title}`, `${file.path}`) to pass through for later resolution by the rules engine.
+At runtime, these are replaced with actual environment variable values. Set templates in inference rules use Handlebars `{{...}}` syntax (e.g. `{{frontmatter.title}}`), which is distinct from the `${...}` environment variable syntax used in config values like `embedding.apiKey`.
 
 ---
 

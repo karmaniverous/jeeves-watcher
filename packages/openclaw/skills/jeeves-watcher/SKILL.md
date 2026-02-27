@@ -430,9 +430,9 @@ Or check if a specific path would match:
 ### Rule Structure
 Each inference rule has:
 - `name` (required) — unique identifier
-- `description` (optional) — human-readable purpose
+- `description` (required) — human-readable purpose
 - `match` — JSON Schema with picomatch glob for path matching
-- `set` — metadata fields to set on match
+- `schema` — array of named schema references and/or inline schema objects with `set` templates
 - `map` (optional) — named JsonMap transform
 - `template` (optional) — named Handlebars template
 

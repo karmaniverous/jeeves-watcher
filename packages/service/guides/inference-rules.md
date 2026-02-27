@@ -50,7 +50,7 @@ Each inference rule has these fields:
   "schema": [
     "base",
     "jira-common",
-    { "properties": { "status": { "type": "string", "set": "${json.current.fields.status.name}" } } }
+    { "properties": { "status": { "type": "string", "set": "{{json.current.fields.status.name}}" } } }
   ],
   "map": { /* Optional JsonMap transform */ },
   "template": "jira-issue"
@@ -120,9 +120,9 @@ The `schema` property accepts an array of schema references, merged left-to-righ
               "type": "string",
               "description": "Current workflow status",
               "uiHint": "select",
-              "set": "${json.current.fields.status.name}"
+              "set": "{{json.current.fields.status.name}}"
             },
-            "created": { "set": "${json.current.fields.created}" }
+            "created": { "set": "{{json.current.fields.created}}" }
           }
         }
       ]
@@ -139,6 +139,37 @@ The `schema` property accepts an array of schema references, merged left-to-righ
 
 This pattern promotes DRY: `base` defines that `domain` is `type: "string"` with a description, and each rule's inline tail provides `set: "jira"` or `set: "email"`.
 
+### Array Property Concatenation
+
+For array-typed properties, `set` values from multiple schemas in the merge chain are **concatenated** rather than replaced. This enables composable metadata: a `base` schema can define initial array values, and subsequent schemas or rules can append to them.
+
+**Example — composable `domains`:**
+
+```json
+{
+  "schemas": {
+    "base": {
+      "properties": {
+        "domains": { "type": "array", "description": "Content domains", "set": ["general"] }
+      }
+    }
+  },
+  "inferenceRules": [
+    {
+      "name": "jira-and-engineering",
+      "description": "Jira issues in the engineering domain",
+      "match": { "..." },
+      "schema": [
+        "base",
+        { "properties": { "domains": { "set": ["jira", "engineering"] } } }
+      ]
+    }
+  ]
+}
+```
+
+The resolved `domains` value for a matching file would be `["general", "jira", "engineering"]` — the base array concatenated with the inline tail array. This only applies to properties declared as `type: "array"`; scalar properties use standard last-write-wins semantics.
+
 ---
 
 ## The `set` Keyword
@@ -147,14 +178,15 @@ The `set` keyword within a property schema serves three purposes:
 
 1. **Build time:** Interpolation template for value assignment
 2. **Type coercion:** After interpolation, the result is coerced to the declared `type`
-3. **Query time:** Provenance metadata — consumers can distinguish static values (`"set": "jira"`) from extracted values (`"set": "${json.status}"`)
+3. **Query time:** Provenance metadata — consumers can distinguish static values (`"set": "jira"`) from extracted values (`"set": "{{json.status}}"`)
+
 
 **Template interpolation:**
 ```json
 {
   "status": {
     "type": "string",
-    "set": "${json.current.fields.status.name}"
+    "set": "{{json.current.fields.status.name}}"
   },
   "domain": {
     "type": "string",
@@ -163,7 +195,7 @@ The `set` keyword within a property schema serves three purposes:
 }
 ```
 
-Templates use `${path.to.field}` syntax to reference the file attributes object. Undefined paths resolve to empty string.
+Templates use `{{path.to.field}}` Handlebars syntax to reference the file attributes object. Undefined paths resolve to empty string.
 
 ---
 
@@ -189,7 +221,7 @@ After template interpolation, values are automatically coerced to their declared
   "created": {
     "type": "integer",
     "description": "Creation date as unix timestamp",
-    "set": "${json.current.fields.created}"
+    "set": "{{json.current.fields.created}}"
   }
 }
 ```
@@ -223,14 +255,14 @@ The `uiHint` keyword tells consuming UIs how to render a property for search fil
     "type": "integer",
     "description": "Record creation date as unix timestamp (seconds)",
     "uiHint": "date",
-    "set": "${json.current.fields.created}"
+    "set": "{{json.current.fields.created}}"
   },
   "priority": {
     "type": "string",
     "description": "Issue priority",
     "enum": ["Highest", "High", "Medium", "Low", "Lowest"],
     "uiHint": "select",
-    "set": "${json.current.fields.priority.name}"
+    "set": "{{json.current.fields.priority.name}}"
   }
 }
 ```
@@ -538,7 +570,6 @@ When `configWatch.enabled` is true, the watcher monitors its config file. On con
 |------|----------|
 | `"issues"` (default) | Re-process only files in the issues file (cheap, targeted) |
 | `"full"` | Full reindex of all watched files (use when broad config changes affect already-embedded files) |
-| `"none"` | No automatic reindex (manual `POST /reindex` required) |
 
 **Issues reindex** is the default because config changes typically fix issues: a type collision is resolved by editing a rule, and re-processing just the affected file is sufficient.
 
@@ -699,13 +730,13 @@ inferred (from rules) → enrichment (from .meta.json) → final payload
           "type": "string",
           "description": "Document title",
           "uiHint": "text",
-          "set": "${frontmatter.title}"
+          "set": "{{frontmatter.title}}"
         },
         "created": {
           "type": "integer",
           "description": "Creation date as unix timestamp",
           "uiHint": "date",
-          "set": "${frontmatter.created}"
+          "set": "{{frontmatter.created}}"
         }
       }
     }
@@ -735,20 +766,20 @@ If frontmatter has `created: "1735689600"`, type coercion converts it to integer
           "type": "string",
           "description": "Jira issue key",
           "uiHint": "text",
-          "set": "${json.entityKey}"
+          "set": "{{json.entityKey}}"
         },
         "status": {
           "type": "string",
           "description": "Current workflow status",
           "uiHint": "select",
-          "set": "${json.current.fields.status.name}"
+          "set": "{{json.current.fields.status.name}}"
         },
         "priority": {
           "type": "string",
           "description": "Issue priority",
           "enum": ["Highest", "High", "Medium", "Low", "Lowest"],
           "uiHint": "select",
-          "set": "${json.current.fields.priority.name}"
+          "set": "{{json.current.fields.priority.name}}"
         }
       }
     }
@@ -874,7 +905,7 @@ curl -X POST http://localhost:3456/config/match \
             "status": {
               "type": "string",
               "description": "Current workflow status",
-              "set": "${json.current.fields.status.name}"
+              "set": "{{json.current.fields.status.name}}"
             }
           }
         }
@@ -915,7 +946,7 @@ interface ResolvedProperty {
   description?: string;            // Human-readable description
   uiHint?: string;                 // UI rendering hint
   enum?: unknown[];                // Enum values
-  set?: string;                    // Interpolation template
+  set?: string | unknown[];         // Interpolation template or array value
 }
 ```
 

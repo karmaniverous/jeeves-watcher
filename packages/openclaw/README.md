@@ -38,7 +38,7 @@ Set the `apiUrl` in the plugin configuration to point at your jeeves-watcher ser
 
 ```json
 {
-  "apiUrl": "http://localhost:3000"
+  "apiUrl": "http://127.0.0.1:3458"
 }
 ```
 
@@ -54,6 +54,8 @@ Set the `apiUrl` in the plugin configuration to point at your jeeves-watcher ser
 | `watcher_config_apply` | Apply a new configuration |
 | `watcher_reindex` | Trigger a full reindex |
 | `watcher_issues` | List indexing issues and errors |
+| `memory_search` | Semantically search memory files (MEMORY.md and memory/*.md) |
+| `memory_get` | Read content from memory files with optional line range |
 
 ## Documentation
 

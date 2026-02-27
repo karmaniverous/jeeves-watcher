@@ -53,7 +53,7 @@ The plugin needs the URL of a running jeeves-watcher REST API. Set `apiUrl` in t
 
 ```json
 {
-  "apiUrl": "http://localhost:3000"
+  "apiUrl": "http://127.0.0.1:3458"
 }
 ```
 
@@ -92,6 +92,28 @@ Apply a new configuration to the running watcher service. Triggers re-evaluation
 ### `watcher_reindex`
 
 Trigger a full reindex of all watched files. Useful after configuration changes or to recover from drift.
+
+### `memory_search`
+
+Semantically search MEMORY.md and memory/*.md files. Powered by the watcher's vector store with Gemini 3072-dim embeddings.
+
+**Parameters:**
+
+- `query` (string, required) — search query text
+- `maxResults` (number) — maximum results to return
+- `minScore` (number) — minimum similarity score threshold
+
+### `memory_get`
+
+Read content from MEMORY.md or memory/*.md files with optional line range.
+
+**Parameters:**
+
+- `path` (string, required) — path to the memory file
+- `from` (number) — line number to start reading from (1-indexed)
+- `lines` (number) — number of lines to read
+
+Path validation: only files within the workspace's MEMORY.md and memory/**/*.md are accessible.
 
 ### `watcher_issues`
 

@@ -182,7 +182,7 @@ rectangle "Schema Merge\n(Left-to-Right)" as merge #LightYellow {
 }
 
 rectangle "Set Resolution\n& Type Coercion" as coerce #LightCoral {
-  rectangle "Interpolate ${...}" as interp
+  rectangle "Interpolate {{...}}" as interp
   rectangle "Coerce to Type" as types
 }
 
@@ -208,7 +208,7 @@ end note
 1. **Resolve named references** from global `schemas` collection
 2. **Merge properties** left-to-right (later entries override earlier ones)
 3. **Validate completeness** — every property must have a `type`
-4. **Resolve `set` templates** — interpolate `${...}` expressions against file attributes
+4. **Resolve `set` templates** — interpolate `{{...}}` Handlebars expressions against file attributes
 5. **Coerce values** — convert strings to declared types (integer, number, boolean, array, object)
 6. **Omit failures** — properties that fail coercion are excluded from payload
 
@@ -396,7 +396,7 @@ The metadata store is **watcher-owned**. Only the watcher process writes to it, 
 
 ## Inference Rules Engine
 
-Rules are **JSON Schema `match` + `set` actions**, evaluated in order against file attributes.
+Rules are **JSON Schema `match` + `schema` arrays**, evaluated in order against file attributes.
 
 **Attributes:**
 
@@ -415,10 +415,12 @@ Rules are **JSON Schema `match` + `set` actions**, evaluated in order against fi
 }
 ```
 
-**Rule example:**
+**Rule example (v2):**
 
 ```json
 {
+  "name": "meetings-classifier",
+  "description": "Classify meeting transcripts and notes",
   "match": {
     "properties": {
       "file": {
@@ -428,9 +430,15 @@ Rules are **JSON Schema `match` + `set` actions**, evaluated in order against fi
       }
     }
   },
-  "set": {
-    "domain": "meetings"
-  },
+  "schema": [
+    "base",
+    {
+      "properties": {
+        "domain": { "set": "meetings" },
+        "title": { "type": "string", "set": "{{frontmatter.title}}" }
+      }
+    }
+  ],
   "map": "extractProject"
 }
 ```
@@ -438,22 +446,12 @@ Rules are **JSON Schema `match` + `set` actions**, evaluated in order against fi
 **Processing order for each matching rule:**
 
 1. **`match`** — JSON Schema validation against file attributes
-2. **`set`** — Template interpolation (`${...}`) resolves against attributes
-3. **`map`** — JsonMap transformation (inline or named reference)
-4. **Merge** — `map` output overrides `set` output on field conflict
+2. **Schema merge** — Resolve named schemas + inline objects, merge left-to-right
+3. **`set` resolution** — Handlebars template interpolation (`{{...}}`) resolves against attributes, with type coercion
+4. **`map`** — JsonMap transformation (inline or named reference)
+5. **Merge** — `map` output overrides `set` output on field conflict
 
 **Custom `glob` format:** Picomatch glob matching registered as an ajv custom keyword. This is the only custom format — everything else is pure JSON Schema.
-
-**Template interpolation in `set`:**
-
-```json
-{
-  "set": {
-    "title": "${frontmatter.title}",
-    "directory": "${file.directory}"
-  }
-}
-```
 
 **JsonMap transformations (`map`):**
 
@@ -491,7 +489,7 @@ Transient failures (Gemini API, Qdrant) are handled with exponential backoff:
 | Qdrant connection refused | Backoff from 5s | 10 |
 | Text extraction error | No retry (log and skip) | 0 |
 
-**Dead-letter list:** Files that fail all retries are moved to an in-memory dead-letter list (persisted to `{metadataDir}/.dead-letter.json`). Surfaced via `GET /status` and retried on next restart.
+**Issues file:** Files that fail all retries are recorded in the issues file (persisted to `{stateDir}/issues.json`). Surfaced via `GET /issues` and retried on next config reload or reindex.
 
 ---
 
@@ -502,7 +500,7 @@ On SIGTERM/SIGINT:
 1. Stop accepting new filesystem events
 2. Drain current in-flight operations (wait up to `shutdownTimeoutMs`)
 3. Flush pending Qdrant writes
-4. Persist dead-letter list
+4. Persist issues file
 5. Exit cleanly
 
 Partially processed files are safe — startup behavior re-processes them by comparing filesystem state against Qdrant.
@@ -535,7 +533,7 @@ Structured JSON logging via [pino](https://github.com/pinojs/pino):
 | Level | Events |
 |-------|--------|
 | `info` | File indexed, file deleted, reindex started/completed, config reloaded |
-| `warn` | Extraction failed, dead-letter entry, dimension mismatch |
+| `warn` | Extraction failed, issues file entry, dimension mismatch |
 | `error` | Embedding API failure (after retries), Qdrant write failure, startup failure |
 | `debug` | Hash match (skip), debounce, queue depth, chunk processing |
 

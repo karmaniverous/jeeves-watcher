@@ -120,7 +120,7 @@ The config references it via template syntax:
 }
 ```
 
-**Note:** Unresolvable `${...}` expressions are left untouched. This allows inference rule property schema templates like `${frontmatter.title}` to pass through env var substitution for later resolution by the rules engine.
+**Note:** Set templates in inference rules use Handlebars `{{...}}` syntax (e.g. `{{frontmatter.title}}`), which is distinct from the `${...}` environment variable syntax used in config values like `embedding.apiKey`.
 
 Or hardcode the key (not recommended for committed configs):
 
