@@ -83,6 +83,71 @@ describe('mergeSchemas', () => {
     );
   });
 
+  it('concatenates set arrays for array-typed properties', () => {
+    const refs: SchemaReference[] = [
+      {
+        properties: {
+          domains: {
+            type: 'array',
+            items: { type: 'string' },
+            set: ['email'],
+          },
+        },
+      },
+      {
+        properties: {
+          domains: { set: ['meta'] },
+        },
+      },
+    ];
+
+    const result = mergeSchemas(refs);
+    expect(result.properties.domains.set).toEqual(['email', 'meta']);
+    // Type and items preserved from first schema
+    expect(result.properties.domains.type).toBe('array');
+    expect(result.properties.domains.items).toEqual({ type: 'string' });
+  });
+
+  it('concatenates scalar set into array for array-typed properties', () => {
+    const refs: SchemaReference[] = [
+      {
+        properties: {
+          domains: {
+            type: 'array',
+            items: { type: 'string' },
+            set: ['email'],
+          },
+        },
+      },
+      {
+        properties: {
+          domains: { set: 'meta' },
+        },
+      },
+    ];
+
+    const result = mergeSchemas(refs);
+    expect(result.properties.domains.set).toEqual(['email', 'meta']);
+  });
+
+  it('replaces set for non-array-typed properties (last wins)', () => {
+    const refs: SchemaReference[] = [
+      {
+        properties: {
+          domain: { type: 'string', set: 'email' },
+        },
+      },
+      {
+        properties: {
+          domain: { set: 'slack' },
+        },
+      },
+    ];
+
+    const result = mergeSchemas(refs);
+    expect(result.properties.domain.set).toBe('slack');
+  });
+
   it('handles uiHint keyword', () => {
     const refs: SchemaReference[] = [
       {

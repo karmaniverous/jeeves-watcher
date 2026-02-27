@@ -146,6 +146,24 @@ export async function loadCustomMapHelpers(
 }
 
 /**
+ * Optional parameters for {@link applyRules}.
+ */
+export interface ApplyRulesOptions {
+  /** Optional record of named JsonMap definitions. */
+  namedMaps?: Record<string, JsonMapMap>;
+  /** Optional logger for warnings (falls back to console.warn). */
+  logger?: RuleLogger;
+  /** Optional template engine for rendering content templates. */
+  templateEngine?: TemplateEngine;
+  /** Optional config directory for resolving .json map file paths. */
+  configDir?: string;
+  /** Optional custom JsonMap lib functions. */
+  customMapLib?: Record<string, (...args: unknown[]) => unknown>;
+  /** Optional global schemas collection for resolving schema references. */
+  globalSchemas?: Record<string, SchemaEntry>;
+}
+
+/**
  * Result of applying inference rules.
  */
 export interface ApplyRulesResult {
@@ -166,23 +184,22 @@ export interface ApplyRulesResult {
  *
  * @param compiledRules - The compiled rules to evaluate.
  * @param attributes - The file attributes to match against.
- * @param namedMaps - Optional record of named JsonMap definitions.
- * @param logger - Optional logger for warnings (falls back to console.warn).
- * @param templateEngine - Optional template engine for rendering content templates.
- * @param configDir - Optional config directory for resolving .json map file paths.
- * @param globalSchemas - Optional global schemas collection for resolving schema references.
+ * @param options - Optional parameters for rule application.
  * @returns The merged metadata and optional rendered content.
  */
 export async function applyRules(
   compiledRules: CompiledRule[],
   attributes: FileAttributes,
-  namedMaps?: Record<string, JsonMapMap>,
-  logger?: RuleLogger,
-  templateEngine?: TemplateEngine,
-  configDir?: string,
-  customMapLib?: Record<string, (...args: unknown[]) => unknown>,
-  globalSchemas?: Record<string, SchemaEntry>,
+  options?: ApplyRulesOptions,
 ): Promise<ApplyRulesResult> {
+  const {
+    namedMaps,
+    logger,
+    templateEngine,
+    configDir,
+    customMapLib,
+    globalSchemas,
+  } = options ?? {};
   const hbs = templateEngine?.hbs ?? createHandlebarsInstance();
 
   // JsonMap's type definitions expect a generic JsonMapLib shape with unary functions.

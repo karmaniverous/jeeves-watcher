@@ -25,8 +25,8 @@ export interface ResolvedProperty {
   enum?: unknown[];
   /** Items schema for array types. */
   items?: Record<string, unknown>;
-  /** Set template for value extraction. */
-  set?: string;
+  /** Set template for value extraction (string for scalars, array for array-typed properties). */
+  set?: string | unknown[];
   /** Additional JSON Schema keywords. */
   [key: string]: unknown;
 }
@@ -124,9 +124,32 @@ export function mergeSchemas(
         const existing = merged.properties[propName] as
           | ResolvedProperty
           | undefined;
-        merged.properties[propName] = existing
-          ? { ...existing, ...(propDef as Record<string, unknown>) }
-          : (propDef as ResolvedProperty);
+        if (existing) {
+          const incoming = propDef as ResolvedProperty;
+          // For array-typed properties, concatenate set values instead of replacing
+          if (
+            existing.type === 'array' &&
+            Array.isArray(existing.set) &&
+            incoming.set !== undefined
+          ) {
+            const existingSet = existing.set;
+            const incomingSet = Array.isArray(incoming.set)
+              ? incoming.set
+              : [incoming.set];
+            merged.properties[propName] = {
+              ...existing,
+              ...(propDef as Record<string, unknown>),
+              set: existingSet.concat(incomingSet),
+            };
+          } else {
+            merged.properties[propName] = {
+              ...existing,
+              ...(propDef as Record<string, unknown>),
+            };
+          }
+        } else {
+          merged.properties[propName] = propDef as ResolvedProperty;
+        }
       }
     }
   }
@@ -143,8 +166,8 @@ export function mergeSchemas(
  */
 export function extractSetValues(
   schema: ResolvedSchema,
-): Record<string, string> {
-  const setValues: Record<string, string> = {};
+): Record<string, string | unknown[]> {
+  const setValues: Record<string, string | unknown[]> = {};
 
   for (const [propName, propDef] of Object.entries(schema.properties)) {
     const setVal = propDef.set;
@@ -288,6 +311,15 @@ export function resolveAndCoerce(
   for (const [propName, propDef] of Object.entries(schema.properties)) {
     const setTemplate = propDef.set;
     if (setTemplate === undefined) continue;
+
+    // For array-typed properties with array set values, resolve each element
+    if (Array.isArray(setTemplate)) {
+      const resolved = setTemplate.map((item) =>
+        resolveTemplateVars(item, attributes, hbs),
+      );
+      result[propName] = resolved;
+      continue;
+    }
 
     // Resolve template
     const rawValue = resolveTemplateVars(setTemplate, attributes, hbs);

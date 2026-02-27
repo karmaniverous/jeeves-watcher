@@ -217,7 +217,7 @@ describe('rules engine', () => {
     ];
 
     const compiled = compileRules(rules);
-    const result = await applyRules(compiled, makeAttributes(), namedMaps);
+    const result = await applyRules(compiled, makeAttributes(), { namedMaps });
     expect(result.metadata).toEqual({ dir: 'docs' });
   });
 
