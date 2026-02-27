@@ -2,8 +2,9 @@
 
 All notable changes to this project will be documented in this file. Dates are displayed in UTC.
 
-#### [0.3.1](https://github.com/karmaniverous/jeeves-watcher/compare/0.5.1...0.3.1)
+#### [0.3.2](https://github.com/karmaniverous/jeeves-watcher/compare/0.5.1...0.3.2)
 
+- fix: plugin config lookup uses correct entry key (jeeves-watcher-openclaw) [`#59`](https://github.com/karmaniverous/jeeves-watcher/pull/59)
 - fix: update test fixture to include slots for idempotency check [`#58`](https://github.com/karmaniverous/jeeves-watcher/pull/58)
 - chore: bump @karmaniverous/jsonmap to 2.1.1 [`#57`](https://github.com/karmaniverous/jeeves-watcher/pull/57)
 - fix: plugin installer claims memory slot in OpenClaw config [`#56`](https://github.com/karmaniverous/jeeves-watcher/pull/56)
@@ -41,6 +42,7 @@ All notable changes to this project will be documented in this file. Dates are d
 - fix(openclaw): use error.cause for precise connection error detection [`3bdd267`](https://github.com/karmaniverous/jeeves-watcher/commit/3bdd267225d129186ee6d9263379ddcd6808d7df)
 - chore: release @karmaniverous/jeeves-watcher-openclaw v0.1.2 [`c019f41`](https://github.com/karmaniverous/jeeves-watcher/commit/c019f410d5cef94e653450b82966d64e1a70f900)
 - chore: release @karmaniverous/jeeves-watcher-openclaw v0.1.1 [`008e757`](https://github.com/karmaniverous/jeeves-watcher/commit/008e757704e0cdf5bca7819a9b9eb36b7258a300)
+- chore: release @karmaniverous/jeeves-watcher-openclaw v0.3.1 [`de3215a`](https://github.com/karmaniverous/jeeves-watcher/commit/de3215ae4503eece2cb3823c26e6fa00fd1008d1)
 - chore: release @karmaniverous/jeeves-watcher v0.6.1 [`037d9c9`](https://github.com/karmaniverous/jeeves-watcher/commit/037d9c924e1bc3020fb6b497f59261dd027718bd)
 - chore: remove temp commit script [`31d35a7`](https://github.com/karmaniverous/jeeves-watcher/commit/31d35a7341fdfe9d823ffbd04f4192396edcd638)
 - package version 0 [`eda1c58`](https://github.com/karmaniverous/jeeves-watcher/commit/eda1c58217fc89a4f1d2ff3e048c13973b5056fd)
