@@ -181,7 +181,7 @@ curl -X POST http://localhost:3456/search \
   }'
 ```
 
-The `filter` parameter accepts a native [Qdrant filter object](https://qdrant.tech/documentation/concepts/filtering/). Use `watcher_status` (or `GET /status`) to discover available payload fields and their types, then construct filters accordingly. Common patterns:
+The `filter` parameter accepts a native [Qdrant filter object](https://qdrant.tech/documentation/concepts/filtering/). Use [`POST /config/query`](#post-configquery) or [`GET /config/schema`](#get-configschema) to discover available payload fields and their types, then construct filters accordingly. Common patterns:
 
 - **Exact match:** `{ "must": [{ "key": "domain", "match": { "value": "email" } }] }`
 - **Negation:** `{ "must_not": [{ "key": "domain", "match": { "value": "codebase" } }] }`
@@ -828,6 +828,144 @@ curl -X POST http://localhost:3456/config/apply \
 2. Writes the merged config to disk
 3. Reloads the running watcher with new config
 4. Triggers a scoped reindex if rules changed
+
+---
+
+## POST /rules/register
+
+Register virtual inference rules from an external source.
+
+### Request
+
+```bash
+curl -X POST http://localhost:3456/rules/register \
+  -H "Content-Type: application/json" \
+  -d '{
+    "source": "my-external-system",
+    "rules": [
+      {
+        "name": "external-rule",
+        "description": "Rule registered from external source",
+        "match": { "type": "object" },
+        "schema": [
+          { "properties": { "domain": { "type": "string", "set": "external" } } }
+        ]
+      }
+    ]
+  }'
+```
+
+**Body schema:**
+
+```typescript
+{
+  source: string;           // Identifier for the rule source
+  rules: InferenceRule[];   // Array of inference rules to register
+}
+```
+
+### Response
+
+**Success (200 OK):**
+
+```json
+{
+  "ok": true,
+  "registered": 1
+}
+```
+
+---
+
+## DELETE /rules/unregister
+
+Remove all virtual rules from a source.
+
+### Request
+
+```bash
+curl -X DELETE http://localhost:3456/rules/unregister \
+  -H "Content-Type: application/json" \
+  -d '{ "source": "my-external-system" }'
+```
+
+**Body schema:**
+
+```typescript
+{
+  source: string;  // Source identifier to unregister
+}
+```
+
+### Response
+
+**Success (200 OK):**
+
+```json
+{
+  "ok": true,
+  "removed": 1
+}
+```
+
+---
+
+## DELETE /rules/unregister/:source
+
+Remove all virtual rules from a named source (path parameter variant).
+
+### Request
+
+```bash
+curl -X DELETE http://localhost:3456/rules/unregister/my-external-system
+```
+
+### Response
+
+**Success (200 OK):**
+
+```json
+{
+  "ok": true,
+  "removed": 1
+}
+```
+
+---
+
+## POST /points/delete
+
+Delete points from Qdrant matching a filter.
+
+### Request
+
+```bash
+curl -X POST http://localhost:3456/points/delete \
+  -H "Content-Type: application/json" \
+  -d '{
+    "filter": {
+      "must": [{ "key": "domain", "match": { "value": "obsolete" } }]
+    }
+  }'
+```
+
+**Body schema:**
+
+```typescript
+{
+  filter: Record<string, unknown>;  // Qdrant filter object
+}
+```
+
+### Response
+
+**Success (200 OK):**
+
+```json
+{
+  "ok": true
+}
+```
 
 ---
 

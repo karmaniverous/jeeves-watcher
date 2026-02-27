@@ -106,7 +106,7 @@ Config strings support `${VAR_NAME}` syntax for environment variable injection:
 }
 ```
 
-If `GOOGLE_API_KEY` is set in the environment, the value is substituted at config load time. **Unresolvable expressions are left untouched** — this allows `${...}` template syntax used in inference rule property schemas (e.g. `${frontmatter.title}`, `${file.path}`) to pass through for later resolution by the rules engine.
+If `GOOGLE_API_KEY` is set in the environment, the value is substituted at config load time. Set templates in inference rules use Handlebars `{{...}}` syntax (e.g. `{{frontmatter.title}}`), which is distinct from the `${...}` environment variable syntax used in config values like `embedding.apiKey`.
 
 ### Watch Paths
 
@@ -234,6 +234,10 @@ The watcher provides a REST API (default port: 3456):
 | `/config/query` | POST | JSONPath query over config (`{ path: string, resolve?: string[] }`) (v0.5.0+) |
 | `/config/match` | POST | Test paths against inference rules (`{ paths: string[] }`) (v0.5.0+) |
 | `/issues` | GET | Current embedding failures and processing errors (v0.5.0+) |
+| `/rules/register` | POST | Register virtual inference rules from an external source |
+| `/rules/unregister` | DELETE | Remove all virtual rules from a source (`{ source }`) |
+| `/rules/unregister/:source` | DELETE | Remove all virtual rules from a named source |
+| `/points/delete` | POST | Delete points matching a Qdrant filter (`{ filter }`) |
 
 ### Example: Search
 
