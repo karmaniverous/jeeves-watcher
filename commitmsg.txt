@@ -1,6 +1,13 @@
-refactor(service): SOLID/DRY improvements across vectorStore, rules, and processor
+test: add test coverage for 8 untested service modules
 
-- Extract scroll() async generator from VectorStoreClient into scroll.ts (Fix 1: 300 LOC limit)
-- Create ApplyRulesOptions interface to replace 8 positional params in applyRules (Fix 2: ISP)
-- Extract buildMetadataOptions() private method to DRY metadata build config (Fix 3)
-- Extract withFileErrorHandling() wrapper to DRY try/catch+logError pattern (Fix 4)
+New test files:
+- executeReindex.test.ts (reindex orchestration, scope, callbacks)
+- hybridSearch.test.ts (RRF fusion, dedup, textWeight, empty results)
+- fileScan.test.ts (globBase edge cases, listFilesFromGlobs)
+- collectionInfo.test.ts (collection info retrieval)
+- metadata.test.ts (read/write/delete metadata)
+- JsonFileStore.test.ts (file-backed store, corrupt file handling)
+- scroll.test.ts (async generator pagination)
+- buildMetadata.test.ts (metadata assembly)
+
+373 total tests (54 new), all passing.
