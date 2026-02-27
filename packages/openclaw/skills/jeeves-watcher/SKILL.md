@@ -77,9 +77,9 @@ You don't need to know the rules in advance. The config is introspectable at run
 
 ## Quick Start
 
-1. **Orient yourself** (once per session) — learn the deployment's organizational strategy and available record types
-2. **Search** — semantic search with optional metadata filters
-3. **Read source** — retrieve full file content for complete context
+1. **Orient yourself** (once per session) — use `watcher_query` to learn the deployment's organizational strategy and available record types (see Orientation Pattern below)
+2. **Search** — use `watcher_search` with a natural language query and optional metadata filters
+3. **Read source** — use `read` (standard file read) with `file_path` from search results for full document content
 
 ## Tools
 
