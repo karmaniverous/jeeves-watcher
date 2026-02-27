@@ -14,7 +14,7 @@ description: >
 The watcher is an HTTP API running as a background service (typically NSSM on Windows, systemd on Linux).
 
 **Default port:** 3458 (configurable via `api.port` in watcher config)
-**Discover actual port:** Query `$.api.port` via `watcher_config_query`, or read the config file directly.
+**Non-default port:** If the watcher runs on a different port, the user must set `plugins.entries.jeeves-watcher.config.apiUrl` in `openclaw.json`. The plugin cannot auto-discover a non-default port.
 
 **Health check:** `GET /status` returns uptime, point count, collection dimensions, and reindex status.
 
