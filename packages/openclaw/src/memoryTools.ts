@@ -38,12 +38,10 @@ function buildVirtualRules(workspace: string) {
       name: 'openclaw-memory-longterm',
       description: 'OpenClaw long-term memory file',
       match: {
-        type: 'object',
         properties: {
           file: {
-            type: 'object',
             properties: {
-              path: { type: 'string', pattern: `^${ws}/MEMORY\\.md$` },
+              path: { glob: `${ws}/MEMORY.md` },
             },
           },
         },
@@ -62,12 +60,10 @@ function buildVirtualRules(workspace: string) {
       name: 'openclaw-memory-daily',
       description: 'OpenClaw daily memory logs',
       match: {
-        type: 'object',
         properties: {
           file: {
-            type: 'object',
             properties: {
-              path: { type: 'string', pattern: `^${ws}/memory/.*\\.md$` },
+              path: { glob: `${ws}/memory/**/*.md` },
             },
           },
         },
