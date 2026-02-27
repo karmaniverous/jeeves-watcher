@@ -211,7 +211,11 @@ export async function applyRules(
           validateSchemaCompleteness(mergedSchema, rule.name);
 
           // Resolve and coerce metadata
-          const schemaOutput = resolveAndCoerce(mergedSchema, attributes);
+          const schemaOutput = resolveAndCoerce(
+            mergedSchema,
+            attributes,
+            templateEngine?.hbs,
+          );
           merged = { ...merged, ...schemaOutput };
         } catch (error) {
           log.warn(

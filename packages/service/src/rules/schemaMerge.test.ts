@@ -5,6 +5,7 @@
 
 import { describe, expect, it } from 'vitest';
 
+import { createHandlebarsInstance } from '../templates';
 import {
   coerceType,
   extractSetValues,
@@ -178,13 +179,21 @@ describe('coerceType', () => {
 });
 
 describe('resolveAndCoerce', () => {
-  it('resolves templates and coerces to declared types', () => {
+  const hbs = createHandlebarsInstance();
+
+  it('resolves Handlebars templates and coerces to declared types', () => {
     const schema: ResolvedSchema = {
       properties: {
         domain: { type: 'string', set: 'jira' },
-        issue_key: { type: 'string', set: '${json.entityKey}' },
-        created: { type: 'integer', set: '${json.current.fields.created}' },
-        priority: { type: 'number', set: '${json.priority}' },
+        issue_key: {
+          type: 'string',
+          set: '{{json.entityKey}}',
+        },
+        created: {
+          type: 'integer',
+          set: '{{json.current.fields.created}}',
+        },
+        priority: { type: 'number', set: '{{json.priority}}' },
       },
     };
 
@@ -204,7 +213,7 @@ describe('resolveAndCoerce', () => {
       },
     };
 
-    const result = resolveAndCoerce(schema, attributes);
+    const result = resolveAndCoerce(schema, attributes, hbs);
 
     expect(result).toEqual({
       domain: 'jira',
@@ -214,10 +223,10 @@ describe('resolveAndCoerce', () => {
     });
   });
 
-  it('omits properties with failed coercion', () => {
+  it('omits properties with failed coercion (Handlebars)', () => {
     const schema: ResolvedSchema = {
       properties: {
-        count: { type: 'integer', set: '${json.count}' },
+        count: { type: 'integer', set: '{{json.count}}' },
       },
     };
 
@@ -233,17 +242,51 @@ describe('resolveAndCoerce', () => {
       json: { count: 'not-a-number' },
     };
 
-    const result = resolveAndCoerce(schema, attributes);
+    const result = resolveAndCoerce(schema, attributes, hbs);
 
     expect(result).toEqual({});
   });
 
-  it('includes empty strings for string types but omits for numeric types', () => {
+  it('backward compat: resolves legacy ${...} syntax without hbs', () => {
     const schema: ResolvedSchema = {
       properties: {
         domain: { type: 'string', set: 'jira' },
-        missing_string: { type: 'string', set: '${json.missing}' },
-        missing_int: { type: 'integer', set: '${json.missing_num}' },
+        issue_key: { type: 'string', set: '${json.entityKey}' },
+      },
+    };
+
+    const attributes = {
+      file: {
+        path: 'test.json',
+        directory: '',
+        filename: '',
+        extension: '',
+        sizeBytes: 0,
+        modified: '',
+      },
+      json: { entityKey: 'WEB-123' },
+    };
+
+    const result = resolveAndCoerce(schema, attributes);
+
+    expect(result).toEqual({
+      domain: 'jira',
+      issue_key: 'WEB-123',
+    });
+  });
+
+  it('handles missing values with Handlebars', () => {
+    const schema: ResolvedSchema = {
+      properties: {
+        domain: { type: 'string', set: 'jira' },
+        missing_string: {
+          type: 'string',
+          set: '{{json.missing}}',
+        },
+        missing_int: {
+          type: 'integer',
+          set: '{{json.missing_num}}',
+        },
       },
     };
 
@@ -259,10 +302,37 @@ describe('resolveAndCoerce', () => {
       json: {},
     };
 
-    const result = resolveAndCoerce(schema, attributes);
+    const result = resolveAndCoerce(schema, attributes, hbs);
 
     // Empty string for string type is included, but numeric types omit empty
     expect(result).toEqual({ domain: 'jira', missing_string: '' });
+  });
+
+  it('resolves Handlebars helpers in set expressions', () => {
+    const schema: ResolvedSchema = {
+      properties: {
+        lower: {
+          type: 'string',
+          set: '{{lowercase json.name}}',
+        },
+      },
+    };
+
+    const attributes = {
+      file: {
+        path: 'test.json',
+        directory: '',
+        filename: '',
+        extension: '',
+        sizeBytes: 0,
+        modified: '',
+      },
+      json: { name: 'HELLO' },
+    };
+
+    const result = resolveAndCoerce(schema, attributes, hbs);
+
+    expect(result).toEqual({ lower: 'hello' });
   });
 });
 
