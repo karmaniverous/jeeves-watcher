@@ -17,6 +17,7 @@ export interface BuildMergedDocumentOptions {
   issuesManager: IssuesManager;
   helperExports?: Record<string, unknown>;
   helperIntrospection?: AllHelpersIntrospection;
+  virtualRules?: Record<string, unknown>;
 }
 
 /**
@@ -80,6 +81,7 @@ export function buildMergedDocument(
     issuesManager,
     helperExports,
     helperIntrospection,
+    virtualRules,
   } = options;
 
   const inferenceRules = (config.inferenceRules ?? []).map((rule) => ({
@@ -105,6 +107,7 @@ export function buildMergedDocument(
     maps: config.maps ?? {},
     templates: config.templates ?? {},
     slots: config.slots ?? {},
+    virtualRules: virtualRules ?? {},
     issues: issuesManager.getAll(),
   };
 }
