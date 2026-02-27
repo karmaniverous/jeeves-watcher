@@ -12,6 +12,7 @@ import type { AllHelpersIntrospection } from '../helpers';
 import { IssuesManager } from '../issues';
 import type { DocumentProcessorInterface } from '../processor';
 import type { EventQueue } from '../queue';
+import { VirtualRuleStore } from '../rules/virtualRules';
 import { normalizeError } from '../util/normalizeError';
 import { ValuesManager } from '../values';
 import type { FileSystemWatcher } from '../watcher';
@@ -56,6 +57,7 @@ export class JeevesWatcher {
   private issuesManager: IssuesManager | undefined;
   private valuesManager: ValuesManager | undefined;
   private helperIntrospection: AllHelpersIntrospection | undefined;
+  private virtualRuleStore: VirtualRuleStore;
 
   /**
    * Create a new JeevesWatcher instance.
@@ -75,6 +77,7 @@ export class JeevesWatcher {
     this.configPath = configPath;
     this.factories = { ...defaultFactories, ...factories };
     this.runtimeOptions = runtimeOptions;
+    this.virtualRuleStore = new VirtualRuleStore();
   }
 
   /**
@@ -148,6 +151,7 @@ export class JeevesWatcher {
       this.issuesManager,
       this.valuesManager,
       this.helperIntrospection,
+      this.virtualRuleStore,
     );
 
     this.watcher.start();
@@ -204,6 +208,7 @@ export class JeevesWatcher {
     issuesManager: IssuesManager,
     valuesManager: ValuesManager,
     helperIntrospection: AllHelpersIntrospection | undefined,
+    virtualRuleStore: VirtualRuleStore,
   ) {
     const server = this.factories.createApiServer({
       processor,
@@ -216,6 +221,7 @@ export class JeevesWatcher {
       valuesManager,
       configPath: this.configPath ?? '',
       helperIntrospection,
+      virtualRuleStore,
     });
 
     await server.listen({

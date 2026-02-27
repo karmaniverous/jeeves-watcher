@@ -21,6 +21,7 @@ export interface ConfigQueryRouteDeps {
   issuesManager: IssuesManager;
   logger: pino.Logger;
   helperIntrospection?: AllHelpersIntrospection;
+  getVirtualRules?: () => Record<string, unknown>;
 }
 
 type ConfigQueryRequest = FastifyRequest<{
@@ -42,6 +43,7 @@ export function createConfigQueryHandler(deps: ConfigQueryRouteDeps) {
         valuesManager: deps.valuesManager,
         issuesManager: deps.issuesManager,
         helperIntrospection: deps.helperIntrospection,
+        virtualRules: deps.getVirtualRules?.(),
       });
 
       if (resolve && resolve.length > 0) {

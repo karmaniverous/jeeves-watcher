@@ -1,10 +1,1 @@
-feat(service): add hybrid search with BM25 text index and RRF fusion
-
-- Add search.hybrid config section (enabled, textWeight)
-- Add ensureTextIndex() for BM25 full-text index on chunk_text
-- Implement hybridSearch() using Qdrant Query API with prefetch + RRF
-- Search handler switches between vector-only and hybrid based on config
-- Text index created at startup when hybrid is enabled
-- 2 new search handler tests (hybrid on/off paths)
-
-Closes #35
+chore: remove unused VirtualRuleStore barrel export (knip)

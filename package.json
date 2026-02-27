@@ -9,6 +9,7 @@
     "lint": "eslint .",
     "lint:fix": "eslint --fix .",
     "test": "npm run test --workspace=packages/service",
+    "knip": "knip",
     "docs": "typedoc",
     "typecheck": "npm run typecheck --workspace=packages/service && npm run typecheck --workspace=packages/openclaw"
   },
@@ -20,6 +21,7 @@
     "eslint-plugin-prettier": "^5.5.5",
     "eslint-plugin-simple-import-sort": "^12.1.1",
     "eslint-plugin-tsdoc": "^0.5.1",
+    "knip": "^5.85.0",
     "lefthook": "^2.1.1",
     "prettier": "^3.8.1",
     "rimraf": "^6.1.3",

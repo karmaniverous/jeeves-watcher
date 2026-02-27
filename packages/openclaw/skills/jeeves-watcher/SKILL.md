@@ -46,6 +46,9 @@ curl -X POST http://127.0.0.1:<PORT>/config/query \
 | `/config-reindex` | POST | Trigger reindex |
 | `/metadata` | POST | Enrich document metadata |
 | `/issues` | GET | Runtime embedding failures |
+| `/rules/register` | POST | Register virtual inference rules |
+| `/rules/unregister` | DELETE | Remove virtual rules by source |
+| `/points/delete` | POST | Delete points matching a Qdrant filter |
 
 **If the watcher is unreachable:** Check the service status (`nssm status jeeves-watcher` on Windows), check the configured port in the watcher config file, and check logs for startup errors.
 
@@ -82,6 +85,22 @@ You don't need to know the rules in advance. The config is introspectable at run
 3. **Read source** — use `read` (standard file read) with `file_path` from search results for full document content
 
 ## Tools
+
+### `memory_search`
+Semantically search MEMORY.md and memory/*.md files. Powered by the watcher's vector store with Gemini 3072-dim embeddings.
+- `query` (string, required) — search query text
+- `maxResults` (number, optional) — maximum results to return
+- `minScore` (number, optional) — minimum similarity score threshold
+
+Returns: `[{ path, from, to, snippet, score }]` where `from`/`to` are 1-indexed line numbers.
+
+### `memory_get`
+Read content from MEMORY.md or memory/*.md files with optional line range.
+- `path` (string, required) — path to the memory file
+- `from` (number, optional) — line number to start reading from (1-indexed)
+- `lines` (number, optional) — number of lines to read
+
+Path validation: only files within the workspace's MEMORY.md and memory/**/*.md are accessible.
 
 ### `watcher_search`
 Semantic search over indexed documents.

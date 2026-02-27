@@ -12,6 +12,8 @@ import type { AllHelpersIntrospection } from '../helpers';
 import type { IssuesManager } from '../issues';
 import type { DocumentProcessorInterface } from '../processor';
 import type { EventQueue } from '../queue';
+import { compileRules } from '../rules';
+import type { VirtualRuleStore } from '../rules/virtualRules';
 import type { ValuesManager } from '../values';
 import type { VectorStoreClient } from '../vectorStore';
 import { executeReindex } from './executeReindex';
@@ -23,8 +25,14 @@ import { createConfigSchemaHandler } from './handlers/configSchema';
 import { createConfigValidateHandler } from './handlers/configValidate';
 import { createIssuesHandler } from './handlers/issues';
 import { createMetadataHandler } from './handlers/metadata';
+import { createPointsDeleteHandler } from './handlers/pointsDelete';
 import { createRebuildMetadataHandler } from './handlers/rebuildMetadata';
 import { createReindexHandler } from './handlers/reindex';
+import { createRulesRegisterHandler } from './handlers/rulesRegister';
+import {
+  createRulesUnregisterHandler,
+  createRulesUnregisterParamHandler,
+} from './handlers/rulesUnregister';
 import { createSearchHandler } from './handlers/search';
 import { createStatusHandler } from './handlers/status';
 import { ReindexTracker } from './ReindexTracker';
@@ -58,6 +66,8 @@ export interface ApiServerOptions {
   configPath: string;
   /** Helper introspection for merged document. */
   helperIntrospection?: AllHelpersIntrospection;
+  /** Virtual rule store for externally registered inference rules. */
+  virtualRuleStore?: VirtualRuleStore;
 }
 
 /**
@@ -79,6 +89,7 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
     valuesManager,
     configPath,
     helperIntrospection,
+    virtualRuleStore,
   } = options;
 
   const reindexTracker = options.reindexTracker ?? new ReindexTracker();
@@ -159,6 +170,9 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
       issuesManager,
       logger,
       helperIntrospection,
+      getVirtualRules: virtualRuleStore
+        ? () => virtualRuleStore.getAll()
+        : undefined,
     }),
   );
 
@@ -174,6 +188,47 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
       triggerReindex,
     }),
   );
+
+  // Virtual rules and points deletion routes
+  if (virtualRuleStore) {
+    const onRulesChanged = () => {
+      const configCompiled = compileRules(config.inferenceRules ?? []);
+      const virtualCompiled = virtualRuleStore.getCompiled();
+      processor.updateRules([...configCompiled, ...virtualCompiled]);
+    };
+
+    app.post(
+      '/rules/register',
+      createRulesRegisterHandler({
+        virtualRuleStore,
+        logger,
+        onRulesChanged,
+      }),
+    );
+
+    app.delete(
+      '/rules/unregister',
+      createRulesUnregisterHandler({
+        virtualRuleStore,
+        logger,
+        onRulesChanged,
+      }),
+    );
+
+    app.delete(
+      '/rules/unregister/:source',
+      createRulesUnregisterParamHandler({
+        virtualRuleStore,
+        logger,
+        onRulesChanged,
+      }),
+    );
+
+    app.post(
+      '/points/delete',
+      createPointsDeleteHandler({ vectorStore, logger }),
+    );
+  }
 
   return app;
 }

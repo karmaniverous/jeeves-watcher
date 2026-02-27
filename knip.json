@@ -1,0 +1,6 @@
+{
+  "workspaces": {
+    "packages/service": {},
+    "packages/openclaw": {}
+  }
+}

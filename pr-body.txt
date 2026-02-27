@@ -1,0 +1,24 @@
+## Step 4: Memory Slot Takeover with Virtual Rules API
+
+### Service-side
+- **VirtualRuleStore** (`rules/virtualRules.ts`): In-memory store for externally registered inference rules. Register/unregister by source, compile and merge into pipeline.
+- **POST /rules/register**: Accept `{ source, rules }`, store in-memory, merge into inference pipeline after config rules (last-match-wins precedence).
+- **DELETE /rules/unregister**: Remove virtual rules by source (body or `:source` param). Points remain in Qdrant.
+- **POST /points/delete**: Delete points matching a Qdrant filter. Used for workspace-change cleanup.
+- **Merged virtual document**: Added `virtualRules` key showing registered rules by source.
+- **onRulesChanged callback**: Recompiles config + virtual rules and updates processor.
+
+### Plugin-side (v0.3.0)
+- **`kind: "memory"`** in manifest — auto-disables memory-core when plugin loads
+- **`memory_search`**: Lazy init registers virtual rules with watcher on first call, then searches with `domain: "memory"` filter. Maps results to `{ path, from, to, snippet, score }` format compatible with system prompt expectations.
+- **`memory_get`**: Reads files from filesystem with path validation (only workspace MEMORY.md and memory/**/*.md allowed). Re-derives workspace on every call for immediate move pickup.
+- **Self-healing**: Watcher can start any time after gateway. Failed init retries on next call.
+- **Refactored**: Extracted 8 watcher tools to `watcherTools.ts` (300 LOC limit compliance).
+- **Updated skill**: Added memory_search, memory_get, and new API endpoints to documentation.
+
+### Tests
+- 7 new VirtualRuleStore tests
+- 2 new rulesRegister handler tests  
+- 3 new pointsDelete handler tests
+- All 314/315 pass (1 pre-existing flaky Qdrant integration test)
+- Lint, typecheck, knip, build all clean (both packages)

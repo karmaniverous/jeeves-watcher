@@ -3,11 +3,18 @@
  * Shared types and utility functions for the OpenClaw plugin tool registrations.
  */
 
+import { homedir } from 'node:os';
+import { join } from 'node:path';
+
 /** Minimal OpenClaw plugin API surface used for tool registration. */
 export interface PluginApi {
   config?: {
     plugins?: {
       entries?: Record<string, { config?: Record<string, unknown> }>;
+    };
+    agents?: {
+      entries?: Record<string, { workspace?: string }>;
+      defaults?: { workspace?: string };
     };
   };
   registerTool(
@@ -31,6 +38,29 @@ export interface ToolResult {
 }
 
 const DEFAULT_API_URL = 'http://127.0.0.1:3458';
+
+/** Source identifier for virtual rule registration. */
+export const PLUGIN_SOURCE = 'jeeves-watcher-openclaw';
+
+/** Normalize a path to forward slashes and lowercase drive letter on Windows. */
+export function normalizePath(p: string): string {
+  let result = p.replace(/\\/g, '/');
+  if (/^[A-Z]:/.test(result)) {
+    result = result[0].toLowerCase() + result.slice(1);
+  }
+  return result;
+}
+
+/**
+ * Resolve the workspace path from gateway config.
+ * Priority: agent-specific > defaults > fallback (~/.openclaw/workspace).
+ */
+export function getWorkspacePath(api: PluginApi): string {
+  const agentWorkspace =
+    api.config?.agents?.entries?.['main']?.workspace ??
+    api.config?.agents?.defaults?.workspace;
+  return agentWorkspace ?? join(homedir(), '.openclaw', 'workspace');
+}
 
 /** Resolve the watcher API base URL from plugin config. */
 export function getApiUrl(api: PluginApi): string {
