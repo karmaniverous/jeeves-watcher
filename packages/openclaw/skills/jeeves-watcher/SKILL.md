@@ -18,19 +18,19 @@ The watcher is an HTTP API running as a background service (typically NSSM on Wi
 
 **Health check:** `GET /status` returns uptime, point count, collection dimensions, and reindex status.
 
-**Mental model:** The `watcher_*` tools are thin HTTP wrappers. Each tool call translates to an HTTP request to the watcher API. When tools are available, use them. When they're not (e.g., different session, plugin not loaded), you can hit the API directly:
+**Mental model:** The `watcher_*` tools are thin HTTP wrappers. Each tool call translates to an HTTP request to the watcher API. When tools are available, use them. When they're not (e.g., different session, plugin not loaded), you can hit the API directly. Replace `<PORT>` below with the configured port (default 3458; check `plugins.entries.jeeves-watcher.config.apiUrl` in `openclaw.json` if overridden):
 
 ```
 # Health check
-curl http://127.0.0.1:3458/status
+curl http://127.0.0.1:<PORT>/status
 
 # Search
-curl -X POST http://127.0.0.1:3458/search \
+curl -X POST http://127.0.0.1:<PORT>/search \
   -H "Content-Type: application/json" \
   -d '{"query": "search text", "limit": 5}'
 
 # Query config
-curl -X POST http://127.0.0.1:3458/config/query \
+curl -X POST http://127.0.0.1:<PORT>/config/query \
   -H "Content-Type: application/json" \
   -d '{"path": "$.inferenceRules[*].name"}'
 ```
