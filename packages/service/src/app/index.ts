@@ -27,6 +27,10 @@ import {
   introspectHelpers,
 } from './initialization';
 
+type ApiServerOptions = Parameters<
+  JeevesWatcherFactories['createApiServer']
+>[0];
+
 export type { JeevesWatcherFactories } from './factories';
 export { defaultFactories } from './factories';
 export { startFromConfig } from './startFromConfig';
@@ -58,15 +62,10 @@ export class JeevesWatcher {
   private valuesManager: ValuesManager | undefined;
   private helperIntrospection: AllHelpersIntrospection | undefined;
   private virtualRuleStore: VirtualRuleStore;
+  private vectorStore: ApiServerOptions['vectorStore'] | undefined;
+  private embeddingProvider: ApiServerOptions['embeddingProvider'] | undefined;
 
-  /**
-   * Create a new JeevesWatcher instance.
-   *
-   * @param config - The application configuration.
-   * @param configPath - Optional config file path to watch for changes.
-   * @param factories - Optional component factories (for dependency injection).
-   * @param runtimeOptions - Optional runtime-only options (e.g., onFatalError).
-   */
+  /** Create a new JeevesWatcher instance. */
   constructor(
     config: JeevesWatcherConfig,
     configPath?: string,
@@ -92,6 +91,8 @@ export class JeevesWatcher {
       this.factories,
       logger,
     );
+    this.embeddingProvider = embeddingProvider;
+    this.vectorStore = vectorStore;
 
     if (this.config.search?.hybrid?.enabled) {
       await vectorStore.ensureTextIndex('chunk_text');
@@ -143,16 +144,7 @@ export class JeevesWatcher {
     this.issuesManager = new IssuesManager(stateDir, logger);
     this.valuesManager = new ValuesManager(stateDir, logger);
 
-    this.server = await this.startApiServer(
-      processor,
-      vectorStore,
-      embeddingProvider,
-      logger,
-      this.issuesManager,
-      this.valuesManager,
-      this.helperIntrospection,
-      this.virtualRuleStore,
-    );
+    this.server = await this.startApiServer();
 
     this.watcher.start();
     this.startConfigWatch();
@@ -196,32 +188,19 @@ export class JeevesWatcher {
     this.logger?.info('jeeves-watcher stopped');
   }
 
-  private async startApiServer(
-    processor: DocumentProcessorInterface,
-    vectorStore: Parameters<
-      JeevesWatcherFactories['createApiServer']
-    >[0]['vectorStore'],
-    embeddingProvider: Parameters<
-      JeevesWatcherFactories['createApiServer']
-    >[0]['embeddingProvider'],
-    logger: pino.Logger,
-    issuesManager: IssuesManager,
-    valuesManager: ValuesManager,
-    helperIntrospection: AllHelpersIntrospection | undefined,
-    virtualRuleStore: VirtualRuleStore,
-  ) {
+  private async startApiServer() {
     const server = this.factories.createApiServer({
-      processor,
-      vectorStore,
-      embeddingProvider,
+      processor: this.processor!,
+      vectorStore: this.vectorStore!,
+      embeddingProvider: this.embeddingProvider!,
       queue: this.queue!,
       config: this.config,
-      logger,
-      issuesManager,
-      valuesManager,
+      logger: this.logger!,
+      issuesManager: this.issuesManager!,
+      valuesManager: this.valuesManager!,
       configPath: this.configPath ?? '',
-      helperIntrospection,
-      virtualRuleStore,
+      helperIntrospection: this.helperIntrospection,
+      virtualRuleStore: this.virtualRuleStore,
     });
 
     await server.listen({
@@ -315,5 +294,3 @@ export class JeevesWatcher {
     }
   }
 }
-
-// startFromConfig re-exported from ./startFromConfig

@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { scroll } from './scroll';
+import { scrollCollection } from './scroll';
 
-type MockClient = Parameters<typeof scroll>[0];
+type MockClient = Parameters<typeof scrollCollection>[0];
 
 function makeMockClient(
   pages: Array<{
@@ -40,7 +40,7 @@ describe('scroll', () => {
       },
     ]);
 
-    const results = await collect(scroll(client, 'col'));
+    const results = await collect(scrollCollection(client, 'col'));
 
     expect(results).toEqual([
       { id: 'a', payload: { x: 1 } },
@@ -60,7 +60,7 @@ describe('scroll', () => {
       },
     ]);
 
-    const results = await collect(scroll(client, 'col'));
+    const results = await collect(scrollCollection(client, 'col'));
 
     expect(results).toHaveLength(2);
     expect(scrollMock).toHaveBeenCalledTimes(2);
@@ -72,7 +72,7 @@ describe('scroll', () => {
     ]);
     const filter = { must: [{ key: 'source', match: { value: 'docs' } }] };
 
-    await collect(scroll(client, 'col', filter));
+    await collect(scrollCollection(client, 'col', filter));
 
     expect(scrollMock).toHaveBeenCalledWith(
       'col',
@@ -85,7 +85,7 @@ describe('scroll', () => {
       { points: [], next_page_offset: null },
     ]);
 
-    await collect(scroll(client, 'col', undefined, 50));
+    await collect(scrollCollection(client, 'col', undefined, 50));
 
     expect(scrollMock).toHaveBeenCalledWith(
       'col',
@@ -98,7 +98,7 @@ describe('scroll', () => {
       { points: [{ id: 42, payload: {} }], next_page_offset: null },
     ]);
 
-    const results = await collect(scroll(client, 'col'));
+    const results = await collect(scrollCollection(client, 'col'));
 
     expect(results[0].id).toBe('42');
   });
@@ -106,7 +106,7 @@ describe('scroll', () => {
   it('stops on undefined next_page_offset', async () => {
     const { client } = makeMockClient([{ points: [{ id: '1', payload: {} }] }]);
 
-    const results = await collect(scroll(client, 'col'));
+    const results = await collect(scrollCollection(client, 'col'));
 
     expect(results).toHaveLength(1);
   });
