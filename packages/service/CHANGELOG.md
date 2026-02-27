@@ -2,8 +2,10 @@
 
 All notable changes to this project will be documented in this file. Dates are displayed in UTC.
 
-#### [0.6.0](https://github.com/karmaniverous/jeeves-watcher/compare/0.5.1...0.6.0)
+#### [0.6.1](https://github.com/karmaniverous/jeeves-watcher/compare/0.5.1...0.6.1)
 
+- chore: bump @karmaniverous/jsonmap to 2.1.1 [`#57`](https://github.com/karmaniverous/jeeves-watcher/pull/57)
+- fix: plugin installer claims memory slot in OpenClaw config [`#56`](https://github.com/karmaniverous/jeeves-watcher/pull/56)
 - docs: update guides for v0.6.0 changes [`#54`](https://github.com/karmaniverous/jeeves-watcher/pull/54)
 - refactor: extract modules to fix 300 LOC violations [`#53`](https://github.com/karmaniverous/jeeves-watcher/pull/53)
 - refactor: DRY fixes and comprehensive test coverage for openclaw package [`#52`](https://github.com/karmaniverous/jeeves-watcher/pull/52)
@@ -28,7 +30,10 @@ All notable changes to this project will be documented in this file. Dates are d
 - fix: resolve eslint unbound-method and prettier errors [`36b5803`](https://github.com/karmaniverous/jeeves-watcher/commit/36b5803e83cce02bcb124095662965f887ceec66)
 - fix: resolve lint errors in openclaw CLI and add rollup externals [`b4e8514`](https://github.com/karmaniverous/jeeves-watcher/commit/b4e8514d991daaed99bd7d7dff7028b4310109be)
 - docs: document self-installer CLI and Windows spawn EINVAL workaround [`e3d6351`](https://github.com/karmaniverous/jeeves-watcher/commit/e3d63512fe57b555e753c8f86bbfe57a1b97f70c)
+- chore: release @karmaniverous/jeeves-watcher v0.6.0 [`b7b207e`](https://github.com/karmaniverous/jeeves-watcher/commit/b7b207e96b1750bcacc4f5dd67ecf9c369415e25)
 - fix: apply same conditional logic to tools.allow as plugins.allow [`4549569`](https://github.com/karmaniverous/jeeves-watcher/commit/4549569ea72e1bbe385fd7592497982bbc34ec39)
+- chore: release @karmaniverous/jeeves-watcher-openclaw v0.3.0 [`3ce4950`](https://github.com/karmaniverous/jeeves-watcher/commit/3ce4950d10de13300db94e90247739a3f4a6514a)
+- fix: plugin installer now claims memory slot in OpenClaw config [`020c6cd`](https://github.com/karmaniverous/jeeves-watcher/commit/020c6cdd258ad8a6e092e173c88caabf05e5f323)
 - fix: remove plugins.allow management from CLI, only manage entries and tools.allow [`64106b4`](https://github.com/karmaniverous/jeeves-watcher/commit/64106b49be35f11c8e4b9a499b45067869decc4b)
 - fix: conditionally manage plugins.allow only when already populated [`c486c3a`](https://github.com/karmaniverous/jeeves-watcher/commit/c486c3a8bc12df5f1d233a0f974c0024e91e84b4)
 - chore: release @karmaniverous/jeeves-watcher-openclaw v0.2.0 [`a6d4d7e`](https://github.com/karmaniverous/jeeves-watcher/commit/a6d4d7e57424b482b737cb6983dc5c9a86b96160)
