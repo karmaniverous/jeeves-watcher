@@ -50,7 +50,11 @@ function buildVirtualRules(workspace: string) {
         {
           type: 'object',
           properties: {
-            domain: { type: 'string', set: 'memory' },
+            domains: {
+              type: 'array',
+              items: { type: 'string' },
+              set: ['memory'],
+            },
             kind: { type: 'string', set: 'long-term' },
           },
         },
@@ -72,7 +76,11 @@ function buildVirtualRules(workspace: string) {
         {
           type: 'object',
           properties: {
-            domain: { type: 'string', set: 'memory' },
+            domains: {
+              type: 'array',
+              items: { type: 'string' },
+              set: ['memory'],
+            },
             kind: { type: 'string', set: 'daily-log' },
           },
         },
@@ -166,7 +174,7 @@ export function createMemoryTools(api: PluginApi, baseUrl: string) {
       const body: Record<string, unknown> = {
         query: params.query,
         filter: {
-          must: [{ key: 'domain', match: { value: 'memory' } }],
+          must: [{ key: 'domains', match: { value: 'memory' } }],
         },
       };
       if (params.maxResults !== undefined) body.limit = params.maxResults;
