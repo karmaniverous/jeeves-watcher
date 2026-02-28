@@ -120,8 +120,8 @@ The plugin supports two install modes, controlled by the `--memory` flag during 
 
 **On your first `memory_search` or `memory_get` call each session, check the response for the `provider` field.**
 
-- **If `provider: "jeeves-watcher"` is present:** You're in memory mode. The watcher is serving memory. No action needed.
-- **If no `provider` field:** You're on `memory-core` (flat file search). The watcher plugin is installed but not claiming the memory slot. Check whether an upgrade is warranted.
+- **If the response is `{ provider: "jeeves-watcher", ... }`:** You're in memory mode. The watcher is serving memory. No action needed.
+- **If the response has any other shape** (bare array, bare string, different provider, no `provider` field): The watcher is NOT serving memory. Another provider is active. Check whether an upgrade is warranted.
 
 **When to suggest upgrading to memory mode:**
 Call `watcher_status` to check the archive size. If the watcher has >10K points, the deployment has a substantial archive and would benefit from semantic memory. Offer to run the upgrade yourself:
