@@ -36,6 +36,7 @@ export type {
  */
 export class VectorStoreClient implements VectorStore {
   private readonly client: QdrantClient;
+  private readonly clientConfig: { url: string; apiKey?: string };
   private readonly collectionName: string;
   private readonly dims: number;
   private readonly log: MinimalLogger;
@@ -53,15 +54,27 @@ export class VectorStoreClient implements VectorStore {
     dimensions: number,
     logger?: pino.Logger,
   ) {
-    this.client = new QdrantClient({
-      url: config.url,
-      apiKey: config.apiKey,
-      checkCompatibility: false,
-    });
+    this.clientConfig = { url: config.url, apiKey: config.apiKey };
+    this.client = this.createClient();
     this.collectionName = config.collectionName;
     this.dims = dimensions;
     this.log = getLogger(logger);
     this.pinoLogger = logger;
+  }
+
+  /**
+   * Create a fresh QdrantClient instance.
+   *
+   * Used to avoid stale HTTP keep-alive connections. The Qdrant JS client's
+   * internal undici Agent uses keepAliveTimeout: 10s, which causes ECONNRESET
+   * when connections sit idle during slow embedding calls (Gemini p99 ~8s).
+   * Creating a fresh client for write operations ensures clean TCP connections.
+   */
+  private createClient(): QdrantClient {
+    return new QdrantClient({
+      ...this.clientConfig,
+      checkCompatibility: false,
+    });
   }
 
   /**
@@ -128,13 +141,18 @@ export class VectorStoreClient implements VectorStore {
   /**
    * Upsert points into the collection.
    *
+   * Uses a fresh QdrantClient per attempt to avoid stale keep-alive connections.
+   * Between embedding calls and upserts, idle connections may be closed by the
+   * server, causing ECONNRESET on reuse.
+   *
    * @param points - The points to upsert.
    */
   async upsert(points: VectorPoint[]): Promise<void> {
     if (points.length === 0) return;
 
     await this.retryOperation('upsert', async () => {
-      await this.client.upsert(this.collectionName, {
+      const freshClient = this.createClient();
+      await freshClient.upsert(this.collectionName, {
         wait: true,
         points: points.map((p) => ({
           id: p.id,
@@ -148,13 +166,16 @@ export class VectorStoreClient implements VectorStore {
   /**
    * Delete points by their IDs.
    *
+   * Uses a fresh QdrantClient per attempt to avoid stale keep-alive connections.
+   *
    * @param ids - The point IDs to delete.
    */
   async delete(ids: string[]): Promise<void> {
     if (ids.length === 0) return;
 
     await this.retryOperation('delete', async () => {
-      await this.client.delete(this.collectionName, {
+      const freshClient = this.createClient();
+      await freshClient.delete(this.collectionName, {
         wait: true,
         points: ids,
       });
