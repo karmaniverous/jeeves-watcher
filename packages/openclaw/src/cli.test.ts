@@ -190,9 +190,7 @@ describe('patchConfig', () => {
       const entries = plugins.entries as Record<string, unknown>;
       const memoryCore = entries['memory-core'] as Record<string, unknown>;
       expect(memoryCore.enabled).toBe(true);
-      expect(msgs.some((m) => m.includes('Re-enabled memory-core'))).toBe(
-        true,
-      );
+      expect(msgs.some((m) => m.includes('Re-enabled memory-core'))).toBe(true);
     });
   });
 });
