@@ -5,16 +5,35 @@ import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { PluginApi } from './helpers.js';
-import { createMemoryTools } from './memoryTools.js';
+import {
+  createMemoryTools,
+  PROP_KIND,
+  PROP_SOURCE,
+  RULE_DAILY,
+  RULE_LONGTERM,
+  SOURCE_MEMORY,
+} from './memoryTools.js';
 
 // Mock fetch globally
 const fetchMock = vi.fn();
 vi.stubGlobal('fetch', fetchMock);
 
-function makeApi(workspace: string): PluginApi {
+function makeApi(
+  workspace: string,
+  schemas?: Record<string, unknown>,
+): PluginApi {
   return {
     config: {
       agents: { defaults: { workspace } },
+      plugins: schemas
+        ? {
+            entries: {
+              'jeeves-watcher-openclaw': {
+                config: { schemas },
+              },
+            },
+          }
+        : undefined,
     },
     registerTool: () => {},
   };
@@ -97,7 +116,7 @@ describe('createMemoryTools', () => {
       expect(result2.isError).toBeUndefined();
     });
 
-    it('registers rules with correct workspace paths', async () => {
+    it('registers rules with private namespaced properties', async () => {
       fetchMock.mockResolvedValue(mockFetchOk([]));
 
       const api = makeApi(tempDir);
@@ -112,12 +131,59 @@ describe('createMemoryTools', () => {
       ];
       const body = JSON.parse(registerCall[1].body) as {
         source: string;
-        rules: Array<{ name: string }>;
+        rules: Array<{
+          name: string;
+          schema: Array<Record<string, unknown>>;
+        }>;
       };
       expect(body.source).toBe('jeeves-watcher-openclaw');
       expect(body.rules).toHaveLength(2);
-      expect(body.rules[0].name).toBe('openclaw-memory-longterm');
-      expect(body.rules[1].name).toBe('openclaw-memory-daily');
+      expect(body.rules[0].name).toBe(RULE_LONGTERM);
+      expect(body.rules[1].name).toBe(RULE_DAILY);
+
+      // Verify internal schema uses private properties, NOT domains/kind
+      const longtermSchema = body.rules[0].schema[0] as {
+        properties: Record<string, unknown>;
+      };
+      expect(longtermSchema.properties).toHaveProperty(PROP_SOURCE);
+      expect(longtermSchema.properties).toHaveProperty(PROP_KIND);
+      expect(longtermSchema.properties).not.toHaveProperty('domains');
+      expect(longtermSchema.properties).not.toHaveProperty('kind');
+    });
+
+    it('composes user schemas from plugin config', async () => {
+      fetchMock.mockResolvedValue(mockFetchOk([]));
+
+      const userSchema = {
+        type: 'object',
+        properties: {
+          domains: {
+            type: 'array',
+            items: { type: 'string' },
+            set: ['memory'],
+          },
+        },
+      };
+      const api = makeApi(tempDir, {
+        [RULE_LONGTERM]: userSchema,
+        [RULE_DAILY]: [userSchema],
+      });
+      const { memorySearch } = createMemoryTools(api, 'http://localhost:3458');
+
+      await memorySearch('id1', { query: 'test' });
+
+      const registerCall = fetchMock.mock.calls[2] as [
+        string,
+        { body: string },
+      ];
+      const body = JSON.parse(registerCall[1].body) as {
+        rules: Array<{ schema: unknown[] }>;
+      };
+
+      // Longterm: internal schema + 1 user schema = 2 entries
+      expect(body.rules[0].schema).toHaveLength(2);
+      // Daily: internal schema + 1 user schema (from array) = 2 entries
+      expect(body.rules[1].schema).toHaveLength(2);
     });
   });
 
@@ -191,6 +257,27 @@ describe('createMemoryTools', () => {
       });
       expect(parsed[0]).not.toHaveProperty('from');
       expect(parsed[0]).not.toHaveProperty('to');
+    });
+
+    it('filters on private source property, not domains', async () => {
+      fetchMock
+        .mockResolvedValueOnce(mockFetchOk())
+        .mockResolvedValueOnce(mockFetchOk())
+        .mockResolvedValueOnce(mockFetchOk())
+        .mockResolvedValueOnce(mockFetchOk())
+        .mockResolvedValueOnce(mockFetchOk([]));
+
+      const api = makeApi(tempDir);
+      const { memorySearch } = createMemoryTools(api, 'http://localhost:3458');
+
+      await memorySearch('id1', { query: 'test' });
+
+      const searchCall = fetchMock.mock.calls[4] as [string, RequestInit];
+      const body = JSON.parse(searchCall[1].body as string) as {
+        filter: { must: Array<{ key: string; match: { value: string } }> };
+      };
+      expect(body.filter.must[0].key).toBe(PROP_SOURCE);
+      expect(body.filter.must[0].match.value).toBe(SOURCE_MEMORY);
     });
 
     it('forwards maxResults as limit in search body', async () => {
