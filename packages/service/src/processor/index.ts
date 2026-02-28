@@ -317,7 +317,10 @@ export class DocumentProcessor implements DocumentProcessorInterface {
       this.config = { ...this.config, customMapLib };
     }
     this.logger.info(
-      { rules: compiledRules.length },
+      {
+        rules: compiledRules.length,
+        ruleNames: compiledRules.map((r) => r.rule.name),
+      },
       'Inference rules updated',
     );
   }
