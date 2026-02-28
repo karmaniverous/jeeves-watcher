@@ -4,6 +4,8 @@
  * jeeves-watcher CLI entrypoint.
  */
 
+import { createRequire } from 'node:module';
+
 import { Command } from '@commander-js/extra-typings';
 
 import { startFromConfig } from '../../app';
@@ -22,12 +24,15 @@ import { registerServiceCommand } from './commands/service';
 import { registerStatusCommand } from './commands/status';
 import { writeJsonFile } from './writeJsonFile';
 
+const require = createRequire(import.meta.url);
+const { version } = require('../../../package.json') as { version: string };
+
 const cli = new Command()
   .name('jeeves-watcher')
   .description(
     'Filesystem watcher that keeps a Qdrant vector store in sync with document changes',
   )
-  .version('0.7.0');
+  .version(version);
 
 cli
   .command('start')
