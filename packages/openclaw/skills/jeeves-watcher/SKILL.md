@@ -12,6 +12,8 @@ description: >
 
 This skill covers everything needed to go from zero to a fully operational jeeves-watcher deployment: installing prerequisites, configuring the service, installing the OpenClaw plugin, and using it day-to-day.
 
+**Be proactive.** On loading this skill, assess the current state: Is the watcher service running? Is the config present? Is the memory slot claimed? Prompt the user through whatever is missing. Don't wait to be asked.
+
 ---
 
 ## Part 1: Bootstrap — Installing the Watcher Service
@@ -270,10 +272,10 @@ This:
 1. Copies the plugin to `~/.openclaw/extensions/jeeves-watcher-openclaw/`
 2. Patches `openclaw.json`:
    - Adds `jeeves-watcher-openclaw` to `plugins.entries` (enabled)
-   - Sets `plugins.slots.memory` to `jeeves-watcher-openclaw` (claims memory slot)
    - Adds to allowlists if they exist
+3. Does **not** claim the memory slot — that happens after the watcher is running
 
-**Then restart the OpenClaw gateway** to load the plugin.
+**Then restart the OpenClaw gateway** to load the plugin. At this point, only 8 `watcher_*` tools are registered. The built-in `memory-core` stays active until you claim the slot.
 
 **Uninstall:** `npx @karmaniverous/jeeves-watcher-openclaw uninstall` (then restart gateway)
 
@@ -305,12 +307,20 @@ Plugin configuration lives in `openclaw.json` under `plugins.entries.jeeves-watc
 
 **If the watcher runs on a non-default port**, you must set `apiUrl` to match. The plugin cannot auto-discover the port.
 
-### Memory Slot Architecture
+### Claiming the Memory Slot
 
-The plugin declares `kind: "memory"` in its manifest. When installed:
+After the watcher service is running and verified (via `watcher_status`), claim the memory slot:
+
+Use the gateway `config.patch` tool to set `plugins.slots.memory` to `"jeeves-watcher-openclaw"`, then restart the gateway.
+
+After restart:
+- The plugin registers `memory_search` and `memory_get` (10 tools total)
 - OpenClaw auto-disables the built-in `memory-core` plugin
-- `memory_search` and `memory_get` are now powered by the watcher's vector store
 - The agent's existing memory behavior works unchanged — same tool names, same parameters
+
+**Do not claim the slot before the watcher is running.** The plugin cannot serve memory queries without a live watcher. If the watcher goes down after slot claim, `memory_search` returns an actionable error with recovery instructions.
+
+### Memory Slot Architecture
 
 **How it works internally:**
 1. On first `memory_search` call, the plugin registers **virtual inference rules** with the watcher
