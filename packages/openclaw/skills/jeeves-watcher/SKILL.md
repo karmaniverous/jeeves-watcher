@@ -84,6 +84,52 @@ You don't need to know the rules in advance. The config is introspectable at run
 2. **Search** — use `watcher_search` with a natural language query and optional metadata filters
 3. **Read source** — use `read` (standard file read) with `file_path` from search results for full document content
 
+## Bootstrap (First Session)
+
+The first time the watcher plugin loads in a new deployment, orient yourself proactively. Don't wait for the user to ask a question — understand what you have access to.
+
+**Automatic bootstrap sequence:**
+
+1. **Health check** — call `watcher_status`. Confirm the service is running, note point count and collection dimensions.
+2. **Discover the deployment** — run the Orientation Pattern (see below): query `$.['description','search']` for organizational strategy and score thresholds, then `$.inferenceRules[*].['name','description']` for available record types.
+3. **Cache context** — store the orientation results mentally for the session. You now know what domains exist, what record types are searchable, and how to interpret scores.
+4. **Report readiness** — briefly tell the user what you found: how many points, which domains, any issues. One or two sentences, not a wall of text.
+
+**On subsequent sessions:** Repeat steps 1-3 silently. Only report if something changed (service down, point count dropped significantly, new domains appeared).
+
+**Key principle:** The agent drives discovery. The user shouldn't have to explain their archive to you — the archive explains itself through its config.
+
+## Install Modes
+
+The plugin supports two install modes, controlled by the `--memory` flag during installation:
+
+**Standard mode** (`npx @karmaniverous/jeeves-watcher-openclaw install`):
+- Registers `watcher_*` tools only (search, enrich, status, query, validate, config_apply, reindex, issues)
+- OpenClaw's built-in `memory-core` remains the memory provider
+- Use when the watcher is a supplementary search tool alongside native memory
+
+**Memory mode** (`npx @karmaniverous/jeeves-watcher-openclaw install --memory`):
+- Registers all tools: `watcher_*` plus `memory_search` and `memory_get`
+- Claims the OpenClaw memory slot — the watcher becomes the memory provider
+- MEMORY.md and memory/*.md files are indexed and searched via the watcher's vector store
+- Use when the watcher should be the single source of truth for both archive search and agent memory
+
+**How to tell which mode you're in:** If `memory_search` and `memory_get` are in your available tools, you're in memory mode. If you only see `watcher_*` tools, you're in standard mode.
+
+## Proactive Posture
+
+**If you're in standard mode and the deployment would benefit from memory mode, say so.** The watcher's vector store with 3072-dimension Gemini embeddings provides significantly better semantic memory than flat file search. If you notice:
+
+- The user has a substantial archive (>10K points)
+- Memory searches are returning poor results via native memory
+- The user is asking questions that span multiple memory files
+
+...then suggest the upgrade:
+
+> "The watcher is running with a large archive but I'm using basic file memory. Upgrading to memory mode would give semantic search over your memory files too. To upgrade: `npx @karmaniverous/jeeves-watcher-openclaw install --memory` and restart the gateway."
+
+**Don't nag.** Suggest once per session at most, and only when there's a concrete benefit. If the user declines or doesn't respond, drop it.
+
 ## Tools
 
 ### `memory_search`
