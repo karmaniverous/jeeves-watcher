@@ -114,21 +114,23 @@ The plugin supports two install modes, controlled by the `--memory` flag during 
 - MEMORY.md and memory/*.md files are indexed and searched via the watcher's vector store
 - Use when the watcher should be the single source of truth for both archive search and agent memory
 
-**How to tell which mode you're in:** If `memory_search` and `memory_get` are in your available tools, you're in memory mode. If you only see `watcher_*` tools, you're in standard mode.
+**How to tell which mode you're in:** Check the response from `memory_search` or `memory_get`. In memory mode (watcher-backed), responses include `"provider": "jeeves-watcher"`. In standard mode (memory-core), responses are bare arrays/strings with no `provider` field.
 
 ## Proactive Posture
 
-**If you're in standard mode and the deployment would benefit from memory mode, say so.** The watcher's vector store with 3072-dimension Gemini embeddings provides significantly better semantic memory than flat file search. If you notice:
+**On your first `memory_search` or `memory_get` call each session, check the response for the `provider` field.**
 
-- The user has a substantial archive (>10K points)
-- Memory searches are returning poor results via native memory
-- The user is asking questions that span multiple memory files
+- **If `provider: "jeeves-watcher"` is present:** You're in memory mode. The watcher is serving memory. No action needed.
+- **If no `provider` field:** You're on `memory-core` (flat file search). The watcher plugin is installed but not claiming the memory slot. Check whether an upgrade is warranted.
 
-...then suggest the upgrade:
+**When to suggest upgrading to memory mode:**
+Call `watcher_status` to check the archive size. If the watcher has >10K points, the deployment has a substantial archive and would benefit from semantic memory. Offer to run the upgrade yourself:
 
-> "The watcher is running with a large archive but I'm using basic file memory. Upgrading to memory mode would give semantic search over your memory files too. To upgrade: `npx @karmaniverous/jeeves-watcher-openclaw install --memory` and restart the gateway."
+> "I notice memory queries are running on flat file search, but the watcher has [N] points with semantic embeddings. I can upgrade to memory mode now — this runs `npx @karmaniverous/jeeves-watcher-openclaw install --memory` and restarts the gateway. Shall I go ahead?"
 
-**Don't nag.** Suggest once per session at most, and only when there's a concrete benefit. If the user declines or doesn't respond, drop it.
+If the user agrees, execute the install and gateway restart. Don't hand them a CLI command when you can do it yourself.
+
+**Don't nag.** Suggest once per session at most. If the user declines, drop it.
 
 ## Tools
 
@@ -138,13 +140,17 @@ Semantically search MEMORY.md and memory/*.md files. Powered by the watcher's ve
 - `maxResults` (number, optional) — maximum results to return
 - `minScore` (number, optional) — minimum similarity score threshold
 
-Returns: `[{ path, from, to, snippet, score }]` where `from`/`to` are 1-indexed line numbers.
+**Response (memory mode):** `{ provider: "jeeves-watcher", results: [{ path, from, to, snippet, score }] }` where `from`/`to` are 1-indexed line numbers.
+**Response (standard mode / memory-core):** `[{ path, from, to, snippet, score }]` — bare array, no `provider` field.
 
 ### `memory_get`
 Read content from MEMORY.md or memory/*.md files with optional line range.
 - `path` (string, required) — path to the memory file
 - `from` (number, optional) — line number to start reading from (1-indexed)
 - `lines` (number, optional) — number of lines to read
+
+**Response (memory mode):** `{ provider: "jeeves-watcher", content: "file content..." }`
+**Response (standard mode / memory-core):** `"file content..."` — bare string, no `provider` field.
 
 Path validation: only files within the workspace's MEMORY.md and memory/**/*.md are accessible.
 
