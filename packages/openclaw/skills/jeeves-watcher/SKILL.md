@@ -70,6 +70,30 @@ You have access to a **semantic archive** of your human's working world: email, 
 - The question is about general knowledge, not the human's specific context
 - The watcher is unreachable (fall back to filesystem browsing)
 
+## Memory → Archive Escalation
+
+You have two search tools with different scopes:
+
+- **`memory_search`** — curated notes (MEMORY.md + memory/*.md). High signal, small scope. This is your long-term memory: decisions, rules, people, project context. Always check here first.
+- **`watcher_search`** — the full indexed archive (160K+ points across all domains: Slack, email, Jira, code, meetings, tweets, projects). Broad scope, raw record.
+
+**The escalation rule:** When `memory_search` returns thin, zero, or low-confidence results for something your human clearly expects you to know about — a person, a project, an event, a thing — don't stop there. Follow up with `watcher_search` across the full index.
+
+**Triggers for escalation:**
+- Memory returns 0 results for a named entity (person, project, tool, pet)
+- Memory returns results but they lack the detail the question needs
+- The question is about something that *happened* (a conversation, a meeting, a decision) rather than something you *noted*
+- The human seems surprised you don't know something
+
+**Don't escalate when:**
+- Memory gave you a clear, sufficient answer
+- The question is about your own operational rules or preferences (that's purely memory)
+- You've already searched the archive this turn
+
+**Example:** "Tell me about Noodle" → memory says "male, he/him" → that's thin → escalate to `watcher_search("Noodle")` → tweets reveal #NoodleThePoodle with photos. Report the full picture.
+
+**The principle:** Memory is your curated highlights. The archive is your perfect recall. Use memory first for speed and signal, but never let its narrow scope be the ceiling of what you can remember.
+
 **How it works, conceptually:**
 
 The watcher monitors directories on the filesystem. When files change, it extracts text, applies **inference rules** (config-driven pattern matching) to derive structured metadata, and embeds everything into a vector store. Each inference rule defines a record type: what files it matches, what metadata schema applies, how to extract fields.
