@@ -213,12 +213,14 @@ describe('createMemoryTools', () => {
       const { memorySearch } = createMemoryTools(api, 'http://localhost:3458');
 
       const result = await memorySearch('id1', { query: 'test' });
-      const parsed = JSON.parse(result.content[0].text) as Array<
-        Record<string, unknown>
-      >;
+      const parsed = JSON.parse(result.content[0].text) as {
+        provider: string;
+        results: Array<Record<string, unknown>>;
+      };
 
-      expect(parsed).toHaveLength(1);
-      expect(parsed[0]).toEqual({
+      expect(parsed.provider).toBe('jeeves-watcher');
+      expect(parsed.results).toHaveLength(1);
+      expect(parsed.results[0]).toEqual({
         path: '/ws/MEMORY.md',
         snippet: 'some content',
         score: 0.95,
@@ -246,17 +248,19 @@ describe('createMemoryTools', () => {
       const { memorySearch } = createMemoryTools(api, 'http://localhost:3458');
 
       const result = await memorySearch('id1', { query: 'test' });
-      const parsed = JSON.parse(result.content[0].text) as Array<
-        Record<string, unknown>
-      >;
+      const parsed = JSON.parse(result.content[0].text) as {
+        provider: string;
+        results: Array<Record<string, unknown>>;
+      };
 
-      expect(parsed[0]).toEqual({
+      expect(parsed.provider).toBe('jeeves-watcher');
+      expect(parsed.results[0]).toEqual({
         path: '/ws/MEMORY.md',
         snippet: 'old point',
         score: 0.8,
       });
-      expect(parsed[0]).not.toHaveProperty('from');
-      expect(parsed[0]).not.toHaveProperty('to');
+      expect(parsed.results[0]).not.toHaveProperty('from');
+      expect(parsed.results[0]).not.toHaveProperty('to');
     });
 
     it('filters on private source property, not domains', async () => {
@@ -328,8 +332,12 @@ describe('createMemoryTools', () => {
         query: 'test',
         minScore: 0.5,
       });
-      const parsed = JSON.parse(result.content[0].text) as unknown[];
-      expect(parsed).toHaveLength(1);
+      const parsed = JSON.parse(result.content[0].text) as {
+        provider: string;
+        results: unknown[];
+      };
+      expect(parsed.provider).toBe('jeeves-watcher');
+      expect(parsed.results).toHaveLength(1);
     });
   });
 
@@ -343,7 +351,12 @@ describe('createMemoryTools', () => {
 
       const result = await memoryGet('id1', { path: filePath });
       expect(result.isError).toBeUndefined();
-      expect(JSON.parse(result.content[0].text)).toContain('Line 1');
+      const parsed = JSON.parse(result.content[0].text) as {
+        provider: string;
+        content: string;
+      };
+      expect(parsed.provider).toBe('jeeves-watcher');
+      expect(parsed.content).toContain('Line 1');
     });
 
     it('reads with from/lines range', async () => {
@@ -358,8 +371,12 @@ describe('createMemoryTools', () => {
         from: 2,
         lines: 2,
       });
-      const content = JSON.parse(result.content[0].text) as string;
-      expect(content).toBe('Line 2\nLine 3');
+      const parsed = JSON.parse(result.content[0].text) as {
+        provider: string;
+        content: string;
+      };
+      expect(parsed.provider).toBe('jeeves-watcher');
+      expect(parsed.content).toBe('Line 2\nLine 3');
     });
 
     it('reads memory subdirectory files', async () => {

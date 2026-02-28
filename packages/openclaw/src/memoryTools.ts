@@ -218,7 +218,7 @@ export function createMemoryTools(api: PluginApi, baseUrl: string) {
         (r) => typeof r.score === 'number' && r.score >= minScore,
       );
 
-      return ok(filtered);
+      return ok({ provider: 'jeeves-watcher', results: filtered });
     } catch (error) {
       state.initialized = false;
       return connectionFail(error, state.baseUrl);
@@ -251,10 +251,10 @@ export function createMemoryTools(api: PluginApi, baseUrl: string) {
             ? Number(params.lines)
             : lines.length - startIdx;
         const sliced = lines.slice(startIdx, startIdx + count);
-        return ok(sliced.join('\n'));
+        return ok({ provider: 'jeeves-watcher', content: sliced.join('\n') });
       }
 
-      return ok(content);
+      return ok({ provider: 'jeeves-watcher', content });
     } catch (error) {
       return fail(error);
     }
