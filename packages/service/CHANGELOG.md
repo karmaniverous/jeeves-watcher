@@ -2,8 +2,10 @@
 
 All notable changes to this project will be documented in this file. Dates are displayed in UTC.
 
-#### [0.6.4](https://github.com/karmaniverous/jeeves-watcher/compare/0.5.1...0.6.4)
+#### [0.6.5](https://github.com/karmaniverous/jeeves-watcher/compare/0.5.1...0.6.5)
 
+- feat: POST /rules/reapply endpoint + plugin auto-reapply after registration [`#65`](https://github.com/karmaniverous/jeeves-watcher/pull/65)
+- fix: disable AJV strict mode to suppress schema type warnings [`#55`](https://github.com/karmaniverous/jeeves-watcher/pull/55)
 - fix: case-insensitive glob matching in AJV rule keyword [`#64`](https://github.com/karmaniverous/jeeves-watcher/pull/64)
 - fix: use glob instead of pattern for virtual rule matching [`#62`](https://github.com/karmaniverous/jeeves-watcher/pull/62)
 - fix: normalizePath preserves drive letter case to match service [`#61`](https://github.com/karmaniverous/jeeves-watcher/pull/61)
@@ -49,6 +51,7 @@ All notable changes to this project will be documented in this file. Dates are d
 - chore: release @karmaniverous/jeeves-watcher-openclaw v0.1.1 [`008e757`](https://github.com/karmaniverous/jeeves-watcher/commit/008e757704e0cdf5bca7819a9b9eb36b7258a300)
 - chore: release @karmaniverous/jeeves-watcher-openclaw v0.3.4 [`5b11938`](https://github.com/karmaniverous/jeeves-watcher/commit/5b119389b8dac493a4cf164e664338804ccd2dc5)
 - chore: release @karmaniverous/jeeves-watcher-openclaw v0.3.1 [`de3215a`](https://github.com/karmaniverous/jeeves-watcher/commit/de3215ae4503eece2cb3823c26e6fa00fd1008d1)
+- chore: release @karmaniverous/jeeves-watcher v0.6.4 [`b41bfc3`](https://github.com/karmaniverous/jeeves-watcher/commit/b41bfc3905995768f9c881f74518f7a943dcea7e)
 - chore: release @karmaniverous/jeeves-watcher v0.6.2 [`fa2304d`](https://github.com/karmaniverous/jeeves-watcher/commit/fa2304db79539f712770f7a958fc30e3b4d46ded)
 - chore: release @karmaniverous/jeeves-watcher-openclaw v0.3.5 [`837a941`](https://github.com/karmaniverous/jeeves-watcher/commit/837a94145b086245df101f7dcf2fd7a0c5ebfbca)
 - chore: release @karmaniverous/jeeves-watcher v0.6.1 [`037d9c9`](https://github.com/karmaniverous/jeeves-watcher/commit/037d9c924e1bc3020fb6b497f59261dd027718bd)
