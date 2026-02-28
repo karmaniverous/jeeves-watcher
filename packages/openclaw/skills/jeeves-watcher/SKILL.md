@@ -5,41 +5,396 @@ description: >
   recall prior context, find documents, answer questions that require searching
   across domains (email, Slack, Jira, codebase, meetings, projects), enrich
   document metadata, manage watcher config, or diagnose indexing issues.
+  Also use when bootstrapping the watcher service or configuring the plugin.
 ---
 
-# jeeves-watcher — Search, Discovery & Administration
+# jeeves-watcher — Bootstrap, Configuration & Operation
 
-## Service Architecture
+This skill covers everything needed to go from zero to a fully operational jeeves-watcher deployment: installing prerequisites, configuring the service, installing the OpenClaw plugin, and using it day-to-day.
 
-The watcher is an HTTP API running as a background service (typically NSSM on Windows, systemd on Linux).
+---
 
-**Default port:** 3458 (configurable via `api.port` in watcher config)
-**Non-default port:** If the watcher runs on a different port, the user must set `plugins.entries.jeeves-watcher.config.apiUrl` in `openclaw.json`. The plugin cannot auto-discover a non-default port.
+## Part 1: Bootstrap — Installing the Watcher Service
 
-**Health check:** `GET /status` returns uptime, point count, collection dimensions, and reindex status.
+### Prerequisites
 
-**Mental model:** The `watcher_*` tools are thin HTTP wrappers. Each tool call translates to an HTTP request to the watcher API. When tools are available, use them. When they're not (e.g., different session, plugin not loaded), you can hit the API directly. Replace `<PORT>` below with the configured port (default 3458; check `plugins.entries.jeeves-watcher.config.apiUrl` in `openclaw.json` if overridden):
+| Component | Purpose | Install |
+|-----------|---------|---------|
+| **Node.js** ≥ 20 | Runtime for the watcher service | [nodejs.org](https://nodejs.org) |
+| **Qdrant** | Vector database for embeddings | [qdrant.tech](https://qdrant.tech/documentation/guides/installation/) |
+| **Google Cloud API key** | Gemini embedding API access | [Google AI Studio](https://aistudio.google.com/apikey) |
 
+**Qdrant options:**
+- **Docker (recommended):** `docker run -p 6333:6333 -v qdrant_storage:/qdrant/storage qdrant/qdrant`
+- **Binary:** Download from [qdrant.tech/documentation/guides/installation/](https://qdrant.tech/documentation/guides/installation/)
+- **Windows service:** Install via NSSM (see Service Management below)
+
+Verify Qdrant is running: `curl http://localhost:6333/healthz` should return `ok`.
+
+### Install the Watcher
+
+```bash
+npm install -g @karmaniverous/jeeves-watcher
 ```
-# Health check
-curl http://127.0.0.1:<PORT>/status
 
-# Search
-curl -X POST http://127.0.0.1:<PORT>/search \
-  -H "Content-Type: application/json" \
-  -d '{"query": "search text", "limit": 5}'
+Verify: `jeeves-watcher --version`
 
-# Query config
-curl -X POST http://127.0.0.1:<PORT>/config/query \
-  -H "Content-Type: application/json" \
-  -d '{"path": "$.inferenceRules[*].name"}'
+### Create a Config File
+
+The watcher needs a JSON config file. Create one at a stable location (e.g., `~/jeeves-watcher.config.json` or a dedicated config directory).
+
+**Minimal starter config:**
+
+```json
+{
+  "description": "My document archive",
+  "watch": {
+    "paths": [
+      "/path/to/documents/**/*.{md,txt,json}"
+    ],
+    "ignored": [
+      "**/node_modules/**",
+      "**/.git/**"
+    ],
+    "debounceMs": 2000,
+    "stabilityThresholdMs": 500
+  },
+  "embedding": {
+    "provider": "gemini",
+    "model": "gemini-embedding-001",
+    "dimensions": 3072,
+    "apiKey": "${GOOGLE_API_KEY}",
+    "chunkSize": 1000,
+    "chunkOverlap": 200,
+    "rateLimitPerMinute": 1000,
+    "concurrency": 5
+  },
+  "vectorStore": {
+    "url": "http://localhost:6333",
+    "collectionName": "my_archive"
+  },
+  "api": {
+    "port": 3458
+  },
+  "logging": {
+    "level": "info"
+  }
+}
 ```
+
+**Environment variables:** The `${GOOGLE_API_KEY}` syntax is substituted at runtime. Set the env var before starting the service, or replace with a literal key.
+
+### Config Schema Reference
+
+| Key | Type | Required | Description |
+|-----|------|----------|-------------|
+| `description` | string | No | Organizational strategy description (surfaced in search orientation) |
+| `watch` | object | **Yes** | Filesystem watch config |
+| `watch.paths` | string[] | **Yes** | Glob patterns for directories/files to watch |
+| `watch.ignored` | string[] | No | Glob patterns to exclude |
+| `watch.debounceMs` | number | No | Debounce interval (default: 2000) |
+| `watch.stabilityThresholdMs` | number | No | File stability threshold (default: 500) |
+| `embedding` | object | **Yes** | Embedding provider config |
+| `embedding.provider` | string | **Yes** | `"gemini"` |
+| `embedding.model` | string | **Yes** | `"gemini-embedding-001"` |
+| `embedding.dimensions` | number | **Yes** | `3072` (supports Matryoshka truncation to 1536/768) |
+| `embedding.apiKey` | string | **Yes** | Google API key (supports `${ENV_VAR}` syntax) |
+| `embedding.chunkSize` | number | No | Tokens per chunk (default: 1000) |
+| `embedding.chunkOverlap` | number | No | Overlap between chunks (default: 200) |
+| `embedding.rateLimitPerMinute` | number | No | API rate limit (default: 1000) |
+| `embedding.concurrency` | number | No | Parallel embedding calls (default: 5) |
+| `vectorStore` | object | **Yes** | Qdrant connection config |
+| `vectorStore.url` | string | **Yes** | Qdrant URL (e.g., `http://localhost:6333`) |
+| `vectorStore.collectionName` | string | **Yes** | Qdrant collection name |
+| `vectorStore.apiKey` | string | No | Qdrant API key (if using Qdrant Cloud) |
+| `api` | object | No | API server config |
+| `api.host` | string | No | Bind address (default: `127.0.0.1`) |
+| `api.port` | number | No | HTTP port (default: 3458) |
+| `logging` | object | No | Logging config |
+| `logging.level` | string | No | `"debug"`, `"info"`, `"warn"`, `"error"` (default: `"info"`) |
+| `logging.file` | string | No | File path for pino file transport |
+| `logging.pretty` | boolean | No | Pretty-print logs (default: false, use for dev) |
+| `configWatch` | object | No | Auto-reload on config file changes |
+| `configWatch.enabled` | boolean | No | Enable config watching (default: false) |
+| `configWatch.debounceMs` | number | No | Debounce for config changes (default: 10000) |
+| `configWatch.reindex` | string | No | `"issues"` or `"full"` — what to reindex on config change |
+| `schemas` | object | No | Named schema definitions (reusable across rules) |
+| `inferenceRules` | array | No | Inference rule definitions (inline objects or file paths) |
+| `maps` | object | No | Named JsonMap transforms |
+| `templates` | object | No | Named Handlebars templates |
+| `mapHelpers` | object | No | Custom JsonMap library functions |
+| `templateHelpers` | object | No | Custom Handlebars helpers |
+| `metadataDir` | string | No | Directory for `.meta.json` sidecars |
+| `stateDir` | string | No | Directory for issues.json + values.json |
+| `search` | object | No | Search config |
+| `search.scoreThresholds` | object | No | `{ strong, relevant, noise }` — score interpretation boundaries |
+| `search.hybrid` | object | No | `{ enabled: true }` — enable BM25 + vector fusion |
+| `reindex` | object | No | Reindex config (callbackUrl) |
+| `shutdownTimeoutMs` | number | No | Graceful shutdown timeout (default: 30000) |
+
+### Inference Rules
+
+Rules tell the watcher how to classify and extract metadata from files. Without rules, files are still indexed and searchable — they just won't have structured metadata.
+
+**Inline rule example:**
+```json
+{
+  "inferenceRules": [
+    {
+      "name": "project-docs",
+      "description": "Project documentation files",
+      "match": {
+        "type": "object",
+        "properties": {
+          "file": {
+            "type": "object",
+            "properties": {
+              "path": { "type": "string", "glob": "/projects/**/*.md" }
+            }
+          }
+        }
+      },
+      "schema": [
+        {
+          "type": "object",
+          "properties": {
+            "domain": { "type": "string", "set": "projects" }
+          }
+        }
+      ]
+    }
+  ]
+}
+```
+
+**File reference rules:** For cleaner configs, rules can be file paths resolved relative to the config file's directory:
+```json
+{
+  "inferenceRules": [
+    "rules/email-archive.json",
+    "rules/slack-message.json"
+  ]
+}
+```
+
+**Key concepts:**
+- `match` uses JSON Schema with a custom `glob` keyword for picomatch path matching
+- `schema` is an array of schema objects (composed in order) using `set` for value derivation
+- `set` supports Handlebars interpolation: `"set": "{{file.dir}}"` extracts from the file context
+- Multiple rules can match the same file — **last-match-wins** for conflicting fields
+- All matched rule names are recorded in `payload.matched_rules`
+
+### Start the Service
+
+**Development / testing:**
+```bash
+GOOGLE_API_KEY=your-key jeeves-watcher start -c /path/to/config.json
+```
+
+**First run:** The watcher creates the Qdrant collection (if missing), builds a BM25 text index (if hybrid search enabled), and begins watching. Initial indexing of existing files happens immediately.
+
+### Service Management
+
+**Windows (NSSM):**
+```bash
+# Install as Windows service
+jeeves-watcher service install -c /path/to/config.json
+
+# Manage
+nssm start jeeves-watcher
+nssm stop jeeves-watcher
+nssm restart jeeves-watcher
+nssm status jeeves-watcher
+```
+
+Set `GOOGLE_API_KEY` as a system environment variable, or use NSSM's `AppEnvironmentExtra` to inject it.
+
+NSSM redirects stdout/stderr to log files. Configure with:
+```bash
+nssm set jeeves-watcher AppStdout /path/to/watcher-stdout.log
+nssm set jeeves-watcher AppStderr /path/to/watcher-stderr.log
+```
+
+**Linux (systemd):**
+```ini
+[Unit]
+Description=jeeves-watcher
+After=network.target
+
+[Service]
+Type=simple
+Environment=GOOGLE_API_KEY=your-key
+ExecStart=/usr/local/bin/jeeves-watcher start -c /path/to/config.json
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
+```
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable jeeves-watcher
+sudo systemctl start jeeves-watcher
+```
+
+### Verify the Service
+
+```bash
+curl http://127.0.0.1:3458/status
+```
+
+Should return:
+```json
+{
+  "status": "ok",
+  "uptime": 42.5,
+  "collection": {
+    "name": "my_archive",
+    "pointCount": 1234,
+    "dimensions": 3072
+  }
+}
+```
+
+---
+
+## Part 2: Installing & Configuring the Plugin
+
+### Install the Plugin
+
+```bash
+npx @karmaniverous/jeeves-watcher-openclaw install
+```
+
+This:
+1. Copies the plugin to `~/.openclaw/extensions/jeeves-watcher-openclaw/`
+2. Patches `openclaw.json`:
+   - Adds `jeeves-watcher-openclaw` to `plugins.entries` (enabled)
+   - Sets `plugins.slots.memory` to `jeeves-watcher-openclaw` (claims memory slot)
+   - Adds to allowlists if they exist
+
+**Then restart the OpenClaw gateway** to load the plugin.
+
+**Uninstall:** `npx @karmaniverous/jeeves-watcher-openclaw uninstall` (then restart gateway)
+
+**Note:** `openclaw plugins update` does NOT work for this plugin — use the CLI installer for updates too.
+
+### Plugin Config
+
+Plugin configuration lives in `openclaw.json` under `plugins.entries.jeeves-watcher-openclaw.config`:
+
+```json
+{
+  "plugins": {
+    "entries": {
+      "jeeves-watcher-openclaw": {
+        "enabled": true,
+        "config": {
+          "apiUrl": "http://127.0.0.1:3458"
+        }
+      }
+    }
+  }
+}
+```
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `apiUrl` | string | `http://127.0.0.1:3458` | Watcher API URL. **Must match** the watcher's `api.port`. |
+| `schemas` | object | (none) | Optional schema bridging (see below) |
+
+**If the watcher runs on a non-default port**, you must set `apiUrl` to match. The plugin cannot auto-discover the port.
+
+### Memory Slot Architecture
+
+The plugin declares `kind: "memory"` in its manifest. When installed:
+- OpenClaw auto-disables the built-in `memory-core` plugin
+- `memory_search` and `memory_get` are now powered by the watcher's vector store
+- The agent's existing memory behavior works unchanged — same tool names, same parameters
+
+**How it works internally:**
+1. On first `memory_search` call, the plugin registers **virtual inference rules** with the watcher
+2. Virtual rules set **private namespaced properties** on workspace memory files: `_jeeves_watcher_openclaw_source_` and `_jeeves_watcher_openclaw_kind_`
+3. `memory_search` filters on these private properties — completely decoupled from the watcher's config vocabulary
+4. Private properties have no `uiHint`, so they're invisible to external UIs
+
+**Virtual rules are transient:** They survive config reloads but not watcher restarts. The plugin re-registers automatically on the next `memory_search` call after a restart.
+
+### Schema Bridging (Optional)
+
+By default, memory points are private to the plugin. If you want memory files to also appear in the watcher's broader search UI (e.g., jeeves-server) with standard metadata like `domains` or `kind`, add a `schemas` key to the plugin config:
+
+```json
+{
+  "plugins": {
+    "entries": {
+      "jeeves-watcher-openclaw": {
+        "enabled": true,
+        "config": {
+          "apiUrl": "http://127.0.0.1:3459",
+          "schemas": {
+            "openclaw-memory-longterm": {
+              "type": "object",
+              "properties": {
+                "domains": {
+                  "type": "array",
+                  "items": { "type": "string" },
+                  "set": ["memory"]
+                }
+              }
+            },
+            "openclaw-memory-daily": [
+              {
+                "type": "object",
+                "properties": {
+                  "domains": {
+                    "type": "array",
+                    "items": { "type": "string" },
+                    "set": ["memory"]
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "kind": { "type": "string", "set": "daily-log" }
+                }
+              }
+            ]
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+**`schemas`** maps virtual rule names to additional schemas appended after the plugin's internal schema:
+- `openclaw-memory-longterm` — matches `{workspace}/MEMORY.md`
+- `openclaw-memory-daily` — matches `{workspace}/memory/**/*.md`
+
+Schema values follow standard watcher conventions:
+- Inline JSON Schema object
+- File reference string (resolved relative to watcher config directory)
+- Named schema reference (from watcher config's `schemas` section)
+- Array of the above (composed in order)
+
+---
+
+## Part 3: Operation
+
+### Service Architecture
+
+The watcher is an HTTP API. Default port: 3458.
+
+**Health check:** `GET /status` — returns uptime, point count, dimensions, reindex status.
 
 **Key endpoints:**
+
 | Endpoint | Method | Purpose |
 |----------|--------|---------|
-| `/status` | GET | Health check, uptime, collection stats |
-| `/search` | POST | Semantic search (main query interface) |
+| `/status` | GET | Health check + collection stats |
+| `/search` | POST | Semantic search |
 | `/config/query` | POST | JSONPath query over merged virtual document |
 | `/config/validate` | POST | Validate candidate config |
 | `/config/apply` | POST | Apply config changes |
@@ -48,45 +403,18 @@ curl -X POST http://127.0.0.1:<PORT>/config/query \
 | `/issues` | GET | Runtime embedding failures |
 | `/rules/register` | POST | Register virtual inference rules |
 | `/rules/unregister` | DELETE | Remove virtual rules by source |
+| `/rules/reapply` | POST | Re-derive metadata for files matching globs |
 | `/points/delete` | POST | Delete points matching a Qdrant filter |
 
-**If the watcher is unreachable:** Check the service status (`nssm status jeeves-watcher` on Windows), check the configured port in the watcher config file, and check logs for startup errors.
+**Direct API access:** When plugin tools aren't available (different session, plugin not loaded), hit the API directly:
+```bash
+curl http://127.0.0.1:3458/status
+curl -X POST http://127.0.0.1:3458/search -H "Content-Type: application/json" -d '{"query": "search text"}'
+```
 
-## Theory of Operation
+### Tools
 
-You have access to a **semantic archive** of your human's working world: email, Slack messages, Jira tickets, code repositories, meeting notes, project documents, and more. Everything is indexed, chunked, embedded, and searchable. This is your long-term memory for anything beyond the current conversation.
-
-**When to reach for the watcher:**
-
-- **Someone asks about something that happened.** A meeting, a decision, a conversation, a ticket. You weren't there, but the archive was. Search it.
-- **You need context you don't have.** Before asking the human "what's the status of X?", search for X. The answer is probably already indexed.
-- **You're working on a project and need background.** Architecture decisions, prior discussions, related tickets, relevant code. Search by topic, filter by domain.
-- **You need to verify something.** Don't guess from stale memory. Search for the current state.
-- **You want to connect dots across domains.** The same topic might appear in a Jira ticket, a Slack thread, an email, and a code commit. A single semantic search surfaces all of them.
-
-**When NOT to use it:**
-
-- You already have the information in the current conversation
-- The question is about general knowledge, not the human's specific context
-- The watcher is unreachable (fall back to filesystem browsing)
-
-**How it works, conceptually:**
-
-The watcher monitors directories on the filesystem. When files change, it extracts text, applies **inference rules** (config-driven pattern matching) to derive structured metadata, and embeds everything into a vector store. Each inference rule defines a record type: what files it matches, what metadata schema applies, how to extract fields.
-
-You don't need to know the rules in advance. The config is introspectable at runtime. Orient once per session, then search with confidence.
-
-**Key mental model:** Think of it as a search engine scoped to your human's data, with structured metadata on every result. Plain semantic search works. Adding metadata filters makes it precise.
-
-## Quick Start
-
-1. **Orient yourself** (once per session) — use `watcher_query` to learn the deployment's organizational strategy and available record types (see Orientation Pattern below)
-2. **Search** — use `watcher_search` with a natural language query and optional metadata filters
-3. **Read source** — use `read` (standard file read) with `file_path` from search results for full document content
-
-## Tools
-
-### `memory_search`
+#### `memory_search`
 Semantically search MEMORY.md and memory/*.md files. Powered by the watcher's vector store with Gemini 3072-dim embeddings.
 - `query` (string, required) — search query text
 - `maxResults` (number, optional) — maximum results to return
@@ -94,34 +422,7 @@ Semantically search MEMORY.md and memory/*.md files. Powered by the watcher's ve
 
 Returns: `[{ path, from, to, snippet, score }]` where `from`/`to` are 1-indexed line numbers.
 
-**Internal filtering:** The plugin uses private namespaced properties (`_jeeves_watcher_openclaw_source_`, `_jeeves_watcher_openclaw_kind_`) to identify memory points in the vector store. These are invisible to the watcher's UI (no `uiHint`) and decoupled from the watcher's config vocabulary (e.g., `domains`, `kind`). The plugin registers virtual inference rules on first call (lazy init) that set these properties on workspace memory files.
-
-**Optional schema bridging:** The plugin config supports a `schemas` key that lets the owner bridge plugin rules to their watcher-native vocabulary:
-
-```json
-{
-  "apiUrl": "http://127.0.0.1:3459",
-  "schemas": {
-    "openclaw-memory-longterm": {
-      "type": "object",
-      "properties": {
-        "domains": { "type": "array", "items": { "type": "string" }, "set": ["memory"] }
-      }
-    },
-    "openclaw-memory-daily": {
-      "type": "object",
-      "properties": {
-        "domains": { "type": "array", "items": { "type": "string" }, "set": ["memory"] },
-        "kind": { "type": "string", "set": "daily-log" }
-      }
-    }
-  }
-}
-```
-
-Schema values follow standard watcher conventions: inline JSON Schema object, file reference string, named schema reference, or composable array. User schemas are appended after the plugin's internal schema at virtual rule registration time. Without `schemas` config, memory points are entirely private to the plugin.
-
-### `memory_get`
+#### `memory_get`
 Read content from MEMORY.md or memory/*.md files with optional line range.
 - `path` (string, required) — path to the memory file
 - `from` (number, optional) — line number to start reading from (1-indexed)
@@ -129,424 +430,204 @@ Read content from MEMORY.md or memory/*.md files with optional line range.
 
 Path validation: only files within the workspace's MEMORY.md and memory/**/*.md are accessible.
 
-### `watcher_search`
-Semantic search over indexed documents.
+#### `watcher_search`
+Semantic search over all indexed documents.
 - `query` (string, required) — natural language search query
-- `limit` (number, optional) — max results, default 10
+- `limit` (number, optional) — max results (default: 10)
 - `offset` (number, optional) — skip N results for pagination
 - `filter` (object, optional) — Qdrant filter for metadata filtering
 
-### `watcher_enrich`
+#### `watcher_enrich`
 Set or update metadata on a document.
 - `path` (string, required) — file path of the document
 - `metadata` (object, required) — key-value metadata to merge
 
-### `watcher_status`
+Metadata is validated against the file's matched rule schemas.
+
+#### `watcher_status`
 Service health check. Returns uptime, collection stats, reindex status.
 
-### `watcher_query`
+#### `watcher_query`
 Query the merged virtual document via JSONPath.
 - `path` (string, required) — JSONPath expression
 - `resolve` (string[], optional) — `["files"]`, `["globals"]`, or `["files","globals"]`
 
-### `watcher_validate`
+#### `watcher_validate`
 Validate config and optionally test file paths.
 - `config` (object, optional) — candidate config (partial or full). Omit to validate current config.
-- `testPaths` (string[], optional) — file paths to test against the config
+- `testPaths` (string[], optional) — file paths to test against config
 
-Partial configs merge with current config by rule name. If `config` is omitted, tests against the running config.
-
-### `watcher_config_apply`
+#### `watcher_config_apply`
 Apply config changes atomically.
 - `config` (object, required) — full or partial config to apply
 
-Validates, writes to disk, and triggers configured reindex behavior. Returns validation errors if invalid.
+Validates, writes to disk, triggers configured reindex behavior.
 
-### `watcher_reindex`
+#### `watcher_reindex`
 Trigger a reindex.
 - `scope` (string, optional) — `"rules"` (default) or `"full"`
 
-Rules scope re-applies inference rules without re-embedding (lightweight). Full scope re-processes all files.
+Rules scope re-applies inference rules without re-embedding. Full scope re-processes all files.
 
-### `watcher_issues`
-Get runtime embedding failures. Returns `{ filePath: IssueRecord }` showing files that failed and why.
+#### `watcher_issues`
+Get runtime embedding failures. Returns `{ filePath: IssueRecord }`.
 
-## Qdrant Filter Syntax
+### Orientation Pattern (Once Per Session)
 
-Filters use Qdrant's native JSON filter format, passed as the `filter` parameter to `watcher_search`.
+Query the deployment's organizational context on first use:
 
-### Basic Patterns
+**1. Top-level context:**
+```
+watcher_query: path="$.['description','search']"
+```
+
+**2. Available record types:**
+```
+watcher_query: path="$.inferenceRules[*].['name','description']"
+```
+
+### Qdrant Filter Syntax
+
+Filters use Qdrant's native JSON format in the `filter` parameter of `watcher_search`.
 
 **Match exact value:**
 ```json
 { "must": [{ "key": "domain", "match": { "value": "email" } }] }
 ```
 
-**Match text (full-text search within field):**
+**Full-text match:**
 ```json
 { "must": [{ "key": "chunk_text", "match": { "text": "authentication" } }] }
 ```
 
-**Combine conditions (AND):**
+**Combine (AND):**
 ```json
-{
-  "must": [
-    { "key": "domain", "match": { "value": "jira" } },
-    { "key": "status", "match": { "value": "In Progress" } }
-  ]
-}
+{ "must": [
+  { "key": "domain", "match": { "value": "jira" } },
+  { "key": "status", "match": { "value": "In Progress" } }
+]}
 ```
 
 **Exclude (NOT):**
 ```json
-{
-  "must_not": [{ "key": "domain", "match": { "value": "repos" } }]
-}
+{ "must_not": [{ "key": "domain", "match": { "value": "repos" } }] }
 ```
 
 **Any of (OR):**
 ```json
-{
-  "should": [
-    { "key": "domain", "match": { "value": "email" } },
-    { "key": "domain", "match": { "value": "slack" } }
-  ]
-}
+{ "should": [
+  { "key": "domain", "match": { "value": "email" } },
+  { "key": "domain", "match": { "value": "slack" } }
+]}
 ```
 
-**Nested (combine AND + NOT):**
-```json
-{
-  "must": [{ "key": "domain", "match": { "value": "jira" } }],
-  "must_not": [{ "key": "status", "match": { "value": "Done" } }]
-}
-```
-
-### Key Differences
-- `match.value` — exact match (case-sensitive, for keyword fields like `domain`, `status`)
-- `match.text` — full-text match (for text fields like `chunk_text`)
-
-## Search Result Shape
-
-Each result from `watcher_search` contains:
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `id` | string | Qdrant point ID |
-| `score` | number | Similarity score (0-1, higher = more relevant) |
-| `payload.file_path` | string | Source file path |
-| `payload.chunk_text` | string | The matched text chunk |
-| `payload.chunk_index` | number | Chunk position within the file |
-| `payload.total_chunks` | number | Total chunks for this file |
-| `payload.content_hash` | string | Hash of the full document content |
-| `payload.matched_rules` | string[] | Names of inference rules that matched |
-
-Additional metadata fields depend on the deployment's inference rules (e.g., `domain`, `status`, `author`). Use `watcher_query` to discover available fields.
-
-## Orientation Pattern (Once Per Session)
-
-Query the deployment's organizational context and available record types. This information is stable within a session; query once and rely on results for the remainder.
-
-**Efficient pattern (two calls):**
-
-1. **Top-level context:**
-   ```
-   watcher_query: path="$.['description','search']"
-   ```
-   Returns:
-   - `description` — organizational strategy (e.g., how domains are structured, what partitioning means)
-   - `search.scoreThresholds` — score interpretation boundaries (strong, relevant, noise)
-
-2. **Available record types:**
-   ```
-   watcher_query: path="$.inferenceRules[*].['name','description']"
-   ```
-   Returns list of inference rules with their names and descriptions.
-
-**Example result:**
-```json
-[
-  { "name": "email-archive", "description": "Email archive messages" },
-  { "name": "slack-message", "description": "Slack channel messages with channel and author metadata" },
-  { "name": "jira-issue", "description": "Jira issue metadata extracted from issue JSON exports" }
-]
-```
-
-The top-level `description` explains this deployment's organizational strategy. Each rule's `description` explains what that specific record type represents. Both levels are useful: one orients, the other enumerates.
-
----
-
-## `resolve` Usage Guidance
-
-The `resolve` parameter controls which reference layers are expanded in `watcher_query`:
-
-- **No `resolve` (default):** Raw config structure with references intact (lightweight)
-- **`resolve: ["files"]`:** Resolve file path references to their contents (e.g., `"schemas/base.json"` → the JSON Schema object)
-- **`resolve: ["globals"]`:** Resolve named schema references (e.g., `"base"` in a rule's schema array → the global schema object)
-- **`resolve: ["files","globals"]`:** Fully inlined, everything expanded
-
-**When to use:**
-- **Orientation:** No resolve (just names and descriptions, lightweight)
-- **Query planning:** `resolve: ["files","globals"]` (need complete merged schemas for filter construction)
-- **Browsing global schemas:** `resolve: ["files"]` (see schema contents but keep named references visible for DRY structure understanding)
-
----
-
-## JSONPath Patterns for Schema Discovery
-
-Use `watcher_query` to explore the merged virtual document. Common patterns:
-
-### Orientation
-```
-$.inferenceRules[*].['name','description']    — List all rules with descriptions
-$.search.scoreThresholds                       — Score interpretation thresholds
-$.slots                                        — Named filter patterns (e.g., memory)
-```
-
-### Schema Discovery
-```
-$.inferenceRules[?(@.name=='jira-issue')]               — Full rule details
-$.inferenceRules[?(@.name=='jira-issue')].values        — Distinct values for a rule
-$.inferenceRules[?(@.name=='jira-issue')].values.status — Values for a specific field
-```
-
-### Helper Enumeration
-```
-$.mapHelpers                        — All JsonMap helper namespaces
-$.mapHelpers.slack.exports          — Exports from the 'slack' helper
-$.templateHelpers                   — All Handlebars helper namespaces
-```
-
-### Issues
-```
-$.issues                            — All runtime embedding failures
-```
-
-### Full Config Introspection
-```
-$.schemas                           — Global named schemas
-$.maps                              — Named JsonMap transforms
-$.templates                         — Named Handlebars templates
-```
-
----
-
-## Query Planning (Per Search Task)
-
-Identify relevant rule(s) from the orientation model, then retrieve their schemas:
-
-**Retrieve complete schema for a rule:**
-```
-watcher_query: path="$.inferenceRules[?(@.name=='jira-issue')].schema"
-              resolve=["files","globals"]
-```
-
-Returns the fully merged schema with properties, types, `set` provenance, `uiHint`, `enum`, etc.
-
-**For select/multiselect fields without `enum` in schema:**
-```
-watcher_query: path="$.inferenceRules[?(@.name=='jira-issue')].values.status"
-```
-
-Retrieves valid filter values from the runtime values index (distinct values accumulated during embedding).
-
-**When search results span multiple rules** (indicated by `matched_rules` on results): query each unique rule's schema separately and merge mentally. Most result sets share the same rule combination, so this is typically one or two queries, not one per result.
-
----
-
-## uiHint → Filter Mapping
-
-Use `uiHint` to determine filter construction strategy. **This table is explicit, not intuited:**
+### uiHint → Filter Mapping
 
 | `uiHint` | Qdrant filter | Notes |
 |----------|--------------|-------|
-| `text` | `{ "key": "<field>", "match": { "text": "<value>" } }` | Substring/keyword match |
-| `select` | `{ "key": "<field>", "match": { "value": "<enum_value>" } }` | Exact match; use `enum` values from schema or runtime values index |
-| `multiselect` | `{ "key": "<field>", "match": { "value": "<enum_value>" } }` | Any-element match on array field; use `enum` or runtime values index |
-| `date` | `{ "key": "<field>", "range": { "gte": <unix_ts>, "lt": <unix_ts> } }` | Either bound optional for open-ended ranges (e.g., "after January" → `gte` only) |
-| `number` | `{ "key": "<field>", "range": { "gte": <n>, "lte": <n> } }` | Either bound optional for open-ended ranges |
-| `check` | `{ "key": "<field>", "match": { "value": true } }` | Boolean match |
-| *(absent)* | Do not use in filters | Internal bookkeeping field, not intended for search |
+| `text` | `match: { text: "<value>" }` | Substring/keyword match |
+| `select` | `match: { value: "<value>" }` | Exact match; use `enum` or runtime values |
+| `multiselect` | `match: { value: "<value>" }` | Any-element match on array field |
+| `date` | `range: { gte: <unix_ts>, lt: <unix_ts> }` | Either bound optional |
+| `number` | `range: { gte: <n>, lte: <n> }` | Either bound optional |
+| `check` | `match: { value: true }` | Boolean |
+| *(absent)* | Do not filter | Internal field, not for search |
 
-**Fallback:** If a `select`/`multiselect` field has neither `enum` in schema nor values in the index, treat it as `text` (substring match instead of exact match).
+### Search Result Shape
 
----
+| Field | Description |
+|-------|-------------|
+| `payload.file_path` | Source file path |
+| `payload.chunk_text` | Matched text chunk |
+| `payload.chunk_index` / `total_chunks` | Position within document |
+| `payload.content_hash` | SHA-256 of full document |
+| `payload.matched_rules` | Rule names that produced metadata |
+| `payload.line_start` / `line_end` | 1-indexed line numbers (when available) |
 
-## Qdrant Filter Combinators
+Additional fields depend on the deployment's inference rules. Use `watcher_query` to discover them.
 
-Compose individual field conditions into complex queries using three combinators:
+### Query Planning
 
-| Combinator | Semantics | Use case |
-|-----------|-----------|----------|
-| `must` | AND — all conditions required | Intersecting constraints (domain + date range + assignee) |
-| `should` | OR — at least one must match | Alternative values, fuzzy criteria ("assigned to X or Y") |
-| `must_not` | Exclusion — any match triggers exclude | Filtering out noise (exclude Done, exclude codebase domain) |
+1. Orient (once per session) — discover rules and score thresholds
+2. Identify relevant rule(s) for your query
+3. Retrieve schema: `watcher_query: path="$.inferenceRules[?(@.name=='rule-name')].schema" resolve=["files","globals"]`
+4. For fields without `enum`, check runtime values: `watcher_query: path="$.inferenceRules[?(@.name=='rule-name')].values.fieldName"`
+5. Construct filter using uiHint mapping
+6. Search with query + filter
 
-**Combinators nest arbitrarily for complex boolean logic:**
-```json
-{
-  "must": [
-    { "key": "domain", "match": { "value": "jira" } },
-    { "key": "created", "range": { "gte": 1735689600 } }
-  ],
-  "should": [
-    { "key": "assignee", "match": { "value": "Jason Williscroft" } },
-    { "key": "assignee", "match": { "value": null } }
-  ],
-  "must_not": [
-    { "key": "status", "match": { "value": "Done" } }
-  ]
-}
-```
+### Config Authoring
 
-A consuming UI will necessarily compose simple single-field filters. The assistant can compose deeply complex queries combining multiple fields, nested boolean logic, and open-ended ranges to precisely target what it needs.
-
----
-
-## Search Execution
-
-**Plain semantic search is valid and often sufficient.** Not every query needs metadata filters. When the user's question is broad or exploratory, a natural language query with no filter object is the right starting point. Add filters to narrow, not as a default.
-
-**Result limit guidance:**
-- Default: 10 results
-- Broad discovery / exploratory: 20–30, apply score threshold cutoff from config
-- Targeted retrieval with tight filters: 5
-- Cross-domain sweep: 15–20, no domain filter, use score to separate signal from noise
-
----
-
-## Post-Processing Guidance
-
-### Score Interpretation
-Use `scoreThresholds` from config (queried during orientation). Values are deployment-specific, constrained to [-1, 1]:
-- `strong` — minimum score for a strong match
-- `relevant` — minimum score for relevance
-- `noise` — maximum score below which results are noise
-
-### Chunk Grouping
-Multiple results with the same `file_path` are chunks of one document. Read the full file for complete context.
-
-### Schema Lookup
-Use `matched_rules` on results to look up applicable schemas for metadata interpretation:
-```
-watcher_query: path="$.inferenceRules[?(@.name=='jira-issue')].schema"
-              resolve=["files","globals"]
-```
-
-### Full Context
-Search gives you chunks; use `read` with `file_path` for the complete document.
-
----
-
-## Path Testing
-
-When uncertain whether a file is indexed, use the path test endpoint:
-```
-watcher_query: path="$.inferenceRules[?(@.name=='<rule>')].match"
-```
-
-Or check if a specific path would match:
-- Returns matching rule names and watch scope status
-- Empty `rules` array means no inference rules match
-- `watched: false` means the path falls outside watch paths or is excluded by ignore patterns
-
----
-
-## Config Authoring
-
-### Rule Structure
-Each inference rule has:
-- `name` (required) — unique identifier
-- `description` (required) — human-readable purpose
-- `match` — JSON Schema with picomatch glob for path matching
-- `schema` — array of named schema references and/or inline schema objects with `set` templates
-- `map` (optional) — named JsonMap transform
-- `template` (optional) — named Handlebars template
-
-### Config Workflow
-1. Edit config (or build partial config object)
-2. Validate: `watcher_validate` with optional `testPaths` for dry-run preview
+**Workflow:**
+1. Build config (partial or full)
+2. Validate: `watcher_validate` with optional `testPaths`
 3. Apply: `watcher_config_apply` — validates, writes, triggers reindex
-4. Monitor: `watcher_issues` for runtime embedding failures
+4. Monitor: `watcher_issues` for failures
 
-### When to Reindex
-- **Rules scope** (`"rules"`): Changed rule matching patterns, set expressions, schema mappings. No re-embedding needed.
-- **Full scope** (`"full"`): Changed embedding config, added watch paths, broad schema restructuring. Re-embeds everything.
+**When to reindex:**
+- **Rules scope:** Changed matching patterns, set expressions, schema mappings (no re-embedding)
+- **Full scope:** Changed embedding config, added watch paths, broad restructuring (re-embeds everything)
 
----
-
-## Diagnostics
-
-### Escalation Path
-1. `watcher_status` — is the service healthy? Is a reindex running?
-2. `watcher_issues` — what files are failing and why?
-3. `watcher_query` with `$.issues` — same data via JSONPath
-4. Check logs at the configured log path
-
-### Error Categories
-- `type_collision` — metadata field type mismatch during extraction (includes `property`, `rules[]`, `types[]`)
-- `interpolation` / `interpolation_error` — template/set expression failed to resolve (includes `property`, `rule`)
-- `read_failure` — file couldn't be read (permissions, encoding)
-- `embedding` — embedding API error
-
-**Issues are self-healing:** resolved on successful re-process. The issues file always represents the current set of unresolved problems: a live todo list.
+**Config gotchas:**
+- `set` not `attributes` for metadata derivation
+- Maps must be **bare string** file paths, not `{path, description}` objects
+- `mapHelpers` and `templateHelpers` use `{path, description}` objects (this is correct)
+- Match paths use `properties.file.properties.path` with `glob`
 
 ---
 
-## Helper Management
+## Part 4: Troubleshooting
 
-Helpers use namespace prefixing: config key becomes prefix. A helper named `slack` exports `slack_extractParticipants`.
+### Service Unreachable
 
-Enumerate loaded helpers:
+1. Check service status: `nssm status jeeves-watcher` (Windows) or `systemctl status jeeves-watcher` (Linux)
+2. Verify port: check `api.port` in watcher config matches `apiUrl` in plugin config
+3. Check logs for startup errors
+4. Verify Qdrant is running: `curl http://localhost:6333/healthz`
+
+### memory_search Returns No Results
+
+1. Check watcher is reachable: `watcher_status`
+2. Virtual rules may not be registered yet — run any `memory_search` query to trigger lazy init
+3. Check if workspace files are in a watched path (`watch.paths` in watcher config)
+4. Check if files are ignored (`watch.ignored`)
+5. After watcher restart, virtual rules are lost — next `memory_search` re-registers them automatically, but files need reapply (also automatic)
+
+### Stale or Missing Metadata
+
+After changing inference rules or virtual rule schemas:
+- **Rules reindex:** `watcher_reindex: scope="rules"` — re-applies rules without re-embedding
+- **Full reindex:** `watcher_reindex: scope="full"` — re-processes everything (slow, re-embeds)
+
+### Embedding Failures
+
+- `watcher_issues` shows files that failed and why
+- Common: rate limiting (reduce `embedding.concurrency`), API key invalid, file encoding issues
+- Issues are self-healing: resolved on successful re-process
+
+### ECONNRESET on Qdrant Writes
+
+Root cause: Gemini embedding latency (avg 2.4s, p99 ~8s) causes Qdrant client's pooled TCP connections to go stale. The watcher creates fresh connections per write operation to avoid this. If you see ECONNRESET errors, ensure you're on watcher v0.6.5+ which includes the connection resilience fix.
+
+### Virtual Rules Not Taking Effect
+
+1. Virtual rules are in-memory only — lost on watcher restart
+2. Plugin re-registers on next `memory_search` call
+3. After registration, the plugin calls `/rules/reapply` to update already-indexed files
+4. If files still lack metadata, trigger a manual reapply or rules reindex
+
+### CLI Fallbacks
+
+When the API is down:
+```bash
+jeeves-watcher status                     # Check if service is running
+jeeves-watcher validate -c config.json    # Validate config from CLI
+nssm restart jeeves-watcher               # Restart (Windows)
 ```
-$.mapHelpers              — JsonMap helper namespaces with exports
-$.templateHelpers         — Handlebars helper namespaces with exports
-```
-
----
-
-## Enrichment
-
-Use `watcher_enrich` to tag documents after analysis (e.g., `reviewed: true`, project labels).
-
-**Metadata is validated against the file's matched rule schemas.** Validation errors return structured messages:
-```json
-{
-  "error": "Validation failed",
-  "details": [
-    {
-      "property": "priority",
-      "expected": "string",
-      "received": "number",
-      "rule": "jira-issue",
-      "message": "Property 'priority' is declared as string in jira-issue schema, received number"
-    }
-  ]
-}
-```
-
----
-
-## Error Handling
-
-If the watcher is unreachable:
-- Inform the user that semantic search is temporarily unavailable
-- Fall back to direct `read` for known file paths
-- Do not retry silently in a loop
-
-If tools are unavailable (plugin not loaded in this session):
-- The watcher API is still accessible via direct HTTP calls
-- Use `exec` to call the endpoints listed in Service Architecture
-- Default: `http://127.0.0.1:3458`
-
-**CLI Fallbacks:**
-- `jeeves-watcher status` — check if the service is running
-- `jeeves-watcher validate` — validate config from CLI
-- Restart via NSSM (Windows) or systemctl (Linux)
 
 ---
 
 ## References
 
-- [JSONPath Plus documentation](https://www.npmjs.com/package/jsonpath-plus) for JSONPath syntax
-- [Qdrant filtering documentation](https://qdrant.tech/documentation/concepts/filtering/) for advanced query patterns and search response format
+- [Qdrant filtering docs](https://qdrant.tech/documentation/concepts/filtering/)
+- [JSONPath Plus syntax](https://www.npmjs.com/package/jsonpath-plus)
+- [Gemini embedding API](https://ai.google.dev/gemini-api/docs/embeddings)
