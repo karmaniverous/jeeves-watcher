@@ -2,8 +2,9 @@
 
 All notable changes to this project will be documented in this file. Dates are displayed in UTC.
 
-#### [0.3.6](https://github.com/karmaniverous/jeeves-watcher/compare/0.5.1...0.3.6)
+#### [0.3.7](https://github.com/karmaniverous/jeeves-watcher/compare/0.5.1...0.3.7)
 
+- fix: use domains (plural array) in virtual rules and search filter [`#66`](https://github.com/karmaniverous/jeeves-watcher/pull/66)
 - feat: POST /rules/reapply endpoint + plugin auto-reapply after registration [`#65`](https://github.com/karmaniverous/jeeves-watcher/pull/65)
 - fix: disable AJV strict mode to suppress schema type warnings [`#55`](https://github.com/karmaniverous/jeeves-watcher/pull/55)
 - fix: case-insensitive glob matching in AJV rule keyword [`#64`](https://github.com/karmaniverous/jeeves-watcher/pull/64)
@@ -48,6 +49,7 @@ All notable changes to this project will be documented in this file. Dates are d
 - chore: release @karmaniverous/jeeves-watcher-openclaw v0.2.0 [`a6d4d7e`](https://github.com/karmaniverous/jeeves-watcher/commit/a6d4d7e57424b482b737cb6983dc5c9a86b96160)
 - fix(openclaw): use error.cause for precise connection error detection [`3bdd267`](https://github.com/karmaniverous/jeeves-watcher/commit/3bdd267225d129186ee6d9263379ddcd6808d7df)
 - chore: release @karmaniverous/jeeves-watcher-openclaw v0.1.2 [`c019f41`](https://github.com/karmaniverous/jeeves-watcher/commit/c019f410d5cef94e653450b82966d64e1a70f900)
+- chore: release @karmaniverous/jeeves-watcher-openclaw v0.3.6 [`e864fec`](https://github.com/karmaniverous/jeeves-watcher/commit/e864fecd732f8cd4fedd708ff6a95b31311ad854)
 - chore: release @karmaniverous/jeeves-watcher-openclaw v0.1.1 [`008e757`](https://github.com/karmaniverous/jeeves-watcher/commit/008e757704e0cdf5bca7819a9b9eb36b7258a300)
 - chore: release @karmaniverous/jeeves-watcher-openclaw v0.3.4 [`5b11938`](https://github.com/karmaniverous/jeeves-watcher/commit/5b119389b8dac493a4cf164e664338804ccd2dc5)
 - chore: release @karmaniverous/jeeves-watcher-openclaw v0.3.1 [`de3215a`](https://github.com/karmaniverous/jeeves-watcher/commit/de3215ae4503eece2cb3823c26e6fa00fd1008d1)
