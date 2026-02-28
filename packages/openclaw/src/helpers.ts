@@ -65,6 +65,41 @@ export function getApiUrl(api: PluginApi): string {
   return typeof url === 'string' ? url : DEFAULT_API_URL;
 }
 
+/**
+ * Schema value type — matches watcher inference rule schema conventions.
+ * Can be an inline JSON Schema object, a file reference string,
+ * a named schema reference, or a composable array of these.
+ */
+export type SchemaValue =
+  | Record<string, unknown>
+  | string
+  | Array<Record<string, unknown> | string>;
+
+/**
+ * Resolve user-supplied schemas from plugin config.
+ * Returns a map of rule name → schema array (always normalized to array).
+ */
+export function getPluginSchemas(
+  api: PluginApi,
+): Record<string, Array<Record<string, unknown> | string>> {
+  const config =
+    api.config?.plugins?.entries?.['jeeves-watcher-openclaw']?.config;
+  const raw = config?.schemas as
+    | Record<string, SchemaValue>
+    | undefined;
+  if (!raw || typeof raw !== 'object') return {};
+
+  const result: Record<string, Array<Record<string, unknown> | string>> = {};
+  for (const [name, value] of Object.entries(raw)) {
+    if (Array.isArray(value)) {
+      result[name] = value as Array<Record<string, unknown> | string>;
+    } else if (typeof value === 'object' || typeof value === 'string') {
+      result[name] = [value as Record<string, unknown> | string];
+    }
+  }
+  return result;
+}
+
 /** Format a successful tool result. */
 export function ok(data: unknown): ToolResult {
   return {

@@ -13,6 +13,7 @@ import {
   connectionFail,
   fail,
   fetchJson,
+  getPluginSchemas,
   getWorkspacePath,
   normalizePath,
   ok,
@@ -30,12 +31,52 @@ interface InitState {
   baseUrl: string;
 }
 
-/** Build virtual inference rules for a workspace path. */
-function buildVirtualRules(workspace: string) {
+/** Private property prefix — namespaces plugin metadata to avoid collisions. */
+const PROP_PREFIX = '_jeeves_watcher_openclaw_';
+
+/** Private property keys used by the plugin for filtering. */
+export const PROP_SOURCE = `${PROP_PREFIX}source_`;
+export const PROP_KIND = `${PROP_PREFIX}kind_`;
+
+/** Memory source value for filter queries. */
+export const SOURCE_MEMORY = 'memory';
+
+/** Virtual rule names (exported for testing and config reference). */
+export const RULE_LONGTERM = 'openclaw-memory-longterm';
+export const RULE_DAILY = 'openclaw-memory-daily';
+
+/**
+ * Build virtual inference rules for a workspace path.
+ *
+ * Each rule's schema is composed of:
+ * 1. Plugin-internal schema (private namespaced properties, no uiHint)
+ * 2. User-supplied schemas from plugin config (optional, owner-controlled)
+ */
+function buildVirtualRules(
+  workspace: string,
+  userSchemas: Record<string, Array<Record<string, unknown> | string>>,
+) {
   const ws = normalizePath(workspace);
+
+  const longtermInternal = {
+    type: 'object' as const,
+    properties: {
+      [PROP_SOURCE]: { type: 'string', set: SOURCE_MEMORY },
+      [PROP_KIND]: { type: 'string', set: 'long-term' },
+    },
+  };
+
+  const dailyInternal = {
+    type: 'object' as const,
+    properties: {
+      [PROP_SOURCE]: { type: 'string', set: SOURCE_MEMORY },
+      [PROP_KIND]: { type: 'string', set: 'daily-log' },
+    },
+  };
+
   return [
     {
-      name: 'openclaw-memory-longterm',
+      name: RULE_LONGTERM,
       description: 'OpenClaw long-term memory file',
       match: {
         properties: {
@@ -47,21 +88,12 @@ function buildVirtualRules(workspace: string) {
         },
       },
       schema: [
-        {
-          type: 'object',
-          properties: {
-            domains: {
-              type: 'array',
-              items: { type: 'string' },
-              set: ['memory'],
-            },
-            kind: { type: 'string', set: 'long-term' },
-          },
-        },
+        longtermInternal,
+        ...(userSchemas[RULE_LONGTERM] ?? []),
       ],
     },
     {
-      name: 'openclaw-memory-daily',
+      name: RULE_DAILY,
       description: 'OpenClaw daily memory logs',
       match: {
         properties: {
@@ -73,17 +105,8 @@ function buildVirtualRules(workspace: string) {
         },
       },
       schema: [
-        {
-          type: 'object',
-          properties: {
-            domains: {
-              type: 'array',
-              items: { type: 'string' },
-              set: ['memory'],
-            },
-            kind: { type: 'string', set: 'daily-log' },
-          },
-        },
+        dailyInternal,
+        ...(userSchemas[RULE_DAILY] ?? []),
       ],
     },
   ];
@@ -109,6 +132,7 @@ function isAllowedMemoryPath(filePath: string, workspace: string): boolean {
  */
 export function createMemoryTools(api: PluginApi, baseUrl: string) {
   const workspace = getWorkspacePath(api);
+  const userSchemas = getPluginSchemas(api);
   const state: InitState = {
     initialized: false,
     lastWatcherUptime: 0,
@@ -136,7 +160,7 @@ export function createMemoryTools(api: PluginApi, baseUrl: string) {
     });
 
     // Register virtual rules
-    const virtualRules = buildVirtualRules(state.workspace);
+    const virtualRules = buildVirtualRules(state.workspace, userSchemas);
     await postJson(`${state.baseUrl}/rules/register`, {
       source: PLUGIN_SOURCE,
       rules: virtualRules,
@@ -174,7 +198,7 @@ export function createMemoryTools(api: PluginApi, baseUrl: string) {
       const body: Record<string, unknown> = {
         query: params.query,
         filter: {
-          must: [{ key: 'domains', match: { value: 'memory' } }],
+          must: [{ key: PROP_SOURCE, match: { value: SOURCE_MEMORY } }],
         },
       };
       if (params.maxResults !== undefined) body.limit = params.maxResults;
