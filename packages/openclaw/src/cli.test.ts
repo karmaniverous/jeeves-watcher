@@ -47,8 +47,35 @@ describe('patchConfig', () => {
           slots: { memory: 'jeeves-watcher-openclaw' },
         },
       };
-      const msgs = patchConfig(config, 'add');
+      const msgs = patchConfig(config, 'add', { memory: true });
       expect(msgs).toHaveLength(0);
+    });
+
+    it('claims memory slot when memory option is true', () => {
+      const config: Record<string, unknown> = {};
+      patchConfig(config, 'add', { memory: true });
+      const plugins = config.plugins as Record<string, unknown>;
+      const slots = plugins.slots as Record<string, unknown>;
+      expect(slots.memory).toBe('jeeves-watcher-openclaw');
+    });
+
+    it('does not claim memory slot without memory option', () => {
+      const config: Record<string, unknown> = {};
+      patchConfig(config, 'add');
+      const plugins = config.plugins as Record<string, unknown>;
+      const slots = plugins.slots as Record<string, unknown>;
+      expect(slots.memory).toBeUndefined();
+    });
+
+    it('reverts memory slot on non-memory install if previously claimed', () => {
+      const config: Record<string, unknown> = {
+        plugins: { slots: { memory: 'jeeves-watcher-openclaw' } },
+      };
+      const msgs = patchConfig(config, 'add', { memory: false });
+      const plugins = config.plugins as Record<string, unknown>;
+      const slots = plugins.slots as Record<string, unknown>;
+      expect(slots.memory).toBe('memory-core');
+      expect(msgs.some((m) => m.includes('Reverted'))).toBe(true);
     });
   });
 

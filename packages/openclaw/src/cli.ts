@@ -2,8 +2,12 @@
  * CLI for installing/uninstalling the jeeves-watcher OpenClaw plugin.
  *
  * Usage:
- *   npx \@karmaniverous/jeeves-watcher-openclaw install
+ *   npx \@karmaniverous/jeeves-watcher-openclaw install [--memory]
  *   npx \@karmaniverous/jeeves-watcher-openclaw uninstall
+ *
+ * The --memory flag claims the OpenClaw memory slot, replacing memory-core
+ * with the plugin's Qdrant-backed memory_search and memory_get tools.
+ * Without --memory, only watcher admin tools are registered.
  *
  * Bypasses OpenClaw's `plugins install` command, which has a known
  * spawn EINVAL bug on Windows (https://github.com/openclaw/openclaw/issues/9224).
@@ -96,10 +100,17 @@ function patchAllowList(
   return undefined;
 }
 
+/** Options for patchConfig. */
+export interface PatchConfigOptions {
+  /** Whether to claim the memory slot (--memory flag). */
+  memory?: boolean;
+}
+
 /** Patch OpenClaw config for install or uninstall. Returns log messages. */
 export function patchConfig(
   config: Record<string, unknown>,
   mode: 'add' | 'remove',
+  options: PatchConfigOptions = {},
 ): string[] {
   const messages: string[] = [];
 
@@ -133,12 +144,20 @@ export function patchConfig(
     plugins.slots = {};
   }
   const slots = plugins.slots as Record<string, unknown>;
-  if (mode === 'add') {
+  if (mode === 'add' && options.memory) {
     const prev = slots.memory;
     slots.memory = PLUGIN_ID;
     if (prev !== PLUGIN_ID) {
       messages.push(
         `Set plugins.slots.memory to "${PLUGIN_ID}"${prev ? ` (was "${prev as string}")` : ''}`,
+      );
+    }
+  } else if (mode === 'add' && !options.memory) {
+    // Non-memory install: revert slot if we held it
+    if (slots.memory === PLUGIN_ID) {
+      slots.memory = 'memory-core';
+      messages.push(
+        `Reverted plugins.slots.memory to "memory-core" (non-memory install)`,
       );
     }
   } else if (slots.memory === PLUGIN_ID) {
@@ -155,7 +174,7 @@ export function patchConfig(
 }
 
 /** Install the plugin into OpenClaw's extensions directory. */
-function install(): void {
+function install(memoryMode: boolean): void {
   const home = resolveOpenClawHome();
   const configPath = resolveConfigPath(home);
   const extDir = join(home, 'extensions', PLUGIN_ID);
@@ -165,6 +184,7 @@ function install(): void {
   console.log(`Config:         ${configPath}`);
   console.log(`Extensions dir: ${extDir}`);
   console.log(`Package root:   ${pkgRoot}`);
+  console.log(`Memory mode:    ${memoryMode ? 'yes (claiming memory slot)' : 'no (watcher tools only)'}`);
   console.log();
 
   if (!existsSync(home)) {
@@ -213,6 +233,20 @@ function install(): void {
     console.log('  ✓ node_modules');
   }
 
+  // Patch manifest based on memory mode
+  const installedManifestPath = join(extDir, 'openclaw.plugin.json');
+  const manifest = readJson(installedManifestPath);
+  if (manifest) {
+    if (memoryMode) {
+      manifest.kind = 'memory';
+      console.log('  ✓ Set kind: "memory" in manifest');
+    } else {
+      delete manifest.kind;
+      console.log('  ✓ Removed kind from manifest (non-memory mode)');
+    }
+    writeJson(installedManifestPath, manifest);
+  }
+
   // Patch config
   console.log();
   console.log('Patching OpenClaw config...');
@@ -222,7 +256,7 @@ function install(): void {
     process.exit(1);
   }
 
-  for (const msg of patchConfig(config, 'add')) {
+  for (const msg of patchConfig(config, 'add', { memory: memoryMode })) {
     console.log(`  ✓ ${msg}`);
   }
   writeJson(configPath, config);
@@ -230,6 +264,15 @@ function install(): void {
   console.log();
   console.log('✅ Plugin installed successfully.');
   console.log('   Restart the OpenClaw gateway to load the plugin.');
+  if (memoryMode) {
+    console.log(
+      '   Memory slot claimed — memory_search and memory_get tools will be available.',
+    );
+  } else {
+    console.log(
+      '   Watcher tools available. Run with --memory after bootstrapping to enable memory features.',
+    );
+  }
 }
 
 /** Uninstall the plugin from OpenClaw's extensions directory. */
@@ -268,10 +311,11 @@ function uninstall(): void {
 
 // Main
 const command = process.argv[2];
+const memoryFlag = process.argv.includes('--memory');
 
 switch (command) {
   case 'install':
-    install();
+    install(memoryFlag);
     break;
   case 'uninstall':
     uninstall();
@@ -283,10 +327,15 @@ switch (command) {
     console.log();
     console.log('Usage:');
     console.log(
-      '  npx @karmaniverous/jeeves-watcher-openclaw install    Install plugin',
+      '  npx @karmaniverous/jeeves-watcher-openclaw install [--memory]  Install plugin',
     );
     console.log(
-      '  npx @karmaniverous/jeeves-watcher-openclaw uninstall  Remove plugin',
+      '  npx @karmaniverous/jeeves-watcher-openclaw uninstall             Remove plugin',
+    );
+    console.log();
+    console.log('Options:');
+    console.log(
+      '  --memory  Claim memory slot (replaces memory-core with Qdrant-backed search)',
     );
     console.log();
     console.log('Environment variables:');
