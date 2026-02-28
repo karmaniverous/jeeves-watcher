@@ -3,7 +3,6 @@
   "name": "Jeeves Watcher",
   "description": "Semantic search, metadata enrichment, and instance administration for a jeeves-watcher deployment.",
   "version": "0.3.7",
-  "kind": "memory",
   "skills": [
     "dist/skills/jeeves-watcher"
   ],

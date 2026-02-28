@@ -50,11 +50,21 @@ describe('patchConfig', () => {
       expect(msgs).toHaveLength(0);
     });
 
-    it('does not set plugins.slots.memory on install', () => {
+    it('does not set plugins.slots.memory on install without --memory', () => {
       const config: Record<string, unknown> = {};
       patchConfig(config, 'add');
       const plugins = config.plugins as Record<string, unknown>;
-      expect(plugins.slots).toBeUndefined();
+      const slots = plugins.slots as Record<string, unknown>;
+      expect(slots.memory).toBeUndefined();
+    });
+
+    it('sets plugins.slots.memory on install with memory option', () => {
+      const config: Record<string, unknown> = {};
+      const msgs = patchConfig(config, 'add', { memory: true });
+      const plugins = config.plugins as Record<string, unknown>;
+      const slots = plugins.slots as Record<string, unknown>;
+      expect(slots.memory).toBe('jeeves-watcher-openclaw');
+      expect(msgs.some((m) => m.includes('plugins.slots.memory'))).toBe(true);
     });
   });
 

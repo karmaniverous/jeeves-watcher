@@ -28,6 +28,11 @@ import { fileURLToPath } from 'url';
 
 const PLUGIN_ID = 'jeeves-watcher-openclaw';
 
+/** Check if a CLI flag is present in argv. */
+function hasFlag(flag: string): boolean {
+  return process.argv.includes(flag);
+}
+
 /** Resolve the OpenClaw home directory. */
 function resolveOpenClawHome(): string {
   if (process.env.OPENCLAW_CONFIG) {
@@ -96,10 +101,17 @@ function patchAllowList(
   return undefined;
 }
 
+/** Options for config patching. */
+export interface PatchConfigOptions {
+  /** When true, claim the memory slot for this plugin. */
+  memory?: boolean;
+}
+
 /** Patch OpenClaw config for install or uninstall. Returns log messages. */
 export function patchConfig(
   config: Record<string, unknown>,
   mode: 'add' | 'remove',
+  options: PatchConfigOptions = {},
 ): string[] {
   const messages: string[] = [];
 
@@ -128,13 +140,18 @@ export function patchConfig(
     messages.push(`Removed "${PLUGIN_ID}" from plugins.entries`);
   }
 
-  // plugins.slots — only revert on uninstall (install does NOT claim the slot;
-  // the agent claims it after bootstrapping the watcher service via the skill)
-  if (mode === 'remove') {
-    if (!plugins.slots || typeof plugins.slots !== 'object') {
-      plugins.slots = {};
-    }
-    const slots = plugins.slots as Record<string, unknown>;
+  // plugins.slots
+  if (!plugins.slots || typeof plugins.slots !== 'object') {
+    plugins.slots = {};
+  }
+  const slots = plugins.slots as Record<string, unknown>;
+
+  if (mode === 'add' && options.memory) {
+    // Claim the memory slot when --memory is specified
+    slots.memory = PLUGIN_ID;
+    messages.push(`Set plugins.slots.memory to "${PLUGIN_ID}"`);
+  } else if (mode === 'remove') {
+    // Revert the slot on uninstall if we hold it
     if (slots.memory === PLUGIN_ID) {
       slots.memory = 'memory-core';
       messages.push(`Reverted plugins.slots.memory to "memory-core"`);
@@ -151,6 +168,7 @@ export function patchConfig(
 
 /** Install the plugin into OpenClaw's extensions directory. */
 function install(): void {
+  const memory = hasFlag('--memory');
   const home = resolveOpenClawHome();
   const configPath = resolveConfigPath(home);
   const extDir = join(home, 'extensions', PLUGIN_ID);
@@ -160,6 +178,9 @@ function install(): void {
   console.log(`Config:         ${configPath}`);
   console.log(`Extensions dir: ${extDir}`);
   console.log(`Package root:   ${pkgRoot}`);
+  console.log(
+    `Memory mode:    ${memory ? 'yes (claiming memory slot)' : 'no (watcher tools only)'}`,
+  );
   console.log();
 
   if (!existsSync(home)) {
@@ -208,6 +229,20 @@ function install(): void {
     console.log('  ✓ node_modules');
   }
 
+  // Patch manifest based on --memory flag
+  const manifestPath = join(extDir, 'openclaw.plugin.json');
+  const manifest = readJson(manifestPath);
+  if (manifest) {
+    if (memory) {
+      manifest.kind = 'memory';
+      console.log('  ✓ Set kind: "memory" in manifest');
+    } else {
+      Reflect.deleteProperty(manifest, 'kind');
+      console.log('  ✓ Removed kind from manifest (non-memory mode)');
+    }
+    writeJson(manifestPath, manifest);
+  }
+
   // Patch config
   console.log();
   console.log('Patching OpenClaw config...');
@@ -217,7 +252,7 @@ function install(): void {
     process.exit(1);
   }
 
-  for (const msg of patchConfig(config, 'add')) {
+  for (const msg of patchConfig(config, 'add', { memory })) {
     console.log(`  ✓ ${msg}`);
   }
   writeJson(configPath, config);
@@ -225,10 +260,15 @@ function install(): void {
   console.log();
   console.log('✅ Plugin installed successfully.');
   console.log('   Restart the OpenClaw gateway to load the plugin.');
-  console.log(
-    '   The agent will use the jeeves-watcher skill to bootstrap the service',
-  );
-  console.log('   and claim the memory slot when ready.');
+  if (memory) {
+    console.log(
+      '   Memory slot claimed — memory_search and memory_get tools will be available.',
+    );
+  } else {
+    console.log(
+      '   Watcher tools available. Run with --memory after bootstrapping to enable memory features.',
+    );
+  }
 }
 
 /** Uninstall the plugin from OpenClaw's extensions directory. */
@@ -282,11 +322,23 @@ switch (command) {
     console.log();
     console.log('Usage:');
     console.log(
-      '  npx @karmaniverous/jeeves-watcher-openclaw install    Install plugin',
+      '  npx @karmaniverous/jeeves-watcher-openclaw install              Install plugin (watcher tools only)',
     );
     console.log(
-      '  npx @karmaniverous/jeeves-watcher-openclaw uninstall  Remove plugin',
+      '  npx @karmaniverous/jeeves-watcher-openclaw install --memory     Install with memory slot (replaces memory-core)',
     );
+    console.log(
+      '  npx @karmaniverous/jeeves-watcher-openclaw uninstall            Remove plugin',
+    );
+    console.log();
+    console.log('Flags:');
+    console.log(
+      '  --memory   Claim the memory slot, enabling memory_search and memory_get tools.',
+    );
+    console.log(
+      '             Without this flag, the plugin provides only watcher_* tools',
+    );
+    console.log('             and memory-core remains active.');
     console.log();
     console.log('Environment variables:');
     console.log('  OPENCLAW_CONFIG  Path to openclaw.json (overrides all)');
