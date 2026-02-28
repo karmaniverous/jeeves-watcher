@@ -94,6 +94,33 @@ Semantically search MEMORY.md and memory/*.md files. Powered by the watcher's ve
 
 Returns: `[{ path, from, to, snippet, score }]` where `from`/`to` are 1-indexed line numbers.
 
+**Internal filtering:** The plugin uses private namespaced properties (`_jeeves_watcher_openclaw_source_`, `_jeeves_watcher_openclaw_kind_`) to identify memory points in the vector store. These are invisible to the watcher's UI (no `uiHint`) and decoupled from the watcher's config vocabulary (e.g., `domains`, `kind`). The plugin registers virtual inference rules on first call (lazy init) that set these properties on workspace memory files.
+
+**Optional schema bridging:** The plugin config supports a `schemas` key that lets the owner bridge plugin rules to their watcher-native vocabulary:
+
+```json
+{
+  "apiUrl": "http://127.0.0.1:3459",
+  "schemas": {
+    "openclaw-memory-longterm": {
+      "type": "object",
+      "properties": {
+        "domains": { "type": "array", "items": { "type": "string" }, "set": ["memory"] }
+      }
+    },
+    "openclaw-memory-daily": {
+      "type": "object",
+      "properties": {
+        "domains": { "type": "array", "items": { "type": "string" }, "set": ["memory"] },
+        "kind": { "type": "string", "set": "daily-log" }
+      }
+    }
+  }
+}
+```
+
+Schema values follow standard watcher conventions: inline JSON Schema object, file reference string, named schema reference, or composable array. User schemas are appended after the plugin's internal schema at virtual rule registration time. Without `schemas` config, memory points are entirely private to the plugin.
+
 ### `memory_get`
 Read content from MEMORY.md or memory/*.md files with optional line range.
 - `path` (string, required) — path to the memory file
