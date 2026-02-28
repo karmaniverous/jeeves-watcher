@@ -1,6 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { fetchJson, getPluginSchemas, type PluginApi, postJson } from './helpers.js';
+import {
+  fetchJson,
+  getPluginSchemas,
+  type PluginApi,
+  postJson,
+} from './helpers.js';
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -41,7 +46,10 @@ describe('getPluginSchemas', () => {
   });
 
   it('normalizes single object to array', () => {
-    const schema = { type: 'object', properties: { domains: { set: ['memory'] } } };
+    const schema = {
+      type: 'object',
+      properties: { domains: { set: ['memory'] } },
+    };
     const api: PluginApi = {
       config: {
         plugins: {
@@ -82,7 +90,9 @@ describe('getPluginSchemas', () => {
         plugins: {
           entries: {
             'jeeves-watcher-openclaw': {
-              config: { schemas: { 'openclaw-memory-longterm': 'my-named-schema' } },
+              config: {
+                schemas: { 'openclaw-memory-longterm': 'my-named-schema' },
+              },
             },
           },
         },

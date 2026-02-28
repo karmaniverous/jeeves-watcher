@@ -49,7 +49,7 @@ export function normalizePath(p: string): string {
 
 /**
  * Resolve the workspace path from gateway config.
- * Priority: agent-specific > defaults > fallback (~/.openclaw/workspace).
+ * Priority: agent-specific \> defaults \> fallback (~/.openclaw/workspace).
  */
 export function getWorkspacePath(api: PluginApi): string {
   const agentWorkspace =
@@ -84,9 +84,7 @@ export function getPluginSchemas(
 ): Record<string, Array<Record<string, unknown> | string>> {
   const config =
     api.config?.plugins?.entries?.['jeeves-watcher-openclaw']?.config;
-  const raw = config?.schemas as
-    | Record<string, SchemaValue>
-    | undefined;
+  const raw = config?.schemas as Record<string, SchemaValue> | undefined;
   if (!raw || typeof raw !== 'object') return {};
 
   const result: Record<string, Array<Record<string, unknown> | string>> = {};
@@ -94,7 +92,7 @@ export function getPluginSchemas(
     if (Array.isArray(value)) {
       result[name] = value as Array<Record<string, unknown> | string>;
     } else if (typeof value === 'object' || typeof value === 'string') {
-      result[name] = [value as Record<string, unknown> | string];
+      result[name] = [value];
     }
   }
   return result;

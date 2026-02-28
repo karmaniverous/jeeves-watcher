@@ -184,7 +184,9 @@ function install(memoryMode: boolean): void {
   console.log(`Config:         ${configPath}`);
   console.log(`Extensions dir: ${extDir}`);
   console.log(`Package root:   ${pkgRoot}`);
-  console.log(`Memory mode:    ${memoryMode ? 'yes (claiming memory slot)' : 'no (watcher tools only)'}`);
+  console.log(
+    `Memory mode:    ${memoryMode ? 'yes (claiming memory slot)' : 'no (watcher tools only)'}`,
+  );
   console.log();
 
   if (!existsSync(home)) {

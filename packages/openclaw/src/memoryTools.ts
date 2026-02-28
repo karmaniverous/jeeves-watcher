@@ -87,10 +87,7 @@ function buildVirtualRules(
           },
         },
       },
-      schema: [
-        longtermInternal,
-        ...(userSchemas[RULE_LONGTERM] ?? []),
-      ],
+      schema: [longtermInternal, ...(userSchemas[RULE_LONGTERM] ?? [])],
     },
     {
       name: RULE_DAILY,
@@ -104,10 +101,7 @@ function buildVirtualRules(
           },
         },
       },
-      schema: [
-        dailyInternal,
-        ...(userSchemas[RULE_DAILY] ?? []),
-      ],
+      schema: [dailyInternal, ...(userSchemas[RULE_DAILY] ?? [])],
     },
   ];
 }
