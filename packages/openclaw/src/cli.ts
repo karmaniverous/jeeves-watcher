@@ -165,6 +165,33 @@ export function patchConfig(
     messages.push(`Reverted plugins.slots.memory to "memory-core"`);
   }
 
+  // memory-core.enabled — disable when claiming memory slot to prevent
+  // core memory tools from shadowing the plugin's tools
+  const memoryCoreEntry = entries['memory-core'] as
+    | Record<string, unknown>
+    | undefined;
+  if (mode === 'add' && options.memory) {
+    if (!memoryCoreEntry) {
+      entries['memory-core'] = { enabled: false };
+      messages.push('Set memory-core.enabled to false');
+    } else if (memoryCoreEntry.enabled !== false) {
+      memoryCoreEntry.enabled = false;
+      messages.push('Set memory-core.enabled to false');
+    }
+  } else if (mode === 'add' && !options.memory) {
+    // Non-memory install: re-enable memory-core if we disabled it
+    if (memoryCoreEntry && memoryCoreEntry.enabled === false) {
+      memoryCoreEntry.enabled = true;
+      messages.push('Re-enabled memory-core (non-memory install)');
+    }
+  } else if (mode === 'remove') {
+    // Uninstall: re-enable memory-core if we disabled it
+    if (memoryCoreEntry && memoryCoreEntry.enabled === false) {
+      memoryCoreEntry.enabled = true;
+      messages.push('Re-enabled memory-core');
+    }
+  }
+
   // tools.allow
   const tools = (config.tools ?? {}) as Record<string, unknown>;
   const toolAllow = patchAllowList(tools, 'allow', 'tools.allow', mode);

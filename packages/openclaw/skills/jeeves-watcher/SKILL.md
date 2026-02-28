@@ -105,14 +105,17 @@ The plugin supports two install modes, controlled by the `--memory` flag during 
 
 **Standard mode** (`npx @karmaniverous/jeeves-watcher-openclaw install`):
 - Registers `watcher_*` tools only (search, enrich, status, query, validate, config_apply, reindex, issues)
-- OpenClaw's built-in `memory-core` remains the memory provider
+- OpenClaw's built-in `memory-core` remains the memory provider (re-enabled if previously disabled)
 - Use when the watcher is a supplementary search tool alongside native memory
 
 **Memory mode** (`npx @karmaniverous/jeeves-watcher-openclaw install --memory`):
 - Registers all tools: `watcher_*` plus `memory_search` and `memory_get`
 - Claims the OpenClaw memory slot — the watcher becomes the memory provider
+- Disables `memory-core` (`plugins.entries.memory-core.enabled: false`) to prevent core memory tools from shadowing the plugin's tools
 - MEMORY.md and memory/*.md files are indexed and searched via the watcher's vector store
 - Use when the watcher should be the single source of truth for both archive search and agent memory
+
+**Why `memory-core` must be disabled:** OpenClaw's built-in `memory-core` plugin registers its own `memory_search` and `memory_get` tools. If both `memory-core` and this plugin are enabled, the core tools shadow the plugin's tools (same name, core registers first). Disabling `memory-core` ensures the plugin's Qdrant-backed implementations are the ones that execute.
 
 **How to tell which mode you're in:** Check the response from `memory_search` or `memory_get`. In memory mode (watcher-backed), responses include `"provider": "jeeves-watcher"`. In standard mode (memory-core), responses are bare arrays/strings with no `provider` field.
 
