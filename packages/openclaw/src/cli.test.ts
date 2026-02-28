@@ -66,6 +66,33 @@ describe('patchConfig', () => {
       expect(slots.memory).toBe('jeeves-watcher-openclaw');
       expect(msgs.some((m) => m.includes('plugins.slots.memory'))).toBe(true);
     });
+
+    it('reverts slot to memory-core when reinstalling without --memory', () => {
+      const config: Record<string, unknown> = {
+        plugins: {
+          entries: { 'jeeves-watcher-openclaw': { enabled: true } },
+          slots: { memory: 'jeeves-watcher-openclaw' },
+        },
+      };
+      const msgs = patchConfig(config, 'add', { memory: false });
+      const plugins = config.plugins as Record<string, unknown>;
+      const slots = plugins.slots as Record<string, unknown>;
+      expect(slots.memory).toBe('memory-core');
+      expect(msgs.some((m) => m.includes('non-memory install'))).toBe(true);
+    });
+
+    it('does not touch slot when owned by another plugin on non-memory install', () => {
+      const config: Record<string, unknown> = {
+        plugins: {
+          entries: { 'jeeves-watcher-openclaw': { enabled: true } },
+          slots: { memory: 'some-other-plugin' },
+        },
+      };
+      patchConfig(config, 'add');
+      const plugins = config.plugins as Record<string, unknown>;
+      const slots = plugins.slots as Record<string, unknown>;
+      expect(slots.memory).toBe('some-other-plugin');
+    });
   });
 
   describe('remove mode', () => {

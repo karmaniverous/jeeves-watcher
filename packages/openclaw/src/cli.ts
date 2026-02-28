@@ -150,6 +150,12 @@ export function patchConfig(
     // Claim the memory slot when --memory is specified
     slots.memory = PLUGIN_ID;
     messages.push(`Set plugins.slots.memory to "${PLUGIN_ID}"`);
+  } else if (mode === 'add' && !options.memory && slots.memory === PLUGIN_ID) {
+    // Revert the slot when installing without --memory (downgrade)
+    slots.memory = 'memory-core';
+    messages.push(
+      `Reverted plugins.slots.memory to "memory-core" (non-memory install)`,
+    );
   } else if (mode === 'remove') {
     // Revert the slot on uninstall if we hold it
     if (slots.memory === PLUGIN_ID) {
