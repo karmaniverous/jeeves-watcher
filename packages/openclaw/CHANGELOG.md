@@ -2,8 +2,11 @@
 
 All notable changes to this project will be documented in this file. Dates are displayed in UTC.
 
-#### [0.3.7](https://github.com/karmaniverous/jeeves-watcher/compare/0.5.1...0.3.7)
+#### [0.3.8](https://github.com/karmaniverous/jeeves-watcher/compare/0.5.1...0.3.8)
 
+- feat(openclaw): --memory flag for install CLI [`#69`](https://github.com/karmaniverous/jeeves-watcher/pull/69)
+- feat(openclaw): decouple plugin from watcher config vocabulary [`#68`](https://github.com/karmaniverous/jeeves-watcher/pull/68)
+- fix: fresh QdrantClient for write ops to avoid stale keep-alive ECONNRESET [`#67`](https://github.com/karmaniverous/jeeves-watcher/pull/67)
 - fix: use domains (plural array) in virtual rules and search filter [`#66`](https://github.com/karmaniverous/jeeves-watcher/pull/66)
 - feat: POST /rules/reapply endpoint + plugin auto-reapply after registration [`#65`](https://github.com/karmaniverous/jeeves-watcher/pull/65)
 - fix: disable AJV strict mode to suppress schema type warnings [`#55`](https://github.com/karmaniverous/jeeves-watcher/pull/55)
@@ -41,6 +44,8 @@ All notable changes to this project will be documented in this file. Dates are d
 - fix: add nocase and dot options to AJV glob keyword [`3f7cb9b`](https://github.com/karmaniverous/jeeves-watcher/commit/3f7cb9b34638f0cdfe86057a2a9b5a70cd7e23da)
 - docs: document self-installer CLI and Windows spawn EINVAL workaround [`e3d6351`](https://github.com/karmaniverous/jeeves-watcher/commit/e3d63512fe57b555e753c8f86bbfe57a1b97f70c)
 - chore: release @karmaniverous/jeeves-watcher v0.6.0 [`b7b207e`](https://github.com/karmaniverous/jeeves-watcher/commit/b7b207e96b1750bcacc4f5dd67ecf9c369415e25)
+- lintfix [`cd4c841`](https://github.com/karmaniverous/jeeves-watcher/commit/cd4c84150cfce2b541a9215966139f61e0ce6fcd)
+- fix: use fresh QdrantClient for write ops to avoid stale keep-alive connections [`e8215d5`](https://github.com/karmaniverous/jeeves-watcher/commit/e8215d5dc9f82deea59e8259f28be4b2e074f0fb)
 - fix: apply same conditional logic to tools.allow as plugins.allow [`4549569`](https://github.com/karmaniverous/jeeves-watcher/commit/4549569ea72e1bbe385fd7592497982bbc34ec39)
 - chore: release @karmaniverous/jeeves-watcher-openclaw v0.3.0 [`3ce4950`](https://github.com/karmaniverous/jeeves-watcher/commit/3ce4950d10de13300db94e90247739a3f4a6514a)
 - fix: plugin installer now claims memory slot in OpenClaw config [`020c6cd`](https://github.com/karmaniverous/jeeves-watcher/commit/020c6cdd258ad8a6e092e173c88caabf05e5f323)
@@ -57,6 +62,7 @@ All notable changes to this project will be documented in this file. Dates are d
 - chore: release @karmaniverous/jeeves-watcher v0.6.2 [`fa2304d`](https://github.com/karmaniverous/jeeves-watcher/commit/fa2304db79539f712770f7a958fc30e3b4d46ded)
 - chore: release @karmaniverous/jeeves-watcher-openclaw v0.3.5 [`837a941`](https://github.com/karmaniverous/jeeves-watcher/commit/837a94145b086245df101f7dcf2fd7a0c5ebfbca)
 - chore: release @karmaniverous/jeeves-watcher v0.6.1 [`037d9c9`](https://github.com/karmaniverous/jeeves-watcher/commit/037d9c924e1bc3020fb6b497f59261dd027718bd)
+- chore: release @karmaniverous/jeeves-watcher-openclaw v0.3.7 [`4c12277`](https://github.com/karmaniverous/jeeves-watcher/commit/4c12277cddbfd048f2312f94a907f11ea748407a)
 - fix: use glob instead of pattern for virtual rule matching (case-insensitive on Windows) [`0526d5a`](https://github.com/karmaniverous/jeeves-watcher/commit/0526d5a811e243de11e196f6b27b0be3578e2db3)
 - chore: release @karmaniverous/jeeves-watcher v0.6.3 [`da7414c`](https://github.com/karmaniverous/jeeves-watcher/commit/da7414c19894031d02da4713e3d57957a9f96449)
 - chore: release @karmaniverous/jeeves-watcher-openclaw v0.3.3 [`9db834e`](https://github.com/karmaniverous/jeeves-watcher/commit/9db834ee75686d4a0cad09743d4d96b3d9c41ee5)
