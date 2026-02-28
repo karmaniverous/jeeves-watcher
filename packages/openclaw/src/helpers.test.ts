@@ -1,6 +1,13 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { fetchJson, getPluginSchemas, type PluginApi, postJson } from './helpers.js';
+import {
+  fetchJson,
+  getPluginSchemas,
+  holdsMemorySlot,
+  PLUGIN_SOURCE,
+  type PluginApi,
+  postJson,
+} from './helpers.js';
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -41,7 +48,10 @@ describe('getPluginSchemas', () => {
   });
 
   it('normalizes single object to array', () => {
-    const schema = { type: 'object', properties: { domains: { set: ['memory'] } } };
+    const schema = {
+      type: 'object',
+      properties: { domains: { set: ['memory'] } },
+    };
     const api: PluginApi = {
       config: {
         plugins: {
@@ -82,7 +92,9 @@ describe('getPluginSchemas', () => {
         plugins: {
           entries: {
             'jeeves-watcher-openclaw': {
-              config: { schemas: { 'openclaw-memory-longterm': 'my-named-schema' } },
+              config: {
+                schemas: { 'openclaw-memory-longterm': 'my-named-schema' },
+              },
             },
           },
         },
@@ -91,6 +103,37 @@ describe('getPluginSchemas', () => {
     };
     const result = getPluginSchemas(api);
     expect(result['openclaw-memory-longterm']).toEqual(['my-named-schema']);
+  });
+});
+
+describe('holdsMemorySlot', () => {
+  it('returns true when slot matches plugin source', () => {
+    const api: PluginApi = {
+      config: { plugins: { slots: { memory: PLUGIN_SOURCE } } },
+      registerTool: () => {},
+    };
+    expect(holdsMemorySlot(api)).toBe(true);
+  });
+
+  it('returns false when slot is memory-core', () => {
+    const api: PluginApi = {
+      config: { plugins: { slots: { memory: 'memory-core' } } },
+      registerTool: () => {},
+    };
+    expect(holdsMemorySlot(api)).toBe(false);
+  });
+
+  it('returns false when no slots config', () => {
+    const api: PluginApi = { registerTool: () => {} };
+    expect(holdsMemorySlot(api)).toBe(false);
+  });
+
+  it('returns false when slots is empty', () => {
+    const api: PluginApi = {
+      config: { plugins: { slots: {} } },
+      registerTool: () => {},
+    };
+    expect(holdsMemorySlot(api)).toBe(false);
   });
 });
 

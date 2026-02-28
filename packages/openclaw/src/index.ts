@@ -4,18 +4,22 @@
  */
 
 import type { PluginApi } from './helpers.js';
-import { getApiUrl } from './helpers.js';
+import { getApiUrl, holdsMemorySlot } from './helpers.js';
 import { createMemoryTools } from './memoryTools.js';
 import { registerWatcherTools } from './watcherTools.js';
 
-/** Register all jeeves-watcher tools with the OpenClaw plugin API. */
+/** Register jeeves-watcher tools with the OpenClaw plugin API. */
 export default function register(api: PluginApi): void {
   const baseUrl = getApiUrl(api);
 
-  // Register 8 watcher_* tools
+  // Always register 8 watcher_* tools
   registerWatcherTools(api, baseUrl);
 
-  // Register memory slot tools (memory_search + memory_get)
+  // Only register memory tools if this plugin holds the memory slot.
+  // Otherwise memory-core stays active and the agent can claim the slot
+  // later via gateway config.patch after bootstrapping the watcher service.
+  if (!holdsMemorySlot(api)) return;
+
   const { memorySearch, memoryGet } = createMemoryTools(api, baseUrl);
 
   api.registerTool({

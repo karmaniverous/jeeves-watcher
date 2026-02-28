@@ -44,11 +44,17 @@ describe('patchConfig', () => {
         plugins: {
           allow: ['jeeves-watcher-openclaw'],
           entries: { 'jeeves-watcher-openclaw': { enabled: true } },
-          slots: { memory: 'jeeves-watcher-openclaw' },
         },
       };
       const msgs = patchConfig(config, 'add');
       expect(msgs).toHaveLength(0);
+    });
+
+    it('does not set plugins.slots.memory on install', () => {
+      const config: Record<string, unknown> = {};
+      patchConfig(config, 'add');
+      const plugins = config.plugins as Record<string, unknown>;
+      expect(plugins.slots).toBeUndefined();
     });
   });
 
@@ -85,6 +91,33 @@ describe('patchConfig', () => {
       patchConfig(config, 'remove');
       const tools = config.tools as Record<string, unknown>;
       expect(tools.allow).toEqual([]);
+    });
+
+    it('reverts plugins.slots.memory on uninstall', () => {
+      const config: Record<string, unknown> = {
+        plugins: {
+          entries: { 'jeeves-watcher-openclaw': { enabled: true } },
+          slots: { memory: 'jeeves-watcher-openclaw' },
+        },
+      };
+      const msgs = patchConfig(config, 'remove');
+      const plugins = config.plugins as Record<string, unknown>;
+      const slots = plugins.slots as Record<string, unknown>;
+      expect(slots.memory).toBe('memory-core');
+      expect(msgs.some((m) => m.includes('Reverted'))).toBe(true);
+    });
+
+    it('does not touch slot when owned by another plugin', () => {
+      const config: Record<string, unknown> = {
+        plugins: {
+          entries: { 'jeeves-watcher-openclaw': { enabled: true } },
+          slots: { memory: 'memory-core' },
+        },
+      };
+      patchConfig(config, 'remove');
+      const plugins = config.plugins as Record<string, unknown>;
+      const slots = plugins.slots as Record<string, unknown>;
+      expect(slots.memory).toBe('memory-core');
     });
 
     it('no-ops when plugin not present', () => {

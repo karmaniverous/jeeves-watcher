@@ -128,22 +128,17 @@ export function patchConfig(
     messages.push(`Removed "${PLUGIN_ID}" from plugins.entries`);
   }
 
-  // plugins.slots — claim or release the memory slot
-  if (!plugins.slots || typeof plugins.slots !== 'object') {
-    plugins.slots = {};
-  }
-  const slots = plugins.slots as Record<string, unknown>;
-  if (mode === 'add') {
-    const prev = slots.memory;
-    slots.memory = PLUGIN_ID;
-    if (prev !== PLUGIN_ID) {
-      messages.push(
-        `Set plugins.slots.memory to "${PLUGIN_ID}"${prev ? ` (was "${prev as string}")` : ''}`,
-      );
+  // plugins.slots — only revert on uninstall (install does NOT claim the slot;
+  // the agent claims it after bootstrapping the watcher service via the skill)
+  if (mode === 'remove') {
+    if (!plugins.slots || typeof plugins.slots !== 'object') {
+      plugins.slots = {};
     }
-  } else if (slots.memory === PLUGIN_ID) {
-    slots.memory = 'memory-core';
-    messages.push(`Reverted plugins.slots.memory to "memory-core"`);
+    const slots = plugins.slots as Record<string, unknown>;
+    if (slots.memory === PLUGIN_ID) {
+      slots.memory = 'memory-core';
+      messages.push(`Reverted plugins.slots.memory to "memory-core"`);
+    }
   }
 
   // tools.allow
@@ -230,6 +225,10 @@ function install(): void {
   console.log();
   console.log('✅ Plugin installed successfully.');
   console.log('   Restart the OpenClaw gateway to load the plugin.');
+  console.log(
+    '   The agent will use the jeeves-watcher skill to bootstrap the service',
+  );
+  console.log('   and claim the memory slot when ready.');
 }
 
 /** Uninstall the plugin from OpenClaw's extensions directory. */
