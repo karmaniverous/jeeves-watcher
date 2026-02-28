@@ -13,7 +13,7 @@ import picomatch from 'picomatch';
  * @returns The configured AJV instance.
  */
 export function createRuleAjv(): Ajv {
-  const ajv = new Ajv({ allErrors: true });
+  const ajv = new Ajv({ allErrors: true, strict: false });
   addFormats(ajv);
   ajv.addKeyword({
     keyword: 'glob',
