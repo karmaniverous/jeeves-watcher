@@ -65,7 +65,7 @@ describe('loadConfig', () => {
     expect(config.watch.paths).toEqual(['**/*.md']);
     // Defaults should be applied
     expect(config.api?.host).toBe('127.0.0.1');
-    expect(config.api?.port).toBe(3456);
+    expect(config.api?.port).toBe(1936);
     expect(config.logging?.level).toBe('info');
   });
 

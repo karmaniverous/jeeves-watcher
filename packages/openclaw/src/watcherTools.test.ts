@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { PluginApi, ToolResult } from './helpers.js';
 import { registerWatcherTools } from './watcherTools.js';
 
-const BASE = 'http://localhost:3458';
+const BASE = 'http://localhost:1936';
 
 function mockFetch(data: unknown = {}) {
   return vi.fn().mockResolvedValue({

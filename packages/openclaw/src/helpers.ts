@@ -37,7 +37,7 @@ export interface ToolResult {
   isError?: boolean;
 }
 
-const DEFAULT_API_URL = 'http://127.0.0.1:3458';
+const DEFAULT_API_URL = 'http://127.0.0.1:1936';
 
 /** Source identifier for virtual rule registration. */
 export const PLUGIN_SOURCE = 'jeeves-watcher-openclaw';

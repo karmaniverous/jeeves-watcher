@@ -65,29 +65,29 @@ describe('createMemoryTools', () => {
       fetchMock.mockResolvedValue(mockFetchOk([]));
 
       const api = makeApi(tempDir);
-      const { memorySearch } = createMemoryTools(api, 'http://localhost:3458');
+      const { memorySearch } = createMemoryTools(api, 'http://localhost:1936');
 
       await memorySearch('id1', { query: 'test' });
 
       expect(fetchMock).toHaveBeenCalledTimes(5); // status, unregister, register, reapply, search
-      expect(fetchMock.mock.calls[0][0]).toBe('http://localhost:3458/status');
+      expect(fetchMock.mock.calls[0][0]).toBe('http://localhost:1936/status');
       expect(fetchMock.mock.calls[1][0]).toBe(
-        'http://localhost:3458/rules/unregister',
+        'http://localhost:1936/rules/unregister',
       );
       expect(fetchMock.mock.calls[2][0]).toBe(
-        'http://localhost:3458/rules/register',
+        'http://localhost:1936/rules/register',
       );
       expect(fetchMock.mock.calls[3][0]).toBe(
-        'http://localhost:3458/rules/reapply',
+        'http://localhost:1936/rules/reapply',
       );
-      expect(fetchMock.mock.calls[4][0]).toBe('http://localhost:3458/search');
+      expect(fetchMock.mock.calls[4][0]).toBe('http://localhost:1936/search');
     });
 
     it('skips init on subsequent calls', async () => {
       fetchMock.mockResolvedValue(mockFetchOk([]));
 
       const api = makeApi(tempDir);
-      const { memorySearch } = createMemoryTools(api, 'http://localhost:3458');
+      const { memorySearch } = createMemoryTools(api, 'http://localhost:1936');
 
       await memorySearch('id1', { query: 'first' });
       fetchMock.mockClear();
@@ -104,7 +104,7 @@ describe('createMemoryTools', () => {
       );
 
       const api = makeApi(tempDir);
-      const { memorySearch } = createMemoryTools(api, 'http://localhost:3458');
+      const { memorySearch } = createMemoryTools(api, 'http://localhost:1936');
 
       // First call fails
       const result1 = await memorySearch('id1', { query: 'test' });
@@ -120,7 +120,7 @@ describe('createMemoryTools', () => {
       fetchMock.mockResolvedValue(mockFetchOk([]));
 
       const api = makeApi(tempDir);
-      const { memorySearch } = createMemoryTools(api, 'http://localhost:3458');
+      const { memorySearch } = createMemoryTools(api, 'http://localhost:1936');
 
       await memorySearch('id1', { query: 'test' });
 
@@ -168,7 +168,7 @@ describe('createMemoryTools', () => {
         [RULE_LONGTERM]: userSchema,
         [RULE_DAILY]: [userSchema],
       });
-      const { memorySearch } = createMemoryTools(api, 'http://localhost:3458');
+      const { memorySearch } = createMemoryTools(api, 'http://localhost:1936');
 
       await memorySearch('id1', { query: 'test' });
 
@@ -210,7 +210,7 @@ describe('createMemoryTools', () => {
         .mockResolvedValueOnce(mockFetchOk(searchResults));
 
       const api = makeApi(tempDir);
-      const { memorySearch } = createMemoryTools(api, 'http://localhost:3458');
+      const { memorySearch } = createMemoryTools(api, 'http://localhost:1936');
 
       const result = await memorySearch('id1', { query: 'test' });
       const parsed = JSON.parse(result.content[0].text) as {
@@ -245,7 +245,7 @@ describe('createMemoryTools', () => {
         .mockResolvedValueOnce(mockFetchOk(searchResults));
 
       const api = makeApi(tempDir);
-      const { memorySearch } = createMemoryTools(api, 'http://localhost:3458');
+      const { memorySearch } = createMemoryTools(api, 'http://localhost:1936');
 
       const result = await memorySearch('id1', { query: 'test' });
       const parsed = JSON.parse(result.content[0].text) as {
@@ -272,7 +272,7 @@ describe('createMemoryTools', () => {
         .mockResolvedValueOnce(mockFetchOk([]));
 
       const api = makeApi(tempDir);
-      const { memorySearch } = createMemoryTools(api, 'http://localhost:3458');
+      const { memorySearch } = createMemoryTools(api, 'http://localhost:1936');
 
       await memorySearch('id1', { query: 'test' });
 
@@ -293,7 +293,7 @@ describe('createMemoryTools', () => {
         .mockResolvedValueOnce(mockFetchOk([]));
 
       const api = makeApi(tempDir);
-      const { memorySearch } = createMemoryTools(api, 'http://localhost:3458');
+      const { memorySearch } = createMemoryTools(api, 'http://localhost:1936');
 
       await memorySearch('id1', { query: 'test', maxResults: 3 });
 
@@ -326,7 +326,7 @@ describe('createMemoryTools', () => {
         .mockResolvedValueOnce(mockFetchOk(searchResults));
 
       const api = makeApi(tempDir);
-      const { memorySearch } = createMemoryTools(api, 'http://localhost:3458');
+      const { memorySearch } = createMemoryTools(api, 'http://localhost:1936');
 
       const result = await memorySearch('id1', {
         query: 'test',
@@ -347,7 +347,7 @@ describe('createMemoryTools', () => {
       await writeFile(filePath, 'Line 1\nLine 2\nLine 3\n');
 
       const api = makeApi(tempDir);
-      const { memoryGet } = createMemoryTools(api, 'http://localhost:3458');
+      const { memoryGet } = createMemoryTools(api, 'http://localhost:1936');
 
       const result = await memoryGet('id1', { path: filePath });
       expect(result.isError).toBeUndefined();
@@ -364,7 +364,7 @@ describe('createMemoryTools', () => {
       await writeFile(filePath, 'Line 1\nLine 2\nLine 3\nLine 4\n');
 
       const api = makeApi(tempDir);
-      const { memoryGet } = createMemoryTools(api, 'http://localhost:3458');
+      const { memoryGet } = createMemoryTools(api, 'http://localhost:1936');
 
       const result = await memoryGet('id1', {
         path: filePath,
@@ -387,7 +387,7 @@ describe('createMemoryTools', () => {
       await writeFile(filePath, 'Daily notes');
 
       const api = makeApi(tempDir);
-      const { memoryGet } = createMemoryTools(api, 'http://localhost:3458');
+      const { memoryGet } = createMemoryTools(api, 'http://localhost:1936');
 
       const result = await memoryGet('id1', { path: filePath });
       expect(result.isError).toBeUndefined();
@@ -395,7 +395,7 @@ describe('createMemoryTools', () => {
 
     it('rejects paths outside workspace', async () => {
       const api = makeApi(tempDir);
-      const { memoryGet } = createMemoryTools(api, 'http://localhost:3458');
+      const { memoryGet } = createMemoryTools(api, 'http://localhost:1936');
 
       const result = await memoryGet('id1', {
         path: '/etc/passwd',
@@ -406,7 +406,7 @@ describe('createMemoryTools', () => {
 
     it('rejects non-md files in memory directory', async () => {
       const api = makeApi(tempDir);
-      const { memoryGet } = createMemoryTools(api, 'http://localhost:3458');
+      const { memoryGet } = createMemoryTools(api, 'http://localhost:1936');
 
       const result = await memoryGet('id1', {
         path: join(tempDir, 'memory', 'secret.txt'),
@@ -416,7 +416,7 @@ describe('createMemoryTools', () => {
 
     it('rejects files outside memory/ subdirectory', async () => {
       const api = makeApi(tempDir);
-      const { memoryGet } = createMemoryTools(api, 'http://localhost:3458');
+      const { memoryGet } = createMemoryTools(api, 'http://localhost:1936');
 
       const result = await memoryGet('id1', {
         path: join(tempDir, 'other.md'),
