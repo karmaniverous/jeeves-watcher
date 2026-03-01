@@ -118,7 +118,7 @@ Memory-core and the watcher both use embeddings, but may use different models by
 
 This gives memory-core the same 3072-dimensional Gemini embeddings the watcher uses, ensuring semantic similarity scores are comparable across memory and archive searches.
 
-## Installation
+## Plugin Installation
 
 ```
 npx @karmaniverous/jeeves-watcher-openclaw install
@@ -131,24 +131,237 @@ To remove:
 npx @karmaniverous/jeeves-watcher-openclaw uninstall
 ```
 
-## Quick Start
+## Quick Start (Existing Deployment)
+
+If the watcher service is already running and healthy:
 
 1. **Orient yourself** (once per session) — use `watcher_query` to learn the deployment's organizational strategy and available record types (see Orientation Pattern below)
 2. **Search** — use `watcher_search` with a natural language query and optional metadata filters
 3. **Read source** — use `read` (standard file read) with `file_path` from search results for full document content
 
-## Bootstrap (First Session)
+## Bootstrap (First-Time Setup)
 
-The first time the watcher plugin loads in a new deployment, orient yourself proactively. Don't wait for the user to ask a question — understand what you have access to.
+When the plugin loads and the watcher service is NOT yet set up, drive the entire setup proactively. The user should be able to install the plugin with nothing else in place and the bootstrap process gets them to a working system.
 
-**Automatic bootstrap sequence:**
+**The agent drives this process.** Don't hand the user CLI commands and wait. Check each prerequisite, explain what's needed, execute what you can, and prompt the user only for decisions that require human judgment.
 
-1. **Health check** — call `watcher_status`. Confirm the service is running, note point count and collection dimensions.
-2. **Discover the deployment** — run the Orientation Pattern (see below): query `$.['description','search']` for organizational strategy and score thresholds, then `$.inferenceRules[*].['name','description']` for available record types.
-3. **Cache context** — store the orientation results mentally for the session. You now know what domains exist, what record types are searchable, and how to interpret scores.
-4. **Report readiness** — briefly tell the user what you found: how many points, which domains, any issues. One or two sentences, not a wall of text.
+### Step 1: Check Node.js
 
-**On subsequent sessions:** Repeat steps 1-3 silently. Only report if something changed (service down, point count dropped significantly, new domains appeared).
+Verify Node.js is installed and version ≥ 20:
+```bash
+node --version
+```
+
+If missing or too old, guide the user to install Node.js 20+ from https://nodejs.org or via their package manager.
+
+### Step 2: Install Qdrant
+
+Check if Qdrant is already running:
+```bash
+curl -s http://localhost:6333/healthz
+```
+
+If not running, install it. **Prefer native installation** (especially on cloud instances where Docker may not be available):
+
+**Linux (recommended for servers):**
+```bash
+# Download latest release
+curl -L https://github.com/qdrant/qdrant/releases/latest/download/qdrant-x86_64-unknown-linux-musl.tar.gz -o qdrant.tar.gz
+tar xzf qdrant.tar.gz
+
+# Run (foreground for testing)
+./qdrant
+
+# For production: create a systemd service
+sudo tee /etc/systemd/system/qdrant.service > /dev/null <<EOF
+[Unit]
+Description=Qdrant Vector Database
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/qdrant --config-path /etc/qdrant/config.yaml
+Restart=always
+User=qdrant
+
+[Install]
+WantedBy=multi-user.target
+EOF
+sudo systemctl enable --now qdrant
+```
+
+**Windows:**
+```powershell
+# Download from GitHub releases page
+# https://github.com/qdrant/qdrant/releases
+# Extract and run, or register as NSSM service:
+nssm install Qdrant <path-to-qdrant.exe>
+nssm start Qdrant
+```
+
+**Docker (fallback, if available):**
+```bash
+docker run -d -p 6333:6333 -v qdrant_data:/qdrant/storage qdrant/qdrant
+```
+
+After installation, verify:
+```bash
+curl -s http://localhost:6333/healthz
+```
+
+### Step 3: Install Watcher Service
+
+Install the watcher CLI globally:
+```bash
+npm install -g @karmaniverous/jeeves-watcher
+```
+
+Verify:
+```bash
+jeeves-watcher --version
+```
+
+### Step 4: Set Up Embedding Provider
+
+The watcher uses Google Gemini for embeddings by default (`gemini-embedding-001`, 3072 dimensions).
+
+Check for an existing API key:
+```bash
+echo $GOOGLE_API_KEY    # Linux/Mac
+echo %GOOGLE_API_KEY%   # Windows cmd
+$env:GOOGLE_API_KEY     # PowerShell
+```
+
+If not set, guide the user:
+1. Go to https://aistudio.google.com/apikey
+2. Create an API key (free tier supports 1,000 embedding requests/minute)
+3. Set it as a persistent environment variable:
+   - **Linux:** Add `export GOOGLE_API_KEY=<key>` to `~/.bashrc` or `~/.profile`
+   - **Windows:** `setx GOOGLE_API_KEY "<key>"` (new shell sessions only) or set via System Properties → Environment Variables
+   - **macOS:** Add to `~/.zshrc` or use `launchctl setenv`
+
+Verify the key works by testing a Gemini API call:
+```bash
+curl -s "https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:embedContent?key=$GOOGLE_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"model":"models/gemini-embedding-001","content":{"parts":[{"text":"test"}]}}'
+```
+
+A successful response contains an `embedding.values` array.
+
+### Step 5: Author Initial Config
+
+Ask the user these questions:
+- **What directories should the watcher index?** (e.g., `~/documents`, `~/projects`, a workspace path)
+- **What types of files matter?** (helps determine file extensions for watch globs)
+- **Are there directories to exclude?** (node_modules, .git, build outputs, etc.)
+
+Then generate a starter config file. Example minimal config:
+
+```json
+{
+  "description": "Personal knowledge base indexing",
+  "api": { "port": 1936 },
+  "watch": {
+    "paths": [
+      "/home/user/documents/**/*.{md,txt,json,pdf,html,docx}"
+    ],
+    "ignored": ["**/node_modules/**", "**/.git/**", "**/dist/**"]
+  },
+  "embedding": {
+    "provider": "gemini",
+    "model": "gemini-embedding-001",
+    "dimensions": 3072,
+    "apiKey": "${GOOGLE_API_KEY}",
+    "chunkSize": 1000,
+    "chunkOverlap": 200,
+    "rateLimitPerMinute": 1000,
+    "concurrency": 5
+  },
+  "vectorStore": {
+    "url": "http://localhost:6333",
+    "collection": "jeeves_archive"
+  },
+  "search": {
+    "scoreThresholds": { "strong": 0.75, "relevant": 0.5, "noise": 0.25 },
+    "hybrid": { "enabled": true }
+  },
+  "logging": { "level": "info" },
+  "inferenceRules": []
+}
+```
+
+Write the config to a sensible location (e.g., `~/.config/jeeves-watcher.config.json` on Linux, or alongside the user's workspace). Validate with:
+```bash
+jeeves-watcher validate -c <config-path>
+```
+
+### Step 6: Register and Start as a Service
+
+**The watcher should run as a persistent service, not a foreground process.**
+
+**Linux (systemd):**
+```bash
+sudo tee /etc/systemd/system/jeeves-watcher.service > /dev/null <<EOF
+[Unit]
+Description=Jeeves Watcher - Filesystem Indexing Service
+After=network.target qdrant.service
+
+[Service]
+Type=simple
+ExecStart=$(which jeeves-watcher) start -c <config-path>
+Restart=always
+Environment=GOOGLE_API_KEY=<key>
+User=$USER
+
+[Install]
+WantedBy=multi-user.target
+EOF
+sudo systemctl enable --now jeeves-watcher
+```
+
+**Windows (NSSM):**
+```powershell
+jeeves-watcher service install
+# Or manually:
+nssm install jeeves-watcher "$(which jeeves-watcher)" start -c <config-path>
+nssm set jeeves-watcher AppEnvironmentExtra GOOGLE_API_KEY=<key>
+nssm start jeeves-watcher
+```
+
+Verify the service started:
+```bash
+curl -s http://127.0.0.1:1936/status
+```
+
+### Step 7: Verify Health
+
+Call `watcher_status` (or `curl http://127.0.0.1:1936/status`). Confirm:
+- Service is running
+- Qdrant collection exists with expected dimensions (3072)
+- Point count is increasing (initial indexing in progress)
+
+If the point count is 0 after a minute, check `watcher_issues` for embedding failures.
+
+### Step 8: Orientation
+
+Once health is confirmed and initial indexing has started:
+
+1. Query `$.['description','search']` for the deployment's organizational strategy and score thresholds.
+2. Query `$.inferenceRules[*].['name','description']` for available record types.
+3. Report to the user: how many points indexed so far, which domains are available, estimated time to complete initial indexing (based on file count and embedding rate).
+
+### Step 9: Align Memory-Core Embeddings
+
+After the watcher is healthy, offer to align OpenClaw's memory-core with the same embedding model for consistent vector quality across both systems. See the **Embedding Alignment** section above for the procedure.
+
+### On Subsequent Sessions
+
+On sessions after bootstrap is complete:
+
+1. Call `watcher_status` silently.
+2. Run the orientation queries silently.
+3. Only report if something changed (service down, point count dropped significantly, new domains appeared).
 
 **Key principle:** The agent drives discovery. The user shouldn't have to explain their archive to you — the archive explains itself through its config.
 
