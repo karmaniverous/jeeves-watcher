@@ -64,12 +64,15 @@ describe('createConfigApplyHandler', () => {
   it('valid config writes to disk and returns applied: true', async () => {
     const deps = createDeps();
     const handler = createConfigApplyHandler(deps);
-    const result = await handler(
+    const reply = mockReply();
+    await handler(
       mockRequest({ config: { watch: { paths: ['**/*.txt'] } } }),
-      mockReply() as unknown as FastifyReply,
+      reply as unknown as FastifyReply,
     );
 
-    expect(result).toMatchObject({ applied: true });
+    expect(reply.send).toHaveBeenCalledWith(
+      expect.objectContaining({ applied: true }),
+    );
     expect(existsSync(tempConfigPath)).toBe(true);
     const written = JSON.parse(readFileSync(tempConfigPath, 'utf-8')) as Record<
       string,
@@ -104,16 +107,19 @@ describe('createConfigApplyHandler', () => {
       triggerReindex,
     });
     const handler = createConfigApplyHandler(deps);
-    const result = await handler(
+    const reply = mockReply();
+    await handler(
       mockRequest({ config: {} }),
-      mockReply() as unknown as FastifyReply,
+      reply as unknown as FastifyReply,
     );
 
-    expect(result).toMatchObject({
-      applied: true,
-      reindexTriggered: true,
-      scope: 'full',
-    });
+    expect(reply.send).toHaveBeenCalledWith(
+      expect.objectContaining({
+        applied: true,
+        reindexTriggered: true,
+        scope: 'full',
+      }),
+    );
     expect(triggerReindex).toHaveBeenCalledWith('full');
   });
 
@@ -127,16 +133,19 @@ describe('createConfigApplyHandler', () => {
       triggerReindex,
     });
     const handler = createConfigApplyHandler(deps);
-    const result = await handler(
+    const reply = mockReply();
+    await handler(
       mockRequest({ config: {} }),
-      mockReply() as unknown as FastifyReply,
+      reply as unknown as FastifyReply,
     );
 
-    expect(result).toMatchObject({
-      applied: true,
-      reindexTriggered: true,
-      scope: 'issues',
-    });
+    expect(reply.send).toHaveBeenCalledWith(
+      expect.objectContaining({
+        applied: true,
+        reindexTriggered: true,
+        scope: 'issues',
+      }),
+    );
     expect(triggerReindex).toHaveBeenCalledWith('issues');
   });
 });

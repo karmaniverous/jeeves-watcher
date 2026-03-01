@@ -13,16 +13,17 @@ describe('wrapHandler', () => {
   it('should execute handler successfully and return result', async () => {
     const logger = pino({ level: 'silent' });
     const mockRequest = {} as FastifyRequest;
-    const mockReply = {} as FastifyReply;
+    const sendMock = vi.fn();
+    const mockReply = { send: sendMock } as unknown as FastifyReply;
     const mockResult = { success: true };
 
     const handler = vi.fn().mockResolvedValue(mockResult);
     const wrapped = wrapHandler(handler, logger, 'test');
 
-    const result: unknown = await wrapped(mockRequest, mockReply);
+    await wrapped(mockRequest, mockReply);
 
     expect(handler).toHaveBeenCalledWith(mockRequest, mockReply);
-    expect(result).toEqual(mockResult);
+    expect(sendMock).toHaveBeenCalledWith(mockResult);
   });
 
   it('should catch errors and return 500 with error message', async () => {
