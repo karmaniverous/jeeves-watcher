@@ -143,14 +143,27 @@ If not running, install it. **Prefer native installation** (especially on cloud 
 
 **Linux (recommended for servers):**
 ```bash
-# Download latest release
-curl -L https://github.com/qdrant/qdrant/releases/latest/download/qdrant-x86_64-unknown-linux-musl.tar.gz -o qdrant.tar.gz
-tar xzf qdrant.tar.gz
+# Download and install binary
+curl -L https://github.com/qdrant/qdrant/releases/latest/download/qdrant-x86_64-unknown-linux-musl.tar.gz -o /tmp/qdrant.tar.gz
+sudo tar xzf /tmp/qdrant.tar.gz -C /usr/local/bin/
 
-# Run (foreground for testing)
-./qdrant
+# Create qdrant user and directories
+sudo useradd -r -s /bin/false qdrant
+sudo mkdir -p /var/lib/qdrant/storage /var/lib/qdrant/snapshots /etc/qdrant
+sudo chown -R qdrant:qdrant /var/lib/qdrant
 
-# For production: create a systemd service
+# Create config
+sudo tee /etc/qdrant/config.yaml > /dev/null <<EOF
+storage:
+  storage_path: /var/lib/qdrant/storage
+  snapshots_path: /var/lib/qdrant/snapshots
+service:
+  host: 0.0.0.0
+  http_port: 6333
+  grpc_port: 6334
+EOF
+
+# Create systemd service
 sudo tee /etc/systemd/system/qdrant.service > /dev/null <<EOF
 [Unit]
 Description=Qdrant Vector Database
@@ -159,12 +172,14 @@ After=network.target
 [Service]
 Type=simple
 ExecStart=/usr/local/bin/qdrant --config-path /etc/qdrant/config.yaml
+WorkingDirectory=/var/lib/qdrant
 Restart=always
 User=qdrant
 
 [Install]
 WantedBy=multi-user.target
 EOF
+sudo systemctl daemon-reload
 sudo systemctl enable --now qdrant
 ```
 
@@ -288,6 +303,7 @@ After=network.target qdrant.service
 [Service]
 Type=simple
 ExecStart=$(which jeeves-watcher) start -c <config-path>
+WorkingDirectory=%h
 Restart=always
 Environment=GOOGLE_API_KEY=<key>
 User=$USER
