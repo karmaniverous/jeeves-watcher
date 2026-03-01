@@ -72,10 +72,10 @@ You have access to a **semantic archive** of your human's working world: email, 
 
 ## Memory → Archive Escalation
 
-You have two search tools with different scopes:
+You have two complementary tools with different scopes:
 
-- **`memory_search`** — curated notes (MEMORY.md + memory/*.md). High signal, small scope. This is your long-term memory: decisions, rules, people, project context. Always check here first.
-- **`watcher_search`** — the full indexed archive (160K+ points across all domains: Slack, email, Jira, code, meetings, tweets, projects). Broad scope, raw record.
+- **memory-core** (`memory_search` / `memory_get`) — OpenClaw's built-in memory provider. Manages curated notes in MEMORY.md and memory/*.md. High signal, small scope. This is your long-term memory: decisions, rules, people, project context. Always check here first.
+- **watcher** (`watcher_search`) — the full indexed archive (160K+ points across all domains: Slack, email, Jira, code, meetings, tweets, projects). Broad scope, raw record.
 
 **The escalation rule:** When `memory_search` returns thin, zero, or low-confidence results for something your human clearly expects you to know about — a person, a project, an event, a thing — don't stop there. Follow up with `watcher_search` across the full index.
 
@@ -92,15 +92,43 @@ You have two search tools with different scopes:
 
 **Example:** "Tell me about Noodle" → memory says "male, he/him" → that's thin → escalate to `watcher_search("Noodle")` → tweets reveal #NoodleThePoodle with photos. Report the full picture.
 
-**The principle:** Memory is your curated highlights. The archive is your perfect recall. Use memory first for speed and signal, but never let its narrow scope be the ceiling of what you can remember.
+**The principle:** Memory-core is your curated highlights. The watcher archive is your perfect recall. Use memory first for speed and signal, but never let its narrow scope be the ceiling of what you can remember.
 
-**How it works, conceptually:**
+## Embedding Alignment
 
-The watcher monitors directories on the filesystem. When files change, it extracts text, applies **inference rules** (config-driven pattern matching) to derive structured metadata, and embeds everything into a vector store. Each inference rule defines a record type: what files it matches, what metadata schema applies, how to extract fields.
+Memory-core and the watcher both use embeddings, but may use different models by default. For best cross-tool consistency, offer to configure memory-core to use `gemini-embedding-001` (the same model the watcher uses) via the gateway config:
 
-You don't need to know the rules in advance. The config is introspectable at runtime. Orient once per session, then search with confidence.
+1. **Verify Google API key** — check that the gateway has a Google API key configured (needed for Gemini embeddings).
+2. **Apply config** — use `openclaw gateway config.patch` to set the memory-core embedding model:
+   ```json
+   {
+     "plugins": {
+       "entries": {
+         "memory-core": {
+           "config": {
+             "embeddingModel": "gemini-embedding-001"
+           }
+         }
+       }
+     }
+   }
+   ```
+3. **Restart gateway** — `openclaw gateway restart` to pick up the new embedding model.
 
-**Key mental model:** Think of it as a search engine scoped to your human's data, with structured metadata on every result. Plain semantic search works. Adding metadata filters makes it precise.
+This ensures semantic similarity scores are comparable across memory and archive searches.
+
+## Installation
+
+```
+npx @karmaniverous/jeeves-watcher-openclaw install
+```
+
+This copies the plugin to OpenClaw's extensions directory and patches `openclaw.json` to register it. Restart the gateway to load the plugin.
+
+To remove:
+```
+npx @karmaniverous/jeeves-watcher-openclaw uninstall
+```
 
 ## Quick Start
 
@@ -123,63 +151,7 @@ The first time the watcher plugin loads in a new deployment, orient yourself pro
 
 **Key principle:** The agent drives discovery. The user shouldn't have to explain their archive to you — the archive explains itself through its config.
 
-## Install Modes
-
-The plugin supports two install modes, controlled by the `--memory` flag during installation:
-
-**Standard mode** (`npx @karmaniverous/jeeves-watcher-openclaw install`):
-- Registers `watcher_*` tools only (search, enrich, status, query, validate, config_apply, reindex, issues)
-- OpenClaw's built-in `memory-core` remains the memory provider (re-enabled if previously disabled)
-- Use when the watcher is a supplementary search tool alongside native memory
-
-**Memory mode** (`npx @karmaniverous/jeeves-watcher-openclaw install --memory`):
-- Registers all tools: `watcher_*` plus `memory_search` and `memory_get`
-- Claims the OpenClaw memory slot — the watcher becomes the memory provider
-- Disables `memory-core` (`plugins.entries.memory-core.enabled: false`) to prevent core memory tools from shadowing the plugin's tools
-- MEMORY.md and memory/*.md files are indexed and searched via the watcher's vector store
-- Use when the watcher should be the single source of truth for both archive search and agent memory
-
-**Why `memory-core` must be disabled:** OpenClaw's built-in `memory-core` plugin registers its own `memory_search` and `memory_get` tools. If both `memory-core` and this plugin are enabled, the core tools shadow the plugin's tools (same name, core registers first). Disabling `memory-core` ensures the plugin's Qdrant-backed implementations are the ones that execute.
-
-**How to tell which mode you're in:** Check the response from `memory_search` or `memory_get`. In memory mode (watcher-backed), responses include `"provider": "jeeves-watcher"`. In standard mode (memory-core), responses are bare arrays/strings with no `provider` field.
-
-## Proactive Posture
-
-**On your first `memory_search` or `memory_get` call each session, check the response for the `provider` field.**
-
-- **If the response is `{ provider: "jeeves-watcher", ... }`:** You're in memory mode. The watcher is serving memory. No action needed.
-- **If the response has any other shape** (bare array, bare string, different provider, no `provider` field): The watcher is NOT serving memory. Another provider is active. Check whether an upgrade is warranted.
-
-**When to suggest upgrading to memory mode:**
-Call `watcher_status` to check the archive size. If the watcher has >10K points, the deployment has a substantial archive and would benefit from semantic memory. Offer to run the upgrade yourself:
-
-> "I notice memory queries are running on flat file search, but the watcher has [N] points with semantic embeddings. I can upgrade to memory mode now — this runs `npx @karmaniverous/jeeves-watcher-openclaw install --memory` and restarts the gateway. Shall I go ahead?"
-
-If the user agrees, execute the install and gateway restart. Don't hand them a CLI command when you can do it yourself.
-
-**Don't nag.** Suggest once per session at most. If the user declines, drop it.
-
 ## Tools
-
-### `memory_search`
-Semantically search MEMORY.md and memory/*.md files. Powered by the watcher's vector store with Gemini 3072-dim embeddings.
-- `query` (string, required) — search query text
-- `maxResults` (number, optional) — maximum results to return
-- `minScore` (number, optional) — minimum similarity score threshold
-
-**Response (memory mode):** `{ provider: "jeeves-watcher", results: [{ path, from, to, snippet, score }] }` where `from`/`to` are 1-indexed line numbers.
-**Response (standard mode / memory-core):** `[{ path, from, to, snippet, score }]` — bare array, no `provider` field.
-
-### `memory_get`
-Read content from MEMORY.md or memory/*.md files with optional line range.
-- `path` (string, required) — path to the memory file
-- `from` (number, optional) — line number to start reading from (1-indexed)
-- `lines` (number, optional) — number of lines to read
-
-**Response (memory mode):** `{ provider: "jeeves-watcher", content: "file content..." }`
-**Response (standard mode / memory-core):** `"file content..."` — bare string, no `provider` field.
-
-Path validation: only files within the workspace's MEMORY.md and memory/**/*.md are accessible.
 
 ### `watcher_search`
 Semantic search over indexed documents.

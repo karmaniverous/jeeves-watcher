@@ -4,7 +4,7 @@ import type { PluginApi } from './helpers.js';
 import register from './index.js';
 
 describe('register', () => {
-  it('registers exactly 10 tools (8 watcher + 2 memory)', () => {
+  it('registers exactly 8 watcher tools', () => {
     const tools: string[] = [];
     const api: PluginApi = {
       config: {
@@ -19,9 +19,7 @@ describe('register', () => {
       },
     };
     register(api);
-    expect(tools).toHaveLength(10);
+    expect(tools).toHaveLength(8);
     expect(tools).toContain('watcher_status');
-    expect(tools).toContain('memory_search');
-    expect(tools).toContain('memory_get');
   });
 });
