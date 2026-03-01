@@ -57,7 +57,7 @@ describe('status command', () => {
     await cli.parseAsync(['node', 'test', 'status']);
 
     expect(mockFetch).toHaveBeenCalledWith(
-      'http://127.0.0.1:3456/status',
+      'http://127.0.0.1:1936/status',
       expect.objectContaining({ method: 'GET' }),
     );
     expect(consoleLogSpy).toHaveBeenCalledWith(
@@ -144,7 +144,7 @@ describe('search command', () => {
     ]);
 
     expect(mockFetch).toHaveBeenCalledWith(
-      'http://127.0.0.1:3456/search',
+      'http://127.0.0.1:1936/search',
       expect.objectContaining({
         method: 'POST',
         body: JSON.stringify({ query: 'test query', limit: 5 }),
@@ -207,7 +207,7 @@ describe('reindex command', () => {
     await cli.parseAsync(['node', 'test', 'reindex']);
 
     expect(mockFetch).toHaveBeenCalledWith(
-      'http://127.0.0.1:3456/reindex',
+      'http://127.0.0.1:1936/reindex',
       expect.objectContaining({ method: 'POST' }),
     );
     expect(consoleLogSpy).toHaveBeenCalledWith('Reindex started');

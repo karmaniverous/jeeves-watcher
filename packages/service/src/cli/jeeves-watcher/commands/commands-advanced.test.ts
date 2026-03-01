@@ -62,7 +62,7 @@ describe('configReindex command', () => {
     ]);
 
     expect(mockFetch).toHaveBeenCalledWith(
-      'http://127.0.0.1:3456/config-reindex',
+      'http://127.0.0.1:1936/config-reindex',
       expect.objectContaining({
         body: JSON.stringify({ scope: 'rules' }),
       }),
@@ -143,7 +143,7 @@ describe('rebuildMetadata command', () => {
     await cli.parseAsync(['node', 'test', 'rebuild-metadata']);
 
     expect(mockFetch).toHaveBeenCalledWith(
-      'http://127.0.0.1:3456/rebuild-metadata',
+      'http://127.0.0.1:1936/rebuild-metadata',
       expect.objectContaining({ method: 'POST' }),
     );
     expect(consoleLogSpy).toHaveBeenCalledWith('Metadata rebuild started');

@@ -13,12 +13,12 @@ description: >
 
 The watcher is an HTTP API running as a background service (typically NSSM on Windows, systemd on Linux).
 
-**Default port:** 3458 (configurable via `api.port` in watcher config)
+**Default port:** 1936 (configurable via `api.port` in watcher config)
 **Non-default port:** If the watcher runs on a different port, the user must set `plugins.entries.jeeves-watcher.config.apiUrl` in `openclaw.json`. The plugin cannot auto-discover a non-default port.
 
 **Health check:** `GET /status` returns uptime, point count, collection dimensions, and reindex status.
 
-**Mental model:** The `watcher_*` tools are thin HTTP wrappers. Each tool call translates to an HTTP request to the watcher API. When tools are available, use them. When they're not (e.g., different session, plugin not loaded), you can hit the API directly. Replace `<PORT>` below with the configured port (default 3458; check `plugins.entries.jeeves-watcher.config.apiUrl` in `openclaw.json` if overridden):
+**Mental model:** The `watcher_*` tools are thin HTTP wrappers. Each tool call translates to an HTTP request to the watcher API. When tools are available, use them. When they're not (e.g., different session, plugin not loaded), you can hit the API directly. Replace `<PORT>` below with the configured port (default 1936; check `plugins.entries.jeeves-watcher.config.apiUrl` in `openclaw.json` if overridden):
 
 ```
 # Health check
@@ -589,7 +589,7 @@ If the watcher is unreachable:
 If tools are unavailable (plugin not loaded in this session):
 - The watcher API is still accessible via direct HTTP calls
 - Use `exec` to call the endpoints listed in Service Architecture
-- Default: `http://127.0.0.1:3458`
+- Default: `http://127.0.0.1:1936`
 
 **CLI Fallbacks:**
 - `jeeves-watcher status` — check if the service is running

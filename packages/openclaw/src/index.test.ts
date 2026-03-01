@@ -10,7 +10,7 @@ describe('register', () => {
       config: {
         plugins: {
           entries: {
-            'jeeves-watcher': { config: { apiUrl: 'http://localhost:3458' } },
+            'jeeves-watcher': { config: { apiUrl: 'http://localhost:1936' } },
           },
         },
       },

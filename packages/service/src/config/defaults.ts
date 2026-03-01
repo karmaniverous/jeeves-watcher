@@ -20,7 +20,7 @@ export const CONFIG_WATCH_DEFAULTS = {
 /** Default API values. */
 export const API_DEFAULTS = {
   host: '127.0.0.1',
-  port: 3456,
+  port: 1936,
 };
 
 /** Default logging values. */

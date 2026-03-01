@@ -7,4 +7,4 @@
 export const DEFAULT_HOST = '127.0.0.1';
 
 /** Default API port for CLI commands. */
-export const DEFAULT_PORT = '3456';
+export const DEFAULT_PORT = '1936';
