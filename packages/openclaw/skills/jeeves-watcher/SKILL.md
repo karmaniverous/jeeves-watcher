@@ -3,8 +3,8 @@ name: jeeves-watcher
 description: >
   Semantic search across a structured document archive. Use when you need to
   recall prior context, find documents, answer questions that require searching
-  across domains (email, Slack, Jira, codebase, meetings, projects), enrich
-  document metadata, manage watcher config, or diagnose indexing issues.
+  across indexed domains, enrich document metadata, manage watcher config, or
+  diagnose indexing issues.
 ---
 
 # jeeves-watcher — Search, Discovery & Administration
@@ -54,15 +54,15 @@ curl -X POST http://127.0.0.1:<PORT>/config/query \
 
 ## Theory of Operation
 
-You have access to a **semantic archive** of your human's working world: email, Slack messages, Jira tickets, code repositories, meeting notes, project documents, and more. Everything is indexed, chunked, embedded, and searchable. This is your long-term memory for anything beyond the current conversation.
+You have access to a **semantic archive** of your human's working world. Documents, messages, tickets, notes, code, and other artifacts are indexed, chunked, embedded, and searchable. This is your long-term recall for anything beyond the current conversation.
 
 **When to reach for the watcher:**
 
-- **Someone asks about something that happened.** A meeting, a decision, a conversation, a ticket. You weren't there, but the archive was. Search it.
+- **Someone asks about something that happened.** A meeting, a decision, a conversation, a ticket, a message. You weren't there, but the archive was. Search it.
 - **You need context you don't have.** Before asking the human "what's the status of X?", search for X. The answer is probably already indexed.
-- **You're working on a project and need background.** Architecture decisions, prior discussions, related tickets, relevant code. Search by topic, filter by domain.
+- **You're working on something and need background.** Prior discussions, related records, relevant documents. Search by topic, filter by domain.
 - **You need to verify something.** Don't guess from stale memory. Search for the current state.
-- **You want to connect dots across domains.** The same topic might appear in a Jira ticket, a Slack thread, an email, and a code commit. A single semantic search surfaces all of them.
+- **You want to connect dots across domains.** The same topic might appear in multiple domains. A single semantic search surfaces all of them.
 
 **When NOT to use it:**
 
@@ -75,7 +75,7 @@ You have access to a **semantic archive** of your human's working world: email, 
 You have two complementary tools with different scopes:
 
 - **memory-core** (`memory_search` / `memory_get`) — OpenClaw's built-in memory provider. Manages curated notes in MEMORY.md and memory/*.md. High signal, small scope. This is your long-term memory: decisions, rules, people, project context. Always check here first.
-- **watcher** (`watcher_search`) — the full indexed archive (160K+ points across all domains: Slack, email, Jira, code, meetings, tweets, projects). Broad scope, raw record.
+- **watcher** (`watcher_search`) — the full indexed archive across all configured domains. Broad scope, raw record.
 
 **The escalation rule:** When `memory_search` returns thin, zero, or low-confidence results for something your human clearly expects you to know about — a person, a project, an event, a thing — don't stop there. Follow up with `watcher_search` across the full index.
 
@@ -90,7 +90,7 @@ You have two complementary tools with different scopes:
 - The question is about your own operational rules or preferences (that's purely memory)
 - You've already searched the archive this turn
 
-**Example:** "Tell me about Noodle" → memory says "male, he/him" → that's thin → escalate to `watcher_search("Noodle")` → tweets reveal #NoodleThePoodle with photos. Report the full picture.
+**Example:** "Tell me about Project X" → memory says "started in January" → that's thin → escalate to `watcher_search("Project X")` → tickets, messages, and docs reveal the full history. Report the full picture.
 
 **The principle:** Memory-core is your curated highlights. The watcher archive is your perfect recall. Use memory first for speed and signal, but never let its narrow scope be the ceiling of what you can remember.
 
@@ -413,7 +413,7 @@ Compose individual field conditions into complex queries using three combinators
     { "key": "created", "range": { "gte": 1735689600 } }
   ],
   "should": [
-    { "key": "assignee", "match": { "value": "Jason Williscroft" } },
+    { "key": "assignee", "match": { "value": "Jane Doe" } },
     { "key": "assignee", "match": { "value": null } }
   ],
   "must_not": [
