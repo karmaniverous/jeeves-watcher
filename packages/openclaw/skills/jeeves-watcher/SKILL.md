@@ -99,23 +99,22 @@ You have two complementary tools with different scopes:
 Memory-core and the watcher both use embeddings, but may use different models by default. For best cross-tool consistency, offer to configure memory-core to use `gemini-embedding-001` (the same model the watcher uses) via the gateway config:
 
 1. **Verify Google API key** — check that the gateway has a Google API key configured (needed for Gemini embeddings).
-2. **Apply config** — use `openclaw gateway config.patch` to set the memory-core embedding model:
+2. **Apply config** — use `gateway config.patch` to set the memory-core embedding provider:
    ```json
    {
-     "plugins": {
-       "entries": {
-         "memory-core": {
-           "config": {
-             "embeddingModel": "gemini-embedding-001"
-           }
+     "agents": {
+       "defaults": {
+         "memorySearch": {
+           "provider": "gemini",
+           "model": "gemini-embedding-001"
          }
        }
      }
    }
    ```
-3. **Restart gateway** — `openclaw gateway restart` to pick up the new embedding model.
+3. **Restart gateway** to pick up the new embedding provider. Memory-core will re-embed all memory files on next sync (dimension change triggers automatic vector table recreation).
 
-This ensures semantic similarity scores are comparable across memory and archive searches.
+This gives memory-core the same 3072-dimensional Gemini embeddings the watcher uses, ensuring semantic similarity scores are comparable across memory and archive searches.
 
 ## Installation
 
