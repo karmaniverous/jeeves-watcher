@@ -96,28 +96,6 @@ You have two complementary tools with different scopes:
 
 **The principle:** Memory-core is your curated highlights. The watcher archive is your perfect recall. Use memory first for speed and signal, but never let its narrow scope be the ceiling of what you can remember.
 
-## Embedding Alignment
-
-Memory-core and the watcher both use embeddings, but may use different models by default. For best cross-tool consistency, offer to configure memory-core to use `gemini-embedding-001` (the same model the watcher uses) via the gateway config:
-
-1. **Verify Google API key** — check that the gateway has a Google API key configured (needed for Gemini embeddings).
-2. **Apply config** — use `gateway config.patch` to set the memory-core embedding provider:
-   ```json
-   {
-     "agents": {
-       "defaults": {
-         "memorySearch": {
-           "provider": "gemini",
-           "model": "gemini-embedding-001"
-         }
-       }
-     }
-   }
-   ```
-3. **Restart gateway** to pick up the new embedding provider. Memory-core will re-embed all memory files on next sync (dimension change triggers automatic vector table recreation).
-
-This gives memory-core the same 3072-dimensional Gemini embeddings the watcher uses, ensuring semantic similarity scores are comparable across memory and archive searches.
-
 ## Plugin Installation
 
 ```
@@ -350,10 +328,6 @@ Once health is confirmed and initial indexing has started:
 1. Query `$.['description','search']` for the deployment's organizational strategy and score thresholds.
 2. Query `$.inferenceRules[*].['name','description']` for available record types.
 3. Report to the user: how many points indexed so far, which domains are available, estimated time to complete initial indexing (based on file count and embedding rate).
-
-### Step 9: Align Memory-Core Embeddings
-
-After the watcher is healthy, offer to align OpenClaw's memory-core with the same embedding model for consistent vector quality across both systems. See the **Embedding Alignment** section above for the procedure.
 
 ### On Subsequent Sessions
 
