@@ -56,6 +56,8 @@ curl -X POST http://127.0.0.1:<PORT>/config/query \
 
 You have access to a **semantic archive** of your human's working world. Documents, messages, tickets, notes, code, and other artifacts are indexed, chunked, embedded, and searchable. This is your long-term recall for anything beyond the current conversation.
 
+**Every deployment is different.** The archive's structure, domains, metadata fields, and record types are all defined by the deployment's configuration. Do not assume any particular domains exist (e.g., "email", "slack", "jira"). Always discover what's available using the Orientation Pattern below. Examples in this skill use common domain names for illustration only.
+
 **When to reach for the watcher:**
 
 - **Someone asks about something that happened.** A meeting, a decision, a conversation, a ticket, a message. You weren't there, but the archive was. Search it.
@@ -197,6 +199,8 @@ Get runtime embedding failures. Returns `{ filePath: IssueRecord }` showing file
 ## Qdrant Filter Syntax
 
 Filters use Qdrant's native JSON filter format, passed as the `filter` parameter to `watcher_search`.
+
+> **Note:** The field names and values used in these examples (e.g., `domain`, `status`, `assignee`) are illustrative. Actual fields depend on the deployment's inference rules. Use the Orientation Pattern and Query Planning sections to discover what's available before constructing filters.
 
 ### Basic Patterns
 
