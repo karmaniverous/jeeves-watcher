@@ -24,13 +24,21 @@ export function wrapHandler<T extends RouteGenericInterface>(
   fn: (request: FastifyRequest<T>, reply: FastifyReply) => Promise<unknown>,
   logger: pino.Logger,
   label: string,
-) {
-  return async (request: FastifyRequest<T>, reply: FastifyReply) => {
+): (request: FastifyRequest<T>, reply: FastifyReply) => Promise<void> {
+  return async (
+    request: FastifyRequest<T>,
+    reply: FastifyReply,
+  ): Promise<void> => {
     try {
-      return await fn(request, reply);
+      const result = await fn(request, reply);
+      if (!reply.sent) {
+        void reply.send(result);
+      }
     } catch (error) {
       logger.error({ err: normalizeError(error) }, `${label} failed`);
-      return reply.status(500).send({ error: 'Internal server error' });
+      if (!reply.sent) {
+        void reply.status(500).send({ error: 'Internal server error' });
+      }
     }
   };
 }

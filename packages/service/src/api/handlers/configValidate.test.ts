@@ -89,23 +89,27 @@ describe('createConfigValidateHandler', () => {
   it('returns valid: true for valid config', async () => {
     const deps = createDeps();
     const handler = createConfigValidateHandler(deps);
+    const reply = mockReply();
 
-    const result = (await handler(mockRequest({}), mockReply())) as {
-      valid: boolean;
-    };
+    await handler(mockRequest({}), reply);
 
-    expect(result).toEqual({ valid: true });
+    expect((reply.send as ReturnType<typeof vi.fn>).mock.calls[0][0]).toEqual({
+      valid: true,
+    });
   });
 
   it('returns valid: false with errors for invalid config', async () => {
     const deps = createDeps();
     const handler = createConfigValidateHandler(deps);
+    const reply = mockReply();
 
-    const result = (await handler(
-      mockRequest({ config: { watch: { paths: [] } } }),
-      mockReply(),
-    )) as { valid: boolean; errors: unknown[] };
+    await handler(mockRequest({ config: { watch: { paths: [] } } }), reply);
 
+    const result = (reply.send as ReturnType<typeof vi.fn>).mock
+      .calls[0][0] as {
+      valid: boolean;
+      errors: unknown[];
+    };
     expect(result.valid).toBe(false);
     expect(result.errors).toBeDefined();
     expect(result.errors.length).toBeGreaterThan(0);
@@ -114,8 +118,9 @@ describe('createConfigValidateHandler', () => {
   it('validates helper files: missing file returns error', async () => {
     const deps = createDeps();
     const handler = createConfigValidateHandler(deps);
+    const reply = mockReply();
 
-    const result = (await handler(
+    await handler(
       mockRequest({
         config: {
           mapHelpers: {
@@ -123,8 +128,11 @@ describe('createConfigValidateHandler', () => {
           },
         },
       }),
-      mockReply(),
-    )) as {
+      reply,
+    );
+
+    const result = (reply.send as ReturnType<typeof vi.fn>).mock
+      .calls[0][0] as {
       valid: boolean;
       errors: Array<{ path: string; message: string }>;
     };
