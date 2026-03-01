@@ -13,14 +13,14 @@
       "apiUrl": {
         "type": "string",
         "description": "jeeves-watcher API base URL",
-        "default": "http://127.0.0.1:3458"
+        "default": "http://127.0.0.1:1936"
       }
     }
   },
   "uiHints": {
     "apiUrl": {
       "label": "Watcher API URL",
-      "placeholder": "http://127.0.0.1:3458"
+      "placeholder": "http://127.0.0.1:1936"
     }
   }
 }

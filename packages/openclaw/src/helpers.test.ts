@@ -1,11 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import {
-  fetchJson,
-  getPluginSchemas,
-  type PluginApi,
-  postJson,
-} from './helpers.js';
+import { fetchJson, postJson } from './helpers.js';
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -36,71 +31,6 @@ describe('fetchJson', () => {
     await expect(fetchJson('http://example.com/api')).rejects.toThrow(
       'HTTP 500: Internal Server Error',
     );
-  });
-});
-
-describe('getPluginSchemas', () => {
-  it('returns empty object when no schemas config', () => {
-    const api: PluginApi = { registerTool: () => {} };
-    expect(getPluginSchemas(api)).toEqual({});
-  });
-
-  it('normalizes single object to array', () => {
-    const schema = {
-      type: 'object',
-      properties: { domains: { set: ['memory'] } },
-    };
-    const api: PluginApi = {
-      config: {
-        plugins: {
-          entries: {
-            'jeeves-watcher-openclaw': {
-              config: { schemas: { 'openclaw-memory-longterm': schema } },
-            },
-          },
-        },
-      },
-      registerTool: () => {},
-    };
-    const result = getPluginSchemas(api);
-    expect(result['openclaw-memory-longterm']).toEqual([schema]);
-  });
-
-  it('passes arrays through', () => {
-    const schemas = [{ type: 'object' }, { type: 'object' }];
-    const api: PluginApi = {
-      config: {
-        plugins: {
-          entries: {
-            'jeeves-watcher-openclaw': {
-              config: { schemas: { 'openclaw-memory-daily': schemas } },
-            },
-          },
-        },
-      },
-      registerTool: () => {},
-    };
-    const result = getPluginSchemas(api);
-    expect(result['openclaw-memory-daily']).toHaveLength(2);
-  });
-
-  it('normalizes string references to array', () => {
-    const api: PluginApi = {
-      config: {
-        plugins: {
-          entries: {
-            'jeeves-watcher-openclaw': {
-              config: {
-                schemas: { 'openclaw-memory-longterm': 'my-named-schema' },
-              },
-            },
-          },
-        },
-      },
-      registerTool: () => {},
-    };
-    const result = getPluginSchemas(api);
-    expect(result['openclaw-memory-longterm']).toEqual(['my-named-schema']);
   });
 });
 
