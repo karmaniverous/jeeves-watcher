@@ -1,6 +1,6 @@
 {
   "name": "@karmaniverous/jeeves-watcher-openclaw",
-  "version": "0.4.1",
+  "version": "0.4.2",
   "author": "Jason Williscroft",
   "description": "OpenClaw plugin for jeeves-watcher — semantic search and metadata enrichment tools",
   "license": "BSD-3-Clause",

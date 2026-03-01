@@ -2,8 +2,9 @@
 
 All notable changes to this project will be documented in this file. Dates are displayed in UTC.
 
-#### [0.4.1](https://github.com/karmaniverous/jeeves-watcher/compare/0.5.1...0.4.1)
+#### [0.4.2](https://github.com/karmaniverous/jeeves-watcher/compare/0.5.1...0.4.2)
 
+- chore: remove memory-core Gemini migration from bootstrap [`#79`](https://github.com/karmaniverous/jeeves-watcher/pull/79)
 - feat(openclaw): add complete bootstrap sequence to skill [`#78`](https://github.com/karmaniverous/jeeves-watcher/pull/78)
 - feat(openclaw)!: remove memory slot takeover [`#77`](https://github.com/karmaniverous/jeeves-watcher/pull/77)
 - chore: change default port from 3456 to 1936 [`#75`](https://github.com/karmaniverous/jeeves-watcher/pull/75)
@@ -55,6 +56,7 @@ All notable changes to this project will be documented in this file. Dates are d
 - chore: release @karmaniverous/jeeves-watcher v0.6.0 [`b7b207e`](https://github.com/karmaniverous/jeeves-watcher/commit/b7b207e96b1750bcacc4f5dd67ecf9c369415e25)
 - lintfix [`cd4c841`](https://github.com/karmaniverous/jeeves-watcher/commit/cd4c84150cfce2b541a9215966139f61e0ce6fcd)
 - fix: use fresh QdrantClient for write ops to avoid stale keep-alive connections [`e8215d5`](https://github.com/karmaniverous/jeeves-watcher/commit/e8215d5dc9f82deea59e8259f28be4b2e074f0fb)
+- fix: complete Qdrant systemd setup and add WorkingDirectory to watcher service [`88bba3e`](https://github.com/karmaniverous/jeeves-watcher/commit/88bba3ebe1fd46922847a1d39a13182b4fb558a3)
 - fix: apply same conditional logic to tools.allow as plugins.allow [`4549569`](https://github.com/karmaniverous/jeeves-watcher/commit/4549569ea72e1bbe385fd7592497982bbc34ec39)
 - chore: release @karmaniverous/jeeves-watcher-openclaw v0.3.0 [`3ce4950`](https://github.com/karmaniverous/jeeves-watcher/commit/3ce4950d10de13300db94e90247739a3f4a6514a)
 - fix(openclaw): remove deployment-specific content from skill [`1df6a25`](https://github.com/karmaniverous/jeeves-watcher/commit/1df6a25ea2a57ca7f1e6d781ed2c1e4a7de41927)
@@ -82,6 +84,7 @@ All notable changes to this project will be documented in this file. Dates are d
 - chore: release @karmaniverous/jeeves-watcher-openclaw v0.3.9 [`97c635e`](https://github.com/karmaniverous/jeeves-watcher/commit/97c635e25b7c7ac4a5e6315ac2c26af7d1e89a74)
 - chore: release @karmaniverous/jeeves-watcher-openclaw v0.3.5 [`837a941`](https://github.com/karmaniverous/jeeves-watcher/commit/837a94145b086245df101f7dcf2fd7a0c5ebfbca)
 - chore: release @karmaniverous/jeeves-watcher v0.6.1 [`037d9c9`](https://github.com/karmaniverous/jeeves-watcher/commit/037d9c924e1bc3020fb6b497f59261dd027718bd)
+- chore: release @karmaniverous/jeeves-watcher-openclaw v0.4.1 [`7863ad4`](https://github.com/karmaniverous/jeeves-watcher/commit/7863ad4edaa04cdc665cba608f6b84ccdbd2b841)
 - chore: release @karmaniverous/jeeves-watcher-openclaw v0.3.7 [`4c12277`](https://github.com/karmaniverous/jeeves-watcher/commit/4c12277cddbfd048f2312f94a907f11ea748407a)
 - fix: use glob instead of pattern for virtual rule matching (case-insensitive on Windows) [`0526d5a`](https://github.com/karmaniverous/jeeves-watcher/commit/0526d5a811e243de11e196f6b27b0be3578e2db3)
 - chore: release @karmaniverous/jeeves-watcher v0.6.3 [`da7414c`](https://github.com/karmaniverous/jeeves-watcher/commit/da7414c19894031d02da4713e3d57957a9f96449)
