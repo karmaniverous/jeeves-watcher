@@ -2,8 +2,11 @@
 
 All notable changes to this project will be documented in this file. Dates are displayed in UTC.
 
-#### [0.3.11](https://github.com/karmaniverous/jeeves-watcher/compare/0.5.1...0.3.11)
+#### [0.3.13](https://github.com/karmaniverous/jeeves-watcher/compare/0.5.1...0.3.13)
 
+- chore: change default port from 3456 to 1936 [`#75`](https://github.com/karmaniverous/jeeves-watcher/pull/75)
+- chore: fix all eslint errors (210 → 0) [`#76`](https://github.com/karmaniverous/jeeves-watcher/pull/76)
+- feat(openclaw): add memory → archive escalation pattern to skill [`#74`](https://github.com/karmaniverous/jeeves-watcher/pull/74)
 - feat(openclaw): disable memory-core when installing with --memory [`#73`](https://github.com/karmaniverous/jeeves-watcher/pull/73)
 - feat(openclaw): brand memory tool responses with provider field [`#71`](https://github.com/karmaniverous/jeeves-watcher/pull/71)
 - docs(openclaw): add bootstrap, install modes, and proactive posture to skill [`#70`](https://github.com/karmaniverous/jeeves-watcher/pull/70)
@@ -60,6 +63,7 @@ All notable changes to this project will be documented in this file. Dates are d
 - chore: release @karmaniverous/jeeves-watcher v0.6.6 [`b64faf3`](https://github.com/karmaniverous/jeeves-watcher/commit/b64faf34ae7a5d10ebdd069dc5cfccedbe77d957)
 - chore: release @karmaniverous/jeeves-watcher-openclaw v0.3.6 [`e864fec`](https://github.com/karmaniverous/jeeves-watcher/commit/e864fecd732f8cd4fedd708ff6a95b31311ad854)
 - chore: release @karmaniverous/jeeves-watcher-openclaw v0.1.1 [`008e757`](https://github.com/karmaniverous/jeeves-watcher/commit/008e757704e0cdf5bca7819a9b9eb36b7258a300)
+- chore: release @karmaniverous/jeeves-watcher-openclaw v0.3.11 [`5ff129d`](https://github.com/karmaniverous/jeeves-watcher/commit/5ff129d3df997e9f06b67aeb630058ebb61a96ea)
 - chore: release @karmaniverous/jeeves-watcher-openclaw v0.3.8 [`28a92a1`](https://github.com/karmaniverous/jeeves-watcher/commit/28a92a17b2be9039750b83b20657fd99b10a64eb)
 - chore: release @karmaniverous/jeeves-watcher-openclaw v0.3.4 [`5b11938`](https://github.com/karmaniverous/jeeves-watcher/commit/5b119389b8dac493a4cf164e664338804ccd2dc5)
 - chore: release @karmaniverous/jeeves-watcher-openclaw v0.3.1 [`de3215a`](https://github.com/karmaniverous/jeeves-watcher/commit/de3215ae4503eece2cb3823c26e6fa00fd1008d1)
