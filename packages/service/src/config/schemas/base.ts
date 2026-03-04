@@ -100,7 +100,7 @@ export const apiConfigSchema = z.object({
     .optional()
     .describe('Host address for API server (e.g., "127.0.0.1", "0.0.0.0").'),
   /** Port to listen on. */
-  port: z.number().optional().describe('Port for API server (e.g., 3456).'),
+  port: z.number().optional().describe('Port for API server (e.g., 1936).'),
 });
 
 /** API server configuration: host binding and port. */

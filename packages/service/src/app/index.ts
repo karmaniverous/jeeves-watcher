@@ -205,7 +205,7 @@ export class JeevesWatcher {
 
     await server.listen({
       host: this.config.api?.host ?? '127.0.0.1',
-      port: this.config.api?.port ?? 3456,
+      port: this.config.api?.port ?? 1936,
     });
 
     return server;

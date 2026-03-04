@@ -63,7 +63,7 @@ cli
         `  Vector store: ${config.vectorStore.url} (${config.vectorStore.collectionName})`,
       );
       console.log(
-        `  API: ${config.api?.host ?? '127.0.0.1'}:${String(config.api?.port ?? 3456)}`,
+        `  API: ${config.api?.host ?? '127.0.0.1'}:${String(config.api?.port ?? 1936)}`,
       );
     } catch (error) {
       console.error('Config invalid:', error);
