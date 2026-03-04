@@ -149,7 +149,7 @@
       "description": "Reusable named JsonMap transformations (inline definition or .json file path resolved relative to config directory).",
       "allOf": [
         {
-          "$ref": "#/definitions/__schema57"
+          "$ref": "#/definitions/__schema74"
         }
       ]
     },
@@ -157,7 +157,7 @@
       "description": "Named reusable Handlebars templates (inline strings or .hbs/.handlebars file paths).",
       "allOf": [
         {
-          "$ref": "#/definitions/__schema58"
+          "$ref": "#/definitions/__schema75"
         }
       ]
     },
@@ -165,7 +165,7 @@
       "description": "Custom Handlebars helper registration.",
       "allOf": [
         {
-          "$ref": "#/definitions/__schema59"
+          "$ref": "#/definitions/__schema76"
         }
       ]
     },
@@ -173,7 +173,7 @@
       "description": "Custom JsonMap lib function registration.",
       "allOf": [
         {
-          "$ref": "#/definitions/__schema60"
+          "$ref": "#/definitions/__schema77"
         }
       ]
     },
@@ -181,7 +181,7 @@
       "description": "Reindex configuration.",
       "allOf": [
         {
-          "$ref": "#/definitions/__schema61"
+          "$ref": "#/definitions/__schema78"
         }
       ]
     },
@@ -189,7 +189,7 @@
       "description": "Named Qdrant filter patterns for skill-activated behaviors.",
       "allOf": [
         {
-          "$ref": "#/definitions/__schema62"
+          "$ref": "#/definitions/__schema79"
         }
       ]
     },
@@ -197,7 +197,7 @@
       "description": "Search configuration including score thresholds and hybrid search.",
       "allOf": [
         {
-          "$ref": "#/definitions/__schema63"
+          "$ref": "#/definitions/__schema80"
         }
       ]
     },
@@ -205,7 +205,7 @@
       "description": "Logging configuration.",
       "allOf": [
         {
-          "$ref": "#/definitions/__schema64"
+          "$ref": "#/definitions/__schema81"
         }
       ]
     },
@@ -213,7 +213,7 @@
       "description": "Timeout in milliseconds for graceful shutdown.",
       "allOf": [
         {
-          "$ref": "#/definitions/__schema67"
+          "$ref": "#/definitions/__schema84"
         }
       ]
     },
@@ -221,7 +221,7 @@
       "description": "Maximum consecutive system-level failures before triggering fatal error. Default: Infinity.",
       "allOf": [
         {
-          "$ref": "#/definitions/__schema68"
+          "$ref": "#/definitions/__schema85"
         }
       ]
     },
@@ -229,7 +229,7 @@
       "description": "Maximum backoff delay in milliseconds for system errors. Default: 60000.",
       "allOf": [
         {
-          "$ref": "#/definitions/__schema69"
+          "$ref": "#/definitions/__schema86"
         }
       ]
     }
@@ -551,7 +551,7 @@
           ]
         },
         "port": {
-          "description": "Port for API server (e.g., 3456).",
+          "description": "Port for API server (e.g., 1936).",
           "allOf": [
             {
               "$ref": "#/definitions/__schema46"
@@ -584,48 +584,25 @@
             "type": "object",
             "properties": {
               "name": {
-                "type": "string",
-                "minLength": 1,
-                "description": "Unique name identifying this inference rule."
+                "$ref": "#/definitions/__schema50"
               },
               "description": {
-                "type": "string",
-                "minLength": 1,
-                "description": "Human-readable description of what this rule does."
+                "$ref": "#/definitions/__schema51"
               },
               "match": {
-                "type": "object",
-                "propertyNames": {
-                  "$ref": "#/definitions/__schema50"
-                },
-                "additionalProperties": {
-                  "$ref": "#/definitions/__schema51"
-                },
-                "description": "JSON Schema object to match against file attributes."
+                "$ref": "#/definitions/__schema52"
               },
               "schema": {
-                "description": "Array of schema references (named schema refs or inline objects) merged left-to-right.",
-                "allOf": [
-                  {
-                    "$ref": "#/definitions/__schema52"
-                  }
-                ]
+                "$ref": "#/definitions/__schema55"
               },
               "map": {
-                "description": "JsonMap transformation (inline definition, named map reference, or .json file path).",
-                "allOf": [
-                  {
-                    "$ref": "#/definitions/__schema53"
-                  }
-                ]
+                "$ref": "#/definitions/__schema57"
               },
               "template": {
-                "description": "Handlebars content template (inline string, named ref, or .hbs/.handlebars file path).",
-                "allOf": [
-                  {
-                    "$ref": "#/definitions/__schema56"
-                  }
-                ]
+                "$ref": "#/definitions/__schema61"
+              },
+              "render": {
+                "$ref": "#/definitions/__schema63"
               }
             },
             "required": [
@@ -641,10 +618,38 @@
       }
     },
     "__schema50": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Unique name identifying this inference rule."
+    },
+    "__schema51": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Human-readable description of what this rule does."
+    },
+    "__schema52": {
+      "type": "object",
+      "propertyNames": {
+        "$ref": "#/definitions/__schema53"
+      },
+      "additionalProperties": {
+        "$ref": "#/definitions/__schema54"
+      },
+      "description": "JSON Schema object to match against file attributes."
+    },
+    "__schema53": {
       "type": "string"
     },
-    "__schema51": {},
-    "__schema52": {
+    "__schema54": {},
+    "__schema55": {
+      "description": "Array of schema references (named schema refs or inline objects) merged left-to-right.",
+      "allOf": [
+        {
+          "$ref": "#/definitions/__schema56"
+        }
+      ]
+    },
+    "__schema56": {
       "type": "array",
       "items": {
         "anyOf": [
@@ -658,17 +663,25 @@
         ]
       }
     },
-    "__schema53": {
+    "__schema57": {
+      "description": "JsonMap transformation (inline definition, named map reference, or .json file path).",
+      "allOf": [
+        {
+          "$ref": "#/definitions/__schema58"
+        }
+      ]
+    },
+    "__schema58": {
       "anyOf": [
         {
-          "$ref": "#/definitions/__schema54"
+          "$ref": "#/definitions/__schema59"
         },
         {
           "type": "string"
         }
       ]
     },
-    "__schema54": {
+    "__schema59": {
       "anyOf": [
         {
           "anyOf": [
@@ -694,7 +707,7 @@
           "additionalProperties": {
             "anyOf": [
               {
-                "$ref": "#/definitions/__schema54"
+                "$ref": "#/definitions/__schema59"
               },
               {
                 "type": "object",
@@ -702,12 +715,12 @@
                   "$": {
                     "anyOf": [
                       {
-                        "$ref": "#/definitions/__schema55"
+                        "$ref": "#/definitions/__schema60"
                       },
                       {
                         "type": "array",
                         "items": {
-                          "$ref": "#/definitions/__schema55"
+                          "$ref": "#/definitions/__schema60"
                         }
                       }
                     ]
@@ -723,12 +736,12 @@
         {
           "type": "array",
           "items": {
-            "$ref": "#/definitions/__schema54"
+            "$ref": "#/definitions/__schema59"
           }
         }
       ]
     },
-    "__schema55": {
+    "__schema60": {
       "type": "object",
       "properties": {
         "method": {
@@ -753,10 +766,151 @@
         "params"
       ]
     },
-    "__schema56": {
+    "__schema61": {
+      "description": "Handlebars content template (inline string, named ref, or .hbs/.handlebars file path).",
+      "allOf": [
+        {
+          "$ref": "#/definitions/__schema62"
+        }
+      ]
+    },
+    "__schema62": {
       "type": "string"
     },
-    "__schema57": {
+    "__schema63": {
+      "description": "Declarative render configuration for frontmatter + structured Markdown output (mutually exclusive with template).",
+      "allOf": [
+        {
+          "$ref": "#/definitions/__schema64"
+        }
+      ]
+    },
+    "__schema64": {
+      "type": "object",
+      "properties": {
+        "frontmatter": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/__schema65"
+          },
+          "description": "Keys to extract from context and include as YAML frontmatter."
+        },
+        "body": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/__schema66"
+          },
+          "description": "Ordered markdown body sections."
+        }
+      },
+      "required": [
+        "frontmatter",
+        "body"
+      ]
+    },
+    "__schema65": {
+      "type": "string",
+      "minLength": 1
+    },
+    "__schema66": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Key path in template context to render."
+        },
+        "heading": {
+          "type": "number",
+          "minimum": 1,
+          "maximum": 6,
+          "description": "Markdown heading level (1-6)."
+        },
+        "label": {
+          "description": "Override heading text.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/__schema67"
+            }
+          ]
+        },
+        "format": {
+          "description": "Name of a registered Handlebars helper used as a format handler.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/__schema68"
+            }
+          ]
+        },
+        "formatArgs": {
+          "description": "Additional args passed to the format helper.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/__schema69"
+            }
+          ]
+        },
+        "each": {
+          "description": "If true, the value at path is treated as an array and iterated.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/__schema70"
+            }
+          ]
+        },
+        "headingTemplate": {
+          "description": "Handlebars template string for per-item heading text (used when each=true).",
+          "allOf": [
+            {
+              "$ref": "#/definitions/__schema71"
+            }
+          ]
+        },
+        "contentPath": {
+          "description": "Key path within each item to use as renderable content (used when each=true).",
+          "allOf": [
+            {
+              "$ref": "#/definitions/__schema72"
+            }
+          ]
+        },
+        "sort": {
+          "description": "Key path within each item to sort by (used when each=true).",
+          "allOf": [
+            {
+              "$ref": "#/definitions/__schema73"
+            }
+          ]
+        }
+      },
+      "required": [
+        "path",
+        "heading"
+      ]
+    },
+    "__schema67": {
+      "type": "string"
+    },
+    "__schema68": {
+      "type": "string"
+    },
+    "__schema69": {
+      "type": "array",
+      "items": {}
+    },
+    "__schema70": {
+      "type": "boolean"
+    },
+    "__schema71": {
+      "type": "string"
+    },
+    "__schema72": {
+      "type": "string"
+    },
+    "__schema73": {
+      "type": "string"
+    },
+    "__schema74": {
       "type": "object",
       "propertyNames": {
         "type": "string"
@@ -764,7 +918,7 @@
       "additionalProperties": {
         "anyOf": [
           {
-            "$ref": "#/definitions/__schema54"
+            "$ref": "#/definitions/__schema59"
           },
           {
             "type": "string"
@@ -775,7 +929,7 @@
               "map": {
                 "anyOf": [
                   {
-                    "$ref": "#/definitions/__schema54"
+                    "$ref": "#/definitions/__schema59"
                   },
                   {
                     "type": "string"
@@ -793,7 +947,7 @@
         ]
       }
     },
-    "__schema58": {
+    "__schema75": {
       "type": "object",
       "propertyNames": {
         "type": "string"
@@ -820,7 +974,7 @@
         ]
       }
     },
-    "__schema59": {
+    "__schema76": {
       "type": "object",
       "propertyNames": {
         "type": "string"
@@ -840,7 +994,7 @@
         ]
       }
     },
-    "__schema60": {
+    "__schema77": {
       "type": "object",
       "propertyNames": {
         "type": "string"
@@ -860,7 +1014,7 @@
         ]
       }
     },
-    "__schema61": {
+    "__schema78": {
       "type": "object",
       "properties": {
         "callbackUrl": {
@@ -869,14 +1023,14 @@
         }
       }
     },
-    "__schema62": {
+    "__schema79": {
       "type": "object",
       "propertyNames": {
         "type": "string"
       },
       "additionalProperties": {}
     },
-    "__schema63": {
+    "__schema80": {
       "type": "object",
       "properties": {
         "scoreThresholds": {
@@ -921,14 +1075,14 @@
         }
       }
     },
-    "__schema64": {
+    "__schema81": {
       "type": "object",
       "properties": {
         "level": {
           "description": "Logging level (trace, debug, info, warn, error, fatal).",
           "allOf": [
             {
-              "$ref": "#/definitions/__schema65"
+              "$ref": "#/definitions/__schema82"
             }
           ]
         },
@@ -936,25 +1090,25 @@
           "description": "Path to log file (logs to stdout if omitted).",
           "allOf": [
             {
-              "$ref": "#/definitions/__schema66"
+              "$ref": "#/definitions/__schema83"
             }
           ]
         }
       }
     },
-    "__schema65": {
+    "__schema82": {
       "type": "string"
     },
-    "__schema66": {
+    "__schema83": {
       "type": "string"
     },
-    "__schema67": {
+    "__schema84": {
       "type": "number"
     },
-    "__schema68": {
+    "__schema85": {
       "type": "number"
     },
-    "__schema69": {
+    "__schema86": {
       "type": "number"
     }
   }

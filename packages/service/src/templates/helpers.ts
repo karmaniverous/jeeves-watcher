@@ -13,6 +13,9 @@ import { camel, capitalize, dash, isEqual, snake, title } from 'radash';
 import rehypeParse from 'rehype-parse';
 import { unified } from 'unified';
 
+import { renderConfigSchema } from '../config/schemas/inference';
+import { renderDoc } from './renderDoc';
+
 /** Pre-built rehype parser for HTML → hast conversion. */
 const htmlParser = unified().use(rehypeParse, { fragment: true });
 
@@ -121,5 +124,26 @@ export function registerBuiltinHelpers(hbs: typeof Handlebars): void {
     const d = dayjs(value as string | number | Date);
     if (!d.isValid()) return '';
     return d.valueOf().toString();
+  });
+
+  // Structured: renderDoc (declarative frontmatter + markdown renderer)
+  hbs.registerHelper('renderDoc', function (context: unknown, config: unknown) {
+    if (!context || typeof context !== 'object') return '';
+    if (!config || typeof config !== 'object') return '';
+    try {
+      return new hbs.SafeString(
+        (() => {
+          const parsed = renderConfigSchema.safeParse(config);
+          if (!parsed.success) return '';
+          return renderDoc(
+            context as Record<string, unknown>,
+            parsed.data,
+            hbs,
+          ).trim();
+        })(),
+      );
+    } catch {
+      return '<!-- renderDoc failed -->';
+    }
   });
 }

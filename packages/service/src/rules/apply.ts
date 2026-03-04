@@ -16,6 +16,7 @@ import {
 import type { SchemaEntry } from '../config/schemas';
 import { loadNamespacedExports } from '../helpers/loadModule';
 import { createHandlebarsInstance, type TemplateEngine } from '../templates';
+import { renderDoc } from '../templates/renderDoc';
 import { normalizeError } from '../util/normalizeError';
 import type { FileAttributes } from './attributes';
 import type { CompiledRule } from './compile';
@@ -210,6 +211,29 @@ export async function applyRules(
         } catch (error) {
           log.warn(
             `JsonMap transformation failed: ${normalizeError(error).message}`,
+          );
+        }
+      }
+      // Render via renderDoc if present
+      if (rule.render) {
+        const context: Record<string, unknown> = {
+          ...(attributes.json ?? {}),
+          ...attributes,
+          ...merged,
+        };
+
+        try {
+          const result = renderDoc(context, rule.render, hbs);
+          if (result && result.trim()) {
+            renderedContent = result;
+          } else {
+            log.warn(
+              `renderDoc for rule "${rule.name}" rendered empty output. Falling back to raw content.`,
+            );
+          }
+        } catch (error) {
+          log.warn(
+            `renderDoc failed for rule "${rule.name}": ${normalizeError(error).message}. Falling back to raw content.`,
           );
         }
       }
