@@ -44,7 +44,11 @@ function indentLines(text: string, spaces: number): string {
  * - array: rendered as flow sequence
  * - object: rendered as nested block mapping
  */
-export function yamlValue(value: unknown, indent = 0): string {
+export function yamlValue(value: unknown): string {
+  return yamlValueInternal(value, 0);
+}
+
+function yamlValueInternal(value: unknown, indent: number): string {
   if (value === null || value === undefined) return '';
 
   if (typeof value === 'string') {
@@ -57,7 +61,7 @@ export function yamlValue(value: unknown, indent = 0): string {
 
   if (Array.isArray(value)) {
     const items = value
-      .map((v) => yamlValue(v, indent))
+      .map((v) => yamlValueInternal(v, indent))
       .filter((v) => v !== '');
     return `[${items.join(', ')}]`;
   }
@@ -69,7 +73,7 @@ export function yamlValue(value: unknown, indent = 0): string {
     const lines: string[] = [];
     for (const [k, v] of entries) {
       const key = needsQuoting(k) ? quoteString(k) : k;
-      const rendered = yamlValue(v, indent + 2);
+      const rendered = yamlValueInternal(v, indent + 2);
       if (rendered === '') continue;
 
       if (isPlainObject(v)) {

@@ -4,6 +4,7 @@
  */
 
 import type Handlebars from 'handlebars';
+import { title } from 'radash';
 
 import type {
   RenderBodySection,
@@ -11,15 +12,6 @@ import type {
 } from '../config/schemas/inference';
 import { rebaseHeadings } from './rebaseHeadings';
 import { yamlValue } from './yamlEscape';
-
-function titleCase(s: string): string {
-  return s
-    .replace(/([a-z])([A-Z])/g, '$1 $2')
-    .replace(/[-_]+/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim()
-    .replace(/^\w/, (c) => c.toUpperCase());
-}
 
 function getPath(obj: unknown, path: string): unknown {
   const parts = path.split('.').filter(Boolean);
@@ -37,11 +29,12 @@ function getPath(obj: unknown, path: string): unknown {
 function renderSectionHeading(
   section: RenderBodySection,
   hbs: typeof Handlebars,
+  context: Record<string, unknown> = {},
 ): string {
   const level = Math.min(6, Math.max(1, section.heading));
   const label = section.label
-    ? hbs.compile(section.label, { noEscape: true })({})
-    : titleCase(section.path);
+    ? hbs.compile(section.label, { noEscape: true })(context)
+    : title(section.path);
   return `${'#'.repeat(level)} ${label}`;
 }
 
@@ -150,7 +143,7 @@ export function renderDoc(
 
   // Body
   for (const section of config.body) {
-    const heading = renderSectionHeading(section, hbs);
+    const heading = renderSectionHeading(section, hbs, context);
     parts.push(heading);
     parts.push('');
 

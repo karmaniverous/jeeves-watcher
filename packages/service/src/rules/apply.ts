@@ -214,14 +214,15 @@ export async function applyRules(
           );
         }
       }
+      // Build template context: attributes (with json spread at top) + map output
+      const context: Record<string, unknown> = {
+        ...(attributes.json ?? {}),
+        ...attributes,
+        ...merged,
+      };
+
       // Render via renderDoc if present
       if (rule.render) {
-        const context: Record<string, unknown> = {
-          ...(attributes.json ?? {}),
-          ...attributes,
-          ...merged,
-        };
-
         try {
           const result = renderDoc(context, rule.render, hbs);
           if (result && result.trim()) {
@@ -241,12 +242,6 @@ export async function applyRules(
       // Render template if present
       if (rule.template && templateEngine) {
         const templateKey = rule.name;
-        // Build template context: attributes (with json spread at top) + map output
-        const context: Record<string, unknown> = {
-          ...(attributes.json ?? {}),
-          ...attributes,
-          ...merged,
-        };
 
         try {
           const result = templateEngine.render(templateKey, context);

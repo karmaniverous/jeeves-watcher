@@ -81,4 +81,71 @@ describe('renderDoc', () => {
     expect(out).toContain('### Alice (2024-01-01)');
     expect(out).toContain('### Bob (2024-01-02)');
   });
+
+  it('handles missing/null values gracefully', () => {
+    const out = renderDoc(
+      { present: 'yes' },
+      {
+        frontmatter: ['missing_key'],
+        body: [
+          { path: 'present', heading: 1 },
+          { path: 'also_missing', heading: 2 },
+        ],
+      },
+      hbs,
+    );
+
+    // Should not contain frontmatter block (no valid keys)
+    expect(out).not.toContain('---');
+    expect(out).toContain('# Present');
+    expect(out).toContain('yes');
+    expect(out).toContain('## Also Missing');
+  });
+
+  it('sorts items by sort key in each mode', () => {
+    const out = renderDoc(
+      {
+        items: [
+          { name: 'Charlie', body: 'c' },
+          { name: 'Alice', body: 'a' },
+          { name: 'Bob', body: 'b' },
+        ],
+      },
+      {
+        frontmatter: [],
+        body: [
+          {
+            path: 'items',
+            heading: 2,
+            label: 'Items',
+            each: true,
+            headingTemplate: '{{name}}',
+            contentPath: 'body',
+            sort: 'name',
+          },
+        ],
+      },
+      hbs,
+    );
+
+    const aliceIdx = out.indexOf('Alice');
+    const bobIdx = out.indexOf('Bob');
+    const charlieIdx = out.indexOf('Charlie');
+    expect(aliceIdx).toBeLessThan(bobIdx);
+    expect(bobIdx).toBeLessThan(charlieIdx);
+  });
+
+  it('escapes frontmatter values that need quoting', () => {
+    const out = renderDoc(
+      { title: 'A: Dangerous Value' },
+      {
+        frontmatter: ['title'],
+        body: [],
+      },
+      hbs,
+    );
+
+    expect(out).toContain('---');
+    expect(out).toContain('title: "A: Dangerous Value"');
+  });
 });
