@@ -31,6 +31,9 @@ type ConfigQueryRequest = FastifyRequest<{
 /**
  * Create handler for POST /config/query.
  *
+ * Uses direct error handling (returns 400) rather than wrapHandler (which returns 500),
+ * because invalid JSONPath expressions are client errors, not server errors.
+ *
  * @param deps - Route dependencies.
  */
 export function createConfigQueryHandler(deps: ConfigQueryRouteDeps) {

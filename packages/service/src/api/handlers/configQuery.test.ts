@@ -54,10 +54,10 @@ function mockRequest(body: Record<string, unknown>): ConfigQueryRequest {
 }
 
 function mockReply(): MockReply {
-  return {
-    status: vi.fn().mockReturnThis(),
-    send: vi.fn().mockImplementation((data: unknown) => data),
-  };
+  const reply: Partial<MockReply> = {};
+  reply.status = vi.fn().mockReturnValue(reply);
+  reply.send = vi.fn().mockImplementation((data: unknown) => data);
+  return reply as MockReply;
 }
 
 describe('createConfigQueryHandler', () => {
