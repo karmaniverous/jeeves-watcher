@@ -38,11 +38,11 @@ function indentLines(text: string, spaces: number): string {
 /**
  * Convert a value into a YAML-friendly representation.
  *
- * - null/undefined => '' (caller should omit field)
- * - string => quoted if needed
- * - number/boolean => string
- * - array => flow sequence
- * - object => nested block mapping
+ * - null/undefined: returns '' (caller should omit field)
+ * - string: quoted if needed
+ * - number/boolean: coerced to string
+ * - array: rendered as flow sequence
+ * - object: rendered as nested block mapping
  */
 export function yamlValue(value: unknown, indent = 0): string {
   if (value === null || value === undefined) return '';
