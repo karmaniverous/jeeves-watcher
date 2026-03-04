@@ -2,6 +2,10 @@
  * @module api/handlers/configValidate.test
  */
 
+import { mkdtempSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+
 import pino from 'pino';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -28,6 +32,7 @@ function createDeps(
       ...configOverrides,
     } as unknown as JeevesWatcherConfig,
     logger: pino({ level: 'silent' }),
+    configDir: process.cwd(),
   };
 }
 
@@ -140,5 +145,33 @@ describe('createConfigValidateHandler', () => {
     expect(result.valid).toBe(false);
     expect(result.errors[0].path).toBe('mapHelpers.myHelper.path');
     expect(result.errors[0].message).toContain('File not found');
+  });
+
+  it('validates helper files: relative path is resolved against configDir', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'jw-cv-'));
+    const helperPath = join(dir, 'helper.js');
+    writeFileSync(helperPath, 'export default () => {}', 'utf8');
+
+    const deps = { ...createDeps(), configDir: dir };
+    const handler = createConfigValidateHandler(deps);
+    const reply = mockReply();
+
+    await handler(
+      mockRequest({
+        config: {
+          mapHelpers: {
+            myHelper: { path: './helper.js' },
+          },
+        },
+      }),
+      reply,
+    );
+
+    const result = (reply.send as ReturnType<typeof vi.fn>).mock
+      .calls[0][0] as {
+      valid: boolean;
+    };
+
+    expect(result.valid).toBe(true);
   });
 });

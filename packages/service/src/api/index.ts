@@ -3,6 +3,8 @@
  * Fastify API server factory. Registers all route handlers and returns an unstarted server instance.
  */
 
+import { dirname } from 'node:path';
+
 import Fastify, { type FastifyInstance } from 'fastify';
 import type pino from 'pino';
 
@@ -177,7 +179,14 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
     }),
   );
 
-  app.post('/config/validate', createConfigValidateHandler({ config, logger }));
+  app.post(
+    '/config/validate',
+    createConfigValidateHandler({
+      config,
+      logger,
+      configDir: dirname(configPath),
+    }),
+  );
 
   app.post(
     '/config/apply',
