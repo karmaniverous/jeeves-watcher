@@ -25,24 +25,28 @@ type UnregisterParamRequest = FastifyRequest<{
 }>;
 
 /**
+ * Core unregister logic shared by body and param handlers.
+ */
+function unregisterSource(deps: RulesUnregisterDeps, source: string) {
+  if (!source || typeof source !== 'string') {
+    throw new Error('Missing required field: source');
+  }
+
+  const removed = deps.virtualRuleStore.unregister(source);
+  if (removed) deps.onRulesChanged();
+
+  deps.logger.info({ source, removed }, 'Virtual rules unregister');
+
+  return { source, removed };
+}
+
+/**
  * Create handler for DELETE /rules/unregister (body-based).
  */
 export function createRulesUnregisterHandler(deps: RulesUnregisterDeps) {
   return wrapHandler(
     async (request: UnregisterBodyRequest) => {
-      await Promise.resolve();
-      const { source } = request.body;
-
-      if (!source || typeof source !== 'string') {
-        throw new Error('Missing required field: source');
-      }
-
-      const removed = deps.virtualRuleStore.unregister(source);
-      if (removed) deps.onRulesChanged();
-
-      deps.logger.info({ source, removed }, 'Virtual rules unregister');
-
-      return { source, removed };
+      return Promise.resolve(unregisterSource(deps, request.body.source));
     },
     deps.logger,
     'RulesUnregister',
@@ -55,19 +59,7 @@ export function createRulesUnregisterHandler(deps: RulesUnregisterDeps) {
 export function createRulesUnregisterParamHandler(deps: RulesUnregisterDeps) {
   return wrapHandler(
     async (request: UnregisterParamRequest) => {
-      await Promise.resolve();
-      const { source } = request.params;
-
-      if (!source || typeof source !== 'string') {
-        throw new Error('Missing required param: source');
-      }
-
-      const removed = deps.virtualRuleStore.unregister(source);
-      if (removed) deps.onRulesChanged();
-
-      deps.logger.info({ source, removed }, 'Virtual rules unregister');
-
-      return { source, removed };
+      return Promise.resolve(unregisterSource(deps, request.params.source));
     },
     deps.logger,
     'RulesUnregister',

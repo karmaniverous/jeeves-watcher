@@ -3,13 +3,10 @@
  * Validates metadata enrichment payload against resolved schemas for matched inference rules.
  */
 
-import { basename, dirname, extname } from 'node:path';
-
 import type { JeevesWatcherConfig } from '../../config/types';
-import type { FileAttributes } from '../../rules/attributes';
+import { buildSyntheticAttributes } from '../../rules/attributes';
 import { compileRules } from '../../rules/compile';
 import { mergeSchemas } from '../../rules/schemaMerge';
-import { normalizeSlashes } from '../../util/normalizeSlashes';
 
 export interface ValidationDetail {
   property: string;
@@ -83,17 +80,7 @@ export function validateMetadataPayload(
 ): MetadataValidationOutcome {
   const compiled = compileRules(config.inferenceRules ?? []);
 
-  const normalised = normalizeSlashes(path);
-  const attrs: FileAttributes = {
-    file: {
-      path: normalised,
-      directory: normalizeSlashes(dirname(normalised)),
-      filename: basename(normalised),
-      extension: extname(normalised),
-      sizeBytes: 0,
-      modified: new Date(0).toISOString(),
-    },
-  };
+  const attrs = buildSyntheticAttributes(path);
 
   const matched = compiled.filter((r) => r.validate(attrs));
   const matchedNames = matched.map((m) => m.rule.name);

@@ -119,7 +119,7 @@ describe('SystemHealth', () => {
     }, 10);
 
     await expect(health.backoff(controller.signal)).rejects.toThrow(
-      'Backoff aborted',
+      'Sleep aborted',
     );
   });
 });

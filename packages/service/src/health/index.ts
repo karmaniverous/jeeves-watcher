@@ -7,6 +7,7 @@
 import type pino from 'pino';
 
 import { normalizeError } from '../util/normalizeError';
+import { sleep } from '../util/sleep';
 
 /**
  * Options for {@link SystemHealth}.
@@ -118,30 +119,7 @@ export class SystemHealth {
       'Backing off before next attempt',
     );
 
-    await new Promise<void>((resolve, reject) => {
-      const timer = setTimeout(() => {
-        cleanup();
-        resolve();
-      }, delay);
-
-      const onAbort = () => {
-        cleanup();
-        reject(new Error('Backoff aborted'));
-      };
-
-      const cleanup = () => {
-        clearTimeout(timer);
-        if (signal) signal.removeEventListener('abort', onAbort);
-      };
-
-      if (signal) {
-        if (signal.aborted) {
-          onAbort();
-          return;
-        }
-        signal.addEventListener('abort', onAbort, { once: true });
-      }
-    });
+    await sleep(delay, signal);
   }
 
   /** Current consecutive failure count. */
