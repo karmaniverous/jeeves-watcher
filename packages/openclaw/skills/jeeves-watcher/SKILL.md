@@ -781,3 +781,4 @@ If tools are unavailable (plugin not loaded in this session):
 - [JSONPath Plus documentation](https://www.npmjs.com/package/jsonpath-plus) for JSONPath syntax
 - [Qdrant filtering documentation](https://qdrant.tech/documentation/concepts/filtering/) for advanced query patterns and search response format
 
+
