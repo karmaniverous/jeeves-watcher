@@ -2,8 +2,9 @@
 
 All notable changes to this project will be documented in this file. Dates are displayed in UTC.
 
-#### [0.5.3](https://github.com/karmaniverous/jeeves-watcher/compare/0.5.1...0.5.3)
+#### [0.5.4](https://github.com/karmaniverous/jeeves-watcher/compare/0.5.1...0.5.4)
 
+- fix: prevent watcher menu duplication in TOOLS.md injection [`#85`](https://github.com/karmaniverous/jeeves-watcher/pull/85)
 - fix(openclaw): align registerHook opts type with OpenClawPluginHookOptions [`#84`](https://github.com/karmaniverous/jeeves-watcher/pull/84)
 - fix(openclaw): provide name option to registerHook [`#83`](https://github.com/karmaniverous/jeeves-watcher/pull/83)
 - fix(openclaw): use correct registerHook name for prompt injection [`#82`](https://github.com/karmaniverous/jeeves-watcher/pull/82)
@@ -88,6 +89,7 @@ All notable changes to this project will be documented in this file. Dates are d
 - chore: release @karmaniverous/jeeves-watcher-openclaw v0.2.0 [`a6d4d7e`](https://github.com/karmaniverous/jeeves-watcher/commit/a6d4d7e57424b482b737cb6983dc5c9a86b96160)
 - fix(openclaw): use error.cause for precise connection error detection [`3bdd267`](https://github.com/karmaniverous/jeeves-watcher/commit/3bdd267225d129186ee6d9263379ddcd6808d7df)
 - chore: release @karmaniverous/jeeves-watcher-openclaw v0.1.2 [`c019f41`](https://github.com/karmaniverous/jeeves-watcher/commit/c019f410d5cef94e653450b82966d64e1a70f900)
+- chore: release @karmaniverous/jeeves-watcher-openclaw v0.5.3 [`9eb67ce`](https://github.com/karmaniverous/jeeves-watcher/commit/9eb67ce2f1f887753f058cb41450f3b1aadbc7aa)
 - chore: release @karmaniverous/jeeves-watcher v0.6.6 [`b64faf3`](https://github.com/karmaniverous/jeeves-watcher/commit/b64faf34ae7a5d10ebdd069dc5cfccedbe77d957)
 - chore: release @karmaniverous/jeeves-watcher-openclaw v0.4.0 [`db0673c`](https://github.com/karmaniverous/jeeves-watcher/commit/db0673ce79a4525b4d7294f64f8365f8831b128a)
 - chore: release @karmaniverous/jeeves-watcher-openclaw v0.3.6 [`e864fec`](https://github.com/karmaniverous/jeeves-watcher/commit/e864fecd732f8cd4fedd708ff6a95b31311ad854)
