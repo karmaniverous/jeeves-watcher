@@ -22,6 +22,15 @@ export interface PluginApi {
     },
     options?: { optional?: boolean },
   ): void;
+
+  /**
+   * Optional internal hook registration (available on newer OpenClaw builds).
+   * We keep this optional to preserve compatibility.
+   */
+  registerInternalHook?: (
+    event: string,
+    handler: (event: unknown) => Promise<void> | void,
+  ) => void;
 }
 
 /** Result shape returned by each tool execution. */
@@ -60,7 +69,7 @@ export function connectionFail(error: unknown, baseUrl: string): ToolResult {
   const cause = error instanceof Error ? error.cause : undefined;
   const code =
     cause && typeof cause === 'object' && 'code' in cause
-      ? String(cause.code)
+      ? String((cause as { code?: unknown }).code)
       : '';
   const isConnectionError =
     code === 'ECONNREFUSED' || code === 'ENOTFOUND' || code === 'ETIMEDOUT';
