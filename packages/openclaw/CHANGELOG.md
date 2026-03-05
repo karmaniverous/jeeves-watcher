@@ -2,8 +2,10 @@
 
 All notable changes to this project will be documented in this file. Dates are displayed in UTC.
 
-#### [0.5.6](https://github.com/karmaniverous/jeeves-watcher/compare/0.5.1...0.5.6)
+#### [0.5.7](https://github.com/karmaniverous/jeeves-watcher/compare/0.5.1...0.5.7)
 
+- docs: comprehensive documentation audit fixes [`#90`](https://github.com/karmaniverous/jeeves-watcher/pull/90)
+- feat(openclaw): strengthen escalation rule with search-first guidance [`#89`](https://github.com/karmaniverous/jeeves-watcher/pull/89)
 - feat(openclaw): clean up TOOLS.md watcher section on uninstall [`#88`](https://github.com/karmaniverous/jeeves-watcher/pull/88)
 - fix(openclaw): resolve lint and type errors in toolsWriter [`#87`](https://github.com/karmaniverous/jeeves-watcher/pull/87)
 - feat(openclaw): replace agent:bootstrap hook with disk-based TOOLS.md writer [`#86`](https://github.com/karmaniverous/jeeves-watcher/pull/86)
@@ -109,6 +111,7 @@ All notable changes to this project will be documented in this file. Dates are d
 - chore: release @karmaniverous/jeeves-watcher v0.6.9 [`e22e72e`](https://github.com/karmaniverous/jeeves-watcher/commit/e22e72ecf713c8e81e714a20748d5fa3387fa8cb)
 - chore: release @karmaniverous/jeeves-watcher v0.6.4 [`b41bfc3`](https://github.com/karmaniverous/jeeves-watcher/commit/b41bfc3905995768f9c881f74518f7a943dcea7e)
 - chore: release @karmaniverous/jeeves-watcher v0.6.2 [`fa2304d`](https://github.com/karmaniverous/jeeves-watcher/commit/fa2304db79539f712770f7a958fc30e3b4d46ded)
+- chore: release @karmaniverous/jeeves-watcher-openclaw v0.5.6 [`d982052`](https://github.com/karmaniverous/jeeves-watcher/commit/d98205251d99968663a5887c90ca9135e15ed78c)
 - lint:fix [`4f13fb2`](https://github.com/karmaniverous/jeeves-watcher/commit/4f13fb2ffc6bdb72ae28642c01ca03c44748cebb)
 - chore: release @karmaniverous/jeeves-watcher-openclaw v0.3.13 [`43d8d07`](https://github.com/karmaniverous/jeeves-watcher/commit/43d8d075019fc8ac53b7747f46a3725ee047b553)
 - chore: release @karmaniverous/jeeves-watcher v0.6.7 [`a692378`](https://github.com/karmaniverous/jeeves-watcher/commit/a6923786158eac99ad6fd8fd035d8cd706a55778)
