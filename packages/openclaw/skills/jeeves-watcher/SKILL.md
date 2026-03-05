@@ -56,8 +56,6 @@ curl -X POST http://127.0.0.1:<PORT>/config/query \
 
 You have access to a **semantic archive** of your human's working world. Documents, messages, tickets, notes, code, and other artifacts are indexed, chunked, embedded, and searchable. This is your long-term recall for anything beyond the current conversation.
 
-**Every deployment is different.** The archive's structure, domains, metadata fields, and record types are all defined by the deployment's configuration. Do not assume any particular domains exist (e.g., "email", "slack", "jira"). Always discover what's available using the Orientation Pattern below. Examples in this skill use common domain names for illustration only.
-
 **When to reach for the watcher:**
 
 - **Someone asks about something that happened.** A meeting, a decision, a conversation, a ticket, a message. You weren't there, but the archive was. Search it.
@@ -71,28 +69,6 @@ You have access to a **semantic archive** of your human's working world. Documen
 - You already have the information in the current conversation
 - The question is about general knowledge, not the human's specific context
 - The watcher is unreachable (fall back to filesystem browsing)
-
-## Memory → Archive Escalation
-
-You have two complementary tools with different scopes:
-
-- **memory-core** (`memory_search` / `memory_get`) — OpenClaw's built-in memory provider. Manages curated notes in MEMORY.md and memory/*.md. High signal, small scope. This is your long-term memory: decisions, rules, people, project context. Always check here first.
-- **watcher** (`watcher_search`) — the full indexed archive across all configured domains. Broad scope, raw record.
-
-**The escalation rule:** When `memory_search` returns thin, zero, or low-confidence results for something your human clearly expects you to know about — a person, a project, an event, a thing — don't stop there. Follow up with `watcher_search` across the full index.
-
-**Triggers for escalation:**
-- Memory returns 0 results for a named entity (person, project, tool, pet)
-- Memory returns results but they lack the detail the question needs
-- The question is about something that *happened* (a conversation, a meeting, a decision) rather than something you *noted*
-- The human seems surprised you don't know something
-
-**Don't escalate when:**
-- Memory gave you a clear, sufficient answer
-- The question is about your own operational rules or preferences (that's purely memory)
-- You've already searched the archive this turn
-
-**Example:** "Tell me about Project X" → memory says "started in January" → that's thin → escalate to `watcher_search("Project X")` → tickets, messages, and docs reveal the full history. Report the full picture.
 
 **The principle:** Memory-core is your curated highlights. The watcher archive is your perfect recall. Use memory first for speed and signal, but never let its narrow scope be the ceiling of what you can remember.
 
@@ -113,9 +89,8 @@ npx @karmaniverous/jeeves-watcher-openclaw uninstall
 
 If the watcher service is already running and healthy:
 
-1. **Orient yourself** (once per session) — use `watcher_query` to learn the deployment's organizational strategy and available record types (see Orientation Pattern below)
-2. **Search** — use `watcher_search` with a natural language query and optional metadata filters
-3. **Read source** — use `read` (standard file read) with `file_path` from search results for full document content
+1. **Search** — use `watcher_search` with a natural language query and optional metadata filters
+2. **Read source** — use `read` (standard file read) with `file_path` from search results for full document content
 
 ## Bootstrap (First-Time Setup)
 
@@ -403,8 +378,6 @@ Get runtime embedding failures. Returns `{ filePath: IssueRecord }` showing file
 
 Filters use Qdrant's native JSON filter format, passed as the `filter` parameter to `watcher_search`.
 
-> **Note:** The field names and values used in these examples (e.g., `domain`, `status`, `assignee`) are illustrative. Actual fields depend on the deployment's inference rules. Use the Orientation Pattern and Query Planning sections to discover what's available before constructing filters.
-
 ### Basic Patterns
 
 **Match exact value:**
@@ -472,94 +445,6 @@ Each result from `watcher_search` contains:
 | `payload.matched_rules` | string[] | Names of inference rules that matched |
 
 Additional metadata fields depend on the deployment's inference rules (e.g., `domain`, `status`, `author`). Use `watcher_query` to discover available fields.
-
-## Orientation Pattern (Once Per Session)
-
-Query the deployment's organizational context and available record types. This information is stable within a session; query once and rely on results for the remainder.
-
-**Efficient pattern (two calls):**
-
-1. **Top-level context:**
-   ```
-   watcher_query: path="$.['description','search']"
-   ```
-   Returns:
-   - `description` — organizational strategy (e.g., how domains are structured, what partitioning means)
-   - `search.scoreThresholds` — score interpretation boundaries (strong, relevant, noise)
-
-2. **Available record types:**
-   ```
-   watcher_query: path="$.inferenceRules[*].['name','description']"
-   ```
-   Returns list of inference rules with their names and descriptions.
-
-**Example result:**
-```json
-[
-  { "name": "email-archive", "description": "Email archive messages" },
-  { "name": "slack-message", "description": "Slack channel messages with channel and author metadata" },
-  { "name": "jira-issue", "description": "Jira issue metadata extracted from issue JSON exports" }
-]
-```
-
-The top-level `description` explains this deployment's organizational strategy. Each rule's `description` explains what that specific record type represents. Both levels are useful: one orients, the other enumerates.
-
----
-
-## `resolve` Usage Guidance
-
-The `resolve` parameter controls which reference layers are expanded in `watcher_query`:
-
-- **No `resolve` (default):** Raw config structure with references intact (lightweight)
-- **`resolve: ["files"]`:** Resolve file path references to their contents (e.g., `"schemas/base.json"` → the JSON Schema object)
-- **`resolve: ["globals"]`:** Resolve named schema references (e.g., `"base"` in a rule's schema array → the global schema object)
-- **`resolve: ["files","globals"]`:** Fully inlined, everything expanded
-
-**When to use:**
-- **Orientation:** No resolve (just names and descriptions, lightweight)
-- **Query planning:** `resolve: ["files","globals"]` (need complete merged schemas for filter construction)
-- **Browsing global schemas:** `resolve: ["files"]` (see schema contents but keep named references visible for DRY structure understanding)
-
----
-
-## JSONPath Patterns for Schema Discovery
-
-Use `watcher_query` to explore the merged virtual document. Common patterns:
-
-### Orientation
-```
-$.inferenceRules[*].['name','description']    — List all rules with descriptions
-$.search.scoreThresholds                       — Score interpretation thresholds
-$.slots                                        — Named filter patterns (e.g., memory)
-```
-
-### Schema Discovery
-```
-$.inferenceRules[?(@.name=='jira-issue')]               — Full rule details
-$.inferenceRules[?(@.name=='jira-issue')].values        — Distinct values for a rule
-$.inferenceRules[?(@.name=='jira-issue')].values.status — Values for a specific field
-```
-
-### Helper Enumeration
-```
-$.mapHelpers                        — All JsonMap helper namespaces
-$.mapHelpers.slack.exports          — Exports from the 'slack' helper
-$.templateHelpers                   — All Handlebars helper namespaces
-```
-
-### Issues
-```
-$.issues                            — All runtime embedding failures
-```
-
-### Full Config Introspection
-```
-$.schemas                           — Global named schemas
-$.maps                              — Named JsonMap transforms
-$.templates                         — Named Handlebars templates
-```
-
----
 
 ## Query Planning (Per Search Task)
 
@@ -780,5 +665,7 @@ If tools are unavailable (plugin not loaded in this session):
 
 - [JSONPath Plus documentation](https://www.npmjs.com/package/jsonpath-plus) for JSONPath syntax
 - [Qdrant filtering documentation](https://qdrant.tech/documentation/concepts/filtering/) for advanced query patterns and search response format
+
+
 
 
