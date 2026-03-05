@@ -30,6 +30,11 @@ export interface PluginApi {
   registerHook?: (
     event: string | string[],
     handler: (event: unknown) => Promise<void> | void,
+    opts?: {
+      name?: string;
+      description?: string;
+      register?: boolean;
+    },
   ) => void;
 }
 
