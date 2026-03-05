@@ -250,7 +250,7 @@ Key settings for production:
   "metadataDir": "/data/jeeves-watcher-metadata",
   "api": {
     "host": "127.0.0.1",
-    "port": 3456
+    "port": 1936
   },
   "logging": {
     "level": "info",
@@ -454,8 +454,8 @@ The watcher is designed to co-locate with other services on a single machine.
 | Service | Port | Memory | CPU | Role |
 |---------|------|--------|-----|------|
 | **Qdrant** | 6333 | 200MB–2GB | ~0% | Vector store |
-| **jeeves-watcher** | 3456 | 100MB–1GB | ~5% | Indexing + search API |
-| **jeeves-server** | 3456 | 50MB | ~1% | File browser + web UI |
+| **jeeves-watcher** | 1936 | 100MB–1GB | ~5% | Indexing + search API |
+| **jeeves-server** | 1934 | 50MB | ~1% | File browser + web UI |
 | **n8n** | 5678 | 500MB–2GB | 10–50% | Workflow automation |
 | **OpenClaw** | varies | 2–8GB | 50–100% | LLM inference |
 
@@ -492,7 +492,7 @@ jeeves-watcher start --config /path/to/config.json
 Or manually trigger:
 
 ```bash
-jeeves-watcher reindex --port 3456
+jeeves-watcher reindex --port 1936
 ```
 
 **Monitor progress:** Check logs for `File processed successfully` entries.
@@ -506,7 +506,7 @@ jeeves-watcher reindex --port 3456
 **HTTP endpoint:**
 
 ```bash
-curl http://localhost:3456/status
+curl http://localhost:1936/status
 ```
 
 Output:
@@ -572,7 +572,7 @@ Output:
 2. OR run full reindex:
 
 ```bash
-jeeves-watcher reindex --port 3456
+jeeves-watcher reindex --port 1936
 ```
 
 This rebuilds Qdrant from filesystem + metadata store.
@@ -582,7 +582,7 @@ This rebuilds Qdrant from filesystem + metadata store.
 1. Rebuild from Qdrant:
 
 ```bash
-jeeves-watcher rebuild-metadata --port 3456
+jeeves-watcher rebuild-metadata --port 1936
 ```
 
 **Scenario 3: Both lost**
@@ -629,7 +629,7 @@ jeeves-watcher rebuild-metadata --port 3456
 
 ```nginx
 location /watcher/ {
-    proxy_pass http://127.0.0.1:3456/;
+    proxy_pass http://127.0.0.1:1936/;
     proxy_set_header Host $host;
     auth_basic "Restricted";
     auth_basic_user_file /etc/nginx/.htpasswd;
