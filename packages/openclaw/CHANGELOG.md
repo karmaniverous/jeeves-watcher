@@ -2,8 +2,9 @@
 
 All notable changes to this project will be documented in this file. Dates are displayed in UTC.
 
-#### [0.5.0](https://github.com/karmaniverous/jeeves-watcher/compare/0.5.1...0.5.0)
+#### [0.5.1](https://github.com/karmaniverous/jeeves-watcher/compare/0.5.1...0.5.1)
 
+- bugfix: expose watch config and inject ignored paths [`#81`](https://github.com/karmaniverous/jeeves-watcher/pull/81)
 - feat: renderDoc helper, date normalization schemas, port fix (v0.7.0) [`#80`](https://github.com/karmaniverous/jeeves-watcher/pull/80)
 - chore: remove memory-core Gemini migration from bootstrap [`#79`](https://github.com/karmaniverous/jeeves-watcher/pull/79)
 - feat(openclaw): add complete bootstrap sequence to skill [`#78`](https://github.com/karmaniverous/jeeves-watcher/pull/78)
@@ -70,6 +71,9 @@ All notable changes to this project will be documented in this file. Dates are d
 - fix: use fresh QdrantClient for write ops to avoid stale keep-alive connections [`e8215d5`](https://github.com/karmaniverous/jeeves-watcher/commit/e8215d5dc9f82deea59e8259f28be4b2e074f0fb)
 - feat: make plugin cache TTL configurable and fix API port fallback mismatch [`fecb768`](https://github.com/karmaniverous/jeeves-watcher/commit/fecb76841a28e51081cd5d195b25195e34add01a)
 - fix: complete Qdrant systemd setup and add WorkingDirectory to watcher service [`88bba3e`](https://github.com/karmaniverous/jeeves-watcher/commit/88bba3ebe1fd46922847a1d39a13182b4fb558a3)
+- chore: release @karmaniverous/jeeves-watcher-openclaw v0.5.0 [`d458180`](https://github.com/karmaniverous/jeeves-watcher/commit/d458180cd6fc6fc4d0f1f115f50d42f1f7c9f154)
+- fix: restore strict typings in withCache and fix lint errors [`ccaeb6c`](https://github.com/karmaniverous/jeeves-watcher/commit/ccaeb6c532087a58533f50586480385be5fa9b03)
+- fix: inject ignored paths and expose watch config in merged document [`05bb9e7`](https://github.com/karmaniverous/jeeves-watcher/commit/05bb9e7c753246e08d7a00b7f093d55be14aead9)
 - fix: apply same conditional logic to tools.allow as plugins.allow [`4549569`](https://github.com/karmaniverous/jeeves-watcher/commit/4549569ea72e1bbe385fd7592497982bbc34ec39)
 - chore: fix tsdoc warnings (add tsdoc.json, escape &gt; chars in yamlEscape) [`902156e`](https://github.com/karmaniverous/jeeves-watcher/commit/902156e3ca16265efc0adc667a03c23e0d9a7d57)
 - chore: release @karmaniverous/jeeves-watcher-openclaw v0.3.0 [`3ce4950`](https://github.com/karmaniverous/jeeves-watcher/commit/3ce4950d10de13300db94e90247739a3f4a6514a)
@@ -110,6 +114,7 @@ All notable changes to this project will be documented in this file. Dates are d
 - chore: release @karmaniverous/jeeves-watcher v0.6.8 [`a465d72`](https://github.com/karmaniverous/jeeves-watcher/commit/a465d72d25c51003550fa0fa87ecf8203de84a75)
 - fix: read CLI version from package.json instead of hardcoding [`22a9727`](https://github.com/karmaniverous/jeeves-watcher/commit/22a9727d9cccfb75d11535546c4a9194e6ccec35)
 - chore: release @karmaniverous/jeeves-watcher v0.6.5 [`1c5a7fe`](https://github.com/karmaniverous/jeeves-watcher/commit/1c5a7fee4d192ed736b3ea4700df7649b49fd1d6)
+- lintfix [`4bfe08e`](https://github.com/karmaniverous/jeeves-watcher/commit/4bfe08e06032779dd7bf09f3606b8e4d59f04a46)
 - fix: use consistent default port 1936 in server.listen() and schema description [`fe61181`](https://github.com/karmaniverous/jeeves-watcher/commit/fe6118154eb1bb4605b36bec11c79925d8c7322b)
 - fix: normalizePath preserves drive letter case to match service path normalization [`b79c8c4`](https://github.com/karmaniverous/jeeves-watcher/commit/b79c8c4cee38ccf989a7ee067a67c1879464e53d)
 - docs: update spec for shared Platform Tools H1 injection pattern [`230822a`](https://github.com/karmaniverous/jeeves-watcher/commit/230822adbcaed0f1de3adc634b8429019f015c79)
