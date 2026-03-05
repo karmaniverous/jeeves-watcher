@@ -593,7 +593,7 @@ Use `uiHint` to determine filter construction strategy. **This table is explicit
 | `text` | `{ "key": "<field>", "match": { "text": "<value>" } }` | Substring/keyword match |
 | `select` | `{ "key": "<field>", "match": { "value": "<enum_value>" } }` | Exact match; use `enum` values from schema or runtime values index |
 | `multiselect` | `{ "key": "<field>", "match": { "value": "<enum_value>" } }` | Any-element match on array field; use `enum` or runtime values index |
-| `date` | `{ "key": "<field>", "range": { "gte": <unix_ts>, "lt": <unix_ts> } }` | Either bound optional for open-ended ranges (e.g., "after January" → `gte` only) |
+| `date` | `{ "key": "<field>", "range": { "gte": <unix_ts>, "lt": <unix_ts> } }` | Range filter against integer fields holding Unix timestamps (seconds). Source dates should be normalized in config via `{{toUnix ...}}` in `set` expressions. | for open-ended ranges (e.g., "after January" → `gte` only) |
 | `number` | `{ "key": "<field>", "range": { "gte": <n>, "lte": <n> } }` | Either bound optional for open-ended ranges |
 | `check` | `{ "key": "<field>", "match": { "value": true } }` | Boolean match |
 | *(absent)* | Do not use in filters | Internal bookkeeping field, not intended for search |
@@ -780,3 +780,4 @@ If tools are unavailable (plugin not loaded in this session):
 
 - [JSONPath Plus documentation](https://www.npmjs.com/package/jsonpath-plus) for JSONPath syntax
 - [Qdrant filtering documentation](https://qdrant.tech/documentation/concepts/filtering/) for advanced query patterns and search response format
+
