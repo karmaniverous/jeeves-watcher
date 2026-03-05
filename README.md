@@ -15,7 +15,7 @@ Filesystem watcher that keeps a Qdrant vector store in sync with document change
 
 ### Architecture
 
-![System Architecture](assets/system-architecture.png)
+![System Architecture](packages/service/assets/system-architecture.png)
 
 For detailed architecture documentation, see [guides/architecture.md](guides/architecture.md).
 
@@ -73,6 +73,7 @@ jeeves-watcher start
 ```
 
 The watcher will:
+
 1. Index all existing files in watched directories
 2. Monitor for changes
 3. Update Qdrant automatically
@@ -80,7 +81,7 @@ The watcher will:
 ## CLI Commands
 
 | Command | Description |
-|---------|-------------|
+| --- | --- |
 | `jeeves-watcher start` | Start the filesystem watcher (foreground) |
 | `jeeves-watcher init` | Initialize a new configuration file |
 | `jeeves-watcher status` | Show watcher status |
@@ -223,7 +224,7 @@ Metadata is stored as JSON files alongside watched documents.
 The watcher provides a REST API (default port: 1936):
 
 | Endpoint | Method | Description |
-|----------|--------|-------------|
+| --- | --- | --- |
 | `/status` | GET | Health check, uptime, and collection stats |
 | `/search` | POST | Semantic search (`{ query: string, limit?: number, filter?: object }`) |
 | `/metadata` | POST | Update document metadata with schema validation (`{ path: string, metadata: object }`) |
@@ -279,16 +280,16 @@ curl -X POST http://localhost:1936/metadata \
 
 This repo includes an OpenClaw plugin (`packages/openclaw`) that exposes the jeeves-watcher API as native agent tools:
 
-| Tool | Description |
-|------|-------------|
-| `watcher_status` | Service health, uptime, and collection stats |
-| `watcher_search` | Semantic search across indexed documents |
-| `watcher_enrich` | Set or update document metadata |
-| `watcher_query` | Query the merged virtual document via JSONPath |
-| `watcher_validate` | Validate a watcher configuration |
-| `watcher_config_apply` | Apply a new configuration |
-| `watcher_reindex` | Trigger a reindex |
-| `watcher_issues` | List indexing issues and errors |
+| Tool                   | Description                                    |
+| ---------------------- | ---------------------------------------------- |
+| `watcher_status`       | Service health, uptime, and collection stats   |
+| `watcher_search`       | Semantic search across indexed documents       |
+| `watcher_enrich`       | Set or update document metadata                |
+| `watcher_query`        | Query the merged virtual document via JSONPath |
+| `watcher_validate`     | Validate a watcher configuration               |
+| `watcher_config_apply` | Apply a new configuration                      |
+| `watcher_reindex`      | Trigger a reindex                              |
+| `watcher_issues`       | List indexing issues and errors                |
 
 The plugin also writes a dynamic `## Watcher` section to `TOOLS.md` on disk, providing agents with a live menu of indexed content and escalation rules. See the [OpenClaw Integration Guide](packages/openclaw/guides/openclaw-integration.md) for details.
 
