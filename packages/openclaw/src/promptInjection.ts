@@ -73,7 +73,11 @@ async function generateWatcherMenu(apiUrl: string): Promise<string> {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ path: '$.watch.paths[*]' }),
       }),
-      fetchJson<QueryResponse>(`${apiUrl}/config/query`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ path: '$.watch.ignored[*]' }) }),
+      fetchJson<QueryResponse>(`${apiUrl}/config/query`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path: '$.watch.ignored[*]' }),
+      }),
     ]);
 
     pointCount = statusRes.collection?.pointCount ?? 0;
