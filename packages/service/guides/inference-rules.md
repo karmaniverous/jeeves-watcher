@@ -835,7 +835,7 @@ jeeves-watcher start --config ./my-config.json
 Query Qdrant to inspect payloads:
 
 ```bash
-curl -X POST http://localhost:3456/search \
+curl -X POST http://localhost:1936/search \
   -H "Content-Type: application/json" \
   -d '{"query": "test", "limit": 1}'
 ```
@@ -843,7 +843,7 @@ curl -X POST http://localhost:3456/search \
 Use `POST /config/match` to test paths against rules without indexing:
 
 ```bash
-curl -X POST http://localhost:3456/config/match \
+curl -X POST http://localhost:1936/config/match \
   -H "Content-Type: application/json" \
   -d '{"paths": ["j:/domains/jira/VCN/issue/WEB-123.json"]}'
 ```

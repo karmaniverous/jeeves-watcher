@@ -38,9 +38,13 @@ Set the `apiUrl` in the plugin configuration to point at your jeeves-watcher ser
 
 ```json
 {
-  "apiUrl": "http://127.0.0.1:3458"
+  "apiUrl": "http://127.0.0.1:1936"
 }
 ```
+
+## Dynamic TOOLS.md Injection
+
+On startup, the plugin writes a `## Watcher` section to `TOOLS.md` in the agent's workspace, providing a live menu of indexed content, score thresholds, and escalation rules. This refreshes every 60 seconds. On uninstall, the CLI removes the section.
 
 ## Tools
 
@@ -49,13 +53,11 @@ Set the `apiUrl` in the plugin configuration to point at your jeeves-watcher ser
 | `watcher_status` | Service health, uptime, and collection stats |
 | `watcher_search` | Semantic search across indexed documents |
 | `watcher_enrich` | Enrich document metadata via rules engine |
-| `watcher_query` | Raw Qdrant query with filters |
+| `watcher_query` | Query the merged virtual document via JSONPath |
 | `watcher_validate` | Validate a watcher configuration |
 | `watcher_config_apply` | Apply a new configuration |
 | `watcher_reindex` | Trigger a full reindex |
 | `watcher_issues` | List indexing issues and errors |
-| `memory_search` | Semantically search memory files (MEMORY.md and memory/*.md) |
-| `memory_get` | Read content from memory files with optional line range |
 
 ## Documentation
 

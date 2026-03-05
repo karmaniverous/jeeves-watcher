@@ -125,7 +125,7 @@ Generates a JSON config file with sensible defaults:
   "metadataDir": ".jeeves-watcher",
   "api": {
     "host": "127.0.0.1",
-    "port": 3456
+    "port": 1936
   },
   "logging": {
     "level": "info"
@@ -170,7 +170,7 @@ Config valid
   Watch paths: ./docs/**/*.md, ./notes/**/*.txt
   Embedding: gemini/gemini-embedding-001
   Vector store: http://127.0.0.1:6333 (jeeves-watcher)
-  API: 127.0.0.1:3456
+  API: 127.0.0.1:1936
 ```
 
 **Failure:**
@@ -199,7 +199,7 @@ jeeves-watcher status [options]
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `-p, --port <port>` | `3456` | API port |
+| `-p, --port <port>` | `1936` | API port |
 | `-H, --host <host>` | `127.0.0.1` | API host |
 
 ### Examples
@@ -209,10 +209,10 @@ jeeves-watcher status [options]
 jeeves-watcher status
 
 # Check status on custom port
-jeeves-watcher status --port 3456
+jeeves-watcher status --port 1936
 
 # Check remote instance
-jeeves-watcher status --host 192.168.1.100 --port 3456
+jeeves-watcher status --host 192.168.1.100 --port 1936
 ```
 
 ### Output
@@ -252,7 +252,7 @@ jeeves-watcher reindex [options]
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `-p, --port <port>` | `3456` | API port |
+| `-p, --port <port>` | `1936` | API port |
 | `-H, --host <host>` | `127.0.0.1` | API host |
 
 ### Examples
@@ -262,7 +262,7 @@ jeeves-watcher reindex [options]
 jeeves-watcher reindex
 
 # Reindex on custom port
-jeeves-watcher reindex --port 3456
+jeeves-watcher reindex --port 1936
 ```
 
 ### Behavior
@@ -302,7 +302,7 @@ jeeves-watcher rebuild-metadata [options]
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `-p, --port <port>` | `3456` | API port |
+| `-p, --port <port>` | `1936` | API port |
 | `-H, --host <host>` | `127.0.0.1` | API host |
 
 ### Examples
@@ -312,7 +312,7 @@ jeeves-watcher rebuild-metadata [options]
 jeeves-watcher rebuild-metadata
 
 # Rebuild on custom port
-jeeves-watcher rebuild-metadata --port 3456
+jeeves-watcher rebuild-metadata --port 1936
 ```
 
 ### Behavior
@@ -352,7 +352,7 @@ jeeves-watcher search <query> [options]
 | Option | Default | Description |
 |--------|---------|-------------|
 | `-l, --limit <limit>` | `10` | Maximum results to return |
-| `-p, --port <port>` | `3456` | API port |
+| `-p, --port <port>` | `1936` | API port |
 | `-H, --host <host>` | `127.0.0.1` | API host |
 
 ### Examples
@@ -365,7 +365,7 @@ jeeves-watcher search "machine learning algorithms"
 jeeves-watcher search "billing integration" --limit 5
 
 # Search on custom port
-jeeves-watcher search "project status" --port 3456
+jeeves-watcher search "project status" --port 1936
 ```
 
 ### Output
@@ -409,7 +409,7 @@ jeeves-watcher config-reindex [options]
 | Option | Default | Description |
 |--------|---------|-------------|
 | `-s, --scope <scope>` | `rules` | Reindex scope: `rules` (metadata-only) or `full` (re-embed) |
-| `-p, --port <port>` | `3456` | API port |
+| `-p, --port <port>` | `1936` | API port |
 | `-H, --host <host>` | `127.0.0.1` | API host |
 
 ### Examples
@@ -468,7 +468,7 @@ jeeves-watcher enrich <path> [options]
 |--------|---------|-------------|
 | `-k, --key <key=value...>` | `[]` | Metadata key-value pairs (repeatable) |
 | `-j, --json <json>` | — | Metadata as JSON string |
-| `-p, --port <port>` | `3456` | API port |
+| `-p, --port <port>` | `1936` | API port |
 | `-H, --host <host>` | `127.0.0.1` | API host |
 
 ### Examples
@@ -646,7 +646,7 @@ jeeves-watcher query '<jsonpath>' [options]
 | Option | Default | Description |
 |--------|---------|-------------|
 | `--resolve <scopes>` | all | Comma-separated resolution scopes: `files`, `globals` |
-| `-p, --port <port>` | `3456` | API port |
+| `-p, --port <port>` | `1936` | API port |
 | `-H, --host <host>` | `127.0.0.1` | API host |
 
 ### Examples
@@ -679,7 +679,7 @@ jeeves-watcher issues [options]
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `-p, --port <port>` | `3456` | API port |
+| `-p, --port <port>` | `1936` | API port |
 | `-H, --host <host>` | `127.0.0.1` | API host |
 
 ### Behavior
@@ -702,7 +702,7 @@ jeeves-watcher helpers [options]
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `-p, --port <port>` | `3456` | API port |
+| `-p, --port <port>` | `1936` | API port |
 | `-H, --host <host>` | `127.0.0.1` | API host |
 
 ---
@@ -722,7 +722,7 @@ jeeves-watcher config-apply --file <path> [options]
 | Option | Default | Description |
 |--------|---------|-------------|
 | `-f, --file <path>` | **Required** | Path to config JSON file to apply |
-| `-p, --port <port>` | `3456` | API port |
+| `-p, --port <port>` | `1936` | API port |
 | `-H, --host <host>` | `127.0.0.1` | API host |
 
 ### Examples

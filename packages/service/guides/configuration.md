@@ -309,7 +309,7 @@ For a file at `D:\projects\my-project\readme.md`, the metadata sidecar is at `.j
 {
   "api": {
     "host": "127.0.0.1",
-    "port": 3456
+    "port": 1936
   }
 }
 ```
@@ -317,7 +317,7 @@ For a file at `D:\projects\my-project\readme.md`, the metadata sidecar is at `.j
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `host` | `string` | `"127.0.0.1"` | Host to bind to. Use `"0.0.0.0"` to accept external connections. |
-| `port` | `number` | `3456` | Port to listen on. |
+| `port` | `number` | `1936` | Port to listen on. |
 
 The API provides endpoints for search, metadata enrichment, reindexing, and status. See [API Reference](./api-reference.md).
 
@@ -706,7 +706,7 @@ At runtime, these are replaced with actual environment variable values. Set temp
   "stateDir": ".jeeves-watcher/state",
   "api": {
     "host": "127.0.0.1",
-    "port": 3456
+    "port": 1936
   },
   "inferenceRules": [
     {

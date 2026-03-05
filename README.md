@@ -220,7 +220,7 @@ Metadata is stored as JSON files alongside watched documents.
 
 ## API Endpoints
 
-The watcher provides a REST API (default port: 3456):
+The watcher provides a REST API (default port: 1936):
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
@@ -242,7 +242,7 @@ The watcher provides a REST API (default port: 3456):
 ### Example: Search
 
 ```bash
-curl -X POST http://localhost:3456/search \
+curl -X POST http://localhost:1936/search \
   -H "Content-Type: application/json" \
   -d '{"query": "machine learning algorithms", "limit": 5}'
 ```
@@ -250,7 +250,7 @@ curl -X POST http://localhost:3456/search \
 ### Example: Search With Filter
 
 ```bash
-curl -X POST http://localhost:3456/search \
+curl -X POST http://localhost:1936/search \
   -H "Content-Type: application/json" \
   -d '{
     "query": "error handling",
@@ -264,7 +264,7 @@ curl -X POST http://localhost:3456/search \
 ### Example: Update Metadata
 
 ```bash
-curl -X POST http://localhost:3456/metadata \
+curl -X POST http://localhost:1936/metadata \
   -H "Content-Type: application/json" \
   -d '{
     "path": "/path/to/document.md",
@@ -277,19 +277,22 @@ curl -X POST http://localhost:3456/metadata \
 
 ## OpenClaw Plugin
 
-This repo ships an OpenClaw plugin that exposes the jeeves-watcher API as native agent tools:
+This repo includes an OpenClaw plugin (`packages/openclaw`) that exposes the jeeves-watcher API as native agent tools:
 
-- `watcher_status` (GET `/status`)
-- `watcher_search` (POST `/search`)
-- `watcher_enrich` (POST `/metadata`)
+| Tool | Description |
+|------|-------------|
+| `watcher_status` | Service health, uptime, and collection stats |
+| `watcher_search` | Semantic search across indexed documents |
+| `watcher_enrich` | Set or update document metadata |
+| `watcher_query` | Query the merged virtual document via JSONPath |
+| `watcher_validate` | Validate a watcher configuration |
+| `watcher_config_apply` | Apply a new configuration |
+| `watcher_reindex` | Trigger a reindex |
+| `watcher_issues` | List indexing issues and errors |
 
-Build output:
+The plugin also writes a dynamic `## Watcher` section to `TOOLS.md` on disk, providing agents with a live menu of indexed content and escalation rules. See the [OpenClaw Integration Guide](packages/openclaw/guides/openclaw-integration.md) for details.
 
-- Plugin entry: `dist/plugin/index.js`
-- Plugin manifest: `dist/plugin/openclaw.plugin.json`
-- Skill: `dist/plugin/skill/SKILL.md`
-
-Plugin configuration supports `apiUrl` (defaults to `http://127.0.0.1:3458`).
+Plugin configuration supports `apiUrl` (defaults to `http://127.0.0.1:1936`).
 
 ## Supported File Formats
 

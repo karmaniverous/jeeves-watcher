@@ -60,7 +60,7 @@ This generates `jeeves-watcher.config.json` with sensible defaults and a `$schem
   "metadataDir": ".jeeves-watcher",
   "api": {
     "host": "127.0.0.1",
-    "port": 3456
+    "port": 1936
   },
   "logging": {
     "level": "info"
@@ -172,7 +172,7 @@ Config valid
   Watch paths: ./docs/**/*.md, ./notes/**/*.{md,txt}
   Embedding: gemini/gemini-embedding-001
   Vector store: http://127.0.0.1:6333 (jeeves-watcher)
-  API: 127.0.0.1:3456
+  API: 127.0.0.1:1936
 ```
 
 ## Start the Watcher
@@ -198,7 +198,7 @@ You should see output like:
 [info] File processed successfully: ./docs/readme.md (chunks: 2)
 [info] File processed successfully: ./notes/meeting-2026-02-20.md (chunks: 1)
 ...
-[info] API server listening on http://127.0.0.1:3456
+[info] API server listening on http://127.0.0.1:1936
 ```
 
 ## First Search
@@ -212,7 +212,7 @@ jeeves-watcher search "machine learning" --limit 5
 Or via HTTP:
 
 ```bash
-curl -X POST http://127.0.0.1:3456/search \
+curl -X POST http://127.0.0.1:1936/search \
   -H "Content-Type: application/json" \
   -d '{"query": "machine learning", "limit": 5}'
 ```

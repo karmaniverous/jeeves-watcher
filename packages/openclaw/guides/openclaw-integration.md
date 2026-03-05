@@ -53,7 +53,7 @@ The plugin needs the URL of a running jeeves-watcher REST API. Set `apiUrl` in t
 
 ```json
 {
-  "apiUrl": "http://127.0.0.1:3458"
+  "apiUrl": "http://127.0.0.1:1936"
 }
 ```
 
@@ -79,7 +79,7 @@ Run the rules engine against a document to infer or update metadata fields.
 
 ### `watcher_query`
 
-Execute a raw Qdrant query with full filter support. Useful for precise metadata-based lookups.
+Query the merged virtual configuration document using JSONPath expressions. Useful for discovering available inference rules, schemas, and runtime values.
 
 ### `watcher_validate`
 
@@ -93,31 +93,23 @@ Apply a new configuration to the running watcher service. Triggers re-evaluation
 
 Trigger a full reindex of all watched files. Useful after configuration changes or to recover from drift.
 
-### `memory_search`
-
-Semantically search MEMORY.md and memory/*.md files. Powered by the watcher's vector store with Gemini 3072-dim embeddings.
-
-**Parameters:**
-
-- `query` (string, required) — search query text
-- `maxResults` (number) — maximum results to return
-- `minScore` (number) — minimum similarity score threshold
-
-### `memory_get`
-
-Read content from MEMORY.md or memory/*.md files with optional line range.
-
-**Parameters:**
-
-- `path` (string, required) — path to the memory file
-- `from` (number) — line number to start reading from (1-indexed)
-- `lines` (number) — number of lines to read
-
-Path validation: only files within the workspace's MEMORY.md and memory/**/*.md are accessible.
-
 ### `watcher_issues`
 
 List current indexing issues — files that failed extraction, embedding errors, etc.
+
+## Dynamic TOOLS.md Injection
+
+On startup, the plugin writes a `## Watcher` section directly to `TOOLS.md` in the agent's workspace. This section includes:
+
+- Total indexed document count
+- Score interpretation thresholds
+- Active inference rules as a categorized menu
+- Indexed and ignored paths
+- Escalation rule (memory vs. archive search guidance)
+
+The section refreshes every 60 seconds (only writing to disk if content changed). The gateway reads TOOLS.md fresh from disk on each new session, so every session gets the latest watcher context without hooks.
+
+On uninstall, the CLI removes the `## Watcher` section from TOOLS.md. If `# Jeeves Platform Tools` has no remaining sections, the H1 is removed too.
 
 ## Example Usage Patterns
 

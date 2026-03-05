@@ -6,7 +6,7 @@ title: API Reference
 
 The watcher exposes a lightweight HTTP API for search, metadata enrichment, and operational control.
 
-**Default address:** `http://127.0.0.1:3456` (configurable via `api.host` and `api.port`)
+**Default address:** `http://127.0.0.1:1936` (configurable via `api.host` and `api.port`)
 
 ---
 
@@ -17,7 +17,7 @@ Health check and service stats.
 ### Request
 
 ```bash
-curl http://localhost:3456/status
+curl http://localhost:1936/status
 ```
 
 ### Response
@@ -64,7 +64,7 @@ Enrich a document's metadata without re-embedding.
 ### Request
 
 ```bash
-curl -X POST http://localhost:3456/metadata \
+curl -X POST http://localhost:1936/metadata \
   -H "Content-Type: application/json" \
   -d '{
     "path": "D:/projects/readme.md",
@@ -136,7 +136,7 @@ Semantic search across indexed documents.
 ### Request
 
 ```bash
-curl -X POST http://localhost:3456/search \
+curl -X POST http://localhost:1936/search \
   -H "Content-Type: application/json" \
   -d '{
     "query": "machine learning algorithms",
@@ -158,7 +158,7 @@ curl -X POST http://localhost:3456/search \
 **Filtered search example:**
 
 ```bash
-curl -X POST http://localhost:3456/search \
+curl -X POST http://localhost:1936/search \
   -H "Content-Type: application/json" \
   -d '{
     "query": "authentication flow",
@@ -172,7 +172,7 @@ curl -X POST http://localhost:3456/search \
 **Paginated search example:**
 
 ```bash
-curl -X POST http://localhost:3456/search \
+curl -X POST http://localhost:1936/search \
   -H "Content-Type: application/json" \
   -d '{
     "query": "authentication flow",
@@ -259,7 +259,7 @@ Trigger a full reindex of all watched files.
 ### Request
 
 ```bash
-curl -X POST http://localhost:3456/reindex
+curl -X POST http://localhost:1936/reindex
 ```
 
 ### Response
@@ -307,7 +307,7 @@ Rebuild the metadata store from Qdrant payloads.
 ### Request
 
 ```bash
-curl -X POST http://localhost:3456/rebuild-metadata
+curl -X POST http://localhost:1936/rebuild-metadata
 ```
 
 ### Response
@@ -354,7 +354,7 @@ Reindex after configuration changes (rules update or full reindex).
 **Scope: `rules` (default) — metadata-only reindex:**
 
 ```bash
-curl -X POST http://localhost:3456/config-reindex \
+curl -X POST http://localhost:1936/config-reindex \
   -H "Content-Type: application/json" \
   -d '{"scope": "rules"}'
 ```
@@ -362,7 +362,7 @@ curl -X POST http://localhost:3456/config-reindex \
 **Scope: `full` — re-extract, re-embed, re-upsert:**
 
 ```bash
-curl -X POST http://localhost:3456/config-reindex \
+curl -X POST http://localhost:1936/config-reindex \
   -H "Content-Type: application/json" \
   -d '{"scope": "full"}'
 ```
@@ -451,7 +451,7 @@ Returns the current issues file contents: all files that failed to embed, with e
 ### Request
 
 ```bash
-curl http://localhost:3456/issues
+curl http://localhost:1936/issues
 ```
 
 ### Response
@@ -529,7 +529,7 @@ Query the merged virtual configuration document using JSONPath expressions.
 ### Request
 
 ```bash
-curl -X POST http://localhost:3456/config/query \
+curl -X POST http://localhost:1936/config/query \
   -H "Content-Type: application/json" \
   -d '{
     "path": "$.inferenceRules[*].name",
@@ -578,7 +578,7 @@ Returns the JSON Schema describing the merged virtual document (authored config 
 ### Request
 
 ```bash
-curl http://localhost:3456/config/schema
+curl http://localhost:1936/config/schema
 ```
 
 ### Response
@@ -634,7 +634,7 @@ Tests file paths against inference rules and watch scope without indexing.
 ### Request
 
 ```bash
-curl -X POST http://localhost:3456/config/match \
+curl -X POST http://localhost:1936/config/match \
   -H "Content-Type: application/json" \
   -d '{
     "paths": [
@@ -702,7 +702,7 @@ Pre-flight validation of configuration changes without applying them.
 ### Request
 
 ```bash
-curl -X POST http://localhost:3456/config/validate \
+curl -X POST http://localhost:1936/config/validate \
   -H "Content-Type: application/json" \
   -d '{
     "config": {
@@ -773,7 +773,7 @@ Atomically validate, write, and reload configuration.
 ### Request
 
 ```bash
-curl -X POST http://localhost:3456/config/apply \
+curl -X POST http://localhost:1936/config/apply \
   -H "Content-Type: application/json" \
   -d '{
     "config": {
@@ -838,7 +838,7 @@ Register virtual inference rules from an external source.
 ### Request
 
 ```bash
-curl -X POST http://localhost:3456/rules/register \
+curl -X POST http://localhost:1936/rules/register \
   -H "Content-Type: application/json" \
   -d '{
     "source": "my-external-system",
@@ -884,7 +884,7 @@ Remove all virtual rules from a source.
 ### Request
 
 ```bash
-curl -X DELETE http://localhost:3456/rules/unregister \
+curl -X DELETE http://localhost:1936/rules/unregister \
   -H "Content-Type: application/json" \
   -d '{ "source": "my-external-system" }'
 ```
@@ -917,7 +917,7 @@ Remove all virtual rules from a named source (path parameter variant).
 ### Request
 
 ```bash
-curl -X DELETE http://localhost:3456/rules/unregister/my-external-system
+curl -X DELETE http://localhost:1936/rules/unregister/my-external-system
 ```
 
 ### Response
@@ -940,7 +940,7 @@ Delete points from Qdrant matching a filter.
 ### Request
 
 ```bash
-curl -X POST http://localhost:3456/points/delete \
+curl -X POST http://localhost:1936/points/delete \
   -H "Content-Type: application/json" \
   -d '{
     "filter": {
@@ -1012,7 +1012,7 @@ For high-traffic deployments, add rate limiting at the reverse proxy layer.
 ### Search and Display Results
 
 ```bash
-curl -X POST http://localhost:3456/search \
+curl -X POST http://localhost:1936/search \
   -H "Content-Type: application/json" \
   -d '{"query": "billing integration", "limit": 5}' \
   | jq '.[] | {score, path: .payload.file_path, title: .payload.title}'
@@ -1030,7 +1030,7 @@ Output:
 
 ```bash
 for file in file1.md file2.md file3.md; do
-  curl -X POST http://localhost:3456/metadata \
+  curl -X POST http://localhost:1936/metadata \
     -H "Content-Type: application/json" \
     -d "{\"path\": \"$file\", \"metadata\": {\"reviewed\": true}}"
 done
@@ -1039,7 +1039,7 @@ done
 ### Check Service Health
 
 ```bash
-curl http://localhost:3456/status | jq '.uptime'
+curl http://localhost:1936/status | jq '.uptime'
 ```
 
 Output: `86400` (uptime in seconds)
