@@ -146,6 +146,6 @@ describe('renderDoc', () => {
     );
 
     expect(out).toContain('---');
-    expect(out).toContain('title: "A: Dangerous Value"');
+    expect(out).toContain("title: 'A: Dangerous Value'");
   });
 });

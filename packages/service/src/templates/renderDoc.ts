@@ -4,27 +4,14 @@
  */
 
 import type Handlebars from 'handlebars';
-import { title } from 'radash';
+import yaml from 'js-yaml';
+import { get, title } from 'radash';
 
 import type {
   RenderBodySection,
   RenderConfig,
 } from '../config/schemas/inference';
 import { rebaseHeadings } from './rebaseHeadings';
-import { yamlValue } from './yamlEscape';
-
-function getPath(obj: unknown, path: string): unknown {
-  const parts = path.split('.').filter(Boolean);
-  let cur: unknown = obj;
-  for (const p of parts) {
-    if (cur && typeof cur === 'object' && !Array.isArray(cur)) {
-      cur = (cur as Record<string, unknown>)[p];
-    } else {
-      return undefined;
-    }
-  }
-  return cur;
-}
 
 function renderSectionHeading(
   section: RenderBodySection,
@@ -33,7 +20,7 @@ function renderSectionHeading(
 ): string {
   const level = Math.min(6, Math.max(1, section.heading));
   const label = section.label
-    ? hbs.compile(section.label, { noEscape: true })(context)
+    ? hbs.compile(section.label)(context)
     : title(section.path);
   return `${'#'.repeat(level)} ${label}`;
 }
@@ -67,7 +54,9 @@ function renderValueAsMarkdown(
     return rebaseHeadings(md, section.heading);
   }
 
-  return typeof value === 'string' ? value : JSON.stringify(value, null, 2);
+  const strValue =
+    typeof value === 'string' ? value : JSON.stringify(value, null, 2);
+  return hbs.Utils.escapeExpression(strValue);
 }
 
 function renderEach(
@@ -80,8 +69,8 @@ function renderEach(
   const items = [...(value as unknown[])];
   if (section.sort) {
     items.sort((a, b) => {
-      const av = getPath(a, section.sort as string);
-      const bv = getPath(b, section.sort as string);
+      const av = get(a, section.sort as string);
+      const bv = get(b, section.sort as string);
       const aStr = typeof av === 'string' ? av : JSON.stringify(av ?? '');
       const bStr = typeof bv === 'string' ? bv : JSON.stringify(bv ?? '');
       return aStr.localeCompare(bStr);
@@ -90,7 +79,7 @@ function renderEach(
 
   const subHeadingLevel = Math.min(6, section.heading + 1);
   const headingTpl = section.headingTemplate
-    ? hbs.compile(section.headingTemplate, { noEscape: true })
+    ? hbs.compile(section.headingTemplate)
     : undefined;
 
   const parts: string[] = [];
@@ -103,7 +92,7 @@ function renderEach(
     }
 
     const contentVal: unknown = section.contentPath
-      ? getPath(item, section.contentPath)
+      ? get(item, section.contentPath)
       : item;
     const md = renderValueAsMarkdown(
       hbs,
@@ -127,16 +116,17 @@ export function renderDoc(
   const parts: string[] = [];
 
   // Frontmatter
-  const fmLines: string[] = [];
+  const fmObj: Record<string, unknown> = {};
   for (const key of config.frontmatter) {
-    const v = getPath(context, key);
-    const rendered = yamlValue(v);
-    if (!rendered) continue;
-    fmLines.push(`${key}: ${rendered}`);
+    const v = get(context, key);
+    if (v !== undefined) {
+      fmObj[key] = v;
+    }
   }
-  if (fmLines.length > 0) {
+
+  if (Object.keys(fmObj).length > 0) {
     parts.push('---');
-    parts.push(fmLines.join('\n'));
+    parts.push(yaml.dump(fmObj, { skipInvalid: true }).trim());
     parts.push('---');
     parts.push('');
   }
@@ -147,7 +137,7 @@ export function renderDoc(
     parts.push(heading);
     parts.push('');
 
-    const v = getPath(context, section.path);
+    const v = get(context, section.path);
     const body = section.each
       ? renderEach(hbs, section, v)
       : renderValueAsMarkdown(hbs, section, v);
