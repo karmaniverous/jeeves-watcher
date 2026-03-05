@@ -1049,6 +1049,25 @@ After:
 
 **Positions for future render pipeline:** When shared config lands (server v3.0.0 → shared deps → shared config), the `render` block is already a first-class schema element. The `renderDoc` helper becomes the render engine for the broader ecosystem. No schema migration needed.
 
+
+### SOLID/DRY Architectural Refactoring
+
+**Problem:** Handlers, attribute generation, and sleep utilities were duplicated across multiple files, making maintenance and updates difficult.
+
+**Solution:** Centralize `sleep` utilities, extract `buildSyntheticAttributes` to a shared utility, deduplicate API handlers, and resolve issues in the extractor registry for a cleaner, more maintainable service architecture.
+
+### YAML Rendering and Data Normalization Improvements
+
+**Problem:** Hand-rolled YAML escaping logic and naive property access are prone to injection issues (e.g., XSS) and missing deep nested properties.
+
+**Solution:** Integrate `js-yaml` for robust, specification-compliant YAML frontmatter generation, and `radash`'s `get` function for deep property access, ensuring reliable data normalization within the `renderDoc` pipeline.
+
+### Skill Documentation: Config Authoring Guidance
+
+**Problem:** Config-authoring knowledge (e.g., using `set` instead of `attributes`, proper `glob` matching, and bare strings for maps) was siloed in MEMORY.md, leaving spawned agents without necessary context.
+
+**Solution:** Explicitly document render/template authoring guidance and transformer definitions directly inside the deployed `SKILL.md` so that any Jeeves session can correctly author configuration.
+
 ## Backlog
 
 **Beyond v0.6.0** — Lightweight future items (title + one-liner):
@@ -1072,7 +1091,7 @@ After:
 - **Config UI** — Web-based rule editor with live validation and path testing
 - **Data flow config schema** — Machine-parseable deployment topology (nodes, edges, synthesis relationships) for Jeeves ecosystem integration
 - **Jeeves ecosystem skill** — Formal OpenClaw skill teaching Jeeves operating model (currently informal in workspace files)
-- **Skill: config authoring guidance** — Add config-authoring knowledge to the skill: (1) `set` not `attributes` for metadata derivation; match uses `properties.file.properties.path` with `glob`. (2) Maps config must use bare strings, not `{path, description}` objects (object format falls through unresolved in `loadConfig.ts`). These gotchas are currently only in MEMORY.md and should be in the skill so any Jeeves session can author config correctly.
+
 - **Config CLI commands** — Add `jeeves-watcher init` (interactive setup), `jeeves-watcher config validate` (check against Zod schema without starting), `jeeves-watcher config show` (sanitized dump, no secrets). Consistent with jeeves-server and jeeves-runner patterns. cosmiconfig already supports JSON + YAML; this adds the operational commands.
 - **File version history with delta storage** — Maintain a change history of watched text files using reverse diffs (latest version stored as full baseline, prior versions as patches applied backward). Binary files use snapshot fallback or skip versioning. Content stored in SQLite with a `file_versions` table (file_path, version_id, content_hash, diff_blob, captured_at, size_bytes). Retention-bounded (max versions per file, max age). Key API endpoints: `GET /history/:path` (list versions with timestamps and sizes), `GET /history/:path/:version` (reconstruct historical content by applying reverse patch chain), `GET /history/:path/diff?from=v1&to=v2` (produce unified diff between any two versions). Diff algorithm: `diff-match-patch` or `jsdiff`. Reconstruction cost is linear in chain depth but bounded by retention policy; frequently accessed reconstructions can be cached. Pairs with existing metadata snapshots to enable time-travel queries over both content and derived metadata. **Open question:** Should historical versions be searchable (embedded and indexed alongside current content)? Would enable queries like "find the version of this doc that discussed X" but multiplies storage and embedding costs significantly.
 
@@ -1162,7 +1181,7 @@ After:
 4. Create the plugin-side markdown generator that fetches /status and /config/query and formats the menu.
 5. Implement the plugin-side in-memory cache for the generated string (30s TTL).
 6. Register the gent:bootstrap hook in the plugin, find the TOOLS.md file in context.bootstrapFiles, and append the cached string. If TOOLS.md is missing, push a new entry into the array.
-7. Strip redundant sections from SKILL.md.
+
 
 **Validation:**
 - Hitting /status rapidly does not increment Qdrant's connection counts (served from cache).
@@ -1180,14 +1199,23 @@ After:
 1. Change `?? 3456` to `?? 1936` (or reference `API_DEFAULTS.port`)
 2. Add test: server starts on default port when no config provided
 
-### 5. Deployment
+### 5. SKILL.md Refactoring
+
+**Files:**
+- packages/openclaw/skills/jeeves-watcher/SKILL.md`
+
+**Steps:**
+1. Remove the "Orientation Pattern" entirely from the skill document.
+2. Remove "Quick Start" Step 1 ("Orient yourself").
+3. Promote the "Memory vs Archive Escalation Rule" so it is clearly highlighted and injected into the dynamic prompt.
+
+### 6. Deployment
 
 **Production config changes:**
 1. Add date fields to structured rules using `{{toUnix ...}}` helpers (Jira, Slack, email, meetings)
 3. Full reindex to apply date field conversions
 4. Clean stale `domain: "codebase"` points from Qdrant
-5. Resolve `domain` vs `domains` convention mismatch with jeeves-server
-
+5. Resolve `domain` vs `domains` convention mismatch with jeeves-server browse filter.
 ### Release Checklist (v0.7.0 / v0.5.0)
 
 - [ ] All tests pass
@@ -1201,7 +1229,7 @@ After:
 - [ ] Add date fields to structured rules (Jira, Slack, email, meetings)
 - [ ] Full reindex (apply date conversions + new render output)
 - [ ] Clean stale `domain: "codebase"` points from Qdrant
-- [ ] Resolve `domain` vs `domains` convention mismatch with jeeves-server
+browse filter.
 - [ ] Production service restarted
 - [ ] Smoke test: date range filters working
 - [ ] Smoke test: search results show YAML frontmatter + structured Markdown
@@ -1213,7 +1241,7 @@ After:
 - [ ] OpenClaw plugin registers `agent:bootstrap` hook
 - [ ] Plugin-side in-memory caching implemented for the injected menu string
 - [ ] Watcher Menu correctly injects into `TOOLS.md` under the # Jeeves Platform Tools H1
-- [ ] Redundant sections removed from `SKILL.md`
+- [ ] Redundant sections removed from `SKILL.md` (Orientation Pattern, Quick Start)
 
 ---
 
@@ -1459,6 +1487,9 @@ end note
 | `domain` vs `domains` mismatch on older points | jeeves-server browse filter expects `domain` (singular) but new points have `domains` (plural) | Align jeeves-server filter or reindex |
 | Stale `domain: "codebase"` points in Qdrant | Old codebase domain points remain from before GitHub migration | Clean on next full reindex |
 | ~~Embedding concurrency at 1~~ | ~~Slower indexing than optimal~~ | **RESOLVED** — restored to 5, Qdrant resilience fix holds |
+
+
+
 
 
 
