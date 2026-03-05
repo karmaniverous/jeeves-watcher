@@ -27,10 +27,7 @@ export interface PluginApi {
    * Optional internal hook registration (available on newer OpenClaw builds).
    * We keep this optional to preserve compatibility.
    */
-  registerInternalHook?: (
-    event: string,
-    handler: (event: unknown) => Promise<void> | void,
-  ) => void;
+  registerHook?: (event: string | string[], handler: (event: unknown) => Promise<void> | void) => void;
 }
 
 /** Result shape returned by each tool execution. */
