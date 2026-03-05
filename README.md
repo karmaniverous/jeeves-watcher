@@ -17,7 +17,7 @@ Filesystem watcher that keeps a Qdrant vector store in sync with document change
 
 ![System Architecture](packages/service/assets/system-architecture.png)
 
-For detailed architecture documentation, see [guides/architecture.md](guides/architecture.md).
+For detailed architecture documentation, see [packages/service/guides/architecture.md](packages/service/guides/architecture.md).
 
 ## Quick Start
 
@@ -194,7 +194,7 @@ Automatically enrich metadata based on file patterns using declarative JSON Sche
 }
 ```
 
-**New in v0.5.0:** Inference rules now use `schema` arrays that reference global named schemas. Type coercion automatically converts string interpolation results to declared types (integer, number, boolean, array, object). See [Inference Rules Guide](guides/inference-rules.md) for details.
+**New in v0.5.0:** Inference rules now use `schema` arrays that reference global named schemas. Type coercion automatically converts string interpolation results to declared types (integer, number, boolean, array, object). See [Inference Rules Guide](packages/service/guides/inference-rules.md) for details.
 
 ### Chunking
 

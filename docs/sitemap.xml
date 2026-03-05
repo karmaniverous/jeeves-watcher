@@ -2,346 +2,346 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
 	<url>
 		<loc>https://docs.karmanivero.us/jeeves-watcher/index.html</loc>
-		<lastmod>2026-03-05T16:14:08.553Z</lastmod>
+		<lastmod>2026-03-05T16:16:00.680Z</lastmod>
 	</url>
 	<url>
 		<loc>https://docs.karmanivero.us/jeeves-watcher/modules.html</loc>
-		<lastmod>2026-03-05T16:14:08.553Z</lastmod>
+		<lastmod>2026-03-05T16:16:00.680Z</lastmod>
 	</url>
 	<url>
 		<loc>https://docs.karmanivero.us/jeeves-watcher/hierarchy.html</loc>
-		<lastmod>2026-03-05T16:14:08.553Z</lastmod>
+		<lastmod>2026-03-05T16:16:00.680Z</lastmod>
 	</url>
 	<url>
 		<loc>https://docs.karmanivero.us/jeeves-watcher/documents/service_guides_index.html</loc>
-		<lastmod>2026-03-05T16:14:08.553Z</lastmod>
+		<lastmod>2026-03-05T16:16:00.680Z</lastmod>
 	</url>
 	<url>
 		<loc>https://docs.karmanivero.us/jeeves-watcher/documents/openclaw_guides_index.html</loc>
-		<lastmod>2026-03-05T16:14:08.553Z</lastmod>
+		<lastmod>2026-03-05T16:16:00.680Z</lastmod>
 	</url>
 	<url>
 		<loc>https://docs.karmanivero.us/jeeves-watcher/modules/index.html</loc>
-		<lastmod>2026-03-05T16:14:08.553Z</lastmod>
+		<lastmod>2026-03-05T16:16:00.680Z</lastmod>
 	</url>
 	<url>
 		<loc>https://docs.karmanivero.us/jeeves-watcher/classes/index.DocumentProcessor.html</loc>
-		<lastmod>2026-03-05T16:14:08.553Z</lastmod>
+		<lastmod>2026-03-05T16:16:00.680Z</lastmod>
 	</url>
 	<url>
 		<loc>https://docs.karmanivero.us/jeeves-watcher/classes/index.EventQueue.html</loc>
-		<lastmod>2026-03-05T16:14:08.553Z</lastmod>
+		<lastmod>2026-03-05T16:16:00.680Z</lastmod>
 	</url>
 	<url>
 		<loc>https://docs.karmanivero.us/jeeves-watcher/classes/index.FileSystemWatcher.html</loc>
-		<lastmod>2026-03-05T16:14:08.553Z</lastmod>
+		<lastmod>2026-03-05T16:16:00.680Z</lastmod>
 	</url>
 	<url>
 		<loc>https://docs.karmanivero.us/jeeves-watcher/classes/index.GitignoreFilter.html</loc>
-		<lastmod>2026-03-05T16:14:08.553Z</lastmod>
+		<lastmod>2026-03-05T16:16:00.680Z</lastmod>
 	</url>
 	<url>
 		<loc>https://docs.karmanivero.us/jeeves-watcher/classes/index.IssuesManager.html</loc>
-		<lastmod>2026-03-05T16:14:08.553Z</lastmod>
+		<lastmod>2026-03-05T16:16:00.680Z</lastmod>
 	</url>
 	<url>
 		<loc>https://docs.karmanivero.us/jeeves-watcher/classes/index.JeevesWatcher.html</loc>
-		<lastmod>2026-03-05T16:14:08.553Z</lastmod>
+		<lastmod>2026-03-05T16:16:00.680Z</lastmod>
 	</url>
 	<url>
 		<loc>https://docs.karmanivero.us/jeeves-watcher/classes/index.ReindexTracker.html</loc>
-		<lastmod>2026-03-05T16:14:08.553Z</lastmod>
+		<lastmod>2026-03-05T16:16:00.680Z</lastmod>
 	</url>
 	<url>
 		<loc>https://docs.karmanivero.us/jeeves-watcher/classes/index.SystemHealth.html</loc>
-		<lastmod>2026-03-05T16:14:08.553Z</lastmod>
+		<lastmod>2026-03-05T16:16:00.680Z</lastmod>
 	</url>
 	<url>
 		<loc>https://docs.karmanivero.us/jeeves-watcher/classes/index.TemplateEngine.html</loc>
-		<lastmod>2026-03-05T16:14:08.553Z</lastmod>
+		<lastmod>2026-03-05T16:16:00.680Z</lastmod>
 	</url>
 	<url>
 		<loc>https://docs.karmanivero.us/jeeves-watcher/classes/index.ValuesManager.html</loc>
-		<lastmod>2026-03-05T16:14:08.553Z</lastmod>
+		<lastmod>2026-03-05T16:16:00.680Z</lastmod>
 	</url>
 	<url>
 		<loc>https://docs.karmanivero.us/jeeves-watcher/classes/index.VectorStoreClient.html</loc>
-		<lastmod>2026-03-05T16:14:08.553Z</lastmod>
+		<lastmod>2026-03-05T16:16:00.680Z</lastmod>
 	</url>
 	<url>
 		<loc>https://docs.karmanivero.us/jeeves-watcher/interfaces/index.AllHelpersIntrospection.html</loc>
-		<lastmod>2026-03-05T16:14:08.553Z</lastmod>
+		<lastmod>2026-03-05T16:16:00.680Z</lastmod>
 	</url>
 	<url>
 		<loc>https://docs.karmanivero.us/jeeves-watcher/interfaces/index.ApiServerOptions.html</loc>
-		<lastmod>2026-03-05T16:14:08.553Z</lastmod>
+		<lastmod>2026-03-05T16:16:00.680Z</lastmod>
 	</url>
 	<url>
 		<loc>https://docs.karmanivero.us/jeeves-watcher/interfaces/index.ApplyRulesResult.html</loc>
-		<lastmod>2026-03-05T16:14:08.553Z</lastmod>
+		<lastmod>2026-03-05T16:16:00.680Z</lastmod>
 	</url>
 	<url>
 		<loc>https://docs.karmanivero.us/jeeves-watcher/interfaces/index.CollectionInfo.html</loc>
-		<lastmod>2026-03-05T16:14:08.553Z</lastmod>
+		<lastmod>2026-03-05T16:16:00.680Z</lastmod>
 	</url>
 	<url>
 		<loc>https://docs.karmanivero.us/jeeves-watcher/interfaces/index.CompiledRule.html</loc>
-		<lastmod>2026-03-05T16:14:08.553Z</lastmod>
+		<lastmod>2026-03-05T16:16:00.680Z</lastmod>
 	</url>
 	<url>
 		<loc>https://docs.karmanivero.us/jeeves-watcher/interfaces/index.DocumentProcessorDeps.html</loc>
-		<lastmod>2026-03-05T16:14:08.553Z</lastmod>
+		<lastmod>2026-03-05T16:16:00.680Z</lastmod>
 	</url>
 	<url>
 		<loc>https://docs.karmanivero.us/jeeves-watcher/interfaces/index.DocumentProcessorInterface.html</loc>
-		<lastmod>2026-03-05T16:14:08.553Z</lastmod>
+		<lastmod>2026-03-05T16:16:00.680Z</lastmod>
 	</url>
 	<url>
 		<loc>https://docs.karmanivero.us/jeeves-watcher/interfaces/index.EmbeddingProvider.html</loc>
-		<lastmod>2026-03-05T16:14:08.553Z</lastmod>
+		<lastmod>2026-03-05T16:16:00.680Z</lastmod>
 	</url>
 	<url>
 		<loc>https://docs.karmanivero.us/jeeves-watcher/interfaces/index.EventQueueOptions.html</loc>
-		<lastmod>2026-03-05T16:14:08.553Z</lastmod>
+		<lastmod>2026-03-05T16:16:00.680Z</lastmod>
 	</url>
 	<url>
 		<loc>https://docs.karmanivero.us/jeeves-watcher/interfaces/index.ExtractedText.html</loc>
-		<lastmod>2026-03-05T16:14:08.553Z</lastmod>
+		<lastmod>2026-03-05T16:16:00.680Z</lastmod>
 	</url>
 	<url>
 		<loc>https://docs.karmanivero.us/jeeves-watcher/interfaces/index.FileAttributes.html</loc>
-		<lastmod>2026-03-05T16:14:08.553Z</lastmod>
+		<lastmod>2026-03-05T16:16:00.680Z</lastmod>
 	</url>
 	<url>
 		<loc>https://docs.karmanivero.us/jeeves-watcher/interfaces/index.FileSystemWatcherOptions.html</loc>
-		<lastmod>2026-03-05T16:14:08.553Z</lastmod>
+		<lastmod>2026-03-05T16:16:00.680Z</lastmod>
 	</url>
 	<url>
 		<loc>https://docs.karmanivero.us/jeeves-watcher/interfaces/index.HelperModuleIntrospection.html</loc>
-		<lastmod>2026-03-05T16:14:08.553Z</lastmod>
+		<lastmod>2026-03-05T16:16:00.680Z</lastmod>
 	</url>
 	<url>
 		<loc>https://docs.karmanivero.us/jeeves-watcher/interfaces/index.JeevesWatcherFactories.html</loc>
-		<lastmod>2026-03-05T16:14:08.553Z</lastmod>
+		<lastmod>2026-03-05T16:16:00.680Z</lastmod>
 	</url>
 	<url>
 		<loc>https://docs.karmanivero.us/jeeves-watcher/interfaces/index.JeevesWatcherRuntimeOptions.html</loc>
-		<lastmod>2026-03-05T16:14:08.553Z</lastmod>
+		<lastmod>2026-03-05T16:16:00.680Z</lastmod>
 	</url>
 	<url>
 		<loc>https://docs.karmanivero.us/jeeves-watcher/interfaces/index.PayloadFieldSchema.html</loc>
-		<lastmod>2026-03-05T16:14:08.553Z</lastmod>
+		<lastmod>2026-03-05T16:16:00.680Z</lastmod>
 	</url>
 	<url>
 		<loc>https://docs.karmanivero.us/jeeves-watcher/interfaces/index.ProcessorConfig.html</loc>
-		<lastmod>2026-03-05T16:14:08.553Z</lastmod>
+		<lastmod>2026-03-05T16:16:00.680Z</lastmod>
 	</url>
 	<url>
 		<loc>https://docs.karmanivero.us/jeeves-watcher/interfaces/index.ReindexStatus.html</loc>
-		<lastmod>2026-03-05T16:14:08.553Z</lastmod>
+		<lastmod>2026-03-05T16:16:00.680Z</lastmod>
 	</url>
 	<url>
 		<loc>https://docs.karmanivero.us/jeeves-watcher/interfaces/index.RuleLogger.html</loc>
-		<lastmod>2026-03-05T16:14:08.553Z</lastmod>
+		<lastmod>2026-03-05T16:16:00.680Z</lastmod>
 	</url>
 	<url>
 		<loc>https://docs.karmanivero.us/jeeves-watcher/interfaces/index.ScrolledPoint.html</loc>
-		<lastmod>2026-03-05T16:14:08.553Z</lastmod>
+		<lastmod>2026-03-05T16:16:00.680Z</lastmod>
 	</url>
 	<url>
 		<loc>https://docs.karmanivero.us/jeeves-watcher/interfaces/index.SearchResult.html</loc>
-		<lastmod>2026-03-05T16:14:08.553Z</lastmod>
+		<lastmod>2026-03-05T16:16:00.680Z</lastmod>
 	</url>
 	<url>
 		<loc>https://docs.karmanivero.us/jeeves-watcher/interfaces/index.SystemHealthOptions.html</loc>
-		<lastmod>2026-03-05T16:14:08.553Z</lastmod>
+		<lastmod>2026-03-05T16:16:00.680Z</lastmod>
 	</url>
 	<url>
 		<loc>https://docs.karmanivero.us/jeeves-watcher/interfaces/index.VectorPoint.html</loc>
-		<lastmod>2026-03-05T16:14:08.553Z</lastmod>
+		<lastmod>2026-03-05T16:16:00.680Z</lastmod>
 	</url>
 	<url>
 		<loc>https://docs.karmanivero.us/jeeves-watcher/interfaces/index.VectorStore.html</loc>
-		<lastmod>2026-03-05T16:14:08.553Z</lastmod>
+		<lastmod>2026-03-05T16:16:00.680Z</lastmod>
 	</url>
 	<url>
 		<loc>https://docs.karmanivero.us/jeeves-watcher/types/index.ApiConfig.html</loc>
-		<lastmod>2026-03-05T16:14:08.553Z</lastmod>
+		<lastmod>2026-03-05T16:16:00.680Z</lastmod>
 	</url>
 	<url>
 		<loc>https://docs.karmanivero.us/jeeves-watcher/types/index.CompiledTemplate.html</loc>
-		<lastmod>2026-03-05T16:14:08.553Z</lastmod>
+		<lastmod>2026-03-05T16:16:00.680Z</lastmod>
 	</url>
 	<url>
 		<loc>https://docs.karmanivero.us/jeeves-watcher/types/index.ConfigWatchConfig.html</loc>
-		<lastmod>2026-03-05T16:14:08.553Z</lastmod>
+		<lastmod>2026-03-05T16:16:00.680Z</lastmod>
 	</url>
 	<url>
 		<loc>https://docs.karmanivero.us/jeeves-watcher/types/index.EmbeddingConfig.html</loc>
-		<lastmod>2026-03-05T16:14:08.553Z</lastmod>
+		<lastmod>2026-03-05T16:16:00.680Z</lastmod>
 	</url>
 	<url>
 		<loc>https://docs.karmanivero.us/jeeves-watcher/types/index.Extractor.html</loc>
-		<lastmod>2026-03-05T16:14:08.553Z</lastmod>
+		<lastmod>2026-03-05T16:16:00.680Z</lastmod>
 	</url>
 	<url>
 		<loc>https://docs.karmanivero.us/jeeves-watcher/types/index.InferenceRule.html</loc>
-		<lastmod>2026-03-05T16:14:08.553Z</lastmod>
+		<lastmod>2026-03-05T16:16:00.680Z</lastmod>
 	</url>
 	<url>
 		<loc>https://docs.karmanivero.us/jeeves-watcher/types/index.IssueRecord.html</loc>
-		<lastmod>2026-03-05T16:14:08.553Z</lastmod>
+		<lastmod>2026-03-05T16:16:00.680Z</lastmod>
 	</url>
 	<url>
 		<loc>https://docs.karmanivero.us/jeeves-watcher/types/index.IssuesFile.html</loc>
-		<lastmod>2026-03-05T16:14:08.553Z</lastmod>
+		<lastmod>2026-03-05T16:16:00.680Z</lastmod>
 	</url>
 	<url>
 		<loc>https://docs.karmanivero.us/jeeves-watcher/types/index.JeevesWatcherConfig.html</loc>
-		<lastmod>2026-03-05T16:14:08.553Z</lastmod>
+		<lastmod>2026-03-05T16:16:00.680Z</lastmod>
 	</url>
 	<url>
 		<loc>https://docs.karmanivero.us/jeeves-watcher/types/index.LoggingConfig.html</loc>
-		<lastmod>2026-03-05T16:14:08.553Z</lastmod>
+		<lastmod>2026-03-05T16:16:00.680Z</lastmod>
 	</url>
 	<url>
 		<loc>https://docs.karmanivero.us/jeeves-watcher/types/index.ProcessFn.html</loc>
-		<lastmod>2026-03-05T16:14:08.553Z</lastmod>
+		<lastmod>2026-03-05T16:16:00.680Z</lastmod>
 	</url>
 	<url>
 		<loc>https://docs.karmanivero.us/jeeves-watcher/types/index.ProviderFactory.html</loc>
-		<lastmod>2026-03-05T16:14:08.553Z</lastmod>
+		<lastmod>2026-03-05T16:16:00.680Z</lastmod>
 	</url>
 	<url>
 		<loc>https://docs.karmanivero.us/jeeves-watcher/types/index.ValuesIndex.html</loc>
-		<lastmod>2026-03-05T16:14:08.553Z</lastmod>
+		<lastmod>2026-03-05T16:16:00.680Z</lastmod>
 	</url>
 	<url>
 		<loc>https://docs.karmanivero.us/jeeves-watcher/types/index.VectorStoreConfig.html</loc>
-		<lastmod>2026-03-05T16:14:08.553Z</lastmod>
+		<lastmod>2026-03-05T16:16:00.680Z</lastmod>
 	</url>
 	<url>
 		<loc>https://docs.karmanivero.us/jeeves-watcher/types/index.WatchConfig.html</loc>
-		<lastmod>2026-03-05T16:14:08.553Z</lastmod>
+		<lastmod>2026-03-05T16:16:00.680Z</lastmod>
 	</url>
 	<url>
 		<loc>https://docs.karmanivero.us/jeeves-watcher/types/index.WatchEvent.html</loc>
-		<lastmod>2026-03-05T16:14:08.553Z</lastmod>
+		<lastmod>2026-03-05T16:16:00.680Z</lastmod>
 	</url>
 	<url>
 		<loc>https://docs.karmanivero.us/jeeves-watcher/variables/index.apiConfigSchema.html</loc>
-		<lastmod>2026-03-05T16:14:08.553Z</lastmod>
+		<lastmod>2026-03-05T16:16:00.680Z</lastmod>
 	</url>
 	<url>
 		<loc>https://docs.karmanivero.us/jeeves-watcher/variables/index.configWatchConfigSchema.html</loc>
-		<lastmod>2026-03-05T16:14:08.553Z</lastmod>
+		<lastmod>2026-03-05T16:16:00.680Z</lastmod>
 	</url>
 	<url>
 		<loc>https://docs.karmanivero.us/jeeves-watcher/variables/index.embeddingConfigSchema.html</loc>
-		<lastmod>2026-03-05T16:14:08.553Z</lastmod>
+		<lastmod>2026-03-05T16:16:00.680Z</lastmod>
 	</url>
 	<url>
 		<loc>https://docs.karmanivero.us/jeeves-watcher/variables/index.inferenceRuleSchema.html</loc>
-		<lastmod>2026-03-05T16:14:08.553Z</lastmod>
+		<lastmod>2026-03-05T16:16:00.680Z</lastmod>
 	</url>
 	<url>
 		<loc>https://docs.karmanivero.us/jeeves-watcher/variables/index.issueRecordSchema.html</loc>
-		<lastmod>2026-03-05T16:14:08.553Z</lastmod>
+		<lastmod>2026-03-05T16:16:00.680Z</lastmod>
 	</url>
 	<url>
 		<loc>https://docs.karmanivero.us/jeeves-watcher/variables/index.jeevesWatcherConfigSchema.html</loc>
-		<lastmod>2026-03-05T16:14:08.553Z</lastmod>
+		<lastmod>2026-03-05T16:16:00.680Z</lastmod>
 	</url>
 	<url>
 		<loc>https://docs.karmanivero.us/jeeves-watcher/variables/index.loggingConfigSchema.html</loc>
-		<lastmod>2026-03-05T16:14:08.553Z</lastmod>
+		<lastmod>2026-03-05T16:16:00.680Z</lastmod>
 	</url>
 	<url>
 		<loc>https://docs.karmanivero.us/jeeves-watcher/variables/index.vectorStoreConfigSchema.html</loc>
-		<lastmod>2026-03-05T16:14:08.553Z</lastmod>
+		<lastmod>2026-03-05T16:16:00.680Z</lastmod>
 	</url>
 	<url>
 		<loc>https://docs.karmanivero.us/jeeves-watcher/variables/index.watchConfigSchema.html</loc>
-		<lastmod>2026-03-05T16:14:08.553Z</lastmod>
+		<lastmod>2026-03-05T16:16:00.680Z</lastmod>
 	</url>
 	<url>
 		<loc>https://docs.karmanivero.us/jeeves-watcher/functions/index.applyRules.html</loc>
-		<lastmod>2026-03-05T16:14:08.553Z</lastmod>
+		<lastmod>2026-03-05T16:16:00.680Z</lastmod>
 	</url>
 	<url>
 		<loc>https://docs.karmanivero.us/jeeves-watcher/functions/index.buildAttributes.html</loc>
-		<lastmod>2026-03-05T16:14:08.553Z</lastmod>
+		<lastmod>2026-03-05T16:16:00.680Z</lastmod>
 	</url>
 	<url>
 		<loc>https://docs.karmanivero.us/jeeves-watcher/functions/index.buildTemplateEngine.html</loc>
-		<lastmod>2026-03-05T16:14:08.553Z</lastmod>
+		<lastmod>2026-03-05T16:16:00.680Z</lastmod>
 	</url>
 	<url>
 		<loc>https://docs.karmanivero.us/jeeves-watcher/functions/index.compileRules.html</loc>
-		<lastmod>2026-03-05T16:14:08.553Z</lastmod>
+		<lastmod>2026-03-05T16:16:00.680Z</lastmod>
 	</url>
 	<url>
 		<loc>https://docs.karmanivero.us/jeeves-watcher/functions/index.contentHash.html</loc>
-		<lastmod>2026-03-05T16:14:08.553Z</lastmod>
+		<lastmod>2026-03-05T16:16:00.680Z</lastmod>
 	</url>
 	<url>
 		<loc>https://docs.karmanivero.us/jeeves-watcher/functions/index.createApiServer.html</loc>
-		<lastmod>2026-03-05T16:14:08.553Z</lastmod>
+		<lastmod>2026-03-05T16:16:00.680Z</lastmod>
 	</url>
 	<url>
 		<loc>https://docs.karmanivero.us/jeeves-watcher/functions/index.createEmbeddingProvider.html</loc>
-		<lastmod>2026-03-05T16:14:08.553Z</lastmod>
+		<lastmod>2026-03-05T16:16:00.680Z</lastmod>
 	</url>
 	<url>
 		<loc>https://docs.karmanivero.us/jeeves-watcher/functions/index.createHandlebarsInstance.html</loc>
-		<lastmod>2026-03-05T16:14:08.553Z</lastmod>
+		<lastmod>2026-03-05T16:16:00.680Z</lastmod>
 	</url>
 	<url>
 		<loc>https://docs.karmanivero.us/jeeves-watcher/functions/index.createLogger.html</loc>
-		<lastmod>2026-03-05T16:14:08.553Z</lastmod>
+		<lastmod>2026-03-05T16:16:00.680Z</lastmod>
 	</url>
 	<url>
 		<loc>https://docs.karmanivero.us/jeeves-watcher/functions/index.deleteMetadata.html</loc>
-		<lastmod>2026-03-05T16:14:08.553Z</lastmod>
+		<lastmod>2026-03-05T16:16:00.680Z</lastmod>
 	</url>
 	<url>
 		<loc>https://docs.karmanivero.us/jeeves-watcher/functions/index.extractText.html</loc>
-		<lastmod>2026-03-05T16:14:08.553Z</lastmod>
+		<lastmod>2026-03-05T16:16:00.680Z</lastmod>
 	</url>
 	<url>
 		<loc>https://docs.karmanivero.us/jeeves-watcher/functions/index.loadConfig.html</loc>
-		<lastmod>2026-03-05T16:14:08.553Z</lastmod>
+		<lastmod>2026-03-05T16:16:00.680Z</lastmod>
 	</url>
 	<url>
 		<loc>https://docs.karmanivero.us/jeeves-watcher/functions/index.loadCustomHelpers.html</loc>
-		<lastmod>2026-03-05T16:14:08.553Z</lastmod>
+		<lastmod>2026-03-05T16:16:00.680Z</lastmod>
 	</url>
 	<url>
 		<loc>https://docs.karmanivero.us/jeeves-watcher/functions/index.metadataPath.html</loc>
-		<lastmod>2026-03-05T16:14:08.553Z</lastmod>
+		<lastmod>2026-03-05T16:16:00.680Z</lastmod>
 	</url>
 	<url>
 		<loc>https://docs.karmanivero.us/jeeves-watcher/functions/index.pointId.html</loc>
-		<lastmod>2026-03-05T16:14:08.553Z</lastmod>
+		<lastmod>2026-03-05T16:16:00.680Z</lastmod>
 	</url>
 	<url>
 		<loc>https://docs.karmanivero.us/jeeves-watcher/functions/index.readMetadata.html</loc>
-		<lastmod>2026-03-05T16:14:08.553Z</lastmod>
+		<lastmod>2026-03-05T16:16:00.680Z</lastmod>
 	</url>
 	<url>
 		<loc>https://docs.karmanivero.us/jeeves-watcher/functions/index.registerBuiltinHelpers.html</loc>
-		<lastmod>2026-03-05T16:14:08.553Z</lastmod>
+		<lastmod>2026-03-05T16:16:00.680Z</lastmod>
 	</url>
 	<url>
 		<loc>https://docs.karmanivero.us/jeeves-watcher/functions/index.resolveTemplateSource.html</loc>
-		<lastmod>2026-03-05T16:14:08.553Z</lastmod>
+		<lastmod>2026-03-05T16:16:00.680Z</lastmod>
 	</url>
 	<url>
 		<loc>https://docs.karmanivero.us/jeeves-watcher/functions/index.startFromConfig.html</loc>
-		<lastmod>2026-03-05T16:14:08.553Z</lastmod>
+		<lastmod>2026-03-05T16:16:00.680Z</lastmod>
 	</url>
 	<url>
 		<loc>https://docs.karmanivero.us/jeeves-watcher/functions/index.writeMetadata.html</loc>
-		<lastmod>2026-03-05T16:14:08.553Z</lastmod>
+		<lastmod>2026-03-05T16:16:00.680Z</lastmod>
 	</url>
 </urlset>
