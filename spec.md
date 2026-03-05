@@ -852,13 +852,13 @@ This section describes changes from the current versions. Only deltas are docume
 **Solution:** The \@karmaniverous/jeeves-watcher-openclaw\ plugin will register an \gent:bootstrap\ hook to inject a dynamic, just-in-time "Watcher Menu" directly into the agent's system prompt on every turn. 
 
 **Design:**
-When OpenClaw assembles the system prompt, the plugin's hook intercepts the bootstrap payload. Because OpenClaw restricts bootstrap files to a strict union of known filenames, the hook dynamically appends the generated 'Watcher Menu' to the bottom of the `TOOLS.md` file payload in memory. This guarantees the LLM sees the watcher's capabilities at the foundational context level, intercepting the tool-selection reasoning before it defaults to `exec`.
+When OpenClaw assembles the system prompt, the plugin's hook intercepts the bootstrap payload. Because OpenClaw restricts bootstrap files to a strict union of known filenames, the hook dynamically injects the generated 'Watcher Menu' into the `TOOLS.md` file payload in memory. It uses a shared ecosystem pattern: checking for a # Jeeves Platform Tools H1 header. If missing, it prepends the H1 to the file. It then inserts its content under a specific ## Watcher H2 header beneath the H1. This guarantees the LLM sees the watcher's capabilities at the foundational context level, intercepting the tool-selection reasoning before it defaults to `exec`.
 
 The injected content must be entirely platform-agnostic and data-driven, populated dynamically from the watcher's actual runtime state:
 1. Hit `GET /status` to retrieve the current point count (demonstrating the scale/value of the index).
 2. Hit `POST /config/query` to extract the configured `watch.paths`, `inference.rules`, and `search.scoreThresholds`.
 3. Map the active inference rules into a clean markdown menu of - **Name**: Description (translating structural paths into semantic *intent*).
-4. Append this generated text to the `TOOLS.md` bootstrap file payload in memory.
+4. Inject this generated text into the `TOOLS.md` bootstrap file payload in memory, safely prepending/appending under the shared # Jeeves Platform Tools H1 and its own ## Watcher H2.
 
 **Example Injected Output:**
 \\\markdown
@@ -1453,6 +1453,7 @@ end note
 | `domain` vs `domains` mismatch on older points | jeeves-server browse filter expects `domain` (singular) but new points have `domains` (plural) | Align jeeves-server filter or reindex |
 | Stale `domain: "codebase"` points in Qdrant | Old codebase domain points remain from before GitHub migration | Clean on next full reindex |
 | ~~Embedding concurrency at 1~~ | ~~Slower indexing than optimal~~ | **RESOLVED** — restored to 5, Qdrant resilience fix holds |
+
 
 
 
