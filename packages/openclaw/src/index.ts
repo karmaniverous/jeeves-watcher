@@ -16,8 +16,12 @@ export default function register(api: PluginApi): void {
   // Register the agent:bootstrap hook if the host OpenClaw version supports it
   const registerHook = api.registerHook;
   if (typeof registerHook === 'function') {
-    registerHook('agent:bootstrap', async (event) => {
-      await handleAgentBootstrap(event, api);
-    }, { name: 'jeeves-watcher-openclaw' });
+    registerHook(
+      'agent:bootstrap',
+      async (event) => {
+        await handleAgentBootstrap(event, api);
+      },
+      { name: 'jeeves-watcher-openclaw' },
+    );
   }
 }
