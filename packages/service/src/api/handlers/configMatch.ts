@@ -3,16 +3,13 @@
  * Tests file paths against inference rules and watch scope.
  */
 
-import { basename, dirname, extname } from 'node:path';
-
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import picomatch from 'picomatch';
 import type pino from 'pino';
 
 import type { JeevesWatcherConfig } from '../../config/types';
-import type { FileAttributes } from '../../rules/attributes';
+import { buildSyntheticAttributes } from '../../rules/attributes';
 import { compileRules } from '../../rules/compile';
-import { normalizeSlashes } from '../../util/normalizeSlashes';
 import { wrapHandler } from './wrapHandler';
 
 /** Request body for POST /config/match. */
@@ -69,17 +66,7 @@ export function createConfigMatchHandler(options: ConfigMatchHandlerOptions) {
     }
 
     const matches: PathMatch[] = body.paths.map((path) => {
-      const normalised = normalizeSlashes(path);
-      const attrs: FileAttributes = {
-        file: {
-          path: normalised,
-          directory: normalizeSlashes(dirname(normalised)),
-          filename: basename(normalised),
-          extension: extname(normalised),
-          sizeBytes: 0,
-          modified: new Date(0).toISOString(),
-        },
-      };
+      const attrs = buildSyntheticAttributes(path);
 
       // Find matching rules
       const matchingRules: string[] = [];
@@ -90,6 +77,7 @@ export function createConfigMatchHandler(options: ConfigMatchHandlerOptions) {
       }
 
       // Check watch scope: matches watch paths and not in ignored
+      const normalised = attrs.file.path;
       const watched = watchMatcher(normalised) && !ignoreMatcher?.(normalised);
 
       return { rules: matchingRules, watched };

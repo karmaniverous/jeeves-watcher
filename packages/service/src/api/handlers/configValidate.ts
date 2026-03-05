@@ -4,6 +4,7 @@
  */
 
 import { existsSync, readFileSync, statSync } from 'node:fs';
+import { isAbsolute, resolve } from 'node:path';
 
 import type { FastifyRequest } from 'fastify';
 import type pino from 'pino';
@@ -35,6 +36,8 @@ export interface TestResult {
 export interface ConfigValidateRouteDeps {
   config: JeevesWatcherConfig;
   logger: pino.Logger;
+  /** Directory used to resolve relative helper file paths. */
+  configDir: string;
 }
 
 type ConfigValidateRequest = FastifyRequest<{
@@ -46,6 +49,7 @@ type ConfigValidateRequest = FastifyRequest<{
  */
 function validateHelperFiles(
   config: Record<string, unknown>,
+  configDir: string,
 ): ValidationError[] {
   const errors: ValidationError[] = [];
   for (const section of ['mapHelpers', 'templateHelpers']) {
@@ -55,15 +59,18 @@ function validateHelperFiles(
     if (!helpers) continue;
     for (const [name, helper] of Object.entries(helpers)) {
       if (!helper.path) continue;
-      if (!existsSync(helper.path)) {
+      const resolvedPath = isAbsolute(helper.path)
+        ? helper.path
+        : resolve(configDir, helper.path);
+      if (!existsSync(resolvedPath)) {
         errors.push({
           path: `${section}.${name}.path`,
-          message: `File not found: ${helper.path}`,
+          message: `File not found: ${resolvedPath}`,
         });
         continue;
       }
       try {
-        readFileSync(helper.path, 'utf-8');
+        readFileSync(resolvedPath, 'utf-8');
       } catch (err) {
         errors.push({
           path: `${section}.${name}.path`,
@@ -127,7 +134,7 @@ export function createConfigValidateHandler(deps: ConfigValidateRouteDeps) {
         return { valid: false, errors };
       }
 
-      const helperErrors = validateHelperFiles(candidateRaw);
+      const helperErrors = validateHelperFiles(candidateRaw, deps.configDir);
       if (helperErrors.length > 0) {
         return { valid: false, errors: helperErrors };
       }

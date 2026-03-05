@@ -3,6 +3,8 @@
  * Small async retry helper with exponential backoff. Side effects: sleeps between attempts; can invoke onRetry callback for logging.
  */
 
+import { sleep } from './sleep';
+
 export interface RetryOptions {
   /** Maximum number of attempts (including the first try). */
   attempts: number;
@@ -21,34 +23,6 @@ export interface RetryOptions {
   }) => void;
   /** Optional signal to cancel retry sleep. */
   signal?: AbortSignal;
-}
-
-function sleep(ms: number, signal?: AbortSignal): Promise<void> {
-  if (ms <= 0) return Promise.resolve();
-  return new Promise<void>((resolve, reject) => {
-    const timer = setTimeout(() => {
-      cleanup();
-      resolve();
-    }, ms);
-
-    const onAbort = () => {
-      cleanup();
-      reject(new Error('Retry sleep aborted'));
-    };
-
-    const cleanup = () => {
-      clearTimeout(timer);
-      if (signal) signal.removeEventListener('abort', onAbort);
-    };
-
-    if (signal) {
-      if (signal.aborted) {
-        onAbort();
-        return;
-      }
-      signal.addEventListener('abort', onAbort, { once: true });
-    }
-  });
 }
 
 function computeDelayMs(

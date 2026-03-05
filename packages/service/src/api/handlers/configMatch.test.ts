@@ -19,10 +19,13 @@ function mockRequest(body: { paths: string[] }): ConfigMatchRequest {
 }
 
 function mockReply(): MockReply {
-  return {
+  const r = {
     code: vi.fn().mockReturnThis(),
     send: vi.fn().mockImplementation((d: unknown) => d),
+    status: vi.fn().mockReturnThis(),
+    sent: false,
   };
+  return r as unknown as MockReply;
 }
 
 describe('POST /config/match handler', () => {

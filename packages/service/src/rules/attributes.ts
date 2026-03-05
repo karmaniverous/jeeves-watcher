@@ -63,3 +63,24 @@ export function buildAttributes(
   if (extractedJson) attrs.json = extractedJson;
   return attrs;
 }
+
+/**
+ * Build synthetic file attributes from a path string (no actual file I/O).
+ * Used by API handlers that need to match rules against paths without reading files.
+ *
+ * @param filePath - The file path.
+ * @returns Synthetic file attributes with zeroed stats.
+ */
+export function buildSyntheticAttributes(filePath: string): FileAttributes {
+  const normalised = normalizeSlashes(filePath);
+  return {
+    file: {
+      path: normalised,
+      directory: normalizeSlashes(dirname(normalised)),
+      filename: basename(normalised),
+      extension: extname(normalised),
+      sizeBytes: 0,
+      modified: new Date(0).toISOString(),
+    },
+  };
+}

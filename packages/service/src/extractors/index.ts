@@ -152,13 +152,10 @@ export async function extractText(
   extension: string,
   additionalExtractors?: Map<string, Extractor>,
 ): Promise<ExtractedText> {
-  // Merge additional extractors with built-in registry
-  const registry = new Map(extractorRegistry);
-  if (additionalExtractors) {
-    for (const [ext, extractor] of additionalExtractors) {
-      registry.set(ext, extractor);
-    }
-  }
+  // Use base registry directly unless additional extractors provided
+  const registry = additionalExtractors
+    ? new Map([...extractorRegistry, ...additionalExtractors])
+    : extractorRegistry;
 
   const extractor = registry.get(extension.toLowerCase());
   if (extractor) return extractor(filePath);

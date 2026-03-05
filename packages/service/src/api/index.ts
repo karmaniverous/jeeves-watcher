@@ -3,6 +3,8 @@
  * Fastify API server factory. Registers all route handlers and returns an unstarted server instance.
  */
 
+import { dirname } from 'node:path';
+
 import Fastify, { type FastifyInstance } from 'fastify';
 import type pino from 'pino';
 
@@ -36,6 +38,7 @@ import {
 } from './handlers/rulesUnregister';
 import { createSearchHandler } from './handlers/search';
 import { createStatusHandler } from './handlers/status';
+import { withCache } from './handlers/withCache';
 import { ReindexTracker } from './ReindexTracker';
 
 export type { ReindexStatus } from './ReindexTracker';
@@ -110,13 +113,18 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
     );
   };
 
+  const cacheTtlMs = config.api?.cacheTtlMs ?? 30000;
+
   app.get(
     '/status',
-    createStatusHandler({
-      vectorStore,
-      collectionName: config.vectorStore.collectionName,
-      reindexTracker,
-    }),
+    withCache(
+      cacheTtlMs,
+      createStatusHandler({
+        vectorStore,
+        collectionName: config.vectorStore.collectionName,
+        reindexTracker,
+      }),
+    ),
   );
 
   app.post('/metadata', createMetadataHandler({ processor, config, logger }));
@@ -157,27 +165,40 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
     createConfigReindexHandler({ config, processor, logger, reindexTracker }),
   );
 
-  app.get('/issues', createIssuesHandler({ issuesManager }));
+  app.get(
+    '/issues',
+    withCache(cacheTtlMs, createIssuesHandler({ issuesManager })),
+  );
 
-  app.get('/config/schema', createConfigSchemaHandler());
+  app.get('/config/schema', withCache(cacheTtlMs, createConfigSchemaHandler()));
 
   app.post('/config/match', createConfigMatchHandler({ config, logger }));
 
   app.post(
     '/config/query',
-    createConfigQueryHandler({
-      config,
-      valuesManager,
-      issuesManager,
-      logger,
-      helperIntrospection,
-      getVirtualRules: virtualRuleStore
-        ? () => virtualRuleStore.getAll()
-        : undefined,
-    }),
+    withCache(
+      cacheTtlMs,
+      createConfigQueryHandler({
+        config,
+        valuesManager,
+        issuesManager,
+        logger,
+        helperIntrospection,
+        getVirtualRules: virtualRuleStore
+          ? () => virtualRuleStore.getAll()
+          : undefined,
+      }),
+    ),
   );
 
-  app.post('/config/validate', createConfigValidateHandler({ config, logger }));
+  app.post(
+    '/config/validate',
+    createConfigValidateHandler({
+      config,
+      logger,
+      configDir: dirname(configPath),
+    }),
+  );
 
   app.post(
     '/config/apply',

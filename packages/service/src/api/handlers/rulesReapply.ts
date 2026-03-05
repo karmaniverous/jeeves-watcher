@@ -32,7 +32,6 @@ type ReapplyRequest = FastifyRequest<{
 export function createRulesReapplyHandler(deps: RulesReapplyDeps) {
   return wrapHandler(
     async (request: ReapplyRequest) => {
-      await Promise.resolve();
       const { globs } = request.body;
 
       if (!Array.isArray(globs) || globs.length === 0) {
