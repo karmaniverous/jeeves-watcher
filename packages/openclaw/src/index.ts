@@ -5,7 +5,7 @@
 
 import type { PluginApi } from './helpers.js';
 import { getApiUrl } from './helpers.js';
-import { handleAgentBootstrap } from './promptInjection.js';
+import { startToolsWriter } from './toolsWriter.js';
 import { registerWatcherTools } from './watcherTools.js';
 
 /** Register all jeeves-watcher tools with the OpenClaw plugin API. */
@@ -13,15 +13,9 @@ export default function register(api: PluginApi): void {
   const baseUrl = getApiUrl(api);
   registerWatcherTools(api, baseUrl);
 
-  // Register the agent:bootstrap hook if the host OpenClaw version supports it
-  const registerHook = api.registerHook;
-  if (typeof registerHook === 'function') {
-    registerHook(
-      'agent:bootstrap',
-      async (event) => {
-        await handleAgentBootstrap(event, api);
-      },
-      { name: 'jeeves-watcher-openclaw' },
-    );
-  }
+  // Write the watcher menu to TOOLS.md on disk, refreshing periodically.
+  // This replaces the agent:bootstrap hook approach which was unreliable
+  // because OpenClaw's clearInternalHooks() wipes plugin-registered hooks
+  // during the async startup sequence.
+  startToolsWriter(api);
 }

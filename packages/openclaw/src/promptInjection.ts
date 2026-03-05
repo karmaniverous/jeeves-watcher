@@ -54,7 +54,7 @@ async function fetchJson<T>(url: string, init?: RequestInit): Promise<T> {
  * Fetches data from the watcher API and generates a Markdown menu string.
  * The string is platform-agnostic and safe to inject into TOOLS.md.
  */
-async function generateWatcherMenu(apiUrl: string): Promise<string> {
+export async function generateWatcherMenu(apiUrl: string): Promise<string> {
   let pointCount = 0;
   const activeRules: Array<{ name: string; description: string }> = [];
   const watchPaths: string[] = [];
