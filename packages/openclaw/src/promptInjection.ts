@@ -172,7 +172,10 @@ function upsertWatcherSection(toolsMd: string, watcherMenu: string): string {
   const section = `## Watcher\n\n${watcherMenu}\n`;
 
   // If we already injected a Watcher section, replace it.
-  const re = /^## Watcher\n[\s\S]*?(?=^##\s|$)/m;
+  // The `m` flag is needed so `^` matches line starts, but it also makes
+  // `$` match end-of-line instead of end-of-string.  Use a negative
+  // lookahead `$(?![\s\S])` to anchor at true end-of-string.
+  const re = /^## Watcher\n[\s\S]*?(?=\n## |\n# |$(?![\s\S]))/m;
   if (re.test(toolsMd)) {
     return toolsMd.replace(re, section);
   }
@@ -215,6 +218,15 @@ export async function handleAgentBootstrap(
   }
 
   const current = toolsFile.content ?? '';
+
+  // Guard: the bootstrap hook fires on every message turn because OpenClaw
+  // caches bootstrapFiles per session and returns the same mutable objects.
+  // If we already injected the watcher menu into this content, skip to
+  // avoid accumulating duplicate sections.
+  if (current.includes('## Watcher') && current.includes(watcherMenu)) {
+    return;
+  }
+
   const withH1 = ensurePlatformToolsSection(current);
   const updated = upsertWatcherSection(withH1, watcherMenu);
 
