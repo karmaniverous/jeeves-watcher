@@ -856,7 +856,7 @@ When OpenClaw assembles the system prompt, the plugin's hook intercepts the boot
 
 The injected content must be entirely platform-agnostic and data-driven, populated dynamically from the watcher's actual runtime state:
 1. Hit `GET /status` to retrieve the current point count (demonstrating the scale/value of the index).
-2. Hit `POST /config/query` to extract the configured `watch.paths`, `inference.rules`, and `search.scoreThresholds`.
+2. Hit `POST /config/query` to extract the configured `watch.paths`, `watch.ignored`, `inference.rules`, and `search.scoreThresholds`.
 3. Map the active inference rules into a clean markdown menu of - **Name**: Description (translating structural paths into semantic *intent*).
 4. Inject this generated text into the `TOOLS.md` bootstrap file payload in memory, safely prepending/appending under the shared # Jeeves Platform Tools H1 and its own ## Watcher H2.
 
@@ -882,6 +882,11 @@ This environment includes a semantic search index (\watcher_search\) covering 17
 * \j:/domains/**/*.md\
 * \j:/config/**/*.json\
 * *(...dynamically populated from watch.paths)*
+  
+  ## Ignored paths:
+  * \\**/node_modules/**\\
+  * \\**/.git/**\\
+  * *(...dynamically populated from watch.ignored)*
 \\\
 
 **Impact:** This bridges the gap between user intent ("I need a Jira issue") and tool selection ("Jira issues are on the watcher's menu, I should use watcher_search") without requiring the agent to guess file paths or rely on static \MEMORY.md\ rules that may be summarized away during context compaction.
@@ -1167,12 +1172,12 @@ After:
 ### 3. Dynamic System Prompt Injection & Caching
 
 **Files:**
-- src/config/schemas/base.ts — Add cacheTtlMs to API config schema
-- src/api/handlers/withCache.ts — Create DRY route wrapper for memory caching
-- src/api/index.ts — Apply withCache to GET /status, POST /config/query, GET /config/schema, GET /issues`n- packages/openclaw/src/helpers.ts — Update PluginApi interface to include hook registration methods
-- packages/openclaw/src/index.ts — Register gent:bootstrap hook
-- packages/openclaw/src/promptInjection.ts — Implement the menu generation, formatting, plugin-side 30s TTL cache, and TOOLS.md append logic
-- packages/openclaw/skills/jeeves-watcher/SKILL.md — Remove redundant Orientation Pattern and Quick Start step; ensure Escalation Rule remains but is also injected
+- src/config/schemas/base.ts ï¿½ Add cacheTtlMs to API config schema
+- src/api/handlers/withCache.ts ï¿½ Create DRY route wrapper for memory caching
+- src/api/index.ts ï¿½ Apply withCache to GET /status, POST /config/query, GET /config/schema, GET /issues`n- packages/openclaw/src/helpers.ts ï¿½ Update PluginApi interface to include hook registration methods
+- packages/openclaw/src/index.ts ï¿½ Register gent:bootstrap hook
+- packages/openclaw/src/promptInjection.ts ï¿½ Implement the menu generation, formatting, plugin-side 30s TTL cache, and TOOLS.md append logic
+- packages/openclaw/skills/jeeves-watcher/SKILL.md ï¿½ Remove redundant Orientation Pattern and Quick Start step; ensure Escalation Rule remains but is also injected
 
 **Steps:**
 1. Update ase.ts API schema to include cacheTtlMs (default: 30000).
