@@ -7,6 +7,7 @@
 
 import { readFile, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
+
 import { getApiUrl, type PluginApi } from './helpers.js';
 import { generateWatcherMenu } from './promptInjection.js';
 
@@ -20,9 +21,8 @@ let lastWrittenMenu = '';
  * Uses api.resolvePath if available, otherwise falls back to CWD.
  */
 function resolveToolsPath(api: PluginApi): string {
-  const resolvePath = (api as Record<string, unknown>).resolvePath as
-    | ((input: string) => string)
-    | undefined;
+  const resolvePath = (api as unknown as Record<string, unknown>)
+    .resolvePath as ((input: string) => string) | undefined;
   if (typeof resolvePath === 'function') {
     return resolvePath('TOOLS.md');
   }
@@ -37,10 +37,7 @@ function resolveToolsPath(api: PluginApi): string {
  * - Otherwise, prepend `# Jeeves Platform Tools\n\n## Watcher\n\n...`
  *   before any existing content.
  */
-function upsertWatcherContent(
-  existing: string,
-  watcherMenu: string,
-): string {
+function upsertWatcherContent(existing: string, watcherMenu: string): string {
   const section = `## Watcher\n\n${watcherMenu}`;
 
   // Replace existing watcher section (match from ## Watcher to next ## or # or EOF)
@@ -55,11 +52,7 @@ function upsertWatcherContent(
   if (existing.includes(platformH1)) {
     // Insert after the H1
     const idx = existing.indexOf(platformH1) + platformH1.length;
-    return (
-      existing.slice(0, idx) +
-      `\n\n${section}\n` +
-      existing.slice(idx)
-    );
+    return existing.slice(0, idx) + `\n\n${section}\n` + existing.slice(idx);
   }
 
   // Prepend platform header + watcher section before existing content
@@ -109,7 +102,7 @@ async function refreshToolsMd(api: PluginApi): Promise<boolean> {
  */
 export function startToolsWriter(api: PluginApi): void {
   // Initial write (fire and forget — errors logged but not thrown)
-  refreshToolsMd(api).catch((err) => {
+  refreshToolsMd(api).catch((err: unknown) => {
     console.error('[jeeves-watcher] Failed to write TOOLS.md:', err);
   });
 
@@ -118,13 +111,13 @@ export function startToolsWriter(api: PluginApi): void {
     clearInterval(intervalHandle);
   }
   intervalHandle = setInterval(() => {
-    refreshToolsMd(api).catch((err) => {
+    refreshToolsMd(api).catch((err: unknown) => {
       console.error('[jeeves-watcher] Failed to refresh TOOLS.md:', err);
     });
   }, REFRESH_INTERVAL_MS);
 
   // Don't keep the process alive just for this interval
-  if (intervalHandle && typeof intervalHandle === 'object' && 'unref' in intervalHandle) {
+  if (typeof intervalHandle === 'object' && 'unref' in intervalHandle) {
     intervalHandle.unref();
   }
 }
