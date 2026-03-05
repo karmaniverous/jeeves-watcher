@@ -1180,7 +1180,7 @@ After:
 1. Change `?? 3456` to `?? 1936` (or reference `API_DEFAULTS.port`)
 2. Add test: server starts on default port when no config provided
 
-### 4. Deployment
+### 5. Deployment
 
 **Production config changes:**
 1. Add date fields to structured rules using `{{toUnix ...}}` helpers (Jira, Slack, email, meetings)
@@ -1208,6 +1208,12 @@ After:
 - [ ] API port fallback fixed (`?? 3456` → `?? 1936`)
 - [ ] `slack-message` map reference changed to named ref
 - [ ] Skill updated with `render` block documentation and config-authoring guidance
+- [ ] `api.cacheTtlMs` added to watcher config schema
+- [ ] `withCache` route wrapper applied to read-heavy API endpoints
+- [ ] OpenClaw plugin registers `agent:bootstrap` hook
+- [ ] Plugin-side in-memory caching implemented for the injected menu string
+- [ ] Watcher Menu correctly injects into `TOOLS.md` under the # Jeeves Platform Tools H1
+- [ ] Redundant sections removed from `SKILL.md`
 
 ---
 
@@ -1453,6 +1459,7 @@ end note
 | `domain` vs `domains` mismatch on older points | jeeves-server browse filter expects `domain` (singular) but new points have `domains` (plural) | Align jeeves-server filter or reindex |
 | Stale `domain: "codebase"` points in Qdrant | Old codebase domain points remain from before GitHub migration | Clean on next full reindex |
 | ~~Embedding concurrency at 1~~ | ~~Slower indexing than optimal~~ | **RESOLVED** — restored to 5, Qdrant resilience fix holds |
+
 
 
 
