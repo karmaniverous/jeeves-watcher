@@ -243,9 +243,69 @@ function uninstall(): void {
     }
   }
 
+  // Clean up TOOLS.md watcher section
+  cleanupToolsMd(home, configPath);
+
   console.log();
   console.log('✅ Plugin uninstalled successfully.');
   console.log('   Restart the OpenClaw gateway to complete removal.');
+}
+
+/** Resolve the workspace directory from OpenClaw config. */
+function resolveWorkspaceDir(home: string, configPath: string): string | null {
+  const config = readJson(configPath);
+  if (!config) return null;
+
+  // Check agents.defaults.workspace
+  const agents = config.agents as Record<string, unknown> | undefined;
+  const defaults = agents?.defaults as Record<string, unknown> | undefined;
+  const workspace = defaults?.workspace as string | undefined;
+  if (workspace) {
+    return resolve(workspace.replace(/^~/, homedir()));
+  }
+
+  // Default workspace location
+  return join(home, 'workspace');
+}
+
+/** Remove the ## Watcher section from TOOLS.md on uninstall. */
+function cleanupToolsMd(home: string, configPath: string): void {
+  const workspaceDir = resolveWorkspaceDir(home, configPath);
+  if (!workspaceDir) return;
+
+  const toolsPath = join(workspaceDir, 'TOOLS.md');
+  if (!existsSync(toolsPath)) return;
+
+  let content = readFileSync(toolsPath, 'utf8');
+
+  // Remove ## Watcher section (from ## Watcher to next ## or # or EOF)
+  const watcherRe = /^## Watcher\n[\s\S]*?(?=\n## |\n# |$(?![\s\S]))/m;
+  if (!watcherRe.test(content)) return;
+
+  content = content.replace(watcherRe, '').replace(/\n{3,}/g, '\n\n');
+
+  // If # Jeeves Platform Tools has no remaining ## sections, remove it too
+  const platformH1 = '# Jeeves Platform Tools';
+  if (content.includes(platformH1)) {
+    const h1Idx = content.indexOf(platformH1);
+    const afterH1 = content.slice(h1Idx + platformH1.length);
+    // Check if there's a ## before the next # or EOF
+    const nextH2Match = afterH1.match(/^## /m);
+    const nextH1Match = afterH1.match(/^# /m);
+    const h2Pos = nextH2Match ? afterH1.indexOf(nextH2Match[0]) : Infinity;
+    const h1Pos = nextH1Match ? afterH1.indexOf(nextH1Match[0]) : Infinity;
+
+    if (h2Pos >= h1Pos) {
+      // No child ## sections remain — remove the empty H1
+      content =
+        content.slice(0, h1Idx) + content.slice(h1Idx + platformH1.length);
+      content = content.replace(/^\n{2,}/, '').replace(/\n{3,}/g, '\n\n');
+    }
+  }
+
+  content = content.trim() + '\n';
+  writeFileSync(toolsPath, content);
+  console.log('\u2713 Cleaned up TOOLS.md (removed Watcher section)');
 }
 
 // Main
