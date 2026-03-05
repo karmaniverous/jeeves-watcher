@@ -33,28 +33,35 @@ function hashObject(obj: unknown): string {
  * @param handler - The original route handler
  * @returns A new route handler that implements caching
  */
-export function withCache(
+export function withCache<
+  TReq = FastifyRequest,
+  TRep = FastifyReply,
+  TRet = unknown,
+>(
   ttlMs: number,
-  handler: (req: FastifyRequest, reply: FastifyReply) => Promise<unknown>,
-): (req: FastifyRequest, reply: FastifyReply) => Promise<unknown> {
-  return async (req: FastifyRequest, reply: FastifyReply) => {
+  handler: (req: TReq, reply: TRep) => TRet | Promise<TRet>,
+): (req: TReq, reply: TRep) => Promise<TRet> {
+  return async (req: TReq, reply: TRep): Promise<TRet> => {
+    const fReq = req as unknown as FastifyRequest;
+    const fReply = reply as unknown as FastifyReply;
+
     // Generate deterministic cache key: METHOD:URL:BODY_HASH
-    const bodyHash = hashObject(req.body);
-    const key = `${req.method}:${req.url}:${bodyHash}`;
+    const bodyHash = hashObject(fReq.body);
+    const key = fReq.method + ':' + fReq.url + ':' + bodyHash;
 
     // Check cache
     const now = Date.now();
     const entry = cache.get(key);
 
     if (entry && entry.expiresAt > now) {
-      return entry.value;
+      return entry.value as TRet;
     }
 
     // Cache miss - call handler
     const result = await handler(req, reply);
 
     // Don't cache errors (Fastify reply properties might indicate error)
-    if (reply.statusCode >= 400) {
+    if (fReply.statusCode >= 400) {
       return result;
     }
 
