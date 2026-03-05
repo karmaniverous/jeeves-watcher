@@ -2,8 +2,10 @@
 
 All notable changes to this project will be documented in this file. Dates are displayed in UTC.
 
-#### [0.5.4](https://github.com/karmaniverous/jeeves-watcher/compare/0.5.1...0.5.4)
+#### [0.5.5](https://github.com/karmaniverous/jeeves-watcher/compare/0.5.1...0.5.5)
 
+- fix(openclaw): resolve lint and type errors in toolsWriter [`#87`](https://github.com/karmaniverous/jeeves-watcher/pull/87)
+- feat(openclaw): replace agent:bootstrap hook with disk-based TOOLS.md writer [`#86`](https://github.com/karmaniverous/jeeves-watcher/pull/86)
 - fix: prevent watcher menu duplication in TOOLS.md injection [`#85`](https://github.com/karmaniverous/jeeves-watcher/pull/85)
 - fix(openclaw): align registerHook opts type with OpenClawPluginHookOptions [`#84`](https://github.com/karmaniverous/jeeves-watcher/pull/84)
 - fix(openclaw): provide name option to registerHook [`#83`](https://github.com/karmaniverous/jeeves-watcher/pull/83)
@@ -113,6 +115,7 @@ All notable changes to this project will be documented in this file. Dates are d
 - chore: release @karmaniverous/jeeves-watcher-openclaw v0.3.9 [`97c635e`](https://github.com/karmaniverous/jeeves-watcher/commit/97c635e25b7c7ac4a5e6315ac2c26af7d1e89a74)
 - chore: release @karmaniverous/jeeves-watcher-openclaw v0.3.5 [`837a941`](https://github.com/karmaniverous/jeeves-watcher/commit/837a94145b086245df101f7dcf2fd7a0c5ebfbca)
 - chore: release @karmaniverous/jeeves-watcher v0.6.1 [`037d9c9`](https://github.com/karmaniverous/jeeves-watcher/commit/037d9c924e1bc3020fb6b497f59261dd027718bd)
+- chore: release @karmaniverous/jeeves-watcher-openclaw v0.5.4 [`4e865d0`](https://github.com/karmaniverous/jeeves-watcher/commit/4e865d089240a4314f69b4533b226c872dfaa753)
 - chore: release @karmaniverous/jeeves-watcher-openclaw v0.4.1 [`7863ad4`](https://github.com/karmaniverous/jeeves-watcher/commit/7863ad4edaa04cdc665cba608f6b84ccdbd2b841)
 - chore: release @karmaniverous/jeeves-watcher-openclaw v0.3.7 [`4c12277`](https://github.com/karmaniverous/jeeves-watcher/commit/4c12277cddbfd048f2312f94a907f11ea748407a)
 - fix: use glob instead of pattern for virtual rule matching (case-insensitive on Windows) [`0526d5a`](https://github.com/karmaniverous/jeeves-watcher/commit/0526d5a811e243de11e196f6b27b0be3578e2db3)
