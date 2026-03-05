@@ -1,4 +1,4 @@
-import { getApiUrl, type PluginApi } from './helpers.js';
+import { getApiUrl, getCacheTtlMs, type PluginApi } from './helpers.js';
 
 /** Cache structure for the generated menu string */
 interface MenuCache {
@@ -7,7 +7,6 @@ interface MenuCache {
 }
 
 let menuCache: MenuCache | null = null;
-const CACHE_TTL_MS = 30_000;
 
 interface StatusResponse {
   collection?: { pointCount: number };
@@ -129,14 +128,17 @@ async function generateWatcherMenu(apiUrl: string): Promise<string> {
   return lines.join('\n');
 }
 
-async function getCachedWatcherMenu(apiUrl: string): Promise<string> {
+async function getCachedWatcherMenu(
+  apiUrl: string,
+  ttlMs: number,
+): Promise<string> {
   const now = Date.now();
   if (menuCache && menuCache.expiresAt > now) {
     return menuCache.value;
   }
 
   const menu = await generateWatcherMenu(apiUrl);
-  menuCache = { value: menu, expiresAt: now + CACHE_TTL_MS };
+  menuCache = { value: menu, expiresAt: now + ttlMs };
   return menu;
 }
 
@@ -183,7 +185,8 @@ export async function handleAgentBootstrap(
   }
 
   const apiUrl = getApiUrl(api);
-  const watcherMenu = await getCachedWatcherMenu(apiUrl);
+  const cacheTtlMs = getCacheTtlMs(api);
+  const watcherMenu = await getCachedWatcherMenu(apiUrl, cacheTtlMs);
 
   let toolsFile = context.bootstrapFiles.find((f) => f.name === 'TOOLS.md');
 
