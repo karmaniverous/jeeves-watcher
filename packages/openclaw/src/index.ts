@@ -18,6 +18,6 @@ export default function register(api: PluginApi): void {
   if (typeof registerHook === 'function') {
     registerHook('agent:bootstrap', async (event) => {
       await handleAgentBootstrap(event, api);
-    });
+    }, { name: 'jeeves-watcher-bootstrap' });
   }
 }
