@@ -91,6 +91,8 @@ export function buildMergedDocument(
 
   return {
     description: (config as Record<string, unknown>)['description'] ?? '',
+    watch: config.watch ?? {},
+    configWatch: config.configWatch ?? {},
     search: config.search ?? {},
     schemas: config.schemas ?? {},
     inferenceRules,

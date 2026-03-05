@@ -58,9 +58,10 @@ async function generateWatcherMenu(apiUrl: string): Promise<string> {
   let pointCount = 0;
   const activeRules: Array<{ name: string; description: string }> = [];
   const watchPaths: string[] = [];
+  const ignoredPaths: string[] = [];
 
   try {
-    const [statusRes, rulesRes, pathsRes] = await Promise.all([
+    const [statusRes, rulesRes, pathsRes, ignoredRes] = await Promise.all([
       fetchJson<StatusResponse>(`${apiUrl}/status`),
       fetchJson<QueryResponse>(`${apiUrl}/config/query`, {
         method: 'POST',
@@ -72,6 +73,7 @@ async function generateWatcherMenu(apiUrl: string): Promise<string> {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ path: '$.watch.paths[*]' }),
       }),
+      fetchJson<QueryResponse>(`${apiUrl}/config/query`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ path: '$.watch.ignored[*]' }) }),
     ]);
 
     pointCount = statusRes.collection?.pointCount ?? 0;
@@ -89,6 +91,12 @@ async function generateWatcherMenu(apiUrl: string): Promise<string> {
         if (typeof p === 'string') {
           watchPaths.push(p);
         }
+      }
+    }
+
+    if (Array.isArray(ignoredRes.result)) {
+      for (const p of ignoredRes.result) {
+        if (typeof p === 'string') ignoredPaths.push(p);
       }
     }
   } catch {
@@ -123,6 +131,13 @@ async function generateWatcherMenu(apiUrl: string): Promise<string> {
     }
   } else {
     lines.push('* (No watch paths configured)');
+  }
+
+  if (ignoredPaths.length > 0) {
+    lines.push('', '### Ignored paths:');
+    for (const p of ignoredPaths) {
+      lines.push(`* \`${p}\``);
+    }
   }
 
   return lines.join('\n');

@@ -33,10 +33,7 @@ function hashObject(obj: unknown): string {
  * @param handler - The original route handler
  * @returns A new route handler that implements caching
  */
-export function withCache(
-  ttlMs: number,
-  handler: (req: FastifyRequest, reply: FastifyReply) => Promise<unknown>,
-): (req: FastifyRequest, reply: FastifyReply) => Promise<unknown> {
+export function withCache(ttlMs: number, handler: any): any {
   return async (req: FastifyRequest, reply: FastifyReply) => {
     // Generate deterministic cache key: METHOD:URL:BODY_HASH
     const bodyHash = hashObject(req.body);
