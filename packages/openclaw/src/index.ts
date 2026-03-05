@@ -14,7 +14,7 @@ export default function register(api: PluginApi): void {
   registerWatcherTools(api, baseUrl);
 
   // Register the agent:bootstrap hook if the host OpenClaw version supports it
-  const registerHook = api.registerInternalHook;
+  const registerHook = api.registerHook;
   if (typeof registerHook === 'function') {
     registerHook('agent:bootstrap', async (event) => {
       await handleAgentBootstrap(event, api);
