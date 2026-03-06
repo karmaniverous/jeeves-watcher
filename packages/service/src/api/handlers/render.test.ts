@@ -102,9 +102,9 @@ describe('POST /render handler', () => {
 
   it('returns passthrough content for a non-transformed file', async () => {
     const deps = makeDeps();
-    vi.mocked(deps.processor.renderFile).mockResolvedValueOnce(
-      passthroughResult,
-    );
+    (
+      deps.processor.renderFile as unknown as ReturnType<typeof vi.fn>
+    ).mockResolvedValueOnce(passthroughResult);
     const handler = createRenderHandler(deps);
     const reply = mockReply();
 
@@ -124,9 +124,9 @@ describe('POST /render handler', () => {
 
   it('sets Cache-Control: no-cache for passthrough responses', async () => {
     const deps = makeDeps();
-    vi.mocked(deps.processor.renderFile).mockResolvedValueOnce(
-      passthroughResult,
-    );
+    (
+      deps.processor.renderFile as unknown as ReturnType<typeof vi.fn>
+    ).mockResolvedValueOnce(passthroughResult);
     const handler = createRenderHandler(deps);
     const reply = mockReply();
 
@@ -167,9 +167,9 @@ describe('POST /render handler', () => {
 
   it('returns 404 when file is not found', async () => {
     const deps = makeDeps();
-    vi.mocked(deps.processor.renderFile).mockRejectedValueOnce(
-      new Error('ENOENT: no such file or directory'),
-    );
+    (
+      deps.processor.renderFile as unknown as ReturnType<typeof vi.fn>
+    ).mockRejectedValueOnce(new Error('ENOENT: no such file or directory'));
     const handler = createRenderHandler(deps);
     const reply = mockReply();
 
@@ -194,9 +194,9 @@ describe('POST /render handler', () => {
 
   it('returns 422 for other errors', async () => {
     const deps = makeDeps();
-    vi.mocked(deps.processor.renderFile).mockRejectedValueOnce(
-      new Error('Extraction failed'),
-    );
+    (
+      deps.processor.renderFile as unknown as ReturnType<typeof vi.fn>
+    ).mockRejectedValueOnce(new Error('Extraction failed'));
     const handler = createRenderHandler(deps);
     const reply = mockReply();
 

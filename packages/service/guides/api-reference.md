@@ -129,6 +129,152 @@ curl -X POST http://localhost:1936/metadata \
 
 ---
 
+## POST /render
+
+Render a file through the inference rule engine without embedding. Returns the transformed (or passthrough) content along with metadata.
+
+**v0.8.0+**
+
+### Request
+
+```bash
+curl -X POST http://localhost:1936/render \
+  -H "Content-Type: application/json" \
+  -d '{"path": "j:/domains/slack/C0ABC/1234567.json"}'
+```
+
+**Body schema:**
+
+```typescript
+{
+  path: string;  // File path (must be within watched scope)
+}
+```
+
+### Response
+
+**Success (200 OK):**
+
+```json
+{
+  "renderAs": "md",
+  "content": "---\nchannelName: general\n---\n# Message\nHello world",
+  "rules": ["slack-message", "json-subject"],
+  "metadata": {
+    "domain": "slack",
+    "entity_type": "message",
+    "matched_rules": ["slack-message", "json-subject"]
+  }
+}
+```
+
+### Response Schema
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `renderAs` | `string` | Output content type (file extension without dot). Always present. |
+| `content` | `string` | Rendered content (from template/render transform) or extracted text (passthrough). |
+| `rules` | `string[]` | Names of matched inference rules (diagnostic). |
+| `metadata` | `object` | Composed embedding properties from matched rules. |
+
+### Caching
+
+- **Transformed responses** (template or render ran): cached via `withCache` with the configured TTL.
+- **Passthrough responses** (no transform): `Cache-Control: no-cache` header set; bypasses the cache.
+
+### Error Codes
+
+| Code | Condition |
+|------|-----------|
+| `200` | Success |
+| `400` | Missing `path` field |
+| `403` | Path is outside watched scope |
+| `404` | File not found |
+| `422` | Render/extraction failed |
+
+### Behavior
+
+1. Validates the path against `watch.paths` and `watch.ignored` globs
+2. Runs the file through `buildMergedMetadata` (same pipeline as indexing)
+3. Resolves `renderAs`: rule-declared value → file extension → `"txt"`
+4. Returns rendered or extracted content with matched rules and metadata
+
+**Use cases:**
+- Server-side document rendering (jeeves-server consumes this for its document viewer)
+- Content preview without embedding
+- Debugging: see what a file looks like after template/render transforms
+
+---
+
+## GET /search/facets
+
+Returns schema-derived facet definitions for building search filter UIs.
+
+**v0.8.0+**
+
+### Request
+
+```bash
+curl http://localhost:1936/search/facets
+```
+
+### Response
+
+**Success (200 OK):**
+
+```json
+{
+  "facets": [
+    {
+      "field": "domain",
+      "type": "string",
+      "uiHint": "dropdown",
+      "values": ["email", "jira", "meetings", "slack"],
+      "rules": ["email-archive", "jira-issue", "meetings-transcript", "slack-message"]
+    },
+    {
+      "field": "priority",
+      "type": "string",
+      "uiHint": "dropdown",
+      "values": ["Critical", "High", "Medium", "Low"],
+      "rules": ["jira-issue"]
+    }
+  ]
+}
+```
+
+### Response Schema
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `facets` | `Facet[]` | Array of facet definitions. |
+
+**Facet:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `field` | `string` | Metadata field name. |
+| `type` | `string` | JSON Schema type (e.g. `"string"`, `"number"`, `"boolean"`). |
+| `uiHint` | `string` | UI rendering hint (e.g. `"dropdown"`, `"tags"`, `"date"`). |
+| `values` | `unknown[]` | Known values. Uses `enum` values if declared; otherwise live values from the index. |
+| `rules` | `string[]` | Which inference rules define this field. |
+
+### Behavior
+
+1. Resolves schemas for all inference rules via `mergeSchemas`
+2. Extracts properties that declare `uiHint` or `enum`
+3. Deduplicates fields across rules (later rules override `uiHint`)
+4. Enriches with live distinct values from the values index
+5. Schema structure is cached internally; rebuilt when rules change
+
+**Caching:** The schema structure is computed once and cached until inference rules change. Live values from `ValuesManager` are merged fresh on each request.
+
+**Use cases:**
+- Building dynamic search filter UIs
+- LLM agent orientation: discover filterable fields before constructing search queries
+
+---
+
 ## POST /search
 
 Semantic search across indexed documents.

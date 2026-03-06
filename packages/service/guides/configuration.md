@@ -429,6 +429,7 @@ Optional fields:
 - **`map`** (JsonMap or named reference) — Transformation to derive metadata
 - **`template`** (Handlebars template) — Content transformation for embedding
 
+| `renderAs` | `string?` | Output file extension override (without dot, e.g. `"md"`). Requires `template` or `render`. 1–10 lowercase alphanumeric chars. |
 See [Inference Rules Guide](./inference-rules.md) for full details on schema merge semantics, type coercion, and `uiHint`.
 
 ---

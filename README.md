@@ -227,6 +227,8 @@ The watcher provides a REST API (default port: 1936):
 | --- | --- | --- |
 | `/status` | GET | Health check, uptime, and collection stats |
 | `/search` | POST | Semantic search (`{ query: string, limit?: number, filter?: object }`) |
+| `/render` | POST | Render a file through inference rules (`{ path: string }`) (v0.8.0+) |
+| `/search/facets` | GET | Schema-derived search facet definitions with live values (v0.8.0+) |
 | `/metadata` | POST | Update document metadata with schema validation (`{ path: string, metadata: object }`) |
 | `/reindex` | POST | Reindex all watched files |
 | `/rebuild-metadata` | POST | Rebuild metadata files from Qdrant |

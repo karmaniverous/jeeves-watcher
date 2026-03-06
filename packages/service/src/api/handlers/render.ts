@@ -8,15 +8,12 @@ import type pino from 'pino';
 
 import type { WatchConfig } from '../../config/schemas';
 import type { DocumentProcessorInterface } from '../../processor';
-import type { RenderResult } from '../../processor/renderResult';
 import { isPathWatched } from '../../util/isPathWatched';
 
 /** Dependencies for the render handler. */
 export interface RenderHandlerDeps {
   /** The document processor. */
-  processor: DocumentProcessorInterface & {
-    renderFile(filePath: string): Promise<RenderResult>;
-  };
+  processor: DocumentProcessorInterface;
   /** Watch config for path validation. */
   watch: WatchConfig;
   /** Logger instance. */
