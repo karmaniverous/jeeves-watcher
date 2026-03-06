@@ -65,6 +65,12 @@ export function withCache<
       return result;
     }
 
+    // Skip cache for responses with Cache-Control: no-cache
+    const cacheControl = fReply.getHeader('Cache-Control');
+    if (cacheControl === 'no-cache') {
+      return result;
+    }
+
     // Store in cache
     cache.set(key, {
       value: result,

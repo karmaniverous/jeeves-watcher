@@ -133,7 +133,10 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
 
   app.post(
     '/render',
-    createRenderHandler({ processor, watch: config.watch, logger }),
+    withCache(
+      cacheTtlMs,
+      createRenderHandler({ processor, watch: config.watch, logger }),
+    ),
   );
 
   app.get(
