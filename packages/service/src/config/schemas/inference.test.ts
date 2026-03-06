@@ -50,4 +50,63 @@ describe('inferenceRuleSchema', () => {
     const result = inferenceRuleSchema.safeParse(baseRule);
     expect(result.success).toBe(true);
   });
+
+  describe('renderAs', () => {
+    it('accepts renderAs with render present', () => {
+      const result = inferenceRuleSchema.safeParse({
+        ...baseRule,
+        render: { frontmatter: ['key'], body: [] },
+        renderAs: 'html',
+      });
+      expect(result.success).toBe(true);
+    });
+
+    it('accepts renderAs with template present', () => {
+      const result = inferenceRuleSchema.safeParse({
+        ...baseRule,
+        template: 'some-template',
+        renderAs: 'md',
+      });
+      expect(result.success).toBe(true);
+    });
+
+    it('rejects renderAs without template or render', () => {
+      const result = inferenceRuleSchema.safeParse({
+        ...baseRule,
+        renderAs: 'md',
+      });
+      expect(result.success).toBe(false);
+      const issues = (
+        result as {
+          success: false;
+          error: { issues: Array<{ message: string }> };
+        }
+      ).error.issues;
+      expect(issues[0].message).toContain(
+        'renderAs requires template or render',
+      );
+    });
+
+    it('rejects renderAs with invalid format', () => {
+      const cases = ['HTML', 'toolongextension', '.md', 'a b'];
+      for (const renderAs of cases) {
+        const result = inferenceRuleSchema.safeParse({
+          ...baseRule,
+          template: 'some-template',
+          renderAs,
+        });
+        expect(result.success, `expected "${renderAs}" to be rejected`).toBe(
+          false,
+        );
+      }
+    });
+
+    it('accepts rule without renderAs', () => {
+      const result = inferenceRuleSchema.safeParse({
+        ...baseRule,
+        template: 'some-template',
+      });
+      expect(result.success).toBe(true);
+    });
+  });
 });

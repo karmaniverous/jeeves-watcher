@@ -149,7 +149,7 @@
       "description": "Reusable named JsonMap transformations (inline definition or .json file path resolved relative to config directory).",
       "allOf": [
         {
-          "$ref": "#/definitions/__schema75"
+          "$ref": "#/definitions/__schema77"
         }
       ]
     },
@@ -157,7 +157,7 @@
       "description": "Named reusable Handlebars templates (inline strings or .hbs/.handlebars file paths).",
       "allOf": [
         {
-          "$ref": "#/definitions/__schema76"
+          "$ref": "#/definitions/__schema78"
         }
       ]
     },
@@ -165,7 +165,7 @@
       "description": "Custom Handlebars helper registration.",
       "allOf": [
         {
-          "$ref": "#/definitions/__schema77"
+          "$ref": "#/definitions/__schema79"
         }
       ]
     },
@@ -173,7 +173,7 @@
       "description": "Custom JsonMap lib function registration.",
       "allOf": [
         {
-          "$ref": "#/definitions/__schema78"
+          "$ref": "#/definitions/__schema80"
         }
       ]
     },
@@ -181,7 +181,7 @@
       "description": "Reindex configuration.",
       "allOf": [
         {
-          "$ref": "#/definitions/__schema79"
+          "$ref": "#/definitions/__schema81"
         }
       ]
     },
@@ -189,7 +189,7 @@
       "description": "Named Qdrant filter patterns for skill-activated behaviors.",
       "allOf": [
         {
-          "$ref": "#/definitions/__schema80"
+          "$ref": "#/definitions/__schema82"
         }
       ]
     },
@@ -197,7 +197,7 @@
       "description": "Search configuration including score thresholds and hybrid search.",
       "allOf": [
         {
-          "$ref": "#/definitions/__schema81"
+          "$ref": "#/definitions/__schema83"
         }
       ]
     },
@@ -205,7 +205,7 @@
       "description": "Logging configuration.",
       "allOf": [
         {
-          "$ref": "#/definitions/__schema82"
+          "$ref": "#/definitions/__schema84"
         }
       ]
     },
@@ -213,7 +213,7 @@
       "description": "Timeout in milliseconds for graceful shutdown.",
       "allOf": [
         {
-          "$ref": "#/definitions/__schema85"
+          "$ref": "#/definitions/__schema87"
         }
       ]
     },
@@ -221,7 +221,7 @@
       "description": "Maximum consecutive system-level failures before triggering fatal error. Default: Infinity.",
       "allOf": [
         {
-          "$ref": "#/definitions/__schema86"
+          "$ref": "#/definitions/__schema88"
         }
       ]
     },
@@ -229,7 +229,7 @@
       "description": "Maximum backoff delay in milliseconds for system errors. Default: 60000.",
       "allOf": [
         {
-          "$ref": "#/definitions/__schema87"
+          "$ref": "#/definitions/__schema89"
         }
       ]
     }
@@ -614,6 +614,9 @@
               },
               "render": {
                 "$ref": "#/definitions/__schema64"
+              },
+              "renderAs": {
+                "$ref": "#/definitions/__schema75"
               }
             },
             "required": [
@@ -922,6 +925,18 @@
       "type": "string"
     },
     "__schema75": {
+      "description": "Output file extension override (without dot). Requires template or render.",
+      "allOf": [
+        {
+          "$ref": "#/definitions/__schema76"
+        }
+      ]
+    },
+    "__schema76": {
+      "type": "string",
+      "pattern": "^[a-z0-9]{1,10}$"
+    },
+    "__schema77": {
       "type": "object",
       "propertyNames": {
         "type": "string"
@@ -958,7 +973,7 @@
         ]
       }
     },
-    "__schema76": {
+    "__schema78": {
       "type": "object",
       "propertyNames": {
         "type": "string"
@@ -985,47 +1000,47 @@
         ]
       }
     },
-    "__schema77": {
-      "type": "object",
-      "propertyNames": {
-        "type": "string"
-      },
-      "additionalProperties": {
-        "type": "object",
-        "properties": {
-          "path": {
-            "type": "string"
-          },
-          "description": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "path"
-        ]
-      }
-    },
-    "__schema78": {
-      "type": "object",
-      "propertyNames": {
-        "type": "string"
-      },
-      "additionalProperties": {
-        "type": "object",
-        "properties": {
-          "path": {
-            "type": "string"
-          },
-          "description": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "path"
-        ]
-      }
-    },
     "__schema79": {
+      "type": "object",
+      "propertyNames": {
+        "type": "string"
+      },
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "path"
+        ]
+      }
+    },
+    "__schema80": {
+      "type": "object",
+      "propertyNames": {
+        "type": "string"
+      },
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "path"
+        ]
+      }
+    },
+    "__schema81": {
       "type": "object",
       "properties": {
         "callbackUrl": {
@@ -1034,14 +1049,14 @@
         }
       }
     },
-    "__schema80": {
+    "__schema82": {
       "type": "object",
       "propertyNames": {
         "type": "string"
       },
       "additionalProperties": {}
     },
-    "__schema81": {
+    "__schema83": {
       "type": "object",
       "properties": {
         "scoreThresholds": {
@@ -1086,14 +1101,14 @@
         }
       }
     },
-    "__schema82": {
+    "__schema84": {
       "type": "object",
       "properties": {
         "level": {
           "description": "Logging level (trace, debug, info, warn, error, fatal).",
           "allOf": [
             {
-              "$ref": "#/definitions/__schema83"
+              "$ref": "#/definitions/__schema85"
             }
           ]
         },
@@ -1101,25 +1116,25 @@
           "description": "Path to log file (logs to stdout if omitted).",
           "allOf": [
             {
-              "$ref": "#/definitions/__schema84"
+              "$ref": "#/definitions/__schema86"
             }
           ]
         }
       }
     },
-    "__schema83": {
-      "type": "string"
-    },
-    "__schema84": {
-      "type": "string"
-    },
     "__schema85": {
-      "type": "number"
+      "type": "string"
     },
     "__schema86": {
-      "type": "number"
+      "type": "string"
     },
     "__schema87": {
+      "type": "number"
+    },
+    "__schema88": {
+      "type": "number"
+    },
+    "__schema89": {
       "type": "number"
     }
   }
