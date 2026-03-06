@@ -24,6 +24,7 @@ vi.mock('../rules', () => ({
     metadata: { category: 'doc' },
     renderedContent: null,
     matchedRules: ['rule-1'],
+    renderAs: null,
   }),
 }));
 
@@ -111,6 +112,50 @@ describe('buildMergedMetadata', () => {
       expect.anything(),
       expect.objectContaining({ logger }),
     );
+  });
+
+  it('returns renderAs: null when no rule declares renderAs', async () => {
+    const result = await buildMergedMetadata({
+      filePath: testFile,
+      compiledRules: [],
+      metadataDir: tmpDir,
+    });
+
+    expect(result.renderAs).toBeNull();
+  });
+
+  it('returns renderAs from applyRules when set', async () => {
+    vi.mocked(applyRules).mockResolvedValueOnce({
+      metadata: { category: 'doc' },
+      renderedContent: null,
+      matchedRules: ['rule-md'],
+      renderAs: 'md',
+    });
+
+    const result = await buildMergedMetadata({
+      filePath: testFile,
+      compiledRules: [],
+      metadataDir: tmpDir,
+    });
+
+    expect(result.renderAs).toBe('md');
+  });
+
+  it('propagates last-match-wins renderAs from applyRules', async () => {
+    vi.mocked(applyRules).mockResolvedValueOnce({
+      metadata: { category: 'doc' },
+      renderedContent: null,
+      matchedRules: ['rule-md', 'rule-html'],
+      renderAs: 'html',
+    });
+
+    const result = await buildMergedMetadata({
+      filePath: testFile,
+      compiledRules: [],
+      metadataDir: tmpDir,
+    });
+
+    expect(result.renderAs).toBe('html');
   });
 
   it('includes extracted text in result', async () => {

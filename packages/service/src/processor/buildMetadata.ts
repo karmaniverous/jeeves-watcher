@@ -34,6 +34,8 @@ export interface MergedMetadata {
   renderedContent: string | null;
   /** Names of rules that matched. */
   matchedRules: string[];
+  /** The renderAs value from the highest-priority matched rule, or null. */
+  renderAs: string | null;
 }
 
 /**
@@ -97,6 +99,7 @@ export async function buildMergedMetadata(
     metadata: inferred,
     renderedContent,
     matchedRules,
+    renderAs,
   } = await applyRules(compiledRules, attributes, {
     namedMaps: maps,
     logger,
@@ -121,5 +124,6 @@ export async function buildMergedMetadata(
     extracted,
     renderedContent,
     matchedRules,
+    renderAs,
   };
 }

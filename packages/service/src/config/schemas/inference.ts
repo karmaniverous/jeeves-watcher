@@ -168,6 +168,17 @@ export const inferenceRuleSchema = z
       .describe(
         'Declarative render configuration for frontmatter + structured Markdown output (mutually exclusive with template).',
       ),
+    /** Output file extension override (e.g. "md", "html", "txt"). Requires template or render. */
+    renderAs: z
+      .string()
+      .regex(
+        /^[a-z0-9]{1,10}$/,
+        'renderAs must be 1-10 lowercase alphanumeric characters',
+      )
+      .optional()
+      .describe(
+        'Output file extension override (without dot). Requires template or render.',
+      ),
   })
   .superRefine((val, ctx) => {
     if (val.render && val.template) {
@@ -175,6 +186,13 @@ export const inferenceRuleSchema = z
         code: 'custom',
         path: ['render'],
         message: 'render is mutually exclusive with template',
+      });
+    }
+    if (val.renderAs && !val.template && !val.render) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['renderAs'],
+        message: 'renderAs requires template or render',
       });
     }
   });

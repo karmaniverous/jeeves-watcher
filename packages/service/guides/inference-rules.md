@@ -63,6 +63,8 @@ Each inference rule has these fields:
 - **`schema`**: Array of schema references (named strings or inline objects), merged left-to-right
 - **`map`** (optional): JsonMap transformation (inline or named reference)
 - **`template`** (optional): Handlebars content template (inline, named ref, or file path)
+- **`render`** (optional): Declarative structured renderer configuration (mutually exclusive with `template`)
+- **`renderAs`** (optional): Output file extension override (e.g. `"md"`, `"html"`, `"txt"`). 1–10 lowercase alphanumeric characters, without dot. Requires `template` or `render`.
 
 ---
 
@@ -925,6 +927,30 @@ curl -X POST http://localhost:1936/config/match \
 
 ---
 
+## Content Rendering (`renderAs`)
+
+When a rule includes `template` or `render`, the `renderAs` field declares the output content type as a file extension (without dot):
+
+```json
+{
+  "name": "slack-message",
+  "description": "Slack channel messages",
+  "match": { "..." },
+  "schema": ["base", "slack-common"],
+  "render": { "frontmatter": ["channelName", "userName"], "body": [{ "path": "text", "heading": 2 }] },
+  "renderAs": "md"
+}
+```
+
+**Resolution order** (used by `POST /render`):
+1. `renderAs` from the last matching rule that declares it
+2. File extension of the source file (e.g. `.md` → `"md"`)
+3. `"txt"` for extensionless files
+
+**Validation:** `renderAs` must be 1–10 lowercase alphanumeric characters (`/^[a-z0-9]{1,10}$/`). The config rejects `renderAs` if neither `template` nor `render` is present on the rule.
+
+---
+
 ## Reference: Full Schema
 
 ```typescript
@@ -935,6 +961,8 @@ interface InferenceRule {
   schema: SchemaReference[];       // Array of named refs and inline objects
   map?: Record<string, unknown> | string; // JsonMap definition, named map ref, or file path
   template?: string;               // Handlebars template (inline, named ref, or file path)
+  render?: RenderConfig;             // Declarative structured renderer (mutually exclusive with template)
+  renderAs?: string;                 // Output file extension override (requires template or render)
 }
 
 interface SchemaReference {

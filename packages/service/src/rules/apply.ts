@@ -75,6 +75,8 @@ export interface ApplyRulesResult {
   renderedContent: string | null;
   /** Names of rules that matched. */
   matchedRules: string[];
+  /** The renderAs value from the last matching rule that declares it, or null. */
+  renderAs: string | null;
 }
 
 /**
@@ -130,12 +132,17 @@ export async function applyRules(
   ) as unknown as JsonMapLib;
   let merged: Record<string, unknown> = {};
   let renderedContent: string | null = null;
+  let renderAs: string | null = null;
   const matchedRules: string[] = [];
   const log: RuleLogger = logger ?? console;
 
   for (const [, { rule, validate }] of compiledRules.entries()) {
     if (validate(attributes)) {
       matchedRules.push(rule.name);
+      // Resolve renderAs (last-match-wins)
+      if (rule.renderAs) {
+        renderAs = rule.renderAs;
+      }
 
       // Apply schema-based metadata extraction
       if (rule.schema && rule.schema.length > 0) {
@@ -261,5 +268,5 @@ export async function applyRules(
     }
   }
 
-  return { metadata: merged, renderedContent, matchedRules };
+  return { metadata: merged, renderedContent, matchedRules, renderAs };
 }

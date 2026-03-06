@@ -25,11 +25,13 @@ import { createConfigQueryHandler } from './handlers/configQuery';
 import { createConfigReindexHandler } from './handlers/configReindex';
 import { createConfigSchemaHandler } from './handlers/configSchema';
 import { createConfigValidateHandler } from './handlers/configValidate';
+import { createFacetsHandler } from './handlers/facets';
 import { createIssuesHandler } from './handlers/issues';
 import { createMetadataHandler } from './handlers/metadata';
 import { createPointsDeleteHandler } from './handlers/pointsDelete';
 import { createRebuildMetadataHandler } from './handlers/rebuildMetadata';
 import { createReindexHandler } from './handlers/reindex';
+import { createRenderHandler } from './handlers/render';
 import { createRulesReapplyHandler } from './handlers/rulesReapply';
 import { createRulesRegisterHandler } from './handlers/rulesRegister';
 import {
@@ -128,6 +130,23 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
   );
 
   app.post('/metadata', createMetadataHandler({ processor, config, logger }));
+
+  app.post(
+    '/render',
+    withCache(
+      cacheTtlMs,
+      createRenderHandler({ processor, watch: config.watch, logger }),
+    ),
+  );
+
+  app.get(
+    '/search/facets',
+    createFacetsHandler({
+      config,
+      valuesManager,
+      configDir: dirname(configPath),
+    }),
+  );
 
   const hybridConfig = config.search?.hybrid
     ? {

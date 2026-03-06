@@ -5,6 +5,7 @@
 
 import type { CompiledRule } from '../rules';
 import type { TemplateEngine } from '../templates';
+import type { RenderResult } from './renderResult';
 
 /**
  * Abstraction for document processing operations.
@@ -26,6 +27,9 @@ export interface DocumentProcessorInterface {
 
   /** Process a rules update for a file (rebuild merged metadata, payload update only). */
   processRulesUpdate(filePath: string): Promise<Record<string, unknown> | null>;
+
+  /** Render a file through the rule engine without embedding. */
+  renderFile(filePath: string): Promise<RenderResult>;
 
   /** Update compiled inference rules and associated engines. */
   updateRules(

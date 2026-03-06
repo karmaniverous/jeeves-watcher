@@ -23,6 +23,7 @@ import { buildMergedMetadata } from './buildMetadata';
 import { chunkIds, getChunkCount } from './chunkIds';
 import { embedAndUpsert } from './processingPipeline';
 import type { ProcessorConfig } from './ProcessorConfig';
+import type { RenderResult } from './renderResult';
 import { createSplitter } from './splitter';
 import type { DocumentProcessorInterface } from './types';
 
@@ -112,7 +113,7 @@ export class DocumentProcessor implements DocumentProcessorInterface {
       ...result.metadata,
       matched_rules: result.matchedRules,
     };
-    return { ...result, metadataWithRules };
+    return { ...result, metadataWithRules, renderAs: result.renderAs };
   }
 
   /**
@@ -295,6 +296,35 @@ export class DocumentProcessor implements DocumentProcessorInterface {
       },
       null,
     );
+  }
+
+  /**
+   * Render a file through the rule engine without embedding.
+   * Returns rendered content, renderAs, matched rules, and metadata.
+   *
+   * @param filePath - The file to render.
+   * @returns The render result.
+   */
+  async renderFile(filePath: string): Promise<RenderResult> {
+    const ext = extname(filePath);
+    const {
+      renderedContent,
+      extracted,
+      matchedRules,
+      metadataWithRules,
+      renderAs,
+    } = await this.buildMetadataWithRules(filePath);
+
+    const content = renderedContent ?? extracted.text;
+    const resolved = renderAs ?? (ext.slice(1) || 'txt');
+
+    return {
+      renderAs: resolved,
+      content,
+      rules: matchedRules,
+      metadata: metadataWithRules,
+      transformed: renderedContent !== null,
+    };
   }
 
   /**

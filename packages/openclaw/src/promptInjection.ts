@@ -103,11 +103,13 @@ export async function generateWatcherMenu(apiUrl: string): Promise<string> {
         if (typeof p === 'string') ignoredPaths.push(p);
       }
     }
-  } catch (err) {
+  } catch {
     let qdrantStatus = '*Unknown*';
     try {
       // Assuming Qdrant runs locally on the default port
-      const res = await fetch('http://127.0.0.1:6333/healthz', { signal: AbortSignal.timeout(1000) });
+      const res = await fetch('http://127.0.0.1:6333/healthz', {
+        signal: AbortSignal.timeout(1000),
+      });
       qdrantStatus = res.ok ? 'Running' : 'Error';
     } catch {
       qdrantStatus = 'Down / Unreachable';
