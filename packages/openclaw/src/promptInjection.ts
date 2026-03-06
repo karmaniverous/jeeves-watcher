@@ -103,7 +103,7 @@ export async function generateWatcherMenu(apiUrl: string): Promise<string> {
         if (typeof p === 'string') ignoredPaths.push(p);
       }
     }
-  } catch (err) {
+  } catch {
     let qdrantStatus = '*Unknown*';
     try {
       // Assuming Qdrant runs locally on the default port
