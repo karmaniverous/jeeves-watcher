@@ -36,6 +36,7 @@ function makeDeps(overrides: Partial<ExecuteReindexDeps> = {}): {
       processMetadataUpdate: vi.fn().mockResolvedValue(null),
       processRulesUpdate: vi.fn().mockResolvedValue(null),
       updateRules: vi.fn(),
+      renderFile: vi.fn(),
     },
     logger: pino({ level: 'silent' }),
     reindexTracker: {
@@ -104,6 +105,7 @@ describe('executeReindex', () => {
         processMetadataUpdate: vi.fn(),
         processRulesUpdate: vi.fn(),
         updateRules: vi.fn(),
+        renderFile: vi.fn(),
       },
       issuesManager: { getAll: () => ({ 'a.txt': {} }) },
     });

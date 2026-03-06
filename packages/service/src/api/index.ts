@@ -30,6 +30,7 @@ import { createMetadataHandler } from './handlers/metadata';
 import { createPointsDeleteHandler } from './handlers/pointsDelete';
 import { createRebuildMetadataHandler } from './handlers/rebuildMetadata';
 import { createReindexHandler } from './handlers/reindex';
+import { createRenderHandler } from './handlers/render';
 import { createRulesReapplyHandler } from './handlers/rulesReapply';
 import { createRulesRegisterHandler } from './handlers/rulesRegister';
 import {
@@ -128,6 +129,11 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
   );
 
   app.post('/metadata', createMetadataHandler({ processor, config, logger }));
+
+  app.post(
+    '/render',
+    createRenderHandler({ processor, watch: config.watch, logger }),
+  );
 
   const hybridConfig = config.search?.hybrid
     ? {
