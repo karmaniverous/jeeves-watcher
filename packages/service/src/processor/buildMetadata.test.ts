@@ -141,6 +141,23 @@ describe('buildMergedMetadata', () => {
     expect(result.renderAs).toBe('md');
   });
 
+  it('propagates last-match-wins renderAs from applyRules', async () => {
+    vi.mocked(applyRules).mockResolvedValueOnce({
+      metadata: { category: 'doc' },
+      renderedContent: null,
+      matchedRules: ['rule-md', 'rule-html'],
+      renderAs: 'html',
+    });
+
+    const result = await buildMergedMetadata({
+      filePath: testFile,
+      compiledRules: [],
+      metadataDir: tmpDir,
+    });
+
+    expect(result.renderAs).toBe('html');
+  });
+
   it('includes extracted text in result', async () => {
     const result = await buildMergedMetadata({
       filePath: testFile,
