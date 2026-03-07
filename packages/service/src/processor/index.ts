@@ -152,6 +152,14 @@ export class DocumentProcessor implements DocumentProcessorInterface {
           metadataWithRules,
         } = await this.buildMetadataWithRules(filePath);
 
+        // Update values index before any skip conditions — values must
+        // reflect current rule matches even when content is unchanged.
+        if (this.valuesManager) {
+          for (const ruleName of matchedRules) {
+            this.valuesManager.update(ruleName, metadata);
+          }
+        }
+
         const textToEmbed = renderedContent ?? extracted.text;
         if (!textToEmbed.trim()) {
           this.logger.debug({ filePath }, 'Skipping empty file');
@@ -191,11 +199,6 @@ export class DocumentProcessor implements DocumentProcessorInterface {
         );
 
         this.issuesManager?.clear(filePath);
-        if (this.valuesManager) {
-          for (const ruleName of matchedRules) {
-            this.valuesManager.update(ruleName, metadata);
-          }
-        }
       },
       undefined,
     );

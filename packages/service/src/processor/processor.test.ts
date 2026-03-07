@@ -153,6 +153,43 @@ describe('DocumentProcessor', () => {
       expect(vectorStore.upsert).not.toHaveBeenCalled();
     });
 
+    it('updates values even when content hash is unchanged', async () => {
+      const {
+        vectorStore,
+        embeddingProvider,
+        valuesManager,
+        config,
+        logger,
+      } = createMocks();
+      mockedBuildMergedMetadata.mockResolvedValue(defaultMergedMetadata());
+
+      // Simulate existing payload with matching hash — embedding skipped
+      const { contentHash } = await import('../hash');
+      const hash = contentHash('hello world');
+      vectorStore.getPayload.mockResolvedValue({
+        content_hash: hash,
+        total_chunks: 1,
+      });
+
+      const processor = new DocumentProcessor({
+        config,
+        embeddingProvider,
+        vectorStore: vectorStore as unknown as VectorStoreClient,
+        compiledRules: [],
+        logger,
+        valuesManager: valuesManager as unknown as ValuesManager,
+      });
+      await processor.processFile('/test.txt');
+
+      // Embedding should be skipped
+      expect(vectorStore.upsert).not.toHaveBeenCalled();
+      // But values should still be updated
+      expect(valuesManager.update).toHaveBeenCalledWith(
+        'rule1',
+        expect.objectContaining({ domain: 'test' }),
+      );
+    });
+
     it('processes successfully: clears issues, updates values', async () => {
       const {
         vectorStore,
