@@ -114,6 +114,11 @@ export class JeevesWatcher {
       customMapLib,
     );
 
+    const stateDir =
+      this.config.stateDir ?? this.config.metadataDir ?? '.jeeves-metadata';
+    this.issuesManager = new IssuesManager(stateDir, logger);
+    this.valuesManager = new ValuesManager(stateDir, logger);
+
     const processor = this.factories.createDocumentProcessor({
       config: processorConfig,
       embeddingProvider,
@@ -121,6 +126,8 @@ export class JeevesWatcher {
       compiledRules,
       logger,
       templateEngine,
+      issuesManager: this.issuesManager,
+      valuesManager: this.valuesManager,
     });
     this.processor = processor;
 
@@ -138,11 +145,6 @@ export class JeevesWatcher {
       logger,
       this.runtimeOptions,
     );
-
-    const stateDir =
-      this.config.stateDir ?? this.config.metadataDir ?? '.jeeves-metadata';
-    this.issuesManager = new IssuesManager(stateDir, logger);
-    this.valuesManager = new ValuesManager(stateDir, logger);
 
     this.server = await this.startApiServer();
 

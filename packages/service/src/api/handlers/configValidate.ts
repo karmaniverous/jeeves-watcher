@@ -17,6 +17,7 @@ import { compileRules } from '../../rules/compile';
 import {
   mergeSchemas,
   type SchemaReference,
+  validateFacetTypes,
   validateSchemaCompleteness,
 } from '../../rules/schemaMerge';
 import { normalizeError } from '../../util/normalizeError';
@@ -103,6 +104,7 @@ function validateInferenceRuleSchemas(parsed: {
         globalSchemas: parsed.schemas as Record<string, SchemaEntry>,
       });
       validateSchemaCompleteness(merged, rule.name);
+      validateFacetTypes(merged, rule.name);
     } catch (error) {
       return [
         {

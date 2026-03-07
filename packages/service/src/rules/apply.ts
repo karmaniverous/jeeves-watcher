@@ -25,6 +25,7 @@ import {
   mergeSchemas,
   resolveAndCoerce,
   type SchemaReference,
+  validateFacetTypes,
   validateSchemaCompleteness,
 } from './schemaMerge';
 
@@ -155,6 +156,7 @@ export async function applyRules(
 
           // Validate schema completeness
           validateSchemaCompleteness(mergedSchema, rule.name);
+          validateFacetTypes(mergedSchema, rule.name);
 
           // Resolve and coerce metadata
           const schemaOutput = resolveAndCoerce(mergedSchema, attributes, hbs);

@@ -248,3 +248,36 @@ export function validateSchemaCompleteness(
     }
   }
 }
+
+/** Types that can produce trackable facet values. */
+const FACETABLE_TYPES = new Set([
+  'string',
+  'number',
+  'boolean',
+  'integer',
+  'array',
+]);
+
+/**
+ * Validate that uiHint and enum are only applied to facetable property types.
+ * Throws if a non-facetable type (e.g. object) declares uiHint or enum.
+ *
+ * @param schema - Resolved schema to validate.
+ * @param ruleName - Name of the rule (for error messages).
+ */
+export function validateFacetTypes(
+  schema: ResolvedSchema,
+  ruleName: string,
+): void {
+  for (const [propName, propDef] of Object.entries(schema.properties)) {
+    if (!propDef.type) continue;
+    if (
+      !FACETABLE_TYPES.has(propDef.type) &&
+      (propDef.uiHint !== undefined || propDef.enum !== undefined)
+    ) {
+      throw new Error(
+        `Property "${propName}" in rule "${ruleName}" has type "${propDef.type}" with uiHint/enum. Facet hints are only valid on string, number, boolean, integer, or array types.`,
+      );
+    }
+  }
+}

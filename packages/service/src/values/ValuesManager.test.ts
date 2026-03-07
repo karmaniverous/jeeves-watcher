@@ -42,14 +42,35 @@ describe('ValuesManager', () => {
     });
   });
 
-  it('skips objects, arrays, and null', () => {
+  it('skips objects and null', () => {
     manager.update('rule-a', {
       obj: { nested: true },
-      arr: [1, 2],
       nil: null,
       ok: 'yes',
     });
     expect(manager.getForRule('rule-a')).toEqual({ ok: ['yes'] });
+  });
+
+  it('decomposes arrays into individual trackable elements', () => {
+    manager.update('rule-a', { domains: ['email', 'slack'] });
+    expect(manager.getForRule('rule-a')).toEqual({
+      domains: ['email', 'slack'],
+    });
+  });
+
+  it('decomposes arrays and deduplicates across updates', () => {
+    manager.update('rule-a', { domains: ['email'] });
+    manager.update('rule-a', { domains: ['email', 'slack'] });
+    expect(manager.getForRule('rule-a')).toEqual({
+      domains: ['email', 'slack'],
+    });
+  });
+
+  it('skips non-trackable elements inside arrays', () => {
+    manager.update('rule-a', { mixed: ['good', { nested: true }, null, 42] });
+    expect(manager.getForRule('rule-a')).toEqual({
+      mixed: [42, 'good'],
+    });
   });
 
   it('deduplicates values', () => {
