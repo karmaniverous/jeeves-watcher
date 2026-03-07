@@ -2,8 +2,9 @@
 
 All notable changes to this project will be documented in this file. Dates are displayed in UTC.
 
-#### [0.8.0](https://github.com/karmaniverous/jeeves-watcher/compare/0.5.1...0.8.0)
+#### [0.8.1](https://github.com/karmaniverous/jeeves-watcher/compare/0.5.1...0.8.1)
 
+- fix: update values index during rules reindex [`#93`](https://github.com/karmaniverous/jeeves-watcher/pull/93)
 - feat: v0.8.0 — renderAs, POST /render, GET /search/facets [`#92`](https://github.com/karmaniverous/jeeves-watcher/pull/92)
 - feature: add proactive bootstrap diagnostics to prompt injection [`#91`](https://github.com/karmaniverous/jeeves-watcher/pull/91)
 - docs: comprehensive documentation audit fixes [`#90`](https://github.com/karmaniverous/jeeves-watcher/pull/90)
@@ -88,6 +89,7 @@ All notable changes to this project will be documented in this file. Dates are d
 - docs: document self-installer CLI and Windows spawn EINVAL workaround [`e3d6351`](https://github.com/karmaniverous/jeeves-watcher/commit/e3d63512fe57b555e753c8f86bbfe57a1b97f70c)
 - docs: promote spec implementation gaps to Next Version and Dev Plan [`eb4ee1a`](https://github.com/karmaniverous/jeeves-watcher/commit/eb4ee1a75b2308ad1a2d8a03247906cac380b592)
 - chore: release @karmaniverous/jeeves-watcher v0.6.0 [`b7b207e`](https://github.com/karmaniverous/jeeves-watcher/commit/b7b207e96b1750bcacc4f5dd67ecf9c369415e25)
+- chore: release @karmaniverous/jeeves-watcher v0.8.0 [`4d6daaf`](https://github.com/karmaniverous/jeeves-watcher/commit/4d6daafc4decefe8b9567a22ffdd49ea7be973ad)
 - lintfix [`cd4c841`](https://github.com/karmaniverous/jeeves-watcher/commit/cd4c84150cfce2b541a9215966139f61e0ce6fcd)
 - fix: use fresh QdrantClient for write ops to avoid stale keep-alive connections [`e8215d5`](https://github.com/karmaniverous/jeeves-watcher/commit/e8215d5dc9f82deea59e8259f28be4b2e074f0fb)
 - feat: make plugin cache TTL configurable and fix API port fallback mismatch [`fecb768`](https://github.com/karmaniverous/jeeves-watcher/commit/fecb76841a28e51081cd5d195b25195e34add01a)
@@ -112,6 +114,7 @@ All notable changes to this project will be documented in this file. Dates are d
 - chore: release @karmaniverous/jeeves-watcher-openclaw v0.4.0 [`db0673c`](https://github.com/karmaniverous/jeeves-watcher/commit/db0673ce79a4525b4d7294f64f8365f8831b128a)
 - chore: release @karmaniverous/jeeves-watcher-openclaw v0.3.6 [`e864fec`](https://github.com/karmaniverous/jeeves-watcher/commit/e864fecd732f8cd4fedd708ff6a95b31311ad854)
 - chore: release @karmaniverous/jeeves-watcher-openclaw v0.1.1 [`008e757`](https://github.com/karmaniverous/jeeves-watcher/commit/008e757704e0cdf5bca7819a9b9eb36b7258a300)
+- fix: update values index during rules reindex (processRulesUpdate) [`ed3b00a`](https://github.com/karmaniverous/jeeves-watcher/commit/ed3b00a4398babc6959eb6df20b6786ec924b377)
 - chore: release @karmaniverous/jeeves-watcher-openclaw v0.3.11 [`5ff129d`](https://github.com/karmaniverous/jeeves-watcher/commit/5ff129d3df997e9f06b67aeb630058ebb61a96ea)
 - chore: release @karmaniverous/jeeves-watcher-openclaw v0.3.8 [`28a92a1`](https://github.com/karmaniverous/jeeves-watcher/commit/28a92a17b2be9039750b83b20657fd99b10a64eb)
 - chore: release @karmaniverous/jeeves-watcher-openclaw v0.3.4 [`5b11938`](https://github.com/karmaniverous/jeeves-watcher/commit/5b119389b8dac493a4cf164e664338804ccd2dc5)
