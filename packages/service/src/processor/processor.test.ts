@@ -245,7 +245,7 @@ describe('DocumentProcessor', () => {
       expect(result).toBeNull();
     });
 
-    it('clears issues but does NOT update values', async () => {
+    it('clears issues and updates values', async () => {
       const {
         vectorStore,
         embeddingProvider,
@@ -270,7 +270,7 @@ describe('DocumentProcessor', () => {
 
       expect(result).toEqual(expect.objectContaining({ domain: 'test' }));
       expect(issuesManager.clear).toHaveBeenCalledWith('/test.txt');
-      expect(valuesManager.update).not.toHaveBeenCalled();
+      expect(valuesManager.update).toHaveBeenCalled();
       expect(vectorStore.setPayload).toHaveBeenCalledOnce();
     });
   });

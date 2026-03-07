@@ -282,7 +282,7 @@ export class DocumentProcessor implements DocumentProcessorInterface {
           return null;
         }
 
-        const { metadataWithRules } =
+        const { metadataWithRules, matchedRules, metadata } =
           await this.buildMetadataWithRules(filePath);
 
         const totalChunks = getChunkCount(existingPayload);
@@ -290,6 +290,12 @@ export class DocumentProcessor implements DocumentProcessorInterface {
         await this.vectorStore.setPayload(ids, metadataWithRules);
 
         this.issuesManager?.clear(filePath);
+
+        if (this.valuesManager) {
+          for (const ruleName of matchedRules) {
+            this.valuesManager.update(ruleName, metadata);
+          }
+        }
 
         this.logger.info({ filePath, chunks: totalChunks }, 'Rules re-applied');
         return metadataWithRules;
