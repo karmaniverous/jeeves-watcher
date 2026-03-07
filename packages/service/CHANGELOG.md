@@ -2,8 +2,9 @@
 
 All notable changes to this project will be documented in this file. Dates are displayed in UTC.
 
-#### [0.8.2](https://github.com/karmaniverous/jeeves-watcher/compare/0.5.1...0.8.2)
+#### [0.8.4](https://github.com/karmaniverous/jeeves-watcher/compare/0.5.1...0.8.4)
 
+- fix: update values index before hash check in processFile [`#95`](https://github.com/karmaniverous/jeeves-watcher/pull/95)
 - fix: pass valuesManager and issuesManager to config-reindex handler [`#94`](https://github.com/karmaniverous/jeeves-watcher/pull/94)
 - fix: update values index during rules reindex [`#93`](https://github.com/karmaniverous/jeeves-watcher/pull/93)
 - feat: v0.8.0 — renderAs, POST /render, GET /search/facets [`#92`](https://github.com/karmaniverous/jeeves-watcher/pull/92)
@@ -131,6 +132,7 @@ All notable changes to this project will be documented in this file. Dates are d
 - lint:fix [`4f13fb2`](https://github.com/karmaniverous/jeeves-watcher/commit/4f13fb2ffc6bdb72ae28642c01ca03c44748cebb)
 - chore: release @karmaniverous/jeeves-watcher-openclaw v0.3.13 [`43d8d07`](https://github.com/karmaniverous/jeeves-watcher/commit/43d8d075019fc8ac53b7747f46a3725ee047b553)
 - chore: release @karmaniverous/jeeves-watcher v0.6.7 [`a692378`](https://github.com/karmaniverous/jeeves-watcher/commit/a6923786158eac99ad6fd8fd035d8cd706a55778)
+- lintfix [`bcd21ca`](https://github.com/karmaniverous/jeeves-watcher/commit/bcd21ca44b83cb0298ae0cfde63c63ec90768d9e)
 - lintfix [`b4b954e`](https://github.com/karmaniverous/jeeves-watcher/commit/b4b954e04971ed319ba96d8a879ed24344d704ee)
 - chore: release @karmaniverous/jeeves-watcher-openclaw v0.5.7 [`5fa60d6`](https://github.com/karmaniverous/jeeves-watcher/commit/5fa60d64756e145ff3403fc0c890943766f9e1cc)
 - chore: release @karmaniverous/jeeves-watcher-openclaw v0.4.2 [`fcd75a2`](https://github.com/karmaniverous/jeeves-watcher/commit/fcd75a25d425524359171b10024bcfa190c4f9ab)
@@ -145,6 +147,7 @@ All notable changes to this project will be documented in this file. Dates are d
 - chore: release @karmaniverous/jeeves-watcher v0.6.3 [`da7414c`](https://github.com/karmaniverous/jeeves-watcher/commit/da7414c19894031d02da4713e3d57957a9f96449)
 - chore: release @karmaniverous/jeeves-watcher-openclaw v0.3.3 [`9db834e`](https://github.com/karmaniverous/jeeves-watcher/commit/9db834ee75686d4a0cad09743d4d96b3d9c41ee5)
 - chore: release @karmaniverous/jeeves-watcher-openclaw v0.3.2 [`99be8d8`](https://github.com/karmaniverous/jeeves-watcher/commit/99be8d8c5a895d28cc124c9110dba7e1f49eefc5)
+- chore: release @karmaniverous/jeeves-watcher v0.8.2 [`aa84c02`](https://github.com/karmaniverous/jeeves-watcher/commit/aa84c02ee773b956e6d2f0413327eb58af147806)
 - chore: release @karmaniverous/jeeves-watcher v0.8.1 [`e5bef11`](https://github.com/karmaniverous/jeeves-watcher/commit/e5bef1103fd6e9d29a67cf3351bc28bbafcdaf6d)
 - chore: release @karmaniverous/jeeves-watcher v0.6.8 [`a465d72`](https://github.com/karmaniverous/jeeves-watcher/commit/a465d72d25c51003550fa0fa87ecf8203de84a75)
 - fix: read CLI version from package.json instead of hardcoding [`22a9727`](https://github.com/karmaniverous/jeeves-watcher/commit/22a9727d9cccfb75d11535546c4a9194e6ccec35)
