@@ -181,7 +181,14 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
 
   app.post(
     '/config-reindex',
-    createConfigReindexHandler({ config, processor, logger, reindexTracker, valuesManager, issuesManager }),
+    createConfigReindexHandler({
+      config,
+      processor,
+      logger,
+      reindexTracker,
+      valuesManager,
+      issuesManager,
+    }),
   );
 
   app.get(
