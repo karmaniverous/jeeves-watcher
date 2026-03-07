@@ -37,17 +37,22 @@ export class ValuesManager extends JsonFileStore<ValuesIndex> {
     const ruleValues = index[ruleName];
 
     for (const [key, value] of Object.entries(metadata)) {
-      if (!this.isTrackable(value)) continue;
-      ruleValues[key] ??= [];
-      const arr = ruleValues[key];
-      if (!arr.includes(value)) {
-        arr.push(value);
-        arr.sort((a, b) => {
-          if (typeof a === typeof b) {
-            return String(a).localeCompare(String(b));
-          }
-          return typeof a < typeof b ? -1 : 1;
-        });
+      // Decompose arrays into individual trackable elements so that
+      // array-typed fields (e.g. domains: ["email"]) are indexed.
+      const items = Array.isArray(value) ? value : [value];
+      for (const item of items) {
+        if (!this.isTrackable(item)) continue;
+        ruleValues[key] ??= [];
+        const arr = ruleValues[key];
+        if (!arr.includes(item)) {
+          arr.push(item);
+          arr.sort((a, b) => {
+            if (typeof a === typeof b) {
+              return String(a).localeCompare(String(b));
+            }
+            return typeof a < typeof b ? -1 : 1;
+          });
+        }
       }
     }
 
