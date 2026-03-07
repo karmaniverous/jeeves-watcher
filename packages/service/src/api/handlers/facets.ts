@@ -67,6 +67,8 @@ function computeRulesHash(
  * A property is facetable if it declares `uiHint` or `enum`.
  */
 function isFacetable(prop: ResolvedProperty): boolean {
+  // Reject non-primitive types that can never produce trackable values.
+  if (prop.type === 'object') return false;
   return prop.uiHint !== undefined || prop.enum !== undefined;
 }
 

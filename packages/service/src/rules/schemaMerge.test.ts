@@ -13,6 +13,7 @@ import {
   resolveAndCoerce,
   type ResolvedSchema,
   type SchemaReference,
+  validateFacetTypes,
   validateSchemaCompleteness,
 } from './schemaMerge';
 
@@ -398,5 +399,56 @@ describe('validateSchemaCompleteness', () => {
     expect(() => {
       validateSchemaCompleteness(schema, 'test-rule');
     }).toThrow('Property "broken" in rule "test-rule" has no declared type');
+  });
+});
+
+describe('validateFacetTypes', () => {
+  it('passes for uiHint on string type', () => {
+    const schema: ResolvedSchema = {
+      properties: {
+        domain: { type: 'string', uiHint: 'dropdown' },
+      },
+    };
+    expect(() => validateFacetTypes(schema, 'test-rule')).not.toThrow();
+  });
+
+  it('passes for uiHint on array type', () => {
+    const schema: ResolvedSchema = {
+      properties: {
+        domains: { type: 'array', uiHint: 'multiselect', items: { type: 'string' } },
+      },
+    };
+    expect(() => validateFacetTypes(schema, 'test-rule')).not.toThrow();
+  });
+
+  it('throws for uiHint on object type', () => {
+    const schema: ResolvedSchema = {
+      properties: {
+        nested: { type: 'object', uiHint: 'dropdown' },
+      },
+    };
+    expect(() => validateFacetTypes(schema, 'test-rule')).toThrow(
+      'Property "nested" in rule "test-rule" has type "object" with uiHint/enum',
+    );
+  });
+
+  it('throws for enum on object type', () => {
+    const schema: ResolvedSchema = {
+      properties: {
+        nested: { type: 'object', enum: ['a', 'b'] },
+      },
+    };
+    expect(() => validateFacetTypes(schema, 'test-rule')).toThrow(
+      'has type "object" with uiHint/enum',
+    );
+  });
+
+  it('passes for object type without uiHint or enum', () => {
+    const schema: ResolvedSchema = {
+      properties: {
+        nested: { type: 'object' },
+      },
+    };
+    expect(() => validateFacetTypes(schema, 'test-rule')).not.toThrow();
   });
 });

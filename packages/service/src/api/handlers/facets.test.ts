@@ -198,7 +198,30 @@ describe('GET /search/facets handler', () => {
     expect(result.facets[0].values).toEqual([]);
   });
 
-  it('skips properties without uiHint or enum', () => {
+  it('rejects object-type properties even with uiHint', () => {
+    const config = makeConfig([
+      {
+        name: 'rule',
+        description: 'R',
+        match: {},
+        schema: [
+          {
+            properties: {
+              nested: { type: 'object', uiHint: 'dropdown', properties: { x: { type: 'string' } } },
+              valid: { type: 'string', uiHint: 'dropdown' },
+            },
+          },
+        ],
+      },
+    ]);
+    const handler = createFacetsHandler(makeDeps({ config }));
+    const result = handler();
+
+    expect(result.facets).toHaveLength(1);
+    expect(result.facets[0].field).toBe('valid');
+  });
+
+    it('skips properties without uiHint or enum', () => {
     const config = makeConfig([
       {
         name: 'rule',
