@@ -154,13 +154,8 @@ describe('DocumentProcessor', () => {
     });
 
     it('updates values even when content hash is unchanged', async () => {
-      const {
-        vectorStore,
-        embeddingProvider,
-        valuesManager,
-        config,
-        logger,
-      } = createMocks();
+      const { vectorStore, embeddingProvider, valuesManager, config, logger } =
+        createMocks();
       mockedBuildMergedMetadata.mockResolvedValue(defaultMergedMetadata());
 
       // Simulate existing payload with matching hash — embedding skipped
