@@ -3,8 +3,11 @@ import pino from 'pino';
 import { describe, expect, it, vi } from 'vitest';
 
 import type { JeevesWatcherConfig } from '../../config/types';
+import type { IssuesManager } from '../../issues';
 import type { DocumentProcessor } from '../../processor';
+import type { ValuesManager } from '../../values';
 import { ReindexTracker } from '../ReindexTracker';
+import type { ConfigReindexRouteDeps } from './configReindex';
 import { createConfigReindexHandler } from './configReindex';
 
 // Mock executeReindex to avoid actual file processing
@@ -41,9 +44,14 @@ function createDeps() {
     processor: {} as unknown as DocumentProcessor,
     logger: pino({ level: 'silent' }),
     reindexTracker: new ReindexTracker(),
-    valuesManager: { clearAll: vi.fn(), getAll: vi.fn().mockReturnValue({}) },
-    issuesManager: { getAll: vi.fn().mockReturnValue({}) },
-  };
+    valuesManager: {
+      clearAll: vi.fn(),
+      getAll: vi.fn().mockReturnValue({}),
+    } as unknown as ValuesManager,
+    issuesManager: {
+      getAll: vi.fn().mockReturnValue({}),
+    } as unknown as IssuesManager,
+  } satisfies ConfigReindexRouteDeps;
 }
 
 function mockRequest(body: Record<string, unknown> = {}): ConfigReindexRequest {

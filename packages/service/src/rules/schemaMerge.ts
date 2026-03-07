@@ -250,7 +250,13 @@ export function validateSchemaCompleteness(
 }
 
 /** Types that can produce trackable facet values. */
-const FACETABLE_TYPES = new Set(['string', 'number', 'boolean', 'integer', 'array']);
+const FACETABLE_TYPES = new Set([
+  'string',
+  'number',
+  'boolean',
+  'integer',
+  'array',
+]);
 
 /**
  * Validate that uiHint and enum are only applied to facetable property types.

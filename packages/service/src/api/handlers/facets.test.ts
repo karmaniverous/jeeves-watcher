@@ -207,7 +207,11 @@ describe('GET /search/facets handler', () => {
         schema: [
           {
             properties: {
-              nested: { type: 'object', uiHint: 'dropdown', properties: { x: { type: 'string' } } },
+              nested: {
+                type: 'object',
+                uiHint: 'dropdown',
+                properties: { x: { type: 'string' } },
+              },
               valid: { type: 'string', uiHint: 'dropdown' },
             },
           },
@@ -221,7 +225,7 @@ describe('GET /search/facets handler', () => {
     expect(result.facets[0].field).toBe('valid');
   });
 
-    it('skips properties without uiHint or enum', () => {
+  it('skips properties without uiHint or enum', () => {
     const config = makeConfig([
       {
         name: 'rule',
