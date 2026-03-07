@@ -41,6 +41,8 @@ function createDeps() {
     processor: {} as unknown as DocumentProcessor,
     logger: pino({ level: 'silent' }),
     reindexTracker: new ReindexTracker(),
+    valuesManager: { clearAll: vi.fn(), getAll: vi.fn().mockReturnValue({}) },
+    issuesManager: { getAll: vi.fn().mockReturnValue({}) },
   };
 }
 
@@ -84,6 +86,24 @@ describe('createConfigReindexHandler', () => {
     });
     expect(mockedExecuteReindex).toHaveBeenCalledWith(
       expect.objectContaining({ config: deps.config }),
+      'full',
+    );
+  });
+
+  it('passes valuesManager and issuesManager to executeReindex', async () => {
+    const deps = createDeps();
+    const handler = createConfigReindexHandler(deps);
+    const reply = mockReply();
+    await handler(
+      mockRequest({ scope: 'full' }),
+      reply as unknown as FastifyReply,
+    );
+
+    expect(mockedExecuteReindex).toHaveBeenCalledWith(
+      expect.objectContaining({
+        valuesManager: deps.valuesManager,
+        issuesManager: deps.issuesManager,
+      }),
       'full',
     );
   });

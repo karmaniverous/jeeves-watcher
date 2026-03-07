@@ -7,7 +7,9 @@ import type { FastifyReply, FastifyRequest } from 'fastify';
 import type pino from 'pino';
 
 import type { JeevesWatcherConfig } from '../../config/types';
+import type { IssuesManager } from '../../issues';
 import type { DocumentProcessorInterface } from '../../processor';
+import type { ValuesManager } from '../../values';
 import { executeReindex } from '../executeReindex';
 import type { ReindexTracker } from '../ReindexTracker';
 import { wrapHandler } from './wrapHandler';
@@ -17,6 +19,8 @@ export interface ConfigReindexRouteDeps {
   processor: DocumentProcessorInterface;
   logger: pino.Logger;
   reindexTracker: ReindexTracker;
+  valuesManager?: ValuesManager;
+  issuesManager?: IssuesManager;
 }
 
 type ConfigReindexRequest = FastifyRequest<{
@@ -39,6 +43,8 @@ export function createConfigReindexHandler(deps: ConfigReindexRouteDeps) {
           processor: deps.processor,
           logger: deps.logger,
           reindexTracker: deps.reindexTracker,
+          valuesManager: deps.valuesManager,
+          issuesManager: deps.issuesManager,
         },
         scope,
       );
