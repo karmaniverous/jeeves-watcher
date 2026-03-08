@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file. Dates are displayed in UTC.
 
-#### [0.9.0-0](https://github.com/karmaniverous/jeeves-watcher/compare/0.5.1...0.9.0-0)
+#### [0.9.0](https://github.com/karmaniverous/jeeves-watcher/compare/0.5.1...0.9.0)
 
 - feat: add POST /scan endpoint with cursor-based pagination [`#98`](https://github.com/karmaniverous/jeeves-watcher/pull/98)
 - chore: re-encode .gitignore as UTF-8 [`#97`](https://github.com/karmaniverous/jeeves-watcher/pull/97)
@@ -121,6 +121,7 @@ All notable changes to this project will be documented in this file. Dates are d
 - fix: remove plugins.allow management from CLI, only manage entries and tools.allow [`64106b4`](https://github.com/karmaniverous/jeeves-watcher/commit/64106b49be35f11c8e4b9a499b45067869decc4b)
 - fix(openclaw): correct embedding alignment config path in skill [`4965dec`](https://github.com/karmaniverous/jeeves-watcher/commit/4965dec812e837f1c090ed59aa8464cff77cce69)
 - fix: conditionally manage plugins.allow only when already populated [`c486c3a`](https://github.com/karmaniverous/jeeves-watcher/commit/c486c3a8bc12df5f1d233a0f974c0024e91e84b4)
+- chore: release @karmaniverous/jeeves-watcher v0.9.0-0 [`07004fc`](https://github.com/karmaniverous/jeeves-watcher/commit/07004fc427e43c9eef73b3e5be0882f3845ae7d6)
 - chore: release @karmaniverous/jeeves-watcher-openclaw v0.2.0 [`a6d4d7e`](https://github.com/karmaniverous/jeeves-watcher/commit/a6d4d7e57424b482b737cb6983dc5c9a86b96160)
 - fix(openclaw): use error.cause for precise connection error detection [`3bdd267`](https://github.com/karmaniverous/jeeves-watcher/commit/3bdd267225d129186ee6d9263379ddcd6808d7df)
 - chore: release @karmaniverous/jeeves-watcher-openclaw v0.1.2 [`c019f41`](https://github.com/karmaniverous/jeeves-watcher/commit/c019f410d5cef94e653450b82966d64e1a70f900)
