@@ -357,7 +357,11 @@ export class VectorStoreClient implements VectorStore {
         id: String(p.id),
         payload: p.payload as Record<string, unknown>,
       })),
-      nextCursor: (typeof result.next_page_offset === 'string' || typeof result.next_page_offset === 'number') ? result.next_page_offset : undefined,
+      nextCursor:
+        typeof result.next_page_offset === 'string' ||
+        typeof result.next_page_offset === 'number'
+          ? result.next_page_offset
+          : undefined,
     };
   }
 

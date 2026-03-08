@@ -4,21 +4,25 @@ import type { ScanRouteDeps } from './scan';
 import { createScanHandler } from './scan';
 
 describe('createScanHandler', () => {
+  const scrollPageMock = vi.fn();
+  const countMock = vi.fn();
+
+  const mockDeps = {
+    vectorStore: { scrollPage: scrollPageMock, count: countMock },
+    logger: { warn: vi.fn(), error: vi.fn() },
+  } as unknown as ScanRouteDeps;
+
   it('returns points and cursor on normal scan', async () => {
     const mockPoints = [
       { id: 'p1', payload: { foo: 'bar' } },
       { id: 'p2', payload: { baz: 'qux' } },
     ];
+    scrollPageMock.mockResolvedValue({
+      points: mockPoints,
+      nextCursor: 'next-123',
+    });
 
-    const deps: ScanRouteDeps = {
-      vectorStore: {
-        scrollPage: vi.fn().mockResolvedValue({ points: mockPoints, nextCursor: 'next-123' }),
-        count: vi.fn(),
-      } as never,
-      logger: { warn: vi.fn(), error: vi.fn() } as never,
-    };
-
-    const handler = createScanHandler(deps);
+    const handler = createScanHandler(mockDeps);
     const filter = { must: [{ key: 'domain', match: { value: 'memory' } }] };
     const request = { body: { filter, limit: 10 } } as never;
     const sendMock = vi.fn();
@@ -26,20 +30,25 @@ describe('createScanHandler', () => {
 
     await handler(request, reply);
 
-    expect(deps.vectorStore.scrollPage).toHaveBeenCalledWith(filter, 10, undefined, undefined);
-    expect(sendMock).toHaveBeenCalledWith({ points: mockPoints, cursor: 'next-123' });
+    expect(scrollPageMock).toHaveBeenCalledWith(
+      filter,
+      10,
+      undefined,
+      undefined,
+    );
+    expect(sendMock).toHaveBeenCalledWith({
+      points: mockPoints,
+      cursor: 'next-123',
+    });
   });
 
   it('handles empty cursor', async () => {
-    const deps: ScanRouteDeps = {
-      vectorStore: {
-        scrollPage: vi.fn().mockResolvedValue({ points: [], nextCursor: undefined }),
-        count: vi.fn(),
-      } as never,
-      logger: { warn: vi.fn(), error: vi.fn() } as never,
-    };
+    scrollPageMock.mockResolvedValue({
+      points: [],
+      nextCursor: undefined,
+    });
 
-    const handler = createScanHandler(deps);
+    const handler = createScanHandler(mockDeps);
     const request = { body: { filter: {} } } as never;
     const sendMock = vi.fn();
     const reply = { status: vi.fn().mockReturnThis(), send: sendMock } as never;
@@ -50,15 +59,10 @@ describe('createScanHandler', () => {
   });
 
   it('returns count when countOnly is true', async () => {
-    const deps: ScanRouteDeps = {
-      vectorStore: {
-        scrollPage: vi.fn(),
-        count: vi.fn().mockResolvedValue(42),
-      } as never,
-      logger: { warn: vi.fn(), error: vi.fn() } as never,
-    };
+    countMock.mockResolvedValue(42);
+    scrollPageMock.mockClear();
 
-    const handler = createScanHandler(deps);
+    const handler = createScanHandler(mockDeps);
     const filter = { must: [] };
     const request = { body: { filter, countOnly: true } } as never;
     const sendMock = vi.fn();
@@ -66,18 +70,13 @@ describe('createScanHandler', () => {
 
     await handler(request, reply);
 
-    expect(deps.vectorStore.count).toHaveBeenCalledWith(filter);
-    expect(deps.vectorStore.scrollPage).not.toHaveBeenCalled();
+    expect(countMock).toHaveBeenCalledWith(filter);
+    expect(scrollPageMock).not.toHaveBeenCalled();
     expect(sendMock).toHaveBeenCalledWith({ count: 42 });
   });
 
   it('rejects missing filter', async () => {
-    const deps: ScanRouteDeps = {
-      vectorStore: {} as never,
-      logger: { warn: vi.fn(), error: vi.fn() } as never,
-    };
-
-    const handler = createScanHandler(deps);
+    const handler = createScanHandler(mockDeps);
     const request = { body: {} } as never;
     const sendMock = vi.fn();
     const statusMock = vi.fn().mockReturnValue({ send: sendMock });
@@ -86,16 +85,13 @@ describe('createScanHandler', () => {
     await handler(request, reply);
 
     expect(statusMock).toHaveBeenCalledWith(400);
-    expect(sendMock).toHaveBeenCalledWith({ error: 'Missing required field: filter (object)' });
+    expect(sendMock).toHaveBeenCalledWith({
+      error: 'Missing required field: filter (object)',
+    });
   });
 
   it('rejects out of bounds limit', async () => {
-    const deps: ScanRouteDeps = {
-      vectorStore: {} as never,
-      logger: { warn: vi.fn(), error: vi.fn() } as never,
-    };
-
-    const handler = createScanHandler(deps);
+    const handler = createScanHandler(mockDeps);
     const request = { body: { filter: {}, limit: 2000 } } as never;
     const sendMock = vi.fn();
     const statusMock = vi.fn().mockReturnValue({ send: sendMock });
@@ -104,6 +100,8 @@ describe('createScanHandler', () => {
     await handler(request, reply);
 
     expect(statusMock).toHaveBeenCalledWith(400);
-    expect(sendMock).toHaveBeenCalledWith({ error: 'limit must be between 1 and 1000' });
+    expect(sendMock).toHaveBeenCalledWith({
+      error: 'limit must be between 1 and 1000',
+    });
   });
 });
