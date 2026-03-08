@@ -78,7 +78,11 @@ You have access to a **semantic archive** of your human's working world. Documen
 npx @karmaniverous/jeeves-watcher-openclaw install
 ```
 
-This copies the plugin to OpenClaw's extensions directory and patches `openclaw.json` to register it. Restart the gateway to load the plugin.
+This copies the plugin to OpenClaw's extensions directory and patches `openclaw.json` to register it. 
+
+**Important:** Add `"jeeves-watcher-openclaw"` to the `tools.allow` array in `openclaw.json` so the agent can use the plugin's tools.
+
+Restart the gateway to load the plugin.
 
 To remove:
 ```

@@ -34,7 +34,7 @@ afterEach(() => {
 });
 
 describe('registerWatcherTools', () => {
-  it('registers exactly 8 watcher tools', () => {
+  it('registers exactly 9 watcher tools', () => {
     const tools: string[] = [];
     const api: PluginApi = {
       registerTool: (tool: { name: string }) => {
@@ -50,6 +50,7 @@ describe('registerWatcherTools', () => {
       'watcher_validate',
       'watcher_config_apply',
       'watcher_reindex',
+      'watcher_scan',
       'watcher_issues',
     ]);
   });

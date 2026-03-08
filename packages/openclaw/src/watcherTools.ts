@@ -65,7 +65,7 @@ function pickDefined(
   return body;
 }
 
-/** Register all 8 watcher_* tools with the OpenClaw plugin API. */
+/** Register all 9 watcher_* tools with the OpenClaw plugin API. */
 export function registerWatcherTools(api: PluginApi, baseUrl: string): void {
   const tools: ApiToolConfig[] = [
     {
@@ -204,6 +204,48 @@ export function registerWatcherTools(api: PluginApi, baseUrl: string): void {
         '/config-reindex',
         { scope: params.scope ?? 'rules' },
       ],
+    },
+    {
+      name: 'watcher_scan',
+      description:
+        'Filter-only point query without vector search. Returns metadata for points matching a Qdrant filter. Use for structural queries: file enumeration, staleness checks, delta computation. Use watcher_search for semantic/similarity queries.',
+      parameters: {
+        type: 'object',
+        required: ['filter'],
+        properties: {
+          filter: {
+            type: 'object',
+            description: 'Qdrant filter object (required).',
+          },
+          limit: {
+            type: 'number',
+            description: 'Page size (default 100, max 1000).',
+          },
+          cursor: {
+            type: 'string',
+            description: 'Opaque cursor from previous response for pagination.',
+          },
+          fields: {
+            type: 'array',
+            items: { type: 'string' },
+            description: 'Payload fields to return (projection).',
+          },
+          countOnly: {
+            type: 'boolean',
+            description: 'If true, return { count } instead of points.',
+          },
+        },
+      },
+      buildRequest: (params) => {
+        const body = pickDefined(params, [
+          'filter',
+          'limit',
+          'cursor',
+          'fields',
+          'countOnly',
+        ]);
+        return ['/scan', body];
+      },
     },
     {
       name: 'watcher_issues',
