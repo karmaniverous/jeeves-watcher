@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file. Dates are displayed in UTC.
 
-#### [0.6.0-0](https://github.com/karmaniverous/jeeves-watcher/compare/0.5.1...0.6.0-0)
+#### [0.6.0](https://github.com/karmaniverous/jeeves-watcher/compare/0.5.1...0.6.0)
 
 - feat: add POST /scan endpoint with cursor-based pagination [`#98`](https://github.com/karmaniverous/jeeves-watcher/pull/98)
 - chore: re-encode .gitignore as UTF-8 [`#97`](https://github.com/karmaniverous/jeeves-watcher/pull/97)
@@ -102,6 +102,7 @@ All notable changes to this project will be documented in this file. Dates are d
 - feat(plugin): add watcher_scan tool and update prompt injection [`e3738aa`](https://github.com/karmaniverous/jeeves-watcher/commit/e3738aac7f5626ef07773221f4070d4975664e64)
 - fix(test): properly type mock deps in configReindex.test.ts [`98ba53f`](https://github.com/karmaniverous/jeeves-watcher/commit/98ba53f1d159306d533fe015e984f57c7a507f04)
 - docs: document self-installer CLI and Windows spawn EINVAL workaround [`e3d6351`](https://github.com/karmaniverous/jeeves-watcher/commit/e3d63512fe57b555e753c8f86bbfe57a1b97f70c)
+- chore: release @karmaniverous/jeeves-watcher-openclaw v0.6.0-0 [`bf0bd2b`](https://github.com/karmaniverous/jeeves-watcher/commit/bf0bd2bbf23170cb3a08d4e00b8982279c186ac5)
 - docs: promote spec implementation gaps to Next Version and Dev Plan [`eb4ee1a`](https://github.com/karmaniverous/jeeves-watcher/commit/eb4ee1a75b2308ad1a2d8a03247906cac380b592)
 - chore: release @karmaniverous/jeeves-watcher v0.6.0 [`b7b207e`](https://github.com/karmaniverous/jeeves-watcher/commit/b7b207e96b1750bcacc4f5dd67ecf9c369415e25)
 - chore: release @karmaniverous/jeeves-watcher v0.8.0 [`4d6daaf`](https://github.com/karmaniverous/jeeves-watcher/commit/4d6daafc4decefe8b9567a22ffdd49ea7be973ad)
@@ -120,6 +121,7 @@ All notable changes to this project will be documented in this file. Dates are d
 - fix: remove plugins.allow management from CLI, only manage entries and tools.allow [`64106b4`](https://github.com/karmaniverous/jeeves-watcher/commit/64106b49be35f11c8e4b9a499b45067869decc4b)
 - fix(openclaw): correct embedding alignment config path in skill [`4965dec`](https://github.com/karmaniverous/jeeves-watcher/commit/4965dec812e837f1c090ed59aa8464cff77cce69)
 - fix: conditionally manage plugins.allow only when already populated [`c486c3a`](https://github.com/karmaniverous/jeeves-watcher/commit/c486c3a8bc12df5f1d233a0f974c0024e91e84b4)
+- chore: release @karmaniverous/jeeves-watcher v0.9.0-0 [`07004fc`](https://github.com/karmaniverous/jeeves-watcher/commit/07004fc427e43c9eef73b3e5be0882f3845ae7d6)
 - chore: release @karmaniverous/jeeves-watcher-openclaw v0.2.0 [`a6d4d7e`](https://github.com/karmaniverous/jeeves-watcher/commit/a6d4d7e57424b482b737cb6983dc5c9a86b96160)
 - fix(openclaw): use error.cause for precise connection error detection [`3bdd267`](https://github.com/karmaniverous/jeeves-watcher/commit/3bdd267225d129186ee6d9263379ddcd6808d7df)
 - chore: release @karmaniverous/jeeves-watcher-openclaw v0.1.2 [`c019f41`](https://github.com/karmaniverous/jeeves-watcher/commit/c019f410d5cef94e653450b82966d64e1a70f900)
@@ -172,6 +174,7 @@ All notable changes to this project will be documented in this file. Dates are d
 - lintfix [`4bfe08e`](https://github.com/karmaniverous/jeeves-watcher/commit/4bfe08e06032779dd7bf09f3606b8e4d59f04a46)
 - fix: use consistent default port 1936 in server.listen() and schema description [`fe61181`](https://github.com/karmaniverous/jeeves-watcher/commit/fe6118154eb1bb4605b36bec11c79925d8c7322b)
 - fix: normalizePath preserves drive letter case to match service path normalization [`b79c8c4`](https://github.com/karmaniverous/jeeves-watcher/commit/b79c8c4cee38ccf989a7ee067a67c1879464e53d)
+- chore: release @karmaniverous/jeeves-watcher v0.9.0 [`9f210b1`](https://github.com/karmaniverous/jeeves-watcher/commit/9f210b1443db133c7598fa1815ee1702ffaaec82)
 - lint:fix [`0d86aea`](https://github.com/karmaniverous/jeeves-watcher/commit/0d86aeaa8efb03798853d6c95bee49b8e3b77bc2)
 - docs: update spec for shared Platform Tools H1 injection pattern [`230822a`](https://github.com/karmaniverous/jeeves-watcher/commit/230822adbcaed0f1de3adc634b8429019f015c79)
 - chore: remove temp commit script [`31d35a7`](https://github.com/karmaniverous/jeeves-watcher/commit/31d35a7341fdfe9d823ffbd04f4192396edcd638)
