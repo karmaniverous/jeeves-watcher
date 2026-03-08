@@ -6,14 +6,16 @@ import { getLogger, type MinimalLogger } from '../util/logger';
 import { normalizeError } from '../util/normalizeError';
 import { retry } from '../util/retry';
 import { getCollectionInfo as getCollectionInfoHelper } from './collectionInfo';
+import { countPoints } from './count';
 import {
   ensureTextIndex as ensureTextIndexHelper,
   hybridSearch as hybridSearchHelper,
 } from './hybridSearch';
-import { scrollCollection } from './scroll';
+import { scrollCollection, scrollPage as scrollPageHelper } from './scroll';
 import type {
   CollectionInfo,
   ScrolledPoint,
+  ScrollPageResult,
   SearchResult,
   VectorPoint,
   VectorStore,
@@ -24,6 +26,7 @@ export type {
   CollectionInfo,
   PayloadFieldSchema,
   ScrolledPoint,
+  ScrollPageResult,
   SearchResult,
   VectorPoint,
   VectorStore,
@@ -78,20 +81,13 @@ export class VectorStoreClient implements VectorStore {
   }
 
   /**
-   * Ensure the collection exists with correct dimensions and Cosine distance.
-   */
-  /**
    * Count points matching a filter.
    *
    * @param filter - Optional Qdrant filter.
    * @returns The number of matching points.
    */
   async count(filter?: Record<string, unknown>): Promise<number> {
-    const result = await this.client.count(this.collectionName, {
-      ...(filter ? { filter } : {}),
-      exact: true,
-    });
-    return result.count;
+    return countPoints(this.client, this.collectionName, filter);
   }
 
   /**
@@ -324,13 +320,6 @@ export class VectorStoreClient implements VectorStore {
   }
 
   /**
-   * Scroll through all points matching a filter.
-   *
-   * @param filter - Optional Qdrant filter.
-   * @param limit - Page size for scrolling.
-   * @yields Scrolled points.
-   */
-  /**
    * Scroll one page of points matching a filter.
    *
    * @param filter - Optional Qdrant filter.
@@ -344,28 +333,15 @@ export class VectorStoreClient implements VectorStore {
     limit = 100,
     offset?: string | number,
     fields?: string[],
-  ): Promise<{
-    /** Matched points. */ points: ScrolledPoint[];
-    /** Cursor for next page. */ nextCursor?: string | number;
-  }> {
-    const result = await this.client.scroll(this.collectionName, {
+  ): Promise<ScrollPageResult> {
+    return scrollPageHelper(
+      this.client,
+      this.collectionName,
+      filter,
       limit,
-      with_payload: fields ? fields : true,
-      with_vector: false,
-      ...(filter ? { filter } : {}),
-      ...(offset !== undefined ? { offset } : {}),
-    });
-    return {
-      points: result.points.map((p) => ({
-        id: String(p.id),
-        payload: p.payload as Record<string, unknown>,
-      })),
-      nextCursor:
-        typeof result.next_page_offset === 'string' ||
-        typeof result.next_page_offset === 'number'
-          ? result.next_page_offset
-          : undefined,
-    };
+      offset,
+      fields,
+    );
   }
 
   /**

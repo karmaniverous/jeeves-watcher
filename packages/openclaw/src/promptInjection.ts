@@ -1,4 +1,9 @@
-import { getApiUrl, getCacheTtlMs, type PluginApi } from './helpers.js';
+import {
+  fetchJson,
+  getApiUrl,
+  getCacheTtlMs,
+  type PluginApi,
+} from './helpers.js';
 
 /** Cache structure for the generated menu string */
 interface MenuCache {
@@ -42,14 +47,6 @@ function isAgentBootstrapEventContext(
   return Array.isArray(v.bootstrapFiles);
 }
 
-async function fetchJson<T>(url: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(url, init);
-  if (!res.ok) {
-    throw new Error(`HTTP ${String(res.status)}: ${await res.text()}`);
-  }
-  return res.json() as Promise<T>;
-}
-
 /**
  * Fetches data from the watcher API and generates a Markdown menu string.
  * The string is platform-agnostic and safe to inject into TOOLS.md.
@@ -61,24 +58,24 @@ export async function generateWatcherMenu(apiUrl: string): Promise<string> {
   const ignoredPaths: string[] = [];
 
   try {
-    const [statusRes, rulesRes, pathsRes, ignoredRes] = await Promise.all([
-      fetchJson<StatusResponse>(`${apiUrl}/status`),
-      fetchJson<QueryResponse>(`${apiUrl}/config/query`, {
+    const [statusRes, rulesRes, pathsRes, ignoredRes] = (await Promise.all([
+      fetchJson(`${apiUrl}/status`),
+      fetchJson(`${apiUrl}/config/query`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ path: '$.inferenceRules[*]' }),
       }),
-      fetchJson<QueryResponse>(`${apiUrl}/config/query`, {
+      fetchJson(`${apiUrl}/config/query`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ path: '$.watch.paths[*]' }),
       }),
-      fetchJson<QueryResponse>(`${apiUrl}/config/query`, {
+      fetchJson(`${apiUrl}/config/query`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ path: '$.watch.ignored[*]' }),
       }),
-    ]);
+    ])) as [StatusResponse, QueryResponse, QueryResponse, QueryResponse];
 
     pointCount = statusRes.collection?.pointCount ?? 0;
 
