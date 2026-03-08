@@ -38,6 +38,7 @@ import {
   createRulesUnregisterHandler,
   createRulesUnregisterParamHandler,
 } from './handlers/rulesUnregister';
+import { createScanHandler } from './handlers/scan';
 import { createSearchHandler } from './handlers/search';
 import { createStatusHandler } from './handlers/status';
 import { withCache } from './handlers/withCache';
@@ -154,6 +155,14 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
         textWeight: config.search.hybrid.textWeight,
       }
     : undefined;
+
+  app.post(
+    '/scan',
+    createScanHandler({
+      vectorStore,
+      logger,
+    }),
+  );
 
   app.post(
     '/search',

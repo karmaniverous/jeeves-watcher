@@ -67,6 +67,14 @@ export interface VectorStore {
   ensureCollection(): Promise<void>;
 
   /**
+   * Count points matching a filter.
+   *
+   * @param filter - Optional Qdrant filter.
+   * @returns The number of matching points.
+   */
+  count(filter?: Record<string, unknown>): Promise<number>;
+
+  /**
    * Upsert points into the collection.
    *
    * @param points - The points to upsert.
@@ -116,6 +124,29 @@ export interface VectorStore {
     filter?: Record<string, unknown>,
     offset?: number,
   ): Promise<SearchResult[]>;
+
+  /**
+   * Scroll through all points matching a filter.
+   *
+   * @param filter - Optional Qdrant filter.
+   * @param limit - Page size for scrolling.
+   * @yields Scrolled points.
+   */
+  /**
+   * Scroll one page of points matching a filter.
+   *
+   * @param filter - Optional Qdrant filter.
+   * @param limit - Page size.
+   * @param offset - Cursor offset from previous page.
+   * @param fields - Optional field projection.
+   * @returns Page of points and next cursor.
+   */
+  scrollPage(
+    filter?: Record<string, unknown>,
+    limit?: number,
+    offset?: string | number,
+    fields?: string[],
+  ): Promise<{ points: ScrolledPoint[]; nextCursor?: string | number }>;
 
   /**
    * Scroll through all points matching a filter.

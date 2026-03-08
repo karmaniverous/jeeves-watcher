@@ -80,6 +80,23 @@ export class VectorStoreClient implements VectorStore {
   /**
    * Ensure the collection exists with correct dimensions and Cosine distance.
    */
+  /**
+   * Count points matching a filter.
+   *
+   * @param filter - Optional Qdrant filter.
+   * @returns The number of matching points.
+   */
+  async count(filter?: Record<string, unknown>): Promise<number> {
+    const result = await this.client.count(this.collectionName, {
+      ...(filter ? { filter } : {}),
+      exact: true,
+    });
+    return result.count;
+  }
+
+  /**
+   * Ensure the collection exists with correct dimensions and Cosine distance.
+   */
   async ensureCollection(): Promise<void> {
     try {
       const collections = await this.client.getCollections();
@@ -304,6 +321,44 @@ export class VectorStoreClient implements VectorStore {
       textWeight,
       filter,
     );
+  }
+
+  /**
+   * Scroll through all points matching a filter.
+   *
+   * @param filter - Optional Qdrant filter.
+   * @param limit - Page size for scrolling.
+   * @yields Scrolled points.
+   */
+  /**
+   * Scroll one page of points matching a filter.
+   *
+   * @param filter - Optional Qdrant filter.
+   * @param limit - Page size.
+   * @param offset - Cursor offset from previous page.
+   * @param fields - Optional field projection.
+   * @returns Page of points and next cursor.
+   */
+  async scrollPage(
+    filter?: Record<string, unknown>,
+    limit = 100,
+    offset?: string | number,
+    fields?: string[],
+  ): Promise<{ points: ScrolledPoint[]; nextCursor?: string | number }> {
+    const result = await this.client.scroll(this.collectionName, {
+      limit,
+      with_payload: fields ? fields : true,
+      with_vector: false,
+      ...(filter ? { filter } : {}),
+      ...(offset !== undefined ? { offset } : {}),
+    });
+    return {
+      points: result.points.map((p) => ({
+        id: String(p.id),
+        payload: p.payload as Record<string, unknown>,
+      })),
+      nextCursor: (typeof result.next_page_offset === 'string' || typeof result.next_page_offset === 'number') ? result.next_page_offset : undefined,
+    };
   }
 
   /**
