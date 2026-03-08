@@ -344,7 +344,10 @@ export class VectorStoreClient implements VectorStore {
     limit = 100,
     offset?: string | number,
     fields?: string[],
-  ): Promise<{ /** Matched points. */ points: ScrolledPoint[]; /** Cursor for next page. */ nextCursor?: string | number }> {
+  ): Promise<{
+    /** Matched points. */ points: ScrolledPoint[];
+    /** Cursor for next page. */ nextCursor?: string | number;
+  }> {
     const result = await this.client.scroll(this.collectionName, {
       limit,
       with_payload: fields ? fields : true,

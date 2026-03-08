@@ -146,7 +146,10 @@ export interface VectorStore {
     limit?: number,
     offset?: string | number,
     fields?: string[],
-  ): Promise<{ /** Matched points. */ points: ScrolledPoint[]; /** Cursor for next page. */ nextCursor?: string | number }>;
+  ): Promise<{
+    /** Matched points. */ points: ScrolledPoint[];
+    /** Cursor for next page. */ nextCursor?: string | number;
+  }>;
 
   /**
    * Scroll through all points matching a filter.
