@@ -91,6 +91,11 @@ The watcher will:
 | `jeeves-watcher enrich <path>` | Enrich document metadata with key-value pairs |
 | `jeeves-watcher validate` | Validate the configuration |
 | `jeeves-watcher service` | Manage the watcher as a system service |
+| `jeeves-watcher scan` | Scan the vector store with filter-only queries |
+| `jeeves-watcher query` | Query merged config document via JSONPath |
+| `jeeves-watcher issues` | Show indexing issues and errors |
+| `jeeves-watcher helpers` | Show loaded map and template helpers |
+| `jeeves-watcher config-apply` | Validate, write, and reload configuration from file |
 | `jeeves-watcher config-reindex` | Reindex after configuration changes (rules only or full) |
 
 ## Configuration
@@ -240,6 +245,10 @@ The watcher provides a REST API (default port: 1936):
 | `/rules/register` | POST | Register virtual inference rules from an external source |
 | `/rules/unregister` | DELETE | Remove all virtual rules from a source (`{ source }`) |
 | `/rules/unregister/:source` | DELETE | Remove all virtual rules from a named source |
+| `/scan` | POST | Filter-only point query with cursor pagination (`{ filter, limit?, cursor?, fields?, countOnly? }`) |
+| `/config/validate` | POST | Validate a configuration without applying (`{ config?, testPaths? }`) |
+| `/config/apply` | POST | Validate, write, and reload configuration (`{ config }`) |
+| `/rules/reapply` | POST | Re-apply inference rules to files matching globs (`{ globs }`) |
 | `/points/delete` | POST | Delete points matching a Qdrant filter (`{ filter }`) |
 
 ### Example: Search
@@ -291,6 +300,7 @@ This repo includes an OpenClaw plugin (`packages/openclaw`) that exposes the jee
 | `watcher_validate`     | Validate a watcher configuration               |
 | `watcher_config_apply` | Apply a new configuration                      |
 | `watcher_reindex`      | Trigger a reindex                              |
+| `watcher_scan`         | Filter-only point query with cursor pagination |
 | `watcher_issues`       | List indexing issues and errors                |
 
 The plugin also writes a dynamic `## Watcher` section to `TOOLS.md` on disk, providing agents with a live menu of indexed content and escalation rules. See the [OpenClaw Integration Guide](packages/openclaw/guides/openclaw-integration.md) for details.

@@ -394,6 +394,47 @@ jeeves-watcher search "project status" --port 1936
 
 ---
 
+## `jeeves-watcher scan`
+
+Scan the vector store with filter-only queries (no embedding).
+
+### Usage
+
+```bash
+jeeves-watcher scan [options]
+```
+
+### Options
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `-f, --filter <filter>` | `{}` | Qdrant filter (JSON string) |
+| `-l, --limit <limit>` | `100` | Max results per page |
+| `-c, --cursor <cursor>` | — | Cursor from previous response |
+| `--fields <fields>` | — | Payload fields to return (comma-separated) |
+| `--count-only` | — | Return count only |
+| `-p, --port <port>` | `1936` | API port |
+| `-H, --host <host>` | `127.0.0.1` | API host |
+
+### Examples
+
+```bash
+# Count email documents
+jeeves-watcher scan --filter '{"must":[{"key":"domain","match":{"value":"email"}}]}' --count-only
+
+# List first page of slack messages (file_path only)
+jeeves-watcher scan --filter '{"must":[{"key":"domain","match":{"value":"slack"}}]}' --fields file_path,domain --limit 50
+
+# Continue with cursor from previous response
+jeeves-watcher scan --filter '{"must":[{"key":"domain","match":{"value":"slack"}}]}' --cursor "next-abc123"
+```
+
+### Behavior
+
+Sends `POST /scan` to the API. See [API Reference](./api-reference.md#post-scan) for details.
+
+---
+
 ## `jeeves-watcher config-reindex`
 
 Reindex after configuration changes.
