@@ -6,14 +6,16 @@ import { getLogger, type MinimalLogger } from '../util/logger';
 import { normalizeError } from '../util/normalizeError';
 import { retry } from '../util/retry';
 import { getCollectionInfo as getCollectionInfoHelper } from './collectionInfo';
+import { countPoints } from './count';
 import {
   ensureTextIndex as ensureTextIndexHelper,
   hybridSearch as hybridSearchHelper,
 } from './hybridSearch';
-import { scrollCollection } from './scroll';
+import { scrollCollection, scrollPage as scrollPageHelper } from './scroll';
 import type {
   CollectionInfo,
   ScrolledPoint,
+  ScrollPageResult,
   SearchResult,
   VectorPoint,
   VectorStore,
@@ -24,6 +26,7 @@ export type {
   CollectionInfo,
   PayloadFieldSchema,
   ScrolledPoint,
+  ScrollPageResult,
   SearchResult,
   VectorPoint,
   VectorStore,
@@ -75,6 +78,16 @@ export class VectorStoreClient implements VectorStore {
       ...this.clientConfig,
       checkCompatibility: false,
     });
+  }
+
+  /**
+   * Count points matching a filter.
+   *
+   * @param filter - Optional Qdrant filter.
+   * @returns The number of matching points.
+   */
+  async count(filter?: Record<string, unknown>): Promise<number> {
+    return countPoints(this.client, this.collectionName, filter);
   }
 
   /**
@@ -303,6 +316,31 @@ export class VectorStoreClient implements VectorStore {
       limit,
       textWeight,
       filter,
+    );
+  }
+
+  /**
+   * Scroll one page of points matching a filter.
+   *
+   * @param filter - Optional Qdrant filter.
+   * @param limit - Page size.
+   * @param offset - Cursor offset from previous page.
+   * @param fields - Optional field projection.
+   * @returns Page of points and next cursor.
+   */
+  async scrollPage(
+    filter?: Record<string, unknown>,
+    limit = 100,
+    offset?: string | number,
+    fields?: string[],
+  ): Promise<ScrollPageResult> {
+    return scrollPageHelper(
+      this.client,
+      this.collectionName,
+      filter,
+      limit,
+      offset,
+      fields,
     );
   }
 

@@ -398,6 +398,103 @@ Each result is a Qdrant point:
 
 ---
 
+## POST /scan
+
+Filter-only point query without vector search. Returns metadata for points matching a Qdrant filter with cursor-based pagination.
+
+### Request
+
+```bash
+curl -X POST http://localhost:1936/scan \
+  -H "Content-Type: application/json" \
+  -d '{
+    "filter": {
+      "must": [{ "key": "domain", "match": { "value": "email" } }]
+    },
+    "limit": 50
+  }'
+```
+
+**Body schema:**
+
+```typescript
+{
+  filter: Record<string, unknown>;   // Qdrant filter object (required)
+  limit?: number;                    // Page size (default: 100, max: 1000)
+  cursor?: string | number;          // Opaque cursor from previous response
+  fields?: string[];                 // Payload field projection
+  countOnly?: boolean;               // If true, return { count } instead of points
+}
+```
+
+### Response
+
+**Success (200 OK) — normal scan:**
+
+```json
+{
+  "points": [
+    { "id": "uuid-chunk-0", "payload": { "file_path": "j:/domains/email/msg.json", "domain": "email" } },
+    { "id": "uuid-chunk-1", "payload": { "file_path": "j:/domains/email/msg2.json", "domain": "email" } }
+  ],
+  "cursor": "next-abc123"
+}
+```
+
+**Success (200 OK) — count only:**
+
+```json
+{
+  "count": 4217
+}
+```
+
+**Last page (no more results):**
+
+```json
+{
+  "points": [],
+  "cursor": null
+}
+```
+
+### Response Schema
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `points` | `ScrolledPoint[]` | Matched points with payload. |
+| `cursor` | `string \| number \| null` | Opaque cursor for next page. `null` when no more results. |
+| `count` | `number` | Total matching points (only when `countOnly: true`). |
+
+### Error Codes
+
+| Code | Condition |
+|------|-----------|
+| `200` | Success |
+| `400` | Missing or invalid `filter`, or `limit` out of bounds (1–1000) |
+| `500` | Server error |
+
+### Behavior
+
+1. Validates that `filter` is a non-null object
+2. Clamps `limit` to 1–1000 range (rejects out-of-bounds with 400)
+3. If `countOnly`: calls Qdrant `count()` with exact mode and returns `{ count }`
+4. Otherwise: calls Qdrant `scroll()` with the filter, limit, cursor, and optional field projection
+5. Returns matched points and an opaque cursor for the next page
+
+**Use cases:**
+- File enumeration (list all points in a domain)
+- Staleness checks (count points matching a filter)
+- Delta computation (scan for points with specific metadata)
+- Structural queries that don't need semantic similarity
+
+**Difference from POST /search:**
+- `/scan` does NOT embed a query or compute similarity scores
+- `/scan` uses cursor-based pagination (efficient for large result sets)
+- `/search` uses offset-based pagination (suitable for small ranked result sets)
+
+---
+
 ## POST /reindex
 
 Trigger a full reindex of all watched files.
@@ -1112,6 +1209,58 @@ curl -X POST http://localhost:1936/points/delete \
   "ok": true
 }
 ```
+
+---
+
+## POST /rules/reapply
+
+Re-apply current inference rules to indexed files matching glob patterns, without re-embedding.
+
+### Request
+
+```bash
+curl -X POST http://localhost:1936/rules/reapply \
+  -H "Content-Type: application/json" \
+  -d '{
+    "globs": ["j:/domains/email/**"]
+  }'
+```
+
+**Body schema:**
+
+```typescript
+{
+  globs: string[];  // Non-empty array of glob patterns
+}
+```
+
+### Response
+
+**Success (200 OK):**
+
+```json
+{
+  "matched": 150,
+  "updated": 148
+}
+```
+
+### Response Schema
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `matched` | `number` | Files matching the glob patterns. |
+| `updated` | `number` | Files successfully re-processed. |
+
+### Behavior
+
+1. Scrolls all indexed points to find files matching the provided globs
+2. For each matching file, re-applies current inference rules (metadata update only)
+3. Files that fail re-processing are logged but don't abort the operation
+
+**Use cases:**
+- After editing inference rules, selectively re-apply to specific domains
+- More targeted than `POST /config-reindex` (which re-applies to everything)
 
 ---
 

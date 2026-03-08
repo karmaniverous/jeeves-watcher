@@ -93,6 +93,18 @@ Apply a new configuration to the running watcher service. Triggers re-evaluation
 
 Trigger a full reindex of all watched files. Useful after configuration changes or to recover from drift.
 
+
+### `watcher_scan`
+
+Filter-only point query without vector search. Returns metadata for points matching a Qdrant filter. Use for structural queries: file enumeration, staleness checks, domain listing, counts.
+
+**Parameters:**
+
+- `filter` (object, required) — Qdrant filter object
+- `limit` (number) — page size (default: 100, max: 1000)
+- `cursor` (string) — opaque cursor from previous response for pagination
+- `fields` (string[]) — payload fields to return (projection)
+- `countOnly` (boolean) — if true, return `{ count }` instead of points
 ### `watcher_issues`
 
 List current indexing issues — files that failed extraction, embedding errors, etc.

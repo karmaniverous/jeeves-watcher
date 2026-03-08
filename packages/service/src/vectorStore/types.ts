@@ -37,6 +37,14 @@ export interface ScrolledPoint {
   payload: Record<string, unknown>;
 }
 
+/** Result of a single scroll page. */
+export interface ScrollPageResult {
+  /** Matched points. */
+  points: ScrolledPoint[];
+  /** Cursor for next page, or `undefined` when no more pages. */
+  nextCursor?: string | number;
+}
+
 /** Payload field schema information as reported by Qdrant. */
 export interface PayloadFieldSchema {
   /** Qdrant data type for the field (e.g. `keyword`, `text`, `integer`). */
@@ -65,6 +73,14 @@ export interface VectorStore {
    * Ensure the collection exists with correct configuration.
    */
   ensureCollection(): Promise<void>;
+
+  /**
+   * Count points matching a filter.
+   *
+   * @param filter - Optional Qdrant filter.
+   * @returns The number of matching points.
+   */
+  count(filter?: Record<string, unknown>): Promise<number>;
 
   /**
    * Upsert points into the collection.
@@ -116,6 +132,22 @@ export interface VectorStore {
     filter?: Record<string, unknown>,
     offset?: number,
   ): Promise<SearchResult[]>;
+
+  /**
+   * Scroll one page of points matching a filter.
+   *
+   * @param filter - Optional Qdrant filter.
+   * @param limit - Page size.
+   * @param offset - Cursor offset from previous page.
+   * @param fields - Optional field projection.
+   * @returns Page of points and next cursor.
+   */
+  scrollPage(
+    filter?: Record<string, unknown>,
+    limit?: number,
+    offset?: string | number,
+    fields?: string[],
+  ): Promise<ScrollPageResult>;
 
   /**
    * Scroll through all points matching a filter.

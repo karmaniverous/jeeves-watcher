@@ -45,6 +45,7 @@ curl -X POST http://127.0.0.1:<PORT>/config/query \
 | `/config/apply` | POST | Apply config changes |
 | `/config-reindex` | POST | Trigger reindex |
 | `/metadata` | POST | Enrich document metadata |
+| `/scan` | POST | Filter-only point query (no embeddings) |
 | `/issues` | GET | Runtime embedding failures |
 | `/rules/register` | POST | Register virtual inference rules |
 | `/rules/unregister` | DELETE | Remove virtual rules by source |
@@ -78,7 +79,11 @@ You have access to a **semantic archive** of your human's working world. Documen
 npx @karmaniverous/jeeves-watcher-openclaw install
 ```
 
-This copies the plugin to OpenClaw's extensions directory and patches `openclaw.json` to register it. Restart the gateway to load the plugin.
+This copies the plugin to OpenClaw's extensions directory and patches `openclaw.json` to register it. 
+
+**Important:** Add `"jeeves-watcher-openclaw"` to the `tools.allow` array in `openclaw.json` so the agent can use the plugin's tools.
+
+Restart the gateway to load the plugin.
 
 To remove:
 ```
@@ -371,8 +376,82 @@ Trigger a reindex.
 
 Rules scope re-applies inference rules without re-embedding (lightweight). Full scope re-processes all files.
 
+
+### `watcher_scan`
+Filter-only point query without vector search. Use for structural queries where the question has no semantic dimension.
+- `filter` (object, required) — Qdrant filter object. Required to prevent accidental full-collection scans.
+- `limit` (number, optional) — page size, default 100, max 1000
+- `cursor` (string, optional) — opaque cursor from previous response for pagination
+- `fields` (string[], optional) — payload fields to return (projection)
+- `countOnly` (boolean, optional) — if true, return `{ count }` instead of points
+
+**Response (normal):**
+```json
+{
+  "points": [{ "id": "uuid", "payload": { ... } }],
+  "cursor": "opaque-string-or-null"
+}
+```
+
+**Response (countOnly):**
+```json
+{ "count": 1234 }
+```
+
+**Key differences from `watcher_search`:**
+- No `query` parameter — does NOT use embeddings
+- No `score` field — results are unranked filter matches
+- Cursor-based pagination (not offset-based)
+- Zero cost per call beyond Qdrant's filtered scroll
+
+**Pagination pattern:**
+```
+let cursor = undefined;
+do {
+  const result = await watcher_scan({ filter, limit: 100, cursor });
+  // process result.points
+  cursor = result.cursor;
+} while (cursor);
+```
+
 ### `watcher_issues`
 Get runtime embedding failures. Returns `{ filePath: IssueRecord }` showing files that failed and why.
+
+## Query Planning: Scan vs Search
+
+**Decision rule:** If the query has no semantic/natural-language dimension, use `watcher_scan`. If you need meaning-based similarity, use `watcher_search`.
+
+| Use `watcher_scan` | Use `watcher_search` |
+|---------------------|----------------------|
+| "List all files in domain X" | "Find documents about authentication" |
+| "Files modified after timestamp T" | "What discusses rate limiting?" |
+| "Enumerate paths under prefix P" | "Prior conversations about deployment" |
+| "Count files matching a condition" | "Related tickets to this issue" |
+| "Staleness detection / delta computation" | "What happened in last week's meetings?" |
+
+**Scan-specific filter examples:**
+
+**Domain enumeration:**
+```json
+{ "must": [{ "key": "domains", "match": { "value": "email" } }] }
+```
+
+**Modified after timestamp:**
+```json
+{ "must": [{ "key": "modified_at", "range": { "gte": 1772800000 } }] }
+```
+
+**Path prefix matching:**
+```json
+{ "must": [{ "key": "file_path", "match": { "text": "j:/domains/jira" } }] }
+```
+
+**Count files in a domain (no point data transferred):**
+```
+watcher_scan: filter={"must":[{"key":"domains","match":{"value":"github"}}]}, countOnly=true
+```
+
+---
 
 ## Qdrant Filter Syntax
 

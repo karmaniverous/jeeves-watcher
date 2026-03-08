@@ -15,6 +15,7 @@ import {
 } from 'vitest';
 
 import { registerReindexCommand } from './reindex';
+import { registerScanCommand } from './scan';
 import { registerSearchCommand } from './search';
 import { registerStatusCommand } from './status';
 
@@ -224,5 +225,40 @@ describe('reindex command', () => {
 
     expect(consoleErrorSpy).toHaveBeenCalledWith('Network error');
     expect(processExitSpy).toHaveBeenCalledWith(1);
+  });
+});
+
+describe('scan command', () => {
+  it('calls POST /scan with correct payload', async () => {
+    const { Command } = await import('@commander-js/extra-typings');
+    const cli = new Command();
+    registerScanCommand(cli);
+
+    mockFetch.mockResolvedValue({
+      ok: true,
+      text: () => Promise.resolve('[]'),
+    });
+
+    await cli.parseAsync([
+      'node',
+      'test',
+      'scan',
+      '--filter',
+      '{"domain":"test"}',
+      '--limit',
+      '50',
+      '--count-only',
+    ]);
+
+    expect(mockFetch).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({
+        body: JSON.stringify({
+          filter: { domain: 'test' },
+          limit: 50,
+          countOnly: true,
+        }),
+      }),
+    );
   });
 });

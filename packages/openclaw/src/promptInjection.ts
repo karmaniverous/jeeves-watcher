@@ -1,4 +1,9 @@
-import { getApiUrl, getCacheTtlMs, type PluginApi } from './helpers.js';
+import {
+  fetchJson,
+  getApiUrl,
+  getCacheTtlMs,
+  type PluginApi,
+} from './helpers.js';
 
 /** Cache structure for the generated menu string */
 interface MenuCache {
@@ -42,14 +47,6 @@ function isAgentBootstrapEventContext(
   return Array.isArray(v.bootstrapFiles);
 }
 
-async function fetchJson<T>(url: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(url, init);
-  if (!res.ok) {
-    throw new Error(`HTTP ${String(res.status)}: ${await res.text()}`);
-  }
-  return res.json() as Promise<T>;
-}
-
 /**
  * Fetches data from the watcher API and generates a Markdown menu string.
  * The string is platform-agnostic and safe to inject into TOOLS.md.
@@ -61,24 +58,24 @@ export async function generateWatcherMenu(apiUrl: string): Promise<string> {
   const ignoredPaths: string[] = [];
 
   try {
-    const [statusRes, rulesRes, pathsRes, ignoredRes] = await Promise.all([
-      fetchJson<StatusResponse>(`${apiUrl}/status`),
-      fetchJson<QueryResponse>(`${apiUrl}/config/query`, {
+    const [statusRes, rulesRes, pathsRes, ignoredRes] = (await Promise.all([
+      fetchJson(`${apiUrl}/status`),
+      fetchJson(`${apiUrl}/config/query`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ path: '$.inferenceRules[*]' }),
       }),
-      fetchJson<QueryResponse>(`${apiUrl}/config/query`, {
+      fetchJson(`${apiUrl}/config/query`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ path: '$.watch.paths[*]' }),
       }),
-      fetchJson<QueryResponse>(`${apiUrl}/config/query`, {
+      fetchJson(`${apiUrl}/config/query`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ path: '$.watch.ignored[*]' }),
       }),
-    ]);
+    ])) as [StatusResponse, QueryResponse, QueryResponse, QueryResponse];
 
     pointCount = statusRes.collection?.pointCount ?? 0;
 
@@ -135,6 +132,7 @@ export async function generateWatcherMenu(apiUrl: string): Promise<string> {
   const lines: string[] = [
     `This environment includes a semantic search index (\`watcher_search\`) covering ${pointCount.toLocaleString()} document chunks.`,
     '**Escalation Rule:** Use `memory_search` for personal operational notes, decisions, and rules. Escalate to `watcher_search` when memory is thin, or when searching the broader archive (tickets, docs, code). ALWAYS use `watcher_search` BEFORE filesystem commands (exec, grep) when looking for information that matches the indexed categories below.',
+    '**Scan-first rule:** When a task involves structural queries (file enumeration, staleness checks, domain listing, counts), use `watcher_scan` instead of `watcher_search`. Scan does NOT use embeddings and does NOT accept a query string.',
     '**Search-first rule:** When a task involves finding, reading, or modifying files in indexed paths, run `watcher_search` FIRST — even if you already know the file path. Search surfaces related files you may not have considered and catches stale artifacts. Direct filesystem access is for acting on search results, not bypassing them.',
     '',
     '### Score Interpretation:',

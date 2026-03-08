@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { scrollCollection } from './scroll';
+import { scrollCollection, scrollPage } from './scroll';
 
 type MockClient = Parameters<typeof scrollCollection>[0];
 
@@ -28,7 +28,88 @@ async function collect<T>(gen: AsyncGenerator<T>): Promise<T[]> {
   return items;
 }
 
-describe('scroll', () => {
+describe('scrollPage', () => {
+  it('returns points and next cursor', async () => {
+    const { client, scrollMock } = makeMockClient([
+      {
+        points: [
+          { id: 'a', payload: { x: 1 } },
+          { id: 'b', payload: { x: 2 } },
+        ],
+        next_page_offset: 'cursor-1',
+      },
+    ]);
+
+    const result = await scrollPage(client, 'col', undefined, 50);
+
+    expect(result.points).toEqual([
+      { id: 'a', payload: { x: 1 } },
+      { id: 'b', payload: { x: 2 } },
+    ]);
+    expect(result.nextCursor).toBe('cursor-1');
+    expect(scrollMock).toHaveBeenCalledWith('col', {
+      limit: 50,
+      with_payload: true,
+      with_vector: false,
+    });
+  });
+
+  it('returns undefined nextCursor when no more pages', async () => {
+    const { client } = makeMockClient([
+      { points: [{ id: '1', payload: {} }], next_page_offset: null },
+    ]);
+
+    const result = await scrollPage(client, 'col');
+
+    expect(result.nextCursor).toBeUndefined();
+  });
+
+  it('passes filter and offset', async () => {
+    const { client, scrollMock } = makeMockClient([
+      { points: [], next_page_offset: null },
+    ]);
+    const filter = { must: [{ key: 'domain', match: { value: 'docs' } }] };
+
+    await scrollPage(client, 'col', filter, 100, 'offset-abc');
+
+    expect(scrollMock).toHaveBeenCalledWith('col', {
+      limit: 100,
+      with_payload: true,
+      with_vector: false,
+      filter,
+      offset: 'offset-abc',
+    });
+  });
+
+  it('passes field projection to with_payload', async () => {
+    const { client, scrollMock } = makeMockClient([
+      { points: [], next_page_offset: null },
+    ]);
+
+    await scrollPage(client, 'col', undefined, 10, undefined, [
+      'file_path',
+      'domain',
+    ]);
+
+    expect(scrollMock).toHaveBeenCalledWith('col', {
+      limit: 10,
+      with_payload: ['file_path', 'domain'],
+      with_vector: false,
+    });
+  });
+
+  it('converts numeric IDs to strings', async () => {
+    const { client } = makeMockClient([
+      { points: [{ id: 99, payload: {} }], next_page_offset: null },
+    ]);
+
+    const result = await scrollPage(client, 'col');
+
+    expect(result.points[0].id).toBe('99');
+  });
+});
+
+describe('scrollCollection', () => {
   it('yields all points from a single page', async () => {
     const { client } = makeMockClient([
       {
