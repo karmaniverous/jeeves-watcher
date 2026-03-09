@@ -247,4 +247,112 @@ describe('GET /search/facets handler', () => {
     expect(result.facets).toHaveLength(1);
     expect(result.facets[0].field).toBe('visible');
   });
+
+  it('skips live value aggregation for non-enumerated uiHint types', () => {
+    const config = makeConfig([
+      {
+        name: 'rule',
+        description: 'R',
+        match: {},
+        schema: [
+          {
+            properties: {
+              title: { type: 'string', uiHint: 'text' },
+              issue_key: { type: 'string', uiHint: 'number' },
+              domain: { type: 'string', uiHint: 'dropdown' },
+            },
+          },
+        ],
+      },
+    ]);
+    const values = makeValuesManager({
+      rule: {
+        title: ['Doc A', 'Doc B', 'Doc C'],
+        issue_key: ['WEB-1', 'WEB-2', 'WEB-3'],
+        domain: ['slack', 'email'],
+      },
+    });
+
+    const handler = createFacetsHandler(
+      makeDeps({ config, valuesManager: values }),
+    );
+    const result = handler();
+
+    const titleFacet = result.facets.find((f) => f.field === 'title');
+    const keyFacet = result.facets.find((f) => f.field === 'issue_key');
+    const domainFacet = result.facets.find((f) => f.field === 'domain');
+
+    // Non-enumerated hints: empty values
+    expect(titleFacet?.values).toEqual([]);
+    expect(keyFacet?.values).toEqual([]);
+    // Enumerated hint: live values populated
+    expect(domainFacet?.values).toEqual(['email', 'slack']);
+  });
+
+  it('still returns enum values even for non-enumerated uiHint types', () => {
+    const config = makeConfig([
+      {
+        name: 'rule',
+        description: 'R',
+        match: {},
+        schema: [
+          {
+            properties: {
+              status: {
+                type: 'string',
+                uiHint: 'text',
+                enum: ['open', 'closed'],
+              },
+            },
+          },
+        ],
+      },
+    ]);
+    const values = makeValuesManager({
+      rule: { status: ['open', 'closed', 'pending'] },
+    });
+
+    const handler = createFacetsHandler(
+      makeDeps({ config, valuesManager: values }),
+    );
+    const result = handler();
+
+    // Explicit enum always wins, regardless of uiHint
+    expect(result.facets[0].values).toEqual(['open', 'closed']);
+  });
+
+  it('aggregates values for tags and multiselect uiHint types', () => {
+    const config = makeConfig([
+      {
+        name: 'rule',
+        description: 'R',
+        match: {},
+        schema: [
+          {
+            properties: {
+              labels: { type: 'string', uiHint: 'tags' },
+              assignees: { type: 'string', uiHint: 'multiselect' },
+            },
+          },
+        ],
+      },
+    ]);
+    const values = makeValuesManager({
+      rule: {
+        labels: ['bug', 'feature'],
+        assignees: ['alice', 'bob'],
+      },
+    });
+
+    const handler = createFacetsHandler(
+      makeDeps({ config, valuesManager: values }),
+    );
+    const result = handler();
+
+    const labelsFacet = result.facets.find((f) => f.field === 'labels');
+    const assigneesFacet = result.facets.find((f) => f.field === 'assignees');
+
+    expect(labelsFacet?.values).toEqual(['bug', 'feature']);
+    expect(assigneesFacet?.values).toEqual(['alice', 'bob']);
+  });
 });
