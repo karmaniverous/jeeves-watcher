@@ -52,8 +52,6 @@
   "dependencies": {
     "@commander-js/extra-typings": "^14.0.0",
     "@karmaniverous/jsonmap": "^2.1.1",
-    "@langchain/google-genai": "*",
-    "@langchain/qdrant": "*",
     "@langchain/textsplitters": "*",
     "@qdrant/js-client-rest": "*",
     "ajv": "^8.18.0",
