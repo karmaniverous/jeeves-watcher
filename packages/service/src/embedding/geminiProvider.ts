@@ -1,7 +1,11 @@
 /**
  * @module embedding/geminiProvider
  * Gemini embedding provider using the Google Generative AI REST API directly.
+ * Uses node:https with a keep-alive agent for reliable performance in
+ * long-running processes (avoids undici/fetch event-loop contention).
  */
+
+import https from 'node:https';
 
 import type pino from 'pino';
 
@@ -23,6 +27,44 @@ interface BatchEmbedResponse {
 }
 
 const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta';
+
+/** Persistent HTTPS agent for connection reuse. */
+const agent = new https.Agent({ keepAlive: true });
+
+/** Make an HTTPS POST request using node:https (bypasses undici/fetch). */
+function httpsPost(
+  url: string,
+  body: string,
+): Promise<{ status: number; body: string }> {
+  return new Promise((resolve, reject) => {
+    const parsed = new URL(url);
+    const req = https.request(
+      {
+        hostname: parsed.hostname,
+        path: parsed.pathname + parsed.search,
+        method: 'POST',
+        agent,
+        headers: {
+          'Content-Type': 'application/json',
+          'Content-Length': Buffer.byteLength(body),
+        },
+      },
+      (res) => {
+        const chunks: Buffer[] = [];
+        res.on('data', (chunk: Buffer) => chunks.push(chunk));
+        res.on('end', () => {
+          resolve({
+            status: res.statusCode ?? 0,
+            body: Buffer.concat(chunks).toString('utf8'),
+          });
+        });
+      },
+    );
+    req.on('error', reject);
+    req.write(body);
+    req.end();
+  });
+}
 
 /**
  * Create a Gemini embedding provider using the Google Generative AI REST API.
@@ -66,20 +108,15 @@ export function createGeminiProvider(
             content: { parts: [{ text }] },
           }));
 
-          const response = await fetch(url, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ requests }),
-          });
+          const response = await httpsPost(url, JSON.stringify({ requests }));
 
-          if (!response.ok) {
-            const body = await response.text();
+          if (response.status < 200 || response.status >= 300) {
             throw new Error(
-              `Gemini API error ${String(response.status)}: ${body}`,
+              `Gemini API error ${String(response.status)}: ${response.body}`,
             );
           }
 
-          const data = (await response.json()) as BatchEmbedResponse;
+          const data = JSON.parse(response.body) as BatchEmbedResponse;
           return data.embeddings.map((e) => e.values);
         },
         {
