@@ -2,8 +2,9 @@
 
 All notable changes to this project will be documented in this file. Dates are displayed in UTC.
 
-#### [0.9.2](https://github.com/karmaniverous/jeeves-watcher/compare/0.5.1...0.9.2)
+#### [0.9.3](https://github.com/karmaniverous/jeeves-watcher/compare/0.5.1...0.9.3)
 
+- perf: replace LangChain Gemini wrapper with direct API (13s → ~1s search) [`#100`](https://github.com/karmaniverous/jeeves-watcher/pull/100)
 - fix: skip live value aggregation for non-enumerated facet uiHint types [`#99`](https://github.com/karmaniverous/jeeves-watcher/pull/99)
 - feat: add POST /scan endpoint with cursor-based pagination [`#98`](https://github.com/karmaniverous/jeeves-watcher/pull/98)
 - chore: re-encode .gitignore as UTF-8 [`#97`](https://github.com/karmaniverous/jeeves-watcher/pull/97)
@@ -88,6 +89,7 @@ All notable changes to this project will be documented in this file. Dates are d
 - fix: resolve Gemini PR feedback (XSS escaping, js-yaml dump, radash get) [`fb318eb`](https://github.com/karmaniverous/jeeves-watcher/commit/fb318eb8b1c59dd6fb60125e4fd6a47ef4fd5106)
 - fix(service): clean up scan handler and test lint issues [`7caaf24`](https://github.com/karmaniverous/jeeves-watcher/commit/7caaf246dba425f9809937e2b0ab398f0fe3d0c9)
 - docs: add v0.8.0 documentation for renderAs, POST /render, GET /search/facets [`a8c4691`](https://github.com/karmaniverous/jeeves-watcher/commit/a8c4691d8c53ce38e0b9e2fe32e536d907e4a708)
+- perf(service): replace LangChain Gemini wrapper with direct API calls [`5b7c35b`](https://github.com/karmaniverous/jeeves-watcher/commit/5b7c35bc2ddbec4583720e57c3a8f6425639ddf9)
 - chore(deps): upgrade dependencies (eslint pinned to v9) [`6b6cb66`](https://github.com/karmaniverous/jeeves-watcher/commit/6b6cb6681051b16e852499963d756d3f98dce775)
 - feat: add Cache-Control no-cache support to withCache, wrap /render endpoint [`104a6f9`](https://github.com/karmaniverous/jeeves-watcher/commit/104a6f96d207738d335fc7a30ebaaff846efa10b)
 - feat: add renderAs field to inference rule schema [`9202b61`](https://github.com/karmaniverous/jeeves-watcher/commit/9202b61c10cc69b7ef41b6c2e045bc3c54edb29a)
@@ -161,6 +163,7 @@ All notable changes to this project will be documented in this file. Dates are d
 - chore: release @karmaniverous/jeeves-watcher-openclaw v0.3.9 [`97c635e`](https://github.com/karmaniverous/jeeves-watcher/commit/97c635e25b7c7ac4a5e6315ac2c26af7d1e89a74)
 - chore: release @karmaniverous/jeeves-watcher-openclaw v0.3.5 [`837a941`](https://github.com/karmaniverous/jeeves-watcher/commit/837a94145b086245df101f7dcf2fd7a0c5ebfbca)
 - chore: release @karmaniverous/jeeves-watcher v0.6.1 [`037d9c9`](https://github.com/karmaniverous/jeeves-watcher/commit/037d9c924e1bc3020fb6b497f59261dd027718bd)
+- chore: release @karmaniverous/jeeves-watcher v0.9.2 [`e8c1b8f`](https://github.com/karmaniverous/jeeves-watcher/commit/e8c1b8f8a066eb908864e8c89d2baa67a6b8d5ff)
 - chore: release @karmaniverous/jeeves-watcher-openclaw v0.5.4 [`4e865d0`](https://github.com/karmaniverous/jeeves-watcher/commit/4e865d089240a4314f69b4533b226c872dfaa753)
 - chore: release @karmaniverous/jeeves-watcher-openclaw v0.4.1 [`7863ad4`](https://github.com/karmaniverous/jeeves-watcher/commit/7863ad4edaa04cdc665cba608f6b84ccdbd2b841)
 - chore: release @karmaniverous/jeeves-watcher-openclaw v0.3.7 [`4c12277`](https://github.com/karmaniverous/jeeves-watcher/commit/4c12277cddbfd048f2312f94a907f11ea748407a)
