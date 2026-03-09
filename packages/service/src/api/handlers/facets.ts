@@ -72,6 +72,18 @@ function isFacetable(prop: ResolvedProperty): boolean {
   return prop.uiHint !== undefined || prop.enum !== undefined;
 }
 
+/** uiHint types that represent enumerated value selection. */
+const ENUMERATED_HINTS = new Set(['dropdown', 'tags', 'select', 'multiselect']);
+
+/**
+ * Check whether a uiHint type supports value enumeration.
+ * Non-enumerated hints (text, number, date, range, etc.) should not
+ * aggregate live values — the client uses free-form input instead.
+ */
+function isEnumeratedHint(uiHint: string): boolean {
+  return ENUMERATED_HINTS.has(uiHint);
+}
+
 /**
  * Build the schema-derived facet structure from inference rules.
  *
@@ -147,20 +159,29 @@ export function createFacetsHandler(deps: FacetsHandlerDeps) {
     const facets: Facet[] = [];
 
     for (const [field, schema] of cached.fields) {
-      // Collect live values from all rules that define this field
-      const liveValues = new Set<unknown>();
-      for (const ruleName of schema.rules) {
-        const fieldValues = allValues[ruleName]?.[field];
-        if (fieldValues) {
-          for (const v of fieldValues) liveValues.add(v);
+      // Only aggregate live values for enumerated hint types (dropdown, tags, etc.)
+      // Non-enumerated types (text, number, date, range) use free-form input.
+      let values: unknown[];
+      if (schema.enumValues) {
+        values = schema.enumValues;
+      } else if (isEnumeratedHint(schema.uiHint)) {
+        const liveValues = new Set<unknown>();
+        for (const ruleName of schema.rules) {
+          const fieldValues = allValues[ruleName]?.[field];
+          if (fieldValues) {
+            for (const v of fieldValues) liveValues.add(v);
+          }
         }
+        values = [...liveValues].sort();
+      } else {
+        values = [];
       }
 
       facets.push({
         field,
         type: schema.type,
         uiHint: schema.uiHint,
-        values: schema.enumValues ?? [...liveValues].sort(),
+        values,
         rules: schema.rules,
       });
     }
