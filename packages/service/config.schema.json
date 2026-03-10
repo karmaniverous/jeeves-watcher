@@ -189,7 +189,7 @@
       "description": "Named Qdrant filter patterns for skill-activated behaviors.",
       "allOf": [
         {
-          "$ref": "#/definitions/__schema82"
+          "$ref": "#/definitions/__schema83"
         }
       ]
     },
@@ -197,7 +197,7 @@
       "description": "Search configuration including score thresholds and hybrid search.",
       "allOf": [
         {
-          "$ref": "#/definitions/__schema83"
+          "$ref": "#/definitions/__schema84"
         }
       ]
     },
@@ -205,7 +205,7 @@
       "description": "Logging configuration.",
       "allOf": [
         {
-          "$ref": "#/definitions/__schema84"
+          "$ref": "#/definitions/__schema85"
         }
       ]
     },
@@ -213,7 +213,7 @@
       "description": "Timeout in milliseconds for graceful shutdown.",
       "allOf": [
         {
-          "$ref": "#/definitions/__schema87"
+          "$ref": "#/definitions/__schema88"
         }
       ]
     },
@@ -221,7 +221,7 @@
       "description": "Maximum consecutive system-level failures before triggering fatal error. Default: Infinity.",
       "allOf": [
         {
-          "$ref": "#/definitions/__schema88"
+          "$ref": "#/definitions/__schema89"
         }
       ]
     },
@@ -229,7 +229,7 @@
       "description": "Maximum backoff delay in milliseconds for system errors. Default: 60000.",
       "allOf": [
         {
-          "$ref": "#/definitions/__schema89"
+          "$ref": "#/definitions/__schema90"
         }
       ]
     }
@@ -1046,17 +1046,31 @@
         "callbackUrl": {
           "type": "string",
           "format": "uri"
+        },
+        "concurrency": {
+          "default": 50,
+          "description": "Maximum concurrent file operations during reindex (default 50).",
+          "allOf": [
+            {
+              "$ref": "#/definitions/__schema82"
+            }
+          ]
         }
       }
     },
     "__schema82": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 9007199254740991
+    },
+    "__schema83": {
       "type": "object",
       "propertyNames": {
         "type": "string"
       },
       "additionalProperties": {}
     },
-    "__schema83": {
+    "__schema84": {
       "type": "object",
       "properties": {
         "scoreThresholds": {
@@ -1101,14 +1115,14 @@
         }
       }
     },
-    "__schema84": {
+    "__schema85": {
       "type": "object",
       "properties": {
         "level": {
           "description": "Logging level (trace, debug, info, warn, error, fatal).",
           "allOf": [
             {
-              "$ref": "#/definitions/__schema85"
+              "$ref": "#/definitions/__schema86"
             }
           ]
         },
@@ -1116,25 +1130,25 @@
           "description": "Path to log file (logs to stdout if omitted).",
           "allOf": [
             {
-              "$ref": "#/definitions/__schema86"
+              "$ref": "#/definitions/__schema87"
             }
           ]
         }
       }
     },
-    "__schema85": {
-      "type": "string"
-    },
     "__schema86": {
       "type": "string"
     },
     "__schema87": {
-      "type": "number"
+      "type": "string"
     },
     "__schema88": {
       "type": "number"
     },
     "__schema89": {
+      "type": "number"
+    },
+    "__schema90": {
       "type": "number"
     }
   }
