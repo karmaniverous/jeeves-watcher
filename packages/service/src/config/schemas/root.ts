@@ -147,6 +147,15 @@ export const jeevesWatcherConfigSchema = z.object({
     .object({
       /** URL to call when reindex completes. */
       callbackUrl: z.url().optional(),
+      /** Maximum concurrent file operations during reindex. */
+      concurrency: z
+        .number()
+        .int()
+        .min(1)
+        .default(50)
+        .describe(
+          'Maximum concurrent file operations during reindex (default 50).',
+        ),
     })
     .optional()
     .describe('Reindex configuration.'),

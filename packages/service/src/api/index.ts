@@ -176,7 +176,12 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
 
   app.post(
     '/reindex',
-    createReindexHandler({ watch: config.watch, processor, logger }),
+    createReindexHandler({
+      watch: config.watch,
+      processor,
+      logger,
+      concurrency: config.reindex?.concurrency ?? 50,
+    }),
   );
 
   app.post(

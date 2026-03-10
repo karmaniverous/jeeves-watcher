@@ -663,6 +663,12 @@ Each inference rule has:
 3. Apply: `watcher_config_apply` — validates, writes, triggers reindex
 4. Monitor: `watcher_issues` for runtime embedding failures
 
+### Reindex Concurrency
+
+Reindex operations process files concurrently using `reindex.concurrency` (default 50). This applies to full reindex, rules reindex, issues reindex, and the `POST /reindex` endpoint. The watcher's incremental file processing (chokidar) uses a separate `embedding.concurrency` setting.
+
+Progress is reported via `watcher_status` (`reindex.filesProcessed` / `reindex.totalFiles`).
+
 ### When to Reindex
 - **Rules scope** (`"rules"`): Changed rule matching patterns, set expressions, schema mappings. No re-embedding needed.
 - **Full scope** (`"full"`): Changed embedding config, added watch paths, broad schema restructuring. Re-embeds everything.

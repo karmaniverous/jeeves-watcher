@@ -4,6 +4,7 @@
  */
 
 import type pino from 'pino';
+import { parallel } from 'radash';
 
 import type { JeevesWatcherConfig } from '../config/types';
 import type { DocumentProcessorInterface } from '../processor';
@@ -89,8 +90,8 @@ export async function executeReindex(
       // Reprocess only files with issues
       const issues = deps.issuesManager.getAll();
       const issuePaths = Object.keys(issues);
-      filesProcessed = 0;
-      for (const filePath of issuePaths) {
+      const concurrency = config.reindex?.concurrency ?? 50;
+      await parallel(concurrency, issuePaths, async (filePath) => {
         try {
           await processor.processFile(filePath);
           filesProcessed++;
@@ -101,14 +102,20 @@ export async function executeReindex(
             'Failed to reprocess issue file',
           );
         }
-      }
+      });
     } else {
       // Full reindex - process all watched files
+      const concurrency = config.reindex?.concurrency ?? 50;
       filesProcessed = await processAllFiles(
         config.watch.paths,
         config.watch.ignored,
         processor,
         'processFile',
+        concurrency,
+        {
+          onTotal: (total) => reindexTracker?.setTotal(total),
+          onFileProcessed: () => reindexTracker?.incrementProcessed(),
+        },
       );
     }
 

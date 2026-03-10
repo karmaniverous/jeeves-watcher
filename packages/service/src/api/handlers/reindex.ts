@@ -15,6 +15,8 @@ export interface ReindexRouteDeps {
   watch: WatchConfig;
   processor: DocumentProcessorInterface;
   logger: pino.Logger;
+  /** Maximum concurrent file operations during reindex. */
+  concurrency: number;
 }
 
 /**
@@ -30,6 +32,7 @@ export function createReindexHandler(deps: ReindexRouteDeps) {
         deps.watch.ignored,
         deps.processor,
         'processFile',
+        deps.concurrency,
       );
       return await reply.status(200).send({ ok: true, filesIndexed: count });
     },
