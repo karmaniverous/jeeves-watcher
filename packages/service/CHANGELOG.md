@@ -2,8 +2,9 @@
 
 All notable changes to this project will be documented in this file. Dates are displayed in UTC.
 
-#### [0.9.4](https://github.com/karmaniverous/jeeves-watcher/compare/0.5.1...0.9.4)
+#### [0.9.5](https://github.com/karmaniverous/jeeves-watcher/compare/0.5.1...0.9.5)
 
+- feat: add concurrent file processing for reindex using radash parallel [`#103`](https://github.com/karmaniverous/jeeves-watcher/pull/103)
 - perf: use node:https with keep-alive for Gemini embedding (13s → 2-4s) [`#101`](https://github.com/karmaniverous/jeeves-watcher/pull/101)
 - perf: replace LangChain Gemini wrapper with direct API (13s → ~1s search) [`#100`](https://github.com/karmaniverous/jeeves-watcher/pull/100)
 - fix: skip live value aggregation for non-enumerated facet uiHint types [`#99`](https://github.com/karmaniverous/jeeves-watcher/pull/99)
@@ -64,6 +65,7 @@ All notable changes to this project will be documented in this file. Dates are d
 - fix: resolve lint errors in openclaw CLI [`#40`](https://github.com/karmaniverous/jeeves-watcher/pull/40)
 - feat: add install/uninstall CLI for OpenClaw plugin [`#39`](https://github.com/karmaniverous/jeeves-watcher/pull/39)
 - chore: fix monorepo release-it tags, plugin id, and version sync [`#38`](https://github.com/karmaniverous/jeeves-watcher/pull/38)
+- feat: add concurrent file processing for reindex using radash parallel [`#102`](https://github.com/karmaniverous/jeeves-watcher/issues/102)
 - feat(service): add hybrid search with BM25 text index and RRF fusion (#48) [`#35`](https://github.com/karmaniverous/jeeves-watcher/issues/35)
 - feat(service): add filesystem date metadata and line offsets (#46) [`#24`](https://github.com/karmaniverous/jeeves-watcher/issues/24)
 - updated docs [`3028f04`](https://github.com/karmaniverous/jeeves-watcher/commit/3028f04a038935d6339c575f8c78dc10f301a2df)
@@ -173,6 +175,7 @@ All notable changes to this project will be documented in this file. Dates are d
 - chore: release @karmaniverous/jeeves-watcher v0.6.3 [`da7414c`](https://github.com/karmaniverous/jeeves-watcher/commit/da7414c19894031d02da4713e3d57957a9f96449)
 - chore: release @karmaniverous/jeeves-watcher-openclaw v0.3.3 [`9db834e`](https://github.com/karmaniverous/jeeves-watcher/commit/9db834ee75686d4a0cad09743d4d96b3d9c41ee5)
 - chore: release @karmaniverous/jeeves-watcher-openclaw v0.3.2 [`99be8d8`](https://github.com/karmaniverous/jeeves-watcher/commit/99be8d8c5a895d28cc124c9110dba7e1f49eefc5)
+- chore: release @karmaniverous/jeeves-watcher v0.9.4 [`c6528b9`](https://github.com/karmaniverous/jeeves-watcher/commit/c6528b98894649ede840edc8e31e3f4c112e0c0b)
 - chore: release @karmaniverous/jeeves-watcher v0.9.3 [`e80f787`](https://github.com/karmaniverous/jeeves-watcher/commit/e80f787268cfaf66065554c873afed900103cc11)
 - chore: release @karmaniverous/jeeves-watcher v0.8.4 [`b02cf9a`](https://github.com/karmaniverous/jeeves-watcher/commit/b02cf9a0d89216bfa7474e7893f4c67f1301099b)
 - chore: release @karmaniverous/jeeves-watcher v0.8.2 [`aa84c02`](https://github.com/karmaniverous/jeeves-watcher/commit/aa84c02ee773b956e6d2f0413327eb58af147806)
@@ -180,6 +183,7 @@ All notable changes to this project will be documented in this file. Dates are d
 - chore: release @karmaniverous/jeeves-watcher v0.6.8 [`a465d72`](https://github.com/karmaniverous/jeeves-watcher/commit/a465d72d25c51003550fa0fa87ecf8203de84a75)
 - fix: read CLI version from package.json instead of hardcoding [`22a9727`](https://github.com/karmaniverous/jeeves-watcher/commit/22a9727d9cccfb75d11535546c4a9194e6ccec35)
 - chore: release @karmaniverous/jeeves-watcher v0.6.5 [`1c5a7fe`](https://github.com/karmaniverous/jeeves-watcher/commit/1c5a7fee4d192ed736b3ea4700df7649b49fd1d6)
+- docs: document reindex.concurrency in published and dev skills [`d51fb40`](https://github.com/karmaniverous/jeeves-watcher/commit/d51fb4025216cba76a9c53d14b3000059fb38aba)
 - lintfix [`4bfe08e`](https://github.com/karmaniverous/jeeves-watcher/commit/4bfe08e06032779dd7bf09f3606b8e4d59f04a46)
 - fix: use consistent default port 1936 in server.listen() and schema description [`fe61181`](https://github.com/karmaniverous/jeeves-watcher/commit/fe6118154eb1bb4605b36bec11c79925d8c7322b)
 - fix: normalizePath preserves drive letter case to match service path normalization [`b79c8c4`](https://github.com/karmaniverous/jeeves-watcher/commit/b79c8c4cee38ccf989a7ee067a67c1879464e53d)
