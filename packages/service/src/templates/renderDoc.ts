@@ -55,9 +55,11 @@ function renderValueAsMarkdown(
     return rebaseHeadings(md, section.heading);
   }
 
-  const strValue =
-    typeof value === 'string' ? value : JSON.stringify(value, null, 2);
-  return hbs.Utils.escapeExpression(strValue);
+  // Return string values as-is — renderDoc produces markdown, not HTML.
+  // HTML escaping (if needed) happens downstream when the markdown is rendered.
+  if (typeof value === 'string') return value;
+
+  return JSON.stringify(value, null, 2);
 }
 
 function renderEach(
