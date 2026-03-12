@@ -159,6 +159,30 @@ describe('renderDoc', () => {
     expect(out).not.toContain('chunk_index');
   });
 
+  it('preserves markdown in unformatted string body sections', () => {
+    const md =
+      '# Title\n\n```plantuml\n@startuml\nactor "Alice" as A\n@enduml\n```\n\nSome <html> & "quotes"';
+    const out = renderDoc(
+      { content: md },
+      {
+        frontmatter: [],
+        body: [{ path: 'content', heading: 2 }],
+      },
+      hbs,
+    );
+
+    // Markdown content must not be HTML-escaped
+    expect(out).toContain('```plantuml');
+    expect(out).toContain('"Alice"');
+    expect(out).toContain('<html>');
+    expect(out).toContain('& "quotes"');
+    // Must not contain HTML entities
+    expect(out).not.toContain('&#x60;');
+    expect(out).not.toContain('&quot;');
+    expect(out).not.toContain('&lt;');
+    expect(out).not.toContain('&amp;');
+  });
+
   it('escapes frontmatter values that need quoting', () => {
     const out = renderDoc(
       { title: 'A: Dangerous Value' },
