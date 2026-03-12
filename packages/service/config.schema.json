@@ -807,7 +807,7 @@
           "items": {
             "$ref": "#/definitions/__schema66"
           },
-          "description": "Keys to extract from context and include as YAML frontmatter."
+          "description": "Keys or glob patterns to include as YAML frontmatter. Supports picomatch globs (e.g. \"*\") and \"!\"-prefixed exclusion patterns (e.g. \"!_*\"). Explicit names preserve declaration order; glob-matched keys are sorted alphabetically."
         },
         "body": {
           "type": "array",

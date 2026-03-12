@@ -12,6 +12,7 @@ import type {
   RenderConfig,
 } from '../config/schemas/inference';
 import { rebaseHeadings } from './rebaseHeadings';
+import { resolveFrontmatterKeys } from './resolveFrontmatterKeys';
 
 function renderSectionHeading(
   section: RenderBodySection,
@@ -115,9 +116,14 @@ export function renderDoc(
 ): string {
   const parts: string[] = [];
 
-  // Frontmatter
+  // Frontmatter — resolve patterns (globs, negations) against context keys.
+  const resolvedKeys = resolveFrontmatterKeys(
+    config.frontmatter,
+    Object.keys(context),
+  );
+
   const fmObj: Record<string, unknown> = {};
-  for (const key of config.frontmatter) {
+  for (const key of resolvedKeys) {
     const v = get(context, key);
     if (v !== undefined) {
       fmObj[key] = v;

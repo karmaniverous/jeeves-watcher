@@ -109,10 +109,14 @@ export const renderBodySectionSchema = z.object({
 
 /** Render config: YAML frontmatter + ordered body sections. */
 export const renderConfigSchema = z.object({
-  /** Keys to extract from context and include as YAML frontmatter. */
+  /** Keys or glob patterns to extract from context and include as YAML frontmatter. */
   frontmatter: z
     .array(z.string().min(1))
-    .describe('Keys to extract from context and include as YAML frontmatter.'),
+    .describe(
+      'Keys or glob patterns to include as YAML frontmatter. ' +
+        'Supports picomatch globs (e.g. "*") and "!"-prefixed exclusion patterns (e.g. "!_*"). ' +
+        'Explicit names preserve declaration order; glob-matched keys are sorted alphabetically.',
+    ),
   /** Ordered markdown body sections. */
   body: z
     .array(renderBodySectionSchema)
