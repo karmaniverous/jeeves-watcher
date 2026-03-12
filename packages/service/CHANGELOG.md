@@ -2,8 +2,9 @@
 
 All notable changes to this project will be documented in this file. Dates are displayed in UTC.
 
-#### [0.9.5](https://github.com/karmaniverous/jeeves-watcher/compare/0.5.1...0.9.5)
+#### [0.9.6](https://github.com/karmaniverous/jeeves-watcher/compare/0.5.1...0.9.6)
 
+- feat: glob/negation patterns in render.frontmatter [`#105`](https://github.com/karmaniverous/jeeves-watcher/pull/105)
 - feat: add concurrent file processing for reindex using radash parallel [`#103`](https://github.com/karmaniverous/jeeves-watcher/pull/103)
 - perf: use node:https with keep-alive for Gemini embedding (13s → 2-4s) [`#101`](https://github.com/karmaniverous/jeeves-watcher/pull/101)
 - perf: replace LangChain Gemini wrapper with direct API (13s → ~1s search) [`#100`](https://github.com/karmaniverous/jeeves-watcher/pull/100)
@@ -65,6 +66,7 @@ All notable changes to this project will be documented in this file. Dates are d
 - fix: resolve lint errors in openclaw CLI [`#40`](https://github.com/karmaniverous/jeeves-watcher/pull/40)
 - feat: add install/uninstall CLI for OpenClaw plugin [`#39`](https://github.com/karmaniverous/jeeves-watcher/pull/39)
 - chore: fix monorepo release-it tags, plugin id, and version sync [`#38`](https://github.com/karmaniverous/jeeves-watcher/pull/38)
+- feat: support glob/negation patterns in render.frontmatter [`#104`](https://github.com/karmaniverous/jeeves-watcher/issues/104)
 - feat: add concurrent file processing for reindex using radash parallel [`#102`](https://github.com/karmaniverous/jeeves-watcher/issues/102)
 - feat(service): add hybrid search with BM25 text index and RRF fusion (#48) [`#35`](https://github.com/karmaniverous/jeeves-watcher/issues/35)
 - feat(service): add filesystem date metadata and line offsets (#46) [`#24`](https://github.com/karmaniverous/jeeves-watcher/issues/24)
@@ -124,6 +126,7 @@ All notable changes to this project will be documented in this file. Dates are d
 - fix: apply same conditional logic to tools.allow as plugins.allow [`4549569`](https://github.com/karmaniverous/jeeves-watcher/commit/4549569ea72e1bbe385fd7592497982bbc34ec39)
 - chore: fix tsdoc warnings (add tsdoc.json, escape &gt; chars in yamlEscape) [`902156e`](https://github.com/karmaniverous/jeeves-watcher/commit/902156e3ca16265efc0adc667a03c23e0d9a7d57)
 - chore: release @karmaniverous/jeeves-watcher-openclaw v0.3.0 [`3ce4950`](https://github.com/karmaniverous/jeeves-watcher/commit/3ce4950d10de13300db94e90247739a3f4a6514a)
+- chore: release @karmaniverous/jeeves-watcher-openclaw v0.6.1 [`de66cd0`](https://github.com/karmaniverous/jeeves-watcher/commit/de66cd0de6dc505fd1e7e5f5a866d4ca9bd71fd4)
 - fix(openclaw): remove deployment-specific content from skill [`1df6a25`](https://github.com/karmaniverous/jeeves-watcher/commit/1df6a25ea2a57ca7f1e6d781ed2c1e4a7de41927)
 - fix: plugin installer now claims memory slot in OpenClaw config [`020c6cd`](https://github.com/karmaniverous/jeeves-watcher/commit/020c6cdd258ad8a6e092e173c88caabf05e5f323)
 - fix: remove plugins.allow management from CLI, only manage entries and tools.allow [`64106b4`](https://github.com/karmaniverous/jeeves-watcher/commit/64106b49be35f11c8e4b9a499b45067869decc4b)
@@ -167,6 +170,7 @@ All notable changes to this project will be documented in this file. Dates are d
 - chore: release @karmaniverous/jeeves-watcher-openclaw v0.3.9 [`97c635e`](https://github.com/karmaniverous/jeeves-watcher/commit/97c635e25b7c7ac4a5e6315ac2c26af7d1e89a74)
 - chore: release @karmaniverous/jeeves-watcher-openclaw v0.3.5 [`837a941`](https://github.com/karmaniverous/jeeves-watcher/commit/837a94145b086245df101f7dcf2fd7a0c5ebfbca)
 - chore: release @karmaniverous/jeeves-watcher v0.6.1 [`037d9c9`](https://github.com/karmaniverous/jeeves-watcher/commit/037d9c924e1bc3020fb6b497f59261dd027718bd)
+- chore: release @karmaniverous/jeeves-watcher v0.9.5 [`2e1bf8b`](https://github.com/karmaniverous/jeeves-watcher/commit/2e1bf8b87c8f67bdc25b4413e39b33192f1f1b54)
 - chore: release @karmaniverous/jeeves-watcher v0.9.2 [`e8c1b8f`](https://github.com/karmaniverous/jeeves-watcher/commit/e8c1b8f8a066eb908864e8c89d2baa67a6b8d5ff)
 - chore: release @karmaniverous/jeeves-watcher-openclaw v0.5.4 [`4e865d0`](https://github.com/karmaniverous/jeeves-watcher/commit/4e865d089240a4314f69b4533b226c872dfaa753)
 - chore: release @karmaniverous/jeeves-watcher-openclaw v0.4.1 [`7863ad4`](https://github.com/karmaniverous/jeeves-watcher/commit/7863ad4edaa04cdc665cba608f6b84ccdbd2b841)
