@@ -135,6 +135,30 @@ describe('renderDoc', () => {
     expect(bobIdx).toBeLessThan(charlieIdx);
   });
 
+  it('resolves glob patterns in frontmatter', () => {
+    const out = renderDoc(
+      {
+        meta_id: 'test-1',
+        name: 'Widget',
+        status: 'active',
+        _content: 'internal',
+        _error: null,
+        chunk_index: 3,
+      },
+      {
+        frontmatter: ['meta_id', '*', '!_*', '!chunk_*'],
+        body: [],
+      },
+      hbs,
+    );
+
+    expect(out).toContain('meta_id: test-1');
+    expect(out).toContain('name: Widget');
+    expect(out).toContain('status: active');
+    expect(out).not.toContain('_content');
+    expect(out).not.toContain('chunk_index');
+  });
+
   it('escapes frontmatter values that need quoting', () => {
     const out = renderDoc(
       { title: 'A: Dangerous Value' },
