@@ -4,6 +4,7 @@
  */
 
 import { stat } from 'node:fs/promises';
+import { resolve } from 'node:path';
 
 import type pino from 'pino';
 import { parallel } from 'radash';
@@ -15,6 +16,7 @@ import { isPathWatched } from '../util/isPathWatched';
 import { normalizeError } from '../util/normalizeError';
 import { retry } from '../util/retry';
 import type { ValuesManager } from '../values';
+import { listFilesFromGlobs } from './fileScan';
 import { processAllFiles } from './processAllFiles';
 import type { ReindexTracker } from './ReindexTracker';
 
@@ -258,41 +260,41 @@ async function executePathReindex(
   }
 
   if (stats.isDirectory()) {
-    // Scope processAllFiles to this directory by creating a glob pattern
-    const normalizedPath = targetPath.replace(/\\/g, '/').replace(/\/$/, '');
-    const scopedPaths = config.watch.paths
-      .map((p) => {
-        const normalized = p.replace(/\\/g, '/');
-        // If the watch glob covers this directory, use it scoped to the target
-        if (normalized.startsWith(normalizedPath)) return p;
-        // Extract the extension pattern from the glob and apply to target dir
-        const extMatch = /\*\*\/\*\.(.+)$/.exec(normalized);
-        if (extMatch) return `${normalizedPath}/**/*.${extMatch[1]}`;
-        return null;
-      })
-      .filter((p): p is string => p !== null);
-
-    if (scopedPaths.length === 0) {
-      throw new Error(`No watch paths cover directory: ${targetPath}`);
-    }
-
     const isGitignored = gitignoreFilter
       ? (filePath: string) => gitignoreFilter.isIgnored(filePath)
       : undefined;
 
-    return await processAllFiles(
-      scopedPaths,
+    // List all files matching watch config, then filter to the target directory.
+    // This avoids brittle glob pattern parsing and reuses the existing file listing logic.
+    const allWatchedFiles = await listFilesFromGlobs(
+      config.watch.paths,
       config.watch.ignored,
-      processor,
-      'processFile',
-      concurrency,
-      {
-        onTotal: (total) => reindexTracker?.setTotal(total),
-        onFileProcessed: () => reindexTracker?.incrementProcessed(),
-      },
       isGitignored,
     );
-  }
 
+    const targetAbsPath = resolve(targetPath);
+    const filesInDir = allWatchedFiles.filter((f) =>
+      resolve(f).startsWith(targetAbsPath),
+    );
+
+    if (filesInDir.length === 0) {
+      logger.info(
+        { targetPath },
+        'Path reindex: no matched files found in directory',
+      );
+      return 0;
+    }
+
+    reindexTracker?.setTotal(filesInDir.length);
+
+    let processedCount = 0;
+    await parallel(concurrency, filesInDir, async (filePath) => {
+      await processor.processFile(filePath);
+      reindexTracker?.incrementProcessed();
+      processedCount++;
+    });
+
+    return processedCount;
+  }
   throw new Error(`Path is neither a file nor a directory: ${targetPath}`);
 }
