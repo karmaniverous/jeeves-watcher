@@ -158,7 +158,7 @@ export async function generateWatcherMenu(apiUrl: string): Promise<string> {
     '**Scan-first rule:** When a task involves structural queries (file enumeration, staleness checks, domain listing, counts), use `watcher_scan` instead of `watcher_search`. Scan does NOT use embeddings and does NOT accept a query string.',
     '**Search-first rule:** When a task involves finding, reading, or modifying files in indexed paths, run `watcher_search` FIRST — even if you already know the file path. Search surfaces related files you may not have considered and catches stale artifacts. Direct filesystem access is for acting on search results, not bypassing them.',
     '',
-    '### Score Interpretation:',
+    '### Score Interpretation (see skill for detail):',
     `* **Strong:** >= ${String(scoreThresholds.strong)} — High confidence. Use directly.`,
     `* **Relevant:** >= ${String(scoreThresholds.relevant)} — Likely useful. Verify context before relying on it.`,
     `* **Noise:** < ${String(scoreThresholds.noise)} — Discard. If all results are noise, broaden your query or try different terms.`,
