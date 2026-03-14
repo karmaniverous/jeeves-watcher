@@ -3,6 +3,8 @@
  * Main application orchestrator. Wires components, manages lifecycle (start/stop/reload).
  */
 
+import { readFileSync } from 'node:fs';
+
 import type { FastifyInstance } from 'fastify';
 import type pino from 'pino';
 
@@ -81,7 +83,11 @@ export class JeevesWatcher {
     this.runtimeOptions = runtimeOptions;
     this.virtualRuleStore = new VirtualRuleStore();
     try {
-      this.version = (require('../../package.json') as { version: string }).version;
+      const pkgPath = new URL('../../package.json', import.meta.url);
+      const pkg = JSON.parse(readFileSync(pkgPath, 'utf8')) as {
+        version: string;
+      };
+      this.version = pkg.version;
     } catch {
       this.version = 'unknown';
     }

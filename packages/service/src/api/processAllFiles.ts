@@ -41,7 +41,11 @@ export async function processAllFiles(
   callbacks?: ProcessAllFilesCallbacks,
   isGitignored?: (filePath: string) => boolean,
 ): Promise<number> {
-  const files = await listFilesFromGlobs(watchPaths, ignoredPaths, isGitignored);
+  const files = await listFilesFromGlobs(
+    watchPaths,
+    ignoredPaths,
+    isGitignored,
+  );
 
   callbacks?.onTotal?.(files.length);
 

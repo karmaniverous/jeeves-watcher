@@ -61,7 +61,7 @@ export function withCache<
     // Cache miss — intercept reply.send() to capture the response payload.
     // wrapHandler calls reply.send(data) as a side effect and returns void,
     // so we cannot rely on the handler return value for caching.
-    let capturedPayload: unknown;
+    let capturedPayload: unknown = undefined;
     const originalSend = fReply.send.bind(fReply);
     fReply.send = (payload?: unknown) => {
       capturedPayload = payload;
@@ -81,13 +81,14 @@ export function withCache<
       return result;
     }
 
-    // Store captured payload in cache
-    if (capturedPayload !== undefined) {
-      cache.set(key, {
-        value: capturedPayload,
-        expiresAt: now + ttlMs,
-      });
-    }
+    // Store payload in cache.
+    // Prefer captured reply payload (wrapHandler path). Fall back to handler return value.
+    const payloadToCache =
+      capturedPayload !== undefined ? capturedPayload : result;
+    cache.set(key, {
+      value: payloadToCache,
+      expiresAt: now + ttlMs,
+    });
 
     return result;
   };

@@ -44,7 +44,10 @@ describe('wrapHandler', () => {
     await wrapped(mockRequest, mockReply);
 
     expect(statusMock).toHaveBeenCalledWith(500);
-    expect(sendMock).toHaveBeenCalledWith({ error: 'Internal server error' });
+    expect(sendMock).toHaveBeenCalledWith({
+      error: 'Error',
+      message: 'Test error',
+    });
     expect(loggerErrorSpy).toHaveBeenCalledWith(
       expect.objectContaining({ err: testError }),
       'TestOperation failed',

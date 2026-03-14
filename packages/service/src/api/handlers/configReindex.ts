@@ -12,9 +12,9 @@ import type { IssuesManager } from '../../issues';
 import type { DocumentProcessorInterface } from '../../processor';
 import type { ValuesManager } from '../../values';
 import {
+  executeReindex,
   type ReindexScope,
   VALID_REINDEX_SCOPES,
-  executeReindex,
 } from '../executeReindex';
 import type { ReindexTracker } from '../ReindexTracker';
 import { wrapHandler } from './wrapHandler';
@@ -42,7 +42,7 @@ type ConfigReindexRequest = FastifyRequest<{
 export function createConfigReindexHandler(deps: ConfigReindexRouteDeps) {
   return wrapHandler(
     async (request: ConfigReindexRequest, reply: FastifyReply) => {
-      const scope = (request.body.scope ?? 'issues') as string;
+      const scope = request.body.scope ?? 'issues';
 
       if (!VALID_REINDEX_SCOPES.includes(scope as ReindexScope)) {
         return await reply.status(400).send({

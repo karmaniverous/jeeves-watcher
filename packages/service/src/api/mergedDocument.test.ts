@@ -41,7 +41,7 @@ describe('buildMergedDocument', () => {
     expect(doc).toHaveProperty('templateHelpers');
     expect(doc).toHaveProperty('maps');
     expect(doc).toHaveProperty('templates');
-    expect(doc).toHaveProperty('slots');
+    expect(doc).not.toHaveProperty('slots');
     expect(doc).toHaveProperty('issues');
     expect(doc).toHaveProperty('schemas');
   });

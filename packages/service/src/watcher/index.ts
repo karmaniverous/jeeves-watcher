@@ -172,10 +172,7 @@ export class FileSystemWatcher {
 
     this.watcher.on('ready', () => {
       initialScanComplete = true;
-      this.logger.info(
-        { scanStats },
-        'Initial scan complete',
-      );
+      this.logger.info({ scanStats }, 'Initial scan complete');
     });
 
     this.watcher.on('error', (error: unknown) => {

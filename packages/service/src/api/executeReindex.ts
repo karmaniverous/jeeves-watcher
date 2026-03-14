@@ -11,8 +11,8 @@ import { parallel } from 'radash';
 import type { JeevesWatcherConfig } from '../config/types';
 import type { GitignoreFilter } from '../gitignore';
 import type { DocumentProcessorInterface } from '../processor';
-import { normalizeError } from '../util/normalizeError';
 import { isPathWatched } from '../util/isPathWatched';
+import { normalizeError } from '../util/normalizeError';
 import { retry } from '../util/retry';
 import type { ValuesManager } from '../values';
 import { processAllFiles } from './processAllFiles';
@@ -91,8 +91,14 @@ export async function executeReindex(
   scope: ReindexScope,
   path?: string,
 ): Promise<ExecuteReindexResult> {
-  const { config, processor, logger, reindexTracker, valuesManager, gitignoreFilter } =
-    deps;
+  const {
+    config,
+    processor,
+    logger,
+    reindexTracker,
+    valuesManager,
+    gitignoreFilter,
+  } = deps;
   const isGitignored = gitignoreFilter
     ? (filePath: string) => gitignoreFilter.isIgnored(filePath)
     : undefined;
@@ -267,9 +273,7 @@ async function executePathReindex(
       .filter((p): p is string => p !== null);
 
     if (scopedPaths.length === 0) {
-      throw new Error(
-        `No watch paths cover directory: ${targetPath}`,
-      );
+      throw new Error(`No watch paths cover directory: ${targetPath}`);
     }
 
     const isGitignored = gitignoreFilter

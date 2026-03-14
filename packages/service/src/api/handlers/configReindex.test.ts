@@ -12,6 +12,7 @@ import { createConfigReindexHandler } from './configReindex';
 
 // Mock executeReindex to avoid actual file processing
 vi.mock('../executeReindex', () => ({
+  VALID_REINDEX_SCOPES: ['issues', 'full', 'rules', 'path'],
   executeReindex: vi.fn().mockResolvedValue({
     filesProcessed: 5,
     durationMs: 100,
@@ -95,6 +96,7 @@ describe('createConfigReindexHandler', () => {
     expect(mockedExecuteReindex).toHaveBeenCalledWith(
       expect.objectContaining({ config: deps.config }),
       'full',
+      undefined,
     );
   });
 
@@ -113,6 +115,7 @@ describe('createConfigReindexHandler', () => {
         issuesManager: deps.issuesManager,
       }),
       'full',
+      undefined,
     );
   });
 });

@@ -96,7 +96,8 @@ describe('GitignoreFilter', () => {
 
       const filter = new GitignoreFilter([testDir]);
 
-      expect(filter.isIgnored(join(testDir, 'file.txt'))).toBe(false);
+      // Standalone .gitignore at watch root is now respected even without a .git directory.
+      expect(filter.isIgnored(join(testDir, 'file.txt'))).toBe(true);
     });
   });
 
