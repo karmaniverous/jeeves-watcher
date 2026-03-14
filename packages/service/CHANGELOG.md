@@ -2,8 +2,9 @@
 
 All notable changes to this project will be documented in this file. Dates are displayed in UTC.
 
-#### [0.9.8](https://github.com/karmaniverous/jeeves-watcher/compare/0.5.1...0.9.8)
+#### [0.9.9](https://github.com/karmaniverous/jeeves-watcher/compare/0.5.1...0.9.9)
 
+- fix: add nocase to fileScan picomatch calls [`#115`](https://github.com/karmaniverous/jeeves-watcher/pull/115)
 - [107] fix: remove HTML escaping from renderDoc markdown output [`#108`](https://github.com/karmaniverous/jeeves-watcher/pull/108)
 - feat: glob/negation patterns in render.frontmatter [`#105`](https://github.com/karmaniverous/jeeves-watcher/pull/105)
 - feat: add concurrent file processing for reindex using radash parallel [`#103`](https://github.com/karmaniverous/jeeves-watcher/pull/103)
@@ -196,10 +197,12 @@ All notable changes to this project will be documented in this file. Dates are d
 - lintfix [`4bfe08e`](https://github.com/karmaniverous/jeeves-watcher/commit/4bfe08e06032779dd7bf09f3606b8e4d59f04a46)
 - fix: use consistent default port 1936 in server.listen() and schema description [`fe61181`](https://github.com/karmaniverous/jeeves-watcher/commit/fe6118154eb1bb4605b36bec11c79925d8c7322b)
 - fix: normalizePath preserves drive letter case to match service path normalization [`b79c8c4`](https://github.com/karmaniverous/jeeves-watcher/commit/b79c8c4cee38ccf989a7ee067a67c1879464e53d)
+- chore: release @karmaniverous/jeeves-watcher v0.9.8 [`cd86be1`](https://github.com/karmaniverous/jeeves-watcher/commit/cd86be14c4b681d837cc9c39e50f890ca477c6f1)
 - chore: release @karmaniverous/jeeves-watcher v0.9.0 [`9f210b1`](https://github.com/karmaniverous/jeeves-watcher/commit/9f210b1443db133c7598fa1815ee1702ffaaec82)
 - lint:fix [`0d86aea`](https://github.com/karmaniverous/jeeves-watcher/commit/0d86aeaa8efb03798853d6c95bee49b8e3b77bc2)
 - docs: update spec for shared Platform Tools H1 injection pattern [`230822a`](https://github.com/karmaniverous/jeeves-watcher/commit/230822adbcaed0f1de3adc634b8429019f015c79)
 - chore: remove temp commit script [`31d35a7`](https://github.com/karmaniverous/jeeves-watcher/commit/31d35a7341fdfe9d823ffbd04f4192396edcd638)
+- [114] fix: add nocase to fileScan picomatch calls (#114) [`5a28b8c`](https://github.com/karmaniverous/jeeves-watcher/commit/5a28b8c4f25ed39e82ea258c3414bf9d2f827cf7)
 - docs(service): add TypeDoc for scrollPage return type fields [`96c5491`](https://github.com/karmaniverous/jeeves-watcher/commit/96c54916f7e0df87eb26d894ef2a1a66a78405eb)
 - fix(openclaw): add required name option to registerHook call [`545684c`](https://github.com/karmaniverous/jeeves-watcher/commit/545684c30051fb9557f4c97c21b45cfe79987a29)
 - fix(openclaw): add deployment-discovery guidance to skill, prevent assumption of specific domains [`3da7cf3`](https://github.com/karmaniverous/jeeves-watcher/commit/3da7cf3252cf90788d0a8e3d162220d45c5ec6a6)
