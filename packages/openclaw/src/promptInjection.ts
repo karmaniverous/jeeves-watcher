@@ -56,7 +56,7 @@ export async function generateWatcherMenu(apiUrl: string): Promise<string> {
   const activeRules: Array<{ name: string; description: string }> = [];
   const watchPaths: string[] = [];
   const ignoredPaths: string[] = [];
-  let scoreThresholds = { strong: 0.75, relevant: 0.5, noise: 0.25 };
+  const scoreThresholds = { strong: 0.75, relevant: 0.5, noise: 0.25 };
 
   try {
     const [statusRes, rulesRes, pathsRes, thresholdsRes, ignoredRes] =
@@ -120,8 +120,7 @@ export async function generateWatcherMenu(apiUrl: string): Promise<string> {
     ) {
       const t = thresholdsRes.result[0] as Record<string, unknown>;
       if (typeof t.strong === 'number') scoreThresholds.strong = t.strong;
-      if (typeof t.relevant === 'number')
-        scoreThresholds.relevant = t.relevant;
+      if (typeof t.relevant === 'number') scoreThresholds.relevant = t.relevant;
       if (typeof t.noise === 'number') scoreThresholds.noise = t.noise;
     }
   } catch {
@@ -160,9 +159,9 @@ export async function generateWatcherMenu(apiUrl: string): Promise<string> {
     '**Search-first rule:** When a task involves finding, reading, or modifying files in indexed paths, run `watcher_search` FIRST — even if you already know the file path. Search surfaces related files you may not have considered and catches stale artifacts. Direct filesystem access is for acting on search results, not bypassing them.',
     '',
     '### Score Interpretation:',
-    `* **Strong:** >= ${scoreThresholds.strong} — High confidence. Use directly.`,
-    `* **Relevant:** >= ${scoreThresholds.relevant} — Likely useful. Verify context before relying on it.`,
-    `* **Noise:** < ${scoreThresholds.noise} — Discard. If all results are noise, broaden your query or try different terms.`,
+    `* **Strong:** >= ${String(scoreThresholds.strong)} — High confidence. Use directly.`,
+    `* **Relevant:** >= ${String(scoreThresholds.relevant)} — Likely useful. Verify context before relying on it.`,
+    `* **Noise:** < ${String(scoreThresholds.noise)} — Discard. If all results are noise, broaden your query or try different terms.`,
     '',
     "### What's on the menu:",
   ];
