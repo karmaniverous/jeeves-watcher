@@ -130,13 +130,13 @@ export function createWatcher(
     maxBackoffMs?: number;
     onFatalError?: (error: unknown) => void;
   },
-): FileSystemWatcher {
+): { watcher: FileSystemWatcher; gitignoreFilter?: GitignoreFilter } {
   const respectGitignore = config.watch.respectGitignore ?? true;
   const gitignoreFilter = respectGitignore
     ? new GitignoreFilter(config.watch.paths)
     : undefined;
 
-  return factories.createFileSystemWatcher(
+  const watcher = factories.createFileSystemWatcher(
     config.watch,
     queue,
     processor,
@@ -148,6 +148,8 @@ export function createWatcher(
       gitignoreFilter,
     },
   );
+
+  return { watcher, gitignoreFilter };
 }
 
 /**

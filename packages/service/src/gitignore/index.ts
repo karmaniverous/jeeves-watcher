@@ -158,7 +158,20 @@ export class GitignoreFilter {
       scannedDirs.add(scanDir);
 
       const repoRoot = findRepoRoot(scanDir);
-      if (!repoRoot) continue;
+      if (!repoRoot) {
+        // No git repo found. Check for a standalone .gitignore at the scan dir.
+        // This handles directories like OpenClaw workspaces that have .gitignore
+        // but no .git directory.
+        const standaloneGitignore = join(scanDir, '.gitignore');
+        if (existsSync(standaloneGitignore) && !this.repos.has(scanDir)) {
+          const entry: GitignoreEntry = {
+            dir: scanDir,
+            ig: parseGitignore(standaloneGitignore),
+          };
+          this.repos.set(scanDir, { root: scanDir, entries: [entry] });
+        }
+        continue;
+      }
       if (this.repos.has(repoRoot)) continue;
 
       const gitignoreFiles = findGitignoreFiles(repoRoot);

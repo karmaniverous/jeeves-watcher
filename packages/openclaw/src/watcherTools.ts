@@ -194,15 +194,23 @@ export function registerWatcherTools(api: PluginApi, baseUrl: string): void {
         properties: {
           scope: {
             type: 'string',
-            enum: ['rules', 'full'],
+            enum: ['rules', 'full', 'issues', 'path'],
             description:
-              'Reindex scope: "rules" (default) re-applies inference rules; "full" re-embeds everything.',
+              'Reindex scope: "rules" (default) re-applies inference rules; "full" re-embeds everything; "issues" re-processes files with errors; "path" reindexes a specific file or directory (requires path parameter).',
+          },
+          path: {
+            type: 'string',
+            description:
+              'Target file or directory path (required when scope is "path").',
           },
         },
       },
       buildRequest: (params) => [
         '/config-reindex',
-        { scope: params.scope ?? 'rules' },
+        {
+          scope: params.scope ?? 'rules',
+          ...(params.path ? { path: params.path } : {}),
+        },
       ],
     },
     {

@@ -8,8 +8,10 @@ import { dirname } from 'node:path';
 import Fastify, { type FastifyInstance } from 'fastify';
 import type pino from 'pino';
 
+import { buildTemplateEngineAndCustomMapLib } from '../app/initialization';
 import type { JeevesWatcherConfig } from '../config/types';
 import type { EmbeddingProvider } from '../embedding';
+import type { GitignoreFilter } from '../gitignore';
 import type { AllHelpersIntrospection } from '../helpers';
 import type { IssuesManager } from '../issues';
 import type { DocumentProcessorInterface } from '../processor';
@@ -18,7 +20,7 @@ import { compileRules } from '../rules';
 import type { VirtualRuleStore } from '../rules/virtualRules';
 import type { ValuesManager } from '../values';
 import type { VectorStoreClient } from '../vectorStore';
-import { executeReindex } from './executeReindex';
+import { executeReindex, type ReindexScope } from './executeReindex';
 import { createConfigApplyHandler } from './handlers/configApply';
 import { createConfigMatchHandler } from './handlers/configMatch';
 import { createConfigQueryHandler } from './handlers/configQuery';
@@ -75,6 +77,10 @@ export interface ApiServerOptions {
   helperIntrospection?: AllHelpersIntrospection;
   /** Virtual rule store for externally registered inference rules. */
   virtualRuleStore?: VirtualRuleStore;
+  /** Gitignore filter for reindex path validation. */
+  gitignoreFilter?: GitignoreFilter;
+  /** Service version string for /status endpoint. */
+  version?: string;
 }
 
 /**
@@ -97,12 +103,14 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
     configPath,
     helperIntrospection,
     virtualRuleStore,
+    gitignoreFilter,
+    version,
   } = options;
 
   const reindexTracker = options.reindexTracker ?? new ReindexTracker();
   const app = Fastify({ logger: false });
 
-  const triggerReindex = (scope: 'issues' | 'full') => {
+  const triggerReindex = (scope: ReindexScope) => {
     void executeReindex(
       {
         config,
@@ -111,6 +119,7 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
         reindexTracker,
         valuesManager,
         issuesManager,
+        gitignoreFilter,
       },
       scope,
     );
@@ -126,6 +135,7 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
         vectorStore,
         collectionName: config.vectorStore.collectionName,
         reindexTracker,
+        version: version ?? 'unknown',
       }),
     ),
   );
@@ -202,6 +212,7 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
       reindexTracker,
       valuesManager,
       issuesManager,
+      gitignoreFilter,
     }),
   );
 
@@ -254,9 +265,24 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
   // Virtual rules and points deletion routes
   if (virtualRuleStore) {
     const onRulesChanged = () => {
-      const configCompiled = compileRules(config.inferenceRules ?? []);
+      const configRules = config.inferenceRules ?? [];
+      const virtualRulesBySource = virtualRuleStore.getAll();
+      const allVirtualRules = Object.values(virtualRulesBySource).flat();
+      const mergedRules = [...configRules, ...allVirtualRules];
+      const configCompiled = compileRules(configRules);
       const virtualCompiled = virtualRuleStore.getCompiled();
-      processor.updateRules([...configCompiled, ...virtualCompiled]);
+
+      // Rebuild template engine asynchronously with merged rules
+      void buildTemplateEngineAndCustomMapLib(
+        { ...config, inferenceRules: mergedRules },
+        dirname(configPath),
+      ).then(({ templateEngine: newEngine, customMapLib: newMapLib }) => {
+        processor.updateRules(
+          [...configCompiled, ...virtualCompiled],
+          newEngine,
+          newMapLib,
+        );
+      });
     };
 
     app.post(

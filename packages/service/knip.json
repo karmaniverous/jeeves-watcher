@@ -1,11 +1,15 @@
 {
-  "entry": ["src/**/index.ts"],
+  "entry": [
+    "src/**/index.ts"
+  ],
   "ignoreDependencies": [
-    "@langchain/qdrant",
     "json5",
     "tiktoken"
   ],
-  "project": ["*/**", "!docs/**"],
+  "project": [
+    "*/**",
+    "!docs/**"
+  ],
   "rules": {
     "binaries": "off",
     "devDependencies": "off",
@@ -13,6 +17,8 @@
     "types": "off"
   },
   "vitest": {
-    "entry": ["*/**/*.test.!(*.*)"]
+    "entry": [
+      "*/**/*.test.!(*.*)"
+    ]
   }
 }

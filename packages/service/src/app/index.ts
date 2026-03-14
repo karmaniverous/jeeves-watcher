@@ -3,11 +3,14 @@
  * Main application orchestrator. Wires components, manages lifecycle (start/stop/reload).
  */
 
+import { readFileSync } from 'node:fs';
+
 import type { FastifyInstance } from 'fastify';
 import type pino from 'pino';
 
 import { executeReindex } from '../api/executeReindex';
 import type { JeevesWatcherConfig } from '../config/types';
+import type { GitignoreFilter } from '../gitignore';
 import type { AllHelpersIntrospection } from '../helpers';
 import { IssuesManager } from '../issues';
 import type { DocumentProcessorInterface } from '../processor';
@@ -64,6 +67,8 @@ export class JeevesWatcher {
   private virtualRuleStore: VirtualRuleStore;
   private vectorStore: ApiServerOptions['vectorStore'] | undefined;
   private embeddingProvider: ApiServerOptions['embeddingProvider'] | undefined;
+  private gitignoreFilter: GitignoreFilter | undefined;
+  private readonly version: string;
 
   /** Create a new JeevesWatcher instance. */
   constructor(
@@ -77,6 +82,15 @@ export class JeevesWatcher {
     this.factories = { ...defaultFactories, ...factories };
     this.runtimeOptions = runtimeOptions;
     this.virtualRuleStore = new VirtualRuleStore();
+    try {
+      const pkgPath = new URL('../../package.json', import.meta.url);
+      const pkg = JSON.parse(readFileSync(pkgPath, 'utf8')) as {
+        version: string;
+      };
+      this.version = pkg.version;
+    } catch {
+      this.version = 'unknown';
+    }
   }
 
   /**
@@ -137,7 +151,7 @@ export class JeevesWatcher {
       rateLimitPerMinute: this.config.embedding.rateLimitPerMinute,
     });
 
-    this.watcher = createWatcher(
+    const { watcher, gitignoreFilter } = createWatcher(
       this.config,
       this.factories,
       this.queue,
@@ -145,6 +159,8 @@ export class JeevesWatcher {
       logger,
       this.runtimeOptions,
     );
+    this.watcher = watcher;
+    this.gitignoreFilter = gitignoreFilter;
 
     this.server = await this.startApiServer();
 
@@ -203,6 +219,8 @@ export class JeevesWatcher {
       configPath: this.configPath ?? '',
       helperIntrospection: this.helperIntrospection,
       virtualRuleStore: this.virtualRuleStore,
+      gitignoreFilter: this.gitignoreFilter,
+      version: this.version,
     });
 
     await server.listen({
@@ -288,6 +306,7 @@ export class JeevesWatcher {
           logger,
           valuesManager: this.valuesManager,
           issuesManager: this.issuesManager,
+          gitignoreFilter: this.gitignoreFilter,
         },
         reindexScope,
       );

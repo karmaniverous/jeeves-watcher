@@ -613,9 +613,9 @@ A consuming UI will necessarily compose simple single-field filters. The assista
 
 ### Score Interpretation
 Use `scoreThresholds` from config (queried during orientation). Values are deployment-specific, constrained to [-1, 1]:
-- `strong` — minimum score for a strong match
-- `relevant` — minimum score for relevance
-- `noise` — maximum score below which results are noise
+- `strong` — minimum score for a strong match. **Action:** High confidence. Use these results directly.
+- `relevant` — minimum score for relevance. **Action:** Likely useful but verify context before relying on them.
+- `noise` — maximum score below which results are noise. **Action:** Discard. If all results fall below this threshold, broaden your query or try different terms.
 
 ### Chunk Grouping
 Multiple results with the same `file_path` are chunks of one document. Read the full file for complete context.

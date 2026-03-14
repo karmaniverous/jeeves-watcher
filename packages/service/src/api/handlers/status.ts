@@ -14,6 +14,8 @@ export interface StatusRouteDeps {
   collectionName: string;
   /** The reindex tracker. */
   reindexTracker: ReindexTracker;
+  /** Service version string. */
+  version: string;
 }
 
 /**
@@ -26,6 +28,7 @@ export function createStatusHandler(deps: StatusRouteDeps) {
     const collectionInfo = await deps.vectorStore.getCollectionInfo();
     return {
       status: 'ok',
+      version: deps.version,
       uptime: process.uptime(),
       collection: {
         name: deps.collectionName,

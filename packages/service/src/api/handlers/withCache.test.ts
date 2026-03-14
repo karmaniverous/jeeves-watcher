@@ -17,6 +17,11 @@ function mockReply(headers: Record<string, string> = {}) {
     getHeader(name: string) {
       return headers[name];
     },
+    // FastifyReply.send exists; withCache intercepts it.
+    send(payload?: unknown) {
+      void payload;
+      return reply as unknown;
+    },
   };
   return reply as never;
 }

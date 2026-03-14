@@ -28,7 +28,7 @@ export class ReindexTracker {
   private _totalFiles = 0;
 
   /** Mark a reindex as started. */
-  start(scope: 'issues' | 'full'): void {
+  start(scope: string): void {
     this._active = true;
     this._scope = scope;
     this._startedAt = new Date().toISOString();
