@@ -29,6 +29,7 @@ export interface ProcessAllFilesCallbacks {
  * @param method - The processor method to call ('processFile' or 'processRulesUpdate').
  * @param concurrency - Maximum concurrent file operations (default 50).
  * @param callbacks - Optional progress tracking callbacks.
+ * @param isGitignored - Optional callback to check gitignore status per file.
  * @returns The number of files processed.
  */
 export async function processAllFiles(
@@ -38,8 +39,9 @@ export async function processAllFiles(
   method: 'processFile' | 'processRulesUpdate',
   concurrency: number = DEFAULT_REINDEX_CONCURRENCY,
   callbacks?: ProcessAllFilesCallbacks,
+  isGitignored?: (filePath: string) => boolean,
 ): Promise<number> {
-  const files = await listFilesFromGlobs(watchPaths, ignoredPaths);
+  const files = await listFilesFromGlobs(watchPaths, ignoredPaths, isGitignored);
 
   callbacks?.onTotal?.(files.length);
 

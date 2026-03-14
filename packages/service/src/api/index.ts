@@ -18,6 +18,7 @@ import { compileRules } from '../rules';
 import type { VirtualRuleStore } from '../rules/virtualRules';
 import type { ValuesManager } from '../values';
 import type { VectorStoreClient } from '../vectorStore';
+import type { GitignoreFilter } from '../gitignore';
 import { type ReindexScope, executeReindex } from './executeReindex';
 import { createConfigApplyHandler } from './handlers/configApply';
 import { createConfigMatchHandler } from './handlers/configMatch';
@@ -75,6 +76,8 @@ export interface ApiServerOptions {
   helperIntrospection?: AllHelpersIntrospection;
   /** Virtual rule store for externally registered inference rules. */
   virtualRuleStore?: VirtualRuleStore;
+  /** Gitignore filter for reindex path validation. */
+  gitignoreFilter?: GitignoreFilter;
 }
 
 /**
@@ -97,6 +100,7 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
     configPath,
     helperIntrospection,
     virtualRuleStore,
+    gitignoreFilter,
   } = options;
 
   const reindexTracker = options.reindexTracker ?? new ReindexTracker();
@@ -111,6 +115,7 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
         reindexTracker,
         valuesManager,
         issuesManager,
+        gitignoreFilter,
       },
       scope,
     );
@@ -202,6 +207,7 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
       reindexTracker,
       valuesManager,
       issuesManager,
+      gitignoreFilter,
     }),
   );
 

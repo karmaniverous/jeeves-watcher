@@ -51,11 +51,16 @@ async function* walk(dir: string): AsyncGenerator<string> {
 }
 
 /**
- * List files matching a set of globs, with optional ignore globs.
+ * List files matching a set of globs, with optional ignore globs and gitignore filter.
+ *
+ * @param patterns - Glob patterns to match.
+ * @param ignored - Glob patterns to exclude (optional).
+ * @param isGitignored - Optional callback to check gitignore status per file.
  */
 export async function listFilesFromGlobs(
   patterns: string[],
   ignored: string[] = [],
+  isGitignored?: (filePath: string) => boolean,
 ): Promise<string[]> {
   const normPatterns = patterns.map((p) => normalizeSlashes(p));
   const normIgnored = ignored.map((p) => normalizeSlashes(p));
@@ -73,6 +78,7 @@ export async function listFilesFromGlobs(
       const rel = normalizeSlashes(file);
       if (ignore(rel)) continue;
       if (!match(rel)) continue;
+      if (isGitignored?.(file)) continue;
       seen.add(file);
     }
   }

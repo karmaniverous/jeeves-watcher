@@ -91,7 +91,11 @@ export async function executeReindex(
   scope: ReindexScope,
   path?: string,
 ): Promise<ExecuteReindexResult> {
-  const { config, processor, logger, reindexTracker, valuesManager } = deps;
+  const { config, processor, logger, reindexTracker, valuesManager, gitignoreFilter } =
+    deps;
+  const isGitignored = gitignoreFilter
+    ? (filePath: string) => gitignoreFilter.isIgnored(filePath)
+    : undefined;
 
   if (!VALID_REINDEX_SCOPES.includes(scope)) {
     throw new Error(
@@ -141,6 +145,7 @@ export async function executeReindex(
           onTotal: (total) => reindexTracker?.setTotal(total),
           onFileProcessed: () => reindexTracker?.incrementProcessed(),
         },
+        isGitignored,
       );
     } else if (scope === 'path' && path) {
       filesProcessed = await executePathReindex(
@@ -164,6 +169,7 @@ export async function executeReindex(
           onTotal: (total) => reindexTracker?.setTotal(total),
           onFileProcessed: () => reindexTracker?.incrementProcessed(),
         },
+        isGitignored,
       );
     }
 
@@ -266,6 +272,10 @@ async function executePathReindex(
       );
     }
 
+    const isGitignored = gitignoreFilter
+      ? (filePath: string) => gitignoreFilter.isIgnored(filePath)
+      : undefined;
+
     return await processAllFiles(
       scopedPaths,
       config.watch.ignored,
@@ -276,6 +286,7 @@ async function executePathReindex(
         onTotal: (total) => reindexTracker?.setTotal(total),
         onFileProcessed: () => reindexTracker?.incrementProcessed(),
       },
+      isGitignored,
     );
   }
 
