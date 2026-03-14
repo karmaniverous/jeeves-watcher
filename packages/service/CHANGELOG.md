@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file. Dates are displayed in UTC.
 
-#### [0.9.7](https://github.com/karmaniverous/jeeves-watcher/compare/0.5.1...0.9.7)
+#### [0.9.8](https://github.com/karmaniverous/jeeves-watcher/compare/0.5.1...0.9.8)
 
 - [107] fix: remove HTML escaping from renderDoc markdown output [`#108`](https://github.com/karmaniverous/jeeves-watcher/pull/108)
 - feat: glob/negation patterns in render.frontmatter [`#105`](https://github.com/karmaniverous/jeeves-watcher/pull/105)
@@ -173,6 +173,7 @@ All notable changes to this project will be documented in this file. Dates are d
 - chore: release @karmaniverous/jeeves-watcher-openclaw v0.3.9 [`97c635e`](https://github.com/karmaniverous/jeeves-watcher/commit/97c635e25b7c7ac4a5e6315ac2c26af7d1e89a74)
 - chore: release @karmaniverous/jeeves-watcher-openclaw v0.3.5 [`837a941`](https://github.com/karmaniverous/jeeves-watcher/commit/837a94145b086245df101f7dcf2fd7a0c5ebfbca)
 - chore: release @karmaniverous/jeeves-watcher v0.6.1 [`037d9c9`](https://github.com/karmaniverous/jeeves-watcher/commit/037d9c924e1bc3020fb6b497f59261dd027718bd)
+- chore: release @karmaniverous/jeeves-watcher v0.9.7 [`fd439c2`](https://github.com/karmaniverous/jeeves-watcher/commit/fd439c288655eacf6558edc289de7e1b695fb371)
 - chore: release @karmaniverous/jeeves-watcher v0.9.6 [`432b3c5`](https://github.com/karmaniverous/jeeves-watcher/commit/432b3c513cda109c4d26fb78e9f89eb60b612742)
 - chore: release @karmaniverous/jeeves-watcher v0.9.5 [`2e1bf8b`](https://github.com/karmaniverous/jeeves-watcher/commit/2e1bf8b87c8f67bdc25b4413e39b33192f1f1b54)
 - chore: release @karmaniverous/jeeves-watcher v0.9.2 [`e8c1b8f`](https://github.com/karmaniverous/jeeves-watcher/commit/e8c1b8f8a066eb908864e8c89d2baa67a6b8d5ff)
