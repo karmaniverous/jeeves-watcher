@@ -60,9 +60,9 @@ export async function listFilesFromGlobs(
   const normPatterns = patterns.map((p) => normalizeSlashes(p));
   const normIgnored = ignored.map((p) => normalizeSlashes(p));
 
-  const match = picomatch(normPatterns, { dot: true });
+  const match = picomatch(normPatterns, { dot: true, nocase: true });
   const ignore = normIgnored.length
-    ? picomatch(normIgnored, { dot: true })
+    ? picomatch(normIgnored, { dot: true, nocase: true })
     : () => false;
 
   const bases = Array.from(new Set(patterns.map(globBase)));
