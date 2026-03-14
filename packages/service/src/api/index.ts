@@ -18,7 +18,7 @@ import { compileRules } from '../rules';
 import type { VirtualRuleStore } from '../rules/virtualRules';
 import type { ValuesManager } from '../values';
 import type { VectorStoreClient } from '../vectorStore';
-import { executeReindex } from './executeReindex';
+import { type ReindexScope, executeReindex } from './executeReindex';
 import { createConfigApplyHandler } from './handlers/configApply';
 import { createConfigMatchHandler } from './handlers/configMatch';
 import { createConfigQueryHandler } from './handlers/configQuery';
@@ -102,7 +102,7 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
   const reindexTracker = options.reindexTracker ?? new ReindexTracker();
   const app = Fastify({ logger: false });
 
-  const triggerReindex = (scope: 'issues' | 'full') => {
+  const triggerReindex = (scope: ReindexScope) => {
     void executeReindex(
       {
         config,

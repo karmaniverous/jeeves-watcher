@@ -9,6 +9,7 @@ import type { FastifyReply, FastifyRequest } from 'fastify';
 import type pino from 'pino';
 
 import type { JeevesWatcherConfig } from '../../config/types';
+import type { ReindexScope } from '../executeReindex';
 import type { ReindexTracker } from '../ReindexTracker';
 import { mergeAndValidateConfig } from './mergeAndValidate';
 import { wrapHandler } from './wrapHandler';
@@ -19,7 +20,7 @@ export interface ConfigApplyRouteDeps {
   configPath: string;
   reindexTracker: ReindexTracker;
   logger: pino.Logger;
-  triggerReindex?: (scope: 'issues' | 'full') => void;
+  triggerReindex?: (scope: ReindexScope) => void;
 }
 
 type ConfigApplyRequest = FastifyRequest<{

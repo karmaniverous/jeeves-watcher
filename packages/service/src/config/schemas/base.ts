@@ -82,6 +82,11 @@ export const configWatchConfigSchema = z.object({
         .literal('issues')
         .describe('Re-process only files with recorded issues.'),
       z.literal('full').describe('Full reindex of all watched files.'),
+      z
+        .literal('rules')
+        .describe(
+          'Re-apply inference rules to existing points without re-embedding.',
+        ),
     ])
     .optional()
     .describe('Reindex scope triggered on config change. Default: issues.'),
