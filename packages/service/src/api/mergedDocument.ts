@@ -108,7 +108,6 @@ export function buildMergedDocument(
     ),
     maps: config.maps ?? {},
     templates: config.templates ?? {},
-    slots: config.slots ?? {},
     virtualRules: virtualRules ?? {},
     issues: issuesManager.getAll(),
   };

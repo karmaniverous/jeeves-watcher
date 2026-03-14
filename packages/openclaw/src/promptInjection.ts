@@ -56,26 +56,39 @@ export async function generateWatcherMenu(apiUrl: string): Promise<string> {
   const activeRules: Array<{ name: string; description: string }> = [];
   const watchPaths: string[] = [];
   const ignoredPaths: string[] = [];
+  let scoreThresholds = { strong: 0.75, relevant: 0.5, noise: 0.25 };
 
   try {
-    const [statusRes, rulesRes, pathsRes, ignoredRes] = (await Promise.all([
-      fetchJson(`${apiUrl}/status`),
-      fetchJson(`${apiUrl}/config/query`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ path: '$.inferenceRules[*]' }),
-      }),
-      fetchJson(`${apiUrl}/config/query`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ path: '$.watch.paths[*]' }),
-      }),
-      fetchJson(`${apiUrl}/config/query`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ path: '$.watch.ignored[*]' }),
-      }),
-    ])) as [StatusResponse, QueryResponse, QueryResponse, QueryResponse];
+    const [statusRes, rulesRes, pathsRes, thresholdsRes, ignoredRes] =
+      (await Promise.all([
+        fetchJson(`${apiUrl}/status`),
+        fetchJson(`${apiUrl}/config/query`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ path: '$.inferenceRules[*]' }),
+        }),
+        fetchJson(`${apiUrl}/config/query`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ path: '$.watch.paths[*]' }),
+        }),
+        fetchJson(`${apiUrl}/config/query`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ path: '$.search.scoreThresholds' }),
+        }),
+        fetchJson(`${apiUrl}/config/query`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ path: '$.watch.ignored[*]' }),
+        }),
+      ])) as [
+        StatusResponse,
+        QueryResponse,
+        QueryResponse,
+        QueryResponse,
+        QueryResponse,
+      ];
 
     pointCount = statusRes.collection?.pointCount ?? 0;
 
@@ -99,6 +112,17 @@ export async function generateWatcherMenu(apiUrl: string): Promise<string> {
       for (const p of ignoredRes.result) {
         if (typeof p === 'string') ignoredPaths.push(p);
       }
+    }
+
+    if (
+      Array.isArray(thresholdsRes.result) &&
+      thresholdsRes.result.length > 0
+    ) {
+      const t = thresholdsRes.result[0] as Record<string, unknown>;
+      if (typeof t.strong === 'number') scoreThresholds.strong = t.strong;
+      if (typeof t.relevant === 'number')
+        scoreThresholds.relevant = t.relevant;
+      if (typeof t.noise === 'number') scoreThresholds.noise = t.noise;
     }
   } catch {
     let qdrantStatus = '*Unknown*';
@@ -136,9 +160,9 @@ export async function generateWatcherMenu(apiUrl: string): Promise<string> {
     '**Search-first rule:** When a task involves finding, reading, or modifying files in indexed paths, run `watcher_search` FIRST — even if you already know the file path. Search surfaces related files you may not have considered and catches stale artifacts. Direct filesystem access is for acting on search results, not bypassing them.',
     '',
     '### Score Interpretation:',
-    '* **Strong:** >= 0.75',
-    '* **Relevant:** >= 0.50',
-    '* **Noise:** < 0.25',
+    `* **Strong:** >= ${scoreThresholds.strong} — High confidence. Use directly.`,
+    `* **Relevant:** >= ${scoreThresholds.relevant} — Likely useful. Verify context before relying on it.`,
+    `* **Noise:** < ${scoreThresholds.noise} — Discard. If all results are noise, broaden your query or try different terms.`,
     '',
     "### What's on the menu:",
   ];

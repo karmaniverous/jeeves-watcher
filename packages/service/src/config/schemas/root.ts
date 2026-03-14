@@ -60,11 +60,6 @@ export const jeevesWatcherConfigSchema = z.object({
     .describe('Directory for persisted metadata sidecar files.'),
   /** API server configuration. */
   api: apiConfigSchema.optional().describe('API server configuration.'),
-  /** Extractor configurations keyed by name. */
-  extractors: z
-    .record(z.string(), z.unknown())
-    .optional()
-    .describe('Extractor configurations keyed by name.'),
   /** Directory for persistent state files (issues.json, values.json). Defaults to metadataDir. */
   stateDir: z
     .string()
@@ -160,10 +155,6 @@ export const jeevesWatcherConfigSchema = z.object({
     .optional()
     .describe('Reindex configuration.'),
   /** Named Qdrant filter patterns for skill-activated behaviors. */
-  slots: z
-    .record(z.string(), z.unknown())
-    .optional()
-    .describe('Named Qdrant filter patterns for skill-activated behaviors.'),
   /** Search configuration including score thresholds and hybrid search. */
   search: z
     .object({

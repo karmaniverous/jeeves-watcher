@@ -21,6 +21,7 @@ describe('createStatusHandler', () => {
       vectorStore: vectorStore as VectorStore,
       collectionName: 'test-collection',
       reindexTracker: new ReindexTracker(),
+      version: '1.2.3',
     };
 
     const handler = createStatusHandler(mockDeps);

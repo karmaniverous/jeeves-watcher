@@ -66,6 +66,7 @@ export class JeevesWatcher {
   private vectorStore: ApiServerOptions['vectorStore'] | undefined;
   private embeddingProvider: ApiServerOptions['embeddingProvider'] | undefined;
   private gitignoreFilter: GitignoreFilter | undefined;
+  private readonly version: string;
 
   /** Create a new JeevesWatcher instance. */
   constructor(
@@ -79,6 +80,11 @@ export class JeevesWatcher {
     this.factories = { ...defaultFactories, ...factories };
     this.runtimeOptions = runtimeOptions;
     this.virtualRuleStore = new VirtualRuleStore();
+    try {
+      this.version = (require('../../package.json') as { version: string }).version;
+    } catch {
+      this.version = 'unknown';
+    }
   }
 
   /**
@@ -208,6 +214,7 @@ export class JeevesWatcher {
       helperIntrospection: this.helperIntrospection,
       virtualRuleStore: this.virtualRuleStore,
       gitignoreFilter: this.gitignoreFilter,
+      version: this.version,
     });
 
     await server.listen({
