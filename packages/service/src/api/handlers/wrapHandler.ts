@@ -35,9 +35,13 @@ export function wrapHandler<T extends RouteGenericInterface>(
         void reply.send(result);
       }
     } catch (error) {
-      logger.error({ err: normalizeError(error) }, `${label} failed`);
+      const normalized = normalizeError(error);
+      logger.error({ err: normalized }, `${label} failed`);
       if (!reply.sent) {
-        void reply.status(500).send({ error: 'Internal server error' });
+        void reply.status(500).send({
+          error: normalized.constructor.name,
+          message: normalized.message || 'Internal server error',
+        });
       }
     }
   };

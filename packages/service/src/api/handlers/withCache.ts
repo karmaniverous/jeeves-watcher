@@ -54,13 +54,23 @@ export function withCache<
     const entry = cache.get(key);
 
     if (entry && entry.expiresAt > now) {
+      void fReply.send(entry.value);
       return entry.value as TRet;
     }
 
-    // Cache miss - call handler
+    // Cache miss — intercept reply.send() to capture the response payload.
+    // wrapHandler calls reply.send(data) as a side effect and returns void,
+    // so we cannot rely on the handler return value for caching.
+    let capturedPayload: unknown;
+    const originalSend = fReply.send.bind(fReply);
+    fReply.send = (payload?: unknown) => {
+      capturedPayload = payload;
+      return originalSend(payload);
+    };
+
     const result = await handler(req, reply);
 
-    // Don't cache errors (Fastify reply properties might indicate error)
+    // Don't cache errors
     if (fReply.statusCode >= 400) {
       return result;
     }
@@ -71,11 +81,13 @@ export function withCache<
       return result;
     }
 
-    // Store in cache
-    cache.set(key, {
-      value: result,
-      expiresAt: now + ttlMs,
-    });
+    // Store captured payload in cache
+    if (capturedPayload !== undefined) {
+      cache.set(key, {
+        value: capturedPayload,
+        expiresAt: now + ttlMs,
+      });
+    }
 
     return result;
   };
