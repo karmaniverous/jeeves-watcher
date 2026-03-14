@@ -83,6 +83,7 @@ export class FileSystemWatcher {
     // filter emitted events against the original globs via picomatch.
     const { roots, matches } = resolveWatchPaths(this.config.paths);
     this.globMatches = matches;
+    this.logger.info({ roots }, 'Resolved watch roots from globs');
 
     // Chokidar v5's inline anymatch does exact string equality for string
     // matchers, breaking glob-based ignored patterns. Convert to picomatch
@@ -90,6 +91,29 @@ export class FileSystemWatcher {
     const ignored = this.config.ignored
       ? resolveIgnored(this.config.ignored)
       : undefined;
+
+    // Track initial scan statistics per root for diagnostics.
+    const scanStats = {
+      total: 0,
+      matched: 0,
+      globRejected: 0,
+      gitignored: 0,
+      byRoot: Object.fromEntries(roots.map((r) => [r, 0])) as Record<
+        string,
+        number
+      >,
+    };
+    let initialScanComplete = false;
+
+    const classifyByRoot = (path: string): void => {
+      const normalized = path.replace(/\\/g, '/').toLowerCase();
+      for (const root of roots) {
+        if (normalized.startsWith(root + '/') || normalized === root) {
+          scanStats.byRoot[root] = (scanStats.byRoot[root] ?? 0) + 1;
+          break;
+        }
+      }
+    };
 
     this.watcher = chokidar.watch(roots, {
       ignored,
@@ -102,9 +126,21 @@ export class FileSystemWatcher {
     });
 
     this.watcher.on('add', (path: string) => {
+      if (!initialScanComplete) {
+        scanStats.total++;
+        classifyByRoot(path);
+      }
       this.handleGitignoreChange(path);
-      if (!this.globMatches(path)) return;
-      if (this.isGitignored(path)) return;
+      if (!this.globMatches(path)) {
+        if (!initialScanComplete) scanStats.globRejected++;
+        else this.logger.debug({ path }, 'File rejected by glob filter');
+        return;
+      }
+      if (this.isGitignored(path)) {
+        if (!initialScanComplete) scanStats.gitignored++;
+        return;
+      }
+      if (!initialScanComplete) scanStats.matched++;
       this.logger.debug({ path }, 'File added');
       this.queue.enqueue({ type: 'create', path, priority: 'normal' }, () =>
         this.wrapProcessing(() => this.processor.processFile(path)),
@@ -113,7 +149,10 @@ export class FileSystemWatcher {
 
     this.watcher.on('change', (path: string) => {
       this.handleGitignoreChange(path);
-      if (!this.globMatches(path)) return;
+      if (!this.globMatches(path)) {
+        this.logger.debug({ path }, 'File rejected by glob filter');
+        return;
+      }
       if (this.isGitignored(path)) return;
       this.logger.debug({ path }, 'File changed');
       this.queue.enqueue({ type: 'modify', path, priority: 'normal' }, () =>
@@ -128,6 +167,14 @@ export class FileSystemWatcher {
       this.logger.debug({ path }, 'File removed');
       this.queue.enqueue({ type: 'delete', path, priority: 'normal' }, () =>
         this.wrapProcessing(() => this.processor.deleteFile(path)),
+      );
+    });
+
+    this.watcher.on('ready', () => {
+      initialScanComplete = true;
+      this.logger.info(
+        { scanStats },
+        'Initial scan complete',
       );
     });
 
