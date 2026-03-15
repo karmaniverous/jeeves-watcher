@@ -48,8 +48,11 @@ import { createScanHandler } from './handlers/scan';
 import { createSearchHandler } from './handlers/search';
 import { createStatusHandler } from './handlers/status';
 import { withCache } from './handlers/withCache';
+import type { InitialScanTracker } from './InitialScanTracker';
 import { ReindexTracker } from './ReindexTracker';
 
+export type { InitialScanStatus } from './InitialScanTracker';
+export { InitialScanTracker } from './InitialScanTracker';
 export type { ReindexStatus } from './ReindexTracker';
 export { ReindexTracker } from './ReindexTracker';
 
@@ -85,6 +88,8 @@ export interface ApiServerOptions {
   gitignoreFilter?: GitignoreFilter;
   /** Service version string for /status endpoint. */
   version?: string;
+  /** Initial scan tracker for /status visibility. */
+  initialScanTracker?: InitialScanTracker;
 }
 
 /**
@@ -109,6 +114,7 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
     virtualRuleStore,
     gitignoreFilter,
     version,
+    initialScanTracker,
   } = options;
 
   const reindexTracker = options.reindexTracker ?? new ReindexTracker();
@@ -148,6 +154,7 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
         collectionName: config.vectorStore.collectionName,
         reindexTracker,
         version: version ?? 'unknown',
+        initialScanTracker,
       }),
     ),
   );

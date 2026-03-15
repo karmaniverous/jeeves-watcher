@@ -196,17 +196,17 @@ describe('executeReindex', () => {
 
     it('prune scope: returns plan without deleting points', async () => {
       const deleteFn = vi.fn();
-      async function* mockScroll() {
-        yield await Promise.resolve({
-          id: 'p1',
-          payload: { file_path: 'src/a.ts' },
-        });
-        yield { id: 'p2', payload: { file_path: 'outside/b.ts' } };
-        yield { id: 'p3', payload: { file_path: 'outside/c.ts' } };
-      }
+      const scrollPageFn = vi.fn().mockResolvedValueOnce({
+        points: [
+          { id: 'p1', payload: { file_path: 'src/a.ts' } },
+          { id: 'p2', payload: { file_path: 'outside/b.ts' } },
+          { id: 'p3', payload: { file_path: 'outside/c.ts' } },
+        ],
+        nextCursor: undefined,
+      });
       const { deps } = makeDeps({
         vectorStore: {
-          scroll: mockScroll,
+          scrollPage: scrollPageFn,
           delete: deleteFn,
         } as unknown as ExecuteReindexDeps['vectorStore'],
       });
@@ -221,22 +221,69 @@ describe('executeReindex', () => {
 
     it('prune scope: executes deletions when dryRun is false', async () => {
       const deleteFn = vi.fn().mockResolvedValue(undefined);
-      async function* mockScroll() {
-        yield await Promise.resolve({
-          id: 'p1',
-          payload: { file_path: 'src/a.ts' },
-        });
-        yield { id: 'p2', payload: { file_path: 'outside/b.ts' } };
-      }
+      const scrollPageFn = vi.fn().mockResolvedValueOnce({
+        points: [
+          { id: 'p1', payload: { file_path: 'src/a.ts' } },
+          { id: 'p2', payload: { file_path: 'outside/b.ts' } },
+        ],
+        nextCursor: undefined,
+      });
       const { deps } = makeDeps({
         vectorStore: {
-          scroll: mockScroll,
+          scrollPage: scrollPageFn,
           delete: deleteFn,
         } as unknown as ExecuteReindexDeps['vectorStore'],
       });
       const result = await executeReindex(deps, 'prune', undefined, false);
       expect(result.plan).toBeDefined();
       expect(deleteFn).toHaveBeenCalled();
+    });
+
+    it('prune scope: retries on scroll failure and resumes', async () => {
+      const deleteFn = vi.fn().mockResolvedValue(undefined);
+      const scrollPageFn = vi
+        .fn()
+        .mockResolvedValueOnce({
+          points: [{ id: 'p1', payload: { file_path: 'src/a.ts' } }],
+          nextCursor: 'cursor-1',
+        })
+        .mockRejectedValueOnce(new TypeError('fetch failed'))
+        .mockResolvedValueOnce({
+          points: [{ id: 'p2', payload: { file_path: 'outside/b.ts' } }],
+          nextCursor: undefined,
+        });
+      const { deps } = makeDeps({
+        vectorStore: {
+          scrollPage: scrollPageFn,
+          delete: deleteFn,
+        } as unknown as ExecuteReindexDeps['vectorStore'],
+      });
+      const result = await executeReindex(deps, 'prune', undefined, true);
+      expect(result.plan).toBeDefined();
+      expect(result.plan!.total).toBe(2);
+      expect(result.plan!.incomplete).toBeUndefined();
+      // scrollPage called 3 times: page 1 ok, page 2 fail, page 2 retry ok
+      expect(scrollPageFn).toHaveBeenCalledTimes(3);
+    });
+
+    it('prune scope: returns incomplete plan when all retries exhausted', async () => {
+      const scrollPageFn = vi
+        .fn()
+        .mockResolvedValueOnce({
+          points: [{ id: 'p1', payload: { file_path: 'src/a.ts' } }],
+          nextCursor: 'cursor-1',
+        })
+        .mockRejectedValue(new TypeError('fetch failed'));
+      const { deps } = makeDeps({
+        vectorStore: {
+          scrollPage: scrollPageFn,
+          delete: vi.fn(),
+        } as unknown as ExecuteReindexDeps['vectorStore'],
+      });
+      const result = await executeReindex(deps, 'prune', undefined, true);
+      expect(result.plan).toBeDefined();
+      expect(result.plan!.total).toBe(1);
+      expect(result.plan!.incomplete).toBe(true);
     });
   });
 });
