@@ -3,6 +3,26 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { executeReindex, type ExecuteReindexDeps } from './executeReindex';
 
+// Mock fileScan module to intercept listFilesFromGlobs and listFilesFromWatchRoots
+vi.mock('./fileScan', async (importOriginal) => {
+  const original = await importOriginal<object>();
+  return {
+    ...original,
+    listFilesFromGlobs: vi.fn().mockResolvedValue([]),
+    listFilesFromWatchRoots: vi.fn().mockResolvedValue([]),
+  };
+});
+
+// Mock processAllFiles
+vi.mock('./processAllFiles', () => ({
+  processAllFiles: vi.fn().mockResolvedValue(0),
+}));
+
+import { listFilesFromGlobs, listFilesFromWatchRoots } from './fileScan';
+
+const listFilesFromGlobsMock = vi.mocked(listFilesFromGlobs);
+const listFilesFromWatchRootsMock = vi.mocked(listFilesFromWatchRoots);
+
 interface MockRefs {
   trackerStart: ReturnType<typeof vi.fn>;
   trackerComplete: ReturnType<typeof vi.fn>;
@@ -141,6 +161,26 @@ describe('executeReindex', () => {
     });
     const result = await executeReindex(deps, 'issues');
     expect(result.durationMs).toBeGreaterThanOrEqual(0);
+  });
+
+  it('scope rules with path array calls listFilesFromWatchRoots', async () => {
+    listFilesFromWatchRootsMock.mockResolvedValue(['file1.ts', 'file2.ts']);
+    listFilesFromGlobsMock.mockClear();
+    listFilesFromWatchRootsMock.mockClear();
+
+    // Re-mock to return files for this test
+    listFilesFromWatchRootsMock.mockResolvedValue(['file1.ts', 'file2.ts']);
+
+    const { deps } = makeDeps();
+    await executeReindex(deps, 'rules', ['**/.meta/**']);
+
+    expect(listFilesFromWatchRootsMock).toHaveBeenCalledWith(
+      deps.config.watch.paths,
+      deps.config.watch.ignored,
+      ['**/.meta/**'],
+      undefined,
+    );
+    expect(listFilesFromGlobsMock).not.toHaveBeenCalled();
   });
 
   describe('dryRun', () => {
