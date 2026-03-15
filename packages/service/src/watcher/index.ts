@@ -5,6 +5,7 @@
 import chokidar, { type FSWatcher } from 'chokidar';
 import type pino from 'pino';
 
+import type { InitialScanTracker } from '../api/InitialScanTracker';
 import type { WatchConfig } from '../config/types';
 import type { GitignoreFilter } from '../gitignore';
 import { SystemHealth, type SystemHealthOptions } from '../health';
@@ -25,6 +26,8 @@ export interface FileSystemWatcherOptions {
   onFatalError?: (error: unknown) => void;
   /** Optional gitignore filter for processor-level filtering. */
   gitignoreFilter?: GitignoreFilter;
+  /** Optional tracker for initial scan visibility in /status. */
+  initialScanTracker?: InitialScanTracker;
 }
 
 /**
@@ -37,6 +40,7 @@ export class FileSystemWatcher {
   private readonly logger: pino.Logger;
   private readonly health: SystemHealth;
   private readonly gitignoreFilter?: GitignoreFilter;
+  private readonly initialScanTracker?: InitialScanTracker;
   private globMatches: (filePath: string) => boolean;
   private watcher: FSWatcher | undefined;
 
@@ -62,6 +66,7 @@ export class FileSystemWatcher {
     this.logger = logger;
 
     this.gitignoreFilter = options.gitignoreFilter;
+    this.initialScanTracker = options.initialScanTracker;
     this.globMatches = () => true;
 
     const healthOptions: SystemHealthOptions = {
@@ -104,6 +109,7 @@ export class FileSystemWatcher {
       >,
     };
     let initialScanComplete = false;
+    this.initialScanTracker?.start();
 
     const classifyByRoot = (path: string): void => {
       const normalized = path.replace(/\\/g, '/').toLowerCase();
@@ -140,7 +146,11 @@ export class FileSystemWatcher {
         if (!initialScanComplete) scanStats.gitignored++;
         return;
       }
-      if (!initialScanComplete) scanStats.matched++;
+      if (!initialScanComplete) {
+        scanStats.matched++;
+        this.initialScanTracker?.setMatched(scanStats.matched);
+        this.initialScanTracker?.incrementEnqueued();
+      }
       this.logger.debug({ path }, 'File added');
       this.queue.enqueue({ type: 'create', path, priority: 'normal' }, () =>
         this.wrapProcessing(() => this.processor.processFile(path)),
@@ -172,6 +182,7 @@ export class FileSystemWatcher {
 
     this.watcher.on('ready', () => {
       initialScanComplete = true;
+      this.initialScanTracker?.complete();
       this.logger.info({ scanStats }, 'Initial scan complete');
     });
 

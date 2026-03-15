@@ -16,7 +16,7 @@ import { isPathWatched } from '../util/isPathWatched';
 import { normalizeError } from '../util/normalizeError';
 import { retry } from '../util/retry';
 import type { ValuesManager } from '../values';
-import type { VectorStoreClient } from '../vectorStore';
+import type { ScrolledPoint, VectorStoreClient } from '../vectorStore';
 import { listFilesFromGlobs } from './fileScan';
 import { processAllFiles } from './processAllFiles';
 import type { ReindexTracker } from './ReindexTracker';
@@ -65,6 +65,8 @@ export interface ReindexPlan {
   toDelete: number;
   /** Counts grouped by watch root path. */
   byRoot: Record<string, number>;
+  /** True when scroll was interrupted and results are partial. */
+  incomplete?: boolean;
 }
 
 /** Result of a reindex execution. */
@@ -134,15 +136,63 @@ function groupByRoot(
   return byRoot;
 }
 
+/** Default page size for prune scroll (smaller than search to reduce connection strain). */
+const PRUNE_SCROLL_PAGE_SIZE = 500;
+
+/** Max retry attempts for scroll page failures. */
+const SCROLL_RETRY_ATTEMPTS = 3;
+
+/** Base delay for scroll retry backoff (ms). */
+const SCROLL_RETRY_BASE_DELAY_MS = 1000;
+
+/**
+ * Scroll one page with retry/resume on connection failure.
+ * On failure, retries with exponential backoff from the same cursor.
+ */
+async function scrollPageWithRetry(
+  vectorStore: VectorStoreClient,
+  cursor: string | number | undefined,
+  logger: pino.Logger,
+): Promise<{ points: ScrolledPoint[]; nextCursor?: string | number }> {
+  let lastError: unknown;
+
+  for (let attempt = 1; attempt <= SCROLL_RETRY_ATTEMPTS; attempt++) {
+    try {
+      const page = await vectorStore.scrollPage(
+        undefined,
+        PRUNE_SCROLL_PAGE_SIZE,
+        cursor,
+        ['file_path'],
+      );
+      return { points: page.points, nextCursor: page.nextCursor };
+    } catch (error) {
+      lastError = error;
+      if (attempt < SCROLL_RETRY_ATTEMPTS) {
+        const delay =
+          SCROLL_RETRY_BASE_DELAY_MS * Math.pow(2, attempt - 1) +
+          Math.random() * 500;
+        logger.warn(
+          { attempt, err: normalizeError(error) },
+          `Prune scroll page failed; retrying in ${String(Math.round(delay))}ms`,
+        );
+        await new Promise((resolve) => setTimeout(resolve, delay));
+      }
+    }
+  }
+
+  throw lastError;
+}
+
 /**
  * Compute the plan for a prune operation.
- * Scrolls all Qdrant points, checks each file_path against watch scope + gitignore,
+ * Scrolls all Qdrant points page-by-page with retry/resume,
+ * checks each file_path against watch scope + gitignore,
  * returns the list of orphaned point IDs and the plan.
  */
 async function computePrunePlan(
   deps: ExecuteReindexDeps,
 ): Promise<{ plan: ReindexPlan; orphanedIds: string[] }> {
-  const { config, vectorStore, gitignoreFilter } = deps;
+  const { config, vectorStore, gitignoreFilter, logger } = deps;
 
   if (!vectorStore) {
     throw new Error('vectorStore is required for prune scope');
@@ -152,38 +202,57 @@ async function computePrunePlan(
   const orphanedFiles = new Set<string>();
   const orphanedIds: string[] = [];
   let totalPoints = 0;
+  let incomplete = false;
 
-  for await (const point of vectorStore.scroll(undefined, 1000)) {
-    totalPoints++;
-    const filePath = point.payload.file_path as string | undefined;
-    if (!filePath) {
-      orphanedIds.push(point.id);
-      continue;
-    }
+  let cursor: string | number | undefined;
 
-    if (seenFiles.has(filePath)) {
-      // Already classified this file
-      if (orphanedFiles.has(filePath)) {
-        orphanedIds.push(point.id);
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- cursor is updated each iteration
+    while (true) {
+      const page = await scrollPageWithRetry(vectorStore, cursor, logger);
+
+      for (const point of page.points) {
+        totalPoints++;
+        const filePath = point.payload.file_path as string | undefined;
+        if (!filePath) {
+          orphanedIds.push(point.id);
+          continue;
+        }
+
+        if (seenFiles.has(filePath)) {
+          if (orphanedFiles.has(filePath)) {
+            orphanedIds.push(point.id);
+          }
+          continue;
+        }
+
+        seenFiles.add(filePath);
+
+        const watched = isPathWatched(
+          filePath,
+          config.watch.paths,
+          config.watch.ignored,
+        );
+        const gitignored = gitignoreFilter
+          ? gitignoreFilter.isIgnored(filePath)
+          : false;
+
+        if (!watched || gitignored) {
+          orphanedFiles.add(filePath);
+          orphanedIds.push(point.id);
+        }
       }
-      continue;
+
+      if (!page.nextCursor) break;
+      cursor = page.nextCursor;
     }
-
-    seenFiles.add(filePath);
-
-    const watched = isPathWatched(
-      filePath,
-      config.watch.paths,
-      config.watch.ignored,
+  } catch (error) {
+    // All retries exhausted — return partial results
+    logger.error(
+      { err: normalizeError(error), totalPoints, cursor },
+      'Prune scroll failed after retries; returning partial plan',
     );
-    const gitignored = gitignoreFilter
-      ? gitignoreFilter.isIgnored(filePath)
-      : false;
-
-    if (!watched || gitignored) {
-      orphanedFiles.add(filePath);
-      orphanedIds.push(point.id);
-    }
+    incomplete = true;
   }
 
   const orphanedFileList = [...orphanedFiles];
@@ -195,6 +264,7 @@ async function computePrunePlan(
       toProcess: 0,
       toDelete: orphanedIds.length,
       byRoot,
+      ...(incomplete ? { incomplete: true } : {}),
     },
     orphanedIds,
   };

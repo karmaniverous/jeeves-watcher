@@ -8,6 +8,7 @@ import { dirname } from 'node:path';
 import type { JsonMapMap } from '@karmaniverous/jsonmap';
 import type pino from 'pino';
 
+import type { InitialScanTracker } from '../api/InitialScanTracker';
 import type { JeevesWatcherConfig } from '../config/types';
 import { GitignoreFilter } from '../gitignore';
 import { type AllHelpersIntrospection, introspectAllHelpers } from '../helpers';
@@ -130,6 +131,7 @@ export function createWatcher(
     maxBackoffMs?: number;
     onFatalError?: (error: unknown) => void;
   },
+  initialScanTracker?: InitialScanTracker,
 ): { watcher: FileSystemWatcher; gitignoreFilter?: GitignoreFilter } {
   const respectGitignore = config.watch.respectGitignore ?? true;
   const gitignoreFilter = respectGitignore
@@ -146,6 +148,7 @@ export function createWatcher(
       maxBackoffMs: config.maxBackoffMs ?? runtimeOptions.maxBackoffMs,
       onFatalError: runtimeOptions.onFatalError,
       gitignoreFilter,
+      initialScanTracker,
     },
   );
 

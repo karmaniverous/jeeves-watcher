@@ -4,6 +4,7 @@
  */
 
 import type { VectorStore } from '../../vectorStore';
+import type { InitialScanTracker } from '../InitialScanTracker';
 import type { ReindexTracker } from '../ReindexTracker';
 
 /** Dependencies for the status route handler. */
@@ -16,6 +17,8 @@ export interface StatusRouteDeps {
   reindexTracker: ReindexTracker;
   /** Service version string. */
   version: string;
+  /** Initial scan tracker (optional). */
+  initialScanTracker?: InitialScanTracker;
 }
 
 /**
@@ -36,6 +39,9 @@ export function createStatusHandler(deps: StatusRouteDeps) {
         dimensions: collectionInfo.dimensions,
       },
       reindex: deps.reindexTracker.getStatus(),
+      ...(deps.initialScanTracker
+        ? { initialScan: deps.initialScanTracker.getStatus() }
+        : {}),
     };
   };
 }
