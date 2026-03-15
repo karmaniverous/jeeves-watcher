@@ -20,7 +20,11 @@ import { compileRules } from '../rules';
 import type { VirtualRuleStore } from '../rules/virtualRules';
 import type { ValuesManager } from '../values';
 import type { VectorStoreClient } from '../vectorStore';
-import { executeReindex, type ReindexScope } from './executeReindex';
+import {
+  CONFIG_WATCH_VALID_SCOPES,
+  executeReindex,
+  type ReindexScope,
+} from './executeReindex';
 import { createConfigApplyHandler } from './handlers/configApply';
 import { createConfigMatchHandler } from './handlers/configMatch';
 import { createConfigQueryHandler } from './handlers/configQuery';
@@ -111,6 +115,13 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
   const app = Fastify({ logger: false });
 
   const triggerReindex = (scope: ReindexScope) => {
+    if (!CONFIG_WATCH_VALID_SCOPES.includes(scope)) {
+      logger.warn(
+        { scope },
+        `Scope "${scope}" is not valid for config-watch auto-trigger; ignoring.`,
+      );
+      return;
+    }
     void executeReindex(
       {
         config,
@@ -120,6 +131,7 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
         valuesManager,
         issuesManager,
         gitignoreFilter,
+        vectorStore,
       },
       scope,
     );
@@ -213,6 +225,7 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
       valuesManager,
       issuesManager,
       gitignoreFilter,
+      vectorStore,
     }),
   );
 

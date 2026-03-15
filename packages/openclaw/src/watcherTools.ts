@@ -194,14 +194,19 @@ export function registerWatcherTools(api: PluginApi, baseUrl: string): void {
         properties: {
           scope: {
             type: 'string',
-            enum: ['rules', 'full', 'issues', 'path'],
+            enum: ['rules', 'full', 'issues', 'path', 'prune'],
             description:
-              'Reindex scope: "rules" (default) re-applies inference rules; "full" re-embeds everything; "issues" re-processes files with errors; "path" reindexes a specific file or directory (requires path parameter).',
+              'Reindex scope: "rules" (default) re-applies inference rules; "full" re-embeds everything; "issues" re-processes files with errors; "path" reindexes a specific file or directory (requires path parameter); "prune" deletes points for files no longer in watch scope.',
           },
           path: {
             type: 'string',
             description:
               'Target file or directory path (required when scope is "path").',
+          },
+          dryRun: {
+            type: 'boolean',
+            description:
+              'When true, compute and return the blast area plan without executing. Returns counts by root showing impact.',
           },
         },
       },
@@ -210,6 +215,7 @@ export function registerWatcherTools(api: PluginApi, baseUrl: string): void {
         {
           scope: params.scope ?? 'rules',
           ...(params.path ? { path: params.path } : {}),
+          ...(params.dryRun ? { dryRun: true } : {}),
         },
       ],
     },

@@ -16,12 +16,13 @@ import { isPathWatched } from '../util/isPathWatched';
 import { normalizeError } from '../util/normalizeError';
 import { retry } from '../util/retry';
 import type { ValuesManager } from '../values';
+import type { VectorStoreClient } from '../vectorStore';
 import { listFilesFromGlobs } from './fileScan';
 import { processAllFiles } from './processAllFiles';
 import type { ReindexTracker } from './ReindexTracker';
 
 /** Valid reindex scopes. */
-export type ReindexScope = 'issues' | 'full' | 'rules' | 'path';
+export type ReindexScope = 'issues' | 'full' | 'rules' | 'path' | 'prune';
 
 /** Ordered list of valid reindex scopes for validation. */
 export const VALID_REINDEX_SCOPES: readonly ReindexScope[] = [
@@ -29,6 +30,17 @@ export const VALID_REINDEX_SCOPES: readonly ReindexScope[] = [
   'full',
   'rules',
   'path',
+  'prune',
+] as const;
+
+/**
+ * Valid scopes for config-watch auto-trigger.
+ * `prune` is excluded — auto-pruning on config change is dangerous.
+ */
+export const CONFIG_WATCH_VALID_SCOPES: readonly ReindexScope[] = [
+  'issues',
+  'full',
+  'rules',
 ] as const;
 
 /** Dependencies for executeReindex. */
@@ -40,6 +52,19 @@ export interface ExecuteReindexDeps {
   valuesManager?: ValuesManager;
   issuesManager?: { getAll: () => Record<string, unknown> };
   gitignoreFilter?: GitignoreFilter;
+  vectorStore?: VectorStoreClient;
+}
+
+/** Blast area plan showing impact of a reindex operation. */
+export interface ReindexPlan {
+  /** Total points (prune) or files (other scopes) examined. */
+  total: number;
+  /** Number of items to process (embed/re-apply rules). */
+  toProcess: number;
+  /** Number of points to delete (prune only, 0 for others). */
+  toDelete: number;
+  /** Counts grouped by watch root path. */
+  byRoot: Record<string, number>;
 }
 
 /** Result of a reindex execution. */
@@ -47,6 +72,7 @@ export interface ExecuteReindexResult {
   filesProcessed: number;
   durationMs: number;
   errors: number;
+  plan?: ReindexPlan;
 }
 
 /** Fire reindex callback with exponential backoff retry. */
@@ -81,17 +107,113 @@ async function fireCallback(
 }
 
 /**
+ * Group file paths by their watch root prefix.
+ * Each file is matched against `watchPaths` and grouped under the first matching root.
+ * Files that don't match any root are grouped under `'(unmatched)'`.
+ */
+function groupByRoot(
+  filePaths: string[],
+  watchPaths: string[],
+): Record<string, number> {
+  const byRoot: Record<string, number> = {};
+  for (const fp of filePaths) {
+    const normalised = fp.replace(/\\/g, '/');
+    let matched = false;
+    for (const root of watchPaths) {
+      const rootNorm = root.replace(/\\/g, '/').replace(/\/?\*\*.*$/, '');
+      if (normalised.startsWith(rootNorm)) {
+        byRoot[rootNorm] = (byRoot[rootNorm] ?? 0) + 1;
+        matched = true;
+        break;
+      }
+    }
+    if (!matched) {
+      byRoot['(unmatched)'] = (byRoot['(unmatched)'] ?? 0) + 1;
+    }
+  }
+  return byRoot;
+}
+
+/**
+ * Compute the plan for a prune operation.
+ * Scrolls all Qdrant points, checks each file_path against watch scope + gitignore,
+ * returns the list of orphaned point IDs and the plan.
+ */
+async function computePrunePlan(
+  deps: ExecuteReindexDeps,
+): Promise<{ plan: ReindexPlan; orphanedIds: string[] }> {
+  const { config, vectorStore, gitignoreFilter } = deps;
+
+  if (!vectorStore) {
+    throw new Error('vectorStore is required for prune scope');
+  }
+
+  const seenFiles = new Set<string>();
+  const orphanedFiles = new Set<string>();
+  const orphanedIds: string[] = [];
+  let totalPoints = 0;
+
+  for await (const point of vectorStore.scroll(undefined, 1000)) {
+    totalPoints++;
+    const filePath = point.payload.file_path as string | undefined;
+    if (!filePath) {
+      orphanedIds.push(point.id);
+      continue;
+    }
+
+    if (seenFiles.has(filePath)) {
+      // Already classified this file
+      if (orphanedFiles.has(filePath)) {
+        orphanedIds.push(point.id);
+      }
+      continue;
+    }
+
+    seenFiles.add(filePath);
+
+    const watched = isPathWatched(
+      filePath,
+      config.watch.paths,
+      config.watch.ignored,
+    );
+    const gitignored = gitignoreFilter
+      ? gitignoreFilter.isIgnored(filePath)
+      : false;
+
+    if (!watched || gitignored) {
+      orphanedFiles.add(filePath);
+      orphanedIds.push(point.id);
+    }
+  }
+
+  const orphanedFileList = [...orphanedFiles];
+  const byRoot = groupByRoot(orphanedFileList, config.watch.paths);
+
+  return {
+    plan: {
+      total: totalPoints,
+      toProcess: 0,
+      toDelete: orphanedIds.length,
+      byRoot,
+    },
+    orphanedIds,
+  };
+}
+
+/**
  * Execute a reindex operation: process files, track progress, and fire callback if configured.
  *
  * @param deps - Dependencies.
- * @param scope - Reindex scope: 'issues', 'full', 'rules', or 'path'.
+ * @param scope - Reindex scope: 'issues', 'full', 'rules', 'path', or 'prune'.
  * @param path - Target path (required when scope is 'path').
- * @returns The reindex result.
+ * @param dryRun - When true, compute and return the plan without executing.
+ * @returns The reindex result including the blast area plan.
  */
 export async function executeReindex(
   deps: ExecuteReindexDeps,
   scope: ReindexScope,
   path?: string,
+  dryRun: boolean = false,
 ): Promise<ExecuteReindexResult> {
   const {
     config,
@@ -115,6 +237,129 @@ export async function executeReindex(
     throw new Error('The "path" parameter is required when scope is "path".');
   }
 
+  if (scope === 'prune' && !deps.vectorStore) {
+    throw new Error('vectorStore is required for prune scope.');
+  }
+
+  // Compute plan before starting async work
+  let plan: ReindexPlan | undefined;
+
+  if (scope === 'prune') {
+    const pruneResult = await computePrunePlan(deps);
+    plan = pruneResult.plan;
+
+    if (dryRun) {
+      return { filesProcessed: 0, durationMs: 0, errors: 0, plan };
+    }
+
+    // Execute prune
+    reindexTracker?.start(scope);
+    const startTime = Date.now();
+
+    try {
+      if (pruneResult.orphanedIds.length > 0) {
+        const batchSize = 500;
+        for (let i = 0; i < pruneResult.orphanedIds.length; i += batchSize) {
+          const batch = pruneResult.orphanedIds.slice(i, i + batchSize);
+          await deps.vectorStore!.delete(batch);
+        }
+      }
+
+      const durationMs = Date.now() - startTime;
+      logger.info(
+        { scope, pointsDeleted: pruneResult.orphanedIds.length, durationMs },
+        `Reindex (prune) completed`,
+      );
+
+      reindexTracker?.complete();
+
+      if (config.reindex?.callbackUrl) {
+        await fireCallback(
+          config.reindex.callbackUrl,
+          {
+            scope,
+            filesProcessed: 0,
+            durationMs,
+            pointsDeleted: pruneResult.orphanedIds.length,
+            errors: [],
+          },
+          logger,
+        );
+      }
+
+      return {
+        filesProcessed: 0,
+        durationMs,
+        errors: 0,
+        plan,
+      };
+    } catch (error) {
+      const durationMs = Date.now() - startTime;
+      logger.error({ err: normalizeError(error), scope }, 'Prune failed');
+      reindexTracker?.complete();
+
+      if (config.reindex?.callbackUrl) {
+        await fireCallback(
+          config.reindex.callbackUrl,
+          {
+            scope,
+            filesProcessed: 0,
+            durationMs,
+            errors: [normalizeError(error).message],
+          },
+          logger,
+        );
+      }
+
+      return { filesProcessed: 0, durationMs, errors: 1, plan };
+    }
+  }
+
+  // Non-prune scopes: compute plan from file lists
+  let fileList: string[] | undefined;
+
+  if (scope === 'issues' && deps.issuesManager) {
+    const issues = deps.issuesManager.getAll();
+    fileList = Object.keys(issues);
+  } else if (scope === 'path' && path) {
+    // Path plan computed inside executePathReindex — skip pre-computation for now
+    fileList = undefined;
+  } else {
+    // rules or full: list files from globs
+    fileList = await listFilesFromGlobs(
+      config.watch.paths,
+      config.watch.ignored,
+      isGitignored,
+    );
+  }
+
+  if (fileList !== undefined) {
+    plan = {
+      total: fileList.length,
+      toProcess: fileList.length,
+      toDelete: 0,
+      byRoot: groupByRoot(fileList, config.watch.paths),
+    };
+  }
+
+  if (dryRun) {
+    // For path scope without pre-computed plan, compute it now
+    if (plan === undefined && scope === 'path' && path) {
+      const pathFiles = await getPathFileList(
+        path,
+        config,
+        deps.gitignoreFilter,
+      );
+      plan = {
+        total: pathFiles.length,
+        toProcess: pathFiles.length,
+        toDelete: 0,
+        byRoot: groupByRoot(pathFiles, config.watch.paths),
+      };
+    }
+    return { filesProcessed: 0, durationMs: 0, errors: 0, plan };
+  }
+
   reindexTracker?.start(scope);
 
   const startTime = Date.now();
@@ -127,10 +372,8 @@ export async function executeReindex(
       valuesManager.clearAll();
     }
 
-    if (scope === 'issues' && deps.issuesManager) {
-      const issues = deps.issuesManager.getAll();
-      const issuePaths = Object.keys(issues);
-      await parallel(concurrency, issuePaths, async (filePath) => {
+    if (scope === 'issues' && fileList) {
+      await parallel(concurrency, fileList, async (filePath) => {
         try {
           await processor.processFile(filePath);
           filesProcessed++;
@@ -154,9 +397,10 @@ export async function executeReindex(
           onFileProcessed: () => reindexTracker?.incrementProcessed(),
         },
         isGitignored,
+        fileList,
       );
     } else if (scope === 'path' && path) {
-      filesProcessed = await executePathReindex(
+      const pathResult = await executePathReindex(
         path,
         config,
         processor,
@@ -165,6 +409,10 @@ export async function executeReindex(
         concurrency,
         reindexTracker,
       );
+      filesProcessed = pathResult.filesProcessed;
+      if (!plan) {
+        plan = pathResult.plan;
+      }
     } else {
       // Full reindex
       filesProcessed = await processAllFiles(
@@ -178,6 +426,7 @@ export async function executeReindex(
           onFileProcessed: () => reindexTracker?.incrementProcessed(),
         },
         isGitignored,
+        fileList,
       );
     }
 
@@ -197,7 +446,7 @@ export async function executeReindex(
       );
     }
 
-    return { filesProcessed, durationMs, errors };
+    return { filesProcessed, durationMs, errors, plan };
   } catch (error) {
     errors = 1;
     const durationMs = Date.now() - startTime;
@@ -218,8 +467,53 @@ export async function executeReindex(
       );
     }
 
-    return { filesProcessed: 0, durationMs, errors };
+    return { filesProcessed: 0, durationMs, errors, plan };
   }
+}
+
+/**
+ * Get the file list for a path-scoped reindex (for plan computation).
+ */
+async function getPathFileList(
+  targetPath: string,
+  config: JeevesWatcherConfig,
+  gitignoreFilter: GitignoreFilter | undefined,
+): Promise<string[]> {
+  const watched = isPathWatched(
+    targetPath,
+    config.watch.paths,
+    config.watch.ignored,
+  );
+  if (!watched) {
+    throw new Error(`Path is outside watch scope: ${targetPath}`);
+  }
+  if (gitignoreFilter?.isIgnored(targetPath)) {
+    throw new Error(`Path is gitignored: ${targetPath}`);
+  }
+
+  const stats = await stat(targetPath);
+  if (stats.isFile()) return [targetPath];
+
+  if (stats.isDirectory()) {
+    const isGitignored = gitignoreFilter
+      ? (filePath: string) => gitignoreFilter.isIgnored(filePath)
+      : undefined;
+    const allWatchedFiles = await listFilesFromGlobs(
+      config.watch.paths,
+      config.watch.ignored,
+      isGitignored,
+    );
+    const targetAbsPath = resolve(targetPath);
+    return allWatchedFiles.filter((f) => resolve(f).startsWith(targetAbsPath));
+  }
+
+  throw new Error(`Path is neither a file nor a directory: ${targetPath}`);
+}
+
+/** Result of a path-scoped reindex. */
+interface PathReindexResult {
+  filesProcessed: number;
+  plan: ReindexPlan;
 }
 
 /**
@@ -234,67 +528,36 @@ async function executePathReindex(
   gitignoreFilter: GitignoreFilter | undefined,
   concurrency: number,
   reindexTracker: ReindexTracker | undefined,
-): Promise<number> {
-  // Validate path is within watch scope
-  const watched = isPathWatched(
+): Promise<PathReindexResult> {
+  const filesInScope = await getPathFileList(
     targetPath,
-    config.watch.paths,
-    config.watch.ignored,
+    config,
+    gitignoreFilter,
   );
-  if (!watched) {
-    throw new Error(`Path is outside watch scope: ${targetPath}`);
+
+  const plan: ReindexPlan = {
+    total: filesInScope.length,
+    toProcess: filesInScope.length,
+    toDelete: 0,
+    byRoot: groupByRoot(filesInScope, config.watch.paths),
+  };
+
+  if (filesInScope.length === 0) {
+    logger.info(
+      { targetPath },
+      'Path reindex: no matched files found in directory',
+    );
+    return { filesProcessed: 0, plan };
   }
 
-  // Check gitignore
-  if (gitignoreFilter?.isIgnored(targetPath)) {
-    throw new Error(`Path is gitignored: ${targetPath}`);
-  }
+  reindexTracker?.setTotal(filesInScope.length);
 
-  const stats = await stat(targetPath);
-
-  if (stats.isFile()) {
-    await processor.processFile(targetPath);
-    reindexTracker?.setTotal(1);
+  let processedCount = 0;
+  await parallel(concurrency, filesInScope, async (filePath) => {
+    await processor.processFile(filePath);
     reindexTracker?.incrementProcessed();
-    return 1;
-  }
+    processedCount++;
+  });
 
-  if (stats.isDirectory()) {
-    const isGitignored = gitignoreFilter
-      ? (filePath: string) => gitignoreFilter.isIgnored(filePath)
-      : undefined;
-
-    // List all files matching watch config, then filter to the target directory.
-    // This avoids brittle glob pattern parsing and reuses the existing file listing logic.
-    const allWatchedFiles = await listFilesFromGlobs(
-      config.watch.paths,
-      config.watch.ignored,
-      isGitignored,
-    );
-
-    const targetAbsPath = resolve(targetPath);
-    const filesInDir = allWatchedFiles.filter((f) =>
-      resolve(f).startsWith(targetAbsPath),
-    );
-
-    if (filesInDir.length === 0) {
-      logger.info(
-        { targetPath },
-        'Path reindex: no matched files found in directory',
-      );
-      return 0;
-    }
-
-    reindexTracker?.setTotal(filesInDir.length);
-
-    let processedCount = 0;
-    await parallel(concurrency, filesInDir, async (filePath) => {
-      await processor.processFile(filePath);
-      reindexTracker?.incrementProcessed();
-      processedCount++;
-    });
-
-    return processedCount;
-  }
-  throw new Error(`Path is neither a file nor a directory: ${targetPath}`);
+  return { filesProcessed: processedCount, plan };
 }

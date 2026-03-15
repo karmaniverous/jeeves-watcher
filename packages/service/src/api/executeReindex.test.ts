@@ -142,4 +142,101 @@ describe('executeReindex', () => {
     const result = await executeReindex(deps, 'issues');
     expect(result.durationMs).toBeGreaterThanOrEqual(0);
   });
+
+  describe('dryRun', () => {
+    it('issues scope: returns plan without processing', async () => {
+      const { deps, mocks } = makeDeps({
+        issuesManager: {
+          getAll: () => ({
+            'a.txt': { type: 'err' },
+            'b.txt': { type: 'err' },
+          }),
+        },
+      });
+      const result = await executeReindex(deps, 'issues', undefined, true);
+      expect(result.filesProcessed).toBe(0);
+      expect(result.durationMs).toBe(0);
+      expect(result.plan).toBeDefined();
+      expect(result.plan!.total).toBe(2);
+      expect(result.plan!.toProcess).toBe(2);
+      expect(result.plan!.toDelete).toBe(0);
+      expect(mocks.processFile).not.toHaveBeenCalled();
+    });
+
+    it('full scope: returns plan without clearing valuesManager', async () => {
+      const { deps, mocks } = makeDeps();
+      const result = await executeReindex(deps, 'full', undefined, true);
+      expect(result.filesProcessed).toBe(0);
+      expect(result.durationMs).toBe(0);
+      expect(result.plan).toBeDefined();
+      expect(result.plan!.toDelete).toBe(0);
+      expect(mocks.clearAll).not.toHaveBeenCalled();
+      expect(mocks.processFile).not.toHaveBeenCalled();
+      expect(mocks.trackerStart).not.toHaveBeenCalled();
+    });
+
+    it('rules scope: returns plan without calling processRulesUpdate', async () => {
+      const processRulesUpdate = vi.fn();
+      const { deps } = makeDeps({
+        processor: {
+          processFile: vi.fn(),
+          deleteFile: vi.fn(),
+          processMetadataUpdate: vi.fn(),
+          processRulesUpdate,
+          updateRules: vi.fn(),
+          renderFile: vi.fn(),
+        },
+      });
+      const result = await executeReindex(deps, 'rules', undefined, true);
+      expect(result.filesProcessed).toBe(0);
+      expect(result.durationMs).toBe(0);
+      expect(result.plan).toBeDefined();
+      expect(processRulesUpdate).not.toHaveBeenCalled();
+    });
+
+    it('prune scope: returns plan without deleting points', async () => {
+      const deleteFn = vi.fn();
+      async function* mockScroll() {
+        yield await Promise.resolve({
+          id: 'p1',
+          payload: { file_path: 'src/a.ts' },
+        });
+        yield { id: 'p2', payload: { file_path: 'outside/b.ts' } };
+        yield { id: 'p3', payload: { file_path: 'outside/c.ts' } };
+      }
+      const { deps } = makeDeps({
+        vectorStore: {
+          scroll: mockScroll,
+          delete: deleteFn,
+        } as unknown as ExecuteReindexDeps['vectorStore'],
+      });
+      const result = await executeReindex(deps, 'prune', undefined, true);
+      expect(result.filesProcessed).toBe(0);
+      expect(result.durationMs).toBe(0);
+      expect(result.plan).toBeDefined();
+      expect(result.plan!.toDelete).toBeGreaterThan(0);
+      expect(result.plan!.toProcess).toBe(0);
+      expect(deleteFn).not.toHaveBeenCalled();
+    });
+
+    it('prune scope: executes deletions when dryRun is false', async () => {
+      const deleteFn = vi.fn().mockResolvedValue(undefined);
+      async function* mockScroll() {
+        yield await Promise.resolve({
+          id: 'p1',
+          payload: { file_path: 'src/a.ts' },
+        });
+        yield { id: 'p2', payload: { file_path: 'outside/b.ts' } };
+      }
+      const { deps } = makeDeps({
+        vectorStore: {
+          scroll: mockScroll,
+          delete: deleteFn,
+        } as unknown as ExecuteReindexDeps['vectorStore'],
+      });
+      const result = await executeReindex(deps, 'prune', undefined, false);
+      expect(result.plan).toBeDefined();
+      expect(deleteFn).toHaveBeenCalled();
+    });
+  });
 });

@@ -371,10 +371,38 @@ Apply config changes atomically.
 Validates, writes to disk, and triggers configured reindex behavior. Returns validation errors if invalid.
 
 ### `watcher_reindex`
-Trigger a reindex.
-- `scope` (string, optional) — `"rules"` (default) or `"full"`
+Trigger a reindex operation. All scopes return a `plan` object showing blast area before execution begins.
 
-Rules scope re-applies inference rules without re-embedding (lightweight). Full scope re-processes all files.
+**Parameters:**
+- `scope` (string, optional) — Reindex scope. Default: `"rules"`. One of:
+  - `"rules"` — Re-apply inference rules to all watched files. No re-embedding. Lightweight.
+  - `"full"` — Re-extract text, re-embed, and re-apply rules for all watched files. Expensive.
+  - `"issues"` — Re-process only files that previously failed embedding (from `watcher_issues`).
+  - `"path"` — Re-embed a specific file or all files under a directory. Requires `path` parameter.
+  - `"prune"` — Delete Qdrant points for files no longer in watch scope (removed paths, gitignored files, stale data). No re-embedding. Pure cleanup.
+- `path` (string, required when scope is `"path"`) — Target file or directory path.
+- `dryRun` (boolean, optional) — When `true`, compute and return the blast area plan without executing. Returns synchronously.
+
+**Response (normal):**
+```json
+{ "status": "started", "scope": "rules", "plan": { "total": 148000, "toProcess": 148000, "toDelete": 0, "byRoot": { "j:/domains": 95000, "j:/config": 3000 } } }
+```
+
+**Response (dryRun):**
+```json
+{ "status": "dry_run", "scope": "prune", "plan": { "total": 562000, "toProcess": 0, "toDelete": 2300, "byRoot": { "j:/jeeves/node_modules": 1800, "j:/jeeves/.bridge": 500 } } }
+```
+
+**Plan fields:**
+- `total` — Total points (prune) or files (other scopes) examined.
+- `toProcess` — Items to embed/re-apply rules (0 for prune).
+- `toDelete` — Points to delete (prune only, 0 for others).
+- `byRoot` — Counts grouped by watch root prefix. Shows where the impact concentrates.
+
+**Guidance:**
+- Use `dryRun: true` before any large-blast operation to preview impact.
+- `prune` is safe — it only deletes orphaned points, never re-embeds. Use after changing watch paths, fixing gitignore, or cleaning up stale data.
+- `prune` is NOT triggered by config-watch auto-reindex (too dangerous for auto-trigger).
 
 
 ### `watcher_scan`
@@ -672,6 +700,9 @@ Progress is reported via `watcher_status` (`reindex.filesProcessed` / `reindex.t
 ### When to Reindex
 - **Rules scope** (`"rules"`): Changed rule matching patterns, set expressions, schema mappings. No re-embedding needed.
 - **Full scope** (`"full"`): Changed embedding config, added watch paths, broad schema restructuring. Re-embeds everything.
+- **Issues scope** (`"issues"`): After fixing the root cause of embedding failures (permissions, encoding, file format). Re-processes only failed files.
+- **Path scope** (`"path"`): Edited files in a specific directory and want to force re-embedding without a full reindex. Or a single file's embedding looks wrong.
+- **Prune scope** (`"prune"`): After changing `watch.paths`, adding gitignore rules, or discovering stale/orphaned points (e.g., indexed `node_modules`). Deletes points for out-of-scope files. Always `dryRun: true` first to preview.
 
 ---
 

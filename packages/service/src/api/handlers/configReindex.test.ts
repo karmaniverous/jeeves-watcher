@@ -12,11 +12,12 @@ import { createConfigReindexHandler } from './configReindex';
 
 // Mock executeReindex to avoid actual file processing
 vi.mock('../executeReindex', () => ({
-  VALID_REINDEX_SCOPES: ['issues', 'full', 'rules', 'path'],
+  VALID_REINDEX_SCOPES: ['issues', 'full', 'rules', 'path', 'prune'],
   executeReindex: vi.fn().mockResolvedValue({
     filesProcessed: 5,
     durationMs: 100,
     errors: 0,
+    plan: { total: 5, toProcess: 5, toDelete: 0, byRoot: {} },
   }),
 }));
 
@@ -27,8 +28,13 @@ import { executeReindex } from '../executeReindex';
 const mockedExecuteReindex = executeReindex as Mock;
 
 type ConfigReindexRequest = FastifyRequest<{
-  Body: { scope?: 'issues' | 'full' };
+  Body: { scope?: 'issues' | 'full'; dryRun?: boolean };
 }>;
+
+type ConfigReindexHandler = (
+  request: ConfigReindexRequest,
+  reply: FastifyReply,
+) => Promise<unknown>;
 
 interface MockReply {
   status: ReturnType<typeof vi.fn>;
@@ -67,42 +73,71 @@ function mockReply(): MockReply {
 }
 
 describe('createConfigReindexHandler', () => {
-  it('returns started status with default issues scope', async () => {
+  it('returns started status with default issues scope and plan', async () => {
     const deps = createDeps();
-    const handler = createConfigReindexHandler(deps);
+    const handler = createConfigReindexHandler(
+      deps,
+    ) as unknown as ConfigReindexHandler;
     const reply = mockReply();
     await handler(mockRequest({}), reply as unknown as FastifyReply);
 
     expect(reply.status).toHaveBeenCalledWith(200);
-    expect(reply.send).toHaveBeenCalledWith({
-      status: 'started',
-      scope: 'issues',
-    });
+
+    expect(reply.send).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: 'started',
+        scope: 'issues',
+      }),
+    );
+
+    const sent = reply.send.mock.calls[0]?.[0] as unknown as {
+      plan?: unknown;
+    };
+    expect(sent.plan).toBeDefined();
   });
 
   it('passes full scope when requested', async () => {
     const deps = createDeps();
-    const handler = createConfigReindexHandler(deps);
+    const handler = createConfigReindexHandler(
+      deps,
+    ) as unknown as ConfigReindexHandler;
     const reply = mockReply();
     await handler(
       mockRequest({ scope: 'full' }),
       reply as unknown as FastifyReply,
     );
 
-    expect(reply.send).toHaveBeenCalledWith({
-      status: 'started',
-      scope: 'full',
-    });
+    expect(reply.send).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: 'started',
+        scope: 'full',
+      }),
+    );
+
+    const sent = reply.send.mock.calls[0]?.[0] as unknown as {
+      plan?: unknown;
+    };
+    expect(sent.plan).toBeDefined();
+    // Called twice: once for dry-run plan, once for actual execution
     expect(mockedExecuteReindex).toHaveBeenCalledWith(
       expect.objectContaining({ config: deps.config }),
       'full',
       undefined,
+      true, // dry-run for plan
+    );
+    expect(mockedExecuteReindex).toHaveBeenCalledWith(
+      expect.objectContaining({ config: deps.config }),
+      'full',
+      undefined,
+      false, // actual execution
     );
   });
 
   it('passes valuesManager and issuesManager to executeReindex', async () => {
     const deps = createDeps();
-    const handler = createConfigReindexHandler(deps);
+    const handler = createConfigReindexHandler(
+      deps,
+    ) as unknown as ConfigReindexHandler;
     const reply = mockReply();
     await handler(
       mockRequest({ scope: 'full' }),
@@ -116,6 +151,31 @@ describe('createConfigReindexHandler', () => {
       }),
       'full',
       undefined,
+      expect.any(Boolean),
     );
+  });
+
+  it('returns dry_run status when dryRun is true', async () => {
+    const deps = createDeps();
+    const handler = createConfigReindexHandler(
+      deps,
+    ) as unknown as ConfigReindexHandler;
+    const reply = mockReply();
+    await handler(
+      mockRequest({ scope: 'full', dryRun: true }),
+      reply as unknown as FastifyReply,
+    );
+
+    expect(reply.send).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: 'dry_run',
+        scope: 'full',
+      }),
+    );
+
+    const sent = reply.send.mock.calls[0]?.[0] as unknown as {
+      plan?: unknown;
+    };
+    expect(sent.plan).toBeDefined();
   });
 });

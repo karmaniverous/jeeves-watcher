@@ -11,6 +11,7 @@ import type { GitignoreFilter } from '../../gitignore';
 import type { IssuesManager } from '../../issues';
 import type { DocumentProcessorInterface } from '../../processor';
 import type { ValuesManager } from '../../values';
+import type { VectorStoreClient } from '../../vectorStore';
 import {
   executeReindex,
   type ReindexScope,
@@ -28,10 +29,11 @@ export interface ConfigReindexRouteDeps {
   valuesManager?: ValuesManager;
   issuesManager?: IssuesManager;
   gitignoreFilter?: GitignoreFilter;
+  vectorStore?: VectorStoreClient;
 }
 
 type ConfigReindexRequest = FastifyRequest<{
-  Body: { scope?: string; path?: string };
+  Body: { scope?: string; path?: string; dryRun?: boolean };
 }>;
 
 /**
@@ -43,6 +45,7 @@ export function createConfigReindexHandler(deps: ConfigReindexRouteDeps) {
   return wrapHandler(
     async (request: ConfigReindexRequest, reply: FastifyReply) => {
       const scope = request.body.scope ?? 'issues';
+      const dryRun = request.body.dryRun ?? false;
 
       if (!VALID_REINDEX_SCOPES.includes(scope as ReindexScope)) {
         return await reply.status(400).send({
@@ -63,21 +66,59 @@ export function createConfigReindexHandler(deps: ConfigReindexRouteDeps) {
         }
       }
 
-      void executeReindex(
-        {
-          config: deps.config,
-          processor: deps.processor,
-          logger: deps.logger,
-          reindexTracker: deps.reindexTracker,
-          valuesManager: deps.valuesManager,
-          issuesManager: deps.issuesManager,
-          gitignoreFilter: deps.gitignoreFilter,
-        },
+      if (validScope === 'prune' && !deps.vectorStore) {
+        return await reply.status(400).send({
+          error: 'Not available',
+          message: 'Prune scope requires vectorStore to be configured.',
+        });
+      }
+
+      const reindexDeps = {
+        config: deps.config,
+        processor: deps.processor,
+        logger: deps.logger,
+        reindexTracker: deps.reindexTracker,
+        valuesManager: deps.valuesManager,
+        issuesManager: deps.issuesManager,
+        gitignoreFilter: deps.gitignoreFilter,
+        vectorStore: deps.vectorStore,
+      };
+
+      if (dryRun) {
+        // Dry run: compute plan synchronously and return
+        const result = await executeReindex(
+          reindexDeps,
+          validScope,
+          validScope === 'path' ? request.body.path : undefined,
+          true,
+        );
+        return await reply.status(200).send({
+          status: 'dry_run',
+          scope,
+          plan: result.plan,
+        });
+      }
+
+      // Fire and forget — plan is computed inside but we need it for the response.
+      // For non-prune scopes, compute plan first then execute async.
+      const planResult = await executeReindex(
+        reindexDeps,
         validScope,
         validScope === 'path' ? request.body.path : undefined,
+        true, // get plan only
       );
 
-      return await reply.status(200).send({ status: 'started', scope });
+      // Now fire actual reindex async
+      void executeReindex(
+        reindexDeps,
+        validScope,
+        validScope === 'path' ? request.body.path : undefined,
+        false,
+      );
+
+      return await reply
+        .status(200)
+        .send({ status: 'started', scope, plan: planResult.plan });
     },
     deps.logger,
     'Config reindex request',
