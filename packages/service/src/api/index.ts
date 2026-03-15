@@ -8,7 +8,6 @@ import { dirname } from 'node:path';
 import Fastify, { type FastifyInstance } from 'fastify';
 import type pino from 'pino';
 
-import { buildTemplateEngineAndCustomMapLib } from '../app/initialization';
 import type { JeevesWatcherConfig } from '../config/types';
 import type { EmbeddingProvider } from '../embedding';
 import type { GitignoreFilter } from '../gitignore';
@@ -16,7 +15,6 @@ import type { AllHelpersIntrospection } from '../helpers';
 import type { IssuesManager } from '../issues';
 import type { DocumentProcessorInterface } from '../processor';
 import type { EventQueue } from '../queue';
-import { compileRules } from '../rules';
 import type { VirtualRuleStore } from '../rules/virtualRules';
 import type { ValuesManager } from '../values';
 import type { VectorStoreClient } from '../vectorStore';
@@ -49,6 +47,7 @@ import { createStatusHandler } from './handlers/status';
 import { createWalkHandler } from './handlers/walk';
 import { withCache } from './handlers/withCache';
 import type { InitialScanTracker } from './InitialScanTracker';
+import { createOnRulesChanged } from './onRulesChanged';
 import { ReindexTracker } from './ReindexTracker';
 
 export type { InitialScanStatus } from './InitialScanTracker';
@@ -284,60 +283,18 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
 
   // Virtual rules and points deletion routes
   if (virtualRuleStore) {
-    const onRulesChanged = () => {
-      const configRules = config.inferenceRules ?? [];
-      const virtualRulesBySource = virtualRuleStore.getAll();
-      const allVirtualRules = Object.values(virtualRulesBySource).flat();
-      const mergedRules = [...configRules, ...allVirtualRules];
-      const configCompiled = compileRules(configRules);
-      const virtualCompiled = virtualRuleStore.getCompiled();
-
-      // Rebuild template engine asynchronously with merged rules
-      void buildTemplateEngineAndCustomMapLib(
-        { ...config, inferenceRules: mergedRules },
-        dirname(configPath),
-      ).then(({ templateEngine: newEngine, customMapLib: newMapLib }) => {
-        processor.updateRules(
-          [...configCompiled, ...virtualCompiled],
-          newEngine,
-          newMapLib,
-        );
-      });
-
-      // Auto-trigger rules reindex scoped to newly registered rule globs (Fix 21)
-      const matchGlobs: string[] = [];
-      for (const rule of allVirtualRules) {
-        const glob = (
-          rule.match as
-            | {
-                properties?: {
-                  file?: { properties?: { path?: { glob?: string } } };
-                };
-              }
-            | undefined
-        )?.properties?.file?.properties?.path?.glob;
-        if (typeof glob === 'string') {
-          matchGlobs.push(glob);
-        }
-      }
-
-      if (matchGlobs.length > 0) {
-        void executeReindex(
-          {
-            config,
-            processor,
-            logger,
-            reindexTracker,
-            valuesManager,
-            issuesManager,
-            gitignoreFilter,
-            vectorStore,
-          },
-          'rules',
-          matchGlobs,
-        );
-      }
-    };
+    const onRulesChanged = createOnRulesChanged({
+      config,
+      configPath,
+      processor,
+      logger,
+      virtualRuleStore,
+      reindexTracker,
+      valuesManager,
+      issuesManager,
+      gitignoreFilter,
+      vectorStore,
+    });
 
     app.post(
       '/rules/register',

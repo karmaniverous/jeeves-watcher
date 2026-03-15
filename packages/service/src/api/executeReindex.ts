@@ -10,7 +10,7 @@ import type pino from 'pino';
 import { parallel } from 'radash';
 
 import type { JeevesWatcherConfig } from '../config/types';
-import type { GitignoreFilter } from '../gitignore';
+import { createIsGitignored, type GitignoreFilter } from '../gitignore';
 import type { DocumentProcessorInterface } from '../processor';
 import { isPathWatched } from '../util/isPathWatched';
 import { normalizeError } from '../util/normalizeError';
@@ -293,9 +293,7 @@ export async function executeReindex(
     valuesManager,
     gitignoreFilter,
   } = deps;
-  const isGitignored = gitignoreFilter
-    ? (filePath: string) => gitignoreFilter.isIgnored(filePath)
-    : undefined;
+  const isGitignored = createIsGitignored(gitignoreFilter);
 
   if (!VALID_REINDEX_SCOPES.includes(scope)) {
     throw new Error(
@@ -429,12 +427,11 @@ export async function executeReindex(
   if (dryRun) {
     // For path scope without pre-computed plan, compute it now
     if (plan === undefined && scope === 'path' && pathArray) {
-      const allPathFiles: string[] = [];
-      for (const p of pathArray) {
-        const files = await getPathFileList(p, config, deps.gitignoreFilter);
-        allPathFiles.push(...files);
-      }
-      const pathFiles = [...new Set(allPathFiles)];
+      const pathFiles = await collectPathFiles(
+        pathArray,
+        config,
+        deps.gitignoreFilter,
+      );
       plan = {
         total: pathFiles.length,
         toProcess: pathFiles.length,
@@ -485,13 +482,11 @@ export async function executeReindex(
         fileList,
       );
     } else if (scope === 'path' && pathArray) {
-      // Collect all files from all paths, deduplicate
-      const allPathFiles: string[] = [];
-      for (const p of pathArray) {
-        const files = await getPathFileList(p, config, deps.gitignoreFilter);
-        allPathFiles.push(...files);
-      }
-      const uniqueFiles = [...new Set(allPathFiles)];
+      const uniqueFiles = await collectPathFiles(
+        pathArray,
+        config,
+        deps.gitignoreFilter,
+      );
 
       plan = {
         total: uniqueFiles.length,
@@ -566,6 +561,26 @@ export async function executeReindex(
 }
 
 /**
+ * Collect and deduplicate files for a path-scoped reindex.
+ *
+ * Iterates over each target path, resolves its file list, and returns a
+ * deduplicated array. This eliminates the duplicate iteration + `new Set()`
+ * that previously appeared in both the dryRun plan and execution branches.
+ */
+async function collectPathFiles(
+  pathArray: string[],
+  config: JeevesWatcherConfig,
+  gitignoreFilter: GitignoreFilter | undefined,
+): Promise<string[]> {
+  const allFiles: string[] = [];
+  for (const p of pathArray) {
+    const files = await getPathFileList(p, config, gitignoreFilter);
+    allFiles.push(...files);
+  }
+  return [...new Set(allFiles)];
+}
+
+/**
  * Get the file list for a path-scoped reindex (for plan computation).
  */
 async function getPathFileList(
@@ -589,9 +604,7 @@ async function getPathFileList(
   if (stats.isFile()) return [targetPath];
 
   if (stats.isDirectory()) {
-    const isGitignored = gitignoreFilter
-      ? (filePath: string) => gitignoreFilter.isIgnored(filePath)
-      : undefined;
+    const isGitignored = createIsGitignored(gitignoreFilter);
     const allWatchedFiles = await listFilesFromGlobs(
       config.watch.paths,
       config.watch.ignored,

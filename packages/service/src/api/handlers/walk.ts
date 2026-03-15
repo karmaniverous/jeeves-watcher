@@ -6,7 +6,7 @@
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import type pino from 'pino';
 
-import type { GitignoreFilter } from '../../gitignore';
+import { createIsGitignored, type GitignoreFilter } from '../../gitignore';
 import { getWatchRootBases, listFilesFromWatchRoots } from '../fileScan';
 import { wrapHandler } from './wrapHandler';
 
@@ -40,9 +40,7 @@ export function createWalkHandler(deps: WalkRouteDeps) {
         });
       }
 
-      const isGitignored = deps.gitignoreFilter
-        ? (filePath: string) => deps.gitignoreFilter!.isIgnored(filePath)
-        : undefined;
+      const isGitignored = createIsGitignored(deps.gitignoreFilter);
 
       const paths = await listFilesFromWatchRoots(
         deps.watchPaths,

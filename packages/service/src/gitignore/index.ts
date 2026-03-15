@@ -128,6 +128,23 @@ function toForwardSlash(p: string): string {
 }
 
 /**
+ * Create an `isGitignored` callback from an optional {@link GitignoreFilter}.
+ *
+ * Eliminates the repeated inline pattern:
+ * ```ts
+ * gitignoreFilter ? (filePath: string) => gitignoreFilter!.isIgnored(filePath) : undefined
+ * ```
+ *
+ * @param filter - Optional gitignore filter instance.
+ * @returns A callback that checks gitignore status, or `undefined` when no filter is available.
+ */
+export function createIsGitignored(
+  filter?: GitignoreFilter,
+): ((path: string) => boolean) | undefined {
+  return filter ? (filePath: string) => filter.isIgnored(filePath) : undefined;
+}
+
+/**
  * Processor-level gitignore filter. Checks file paths against the nearest
  * `.gitignore` chain in git repositories.
  */

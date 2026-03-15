@@ -50,18 +50,26 @@ async function* walk(dir: string): AsyncGenerator<string> {
   }
 }
 
+/** Parameters for the shared {@link walkAndFilter} inner function. */
+interface WalkAndFilterParams {
+  /** Glob patterns that define both the walk roots and the primary match filter. */
+  patterns: string[];
+  /** Glob patterns to exclude. */
+  ignored: string[];
+  /** Optional callback to check gitignore status per file. */
+  isGitignored?: (filePath: string) => boolean;
+  /** Optional extra matcher applied after the primary match (for caller-glob intersection). */
+  extraFilter?: (normalizedPath: string) => boolean;
+}
+
 /**
- * List files matching a set of globs, with optional ignore globs and gitignore filter.
- *
- * @param patterns - Glob patterns to match.
- * @param ignored - Glob patterns to exclude (optional).
- * @param isGitignored - Optional callback to check gitignore status per file.
+ * Walk filesystem trees rooted at the base directories of `patterns`,
+ * applying ignore globs, a primary match filter, an optional extra filter,
+ * and gitignore filtering. Returns a deduplicated array of matching files.
  */
-export async function listFilesFromGlobs(
-  patterns: string[],
-  ignored: string[] = [],
-  isGitignored?: (filePath: string) => boolean,
-): Promise<string[]> {
+async function walkAndFilter(params: WalkAndFilterParams): Promise<string[]> {
+  const { patterns, ignored, isGitignored, extraFilter } = params;
+
   const normPatterns = patterns.map((p) => normalizeSlashes(p));
   const normIgnored = ignored.map((p) => normalizeSlashes(p));
 
@@ -78,12 +86,28 @@ export async function listFilesFromGlobs(
       const rel = normalizeSlashes(file);
       if (ignore(rel)) continue;
       if (!match(rel)) continue;
+      if (extraFilter && !extraFilter(rel)) continue;
       if (isGitignored?.(file)) continue;
       seen.add(file);
     }
   }
 
   return Array.from(seen);
+}
+
+/**
+ * List files matching a set of globs, with optional ignore globs and gitignore filter.
+ *
+ * @param patterns - Glob patterns to match.
+ * @param ignored - Glob patterns to exclude (optional).
+ * @param isGitignored - Optional callback to check gitignore status per file.
+ */
+export async function listFilesFromGlobs(
+  patterns: string[],
+  ignored: string[] = [],
+  isGitignored?: (filePath: string) => boolean,
+): Promise<string[]> {
+  return walkAndFilter({ patterns, ignored, isGitignored });
 }
 
 /**
@@ -106,32 +130,15 @@ export async function listFilesFromWatchRoots(
   callerGlobs: string[],
   isGitignored?: (filePath: string) => boolean,
 ): Promise<string[]> {
-  const normWatch = watchPatterns.map((p) => normalizeSlashes(p));
-  const normIgnored = ignored.map((p) => normalizeSlashes(p));
   const normCaller = callerGlobs.map((p) => normalizeSlashes(p));
-
-  const matchWatch = picomatch(normWatch, { dot: true, nocase: true });
   const matchCaller = picomatch(normCaller, { dot: true, nocase: true });
-  const ignore = normIgnored.length
-    ? picomatch(normIgnored, { dot: true, nocase: true })
-    : () => false;
 
-  // Walk from watch root base directories
-  const bases = Array.from(new Set(watchPatterns.map(globBase)));
-
-  const seen = new Set<string>();
-  for (const base of bases) {
-    for await (const file of walk(base)) {
-      const rel = normalizeSlashes(file);
-      if (ignore(rel)) continue;
-      if (!matchWatch(rel)) continue;
-      if (!matchCaller(rel)) continue;
-      if (isGitignored?.(file)) continue;
-      seen.add(file);
-    }
-  }
-
-  return Array.from(seen);
+  return walkAndFilter({
+    patterns: watchPatterns,
+    ignored,
+    isGitignored,
+    extraFilter: (normalizedPath) => matchCaller(normalizedPath),
+  });
 }
 
 /**
