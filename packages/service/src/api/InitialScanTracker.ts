@@ -9,8 +9,8 @@ export interface InitialScanStatus {
   active: boolean;
   /** Number of files matched by watch globs. */
   filesMatched?: number;
-  /** Number of files processed (enqueued) so far. */
-  filesProcessed?: number;
+  /** Number of files enqueued for processing so far. */
+  filesEnqueued?: number;
   /** ISO 8601 timestamp when the scan started. */
   startedAt?: string;
   /** ISO 8601 timestamp when the scan completed. */
@@ -25,7 +25,7 @@ export interface InitialScanStatus {
 export class InitialScanTracker {
   private _active = false;
   private _filesMatched = 0;
-  private _filesProcessed = 0;
+  private _filesEnqueued = 0;
   private _startedAt?: string;
   private _completedAt?: string;
   private _durationMs?: number;
@@ -37,7 +37,7 @@ export class InitialScanTracker {
     this._started = true;
     this._startedAt = new Date().toISOString();
     this._filesMatched = 0;
-    this._filesProcessed = 0;
+    this._filesEnqueued = 0;
   }
 
   /** Set the total number of matched files. */
@@ -46,8 +46,8 @@ export class InitialScanTracker {
   }
 
   /** Increment the processed file count. */
-  incrementProcessed(): void {
-    this._filesProcessed++;
+  incrementEnqueued(): void {
+    this._filesEnqueued++;
   }
 
   /** Mark the scan as complete. */
@@ -71,7 +71,7 @@ export class InitialScanTracker {
       return {
         active: true,
         filesMatched: this._filesMatched,
-        filesProcessed: this._filesProcessed,
+        filesEnqueued: this._filesEnqueued,
         startedAt: this._startedAt,
       };
     }
@@ -79,7 +79,7 @@ export class InitialScanTracker {
     return {
       active: false,
       filesMatched: this._filesMatched,
-      filesProcessed: this._filesProcessed,
+      filesEnqueued: this._filesEnqueued,
       completedAt: this._completedAt,
       durationMs: this._durationMs,
     };

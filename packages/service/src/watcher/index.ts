@@ -149,7 +149,7 @@ export class FileSystemWatcher {
       if (!initialScanComplete) {
         scanStats.matched++;
         this.initialScanTracker?.setMatched(scanStats.matched);
-        this.initialScanTracker?.incrementProcessed();
+        this.initialScanTracker?.incrementEnqueued();
       }
       this.logger.debug({ path }, 'File added');
       this.queue.enqueue({ type: 'create', path, priority: 'normal' }, () =>
