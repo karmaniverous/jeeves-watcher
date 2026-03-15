@@ -46,6 +46,7 @@ import {
 import { createScanHandler } from './handlers/scan';
 import { createSearchHandler } from './handlers/search';
 import { createStatusHandler } from './handlers/status';
+import { createWalkHandler } from './handlers/walk';
 import { withCache } from './handlers/withCache';
 import type { InitialScanTracker } from './InitialScanTracker';
 import { ReindexTracker } from './ReindexTracker';
@@ -193,6 +194,16 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
   );
 
   app.post(
+    '/walk',
+    createWalkHandler({
+      watchPaths: config.watch.paths,
+      watchIgnored: config.watch.ignored ?? [],
+      gitignoreFilter,
+      logger,
+    }),
+  );
+
+  app.post(
     '/search',
     createSearchHandler({
       embeddingProvider,
@@ -292,6 +303,40 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
           newMapLib,
         );
       });
+
+      // Auto-trigger rules reindex scoped to newly registered rule globs (Fix 21)
+      const matchGlobs: string[] = [];
+      for (const rule of allVirtualRules) {
+        const glob = (
+          rule.match as
+            | {
+                properties?: {
+                  file?: { properties?: { path?: { glob?: string } } };
+                };
+              }
+            | undefined
+        )?.properties?.file?.properties?.path?.glob;
+        if (typeof glob === 'string') {
+          matchGlobs.push(glob);
+        }
+      }
+
+      if (matchGlobs.length > 0) {
+        void executeReindex(
+          {
+            config,
+            processor,
+            logger,
+            reindexTracker,
+            valuesManager,
+            issuesManager,
+            gitignoreFilter,
+            vectorStore,
+          },
+          'rules',
+          matchGlobs,
+        );
+      }
     };
 
     app.post(

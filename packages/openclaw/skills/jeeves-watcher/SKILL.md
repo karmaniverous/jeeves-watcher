@@ -40,14 +40,15 @@ curl -X POST http://127.0.0.1:<PORT>/config/query \
 |----------|--------|---------|
 | `/status` | GET | Health check, uptime, collection stats |
 | `/search` | POST | Semantic search (main query interface) |
-| `/config/query` | POST | JSONPath query over merged virtual document |
+| `/config` | GET | Full resolved config; optional `?path=<jsonpath>` filter |
 | `/config/validate` | POST | Validate candidate config |
 | `/config/apply` | POST | Apply config changes |
-| `/config-reindex` | POST | Trigger reindex |
+| `/reindex` | POST | Trigger reindex |
 | `/metadata` | POST | Enrich document metadata |
 | `/scan` | POST | Filter-only point query (no embeddings) |
+| `/walk` | POST | Filesystem walk with glob intersection |
 | `/issues` | GET | Runtime embedding failures |
-| `/rules/register` | POST | Register virtual inference rules |
+| `/rules/register` | POST | Register virtual inference rules (auto-triggers rules reindex) |
 | `/rules/unregister` | DELETE | Remove virtual rules by source |
 | `/points/delete` | POST | Delete points matching a Qdrant filter |
 
@@ -358,10 +359,9 @@ After a service restart, the `initialScan` field shows scan progress:
 
 Use this to determine if the service is still initializing after a restart.
 
-### `watcher_query`
-Query the merged virtual document via JSONPath.
-- `path` (string, required) — JSONPath expression
-- `resolve` (string[], optional) — `["files"]`, `["globals"]`, or `["files","globals"]`
+### `watcher_config`
+Query the effective runtime config via JSONPath. Returns the full resolved merged document when no path is provided.
+- `path` (string, optional) — JSONPath expression
 
 ### `watcher_validate`
 Validate config and optionally test file paths.
@@ -450,6 +450,30 @@ do {
 
 ### `watcher_issues`
 Get runtime embedding failures. Returns `{ filePath: IssueRecord }` showing files that failed and why.
+
+### `watcher_walk`
+Walk watched filesystem paths with glob intersection. Returns matching file paths from all configured watch roots.
+- `globs` (string[], required) — glob patterns to intersect with watch paths
+
+**Response:**
+```json
+{
+  "paths": ["j:/domains/foo/.meta/meta.json", "j:/domains/bar/.meta/meta.json"],
+  "matchedCount": 2,
+  "scannedRoots": ["j:/domains", "j:/config"]
+}
+```
+
+**Use cases:**
+- Discover files matching a pattern across all watched directories (e.g., `["**/.meta/meta.json"]`)
+- Enumerate files before rule registration to understand scope
+- Find files that aren't yet indexed (no Qdrant dependency — works even before first embedding)
+
+**Key differences from `watcher_scan`:**
+- Walks the actual filesystem, not the Qdrant index
+- No embedding or indexing required — works immediately after service start
+- Returns file paths only (no metadata, no vectors)
+- Applies `watch.ignored` and gitignore filtering automatically
 
 ## Query Planning: Scan vs Search
 
@@ -557,7 +581,7 @@ Each result from `watcher_search` contains:
 | `payload.content_hash` | string | Hash of the full document content |
 | `payload.matched_rules` | string[] | Names of inference rules that matched |
 
-Additional metadata fields depend on the deployment's inference rules (e.g., `domain`, `status`, `author`). Use `watcher_query` to discover available fields.
+Additional metadata fields depend on the deployment's inference rules (e.g., `domain`, `status`, `author`). Use `watcher_config` to discover available fields.
 
 ## Query Planning (Per Search Task)
 
@@ -565,7 +589,7 @@ Identify relevant rule(s) from the orientation model, then retrieve their schema
 
 **Retrieve complete schema for a rule:**
 ```
-watcher_query: path="$.inferenceRules[?(@.name=='jira-issue')].schema"
+watcher_config: path="$.inferenceRules[?(@.name=='jira-issue')].schema"
               resolve=["files","globals"]
 ```
 
@@ -573,7 +597,7 @@ Returns the fully merged schema with properties, types, `set` provenance, `uiHin
 
 **For select/multiselect fields without `enum` in schema:**
 ```
-watcher_query: path="$.inferenceRules[?(@.name=='jira-issue')].values.status"
+watcher_config: path="$.inferenceRules[?(@.name=='jira-issue')].values.status"
 ```
 
 Retrieves valid filter values from the runtime values index (distinct values accumulated during embedding).
@@ -657,7 +681,7 @@ Multiple results with the same `file_path` are chunks of one document. Read the 
 ### Schema Lookup
 Use `matched_rules` on results to look up applicable schemas for metadata interpretation:
 ```
-watcher_query: path="$.inferenceRules[?(@.name=='jira-issue')].schema"
+watcher_config: path="$.inferenceRules[?(@.name=='jira-issue')].schema"
               resolve=["files","globals"]
 ```
 
@@ -670,7 +694,7 @@ Search gives you chunks; use `read` with `file_path` for the complete document.
 
 When uncertain whether a file is indexed, use the path test endpoint:
 ```
-watcher_query: path="$.inferenceRules[?(@.name=='<rule>')].match"
+watcher_config: path="$.inferenceRules[?(@.name=='<rule>')].match"
 ```
 
 Or check if a specific path would match:
@@ -717,7 +741,7 @@ Progress is reported via `watcher_status` (`reindex.filesProcessed` / `reindex.t
 ### Escalation Path
 1. `watcher_status` — is the service healthy? Is a reindex running? Is the initial scan still active?
 2. `watcher_issues` — what files are failing and why?
-3. `watcher_query` with `$.issues` — same data via JSONPath
+3. `watcher_config` with `$.issues` — same data via JSONPath
 4. Check logs at the configured log path
 
 ### Error Categories

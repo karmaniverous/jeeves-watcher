@@ -271,6 +271,24 @@ export function registerWatcherTools(api: PluginApi, baseUrl: string): void {
       parameters: { type: 'object', properties: {} },
       buildRequest: () => ['/issues'],
     },
+    {
+      name: 'watcher_walk',
+      description:
+        'Walk watched filesystem paths with glob intersection. Returns matching file paths from all configured watch roots, applying watch.ignored and gitignore filtering.',
+      parameters: {
+        type: 'object',
+        required: ['globs'],
+        properties: {
+          globs: {
+            type: 'array',
+            items: { type: 'string' },
+            description:
+              'Glob patterns to intersect with watch paths (e.g., ["**/.meta/meta.json"]).',
+          },
+        },
+      },
+      buildRequest: (params) => ['/walk', { globs: params.globs }],
+    },
   ];
 
   for (const tool of tools) {

@@ -34,7 +34,7 @@ afterEach(() => {
 });
 
 describe('registerWatcherTools', () => {
-  it('registers exactly 9 watcher tools', () => {
+  it('registers exactly 10 watcher tools', () => {
     const tools: string[] = [];
     const api: PluginApi = {
       registerTool: (tool: { name: string }) => {
@@ -52,6 +52,7 @@ describe('registerWatcherTools', () => {
       'watcher_reindex',
       'watcher_scan',
       'watcher_issues',
+      'watcher_walk',
     ]);
   });
 
@@ -194,6 +195,23 @@ describe('tool execution', () => {
     const call = fetchMock.mock.calls[0] as [string, RequestInit];
     const body = JSON.parse(call[1].body as string) as Record<string, unknown>;
     expect(body).toEqual({ scope: 'full' });
+  });
+
+  it('watcher_walk POSTs globs', async () => {
+    const fetchMock = mockFetch({
+      paths: ['j:/domains/foo/bar.md'],
+      matchedCount: 1,
+      scannedRoots: ['j:/domains'],
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    const tools = captureTools();
+    await tools.get('watcher_walk')!('id', {
+      globs: ['**/.meta/meta.json'],
+    });
+    const call = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(call[0]).toBe(`${BASE}/walk`);
+    const body = JSON.parse(call[1].body as string) as Record<string, unknown>;
+    expect(body).toEqual({ globs: ['**/.meta/meta.json'] });
   });
 
   it('returns connectionFail on ECONNREFUSED', async () => {
