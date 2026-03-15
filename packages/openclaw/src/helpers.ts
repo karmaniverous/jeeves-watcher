@@ -45,7 +45,6 @@ export interface ToolResult {
 }
 
 const DEFAULT_API_URL = 'http://127.0.0.1:1936';
-const DEFAULT_CACHE_TTL_MS = 30000;
 
 /** Extract plugin config from the API object */
 function getPluginConfig(api: PluginApi): Record<string, unknown> | undefined {
@@ -58,12 +57,6 @@ export function getApiUrl(api: PluginApi): string {
   return typeof url === 'string' ? url : DEFAULT_API_URL;
 }
 
-/** Resolve the cache TTL for plugin hooks from config. */
-export function getCacheTtlMs(api: PluginApi): number {
-  const ttl = getPluginConfig(api)?.cacheTtlMs;
-  return typeof ttl === 'number' ? ttl : DEFAULT_CACHE_TTL_MS;
-}
-
 /** Format a successful tool result. */
 export function ok(data: unknown): ToolResult {
   return {
@@ -72,7 +65,7 @@ export function ok(data: unknown): ToolResult {
 }
 
 /** Format an error tool result. */
-export function fail(error: unknown): ToolResult {
+function fail(error: unknown): ToolResult {
   const message = error instanceof Error ? error.message : String(error);
   return {
     content: [{ type: 'text', text: 'Error: ' + message }],

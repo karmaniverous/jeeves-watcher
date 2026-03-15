@@ -30,9 +30,7 @@ curl -X POST http://127.0.0.1:<PORT>/search \
   -d '{"query": "search text", "limit": 5}'
 
 # Query config
-curl -X POST http://127.0.0.1:<PORT>/config/query \
-  -H "Content-Type: application/json" \
-  -d '{"path": "$.inferenceRules[*].name"}'
+curl http://127.0.0.1:<PORT>/config
 ```
 
 **Key endpoints:**
@@ -40,14 +38,15 @@ curl -X POST http://127.0.0.1:<PORT>/config/query \
 |----------|--------|---------|
 | `/status` | GET | Health check, uptime, collection stats |
 | `/search` | POST | Semantic search (main query interface) |
-| `/config/query` | POST | JSONPath query over merged virtual document |
+| `/config` | GET | Full resolved config; optional `?path=<jsonpath>` filter |
 | `/config/validate` | POST | Validate candidate config |
 | `/config/apply` | POST | Apply config changes |
-| `/config-reindex` | POST | Trigger reindex |
+| `/reindex` | POST | Trigger reindex |
 | `/metadata` | POST | Enrich document metadata |
 | `/scan` | POST | Filter-only point query (no embeddings) |
+| `/walk` | POST | Filesystem walk with glob intersection |
 | `/issues` | GET | Runtime embedding failures |
-| `/rules/register` | POST | Register virtual inference rules |
+| `/rules/register` | POST | Register virtual inference rules (auto-triggers rules reindex) |
 | `/rules/unregister` | DELETE | Remove virtual rules by source |
 | `/points/delete` | POST | Delete points matching a Qdrant filter |
 
@@ -350,12 +349,17 @@ Set or update metadata on a document.
 - `metadata` (object, required) — key-value metadata to merge
 
 ### `watcher_status`
-Service health check. Returns uptime, collection stats, reindex status.
+Service health check. Returns uptime, version, collection stats, reindex status, and initial scan progress.
 
-### `watcher_query`
-Query the merged virtual document via JSONPath.
-- `path` (string, required) — JSONPath expression
-- `resolve` (string[], optional) — `["files"]`, `["globals"]`, or `["files","globals"]`
+After a service restart, the `initialScan` field shows scan progress:
+- `active: true` — filesystem walk in progress; `filesMatched` and `filesEnqueued` grow until chokidar completes
+- `active: false` with `completedAt`/`durationMs` — scan finished
+
+Use this to determine if the service is still initializing after a restart.
+
+### `watcher_config`
+Query the effective runtime config via JSONPath. Returns the full resolved merged document when no path is provided.
+- `path` (string, optional) — JSONPath expression
 
 ### `watcher_validate`
 Validate config and optionally test file paths.
@@ -371,10 +375,38 @@ Apply config changes atomically.
 Validates, writes to disk, and triggers configured reindex behavior. Returns validation errors if invalid.
 
 ### `watcher_reindex`
-Trigger a reindex.
-- `scope` (string, optional) — `"rules"` (default) or `"full"`
+Trigger a reindex operation. All scopes return a `plan` object showing blast area before execution begins.
 
-Rules scope re-applies inference rules without re-embedding (lightweight). Full scope re-processes all files.
+**Parameters:**
+- `scope` (string, optional) — Reindex scope. Default: `"rules"`. One of:
+  - `"rules"` — Re-apply inference rules to all watched files. No re-embedding. Lightweight.
+  - `"full"` — Re-extract text, re-embed, and re-apply rules for all watched files. Expensive.
+  - `"issues"` — Re-process only files that previously failed embedding (from `watcher_issues`).
+  - `"path"` — Re-embed a specific file or all files under a directory. Requires `path` parameter.
+  - `"prune"` — Delete Qdrant points for files no longer in watch scope (removed paths, gitignored files, stale data). No re-embedding. Pure cleanup.
+- `path` (string, required when scope is `"path"`) — Target file or directory path.
+- `dryRun` (boolean, optional) — When `true`, compute and return the blast area plan without executing. Returns synchronously.
+
+**Response (normal):**
+```json
+{ "status": "started", "scope": "rules", "plan": { "total": 148000, "toProcess": 148000, "toDelete": 0, "byRoot": { "j:/domains": 95000, "j:/config": 3000 } } }
+```
+
+**Response (dryRun):**
+```json
+{ "status": "dry_run", "scope": "prune", "plan": { "total": 562000, "toProcess": 0, "toDelete": 2300, "byRoot": { "j:/jeeves/node_modules": 1800, "j:/jeeves/.bridge": 500 } } }
+```
+
+**Plan fields:**
+- `total` — Total points (prune) or files (other scopes) examined.
+- `toProcess` — Items to embed/re-apply rules (0 for prune).
+- `toDelete` — Points to delete (prune only, 0 for others).
+- `byRoot` — Counts grouped by watch root prefix. Shows where the impact concentrates.
+
+**Guidance:**
+- Use `dryRun: true` before any large-blast operation to preview impact.
+- `prune` is safe — it only deletes orphaned points, never re-embeds. Use after changing watch paths, fixing gitignore, or cleaning up stale data.
+- `prune` is NOT triggered by config-watch auto-reindex (too dangerous for auto-trigger).
 
 
 ### `watcher_scan`
@@ -416,6 +448,30 @@ do {
 
 ### `watcher_issues`
 Get runtime embedding failures. Returns `{ filePath: IssueRecord }` showing files that failed and why.
+
+### `watcher_walk`
+Walk watched filesystem paths with glob intersection. Returns matching file paths from all configured watch roots.
+- `globs` (string[], required) — glob patterns to intersect with watch paths
+
+**Response:**
+```json
+{
+  "paths": ["j:/domains/foo/.meta/meta.json", "j:/domains/bar/.meta/meta.json"],
+  "matchedCount": 2,
+  "scannedRoots": ["j:/domains", "j:/config"]
+}
+```
+
+**Use cases:**
+- Discover files matching a pattern across all watched directories (e.g., `["**/.meta/meta.json"]`)
+- Enumerate files before rule registration to understand scope
+- Find files that aren't yet indexed (no Qdrant dependency — works even before first embedding)
+
+**Key differences from `watcher_scan`:**
+- Walks the actual filesystem, not the Qdrant index
+- No embedding or indexing required — works immediately after service start
+- Returns file paths only (no metadata, no vectors)
+- Applies `watch.ignored` and gitignore filtering automatically
 
 ## Query Planning: Scan vs Search
 
@@ -523,7 +579,7 @@ Each result from `watcher_search` contains:
 | `payload.content_hash` | string | Hash of the full document content |
 | `payload.matched_rules` | string[] | Names of inference rules that matched |
 
-Additional metadata fields depend on the deployment's inference rules (e.g., `domain`, `status`, `author`). Use `watcher_query` to discover available fields.
+Additional metadata fields depend on the deployment's inference rules (e.g., `domain`, `status`, `author`). Use `watcher_config` to discover available fields.
 
 ## Query Planning (Per Search Task)
 
@@ -531,7 +587,7 @@ Identify relevant rule(s) from the orientation model, then retrieve their schema
 
 **Retrieve complete schema for a rule:**
 ```
-watcher_query: path="$.inferenceRules[?(@.name=='jira-issue')].schema"
+watcher_config: path="$.inferenceRules[?(@.name=='jira-issue')].schema"
               resolve=["files","globals"]
 ```
 
@@ -539,7 +595,7 @@ Returns the fully merged schema with properties, types, `set` provenance, `uiHin
 
 **For select/multiselect fields without `enum` in schema:**
 ```
-watcher_query: path="$.inferenceRules[?(@.name=='jira-issue')].values.status"
+watcher_config: path="$.inferenceRules[?(@.name=='jira-issue')].values.status"
 ```
 
 Retrieves valid filter values from the runtime values index (distinct values accumulated during embedding).
@@ -623,7 +679,7 @@ Multiple results with the same `file_path` are chunks of one document. Read the 
 ### Schema Lookup
 Use `matched_rules` on results to look up applicable schemas for metadata interpretation:
 ```
-watcher_query: path="$.inferenceRules[?(@.name=='jira-issue')].schema"
+watcher_config: path="$.inferenceRules[?(@.name=='jira-issue')].schema"
               resolve=["files","globals"]
 ```
 
@@ -636,7 +692,7 @@ Search gives you chunks; use `read` with `file_path` for the complete document.
 
 When uncertain whether a file is indexed, use the path test endpoint:
 ```
-watcher_query: path="$.inferenceRules[?(@.name=='<rule>')].match"
+watcher_config: path="$.inferenceRules[?(@.name=='<rule>')].match"
 ```
 
 Or check if a specific path would match:
@@ -672,15 +728,18 @@ Progress is reported via `watcher_status` (`reindex.filesProcessed` / `reindex.t
 ### When to Reindex
 - **Rules scope** (`"rules"`): Changed rule matching patterns, set expressions, schema mappings. No re-embedding needed.
 - **Full scope** (`"full"`): Changed embedding config, added watch paths, broad schema restructuring. Re-embeds everything.
+- **Issues scope** (`"issues"`): After fixing the root cause of embedding failures (permissions, encoding, file format). Re-processes only failed files.
+- **Path scope** (`"path"`): Edited files in a specific directory and want to force re-embedding without a full reindex. Or a single file's embedding looks wrong.
+- **Prune scope** (`"prune"`): After changing `watch.paths`, adding gitignore rules, or discovering stale/orphaned points (e.g., indexed `node_modules`). Deletes points for out-of-scope files. Always `dryRun: true` first to preview.
 
 ---
 
 ## Diagnostics
 
 ### Escalation Path
-1. `watcher_status` — is the service healthy? Is a reindex running?
+1. `watcher_status` — is the service healthy? Is a reindex running? Is the initial scan still active?
 2. `watcher_issues` — what files are failing and why?
-3. `watcher_query` with `$.issues` — same data via JSONPath
+3. `watcher_config` with `$.issues` — same data via JSONPath
 4. Check logs at the configured log path
 
 ### Error Categories

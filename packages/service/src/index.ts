@@ -4,8 +4,8 @@
  * @packageDocumentation
  */
 
-export type { ApiServerOptions, ReindexStatus } from './api';
-export { createApiServer, ReindexTracker } from './api';
+export type { ApiServerOptions, InitialScanStatus, ReindexStatus } from './api';
+export { createApiServer, InitialScanTracker, ReindexTracker } from './api';
 export {
   JeevesWatcher,
   type JeevesWatcherFactories,
@@ -18,6 +18,7 @@ export type {
   EmbeddingConfig,
   InferenceRule,
   JeevesWatcherConfig,
+  JeevesWatcherConfigInput,
   LoggingConfig,
   VectorStoreConfig,
   WatchConfig,
@@ -59,16 +60,23 @@ export type {
   DocumentProcessorDeps,
   DocumentProcessorInterface,
   ProcessorConfig,
+  RenderResult,
 } from './processor';
 export { DocumentProcessor } from './processor';
 export type { EventQueueOptions, ProcessFn, WatchEvent } from './queue';
 export { EventQueue } from './queue';
-export type { ApplyRulesResult, CompiledRule, FileAttributes } from './rules';
+export type {
+  ApplyRulesOptions,
+  ApplyRulesResult,
+  CompiledRule,
+  FileAttributes,
+} from './rules';
 export {
   applyRules,
   buildAttributes,
   compileRules,
   type RuleLogger,
+  VirtualRuleStore,
 } from './rules';
 export type { CompiledTemplate } from './templates';
 export {
@@ -84,6 +92,7 @@ export type {
   CollectionInfo,
   PayloadFieldSchema,
   ScrolledPoint,
+  ScrollPageResult,
   SearchResult,
   VectorPoint,
   VectorStore,

@@ -13,7 +13,7 @@ import { mergeSchemas } from '../../rules/schemaMerge';
 import type { ValuesManager } from '../../values';
 
 /** A single facet definition in the response. */
-export interface Facet {
+interface Facet {
   /** The metadata field name. */
   field: string;
   /** JSON Schema type (e.g. "string", "number", "boolean"). */

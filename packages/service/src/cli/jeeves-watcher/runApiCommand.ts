@@ -6,7 +6,7 @@
 import { apiCall } from './api';
 import { formatResponse } from './formatResponse';
 
-export interface RunApiCommandOptions {
+interface RunApiCommandOptions {
   host: string;
   port: string;
   method: string;

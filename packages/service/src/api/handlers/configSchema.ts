@@ -19,7 +19,7 @@ const inferenceRuleWithValuesSchema = inferenceRuleSchema.extend({
 /**
  * Merged config schema describing the virtual document (authored + runtime).
  */
-export const mergedConfigSchema = z.object({
+const mergedConfigSchema = z.object({
   /** Optional description of this watcher deployment's organizational strategy. */
   description: z.string().optional(),
   /** Search configuration including score thresholds. */

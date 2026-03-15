@@ -2,9 +2,9 @@ import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { GitignoreFilter } from './index';
+import { createIsGitignored, GitignoreFilter } from './index';
 
 describe('GitignoreFilter', () => {
   let testDir: string;
@@ -132,5 +132,40 @@ describe('GitignoreFilter', () => {
 
       expect(filter.isIgnored(join(subDir, 'test.tmp'))).toBe(true);
     });
+  });
+});
+
+describe('createIsGitignored', () => {
+  it('returns undefined when filter is undefined', () => {
+    expect(createIsGitignored(undefined)).toBeUndefined();
+  });
+
+  it('returns a function when filter is provided', () => {
+    const filter = {
+      isIgnored: vi.fn().mockReturnValue(false),
+    } as unknown as GitignoreFilter;
+
+    const result = createIsGitignored(filter);
+    expect(typeof result).toBe('function');
+  });
+
+  it('the returned function delegates to filter.isIgnored', () => {
+    const isIgnoredMock = vi
+      .fn()
+      .mockReturnValueOnce(true)
+      .mockReturnValueOnce(false);
+
+    const filter = {
+      isIgnored: isIgnoredMock,
+    } as unknown as GitignoreFilter;
+
+    const isGitignored = createIsGitignored(filter)!;
+
+    expect(isGitignored('/some/path/file.ts')).toBe(true);
+    expect(isIgnoredMock).toHaveBeenCalledWith('/some/path/file.ts');
+
+    expect(isGitignored('/other/path/file.ts')).toBe(false);
+    expect(isIgnoredMock).toHaveBeenCalledWith('/other/path/file.ts');
+    expect(isIgnoredMock).toHaveBeenCalledTimes(2);
   });
 });

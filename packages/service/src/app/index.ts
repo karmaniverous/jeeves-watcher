@@ -12,6 +12,7 @@ import { packageDirectorySync } from 'package-directory';
 import type pino from 'pino';
 
 import { executeReindex } from '../api/executeReindex';
+import { InitialScanTracker } from '../api/InitialScanTracker';
 import type { JeevesWatcherConfig } from '../config/types';
 import type { GitignoreFilter } from '../gitignore';
 import type { AllHelpersIntrospection } from '../helpers';
@@ -38,7 +39,6 @@ type ApiServerOptions = Parameters<
 >[0];
 
 export type { JeevesWatcherFactories } from './factories';
-export { defaultFactories } from './factories';
 export { startFromConfig } from './startFromConfig';
 
 /**
@@ -71,6 +71,7 @@ export class JeevesWatcher {
   private vectorStore: ApiServerOptions['vectorStore'] | undefined;
   private embeddingProvider: ApiServerOptions['embeddingProvider'] | undefined;
   private gitignoreFilter: GitignoreFilter | undefined;
+  private readonly initialScanTracker: InitialScanTracker;
   private readonly version: string;
 
   /** Create a new JeevesWatcher instance. */
@@ -85,6 +86,7 @@ export class JeevesWatcher {
     this.factories = { ...defaultFactories, ...factories };
     this.runtimeOptions = runtimeOptions;
     this.virtualRuleStore = new VirtualRuleStore();
+    this.initialScanTracker = new InitialScanTracker();
     try {
       const pkgDir = packageDirectorySync({
         cwd: dirname(fileURLToPath(import.meta.url)),
@@ -165,6 +167,7 @@ export class JeevesWatcher {
       processor,
       logger,
       this.runtimeOptions,
+      this.initialScanTracker,
     );
     this.watcher = watcher;
     this.gitignoreFilter = gitignoreFilter;
@@ -228,6 +231,7 @@ export class JeevesWatcher {
       virtualRuleStore: this.virtualRuleStore,
       gitignoreFilter: this.gitignoreFilter,
       version: this.version,
+      initialScanTracker: this.initialScanTracker,
     });
 
     await server.listen({

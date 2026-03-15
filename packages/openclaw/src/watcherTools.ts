@@ -125,24 +125,24 @@ export function registerWatcherTools(api: PluginApi, baseUrl: string): void {
       ],
     },
     {
-      name: 'watcher_query',
-      description: 'Query the merged virtual document via JSONPath.',
+      name: 'watcher_config',
+      description:
+        'Query the effective runtime config via JSONPath. Returns the full resolved merged document when no path is provided.',
       parameters: {
         type: 'object',
-        required: ['path'],
         properties: {
-          path: { type: 'string', description: 'JSONPath expression.' },
-          resolve: {
-            type: 'array',
-            items: { type: 'string', enum: ['files', 'globals'] },
-            description:
-              'Resolution scopes to include (e.g., ["files"], ["globals"], or both).',
+          path: {
+            type: 'string',
+            description: 'JSONPath expression (optional).',
           },
         },
       },
       buildRequest: (params) => {
-        const body = pickDefined(params, ['path', 'resolve']);
-        return ['/config/query', body];
+        const path = params.path as string | undefined;
+        if (path) {
+          return [`/config?path=${encodeURIComponent(path)}`];
+        }
+        return ['/config'];
       },
     },
     {
@@ -194,22 +194,31 @@ export function registerWatcherTools(api: PluginApi, baseUrl: string): void {
         properties: {
           scope: {
             type: 'string',
-            enum: ['rules', 'full', 'issues', 'path'],
+            enum: ['rules', 'full', 'issues', 'path', 'prune'],
             description:
-              'Reindex scope: "rules" (default) re-applies inference rules; "full" re-embeds everything; "issues" re-processes files with errors; "path" reindexes a specific file or directory (requires path parameter).',
+              'Reindex scope: "rules" (default) re-applies inference rules; "full" re-embeds everything; "issues" re-processes files with errors; "path" reindexes a specific file or directory (requires path parameter); "prune" deletes points for files no longer in watch scope.',
           },
           path: {
-            type: 'string',
+            oneOf: [
+              { type: 'string' },
+              { type: 'array', items: { type: 'string' } },
+            ],
             description:
-              'Target file or directory path (required when scope is "path").',
+              'Target file or directory path (required when scope is "path"). Accepts a single path or array of paths.',
+          },
+          dryRun: {
+            type: 'boolean',
+            description:
+              'When true, compute and return the blast area plan without executing. Returns counts by root showing impact.',
           },
         },
       },
       buildRequest: (params) => [
-        '/config-reindex',
+        '/reindex',
         {
           scope: params.scope ?? 'rules',
           ...(params.path ? { path: params.path } : {}),
+          ...(params.dryRun ? { dryRun: true } : {}),
         },
       ],
     },
@@ -261,6 +270,24 @@ export function registerWatcherTools(api: PluginApi, baseUrl: string): void {
         'Get runtime embedding failures. Shows files that failed processing and why.',
       parameters: { type: 'object', properties: {} },
       buildRequest: () => ['/issues'],
+    },
+    {
+      name: 'watcher_walk',
+      description:
+        'Walk watched filesystem paths with glob intersection. Returns matching file paths from all configured watch roots, applying watch.ignored and gitignore filtering.',
+      parameters: {
+        type: 'object',
+        required: ['globs'],
+        properties: {
+          globs: {
+            type: 'array',
+            items: { type: 'string' },
+            description:
+              'Glob patterns to intersect with watch paths (e.g., ["**/.meta/meta.json"]).',
+          },
+        },
+      },
+      buildRequest: (params) => ['/walk', { globs: params.globs }],
     },
   ];
 

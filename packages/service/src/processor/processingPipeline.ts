@@ -28,7 +28,7 @@ import type { Splitter } from './splitter';
 /**
  * Dependencies for the embed-and-upsert pipeline.
  */
-export interface PipelineDeps {
+interface PipelineDeps {
   embeddingProvider: EmbeddingProvider;
   vectorStore: VectorStore;
   splitter: Splitter;

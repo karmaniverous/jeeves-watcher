@@ -31,7 +31,7 @@ interface ConfigMatchResponse {
 }
 
 /** Handler factory options. */
-export interface ConfigMatchHandlerOptions {
+interface ConfigMatchHandlerOptions {
   config: JeevesWatcherConfig;
   logger: pino.Logger;
 }

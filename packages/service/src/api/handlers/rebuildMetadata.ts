@@ -13,7 +13,7 @@ import { FIELD_FILE_PATH } from '../../processor/payloadFields';
 import type { VectorStore } from '../../vectorStore';
 import { wrapHandler } from './wrapHandler';
 
-export interface RebuildMetadataRouteDeps {
+interface RebuildMetadataRouteDeps {
   metadataDir?: string;
   vectorStore: VectorStore;
   logger: pino.Logger;

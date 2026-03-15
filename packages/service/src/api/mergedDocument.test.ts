@@ -51,7 +51,32 @@ describe('buildMergedDocument', () => {
     const rules = doc['inferenceRules'] as Array<Record<string, unknown>>;
     expect(rules[0]).toMatchObject({
       name: 'rule1',
+      source: 'config',
       values: { domain: ['docs'] },
+    });
+  });
+
+  it('does not include virtualRules top-level key', () => {
+    const doc = buildMergedDocument(createOptions());
+    expect(doc).not.toHaveProperty('virtualRules');
+  });
+
+  it('merges virtual rules into inferenceRules with source attribution', () => {
+    const doc = buildMergedDocument(
+      createOptions({
+        virtualRules: {
+          'jeeves-meta': [
+            { name: 'meta-rule', match: {}, set: { domain: 'meta' } },
+          ],
+        },
+      }),
+    );
+    const rules = doc['inferenceRules'] as Array<Record<string, unknown>>;
+    expect(rules).toHaveLength(2);
+    expect(rules[0]).toMatchObject({ name: 'rule1', source: 'config' });
+    expect(rules[1]).toMatchObject({
+      name: 'meta-rule',
+      source: 'jeeves-meta',
     });
   });
 

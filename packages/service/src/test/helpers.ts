@@ -70,14 +70,3 @@ export async function setupTestDirs(): Promise<void> {
 export async function cleanupTestDirs(): Promise<void> {
   await rm(TEST_BASE, { recursive: true, force: true });
 }
-
-/**
- * Wait for processing to settle (debounce + async work).
- *
- * @param ms - Milliseconds to wait.
- */
-export function waitForProcessing(ms = 2000): Promise<void> {
-  return new Promise((resolve) => {
-    setTimeout(resolve, ms);
-  });
-}

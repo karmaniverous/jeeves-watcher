@@ -34,7 +34,7 @@ afterEach(() => {
 });
 
 describe('registerWatcherTools', () => {
-  it('registers exactly 9 watcher tools', () => {
+  it('registers exactly 10 watcher tools', () => {
     const tools: string[] = [];
     const api: PluginApi = {
       registerTool: (tool: { name: string }) => {
@@ -46,12 +46,13 @@ describe('registerWatcherTools', () => {
       'watcher_status',
       'watcher_search',
       'watcher_enrich',
-      'watcher_query',
+      'watcher_config',
       'watcher_validate',
       'watcher_config_apply',
       'watcher_reindex',
       'watcher_scan',
       'watcher_issues',
+      'watcher_walk',
     ]);
   });
 
@@ -129,18 +130,25 @@ describe('tool execution', () => {
     expect(body).toEqual({ path: 'foo.md', metadata: { tag: 'x' } });
   });
 
-  it('watcher_query POSTs path and optional resolve', async () => {
+  it('watcher_config calls GET /config with path query param', async () => {
     const fetchMock = mockFetch({ result: [] });
     vi.stubGlobal('fetch', fetchMock);
     const tools = captureTools();
-    await tools.get('watcher_query')!('id', {
-      path: '$.foo',
-      resolve: ['files'],
-    });
-    const call = fetchMock.mock.calls[0] as [string, RequestInit];
-    expect(call[0]).toBe(`${BASE}/config/query`);
-    const body = JSON.parse(call[1].body as string) as Record<string, unknown>;
-    expect(body).toEqual({ path: '$.foo', resolve: ['files'] });
+    await tools.get('watcher_config')!('id', { path: '$.foo' });
+    const call = fetchMock.mock.calls[0] as [string, RequestInit | undefined];
+    expect(call[0]).toBe(`${BASE}/config?path=${encodeURIComponent('$.foo')}`);
+    // GET request — no body
+    expect(call[1]).toBeUndefined();
+  });
+
+  it('watcher_config calls GET /config without path for full document', async () => {
+    const fetchMock = mockFetch({ description: 'test' });
+    vi.stubGlobal('fetch', fetchMock);
+    const tools = captureTools();
+    await tools.get('watcher_config')!('id', {});
+    const call = fetchMock.mock.calls[0] as [string, RequestInit | undefined];
+    expect(call[0]).toBe(`${BASE}/config`);
+    expect(call[1]).toBeUndefined();
   });
 
   it('watcher_validate POSTs config and testPaths', async () => {
@@ -174,7 +182,7 @@ describe('tool execution', () => {
     const tools = captureTools();
     await tools.get('watcher_reindex')!('id', {});
     const call = fetchMock.mock.calls[0] as [string, RequestInit];
-    expect(call[0]).toBe(`${BASE}/config-reindex`);
+    expect(call[0]).toBe(`${BASE}/reindex`);
     const body = JSON.parse(call[1].body as string) as Record<string, unknown>;
     expect(body).toEqual({ scope: 'rules' });
   });
@@ -187,6 +195,23 @@ describe('tool execution', () => {
     const call = fetchMock.mock.calls[0] as [string, RequestInit];
     const body = JSON.parse(call[1].body as string) as Record<string, unknown>;
     expect(body).toEqual({ scope: 'full' });
+  });
+
+  it('watcher_walk POSTs globs', async () => {
+    const fetchMock = mockFetch({
+      paths: ['j:/domains/foo/bar.md'],
+      matchedCount: 1,
+      scannedRoots: ['j:/domains'],
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    const tools = captureTools();
+    await tools.get('watcher_walk')!('id', {
+      globs: ['**/.meta/meta.json'],
+    });
+    const call = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(call[0]).toBe(`${BASE}/walk`);
+    const body = JSON.parse(call[1].body as string) as Record<string, unknown>;
+    expect(body).toEqual({ globs: ['**/.meta/meta.json'] });
   });
 
   it('returns connectionFail on ECONNREFUSED', async () => {

@@ -15,13 +15,9 @@ import {
 import {
   type InferenceRule,
   inferenceRuleSchema,
-  type SchemaEntry,
   schemaEntrySchema,
 } from './inference';
 import { embeddingConfigSchema, vectorStoreConfigSchema } from './services';
-
-// Re-export types for convenience
-export type { SchemaEntry };
 
 /**
  * Top-level configuration for jeeves-watcher.
@@ -222,5 +218,6 @@ export type JeevesWatcherConfig = Omit<
   JeevesWatcherConfigInput,
   'inferenceRules'
 > & {
+  /** Resolved inference rules (string file paths have been loaded as InferenceRule objects). */
   inferenceRules?: InferenceRule[];
 };

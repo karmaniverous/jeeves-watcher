@@ -548,7 +548,7 @@
           ]
         },
         "cacheTtlMs": {
-          "description": "TTL in milliseconds for caching read-heavy endpoints (e.g., /status, /config/query). Default: 30000.",
+          "description": "TTL in milliseconds for caching read-heavy endpoints (e.g., /status, /config). Default: 30000.",
           "allOf": [
             {
               "$ref": "#/definitions/__schema47"

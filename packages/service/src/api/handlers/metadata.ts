@@ -11,7 +11,7 @@ import type { DocumentProcessorInterface } from '../../processor';
 import { validateMetadataPayload } from './metadataValidation';
 import { wrapHandler } from './wrapHandler';
 
-export interface MetadataRouteDeps {
+interface MetadataRouteDeps {
   processor: DocumentProcessorInterface;
   config: JeevesWatcherConfig;
   logger: pino.Logger;

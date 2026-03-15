@@ -22,7 +22,7 @@ export interface CompiledRule {
  *
  * @param rules - The inference rule definitions.
  */
-export function validateRuleNameUniqueness(rules: InferenceRule[]): void {
+function validateRuleNameUniqueness(rules: InferenceRule[]): void {
   const names = new Set<string>();
   const duplicates: string[] = [];
 

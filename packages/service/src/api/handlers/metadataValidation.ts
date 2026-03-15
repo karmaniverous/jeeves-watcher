@@ -8,7 +8,7 @@ import { buildSyntheticAttributes } from '../../rules/attributes';
 import { compileRules } from '../../rules/compile';
 import { mergeSchemas } from '../../rules/schemaMerge';
 
-export interface ValidationDetail {
+interface ValidationDetail {
   property: string;
   expected: string;
   received: string;
@@ -16,19 +16,19 @@ export interface ValidationDetail {
   message: string;
 }
 
-export interface MetadataValidationResult {
+interface MetadataValidationResult {
   ok: true;
   matchedRules: string[];
 }
 
-export interface MetadataValidationError {
+interface MetadataValidationError {
   ok: false;
   error: string;
   details: ValidationDetail[];
   matchedRules: string[];
 }
 
-export type MetadataValidationOutcome =
+type MetadataValidationOutcome =
   | MetadataValidationResult
   | MetadataValidationError;
 

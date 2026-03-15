@@ -13,7 +13,7 @@ import { listFilesFromGlobs } from './fileScan';
 const DEFAULT_REINDEX_CONCURRENCY = 50;
 
 /** Optional callbacks for progress tracking. */
-export interface ProcessAllFilesCallbacks {
+interface ProcessAllFilesCallbacks {
   /** Called with the total file count before processing begins. */
   onTotal?: (total: number) => void;
   /** Called after each file is processed. */
@@ -30,6 +30,7 @@ export interface ProcessAllFilesCallbacks {
  * @param concurrency - Maximum concurrent file operations (default 50).
  * @param callbacks - Optional progress tracking callbacks.
  * @param isGitignored - Optional callback to check gitignore status per file.
+ * @param preComputedFiles - Optional pre-computed file list (skips listFilesFromGlobs).
  * @returns The number of files processed.
  */
 export async function processAllFiles(
@@ -40,12 +41,11 @@ export async function processAllFiles(
   concurrency: number = DEFAULT_REINDEX_CONCURRENCY,
   callbacks?: ProcessAllFilesCallbacks,
   isGitignored?: (filePath: string) => boolean,
+  preComputedFiles?: string[],
 ): Promise<number> {
-  const files = await listFilesFromGlobs(
-    watchPaths,
-    ignoredPaths,
-    isGitignored,
-  );
+  const files =
+    preComputedFiles ??
+    (await listFilesFromGlobs(watchPaths, ignoredPaths, isGitignored));
 
   callbacks?.onTotal?.(files.length);
 

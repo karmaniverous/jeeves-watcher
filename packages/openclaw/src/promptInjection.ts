@@ -1,17 +1,4 @@
-import {
-  fetchJson,
-  getApiUrl,
-  getCacheTtlMs,
-  type PluginApi,
-} from './helpers.js';
-
-/** Cache structure for the generated menu string */
-interface MenuCache {
-  value: string;
-  expiresAt: number;
-}
-
-let menuCache: MenuCache | null = null;
+import { fetchJson } from './helpers.js';
 
 interface StatusResponse {
   collection?: { pointCount: number };
@@ -24,27 +11,6 @@ interface QueryResponse {
 interface InferenceRule {
   name?: string;
   description?: string;
-}
-
-type BootstrapFile = {
-  name: string;
-  path?: string;
-  content?: string;
-  missing: boolean;
-};
-
-type AgentBootstrapEventContext = {
-  bootstrapFiles: BootstrapFile[];
-};
-
-function isAgentBootstrapEventContext(
-  value: unknown,
-): value is AgentBootstrapEventContext {
-  if (!value || typeof value !== 'object') {
-    return false;
-  }
-  const v = value as { bootstrapFiles?: unknown };
-  return Array.isArray(v.bootstrapFiles);
 }
 
 /**
@@ -62,26 +28,18 @@ export async function generateWatcherMenu(apiUrl: string): Promise<string> {
     const [statusRes, rulesRes, pathsRes, thresholdsRes, ignoredRes] =
       (await Promise.all([
         fetchJson(`${apiUrl}/status`),
-        fetchJson(`${apiUrl}/config/query`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ path: '$.inferenceRules[*]' }),
-        }),
-        fetchJson(`${apiUrl}/config/query`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ path: '$.watch.paths[*]' }),
-        }),
-        fetchJson(`${apiUrl}/config/query`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ path: '$.search.scoreThresholds' }),
-        }),
-        fetchJson(`${apiUrl}/config/query`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ path: '$.watch.ignored[*]' }),
-        }),
+        fetchJson(
+          `${apiUrl}/config?path=${encodeURIComponent('$.inferenceRules[*]')}`,
+        ),
+        fetchJson(
+          `${apiUrl}/config?path=${encodeURIComponent('$.watch.paths[*]')}`,
+        ),
+        fetchJson(
+          `${apiUrl}/config?path=${encodeURIComponent('$.search.scoreThresholds')}`,
+        ),
+        fetchJson(
+          `${apiUrl}/config?path=${encodeURIComponent('$.watch.ignored[*]')}`,
+        ),
       ])) as [
         StatusResponse,
         QueryResponse,
@@ -192,90 +150,4 @@ export async function generateWatcherMenu(apiUrl: string): Promise<string> {
   }
 
   return lines.join('\n');
-}
-
-async function getCachedWatcherMenu(
-  apiUrl: string,
-  ttlMs: number,
-): Promise<string> {
-  const now = Date.now();
-  if (menuCache && menuCache.expiresAt > now) {
-    return menuCache.value;
-  }
-
-  const menu = await generateWatcherMenu(apiUrl);
-  menuCache = { value: menu, expiresAt: now + ttlMs };
-  return menu;
-}
-
-function ensurePlatformToolsSection(toolsMd: string): string {
-  if (toolsMd.includes('# Jeeves Platform Tools')) {
-    return toolsMd;
-  }
-  return `# Jeeves Platform Tools\n\n${toolsMd}`;
-}
-
-function upsertWatcherSection(toolsMd: string, watcherMenu: string): string {
-  const section = `## Watcher\n\n${watcherMenu}\n`;
-
-  // If we already injected a Watcher section, replace it.
-  // The `m` flag is needed so `^` matches line starts, but it also makes
-  // `$` match end-of-line instead of end-of-string.  Use a negative
-  // lookahead `$(?![\s\S])` to anchor at true end-of-string.
-  const re = /^## Watcher\n[\s\S]*?(?=\n## |\n# |$(?![\s\S]))/m;
-  if (re.test(toolsMd)) {
-    return toolsMd.replace(re, section);
-  }
-
-  // Otherwise insert immediately after the H1 if present, else append.
-  const h1 = '# Jeeves Platform Tools';
-  const idx = toolsMd.indexOf(h1);
-  if (idx !== -1) {
-    const afterH1 = idx + h1.length;
-    return (
-      toolsMd.slice(0, afterH1) + `\n\n${section}` + toolsMd.slice(afterH1)
-    );
-  }
-
-  return `${toolsMd}\n\n${section}`;
-}
-
-/**
- * Hook handler for agent:bootstrap.
- * Injects/updates the Watcher Menu into the TOOLS.md payload.
- */
-export async function handleAgentBootstrap(
-  event: unknown,
-  api: PluginApi,
-): Promise<void> {
-  const context = (event as { context?: unknown } | null)?.context;
-  if (!isAgentBootstrapEventContext(context)) {
-    return;
-  }
-
-  const apiUrl = getApiUrl(api);
-  const cacheTtlMs = getCacheTtlMs(api);
-  const watcherMenu = await getCachedWatcherMenu(apiUrl, cacheTtlMs);
-
-  let toolsFile = context.bootstrapFiles.find((f) => f.name === 'TOOLS.md');
-
-  if (!toolsFile) {
-    toolsFile = { name: 'TOOLS.md', content: '', missing: false };
-    context.bootstrapFiles.push(toolsFile);
-  }
-
-  const current = toolsFile.content ?? '';
-
-  // Guard: the bootstrap hook fires on every message turn because OpenClaw
-  // caches bootstrapFiles per session and returns the same mutable objects.
-  // If we already injected the watcher menu into this content, skip to
-  // avoid accumulating duplicate sections.
-  if (current.includes('## Watcher') && current.includes(watcherMenu)) {
-    return;
-  }
-
-  const withH1 = ensurePlatformToolsSection(current);
-  const updated = upsertWatcherSection(withH1, watcherMenu);
-
-  toolsFile.content = updated;
 }

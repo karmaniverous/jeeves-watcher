@@ -8,7 +8,6 @@ import { dirname } from 'node:path';
 import Fastify, { type FastifyInstance } from 'fastify';
 import type pino from 'pino';
 
-import { buildTemplateEngineAndCustomMapLib } from '../app/initialization';
 import type { JeevesWatcherConfig } from '../config/types';
 import type { EmbeddingProvider } from '../embedding';
 import type { GitignoreFilter } from '../gitignore';
@@ -16,11 +15,14 @@ import type { AllHelpersIntrospection } from '../helpers';
 import type { IssuesManager } from '../issues';
 import type { DocumentProcessorInterface } from '../processor';
 import type { EventQueue } from '../queue';
-import { compileRules } from '../rules';
 import type { VirtualRuleStore } from '../rules/virtualRules';
 import type { ValuesManager } from '../values';
 import type { VectorStoreClient } from '../vectorStore';
-import { executeReindex, type ReindexScope } from './executeReindex';
+import {
+  CONFIG_WATCH_VALID_SCOPES,
+  executeReindex,
+  type ReindexScope,
+} from './executeReindex';
 import { createConfigApplyHandler } from './handlers/configApply';
 import { createConfigMatchHandler } from './handlers/configMatch';
 import { createConfigQueryHandler } from './handlers/configQuery';
@@ -32,7 +34,6 @@ import { createIssuesHandler } from './handlers/issues';
 import { createMetadataHandler } from './handlers/metadata';
 import { createPointsDeleteHandler } from './handlers/pointsDelete';
 import { createRebuildMetadataHandler } from './handlers/rebuildMetadata';
-import { createReindexHandler } from './handlers/reindex';
 import { createRenderHandler } from './handlers/render';
 import { createRulesReapplyHandler } from './handlers/rulesReapply';
 import { createRulesRegisterHandler } from './handlers/rulesRegister';
@@ -43,9 +44,14 @@ import {
 import { createScanHandler } from './handlers/scan';
 import { createSearchHandler } from './handlers/search';
 import { createStatusHandler } from './handlers/status';
+import { createWalkHandler } from './handlers/walk';
 import { withCache } from './handlers/withCache';
+import type { InitialScanTracker } from './InitialScanTracker';
+import { createOnRulesChanged } from './onRulesChanged';
 import { ReindexTracker } from './ReindexTracker';
 
+export type { InitialScanStatus } from './InitialScanTracker';
+export { InitialScanTracker } from './InitialScanTracker';
 export type { ReindexStatus } from './ReindexTracker';
 export { ReindexTracker } from './ReindexTracker';
 
@@ -81,6 +87,8 @@ export interface ApiServerOptions {
   gitignoreFilter?: GitignoreFilter;
   /** Service version string for /status endpoint. */
   version?: string;
+  /** Initial scan tracker for /status visibility. */
+  initialScanTracker?: InitialScanTracker;
 }
 
 /**
@@ -105,12 +113,20 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
     virtualRuleStore,
     gitignoreFilter,
     version,
+    initialScanTracker,
   } = options;
 
   const reindexTracker = options.reindexTracker ?? new ReindexTracker();
   const app = Fastify({ logger: false });
 
   const triggerReindex = (scope: ReindexScope) => {
+    if (!CONFIG_WATCH_VALID_SCOPES.includes(scope)) {
+      logger.warn(
+        { scope },
+        `Scope "${scope}" is not valid for config-watch auto-trigger; ignoring.`,
+      );
+      return;
+    }
     void executeReindex(
       {
         config,
@@ -120,6 +136,7 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
         valuesManager,
         issuesManager,
         gitignoreFilter,
+        vectorStore,
       },
       scope,
     );
@@ -136,6 +153,7 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
         collectionName: config.vectorStore.collectionName,
         reindexTracker,
         version: version ?? 'unknown',
+        initialScanTracker,
       }),
     ),
   );
@@ -175,22 +193,22 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
   );
 
   app.post(
+    '/walk',
+    createWalkHandler({
+      watchPaths: config.watch.paths,
+      watchIgnored: config.watch.ignored ?? [],
+      gitignoreFilter,
+      logger,
+    }),
+  );
+
+  app.post(
     '/search',
     createSearchHandler({
       embeddingProvider,
       vectorStore,
       logger,
       hybridConfig,
-    }),
-  );
-
-  app.post(
-    '/reindex',
-    createReindexHandler({
-      watch: config.watch,
-      processor,
-      logger,
-      concurrency: config.reindex?.concurrency ?? 50,
     }),
   );
 
@@ -204,7 +222,7 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
   );
 
   app.post(
-    '/config-reindex',
+    '/reindex',
     createConfigReindexHandler({
       config,
       processor,
@@ -213,6 +231,7 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
       valuesManager,
       issuesManager,
       gitignoreFilter,
+      vectorStore,
     }),
   );
 
@@ -225,8 +244,8 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
 
   app.post('/config/match', createConfigMatchHandler({ config, logger }));
 
-  app.post(
-    '/config/query',
+  app.get(
+    '/config',
     withCache(
       cacheTtlMs,
       createConfigQueryHandler({
@@ -264,26 +283,18 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
 
   // Virtual rules and points deletion routes
   if (virtualRuleStore) {
-    const onRulesChanged = () => {
-      const configRules = config.inferenceRules ?? [];
-      const virtualRulesBySource = virtualRuleStore.getAll();
-      const allVirtualRules = Object.values(virtualRulesBySource).flat();
-      const mergedRules = [...configRules, ...allVirtualRules];
-      const configCompiled = compileRules(configRules);
-      const virtualCompiled = virtualRuleStore.getCompiled();
-
-      // Rebuild template engine asynchronously with merged rules
-      void buildTemplateEngineAndCustomMapLib(
-        { ...config, inferenceRules: mergedRules },
-        dirname(configPath),
-      ).then(({ templateEngine: newEngine, customMapLib: newMapLib }) => {
-        processor.updateRules(
-          [...configCompiled, ...virtualCompiled],
-          newEngine,
-          newMapLib,
-        );
-      });
-    };
+    const onRulesChanged = createOnRulesChanged({
+      config,
+      configPath,
+      processor,
+      logger,
+      virtualRuleStore,
+      reindexTracker,
+      valuesManager,
+      issuesManager,
+      gitignoreFilter,
+      vectorStore,
+    });
 
     app.post(
       '/rules/register',

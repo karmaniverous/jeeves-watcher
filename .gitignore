@@ -17,3 +17,6 @@ context/
 .stan/system/facet.state.json
 .stan/system/.docs.meta.json
 .stan/imports/
+
+# Generated docs
+docs/

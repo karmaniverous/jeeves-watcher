@@ -28,6 +28,7 @@ import { createSplitter } from './splitter';
 import type { DocumentProcessorInterface } from './types';
 
 export type { ProcessorConfig } from './ProcessorConfig';
+export type { RenderResult } from './renderResult';
 export type { DocumentProcessorInterface } from './types';
 
 /**

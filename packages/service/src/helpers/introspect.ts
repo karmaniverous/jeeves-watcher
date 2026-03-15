@@ -60,7 +60,7 @@ function extractJsDocDescriptions(source: string): Record<string, string> {
  * @param namespace - The namespace prefix for this module.
  * @returns Introspection result with namespaced export names and descriptions.
  */
-export async function introspectHelperModule(
+async function introspectHelperModule(
   filePath: string,
   namespace: string,
 ): Promise<HelperModuleIntrospection> {

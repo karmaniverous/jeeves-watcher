@@ -10,18 +10,17 @@ import { createConfigQueryHandler } from './configQuery';
 
 vi.mock('../mergedDocument', () => ({
   buildMergedDocument: vi.fn(),
-  resolveReferences: vi.fn(),
+  resolveReferences: vi.fn((doc: unknown) => doc),
 }));
 
 import type { Mock } from 'vitest';
 
-import { buildMergedDocument, resolveReferences } from '../mergedDocument';
+import { buildMergedDocument } from '../mergedDocument';
 
 const mockedBuild = buildMergedDocument as Mock;
-const mockedResolve = resolveReferences as Mock;
 
 type ConfigQueryRequest = FastifyRequest<{
-  Body: { path: string; resolve?: ('files' | 'globals')[] };
+  Querystring: { path?: string };
 }>;
 
 function createDeps(): ConfigQueryRouteDeps {
@@ -38,8 +37,8 @@ function createDeps(): ConfigQueryRouteDeps {
   };
 }
 
-function mockRequest(body: Record<string, unknown>): ConfigQueryRequest {
-  return { body } as unknown as ConfigQueryRequest;
+function mockRequest(query: Record<string, unknown>): ConfigQueryRequest {
+  return { query } as unknown as ConfigQueryRequest;
 }
 
 function mockReply() {
@@ -50,18 +49,23 @@ function mockReply() {
 }
 
 describe('createConfigQueryHandler (globals resolve)', () => {
-  it('passes globals resolve through to resolveReferences', async () => {
+  it('returns resolved document with schema references expanded', async () => {
     const deps = createDeps();
-    const doc = { schemas: { base: { properties: {} } } };
+    const doc = {
+      schemas: { base: { properties: {} } },
+      inferenceRules: [{ name: 'r1', schema: ['base'] }],
+    };
     mockedBuild.mockReturnValue(doc);
-    mockedResolve.mockReturnValue(doc);
 
     const handler = createConfigQueryHandler(deps);
-    await handler(
-      mockRequest({ path: '$.schemas', resolve: ['globals'] }),
+    const result = await handler(
+      mockRequest({ path: '$.schemas' }),
       mockReply() as unknown as FastifyReply,
     );
 
-    expect(mockedResolve).toHaveBeenCalledWith(doc, ['globals']);
+    expect(result).toEqual({
+      result: [{ base: { properties: {} } }],
+      count: 1,
+    });
   });
 });

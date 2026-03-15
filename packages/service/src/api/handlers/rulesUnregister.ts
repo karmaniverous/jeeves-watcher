@@ -9,7 +9,7 @@ import type pino from 'pino';
 import type { VirtualRuleStore } from '../../rules/virtualRules';
 import { wrapHandler } from './wrapHandler';
 
-export interface RulesUnregisterDeps {
+interface RulesUnregisterDeps {
   virtualRuleStore: VirtualRuleStore;
   logger: pino.Logger;
   /** Callback invoked after rules change so the processor can update. */

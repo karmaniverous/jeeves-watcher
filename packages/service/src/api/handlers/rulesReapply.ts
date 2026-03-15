@@ -13,7 +13,7 @@ import { normalizeSlashes } from '../../util/normalizeSlashes';
 import type { VectorStore } from '../../vectorStore';
 import { wrapHandler } from './wrapHandler';
 
-export interface RulesReapplyDeps {
+interface RulesReapplyDeps {
   processor: DocumentProcessorInterface;
   vectorStore: VectorStore;
   logger: pino.Logger;

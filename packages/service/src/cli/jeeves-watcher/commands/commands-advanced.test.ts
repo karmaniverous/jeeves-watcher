@@ -1,7 +1,7 @@
 /**
  * @module commands/commands-advanced.test
  *
- * Tests for advanced CLI commands (configReindex, rebuildMetadata, service).
+ * Tests for advanced CLI commands (reindex, rebuildMetadata, service).
  */
 
 import {
@@ -14,8 +14,8 @@ import {
   vi,
 } from 'vitest';
 
-import { registerConfigReindexCommand } from './configReindex';
 import { registerRebuildMetadataCommand } from './rebuildMetadata';
+import { registerReindexCommand } from './reindex';
 import { registerServiceCommand } from './service';
 
 // Mock console methods
@@ -42,27 +42,21 @@ afterEach(() => {
   processExitSpy.mockRestore();
 });
 
-describe('configReindex command', () => {
+describe('reindex command', () => {
   it('validates scope parameter - rules', async () => {
     const { Command } = await import('@commander-js/extra-typings');
     const cli = new Command();
-    registerConfigReindexCommand(cli);
+    registerReindexCommand(cli);
 
     mockFetch.mockResolvedValue({
       ok: true,
       text: () => Promise.resolve('Config reindex started'),
     });
 
-    await cli.parseAsync([
-      'node',
-      'test',
-      'config-reindex',
-      '--scope',
-      'rules',
-    ]);
+    await cli.parseAsync(['node', 'test', 'reindex', '--scope', 'rules']);
 
     expect(mockFetch).toHaveBeenCalledWith(
-      'http://127.0.0.1:1936/config-reindex',
+      'http://127.0.0.1:1936/reindex',
       expect.objectContaining({
         body: JSON.stringify({ scope: 'rules' }),
       }),
@@ -72,14 +66,14 @@ describe('configReindex command', () => {
   it('validates scope parameter - full', async () => {
     const { Command } = await import('@commander-js/extra-typings');
     const cli = new Command();
-    registerConfigReindexCommand(cli);
+    registerReindexCommand(cli);
 
     mockFetch.mockResolvedValue({
       ok: true,
       text: () => Promise.resolve('Full reindex started'),
     });
 
-    await cli.parseAsync(['node', 'test', 'config-reindex', '--scope', 'full']);
+    await cli.parseAsync(['node', 'test', 'reindex', '--scope', 'full']);
 
     expect(mockFetch).toHaveBeenCalledWith(
       expect.any(String),
@@ -92,18 +86,12 @@ describe('configReindex command', () => {
   it('rejects invalid scope', async () => {
     const { Command } = await import('@commander-js/extra-typings');
     const cli = new Command();
-    registerConfigReindexCommand(cli);
+    registerReindexCommand(cli);
 
-    await cli.parseAsync([
-      'node',
-      'test',
-      'config-reindex',
-      '--scope',
-      'invalid',
-    ]);
+    await cli.parseAsync(['node', 'test', 'reindex', '--scope', 'invalid']);
 
     expect(consoleErrorSpy).toHaveBeenCalledWith(
-      'Invalid scope. Must be "rules" or "full"',
+      'Invalid scope "invalid". Must be one of: issues, full, rules, path, prune',
     );
     expect(processExitSpy).toHaveBeenCalledWith(1);
   });
@@ -111,14 +99,14 @@ describe('configReindex command', () => {
   it('uses default scope of rules', async () => {
     const { Command } = await import('@commander-js/extra-typings');
     const cli = new Command();
-    registerConfigReindexCommand(cli);
+    registerReindexCommand(cli);
 
     mockFetch.mockResolvedValue({
       ok: true,
       text: () => Promise.resolve('OK'),
     });
 
-    await cli.parseAsync(['node', 'test', 'config-reindex']);
+    await cli.parseAsync(['node', 'test', 'reindex']);
 
     expect(mockFetch).toHaveBeenCalledWith(
       expect.any(String),

@@ -60,9 +60,8 @@ export function registerHelpersCommand(cli: Command): void {
         const mapText = await apiCall(
           options.host,
           options.port,
-          'POST',
-          '/config/query',
-          { path: '$.mapHelpers' },
+          'GET',
+          `/config?path=${encodeURIComponent('$.mapHelpers')}`,
         );
         const mapResult = JSON.parse(mapText) as QueryResult;
 
@@ -70,9 +69,8 @@ export function registerHelpersCommand(cli: Command): void {
         const tplText = await apiCall(
           options.host,
           options.port,
-          'POST',
-          '/config/query',
-          { path: '$.templateHelpers' },
+          'GET',
+          `/config?path=${encodeURIComponent('$.templateHelpers')}`,
         );
         const tplResult = JSON.parse(tplText) as QueryResult;
 

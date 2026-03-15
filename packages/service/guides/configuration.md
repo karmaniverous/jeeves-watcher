@@ -176,12 +176,12 @@ See [Inference Rules Guide](./inference-rules.md) for merge semantics and usage 
 |-------|------|---------|-------------|
 | `enabled` | `boolean` | `true` | Watch config file for changes and trigger scoped reindex. |
 | `debounceMs` | `number` | `1000` | Debounce window for config changes. |
-| `reindex` | `string` | `"issues"` | Reindex behavior on config change: `"issues"` (re-process only files with recorded issues), `"full"` (re-embed all files). Omit to use default. |
+| `reindex` | `string` | `"issues"` | Reindex scope on config change: `"issues"` (re-process failed files), `"rules"` (re-apply inference rules), or `"full"` (re-embed all files). Note: `"path"` and `"prune"` are NOT valid for auto-trigger. |
 
 When the config file changes:
 1. Watcher reloads and validates the new config
 2. Inference rules are recompiled
-3. A **metadata-only reindex** is triggered for files matching changed rules (no re-embedding)
+3. A reindex is triggered with the configured scope
 
 ---
 

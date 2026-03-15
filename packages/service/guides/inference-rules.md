@@ -571,7 +571,10 @@ When `configWatch.enabled` is true, the watcher monitors its config file. On con
 | Mode | Behavior |
 |------|----------|
 | `"issues"` (default) | Re-process only files in the issues file (cheap, targeted) |
+| `"rules"` | Re-apply inference rules to all files (no re-embedding) |
 | `"full"` | Full reindex of all watched files (use when broad config changes affect already-embedded files) |
+
+> **Note:** `"path"` and `"prune"` are NOT valid for config-watch auto-trigger. They can only be triggered via explicit API calls.
 
 **Issues reindex** is the default because config changes typically fix issues: a type collision is resolved by editing a rule, and re-processing just the affected file is sufficient.
 
