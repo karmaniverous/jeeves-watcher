@@ -96,7 +96,7 @@ The watcher will:
 | `jeeves-watcher issues` | Show indexing issues and errors |
 | `jeeves-watcher helpers` | Show loaded map and template helpers |
 | `jeeves-watcher config-apply` | Validate, write, and reload configuration from file |
-| `jeeves-watcher config-reindex` | Reindex after configuration changes (rules only or full) |
+| `jeeves-watcher config-reindex` | Trigger scoped reindex (`issues`, `rules`, `full`, `path`, `prune`) |
 
 ## Configuration
 
@@ -237,7 +237,7 @@ The watcher provides a REST API (default port: 1936):
 | `/metadata` | POST | Update document metadata with schema validation (`{ path: string, metadata: object }`) |
 | `/reindex` | POST | Reindex all watched files |
 | `/rebuild-metadata` | POST | Rebuild metadata files from Qdrant |
-| `/config-reindex` | POST | Reindex after config changes (`{ scope?: "rules" \| "full" }`) |
+| `/config-reindex` | POST | Scoped reindex with blast area plan (`issues`, `rules`, `full`, `path`, `prune` + `dryRun`) |
 | `/config/schema` | GET | JSON Schema of merged virtual document (v0.5.0+) |
 | `/config/query` | POST | JSONPath query over config (`{ path: string, resolve?: string[] }`) (v0.5.0+) |
 | `/config/match` | POST | Test paths against inference rules (`{ paths: string[] }`) (v0.5.0+) |
@@ -299,7 +299,7 @@ This repo includes an OpenClaw plugin (`packages/openclaw`) that exposes the jee
 | `watcher_query`        | Query the merged virtual document via JSONPath |
 | `watcher_validate`     | Validate a watcher configuration               |
 | `watcher_config_apply` | Apply a new configuration                      |
-| `watcher_reindex`      | Trigger a reindex                              |
+| `watcher_reindex`      | Trigger a scoped reindex with blast area plan   |
 | `watcher_scan`         | Filter-only point query with cursor pagination |
 | `watcher_issues`       | List indexing issues and errors                |
 

@@ -437,7 +437,7 @@ Sends `POST /scan` to the API. See [API Reference](./api-reference.md#post-scan)
 
 ## `jeeves-watcher config-reindex`
 
-Reindex after configuration changes.
+Trigger a scoped reindex operation.
 
 ### Usage
 
@@ -449,30 +449,44 @@ jeeves-watcher config-reindex [options]
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `-s, --scope <scope>` | `rules` | Reindex scope: `rules` (metadata-only) or `full` (re-embed) |
+| `-s, --scope <scope>` | `issues` | Reindex scope: `issues`, `rules`, `full`, `path`, or `prune` |
+| `--path <path>` | — | Target file or directory (required when scope is `path`) |
+| `--dry-run` | `false` | Compute blast area plan without executing |
 | `-p, --port <port>` | `1936` | API port |
 | `-H, --host <host>` | `127.0.0.1` | API host |
 
 ### Examples
 
 ```bash
-# Metadata-only reindex (after editing inference rules)
+# Re-process files with embedding failures (default)
 jeeves-watcher config-reindex
+
+# Re-apply inference rules (no re-embedding)
+jeeves-watcher config-reindex --scope rules
 
 # Full reindex (after changing embedding provider)
 jeeves-watcher config-reindex --scope full
+
+# Re-embed a specific directory
+jeeves-watcher config-reindex --scope path --path j:/domains/projects
+
+# Delete orphaned points
+jeeves-watcher config-reindex --scope prune
+
+# Preview blast area without executing
+jeeves-watcher config-reindex --scope prune --dry-run
 ```
 
 ### Behavior
 
 Sends `POST /config-reindex` to the API. See [API Reference](./api-reference.md#post-config-reindex) for details.
 
-**Scope: `rules`**
-- Re-applies inference rules to all files
-- Updates Qdrant payloads (no re-embedding)
-
-**Scope: `full`**
-- Re-extracts, re-embeds, re-upserts all files
+**Scopes:**
+- **`issues`** — Re-process only files with embedding failures
+- **`rules`** — Re-apply inference rules, update Qdrant payloads (no re-embedding)
+- **`full`** — Re-extract, re-embed, re-upsert all files
+- **`path`** — Re-embed a specific file or directory
+- **`prune`** — Delete Qdrant points for files no longer in watch scope
 
 ### Output
 
@@ -481,7 +495,18 @@ Sends `POST /config-reindex` to the API. See [API Reference](./api-reference.md#
 ```json
 {
   "status": "started",
-  "scope": "rules"
+  "scope": "rules",
+  "plan": { "total": 148000, "toProcess": 148000, "toDelete": 0, "byRoot": { ... } }
+}
+```
+
+**Dry run:**
+
+```json
+{
+  "status": "dry_run",
+  "scope": "prune",
+  "plan": { "total": 562000, "toProcess": 0, "toDelete": 2300, "byRoot": { ... } }
 }
 ```
 

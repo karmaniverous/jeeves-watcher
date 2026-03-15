@@ -26,6 +26,7 @@ curl http://localhost:1936/status
 {
   "status": "ok",
   "uptime": 86400,
+  "version": "0.9.9",
   "collection": {
     "name": "jeeves_archive",
     "pointCount": 10498,
@@ -41,13 +42,14 @@ curl http://localhost:1936/status
 |-------|------|-------------|
 | `status` | `string` | Always `"ok"` if the server is responding. |
 | `uptime` | `number` | Process uptime in seconds. |
+| `version` | `string` | Service package version (from `package.json`). |
 | `collection` | `object` | Qdrant collection stats. |
 | `collection.name` | `string` | Collection name. |
 | `collection.pointCount` | `number` | Total indexed points (chunks). |
 | `collection.dimensions` | `number` | Embedding vector dimensions. |
 | `reindex` | `object` | Active reindex status. |
 | `reindex.active` | `boolean` | Whether a reindex is currently running. |
-| `reindex.scope` | `string?` | Reindex scope (`"rules"` or `"full"`) if active. |
+| `reindex.scope` | `string?` | Reindex scope if active: `"rules"`, `"full"`, `"issues"`, `"path"`, or `"prune"`. |
 | `reindex.startedAt` | `string?` | ISO-8601 timestamp when reindex started, if active. |
 
 > **v0.5.0 change:** `payloadFields` has been removed from the status response. Use [`POST /config/query`](#post-configquery) or [`GET /config/schema`](#get-configschema) to discover schema and payload field information.
@@ -590,73 +592,138 @@ curl -X POST http://localhost:1936/rebuild-metadata
 
 ## POST /config-reindex
 
-Reindex after configuration changes (rules update or full reindex).
+Trigger a scoped reindex operation. All responses include a `plan` object showing blast area.
 
 ### Request
-
-**Scope: `rules` (default) — metadata-only reindex:**
-
-```bash
-curl -X POST http://localhost:1936/config-reindex \
-  -H "Content-Type: application/json" \
-  -d '{"scope": "rules"}'
-```
-
-**Scope: `full` — re-extract, re-embed, re-upsert:**
-
-```bash
-curl -X POST http://localhost:1936/config-reindex \
-  -H "Content-Type: application/json" \
-  -d '{"scope": "full"}'
-```
 
 **Body schema:**
 
 ```typescript
 {
-  scope?: "rules" | "full";  // Default: "rules"
+  scope?: "issues" | "full" | "rules" | "path" | "prune";  // Default: "issues"
+  path?: string;       // Required when scope is "path"
+  dryRun?: boolean;    // Compute plan without executing (default: false)
 }
+```
+
+**Examples:**
+
+```bash
+# Rules-only reindex (re-apply inference rules, no re-embedding)
+curl -X POST http://localhost:1936/config-reindex \
+  -H "Content-Type: application/json" \
+  -d '{"scope": "rules"}'
+
+# Full reindex (re-extract, re-embed, re-upsert all files)
+curl -X POST http://localhost:1936/config-reindex \
+  -H "Content-Type: application/json" \
+  -d '{"scope": "full"}'
+
+# Re-process only files with embedding failures
+curl -X POST http://localhost:1936/config-reindex \
+  -H "Content-Type: application/json" \
+  -d '{"scope": "issues"}'
+
+# Re-embed a specific directory
+curl -X POST http://localhost:1936/config-reindex \
+  -H "Content-Type: application/json" \
+  -d '{"scope": "path", "path": "j:/domains/projects/jeeves-watcher"}'
+
+# Delete orphaned points (files no longer in watch scope)
+curl -X POST http://localhost:1936/config-reindex \
+  -H "Content-Type: application/json" \
+  -d '{"scope": "prune"}'
+
+# Dry run: preview blast area without executing
+curl -X POST http://localhost:1936/config-reindex \
+  -H "Content-Type: application/json" \
+  -d '{"scope": "prune", "dryRun": true}'
 ```
 
 ### Response
 
-**Success (200 OK):**
+**Success (200 OK) — normal execution:**
 
 ```json
 {
   "status": "started",
-  "scope": "rules"
+  "scope": "rules",
+  "plan": {
+    "total": 148000,
+    "toProcess": 148000,
+    "toDelete": 0,
+    "byRoot": {
+      "j:/domains": 95000,
+      "j:/config": 3000
+    }
+  }
 }
 ```
 
-The reindex runs **asynchronously** — the API returns immediately.
-
-**Error (500 Internal Server Error):**
+**Success (200 OK) — dry run:**
 
 ```json
 {
-  "error": "Internal server error"
+  "status": "dry_run",
+  "scope": "prune",
+  "plan": {
+    "total": 562000,
+    "toProcess": 0,
+    "toDelete": 2300,
+    "byRoot": {
+      "j:/jeeves/node_modules": 1800,
+      "j:/jeeves/.bridge": 500
+    }
+  }
 }
 ```
 
-### Behavior
+**Plan fields:**
 
-#### Scope: `rules`
+| Field | Type | Description |
+|-------|------|-------------|
+| `total` | `number` | Total points (prune) or files (other scopes) examined. |
+| `toProcess` | `number` | Items to embed/re-apply rules (0 for prune). |
+| `toDelete` | `number` | Points to delete (prune only, 0 for others). |
+| `byRoot` | `object` | Counts grouped by watch root prefix. |
 
-1. Re-reads file attributes (path, stats, frontmatter, JSON)
-2. Re-applies current inference rules
-3. Merges with enrichment metadata from the metadata store
-4. Updates Qdrant payloads (no re-embedding)
+The reindex runs **asynchronously** — the API returns immediately with the plan. Use `GET /status` to track progress.
 
-**Use case:** You edited inference rules and want to update metadata without re-embedding.
+**Error codes:**
 
-#### Scope: `full`
+| Code | Condition |
+|------|-----------|
+| `200` | Success (started or dry_run) |
+| `400` | Invalid scope, missing `path` for path scope, or prune without vectorStore |
+| `500` | Server error |
 
-1. Re-extracts text from all files
-2. Re-embeds (new embedding API calls)
-3. Re-upserts to Qdrant
+### Scopes
 
-**Use case:** You changed embedding providers (e.g., Gemini 3072-dim → 768-dim) or chunk size.
+#### `issues` (default)
+
+Re-processes only files that previously failed embedding (from `GET /issues`). Use after fixing the root cause of failures (permissions, encoding, file format).
+
+#### `rules`
+
+Re-reads file attributes, re-applies current inference rules, updates Qdrant payloads. **No re-embedding.** Use after editing inference rules.
+
+#### `full`
+
+Re-extracts text, re-embeds (new embedding API calls), re-upserts to Qdrant. Use after changing embedding providers, chunk size, or adding watch paths.
+
+#### `path`
+
+Re-embeds a specific file or all files under a directory. Validates that the target is within watch scope and not gitignored. Requires the `path` parameter. Use for targeted re-embedding without a full reindex.
+
+#### `prune`
+
+Scrolls all Qdrant points, checks each `file_path` against current watch scope and gitignore, batch-deletes orphaned points. **No re-embedding, no file reads** — pure Qdrant scroll + local checks + deletes. Use after changing `watch.paths`, adding gitignore rules, or to clean up stale data (e.g., indexed `node_modules`).
+
+**Note:** `prune` is NOT valid for the config-watch auto-trigger (`configWatch.reindex`). It can only be triggered via explicit API calls.
+
+### Dry Run
+
+When `dryRun: true`, the plan is computed and returned synchronously without starting the async job. Works for all scopes. Use to preview impact before committing to a large operation.
 
 ### Reindex Tracking
 
@@ -1270,12 +1337,14 @@ All endpoints return JSON errors with this schema:
 
 ```json
 {
-  "error": "Human-readable error message"
+  "error": "ErrorClassName",
+  "message": "Human-readable error message"
 }
 ```
 
 **Status codes:**
 - `200 OK` — Success
+- `400 Bad Request` — Validation error (invalid scope, missing required field, etc.)
 - `500 Internal Server Error` — Server-side failure (check logs for details)
 
 ---

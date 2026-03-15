@@ -56,7 +56,7 @@ On startup, the plugin writes a `## Watcher` section to `TOOLS.md` in the agent'
 | `watcher_query` | Query the merged virtual document via JSONPath |
 | `watcher_validate` | Validate a watcher configuration |
 | `watcher_config_apply` | Apply a new configuration |
-| `watcher_reindex` | Trigger a full reindex |
+| `watcher_reindex` | Trigger a scoped reindex with blast area plan |
 | `watcher_scan` | Filter-only point query with cursor pagination |
 | `watcher_issues` | List indexing issues and errors |
 
