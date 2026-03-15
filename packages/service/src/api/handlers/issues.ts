@@ -6,7 +6,7 @@
 import type { IssuesManager } from '../../issues';
 
 /** Dependencies for the issues route handler. */
-export interface IssuesRouteDeps {
+interface IssuesRouteDeps {
   issuesManager: IssuesManager;
 }
 

@@ -25,7 +25,7 @@ import { executeReindex } from './executeReindex';
 import type { ReindexTracker } from './ReindexTracker';
 
 /** Dependencies for {@link createOnRulesChanged}. */
-export interface OnRulesChangedDeps {
+interface OnRulesChangedDeps {
   config: JeevesWatcherConfig;
   configPath: string;
   processor: DocumentProcessorInterface;

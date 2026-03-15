@@ -7,5 +7,4 @@ export {
   type AllHelpersIntrospection,
   type HelperModuleIntrospection,
   introspectAllHelpers,
-  introspectHelperModule,
 } from './introspect';

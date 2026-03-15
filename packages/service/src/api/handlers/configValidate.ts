@@ -26,7 +26,7 @@ import { mergeAndValidateConfig } from './mergeAndValidate';
 import { wrapHandler } from './wrapHandler';
 
 /** A test result for a single path. */
-export interface TestResult {
+interface TestResult {
   path: string;
   matchedRules: string[];
   metadata: Record<string, unknown>;

@@ -39,7 +39,6 @@ type ApiServerOptions = Parameters<
 >[0];
 
 export type { JeevesWatcherFactories } from './factories';
-export { defaultFactories } from './factories';
 export { startFromConfig } from './startFromConfig';
 
 /**

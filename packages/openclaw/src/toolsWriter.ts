@@ -121,21 +121,3 @@ export function startToolsWriter(api: PluginApi): void {
     intervalHandle.unref();
   }
 }
-
-/**
- * Force an immediate refresh (e.g., after watcher_config_apply).
- */
-export async function forceRefreshToolsMd(api: PluginApi): Promise<void> {
-  lastWrittenMenu = ''; // Invalidate cache to force write
-  await refreshToolsMd(api);
-}
-
-/**
- * Stop the periodic writer (for cleanup).
- */
-export function stopToolsWriter(): void {
-  if (intervalHandle) {
-    clearInterval(intervalHandle);
-    intervalHandle = null;
-  }
-}

@@ -7,13 +7,6 @@ import type { Command } from '@commander-js/extra-typings';
 
 import { DEFAULT_HOST, DEFAULT_PORT } from './defaults';
 
-export interface ApiOptions extends Record<string, string> {
-  /** API port. */
-  port: string;
-  /** API host. */
-  host: string;
-}
-
 /**
  * Attach standard API options (--port, --host) to a command.
  *

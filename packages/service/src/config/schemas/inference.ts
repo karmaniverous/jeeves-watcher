@@ -10,15 +10,12 @@ import { z } from 'zod';
  * A JSON Schema property definition with optional custom keywords.
  * Supports standard JSON Schema keywords plus custom `set` and `uiHint`.
  */
-export const propertySchemaSchema = z.record(z.string(), z.unknown());
-
-/** A JSON Schema property definition. */
-export type PropertySchema = z.infer<typeof propertySchemaSchema>;
+const propertySchemaSchema = z.record(z.string(), z.unknown());
 
 /**
  * A schema object: properties with JSON Schema definitions.
  */
-export const schemaObjectSchema = z.object({
+const schemaObjectSchema = z.object({
   type: z
     .literal('object')
     .optional()
@@ -28,14 +25,6 @@ export const schemaObjectSchema = z.object({
     .optional()
     .describe('Map of property names to JSON Schema property definitions.'),
 });
-
-/** A schema object containing typed property definitions. */
-export interface SchemaObject {
-  /** JSON Schema type (always "object" for schema definitions). */
-  type?: 'object';
-  /** Map of property names to JSON Schema property definitions. */
-  properties?: Record<string, PropertySchema>;
-}
 
 /**
  * Global schema entry: inline object or file path.
@@ -51,13 +40,10 @@ export type SchemaEntry = z.infer<typeof schemaEntrySchema>;
 /**
  * Schema reference: either a named schema reference (string) or an inline schema object.
  */
-export const schemaReferenceSchema = z.union([
+const schemaReferenceSchema = z.union([
   z.string().describe('Named reference to a global schema.'),
   schemaObjectSchema,
 ]);
-
-/** Schema reference. */
-export type SchemaReference = z.infer<typeof schemaReferenceSchema>;
 
 /** Render body section. */
 export const renderBodySectionSchema = z.object({

@@ -13,7 +13,7 @@ import { listFilesFromGlobs } from './fileScan';
 const DEFAULT_REINDEX_CONCURRENCY = 50;
 
 /** Optional callbacks for progress tracking. */
-export interface ProcessAllFilesCallbacks {
+interface ProcessAllFilesCallbacks {
   /** Called with the total file count before processing begins. */
   onTotal?: (total: number) => void;
   /** Called after each file is processed. */

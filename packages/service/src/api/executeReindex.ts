@@ -56,7 +56,7 @@ export interface ExecuteReindexDeps {
 }
 
 /** Blast area plan showing impact of a reindex operation. */
-export interface ReindexPlan {
+interface ReindexPlan {
   /** Total points (prune) or files (other scopes) examined. */
   total: number;
   /** Number of items to process (embed/re-apply rules). */
@@ -70,7 +70,7 @@ export interface ReindexPlan {
 }
 
 /** Result of a reindex execution. */
-export interface ExecuteReindexResult {
+interface ExecuteReindexResult {
   filesProcessed: number;
   durationMs: number;
   errors: number;

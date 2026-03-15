@@ -1,6 +1,11 @@
 {
+  "ignoreDependencies": ["typedoc", "typedoc-plugin-mdn-links", "typedoc-plugin-replace-text"],
+  "ignoreBinaries": ["typedoc", "plantuml"],
+  "ignore": ["docs/**", "packages/service/docs/**"],
   "workspaces": {
-    "packages/service": {},
+    "packages/service": {
+      "entry": ["src/index.ts", "src/cli/jeeves-watcher/index.ts"]
+    },
     "packages/openclaw": {}
   }
 }

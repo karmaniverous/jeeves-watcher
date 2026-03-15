@@ -8,6 +8,7 @@ export type {
   EmbeddingConfig,
   InferenceRule,
   JeevesWatcherConfig,
+  JeevesWatcherConfigInput,
   LoggingConfig,
   VectorStoreConfig,
   WatchConfig,

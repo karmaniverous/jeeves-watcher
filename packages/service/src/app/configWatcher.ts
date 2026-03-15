@@ -8,7 +8,7 @@ import type pino from 'pino';
 
 import { normalizeError } from '../util/normalizeError';
 
-export interface ConfigWatcherOptions {
+interface ConfigWatcherOptions {
   configPath: string;
   enabled: boolean;
   debounceMs: number;

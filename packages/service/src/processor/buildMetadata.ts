@@ -19,7 +19,7 @@ import type { TemplateEngine } from '../templates';
 /**
  * The result of building merged metadata for a file.
  */
-export interface MergedMetadata {
+interface MergedMetadata {
   /** Metadata inferred from rules. */
   inferred: Record<string, unknown>;
   /** Metadata loaded from enrichment file. */
@@ -41,7 +41,7 @@ export interface MergedMetadata {
 /**
  * Options for building merged metadata.
  */
-export interface BuildMergedMetadataOptions {
+interface BuildMergedMetadataOptions {
   /** The file to process. */
   filePath: string;
   /** The compiled inference rules. */

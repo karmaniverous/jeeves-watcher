@@ -5,7 +5,7 @@
 
 import { sleep } from './sleep';
 
-export interface RetryOptions {
+interface RetryOptions {
   /** Maximum number of attempts (including the first try). */
   attempts: number;
   /** Base delay in milliseconds for exponential backoff (attempt 1 uses baseDelayMs). */

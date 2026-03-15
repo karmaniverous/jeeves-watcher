@@ -8,7 +8,7 @@ import type { InitialScanTracker } from '../InitialScanTracker';
 import type { ReindexTracker } from '../ReindexTracker';
 
 /** Dependencies for the status route handler. */
-export interface StatusRouteDeps {
+interface StatusRouteDeps {
   /** The vector store. */
   vectorStore: VectorStore;
   /** Vector store collection name. */

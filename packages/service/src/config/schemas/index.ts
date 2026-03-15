@@ -20,14 +20,7 @@ export {
 export {
   type InferenceRule,
   inferenceRuleSchema,
-  type PropertySchema,
-  propertySchemaSchema,
   type SchemaEntry,
-  schemaEntrySchema,
-  type SchemaObject,
-  schemaObjectSchema,
-  type SchemaReference,
-  schemaReferenceSchema,
 } from './inference';
 
 // Root schema

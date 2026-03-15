@@ -8,7 +8,7 @@ import type { JeevesWatcherConfig } from '../../config/types';
 import { mergeInferenceRules, type ValidationError } from './configMerge';
 
 /** Result of merging and validating a config. */
-export interface MergeAndValidateResult {
+interface MergeAndValidateResult {
   /** The merged raw config object. */
   candidateRaw: Record<string, unknown>;
   /** The parsed config if valid, or undefined. */

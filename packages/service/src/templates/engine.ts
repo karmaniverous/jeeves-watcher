@@ -114,6 +114,7 @@ export async function loadCustomHelpers(
  * The template engine: holds compiled templates and renders them against context.
  */
 export class TemplateEngine {
+  /** The Handlebars instance used for template compilation and rendering. */
   readonly hbs: typeof Handlebars;
   private readonly compiled = new Map<string, CompiledTemplate>();
 
