@@ -1,7 +1,7 @@
 /**
  * @module commands/commands-advanced.test
  *
- * Tests for advanced CLI commands (configReindex, rebuildMetadata, service).
+ * Tests for advanced CLI commands (reindex, rebuildMetadata, service).
  */
 
 import {
@@ -14,8 +14,8 @@ import {
   vi,
 } from 'vitest';
 
-import { registerConfigReindexCommand } from './configReindex';
 import { registerRebuildMetadataCommand } from './rebuildMetadata';
+import { registerReindexCommand } from './reindex';
 import { registerServiceCommand } from './service';
 
 // Mock console methods
@@ -42,11 +42,11 @@ afterEach(() => {
   processExitSpy.mockRestore();
 });
 
-describe('configReindex command', () => {
+describe('reindex command', () => {
   it('validates scope parameter - rules', async () => {
     const { Command } = await import('@commander-js/extra-typings');
     const cli = new Command();
-    registerConfigReindexCommand(cli);
+    registerReindexCommand(cli);
 
     mockFetch.mockResolvedValue({
       ok: true,
@@ -66,7 +66,7 @@ describe('configReindex command', () => {
   it('validates scope parameter - full', async () => {
     const { Command } = await import('@commander-js/extra-typings');
     const cli = new Command();
-    registerConfigReindexCommand(cli);
+    registerReindexCommand(cli);
 
     mockFetch.mockResolvedValue({
       ok: true,
@@ -86,12 +86,12 @@ describe('configReindex command', () => {
   it('rejects invalid scope', async () => {
     const { Command } = await import('@commander-js/extra-typings');
     const cli = new Command();
-    registerConfigReindexCommand(cli);
+    registerReindexCommand(cli);
 
     await cli.parseAsync(['node', 'test', 'reindex', '--scope', 'invalid']);
 
     expect(consoleErrorSpy).toHaveBeenCalledWith(
-      'Invalid scope. Must be "rules" or "full"',
+      'Invalid scope "invalid". Must be one of: issues, full, rules, path, prune',
     );
     expect(processExitSpy).toHaveBeenCalledWith(1);
   });
@@ -99,7 +99,7 @@ describe('configReindex command', () => {
   it('uses default scope of rules', async () => {
     const { Command } = await import('@commander-js/extra-typings');
     const cli = new Command();
-    registerConfigReindexCommand(cli);
+    registerReindexCommand(cli);
 
     mockFetch.mockResolvedValue({
       ok: true,
