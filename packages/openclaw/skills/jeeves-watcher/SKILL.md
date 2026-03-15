@@ -350,7 +350,13 @@ Set or update metadata on a document.
 - `metadata` (object, required) — key-value metadata to merge
 
 ### `watcher_status`
-Service health check. Returns uptime, collection stats, reindex status.
+Service health check. Returns uptime, version, collection stats, reindex status, and initial scan progress.
+
+After a service restart, the `initialScan` field shows scan progress:
+- `active: true` — filesystem walk in progress; `filesMatched` and `filesEnqueued` grow until chokidar completes
+- `active: false` with `completedAt`/`durationMs` — scan finished
+
+Use this to determine if the service is still initializing after a restart.
 
 ### `watcher_query`
 Query the merged virtual document via JSONPath.
@@ -709,7 +715,7 @@ Progress is reported via `watcher_status` (`reindex.filesProcessed` / `reindex.t
 ## Diagnostics
 
 ### Escalation Path
-1. `watcher_status` — is the service healthy? Is a reindex running?
+1. `watcher_status` — is the service healthy? Is a reindex running? Is the initial scan still active?
 2. `watcher_issues` — what files are failing and why?
 3. `watcher_query` with `$.issues` — same data via JSONPath
 4. Check logs at the configured log path

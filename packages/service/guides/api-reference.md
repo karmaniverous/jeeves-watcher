@@ -34,6 +34,12 @@ curl http://localhost:1936/status
   },
   "reindex": {
     "active": false
+  },
+  "initialScan": {
+    "active": true,
+    "filesMatched": 156576,
+    "filesEnqueued": 156576,
+    "startedAt": "2026-03-15T01:22:00.000Z"
   }
 }
 ```
@@ -50,6 +56,13 @@ curl http://localhost:1936/status
 | `reindex` | `object` | Active reindex status. |
 | `reindex.active` | `boolean` | Whether a reindex is currently running. |
 | `reindex.scope` | `string?` | Reindex scope if active: `"rules"`, `"full"`, `"issues"`, `"path"`, or `"prune"`. |
+| `initialScan` | `object` | Initial filesystem scan state after service start. |
+| `initialScan.active` | `boolean` | Whether the initial scan is still in progress. |
+| `initialScan.filesMatched` | `number?` | Files matched by watch globs so far. |
+| `initialScan.filesEnqueued` | `number?` | Files enqueued for processing so far. |
+| `initialScan.startedAt` | `string?` | ISO-8601 timestamp when the scan started. |
+| `initialScan.completedAt` | `string?` | ISO-8601 timestamp when the scan completed (when `active` is false). |
+| `initialScan.durationMs` | `number?` | Total scan duration in milliseconds (when `active` is false). |
 | `reindex.startedAt` | `string?` | ISO-8601 timestamp when reindex started, if active. |
 
 > **v0.5.0 change:** `payloadFields` has been removed from the status response. Use [`POST /config/query`](#post-configquery) or [`GET /config/schema`](#get-configschema) to discover schema and payload field information.
