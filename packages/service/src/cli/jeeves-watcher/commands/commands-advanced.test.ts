@@ -53,13 +53,7 @@ describe('configReindex command', () => {
       text: () => Promise.resolve('Config reindex started'),
     });
 
-    await cli.parseAsync([
-      'node',
-      'test',
-      'config-reindex',
-      '--scope',
-      'rules',
-    ]);
+    await cli.parseAsync(['node', 'test', 'reindex', '--scope', 'rules']);
 
     expect(mockFetch).toHaveBeenCalledWith(
       'http://127.0.0.1:1936/reindex',
@@ -79,7 +73,7 @@ describe('configReindex command', () => {
       text: () => Promise.resolve('Full reindex started'),
     });
 
-    await cli.parseAsync(['node', 'test', 'config-reindex', '--scope', 'full']);
+    await cli.parseAsync(['node', 'test', 'reindex', '--scope', 'full']);
 
     expect(mockFetch).toHaveBeenCalledWith(
       expect.any(String),
@@ -94,13 +88,7 @@ describe('configReindex command', () => {
     const cli = new Command();
     registerConfigReindexCommand(cli);
 
-    await cli.parseAsync([
-      'node',
-      'test',
-      'config-reindex',
-      '--scope',
-      'invalid',
-    ]);
+    await cli.parseAsync(['node', 'test', 'reindex', '--scope', 'invalid']);
 
     expect(consoleErrorSpy).toHaveBeenCalledWith(
       'Invalid scope. Must be "rules" or "full"',
@@ -118,7 +106,7 @@ describe('configReindex command', () => {
       text: () => Promise.resolve('OK'),
     });
 
-    await cli.parseAsync(['node', 'test', 'config-reindex']);
+    await cli.parseAsync(['node', 'test', 'reindex']);
 
     expect(mockFetch).toHaveBeenCalledWith(
       expect.any(String),

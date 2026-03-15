@@ -1,6 +1,6 @@
 /**
  * @module api/executeReindex
- * Shared reindex execution logic used by both the config-reindex handler and the triggerReindex lambda.
+ * Shared reindex execution logic used by both the reindex handler and the triggerReindex lambda.
  */
 
 import { stat } from 'node:fs/promises';

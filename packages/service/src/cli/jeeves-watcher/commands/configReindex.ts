@@ -11,8 +11,8 @@ import { withApiOptions } from '../withApiOptions';
 
 export function registerConfigReindexCommand(cli: Command): void {
   const command = cli
-    .command('config-reindex')
-    .description('Reindex after configuration changes (POST /reindex)')
+    .command('reindex')
+    .description('Trigger a reindex operation (POST /reindex)')
     .option('-s, --scope <scope>', 'Reindex scope (rules|full)', 'rules')
     .option('-t, --path <paths...>', 'Target path(s) for path or rules scope');
 

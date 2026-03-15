@@ -30,9 +30,7 @@ curl -X POST http://127.0.0.1:<PORT>/search \
   -d '{"query": "search text", "limit": 5}'
 
 # Query config
-curl -X POST http://127.0.0.1:<PORT>/config/query \
-  -H "Content-Type: application/json" \
-  -d '{"path": "$.inferenceRules[*].name"}'
+curl http://127.0.0.1:<PORT>/config
 ```
 
 **Key endpoints:**
