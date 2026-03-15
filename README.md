@@ -96,7 +96,7 @@ The watcher will:
 | `jeeves-watcher issues` | Show indexing issues and errors |
 | `jeeves-watcher helpers` | Show loaded map and template helpers |
 | `jeeves-watcher config-apply` | Validate, write, and reload configuration from file |
-| `jeeves-watcher config-reindex` | Trigger scoped reindex (`issues`, `rules`, `full`, `path`, `prune`) |
+| `jeeves-watcher reindex` | Trigger scoped reindex (`issues`, `rules`, `full`, `path`, `prune`) |
 
 ## Configuration
 
@@ -235,11 +235,11 @@ The watcher provides a REST API (default port: 1936):
 | `/render` | POST | Render a file through inference rules (`{ path: string }`) (v0.8.0+) |
 | `/search/facets` | GET | Schema-derived search facet definitions with live values (v0.8.0+) |
 | `/metadata` | POST | Update document metadata with schema validation (`{ path: string, metadata: object }`) |
-| `/reindex` | POST | Reindex all watched files |
+| `/reindex` | POST | Scoped reindex with blast area plan (`issues`, `rules`, `full`, `path`, `prune` + `dryRun`). `path` accepts `string \| string[]`. |
 | `/rebuild-metadata` | POST | Rebuild metadata files from Qdrant |
-| `/config-reindex` | POST | Scoped reindex with blast area plan (`issues`, `rules`, `full`, `path`, `prune` + `dryRun`) |
+| `/config` | GET | Full resolved effective config; optional `?path=<jsonpath>` filter. Rules include `source` attribution. |
 | `/config/schema` | GET | JSON Schema of merged virtual document (v0.5.0+) |
-| `/config/query` | POST | JSONPath query over config (`{ path: string, resolve?: string[] }`) (v0.5.0+) |
+| `/walk` | POST | Filesystem walk with glob intersection (`{ globs: string[] }`). Returns `{ paths, matchedCount, scannedRoots }`. |
 | `/config/match` | POST | Test paths against inference rules (`{ paths: string[] }`) (v0.5.0+) |
 | `/issues` | GET | Current embedding failures and processing errors (v0.5.0+) |
 | `/rules/register` | POST | Register virtual inference rules from an external source |
@@ -296,7 +296,8 @@ This repo includes an OpenClaw plugin (`packages/openclaw`) that exposes the jee
 | `watcher_status`       | Service health, uptime, and collection stats   |
 | `watcher_search`       | Semantic search across indexed documents       |
 | `watcher_enrich`       | Set or update document metadata                |
-| `watcher_query`        | Query the merged virtual document via JSONPath |
+| `watcher_config`       | Query the effective runtime config via JSONPath |
+| `watcher_walk`         | Walk watched filesystem paths with glob intersection |
 | `watcher_validate`     | Validate a watcher configuration               |
 | `watcher_config_apply` | Apply a new configuration                      |
 | `watcher_reindex`      | Trigger a scoped reindex with blast area plan   |
