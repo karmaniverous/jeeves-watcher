@@ -71,6 +71,7 @@
     "mammoth": "^1.11.0",
     "mdast-util-from-adf": "^2.2.0",
     "mdast-util-to-markdown": "^2.1.2",
+    "package-directory": "^8.2.0",
     "picomatch": "^4.0.3",
     "pino": "*",
     "radash": "^12.1.1",

@@ -4,8 +4,11 @@
  */
 
 import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import type { FastifyInstance } from 'fastify';
+import { packageDirectorySync } from 'package-directory';
 import type pino from 'pino';
 
 import { executeReindex } from '../api/executeReindex';
@@ -83,11 +86,15 @@ export class JeevesWatcher {
     this.runtimeOptions = runtimeOptions;
     this.virtualRuleStore = new VirtualRuleStore();
     try {
-      const pkgPath = new URL('../../package.json', import.meta.url);
-      const pkg = JSON.parse(readFileSync(pkgPath, 'utf8')) as {
-        version: string;
-      };
-      this.version = pkg.version;
+      const pkgDir = packageDirectorySync({
+        cwd: dirname(fileURLToPath(import.meta.url)),
+      });
+      const pkg = pkgDir
+        ? (JSON.parse(readFileSync(join(pkgDir, 'package.json'), 'utf8')) as {
+            version: string;
+          })
+        : undefined;
+      this.version = pkg?.version ?? 'unknown';
     } catch {
       this.version = 'unknown';
     }
