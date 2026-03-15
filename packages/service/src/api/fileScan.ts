@@ -85,3 +85,58 @@ export async function listFilesFromGlobs(
 
   return Array.from(seen);
 }
+
+/**
+ * List files from watch root base directories, applying watch extension globs,
+ * ignored globs, gitignore, and an additional caller-provided glob intersection filter.
+ *
+ * Unlike `listFilesFromGlobs` (which derives walk roots from the glob patterns themselves),
+ * this function always walks from watch root base directories and applies the caller's
+ * globs as an additional intersection filter within the watched universe.
+ *
+ * @param watchPatterns - The configured watch path globs (defines the watched universe).
+ * @param ignored - Glob patterns to exclude.
+ * @param callerGlobs - Additional globs to intersect with. Only files matching both
+ *   the watch patterns AND the caller globs are returned.
+ * @param isGitignored - Optional callback to check gitignore status per file.
+ */
+export async function listFilesFromWatchRoots(
+  watchPatterns: string[],
+  ignored: string[],
+  callerGlobs: string[],
+  isGitignored?: (filePath: string) => boolean,
+): Promise<string[]> {
+  const normWatch = watchPatterns.map((p) => normalizeSlashes(p));
+  const normIgnored = ignored.map((p) => normalizeSlashes(p));
+  const normCaller = callerGlobs.map((p) => normalizeSlashes(p));
+
+  const matchWatch = picomatch(normWatch, { dot: true, nocase: true });
+  const matchCaller = picomatch(normCaller, { dot: true, nocase: true });
+  const ignore = normIgnored.length
+    ? picomatch(normIgnored, { dot: true, nocase: true })
+    : () => false;
+
+  // Walk from watch root base directories
+  const bases = Array.from(new Set(watchPatterns.map(globBase)));
+
+  const seen = new Set<string>();
+  for (const base of bases) {
+    for await (const file of walk(base)) {
+      const rel = normalizeSlashes(file);
+      if (ignore(rel)) continue;
+      if (!matchWatch(rel)) continue;
+      if (!matchCaller(rel)) continue;
+      if (isGitignored?.(file)) continue;
+      seen.add(file);
+    }
+  }
+
+  return Array.from(seen);
+}
+
+/**
+ * Get the base directories of the configured watch paths.
+ */
+export function getWatchRootBases(watchPatterns: string[]): string[] {
+  return Array.from(new Set(watchPatterns.map(globBase)));
+}

@@ -62,26 +62,18 @@ export async function generateWatcherMenu(apiUrl: string): Promise<string> {
     const [statusRes, rulesRes, pathsRes, thresholdsRes, ignoredRes] =
       (await Promise.all([
         fetchJson(`${apiUrl}/status`),
-        fetchJson(`${apiUrl}/config/query`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ path: '$.inferenceRules[*]' }),
-        }),
-        fetchJson(`${apiUrl}/config/query`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ path: '$.watch.paths[*]' }),
-        }),
-        fetchJson(`${apiUrl}/config/query`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ path: '$.search.scoreThresholds' }),
-        }),
-        fetchJson(`${apiUrl}/config/query`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ path: '$.watch.ignored[*]' }),
-        }),
+        fetchJson(
+          `${apiUrl}/config?path=${encodeURIComponent('$.inferenceRules[*]')}`,
+        ),
+        fetchJson(
+          `${apiUrl}/config?path=${encodeURIComponent('$.watch.paths[*]')}`,
+        ),
+        fetchJson(
+          `${apiUrl}/config?path=${encodeURIComponent('$.search.scoreThresholds')}`,
+        ),
+        fetchJson(
+          `${apiUrl}/config?path=${encodeURIComponent('$.watch.ignored[*]')}`,
+        ),
       ])) as [
         StatusResponse,
         QueryResponse,

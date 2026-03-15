@@ -28,7 +28,11 @@ import { executeReindex } from '../executeReindex';
 const mockedExecuteReindex = executeReindex as Mock;
 
 type ConfigReindexRequest = FastifyRequest<{
-  Body: { scope?: 'issues' | 'full'; dryRun?: boolean };
+  Body: {
+    scope?: 'issues' | 'full';
+    path?: string | string[];
+    dryRun?: boolean;
+  };
 }>;
 
 type ConfigReindexHandler = (

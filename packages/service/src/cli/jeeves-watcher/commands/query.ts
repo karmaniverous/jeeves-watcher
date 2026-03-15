@@ -1,7 +1,7 @@
 /**
  * @module commands/query
  *
- * CLI command: query the merged config document via JSONPath.
+ * CLI command: query the merged config document via JSONPath (GET /config).
  */
 
 import type { Command } from '@commander-js/extra-typings';
@@ -12,24 +12,18 @@ import { withApiOptions } from '../withApiOptions';
 export function registerQueryCommand(cli: Command): void {
   const command = cli
     .command('query')
-    .description('Query the merged config document (POST /config/query)')
-    .argument('<jsonpath>', 'JSONPath expression')
-    .option(
-      '-r, --resolve <types>',
-      'Comma-separated resolve types (files,globals)',
-    );
+    .description('Query the merged config document (GET /config)')
+    .argument('[jsonpath]', 'JSONPath expression (omit for full document)');
 
   withApiOptions(command).action(async (jsonpath, options) => {
-    const body: Record<string, unknown> = { path: jsonpath };
-    if (options.resolve) {
-      body.resolve = options.resolve.split(',');
-    }
+    const path = jsonpath
+      ? `/config?path=${encodeURIComponent(jsonpath)}`
+      : '/config';
     await runApiCommand({
       host: options.host,
       port: options.port,
-      method: 'POST',
-      path: '/config/query',
-      body,
+      method: 'GET',
+      path,
     });
   });
 }

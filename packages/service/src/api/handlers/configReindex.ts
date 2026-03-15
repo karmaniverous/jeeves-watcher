@@ -1,6 +1,6 @@
 /**
  * @module api/handlers/configReindex
- * Fastify route handler for POST /config-reindex. Triggers an async reindex job scoped to issues, full, rules, or path processing.
+ * Fastify route handler for POST /reindex. Triggers an async reindex job scoped to issues, full, rules, path, or prune processing.
  */
 
 import type { FastifyReply, FastifyRequest } from 'fastify';
@@ -20,7 +20,7 @@ import {
 import type { ReindexTracker } from '../ReindexTracker';
 import { wrapHandler } from './wrapHandler';
 
-/** Dependencies for the config-reindex route handler. */
+/** Dependencies for the reindex route handler. */
 export interface ConfigReindexRouteDeps {
   config: JeevesWatcherConfig;
   processor: DocumentProcessorInterface;
@@ -33,11 +33,11 @@ export interface ConfigReindexRouteDeps {
 }
 
 type ConfigReindexRequest = FastifyRequest<{
-  Body: { scope?: string; path?: string; dryRun?: boolean };
+  Body: { scope?: string; path?: string | string[]; dryRun?: boolean };
 }>;
 
 /**
- * Create handler for POST /config-reindex.
+ * Create handler for POST /reindex.
  *
  * @param deps - Route dependencies.
  */
@@ -58,7 +58,7 @@ export function createConfigReindexHandler(deps: ConfigReindexRouteDeps) {
 
       if (validScope === 'path') {
         const { path } = request.body;
-        if (!path) {
+        if (!path || (Array.isArray(path) && path.length === 0)) {
           return await reply.status(400).send({
             error: 'Missing path',
             message: 'The "path" field is required when scope is "path".',
@@ -84,12 +84,18 @@ export function createConfigReindexHandler(deps: ConfigReindexRouteDeps) {
         vectorStore: deps.vectorStore,
       };
 
+      // Pass path for 'path' and 'rules' scopes
+      const pathParam =
+        validScope === 'path' || validScope === 'rules'
+          ? request.body.path
+          : undefined;
+
       if (dryRun) {
         // Dry run: compute plan synchronously and return
         const result = await executeReindex(
           reindexDeps,
           validScope,
-          validScope === 'path' ? request.body.path : undefined,
+          pathParam,
           true,
         );
         return await reply.status(200).send({
@@ -104,23 +110,18 @@ export function createConfigReindexHandler(deps: ConfigReindexRouteDeps) {
       const planResult = await executeReindex(
         reindexDeps,
         validScope,
-        validScope === 'path' ? request.body.path : undefined,
+        pathParam,
         true, // get plan only
       );
 
       // Now fire actual reindex async
-      void executeReindex(
-        reindexDeps,
-        validScope,
-        validScope === 'path' ? request.body.path : undefined,
-        false,
-      );
+      void executeReindex(reindexDeps, validScope, pathParam, false);
 
       return await reply
         .status(200)
         .send({ status: 'started', scope, plan: planResult.plan });
     },
     deps.logger,
-    'Config reindex request',
+    'Reindex request',
   );
 }

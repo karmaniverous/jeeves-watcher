@@ -189,37 +189,6 @@ describe('Metadata update', () => {
 });
 
 describe('API endpoints', () => {
-  it('POST /reindex should index files from watched dirs', async () => {
-    const filePath1 = join(getWatchDir(), 'api-1.txt');
-    const filePath2 = join(getWatchDir(), 'api-2.txt');
-    await writeFile(filePath1, 'First file', 'utf8');
-    await writeFile(filePath2, 'Second file', 'utf8');
-
-    const server = createApiServer({
-      processor,
-      vectorStore,
-      embeddingProvider,
-      queue: new EventQueue({ debounceMs: 0, concurrency: 1 }),
-      config,
-      logger,
-      issuesManager: new IssuesManager(
-        config.metadataDir ?? '.jeeves-metadata',
-        logger,
-      ),
-      valuesManager: new ValuesManager(
-        config.metadataDir ?? '.jeeves-metadata',
-        logger,
-      ),
-      configPath: '',
-    });
-
-    const res = await server.inject({ method: 'POST', url: '/reindex' });
-    expect(res.statusCode).toBe(200);
-
-    expect(await vectorStore.getPayload(pointId(filePath1, 0))).not.toBeNull();
-    expect(await vectorStore.getPayload(pointId(filePath2, 0))).not.toBeNull();
-  });
-
   it('POST /rebuild-metadata should write meta files from Qdrant payloads', async () => {
     const filePath = join(getWatchDir(), 'rebuild.txt');
     await writeFile(filePath, 'Rebuild metadata content', 'utf8');
@@ -258,7 +227,7 @@ describe('API endpoints', () => {
     expect(meta!['title']).toBe('Rebuilt Title');
   });
 
-  it('POST /config-reindex should start reindex asynchronously', async () => {
+  it('POST /reindex with scope:rules should start reindex asynchronously', async () => {
     const server = createApiServer({
       processor,
       vectorStore,
@@ -279,7 +248,7 @@ describe('API endpoints', () => {
 
     const res = await server.inject({
       method: 'POST',
-      url: '/config-reindex',
+      url: '/reindex',
       payload: { scope: 'rules' },
     });
     expect(res.statusCode).toBe(200);

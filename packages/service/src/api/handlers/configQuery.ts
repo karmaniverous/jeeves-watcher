@@ -1,6 +1,7 @@
 /**
  * @module api/handlers/configQuery
- * Fastify route handler for POST /config/query. Evaluates JSONPath against the merged virtual document.
+ * Fastify route handler for GET /config. Returns the full resolved merged document,
+ * optionally filtered by JSONPath via the `path` query parameter.
  */
 
 import type { FastifyReply, FastifyRequest } from 'fastify';
@@ -12,7 +13,7 @@ import type { AllHelpersIntrospection } from '../../helpers';
 import type { IssuesManager } from '../../issues';
 import { normalizeError } from '../../util/normalizeError';
 import type { ValuesManager } from '../../values';
-import { buildMergedDocument, resolveReferences } from '../mergedDocument';
+import { buildMergedDocument } from '../mergedDocument';
 
 /** Dependencies for the config query route handler. */
 export interface ConfigQueryRouteDeps {
@@ -21,15 +22,15 @@ export interface ConfigQueryRouteDeps {
   issuesManager: IssuesManager;
   logger: pino.Logger;
   helperIntrospection?: AllHelpersIntrospection;
-  getVirtualRules?: () => Record<string, unknown>;
+  getVirtualRules?: () => Record<string, Record<string, unknown>[]>;
 }
 
 type ConfigQueryRequest = FastifyRequest<{
-  Body: { path: string; resolve?: ('files' | 'globals')[] };
+  Querystring: { path?: string };
 }>;
 
 /**
- * Create handler for POST /config/query.
+ * Create handler for GET /config.
  *
  * Uses direct error handling (returns 400) rather than wrapHandler (which returns 500),
  * because invalid JSONPath expressions are client errors, not server errors.
@@ -39,9 +40,9 @@ type ConfigQueryRequest = FastifyRequest<{
 export function createConfigQueryHandler(deps: ConfigQueryRouteDeps) {
   return async (request: ConfigQueryRequest, reply: FastifyReply) => {
     try {
-      const { path, resolve } = request.body;
+      const { path } = request.query;
 
-      let doc = buildMergedDocument({
+      const doc = buildMergedDocument({
         config: deps.config,
         valuesManager: deps.valuesManager,
         issuesManager: deps.issuesManager,
@@ -49,8 +50,8 @@ export function createConfigQueryHandler(deps: ConfigQueryRouteDeps) {
         virtualRules: deps.getVirtualRules?.(),
       });
 
-      if (resolve && resolve.length > 0) {
-        doc = resolveReferences(doc, resolve);
+      if (!path) {
+        return doc;
       }
 
       const result: unknown[] = JSONPath({ path, json: doc });

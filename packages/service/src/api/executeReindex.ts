@@ -17,7 +17,7 @@ import { normalizeError } from '../util/normalizeError';
 import { retry } from '../util/retry';
 import type { ValuesManager } from '../values';
 import type { ScrolledPoint, VectorStoreClient } from '../vectorStore';
-import { listFilesFromGlobs } from './fileScan';
+import { listFilesFromGlobs, listFilesFromWatchRoots } from './fileScan';
 import { processAllFiles } from './processAllFiles';
 import type { ReindexTracker } from './ReindexTracker';
 
@@ -35,7 +35,7 @@ export const VALID_REINDEX_SCOPES: readonly ReindexScope[] = [
 
 /**
  * Valid scopes for config-watch auto-trigger.
- * `prune` is excluded — auto-pruning on config change is dangerous.
+ * `prune` is excluded - auto-pruning on config change is dangerous.
  */
 export const CONFIG_WATCH_VALID_SCOPES: readonly ReindexScope[] = [
   'issues',
@@ -247,7 +247,7 @@ async function computePrunePlan(
       cursor = page.nextCursor;
     }
   } catch (error) {
-    // All retries exhausted — return partial results
+    // All retries exhausted - return partial results
     logger.error(
       { err: normalizeError(error), totalPoints, cursor },
       'Prune scroll failed after retries; returning partial plan',
@@ -282,7 +282,7 @@ async function computePrunePlan(
 export async function executeReindex(
   deps: ExecuteReindexDeps,
   scope: ReindexScope,
-  path?: string,
+  path?: string | string[],
   dryRun: boolean = false,
 ): Promise<ExecuteReindexResult> {
   const {
@@ -303,7 +303,13 @@ export async function executeReindex(
     );
   }
 
-  if (scope === 'path' && !path) {
+  const pathArray: string[] | undefined = path
+    ? Array.isArray(path)
+      ? path
+      : [path]
+    : undefined;
+
+  if (scope === 'path' && (!pathArray || pathArray.length === 0)) {
     throw new Error('The "path" parameter is required when scope is "path".');
   }
 
@@ -391,9 +397,17 @@ export async function executeReindex(
   if (scope === 'issues' && deps.issuesManager) {
     const issues = deps.issuesManager.getAll();
     fileList = Object.keys(issues);
-  } else if (scope === 'path' && path) {
-    // Path plan computed inside executePathReindex — skip pre-computation for now
+  } else if (scope === 'path' && pathArray) {
+    // Path plan computed inline in the execution block below
     fileList = undefined;
+  } else if (scope === 'rules' && pathArray && pathArray.length > 0) {
+    // Rules scope with path filter: list from watch roots intersected with caller globs
+    fileList = await listFilesFromWatchRoots(
+      config.watch.paths,
+      config.watch.ignored ?? [],
+      pathArray,
+      isGitignored,
+    );
   } else {
     // rules or full: list files from globs
     fileList = await listFilesFromGlobs(
@@ -414,12 +428,13 @@ export async function executeReindex(
 
   if (dryRun) {
     // For path scope without pre-computed plan, compute it now
-    if (plan === undefined && scope === 'path' && path) {
-      const pathFiles = await getPathFileList(
-        path,
-        config,
-        deps.gitignoreFilter,
-      );
+    if (plan === undefined && scope === 'path' && pathArray) {
+      const allPathFiles: string[] = [];
+      for (const p of pathArray) {
+        const files = await getPathFileList(p, config, deps.gitignoreFilter);
+        allPathFiles.push(...files);
+      }
+      const pathFiles = [...new Set(allPathFiles)];
       plan = {
         total: pathFiles.length,
         toProcess: pathFiles.length,
@@ -469,20 +484,29 @@ export async function executeReindex(
         isGitignored,
         fileList,
       );
-    } else if (scope === 'path' && path) {
-      const pathResult = await executePathReindex(
-        path,
-        config,
-        processor,
-        logger,
-        deps.gitignoreFilter,
-        concurrency,
-        reindexTracker,
-      );
-      filesProcessed = pathResult.filesProcessed;
-      if (!plan) {
-        plan = pathResult.plan;
+    } else if (scope === 'path' && pathArray) {
+      // Collect all files from all paths, deduplicate
+      const allPathFiles: string[] = [];
+      for (const p of pathArray) {
+        const files = await getPathFileList(p, config, deps.gitignoreFilter);
+        allPathFiles.push(...files);
       }
+      const uniqueFiles = [...new Set(allPathFiles)];
+
+      plan = {
+        total: uniqueFiles.length,
+        toProcess: uniqueFiles.length,
+        toDelete: 0,
+        byRoot: groupByRoot(uniqueFiles, config.watch.paths),
+      };
+
+      reindexTracker?.setTotal(uniqueFiles.length);
+
+      await parallel(concurrency, uniqueFiles, async (filePath) => {
+        await processor.processFile(filePath);
+        reindexTracker?.incrementProcessed();
+        filesProcessed++;
+      });
     } else {
       // Full reindex
       filesProcessed = await processAllFiles(
@@ -578,56 +602,4 @@ async function getPathFileList(
   }
 
   throw new Error(`Path is neither a file nor a directory: ${targetPath}`);
-}
-
-/** Result of a path-scoped reindex. */
-interface PathReindexResult {
-  filesProcessed: number;
-  plan: ReindexPlan;
-}
-
-/**
- * Execute a path-scoped reindex: process a single file or all files under a directory.
- * Validates path against watch scope and gitignore.
- */
-async function executePathReindex(
-  targetPath: string,
-  config: JeevesWatcherConfig,
-  processor: DocumentProcessorInterface,
-  logger: pino.Logger,
-  gitignoreFilter: GitignoreFilter | undefined,
-  concurrency: number,
-  reindexTracker: ReindexTracker | undefined,
-): Promise<PathReindexResult> {
-  const filesInScope = await getPathFileList(
-    targetPath,
-    config,
-    gitignoreFilter,
-  );
-
-  const plan: ReindexPlan = {
-    total: filesInScope.length,
-    toProcess: filesInScope.length,
-    toDelete: 0,
-    byRoot: groupByRoot(filesInScope, config.watch.paths),
-  };
-
-  if (filesInScope.length === 0) {
-    logger.info(
-      { targetPath },
-      'Path reindex: no matched files found in directory',
-    );
-    return { filesProcessed: 0, plan };
-  }
-
-  reindexTracker?.setTotal(filesInScope.length);
-
-  let processedCount = 0;
-  await parallel(concurrency, filesInScope, async (filePath) => {
-    await processor.processFile(filePath);
-    reindexTracker?.incrementProcessed();
-    processedCount++;
-  });
-
-  return { filesProcessed: processedCount, plan };
 }

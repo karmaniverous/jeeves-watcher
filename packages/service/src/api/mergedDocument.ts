@@ -17,7 +17,7 @@ export interface BuildMergedDocumentOptions {
   issuesManager: IssuesManager;
   helperExports?: Record<string, unknown>;
   helperIntrospection?: AllHelpersIntrospection;
-  virtualRules?: Record<string, unknown>;
+  virtualRules?: Record<string, Record<string, unknown>[]>;
 }
 
 /**
@@ -84,12 +84,30 @@ export function buildMergedDocument(
     virtualRules,
   } = options;
 
-  const inferenceRules = (config.inferenceRules ?? []).map((rule) => ({
+  // Merge config rules (source: 'config') and virtual rules (source: registration key)
+  const configRules = (config.inferenceRules ?? []).map((rule) => ({
     ...rule,
+    source: 'config',
     values: valuesManager.getForRule(rule.name),
   }));
 
-  return {
+  const virtualRuleEntries: Record<string, unknown>[] = [];
+  if (virtualRules) {
+    for (const [source, rules] of Object.entries(virtualRules)) {
+      for (const rule of rules) {
+        const name = typeof rule.name === 'string' ? rule.name : undefined;
+        virtualRuleEntries.push({
+          ...rule,
+          source,
+          values: name ? valuesManager.getForRule(name) : {},
+        });
+      }
+    }
+  }
+
+  const inferenceRules = [...configRules, ...virtualRuleEntries];
+
+  const doc: Record<string, unknown> = {
     description: (config as Record<string, unknown>)['description'] ?? '',
     watch: config.watch,
     configWatch: config.configWatch ?? {},
@@ -108,9 +126,11 @@ export function buildMergedDocument(
     ),
     maps: config.maps ?? {},
     templates: config.templates ?? {},
-    virtualRules: virtualRules ?? {},
     issues: issuesManager.getAll(),
   };
+
+  // Always resolve file references
+  return resolveReferences(doc, ['files', 'globals']);
 }
 
 /**

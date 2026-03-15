@@ -1,7 +1,7 @@
 /**
  * @module commands/configReindex
  *
- * CLI command: config-reindex.
+ * CLI command: reindex (POST /reindex).
  */
 
 import type { Command } from '@commander-js/extra-typings';
@@ -12,8 +12,9 @@ import { withApiOptions } from '../withApiOptions';
 export function registerConfigReindexCommand(cli: Command): void {
   const command = cli
     .command('config-reindex')
-    .description('Reindex after configuration changes (POST /config-reindex)')
-    .option('-s, --scope <scope>', 'Reindex scope (rules|full)', 'rules');
+    .description('Reindex after configuration changes (POST /reindex)')
+    .option('-s, --scope <scope>', 'Reindex scope (rules|full)', 'rules')
+    .option('-t, --path <paths...>', 'Target path(s) for path or rules scope');
 
   withApiOptions(command).action(async (options) => {
     const scope = options.scope;
@@ -22,12 +23,17 @@ export function registerConfigReindexCommand(cli: Command): void {
       process.exit(1);
     }
 
+    const body: Record<string, unknown> = { scope };
+    if (options.path) {
+      body.path = options.path.length === 1 ? options.path[0] : options.path;
+    }
+
     await runApiCommand({
       host: options.host,
       port: options.port,
       method: 'POST',
-      path: '/config-reindex',
-      body: { scope },
+      path: '/reindex',
+      body,
     });
   });
 }

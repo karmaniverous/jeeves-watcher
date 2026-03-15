@@ -11,18 +11,17 @@ import { createConfigQueryHandler } from './configQuery';
 // Mock mergedDocument to control the document shape
 vi.mock('../mergedDocument', () => ({
   buildMergedDocument: vi.fn(),
-  resolveReferences: vi.fn(),
+  resolveReferences: vi.fn((doc: unknown) => doc),
 }));
 
 import type { Mock } from 'vitest';
 
-import { buildMergedDocument, resolveReferences } from '../mergedDocument';
+import { buildMergedDocument } from '../mergedDocument';
 
 const mockedBuild = buildMergedDocument as Mock;
-const mockedResolve = resolveReferences as Mock;
 
 type ConfigQueryRequest = FastifyRequest<{
-  Body: { path: string; resolve?: ('files' | 'globals')[] };
+  Querystring: { path?: string };
 }>;
 
 interface MockReply {
@@ -49,8 +48,8 @@ function createDeps(
   };
 }
 
-function mockRequest(body: Record<string, unknown>): ConfigQueryRequest {
-  return { body } as unknown as ConfigQueryRequest;
+function mockRequest(query: Record<string, unknown>): ConfigQueryRequest {
+  return { query } as unknown as ConfigQueryRequest;
 }
 
 function mockReply(): MockReply {
@@ -77,6 +76,23 @@ describe('createConfigQueryHandler', () => {
     expect(result).toEqual({ result: ['r1', 'r2'], count: 2 });
   });
 
+  it('returns full document when no path provided', async () => {
+    const deps = createDeps();
+    const doc = {
+      description: 'test',
+      inferenceRules: [{ name: 'r1' }],
+    };
+    mockedBuild.mockReturnValue(doc);
+
+    const handler = createConfigQueryHandler(deps);
+    const result = await handler(
+      mockRequest({}),
+      mockReply() as unknown as FastifyReply,
+    );
+
+    expect(result).toEqual(doc);
+  });
+
   it('returns error when query processing throws', async () => {
     const deps = createDeps();
     mockedBuild.mockImplementation(() => {
@@ -91,22 +107,6 @@ describe('createConfigQueryHandler', () => {
     );
 
     expect(reply.status).toHaveBeenCalledWith(400);
-  });
-
-  it('resolves references when resolve includes files', async () => {
-    const deps = createDeps();
-    const doc = { description: 'test' };
-    const resolvedDoc = { description: 'resolved' };
-    mockedBuild.mockReturnValue(doc);
-    mockedResolve.mockReturnValue(resolvedDoc);
-
-    const handler = createConfigQueryHandler(deps);
-    await handler(
-      mockRequest({ path: '$.description', resolve: ['files'] }),
-      mockReply() as unknown as FastifyReply,
-    );
-
-    expect(mockedResolve).toHaveBeenCalledWith(doc, ['files']);
   });
 
   it('returns empty result set', async () => {

@@ -62,7 +62,7 @@ describe('configReindex command', () => {
     ]);
 
     expect(mockFetch).toHaveBeenCalledWith(
-      'http://127.0.0.1:1936/config-reindex',
+      'http://127.0.0.1:1936/reindex',
       expect.objectContaining({
         body: JSON.stringify({ scope: 'rules' }),
       }),

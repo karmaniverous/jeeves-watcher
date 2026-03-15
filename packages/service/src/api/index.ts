@@ -36,7 +36,6 @@ import { createIssuesHandler } from './handlers/issues';
 import { createMetadataHandler } from './handlers/metadata';
 import { createPointsDeleteHandler } from './handlers/pointsDelete';
 import { createRebuildMetadataHandler } from './handlers/rebuildMetadata';
-import { createReindexHandler } from './handlers/reindex';
 import { createRenderHandler } from './handlers/render';
 import { createRulesReapplyHandler } from './handlers/rulesReapply';
 import { createRulesRegisterHandler } from './handlers/rulesRegister';
@@ -204,16 +203,6 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
   );
 
   app.post(
-    '/reindex',
-    createReindexHandler({
-      watch: config.watch,
-      processor,
-      logger,
-      concurrency: config.reindex?.concurrency ?? 50,
-    }),
-  );
-
-  app.post(
     '/rebuild-metadata',
     createRebuildMetadataHandler({
       metadataDir: config.metadataDir,
@@ -223,7 +212,7 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
   );
 
   app.post(
-    '/config-reindex',
+    '/reindex',
     createConfigReindexHandler({
       config,
       processor,
@@ -245,8 +234,8 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
 
   app.post('/config/match', createConfigMatchHandler({ config, logger }));
 
-  app.post(
-    '/config/query',
+  app.get(
+    '/config',
     withCache(
       cacheTtlMs,
       createConfigQueryHandler({

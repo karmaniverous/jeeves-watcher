@@ -111,7 +111,7 @@ export const apiConfigSchema = z.object({
     .number()
     .optional()
     .describe(
-      'TTL in milliseconds for caching read-heavy endpoints (e.g., /status, /config/query). Default: 30000.',
+      'TTL in milliseconds for caching read-heavy endpoints (e.g., /status, /config). Default: 30000.',
     ),
 });
 
