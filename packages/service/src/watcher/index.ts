@@ -199,6 +199,41 @@ export class FileSystemWatcher {
   }
 
   /**
+   * Get the list of all currently watched file paths (absolute).
+   *
+   * Uses chokidar's in-memory `getWatched()` state — no filesystem I/O.
+   * Returns an empty array if the watcher hasn't been started.
+   */
+  getWatchedFiles(): string[] {
+    if (!this.watcher) return [];
+
+    const watched = this.watcher.getWatched();
+    const files: string[] = [];
+
+    for (const [dir, entries] of Object.entries(watched)) {
+      for (const entry of entries) {
+        // getWatched() returns relative filenames within each directory
+        const full =
+          dir.endsWith('/') || dir.endsWith('\\')
+            ? `${dir}${entry}`
+            : `${dir}/${entry}`;
+        files.push(full);
+      }
+    }
+
+    return files;
+  }
+
+  /**
+   * Whether the initial filesystem scan is complete.
+   */
+  get isReady(): boolean {
+    return this.initialScanTracker
+      ? !this.initialScanTracker.getStatus().active
+      : true;
+  }
+
+  /**
    * Stop the filesystem watcher.
    */
   async stop(): Promise<void> {
