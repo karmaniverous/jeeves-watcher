@@ -1,20 +1,22 @@
 /**
  * @module api/handlers/walk
- * Fastify route handler for POST /walk. Walks watched filesystem paths with caller-provided glob intersection.
+ * Fastify route handler for POST /walk. Enumerates watched files matching caller-provided globs
+ * using chokidar's in-memory file list (zero filesystem I/O).
  */
 
 import type { FastifyReply, FastifyRequest } from 'fastify';
+import picomatch from 'picomatch';
 import type pino from 'pino';
 
-import { createIsGitignored, type GitignoreFilter } from '../../gitignore';
-import { getWatchRootBases, listFilesFromWatchRoots } from '../fileScan';
+import { normalizeSlashes } from '../../util/normalizeSlashes';
+import type { FileSystemWatcher } from '../../watcher';
+import { getWatchRootBases } from '../fileScan';
 import { wrapHandler } from './wrapHandler';
 
 /** Dependencies for the walk route handler. */
 export interface WalkRouteDeps {
   watchPaths: string[];
-  watchIgnored: string[];
-  gitignoreFilter?: GitignoreFilter;
+  fileSystemWatcher?: FileSystemWatcher;
   logger: pino.Logger;
 }
 
@@ -40,14 +42,27 @@ export function createWalkHandler(deps: WalkRouteDeps) {
         });
       }
 
-      const isGitignored = createIsGitignored(deps.gitignoreFilter);
+      if (!deps.fileSystemWatcher) {
+        return await reply.status(503).send({
+          error: 'Watcher unavailable',
+          message: 'Filesystem watcher is not initialized.',
+        });
+      }
 
-      const paths = await listFilesFromWatchRoots(
-        deps.watchPaths,
-        deps.watchIgnored,
-        globs,
-        isGitignored,
-      );
+      if (!deps.fileSystemWatcher.isReady) {
+        return await reply.status(503).send({
+          error: 'Scan in progress',
+          message:
+            'Initial filesystem scan is still active. Try again after scan completes.',
+        });
+      }
+
+      const watchedFiles = deps.fileSystemWatcher.getWatchedFiles();
+
+      const normGlobs = globs.map((g) => normalizeSlashes(g));
+      const matchGlobs = picomatch(normGlobs, { dot: true, nocase: true });
+
+      const paths = watchedFiles.filter((f) => matchGlobs(normalizeSlashes(f)));
 
       const scannedRoots = getWatchRootBases(deps.watchPaths);
 

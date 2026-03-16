@@ -3,36 +3,32 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { WalkRouteDeps } from './walk';
 import { createWalkHandler } from './walk';
 
-// Mock the fileScan module
-vi.mock('../fileScan', () => ({
-  listFilesFromWatchRoots: vi.fn(),
-  getWatchRootBases: vi.fn(),
-}));
-
-import { getWatchRootBases, listFilesFromWatchRoots } from '../fileScan';
-
-const listFilesMock = vi.mocked(listFilesFromWatchRoots);
-const getRootBasesMock = vi.mocked(getWatchRootBases);
-
 describe('createWalkHandler', () => {
+  const mockWatcher = {
+    getWatchedFiles: vi.fn(),
+    isReady: true,
+  };
+
   beforeEach(() => {
-    listFilesMock.mockReset();
-    getRootBasesMock.mockReset();
+    mockWatcher.getWatchedFiles.mockReset();
+    mockWatcher.isReady = true;
   });
 
   const makeDeps = (): WalkRouteDeps => ({
     watchPaths: ['j:/domains/**/*.md', 'j:/config/**/*.json'],
-    watchIgnored: ['**/node_modules/**'],
+    fileSystemWatcher: mockWatcher as never,
     logger: { warn: vi.fn(), error: vi.fn(), info: vi.fn() } as never,
   });
 
-  it('passes globs through to listFilesFromWatchRoots', async () => {
+  it('filters watched files by caller globs', async () => {
     const deps = makeDeps();
     const handler = createWalkHandler(deps);
 
-    const matchedPaths = ['j:/domains/foo/.meta/meta.json'];
-    listFilesMock.mockResolvedValue(matchedPaths);
-    getRootBasesMock.mockReturnValue(['j:/domains', 'j:/config']);
+    mockWatcher.getWatchedFiles.mockReturnValue([
+      'j:/domains/foo/.meta/meta.json',
+      'j:/domains/bar/readme.md',
+      'j:/domains/baz/.meta/meta.json',
+    ]);
 
     const request = {
       body: { globs: ['**/.meta/meta.json'] },
@@ -42,43 +38,14 @@ describe('createWalkHandler', () => {
 
     await handler(request, reply);
 
-    expect(listFilesMock).toHaveBeenCalledWith(
-      deps.watchPaths,
-      deps.watchIgnored,
-      ['**/.meta/meta.json'],
-      undefined,
-    );
     expect(sendMock).toHaveBeenCalledWith({
-      paths: matchedPaths,
-      matchedCount: 1,
-      scannedRoots: ['j:/domains', 'j:/config'],
+      paths: [
+        'j:/domains/foo/.meta/meta.json',
+        'j:/domains/baz/.meta/meta.json',
+      ],
+      matchedCount: 2,
+      scannedRoots: expect.any(Array) as unknown as string[],
     });
-  });
-
-  it('passes gitignoreFilter when available', async () => {
-    const isIgnoredMock = vi.fn().mockReturnValue(false);
-    const deps: WalkRouteDeps = {
-      watchPaths: ['j:/domains/**/*.md'],
-      watchIgnored: [],
-      gitignoreFilter: { isIgnored: isIgnoredMock } as never,
-      logger: { warn: vi.fn(), error: vi.fn(), info: vi.fn() } as never,
-    };
-    const handler = createWalkHandler(deps);
-
-    listFilesMock.mockResolvedValue([]);
-    getRootBasesMock.mockReturnValue([]);
-
-    const request = {
-      body: { globs: ['**/*.md'] },
-    } as never;
-    const sendMock = vi.fn();
-    const reply = { status: vi.fn().mockReturnThis(), send: sendMock } as never;
-
-    await handler(request, reply);
-
-    // The fourth argument should be a function (the isGitignored callback)
-    const isGitignored = listFilesMock.mock.calls[0]?.[3];
-    expect(typeof isGitignored).toBe('function');
   });
 
   it('rejects missing globs', async () => {
@@ -110,5 +77,44 @@ describe('createWalkHandler', () => {
     await handler(request, reply);
 
     expect(statusMock).toHaveBeenCalledWith(400);
+  });
+
+  it('returns 503 when scan is in progress', async () => {
+    const deps = makeDeps();
+    mockWatcher.isReady = false;
+    const handler = createWalkHandler(deps);
+
+    const request = {
+      body: { globs: ['**/*.md'] },
+    } as never;
+    const sendMock = vi.fn();
+    const statusMock = vi.fn().mockReturnValue({ send: sendMock });
+    const reply = { status: statusMock, send: sendMock } as never;
+
+    await handler(request, reply);
+
+    expect(statusMock).toHaveBeenCalledWith(503);
+    expect(sendMock).toHaveBeenCalledWith(
+      expect.objectContaining({ error: 'Scan in progress' }),
+    );
+  });
+
+  it('returns 503 when watcher is not available', async () => {
+    const deps: WalkRouteDeps = {
+      watchPaths: ['j:/domains/**/*.md'],
+      logger: { warn: vi.fn(), error: vi.fn(), info: vi.fn() } as never,
+    };
+    const handler = createWalkHandler(deps);
+
+    const request = {
+      body: { globs: ['**/*.md'] },
+    } as never;
+    const sendMock = vi.fn();
+    const statusMock = vi.fn().mockReturnValue({ send: sendMock });
+    const reply = { status: statusMock, send: sendMock } as never;
+
+    await handler(request, reply);
+
+    expect(statusMock).toHaveBeenCalledWith(503);
   });
 });

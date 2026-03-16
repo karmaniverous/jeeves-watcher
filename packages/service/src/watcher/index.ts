@@ -2,6 +2,8 @@
  * @module watcher
  * Filesystem watcher wrapping chokidar. I/O: watches files/directories for add/change/unlink events, enqueues to processing queue.
  */
+import { join } from 'node:path';
+
 import chokidar, { type FSWatcher } from 'chokidar';
 import type pino from 'pino';
 
@@ -196,6 +198,37 @@ export class FileSystemWatcher {
       { paths: this.config.paths },
       'Filesystem watcher started',
     );
+  }
+
+  /**
+   * Get the list of all currently watched file paths (absolute).
+   *
+   * Uses chokidar's in-memory `getWatched()` state — no filesystem I/O.
+   * Returns an empty array if the watcher hasn't been started.
+   */
+  getWatchedFiles(): string[] {
+    if (!this.watcher) return [];
+
+    const watched = this.watcher.getWatched();
+    const files: string[] = [];
+
+    for (const [dir, entries] of Object.entries(watched)) {
+      for (const entry of entries) {
+        const full = join(dir, entry);
+        files.push(full);
+      }
+    }
+
+    return files;
+  }
+
+  /**
+   * Whether the initial filesystem scan is complete.
+   */
+  get isReady(): boolean {
+    return this.initialScanTracker
+      ? !this.initialScanTracker.getStatus().active
+      : true;
   }
 
   /**
