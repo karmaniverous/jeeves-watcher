@@ -2,7 +2,10 @@
  * @module watcher
  * Filesystem watcher wrapping chokidar. I/O: watches files/directories for add/change/unlink events, enqueues to processing queue.
  */
+import { resolve } from 'node:path';
+
 import chokidar, { type FSWatcher } from 'chokidar';
+import picomatch from 'picomatch';
 import type pino from 'pino';
 
 import type { InitialScanTracker } from '../api/InitialScanTracker';
@@ -214,6 +217,48 @@ export class FileSystemWatcher {
    */
   get systemHealth(): SystemHealth {
     return this.health;
+  }
+
+  /**
+   * Get list of watched files from chokidar's in-memory cache.
+   * Filters by watch globs, ignored patterns, and gitignore.
+   * Returns empty array if watcher not started.
+   *
+   * @param callerGlobs - Optional additional glob patterns to filter by.
+   * @returns Array of absolute file paths.
+   */
+  getWatchedFiles(callerGlobs?: string[]): string[] {
+    if (!this.watcher) {
+      return [];
+    }
+
+    const watched = this.watcher.getWatched();
+    const files: string[] = [];
+
+    // Build optional caller glob matcher
+    const matchCaller = callerGlobs?.length
+      ? picomatch(callerGlobs, { dot: true, nocase: true })
+      : undefined;
+
+    // Flatten chokidar's {dir: [files]} structure into absolute paths
+    for (const [dir, entries] of Object.entries(watched)) {
+      for (const entry of entries) {
+        const fullPath = resolve(dir, entry);
+
+        // Apply watch globs filter (already filtered by chokidar, but double-check)
+        if (!this.globMatches(fullPath)) continue;
+
+        // Apply gitignore filter
+        if (this.isGitignored(fullPath)) continue;
+
+        // Apply caller globs if provided
+        if (matchCaller && !matchCaller(fullPath)) continue;
+
+        files.push(fullPath);
+      }
+    }
+
+    return files;
   }
 
   /**

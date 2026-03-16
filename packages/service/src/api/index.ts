@@ -18,6 +18,7 @@ import type { EventQueue } from '../queue';
 import type { VirtualRuleStore } from '../rules/virtualRules';
 import type { ValuesManager } from '../values';
 import type { VectorStoreClient } from '../vectorStore';
+import type { FileSystemWatcher } from '../watcher';
 import {
   CONFIG_WATCH_VALID_SCOPES,
   executeReindex,
@@ -89,6 +90,8 @@ export interface ApiServerOptions {
   version?: string;
   /** Initial scan tracker for /status visibility. */
   initialScanTracker?: InitialScanTracker;
+  /** File system watcher for /walk endpoint. */
+  fileSystemWatcher?: FileSystemWatcher;
 }
 
 /**
@@ -114,6 +117,7 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
     gitignoreFilter,
     version,
     initialScanTracker,
+    fileSystemWatcher,
   } = options;
 
   const reindexTracker = options.reindexTracker ?? new ReindexTracker();
@@ -197,7 +201,8 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
     createWalkHandler({
       watchPaths: config.watch.paths,
       watchIgnored: config.watch.ignored ?? [],
-      gitignoreFilter,
+      fileSystemWatcher,
+      initialScanTracker,
       logger,
     }),
   );

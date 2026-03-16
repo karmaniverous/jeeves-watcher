@@ -1,20 +1,22 @@
 /**
  * @module api/handlers/walk
- * Fastify route handler for POST /walk. Walks watched filesystem paths with caller-provided glob intersection.
+ * Fastify route handler for POST /walk. Returns watched filesystem paths with caller-provided glob intersection.
  */
 
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import type pino from 'pino';
 
-import { createIsGitignored, type GitignoreFilter } from '../../gitignore';
-import { getWatchRootBases, listFilesFromWatchRoots } from '../fileScan';
+import type { FileSystemWatcher } from '../../watcher';
+import { getWatchRootBases } from '../fileScan';
+import type { InitialScanTracker } from '../InitialScanTracker';
 import { wrapHandler } from './wrapHandler';
 
 /** Dependencies for the walk route handler. */
 export interface WalkRouteDeps {
   watchPaths: string[];
   watchIgnored: string[];
-  gitignoreFilter?: GitignoreFilter;
+  fileSystemWatcher?: FileSystemWatcher;
+  initialScanTracker?: InitialScanTracker;
   logger: pino.Logger;
 }
 
@@ -40,14 +42,21 @@ export function createWalkHandler(deps: WalkRouteDeps) {
         });
       }
 
-      const isGitignored = createIsGitignored(deps.gitignoreFilter);
+      // Return 503 if initial scan is still active (list would be incomplete)
+      const scanStatus = deps.initialScanTracker?.getStatus();
+      if (scanStatus?.active) {
+        return await reply.status(503).send({
+          error: 'Initial scan in progress',
+          message:
+            'The filesystem watcher is still performing its initial scan. Please retry later.',
+          retryAfter: 5,
+        });
+      }
 
-      const paths = await listFilesFromWatchRoots(
-        deps.watchPaths,
-        deps.watchIgnored,
-        globs,
-        isGitignored,
-      );
+      // Use in-memory file list from chokidar via FileSystemWatcher
+      const paths = deps.fileSystemWatcher
+        ? deps.fileSystemWatcher.getWatchedFiles(globs)
+        : [];
 
       const scannedRoots = getWatchRootBases(deps.watchPaths);
 
