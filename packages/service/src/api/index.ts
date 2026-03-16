@@ -90,7 +90,7 @@ export interface ApiServerOptions {
   version?: string;
   /** Initial scan tracker for /status visibility. */
   initialScanTracker?: InitialScanTracker;
-  /** Filesystem watcher instance for /walk endpoint (in-memory file list). */
+  /** Filesystem watcher for in-memory file listing (used by /walk). */
   fileSystemWatcher?: FileSystemWatcher;
 }
 
@@ -117,6 +117,7 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
     gitignoreFilter,
     version,
     initialScanTracker,
+    fileSystemWatcher,
   } = options;
 
   const reindexTracker = options.reindexTracker ?? new ReindexTracker();
@@ -199,8 +200,11 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
     '/walk',
     createWalkHandler({
       watchPaths: config.watch.paths,
-      fileSystemWatcher: options.fileSystemWatcher,
+      watchIgnored: config.watch.ignored,
+      gitignoreFilter,
+      fileSystemWatcher,
       logger,
+      initialScanTracker,
     }),
   );
 

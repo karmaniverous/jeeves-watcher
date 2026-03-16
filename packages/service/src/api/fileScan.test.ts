@@ -7,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { normalizeSlashes } from '../util/normalizeSlashes';
 import {
   getWatchRootBases,
+  getWatchedFiles,
   globBase,
   listFilesFromGlobs,
   listFilesFromWatchRoots,
@@ -40,6 +41,42 @@ describe('globBase', () => {
   it('handles trailing slash before glob', () => {
     const result = globBase('docs/**');
     expect(result).toBe(resolve('docs'));
+  });
+});
+
+describe('getWatchedFiles', () => {
+  it('flattens chokidar watched object to file paths', () => {
+    const watched = {
+      '/project/src': ['index.ts', 'utils.ts'],
+      '/project/docs': ['readme.md'],
+      '/project': ['package.json'],
+    };
+
+    const files = getWatchedFiles(watched);
+
+    expect(files).toHaveLength(4);
+    expect(files).toContain(resolve('/project/src/index.ts'));
+    expect(files).toContain(resolve('/project/src/utils.ts'));
+    expect(files).toContain(resolve('/project/docs/readme.md'));
+    expect(files).toContain(resolve('/project/package.json'));
+  });
+
+  it('returns empty array for empty watched object', () => {
+    const files = getWatchedFiles({});
+    expect(files).toHaveLength(0);
+  });
+
+  it('handles nested directories', () => {
+    const watched = {
+      '/a/b/c': ['deep.ts'],
+      '/a': ['shallow.ts'],
+    };
+
+    const files = getWatchedFiles(watched);
+
+    expect(files).toHaveLength(2);
+    expect(files).toContain(resolve('/a/b/c/deep.ts'));
+    expect(files).toContain(resolve('/a/shallow.ts'));
   });
 });
 
