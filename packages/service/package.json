@@ -121,6 +121,7 @@
   },
   "auto-changelog": {
     "output": "CHANGELOG.md",
+    "tagPrefix": "service/",
     "unreleased": true,
     "commitLimit": false,
     "hideCredit": true
