@@ -72,6 +72,21 @@ You have access to a **semantic archive** of your human's working world. Documen
 
 **The principle:** Memory-core is your curated highlights. The watcher archive is your perfect recall. Use memory first for speed and signal, but never let its narrow scope be the ceiling of what you can remember.
 
+## ⚠️ Embedding Cost — Hard Behavioral Gate
+
+**The watcher embeds every file it sees.** Embedding is the most expensive operation in the pipeline — each file triggers a Gemini API call. The index may contain hundreds of thousands of points. Any action that causes the watcher to process a large number of files has real, potentially significant cost.
+
+**STOP and ask for a human decision before:**
+
+- **Renaming, moving, or reorganizing watched directories.** A directory rename at the filesystem level is cheap — chokidar sees unlink + add events, but the content hasn't changed. However, if a rename is blocked (e.g., by a file lock from the watcher or another service), **do NOT work around it by creating new directories and copying/moving files**. That creates duplicate embeddings at the new paths while the old paths still exist. Instead: stop the blocking service, perform the rename, restart. This is a 30-second operation. The workaround can cost thousands of API calls.
+- **Changing `watch.paths` to add large directory trees.** Adding a new watch root triggers initial indexing of every matching file under it.
+- **Running `scope: "full"` reindex.** This re-embeds the entire index. Use `scope: "rules"` for inference rule changes (zero embedding cost — only metadata reapplication).
+- **Any bulk file operation** (mass copy, mass move, template-based file generation) under watched paths.
+
+**The right instinct when blocked:** If a filesystem operation fails because a service has a lock, the correct response is to stop the service, do the operation, and restart — NOT to find a creative workaround. Creative workarounds in the presence of a live watcher are how you accidentally trigger re-embedding of tens of thousands of files.
+
+**Cost context:** A single file embedding costs a Gemini API call. 1,000 unnecessary embeddings is a noticeable cost. 100,000 unnecessary embeddings (e.g., copying an entire domain directory to a new path) is a billing event worth flagging.
+
 ## Plugin Installation
 
 ```
