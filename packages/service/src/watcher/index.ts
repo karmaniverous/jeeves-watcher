@@ -2,6 +2,8 @@
  * @module watcher
  * Filesystem watcher wrapping chokidar. I/O: watches files/directories for add/change/unlink events, enqueues to processing queue.
  */
+import { join } from 'node:path';
+
 import chokidar, { type FSWatcher } from 'chokidar';
 import type pino from 'pino';
 
@@ -212,11 +214,7 @@ export class FileSystemWatcher {
 
     for (const [dir, entries] of Object.entries(watched)) {
       for (const entry of entries) {
-        // getWatched() returns relative filenames within each directory
-        const full =
-          dir.endsWith('/') || dir.endsWith('\\')
-            ? `${dir}${entry}`
-            : `${dir}/${entry}`;
+        const full = join(dir, entry);
         files.push(full);
       }
     }
