@@ -217,6 +217,15 @@ export class FileSystemWatcher {
   }
 
   /**
+   * Get the map of watched directories to their file entries.
+   * Returns an empty object if the watcher is not started.
+   */
+  getWatched(): Record<string, string[]> {
+    if (!this.watcher) return {};
+    return this.watcher.getWatched();
+  }
+
+  /**
    * Check if a path is gitignored and should be skipped.
    */
   private isGitignored(path: string): boolean {

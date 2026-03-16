@@ -232,6 +232,7 @@ export class JeevesWatcher {
       gitignoreFilter: this.gitignoreFilter,
       version: this.version,
       initialScanTracker: this.initialScanTracker,
+      fileSystemWatcher: this.watcher,
     });
 
     await server.listen({

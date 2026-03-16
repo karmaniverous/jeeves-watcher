@@ -6,6 +6,24 @@ import picomatch from 'picomatch';
 import { normalizeSlashes } from '../util/normalizeSlashes';
 
 /**
+ * Get files from chokidar's in-memory watched list instead of filesystem walk.
+ * Flattens the nested directory structure returned by chokidar.getWatched().
+ *
+ * @param watched - The object returned by chokidar.getWatched(), mapping directories to file arrays.
+ * @returns Array of absolute file paths.
+ */
+export function getWatchedFiles(watched: Record<string, string[]>): string[] {
+  const files: string[] = [];
+  for (const [dir, entries] of Object.entries(watched)) {
+    for (const entry of entries) {
+      // chokidar lists files as bare names; reconstruct full path
+      files.push(resolve(dir, entry));
+    }
+  }
+  return files;
+}
+
+/**
  * Best-effort base directory inference for a glob pattern.
  *
  * For our use (watch paths in config), this only needs to be good enough
