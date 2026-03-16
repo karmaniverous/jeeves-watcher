@@ -5,18 +5,18 @@ import { createWalkHandler } from './walk';
 
 // Mock the fileScan module
 vi.mock('../fileScan', () => ({
-  listFilesFromWatchRoots: vi.fn(),
   getWatchRootBases: vi.fn(),
+  getWatchedFiles: vi.fn(),
 }));
 
-import { getWatchRootBases, listFilesFromWatchRoots } from '../fileScan';
+import { getWatchRootBases, getWatchedFiles } from '../fileScan';
 
-const listFilesMock = vi.mocked(listFilesFromWatchRoots);
+const getWatchedFilesMock = vi.mocked(getWatchedFiles);
 const getRootBasesMock = vi.mocked(getWatchRootBases);
 
 describe('createWalkHandler', () => {
   beforeEach(() => {
-    listFilesMock.mockReset();
+    getWatchedFilesMock.mockReset();
     getRootBasesMock.mockReset();
   });
 
@@ -26,59 +26,130 @@ describe('createWalkHandler', () => {
     logger: { warn: vi.fn(), error: vi.fn(), info: vi.fn() } as never,
   });
 
-  it('passes globs through to listFilesFromWatchRoots', async () => {
-    const deps = makeDeps();
+  it('returns 503 when initial scan is active', async () => {
+    const deps: WalkRouteDeps = {
+      ...makeDeps(),
+      initialScanTracker: {
+        getStatus: () => ({ active: true, filesMatched: 10, filesEnqueued: 5, startedAt: new Date().toISOString() }),
+      } as never,
+    };
     const handler = createWalkHandler(deps);
 
-    const matchedPaths = ['j:/domains/foo/.meta/meta.json'];
-    listFilesMock.mockResolvedValue(matchedPaths);
+    const request = { body: { globs: ['**/*.md'] } } as never;
+    const sendMock = vi.fn();
+    const statusMock = vi.fn().mockReturnValue({ send: sendMock });
+    const reply = { status: statusMock, send: sendMock } as never;
+
+    await handler(request, reply);
+
+    expect(statusMock).toHaveBeenCalledWith(503);
+    expect(sendMock).toHaveBeenCalledWith(
+      expect.objectContaining({ error: 'Service Unavailable' }),
+    );
+  });
+
+  it('uses in-memory watched files when fileSystemWatcher is available', async () => {
+    const deps: WalkRouteDeps = {
+      ...makeDeps(),
+      fileSystemWatcher: {
+        getWatched: () => ({
+          'j:/domains': ['file1.md', 'file2.md'],
+          'j:/config': ['settings.json'],
+        }),
+      } as never,
+      initialScanTracker: {
+        getStatus: () => ({ active: false }),
+      } as never,
+    };
+    const handler = createWalkHandler(deps);
+
+    getWatchedFilesMock.mockReturnValue([
+      'j:/domains/file1.md',
+      'j:/domains/file2.md',
+      'j:/config/settings.json',
+    ]);
     getRootBasesMock.mockReturnValue(['j:/domains', 'j:/config']);
 
-    const request = {
-      body: { globs: ['**/.meta/meta.json'] },
-    } as never;
+    const request = { body: { globs: ['**/*.md'] } } as never;
     const sendMock = vi.fn();
     const reply = { status: vi.fn().mockReturnThis(), send: sendMock } as never;
 
     await handler(request, reply);
 
-    expect(listFilesMock).toHaveBeenCalledWith(
-      deps.watchPaths,
-      deps.watchIgnored,
-      ['**/.meta/meta.json'],
-      undefined,
-    );
+    expect(getWatchedFilesMock).toHaveBeenCalledWith({
+      'j:/domains': ['file1.md', 'file2.md'],
+      'j:/config': ['settings.json'],
+    });
     expect(sendMock).toHaveBeenCalledWith({
-      paths: matchedPaths,
-      matchedCount: 1,
+      paths: expect.arrayContaining([expect.stringContaining('.md')]),
+      matchedCount: expect.any(Number),
       scannedRoots: ['j:/domains', 'j:/config'],
     });
   });
 
-  it('passes gitignoreFilter when available', async () => {
-    const isIgnoredMock = vi.fn().mockReturnValue(false);
+  it('filters by glob patterns', async () => {
     const deps: WalkRouteDeps = {
-      watchPaths: ['j:/domains/**/*.md'],
-      watchIgnored: [],
-      gitignoreFilter: { isIgnored: isIgnoredMock } as never,
-      logger: { warn: vi.fn(), error: vi.fn(), info: vi.fn() } as never,
+      ...makeDeps(),
+      fileSystemWatcher: {
+        getWatched: () => ({
+          'j:/domains': ['file1.md', 'file2.txt'],
+          'j:/config': ['settings.json'],
+        }),
+      } as never,
+      initialScanTracker: {
+        getStatus: () => ({ active: false }),
+      } as never,
     };
     const handler = createWalkHandler(deps);
 
-    listFilesMock.mockResolvedValue([]);
-    getRootBasesMock.mockReturnValue([]);
+    getWatchedFilesMock.mockReturnValue([
+      'j:/domains/file1.md',
+      'j:/domains/file2.txt',
+      'j:/config/settings.json',
+    ]);
+    getRootBasesMock.mockReturnValue(['j:/domains', 'j:/config']);
 
-    const request = {
-      body: { globs: ['**/*.md'] },
-    } as never;
+    const request = { body: { globs: ['**/*.md'] } } as never;
     const sendMock = vi.fn();
     const reply = { status: vi.fn().mockReturnThis(), send: sendMock } as never;
 
     await handler(request, reply);
 
-    // The fourth argument should be a function (the isGitignored callback)
-    const isGitignored = listFilesMock.mock.calls[0]?.[3];
-    expect(typeof isGitignored).toBe('function');
+    const response = sendMock.mock.calls[0]?.[0];
+    expect(response.paths).toContain('j:/domains/file1.md');
+    expect(response.paths).not.toContain('j:/domains/file2.txt');
+    expect(response.paths).not.toContain('j:/config/settings.json');
+  });
+
+  it('applies gitignore filter when available', async () => {
+    const isIgnoredMock = vi.fn().mockImplementation((path: string) => path.includes('ignored'));
+    const deps: WalkRouteDeps = {
+      ...makeDeps(),
+      fileSystemWatcher: {
+        getWatched: () => ({
+          'j:/domains': ['file1.md', 'ignored.md'],
+        }),
+      } as never,
+      gitignoreFilter: { isIgnored: isIgnoredMock } as never,
+      initialScanTracker: {
+        getStatus: () => ({ active: false }),
+      } as never,
+    };
+    const handler = createWalkHandler(deps);
+
+    getWatchedFilesMock.mockReturnValue(['j:/domains/file1.md', 'j:/domains/ignored.md']);
+    getRootBasesMock.mockReturnValue(['j:/domains']);
+
+    const request = { body: { globs: ['**/*.md'] } } as never;
+    const sendMock = vi.fn();
+    const reply = { status: vi.fn().mockReturnThis(), send: sendMock } as never;
+
+    await handler(request, reply);
+
+    expect(isIgnoredMock).toHaveBeenCalled();
+    const response = sendMock.mock.calls[0]?.[0];
+    expect(response.paths).toContain('j:/domains/file1.md');
+    expect(response.paths).not.toContain('j:/domains/ignored.md');
   });
 
   it('rejects missing globs', async () => {
@@ -87,7 +158,7 @@ describe('createWalkHandler', () => {
 
     const request = { body: {} } as never;
     const sendMock = vi.fn();
-    const statusMock = vi.fn().mockReturnValue({ send: sendMock });
+    const statusMock = vi.fn().mockReturnThis().mockReturnValue({ send: sendMock });
     const reply = { status: statusMock, send: sendMock } as never;
 
     await handler(request, reply);
@@ -104,7 +175,7 @@ describe('createWalkHandler', () => {
 
     const request = { body: { globs: [] } } as never;
     const sendMock = vi.fn();
-    const statusMock = vi.fn().mockReturnValue({ send: sendMock });
+    const statusMock = vi.fn().mockReturnThis().mockReturnValue({ send: sendMock });
     const reply = { status: statusMock, send: sendMock } as never;
 
     await handler(request, reply);
