@@ -2,8 +2,9 @@
 
 All notable changes to this project will be documented in this file. Dates are displayed in UTC.
 
-#### [0.10.0](https://github.com/karmaniverous/jeeves-watcher/compare/0.5.1...0.10.0)
+#### [0.10.1](https://github.com/karmaniverous/jeeves-watcher/compare/0.5.1...0.10.1)
 
+- fix: use chokidar getWatched() for /walk endpoint [`#123`](https://github.com/karmaniverous/jeeves-watcher/pull/123)
 - feat: API consolidation, walk endpoint, auto rules-reindex (Fixes 17-21) [`#121`](https://github.com/karmaniverous/jeeves-watcher/pull/121)
 - feat: v0.10.0 correctness and observability release [`#117`](https://github.com/karmaniverous/jeeves-watcher/pull/117)
 - fix: add nocase to fileScan picomatch calls [`#115`](https://github.com/karmaniverous/jeeves-watcher/pull/115)
@@ -70,6 +71,7 @@ All notable changes to this project will be documented in this file. Dates are d
 - fix: resolve lint errors in openclaw CLI [`#40`](https://github.com/karmaniverous/jeeves-watcher/pull/40)
 - feat: add install/uninstall CLI for OpenClaw plugin [`#39`](https://github.com/karmaniverous/jeeves-watcher/pull/39)
 - chore: fix monorepo release-it tags, plugin id, and version sync [`#38`](https://github.com/karmaniverous/jeeves-watcher/pull/38)
+- [FIX-122] fix: use chokidar getWatched() for /walk endpoint instead of filesystem traversal [`#122`](https://github.com/karmaniverous/jeeves-watcher/issues/122)
 - [107] fix: remove HTML escaping from renderDoc markdown output [`#107`](https://github.com/karmaniverous/jeeves-watcher/issues/107)
 - feat: support glob/negation patterns in render.frontmatter [`#104`](https://github.com/karmaniverous/jeeves-watcher/issues/104)
 - feat: add concurrent file processing for reindex using radash parallel [`#102`](https://github.com/karmaniverous/jeeves-watcher/issues/102)
@@ -87,6 +89,8 @@ All notable changes to this project will be documented in this file. Dates are d
 - [FIX-14] feat: prune reindex scope, blast area plan, dryRun (Fix 14) [`c2b1c9f`](https://github.com/karmaniverous/jeeves-watcher/commit/c2b1c9fc69d10a988f3f3b1b04701a0b460b90d7)
 - updated docs [`06e474c`](https://github.com/karmaniverous/jeeves-watcher/commit/06e474cea44e8a34549565557b3f506bcdd27696)
 - [FIX-17][FIX-18][FIX-19] feat: API Consolidation (Phase 8) [`750803a`](https://github.com/karmaniverous/jeeves-watcher/commit/750803a05d19c4eb33ceca90e050470e7ff6217a)
+- chore: release @karmaniverous/jeeves-watcher-openclaw v0.7.0 [`5285b26`](https://github.com/karmaniverous/jeeves-watcher/commit/5285b26fc4f33b9442a09e4edd2a6686e5229fef)
+- chore: release @karmaniverous/jeeves-watcher v0.10.0 [`0fb8183`](https://github.com/karmaniverous/jeeves-watcher/commit/0fb81832bd1843ce30b885e1eaae74d76676e896)
 - [FIX-17] [FIX-20][FIX-21] Phase 9: POST /walk endpoint, watcher_walk tool, auto rules-reindex on rule registration [`aadd6fe`](https://github.com/karmaniverous/jeeves-watcher/commit/aadd6fec9e9b7170afd3966f7c361835aac741d2)
 - feat: add GET /search/facets endpoint with schema-derived facet definitions [`7ee8f03`](https://github.com/karmaniverous/jeeves-watcher/commit/7ee8f035fbe8c8eeeb89857af52fa59a214ab7d5)
 - feat: add api caching and agent bootstrap prompt injection [`615d0f5`](https://github.com/karmaniverous/jeeves-watcher/commit/615d0f56de4bdc736401092a10978538f7d1a35e)
@@ -202,6 +206,7 @@ All notable changes to this project will be documented in this file. Dates are d
 - chore: release @karmaniverous/jeeves-watcher-openclaw v0.3.9 [`97c635e`](https://github.com/karmaniverous/jeeves-watcher/commit/97c635e25b7c7ac4a5e6315ac2c26af7d1e89a74)
 - chore: release @karmaniverous/jeeves-watcher-openclaw v0.3.5 [`837a941`](https://github.com/karmaniverous/jeeves-watcher/commit/837a94145b086245df101f7dcf2fd7a0c5ebfbca)
 - chore: release @karmaniverous/jeeves-watcher v0.6.1 [`037d9c9`](https://github.com/karmaniverous/jeeves-watcher/commit/037d9c924e1bc3020fb6b497f59261dd027718bd)
+- refactor: use path.join() for getWatchedFiles path construction [`41315a3`](https://github.com/karmaniverous/jeeves-watcher/commit/41315a3d608f6bbe8a4b4c0b86d4ac5144053901)
 - [V0_10_0] docs: add score threshold guidance to SKILL.md, reference skill from TOOLS.md injection [`efae197`](https://github.com/karmaniverous/jeeves-watcher/commit/efae19780b7247eb8423c54d93108d332a253e0f)
 - chore: release @karmaniverous/jeeves-watcher v0.9.7 [`fd439c2`](https://github.com/karmaniverous/jeeves-watcher/commit/fd439c288655eacf6558edc289de7e1b695fb371)
 - chore: release @karmaniverous/jeeves-watcher v0.9.6 [`432b3c5`](https://github.com/karmaniverous/jeeves-watcher/commit/432b3c513cda109c4d26fb78e9f89eb60b612742)
