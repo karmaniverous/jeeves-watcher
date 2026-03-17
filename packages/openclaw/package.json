@@ -55,6 +55,9 @@
     "commitLimit": false,
     "hideCredit": true
   },
+  "dependencies": {
+    "@karmaniverous/jeeves": "0.1.0"
+  },
   "devDependencies": {
     "@dotenvx/dotenvx": "^1.54.1",
     "@rollup/plugin-typescript": "^12.3.0",

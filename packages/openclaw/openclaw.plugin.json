@@ -14,6 +14,11 @@
         "type": "string",
         "description": "jeeves-watcher API base URL",
         "default": "http://127.0.0.1:1936"
+      },
+      "configRoot": {
+        "type": "string",
+        "description": "Platform config root path (e.g., j:/config)",
+        "default": "j:/config"
       }
     }
   },
@@ -21,6 +26,10 @@
     "apiUrl": {
       "label": "Watcher API URL",
       "placeholder": "http://127.0.0.1:1936"
+    },
+    "configRoot": {
+      "label": "Config root",
+      "placeholder": "j:/config"
     }
   }
 }
