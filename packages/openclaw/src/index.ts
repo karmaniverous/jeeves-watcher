@@ -4,6 +4,8 @@
  * the managed content writer via `@karmaniverous/jeeves` core.
  */
 
+import { createRequire } from 'node:module';
+
 import { createComponentWriter, init } from '@karmaniverous/jeeves';
 
 import type { PluginApi } from './helpers.js';
@@ -11,7 +13,18 @@ import { getApiUrl, getConfigRoot } from './helpers.js';
 import { createWatcherComponent } from './watcherComponent.js';
 import { registerWatcherTools } from './watcherTools.js';
 
-const PLUGIN_VERSION = '0.7.0';
+/**
+ * Read the plugin version from the nearest package.json.
+ *
+ * @remarks
+ * Uses `createRequire(import.meta.url)` — the same pattern as
+ * `@karmaniverous/jeeves` core. Works whether executed from
+ * `src/index.ts` (dev/test) or `dist/index.js` (built), since
+ * both are exactly one directory level below `package.json`.
+ */
+const require = createRequire(import.meta.url);
+const pkg = require('../package.json') as { version: string };
+const PLUGIN_VERSION: string = pkg.version;
 
 /** Resolve the workspace root from the OpenClaw plugin API. */
 function resolveWorkspacePath(api: PluginApi): string {
