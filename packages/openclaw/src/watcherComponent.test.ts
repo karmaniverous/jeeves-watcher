@@ -14,7 +14,7 @@ vi.mock('./promptInjection.js', () => ({
 
 describe('createWatcherComponent', () => {
   it('returns a component with required JeevesComponent fields', () => {
-    const { component } = createWatcherComponent({
+    const component = createWatcherComponent({
       apiUrl: 'http://127.0.0.1:1936',
       pluginVersion: '0.7.0',
     });
@@ -26,7 +26,7 @@ describe('createWatcherComponent', () => {
   });
 
   it('generateToolsContent() is callable and returns a string', () => {
-    const { component } = createWatcherComponent({
+    const component = createWatcherComponent({
       apiUrl: 'http://127.0.0.1:1936',
       pluginVersion: '0.7.0',
     });
@@ -35,20 +35,8 @@ describe('createWatcherComponent', () => {
     expect(typeof content).toBe('string');
   });
 
-  it('generateToolsContent() returns primed content after prime resolves', async () => {
-    const { component, prime } = createWatcherComponent({
-      apiUrl: 'http://127.0.0.1:1936',
-      pluginVersion: '0.7.0',
-    });
-
-    await prime;
-
-    const content = component.generateToolsContent();
-    expect(content).toBe('Mocked watcher menu content');
-  });
-
   it('serviceCommands.stop is a callable function', () => {
-    const { component } = createWatcherComponent({
+    const component = createWatcherComponent({
       apiUrl: 'http://127.0.0.1:1936',
       pluginVersion: '0.7.0',
     });
@@ -57,7 +45,7 @@ describe('createWatcherComponent', () => {
   });
 
   it('serviceCommands.uninstall is a callable function', () => {
-    const { component } = createWatcherComponent({
+    const component = createWatcherComponent({
       apiUrl: 'http://127.0.0.1:1936',
       pluginVersion: '0.7.0',
     });
@@ -66,7 +54,7 @@ describe('createWatcherComponent', () => {
   });
 
   it('serviceCommands.status is a callable function', () => {
-    const { component } = createWatcherComponent({
+    const component = createWatcherComponent({
       apiUrl: 'http://127.0.0.1:1936',
       pluginVersion: '0.7.0',
     });
@@ -75,7 +63,7 @@ describe('createWatcherComponent', () => {
   });
 
   it('pluginCommands.uninstall is a callable function', () => {
-    const { component } = createWatcherComponent({
+    const component = createWatcherComponent({
       apiUrl: 'http://127.0.0.1:1936',
       pluginVersion: '0.7.0',
     });
@@ -84,7 +72,7 @@ describe('createWatcherComponent', () => {
   });
 
   it('serviceCommands.status returns ServiceStatus when API unreachable', async () => {
-    const { component } = createWatcherComponent({
+    const component = createWatcherComponent({
       apiUrl: 'http://127.0.0.1:0',
       pluginVersion: '0.7.0',
     });

@@ -1,20 +1,19 @@
 /**
  * @module plugin
- * OpenClaw plugin entry point. Registers all jeeves-watcher tools.
- *
- * @remarks
- * Core library (`@karmaniverous/jeeves`) is loaded dynamically so that tool
- * registration succeeds even if the core has import-time issues (e.g., the
- * v0.1.0 `createRequire` path bug). Tool registration is the plugin's primary
- * responsibility; the managed content writer is a secondary enhancement.
+ * OpenClaw plugin entry point. Registers all jeeves-watcher tools and starts
+ * the managed content writer via `@karmaniverous/jeeves` core.
  */
+
+import { createComponentWriter, init } from '@karmaniverous/jeeves';
 
 import type { PluginApi } from './helpers.js';
 import { getApiUrl, getConfigRoot } from './helpers.js';
+import { createWatcherComponent } from './watcherComponent.js';
 import { registerWatcherTools } from './watcherTools.js';
 
 const PLUGIN_VERSION = '0.7.0';
 
+/** Resolve the workspace root from the OpenClaw plugin API. */
 function resolveWorkspacePath(api: PluginApi): string {
   if (typeof api.resolvePath === 'function') {
     return api.resolvePath('.');
@@ -22,6 +21,7 @@ function resolveWorkspacePath(api: PluginApi): string {
   return process.cwd();
 }
 
+/** Detect test environments to avoid timers and filesystem writes. */
 function isTestEnv(): boolean {
   return process.env.NODE_ENV === 'test' || process.env.VITEST !== undefined;
 }
@@ -34,34 +34,17 @@ export default function register(api: PluginApi): void {
   // Avoid timers + filesystem writes in unit tests.
   if (isTestEnv()) return;
 
-  // Start the managed content writer asynchronously.
-  // Dynamic import isolates the core dependency so tool registration
-  // is never blocked by import-time failures in @karmaniverous/jeeves.
-  void startWriter(api, apiUrl);
-}
+  // Initialize jeeves-core for managed content writing.
+  init({
+    workspacePath: resolveWorkspacePath(api),
+    configRoot: getConfigRoot(api),
+  });
 
-async function startWriter(api: PluginApi, apiUrl: string): Promise<void> {
-  try {
-    const { init, createComponentWriter } =
-      await import('@karmaniverous/jeeves');
-    const { createWatcherComponent } = await import('./watcherComponent.js');
+  const component = createWatcherComponent({
+    apiUrl,
+    pluginVersion: PLUGIN_VERSION,
+  });
 
-    init({
-      workspacePath: resolveWorkspacePath(api),
-      configRoot: getConfigRoot(api),
-    });
-
-    const { component, prime } = createWatcherComponent({
-      apiUrl,
-      pluginVersion: PLUGIN_VERSION,
-    });
-
-    const writer = createComponentWriter(component, { probeTimeoutMs: 1500 });
-
-    await prime;
-    writer.start();
-  } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : String(err);
-    console.warn(`[jeeves-watcher] Failed to start managed writer: ${msg}`);
-  }
+  const writer = createComponentWriter(component, { probeTimeoutMs: 1500 });
+  writer.start();
 }

@@ -1,31 +1,48 @@
 /**
  * @module plugin/watcherComponent
  * Jeeves component integration for the watcher OpenClaw plugin.
+ *
+ * @remarks
+ * Uses `createAsyncContentCache()` from core to bridge the sync/async gap:
+ * `generateToolsContent()` must be synchronous, but the watcher menu requires
+ * async HTTP calls. The cache triggers a background refresh on each call and
+ * returns the most recent successful result.
  */
 
 import { execFile as execFileCb } from 'node:child_process';
 import { promisify } from 'node:util';
 
-import type {
-  JeevesComponent,
-  ServiceCommands,
-  ServiceStatus,
+import {
+  createAsyncContentCache,
+  type JeevesComponent,
+  type ServiceCommands,
+  type ServiceStatus,
 } from '@karmaniverous/jeeves';
 
 import { generateWatcherMenu } from './promptInjection.js';
 
 const execFile = promisify(execFileCb);
 
+/** Options for creating the watcher component descriptor. */
 interface CreateWatcherComponentOptions {
+  /** Base URL of the jeeves-watcher HTTP API. */
   apiUrl: string;
+  /** Plugin package version. */
   pluginVersion: string;
 }
 
+/** Shape of the watcher `/status` response (subset). */
 interface StatusResponse {
   version?: string;
   uptime?: number;
 }
 
+/**
+ * Probe the watcher HTTP API for service health.
+ *
+ * @param apiUrl - Base URL of the watcher API.
+ * @returns Service status with running flag, optional version and uptime.
+ */
 async function getServiceStatus(apiUrl: string): Promise<ServiceStatus> {
   try {
     const res = await fetch(`${apiUrl}/status`, {
@@ -44,62 +61,29 @@ async function getServiceStatus(apiUrl: string): Promise<ServiceStatus> {
   }
 }
 
-function createPluginCommands(): { uninstall(): Promise<void> } {
-  return {
-    async uninstall(): Promise<void> {
-      // Delegate to the published plugin CLI.
-      // NOTE: This is a best-effort helper; it may not be desirable to run from
-      // inside the gateway process depending on how OpenClaw hosts plugins.
-      await execFile('npx', [
-        '-y',
-        '@karmaniverous/jeeves-watcher-openclaw',
-        'uninstall',
-      ]);
-    },
-  };
-}
-
 /**
- * Create the watcher component descriptor plus a prime promise.
+ * Create the watcher `JeevesComponent` descriptor.
  *
- * @remarks
- * `generateToolsContent()` must be synchronous, but the watcher menu requires
- * async HTTP calls. We use a cached menu string and prime it once on startup.
+ * @param options - API URL and plugin version.
+ * @returns A fully configured component descriptor ready for `createComponentWriter()`.
  */
 export function createWatcherComponent(
   options: CreateWatcherComponentOptions,
-): { component: JeevesComponent; prime: Promise<void> } {
+): JeevesComponent {
   const { apiUrl, pluginVersion } = options;
 
-  let cachedMenu = 'Initializing watcher menu...';
-
-  const refresh = async (): Promise<void> => {
-    cachedMenu = await generateWatcherMenu(apiUrl);
-  };
-
-  // Prime immediately.
-  const prime = refresh().catch(() => {
-    // generateWatcherMenu is designed to return an actionable message instead
-    // of throwing, but guard anyway.
-    cachedMenu = `> **ACTION REQUIRED:** Failed to generate watcher menu for ${apiUrl}`;
+  const getContent = createAsyncContentCache({
+    fetch: async () => generateWatcherMenu(apiUrl),
+    placeholder: '> Initializing watcher menu...',
   });
 
-  // Keep the cached menu fresh on the same prime interval the writer uses.
-  const refreshIntervalMs = 71_000;
-  const intervalHandle = setInterval(() => {
-    void refresh();
-  }, refreshIntervalMs);
-  intervalHandle.unref();
-
-  const component: JeevesComponent = {
+  return {
     name: 'watcher',
     version: pluginVersion,
     sectionId: 'Watcher',
     refreshIntervalSeconds: 71,
 
-    generateToolsContent(): string {
-      return cachedMenu;
-    },
+    generateToolsContent: getContent,
 
     serviceCommands: {
       async stop(): Promise<void> {
@@ -113,8 +97,14 @@ export function createWatcherComponent(
       },
     } satisfies ServiceCommands,
 
-    pluginCommands: createPluginCommands(),
+    pluginCommands: {
+      async uninstall(): Promise<void> {
+        await execFile('npx', [
+          '-y',
+          '@karmaniverous/jeeves-watcher-openclaw',
+          'uninstall',
+        ]);
+      },
+    },
   };
-
-  return { component, prime };
 }
