@@ -1,4 +1,4 @@
-# @karmaniverous/jeeves-watcher
+# Jeeves Watcher 🎩
 
 Filesystem watcher that keeps a Qdrant vector store in sync with document changes.
 
