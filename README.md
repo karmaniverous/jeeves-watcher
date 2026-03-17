@@ -320,3 +320,7 @@ Plugin configuration supports `apiUrl` (defaults to `http://127.0.0.1:1936`).
 ## License
 
 BSD-3-Clause
+
+---
+
+Built for you with ❤️ on Bali by [Jason Williscroft](https://github.com/karmaniverous) & [Jeeves](https://github.com/jgs-jeeves).
