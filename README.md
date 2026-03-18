@@ -96,7 +96,6 @@ The watcher will:
 | `jeeves-watcher issues` | Show indexing issues and errors |
 | `jeeves-watcher helpers` | Show loaded map and template helpers |
 | `jeeves-watcher config-apply` | Validate, write, and reload configuration from file |
-| `jeeves-watcher reindex` | Trigger scoped reindex (`issues`, `rules`, `full`, `path`, `prune`) |
 
 ## Configuration
 
