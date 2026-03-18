@@ -31,20 +31,6 @@ export interface PluginApi {
     },
     options?: { optional?: boolean },
   ): void;
-
-  /**
-   * Optional internal hook registration (available on newer OpenClaw builds).
-   * We keep this optional to preserve compatibility.
-   */
-  registerHook?: (
-    event: string | string[],
-    handler: (event: unknown) => Promise<void> | void,
-    opts?: {
-      name?: string;
-      description?: string;
-      register?: boolean;
-    },
-  ) => void;
 }
 
 /** Result shape returned by each tool execution. */
@@ -53,10 +39,11 @@ export interface ToolResult {
   isError?: boolean;
 }
 
-const PLUGIN_ID = 'jeeves-watcher-openclaw';
-
-const DEFAULT_API_URL = 'http://127.0.0.1:1936';
-const DEFAULT_CONFIG_ROOT = 'j:/config';
+import {
+  DEFAULT_API_URL,
+  DEFAULT_CONFIG_ROOT,
+  PLUGIN_ID,
+} from './constants.js';
 
 /** Extract plugin config from the API object. */
 function getPluginConfig(api: PluginApi): Record<string, unknown> | undefined {

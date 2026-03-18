@@ -1,3 +1,4 @@
+import { DEFAULT_QDRANT_URL } from './constants.js';
 import { fetchJson } from './helpers.js';
 
 interface StatusResponse {
@@ -85,7 +86,7 @@ export async function generateWatcherMenu(apiUrl: string): Promise<string> {
     let qdrantStatus = '*Unknown*';
     try {
       // Assuming Qdrant runs locally on the default port
-      const res = await fetch('http://127.0.0.1:6333/healthz', {
+      const res = await fetch(`${DEFAULT_QDRANT_URL}/healthz`, {
         signal: AbortSignal.timeout(1000),
       });
       qdrantStatus = res.ok ? 'Running' : 'Error';
@@ -97,7 +98,7 @@ export async function generateWatcherMenu(apiUrl: string): Promise<string> {
 > The jeeves-watcher service API at ${apiUrl} is down or not installed.
 > **Diagnostic Info:**
 > - Watcher API (${apiUrl}): Unreachable
-> - Qdrant (http://127.0.0.1:6333): ${qdrantStatus}
+> - Qdrant (${DEFAULT_QDRANT_URL}): ${qdrantStatus}
 >
 > **DO NOT** ignore this. Read the \`jeeves-watcher\` skill's **Bootstrap** section immediately and walk the user through the setup process. Use the diagnostic info above to determine if Qdrant needs installing/starting, or if only the watcher service needs attention.`;
   }

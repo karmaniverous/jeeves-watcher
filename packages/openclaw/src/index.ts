@@ -8,6 +8,7 @@ import { createRequire } from 'node:module';
 
 import { createComponentWriter, init } from '@karmaniverous/jeeves';
 
+import { PROBE_TIMEOUT_MS } from './constants.js';
 import type { PluginApi } from './helpers.js';
 import { getApiUrl, getConfigRoot } from './helpers.js';
 import { createWatcherComponent } from './watcherComponent.js';
@@ -58,6 +59,8 @@ export default function register(api: PluginApi): void {
     pluginVersion: PLUGIN_VERSION,
   });
 
-  const writer = createComponentWriter(component, { probeTimeoutMs: 1500 });
+  const writer = createComponentWriter(component, {
+    probeTimeoutMs: PROBE_TIMEOUT_MS,
+  });
   writer.start();
 }

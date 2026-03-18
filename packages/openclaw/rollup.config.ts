@@ -35,6 +35,7 @@ const pluginConfig: RollupOptions = {
 const cliConfig: RollupOptions = {
   input: 'src/cli.ts',
   external: [
+    '@karmaniverous/jeeves',
     'fs',
     'path',
     'os',

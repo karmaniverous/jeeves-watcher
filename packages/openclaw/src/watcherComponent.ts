@@ -19,6 +19,7 @@ import {
   type ServiceStatus,
 } from '@karmaniverous/jeeves';
 
+import { PLUGIN_ID, PROBE_TIMEOUT_MS } from './constants.js';
 import { generateWatcherMenu } from './promptInjection.js';
 
 const execFile = promisify(execFileCb);
@@ -46,7 +47,7 @@ interface StatusResponse {
 async function getServiceStatus(apiUrl: string): Promise<ServiceStatus> {
   try {
     const res = await fetch(`${apiUrl}/status`, {
-      signal: AbortSignal.timeout(1500),
+      signal: AbortSignal.timeout(PROBE_TIMEOUT_MS),
     });
     if (!res.ok) return { running: false };
 
@@ -101,7 +102,7 @@ export function createWatcherComponent(
       async uninstall(): Promise<void> {
         await execFile('npx', [
           '-y',
-          '@karmaniverous/jeeves-watcher-openclaw',
+          `@karmaniverous/${PLUGIN_ID}`,
           'uninstall',
         ]);
       },
