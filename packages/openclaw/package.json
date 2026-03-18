@@ -20,6 +20,7 @@
   },
   "files": [
     "dist",
+    "content",
     "openclaw.plugin.json"
   ],
   "publishConfig": {
@@ -75,7 +76,8 @@
   "scripts": {
     "build:plugin": "rimraf dist && cross-env NO_COLOR=1 rollup --config rollup.config.ts --configPlugin @rollup/plugin-typescript",
     "build:skills": "tsx scripts/build-skills.ts",
-    "build": "npm run build:plugin && npm run build:skills",
+    "build": "npm run build:plugin && npm run build:skills && npm run build:content",
+    "build:content": "node scripts/copy-content.mjs",
     "changelog": "auto-changelog",
     "lint": "eslint .",
     "lint:fix": "eslint --fix .",

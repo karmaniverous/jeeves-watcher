@@ -20,3 +20,6 @@ context/
 
 # Generated docs
 docs/
+
+# Build artifact: content/ copied from @karmaniverous/jeeves
+packages/openclaw/content/
