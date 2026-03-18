@@ -34,17 +34,30 @@ After install or uninstall, restart the OpenClaw gateway to apply changes.
 
 ## Configuration
 
-Set the `apiUrl` in the plugin configuration to point at your jeeves-watcher service:
+Set the plugin config in `openclaw.json` under `plugins.entries.jeeves-watcher-openclaw.config`:
 
 ```json
 {
-  "apiUrl": "http://127.0.0.1:1936"
+  "apiUrl": "http://127.0.0.1:1936",
+  "configRoot": "j:/config"
 }
 ```
 
-## Dynamic TOOLS.md Injection
+- **`apiUrl`** — jeeves-watcher API base URL (default: `http://127.0.0.1:1936`)
+- **`configRoot`** — platform config root path, used by `@karmaniverous/jeeves` core to derive `{configRoot}/jeeves-watcher/` for component config (default: `j:/config`)
 
-On startup, the plugin writes a `## Watcher` section to `TOOLS.md` in the agent's workspace, providing a live menu of indexed content, score thresholds, and escalation rules. This refreshes every 60 seconds. On uninstall, the CLI removes the section.
+## Architecture
+
+![Plugin Architecture](assets/plugin-architecture.png)
+
+## Jeeves Platform Integration
+
+This plugin integrates with [`@karmaniverous/jeeves`](https://www.npmjs.com/package/@karmaniverous/jeeves) to manage workspace content:
+
+- **TOOLS.md** — writes a `## Watcher` section with a live menu of indexed content, score thresholds, and escalation rules (refreshes every 71 seconds)
+- **SOUL.md / AGENTS.md** — maintains shared platform content via managed sections
+- **Service commands** — exposes `stop`, `uninstall`, and `status` for the watcher service
+- **Plugin commands** — exposes `uninstall` for the plugin itself
 
 ## Tools
 

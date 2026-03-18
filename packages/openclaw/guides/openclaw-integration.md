@@ -49,13 +49,17 @@ After install or uninstall, restart the OpenClaw gateway to apply changes.
 
 ## Configuration
 
-The plugin needs the URL of a running jeeves-watcher REST API. Set `apiUrl` in the plugin config:
+The plugin needs the URL of a running jeeves-watcher REST API. Set the plugin config in `openclaw.json` under `plugins.entries.jeeves-watcher-openclaw.config`:
 
 ```json
 {
-  "apiUrl": "http://127.0.0.1:1936"
+  "apiUrl": "http://127.0.0.1:1936",
+  "configRoot": "j:/config"
 }
 ```
+
+- **`apiUrl`** — jeeves-watcher API base URL (default: `http://127.0.0.1:1936`)
+- **`configRoot`** — platform config root path, used by `@karmaniverous/jeeves` core to derive `{configRoot}/jeeves-watcher/` for component config (default: `j:/config`)
 
 ## Available Tools
 
@@ -77,9 +81,13 @@ Semantic search across all indexed documents. Pass a natural-language query and 
 
 Run the rules engine against a document to infer or update metadata fields.
 
-### `watcher_query`
+### `watcher_config`
 
-Query the merged virtual configuration document using JSONPath expressions. Useful for discovering available inference rules, schemas, and runtime values.
+Query the effective runtime config via JSONPath. Returns the full resolved merged document when no path is provided. Useful for discovering available inference rules, schemas, and runtime values.
+
+**Parameters:**
+
+- `path` (string, optional) — JSONPath expression
 
 ### `watcher_validate`
 
@@ -91,8 +99,21 @@ Apply a new configuration to the running watcher service. Triggers re-evaluation
 
 ### `watcher_reindex`
 
-Trigger a full reindex of all watched files. Useful after configuration changes or to recover from drift.
+Trigger a scoped reindex of watched files. Supports `rules` (default), `full`, `issues`, `path`, and `prune` scopes. Returns a blast area plan.
 
+**Parameters:**
+
+- `scope` (string) — reindex scope (default: `rules`)
+- `path` (string | string[]) — target path(s) for `path` scope
+- `dryRun` (boolean) — compute plan without executing
+
+### `watcher_walk`
+
+Walk watched filesystem paths with glob intersection. Returns matching file paths from all configured watch roots.
+
+**Parameters:**
+
+- `globs` (string[], required) — glob patterns to intersect with watch paths
 
 ### `watcher_scan`
 
@@ -109,19 +130,38 @@ Filter-only point query without vector search. Returns metadata for points match
 
 List current indexing issues — files that failed extraction, embedding errors, etc.
 
-## Dynamic TOOLS.md Injection
+## Architecture
 
-On startup, the plugin writes a `## Watcher` section directly to `TOOLS.md` in the agent's workspace. This section includes:
+![Plugin Architecture](../assets/plugin-architecture.png)
 
-- Total indexed document count
-- Score interpretation thresholds
-- Active inference rules as a categorized menu
-- Indexed and ignored paths
-- Escalation rule (memory vs. archive search guidance)
+## Jeeves Platform Integration
 
-The section refreshes every 60 seconds (only writing to disk if content changed). The gateway reads TOOLS.md fresh from disk on each new session, so every session gets the latest watcher context without hooks.
+The plugin integrates with [`@karmaniverous/jeeves`](https://www.npmjs.com/package/@karmaniverous/jeeves) core to manage workspace content via `ComponentWriter`:
 
-On uninstall, the CLI removes the `## Watcher` section from TOOLS.md. If `# Jeeves Platform Tools` has no remaining sections, the H1 is removed too.
+### Managed content
+
+On startup, the plugin initializes core (`init({ workspacePath, configRoot })`) and starts a `ComponentWriter` that:
+
+1. **Writes a `## Watcher` section to TOOLS.md** — live menu of indexed content, score thresholds, inference rules, and escalation guidance
+2. **Refreshes every 71 seconds** (prime interval) — only writes to disk if content changed
+3. **Maintains shared platform content** — SOUL.md, AGENTS.md, and a `## Platform` section in TOOLS.md are all managed by core
+
+Content is enclosed in HTML comment markers (`<!-- BEGIN JEEVES PLATFORM TOOLS ... -->` / `<!-- END ... -->`). User content outside the markers is never touched.
+
+### Service & plugin commands
+
+The plugin exposes lifecycle commands via the `JeevesComponent` interface:
+
+| Command | Action |
+|---------|--------|
+| `serviceCommands.stop()` | `jeeves-watcher service stop` |
+| `serviceCommands.uninstall()` | `jeeves-watcher service uninstall` |
+| `serviceCommands.status()` | HTTP probe to watcher API |
+| `pluginCommands.uninstall()` | `npx @karmaniverous/jeeves-watcher-openclaw uninstall` |
+
+### Uninstall cleanup
+
+The CLI uninstall command uses core's `parseManaged()` to locate and remove the Watcher section from TOOLS.md. If no other sections remain, the entire managed block is removed.
 
 ## Example Usage Patterns
 

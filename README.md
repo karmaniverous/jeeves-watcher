@@ -92,7 +92,7 @@ The watcher will:
 | `jeeves-watcher validate` | Validate the configuration |
 | `jeeves-watcher service` | Manage the watcher as a system service |
 | `jeeves-watcher scan` | Scan the vector store with filter-only queries |
-| `jeeves-watcher query` | Query merged config document via JSONPath |
+| `jeeves-watcher config` | Query effective config via JSONPath |
 | `jeeves-watcher issues` | Show indexing issues and errors |
 | `jeeves-watcher helpers` | Show loaded map and template helpers |
 | `jeeves-watcher config-apply` | Validate, write, and reload configuration from file |
@@ -304,9 +304,9 @@ This repo includes an OpenClaw plugin (`packages/openclaw`) that exposes the jee
 | `watcher_scan`         | Filter-only point query with cursor pagination |
 | `watcher_issues`       | List indexing issues and errors                |
 
-The plugin also writes a dynamic `## Watcher` section to `TOOLS.md` on disk, providing agents with a live menu of indexed content and escalation rules. See the [OpenClaw Integration Guide](packages/openclaw/guides/openclaw-integration.md) for details.
+The plugin integrates with [`@karmaniverous/jeeves`](https://www.npmjs.com/package/@karmaniverous/jeeves) core to manage workspace content (TOOLS.md, SOUL.md, AGENTS.md) via a `ComponentWriter` that refreshes every 71 seconds. See the [OpenClaw Integration Guide](packages/openclaw/guides/openclaw-integration.md) for details.
 
-Plugin configuration supports `apiUrl` (defaults to `http://127.0.0.1:1936`).
+Plugin configuration supports `apiUrl` (defaults to `http://127.0.0.1:1936`) and `configRoot` (defaults to `j:/config`).
 
 ## Supported File Formats
 

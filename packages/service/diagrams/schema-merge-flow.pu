@@ -1,0 +1,36 @@
+@startuml schema-merge-flow
+!theme plain
+skinparam backgroundColor white
+skinparam defaultFontName Arial
+
+rectangle "Rule Schema Array" as schemas {
+  rectangle "Global Schema\n'base'" as global1 #e3f2fd
+  rectangle "Global Schema\n'jira-common'" as global2 #e3f2fd
+  rectangle "Inline Schema\n{properties: {...}}" as inline #e8f5e9
+}
+
+rectangle "Schema Merge\n(Left-to-Right)" as merge #fff3e0 {
+  rectangle "Merged Properties" as merged
+}
+
+rectangle "Set Resolution\n& Type Coercion" as coerce #fce4ec {
+  rectangle "Interpolate {{...}}" as interp
+  rectangle "Coerce to Type" as types
+}
+
+rectangle "Final Metadata" as final #e8f5e9
+
+schemas --> merge
+merge --> coerce
+coerce --> final
+
+note right of merge
+  Property-level merge
+  Later entries override earlier
+end note
+
+note right of coerce
+  string -> integer/number/boolean/array/object
+  Empty strings -> undefined (non-string types)
+end note
+@enduml
