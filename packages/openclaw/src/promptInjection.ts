@@ -1,4 +1,4 @@
-import { DEFAULT_QDRANT_URL } from './constants.js';
+import { DEFAULT_QDRANT_URL, MENU_FETCH_TIMEOUT_MS } from './constants.js';
 import { fetchJson } from './helpers.js';
 
 interface StatusResponse {
@@ -26,20 +26,25 @@ export async function generateWatcherMenu(apiUrl: string): Promise<string> {
   const scoreThresholds = { strong: 0.75, relevant: 0.5, noise: 0.25 };
 
   try {
+    const fetchOpts = { signal: AbortSignal.timeout(MENU_FETCH_TIMEOUT_MS) };
     const [statusRes, rulesRes, pathsRes, thresholdsRes, ignoredRes] =
       (await Promise.all([
-        fetchJson(`${apiUrl}/status`),
+        fetchJson(`${apiUrl}/status`, fetchOpts),
         fetchJson(
           `${apiUrl}/config?path=${encodeURIComponent('$.inferenceRules[*]')}`,
+          fetchOpts,
         ),
         fetchJson(
           `${apiUrl}/config?path=${encodeURIComponent('$.watch.paths[*]')}`,
+          fetchOpts,
         ),
         fetchJson(
           `${apiUrl}/config?path=${encodeURIComponent('$.search.scoreThresholds')}`,
+          fetchOpts,
         ),
         fetchJson(
           `${apiUrl}/config?path=${encodeURIComponent('$.watch.ignored[*]')}`,
+          fetchOpts,
         ),
       ])) as [
         StatusResponse,
