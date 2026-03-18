@@ -6,7 +6,11 @@
 
 import { createRequire } from 'node:module';
 
-import { createComponentWriter, init } from '@karmaniverous/jeeves';
+import {
+  createComponentWriter,
+  init,
+  resolveWorkspacePath,
+} from '@karmaniverous/jeeves';
 
 import { PROBE_TIMEOUT_MS } from './constants.js';
 import type { PluginApi } from './helpers.js';
@@ -26,14 +30,6 @@ import { registerWatcherTools } from './watcherTools.js';
 const require = createRequire(import.meta.url);
 const pkg = require('../package.json') as { version: string };
 const PLUGIN_VERSION: string = pkg.version;
-
-/** Resolve the workspace root from the OpenClaw plugin API. */
-function resolveWorkspacePath(api: PluginApi): string {
-  if (typeof api.resolvePath === 'function') {
-    return api.resolvePath('.');
-  }
-  return process.cwd();
-}
 
 /** Detect test environments to avoid timers and filesystem writes. */
 function isTestEnv(): boolean {
