@@ -83,6 +83,8 @@ export function createWatcherComponent(
     version: pluginVersion,
     sectionId: 'Watcher',
     refreshIntervalSeconds: 71,
+    servicePackage: '@karmaniverous/jeeves-watcher',
+    pluginPackage: `@karmaniverous/${PLUGIN_ID}`,
 
     generateToolsContent: getContent,
 
