@@ -185,7 +185,12 @@ function install(): void {
   }
   mkdirSync(extDir, { recursive: true });
 
-  for (const file of ['dist', 'openclaw.plugin.json', 'package.json']) {
+  for (const file of [
+    'dist',
+    'content',
+    'openclaw.plugin.json',
+    'package.json',
+  ]) {
     const src = join(pkgRoot, file);
     const dest = join(extDir, file);
     if (existsSync(src)) {
