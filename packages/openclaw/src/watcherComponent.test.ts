@@ -13,7 +13,7 @@ vi.mock('./promptInjection.js', () => ({
 }));
 
 describe('createWatcherComponent', () => {
-  it('returns a component with required JeevesComponent fields', () => {
+  it('returns a valid JeevesComponent descriptor', () => {
     const component = createWatcherComponent({
       apiUrl: 'http://127.0.0.1:1936',
       pluginVersion: '0.7.0',
@@ -25,60 +25,25 @@ describe('createWatcherComponent', () => {
     expect(component.refreshIntervalSeconds).toBe(71);
   });
 
-  it('generateToolsContent() is callable and returns a string', () => {
+  it('generateToolsContent() returns placeholder before first async refresh', () => {
     const component = createWatcherComponent({
       apiUrl: 'http://127.0.0.1:1936',
       pluginVersion: '0.7.0',
     });
 
+    // First call triggers an async refresh; returns the placeholder synchronously.
     const content = component.generateToolsContent();
-    expect(typeof content).toBe('string');
+    expect(content).toContain('Initializing');
   });
 
-  it('serviceCommands.stop is a callable function', () => {
-    const component = createWatcherComponent({
-      apiUrl: 'http://127.0.0.1:1936',
-      pluginVersion: '0.7.0',
-    });
-
-    expect(typeof component.serviceCommands.stop).toBe('function');
-  });
-
-  it('serviceCommands.uninstall is a callable function', () => {
-    const component = createWatcherComponent({
-      apiUrl: 'http://127.0.0.1:1936',
-      pluginVersion: '0.7.0',
-    });
-
-    expect(typeof component.serviceCommands.uninstall).toBe('function');
-  });
-
-  it('serviceCommands.status is a callable function', () => {
-    const component = createWatcherComponent({
-      apiUrl: 'http://127.0.0.1:1936',
-      pluginVersion: '0.7.0',
-    });
-
-    expect(typeof component.serviceCommands.status).toBe('function');
-  });
-
-  it('pluginCommands.uninstall is a callable function', () => {
-    const component = createWatcherComponent({
-      apiUrl: 'http://127.0.0.1:1936',
-      pluginVersion: '0.7.0',
-    });
-
-    expect(typeof component.pluginCommands.uninstall).toBe('function');
-  });
-
-  it('serviceCommands.status returns ServiceStatus when API unreachable', async () => {
+  it('serviceCommands.status() returns { running: false } when API is unreachable', async () => {
     const component = createWatcherComponent({
       apiUrl: 'http://127.0.0.1:0',
       pluginVersion: '0.7.0',
     });
 
     const status = await component.serviceCommands.status();
-    expect(status).toHaveProperty('running');
     expect(status.running).toBe(false);
+    expect(status.version).toBeUndefined();
   });
 });

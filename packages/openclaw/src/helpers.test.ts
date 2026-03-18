@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { fetchJson, postJson } from './helpers.js';
+import type { PluginApi } from './helpers.js';
+import { fetchJson, getApiUrl, getConfigRoot, postJson } from './helpers.js';
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -52,5 +53,51 @@ describe('postJson', () => {
       'application/json',
     );
     expect(JSON.parse(call[1].body as string)).toEqual({ key: 'value' });
+  });
+});
+
+describe('getApiUrl', () => {
+  it('returns configured value from plugin config', () => {
+    const api: PluginApi = {
+      config: {
+        plugins: {
+          entries: {
+            'jeeves-watcher-openclaw': {
+              config: { apiUrl: 'http://custom:9999' },
+            },
+          },
+        },
+      },
+      registerTool: vi.fn(),
+    };
+    expect(getApiUrl(api)).toBe('http://custom:9999');
+  });
+
+  it('returns default when config is absent', () => {
+    const api: PluginApi = { registerTool: vi.fn() };
+    expect(getApiUrl(api)).toBe('http://127.0.0.1:1936');
+  });
+});
+
+describe('getConfigRoot', () => {
+  it('returns configured value from plugin config', () => {
+    const api: PluginApi = {
+      config: {
+        plugins: {
+          entries: {
+            'jeeves-watcher-openclaw': {
+              config: { configRoot: '/custom/config' },
+            },
+          },
+        },
+      },
+      registerTool: vi.fn(),
+    };
+    expect(getConfigRoot(api)).toBe('/custom/config');
+  });
+
+  it('returns default when config is absent', () => {
+    const api: PluginApi = { registerTool: vi.fn() };
+    expect(getConfigRoot(api)).toBe('j:/config');
   });
 });
