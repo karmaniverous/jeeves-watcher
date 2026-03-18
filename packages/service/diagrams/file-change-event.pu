@@ -1,0 +1,26 @@
+@startuml file-change-event
+!theme plain
+skinparam backgroundColor white
+skinparam defaultFontName Arial
+
+rectangle "File Created/Modified" as A #e3f2fd
+rectangle "Chokidar Event" as B #e8f5e9
+rectangle "Debounce" as C #fff3e0
+rectangle "Stability Check" as D #fff3e0
+rectangle "Event Queue" as E #f3e5f5
+
+A -right-> B
+B -right-> C
+C -right-> D
+D -right-> E
+
+note bottom of C
+  Wait **debounceMs** after
+  last change event
+end note
+
+note bottom of D
+  File size unchanged for
+  **stabilityThresholdMs**
+end note
+@enduml

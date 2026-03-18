@@ -1,0 +1,20 @@
+@startuml search-flow
+!theme plain
+skinparam backgroundColor white
+skinparam defaultFontName Arial
+
+rectangle "POST /search" as A #e3f2fd
+rectangle "Embed Query" as B #e8f5e9
+rectangle "Qdrant Cosine Search" as C #fff3e0
+rectangle "Return Top Results" as D #f3e5f5
+
+A -down-> B
+B -down-> C
+C -down-> D
+
+note right of C
+  Hybrid: dense vector +
+  text-filtered fusion (RRF)
+  when hybrid.enabled = true
+end note
+@enduml

@@ -1,0 +1,41 @@
+@startuml config-watch-reindex
+!theme plain
+skinparam backgroundColor white
+skinparam defaultFontName Arial
+
+rectangle "Config File Changed" as config #e3f2fd
+rectangle "Debounce\n(configWatch.debounceMs)" as debounce #fff3e0
+rectangle "Reload & Validate Config" as reload #fce4ec
+rectangle "Recompile Rules" as compile #e8f5e9
+
+rectangle "Reindex Mode?" as mode #fff3e0 {
+  rectangle "'issues'\n(default)" as issues #e8f5e9
+  rectangle "'full'" as full #fce4ec
+  rectangle "'none'" as none #eeeeee
+}
+
+rectangle "Re-process\nIssues File Only" as proc_issues #e8f5e9
+rectangle "Re-process\nAll Files" as proc_full #fce4ec
+rectangle "No Reindex" as proc_none #eeeeee
+
+config --> debounce
+debounce --> reload
+reload --> compile
+compile --> mode
+mode --> issues
+mode --> full
+mode --> none
+issues --> proc_issues
+full --> proc_full
+none --> proc_none
+
+note right of proc_issues
+  Targeted: only files that failed
+  Metadata-only (no re-embedding)
+end note
+
+note right of proc_full
+  Re-extract, re-embed, re-upsert
+  Use when types/properties change
+end note
+@enduml

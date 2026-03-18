@@ -65,13 +65,7 @@ Scrolls Qdrant points, extracts enrichment metadata from payloads, writes `.meta
 
 ### 1. File Change Event
 
-```mermaid
-graph LR
-    A[File Created/Modified] --> B[Chokidar Event]
-    B --> C[Debounce]
-    C --> D[Stability Check]
-    D --> E[Event Queue]
-```
+![File Change Event](../assets/file-change-event.png)
 
 **Debounce:** Wait `watch.debounceMs` after the last change event (prevents re-embedding during rapid edits).
 
@@ -117,12 +111,7 @@ The enrichment API allows external callers to add metadata without re-embedding:
 
 ### 4. Search Flow
 
-```mermaid
-graph TD
-    A[POST /search] --> B[Embed Query]
-    B --> C[Qdrant Cosine Search]
-    C --> D[Return Top Results]
-```
+![Search Flow](../assets/search-flow.png)
 
 **Chunk deduplication:** Search returns individual chunks. Callers group by `file_path` to get unique documents.
 
@@ -166,43 +155,7 @@ File with 3 chunks → 3 Qdrant points:
 
 The v0.5.0 inference rules system uses declarative JSON Schemas with type coercion. When a rule matches a file, the watcher merges schema references and applies type coercion:
 
-```text
-@startuml
-skinparam backgroundColor #FEFEFE
-skinparam defaultFontName Arial
-
-rectangle "Rule Schema Array" as schemas {
-  rectangle "Global Schema\n'base'" as global1 #LightBlue
-  rectangle "Global Schema\n'jira-common'" as global2 #LightBlue
-  rectangle "Inline Schema\n{properties: {...}}" as inline #LightGreen
-}
-
-rectangle "Schema Merge\n(Left-to-Right)" as merge #LightYellow {
-  rectangle "Merged Properties" as merged
-}
-
-rectangle "Set Resolution\n& Type Coercion" as coerce #LightCoral {
-  rectangle "Interpolate {{...}}" as interp
-  rectangle "Coerce to Type" as types
-}
-
-rectangle "Final Metadata" as final #LightGreen
-
-schemas --> merge
-merge --> coerce
-coerce --> final
-
-note right of merge
-  Property-level merge
-  Later entries override earlier
-end note
-
-note right of coerce
-  string → integer/number/boolean/array/object
-  Empty strings → undefined (non-string types)
-end note
-@enduml
-```
+![Schema Merge Flow](../assets/schema-merge-flow.png)
 
 **Key steps:**
 1. **Resolve named references** from global `schemas` collection
@@ -216,48 +169,7 @@ end note
 
 When config files change, the watcher can trigger different reindex modes based on `configWatch.reindex`:
 
-```text
-@startuml
-skinparam backgroundColor #FEFEFE
-skinparam defaultFontName Arial
-
-rectangle "Config File Changed" as config #LightBlue
-rectangle "Debounce\n(configWatch.debounceMs)" as debounce #LightYellow
-rectangle "Reload & Validate Config" as reload #LightCoral
-rectangle "Recompile Rules" as compile #LightGreen
-
-rectangle "Reindex Mode?" as mode #LightYellow {
-  rectangle "'issues'\n(default)" as issues #LightGreen
-  rectangle "'full'" as full #LightCoral
-  rectangle "'none'" as none #LightGray
-}
-
-rectangle "Re-process\nIssues File Only" as proc_issues #LightGreen
-rectangle "Re-process\nAll Files" as proc_full #LightCoral
-rectangle "No Reindex" as proc_none #LightGray
-
-config --> debounce
-debounce --> reload
-reload --> compile
-compile --> mode
-mode --> issues
-mode --> full
-mode --> none
-issues --> proc_issues
-full --> proc_full
-none --> proc_none
-
-note right of proc_issues
-  Targeted: only files that failed
-  Metadata-only (no re-embedding)
-end note
-
-note right of proc_full
-  Re-extract, re-embed, re-upsert
-  Use when types/properties change
-end note
-@enduml
-```
+![Config Watch Reindex Flow](../assets/config-watch-reindex.png)
 
 **Modes:**
 - **`issues`** (default) — Re-process only files in `issues.json` (cheap, targeted)

@@ -15,6 +15,11 @@
  */
 
 import {
+  parseManaged,
+  TOOLS_MARKERS,
+  updateManagedSection,
+} from '@karmaniverous/jeeves';
+import {
   cpSync,
   existsSync,
   mkdirSync,
@@ -215,7 +220,7 @@ function install(): void {
 }
 
 /** Uninstall the plugin from OpenClaw's extensions directory. */
-function uninstall(): void {
+async function uninstall(): Promise<void> {
   const home = resolveOpenClawHome();
   const configPath = resolveConfigPath(home);
   const extDir = join(home, 'extensions', PLUGIN_ID);
@@ -244,7 +249,7 @@ function uninstall(): void {
   }
 
   // Clean up TOOLS.md watcher section
-  cleanupToolsMd(home, configPath);
+  await cleanupToolsMd(home, configPath);
 
   console.log();
   console.log('✅ Plugin uninstalled successfully.');
@@ -268,43 +273,59 @@ function resolveWorkspaceDir(home: string, configPath: string): string | null {
   return join(home, 'workspace');
 }
 
-/** Remove the ## Watcher section from TOOLS.md on uninstall. */
-function cleanupToolsMd(home: string, configPath: string): void {
+/**
+ * Remove the Watcher section from TOOLS.md on uninstall.
+ *
+ * @remarks
+ * Uses core's `parseManaged` to locate the managed block and its sections,
+ * then rewrites without the Watcher section via `updateManagedSection`.
+ * If the Watcher section is the only one, removes the entire managed block.
+ */
+async function cleanupToolsMd(home: string, configPath: string): Promise<void> {
   const workspaceDir = resolveWorkspaceDir(home, configPath);
   if (!workspaceDir) return;
 
   const toolsPath = join(workspaceDir, 'TOOLS.md');
   if (!existsSync(toolsPath)) return;
 
-  let content = readFileSync(toolsPath, 'utf8');
+  const content = readFileSync(toolsPath, 'utf8');
+  const parsed = parseManaged(content, TOOLS_MARKERS);
 
-  // Remove ## Watcher section (from ## Watcher to next ## or # or EOF)
-  const watcherRe = /^## Watcher\n[\s\S]*?(?=\n## |\n# |$(?![\s\S]))/m;
-  if (!watcherRe.test(content)) return;
+  if (!parsed.found) return;
 
-  content = content.replace(watcherRe, '').replace(/\n{3,}/g, '\n\n');
+  const watcherSection = parsed.sections.find((s) => s.id === 'Watcher');
+  if (!watcherSection) return;
 
-  // If # Jeeves Platform Tools has no remaining ## sections, remove it too
-  const platformH1 = '# Jeeves Platform Tools';
-  if (content.includes(platformH1)) {
-    const h1Idx = content.indexOf(platformH1);
-    const afterH1 = content.slice(h1Idx + platformH1.length);
-    // Check if there's a ## before the next # or EOF
-    const nextH2Match = afterH1.match(/^## /m);
-    const nextH1Match = afterH1.match(/^# /m);
-    const h2Pos = nextH2Match ? afterH1.indexOf(nextH2Match[0]) : Infinity;
-    const h1Pos = nextH1Match ? afterH1.indexOf(nextH1Match[0]) : Infinity;
+  const remaining = parsed.sections.filter((s) => s.id !== 'Watcher');
 
-    if (h2Pos >= h1Pos) {
-      // No child ## sections remain — remove the empty H1
-      content =
-        content.slice(0, h1Idx) + content.slice(h1Idx + platformH1.length);
-      content = content.replace(/^\n{2,}/, '').replace(/\n{3,}/g, '\n\n');
+  if (remaining.length === 0) {
+    // No sections left — remove the entire managed block.
+    const parts: string[] = [];
+    if (parsed.beforeContent) parts.push(parsed.beforeContent);
+    if (parsed.userContent) {
+      if (parts.length > 0) parts.push('');
+      parts.push(parsed.userContent);
     }
+    const newContent = parts.join('\n').trim() + '\n';
+    writeFileSync(toolsPath, newContent);
+  } else {
+    // Rewrite the managed block without the Watcher section.
+    // We write an empty string for the Watcher section; core's
+    // updateManagedSection will rebuild from the remaining sections.
+    // Actually, the cleanest approach is to rebuild the section text
+    // from the remaining sections and write the entire block.
+    const sectionText = remaining
+      .map((s) => `## ${s.id}\n\n${s.content}`)
+      .join('\n\n');
+
+    const body = `# ${TOOLS_MARKERS.title}\n\n${sectionText}`;
+
+    await updateManagedSection(toolsPath, body, {
+      mode: 'block',
+      markers: TOOLS_MARKERS,
+    });
   }
 
-  content = content.trim() + '\n';
-  writeFileSync(toolsPath, content);
   console.log('\u2713 Cleaned up TOOLS.md (removed Watcher section)');
 }
 
@@ -316,7 +337,7 @@ switch (command) {
     install();
     break;
   case 'uninstall':
-    uninstall();
+    void uninstall();
     break;
   default:
     console.log(

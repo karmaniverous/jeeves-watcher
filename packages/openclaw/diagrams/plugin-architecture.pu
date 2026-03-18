@@ -1,0 +1,48 @@
+@startuml plugin-architecture
+!theme plain
+skinparam backgroundColor white
+skinparam defaultFontName Arial
+skinparam rectangle {
+  RoundCorner 10
+}
+
+rectangle "OpenClaw Gateway" as gateway #e3f2fd {
+  rectangle "Plugin: jeeves-watcher-openclaw" as plugin {
+    rectangle "register()" as reg #e8f5e9
+    rectangle "10 watcher_* tools" as tools #e8f5e9
+    rectangle "JeevesComponent" as component #fff3e0 {
+      card "generateToolsContent()" as gen
+      card "serviceCommands" as svc
+      card "pluginCommands" as plg
+    }
+    rectangle "ComponentWriter" as writer #f3e5f5
+  }
+}
+
+rectangle "@karmaniverous/jeeves core" as core #fce4ec {
+  card "init()" as init
+  card "createComponentWriter()" as ccw
+  card "createAsyncContentCache()" as cache
+  card "updateManagedSection()" as ums
+}
+
+rectangle "jeeves-watcher service\n(:1936)" as watcher #fff3e0
+
+file "TOOLS.md" as toolsmd
+file "SOUL.md" as soulmd
+file "AGENTS.md" as agentsmd
+
+reg -down-> tools : registers
+reg -down-> init : calls
+init -right-> ccw
+ccw -down-> writer : creates
+
+gen -down-> cache : uses
+cache -right-> watcher : HTTP\n(async refresh)
+writer -down-> ums : writes sections
+ums -down-> toolsmd
+ums -down-> soulmd
+ums -down-> agentsmd
+
+tools -right-> watcher : HTTP API
+@enduml

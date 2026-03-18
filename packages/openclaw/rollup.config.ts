@@ -9,6 +9,12 @@ import type { RollupOptions } from 'rollup';
 
 const pluginConfig: RollupOptions = {
   input: 'src/index.ts',
+  external: [
+    '@karmaniverous/jeeves',
+    'node:child_process',
+    'node:module',
+    'node:util',
+  ],
   output: {
     dir: 'dist',
     format: 'esm',
@@ -29,6 +35,7 @@ const pluginConfig: RollupOptions = {
 const cliConfig: RollupOptions = {
   input: 'src/cli.ts',
   external: [
+    '@karmaniverous/jeeves',
     'fs',
     'path',
     'os',

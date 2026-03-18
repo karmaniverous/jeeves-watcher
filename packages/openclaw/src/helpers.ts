@@ -10,6 +10,15 @@ export interface PluginApi {
       entries?: Record<string, { config?: Record<string, unknown> }>;
     };
   };
+
+  /**
+   * Resolve a path relative to the OpenClaw workspace.
+   *
+   * @remarks
+   * Present on newer OpenClaw builds; optional for backwards compatibility.
+   */
+  resolvePath?: (input: string) => string;
+
   registerTool(
     tool: {
       name: string;
@@ -22,20 +31,6 @@ export interface PluginApi {
     },
     options?: { optional?: boolean },
   ): void;
-
-  /**
-   * Optional internal hook registration (available on newer OpenClaw builds).
-   * We keep this optional to preserve compatibility.
-   */
-  registerHook?: (
-    event: string | string[],
-    handler: (event: unknown) => Promise<void> | void,
-    opts?: {
-      name?: string;
-      description?: string;
-      register?: boolean;
-    },
-  ) => void;
 }
 
 /** Result shape returned by each tool execution. */
@@ -44,17 +39,27 @@ export interface ToolResult {
   isError?: boolean;
 }
 
-const DEFAULT_API_URL = 'http://127.0.0.1:1936';
+import {
+  DEFAULT_API_URL,
+  DEFAULT_CONFIG_ROOT,
+  PLUGIN_ID,
+} from './constants.js';
 
-/** Extract plugin config from the API object */
+/** Extract plugin config from the API object. */
 function getPluginConfig(api: PluginApi): Record<string, unknown> | undefined {
-  return api.config?.plugins?.entries?.['jeeves-watcher-openclaw']?.config;
+  return api.config?.plugins?.entries?.[PLUGIN_ID]?.config;
 }
 
 /** Resolve the watcher API base URL from plugin config. */
 export function getApiUrl(api: PluginApi): string {
   const url = getPluginConfig(api)?.apiUrl;
   return typeof url === 'string' ? url : DEFAULT_API_URL;
+}
+
+/** Resolve the platform config root path from plugin config. */
+export function getConfigRoot(api: PluginApi): string {
+  const root = getPluginConfig(api)?.configRoot;
+  return typeof root === 'string' ? root : DEFAULT_CONFIG_ROOT;
 }
 
 /** Format a successful tool result. */
