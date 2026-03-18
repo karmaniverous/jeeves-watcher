@@ -20,6 +20,7 @@
   },
   "files": [
     "dist",
+    "content",
     "openclaw.plugin.json"
   ],
   "publishConfig": {
@@ -56,10 +57,13 @@
     "hideCredit": true
   },
   "dependencies": {
-    "@karmaniverous/jeeves": "^0.1.1"
+    "@karmaniverous/jeeves": "^0.1.3"
   },
   "devDependencies": {
     "@dotenvx/dotenvx": "^1.55.1",
+    "@rollup/plugin-commonjs": "^29.0.2",
+    "@rollup/plugin-json": "^6.1.0",
+    "@rollup/plugin-node-resolve": "^16.0.3",
     "@rollup/plugin-typescript": "^12.3.0",
     "auto-changelog": "^2.5.0",
     "cross-env": "^10.1.0",
@@ -72,7 +76,8 @@
   "scripts": {
     "build:plugin": "rimraf dist && cross-env NO_COLOR=1 rollup --config rollup.config.ts --configPlugin @rollup/plugin-typescript",
     "build:skills": "tsx scripts/build-skills.ts",
-    "build": "npm run build:plugin && npm run build:skills",
+    "build": "npm run build:plugin && npm run build:skills && npm run build:content",
+    "build:content": "node scripts/copy-content.mjs",
     "changelog": "auto-changelog",
     "lint": "eslint .",
     "lint:fix": "eslint --fix .",
