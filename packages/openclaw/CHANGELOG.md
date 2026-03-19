@@ -2,12 +2,27 @@
 
 All notable changes to this project will be documented in this file. Dates are displayed in UTC.
 
-#### [0.8.0](https://github.com/karmaniverous/jeeves-watcher/compare/openclaw/0.7.0...0.8.0)
+#### [0.8.1](https://github.com/karmaniverous/jeeves-watcher/compare/openclaw/0.8.0...0.8.1)
+
+- fix(openclaw): bundle @karmaniverous/jeeves into plugin output [`#130`](https://github.com/karmaniverous/jeeves-watcher/pull/130)
+- fix(openclaw): copy core content/ at build time, simplify rollup externals [`bdb6890`](https://github.com/karmaniverous/jeeves-watcher/commit/bdb6890f87adb3cd7ad5b42f394b6c7117bc936d)
+- refactor(openclaw): use core resolveWorkspacePath from @karmaniverous/jeeves@0.1.4 [`35d2e47`](https://github.com/karmaniverous/jeeves-watcher/commit/35d2e47190e30c81ff2ed6b7a719cb266df5d4af)
+- fix(openclaw): add 10s timeout to menu generation fetch calls [`3902554`](https://github.com/karmaniverous/jeeves-watcher/commit/3902554fbb2066b1d0d7fad9f586700347524fb7)
+- chore: release @karmaniverous/jeeves-watcher v0.11.1 [`1152601`](https://github.com/karmaniverous/jeeves-watcher/commit/1152601aa538a0078b6ad310571bd0bd1e36f149)
+- feat(openclaw): update to @karmaniverous/jeeves@0.1.6, add servicePackage/pluginPackage [`fc0a16c`](https://github.com/karmaniverous/jeeves-watcher/commit/fc0a16c6d4ecfa23988517031026806c3312b91d)
+- fix(openclaw): update @karmaniverous/jeeves to 0.1.5 (workspace path priority fix) [`6e22dc5`](https://github.com/karmaniverous/jeeves-watcher/commit/6e22dc5e4c4e71a0c0f055bd2aa094d0da2b0e7b)
+- fix(openclaw): update @karmaniverous/jeeves to 0.1.3 (content path fix) [`2429876`](https://github.com/karmaniverous/jeeves-watcher/commit/2429876bc496f88787ff5af0dd3a250f5bafe913)
+- fix(openclaw): include content/ in CLI installer copy list [`29ef2e5`](https://github.com/karmaniverous/jeeves-watcher/commit/29ef2e5c20ff9681f685ee846441e2b55068554d)
+
+#### [openclaw/0.8.0](https://github.com/karmaniverous/jeeves-watcher/compare/openclaw/0.7.0...openclaw/0.8.0)
+
+> 18 March 2026
 
 - feat(openclaw): adopt @karmaniverous/jeeves core components [`#129`](https://github.com/karmaniverous/jeeves-watcher/pull/129)
 - docs: add embedding cost behavioral gate to plugin SKILL.md [`#126`](https://github.com/karmaniverous/jeeves-watcher/pull/126)
 - fix: use chokidar getWatched() for /walk endpoint [`#123`](https://github.com/karmaniverous/jeeves-watcher/pull/123)
 - [FIX-122] fix: use chokidar getWatched() for /walk endpoint instead of filesystem traversal [`#122`](https://github.com/karmaniverous/jeeves-watcher/issues/122)
+- chore: release @karmaniverous/jeeves-watcher-openclaw v0.8.0 [`b462ff9`](https://github.com/karmaniverous/jeeves-watcher/commit/b462ff93d84e49ae7f7ddf97e40c2da3828079ce)
 - chore: release @karmaniverous/jeeves-watcher v0.11.0 [`0f5a404`](https://github.com/karmaniverous/jeeves-watcher/commit/0f5a4040b02bfe7b4176482b427e2d4447dfd8c8)
 - chore(openclaw): update dev dependencies [`2780581`](https://github.com/karmaniverous/jeeves-watcher/commit/27805819299ea56de497b85af7103e2dfd795f4d)
 - docs: sync documentation with implementation, replace Mermaid/ASCII with PlantUML diagrams [`a035758`](https://github.com/karmaniverous/jeeves-watcher/commit/a03575820eadebf284260541759e513c6bae4efe)
