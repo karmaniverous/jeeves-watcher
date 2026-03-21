@@ -3,6 +3,7 @@
  * Watcher tool registrations (watcher_* tools) for the OpenClaw plugin.
  */
 
+import { PLUGIN_ID } from './constants.js';
 import {
   connectionFail,
   fetchJson,
@@ -45,7 +46,7 @@ function registerApiTool(
               : await fetchJson(url);
           return ok(data);
         } catch (error) {
-          return connectionFail(error, baseUrl);
+          return connectionFail(error, baseUrl, PLUGIN_ID);
         }
       },
     },

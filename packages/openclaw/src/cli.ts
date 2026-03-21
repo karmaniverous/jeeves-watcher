@@ -12,13 +12,10 @@
  *   - OPENCLAW_CONFIG env var (path to openclaw.json)
  *   - OPENCLAW_HOME env var (path to .openclaw directory)
  *   - Default: ~/.openclaw/openclaw.json
+ *
+ * @module cli
  */
 
-import {
-  parseManaged,
-  TOOLS_MARKERS,
-  updateManagedSection,
-} from '@karmaniverous/jeeves';
 import {
   cpSync,
   existsSync,
@@ -26,31 +23,18 @@ import {
   readFileSync,
   rmSync,
   writeFileSync,
-} from 'fs';
-import { homedir } from 'os';
-import { dirname, join, resolve } from 'path';
-import { fileURLToPath } from 'url';
+} from 'node:fs';
+import { dirname, join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const PLUGIN_ID = 'jeeves-watcher-openclaw';
+import {
+  patchConfig,
+  removeManagedSection,
+  resolveConfigPath,
+  resolveOpenClawHome,
+} from '@karmaniverous/jeeves';
 
-/** Resolve the OpenClaw home directory. */
-function resolveOpenClawHome(): string {
-  if (process.env.OPENCLAW_CONFIG) {
-    return dirname(resolve(process.env.OPENCLAW_CONFIG));
-  }
-  if (process.env.OPENCLAW_HOME) {
-    return resolve(process.env.OPENCLAW_HOME);
-  }
-  return join(homedir(), '.openclaw');
-}
-
-/** Resolve the config file path. */
-function resolveConfigPath(home: string): string {
-  if (process.env.OPENCLAW_CONFIG) {
-    return resolve(process.env.OPENCLAW_CONFIG);
-  }
-  return join(home, 'openclaw.json');
-}
+import { PLUGIN_ID } from './constants.js';
 
 /** Get the package root (where this CLI lives). */
 function getPackageRoot(): string {
@@ -70,75 +54,6 @@ function readJson(path: string): Record<string, unknown> | null {
 /** Write JSON with 2-space indent + trailing newline. */
 function writeJson(path: string, data: unknown): void {
   writeFileSync(path, JSON.stringify(data, null, 2) + '\n');
-}
-
-/**
- * Patch an allowlist array: add or remove the plugin ID.
- * Returns a log message if a change was made, or undefined.
- */
-function patchAllowList(
-  parent: Record<string, unknown>,
-  key: string,
-  label: string,
-  mode: 'add' | 'remove',
-): string | undefined {
-  if (!Array.isArray(parent[key]) || (parent[key] as unknown[]).length === 0)
-    return undefined;
-
-  const list = parent[key] as string[];
-  if (mode === 'add') {
-    if (!list.includes(PLUGIN_ID)) {
-      list.push(PLUGIN_ID);
-      return `Added "${PLUGIN_ID}" to ${label}`;
-    }
-  } else {
-    const filtered = list.filter((id) => id !== PLUGIN_ID);
-    if (filtered.length !== list.length) {
-      parent[key] = filtered;
-      return `Removed "${PLUGIN_ID}" from ${label}`;
-    }
-  }
-  return undefined;
-}
-
-/** Patch OpenClaw config for install or uninstall. Returns log messages. */
-export function patchConfig(
-  config: Record<string, unknown>,
-  mode: 'add' | 'remove',
-): string[] {
-  const messages: string[] = [];
-
-  // Ensure plugins section
-  if (!config.plugins || typeof config.plugins !== 'object') {
-    config.plugins = {};
-  }
-  const plugins = config.plugins as Record<string, unknown>;
-
-  // plugins.allow
-  const pluginAllow = patchAllowList(plugins, 'allow', 'plugins.allow', mode);
-  if (pluginAllow) messages.push(pluginAllow);
-
-  // plugins.entries
-  if (!plugins.entries || typeof plugins.entries !== 'object') {
-    plugins.entries = {};
-  }
-  const entries = plugins.entries as Record<string, unknown>;
-  if (mode === 'add') {
-    if (!entries[PLUGIN_ID]) {
-      entries[PLUGIN_ID] = { enabled: true };
-      messages.push(`Added "${PLUGIN_ID}" to plugins.entries`);
-    }
-  } else if (PLUGIN_ID in entries) {
-    Reflect.deleteProperty(entries, PLUGIN_ID);
-    messages.push(`Removed "${PLUGIN_ID}" from plugins.entries`);
-  }
-
-  // tools.allow
-  const tools = (config.tools ?? {}) as Record<string, unknown>;
-  const toolAllow = patchAllowList(tools, 'allow', 'tools.allow', mode);
-  if (toolAllow) messages.push(toolAllow);
-
-  return messages;
 }
 
 /** Install the plugin into OpenClaw's extensions directory. */
@@ -195,14 +110,14 @@ function install(): void {
     const dest = join(extDir, file);
     if (existsSync(src)) {
       cpSync(src, dest, { recursive: true });
-      console.log(`  ✓ ${file}`);
+      console.log(`  \u2713 ${file}`);
     }
   }
 
   const nodeModulesSrc = join(pkgRoot, 'node_modules');
   if (existsSync(nodeModulesSrc)) {
     cpSync(nodeModulesSrc, join(extDir, 'node_modules'), { recursive: true });
-    console.log('  ✓ node_modules');
+    console.log('  \u2713 node_modules');
   }
 
   // Patch config
@@ -214,13 +129,13 @@ function install(): void {
     process.exit(1);
   }
 
-  for (const msg of patchConfig(config, 'add')) {
-    console.log(`  ✓ ${msg}`);
+  for (const msg of patchConfig(config, PLUGIN_ID, 'add')) {
+    console.log(`  \u2713 ${msg}`);
   }
   writeJson(configPath, config);
 
   console.log();
-  console.log('✅ Plugin installed successfully.');
+  console.log('\u2705 Plugin installed successfully.');
   console.log('   Restart the OpenClaw gateway to load the plugin.');
 }
 
@@ -237,101 +152,33 @@ async function uninstall(): Promise<void> {
 
   if (existsSync(extDir)) {
     rmSync(extDir, { recursive: true, force: true });
-    console.log(`✓ Removed ${extDir}`);
+    console.log(`\u2713 Removed ${extDir}`);
   } else {
-    console.log(`  (extensions directory not found, skipping)`);
+    console.log('  (extensions directory not found, skipping)');
   }
 
   if (existsSync(configPath)) {
     console.log('Patching OpenClaw config...');
     const config = readJson(configPath);
     if (config) {
-      for (const msg of patchConfig(config, 'remove')) {
-        console.log(`  ✓ ${msg}`);
+      for (const msg of patchConfig(config, PLUGIN_ID, 'remove')) {
+        console.log(`  \u2713 ${msg}`);
       }
       writeJson(configPath, config);
     }
   }
 
-  // Clean up TOOLS.md watcher section
-  await cleanupToolsMd(home, configPath);
+  // Remove managed TOOLS.md section
+  const toolsPath = join(process.cwd(), 'TOOLS.md');
+  if (existsSync(toolsPath)) {
+    console.log('Removing managed TOOLS.md section...');
+    await removeManagedSection(toolsPath, { sectionId: 'Watcher' });
+    console.log('  \u2713 Removed Watcher section from TOOLS.md');
+  }
 
   console.log();
-  console.log('✅ Plugin uninstalled successfully.');
+  console.log('\u2705 Plugin uninstalled successfully.');
   console.log('   Restart the OpenClaw gateway to complete removal.');
-}
-
-/** Resolve the workspace directory from OpenClaw config. */
-function resolveWorkspaceDir(home: string, configPath: string): string | null {
-  const config = readJson(configPath);
-  if (!config) return null;
-
-  // Check agents.defaults.workspace
-  const agents = config.agents as Record<string, unknown> | undefined;
-  const defaults = agents?.defaults as Record<string, unknown> | undefined;
-  const workspace = defaults?.workspace as string | undefined;
-  if (workspace) {
-    return resolve(workspace.replace(/^~/, homedir()));
-  }
-
-  // Default workspace location
-  return join(home, 'workspace');
-}
-
-/**
- * Remove the Watcher section from TOOLS.md on uninstall.
- *
- * @remarks
- * Uses core's `parseManaged` to locate the managed block and its sections,
- * then rewrites without the Watcher section via `updateManagedSection`.
- * If the Watcher section is the only one, removes the entire managed block.
- */
-async function cleanupToolsMd(home: string, configPath: string): Promise<void> {
-  const workspaceDir = resolveWorkspaceDir(home, configPath);
-  if (!workspaceDir) return;
-
-  const toolsPath = join(workspaceDir, 'TOOLS.md');
-  if (!existsSync(toolsPath)) return;
-
-  const content = readFileSync(toolsPath, 'utf8');
-  const parsed = parseManaged(content, TOOLS_MARKERS);
-
-  if (!parsed.found) return;
-
-  const watcherSection = parsed.sections.find((s) => s.id === 'Watcher');
-  if (!watcherSection) return;
-
-  const remaining = parsed.sections.filter((s) => s.id !== 'Watcher');
-
-  if (remaining.length === 0) {
-    // No sections left — remove the entire managed block.
-    const parts: string[] = [];
-    if (parsed.beforeContent) parts.push(parsed.beforeContent);
-    if (parsed.userContent) {
-      if (parts.length > 0) parts.push('');
-      parts.push(parsed.userContent);
-    }
-    const newContent = parts.join('\n').trim() + '\n';
-    writeFileSync(toolsPath, newContent);
-  } else {
-    // Rewrite the managed block without the Watcher section.
-    // We write an empty string for the Watcher section; core's
-    // updateManagedSection will rebuild from the remaining sections.
-    // Actually, the cleanest approach is to rebuild the section text
-    // from the remaining sections and write the entire block.
-    const sectionText = remaining
-      .map((s) => `## ${s.id}\n\n${s.content}`)
-      .join('\n\n');
-
-    const body = `# ${TOOLS_MARKERS.title}\n\n${sectionText}`;
-
-    await updateManagedSection(toolsPath, body, {
-      mode: 'block',
-      markers: TOOLS_MARKERS,
-    });
-  }
-
-  console.log('\u2713 Cleaned up TOOLS.md (removed Watcher section)');
 }
 
 // Main
@@ -346,7 +193,7 @@ switch (command) {
     break;
   default:
     console.log(
-      `@karmaniverous/jeeves-watcher-openclaw — OpenClaw plugin installer`,
+      `@karmaniverous/jeeves-watcher-openclaw \u2014 OpenClaw plugin installer`,
     );
     console.log();
     console.log('Usage:');

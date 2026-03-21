@@ -57,7 +57,7 @@
     "hideCredit": true
   },
   "dependencies": {
-    "@karmaniverous/jeeves": "^0.1.6"
+    "@karmaniverous/jeeves": "^0.2.0"
   },
   "devDependencies": {
     "@dotenvx/dotenvx": "^1.55.1",
