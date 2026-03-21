@@ -2,12 +2,20 @@
 
 All notable changes to this project will be documented in this file. Dates are displayed in UTC.
 
-#### [0.8.1](https://github.com/karmaniverous/jeeves-watcher/compare/openclaw/0.8.0...0.8.1)
+#### [0.9.0](https://github.com/karmaniverous/jeeves-watcher/compare/openclaw/0.8.1...0.9.0)
+
+- feat: adopt @karmaniverous/jeeves core v0.2.0 SDK [`#138`](https://github.com/karmaniverous/jeeves-watcher/pull/138)
+- chore: release @karmaniverous/jeeves-watcher v0.12.0 [`a31a0c1`](https://github.com/karmaniverous/jeeves-watcher/commit/a31a0c157ac3d6a913893e26c699c5711f90cf90)
+
+#### [openclaw/0.8.1](https://github.com/karmaniverous/jeeves-watcher/compare/openclaw/0.8.0...openclaw/0.8.1)
+
+> 19 March 2026
 
 - fix(openclaw): bundle @karmaniverous/jeeves into plugin output [`#130`](https://github.com/karmaniverous/jeeves-watcher/pull/130)
 - fix(openclaw): copy core content/ at build time, simplify rollup externals [`bdb6890`](https://github.com/karmaniverous/jeeves-watcher/commit/bdb6890f87adb3cd7ad5b42f394b6c7117bc936d)
 - refactor(openclaw): use core resolveWorkspacePath from @karmaniverous/jeeves@0.1.4 [`35d2e47`](https://github.com/karmaniverous/jeeves-watcher/commit/35d2e47190e30c81ff2ed6b7a719cb266df5d4af)
 - fix(openclaw): add 10s timeout to menu generation fetch calls [`3902554`](https://github.com/karmaniverous/jeeves-watcher/commit/3902554fbb2066b1d0d7fad9f586700347524fb7)
+- chore: release @karmaniverous/jeeves-watcher-openclaw v0.8.1 [`e2fdb78`](https://github.com/karmaniverous/jeeves-watcher/commit/e2fdb7834be004d30a235f77ff2396edcf430b89)
 - chore: release @karmaniverous/jeeves-watcher v0.11.1 [`1152601`](https://github.com/karmaniverous/jeeves-watcher/commit/1152601aa538a0078b6ad310571bd0bd1e36f149)
 - feat(openclaw): update to @karmaniverous/jeeves@0.1.6, add servicePackage/pluginPackage [`fc0a16c`](https://github.com/karmaniverous/jeeves-watcher/commit/fc0a16c6d4ecfa23988517031026806c3312b91d)
 - fix(openclaw): update @karmaniverous/jeeves to 0.1.5 (workspace path priority fix) [`6e22dc5`](https://github.com/karmaniverous/jeeves-watcher/commit/6e22dc5e4c4e71a0c0f055bd2aa094d0da2b0e7b)
