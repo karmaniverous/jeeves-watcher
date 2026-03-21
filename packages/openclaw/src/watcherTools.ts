@@ -3,7 +3,6 @@
  * Watcher tool registrations (watcher_* tools) for the OpenClaw plugin.
  */
 
-import { PLUGIN_ID } from './constants.js';
 import {
   connectionFail,
   fetchJson,
@@ -11,7 +10,9 @@ import {
   type PluginApi,
   postJson,
   type ToolResult,
-} from './helpers.js';
+} from '@karmaniverous/jeeves';
+
+import { PLUGIN_ID } from './constants.js';
 
 /** Config for a watcher API tool. */
 interface ApiToolConfig {

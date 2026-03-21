@@ -1,7 +1,8 @@
+import type { PluginApi } from '@karmaniverous/jeeves';
+import { fetchJson, postJson } from '@karmaniverous/jeeves';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import type { PluginApi } from './helpers.js';
-import { fetchJson, getApiUrl, getConfigRoot, postJson } from './helpers.js';
+import { getApiUrl, getConfigRoot } from './helpers.js';
 
 afterEach(() => {
   vi.unstubAllGlobals();

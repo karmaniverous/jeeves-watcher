@@ -1,6 +1,6 @@
+import type { PluginApi, ToolResult } from '@karmaniverous/jeeves';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import type { PluginApi, ToolResult } from './helpers.js';
 import { registerWatcherTools } from './watcherTools.js';
 
 const BASE = 'http://localhost:1936';

@@ -1,6 +1,6 @@
+import type { PluginApi } from '@karmaniverous/jeeves';
 import { describe, expect, it } from 'vitest';
 
-import type { PluginApi } from './helpers.js';
 import register from './index.js';
 
 describe('register', () => {

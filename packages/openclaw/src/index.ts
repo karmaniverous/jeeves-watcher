@@ -6,6 +6,7 @@
 
 import { createRequire } from 'node:module';
 
+import type { PluginApi } from '@karmaniverous/jeeves';
 import {
   createComponentWriter,
   init,
@@ -13,7 +14,6 @@ import {
 } from '@karmaniverous/jeeves';
 
 import { PROBE_TIMEOUT_MS } from './constants.js';
-import type { PluginApi } from './helpers.js';
 import { getApiUrl, getConfigRoot } from './helpers.js';
 import { createWatcherComponent } from './watcherComponent.js';
 import { registerWatcherTools } from './watcherTools.js';

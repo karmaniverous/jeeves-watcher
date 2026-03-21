@@ -1,6 +1,11 @@
 /**
  * Watcher-specific convenience wrappers over `@karmaniverous/jeeves` core SDK.
  *
+ * @remarks
+ * Only watcher-specific resolution logic lives here. Core SDK types and
+ * utilities (`PluginApi`, `ToolResult`, `ok`, `connectionFail`, `fetchJson`,
+ * `postJson`) should be imported directly from `@karmaniverous/jeeves`.
+ *
  * @module plugin/helpers
  */
 
@@ -11,9 +16,6 @@ import {
   DEFAULT_CONFIG_ROOT,
   PLUGIN_ID,
 } from './constants.js';
-
-export type { PluginApi, ToolResult } from '@karmaniverous/jeeves';
-export { connectionFail, fetchJson, ok, postJson } from '@karmaniverous/jeeves';
 
 /** Resolve the watcher API base URL. */
 export function getApiUrl(api: PluginApi): string {
