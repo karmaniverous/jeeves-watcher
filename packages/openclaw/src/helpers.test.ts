@@ -1,60 +1,11 @@
 import type { PluginApi } from '@karmaniverous/jeeves';
-import { fetchJson, postJson } from '@karmaniverous/jeeves';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { getApiUrl, getConfigRoot } from './helpers.js';
 
 afterEach(() => {
-  vi.unstubAllGlobals();
-});
-
-describe('fetchJson', () => {
-  it('returns parsed JSON on success', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn().mockResolvedValue({
-        ok: true,
-        json: () => Promise.resolve({ hello: 'world' }),
-      }),
-    );
-    const result = await fetchJson('http://example.com/api');
-    expect(result).toEqual({ hello: 'world' });
-  });
-
-  it('throws on non-OK response', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn().mockResolvedValue({
-        ok: false,
-        status: 500,
-        text: () => Promise.resolve('Internal Server Error'),
-      }),
-    );
-    await expect(fetchJson('http://example.com/api')).rejects.toThrow(
-      'HTTP 500: Internal Server Error',
-    );
-  });
-});
-
-describe('postJson', () => {
-  it('sends POST with JSON content-type and stringified body', async () => {
-    const fetchMock = vi.fn().mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve({ ok: true }),
-    });
-    vi.stubGlobal('fetch', fetchMock);
-
-    const result = await postJson('http://example.com/api', { key: 'value' });
-    expect(result).toEqual({ ok: true });
-
-    const call = fetchMock.mock.calls[0] as [string, RequestInit];
-    expect(call[0]).toBe('http://example.com/api');
-    expect(call[1].method).toBe('POST');
-    expect((call[1].headers as Record<string, string>)['Content-Type']).toBe(
-      'application/json',
-    );
-    expect(JSON.parse(call[1].body as string)).toEqual({ key: 'value' });
-  });
+  delete process.env.JEEVES_WATCHER_URL;
+  delete process.env.JEEVES_CONFIG_ROOT;
 });
 
 describe('getApiUrl', () => {
@@ -78,6 +29,29 @@ describe('getApiUrl', () => {
     const api: PluginApi = { registerTool: vi.fn() };
     expect(getApiUrl(api)).toBe('http://127.0.0.1:1936');
   });
+
+  it('falls back to JEEVES_WATCHER_URL env var when config is absent', () => {
+    process.env.JEEVES_WATCHER_URL = 'http://env-override:8888';
+    const api: PluginApi = { registerTool: vi.fn() };
+    expect(getApiUrl(api)).toBe('http://env-override:8888');
+  });
+
+  it('prefers plugin config over env var', () => {
+    process.env.JEEVES_WATCHER_URL = 'http://env-override:8888';
+    const api: PluginApi = {
+      config: {
+        plugins: {
+          entries: {
+            'jeeves-watcher-openclaw': {
+              config: { apiUrl: 'http://config-wins:7777' },
+            },
+          },
+        },
+      },
+      registerTool: vi.fn(),
+    };
+    expect(getApiUrl(api)).toBe('http://config-wins:7777');
+  });
 });
 
 describe('getConfigRoot', () => {
@@ -100,5 +74,11 @@ describe('getConfigRoot', () => {
   it('returns default when config is absent', () => {
     const api: PluginApi = { registerTool: vi.fn() };
     expect(getConfigRoot(api)).toBe('j:/config');
+  });
+
+  it('falls back to JEEVES_CONFIG_ROOT env var when config is absent', () => {
+    process.env.JEEVES_CONFIG_ROOT = '/env/config';
+    const api: PluginApi = { registerTool: vi.fn() };
+    expect(getConfigRoot(api)).toBe('/env/config');
   });
 });
