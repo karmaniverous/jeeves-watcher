@@ -10,7 +10,9 @@ import {
   type PluginApi,
   postJson,
   type ToolResult,
-} from './helpers.js';
+} from '@karmaniverous/jeeves';
+
+import { PLUGIN_ID } from './constants.js';
 
 /** Config for a watcher API tool. */
 interface ApiToolConfig {
@@ -45,7 +47,7 @@ function registerApiTool(
               : await fetchJson(url);
           return ok(data);
         } catch (error) {
-          return connectionFail(error, baseUrl);
+          return connectionFail(error, baseUrl, PLUGIN_ID);
         }
       },
     },

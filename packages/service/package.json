@@ -51,6 +51,7 @@
   },
   "dependencies": {
     "@commander-js/extra-typings": "^14.0.0",
+    "@karmaniverous/jeeves": "^0.2.0",
     "@karmaniverous/jsonmap": "^2.1.1",
     "@langchain/textsplitters": "*",
     "@qdrant/js-client-rest": "*",
@@ -66,7 +67,6 @@
     "hast-util-to-mdast": "^10.1.2",
     "ignore": "^7.0.5",
     "js-yaml": "*",
-    "jsonpath-plus": "^10.4.0",
     "mammoth": "^1.11.0",
     "mdast-util-from-adf": "^2.2.0",
     "mdast-util-to-markdown": "^2.1.2",

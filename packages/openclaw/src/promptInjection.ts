@@ -1,5 +1,6 @@
+import { fetchJson } from '@karmaniverous/jeeves';
+
 import { DEFAULT_QDRANT_URL, MENU_FETCH_TIMEOUT_MS } from './constants.js';
-import { fetchJson } from './helpers.js';
 
 interface StatusResponse {
   collection?: { pointCount: number };

@@ -2,10 +2,6 @@
   "entry": [
     "src/**/index.ts"
   ],
-  "ignoreDependencies": [
-    "json5",
-    "tiktoken"
-  ],
   "project": [
     "*/**",
     "!docs/**"
