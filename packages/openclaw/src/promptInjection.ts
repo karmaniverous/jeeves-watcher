@@ -1,4 +1,4 @@
-import { fetchJson } from '@karmaniverous/jeeves';
+import { fetchJson, fetchWithTimeout } from '@karmaniverous/jeeves';
 
 import { DEFAULT_QDRANT_URL, MENU_FETCH_TIMEOUT_MS } from './constants.js';
 
@@ -6,84 +6,40 @@ interface StatusResponse {
   collection?: { pointCount: number };
 }
 
-interface QueryResponse {
-  result: unknown[];
-}
-
-interface InferenceRule {
-  name?: string;
-  description?: string;
+interface QueryResponse<T = unknown> {
+  result: T[];
 }
 
 /**
- * Fetches data from the watcher API and generates a Markdown menu string.
- * The string is platform-agnostic and safe to inject into TOOLS.md.
+ * Fetches minimal operational context from the watcher API and generates a
+ * compact Markdown string suitable for injection into TOOLS.md.
+ *
+ * @remarks
+ * We intentionally do NOT embed catalogues (rules, watched paths, ignored
+ * paths). Those are available live via `watcher_config` on demand.
  */
 export async function generateWatcherMenu(apiUrl: string): Promise<string> {
   let pointCount = 0;
-  const activeRules: Array<{ name: string; description: string }> = [];
-  const watchPaths: string[] = [];
-  const ignoredPaths: string[] = [];
   const scoreThresholds = { strong: 0.75, relevant: 0.5, noise: 0.25 };
 
   try {
     const fetchOpts = { signal: AbortSignal.timeout(MENU_FETCH_TIMEOUT_MS) };
-    const [statusRes, rulesRes, pathsRes, thresholdsRes, ignoredRes] =
-      (await Promise.all([
-        fetchJson(`${apiUrl}/status`, fetchOpts),
-        fetchJson(
-          `${apiUrl}/config?path=${encodeURIComponent('$.inferenceRules[*]')}`,
-          fetchOpts,
-        ),
-        fetchJson(
-          `${apiUrl}/config?path=${encodeURIComponent('$.watch.paths[*]')}`,
-          fetchOpts,
-        ),
-        fetchJson(
-          `${apiUrl}/config?path=${encodeURIComponent('$.search.scoreThresholds')}`,
-          fetchOpts,
-        ),
-        fetchJson(
-          `${apiUrl}/config?path=${encodeURIComponent('$.watch.ignored[*]')}`,
-          fetchOpts,
-        ),
-      ])) as [
-        StatusResponse,
-        QueryResponse,
-        QueryResponse,
-        QueryResponse,
-        QueryResponse,
-      ];
+
+    const [statusRes, thresholdsRes] = (await Promise.all([
+      fetchJson(`${apiUrl}/status`, fetchOpts),
+      fetchJson(
+        `${apiUrl}/config?path=${encodeURIComponent('$.search.scoreThresholds')}`,
+        fetchOpts,
+      ),
+    ])) as [StatusResponse, QueryResponse<Record<string, unknown>>];
 
     pointCount = statusRes.collection?.pointCount ?? 0;
-
-    if (Array.isArray(rulesRes.result)) {
-      for (const rule of rulesRes.result as InferenceRule[]) {
-        if (rule.name && rule.description) {
-          activeRules.push({ name: rule.name, description: rule.description });
-        }
-      }
-    }
-
-    if (Array.isArray(pathsRes.result)) {
-      for (const p of pathsRes.result) {
-        if (typeof p === 'string') {
-          watchPaths.push(p);
-        }
-      }
-    }
-
-    if (Array.isArray(ignoredRes.result)) {
-      for (const p of ignoredRes.result) {
-        if (typeof p === 'string') ignoredPaths.push(p);
-      }
-    }
 
     if (
       Array.isArray(thresholdsRes.result) &&
       thresholdsRes.result.length > 0
     ) {
-      const t = thresholdsRes.result[0] as Record<string, unknown>;
+      const t = thresholdsRes.result[0];
       if (typeof t.strong === 'number') scoreThresholds.strong = t.strong;
       if (typeof t.relevant === 'number') scoreThresholds.relevant = t.relevant;
       if (typeof t.noise === 'number') scoreThresholds.noise = t.noise;
@@ -92,9 +48,7 @@ export async function generateWatcherMenu(apiUrl: string): Promise<string> {
     let qdrantStatus = '*Unknown*';
     try {
       // Assuming Qdrant runs locally on the default port
-      const res = await fetch(`${DEFAULT_QDRANT_URL}/healthz`, {
-        signal: AbortSignal.timeout(1000),
-      });
+      const res = await fetchWithTimeout(`${DEFAULT_QDRANT_URL}/healthz`, 1000);
       qdrantStatus = res.ok ? 'Running' : 'Error';
     } catch {
       qdrantStatus = 'Down / Unreachable';
@@ -128,33 +82,11 @@ export async function generateWatcherMenu(apiUrl: string): Promise<string> {
     `* **Relevant:** >= ${String(scoreThresholds.relevant)} — Likely useful. Verify context before relying on it.`,
     `* **Noise:** < ${String(scoreThresholds.noise)} — Discard. If all results are noise, broaden your query or try different terms.`,
     '',
-    "### What's on the menu:",
+    '### On-demand inventory (use `watcher_config`):',
+    '* Inference rules: `$.inferenceRules[*]`',
+    '* Watched paths: `$.watch.paths[*]`',
+    '* Ignored paths: `$.watch.ignored[*]`',
   ];
-
-  if (activeRules.length) {
-    for (const rule of activeRules) {
-      lines.push(`* **${rule.name}**: ${rule.description}`);
-    }
-  } else {
-    lines.push('* (No inference rules configured)');
-  }
-
-  lines.push('', '### Indexed paths:');
-
-  if (watchPaths.length) {
-    for (const p of watchPaths) {
-      lines.push(`* \`${p}\``);
-    }
-  } else {
-    lines.push('* (No watch paths configured)');
-  }
-
-  if (ignoredPaths.length > 0) {
-    lines.push('', '### Ignored paths:');
-    for (const p of ignoredPaths) {
-      lines.push(`* \`${p}\``);
-    }
-  }
 
   return lines.join('\n');
 }

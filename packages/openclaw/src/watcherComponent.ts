@@ -14,6 +14,7 @@ import { promisify } from 'node:util';
 
 import {
   createAsyncContentCache,
+  fetchWithTimeout,
   type JeevesComponent,
   type ServiceCommands,
   type ServiceStatus,
@@ -46,9 +47,7 @@ interface StatusResponse {
  */
 async function getServiceStatus(apiUrl: string): Promise<ServiceStatus> {
   try {
-    const res = await fetch(`${apiUrl}/status`, {
-      signal: AbortSignal.timeout(PROBE_TIMEOUT_MS),
-    });
+    const res = await fetchWithTimeout(`${apiUrl}/status`, PROBE_TIMEOUT_MS);
     if (!res.ok) return { running: false };
 
     const json = (await res.json()) as StatusResponse;
