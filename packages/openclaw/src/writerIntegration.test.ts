@@ -60,7 +60,7 @@ describe('jeeves-core integration (watcher plugin)', () => {
       pluginVersion: '0.7.0',
     });
 
-    const writer = createComponentWriter(component, { probeTimeoutMs: 50 });
+    const writer = createComponentWriter(component);
     await writer.cycle();
 
     const toolsContent = readFileSync(toolsPath, 'utf-8');
@@ -79,7 +79,7 @@ describe('jeeves-core integration (watcher plugin)', () => {
       pluginVersion: '0.7.0',
     });
 
-    const writer = createComponentWriter(component, { probeTimeoutMs: 50 });
+    const writer = createComponentWriter(component);
     await writer.cycle();
 
     const soulPath = join(workspaceDir, 'SOUL.md');
