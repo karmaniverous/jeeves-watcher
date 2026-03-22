@@ -2,7 +2,7 @@
   "id": "jeeves-watcher-openclaw",
   "name": "Jeeves Watcher",
   "description": "Semantic search, metadata enrichment, and instance administration for a jeeves-watcher deployment.",
-  "version": "0.9.0",
+  "version": "0.10.0",
   "skills": [
     "dist/skills/jeeves-watcher"
   ],

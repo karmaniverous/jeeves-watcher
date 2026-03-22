@@ -2,9 +2,18 @@
 
 All notable changes to this project will be documented in this file. Dates are displayed in UTC.
 
-#### [0.9.0](https://github.com/karmaniverous/jeeves-watcher/compare/openclaw/0.8.1...0.9.0)
+#### [0.10.0](https://github.com/karmaniverous/jeeves-watcher/compare/openclaw/0.9.0...0.10.0)
+
+- feat: upgrade @karmaniverous/jeeves to ^0.3.0 [`#141`](https://github.com/karmaniverous/jeeves-watcher/pull/141)
+- feat: upgrade @karmaniverous/jeeves to ^0.3.0 [`#140`](https://github.com/karmaniverous/jeeves-watcher/issues/140)
+- chore: release @karmaniverous/jeeves-watcher v0.13.0 [`ba76250`](https://github.com/karmaniverous/jeeves-watcher/commit/ba76250ede62254c389efa542dbd5072d6a27ec6)
+
+#### [openclaw/0.9.0](https://github.com/karmaniverous/jeeves-watcher/compare/openclaw/0.8.1...openclaw/0.9.0)
+
+> 21 March 2026
 
 - feat: adopt @karmaniverous/jeeves core v0.2.0 SDK [`#138`](https://github.com/karmaniverous/jeeves-watcher/pull/138)
+- chore: release @karmaniverous/jeeves-watcher-openclaw v0.9.0 [`746f79d`](https://github.com/karmaniverous/jeeves-watcher/commit/746f79db08aebc2e4aa3922fba83299408422dc3)
 - chore: release @karmaniverous/jeeves-watcher v0.12.0 [`a31a0c1`](https://github.com/karmaniverous/jeeves-watcher/commit/a31a0c157ac3d6a913893e26c699c5711f90cf90)
 
 #### [openclaw/0.8.1](https://github.com/karmaniverous/jeeves-watcher/compare/openclaw/0.8.0...openclaw/0.8.1)
