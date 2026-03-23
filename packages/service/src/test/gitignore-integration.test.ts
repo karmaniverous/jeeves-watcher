@@ -19,7 +19,6 @@ import { DocumentProcessor } from '../processor';
 import { compileRules } from '../rules';
 import { VectorStoreClient } from '../vectorStore';
 import {
-  cleanupTestDirs,
   cleanupWatchedDir,
   createTestConfig,
   getWatchDir,
@@ -74,7 +73,6 @@ afterAll(async () => {
   } catch {
     // ignore
   }
-  await cleanupTestDirs();
 });
 
 beforeEach(async () => {
