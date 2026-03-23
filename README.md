@@ -127,6 +127,7 @@ If `GOOGLE_API_KEY` is set in the environment, the value is substituted at confi
 - **`paths`**: Array of glob patterns or directories to watch
 - **`ignored`**: Array of patterns to exclude
 - **`respectGitignore`**: (default: `true`) Skip processing files ignored by `.gitignore` in git repositories. Nested `.gitignore` files are respected within their subtree.
+- **`moveDetection`**: (optional) Correlate unlink+add events as file moves to avoid re-embedding. `enabled` (default: `true`), `bufferMs` (default: `2000`) — how long to buffer unlink events before treating as deletes.
 
 ### Embedding Provider
 
@@ -213,15 +214,15 @@ Chunking settings are configured under `embedding`:
 }
 ```
 
-### Metadata Storage
+### Enrichment Store
+
+Enrichment metadata (from `POST /metadata` or `watcher_enrich`) is stored in a SQLite database at `<stateDir>/enrichments.sqlite`. Enrichments survive full reindexes. Composable merge: scalar fields overwrite, array fields union+deduplicate with inference rule output.
 
 ```json
 {
-  "metadataDir": ".jeeves-watcher"
+  "stateDir": ".jeeves-metadata"
 }
 ```
-
-Metadata is stored as JSON files alongside watched documents.
 
 ## API Endpoints
 
