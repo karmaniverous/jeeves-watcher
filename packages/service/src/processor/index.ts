@@ -18,10 +18,12 @@ import { pointId } from '../pointId';
 import type { CompiledRule } from '../rules';
 import type { TemplateEngine } from '../templates';
 import { logError } from '../util/logError';
+import { normalizeSlashes } from '../util/normalizeSlashes';
 import type { ValuesManager } from '../values';
 import type { VectorStore } from '../vectorStore';
 import { buildMergedMetadata } from './buildMetadata';
 import { chunkIds, getChunkCount } from './chunkIds';
+import { FIELD_FILE_PATH } from './payloadFields';
 import { embedAndUpsert } from './processingPipeline';
 import type { ProcessorConfig } from './ProcessorConfig';
 import type { RenderResult } from './renderResult';
@@ -352,16 +354,71 @@ export class DocumentProcessor implements DocumentProcessorInterface {
   }
 
   /**
-   * Move a file's vector points and metadata from old path to new path.
-   * Stub — real implementation added in Step 6.
+   * Move a file's vector points from old path to new path without re-embedding.
+   * Re-applies inference rules against the new path.
    *
    * @param oldPath - The original file path.
    * @param newPath - The new file path.
    */
-  moveFile(oldPath: string, newPath: string): Promise<void> {
-    void oldPath;
-    void newPath;
-    return Promise.reject(new Error('moveFile not yet implemented'));
+  async moveFile(oldPath: string, newPath: string): Promise<void> {
+    await this.withFileErrorHandling(
+      newPath,
+      'Failed to move file',
+      async () => {
+        const baseId = pointId(oldPath, 0);
+        const existingPayload = await this.vectorStore.getPayload(baseId);
+        const totalChunks = getChunkCount(existingPayload);
+
+        const oldIds = chunkIds(oldPath, totalChunks);
+        const oldPoints = await this.vectorStore.getPointsWithVectors(oldIds);
+        if (oldPoints.length === 0) {
+          this.logger.warn({ oldPath, newPath }, 'No points found for move');
+          return;
+        }
+
+        // Build new metadata from inference rules against the new path.
+        const { metadataWithRules, matchedRules, metadata } =
+          await this.buildMetadataWithRules(newPath);
+
+        // Create new points with updated IDs and file_path payload.
+        const newPoints = oldPoints.map((pt, i) => ({
+          id: pointId(newPath, i),
+          vector: pt.vector,
+          payload: {
+            ...pt.payload,
+            ...metadataWithRules,
+            [FIELD_FILE_PATH]: normalizeSlashes(newPath),
+          },
+        }));
+
+        await this.vectorStore.upsert(newPoints);
+        await this.vectorStore.delete(oldIds);
+
+        // Migrate enrichment and clear old issues.
+        this.enrichmentStore?.move(oldPath, newPath);
+        this.issuesManager?.clear(oldPath);
+
+        // Update values index for the new path's matched rules.
+        if (this.valuesManager) {
+          for (const ruleName of matchedRules) {
+            this.valuesManager.update(ruleName, metadata);
+          }
+        }
+
+        // Update content hash cache.
+        const oldHash = this.contentHashCache?.get(oldPath);
+        if (oldHash) {
+          this.contentHashCache?.set(newPath, oldHash);
+        }
+        this.contentHashCache?.delete(oldPath);
+
+        this.logger.info(
+          { oldPath, newPath, chunks: oldPoints.length },
+          'File moved in index',
+        );
+      },
+      undefined,
+    );
   }
 
   /**
