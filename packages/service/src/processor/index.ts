@@ -9,6 +9,7 @@ import { extname } from 'node:path';
 
 import type pino from 'pino';
 
+import type { ContentHashCache } from '../cache';
 import type { EmbeddingProvider } from '../embedding';
 import type { EnrichmentStoreInterface } from '../enrichment';
 import { contentHash } from '../hash';
@@ -55,6 +56,8 @@ export interface DocumentProcessorDeps {
   issuesManager?: IssuesManager;
   /** Optional values manager for tracking rule-extracted values. */
   valuesManager?: ValuesManager;
+  /** Optional content hash cache for move detection. */
+  contentHashCache?: ContentHashCache;
 }
 
 /**
@@ -72,6 +75,7 @@ export class DocumentProcessor implements DocumentProcessorInterface {
   private readonly enrichmentStore?: EnrichmentStoreInterface;
   private readonly issuesManager?: IssuesManager;
   private readonly valuesManager?: ValuesManager;
+  private readonly contentHashCache?: ContentHashCache;
 
   /**
    * Create a new DocumentProcessor.
@@ -88,6 +92,7 @@ export class DocumentProcessor implements DocumentProcessorInterface {
     enrichmentStore,
     issuesManager,
     valuesManager,
+    contentHashCache,
   }: DocumentProcessorDeps) {
     this.config = config;
     this.embeddingProvider = embeddingProvider;
@@ -98,6 +103,7 @@ export class DocumentProcessor implements DocumentProcessorInterface {
     this.enrichmentStore = enrichmentStore;
     this.issuesManager = issuesManager;
     this.valuesManager = valuesManager;
+    this.contentHashCache = contentHashCache;
   }
 
   /**
@@ -176,6 +182,7 @@ export class DocumentProcessor implements DocumentProcessorInterface {
         const baseId = pointId(filePath, 0);
         const existingPayload = await this.vectorStore.getPayload(baseId);
         if (existingPayload && existingPayload['content_hash'] === hash) {
+          this.contentHashCache?.set(filePath, hash);
           this.logger.debug({ filePath }, 'Content unchanged, skipping');
           return;
         }
@@ -204,6 +211,7 @@ export class DocumentProcessor implements DocumentProcessorInterface {
           fileDates,
         );
 
+        this.contentHashCache?.set(filePath, hash);
         this.issuesManager?.clear(filePath);
       },
       undefined,
@@ -227,6 +235,7 @@ export class DocumentProcessor implements DocumentProcessorInterface {
         const ids = chunkIds(filePath, totalChunks);
         await this.vectorStore.delete(ids);
         this.enrichmentStore?.delete(filePath);
+        this.contentHashCache?.delete(filePath);
 
         this.logger.info({ filePath }, 'File deleted from index');
       },

@@ -13,6 +13,7 @@ import type pino from 'pino';
 
 import { executeReindex } from '../api/executeReindex';
 import { InitialScanTracker } from '../api/InitialScanTracker';
+import { ContentHashCache } from '../cache';
 import type { JeevesWatcherConfig } from '../config/types';
 import { EnrichmentStore } from '../enrichment';
 import type { GitignoreFilter } from '../gitignore';
@@ -73,6 +74,7 @@ export class JeevesWatcher {
   private embeddingProvider: ApiServerOptions['embeddingProvider'] | undefined;
   private gitignoreFilter: GitignoreFilter | undefined;
   private enrichmentStore: EnrichmentStore | undefined;
+  private contentHashCache: ContentHashCache | undefined;
   private readonly initialScanTracker: InitialScanTracker;
   private readonly version: string;
 
@@ -144,6 +146,8 @@ export class JeevesWatcher {
     this.valuesManager = new ValuesManager(stateDir, logger);
     this.enrichmentStore = new EnrichmentStore(stateDir);
     const enrichmentStore = this.enrichmentStore;
+    this.contentHashCache = new ContentHashCache();
+    const contentHashCache = this.contentHashCache;
 
     const processor = this.factories.createDocumentProcessor({
       config: processorConfig,
@@ -155,6 +159,7 @@ export class JeevesWatcher {
       enrichmentStore,
       issuesManager: this.issuesManager,
       valuesManager: this.valuesManager,
+      contentHashCache,
     });
     this.processor = processor;
 
