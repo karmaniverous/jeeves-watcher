@@ -177,6 +177,7 @@ export class JeevesWatcher {
       logger,
       this.runtimeOptions,
       this.initialScanTracker,
+      contentHashCache,
     );
     this.watcher = watcher;
     this.gitignoreFilter = gitignoreFilter;

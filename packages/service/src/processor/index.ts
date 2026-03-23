@@ -12,7 +12,7 @@ import type pino from 'pino';
 import type { ContentHashCache } from '../cache';
 import type { EmbeddingProvider } from '../embedding';
 import type { EnrichmentStoreInterface } from '../enrichment';
-import { contentHash } from '../hash';
+import { contentHash, fileHash } from '../hash';
 import type { IssuesManager } from '../issues';
 import { pointId } from '../pointId';
 import type { CompiledRule } from '../rules';
@@ -178,11 +178,14 @@ export class DocumentProcessor implements DocumentProcessorInterface {
           return;
         }
 
+        // Compute file-level hash for move correlation cache.
+        const rawHash = await fileHash(filePath);
+        this.contentHashCache?.set(filePath, rawHash);
+
         const hash = contentHash(textToEmbed);
         const baseId = pointId(filePath, 0);
         const existingPayload = await this.vectorStore.getPayload(baseId);
         if (existingPayload && existingPayload['content_hash'] === hash) {
-          this.contentHashCache?.set(filePath, hash);
           this.logger.debug({ filePath }, 'Content unchanged, skipping');
           return;
         }
@@ -211,7 +214,6 @@ export class DocumentProcessor implements DocumentProcessorInterface {
           fileDates,
         );
 
-        this.contentHashCache?.set(filePath, hash);
         this.issuesManager?.clear(filePath);
       },
       undefined,
