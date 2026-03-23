@@ -78,7 +78,7 @@ You have access to a **semantic archive** of your human's working world. Documen
 
 **STOP and ask for a human decision before:**
 
-- **Renaming, moving, or reorganizing watched directories.** A directory rename at the filesystem level is cheap — chokidar sees unlink + add events, but the content hasn't changed. However, if a rename is blocked (e.g., by a file lock from the watcher or another service), **do NOT work around it by creating new directories and copying/moving files**. That creates duplicate embeddings at the new paths while the old paths still exist. Instead: stop the blocking service, perform the rename, restart. This is a 30-second operation. The workaround can cost thousands of API calls.
+- **Renaming, moving, or reorganizing watched directories.** The watcher has **move detection** enabled by default (`watch.moveDetection.enabled: true`). When a file is moved, chokidar emits unlink + add events; the `MoveCorrelator` buffers the unlink, matches it with the add via content hash, and processes it as a zero-embedding move (point ID remap, metadata re-inference, enrichment migration). **No re-embedding cost for moves.** However, if a rename is blocked (e.g., by a file lock from the watcher or another service), **do NOT work around it by creating new directories and copying/moving files**. That creates duplicate embeddings at the new paths while the old paths still exist. Instead: stop the blocking service, perform the rename, restart.
 - **Changing `watch.paths` to add large directory trees.** Adding a new watch root triggers initial indexing of every matching file under it.
 - **Running `scope: "full"` reindex.** This re-embeds the entire index. Use `scope: "rules"` for inference rule changes (zero embedding cost — only metadata reapplication).
 - **Any bulk file operation** (mass copy, mass move, template-based file generation) under watched paths.
@@ -782,6 +782,8 @@ $.templateHelpers         — Handlebars helper namespaces with exports
 ## Enrichment
 
 Use `watcher_enrich` to tag documents after analysis (e.g., `reviewed: true`, project labels).
+
+**Enrichments are durable.** Stored in a SQLite database (`<stateDir>/enrichments.sqlite`), enrichments survive full reindexes. When the watcher re-processes a file, enrichments are merged with inference rule output using composable semantics: scalar fields overwrite, array fields union+deduplicate.
 
 **Metadata is validated against the file's matched rule schemas.** Validation errors return structured messages:
 ```json

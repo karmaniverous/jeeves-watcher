@@ -9,18 +9,21 @@ import { extname } from 'node:path';
 
 import type pino from 'pino';
 
+import type { ContentHashCache } from '../cache';
 import type { EmbeddingProvider } from '../embedding';
-import { contentHash } from '../hash';
+import type { EnrichmentStoreInterface } from '../enrichment';
+import { contentHash, fileHash } from '../hash';
 import type { IssuesManager } from '../issues';
-import { deleteMetadata, readMetadata, writeMetadata } from '../metadata';
 import { pointId } from '../pointId';
 import type { CompiledRule } from '../rules';
 import type { TemplateEngine } from '../templates';
 import { logError } from '../util/logError';
+import { normalizeSlashes } from '../util/normalizeSlashes';
 import type { ValuesManager } from '../values';
 import type { VectorStore } from '../vectorStore';
 import { buildMergedMetadata } from './buildMetadata';
 import { chunkIds, getChunkCount } from './chunkIds';
+import { FIELD_FILE_PATH } from './payloadFields';
 import { embedAndUpsert } from './processingPipeline';
 import type { ProcessorConfig } from './ProcessorConfig';
 import type { RenderResult } from './renderResult';
@@ -49,10 +52,14 @@ export interface DocumentProcessorDeps {
   logger: pino.Logger;
   /** Optional Handlebars template engine for content templates. */
   templateEngine?: TemplateEngine;
+  /** Optional enrichment store for persisted enrichment metadata. */
+  enrichmentStore?: EnrichmentStoreInterface;
   /** Optional issues manager for tracking processing errors. */
   issuesManager?: IssuesManager;
   /** Optional values manager for tracking rule-extracted values. */
   valuesManager?: ValuesManager;
+  /** Optional content hash cache for move detection. */
+  contentHashCache?: ContentHashCache;
 }
 
 /**
@@ -67,8 +74,10 @@ export class DocumentProcessor implements DocumentProcessorInterface {
   private compiledRules: CompiledRule[];
   private readonly logger: pino.Logger;
   private templateEngine?: TemplateEngine;
+  private readonly enrichmentStore?: EnrichmentStoreInterface;
   private readonly issuesManager?: IssuesManager;
   private readonly valuesManager?: ValuesManager;
+  private readonly contentHashCache?: ContentHashCache;
 
   /**
    * Create a new DocumentProcessor.
@@ -82,8 +91,10 @@ export class DocumentProcessor implements DocumentProcessorInterface {
     compiledRules,
     logger,
     templateEngine,
+    enrichmentStore,
     issuesManager,
     valuesManager,
+    contentHashCache,
   }: DocumentProcessorDeps) {
     this.config = config;
     this.embeddingProvider = embeddingProvider;
@@ -91,8 +102,10 @@ export class DocumentProcessor implements DocumentProcessorInterface {
     this.compiledRules = compiledRules;
     this.logger = logger;
     this.templateEngine = templateEngine;
+    this.enrichmentStore = enrichmentStore;
     this.issuesManager = issuesManager;
     this.valuesManager = valuesManager;
+    this.contentHashCache = contentHashCache;
   }
 
   /**
@@ -102,7 +115,7 @@ export class DocumentProcessor implements DocumentProcessorInterface {
     const result = await buildMergedMetadata({
       filePath,
       compiledRules: this.compiledRules,
-      metadataDir: this.config.metadataDir,
+      enrichmentStore: this.enrichmentStore,
       maps: this.config.maps,
       logger: this.logger,
       templateEngine: this.templateEngine,
@@ -167,6 +180,10 @@ export class DocumentProcessor implements DocumentProcessorInterface {
           return;
         }
 
+        // Compute file-level hash for move correlation cache.
+        const rawHash = await fileHash(filePath);
+        this.contentHashCache?.set(filePath, rawHash);
+
         const hash = contentHash(textToEmbed);
         const baseId = pointId(filePath, 0);
         const existingPayload = await this.vectorStore.getPayload(baseId);
@@ -221,7 +238,8 @@ export class DocumentProcessor implements DocumentProcessorInterface {
 
         const ids = chunkIds(filePath, totalChunks);
         await this.vectorStore.delete(ids);
-        await deleteMetadata(filePath, this.config.metadataDir);
+        this.enrichmentStore?.delete(filePath);
+        this.contentHashCache?.delete(filePath);
 
         this.logger.info({ filePath }, 'File deleted from index');
       },
@@ -230,7 +248,7 @@ export class DocumentProcessor implements DocumentProcessorInterface {
   }
 
   /**
-   * Process a metadata update: merge metadata, write to disk, update Qdrant payloads (no re-embed).
+   * Process a metadata update: merge into enrichment store, update Qdrant payloads (no re-embed).
    *
    * @param filePath - The file whose metadata to update.
    * @param metadata - The new metadata to merge.
@@ -244,10 +262,8 @@ export class DocumentProcessor implements DocumentProcessorInterface {
       filePath,
       'Failed to update metadata',
       async () => {
-        const existing =
-          (await readMetadata(filePath, this.config.metadataDir)) ?? {};
-        const merged = { ...existing, ...metadata };
-        await writeMetadata(filePath, this.config.metadataDir, merged);
+        this.enrichmentStore?.set(filePath, metadata);
+        const merged = this.enrichmentStore?.get(filePath) ?? metadata;
 
         const baseId = pointId(filePath, 0);
         const existingPayload = await this.vectorStore.getPayload(baseId);
@@ -335,6 +351,74 @@ export class DocumentProcessor implements DocumentProcessorInterface {
       metadata: metadataWithRules,
       transformed: renderedContent !== null,
     };
+  }
+
+  /**
+   * Move a file's vector points from old path to new path without re-embedding.
+   * Re-applies inference rules against the new path.
+   *
+   * @param oldPath - The original file path.
+   * @param newPath - The new file path.
+   */
+  async moveFile(oldPath: string, newPath: string): Promise<void> {
+    await this.withFileErrorHandling(
+      newPath,
+      'Failed to move file',
+      async () => {
+        const baseId = pointId(oldPath, 0);
+        const existingPayload = await this.vectorStore.getPayload(baseId);
+        const totalChunks = getChunkCount(existingPayload);
+
+        const oldIds = chunkIds(oldPath, totalChunks);
+        const oldPoints = await this.vectorStore.getPointsWithVectors(oldIds);
+        if (oldPoints.length === 0) {
+          this.logger.warn({ oldPath, newPath }, 'No points found for move');
+          return;
+        }
+
+        // Build new metadata from inference rules against the new path.
+        const { metadataWithRules, matchedRules, metadata } =
+          await this.buildMetadataWithRules(newPath);
+
+        // Create new points with updated IDs and file_path payload.
+        const newPoints = oldPoints.map((pt, i) => ({
+          id: pointId(newPath, i),
+          vector: pt.vector,
+          payload: {
+            ...pt.payload,
+            ...metadataWithRules,
+            [FIELD_FILE_PATH]: normalizeSlashes(newPath),
+          },
+        }));
+
+        await this.vectorStore.upsert(newPoints);
+        await this.vectorStore.delete(oldIds);
+
+        // Migrate enrichment and clear old issues.
+        this.enrichmentStore?.move(oldPath, newPath);
+        this.issuesManager?.clear(oldPath);
+
+        // Update values index for the new path's matched rules.
+        if (this.valuesManager) {
+          for (const ruleName of matchedRules) {
+            this.valuesManager.update(ruleName, metadata);
+          }
+        }
+
+        // Update content hash cache.
+        const oldHash = this.contentHashCache?.get(oldPath);
+        if (oldHash) {
+          this.contentHashCache?.set(newPath, oldHash);
+        }
+        this.contentHashCache?.delete(oldPath);
+
+        this.logger.info(
+          { oldPath, newPath, chunks: oldPoints.length },
+          'File moved in index',
+        );
+      },
+      undefined,
+    );
   }
 
   /**

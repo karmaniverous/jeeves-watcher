@@ -8,6 +8,7 @@ import chokidar, { type FSWatcher } from 'chokidar';
 import type pino from 'pino';
 
 import type { InitialScanTracker } from '../api/InitialScanTracker';
+import type { ContentHashCache } from '../cache';
 import type { WatchConfig } from '../config/types';
 import type { GitignoreFilter } from '../gitignore';
 import { SystemHealth, type SystemHealthOptions } from '../health';
@@ -15,6 +16,7 @@ import type { DocumentProcessorInterface } from '../processor';
 import type { EventQueue } from '../queue';
 import { normalizeError } from '../util/normalizeError';
 import { resolveIgnored, resolveWatchPaths } from './globToDir';
+import { MoveCorrelator } from './MoveCorrelator';
 
 /**
  * Options for {@link FileSystemWatcher} beyond basic config.
@@ -30,6 +32,8 @@ export interface FileSystemWatcherOptions {
   gitignoreFilter?: GitignoreFilter;
   /** Optional tracker for initial scan visibility in /status. */
   initialScanTracker?: InitialScanTracker;
+  /** Optional content hash cache for move detection. */
+  contentHashCache?: ContentHashCache;
 }
 
 /**
@@ -43,6 +47,8 @@ export class FileSystemWatcher {
   private readonly health: SystemHealth;
   private readonly gitignoreFilter?: GitignoreFilter;
   private readonly initialScanTracker?: InitialScanTracker;
+  private readonly contentHashCache?: ContentHashCache;
+  private moveCorrelator?: MoveCorrelator;
   private globMatches: (filePath: string) => boolean;
   private watcher: FSWatcher | undefined;
 
@@ -69,6 +75,7 @@ export class FileSystemWatcher {
 
     this.gitignoreFilter = options.gitignoreFilter;
     this.initialScanTracker = options.initialScanTracker;
+    this.contentHashCache = options.contentHashCache;
     this.globMatches = () => true;
 
     const healthOptions: SystemHealthOptions = {
@@ -123,6 +130,44 @@ export class FileSystemWatcher {
       }
     };
 
+    // Create move correlator if move detection is configured and cache is available.
+    const moveConfig = this.config.moveDetection;
+    if (moveConfig?.enabled && this.contentHashCache) {
+      this.moveCorrelator = new MoveCorrelator({
+        enabled: true,
+        bufferMs: moveConfig.bufferMs,
+        contentHashCache: this.contentHashCache,
+        logger: this.logger,
+        onMove: (oldPath, newPath) => {
+          this.queue.enqueue(
+            { type: 'move', path: newPath, oldPath, priority: 'normal' },
+            () =>
+              this.wrapProcessing(() =>
+                this.processor.moveFile(oldPath, newPath),
+              ),
+          );
+        },
+        onDelete: (deletedPath) => {
+          this.queue.enqueue(
+            { type: 'delete', path: deletedPath, priority: 'normal' },
+            () =>
+              this.wrapProcessing(() => this.processor.deleteFile(deletedPath)),
+          );
+        },
+        onCreate: (createdPath) => {
+          this.queue.enqueue(
+            { type: 'create', path: createdPath, priority: 'normal' },
+            () =>
+              this.wrapProcessing(() =>
+                this.processor.processFile(createdPath),
+              ),
+          );
+        },
+      });
+    }
+
+    const correlator = this.moveCorrelator;
+
     this.watcher = chokidar.watch(roots, {
       ignored,
       usePolling: this.config.usePolling,
@@ -154,9 +199,13 @@ export class FileSystemWatcher {
         this.initialScanTracker?.incrementEnqueued();
       }
       this.logger.debug({ path }, 'File added');
-      this.queue.enqueue({ type: 'create', path, priority: 'normal' }, () =>
-        this.wrapProcessing(() => this.processor.processFile(path)),
-      );
+      if (correlator && initialScanComplete) {
+        void correlator.handleAdd(path);
+      } else {
+        this.queue.enqueue({ type: 'create', path, priority: 'normal' }, () =>
+          this.wrapProcessing(() => this.processor.processFile(path)),
+        );
+      }
     });
 
     this.watcher.on('change', (path: string) => {
@@ -177,9 +226,13 @@ export class FileSystemWatcher {
       if (!this.globMatches(path)) return;
       if (this.isGitignored(path)) return;
       this.logger.debug({ path }, 'File removed');
-      this.queue.enqueue({ type: 'delete', path, priority: 'normal' }, () =>
-        this.wrapProcessing(() => this.processor.deleteFile(path)),
-      );
+      if (correlator) {
+        correlator.handleUnlink(path);
+      } else {
+        this.queue.enqueue({ type: 'delete', path, priority: 'normal' }, () =>
+          this.wrapProcessing(() => this.processor.deleteFile(path)),
+        );
+      }
     });
 
     this.watcher.on('ready', () => {
@@ -235,6 +288,7 @@ export class FileSystemWatcher {
    * Stop the filesystem watcher.
    */
   async stop(): Promise<void> {
+    this.moveCorrelator?.flush();
     if (this.watcher) {
       await this.watcher.close();
       this.watcher = undefined;

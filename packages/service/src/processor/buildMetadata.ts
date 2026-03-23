@@ -1,6 +1,6 @@
 /**
  * @module processor/buildMetadata
- * Builds merged metadata from file content, inference rules, and enrichment. I/O: reads files, extracts text, loads enrichment .meta.json.
+ * Builds merged metadata from file content, inference rules, and enrichment store. I/O: reads files, extracts text, queries SQLite enrichment.
  */
 
 import { stat } from 'node:fs/promises';
@@ -10,8 +10,9 @@ import type { JsonMapMap } from '@karmaniverous/jsonmap';
 import type pino from 'pino';
 
 import type { SchemaEntry } from '../config/schemas';
+import type { EnrichmentStoreInterface } from '../enrichment';
+import { mergeEnrichment } from '../enrichment';
 import { type ExtractedText, extractText } from '../extractors';
-import { readMetadata } from '../metadata';
 import type { CompiledRule } from '../rules';
 import { applyRules, buildAttributes } from '../rules';
 import type { TemplateEngine } from '../templates';
@@ -22,9 +23,9 @@ import type { TemplateEngine } from '../templates';
 interface MergedMetadata {
   /** Metadata inferred from rules. */
   inferred: Record<string, unknown>;
-  /** Metadata loaded from enrichment file. */
+  /** Metadata loaded from enrichment store. */
   enrichment: Record<string, unknown> | null;
-  /** Combined metadata (enrichment wins conflicts). */
+  /** Combined metadata (composable merge). */
   metadata: Record<string, unknown>;
   /** File attributes used for rule matching. */
   attributes: ReturnType<typeof buildAttributes>;
@@ -46,8 +47,8 @@ interface BuildMergedMetadataOptions {
   filePath: string;
   /** The compiled inference rules. */
   compiledRules: CompiledRule[];
-  /** The metadata directory for enrichment files. */
-  metadataDir: string;
+  /** Optional enrichment store for persisted metadata. */
+  enrichmentStore?: EnrichmentStoreInterface;
   /** Optional named JsonMap definitions. */
   maps?: Record<string, JsonMapMap>;
   /** Optional logger for rule warnings. */
@@ -74,7 +75,7 @@ export async function buildMergedMetadata(
   const {
     filePath,
     compiledRules,
-    metadataDir,
+    enrichmentStore,
     maps,
     logger,
     templateEngine,
@@ -109,12 +110,11 @@ export async function buildMergedMetadata(
     globalSchemas,
   });
 
-  // 3. Read enrichment metadata (merge, enrichment wins)
-  const enrichment = await readMetadata(filePath, metadataDir);
-  const metadata: Record<string, unknown> = {
-    ...inferred,
-    ...(enrichment ?? {}),
-  };
+  // 3. Read enrichment metadata from store (composable merge)
+  const enrichment = enrichmentStore?.get(filePath) ?? null;
+  const metadata: Record<string, unknown> = enrichment
+    ? mergeEnrichment(inferred, enrichment)
+    : { ...inferred };
 
   return {
     inferred,

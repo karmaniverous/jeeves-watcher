@@ -29,3 +29,12 @@ export const FIELD_LINE_START = 'line_start';
 
 /** Qdrant payload field: 1-indexed line number where this chunk ends in the source file. */
 export const FIELD_LINE_END = 'line_end';
+
+/** Keys managed by the indexing pipeline (not user enrichment). */
+export const SYSTEM_METADATA_KEYS: readonly string[] = [
+  FIELD_FILE_PATH,
+  FIELD_CHUNK_INDEX,
+  FIELD_TOTAL_CHUNKS,
+  FIELD_CONTENT_HASH,
+  FIELD_CHUNK_TEXT,
+] as const;

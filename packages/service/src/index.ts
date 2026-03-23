@@ -36,6 +36,8 @@ export {
 } from './config';
 export type { EmbeddingProvider, ProviderFactory } from './embedding';
 export { createEmbeddingProvider } from './embedding';
+export type { EnrichmentStoreInterface } from './enrichment';
+export { EnrichmentStore, mergeEnrichment } from './enrichment';
 export type { ExtractedText, Extractor } from './extractors';
 export { extractText } from './extractors';
 export { GitignoreFilter } from './gitignore';
@@ -49,12 +51,6 @@ export type {
 export type { IssueRecord, IssuesFile } from './issues';
 export { issueRecordSchema, IssuesManager } from './issues';
 export { createLogger } from './logger';
-export {
-  deleteMetadata,
-  metadataPath,
-  readMetadata,
-  writeMetadata,
-} from './metadata';
 export { pointId } from './pointId';
 export type {
   DocumentProcessorDeps,

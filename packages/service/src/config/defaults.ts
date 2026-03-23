@@ -7,7 +7,7 @@ import type { JeevesWatcherConfig } from './types';
 
 /** Default root-level config values. */
 export const ROOT_DEFAULTS: Partial<JeevesWatcherConfig> = {
-  metadataDir: '.jeeves-watcher',
+  stateDir: '.jeeves-metadata',
   shutdownTimeoutMs: 10000,
 };
 
@@ -64,7 +64,7 @@ export const INIT_CONFIG_TEMPLATE = {
     url: 'http://127.0.0.1:6333',
     collectionName: 'jeeves-watcher',
   },
-  metadataDir: ROOT_DEFAULTS.metadataDir,
+  stateDir: ROOT_DEFAULTS.stateDir,
   api: API_DEFAULTS,
   logging: LOGGING_DEFAULTS,
 };

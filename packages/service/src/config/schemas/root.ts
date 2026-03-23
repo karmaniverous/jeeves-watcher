@@ -49,19 +49,14 @@ export const jeevesWatcherConfigSchema = z.object({
   vectorStore: vectorStoreConfigSchema.describe(
     'Qdrant vector store configuration.',
   ),
-  /** Directory for persisted metadata. */
-  metadataDir: z
-    .string()
-    .optional()
-    .describe('Directory for persisted metadata sidecar files.'),
   /** API server configuration. */
   api: apiConfigSchema.optional().describe('API server configuration.'),
-  /** Directory for persistent state files (issues.json, values.json). Defaults to metadataDir. */
+  /** Directory for persistent state files (issues.json, values.json, enrichments.sqlite). */
   stateDir: z
     .string()
     .optional()
     .describe(
-      'Directory for persistent state files (issues.json, values.json). Defaults to metadataDir.',
+      'Directory for persistent state files (issues.json, values.json, enrichments.sqlite). Defaults to .jeeves-metadata.',
     ),
   /** Rules for inferring metadata from document properties (inline objects or file paths). */
   inferenceRules: z

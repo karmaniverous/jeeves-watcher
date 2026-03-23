@@ -54,6 +54,28 @@ export const watchConfigSchema = z.object({
     .describe(
       'Skip files ignored by .gitignore in git repositories. Only applies to repos with a .git directory. Default: true.',
     ),
+  /** Move detection configuration for correlating unlink+add as file moves. */
+  moveDetection: z
+    .object({
+      /** Enable move correlation. Default: true. */
+      enabled: z
+        .boolean()
+        .default(true)
+        .describe('Enable move detection via content hash correlation.'),
+      /** Buffer time in ms for holding unlink events before treating as deletes. Default: 2000. */
+      bufferMs: z
+        .number()
+        .int()
+        .min(100)
+        .default(2000)
+        .describe(
+          'How long (ms) to buffer unlink events before treating as deletes.',
+        ),
+    })
+    .optional()
+    .describe(
+      'Move detection: correlate unlink+add events as file moves to avoid re-embedding.',
+    ),
 });
 
 /** Watch configuration for file system monitoring paths, ignore patterns, and debounce/stability settings. */

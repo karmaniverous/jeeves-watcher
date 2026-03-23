@@ -8,9 +8,11 @@
  */
 export type WatchEvent = {
   /** Event type. */
-  type: 'create' | 'modify' | 'delete';
-  /** File path associated with the event. */
+  type: 'create' | 'modify' | 'delete' | 'move';
+  /** File path associated with the event (new path for moves). */
   path: string;
+  /** Original path before move (populated only for move events). */
+  oldPath?: string;
   /** Event priority. */
   priority: 'normal' | 'low';
 };
