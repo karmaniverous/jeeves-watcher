@@ -2,11 +2,28 @@
 
 All notable changes to this project will be documented in this file. Dates are displayed in UTC.
 
-#### [0.13.0](https://github.com/karmaniverous/jeeves-watcher/compare/service/0.12.0...0.13.0)
+#### [0.14.0](https://github.com/karmaniverous/jeeves-watcher/compare/service/0.13.0...0.14.0)
+
+- feat: move detection and durable enrichment store [`#143`](https://github.com/karmaniverous/jeeves-watcher/pull/143)
+- feat: add EnrichmentStore and composable merge utility [`50dc78e`](https://github.com/karmaniverous/jeeves-watcher/commit/50dc78efa213615b834ecaa7d92277d5e3944828)
+- feat: add MoveCorrelator and wire into FileSystemWatcher [`4012ad5`](https://github.com/karmaniverous/jeeves-watcher/commit/4012ad5481d2ddaf10166ba65085cf466245ebde)
+- refactor: wire EnrichmentStore into processor, remove sidecar metadata system [`49deb30`](https://github.com/karmaniverous/jeeves-watcher/commit/49deb30e2bafa75dec6940483a26a851f72059a4)
+- feat: implement DocumentProcessor.moveFile for zero-embedding moves [`d4c3a87`](https://github.com/karmaniverous/jeeves-watcher/commit/d4c3a87f0d39906de93797f3c553eedc4ea8a9ad)
+- feat: extend interfaces for move detection and enrichment store [`8c3b109`](https://github.com/karmaniverous/jeeves-watcher/commit/8c3b109e049c243fb339ca3fd474c674301ed44e)
+- feat: add ContentHashCache for move detection [`0130011`](https://github.com/karmaniverous/jeeves-watcher/commit/0130011349c5878cce864f81d8da2083b3b7cb5f)
+- test: remove trivial tests, add move pipeline integration tests [`62cb933`](https://github.com/karmaniverous/jeeves-watcher/commit/62cb933fa02dbd44239d385b63e20527a65b48ba)
+- npm audit fix [`e93ece6`](https://github.com/karmaniverous/jeeves-watcher/commit/e93ece66db2fa70f26eb61faebbfe87f68681db3)
+- chore: release @karmaniverous/jeeves-watcher-openclaw v0.10.0 [`09f1498`](https://github.com/karmaniverous/jeeves-watcher/commit/09f14982af678cdffc8e46583eb167b871efd718)
+- docs: sync README, SKILL.md with v0.14.0 implementation (move detection, enrichment store) [`c0bf11e`](https://github.com/karmaniverous/jeeves-watcher/commit/c0bf11eb6790d4fb0d0695317faef5331988caca)
+
+#### [service/0.13.0](https://github.com/karmaniverous/jeeves-watcher/compare/service/0.12.0...service/0.13.0)
+
+> 23 March 2026
 
 - feat: upgrade @karmaniverous/jeeves to ^0.3.0 [`#141`](https://github.com/karmaniverous/jeeves-watcher/pull/141)
 - feat: upgrade @karmaniverous/jeeves to ^0.3.0 [`#140`](https://github.com/karmaniverous/jeeves-watcher/issues/140)
 - chore: release @karmaniverous/jeeves-watcher-openclaw v0.9.0 [`746f79d`](https://github.com/karmaniverous/jeeves-watcher/commit/746f79db08aebc2e4aa3922fba83299408422dc3)
+- chore: release @karmaniverous/jeeves-watcher v0.13.0 [`ba76250`](https://github.com/karmaniverous/jeeves-watcher/commit/ba76250ede62254c389efa542dbd5072d6a27ec6)
 
 #### [service/0.12.0](https://github.com/karmaniverous/jeeves-watcher/compare/service/0.11.1...service/0.12.0)
 
