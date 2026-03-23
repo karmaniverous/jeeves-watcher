@@ -13,7 +13,7 @@ const TEST_BASE = join(tmpdir(), 'jeeves-watcher-test');
  */
 export function createTestConfig(): JeevesWatcherConfig {
   const watchDir = join(TEST_BASE, 'watched');
-  const metadataDir = join(TEST_BASE, 'metadata');
+  const stateDir = join(TEST_BASE, 'state');
 
   return {
     watch: {
@@ -35,7 +35,7 @@ export function createTestConfig(): JeevesWatcherConfig {
       url: 'http://localhost:6333',
       collectionName: 'jeeves_watcher_test',
     },
-    metadataDir,
+    stateDir,
     api: {
       host: '127.0.0.1',
       port: 0, // let OS assign
@@ -61,7 +61,14 @@ export function getWatchDir(): string {
  */
 export async function setupTestDirs(): Promise<void> {
   await mkdir(join(TEST_BASE, 'watched'), { recursive: true });
-  await mkdir(join(TEST_BASE, 'metadata'), { recursive: true });
+  await mkdir(join(TEST_BASE, 'state'), { recursive: true });
+}
+
+/**
+ * Remove only the watched directory (safe during test runs with open SQLite).
+ */
+export async function cleanupWatchedDir(): Promise<void> {
+  await rm(join(TEST_BASE, 'watched'), { recursive: true, force: true });
 }
 
 /**

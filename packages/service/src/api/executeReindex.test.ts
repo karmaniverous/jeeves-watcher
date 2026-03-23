@@ -47,7 +47,7 @@ function makeDeps(overrides: Partial<ExecuteReindexDeps> = {}): {
         collectionName: 'test',
         apiKey: '',
       },
-      metadataDir: '.meta',
+      stateDir: '.meta',
       ...((overrides.config ?? {}) as Record<string, unknown>),
     } as unknown as ExecuteReindexDeps['config'],
     processor: {
@@ -144,7 +144,7 @@ describe('executeReindex', () => {
       config: {
         watch: { paths: [], ignored: [] },
         vectorStore: { url: '', collectionName: '', apiKey: '' },
-        metadataDir: '.meta',
+        stateDir: '.meta',
         reindex: { callbackUrl: 'http://example.com/cb' },
       } as unknown as ExecuteReindexDeps['config'],
       issuesManager: { getAll: () => ({}) },

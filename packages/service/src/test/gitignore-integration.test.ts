@@ -20,6 +20,7 @@ import { compileRules } from '../rules';
 import { VectorStoreClient } from '../vectorStore';
 import {
   cleanupTestDirs,
+  cleanupWatchedDir,
   createTestConfig,
   getWatchDir,
   setupTestDirs,
@@ -51,7 +52,6 @@ beforeAll(async () => {
 
   const compiledRules = compileRules(config.inferenceRules ?? []);
   const processorConfig = {
-    metadataDir: config.metadataDir ?? '.jeeves-metadata',
     chunkSize: config.embedding.chunkSize,
     chunkOverlap: config.embedding.chunkOverlap,
     maps: config.maps,
@@ -90,7 +90,7 @@ afterEach(async () => {
     // ignore
   }
   await vectorStore.ensureCollection();
-  await cleanupTestDirs();
+  await cleanupWatchedDir();
 });
 
 describe('Gitignore filtering integration', () => {

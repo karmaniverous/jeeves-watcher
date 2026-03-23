@@ -10,13 +10,6 @@ vi.mock('./buildMetadata', () => ({
   buildMergedMetadata: vi.fn(),
 }));
 
-// Mock metadata I/O
-vi.mock('../metadata', () => ({
-  readMetadata: vi.fn(),
-  writeMetadata: vi.fn(),
-  deleteMetadata: vi.fn(),
-}));
-
 // Mock node:fs/promises stat() to return predictable values
 vi.mock('node:fs/promises', async (importOriginal) => ({
   ...(await importOriginal()),
@@ -58,7 +51,6 @@ describe('DocumentProcessor file date & line offset fields', () => {
     };
 
     const config: ProcessorConfig = {
-      metadataDir: '/tmp/meta',
       chunkSize: 1000,
       chunkOverlap: 200,
     };

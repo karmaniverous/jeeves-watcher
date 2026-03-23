@@ -107,7 +107,6 @@ export function createProcessorConfig(
   customMapLib: Record<string, (...args: unknown[]) => unknown> | undefined,
 ): ProcessorConfig {
   return {
-    metadataDir: config.metadataDir ?? '.jeeves-metadata',
     chunkSize: config.embedding.chunkSize,
     chunkOverlap: config.embedding.chunkOverlap,
     maps: resolveMapsConfig(config.maps as Record<string, unknown>),

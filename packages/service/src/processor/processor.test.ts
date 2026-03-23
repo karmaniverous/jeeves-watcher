@@ -2,6 +2,7 @@ import pino from 'pino';
 import { beforeEach, describe, expect, it, type Mock, vi } from 'vitest';
 
 import type { EmbeddingProvider } from '../embedding';
+import type { EnrichmentStoreInterface } from '../enrichment';
 import type { IssuesManager } from '../issues';
 import type { ValuesManager } from '../values';
 import type { VectorStoreClient } from '../vectorStore';
@@ -10,13 +11,6 @@ import { DocumentProcessor, type ProcessorConfig } from './index';
 // Mock buildMergedMetadata so we don't touch the filesystem
 vi.mock('./buildMetadata', () => ({
   buildMergedMetadata: vi.fn(),
-}));
-
-// Mock metadata I/O
-vi.mock('../metadata', () => ({
-  readMetadata: vi.fn(),
-  writeMetadata: vi.fn(),
-  deleteMetadata: vi.fn(),
 }));
 
 // Mock node:fs/promises stat() to return predictable values
@@ -28,13 +22,9 @@ vi.mock('node:fs/promises', async (importOriginal) => ({
   }),
 }));
 
-import { deleteMetadata, readMetadata, writeMetadata } from '../metadata';
 import { buildMergedMetadata } from './buildMetadata';
 
 const mockedBuildMergedMetadata = buildMergedMetadata as Mock;
-const mockedReadMetadata = readMetadata as Mock;
-const mockedWriteMetadata = writeMetadata as Mock;
-const mockedDeleteMetadata = deleteMetadata as Mock;
 
 interface MockVectorStore {
   getPayload: Mock;
@@ -50,6 +40,28 @@ interface MockIssuesManager {
 
 interface MockValuesManager {
   update: Mock;
+}
+
+interface MockEnrichmentStore {
+  get: Mock;
+  set: Mock;
+  delete: Mock;
+  move: Mock;
+  list: Mock;
+  close: Mock;
+}
+
+function createMockEnrichmentStore(
+  data: Record<string, unknown> | null = null,
+): MockEnrichmentStore {
+  return {
+    get: vi.fn().mockReturnValue(data),
+    set: vi.fn(),
+    delete: vi.fn(),
+    move: vi.fn(),
+    list: vi.fn().mockReturnValue([]),
+    close: vi.fn(),
+  };
 }
 
 function createMocks() {
@@ -75,7 +87,6 @@ function createMocks() {
   };
 
   const config: ProcessorConfig = {
-    metadataDir: '/tmp/meta',
     chunkSize: 1000,
     chunkOverlap: 200,
   };
@@ -310,7 +321,10 @@ describe('DocumentProcessor', () => {
   describe('processMetadataUpdate', () => {
     it('merges metadata and updates Qdrant payloads', async () => {
       const { vectorStore, embeddingProvider, config, logger } = createMocks();
-      mockedReadMetadata.mockResolvedValue({ existing: 'old' });
+      const enrichmentStore = createMockEnrichmentStore({
+        existing: 'old',
+        newKey: 'val',
+      });
       vectorStore.getPayload.mockResolvedValue({ total_chunks: 2 });
 
       const processor = new DocumentProcessor({
@@ -319,23 +333,23 @@ describe('DocumentProcessor', () => {
         vectorStore: vectorStore as unknown as VectorStoreClient,
         compiledRules: [],
         logger,
+        enrichmentStore: enrichmentStore as unknown as EnrichmentStoreInterface,
       });
       const result = await processor.processMetadataUpdate('/test.txt', {
         newKey: 'val',
       });
 
-      expect(mockedWriteMetadata).toHaveBeenCalledWith(
-        '/test.txt',
-        '/tmp/meta',
-        { existing: 'old', newKey: 'val' },
-      );
+      expect(enrichmentStore.set).toHaveBeenCalledWith('/test.txt', {
+        newKey: 'val',
+      });
+      expect(enrichmentStore.get).toHaveBeenCalledWith('/test.txt');
       expect(vectorStore.setPayload).toHaveBeenCalledOnce();
       expect(result).toEqual({ existing: 'old', newKey: 'val' });
     });
 
     it('returns null when file is not indexed', async () => {
       const { vectorStore, embeddingProvider, config, logger } = createMocks();
-      mockedReadMetadata.mockResolvedValue(null);
+      const enrichmentStore = createMockEnrichmentStore(null);
       vectorStore.getPayload.mockResolvedValue(null);
 
       const processor = new DocumentProcessor({
@@ -344,6 +358,7 @@ describe('DocumentProcessor', () => {
         vectorStore: vectorStore as unknown as VectorStoreClient,
         compiledRules: [],
         logger,
+        enrichmentStore: enrichmentStore as unknown as EnrichmentStoreInterface,
       });
       const result = await processor.processMetadataUpdate('/test.txt', {
         key: 'val',
@@ -354,8 +369,9 @@ describe('DocumentProcessor', () => {
   });
 
   describe('deleteFile', () => {
-    it('removes chunks and metadata', async () => {
+    it('removes chunks and enrichment', async () => {
       const { vectorStore, embeddingProvider, config, logger } = createMocks();
+      const enrichmentStore = createMockEnrichmentStore(null);
       vectorStore.getPayload.mockResolvedValue({ total_chunks: 3 });
 
       const processor = new DocumentProcessor({
@@ -364,16 +380,14 @@ describe('DocumentProcessor', () => {
         vectorStore: vectorStore as unknown as VectorStoreClient,
         compiledRules: [],
         logger,
+        enrichmentStore: enrichmentStore as unknown as EnrichmentStoreInterface,
       });
       await processor.deleteFile('/test.txt');
 
       expect(vectorStore.delete).toHaveBeenCalledOnce();
       const deletedIds = vectorStore.delete.mock.calls[0][0] as string[];
       expect(deletedIds).toHaveLength(3);
-      expect(mockedDeleteMetadata).toHaveBeenCalledWith(
-        '/test.txt',
-        '/tmp/meta',
-      );
+      expect(enrichmentStore.delete).toHaveBeenCalledWith('/test.txt');
     });
   });
 });

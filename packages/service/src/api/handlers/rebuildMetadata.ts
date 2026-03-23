@@ -1,20 +1,22 @@
 /**
  * @module api/handlers/rebuildMetadata
- * Fastify route handler for POST /rebuild-metadata. Recreates enrichment metadata files from vector store payloads.
+ * Fastify route handler for POST /rebuild-metadata. Rebuilds enrichment store from vector store payloads.
  */
 
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import type pino from 'pino';
 import { omit } from 'radash';
 
-import { writeMetadata } from '../../metadata';
-import { SYSTEM_METADATA_KEYS } from '../../metadata/constants';
-import { FIELD_FILE_PATH } from '../../processor/payloadFields';
+import type { EnrichmentStoreInterface } from '../../enrichment';
+import {
+  FIELD_FILE_PATH,
+  SYSTEM_METADATA_KEYS,
+} from '../../processor/payloadFields';
 import type { VectorStore } from '../../vectorStore';
 import { wrapHandler } from './wrapHandler';
 
 interface RebuildMetadataRouteDeps {
-  metadataDir?: string;
+  enrichmentStore?: EnrichmentStoreInterface;
   vectorStore: VectorStore;
   logger: pino.Logger;
 }
@@ -27,7 +29,6 @@ interface RebuildMetadataRouteDeps {
 export function createRebuildMetadataHandler(deps: RebuildMetadataRouteDeps) {
   return wrapHandler(
     async (_request: FastifyRequest, reply: FastifyReply) => {
-      const metadataDir = deps.metadataDir ?? '.jeeves-metadata';
       const systemKeys = [...SYSTEM_METADATA_KEYS];
 
       for await (const point of deps.vectorStore.scroll()) {
@@ -36,7 +37,7 @@ export function createRebuildMetadataHandler(deps: RebuildMetadataRouteDeps) {
         if (typeof filePath !== 'string' || filePath.length === 0) continue;
 
         const enrichment = omit(payload, systemKeys);
-        await writeMetadata(filePath, metadataDir, enrichment);
+        deps.enrichmentStore?.set(filePath, enrichment);
       }
 
       return await reply.status(200).send({ ok: true });

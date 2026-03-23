@@ -26,7 +26,6 @@ function makeConfig(
       dimensions: 768,
     },
     embedding: { provider: 'openai', model: 'text-embedding-3-small' },
-    metadataDir: '/tmp/meta',
     stateDir: '/tmp/state',
   } as unknown as JeevesWatcherConfig;
 }

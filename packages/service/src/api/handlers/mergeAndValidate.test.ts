@@ -25,14 +25,14 @@ describe('mergeAndValidateConfig', () => {
 
   it('should merge partial config into base config', () => {
     const partial = {
-      metadataDir: '.custom-metadata',
+      stateDir: '.custom-state',
       logging: { level: 'debug' },
     };
 
     const result = mergeAndValidateConfig(baseConfig, partial);
 
     expect(result.errors).toHaveLength(0);
-    expect(result.parsed?.metadataDir).toBe('.custom-metadata');
+    expect(result.parsed?.stateDir).toBe('.custom-state');
     expect(result.parsed?.logging?.level).toBe('debug');
     expect(result.parsed?.watch).toEqual(baseConfig.watch);
   });

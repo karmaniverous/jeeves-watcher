@@ -11,8 +11,6 @@ import type { SchemaEntry } from '../config/schemas';
  * Configuration needed by DocumentProcessor (ISP — narrow interface).
  */
 export interface ProcessorConfig {
-  /** Metadata directory for enrichment files. */
-  metadataDir: string;
   /** Maximum chunk size in characters. */
   chunkSize?: number;
   /** Overlap between chunks in characters. */

@@ -10,9 +10,9 @@ import { extname } from 'node:path';
 import type pino from 'pino';
 
 import type { EmbeddingProvider } from '../embedding';
+import type { EnrichmentStoreInterface } from '../enrichment';
 import { contentHash } from '../hash';
 import type { IssuesManager } from '../issues';
-import { deleteMetadata, readMetadata, writeMetadata } from '../metadata';
 import { pointId } from '../pointId';
 import type { CompiledRule } from '../rules';
 import type { TemplateEngine } from '../templates';
@@ -49,6 +49,8 @@ export interface DocumentProcessorDeps {
   logger: pino.Logger;
   /** Optional Handlebars template engine for content templates. */
   templateEngine?: TemplateEngine;
+  /** Optional enrichment store for persisted enrichment metadata. */
+  enrichmentStore?: EnrichmentStoreInterface;
   /** Optional issues manager for tracking processing errors. */
   issuesManager?: IssuesManager;
   /** Optional values manager for tracking rule-extracted values. */
@@ -67,6 +69,7 @@ export class DocumentProcessor implements DocumentProcessorInterface {
   private compiledRules: CompiledRule[];
   private readonly logger: pino.Logger;
   private templateEngine?: TemplateEngine;
+  private readonly enrichmentStore?: EnrichmentStoreInterface;
   private readonly issuesManager?: IssuesManager;
   private readonly valuesManager?: ValuesManager;
 
@@ -82,6 +85,7 @@ export class DocumentProcessor implements DocumentProcessorInterface {
     compiledRules,
     logger,
     templateEngine,
+    enrichmentStore,
     issuesManager,
     valuesManager,
   }: DocumentProcessorDeps) {
@@ -91,6 +95,7 @@ export class DocumentProcessor implements DocumentProcessorInterface {
     this.compiledRules = compiledRules;
     this.logger = logger;
     this.templateEngine = templateEngine;
+    this.enrichmentStore = enrichmentStore;
     this.issuesManager = issuesManager;
     this.valuesManager = valuesManager;
   }
@@ -102,7 +107,7 @@ export class DocumentProcessor implements DocumentProcessorInterface {
     const result = await buildMergedMetadata({
       filePath,
       compiledRules: this.compiledRules,
-      metadataDir: this.config.metadataDir,
+      enrichmentStore: this.enrichmentStore,
       maps: this.config.maps,
       logger: this.logger,
       templateEngine: this.templateEngine,
@@ -221,7 +226,7 @@ export class DocumentProcessor implements DocumentProcessorInterface {
 
         const ids = chunkIds(filePath, totalChunks);
         await this.vectorStore.delete(ids);
-        await deleteMetadata(filePath, this.config.metadataDir);
+        this.enrichmentStore?.delete(filePath);
 
         this.logger.info({ filePath }, 'File deleted from index');
       },
@@ -230,7 +235,7 @@ export class DocumentProcessor implements DocumentProcessorInterface {
   }
 
   /**
-   * Process a metadata update: merge metadata, write to disk, update Qdrant payloads (no re-embed).
+   * Process a metadata update: merge into enrichment store, update Qdrant payloads (no re-embed).
    *
    * @param filePath - The file whose metadata to update.
    * @param metadata - The new metadata to merge.
@@ -244,10 +249,8 @@ export class DocumentProcessor implements DocumentProcessorInterface {
       filePath,
       'Failed to update metadata',
       async () => {
-        const existing =
-          (await readMetadata(filePath, this.config.metadataDir)) ?? {};
-        const merged = { ...existing, ...metadata };
-        await writeMetadata(filePath, this.config.metadataDir, merged);
+        this.enrichmentStore?.set(filePath, metadata);
+        const merged = this.enrichmentStore?.get(filePath) ?? metadata;
 
         const baseId = pointId(filePath, 0);
         const existingPayload = await this.vectorStore.getPayload(baseId);

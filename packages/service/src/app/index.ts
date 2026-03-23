@@ -14,6 +14,7 @@ import type pino from 'pino';
 import { executeReindex } from '../api/executeReindex';
 import { InitialScanTracker } from '../api/InitialScanTracker';
 import type { JeevesWatcherConfig } from '../config/types';
+import { EnrichmentStore } from '../enrichment';
 import type { GitignoreFilter } from '../gitignore';
 import type { AllHelpersIntrospection } from '../helpers';
 import { IssuesManager } from '../issues';
@@ -71,6 +72,7 @@ export class JeevesWatcher {
   private vectorStore: ApiServerOptions['vectorStore'] | undefined;
   private embeddingProvider: ApiServerOptions['embeddingProvider'] | undefined;
   private gitignoreFilter: GitignoreFilter | undefined;
+  private enrichmentStore: EnrichmentStore | undefined;
   private readonly initialScanTracker: InitialScanTracker;
   private readonly version: string;
 
@@ -137,10 +139,11 @@ export class JeevesWatcher {
       customMapLib,
     );
 
-    const stateDir =
-      this.config.stateDir ?? this.config.metadataDir ?? '.jeeves-metadata';
+    const stateDir = this.config.stateDir ?? '.jeeves-metadata';
     this.issuesManager = new IssuesManager(stateDir, logger);
     this.valuesManager = new ValuesManager(stateDir, logger);
+    this.enrichmentStore = new EnrichmentStore(stateDir);
+    const enrichmentStore = this.enrichmentStore;
 
     const processor = this.factories.createDocumentProcessor({
       config: processorConfig,
@@ -149,6 +152,7 @@ export class JeevesWatcher {
       compiledRules,
       logger,
       templateEngine,
+      enrichmentStore,
       issuesManager: this.issuesManager,
       valuesManager: this.valuesManager,
     });
@@ -233,6 +237,7 @@ export class JeevesWatcher {
       version: this.version,
       initialScanTracker: this.initialScanTracker,
       fileSystemWatcher: this.watcher,
+      enrichmentStore: this.enrichmentStore,
     });
 
     await server.listen({

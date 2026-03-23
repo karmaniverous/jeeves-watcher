@@ -15,13 +15,6 @@ vi.mock('./buildMetadata', () => ({
   buildMergedMetadata: vi.fn(),
 }));
 
-// Mock metadata I/O
-vi.mock('../metadata', () => ({
-  readMetadata: vi.fn(),
-  writeMetadata: vi.fn(),
-  deleteMetadata: vi.fn(),
-}));
-
 describe('DocumentProcessor.moveFile', () => {
   it('throws not-implemented error (stub)', async () => {
     const vectorStore = {
@@ -36,9 +29,7 @@ describe('DocumentProcessor.moveFile', () => {
       embed: vi.fn(),
     };
 
-    const config: ProcessorConfig = {
-      metadataDir: '/tmp/meta',
-    };
+    const config: ProcessorConfig = {};
 
     const processor = new DocumentProcessor({
       config,

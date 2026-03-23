@@ -74,7 +74,6 @@ describe('initialization helpers integration', () => {
     const { createProcessorConfig } = await import('./initialization');
 
     const config: Partial<JeevesWatcherConfig> = {
-      metadataDir: '.metadata',
       embedding: {
         provider: 'gemini',
         model: 'test-model',
@@ -93,7 +92,6 @@ describe('initialization helpers integration', () => {
       undefined,
     );
 
-    expect(processorConfig.metadataDir).toBe('.metadata');
     expect(processorConfig.chunkSize).toBe(500);
     expect(processorConfig.chunkOverlap).toBe(100);
     expect(processorConfig.configDir).toBe('/config/dir');

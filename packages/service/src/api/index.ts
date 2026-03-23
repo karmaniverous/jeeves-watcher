@@ -10,6 +10,7 @@ import type pino from 'pino';
 
 import type { JeevesWatcherConfig } from '../config/types';
 import type { EmbeddingProvider } from '../embedding';
+import type { EnrichmentStoreInterface } from '../enrichment';
 import type { GitignoreFilter } from '../gitignore';
 import type { AllHelpersIntrospection } from '../helpers';
 import type { IssuesManager } from '../issues';
@@ -92,6 +93,8 @@ export interface ApiServerOptions {
   initialScanTracker?: InitialScanTracker;
   /** Filesystem watcher instance for /walk endpoint (in-memory file list). */
   fileSystemWatcher?: FileSystemWatcher;
+  /** Optional enrichment store for persisted enrichment metadata. */
+  enrichmentStore?: EnrichmentStoreInterface;
 }
 
 /**
@@ -217,7 +220,7 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
   app.post(
     '/rebuild-metadata',
     createRebuildMetadataHandler({
-      metadataDir: config.metadataDir,
+      enrichmentStore: options.enrichmentStore,
       vectorStore,
       logger,
     }),

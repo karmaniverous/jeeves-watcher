@@ -28,14 +28,23 @@ vi.mock('../rules', () => ({
   }),
 }));
 
-vi.mock('../metadata', () => ({
-  readMetadata: vi.fn().mockResolvedValue(null),
-}));
-
+import type { EnrichmentStoreInterface } from '../enrichment';
 import { extractText } from '../extractors';
-import { readMetadata } from '../metadata';
 import { applyRules } from '../rules';
 import { buildMergedMetadata } from './buildMetadata';
+
+function createMockEnrichmentStore(
+  data: Record<string, unknown> | null = null,
+): EnrichmentStoreInterface {
+  return {
+    get: vi.fn().mockReturnValue(data),
+    set: vi.fn(),
+    delete: vi.fn(),
+    move: vi.fn(),
+    list: vi.fn().mockReturnValue([]),
+    close: vi.fn(),
+  };
+}
 
 describe('buildMergedMetadata', () => {
   let tmpDir: string;
@@ -56,7 +65,6 @@ describe('buildMergedMetadata', () => {
     const result = await buildMergedMetadata({
       filePath: testFile,
       compiledRules: [],
-      metadataDir: tmpDir,
     });
 
     expect(result.inferred).toEqual({ category: 'doc' });
@@ -64,7 +72,7 @@ describe('buildMergedMetadata', () => {
   });
 
   it('merges enrichment over inferred metadata', async () => {
-    vi.mocked(readMetadata).mockResolvedValueOnce({
+    const enrichmentStore = createMockEnrichmentStore({
       category: 'override',
       extra: 'yes',
     });
@@ -72,7 +80,7 @@ describe('buildMergedMetadata', () => {
     const result = await buildMergedMetadata({
       filePath: testFile,
       compiledRules: [],
-      metadataDir: tmpDir,
+      enrichmentStore,
     });
 
     expect(result.metadata).toEqual({
@@ -83,12 +91,12 @@ describe('buildMergedMetadata', () => {
   });
 
   it('handles null enrichment gracefully', async () => {
-    vi.mocked(readMetadata).mockResolvedValueOnce(null);
+    const enrichmentStore = createMockEnrichmentStore(null);
 
     const result = await buildMergedMetadata({
       filePath: testFile,
       compiledRules: [],
-      metadataDir: tmpDir,
+      enrichmentStore,
     });
 
     expect(result.enrichment).toBeNull();
@@ -103,7 +111,6 @@ describe('buildMergedMetadata', () => {
     await buildMergedMetadata({
       filePath: testFile,
       compiledRules: [],
-      metadataDir: tmpDir,
       logger,
     });
 
@@ -118,7 +125,6 @@ describe('buildMergedMetadata', () => {
     const result = await buildMergedMetadata({
       filePath: testFile,
       compiledRules: [],
-      metadataDir: tmpDir,
     });
 
     expect(result.renderAs).toBeNull();
@@ -135,7 +141,6 @@ describe('buildMergedMetadata', () => {
     const result = await buildMergedMetadata({
       filePath: testFile,
       compiledRules: [],
-      metadataDir: tmpDir,
     });
 
     expect(result.renderAs).toBe('md');
@@ -152,7 +157,6 @@ describe('buildMergedMetadata', () => {
     const result = await buildMergedMetadata({
       filePath: testFile,
       compiledRules: [],
-      metadataDir: tmpDir,
     });
 
     expect(result.renderAs).toBe('html');
@@ -162,7 +166,6 @@ describe('buildMergedMetadata', () => {
     const result = await buildMergedMetadata({
       filePath: testFile,
       compiledRules: [],
-      metadataDir: tmpDir,
     });
 
     expect(result.extracted).toEqual({
