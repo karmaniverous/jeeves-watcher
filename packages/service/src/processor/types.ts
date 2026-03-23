@@ -31,6 +31,9 @@ export interface DocumentProcessorInterface {
   /** Render a file through the rule engine without embedding. */
   renderFile(filePath: string): Promise<RenderResult>;
 
+  /** Move a file's vector points and metadata from old path to new path (no re-embed). */
+  moveFile(oldPath: string, newPath: string): Promise<void>;
+
   /** Update compiled inference rules and associated engines. */
   updateRules(
     compiledRules: CompiledRule[],

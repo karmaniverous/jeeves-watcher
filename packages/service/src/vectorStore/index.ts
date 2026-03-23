@@ -320,6 +320,32 @@ export class VectorStoreClient implements VectorStore {
   }
 
   /**
+   * Retrieve points with their vectors by ID.
+   *
+   * @param ids - The point IDs to retrieve.
+   * @returns Points with vectors and payloads; missing IDs are omitted.
+   */
+  async getPointsWithVectors(ids: string[]): Promise<VectorPoint[]> {
+    if (ids.length === 0) return [];
+    try {
+      const results = await this.client.retrieve(this.collectionName, {
+        ids,
+        with_payload: true,
+        with_vector: true,
+      });
+      return results
+        .filter((r) => r.vector != null)
+        .map((r) => ({
+          id: String(r.id),
+          vector: r.vector as number[],
+          payload: r.payload as Record<string, unknown>,
+        }));
+    } catch {
+      return [];
+    }
+  }
+
+  /**
    * Scroll one page of points matching a filter.
    *
    * @param filter - Optional Qdrant filter.

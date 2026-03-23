@@ -338,6 +338,19 @@ export class DocumentProcessor implements DocumentProcessorInterface {
   }
 
   /**
+   * Move a file's vector points and metadata from old path to new path.
+   * Stub — real implementation added in Step 6.
+   *
+   * @param oldPath - The original file path.
+   * @param newPath - The new file path.
+   */
+  moveFile(oldPath: string, newPath: string): Promise<void> {
+    void oldPath;
+    void newPath;
+    return Promise.reject(new Error('moveFile not yet implemented'));
+  }
+
+  /**
    * Update compiled inference rules, template engine, and custom map lib.
    *
    * @param compiledRules - The newly compiled rules.

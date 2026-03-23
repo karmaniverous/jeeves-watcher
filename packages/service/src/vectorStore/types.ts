@@ -185,4 +185,12 @@ export interface VectorStore {
     textWeight: number,
     filter?: Record<string, unknown>,
   ): Promise<SearchResult[]>;
+
+  /**
+   * Retrieve points with their vectors by ID.
+   *
+   * @param ids - The point IDs to retrieve.
+   * @returns Points with vectors and payloads; missing IDs are omitted.
+   */
+  getPointsWithVectors(ids: string[]): Promise<VectorPoint[]>;
 }
