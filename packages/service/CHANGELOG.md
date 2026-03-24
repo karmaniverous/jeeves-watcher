@@ -2,12 +2,27 @@
 
 All notable changes to this project will be documented in this file. Dates are displayed in UTC.
 
-#### [0.14.0](https://github.com/karmaniverous/jeeves-watcher/compare/service/0.13.0...0.14.0)
+#### [0.15.0](https://github.com/karmaniverous/jeeves-watcher/compare/service/0.14.0...0.15.0)
+
+- feat: hot-reload and bugfixes v0.15.0 [`#147`](https://github.com/karmaniverous/jeeves-watcher/pull/147)
+- feat: add full hot-reload with watcher rebuild on config change [`#113`](https://github.com/karmaniverous/jeeves-watcher/pull/113)
+- fix: close EnrichmentStore on shutdown (#145), fix schema path resolution in metadata validation [`#116`](https://github.com/karmaniverous/jeeves-watcher/pull/116)
+- refactor: convert remaining captured config refs to getters in status, render, walk, search handlers (SOLID/DRY) [`c262e63`](https://github.com/karmaniverous/jeeves-watcher/commit/c262e63ca4c2a182d0704a402565284442e86d47)
+- refactor: replace captured config with getter pattern in API handlers (#144, #146) [`89a568c`](https://github.com/karmaniverous/jeeves-watcher/commit/89a568cd522c58ab0356b5f6f43c8678dbc88a8c)
+- chore: remove temporary TASK.md [`33e8181`](https://github.com/karmaniverous/jeeves-watcher/commit/33e8181363a619065dd2817895b513c5067b544d)
+- perf: cache compiled rules in configMatch handler, invalidate on config change [`c1821ca`](https://github.com/karmaniverous/jeeves-watcher/commit/c1821ca733be91a10cfe2e14cdc631602ac025f6)
+- chore: release @karmaniverous/jeeves-watcher-openclaw v0.11.0 [`eab6a75`](https://github.com/karmaniverous/jeeves-watcher/commit/eab6a758805ad1477980c51e3b1f67626bb1857b)
+- chore: un-export unused types flagged by knip [`4532c6d`](https://github.com/karmaniverous/jeeves-watcher/commit/4532c6d6fe3cb8378a338791e877ebe691df72c4)
+
+#### [service/0.14.0](https://github.com/karmaniverous/jeeves-watcher/compare/service/0.13.0...service/0.14.0)
+
+> 23 March 2026
 
 - feat: move detection and durable enrichment store [`#143`](https://github.com/karmaniverous/jeeves-watcher/pull/143)
 - feat: add EnrichmentStore and composable merge utility [`50dc78e`](https://github.com/karmaniverous/jeeves-watcher/commit/50dc78efa213615b834ecaa7d92277d5e3944828)
 - feat: add MoveCorrelator and wire into FileSystemWatcher [`4012ad5`](https://github.com/karmaniverous/jeeves-watcher/commit/4012ad5481d2ddaf10166ba65085cf466245ebde)
 - refactor: wire EnrichmentStore into processor, remove sidecar metadata system [`49deb30`](https://github.com/karmaniverous/jeeves-watcher/commit/49deb30e2bafa75dec6940483a26a851f72059a4)
+- chore: release @karmaniverous/jeeves-watcher v0.14.0 [`c510b0f`](https://github.com/karmaniverous/jeeves-watcher/commit/c510b0f4de9ab10c4b54307d4f9398f9c0e40045)
 - feat: implement DocumentProcessor.moveFile for zero-embedding moves [`d4c3a87`](https://github.com/karmaniverous/jeeves-watcher/commit/d4c3a87f0d39906de93797f3c553eedc4ea8a9ad)
 - feat: extend interfaces for move detection and enrichment store [`8c3b109`](https://github.com/karmaniverous/jeeves-watcher/commit/8c3b109e049c243fb339ca3fd474c674301ed44e)
 - feat: add ContentHashCache for move detection [`0130011`](https://github.com/karmaniverous/jeeves-watcher/commit/0130011349c5878cce864f81d8da2083b3b7cb5f)
