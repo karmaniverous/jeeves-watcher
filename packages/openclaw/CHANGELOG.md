@@ -2,7 +2,22 @@
 
 All notable changes to this project will be documented in this file. Dates are displayed in UTC.
 
-#### [0.11.0](https://github.com/karmaniverous/jeeves-watcher/compare/openclaw/0.10.0...0.11.0)
+#### [0.12.0](https://github.com/karmaniverous/jeeves-watcher/compare/openclaw/0.11.0...0.12.0)
+
+- feat: hot-reload and bugfixes v0.15.0 [`#147`](https://github.com/karmaniverous/jeeves-watcher/pull/147)
+- feat: add full hot-reload with watcher rebuild on config change [`#113`](https://github.com/karmaniverous/jeeves-watcher/pull/113)
+- fix: close EnrichmentStore on shutdown (#145), fix schema path resolution in metadata validation [`#116`](https://github.com/karmaniverous/jeeves-watcher/pull/116)
+- refactor: convert remaining captured config refs to getters in status, render, walk, search handlers (SOLID/DRY) [`c262e63`](https://github.com/karmaniverous/jeeves-watcher/commit/c262e63ca4c2a182d0704a402565284442e86d47)
+- refactor: replace captured config with getter pattern in API handlers (#144, #146) [`89a568c`](https://github.com/karmaniverous/jeeves-watcher/commit/89a568cd522c58ab0356b5f6f43c8678dbc88a8c)
+- chore: remove temporary TASK.md [`33e8181`](https://github.com/karmaniverous/jeeves-watcher/commit/33e8181363a619065dd2817895b513c5067b544d)
+- perf: cache compiled rules in configMatch handler, invalidate on config change [`c1821ca`](https://github.com/karmaniverous/jeeves-watcher/commit/c1821ca733be91a10cfe2e14cdc631602ac025f6)
+- chore: release @karmaniverous/jeeves-watcher v0.15.0 [`199cf02`](https://github.com/karmaniverous/jeeves-watcher/commit/199cf022f479a24052c020b58f7ca731acf67ccd)
+- chore: un-export unused types flagged by knip [`4532c6d`](https://github.com/karmaniverous/jeeves-watcher/commit/4532c6d6fe3cb8378a338791e877ebe691df72c4)
+- docs: update watcher_config_apply skill text to reflect hot-reload capability [`642dc80`](https://github.com/karmaniverous/jeeves-watcher/commit/642dc80dcaf1ab53bbafc75cfcde1c7b3f32d359)
+
+#### [openclaw/0.11.0](https://github.com/karmaniverous/jeeves-watcher/compare/openclaw/0.10.0...openclaw/0.11.0)
+
+> 23 March 2026
 
 - feat: move detection and durable enrichment store [`#143`](https://github.com/karmaniverous/jeeves-watcher/pull/143)
 - feat: add EnrichmentStore and composable merge utility [`50dc78e`](https://github.com/karmaniverous/jeeves-watcher/commit/50dc78efa213615b834ecaa7d92277d5e3944828)
@@ -14,6 +29,7 @@ All notable changes to this project will be documented in this file. Dates are d
 - feat: add ContentHashCache for move detection [`0130011`](https://github.com/karmaniverous/jeeves-watcher/commit/0130011349c5878cce864f81d8da2083b3b7cb5f)
 - test: remove trivial tests, add move pipeline integration tests [`62cb933`](https://github.com/karmaniverous/jeeves-watcher/commit/62cb933fa02dbd44239d385b63e20527a65b48ba)
 - npm audit fix [`e93ece6`](https://github.com/karmaniverous/jeeves-watcher/commit/e93ece66db2fa70f26eb61faebbfe87f68681db3)
+- chore: release @karmaniverous/jeeves-watcher-openclaw v0.11.0 [`eab6a75`](https://github.com/karmaniverous/jeeves-watcher/commit/eab6a758805ad1477980c51e3b1f67626bb1857b)
 - docs: sync README, SKILL.md with v0.14.0 implementation (move detection, enrichment store) [`c0bf11e`](https://github.com/karmaniverous/jeeves-watcher/commit/c0bf11eb6790d4fb0d0695317faef5331988caca)
 
 #### [openclaw/0.10.0](https://github.com/karmaniverous/jeeves-watcher/compare/openclaw/0.9.0...openclaw/0.10.0)
