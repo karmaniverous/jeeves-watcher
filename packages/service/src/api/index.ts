@@ -164,7 +164,15 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
     ),
   );
 
-  app.post('/metadata', createMetadataHandler({ processor, config, logger }));
+  app.post(
+    '/metadata',
+    createMetadataHandler({
+      processor,
+      config,
+      logger,
+      configDir: dirname(configPath),
+    }),
+  );
 
   app.post(
     '/render',

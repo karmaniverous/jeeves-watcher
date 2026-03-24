@@ -219,6 +219,8 @@ export class JeevesWatcher {
       }
     }
 
+    this.enrichmentStore?.close();
+
     if (this.server) {
       await this.server.close();
     }
