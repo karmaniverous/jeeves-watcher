@@ -3,15 +3,9 @@
  * Main application orchestrator. Wires components, manages lifecycle (start/stop/reload).
  */
 
-import { readFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
-
 import type { FastifyInstance } from 'fastify';
-import { packageDirectorySync } from 'package-directory';
 import type pino from 'pino';
 
-import { executeReindex } from '../api/executeReindex';
 import { InitialScanTracker } from '../api/InitialScanTracker';
 import { ContentHashCache } from '../cache';
 import type { JeevesWatcherConfig } from '../config/types';
@@ -22,9 +16,9 @@ import { IssuesManager } from '../issues';
 import type { DocumentProcessorInterface } from '../processor';
 import type { EventQueue } from '../queue';
 import { VirtualRuleStore } from '../rules/virtualRules';
-import { normalizeError } from '../util/normalizeError';
 import { ValuesManager } from '../values';
 import type { FileSystemWatcher } from '../watcher';
+import { reloadConfig } from './configReload';
 import { ConfigWatcher } from './configWatcher';
 import { defaultFactories, type JeevesWatcherFactories } from './factories';
 import {
@@ -34,6 +28,7 @@ import {
   getConfigDir,
   initEmbeddingAndStore,
   introspectHelpers,
+  resolveVersion,
 } from './initialization';
 
 type ApiServerOptions = Parameters<
@@ -43,9 +38,7 @@ type ApiServerOptions = Parameters<
 export type { JeevesWatcherFactories } from './factories';
 export { startFromConfig } from './startFromConfig';
 
-/**
- * Runtime options for {@link JeevesWatcher} that aren't serializable in config.
- */
+/** Runtime options for {@link JeevesWatcher} that aren't serializable in config. */
 export interface JeevesWatcherRuntimeOptions {
   /** Callback invoked on unrecoverable system error. If not set, throws. */
   onFatalError?: (error: unknown) => void;
@@ -91,19 +84,7 @@ export class JeevesWatcher {
     this.runtimeOptions = runtimeOptions;
     this.virtualRuleStore = new VirtualRuleStore();
     this.initialScanTracker = new InitialScanTracker();
-    try {
-      const pkgDir = packageDirectorySync({
-        cwd: dirname(fileURLToPath(import.meta.url)),
-      });
-      const pkg = pkgDir
-        ? (JSON.parse(readFileSync(join(pkgDir, 'package.json'), 'utf8')) as {
-            version: string;
-          })
-        : undefined;
-      this.version = pkg?.version ?? 'unknown';
-    } catch {
-      this.version = 'unknown';
-    }
+    this.version = resolveVersion(import.meta.url);
   }
 
   /**
@@ -292,52 +273,27 @@ export class JeevesWatcher {
     const processor = this.processor;
     if (!logger || !processor || !this.configPath) return;
 
-    logger.info(
-      { configPath: this.configPath },
-      'Config change detected, reloading...',
-    );
+    const state = {
+      config: this.config,
+      watcher: this.watcher,
+      gitignoreFilter: this.gitignoreFilter,
+    };
 
-    try {
-      const newConfig = await this.factories.loadConfig(this.configPath);
-      this.config = newConfig;
+    await reloadConfig(state, {
+      configPath: this.configPath,
+      factories: this.factories,
+      queue: this.queue!,
+      processor,
+      logger,
+      runtimeOptions: this.runtimeOptions,
+      initialScanTracker: this.initialScanTracker,
+      contentHashCache: this.contentHashCache,
+      valuesManager: this.valuesManager,
+      issuesManager: this.issuesManager,
+    });
 
-      const compiledRules = this.factories.compileRules(
-        newConfig.inferenceRules ?? [],
-      );
-
-      const reloadConfigDir = getConfigDir(this.configPath);
-      const {
-        templateEngine: newTemplateEngine,
-        customMapLib: newCustomMapLib,
-      } = await buildTemplateEngineAndCustomMapLib(newConfig, reloadConfigDir);
-
-      processor.updateRules(compiledRules, newTemplateEngine, newCustomMapLib);
-
-      logger.info(
-        { configPath: this.configPath, rules: compiledRules.length },
-        'Config reloaded',
-      );
-
-      // Trigger reindex based on configWatch.reindex setting
-      const reindexScope = newConfig.configWatch?.reindex ?? 'issues';
-      logger.info(
-        { scope: reindexScope },
-        `Config watch triggering ${reindexScope} reindex`,
-      );
-
-      await executeReindex(
-        {
-          config: newConfig,
-          processor,
-          logger,
-          valuesManager: this.valuesManager,
-          issuesManager: this.issuesManager,
-          gitignoreFilter: this.gitignoreFilter,
-        },
-        reindexScope,
-      );
-    } catch (error) {
-      logger.error({ err: normalizeError(error) }, 'Failed to reload config');
-    }
+    this.config = state.config;
+    this.watcher = state.watcher;
+    this.gitignoreFilter = state.gitignoreFilter;
   }
 }
