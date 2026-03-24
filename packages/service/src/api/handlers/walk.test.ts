@@ -15,7 +15,7 @@ describe('createWalkHandler', () => {
   });
 
   const makeDeps = (): WalkRouteDeps => ({
-    watchPaths: ['j:/domains/**/*.md', 'j:/config/**/*.json'],
+    getWatchPaths: () => ['j:/domains/**/*.md', 'j:/config/**/*.json'],
     fileSystemWatcher: mockWatcher as never,
     logger: { warn: vi.fn(), error: vi.fn(), info: vi.fn() } as never,
   });
@@ -101,7 +101,7 @@ describe('createWalkHandler', () => {
 
   it('returns 503 when watcher is not available', async () => {
     const deps: WalkRouteDeps = {
-      watchPaths: ['j:/domains/**/*.md'],
+      getWatchPaths: () => ['j:/domains/**/*.md'],
       logger: { warn: vi.fn(), error: vi.fn(), info: vi.fn() } as never,
     };
     const handler = createWalkHandler(deps);

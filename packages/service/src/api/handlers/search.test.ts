@@ -59,7 +59,7 @@ describe('createSearchHandler', () => {
   it('uses hybridSearch when hybrid config is enabled', async () => {
     const hybridDeps = {
       ...mockDeps,
-      hybridConfig: { enabled: true, textWeight: 0.3 },
+      getHybridConfig: () => ({ enabled: true, textWeight: 0.3 }),
     } as unknown as SearchRouteDeps;
 
     const handler = createSearchHandler(hybridDeps);
@@ -85,7 +85,7 @@ describe('createSearchHandler', () => {
     searchMock.mockClear();
     const hybridDeps = {
       ...mockDeps,
-      hybridConfig: { enabled: false, textWeight: 0.3 },
+      getHybridConfig: () => ({ enabled: false, textWeight: 0.3 }),
     } as unknown as SearchRouteDeps;
 
     const handler = createSearchHandler(hybridDeps);

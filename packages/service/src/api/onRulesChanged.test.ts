@@ -40,6 +40,13 @@ describe('onRulesChanged auto-reindex (Fix 21)', () => {
         vectorStore: { collectionName: 'test' },
         inferenceRules: [],
       } as never,
+      getConfig: () =>
+        ({
+          watch: { paths: ['j:/domains/**/*.md'], ignored: [] },
+          api: {},
+          vectorStore: { collectionName: 'test' },
+          inferenceRules: [],
+        }) as never,
       logger: {
         info: vi.fn(),
         warn: vi.fn(),

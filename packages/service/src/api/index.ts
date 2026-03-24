@@ -160,7 +160,7 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
       cacheTtlMs,
       createStatusHandler({
         vectorStore,
-        collectionName: config.vectorStore.collectionName,
+        getCollectionName: () => getConfig().vectorStore.collectionName,
         reindexTracker,
         version: version ?? 'unknown',
         initialScanTracker,
@@ -182,7 +182,11 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
     '/render',
     withCache(
       cacheTtlMs,
-      createRenderHandler({ processor, watch: config.watch, logger }),
+      createRenderHandler({
+        processor,
+        getWatch: () => getConfig().watch,
+        logger,
+      }),
     ),
   );
 
@@ -195,13 +199,6 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
     }),
   );
 
-  const hybridConfig = config.search?.hybrid
-    ? {
-        enabled: config.search.hybrid.enabled,
-        textWeight: config.search.hybrid.textWeight,
-      }
-    : undefined;
-
   app.post(
     '/scan',
     createScanHandler({
@@ -213,7 +210,7 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
   app.post(
     '/walk',
     createWalkHandler({
-      watchPaths: config.watch.paths,
+      getWatchPaths: () => getConfig().watch.paths,
       fileSystemWatcher: options.fileSystemWatcher,
       logger,
     }),
@@ -225,7 +222,12 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
       embeddingProvider,
       vectorStore,
       logger,
-      hybridConfig,
+      getHybridConfig: () => {
+        const hybrid = getConfig().search?.hybrid;
+        return hybrid
+          ? { enabled: hybrid.enabled, textWeight: hybrid.textWeight }
+          : undefined;
+      },
     }),
   );
 

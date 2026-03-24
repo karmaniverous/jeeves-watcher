@@ -19,7 +19,7 @@ describe('createStatusHandler', () => {
 
     const mockDeps = {
       vectorStore: vectorStore as VectorStore,
-      collectionName: 'test-collection',
+      getCollectionName: () => 'test-collection',
       reindexTracker: new ReindexTracker(),
       version: '1.2.3',
     };
