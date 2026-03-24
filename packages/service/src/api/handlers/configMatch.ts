@@ -45,6 +45,12 @@ interface ConfigMatchHandlerOptions {
 export function createConfigMatchHandler(options: ConfigMatchHandlerOptions) {
   const { getConfig, logger } = options;
 
+  // Cache compiled artifacts per config reference — recompute only on hot-reload.
+  let cachedConfig: JeevesWatcherConfig | undefined;
+  let compiledRules: ReturnType<typeof compileRules> = [];
+  let watchMatcher: ReturnType<typeof picomatch> | undefined;
+  let ignoreMatcher: ReturnType<typeof picomatch> | undefined;
+
   const handler = async (
     req: FastifyRequest,
     res: FastifyReply,
@@ -57,11 +63,14 @@ export function createConfigMatchHandler(options: ConfigMatchHandlerOptions) {
     }
 
     const config = getConfig();
-    const compiledRules = compileRules(config.inferenceRules ?? []);
-    const watchMatcher = picomatch(config.watch.paths, { dot: true });
-    const ignoreMatcher = config.watch.ignored?.length
-      ? picomatch(config.watch.ignored, { dot: true })
-      : null;
+    if (config !== cachedConfig) {
+      compiledRules = compileRules(config.inferenceRules ?? []);
+      watchMatcher = picomatch(config.watch.paths, { dot: true });
+      ignoreMatcher = config.watch.ignored?.length
+        ? picomatch(config.watch.ignored, { dot: true })
+        : undefined;
+      cachedConfig = config;
+    }
 
     const matches: PathMatch[] = body.paths.map((path) => {
       const attrs = buildSyntheticAttributes(path);
@@ -74,7 +83,9 @@ export function createConfigMatchHandler(options: ConfigMatchHandlerOptions) {
       }
 
       const normalised = attrs.file.path;
-      const watched = watchMatcher(normalised) && !ignoreMatcher?.(normalised);
+      const watched =
+        (watchMatcher?.(normalised) ?? false) &&
+        !(ignoreMatcher?.(normalised) ?? false);
 
       return { rules: matchingRules, watched };
     });
