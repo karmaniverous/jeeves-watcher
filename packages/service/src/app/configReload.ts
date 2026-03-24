@@ -25,14 +25,14 @@ import {
 } from './initialization';
 
 /** Mutable state held by JeevesWatcher that reload needs to read/write. */
-export interface ReloadableState {
+interface ReloadableState {
   config: JeevesWatcherConfig;
   watcher?: FileSystemWatcher;
   gitignoreFilter?: GitignoreFilter;
 }
 
 /** Immutable dependencies needed by the reload function. */
-export interface ReloadDeps {
+interface ReloadDeps {
   configPath: string;
   factories: JeevesWatcherFactories;
   queue: EventQueue;

@@ -184,7 +184,7 @@ export function getConfigDir(configPath?: string): string {
 }
 
 /** State returned by {@link rebuildWatcher}. */
-export interface WatcherState {
+interface WatcherState {
   watcher: FileSystemWatcher;
   gitignoreFilter?: GitignoreFilter;
 }
