@@ -28,8 +28,8 @@ interface Facet {
 
 /** Dependencies for the facets handler. */
 export interface FacetsHandlerDeps {
-  /** The application configuration (for inference rules + global schemas). */
-  config: JeevesWatcherConfig;
+  /** Config getter for current application configuration. */
+  getConfig: () => JeevesWatcherConfig;
   /** The values manager for live distinct values. */
   valuesManager: ValuesManager;
   /** Config directory for resolving schema file paths. */
@@ -136,16 +136,17 @@ function buildFacetSchema(
  * @returns Fastify route handler (plain return, compatible with `withCache`).
  */
 export function createFacetsHandler(deps: FacetsHandlerDeps) {
-  const { config, valuesManager, configDir } = deps;
+  const { getConfig, valuesManager, configDir } = deps;
 
   let cached: CachedFacetSchema | undefined;
 
-  const mergeOptions: SchemaMergeOptions = {
-    globalSchemas: config.schemas,
-    configDir,
-  };
-
   return () => {
+    const config = getConfig();
+    const mergeOptions: SchemaMergeOptions = {
+      globalSchemas: config.schemas,
+      configDir,
+    };
+
     // Rebuild schema cache if rules changed
     const currentHash = computeRulesHash(config.inferenceRules);
     if (!cached || cached.rulesHash !== currentHash) {

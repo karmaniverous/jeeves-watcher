@@ -26,7 +26,7 @@ import type { ReindexTracker } from './ReindexTracker';
 
 /** Dependencies for {@link createOnRulesChanged}. */
 interface OnRulesChangedDeps {
-  config: JeevesWatcherConfig;
+  getConfig: () => JeevesWatcherConfig;
   configPath: string;
   processor: DocumentProcessorInterface;
   logger: pino.Logger;
@@ -73,7 +73,7 @@ export function extractMatchGlobs(
  */
 export function createOnRulesChanged(deps: OnRulesChangedDeps): () => void {
   const {
-    config,
+    getConfig,
     configPath,
     processor,
     logger,
@@ -86,6 +86,7 @@ export function createOnRulesChanged(deps: OnRulesChangedDeps): () => void {
   } = deps;
 
   return () => {
+    const config = getConfig();
     const configRules = config.inferenceRules ?? [];
     const virtualRulesBySource = virtualRuleStore.getAll();
     const allVirtualRules = Object.values(virtualRulesBySource).flat();

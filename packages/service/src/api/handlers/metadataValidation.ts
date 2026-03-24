@@ -77,6 +77,7 @@ export function validateMetadataPayload(
   config: JeevesWatcherConfig,
   path: string,
   metadata: Record<string, unknown>,
+  configDir?: string,
 ): MetadataValidationOutcome {
   const compiled = compileRules(config.inferenceRules ?? []);
 
@@ -92,6 +93,7 @@ export function validateMetadataPayload(
 
   const merged = mergeSchemas(schemaRefs, {
     globalSchemas: config.schemas ?? {},
+    configDir,
   });
 
   const details: ValidationDetail[] = [];
@@ -113,6 +115,7 @@ export function validateMetadataPayload(
         if (!m.rule.schema) return false;
         const ruleSchema = mergeSchemas(m.rule.schema, {
           globalSchemas: config.schemas ?? {},
+          configDir,
         });
         return (
           Object.hasOwn(ruleSchema.properties, key) &&

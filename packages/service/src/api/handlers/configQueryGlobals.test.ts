@@ -25,7 +25,7 @@ type ConfigQueryRequest = FastifyRequest<{
 
 function createDeps(): ConfigQueryRouteDeps {
   return {
-    config: { inferenceRules: [] } as unknown as JeevesWatcherConfig,
+    getConfig: () => ({ inferenceRules: [] }) as unknown as JeevesWatcherConfig,
     valuesManager: {
       getAll: vi.fn().mockReturnValue({}),
       getForRule: vi.fn().mockReturnValue({}),

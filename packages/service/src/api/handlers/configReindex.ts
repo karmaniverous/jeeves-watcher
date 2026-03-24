@@ -22,7 +22,7 @@ import { wrapHandler } from './wrapHandler';
 
 /** Dependencies for the reindex route handler. */
 export interface ConfigReindexRouteDeps {
-  config: JeevesWatcherConfig;
+  getConfig: () => JeevesWatcherConfig;
   processor: DocumentProcessorInterface;
   logger: pino.Logger;
   reindexTracker: ReindexTracker;
@@ -74,7 +74,7 @@ export function createConfigReindexHandler(deps: ConfigReindexRouteDeps) {
       }
 
       const reindexDeps = {
-        config: deps.config,
+        config: deps.getConfig(),
         processor: deps.processor,
         logger: deps.logger,
         reindexTracker: deps.reindexTracker,

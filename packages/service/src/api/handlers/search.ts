@@ -20,7 +20,7 @@ export interface SearchRouteDeps {
   embeddingProvider: EmbeddingProvider;
   vectorStore: VectorStore;
   logger: pino.Logger;
-  hybridConfig?: HybridSearchConfig;
+  getHybridConfig?: () => HybridSearchConfig | undefined;
 }
 
 type SearchRequest = FastifyRequest<{
@@ -43,12 +43,13 @@ export function createSearchHandler(deps: SearchRouteDeps) {
       const { query, limit = 10, offset, filter } = request.body;
       const vectors = await deps.embeddingProvider.embed([query]);
 
-      if (deps.hybridConfig?.enabled) {
+      const hybridConfig = deps.getHybridConfig?.();
+      if (hybridConfig?.enabled) {
         return deps.vectorStore.hybridSearch(
           vectors[0],
           query,
           limit,
-          deps.hybridConfig.textWeight,
+          hybridConfig.textWeight,
           filter,
         );
       }

@@ -15,7 +15,7 @@ import { wrapHandler } from './wrapHandler';
 
 /** Dependencies for the walk route handler. */
 export interface WalkRouteDeps {
-  watchPaths: string[];
+  getWatchPaths: () => string[];
   fileSystemWatcher?: FileSystemWatcher;
   logger: pino.Logger;
 }
@@ -64,7 +64,7 @@ export function createWalkHandler(deps: WalkRouteDeps) {
 
       const paths = watchedFiles.filter((f) => matchGlobs(normalizeSlashes(f)));
 
-      const scannedRoots = getWatchRootBases(deps.watchPaths);
+      const scannedRoots = getWatchRootBases(deps.getWatchPaths());
 
       return {
         paths,

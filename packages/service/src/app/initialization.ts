@@ -3,9 +3,12 @@
  * Initialization helpers for JeevesWatcher. Extracted to follow SRP.
  */
 
-import { dirname } from 'node:path';
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import type { JsonMapMap } from '@karmaniverous/jsonmap';
+import { packageDirectorySync } from 'package-directory';
 import type pino from 'pino';
 
 import type { InitialScanTracker } from '../api/InitialScanTracker';
@@ -178,4 +181,102 @@ export async function introspectHelpers(
  */
 export function getConfigDir(configPath?: string): string {
   return configPath ? dirname(configPath) : '.';
+}
+
+/** State returned by {@link rebuildWatcher}. */
+interface WatcherState {
+  watcher: FileSystemWatcher;
+  gitignoreFilter?: GitignoreFilter;
+}
+
+/**
+ * Tear down and rebuild the filesystem watcher with new config.
+ * Falls back to the old watcher if the new one fails to start.
+ */
+export async function rebuildWatcher(
+  newConfig: JeevesWatcherConfig,
+  factories: JeevesWatcherFactories,
+  queue: EventQueue,
+  processor: DocumentProcessorInterface,
+  logger: pino.Logger,
+  runtimeOptions: {
+    maxRetries?: number;
+    maxBackoffMs?: number;
+    onFatalError?: (error: unknown) => void;
+  },
+  oldState: WatcherState,
+  initialScanTracker?: InitialScanTracker,
+  contentHashCache?: ContentHashCache,
+): Promise<WatcherState> {
+  try {
+    await oldState.watcher.stop();
+
+    const { watcher: newWatcher, gitignoreFilter: newGitignoreFilter } =
+      createWatcher(
+        newConfig,
+        factories,
+        queue,
+        processor,
+        logger,
+        runtimeOptions,
+        initialScanTracker,
+        contentHashCache,
+      );
+    newWatcher.start();
+    logger.info('Filesystem watcher rebuilt successfully');
+    return { watcher: newWatcher, gitignoreFilter: newGitignoreFilter };
+  } catch (error) {
+    logger.error(
+      { err: normalizeError(error) },
+      'Failed to rebuild watcher, restoring previous',
+    );
+
+    try {
+      oldState.watcher.start();
+    } catch (restartError) {
+      logger.error(
+        { err: normalizeError(restartError) },
+        'Failed to restart previous watcher',
+      );
+    }
+    return oldState;
+  }
+}
+
+/**
+ * Check whether watch-relevant config fields changed between old and new config.
+ */
+export function watchConfigChanged(
+  oldConfig: JeevesWatcherConfig,
+  newConfig: JeevesWatcherConfig,
+): boolean {
+  return (
+    JSON.stringify(oldConfig.watch.paths) !==
+      JSON.stringify(newConfig.watch.paths) ||
+    JSON.stringify(oldConfig.watch.ignored) !==
+      JSON.stringify(newConfig.watch.ignored) ||
+    JSON.stringify(oldConfig.watch.moveDetection) !==
+      JSON.stringify(newConfig.watch.moveDetection) ||
+    (oldConfig.watch.respectGitignore ?? true) !==
+      (newConfig.watch.respectGitignore ?? true)
+  );
+}
+
+/**
+ * Resolve package version from nearest package.json.
+ */
+export function resolveVersion(referenceUrl: string): string {
+  try {
+    const pkgDir = packageDirectorySync({
+      cwd: dirname(fileURLToPath(referenceUrl)),
+    });
+    const pkg = pkgDir
+      ? (JSON.parse(readFileSync(join(pkgDir, 'package.json'), 'utf8')) as {
+          version: string;
+        })
+      : undefined;
+    return pkg?.version ?? 'unknown';
+  } catch {
+    return 'unknown';
+  }
 }

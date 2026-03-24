@@ -1,4 +1,8 @@
-import { describe, expect, it } from 'vitest';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import type { JeevesWatcherConfig } from '../../config/types';
 import { validateMetadataPayload } from './metadataValidation';
@@ -111,5 +115,82 @@ describe('validateMetadataPayload', () => {
     });
 
     expect(result.ok).toBe(true);
+  });
+
+  describe('configDir schema file resolution (#116)', () => {
+    let tempDir: string;
+    let schemasDir: string;
+
+    beforeAll(() => {
+      tempDir = mkdtempSync(join(tmpdir(), 'jw-test-'));
+      schemasDir = join(tempDir, 'schemas');
+      mkdirSync(schemasDir, { recursive: true });
+      writeFileSync(
+        join(schemasDir, 'content-fields.json'),
+        JSON.stringify({
+          type: 'object',
+          properties: {
+            title: { type: 'string', set: '{{file.stem}}' },
+          },
+        }),
+      );
+    });
+
+    afterAll(() => {
+      rmSync(tempDir, { recursive: true, force: true });
+    });
+
+    it('resolves schema file references relative to configDir', () => {
+      const config: JeevesWatcherConfig = {
+        ...baseConfig,
+        schemas: {
+          'content-fields': 'schemas/content-fields.json',
+        },
+        inferenceRules: [
+          {
+            name: 'file-schema-rule',
+            description: 'Uses file-based schema',
+            match: { type: 'object' },
+            schema: ['content-fields'],
+          },
+        ],
+      };
+
+      const result = validateMetadataPayload(
+        config,
+        'docs/readme.md',
+        { title: 'Hello' },
+        tempDir,
+      );
+
+      expect(result.ok).toBe(true);
+      expect(result.matchedRules).toContain('file-schema-rule');
+    });
+
+    it('rejects type mismatch when schema is loaded from file', () => {
+      const config: JeevesWatcherConfig = {
+        ...baseConfig,
+        schemas: {
+          'content-fields': 'schemas/content-fields.json',
+        },
+        inferenceRules: [
+          {
+            name: 'file-schema-rule',
+            description: 'Uses file-based schema',
+            match: { type: 'object' },
+            schema: ['content-fields'],
+          },
+        ],
+      };
+
+      const result = validateMetadataPayload(
+        config,
+        'docs/readme.md',
+        { title: 42 },
+        tempDir,
+      );
+
+      expect(result.ok).toBe(false);
+    });
   });
 });

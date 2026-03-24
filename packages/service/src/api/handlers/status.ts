@@ -11,8 +11,8 @@ import type { ReindexTracker } from '../ReindexTracker';
 interface StatusRouteDeps {
   /** The vector store. */
   vectorStore: VectorStore;
-  /** Vector store collection name. */
-  collectionName: string;
+  /** Getter for vector store collection name (live config). */
+  getCollectionName: () => string;
   /** The reindex tracker. */
   reindexTracker: ReindexTracker;
   /** Service version string. */
@@ -34,7 +34,7 @@ export function createStatusHandler(deps: StatusRouteDeps) {
       version: deps.version,
       uptime: process.uptime(),
       collection: {
-        name: deps.collectionName,
+        name: deps.getCollectionName(),
         pointCount: collectionInfo.pointCount,
         dimensions: collectionInfo.dimensions,
       },

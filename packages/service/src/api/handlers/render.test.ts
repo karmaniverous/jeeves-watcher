@@ -70,7 +70,7 @@ function makeDeps(
       updateRules: vi.fn(),
       renderFile: vi.fn().mockResolvedValue(transformedResult),
     },
-    watch: watchConfig,
+    getWatch: () => watchConfig,
     logger: {
       error: vi.fn(),
       warn: vi.fn(),

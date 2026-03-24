@@ -69,8 +69,10 @@ export interface ApiServerOptions {
   embeddingProvider: EmbeddingProvider;
   /** The event queue. */
   queue: EventQueue;
-  /** The application configuration. */
+  /** The application configuration (used as initial/fallback value). */
   config: JeevesWatcherConfig;
+  /** Config getter for live config access after hot-reload. */
+  getConfig?: () => JeevesWatcherConfig;
   /** The logger instance. */
   logger: pino.Logger;
   /** The issues manager. */
@@ -122,6 +124,8 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
     initialScanTracker,
   } = options;
 
+  const getConfig = options.getConfig ?? (() => config);
+
   const reindexTracker = options.reindexTracker ?? new ReindexTracker();
   const app = Fastify({ logger: false });
 
@@ -135,7 +139,7 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
     }
     void executeReindex(
       {
-        config,
+        config: getConfig(),
         processor,
         logger,
         reindexTracker,
@@ -156,7 +160,7 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
       cacheTtlMs,
       createStatusHandler({
         vectorStore,
-        collectionName: config.vectorStore.collectionName,
+        getCollectionName: () => getConfig().vectorStore.collectionName,
         reindexTracker,
         version: version ?? 'unknown',
         initialScanTracker,
@@ -164,31 +168,36 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
     ),
   );
 
-  app.post('/metadata', createMetadataHandler({ processor, config, logger }));
+  app.post(
+    '/metadata',
+    createMetadataHandler({
+      processor,
+      getConfig,
+      logger,
+      configDir: dirname(configPath),
+    }),
+  );
 
   app.post(
     '/render',
     withCache(
       cacheTtlMs,
-      createRenderHandler({ processor, watch: config.watch, logger }),
+      createRenderHandler({
+        processor,
+        getWatch: () => getConfig().watch,
+        logger,
+      }),
     ),
   );
 
   app.get(
     '/search/facets',
     createFacetsHandler({
-      config,
+      getConfig,
       valuesManager,
       configDir: dirname(configPath),
     }),
   );
-
-  const hybridConfig = config.search?.hybrid
-    ? {
-        enabled: config.search.hybrid.enabled,
-        textWeight: config.search.hybrid.textWeight,
-      }
-    : undefined;
 
   app.post(
     '/scan',
@@ -201,7 +210,7 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
   app.post(
     '/walk',
     createWalkHandler({
-      watchPaths: config.watch.paths,
+      getWatchPaths: () => getConfig().watch.paths,
       fileSystemWatcher: options.fileSystemWatcher,
       logger,
     }),
@@ -213,7 +222,12 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
       embeddingProvider,
       vectorStore,
       logger,
-      hybridConfig,
+      getHybridConfig: () => {
+        const hybrid = getConfig().search?.hybrid;
+        return hybrid
+          ? { enabled: hybrid.enabled, textWeight: hybrid.textWeight }
+          : undefined;
+      },
     }),
   );
 
@@ -229,7 +243,7 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
   app.post(
     '/reindex',
     createConfigReindexHandler({
-      config,
+      getConfig,
       processor,
       logger,
       reindexTracker,
@@ -247,14 +261,14 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
 
   app.get('/config/schema', withCache(cacheTtlMs, createConfigSchemaHandler()));
 
-  app.post('/config/match', createConfigMatchHandler({ config, logger }));
+  app.post('/config/match', createConfigMatchHandler({ getConfig, logger }));
 
   app.get(
     '/config',
     withCache(
       cacheTtlMs,
       createConfigQueryHandler({
-        config,
+        getConfig,
         valuesManager,
         issuesManager,
         logger,
@@ -269,7 +283,7 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
   app.post(
     '/config/validate',
     createConfigValidateHandler({
-      config,
+      getConfig,
       logger,
       configDir: dirname(configPath),
     }),
@@ -278,7 +292,7 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
   app.post(
     '/config/apply',
     createConfigApplyHandler({
-      config,
+      getConfig,
       configPath,
       reindexTracker,
       logger,
@@ -289,7 +303,7 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
   // Virtual rules and points deletion routes
   if (virtualRuleStore) {
     const onRulesChanged = createOnRulesChanged({
-      config,
+      getConfig,
       configPath,
       processor,
       logger,

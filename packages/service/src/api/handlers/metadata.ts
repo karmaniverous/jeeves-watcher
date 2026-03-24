@@ -13,8 +13,9 @@ import { wrapHandler } from './wrapHandler';
 
 interface MetadataRouteDeps {
   processor: DocumentProcessorInterface;
-  config: JeevesWatcherConfig;
+  getConfig: () => JeevesWatcherConfig;
   logger: pino.Logger;
+  configDir?: string;
 }
 
 type MetadataRequest = FastifyRequest<{
@@ -31,7 +32,12 @@ export function createMetadataHandler(deps: MetadataRouteDeps) {
     async (request: MetadataRequest, reply) => {
       const { path, metadata } = request.body;
 
-      const validation = validateMetadataPayload(deps.config, path, metadata);
+      const validation = validateMetadataPayload(
+        deps.getConfig(),
+        path,
+        metadata,
+        deps.configDir,
+      );
       if (!validation.ok) {
         return reply
           .code(400)

@@ -14,8 +14,8 @@ import { isPathWatched } from '../../util/isPathWatched';
 export interface RenderHandlerDeps {
   /** The document processor. */
   processor: DocumentProcessorInterface;
-  /** Watch config for path validation. */
-  watch: WatchConfig;
+  /** Getter for live watch config. */
+  getWatch: () => WatchConfig;
   /** Logger instance. */
   logger: pino.Logger;
 }
@@ -32,7 +32,7 @@ interface RenderRequestBody {
  * @returns Fastify route handler.
  */
 export function createRenderHandler(deps: RenderHandlerDeps) {
-  const { processor, watch, logger } = deps;
+  const { processor, getWatch, logger } = deps;
 
   return async (
     request: FastifyRequest<{ Body: RenderRequestBody }>,
@@ -44,7 +44,8 @@ export function createRenderHandler(deps: RenderHandlerDeps) {
       return reply.status(400).send({ error: 'Missing required field: path' });
     }
 
-    // Validate path is within watched scope
+    // Validate path is within watched scope (live config)
+    const watch = getWatch();
     if (!isPathWatched(filePath, watch.paths, watch.ignored)) {
       return reply.status(403).send({ error: 'Path is outside watched scope' });
     }
