@@ -32,7 +32,7 @@ interface ConfigMatchResponse {
 
 /** Handler factory options. */
 interface ConfigMatchHandlerOptions {
-  config: JeevesWatcherConfig;
+  getConfig: () => JeevesWatcherConfig;
   logger: pino.Logger;
 }
 
@@ -43,16 +43,7 @@ interface ConfigMatchHandlerOptions {
  * @returns The handler function.
  */
 export function createConfigMatchHandler(options: ConfigMatchHandlerOptions) {
-  const { config, logger } = options;
-
-  // Compile rules once at handler creation time
-  const compiledRules = compileRules(config.inferenceRules ?? []);
-
-  // Compile watch path matchers
-  const watchMatcher = picomatch(config.watch.paths, { dot: true });
-  const ignoreMatcher = config.watch.ignored?.length
-    ? picomatch(config.watch.ignored, { dot: true })
-    : null;
+  const { getConfig, logger } = options;
 
   const handler = async (
     req: FastifyRequest,
@@ -65,10 +56,16 @@ export function createConfigMatchHandler(options: ConfigMatchHandlerOptions) {
       return;
     }
 
+    const config = getConfig();
+    const compiledRules = compileRules(config.inferenceRules ?? []);
+    const watchMatcher = picomatch(config.watch.paths, { dot: true });
+    const ignoreMatcher = config.watch.ignored?.length
+      ? picomatch(config.watch.ignored, { dot: true })
+      : null;
+
     const matches: PathMatch[] = body.paths.map((path) => {
       const attrs = buildSyntheticAttributes(path);
 
-      // Find matching rules
       const matchingRules: string[] = [];
       for (const compiled of compiledRules) {
         if (compiled.validate(attrs)) {
@@ -76,7 +73,6 @@ export function createConfigMatchHandler(options: ConfigMatchHandlerOptions) {
         }
       }
 
-      // Check watch scope: matches watch paths and not in ignored
       const normalised = attrs.file.path;
       const watched = watchMatcher(normalised) && !ignoreMatcher?.(normalised);
 

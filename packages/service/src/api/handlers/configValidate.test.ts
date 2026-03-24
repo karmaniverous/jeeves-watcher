@@ -27,10 +27,11 @@ function createDeps(
   configOverrides: Record<string, unknown> = {},
 ): ConfigValidateRouteDeps {
   return {
-    config: {
-      ...minimalConfig(),
-      ...configOverrides,
-    } as unknown as JeevesWatcherConfig,
+    getConfig: () =>
+      ({
+        ...minimalConfig(),
+        ...configOverrides,
+      }) as unknown as JeevesWatcherConfig,
     logger: pino({ level: 'silent' }),
     configDir: process.cwd(),
   };

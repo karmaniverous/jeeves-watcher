@@ -13,7 +13,7 @@ import { wrapHandler } from './wrapHandler';
 
 interface MetadataRouteDeps {
   processor: DocumentProcessorInterface;
-  config: JeevesWatcherConfig;
+  getConfig: () => JeevesWatcherConfig;
   logger: pino.Logger;
   configDir?: string;
 }
@@ -33,7 +33,7 @@ export function createMetadataHandler(deps: MetadataRouteDeps) {
       const { path, metadata } = request.body;
 
       const validation = validateMetadataPayload(
-        deps.config,
+        deps.getConfig(),
         path,
         metadata,
         deps.configDir,

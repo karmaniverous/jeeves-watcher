@@ -47,11 +47,12 @@ interface MockReply {
 
 function createDeps() {
   return {
-    config: {
-      watch: { paths: ['**/*.md'] },
-      embedding: { provider: 'mock', model: 'test', dimensions: 3 },
-      vectorStore: { url: 'http://localhost:6333', collectionName: 'test' },
-    } as unknown as JeevesWatcherConfig,
+    getConfig: () =>
+      ({
+        watch: { paths: ['**/*.md'] },
+        embedding: { provider: 'mock', model: 'test', dimensions: 3 },
+        vectorStore: { url: 'http://localhost:6333', collectionName: 'test' },
+      }) as unknown as JeevesWatcherConfig,
     processor: {} as unknown as DocumentProcessor,
     logger: pino({ level: 'silent' }),
     reindexTracker: new ReindexTracker(),
@@ -124,13 +125,13 @@ describe('createConfigReindexHandler', () => {
     expect(sent.plan).toBeDefined();
     // Called twice: once for dry-run plan, once for actual execution
     expect(mockedExecuteReindex).toHaveBeenCalledWith(
-      expect.objectContaining({ config: deps.config }),
+      expect.objectContaining({ config: deps.getConfig() }),
       'full',
       undefined,
       true, // dry-run for plan
     );
     expect(mockedExecuteReindex).toHaveBeenCalledWith(
-      expect.objectContaining({ config: deps.config }),
+      expect.objectContaining({ config: deps.getConfig() }),
       'full',
       undefined,
       false, // actual execution

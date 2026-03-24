@@ -55,7 +55,7 @@ describe('POST /config/match handler', () => {
     };
 
     const handler = createConfigMatchHandler({
-      config,
+      getConfig: () => config,
       logger: pino({ level: 'silent' }),
     });
 

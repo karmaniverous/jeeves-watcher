@@ -35,7 +35,7 @@ interface TestResult {
 
 /** Dependencies for the config validate route handler. */
 export interface ConfigValidateRouteDeps {
-  config: JeevesWatcherConfig;
+  getConfig: () => JeevesWatcherConfig;
   logger: pino.Logger;
   /** Directory used to resolve relative helper file paths. */
   configDir: string;
@@ -128,7 +128,7 @@ export function createConfigValidateHandler(deps: ConfigValidateRouteDeps) {
       const { config: submittedConfig, testPaths } = request.body;
 
       const { candidateRaw, parsed, errors } = mergeAndValidateConfig(
-        deps.config,
+        deps.getConfig(),
         submittedConfig,
       );
 

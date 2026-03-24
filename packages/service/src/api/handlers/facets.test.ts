@@ -40,7 +40,7 @@ function makeDeps(
   overrides: Partial<FacetsHandlerDeps> = {},
 ): FacetsHandlerDeps {
   return {
-    config: makeConfig(),
+    getConfig: () => makeConfig(),
     valuesManager: makeValuesManager(),
     configDir: '/tmp',
     ...overrides,
@@ -79,7 +79,7 @@ describe('GET /search/facets handler', () => {
     });
 
     const handler = createFacetsHandler(
-      makeDeps({ config, valuesManager: values }),
+      makeDeps({ getConfig: () => config, valuesManager: values }),
     );
     const result = handler();
 
@@ -117,7 +117,7 @@ describe('GET /search/facets handler', () => {
     });
 
     const handler = createFacetsHandler(
-      makeDeps({ config, valuesManager: values }),
+      makeDeps({ getConfig: () => config, valuesManager: values }),
     );
     const result = handler();
 
@@ -162,7 +162,7 @@ describe('GET /search/facets handler', () => {
     });
 
     const handler = createFacetsHandler(
-      makeDeps({ config, valuesManager: values }),
+      makeDeps({ getConfig: () => config, valuesManager: values }),
     );
     const result = handler();
 
@@ -191,7 +191,7 @@ describe('GET /search/facets handler', () => {
         ],
       },
     ]);
-    const handler = createFacetsHandler(makeDeps({ config }));
+    const handler = createFacetsHandler(makeDeps({ getConfig: () => config }));
     const result = handler();
 
     expect(result.facets[0].values).toEqual([]);
@@ -217,7 +217,7 @@ describe('GET /search/facets handler', () => {
         ],
       },
     ]);
-    const handler = createFacetsHandler(makeDeps({ config }));
+    const handler = createFacetsHandler(makeDeps({ getConfig: () => config }));
     const result = handler();
 
     expect(result.facets).toHaveLength(1);
@@ -240,7 +240,7 @@ describe('GET /search/facets handler', () => {
         ],
       },
     ]);
-    const handler = createFacetsHandler(makeDeps({ config }));
+    const handler = createFacetsHandler(makeDeps({ getConfig: () => config }));
     const result = handler();
 
     expect(result.facets).toHaveLength(1);
@@ -273,7 +273,7 @@ describe('GET /search/facets handler', () => {
     });
 
     const handler = createFacetsHandler(
-      makeDeps({ config, valuesManager: values }),
+      makeDeps({ getConfig: () => config, valuesManager: values }),
     );
     const result = handler();
 
@@ -312,7 +312,7 @@ describe('GET /search/facets handler', () => {
     });
 
     const handler = createFacetsHandler(
-      makeDeps({ config, valuesManager: values }),
+      makeDeps({ getConfig: () => config, valuesManager: values }),
     );
     const result = handler();
 
@@ -344,7 +344,7 @@ describe('GET /search/facets handler', () => {
     });
 
     const handler = createFacetsHandler(
-      makeDeps({ config, valuesManager: values }),
+      makeDeps({ getConfig: () => config, valuesManager: values }),
     );
     const result = handler();
 

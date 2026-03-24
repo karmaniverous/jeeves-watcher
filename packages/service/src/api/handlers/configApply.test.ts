@@ -34,7 +34,7 @@ function createDeps(
   overrides: Partial<ConfigApplyRouteDeps> = {},
 ): ConfigApplyRouteDeps {
   return {
-    config: minimalConfig() as JeevesWatcherConfig,
+    getConfig: () => minimalConfig() as JeevesWatcherConfig,
     configPath: tempConfigPath,
     reindexTracker: new ReindexTracker(),
     logger: pino({ level: 'silent' }),
@@ -100,10 +100,11 @@ describe('createConfigApplyHandler', () => {
   it('triggers reindex based on configWatch.reindex setting', async () => {
     const triggerReindex = vi.fn();
     const deps = createDeps({
-      config: {
-        ...minimalConfig(),
-        configWatch: { reindex: 'full' },
-      } as JeevesWatcherConfig,
+      getConfig: () =>
+        ({
+          ...minimalConfig(),
+          configWatch: { reindex: 'full' },
+        }) as JeevesWatcherConfig,
       triggerReindex,
     });
     const handler = createConfigApplyHandler(deps);
@@ -126,10 +127,11 @@ describe('createConfigApplyHandler', () => {
   it('triggers issues reindex by default when configWatch is empty', async () => {
     const triggerReindex = vi.fn();
     const deps = createDeps({
-      config: {
-        ...minimalConfig(),
-        configWatch: {},
-      } as JeevesWatcherConfig,
+      getConfig: () =>
+        ({
+          ...minimalConfig(),
+          configWatch: {},
+        }) as JeevesWatcherConfig,
       triggerReindex,
     });
     const handler = createConfigApplyHandler(deps);

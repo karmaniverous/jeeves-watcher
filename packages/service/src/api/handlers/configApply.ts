@@ -16,7 +16,7 @@ import { wrapHandler } from './wrapHandler';
 
 /** Dependencies for the config apply route handler. */
 export interface ConfigApplyRouteDeps {
-  config: JeevesWatcherConfig;
+  getConfig: () => JeevesWatcherConfig;
   configPath: string;
   reindexTracker: ReindexTracker;
   logger: pino.Logger;
@@ -37,8 +37,10 @@ export function createConfigApplyHandler(deps: ConfigApplyRouteDeps) {
     async (request: ConfigApplyRequest, reply: FastifyReply) => {
       const { config: submittedConfig } = request.body;
 
+      const config = deps.getConfig();
+
       const { candidateRaw, errors } = mergeAndValidateConfig(
-        deps.config,
+        config,
         submittedConfig,
       );
 
@@ -52,7 +54,7 @@ export function createConfigApplyHandler(deps: ConfigApplyRouteDeps) {
         'utf-8',
       );
 
-      const reindexScope = deps.config.configWatch?.reindex ?? 'issues';
+      const reindexScope = config.configWatch?.reindex ?? 'issues';
 
       if (deps.triggerReindex) {
         deps.triggerReindex(reindexScope);

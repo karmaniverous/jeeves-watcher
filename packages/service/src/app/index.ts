@@ -235,6 +235,7 @@ export class JeevesWatcher {
       embeddingProvider: this.embeddingProvider!,
       queue: this.queue!,
       config: this.config,
+      getConfig: () => this.config,
       logger: this.logger!,
       issuesManager: this.issuesManager!,
       valuesManager: this.valuesManager!,

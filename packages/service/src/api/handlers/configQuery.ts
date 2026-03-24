@@ -19,7 +19,7 @@ import { buildMergedDocument } from '../mergedDocument';
 
 /** Dependencies for the config query route handler. */
 export interface ConfigQueryRouteDeps {
-  config: JeevesWatcherConfig;
+  getConfig: () => JeevesWatcherConfig;
   valuesManager: ValuesManager;
   issuesManager: IssuesManager;
   logger: pino.Logger;
@@ -42,7 +42,7 @@ type ConfigQueryRequest = FastifyRequest<{
 export function createConfigQueryHandler(deps: ConfigQueryRouteDeps) {
   const coreHandler = coreCreateConfigQueryHandler(() =>
     buildMergedDocument({
-      config: deps.config,
+      config: deps.getConfig(),
       valuesManager: deps.valuesManager,
       issuesManager: deps.issuesManager,
       helperIntrospection: deps.helperIntrospection,
