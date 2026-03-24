@@ -387,7 +387,7 @@ Partial configs merge with current config by rule name. If `config` is omitted, 
 Apply config changes atomically.
 - `config` (object, required) — full or partial config to apply
 
-Validates, writes to disk, and triggers configured reindex behavior. Returns validation errors if invalid.
+Validates, writes to disk, and triggers configured reindex behavior. Returns validation errors if invalid. Config changes take full effect without service restart — including new/removed watch paths (filesystem watcher is rebuilt), inference rule changes, move detection settings, and gitignore filter updates.
 
 ### `watcher_reindex`
 Trigger a reindex operation. All scopes return a `plan` object showing blast area before execution begins.
