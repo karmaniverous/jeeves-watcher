@@ -2,7 +2,17 @@
 
 All notable changes to this project will be documented in this file. Dates are displayed in UTC.
 
-#### [0.15.0](https://github.com/karmaniverous/jeeves-watcher/compare/service/0.14.0...0.15.0)
+#### [0.15.1](https://github.com/karmaniverous/jeeves-watcher/compare/service/0.15.0...0.15.1)
+
+- chore: release @karmaniverous/jeeves-watcher-openclaw v0.12.0 [`bf542de`](https://github.com/karmaniverous/jeeves-watcher/commit/bf542de1aa5b4c504a6a3d08026c18d3952d5aae)
+- chore: bump @karmaniverous/jeeves to 0.3.1 [`a5a6324`](https://github.com/karmaniverous/jeeves-watcher/commit/a5a632474b96749a891a4a69b581dbcde79b849e)
+- ci: add permissions block to Deploy Docs caller workflow [`7aed6d8`](https://github.com/karmaniverous/jeeves-watcher/commit/7aed6d86759f0f49d57573b1d1a66880974b9602)
+- docs: update watcher_config_apply skill text to reflect hot-reload capability [`642dc80`](https://github.com/karmaniverous/jeeves-watcher/commit/642dc80dcaf1ab53bbafc75cfcde1c7b3f32d359)
+- chore: trigger CI [`1b88950`](https://github.com/karmaniverous/jeeves-watcher/commit/1b889506be8255846b079f2cdb68e16db2c8b1ac)
+
+#### [service/0.15.0](https://github.com/karmaniverous/jeeves-watcher/compare/service/0.14.0...service/0.15.0)
+
+> 24 March 2026
 
 - feat: hot-reload and bugfixes v0.15.0 [`#147`](https://github.com/karmaniverous/jeeves-watcher/pull/147)
 - feat: add full hot-reload with watcher rebuild on config change [`#113`](https://github.com/karmaniverous/jeeves-watcher/pull/113)
@@ -12,6 +22,7 @@ All notable changes to this project will be documented in this file. Dates are d
 - chore: remove temporary TASK.md [`33e8181`](https://github.com/karmaniverous/jeeves-watcher/commit/33e8181363a619065dd2817895b513c5067b544d)
 - perf: cache compiled rules in configMatch handler, invalidate on config change [`c1821ca`](https://github.com/karmaniverous/jeeves-watcher/commit/c1821ca733be91a10cfe2e14cdc631602ac025f6)
 - chore: release @karmaniverous/jeeves-watcher-openclaw v0.11.0 [`eab6a75`](https://github.com/karmaniverous/jeeves-watcher/commit/eab6a758805ad1477980c51e3b1f67626bb1857b)
+- chore: release @karmaniverous/jeeves-watcher v0.15.0 [`199cf02`](https://github.com/karmaniverous/jeeves-watcher/commit/199cf022f479a24052c020b58f7ca731acf67ccd)
 - chore: un-export unused types flagged by knip [`4532c6d`](https://github.com/karmaniverous/jeeves-watcher/commit/4532c6d6fe3cb8378a338791e877ebe691df72c4)
 
 #### [service/0.14.0](https://github.com/karmaniverous/jeeves-watcher/compare/service/0.13.0...service/0.14.0)
