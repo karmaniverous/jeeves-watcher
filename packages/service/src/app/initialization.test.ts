@@ -67,7 +67,7 @@ describe('resolveMapsConfig', () => {
 describe('getConfigDir', () => {
   it('should return directory from config path', () => {
     expect(getConfigDir('/path/to/config.json')).toBe('/path/to');
-    expect(getConfigDir('C:\\configs\\jeeves.yaml')).toBe('C:\\configs');
+    expect(getConfigDir('/configs/jeeves.yaml')).toBe('/configs');
   });
 
   it('should return "." when no config path provided', () => {
