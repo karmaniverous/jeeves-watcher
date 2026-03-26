@@ -1,0 +1,14 @@
+name: Linux Compatibility
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  linux-compat:
+    uses: karmaniverous/gha-workflows/.github/workflows/linux-compat.yml@main
