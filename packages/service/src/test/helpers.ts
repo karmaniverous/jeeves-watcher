@@ -4,6 +4,26 @@ import { join } from 'node:path';
 
 import type { JeevesWatcherConfig } from '../config/types';
 
+/**
+ * Check whether Qdrant is reachable at the given URL.
+ * Used to skip integration tests in CI environments without Qdrant.
+ *
+ * @param url - Qdrant base URL (e.g. "http://localhost:6333")
+ * @returns true if Qdrant responds to a health check, false otherwise.
+ */
+export async function isQdrantAvailable(
+  url = 'http://localhost:6333',
+): Promise<boolean> {
+  try {
+    const res = await fetch(`${url}/healthz`, {
+      signal: AbortSignal.timeout(2000),
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
 const TEST_BASE = join(tmpdir(), 'jeeves-watcher-test');
 
 /**
