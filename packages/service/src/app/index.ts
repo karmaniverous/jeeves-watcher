@@ -227,6 +227,7 @@ export class JeevesWatcher {
       version: this.version,
       initialScanTracker: this.initialScanTracker,
       fileSystemWatcher: this.watcher,
+      getFileSystemWatcher: () => this.watcher,
       enrichmentStore: this.enrichmentStore,
     });
 

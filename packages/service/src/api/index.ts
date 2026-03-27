@@ -95,6 +95,8 @@ export interface ApiServerOptions {
   initialScanTracker?: InitialScanTracker;
   /** Filesystem watcher instance for /walk endpoint (in-memory file list). */
   fileSystemWatcher?: FileSystemWatcher;
+  /** Getter for live filesystem watcher access after hot-reload rebuilds. */
+  getFileSystemWatcher?: () => FileSystemWatcher | undefined;
   /** Optional enrichment store for persisted enrichment metadata. */
   enrichmentStore?: EnrichmentStoreInterface;
 }
@@ -125,6 +127,8 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
   } = options;
 
   const getConfig = options.getConfig ?? (() => config);
+  const getFileSystemWatcher =
+    options.getFileSystemWatcher ?? (() => options.fileSystemWatcher);
 
   const reindexTracker = options.reindexTracker ?? new ReindexTracker();
   const app = Fastify({ logger: false });
@@ -211,7 +215,7 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
     '/walk',
     createWalkHandler({
       getWatchPaths: () => getConfig().watch.paths,
-      fileSystemWatcher: options.fileSystemWatcher,
+      getFileSystemWatcher,
       logger,
     }),
   );

@@ -24,7 +24,11 @@ export async function isQdrantAvailable(
   }
 }
 
-const TEST_BASE = join(tmpdir(), 'jeeves-watcher-test');
+const TEST_BASE = join(
+  tmpdir(),
+  'jeeves-watcher-test-' +
+    String(process.env['VITEST_WORKER_ID'] ?? process.pid),
+);
 
 /**
  * Create a test configuration pointing at temp dirs and test Qdrant collection.

@@ -16,7 +16,8 @@ import { wrapHandler } from './wrapHandler';
 /** Dependencies for the walk route handler. */
 export interface WalkRouteDeps {
   getWatchPaths: () => string[];
-  fileSystemWatcher?: FileSystemWatcher;
+  /** Getter for the current filesystem watcher (supports hot-reload rebuilds). */
+  getFileSystemWatcher?: () => FileSystemWatcher | undefined;
   logger: pino.Logger;
 }
 
@@ -42,14 +43,16 @@ export function createWalkHandler(deps: WalkRouteDeps) {
         });
       }
 
-      if (!deps.fileSystemWatcher) {
+      const fileSystemWatcher = deps.getFileSystemWatcher?.();
+
+      if (!fileSystemWatcher) {
         return await reply.status(503).send({
           error: 'Watcher unavailable',
           message: 'Filesystem watcher is not initialized.',
         });
       }
 
-      if (!deps.fileSystemWatcher.isReady) {
+      if (!fileSystemWatcher.isReady) {
         return await reply.status(503).send({
           error: 'Scan in progress',
           message:
@@ -57,7 +60,7 @@ export function createWalkHandler(deps: WalkRouteDeps) {
         });
       }
 
-      const watchedFiles = deps.fileSystemWatcher.getWatchedFiles();
+      const watchedFiles = fileSystemWatcher.getWatchedFiles();
 
       const normGlobs = globs.map((g) => normalizeSlashes(g));
       const matchGlobs = picomatch(normGlobs, { dot: true, nocase: true });
