@@ -16,7 +16,7 @@ describe('createWalkHandler', () => {
 
   const makeDeps = (): WalkRouteDeps => ({
     getWatchPaths: () => ['j:/domains/**/*.md', 'j:/config/**/*.json'],
-    fileSystemWatcher: mockWatcher as never,
+    getFileSystemWatcher: () => mockWatcher as never,
     logger: { warn: vi.fn(), error: vi.fn(), info: vi.fn() } as never,
   });
 
@@ -46,6 +46,51 @@ describe('createWalkHandler', () => {
       matchedCount: 2,
       scannedRoots: expect.any(Array) as unknown as string[],
     });
+  });
+
+  it('uses the current watcher instance from the getter (survives rebuild)', async () => {
+    const oldWatcher = {
+      getWatchedFiles: vi.fn().mockReturnValue([]),
+      isReady: true,
+    };
+    const newWatcher = {
+      getWatchedFiles: vi
+        .fn()
+        .mockReturnValue([
+          'j:/domains/foo/.meta/meta.json',
+          'j:/domains/baz/.meta/meta.json',
+        ]),
+      isReady: true,
+    };
+
+    const getFileSystemWatcher = vi
+      .fn()
+      .mockReturnValueOnce(oldWatcher as never)
+      .mockReturnValue(newWatcher as never);
+
+    const deps: WalkRouteDeps = {
+      ...makeDeps(),
+      getFileSystemWatcher: getFileSystemWatcher as never,
+    };
+    const handler = createWalkHandler(deps);
+
+    const request = { body: { globs: ['**/.meta/meta.json'] } } as never;
+
+    const send1 = vi.fn();
+    const reply1 = { status: vi.fn().mockReturnThis(), send: send1 } as never;
+    await handler(request, reply1);
+
+    expect(send1).toHaveBeenCalledWith(
+      expect.objectContaining({ matchedCount: 0 }),
+    );
+
+    const send2 = vi.fn();
+    const reply2 = { status: vi.fn().mockReturnThis(), send: send2 } as never;
+    await handler(request, reply2);
+
+    expect(send2).toHaveBeenCalledWith(
+      expect.objectContaining({ matchedCount: 2 }),
+    );
   });
 
   it('rejects missing globs', async () => {
