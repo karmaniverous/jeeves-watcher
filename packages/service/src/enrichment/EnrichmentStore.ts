@@ -7,8 +7,11 @@ import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 
 import Database from 'better-sqlite3';
+import type pino from 'pino';
 
 import { normalizePath } from '../util/normalizePath';
+
+const BUSY_TIMEOUT_MS = 5000;
 
 /**
  * Interface for enrichment metadata persistence.
@@ -38,17 +41,41 @@ export interface EnrichmentStoreInterface {
  */
 export class EnrichmentStore implements EnrichmentStoreInterface {
   private readonly db: Database.Database;
+  private readonly logger?: pino.Logger;
 
   /**
    * Create or open the enrichment store.
    *
    * @param stateDir - Directory for the SQLite database file.
    */
-  constructor(stateDir: string) {
+  constructor(stateDir: string, logger?: pino.Logger) {
+    this.logger = logger;
     mkdirSync(stateDir, { recursive: true });
     const dbPath = join(stateDir, 'enrichments.sqlite');
     this.db = new Database(dbPath);
     this.db.pragma('journal_mode = WAL');
+    this.db.pragma('busy_timeout = ' + BUSY_TIMEOUT_MS.toString());
+
+    const [checkpointStatus] = this.db.pragma(
+      'wal_checkpoint(TRUNCATE)',
+    ) as Array<
+      | {
+          busy: number;
+          log: number;
+          checkpointed: number;
+        }
+      | undefined
+    >;
+
+    if (checkpointStatus && checkpointStatus.busy > 0) {
+      // EnrichmentStore is expected to be single-writer. If we see a busy WAL
+      // checkpoint at startup, it's most likely from an unclean shutdown where
+      // the OS hasn't yet released file handles.
+      this.logger?.warn(
+        { checkpointStatus },
+        'WAL checkpoint busy at startup; OS may still be releasing file handles',
+      );
+    }
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS enrichments (
         path TEXT PRIMARY KEY,

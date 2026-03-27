@@ -125,7 +125,7 @@ export class JeevesWatcher {
     const stateDir = this.config.stateDir ?? '.jeeves-metadata';
     this.issuesManager = new IssuesManager(stateDir, logger);
     this.valuesManager = new ValuesManager(stateDir, logger);
-    this.enrichmentStore = new EnrichmentStore(stateDir);
+    this.enrichmentStore = new EnrichmentStore(stateDir, logger);
     const enrichmentStore = this.enrichmentStore;
     this.contentHashCache = new ContentHashCache();
     const contentHashCache = this.contentHashCache;
