@@ -12,6 +12,7 @@ export {
   type JeevesWatcherRuntimeOptions,
   startFromConfig,
 } from './app';
+export { ContentHashCache } from './cache';
 export type {
   ApiConfig,
   ConfigWatchConfig,

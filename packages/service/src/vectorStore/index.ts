@@ -39,6 +39,7 @@ export type {
  */
 export class VectorStoreClient implements VectorStore {
   private readonly client: QdrantClient;
+  private writeClient: QdrantClient;
   private readonly clientConfig: { url: string; apiKey?: string };
   private readonly collectionName: string;
   private readonly dims: number;
@@ -59,6 +60,7 @@ export class VectorStoreClient implements VectorStore {
   ) {
     this.clientConfig = { url: config.url, apiKey: config.apiKey };
     this.client = this.createClient();
+    this.writeClient = this.client;
     this.collectionName = config.collectionName;
     this.dims = dimensions;
     this.log = getLogger(logger);
@@ -151,6 +153,14 @@ export class VectorStoreClient implements VectorStore {
     );
   }
 
+  private getWriteClient(attempt: number): QdrantClient {
+    if (attempt > 1) {
+      this.pinoLogger?.info('Created fresh Qdrant client for retry');
+      this.writeClient = this.createClient();
+    }
+    return this.writeClient;
+  }
+
   /**
    * Upsert points into the collection.
    *
@@ -163,10 +173,7 @@ export class VectorStoreClient implements VectorStore {
     if (points.length === 0) return;
 
     await this.retryOperation('upsert', async (attempt) => {
-      const client = attempt > 1 ? this.createClient() : this.client;
-      if (attempt > 1) {
-        this.pinoLogger?.info('Created fresh Qdrant client for retry');
-      }
+      const client = this.getWriteClient(attempt);
 
       await client.upsert(this.collectionName, {
         wait: true,
@@ -190,10 +197,7 @@ export class VectorStoreClient implements VectorStore {
     if (ids.length === 0) return;
 
     await this.retryOperation('delete', async (attempt) => {
-      const client = attempt > 1 ? this.createClient() : this.client;
-      if (attempt > 1) {
-        this.pinoLogger?.info('Created fresh Qdrant client for retry');
-      }
+      const client = this.getWriteClient(attempt);
 
       await client.delete(this.collectionName, {
         wait: true,
