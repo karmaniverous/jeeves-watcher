@@ -68,9 +68,9 @@ export abstract class BinaryFileStore<T> {
       } else {
         this.cache = this.createEmpty();
       }
-    } catch {
+    } catch (error) {
       this.logger.warn(
-        { filePath: this.filePath },
+        { filePath: this.filePath, err: error },
         'Failed to read binary store file, starting fresh',
       );
       this.cache = this.createEmpty();
@@ -100,6 +100,8 @@ export abstract class BinaryFileStore<T> {
    */
   flush(): void {
     if (!this.dirty) return;
+
+    this.stopAutoFlush();
 
     const value = this.cache ?? this.createEmpty();
 
