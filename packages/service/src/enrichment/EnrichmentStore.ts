@@ -49,6 +49,8 @@ export class EnrichmentStore implements EnrichmentStoreInterface {
     const dbPath = join(stateDir, 'enrichments.sqlite');
     this.db = new Database(dbPath);
     this.db.pragma('journal_mode = WAL');
+    this.db.pragma('busy_timeout = 5000');
+    this.db.pragma('wal_checkpoint(TRUNCATE)');
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS enrichments (
         path TEXT PRIMARY KEY,
