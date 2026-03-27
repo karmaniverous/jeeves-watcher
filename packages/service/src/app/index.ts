@@ -200,6 +200,10 @@ export class JeevesWatcher {
       }
     }
 
+    // Flush in-memory state caches before shutdown.
+    this.valuesManager?.stopAutoFlush();
+    this.valuesManager?.flush();
+
     this.enrichmentStore?.close();
 
     if (this.server) {
