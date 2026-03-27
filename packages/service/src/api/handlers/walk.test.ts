@@ -49,9 +49,6 @@ describe('createWalkHandler', () => {
   });
 
   it('uses the current watcher instance from the getter (survives rebuild)', async () => {
-    const deps = makeDeps();
-    const handler = createWalkHandler(deps);
-
     const oldWatcher = {
       getWatchedFiles: vi.fn().mockReturnValue([]),
       isReady: true,
@@ -71,9 +68,11 @@ describe('createWalkHandler', () => {
       .mockReturnValueOnce(oldWatcher as never)
       .mockReturnValue(newWatcher as never);
 
-    (
-      deps as unknown as { getFileSystemWatcher: () => unknown }
-    ).getFileSystemWatcher = getFileSystemWatcher as never;
+    const deps: WalkRouteDeps = {
+      ...makeDeps(),
+      getFileSystemWatcher: getFileSystemWatcher as never,
+    };
+    const handler = createWalkHandler(deps);
 
     const request = { body: { globs: ['**/.meta/meta.json'] } } as never;
 
