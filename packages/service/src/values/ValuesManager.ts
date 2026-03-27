@@ -7,7 +7,7 @@ import { join } from 'node:path';
 
 import type pino from 'pino';
 
-import { JsonFileStore } from '../util/JsonFileStore';
+import { BinaryFileStore } from '../util/BinaryFileStore';
 
 /** Per-rule distinct values: rule name → field name → sorted unique values. */
 export type ValuesIndex = Record<string, Record<string, unknown[]>>;
@@ -15,9 +15,9 @@ export type ValuesIndex = Record<string, Record<string, unknown[]>>;
 /**
  * Manages a persistent values.json file tracking distinct metadata values per rule.
  */
-export class ValuesManager extends JsonFileStore<ValuesIndex> {
+export class ValuesManager extends BinaryFileStore<ValuesIndex> {
   constructor(stateDir: string, logger: pino.Logger) {
-    super({ filePath: join(stateDir, 'values.json'), logger });
+    super({ filePath: join(stateDir, 'values.v8'), logger });
   }
 
   protected createEmpty(): ValuesIndex {
@@ -36,6 +36,8 @@ export class ValuesManager extends JsonFileStore<ValuesIndex> {
     index[ruleName] ??= {};
     const ruleValues = index[ruleName];
 
+    let changed = false;
+
     for (const [key, value] of Object.entries(metadata)) {
       // Decompose arrays into individual trackable elements so that
       // array-typed fields (e.g. domains: ["email"]) are indexed.
@@ -52,17 +54,19 @@ export class ValuesManager extends JsonFileStore<ValuesIndex> {
             }
             return typeof a < typeof b ? -1 : 1;
           });
+          changed = true;
         }
       }
     }
 
-    this.save();
+    if (changed) this.markDirty();
   }
 
   /** Wipe all values (called on full reindex start). */
   clearAll(): void {
     this.cache = {};
-    this.save();
+    this.markDirty();
+    this.flush();
     this.logger.debug('All values cleared');
   }
 

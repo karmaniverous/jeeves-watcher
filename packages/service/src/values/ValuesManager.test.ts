@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -23,6 +23,12 @@ describe('ValuesManager', () => {
 
   it('starts empty', () => {
     expect(manager.getAll()).toEqual({});
+  });
+
+  it('starts fresh when state file is corrupt', () => {
+    writeFileSync(join(tempDir, 'values.v8'), Buffer.from('not-a-v8-blob'));
+    const manager2 = new ValuesManager(tempDir, logger);
+    expect(manager2.getAll()).toEqual({});
   });
 
   it('tracks string values', () => {
@@ -85,8 +91,9 @@ describe('ValuesManager', () => {
     expect(manager.getAll()).toEqual({});
   });
 
-  it('persists across instances', () => {
+  it('persists across instances (after flush)', () => {
     manager.update('rule-a', { x: 'val' });
+    manager.flush();
     const manager2 = new ValuesManager(tempDir, logger);
     expect(manager2.getForRule('rule-a')).toEqual({ x: ['val'] });
   });
