@@ -48,6 +48,7 @@ export class EventQueue {
   private readonly rateLimitPerMinute?: number;
 
   private started = false;
+  private paused = false;
   private active = 0;
 
   private readonly debounceTimers = new Map<string, NodeJS.Timeout>();
@@ -107,6 +108,21 @@ export class EventQueue {
   }
 
   /**
+   * Pause processing events. Events can still be enqueued but will not be processed.
+   */
+  public pause(): void {
+    this.paused = true;
+  }
+
+  /**
+   * Resume processing events.
+   */
+  public resume(): void {
+    this.paused = false;
+    this.pump();
+  }
+
+  /**
    * Wait for the queue to become idle (no pending debounces, no queued items, no active work).
    *
    * @returns A promise that resolves when the queue is drained.
@@ -147,7 +163,7 @@ export class EventQueue {
   }
 
   private pump(): void {
-    if (!this.started) return;
+    if (!this.started || this.paused) return;
 
     while (this.active < this.concurrency) {
       const item = this.nextItem();

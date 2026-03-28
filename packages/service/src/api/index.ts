@@ -114,6 +114,7 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
     processor,
     vectorStore,
     embeddingProvider,
+    queue,
     logger,
     config,
     issuesManager,
@@ -151,6 +152,7 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
         issuesManager,
         gitignoreFilter,
         vectorStore,
+        queue,
       },
       scope,
     );
@@ -255,6 +257,7 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
       issuesManager,
       gitignoreFilter,
       vectorStore,
+      queue,
     }),
   );
 

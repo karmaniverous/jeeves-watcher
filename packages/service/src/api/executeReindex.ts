@@ -12,6 +12,7 @@ import { parallel } from 'radash';
 import type { JeevesWatcherConfig } from '../config/types';
 import { createIsGitignored, type GitignoreFilter } from '../gitignore';
 import type { DocumentProcessorInterface } from '../processor';
+import type { EventQueue } from '../queue';
 import { isPathWatched } from '../util/isPathWatched';
 import { normalizeError } from '../util/normalizeError';
 import { retry } from '../util/retry';
@@ -53,6 +54,7 @@ export interface ExecuteReindexDeps {
   issuesManager?: { getAll: () => Record<string, unknown> };
   gitignoreFilter?: GitignoreFilter;
   vectorStore?: VectorStoreClient;
+  queue?: EventQueue;
 }
 
 /** Blast area plan showing impact of a reindex operation. */
@@ -319,10 +321,19 @@ export async function executeReindex(
   let plan: ReindexPlan | undefined;
 
   if (scope === 'prune') {
-    const pruneResult = await computePrunePlan(deps);
+    deps.queue?.pause();
+    await deps.queue?.drain();
+    let pruneResult;
+    try {
+      pruneResult = await computePrunePlan(deps);
+    } catch (err) {
+      deps.queue?.resume();
+      throw err;
+    }
     plan = pruneResult.plan;
 
     if (dryRun) {
+      deps.queue?.resume();
       return { filesProcessed: 0, durationMs: 0, errors: 0, plan };
     }
 
@@ -386,6 +397,8 @@ export async function executeReindex(
       }
 
       return { filesProcessed: 0, durationMs, errors: 1, plan };
+    } finally {
+      deps.queue?.resume();
     }
   }
 
