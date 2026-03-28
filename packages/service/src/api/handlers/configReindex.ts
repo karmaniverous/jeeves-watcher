@@ -10,6 +10,7 @@ import type { JeevesWatcherConfig } from '../../config/types';
 import type { GitignoreFilter } from '../../gitignore';
 import type { IssuesManager } from '../../issues';
 import type { DocumentProcessorInterface } from '../../processor';
+import type { EventQueue } from '../../queue';
 import type { ValuesManager } from '../../values';
 import type { VectorStoreClient } from '../../vectorStore';
 import {
@@ -30,6 +31,7 @@ export interface ConfigReindexRouteDeps {
   issuesManager?: IssuesManager;
   gitignoreFilter?: GitignoreFilter;
   vectorStore?: VectorStoreClient;
+  queue?: EventQueue;
 }
 
 type ConfigReindexRequest = FastifyRequest<{
@@ -82,6 +84,7 @@ export function createConfigReindexHandler(deps: ConfigReindexRouteDeps) {
         issuesManager: deps.issuesManager,
         gitignoreFilter: deps.gitignoreFilter,
         vectorStore: deps.vectorStore,
+        queue: deps.queue,
       };
 
       // Pass path for 'path' and 'rules' scopes
