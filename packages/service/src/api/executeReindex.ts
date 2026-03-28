@@ -325,12 +325,14 @@ export async function executeReindex(
     let pruneResult;
     try {
       pruneResult = await computePrunePlan(deps);
-    } finally {
-      if (dryRun) deps.queue?.resume();
+    } catch (err) {
+      deps.queue?.resume();
+      throw err;
     }
     plan = pruneResult.plan;
 
     if (dryRun) {
+      deps.queue?.resume();
       return { filesProcessed: 0, durationMs: 0, errors: 0, plan };
     }
 
