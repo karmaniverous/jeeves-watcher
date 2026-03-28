@@ -2,9 +2,35 @@
 
 All notable changes to this project will be documented in this file. Dates are displayed in UTC.
 
-#### [0.15.1](https://github.com/karmaniverous/jeeves-watcher/compare/service/0.15.0...0.15.1)
+#### [0.15.2](https://github.com/karmaniverous/jeeves-watcher/compare/service/0.15.1...0.15.2)
+
+- fix: pause + drain event queue during prune to prevent ECONNRESET under load [`#160`](https://github.com/karmaniverous/jeeves-watcher/pull/160)
+- fix: QdrantClient write path leaks undici Agents [`#157`](https://github.com/karmaniverous/jeeves-watcher/pull/157)
+- perf: ValuesManager binary serialization and debounced flush [`#156`](https://github.com/karmaniverous/jeeves-watcher/pull/156)
+- fix: EnrichmentStore SQLite recovery on startup [`#155`](https://github.com/karmaniverous/jeeves-watcher/pull/155)
+- fix: use getter for fileSystemWatcher in API handlers [`#154`](https://github.com/karmaniverous/jeeves-watcher/pull/154)
+- fix: Linux CI compatibility — cross-platform path test and skip integration tests without Qdrant [`fce55e9`](https://github.com/karmaniverous/jeeves-watcher/commit/fce55e9e56f6aa386c67f7c5505c19e33a79e8dc)
+- [151] perf: ValuesManager binary serialization and debounced flush (#151) [`f3517fd`](https://github.com/karmaniverous/jeeves-watcher/commit/f3517fd7d185757d4850720abf02fde5ad8242b5)
+- [153] fix: use getter for fileSystemWatcher in API handlers (#153) [`4a81097`](https://github.com/karmaniverous/jeeves-watcher/commit/4a810977eedef7df97c8e2a1c63c42dc19599728)
+- [152] fix: address PR review feedback on #152 [`0127d01`](https://github.com/karmaniverous/jeeves-watcher/commit/0127d01919764beae3344d11f810f6be1b81cf7d)
+- [120] fix: pause event queue during prune to prevent ECONNRESET under load [`5896afa`](https://github.com/karmaniverous/jeeves-watcher/commit/5896afadc90908eeb321e480936961cc00269a7e)
+- [150] fix: QdrantClient write path leaks undici Agents (#150) [`8ff3286`](https://github.com/karmaniverous/jeeves-watcher/commit/8ff328638865832b730841696ab694b80e69acdc)
+- [150] refactor: address PR review feedback on #150 [`1474a8d`](https://github.com/karmaniverous/jeeves-watcher/commit/1474a8d85461c4525d3cd6eba80fe154f82c924e)
+- chore: release @karmaniverous/jeeves-watcher-openclaw v0.12.1 [`2616608`](https://github.com/karmaniverous/jeeves-watcher/commit/2616608f0b67a4c13fd50de35a19b8d4826559c5)
+- ci: add linux-compat workflow via shared gha-workflows [`76cc7e0`](https://github.com/karmaniverous/jeeves-watcher/commit/76cc7e008eb918d6fc068319719aceb1e3caa974)
+- [153] test: simplify walk rebuild getter test [`cab9526`](https://github.com/karmaniverous/jeeves-watcher/commit/cab9526dabca0d0ab8f88557b703e3f3948df851)
+- [120] fix: ensure queue resumes on all error paths (Gemini review) [`eaf0314`](https://github.com/karmaniverous/jeeves-watcher/commit/eaf03140c19929856ed3075a336e4ed2561df7db)
+- [151] refactor: address PR review feedback on #151 [`0002be9`](https://github.com/karmaniverous/jeeves-watcher/commit/0002be97ae8dd2d7b318ecd14d5c6d8bfe89de5d)
+- [152] fix: EnrichmentStore SQLite recovery on startup (#152) [`65becff`](https://github.com/karmaniverous/jeeves-watcher/commit/65becffdc9d7d0c45a8869e0359ba54941437e6f)
+- [120] fix: drain in-flight queue work before prune scroll [`11342a9`](https://github.com/karmaniverous/jeeves-watcher/commit/11342a95b1eb59c208c6bf9c1d92877595605334)
+- Merge pull request #148 from karmaniverous/bugfix/linux-compat-tests [`fd56a59`](https://github.com/karmaniverous/jeeves-watcher/commit/fd56a59ac34d3bd2cdd1657a1a71c33e0a00b23e)
+
+#### [service/0.15.1](https://github.com/karmaniverous/jeeves-watcher/compare/service/0.15.0...service/0.15.1)
+
+> 25 March 2026
 
 - chore: release @karmaniverous/jeeves-watcher-openclaw v0.12.0 [`bf542de`](https://github.com/karmaniverous/jeeves-watcher/commit/bf542de1aa5b4c504a6a3d08026c18d3952d5aae)
+- chore: release @karmaniverous/jeeves-watcher v0.15.1 [`20f2004`](https://github.com/karmaniverous/jeeves-watcher/commit/20f2004a4ba557d263fd2702d6e795822a91e32f)
 - chore: bump @karmaniverous/jeeves to 0.3.1 [`a5a6324`](https://github.com/karmaniverous/jeeves-watcher/commit/a5a632474b96749a891a4a69b581dbcde79b849e)
 - ci: add permissions block to Deploy Docs caller workflow [`7aed6d8`](https://github.com/karmaniverous/jeeves-watcher/commit/7aed6d86759f0f49d57573b1d1a66880974b9602)
 - docs: update watcher_config_apply skill text to reflect hot-reload capability [`642dc80`](https://github.com/karmaniverous/jeeves-watcher/commit/642dc80dcaf1ab53bbafc75cfcde1c7b3f32d359)
