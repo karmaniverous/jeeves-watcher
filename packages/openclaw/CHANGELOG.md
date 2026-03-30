@@ -2,7 +2,19 @@
 
 All notable changes to this project will be documented in this file. Dates are displayed in UTC.
 
-#### [0.13.0](https://github.com/karmaniverous/jeeves-watcher/compare/openclaw/0.12.1...0.13.0)
+#### [0.13.1](https://github.com/karmaniverous/jeeves-watcher/compare/openclaw/0.13.0...0.13.1)
+
+- feat: integrate core 0.4.5 - add run callback to descriptor [`#170`](https://github.com/karmaniverous/jeeves-watcher/pull/170)
+- fix: use package-directory for robust bundled CLI package root resolution [`#169`](https://github.com/karmaniverous/jeeves-watcher/pull/169)
+- [PHASE-2] fix: use package-directory for robust package root resolution [`c1039b9`](https://github.com/karmaniverous/jeeves-watcher/commit/c1039b9a68501bc7b469f491de33480bd481b0b9)
+- [CORE-045] feat: integrate core 0.4.5 - add run callback to descriptor [`45a6400`](https://github.com/karmaniverous/jeeves-watcher/commit/45a64003d2496c56940624a06bc71393feea8aa4)
+- [PHASE-2] fix: resolve package root for bundled CLI entry point [`4fb5308`](https://github.com/karmaniverous/jeeves-watcher/commit/4fb5308d45efd3c7245e0e075fa6eef33b769a6a)
+- chore: release @karmaniverous/jeeves-watcher v0.16.1 [`bdcbea6`](https://github.com/karmaniverous/jeeves-watcher/commit/bdcbea63d4adfb7b8326993cbf87ecb93b659f60)
+- chore: release @karmaniverous/jeeves-watcher v0.16.2 [`7ccb0f1`](https://github.com/karmaniverous/jeeves-watcher/commit/7ccb0f1c756c7a225e892e7fc7e550c33a24ebf4)
+
+#### [openclaw/0.13.0](https://github.com/karmaniverous/jeeves-watcher/compare/openclaw/0.12.1...openclaw/0.13.0)
+
+> 30 March 2026
 
 - feat: core SDK adoption — descriptor, CLI factory, status handler [Phases 2-4] [`#166`](https://github.com/karmaniverous/jeeves-watcher/pull/166)
 - feat: config path migration to jeeves-watcher/config.json (#149) [`#165`](https://github.com/karmaniverous/jeeves-watcher/pull/165)
@@ -24,6 +36,7 @@ All notable changes to this project will be documented in this file. Dates are d
 - [PHASE-0] [#162] fix: batch embedAndUpsert to prevent OOM on large files [`8555815`](https://github.com/karmaniverous/jeeves-watcher/commit/8555815e126dd5f499890707934fdefae97d90cc)
 - [151] perf: ValuesManager binary serialization and debounced flush (#151) [`f3517fd`](https://github.com/karmaniverous/jeeves-watcher/commit/f3517fd7d185757d4850720abf02fde5ad8242b5)
 - [153] fix: use getter for fileSystemWatcher in API handlers (#153) [`4a81097`](https://github.com/karmaniverous/jeeves-watcher/commit/4a810977eedef7df97c8e2a1c63c42dc19599728)
+- chore: release @karmaniverous/jeeves-watcher-openclaw v0.13.0 [`cc124d9`](https://github.com/karmaniverous/jeeves-watcher/commit/cc124d9029d9ea6e7ea2c459fcecfb018545820e)
 - [PHASE-2] [PHASE-3] feat: adopt core status handler + getBindAddress (S2/S3) [`cebe47e`](https://github.com/karmaniverous/jeeves-watcher/commit/cebe47e31bdfae991889a4d260084c51af1c5a40)
 - [152] fix: address PR review feedback on #152 [`0127d01`](https://github.com/karmaniverous/jeeves-watcher/commit/0127d01919764beae3344d11f810f6be1b81cf7d)
 - [PHASE-1] fix: address Gemini review - log migration errors, remove unused resolveConfigDir [`ad22e30`](https://github.com/karmaniverous/jeeves-watcher/commit/ad22e309ce21bcdcb295fd1262f5d2d3f1504ba4)
