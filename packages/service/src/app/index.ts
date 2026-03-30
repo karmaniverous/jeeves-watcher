@@ -3,6 +3,7 @@
  * Main application orchestrator. Wires components, manages lifecycle (start/stop/reload).
  */
 
+import { getBindAddress } from '@karmaniverous/jeeves';
 import type { FastifyInstance } from 'fastify';
 import type pino from 'pino';
 
@@ -236,7 +237,7 @@ export class JeevesWatcher {
     });
 
     await server.listen({
-      host: this.config.api?.host ?? '127.0.0.1',
+      host: this.config.api?.host ?? getBindAddress('watcher'),
       port: this.config.api?.port ?? 1936,
     });
 

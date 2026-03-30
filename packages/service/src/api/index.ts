@@ -5,6 +5,7 @@
 
 import { dirname } from 'node:path';
 
+import { createStatusHandler as coreCreateStatusHandler } from '@karmaniverous/jeeves';
 import Fastify, { type FastifyInstance } from 'fastify';
 import type pino from 'pino';
 
@@ -45,7 +46,6 @@ import {
 } from './handlers/rulesUnregister';
 import { createScanHandler } from './handlers/scan';
 import { createSearchHandler } from './handlers/search';
-import { createStatusHandler } from './handlers/status';
 import { createWalkHandler } from './handlers/walk';
 import { withCache } from './handlers/withCache';
 import type { InitialScanTracker } from './InitialScanTracker';
@@ -160,18 +160,31 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
 
   const cacheTtlMs = config.api?.cacheTtlMs ?? 30000;
 
+  const coreStatusHandler = coreCreateStatusHandler({
+    name: 'watcher',
+    version: version ?? 'unknown',
+    getHealth: async () => {
+      const collectionInfo = await vectorStore.getCollectionInfo();
+      return {
+        collection: {
+          name: getConfig().vectorStore.collectionName,
+          pointCount: collectionInfo.pointCount,
+          dimensions: collectionInfo.dimensions,
+        },
+        reindex: reindexTracker.getStatus(),
+        ...(initialScanTracker
+          ? { initialScan: initialScanTracker.getStatus() }
+          : {}),
+      };
+    },
+  });
+
   app.get(
     '/status',
-    withCache(
-      cacheTtlMs,
-      createStatusHandler({
-        vectorStore,
-        getCollectionName: () => getConfig().vectorStore.collectionName,
-        reindexTracker,
-        version: version ?? 'unknown',
-        initialScanTracker,
-      }),
-    ),
+    withCache(cacheTtlMs, async () => {
+      const result = await coreStatusHandler();
+      return result.body;
+    }),
   );
 
   app.post(

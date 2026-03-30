@@ -1,11 +1,7 @@
-[PHASE-3] feat: replace hand-rolled CLI with createServiceCli factory (S1)
+[PHASE-3] feat: adopt core status handler + getBindAddress (S2/S3)
 
-- Replace CLI entrypoint with createServiceCli(watcherDescriptor)
-- Consolidate 7 custom commands into customCommands.ts
-- Wire customCliCommands on the descriptor
-- Delete 17 dead CLI files (commands, helpers, wrappers)
-- Rewrite CLI tests for new structure
-- Resolve all knip findings:
-  - Remove unused isQdrantAvailable export
-  - Remove unused migrateConfigPath/MigrateConfigResult re-exports
-  - Make BinaryFileStoreOptions interface non-exported
+- Replace /status handler with core createStatusHandler factory
+  - Watcher-specific health data (collection, reindex, initialScan) moved to getHealth callback
+  - Response shape now follows core StatusResponse convention
+- Adopt getBindAddress('watcher') for service bind address (S3)
+- Keep watcher-specific /config/apply handler (core factory assumes config-init semantics that don't fit the live-config/reindex model)
