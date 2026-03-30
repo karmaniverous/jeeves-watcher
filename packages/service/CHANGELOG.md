@@ -2,12 +2,20 @@
 
 All notable changes to this project will be documented in this file. Dates are displayed in UTC.
 
-#### [0.16.1](https://github.com/karmaniverous/jeeves-watcher/compare/service/0.16.0...0.16.1)
+#### [0.16.2](https://github.com/karmaniverous/jeeves-watcher/compare/service/0.16.1...0.16.2)
+
+- feat: integrate core 0.4.5 - add run callback to descriptor [`#170`](https://github.com/karmaniverous/jeeves-watcher/pull/170)
+- [CORE-045] feat: integrate core 0.4.5 - add run callback to descriptor [`45a6400`](https://github.com/karmaniverous/jeeves-watcher/commit/45a64003d2496c56940624a06bc71393feea8aa4)
+
+#### [service/0.16.1](https://github.com/karmaniverous/jeeves-watcher/compare/service/0.16.0...service/0.16.1)
+
+> 30 March 2026
 
 - fix: use package-directory for robust bundled CLI package root resolution [`#169`](https://github.com/karmaniverous/jeeves-watcher/pull/169)
 - [PHASE-2] fix: use package-directory for robust package root resolution [`c1039b9`](https://github.com/karmaniverous/jeeves-watcher/commit/c1039b9a68501bc7b469f491de33480bd481b0b9)
 - chore: release @karmaniverous/jeeves-watcher-openclaw v0.13.0 [`cc124d9`](https://github.com/karmaniverous/jeeves-watcher/commit/cc124d9029d9ea6e7ea2c459fcecfb018545820e)
 - [PHASE-2] fix: resolve package root for bundled CLI entry point [`4fb5308`](https://github.com/karmaniverous/jeeves-watcher/commit/4fb5308d45efd3c7245e0e075fa6eef33b769a6a)
+- chore: release @karmaniverous/jeeves-watcher v0.16.1 [`bdcbea6`](https://github.com/karmaniverous/jeeves-watcher/commit/bdcbea63d4adfb7b8326993cbf87ecb93b659f60)
 
 #### [service/0.16.0](https://github.com/karmaniverous/jeeves-watcher/compare/service/0.15.2...service/0.16.0)
 
