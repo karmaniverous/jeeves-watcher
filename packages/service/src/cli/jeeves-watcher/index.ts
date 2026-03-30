@@ -73,16 +73,17 @@ cli
 
 cli
   .command('init')
-  .description('Initialize a new configuration (jeeves-watcher.config.json)')
-  .option(
-    '-o, --output <path>',
-    'Output config file path',
-    'jeeves-watcher.config.json',
-  )
+  .description('Initialize a new configuration (jeeves-watcher/config.json)')
+  .option('-o, --output <path>', 'Output directory for config', '.')
   .action(async (options) => {
     try {
-      await writeJsonFile(options.output, INIT_CONFIG_TEMPLATE);
-      console.log(`Wrote ${options.output}`);
+      const { join } = await import('node:path');
+      const { mkdirSync } = await import('node:fs');
+      const outputDir = join(options.output, 'jeeves-watcher');
+      mkdirSync(outputDir, { recursive: true });
+      const outputPath = join(outputDir, 'config.json');
+      await writeJsonFile(outputPath, INIT_CONFIG_TEMPLATE);
+      console.log(`Wrote ${outputPath}`);
     } catch (error) {
       console.error('Failed to initialize config:', error);
       process.exit(1);
