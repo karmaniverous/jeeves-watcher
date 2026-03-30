@@ -1,7 +1,9 @@
-[PHASE-3] feat: adopt core status handler + getBindAddress (S2/S3)
+[PHASE-4] feat: plugin refactor — core CLI factory, simplified menu, new status shape
 
-- Replace /status handler with core createStatusHandler factory
-  - Watcher-specific health data (collection, reindex, initialScan) moved to getHealth callback
-  - Response shape now follows core StatusResponse convention
-- Adopt getBindAddress('watcher') for service bind address (S3)
-- Keep watcher-specific /config/apply handler (core factory assumes config-init semantics that don't fit the live-config/reindex model)
+O2: Remove ACTION REQUIRED blocks from generateWatcherMenu
+  - Core ComponentWriter handles unreachable state independently
+  - Function now throws on failure (createAsyncContentCache retains last good value)
+O3: Replace hand-rolled plugin CLI with createPluginCli factory
+O4: Update status parsing for core StatusResponse convention
+  - Read health.collection.pointCount instead of collection.pointCount
+- Remove unused DEFAULT_QDRANT_URL constant
