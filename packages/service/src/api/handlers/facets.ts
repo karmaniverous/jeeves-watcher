@@ -140,8 +140,15 @@ export function createFacetsHandler(deps: FacetsHandlerDeps) {
 
   let cached: CachedFacetSchema | undefined;
 
-  return () => {
-    const config = getConfig();
+  return (): { facets: Facet[] } | { error: string; message: string } => {
+    let config: ReturnType<typeof getConfig>;
+    try {
+      config = getConfig();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      return { error: 'ConfigError', message: msg };
+    }
+
     const mergeOptions: SchemaMergeOptions = {
       globalSchemas: config.schemas,
       configDir,
@@ -150,7 +157,12 @@ export function createFacetsHandler(deps: FacetsHandlerDeps) {
     // Rebuild schema cache if rules changed
     const currentHash = computeRulesHash(config.inferenceRules);
     if (!cached || cached.rulesHash !== currentHash) {
-      cached = buildFacetSchema(config.inferenceRules, mergeOptions);
+      try {
+        cached = buildFacetSchema(config.inferenceRules, mergeOptions);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        return { error: 'SchemaError', message: msg };
+      }
     }
 
     // Merge with live values
