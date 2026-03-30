@@ -17,6 +17,7 @@ import type {
 import { packageDirectorySync } from 'package-directory';
 
 import { mergeInferenceRules } from './api/handlers/configMerge';
+import { startFromConfig } from './app/startFromConfig';
 import { registerCustomCommands } from './cli/jeeves-watcher/customCommands';
 import { INIT_CONFIG_TEMPLATE } from './config/defaults';
 import { jeevesWatcherConfigSchema } from './config/schemas';
@@ -84,6 +85,9 @@ export const watcherDescriptor: JeevesComponentDescriptor = {
     '-c',
     configPath,
   ],
+  run: async (configPath: string) => {
+    await startFromConfig(configPath);
+  },
 
   // Content — generateToolsContent is wired in the plugin package
   // (watcherComponent.ts) where it has access to the API URL for menu generation.
