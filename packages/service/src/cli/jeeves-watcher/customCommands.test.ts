@@ -47,20 +47,28 @@ function mockJsonResponse(data: unknown): void {
   });
 }
 
+function getFirstCallUrl(): string {
+  const calls = mockFetch.mock.calls as unknown[][];
+  const first = calls.at(0);
+  if (!first) return '';
+  const url = first[0];
+  return typeof url === 'string' ? url : '';
+}
+
 function getFirstRequestBody(): string {
   const calls = mockFetch.mock.calls as unknown[][];
   const firstCall = calls.at(0);
   if (!firstCall) return '';
-
   const init = firstCall[1];
   if (typeof init !== 'object' || init === null || !('body' in init)) return '';
-
   const body = (init as { body?: unknown }).body;
   return typeof body === 'string' ? body : '';
 }
 
+// --- search ---
+
 describe('search command', () => {
-  it('sends query and limit to API', async () => {
+  it('sends query and limit to the correct endpoint', async () => {
     const cli = makeCli();
     const mockResults = [{ id: '1', score: 0.95 }];
     mockJsonResponse(mockResults);
@@ -74,10 +82,9 @@ describe('search command', () => {
       '5',
     ]);
 
-    expect(mockFetch).toHaveBeenCalledWith(
-      'http://127.0.0.1:1936/search',
-      expect.objectContaining({ method: 'POST' }),
-    );
+    expect(getFirstCallUrl()).toBe('http://127.0.0.1:1936/search');
+    const body = JSON.parse(getFirstRequestBody()) as Record<string, unknown>;
+    expect(body).toEqual({ query: 'test query', limit: 5 });
     expect(consoleLogSpy).toHaveBeenCalledWith(
       JSON.stringify(mockResults, null, 2),
     );
@@ -89,12 +96,29 @@ describe('search command', () => {
 
     await cli.parseAsync(['node', 'test', 'search', 'query']);
 
-    expect(mockFetch).toHaveBeenCalled();
-    const body = getFirstRequestBody();
-    expect(body).toContain('"limit":10');
+    const body = JSON.parse(getFirstRequestBody()) as Record<string, unknown>;
+    expect(body.limit).toBe(10);
   });
 
-  it('handles API error', async () => {
+  it('respects custom host and port', async () => {
+    const cli = makeCli();
+    mockJsonResponse([]);
+
+    await cli.parseAsync([
+      'node',
+      'test',
+      'search',
+      'q',
+      '--host',
+      'localhost',
+      '--port',
+      '9999',
+    ]);
+
+    expect(getFirstCallUrl()).toBe('http://localhost:9999/search');
+  });
+
+  it('reports API errors via stderr', async () => {
     const cli = makeCli();
     mockFetch.mockRejectedValue(new Error('ECONNREFUSED'));
 
@@ -104,10 +128,85 @@ describe('search command', () => {
   });
 });
 
-describe('scan command', () => {
-  it('calls POST /scan with correct payload', async () => {
+// --- enrich ---
+
+describe('enrich command', () => {
+  it('sends JSON metadata to the correct endpoint', async () => {
     const cli = makeCli();
-    mockJsonResponse([]);
+    mockJsonResponse({ success: true });
+
+    await cli.parseAsync([
+      'node',
+      'test',
+      'enrich',
+      '/some/file.md',
+      '--json',
+      '{"tag":"test"}',
+    ]);
+
+    expect(getFirstCallUrl()).toBe('http://127.0.0.1:1936/metadata');
+    const body = JSON.parse(getFirstRequestBody()) as Record<string, unknown>;
+    expect(body).toEqual({
+      path: '/some/file.md',
+      metadata: { tag: 'test' },
+    });
+  });
+
+  it('parses --key pairs into metadata', async () => {
+    const cli = makeCli();
+    mockJsonResponse({ success: true });
+
+    await cli.parseAsync([
+      'node',
+      'test',
+      'enrich',
+      '/file.md',
+      '--key',
+      'domain=docs',
+      '--key',
+      'status=active',
+    ]);
+
+    const body = JSON.parse(getFirstRequestBody()) as {
+      metadata: Record<string, string>;
+    };
+    expect(body.metadata).toEqual({ domain: 'docs', status: 'active' });
+  });
+
+  it('rejects when no metadata provided', async () => {
+    const cli = makeCli();
+
+    await cli.parseAsync(['node', 'test', 'enrich', '/some/file.md']);
+
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      'No metadata provided. Use --key or --json.',
+    );
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
+
+  it('rejects invalid JSON', async () => {
+    const cli = makeCli();
+
+    await cli.parseAsync([
+      'node',
+      'test',
+      'enrich',
+      '/file.md',
+      '--json',
+      '{bad}',
+    ]);
+
+    expect(consoleErrorSpy).toHaveBeenCalledWith('Invalid JSON:', '{bad}');
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
+});
+
+// --- scan ---
+
+describe('scan command', () => {
+  it('sends filter, limit, and flags in request body', async () => {
+    const cli = makeCli();
+    mockJsonResponse({ points: [], count: 0 });
 
     await cli.parseAsync([
       'node',
@@ -120,29 +219,44 @@ describe('scan command', () => {
       '--count-only',
     ]);
 
-    expect(mockFetch).toHaveBeenCalledWith(
-      expect.stringContaining('/scan'),
-      expect.objectContaining({ method: 'POST' }),
-    );
+    expect(getFirstCallUrl()).toContain('/scan');
+    const body = JSON.parse(getFirstRequestBody()) as Record<string, unknown>;
+    expect(body.filter).toEqual({ domain: 'test' });
+    expect(body.limit).toBe(50);
+    expect(body.countOnly).toBe(true);
+  });
+
+  it('splits comma-separated fields', async () => {
+    const cli = makeCli();
+    mockJsonResponse({ points: [] });
+
+    await cli.parseAsync([
+      'node',
+      'test',
+      'scan',
+      '--fields',
+      'file_path,domain',
+    ]);
+
+    const body = JSON.parse(getFirstRequestBody()) as Record<string, unknown>;
+    expect(body.fields).toEqual(['file_path', 'domain']);
   });
 });
 
+// --- reindex ---
+
 describe('reindex command', () => {
-  it('calls POST /reindex with default scope', async () => {
+  it('defaults to rules scope', async () => {
     const cli = makeCli();
     mockJsonResponse({ status: 'started' });
 
     await cli.parseAsync(['node', 'test', 'reindex']);
 
-    expect(mockFetch).toHaveBeenCalledWith(
-      'http://127.0.0.1:1936/reindex',
-      expect.objectContaining({ method: 'POST' }),
-    );
-    const body = getFirstRequestBody();
-    expect(body).toContain('"scope":"rules"');
+    const body = JSON.parse(getFirstRequestBody()) as Record<string, unknown>;
+    expect(body.scope).toBe('rules');
   });
 
-  it('validates scope parameter', async () => {
+  it('rejects invalid scope', async () => {
     const cli = makeCli();
 
     await cli.parseAsync(['node', 'test', 'reindex', '--scope', 'invalid']);
@@ -150,6 +264,7 @@ describe('reindex command', () => {
     expect(consoleErrorSpy).toHaveBeenCalledWith(
       'Invalid scope "invalid". Must be one of: issues, full, rules, path, prune',
     );
+    expect(mockFetch).not.toHaveBeenCalled();
   });
 
   it('passes path for path scope', async () => {
@@ -166,67 +281,127 @@ describe('reindex command', () => {
       '/some/file.md',
     ]);
 
-    expect(mockFetch).toHaveBeenCalled();
-    const body = getFirstRequestBody();
-    expect(body).toContain('/some/file.md');
+    const body = JSON.parse(getFirstRequestBody()) as Record<string, unknown>;
+    expect(body.scope).toBe('path');
+    expect(body.path).toBe('/some/file.md');
   });
-});
 
-describe('rebuild-metadata command', () => {
-  it('calls POST /rebuild-metadata', async () => {
+  it('sends multiple paths as array', async () => {
     const cli = makeCli();
-    mockJsonResponse({ status: 'ok' });
-
-    await cli.parseAsync(['node', 'test', 'rebuild-metadata']);
-
-    expect(mockFetch).toHaveBeenCalledWith(
-      'http://127.0.0.1:1936/rebuild-metadata',
-      expect.objectContaining({ method: 'POST' }),
-    );
-  });
-});
-
-describe('issues command', () => {
-  it('calls GET /issues', async () => {
-    const cli = makeCli();
-    mockJsonResponse({ count: 0, issues: {} });
-
-    await cli.parseAsync(['node', 'test', 'issues']);
-
-    expect(mockFetch).toHaveBeenCalledWith(
-      'http://127.0.0.1:1936/issues',
-      undefined,
-    );
-  });
-});
-
-describe('enrich command', () => {
-  it('sends path and metadata to API', async () => {
-    const cli = makeCli();
-    mockJsonResponse({ success: true });
+    mockJsonResponse({ status: 'started' });
 
     await cli.parseAsync([
       'node',
       'test',
-      'enrich',
-      '/some/file.md',
-      '--json',
-      '{"tag":"test"}',
+      'reindex',
+      '--scope',
+      'path',
+      '--path',
+      '/a.md',
+      '--path',
+      '/b.md',
     ]);
 
-    expect(mockFetch).toHaveBeenCalledWith(
-      'http://127.0.0.1:1936/metadata',
-      expect.objectContaining({ method: 'POST' }),
+    const body = JSON.parse(getFirstRequestBody()) as Record<string, unknown>;
+    expect(body.path).toEqual(['/a.md', '/b.md']);
+  });
+});
+
+// --- rebuild-metadata ---
+
+describe('rebuild-metadata command', () => {
+  it('calls POST /rebuild-metadata and prints response', async () => {
+    const cli = makeCli();
+    const response = { filesProcessed: 42 };
+    mockJsonResponse(response);
+
+    await cli.parseAsync(['node', 'test', 'rebuild-metadata']);
+
+    expect(getFirstCallUrl()).toBe('http://127.0.0.1:1936/rebuild-metadata');
+    expect(consoleLogSpy).toHaveBeenCalledWith(
+      JSON.stringify(response, null, 2),
     );
   });
+});
 
-  it('rejects when no metadata provided', async () => {
+// --- issues ---
+
+describe('issues command', () => {
+  it('calls GET /issues and prints response', async () => {
     const cli = makeCli();
+    const response = { count: 2, issues: { '/a.md': {}, '/b.md': {} } };
+    mockJsonResponse(response);
 
-    await cli.parseAsync(['node', 'test', 'enrich', '/some/file.md']);
+    await cli.parseAsync(['node', 'test', 'issues']);
 
-    expect(consoleErrorSpy).toHaveBeenCalledWith(
-      'No metadata provided. Use --key or --json.',
+    expect(getFirstCallUrl()).toBe('http://127.0.0.1:1936/issues');
+    expect(consoleLogSpy).toHaveBeenCalledWith(
+      JSON.stringify(response, null, 2),
     );
+  });
+});
+
+// --- helpers ---
+
+describe('helpers command', () => {
+  it('fetches and formats map and template helpers', async () => {
+    mockFetch
+      .mockResolvedValueOnce({
+        ok: true,
+        text: () =>
+          Promise.resolve(
+            JSON.stringify({
+              result: [
+                {
+                  slack: {
+                    description: 'Slack helpers',
+                    exports: { slack_format: 'Format channel' },
+                  },
+                },
+              ],
+              count: 1,
+            }),
+          ),
+        json: () =>
+          Promise.resolve({
+            result: [
+              {
+                slack: {
+                  description: 'Slack helpers',
+                  exports: { slack_format: 'Format channel' },
+                },
+              },
+            ],
+            count: 1,
+          }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        text: () => Promise.resolve(JSON.stringify({ result: [{}], count: 0 })),
+        json: () => Promise.resolve({ result: [{}], count: 0 }),
+      });
+
+    const cli = makeCli();
+    await cli.parseAsync(['node', 'test', 'helpers']);
+
+    expect(mockFetch).toHaveBeenCalledTimes(2);
+    expect(consoleLogSpy).toHaveBeenCalled();
+    const output = String(consoleLogSpy.mock.calls[0]?.[0] ?? '');
+    expect(output).toContain('JsonMap lib functions');
+    expect(output).toContain('slack_format');
+  });
+
+  it('prints message when no helpers are configured', async () => {
+    mockFetch.mockResolvedValue({
+      ok: true,
+      text: () =>
+        Promise.resolve(JSON.stringify({ result: [undefined], count: 0 })),
+      json: () => Promise.resolve({ result: [undefined], count: 0 }),
+    });
+
+    const cli = makeCli();
+    await cli.parseAsync(['node', 'test', 'helpers']);
+
+    expect(consoleLogSpy).toHaveBeenCalledWith('No helpers configured.');
   });
 });
