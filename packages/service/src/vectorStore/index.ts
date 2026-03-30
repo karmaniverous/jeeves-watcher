@@ -109,6 +109,7 @@ export class VectorStoreClient implements VectorStore {
     } catch (error) {
       throw new Error(
         `Failed to ensure collection "${this.collectionName}": ${String(error)}`,
+        { cause: error },
       );
     }
   }

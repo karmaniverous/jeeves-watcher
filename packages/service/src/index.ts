@@ -35,6 +35,7 @@ export {
   vectorStoreConfigSchema,
   watchConfigSchema,
 } from './config';
+export { watcherDescriptor } from './descriptor';
 export type { EmbeddingProvider, ProviderFactory } from './embedding';
 export { createEmbeddingProvider } from './embedding';
 export type { EnrichmentStoreInterface } from './enrichment';

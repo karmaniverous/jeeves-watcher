@@ -19,9 +19,6 @@ export const DEFAULT_CONFIG_ROOT = 'j:/config';
 /** Default Qdrant health check URL (used in diagnostic output). */
 export const DEFAULT_QDRANT_URL = 'http://127.0.0.1:6333';
 
-/** Timeout in milliseconds for service health probes. */
-export const PROBE_TIMEOUT_MS = 1500;
-
 /**
  * Timeout in milliseconds for menu generation fetch calls.
  *

@@ -99,7 +99,9 @@ export async function loadConfig(
       const errors = error.issues
         .map((issue) => `${issue.path.join('.')}: ${issue.message}`)
         .join('; ');
-      throw new Error(`Invalid jeeves-watcher configuration: ${errors}`);
+      throw new Error(`Invalid jeeves-watcher configuration: ${errors}`, {
+        cause: error,
+      });
     }
     throw error;
   }

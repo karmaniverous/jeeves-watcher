@@ -19,8 +19,8 @@ interface QueryResponse<T = unknown> {
  * paths). Those are available live via `watcher_config` on demand.
  */
 export async function generateWatcherMenu(apiUrl: string): Promise<string> {
-  let pointCount = 0;
   const scoreThresholds = { strong: 0.75, relevant: 0.5, noise: 0.25 };
+  let pointCount: number;
 
   try {
     const fetchOpts = { signal: AbortSignal.timeout(MENU_FETCH_TIMEOUT_MS) };
@@ -45,7 +45,7 @@ export async function generateWatcherMenu(apiUrl: string): Promise<string> {
       if (typeof t.noise === 'number') scoreThresholds.noise = t.noise;
     }
   } catch {
-    let qdrantStatus = '*Unknown*';
+    let qdrantStatus: string;
     try {
       // Assuming Qdrant runs locally on the default port
       const res = await fetchWithTimeout(`${DEFAULT_QDRANT_URL}/healthz`, 1000);
