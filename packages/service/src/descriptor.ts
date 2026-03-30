@@ -4,7 +4,9 @@
  * consumed by core factories (CLI, plugin tools, HTTP handlers, service manager).
  */
 
+import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
+import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import type { Command } from '@commander-js/extra-typings';
@@ -19,8 +21,38 @@ import { registerCustomCommands } from './cli/jeeves-watcher/customCommands';
 import { INIT_CONFIG_TEMPLATE } from './config/defaults';
 import { jeevesWatcherConfigSchema } from './config/schemas';
 
+/**
+ * Find the package root by walking up from the current file until we find
+ * a `package.json` with our package name. Works in both dev (src/) and
+ * bundled (dist/cli/jeeves-watcher/) contexts.
+ */
+const thisDir = dirname(fileURLToPath(import.meta.url));
+function findPackageRoot(startDir: string): string {
+  let dir = startDir;
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- traversal guard
+  while (true) {
+    try {
+      const pkgPath = resolve(dir, 'package.json');
+      const pkg = JSON.parse(readFileSync(pkgPath, 'utf-8')) as Record<
+        string,
+        unknown
+      >;
+      if (pkg.name === '@karmaniverous/jeeves-watcher') return dir;
+    } catch {
+      // not found, keep walking
+    }
+    const parent = dirname(dir);
+    if (parent === dir) break; // filesystem root
+    dir = parent;
+  }
+  throw new Error('Could not find @karmaniverous/jeeves-watcher package root');
+}
+
+const packageRoot = findPackageRoot(thisDir);
 const require = createRequire(import.meta.url);
-const { version } = require('../package.json') as { version: string };
+const { version } = require(resolve(packageRoot, 'package.json')) as {
+  version: string;
+};
 
 /**
  * Watcher component descriptor. Single source of truth for service identity,
@@ -61,7 +93,7 @@ export const watcherDescriptor: JeevesComponentDescriptor = {
   },
   startCommand: (configPath: string) => [
     'node',
-    fileURLToPath(new URL('./cli/jeeves-watcher/index.js', import.meta.url)),
+    resolve(packageRoot, 'dist/cli/jeeves-watcher/index.js'),
     'start',
     '-c',
     configPath,
