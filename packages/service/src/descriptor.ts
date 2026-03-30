@@ -5,6 +5,7 @@
  */
 
 import { createRequire } from 'node:module';
+import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import type { Command } from '@commander-js/extra-typings';
@@ -13,14 +14,31 @@ import type {
   PluginApi,
   ToolDescriptor,
 } from '@karmaniverous/jeeves';
+import { packageDirectorySync } from 'package-directory';
 
 import { mergeInferenceRules } from './api/handlers/configMerge';
 import { registerCustomCommands } from './cli/jeeves-watcher/customCommands';
 import { INIT_CONFIG_TEMPLATE } from './config/defaults';
 import { jeevesWatcherConfigSchema } from './config/schemas';
 
+/**
+ * Resolve the package root directory using `package-directory`.
+ *
+ * @remarks
+ * Works in both dev (`src/descriptor.ts`) and bundled
+ * (`dist/cli/jeeves-watcher/index.js`) contexts because
+ * `packageDirectorySync` walks upward to find `package.json`.
+ */
+const thisDir = dirname(fileURLToPath(import.meta.url));
+const packageRoot = packageDirectorySync({ cwd: thisDir });
+if (!packageRoot) {
+  throw new Error('Could not find package root from ' + thisDir);
+}
+
 const require = createRequire(import.meta.url);
-const { version } = require('../package.json') as { version: string };
+const { version } = require(resolve(packageRoot, 'package.json')) as {
+  version: string;
+};
 
 /**
  * Watcher component descriptor. Single source of truth for service identity,
@@ -61,7 +79,7 @@ export const watcherDescriptor: JeevesComponentDescriptor = {
   },
   startCommand: (configPath: string) => [
     'node',
-    fileURLToPath(new URL('./cli/jeeves-watcher/index.js', import.meta.url)),
+    resolve(packageRoot, 'dist/cli/jeeves-watcher/index.js'),
     'start',
     '-c',
     configPath,
