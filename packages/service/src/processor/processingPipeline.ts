@@ -97,8 +97,9 @@ export async function embedAndUpsert(
   }));
 
   // Upsert in batches to avoid OOM on large files (#162)
-  for (let start = 0; start < points.length; start += upsertBatchSize) {
-    await vectorStore.upsert(points.slice(start, start + upsertBatchSize));
+  const batchSize = Math.max(1, upsertBatchSize);
+  for (let start = 0; start < points.length; start += batchSize) {
+    await vectorStore.upsert(points.slice(start, start + batchSize));
   }
 
   // Clean up orphaned chunks
