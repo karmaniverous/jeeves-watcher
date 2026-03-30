@@ -6,7 +6,7 @@
  */
 
 import { existsSync, mkdirSync, renameSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { join } from 'node:path';
 
 export interface MigrateConfigResult {
   /** The resolved config path to load. */
@@ -64,22 +64,4 @@ export function migrateConfigPath(configDir: string): MigrateConfigResult {
     `No jeeves-watcher configuration found in ${configDir}. ` +
       `Expected ${newPath} or ${oldPath}.`,
   );
-}
-
-/**
- * Return the default config directory.
- *
- * Falls back to the working directory when no conventional config root is set.
- * On the Jeeves platform the config root is typically passed via the `-c` flag
- * pointing directly at the file, so this helper is only used for the
- * migration/discovery flow.
- *
- * @param explicitConfigPath - If the user passed `-c`, return its dirname.
- * @returns The directory to search for config files.
- */
-export function resolveConfigDir(explicitConfigPath?: string): string {
-  if (explicitConfigPath) {
-    return dirname(explicitConfigPath);
-  }
-  return process.cwd();
 }

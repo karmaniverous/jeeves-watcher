@@ -36,10 +36,13 @@ export async function startFromConfig(
       if (result.warning) {
         console.warn(`[jeeves-watcher] ${result.warning}`);
       }
-    } catch {
-      // Migration discovery failed — fall through to loadConfig which will
-      // use cosmiconfig's own search and produce its own error if nothing
-      // is found.
+    } catch (error) {
+      // Migration discovery failed — log and fall through to loadConfig
+      // which will use cosmiconfig's own search.
+      console.warn(
+        '[jeeves-watcher] Config migration check failed: ' +
+          (error instanceof Error ? error.message : String(error)),
+      );
       resolvedPath = undefined;
     }
   }
