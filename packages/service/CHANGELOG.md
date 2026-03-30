@@ -2,7 +2,16 @@
 
 All notable changes to this project will be documented in this file. Dates are displayed in UTC.
 
-#### [0.16.0](https://github.com/karmaniverous/jeeves-watcher/compare/service/0.15.2...0.16.0)
+#### [0.16.1](https://github.com/karmaniverous/jeeves-watcher/compare/service/0.16.0...0.16.1)
+
+- fix: use package-directory for robust bundled CLI package root resolution [`#169`](https://github.com/karmaniverous/jeeves-watcher/pull/169)
+- [PHASE-2] fix: use package-directory for robust package root resolution [`c1039b9`](https://github.com/karmaniverous/jeeves-watcher/commit/c1039b9a68501bc7b469f491de33480bd481b0b9)
+- chore: release @karmaniverous/jeeves-watcher-openclaw v0.13.0 [`cc124d9`](https://github.com/karmaniverous/jeeves-watcher/commit/cc124d9029d9ea6e7ea2c459fcecfb018545820e)
+- [PHASE-2] fix: resolve package root for bundled CLI entry point [`4fb5308`](https://github.com/karmaniverous/jeeves-watcher/commit/4fb5308d45efd3c7245e0e075fa6eef33b769a6a)
+
+#### [service/0.16.0](https://github.com/karmaniverous/jeeves-watcher/compare/service/0.15.2...service/0.16.0)
+
+> 30 March 2026
 
 - feat: core SDK adoption — descriptor, CLI factory, status handler [Phases 2-4] [`#166`](https://github.com/karmaniverous/jeeves-watcher/pull/166)
 - feat: config path migration to jeeves-watcher/config.json (#149) [`#165`](https://github.com/karmaniverous/jeeves-watcher/pull/165)
@@ -18,6 +27,7 @@ All notable changes to this project will be documented in this file. Dates are d
 - [PHASE-0] [#162] fix: batch embedAndUpsert to prevent OOM on large files [`8555815`](https://github.com/karmaniverous/jeeves-watcher/commit/8555815e126dd5f499890707934fdefae97d90cc)
 - [PHASE-2] [PHASE-3] feat: adopt core status handler + getBindAddress (S2/S3) [`cebe47e`](https://github.com/karmaniverous/jeeves-watcher/commit/cebe47e31bdfae991889a4d260084c51af1c5a40)
 - [PHASE-1] fix: address Gemini review - log migration errors, remove unused resolveConfigDir [`ad22e30`](https://github.com/karmaniverous/jeeves-watcher/commit/ad22e309ce21bcdcb295fd1262f5d2d3f1504ba4)
+- chore: release @karmaniverous/jeeves-watcher v0.16.0 [`1ed3376`](https://github.com/karmaniverous/jeeves-watcher/commit/1ed3376bda68c9eb48b0302a59672aa80465998c)
 - [PHASE-0] [#161] fix: catch async rejection in onRulesChanged instead of swallowing it [`642001a`](https://github.com/karmaniverous/jeeves-watcher/commit/642001ae7e71c7ad2ef96d5f4c4d1687ac553c8a)
 - [PHASE-2] docs: align guide index structure with jeeves-server pattern [`42a377b`](https://github.com/karmaniverous/jeeves-watcher/commit/42a377b9584d6c461dc6261fb552cb7d3e9d7053)
 - Merge pull request #164 from karmaniverous/bugfix/phase-0-bug-fixes [`9edfeda`](https://github.com/karmaniverous/jeeves-watcher/commit/9edfeda7a4a1d1579d9322779859a1b8575c88a6)
