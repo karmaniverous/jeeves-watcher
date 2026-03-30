@@ -1,9 +1,0 @@
-[PHASE-4] feat: plugin refactor — core CLI factory, simplified menu, new status shape
-
-O2: Remove ACTION REQUIRED blocks from generateWatcherMenu
-  - Core ComponentWriter handles unreachable state independently
-  - Function now throws on failure (createAsyncContentCache retains last good value)
-O3: Replace hand-rolled plugin CLI with createPluginCli factory
-O4: Update status parsing for core StatusResponse convention
-  - Read health.collection.pointCount instead of collection.pointCount
-- Remove unused DEFAULT_QDRANT_URL constant

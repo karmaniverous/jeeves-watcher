@@ -15,7 +15,12 @@ import {
   jeevesComponentDescriptorSchema,
 } from '@karmaniverous/jeeves';
 
-import { PLUGIN_ID } from './constants.js';
+import {
+  COMPONENT_NAME,
+  DEFAULT_PORT,
+  PLUGIN_PACKAGE,
+  SERVICE_PACKAGE,
+} from './constants.js';
 import { generateWatcherMenu } from './promptInjection.js';
 
 /** Options for creating the watcher component descriptor. */
@@ -31,9 +36,10 @@ interface CreateWatcherComponentOptions {
  *
  * @remarks
  * Returns a `JeevesComponentDescriptor` conforming to the core Zod schema,
- * ready for `createComponentWriter()`. Phase 3/4 will wire the placeholder
- * fields (`onConfigApply`, `customCliCommands`, `customPluginTools`) to
- * real implementations.
+ * ready for `createComponentWriter()`. The service descriptor
+ * (`packages/service/src/descriptor.ts`) is the canonical source for
+ * config schema and CLI commands; this plugin-side descriptor carries only
+ * the fields `ComponentWriter` needs (identity, content generation).
  *
  * @param options - API URL and plugin version.
  * @returns A validated component descriptor.
@@ -49,14 +55,14 @@ export function createWatcherComponent(
   });
 
   return {
-    name: 'watcher',
+    name: COMPONENT_NAME,
     version: pluginVersion,
-    servicePackage: '@karmaniverous/jeeves-watcher',
-    pluginPackage: `@karmaniverous/${PLUGIN_ID}`,
-    defaultPort: 1936,
+    servicePackage: SERVICE_PACKAGE,
+    pluginPackage: PLUGIN_PACKAGE,
+    defaultPort: DEFAULT_PORT,
     // Transitional placeholder: ComponentWriter needs a Zod schema but
-    // does not consume it beyond validation in Phase 2. The real watcher
-    // config schema will be wired in Phase 3 via the service descriptor.
+    // does not consume it beyond validation. The real watcher config
+    // schema lives in the service descriptor.
     configSchema: jeevesComponentDescriptorSchema.shape.name,
     configFileName: 'config.json',
     initTemplate: () => ({}),

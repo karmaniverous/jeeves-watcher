@@ -23,10 +23,8 @@ const require = createRequire(import.meta.url);
 const { version } = require('../package.json') as { version: string };
 
 /**
- * Watcher component descriptor.
- *
- * Placeholders for `onConfigApply`, `generateToolsContent`, `customCliCommands`,
- * and `customPluginTools` are populated in Phase 3 (service) and Phase 4 (plugin).
+ * Watcher component descriptor. Single source of truth for service identity,
+ * config schema, and extension points consumed by core factories.
  */
 export const watcherDescriptor: JeevesComponentDescriptor = {
   // Identity
@@ -41,11 +39,11 @@ export const watcherDescriptor: JeevesComponentDescriptor = {
   configFileName: 'config.json',
   initTemplate: () => ({ ...INIT_CONFIG_TEMPLATE }),
 
-  // Service behavior
+  // Service behavior — onConfigApply wired at the Fastify layer (api/index.ts)
+  // where it has access to the live reindex tracker and config getter.
   onConfigApply: async (config: Record<string, unknown>) => {
     void config;
     await Promise.resolve();
-    // Phase 3: wire to triggerReindex(configWatch.reindex scope)
   },
   customMerge: (
     target: Record<string, unknown>,
@@ -69,11 +67,11 @@ export const watcherDescriptor: JeevesComponentDescriptor = {
     configPath,
   ],
 
-  // Content
+  // Content — generateToolsContent is wired in the plugin package
+  // (watcherComponent.ts) where it has access to the API URL for menu generation.
   sectionId: 'Watcher',
   refreshIntervalSeconds: 71,
   generateToolsContent: () => '',
-  // Phase 4: wire to generateWatcherMenu()
 
   // Extension points
   customCliCommands: (program: Command) => {
@@ -81,7 +79,6 @@ export const watcherDescriptor: JeevesComponentDescriptor = {
   },
   customPluginTools: (api: PluginApi): ToolDescriptor[] => {
     void api;
-    // Phase 4: return tool descriptors for domain-specific tools
     return [];
   },
 };
