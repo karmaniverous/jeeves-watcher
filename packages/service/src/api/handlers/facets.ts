@@ -3,6 +3,8 @@
  * GET /search/facets route handler. Returns schema-derived facet definitions with live values.
  */
 
+import type pino from 'pino';
+
 import type { JeevesWatcherConfig } from '../../config/types';
 import type {
   ResolvedProperty,
@@ -34,6 +36,8 @@ export interface FacetsHandlerDeps {
   valuesManager: ValuesManager;
   /** Config directory for resolving schema file paths. */
   configDir: string;
+  /** Logger for reporting schema errors (optional). */
+  logger?: pino.Logger;
 }
 
 /** Field-level facet metadata extracted from schemas. */
@@ -136,21 +140,30 @@ function buildFacetSchema(
  * @returns Fastify route handler (plain return, compatible with `withCache`).
  */
 export function createFacetsHandler(deps: FacetsHandlerDeps) {
-  const { getConfig, valuesManager, configDir } = deps;
+  const { getConfig, valuesManager, configDir, logger } = deps;
 
   let cached: CachedFacetSchema | undefined;
 
-  return () => {
+  return (): { facets: Facet[] } => {
     const config = getConfig();
+
     const mergeOptions: SchemaMergeOptions = {
       globalSchemas: config.schemas,
       configDir,
     };
 
-    // Rebuild schema cache if rules changed
+    // Rebuild schema cache if rules changed (#159: catch schema errors gracefully)
     const currentHash = computeRulesHash(config.inferenceRules);
     if (!cached || cached.rulesHash !== currentHash) {
-      cached = buildFacetSchema(config.inferenceRules, mergeOptions);
+      try {
+        cached = buildFacetSchema(config.inferenceRules, mergeOptions);
+      } catch (err) {
+        logger?.error(
+          { err },
+          'facets: failed to build facet schema from inference rules; returning empty facets',
+        );
+        return { facets: [] };
+      }
     }
 
     // Merge with live values

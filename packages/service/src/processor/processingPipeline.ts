@@ -25,6 +25,9 @@ import {
 } from './payloadFields';
 import type { Splitter } from './splitter';
 
+/** Default number of points to upsert per batch (prevents OOM on large files). */
+const DEFAULT_UPSERT_BATCH_SIZE = 50;
+
 /**
  * Dependencies for the embed-and-upsert pipeline.
  */
@@ -33,6 +36,8 @@ interface PipelineDeps {
   vectorStore: VectorStore;
   splitter: Splitter;
   logger: pino.Logger;
+  /** Number of points per upsert batch. Defaults to {@link DEFAULT_UPSERT_BATCH_SIZE}. */
+  upsertBatchSize?: number;
 }
 
 /**
@@ -53,7 +58,13 @@ export async function embedAndUpsert(
   existingPayload: Record<string, unknown> | null,
   fileDates: { createdAt: number; modifiedAt: number },
 ): Promise<void> {
-  const { embeddingProvider, vectorStore, splitter, logger } = deps;
+  const {
+    embeddingProvider,
+    vectorStore,
+    splitter,
+    logger,
+    upsertBatchSize = DEFAULT_UPSERT_BATCH_SIZE,
+  } = deps;
 
   const oldTotalChunks = getChunkCount(existingPayload);
   const hash = contentHash(text);
@@ -67,7 +78,7 @@ export async function embedAndUpsert(
   // Embed all chunks
   const vectors = await embeddingProvider.embed(chunks);
 
-  // Upsert all chunk points
+  // Build all points
   const points = chunks.map((chunk, i) => ({
     id: pointId(filePath, i),
     vector: vectors[i],
@@ -84,7 +95,12 @@ export async function embedAndUpsert(
       [FIELD_LINE_END]: offsets[i]?.lineEnd ?? 1,
     },
   }));
-  await vectorStore.upsert(points);
+
+  // Upsert in batches to avoid OOM on large files (#162)
+  const batchSize = Math.max(1, upsertBatchSize);
+  for (let start = 0; start < points.length; start += batchSize) {
+    await vectorStore.upsert(points.slice(start, start + batchSize));
+  }
 
   // Clean up orphaned chunks
   if (oldTotalChunks > chunks.length) {

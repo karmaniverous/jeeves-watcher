@@ -322,7 +322,7 @@ export async function executeReindex(
 
   if (scope === 'prune') {
     deps.queue?.pause();
-    await deps.queue?.drain();
+    await deps.queue?.waitForIdleWorkers();
     let pruneResult;
     try {
       pruneResult = await computePrunePlan(deps);

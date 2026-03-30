@@ -61,6 +61,7 @@ export class EventQueue {
   private lastRefillMs = Date.now();
 
   private drainWaiters: Array<() => void> = [];
+  private idleWorkerWaiters: Array<() => void> = [];
 
   /**
    * Create an event queue.
@@ -134,6 +135,20 @@ export class EventQueue {
     });
   }
 
+  /**
+   * Wait until there is no in-flight work.
+   *
+   * Unlike {@link drain}, this does NOT wait for debounced or queued items to be empty.
+   * It's useful when you need to temporarily quiesce outgoing work without losing
+   * or rejecting new enqueues.
+   */
+  public async waitForIdleWorkers(): Promise<void> {
+    if (this.active === 0) return;
+    await new Promise<void>((resolve) => {
+      this.idleWorkerWaiters.push(resolve);
+    });
+  }
+
   private push(item: QueuedItem): void {
     if (item.event.priority === 'low') this.lowQueue.push(item);
     else this.normalQueue.push(item);
@@ -186,6 +201,7 @@ export class EventQueue {
           this.active -= 1;
           this.pump();
           this.maybeResolveDrain();
+          this.maybeResolveIdleWorkers();
         });
     }
 
@@ -206,6 +222,13 @@ export class EventQueue {
     if (!this.isIdle()) return;
     const waiters = this.drainWaiters;
     this.drainWaiters = [];
+    for (const resolve of waiters) resolve();
+  }
+
+  private maybeResolveIdleWorkers(): void {
+    if (this.active !== 0) return;
+    const waiters = this.idleWorkerWaiters;
+    this.idleWorkerWaiters = [];
     for (const resolve of waiters) resolve();
   }
 }

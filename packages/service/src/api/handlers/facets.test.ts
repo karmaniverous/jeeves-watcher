@@ -354,4 +354,32 @@ describe('GET /search/facets handler', () => {
     expect(labelsFacet?.values).toEqual(['bug', 'feature']);
     expect(assigneesFacet?.values).toEqual(['alice', 'bob']);
   });
+  // B2 (#159) � graceful degradation when inference rule schema is bad
+  it('returns empty facets and logs error when schema merging throws (#159)', () => {
+    const loggerMock = { error: vi.fn() };
+    const config = makeConfig([
+      {
+        name: 'bad-rule',
+        description: 'Rule with bad schema reference',
+        match: {},
+        // Schema reference pointing to a non-existent file triggers mergeSchemas to throw
+        schema: ['/nonexistent/path/that/will/throw.json'] as never,
+      },
+    ]);
+    const handler = createFacetsHandler(
+      makeDeps({
+        getConfig: () => config,
+        logger: loggerMock as never,
+      }),
+    );
+    const result = handler();
+
+    // Should return empty facets rather than crashing
+    expect(result).toEqual({ facets: [] });
+    // Error should have been logged
+    expect(loggerMock.error).toHaveBeenCalled();
+    const call = loggerMock.error.mock.calls[0] as unknown[];
+    expect(call[0]).toHaveProperty('err');
+    expect(call[1]).toContain('facets');
+  });
 });
