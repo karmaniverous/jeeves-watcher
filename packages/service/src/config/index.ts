@@ -1,6 +1,4 @@
 export { loadConfig } from './loadConfig';
-export type { MigrateConfigResult } from './migrateConfigPath';
-export { migrateConfigPath } from './migrateConfigPath';
 export {
   apiConfigSchema,
   configWatchConfigSchema,

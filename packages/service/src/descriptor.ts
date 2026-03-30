@@ -15,6 +15,7 @@ import type {
 } from '@karmaniverous/jeeves';
 
 import { mergeInferenceRules } from './api/handlers/configMerge';
+import { registerCustomCommands } from './cli/jeeves-watcher/customCommands';
 import { INIT_CONFIG_TEMPLATE } from './config/defaults';
 import { jeevesWatcherConfigSchema } from './config/schemas';
 
@@ -74,10 +75,9 @@ export const watcherDescriptor: JeevesComponentDescriptor = {
   generateToolsContent: () => '',
   // Phase 4: wire to generateWatcherMenu()
 
-  // Extension points (populated in Phase 3/4)
+  // Extension points
   customCliCommands: (program: Command) => {
-    void program;
-    // Phase 3: register search, enrich, scan, reindex, rebuild-metadata, issues, helpers
+    registerCustomCommands(program);
   },
   customPluginTools: (api: PluginApi): ToolDescriptor[] => {
     void api;

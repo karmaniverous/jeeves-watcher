@@ -1,0 +1,11 @@
+[PHASE-3] feat: replace hand-rolled CLI with createServiceCli factory (S1)
+
+- Replace CLI entrypoint with createServiceCli(watcherDescriptor)
+- Consolidate 7 custom commands into customCommands.ts
+- Wire customCliCommands on the descriptor
+- Delete 17 dead CLI files (commands, helpers, wrappers)
+- Rewrite CLI tests for new structure
+- Resolve all knip findings:
+  - Remove unused isQdrantAvailable export
+  - Remove unused migrateConfigPath/MigrateConfigResult re-exports
+  - Make BinaryFileStoreOptions interface non-exported

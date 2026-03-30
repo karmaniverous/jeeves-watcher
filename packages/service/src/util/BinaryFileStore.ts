@@ -20,7 +20,7 @@ import { deserialize, serialize } from 'node:v8';
 import type pino from 'pino';
 
 /** Options for {@link BinaryFileStore}. */
-export interface BinaryFileStoreOptions {
+interface BinaryFileStoreOptions {
   /** Path to the binary file on disk. */
   filePath: string;
   /** Logger for warnings. */

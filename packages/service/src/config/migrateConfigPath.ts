@@ -8,7 +8,7 @@
 import { existsSync, mkdirSync, renameSync } from 'node:fs';
 import { join } from 'node:path';
 
-export interface MigrateConfigResult {
+interface MigrateConfigResult {
   /** The resolved config path to load. */
   configPath: string;
   /** Whether a migration was performed. */
