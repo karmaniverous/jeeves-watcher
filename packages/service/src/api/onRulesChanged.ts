@@ -95,16 +95,23 @@ export function createOnRulesChanged(deps: OnRulesChangedDeps): () => void {
     const virtualCompiled = virtualRuleStore.getCompiled();
 
     // Rebuild template engine asynchronously with merged rules
-    void buildTemplateEngineAndCustomMapLib(
+    buildTemplateEngineAndCustomMapLib(
       { ...config, inferenceRules: mergedRules },
       dirname(configPath),
-    ).then(({ templateEngine: newEngine, customMapLib: newMapLib }) => {
-      processor.updateRules(
-        [...configCompiled, ...virtualCompiled],
-        newEngine,
-        newMapLib,
-      );
-    });
+    )
+      .then(({ templateEngine: newEngine, customMapLib: newMapLib }) => {
+        processor.updateRules(
+          [...configCompiled, ...virtualCompiled],
+          newEngine,
+          newMapLib,
+        );
+      })
+      .catch((err: unknown) => {
+        logger.error(
+          { err },
+          'onRulesChanged: failed to rebuild template engine; processor rules not updated',
+        );
+      });
 
     // Auto-trigger rules reindex scoped to newly registered rule globs (Fix 21)
     const matchGlobs = extractMatchGlobs(allVirtualRules);
