@@ -2,105 +2,12 @@
  * @module cli/jeeves-watcher
  *
  * jeeves-watcher CLI entrypoint.
+ * Uses core's createServiceCli factory with the watcher descriptor.
  */
 
-import { createRequire } from 'node:module';
+import { createServiceCli } from '@karmaniverous/jeeves';
 
-import { Command } from '@commander-js/extra-typings';
+import { watcherDescriptor } from '../../descriptor';
 
-import { startFromConfig } from '../../app';
-import { loadConfig } from '../../config';
-import { INIT_CONFIG_TEMPLATE } from '../../config/defaults';
-import { registerConfigApplyCommand } from './commands/configApply';
-import { registerEnrichCommand } from './commands/enrich';
-import { registerHelpersCommand } from './commands/helpers';
-import { registerIssuesCommand } from './commands/issues';
-import { registerQueryCommand } from './commands/query';
-import { registerRebuildMetadataCommand } from './commands/rebuildMetadata';
-import { registerReindexCommand } from './commands/reindex';
-import { registerScanCommand } from './commands/scan';
-import { registerSearchCommand } from './commands/search';
-import { registerServiceCommand } from './commands/service';
-import { registerStatusCommand } from './commands/status';
-import { writeJsonFile } from './writeJsonFile';
-
-const require = createRequire(import.meta.url);
-const { version } = require('../../../package.json') as { version: string };
-
-const cli = new Command()
-  .name('jeeves-watcher')
-  .description(
-    'Filesystem watcher that keeps a Qdrant vector store in sync with document changes',
-  )
-  .version(version);
-
-cli
-  .command('start')
-  .description('Start the filesystem watcher')
-  .option('-c, --config <path>', 'Path to configuration file')
-  .action(async (options) => {
-    try {
-      await startFromConfig(options.config);
-    } catch (error) {
-      console.error('Failed to start:', error);
-      process.exit(1);
-    }
-  });
-
-cli
-  .command('validate')
-  .description('Validate the configuration')
-  .option('-c, --config <path>', 'Path to configuration file')
-  .action(async (options) => {
-    try {
-      const config = await loadConfig(options.config);
-      console.log('Config valid');
-      console.log(`  Watch paths: ${config.watch.paths.join(', ')}`);
-      console.log(
-        `  Embedding: ${config.embedding.provider}/${config.embedding.model}`,
-      );
-      console.log(
-        `  Vector store: ${config.vectorStore.url} (${config.vectorStore.collectionName})`,
-      );
-      console.log(
-        `  API: ${config.api?.host ?? '127.0.0.1'}:${String(config.api?.port ?? 1936)}`,
-      );
-    } catch (error) {
-      console.error('Config invalid:', error);
-      process.exit(1);
-    }
-  });
-
-cli
-  .command('init')
-  .description('Initialize a new configuration (jeeves-watcher/config.json)')
-  .option('-o, --output <path>', 'Output directory for config', '.')
-  .action(async (options) => {
-    try {
-      const { join } = await import('node:path');
-      const { mkdirSync } = await import('node:fs');
-      const outputDir = join(options.output, 'jeeves-watcher');
-      mkdirSync(outputDir, { recursive: true });
-      const outputPath = join(outputDir, 'config.json');
-      await writeJsonFile(outputPath, INIT_CONFIG_TEMPLATE);
-      console.log(`Wrote ${outputPath}`);
-    } catch (error) {
-      console.error('Failed to initialize config:', error);
-      process.exit(1);
-    }
-  });
-
-// API-backed commands
-registerStatusCommand(cli);
-registerReindexCommand(cli);
-registerRebuildMetadataCommand(cli);
-registerSearchCommand(cli);
-registerScanCommand(cli);
-registerEnrichCommand(cli);
-registerServiceCommand(cli);
-registerQueryCommand(cli);
-registerIssuesCommand(cli);
-registerHelpersCommand(cli);
-registerConfigApplyCommand(cli);
-
-cli.parse();
+const program = createServiceCli(watcherDescriptor);
+program.parse();

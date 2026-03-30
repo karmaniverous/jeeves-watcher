@@ -16,7 +16,7 @@ The watcher is an HTTP API running as a background service (typically NSSM on Wi
 **Default port:** 1936 (configurable via `api.port` in watcher config)
 **Non-default port:** If the watcher runs on a different port, the user must set `plugins.entries.jeeves-watcher.config.apiUrl` in `openclaw.json`. The plugin cannot auto-discover a non-default port.
 
-**Health check:** `GET /status` returns uptime, point count, collection dimensions, and reindex status.
+**Health check:** `GET /status` returns `name`, `version`, `uptime`, `status` (`healthy`/`degraded`/`unhealthy`), and a `health` object containing `collection` (point count, dimensions), `reindex` status, and `initialScan` progress.
 
 **Mental model:** The `watcher_*` tools are thin HTTP wrappers. Each tool call translates to an HTTP request to the watcher API. When tools are available, use them. When they're not (e.g., different session, plugin not loaded), you can hit the API directly. Replace `<PORT>` below with the configured port (default 1936; check `plugins.entries.jeeves-watcher.config.apiUrl` in `openclaw.json` if overridden):
 
@@ -267,7 +267,7 @@ Then generate a starter config file. Example minimal config:
   },
   "vectorStore": {
     "url": "http://localhost:6333",
-    "collection": "jeeves_archive"
+    "collectionName": "jeeves_archive"
   },
   "search": {
     "scoreThresholds": { "strong": 0.75, "relevant": 0.5, "noise": 0.25 },
@@ -364,9 +364,9 @@ Set or update metadata on a document.
 - `metadata` (object, required) — key-value metadata to merge
 
 ### `watcher_status`
-Service health check. Returns uptime, version, collection stats, reindex status, and initial scan progress.
+Service health check. Returns `name`, `version`, `uptime`, `status`, and `health` object with collection stats, reindex status, and initial scan progress.
 
-After a service restart, the `initialScan` field shows scan progress:
+After a service restart, the `health.initialScan` field shows scan progress:
 - `active: true` — filesystem walk in progress; `filesMatched` and `filesEnqueued` grow until chokidar completes
 - `active: false` with `completedAt`/`durationMs` — scan finished
 

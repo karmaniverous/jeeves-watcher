@@ -69,8 +69,11 @@ describe('jeeves-core integration (watcher plugin)', () => {
     expect(parsed.found).toBe(true);
     expect(parsed.sections.some((s) => s.id === 'Watcher')).toBe(true);
     expect(parsed.sections.some((s) => s.id === 'Platform')).toBe(true);
-    // User content outside the managed block is preserved
-    expect(parsed.userContent).toContain('User notes');
+    // User content outside the managed block is preserved. Core may keep it
+    // before or after the managed block depending on marker positioning.
+    expect(`${parsed.beforeContent}\n${parsed.userContent}`).toContain(
+      'User notes',
+    );
   }, 30_000);
 
   it('maintains SOUL.md managed content', async () => {

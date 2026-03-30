@@ -7,20 +7,26 @@
  * (`cli.ts`). Rollup inlines these into each output independently.
  */
 
+/** Component name shared across service and plugin descriptors. */
+export const COMPONENT_NAME = 'watcher';
+
 /** Plugin identifier used in OpenClaw config and extensions directory. */
 export const PLUGIN_ID = 'jeeves-watcher-openclaw';
 
+/** npm package name for the service. */
+export const SERVICE_PACKAGE = '@karmaniverous/jeeves-watcher';
+
+/** npm package name for the plugin. */
+export const PLUGIN_PACKAGE = `@karmaniverous/${PLUGIN_ID}`;
+
+/** Default watcher API port. */
+export const DEFAULT_PORT = 1936;
+
 /** Default watcher API base URL. */
-export const DEFAULT_API_URL = 'http://127.0.0.1:1936';
+export const DEFAULT_API_URL = `http://127.0.0.1:${String(DEFAULT_PORT)}`;
 
 /** Default platform config root path. */
 export const DEFAULT_CONFIG_ROOT = 'j:/config';
-
-/** Default Qdrant health check URL (used in diagnostic output). */
-export const DEFAULT_QDRANT_URL = 'http://127.0.0.1:6333';
-
-/** Timeout in milliseconds for service health probes. */
-export const PROBE_TIMEOUT_MS = 1500;
 
 /**
  * Timeout in milliseconds for menu generation fetch calls.

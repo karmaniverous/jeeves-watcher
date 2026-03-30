@@ -1,9 +1,12 @@
-import { fetchJson, fetchWithTimeout } from '@karmaniverous/jeeves';
+import { fetchJson } from '@karmaniverous/jeeves';
 
-import { DEFAULT_QDRANT_URL, MENU_FETCH_TIMEOUT_MS } from './constants.js';
+import { MENU_FETCH_TIMEOUT_MS } from './constants.js';
 
+/** Shape of the new core-convention /status response. */
 interface StatusResponse {
-  collection?: { pointCount: number };
+  health?: {
+    collection?: { pointCount: number };
+  };
 }
 
 interface QueryResponse<T = unknown> {
@@ -17,58 +20,31 @@ interface QueryResponse<T = unknown> {
  * @remarks
  * We intentionally do NOT embed catalogues (rules, watched paths, ignored
  * paths). Those are available live via `watcher_config` on demand.
+ *
+ * When the watcher is unreachable, this function throws — the caller
+ * (`createAsyncContentCache`) retains the previous successful result.
+ * Core's `ComponentWriter` handles unreachable-state alerts independently.
  */
 export async function generateWatcherMenu(apiUrl: string): Promise<string> {
-  let pointCount = 0;
   const scoreThresholds = { strong: 0.75, relevant: 0.5, noise: 0.25 };
 
-  try {
-    const fetchOpts = { signal: AbortSignal.timeout(MENU_FETCH_TIMEOUT_MS) };
+  const fetchOpts = { signal: AbortSignal.timeout(MENU_FETCH_TIMEOUT_MS) };
 
-    const [statusRes, thresholdsRes] = (await Promise.all([
-      fetchJson(`${apiUrl}/status`, fetchOpts),
-      fetchJson(
-        `${apiUrl}/config?path=${encodeURIComponent('$.search.scoreThresholds')}`,
-        fetchOpts,
-      ),
-    ])) as [StatusResponse, QueryResponse<Record<string, unknown>>];
+  const [statusRes, thresholdsRes] = (await Promise.all([
+    fetchJson(`${apiUrl}/status`, fetchOpts),
+    fetchJson(
+      `${apiUrl}/config?path=${encodeURIComponent('$.search.scoreThresholds')}`,
+      fetchOpts,
+    ),
+  ])) as [StatusResponse, QueryResponse<Record<string, unknown>>];
 
-    pointCount = statusRes.collection?.pointCount ?? 0;
+  const pointCount = statusRes.health?.collection?.pointCount ?? 0;
 
-    if (
-      Array.isArray(thresholdsRes.result) &&
-      thresholdsRes.result.length > 0
-    ) {
-      const t = thresholdsRes.result[0];
-      if (typeof t.strong === 'number') scoreThresholds.strong = t.strong;
-      if (typeof t.relevant === 'number') scoreThresholds.relevant = t.relevant;
-      if (typeof t.noise === 'number') scoreThresholds.noise = t.noise;
-    }
-  } catch {
-    let qdrantStatus = '*Unknown*';
-    try {
-      // Assuming Qdrant runs locally on the default port
-      const res = await fetchWithTimeout(`${DEFAULT_QDRANT_URL}/healthz`, 1000);
-      qdrantStatus = res.ok ? 'Running' : 'Error';
-    } catch {
-      qdrantStatus = 'Down / Unreachable';
-    }
-
-    return `> **ACTION REQUIRED: Watcher service is unreachable.**
-> The jeeves-watcher service API at ${apiUrl} is down or not installed.
-> **Diagnostic Info:**
-> - Watcher API (${apiUrl}): Unreachable
-> - Qdrant (${DEFAULT_QDRANT_URL}): ${qdrantStatus}
->
-> **DO NOT** ignore this. Read the \`jeeves-watcher\` skill's **Bootstrap** section immediately and walk the user through the setup process. Use the diagnostic info above to determine if Qdrant needs installing/starting, or if only the watcher service needs attention.`;
-  }
-
-  if (pointCount === 0) {
-    return `> **ACTION REQUIRED: Watcher service is empty.**
-> The jeeves-watcher service is running at ${apiUrl} but has no indexed data.
-> The service has either just been installed (no configuration/data), or indexing hasn't run.
->
-> **DO NOT** ignore this. Read the \`jeeves-watcher\` skill's **Bootstrap** section immediately and walk the user through the setup process to configure and reindex the workspace.`;
+  if (Array.isArray(thresholdsRes.result) && thresholdsRes.result.length > 0) {
+    const t = thresholdsRes.result[0];
+    if (typeof t.strong === 'number') scoreThresholds.strong = t.strong;
+    if (typeof t.relevant === 'number') scoreThresholds.relevant = t.relevant;
+    if (typeof t.noise === 'number') scoreThresholds.noise = t.noise;
   }
 
   const lines: string[] = [

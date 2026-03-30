@@ -1,6 +1,6 @@
 /**
  * @module plugin/watcherComponent
- * Jeeves component integration for the watcher OpenClaw plugin.
+ * Jeeves component descriptor for the watcher OpenClaw plugin.
  *
  * @remarks
  * Uses `createAsyncContentCache()` from core to bridge the sync/async gap:
@@ -9,21 +9,19 @@
  * returns the most recent successful result.
  */
 
-import { execFile as execFileCb } from 'node:child_process';
-import { promisify } from 'node:util';
-
 import {
   createAsyncContentCache,
-  fetchWithTimeout,
-  type JeevesComponent,
-  type ServiceCommands,
-  type ServiceStatus,
+  type JeevesComponentDescriptor,
+  jeevesComponentDescriptorSchema,
 } from '@karmaniverous/jeeves';
 
-import { PLUGIN_ID, PROBE_TIMEOUT_MS } from './constants.js';
+import {
+  COMPONENT_NAME,
+  DEFAULT_PORT,
+  PLUGIN_PACKAGE,
+  SERVICE_PACKAGE,
+} from './constants.js';
 import { generateWatcherMenu } from './promptInjection.js';
-
-const execFile = promisify(execFileCb);
 
 /** Options for creating the watcher component descriptor. */
 interface CreateWatcherComponentOptions {
@@ -33,43 +31,22 @@ interface CreateWatcherComponentOptions {
   pluginVersion: string;
 }
 
-/** Shape of the watcher `/status` response (subset). */
-interface StatusResponse {
-  version?: string;
-  uptime?: number;
-}
-
 /**
- * Probe the watcher HTTP API for service health.
+ * Create the watcher component descriptor.
  *
- * @param apiUrl - Base URL of the watcher API.
- * @returns Service status with running flag, optional version and uptime.
- */
-async function getServiceStatus(apiUrl: string): Promise<ServiceStatus> {
-  try {
-    const res = await fetchWithTimeout(`${apiUrl}/status`, PROBE_TIMEOUT_MS);
-    if (!res.ok) return { running: false };
-
-    const json = (await res.json()) as StatusResponse;
-    return {
-      running: true,
-      version: typeof json.version === 'string' ? json.version : undefined,
-      uptimeSeconds: typeof json.uptime === 'number' ? json.uptime : undefined,
-    };
-  } catch {
-    return { running: false };
-  }
-}
-
-/**
- * Create the watcher `JeevesComponent` descriptor.
+ * @remarks
+ * Returns a `JeevesComponentDescriptor` conforming to the core Zod schema,
+ * ready for `createComponentWriter()`. The service descriptor
+ * (`packages/service/src/descriptor.ts`) is the canonical source for
+ * config schema and CLI commands; this plugin-side descriptor carries only
+ * the fields `ComponentWriter` needs (identity, content generation).
  *
  * @param options - API URL and plugin version.
- * @returns A fully configured component descriptor ready for `createComponentWriter()`.
+ * @returns A validated component descriptor.
  */
 export function createWatcherComponent(
   options: CreateWatcherComponentOptions,
-): JeevesComponent {
+): JeevesComponentDescriptor {
   const { apiUrl, pluginVersion } = options;
 
   const getContent = createAsyncContentCache({
@@ -78,35 +55,25 @@ export function createWatcherComponent(
   });
 
   return {
-    name: 'watcher',
+    name: COMPONENT_NAME,
     version: pluginVersion,
+    servicePackage: SERVICE_PACKAGE,
+    pluginPackage: PLUGIN_PACKAGE,
+    defaultPort: DEFAULT_PORT,
+    // Transitional placeholder: ComponentWriter needs a Zod schema but
+    // does not consume it beyond validation. The real watcher config
+    // schema lives in the service descriptor.
+    configSchema: jeevesComponentDescriptorSchema.shape.name,
+    configFileName: 'config.json',
+    initTemplate: () => ({}),
+    startCommand: (configPath: string) => [
+      'jeeves-watcher',
+      'start',
+      '-c',
+      configPath,
+    ],
     sectionId: 'Watcher',
     refreshIntervalSeconds: 71,
-    servicePackage: '@karmaniverous/jeeves-watcher',
-    pluginPackage: `@karmaniverous/${PLUGIN_ID}`,
-
     generateToolsContent: getContent,
-
-    serviceCommands: {
-      async stop(): Promise<void> {
-        await execFile('jeeves-watcher', ['service', 'stop']);
-      },
-      async uninstall(): Promise<void> {
-        await execFile('jeeves-watcher', ['service', 'uninstall']);
-      },
-      async status(): Promise<ServiceStatus> {
-        return getServiceStatus(apiUrl);
-      },
-    } satisfies ServiceCommands,
-
-    pluginCommands: {
-      async uninstall(): Promise<void> {
-        await execFile('npx', [
-          '-y',
-          `@karmaniverous/${PLUGIN_ID}`,
-          'uninstall',
-        ]);
-      },
-    },
   };
 }

@@ -49,6 +49,7 @@ export async function ensureTextIndex(
   } catch (error) {
     throw new Error(
       `Failed to create text index on "${fieldName}": ${String(error)}`,
+      { cause: error },
     );
   }
 }
