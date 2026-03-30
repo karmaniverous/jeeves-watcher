@@ -2,7 +2,31 @@
 
 All notable changes to this project will be documented in this file. Dates are displayed in UTC.
 
-#### [0.15.2](https://github.com/karmaniverous/jeeves-watcher/compare/service/0.15.1...0.15.2)
+#### [0.16.0](https://github.com/karmaniverous/jeeves-watcher/compare/service/0.15.2...0.16.0)
+
+- feat: core SDK adoption — descriptor, CLI factory, status handler [Phases 2-4] [`#166`](https://github.com/karmaniverous/jeeves-watcher/pull/166)
+- feat: config path migration to jeeves-watcher/config.json (#149) [`#165`](https://github.com/karmaniverous/jeeves-watcher/pull/165)
+- [PHASE-2] feat: core 0.4.4 + Zod 4, dep updates, descriptor definition [`197b5e8`](https://github.com/karmaniverous/jeeves-watcher/commit/197b5e84dddbaa6638710b4ec37742870348a06e)
+- [PHASE-2] [PHASE-3] feat: replace hand-rolled CLI with createServiceCli factory (S1) [`8c09f76`](https://github.com/karmaniverous/jeeves-watcher/commit/8c09f7670d8c70b6cb0bf842376e10ad87026aaa)
+- [PHASE-2] docs: sync all documentation with current implementation [`34144b9`](https://github.com/karmaniverous/jeeves-watcher/commit/34144b99df0efa5d11b552322c47df84323757bb)
+- [PHASE-2] refactor: SOLID/DRY review — extract shared patterns, consolidate constants [`300707e`](https://github.com/karmaniverous/jeeves-watcher/commit/300707e50d9ecd935d902c20ad0a92f269906698)
+- [PHASE-2] test: improve coverage for touched code, remove trivial and dead tests [`edb8120`](https://github.com/karmaniverous/jeeves-watcher/commit/edb81208b09688e7fa7cb0c8bf8116f1256f59ba)
+- [PHASE-2] [PHASE-4] feat: plugin refactor — core CLI factory, simplified menu, new status shape [`917a8e8`](https://github.com/karmaniverous/jeeves-watcher/commit/917a8e8c1a9e2fb5466d56c5ebf6413ddd3fe5da)
+- [PHASE-1] feat: config path migration to jeeves-watcher/config.json (#149) [`03f3efd`](https://github.com/karmaniverous/jeeves-watcher/commit/03f3efd3a267d7c7075321b3183d79a04d9282cf)
+- npm audit fix [`c58a678`](https://github.com/karmaniverous/jeeves-watcher/commit/c58a67867e659c71ea8f9e5aae6f3078c9dc9809)
+- [PHASE-0] fix: improve Phase 0 fixes - add tests, graceful facets degradation, waitForIdleWorkers [`3b6f015`](https://github.com/karmaniverous/jeeves-watcher/commit/3b6f015ff14ffae1a40c028371a5e66035983df1)
+- [PHASE-0] [#162] fix: batch embedAndUpsert to prevent OOM on large files [`8555815`](https://github.com/karmaniverous/jeeves-watcher/commit/8555815e126dd5f499890707934fdefae97d90cc)
+- [PHASE-2] [PHASE-3] feat: adopt core status handler + getBindAddress (S2/S3) [`cebe47e`](https://github.com/karmaniverous/jeeves-watcher/commit/cebe47e31bdfae991889a4d260084c51af1c5a40)
+- [PHASE-1] fix: address Gemini review - log migration errors, remove unused resolveConfigDir [`ad22e30`](https://github.com/karmaniverous/jeeves-watcher/commit/ad22e309ce21bcdcb295fd1262f5d2d3f1504ba4)
+- [PHASE-0] [#161] fix: catch async rejection in onRulesChanged instead of swallowing it [`642001a`](https://github.com/karmaniverous/jeeves-watcher/commit/642001ae7e71c7ad2ef96d5f4c4d1687ac553c8a)
+- [PHASE-2] docs: align guide index structure with jeeves-server pattern [`42a377b`](https://github.com/karmaniverous/jeeves-watcher/commit/42a377b9584d6c461dc6261fb552cb7d3e9d7053)
+- Merge pull request #164 from karmaniverous/bugfix/phase-0-bug-fixes [`9edfeda`](https://github.com/karmaniverous/jeeves-watcher/commit/9edfeda7a4a1d1579d9322779859a1b8575c88a6)
+- [PHASE-0] [#159] fix: add try/catch to facets handler for config and schema errors [`675f382`](https://github.com/karmaniverous/jeeves-watcher/commit/675f38289a4a86770a97651809a92db47a626552)
+- [PHASE-0] fix: guard upsertBatchSize against zero/negative (Gemini review) [`8bd7dda`](https://github.com/karmaniverous/jeeves-watcher/commit/8bd7dda1379c3190f89a31ca37354876e868cee0)
+
+#### [service/0.15.2](https://github.com/karmaniverous/jeeves-watcher/compare/service/0.15.1...service/0.15.2)
+
+> 28 March 2026
 
 - fix: pause + drain event queue during prune to prevent ECONNRESET under load [`#160`](https://github.com/karmaniverous/jeeves-watcher/pull/160)
 - fix: QdrantClient write path leaks undici Agents [`#157`](https://github.com/karmaniverous/jeeves-watcher/pull/157)
@@ -15,6 +39,7 @@ All notable changes to this project will be documented in this file. Dates are d
 - [152] fix: address PR review feedback on #152 [`0127d01`](https://github.com/karmaniverous/jeeves-watcher/commit/0127d01919764beae3344d11f810f6be1b81cf7d)
 - [120] fix: pause event queue during prune to prevent ECONNRESET under load [`5896afa`](https://github.com/karmaniverous/jeeves-watcher/commit/5896afadc90908eeb321e480936961cc00269a7e)
 - [150] fix: QdrantClient write path leaks undici Agents (#150) [`8ff3286`](https://github.com/karmaniverous/jeeves-watcher/commit/8ff328638865832b730841696ab694b80e69acdc)
+- chore: release @karmaniverous/jeeves-watcher v0.15.2 [`0d0a0be`](https://github.com/karmaniverous/jeeves-watcher/commit/0d0a0be11eee759dc48e601c0d6e11ad2722380f)
 - [150] refactor: address PR review feedback on #150 [`1474a8d`](https://github.com/karmaniverous/jeeves-watcher/commit/1474a8d85461c4525d3cd6eba80fe154f82c924e)
 - chore: release @karmaniverous/jeeves-watcher-openclaw v0.12.1 [`2616608`](https://github.com/karmaniverous/jeeves-watcher/commit/2616608f0b67a4c13fd50de35a19b8d4826559c5)
 - ci: add linux-compat workflow via shared gha-workflows [`76cc7e0`](https://github.com/karmaniverous/jeeves-watcher/commit/76cc7e008eb918d6fc068319719aceb1e3caa974)
