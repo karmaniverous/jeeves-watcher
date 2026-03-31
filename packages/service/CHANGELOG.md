@@ -2,10 +2,19 @@
 
 All notable changes to this project will be documented in this file. Dates are displayed in UTC.
 
-#### [0.16.2](https://github.com/karmaniverous/jeeves-watcher/compare/service/0.16.1...0.16.2)
+#### [0.16.3](https://github.com/karmaniverous/jeeves-watcher/compare/service/0.16.2...0.16.3)
+
+- feat: integrate core 0.4.6 - init before descriptor.run() [`#172`](https://github.com/karmaniverous/jeeves-watcher/pull/172)
+- chore: release @karmaniverous/jeeves-watcher-openclaw v0.13.1 [`d89a8b9`](https://github.com/karmaniverous/jeeves-watcher/commit/d89a8b959dda9ba50277c1ed478ad30de82faddc)
+- [CORE-046] feat: integrate core 0.4.6 — init() called before descriptor.run() [`83d6d4a`](https://github.com/karmaniverous/jeeves-watcher/commit/83d6d4aa3bb983d3ac319f3857bbe7853eafe161)
+
+#### [service/0.16.2](https://github.com/karmaniverous/jeeves-watcher/compare/service/0.16.1...service/0.16.2)
+
+> 31 March 2026
 
 - feat: integrate core 0.4.5 - add run callback to descriptor [`#170`](https://github.com/karmaniverous/jeeves-watcher/pull/170)
 - [CORE-045] feat: integrate core 0.4.5 - add run callback to descriptor [`45a6400`](https://github.com/karmaniverous/jeeves-watcher/commit/45a64003d2496c56940624a06bc71393feea8aa4)
+- chore: release @karmaniverous/jeeves-watcher v0.16.2 [`7ccb0f1`](https://github.com/karmaniverous/jeeves-watcher/commit/7ccb0f1c756c7a225e892e7fc7e550c33a24ebf4)
 
 #### [service/0.16.1](https://github.com/karmaniverous/jeeves-watcher/compare/service/0.16.0...service/0.16.1)
 
