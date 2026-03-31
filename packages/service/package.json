@@ -51,7 +51,7 @@
   },
   "dependencies": {
     "@commander-js/extra-typings": "^14.0.0",
-    "@karmaniverous/jeeves": "^0.4.4",
+    "@karmaniverous/jeeves": "^0.4.6",
     "@karmaniverous/jsonmap": "^2.1.1",
     "@langchain/textsplitters": "*",
     "@qdrant/js-client-rest": "*",
