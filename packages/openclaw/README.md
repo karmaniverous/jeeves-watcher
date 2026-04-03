@@ -73,6 +73,7 @@ This plugin integrates with [`@karmaniverous/jeeves`](https://www.npmjs.com/pack
 | `watcher_reindex` | Trigger a scoped reindex with blast area plan |
 | `watcher_scan` | Filter-only point query with cursor pagination |
 | `watcher_issues` | List indexing issues and errors |
+| `watcher_service` | Manage watcher background service (install/uninstall/start/stop/restart/status) |
 
 ## Documentation
 

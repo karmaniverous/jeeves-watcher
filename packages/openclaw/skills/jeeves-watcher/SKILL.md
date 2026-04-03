@@ -119,12 +119,12 @@ When the plugin loads and the watcher service is NOT yet set up, drive the entir
 
 ### Step 1: Check Node.js
 
-Verify Node.js is installed and version ≥ 20:
+Verify Node.js is installed and version ≥ 22:
 ```bash
 node --version
 ```
 
-If missing or too old, guide the user to install Node.js 20+ from https://nodejs.org or via their package manager.
+If missing or too old, guide the user to install Node.js 22+ from https://nodejs.org or via their package manager.
 
 ### Step 2: Install Qdrant
 
@@ -461,6 +461,12 @@ do {
 } while (cursor);
 ```
 
+### `watcher_service`
+Manage the watcher background service (install, uninstall, start, stop, restart, check status).
+- `action` (string, required) — one of: `install`, `uninstall`, `start`, `stop`, `restart`, `status`
+
+Returns the service manager's response. On Windows uses NSSM, on Linux uses systemd.
+
 ### `watcher_issues`
 Get runtime embedding failures. Returns `{ filePath: IssueRecord }` showing files that failed and why.
 
@@ -775,6 +781,27 @@ Enumerate loaded helpers:
 ```
 $.mapHelpers              — JsonMap helper namespaces with exports
 $.templateHelpers         — Handlebars helper namespaces with exports
+```
+
+### Built-in JsonMap Helpers
+
+The following helpers are available in every JsonMap `lib` context without any helper config:
+
+#### `fetchSiblings(filePath, options?)`
+Retrieve extracted text from neighboring files in the same directory. Useful for contextual embedding — e.g., injecting surrounding email messages into a thread member's embedding for better semantic search.
+
+**Parameters:**
+- `filePath` (string) — the current file path (typically `$file_path`)
+- `options` (object, optional):
+  - `before` (number, default 3) — number of preceding siblings to include
+  - `after` (number, default 1) — number of following siblings to include
+  - `sort` (`"name"` | `"mtime"`, default `"name"`) — sort order for determining neighbor position
+
+**Returns:** `string[]` — extracted text from sibling files, in sort order. Files that fail extraction are silently skipped.
+
+**Example** (in a JsonMap `$set` expression):
+```json
+{ "context": { "$fn": "fetchSiblings", "$args": ["$file_path", { "before": 2, "after": 1 }] } }
 ```
 
 ---

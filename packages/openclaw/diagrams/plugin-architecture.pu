@@ -9,7 +9,7 @@ skinparam rectangle {
 rectangle "OpenClaw Gateway" as gateway #e3f2fd {
   rectangle "Plugin: jeeves-watcher-openclaw" as plugin {
     rectangle "register()" as reg #e8f5e9
-    rectangle "10 watcher_* tools" as tools #e8f5e9
+    rectangle "11 watcher_* tools" as tools #e8f5e9
     rectangle "JeevesComponent" as component #fff3e0 {
       card "generateToolsContent()" as gen
       card "serviceCommands" as svc
