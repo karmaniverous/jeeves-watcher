@@ -12,3 +12,5 @@ on:
 jobs:
   linux-compat:
     uses: karmaniverous/gha-workflows/.github/workflows/linux-compat.yml@main
+    with:
+      node-versions: '[22, 24]'
