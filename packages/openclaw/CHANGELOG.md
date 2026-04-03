@@ -2,10 +2,32 @@
 
 All notable changes to this project will be documented in this file. Dates are displayed in UTC.
 
-#### [0.13.2](https://github.com/karmaniverous/jeeves-watcher/compare/openclaw/0.13.1...0.13.2)
+#### [0.14.0](https://github.com/karmaniverous/jeeves-watcher/compare/openclaw/0.13.2...0.14.0)
+
+- feat: full core v0.5.1 adoption + fetchSiblings helper [`#177`](https://github.com/karmaniverous/jeeves-watcher/pull/177)
+- feat: add fetchSiblings built-in JsonMap helper for contextual embedding [`#163`](https://github.com/karmaniverous/jeeves-watcher/issues/163)
+- refactor: adopt createPluginToolset, ship watcher_service tool [`#174`](https://github.com/karmaniverous/jeeves-watcher/issues/174)
+- refactor: adopt core createConfigApplyHandler for /config/apply [`#173`](https://github.com/karmaniverous/jeeves-watcher/issues/173)
+- chore: update safe devDeps (vitest-eslint, knip, typescript-eslint) [`e6d6d39`](https://github.com/karmaniverous/jeeves-watcher/commit/e6d6d39541c06b2cf08e1a3d340d32ce3bd43213)
+- refactor: SOLID/DRY pass across codebase [`5a12f6b`](https://github.com/karmaniverous/jeeves-watcher/commit/5a12f6b495d36d8ead887744b0cd2e5a0f016236)
+- fix: break circular dependencies, clean knip config [`9837178`](https://github.com/karmaniverous/jeeves-watcher/commit/98371783694be93bea2af698149e604aff53ddfe)
+- docs: update skill, READMEs, and diagrams for v0.17.0 [`f33d622`](https://github.com/karmaniverous/jeeves-watcher/commit/f33d6221056f21954c103cc2b1a0a3b1189ab35b)
+- docs: sync all documentation and diagrams with implementation [`dd36465`](https://github.com/karmaniverous/jeeves-watcher/commit/dd36465de5877ac2e53b9d87334a1665a8a005ca)
+- npm audit fix [`de56ddf`](https://github.com/karmaniverous/jeeves-watcher/commit/de56ddf265191d2c93ba16ba01282667708598da)
+- feat: bump core to ^0.5.1, engine floor &gt;=22, adopt getPackageVersion [`a032ff8`](https://github.com/karmaniverous/jeeves-watcher/commit/a032ff8fdb20622afa5e22af559227913100ce7a)
+- refactor: adopt core DEFAULT_PORTS for port constants [`bbf10fd`](https://github.com/karmaniverous/jeeves-watcher/commit/bbf10fd252208a0ad96d87c4bf60cecd37b15ae1)
+- chore: release @karmaniverous/jeeves-watcher v0.17.0 [`20a1d4b`](https://github.com/karmaniverous/jeeves-watcher/commit/20a1d4b11180441718cfaaae7a984032f995b093)
+- feat: wire gatewayUrl into ComponentWriter for cleanup escalation [`5d6d58d`](https://github.com/karmaniverous/jeeves-watcher/commit/5d6d58d0936bdc7f4ddd9b939a1880c6cbcb751a)
+- fix: remove unused JSON_TEXT_FIELDS export (knip) [`8d11ebe`](https://github.com/karmaniverous/jeeves-watcher/commit/8d11ebe4cd2ead7f0ad651681ae6eb1f859e17c2)
+- ci: drop Node 20 from Linux compatibility matrix [`3601d14`](https://github.com/karmaniverous/jeeves-watcher/commit/3601d14fe74050b2e0e228aef4b4442f96fa9c1b)
+
+#### [openclaw/0.13.2](https://github.com/karmaniverous/jeeves-watcher/compare/openclaw/0.13.1...openclaw/0.13.2)
+
+> 31 March 2026
 
 - feat: integrate core 0.4.6 - init before descriptor.run() [`#172`](https://github.com/karmaniverous/jeeves-watcher/pull/172)
 - [CORE-046] feat: integrate core 0.4.6 — init() called before descriptor.run() [`83d6d4a`](https://github.com/karmaniverous/jeeves-watcher/commit/83d6d4aa3bb983d3ac319f3857bbe7853eafe161)
+- chore: release @karmaniverous/jeeves-watcher-openclaw v0.13.2 [`31238ad`](https://github.com/karmaniverous/jeeves-watcher/commit/31238ad0e4a212c05c3211a4243c2665c47a4fa0)
 - chore: release @karmaniverous/jeeves-watcher v0.16.3 [`fc80697`](https://github.com/karmaniverous/jeeves-watcher/commit/fc8069772771124831a2ca1f42c95f49b6a110bb)
 
 #### [openclaw/0.13.1](https://github.com/karmaniverous/jeeves-watcher/compare/openclaw/0.13.0...openclaw/0.13.1)
