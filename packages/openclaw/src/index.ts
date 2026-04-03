@@ -4,11 +4,10 @@
  * the managed content writer via `@karmaniverous/jeeves` core.
  */
 
-import { createRequire } from 'node:module';
-
 import type { PluginApi } from '@karmaniverous/jeeves';
 import {
   createComponentWriter,
+  getPackageVersion,
   init,
   resolveWorkspacePath,
 } from '@karmaniverous/jeeves';
@@ -17,18 +16,7 @@ import { getApiUrl, getConfigRoot } from './helpers.js';
 import { createWatcherComponent } from './watcherComponent.js';
 import { registerWatcherTools } from './watcherTools.js';
 
-/**
- * Read the plugin version from the nearest package.json.
- *
- * @remarks
- * Uses `createRequire(import.meta.url)` — the same pattern as
- * `@karmaniverous/jeeves` core. Works whether executed from
- * `src/index.ts` (dev/test) or `dist/index.js` (built), since
- * both are exactly one directory level below `package.json`.
- */
-const require = createRequire(import.meta.url);
-const pkg = require('../package.json') as { version: string };
-const PLUGIN_VERSION: string = pkg.version;
+const PLUGIN_VERSION = getPackageVersion(import.meta.url);
 
 /** Detect test environments to avoid timers and filesystem writes. */
 function isTestEnv(): boolean {
