@@ -48,7 +48,14 @@ curl http://127.0.0.1:<PORT>/config
 | `/issues` | GET | Runtime embedding failures |
 | `/rules/register` | POST | Register virtual inference rules (auto-triggers rules reindex) |
 | `/rules/unregister` | DELETE | Remove virtual rules by source |
+| `/rules/unregister/:source` | DELETE | Remove virtual rules by source (parameterized) |
+| `/rules/reapply` | POST | Re-apply rules to points |
 | `/points/delete` | POST | Delete points matching a Qdrant filter |
+| `/render` | POST | Render a template for a document |
+| `/search/facets` | GET | Get search facet values |
+| `/rebuild-metadata` | POST | Rebuild enrichment metadata from Qdrant |
+| `/config/schema` | GET | Get config JSON schema |
+| `/config/match` | POST | Match config paths against rules |
 
 **If the watcher is unreachable:** Check the service status (`nssm status jeeves-watcher` on Windows), check the configured port in the watcher config file, and check logs for startup errors.
 

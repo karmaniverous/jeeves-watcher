@@ -11,7 +11,7 @@ Filesystem watcher that keeps a [Qdrant](https://qdrant.tech/) vector store in s
 - **Filesystem watching** — monitors directories for file changes via [chokidar](https://github.com/paulmillr/chokidar)
 - **Multi-format extraction** — PDF, HTML, DOCX, Markdown, plain text, and more
 - **Configurable chunking** — token-based text splitting with overlap control
-- **Embedding providers** — Gemini, OpenAI, or mock (for testing)
+- **Embedding providers** — Gemini (default) or mock (for testing); extensible via provider registry
 - **Qdrant sync** — automatic upsert/delete keeps the vector store current
 - **Rules engine** — glob-based inference rules for metadata enrichment
 - **REST API** — Fastify server for search, status, config, and management

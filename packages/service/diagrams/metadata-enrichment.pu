@@ -17,7 +17,7 @@ title Metadata Enrichment Flow
 actor "API Caller" as CALLER
 participant "Fastify API" as API
 participant "Document Processor" as PROC
-participant "Filesystem" as FS
+database "Enrichment Store\n(SQLite)" as ES
 database "Qdrant" as QD
 
 CALLER -> API : POST /metadata\n{filePath, metadata}
@@ -38,10 +38,10 @@ end note
 API -> PROC : enrich(filePath, metadata)
 activate PROC
 
-PROC -> FS : Read .meta.json\n(if exists)
-activate FS
-FS --> PROC : Existing metadata\n(or empty)
-deactivate FS
+PROC -> ES : Read existing enrichment\n(if any)
+activate ES
+ES --> PROC : Existing metadata\n(or empty)
+deactivate ES
 
 PROC -> PROC : Merge metadata
 note right of PROC
@@ -50,15 +50,15 @@ note right of PROC
   (deep merge)
 end note
 
-PROC -> FS : Write .meta.json
-activate FS
-note right of FS
-  Atomic write:
-  .meta.json.tmp →
-  rename to .meta.json
+PROC -> ES : Write merged enrichment
+activate ES
+note right of ES
+  SQLite upsert:
+  path-keyed row in
+  enrichments.sqlite
 end note
-FS --> PROC : Success
-deactivate FS
+ES --> PROC : Success
+deactivate ES
 
 PROC -> QD : Query points\nby file path
 activate QD
