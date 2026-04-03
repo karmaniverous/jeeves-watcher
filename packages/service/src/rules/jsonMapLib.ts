@@ -3,8 +3,8 @@
  * Creates the lib object for JsonMap transformations.
  */
 
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { readdirSync, readFileSync, statSync } from 'node:fs';
+import { dirname, extname, join, resolve } from 'node:path';
 
 import { get } from 'radash';
 
@@ -13,11 +13,13 @@ import { get } from 'radash';
  *
  * @param configDir - Optional config directory for resolving relative file paths in lookups.
  * @param customLib - Optional custom lib functions to merge.
+ * @param extractText - Optional callback to extract text from a file path. Returns extracted text or undefined on failure.
  * @returns The lib object.
  */
 export function createJsonMapLib(
   configDir?: string,
   customLib?: Record<string, (...args: unknown[]) => unknown>,
+  extractText?: (filePath: string) => string | undefined,
 ) {
   // Cache loaded JSON files within a single applyRules invocation.
   const jsonCache = new Map<string, unknown>();
@@ -85,6 +87,76 @@ export function createJsonMapLib(
           results.push(val);
         }
       }
+      return results;
+    },
+
+    /**
+     * Retrieve extracted text from neighboring files in the same directory.
+     *
+     * @param filePath - The current file path.
+     * @param options - Optional windowing and sort options.
+     * @returns Flat array of extracted text from siblings, in sort order.
+     */
+    fetchSiblings: (
+      filePath: string,
+      options?: { before?: number; after?: number; sort?: 'name' | 'mtime' },
+    ): string[] => {
+      if (!extractText) return [];
+
+      const { before = 3, after = 1, sort = 'name' } = options ?? {};
+      const dir = dirname(filePath);
+      const ext = extname(filePath);
+
+      // List all files in the directory with the same extension
+      let entries: string[];
+      try {
+        entries = readdirSync(dir).filter((name) => extname(name) === ext);
+      } catch {
+        return [];
+      }
+
+      // Sort by filename (default) or mtime
+      if (sort === 'mtime') {
+        entries.sort((a, b) => {
+          try {
+            const aStat = statSync(join(dir, a));
+            const bStat = statSync(join(dir, b));
+            return aStat.mtimeMs - bStat.mtimeMs;
+          } catch {
+            return 0;
+          }
+        });
+      } else {
+        entries.sort();
+      }
+
+      // Find current file's position
+      const currentName = filePath.split(/[\\/]/).pop()!;
+      const currentIndex = entries.indexOf(currentName);
+      if (currentIndex === -1) return [];
+
+      // Slice before/after window (excluding current file)
+      const beforeEntries = entries.slice(
+        Math.max(0, currentIndex - before),
+        currentIndex,
+      );
+      const afterEntries = entries.slice(
+        currentIndex + 1,
+        currentIndex + 1 + after,
+      );
+      const window = [...beforeEntries, ...afterEntries];
+
+      // Extract text from each sibling, silently skipping failures
+      const results: string[] = [];
+      for (const name of window) {
+        try {
+          const text = extractText(join(dir, name));
+          if (text !== undefined) results.push(text);
+        } catch {
+          // Silently skip files that fail extraction
+        }
+      }
+
       return results;
     },
     ...customLib,

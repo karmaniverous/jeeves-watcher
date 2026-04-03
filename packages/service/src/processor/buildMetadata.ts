@@ -3,6 +3,7 @@
  * Builds merged metadata from file content, inference rules, and enrichment store. I/O: reads files, extracts text, queries SQLite enrichment.
  */
 
+import { readFileSync } from 'node:fs';
 import { stat } from 'node:fs/promises';
 import { extname } from 'node:path';
 
@@ -63,6 +64,46 @@ interface BuildMergedMetadataOptions {
   globalSchemas?: Record<string, SchemaEntry>;
 }
 
+/** Well-known JSON fields that contain meaningful text content. */
+const JSON_TEXT_FIELDS = [
+  'content',
+  'body',
+  'text',
+  'snippet',
+  'subject',
+  'description',
+  'summary',
+  'transcript',
+] as const;
+
+/**
+ * Synchronously extract text from a file. Returns undefined on failure.
+ * Used by fetchSiblings in JsonMap lib for sibling context extraction.
+ */
+function syncExtractText(filePath: string): string | undefined {
+  try {
+    const raw = readFileSync(filePath, 'utf-8').replace(/^\uFEFF/, '');
+    const ext = extname(filePath).toLowerCase();
+
+    if (ext === '.json') {
+      const parsed = JSON.parse(raw) as unknown;
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        const rec = parsed as Record<string, unknown>;
+        for (const field of JSON_TEXT_FIELDS) {
+          const value = rec[field];
+          if (typeof value === 'string' && value.trim()) return value;
+        }
+      }
+      return JSON.stringify(parsed);
+    }
+
+    // All other supported text formats: return raw content
+    return raw;
+  } catch {
+    return undefined;
+  }
+}
+
 /**
  * Build merged metadata for a file by applying inference rules and merging with enrichment metadata.
  *
@@ -108,6 +149,7 @@ export async function buildMergedMetadata(
     configDir,
     customMapLib,
     globalSchemas,
+    extractText: syncExtractText,
   });
 
   // 3. Read enrichment metadata from store (composable merge)
