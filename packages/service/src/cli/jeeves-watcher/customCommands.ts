@@ -7,6 +7,8 @@
 import type { Command } from '@commander-js/extra-typings';
 import { DEFAULT_PORTS, fetchJson, postJson } from '@karmaniverous/jeeves';
 
+import { VALID_REINDEX_SCOPES } from '../../api/executeReindex';
+
 const DEFAULT_PORT = String(DEFAULT_PORTS.watcher);
 const DEFAULT_HOST = '127.0.0.1';
 
@@ -142,9 +144,13 @@ export function registerCustomCommands(program: Command): void {
       ),
   ).action(async (opts) => {
     await handleErrors(async () => {
-      if (!VALID_SCOPES.includes(opts.scope as (typeof VALID_SCOPES)[number])) {
+      if (
+        !VALID_REINDEX_SCOPES.includes(
+          opts.scope as (typeof VALID_REINDEX_SCOPES)[number],
+        )
+      ) {
         console.error(
-          `Invalid scope "${opts.scope}". Must be one of: ${VALID_SCOPES.join(', ')}`,
+          `Invalid scope "${opts.scope}". Must be one of: ${VALID_REINDEX_SCOPES.join(', ')}`,
         );
         process.exitCode = 1;
         return;
@@ -222,9 +228,7 @@ export function registerCustomCommands(program: Command): void {
   });
 }
 
-// --- shared constants and helpers ---
-
-const VALID_SCOPES = ['issues', 'full', 'rules', 'path', 'prune'] as const;
+// --- shared helpers ---
 
 interface HelperEntry {
   path?: string;

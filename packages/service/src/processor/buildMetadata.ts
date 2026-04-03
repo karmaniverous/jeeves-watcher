@@ -13,7 +13,11 @@ import type pino from 'pino';
 import type { SchemaEntry } from '../config/schemas';
 import type { EnrichmentStoreInterface } from '../enrichment';
 import { mergeEnrichment } from '../enrichment';
-import { type ExtractedText, extractText } from '../extractors';
+import {
+  type ExtractedText,
+  extractJsonText,
+  extractText,
+} from '../extractors';
 import type { CompiledRule } from '../rules';
 import { applyRules, buildAttributes } from '../rules';
 import type { TemplateEngine } from '../templates';
@@ -64,18 +68,6 @@ interface BuildMergedMetadataOptions {
   globalSchemas?: Record<string, SchemaEntry>;
 }
 
-/** Well-known JSON fields that contain meaningful text content. */
-const JSON_TEXT_FIELDS = [
-  'content',
-  'body',
-  'text',
-  'snippet',
-  'subject',
-  'description',
-  'summary',
-  'transcript',
-] as const;
-
 /**
  * Synchronously extract text from a file. Returns undefined on failure.
  * Used by fetchSiblings in JsonMap lib for sibling context extraction.
@@ -87,14 +79,7 @@ function syncExtractText(filePath: string): string | undefined {
 
     if (ext === '.json') {
       const parsed = JSON.parse(raw) as unknown;
-      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
-        const rec = parsed as Record<string, unknown>;
-        for (const field of JSON_TEXT_FIELDS) {
-          const value = rec[field];
-          if (typeof value === 'string' && value.trim()) return value;
-        }
-      }
-      return JSON.stringify(parsed);
+      return extractJsonText(parsed);
     }
 
     // All other supported text formats: return raw content

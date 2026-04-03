@@ -4,7 +4,7 @@
  */
 
 import { readdirSync, readFileSync, statSync } from 'node:fs';
-import { dirname, extname, join, resolve } from 'node:path';
+import { basename, dirname, extname, join, resolve } from 'node:path';
 
 import { get } from 'radash';
 
@@ -131,7 +131,7 @@ export function createJsonMapLib(
       }
 
       // Find current file's position
-      const currentName = filePath.split(/[\\/]/).pop()!;
+      const currentName = basename(filePath);
       const currentIndex = entries.indexOf(currentName);
       if (currentIndex === -1) return [];
 

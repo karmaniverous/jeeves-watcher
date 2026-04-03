@@ -50,7 +50,8 @@ function extractMarkdownFrontmatter(markdown: string): {
   return { frontmatter, body };
 }
 
-const JSON_TEXT_FIELDS = [
+/** Well-known JSON fields that contain meaningful text content. */
+export const JSON_TEXT_FIELDS = [
   'content',
   'body',
   'text',
@@ -67,7 +68,7 @@ const JSON_TEXT_FIELDS = [
  * @param obj - Parsed JSON content.
  * @returns A text representation for embedding.
  */
-function extractJsonText(obj: unknown): string {
+export function extractJsonText(obj: unknown): string {
   if (!obj || typeof obj !== 'object') return JSON.stringify(obj);
 
   const rec = obj as Record<string, unknown>;

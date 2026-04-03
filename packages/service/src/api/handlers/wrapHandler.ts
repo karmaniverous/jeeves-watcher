@@ -20,8 +20,8 @@ import { normalizeError } from '../../util/normalizeError';
  * @param label - Label for error log messages.
  * @returns A wrapped handler that catches errors and returns 500.
  */
-export function wrapHandler<T extends RouteGenericInterface>(
-  fn: (request: FastifyRequest<T>, reply: FastifyReply) => Promise<unknown>,
+export function wrapHandler<T extends RouteGenericInterface, R = unknown>(
+  fn: (request: FastifyRequest<T>, reply: FastifyReply) => R | Promise<R>,
   logger: pino.Logger,
   label: string,
 ): (request: FastifyRequest<T>, reply: FastifyReply) => Promise<void> {

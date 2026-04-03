@@ -45,8 +45,8 @@ function unregisterSource(deps: RulesUnregisterDeps, source: string) {
  */
 export function createRulesUnregisterHandler(deps: RulesUnregisterDeps) {
   return wrapHandler(
-    async (request: UnregisterBodyRequest) => {
-      return Promise.resolve(unregisterSource(deps, request.body.source));
+    (request: UnregisterBodyRequest) => {
+      return unregisterSource(deps, request.body.source);
     },
     deps.logger,
     'RulesUnregister',
@@ -58,8 +58,8 @@ export function createRulesUnregisterHandler(deps: RulesUnregisterDeps) {
  */
 export function createRulesUnregisterParamHandler(deps: RulesUnregisterDeps) {
   return wrapHandler(
-    async (request: UnregisterParamRequest) => {
-      return Promise.resolve(unregisterSource(deps, request.params.source));
+    (request: UnregisterParamRequest) => {
+      return unregisterSource(deps, request.params.source);
     },
     deps.logger,
     'RulesUnregister',
