@@ -9,10 +9,11 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import type { Command } from '@commander-js/extra-typings';
-import type {
-  JeevesComponentDescriptor,
-  PluginApi,
-  ToolDescriptor,
+import {
+  DEFAULT_PORTS,
+  type JeevesComponentDescriptor,
+  type PluginApi,
+  type ToolDescriptor,
 } from '@karmaniverous/jeeves';
 import { packageDirectorySync } from 'package-directory';
 
@@ -51,7 +52,7 @@ export const watcherDescriptor: JeevesComponentDescriptor = {
   version,
   servicePackage: '@karmaniverous/jeeves-watcher',
   pluginPackage: '@karmaniverous/jeeves-watcher-openclaw',
-  defaultPort: 1936,
+  defaultPort: DEFAULT_PORTS.watcher,
 
   // Config
   configSchema: jeevesWatcherConfigSchema,

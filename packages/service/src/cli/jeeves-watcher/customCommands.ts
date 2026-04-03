@@ -5,9 +5,9 @@
  */
 
 import type { Command } from '@commander-js/extra-typings';
-import { fetchJson, postJson } from '@karmaniverous/jeeves';
+import { DEFAULT_PORTS, fetchJson, postJson } from '@karmaniverous/jeeves';
 
-const DEFAULT_PORT = '1936';
+const DEFAULT_PORT = String(DEFAULT_PORTS.watcher);
 const DEFAULT_HOST = '127.0.0.1';
 
 /** Standard API options present on every custom command. */
