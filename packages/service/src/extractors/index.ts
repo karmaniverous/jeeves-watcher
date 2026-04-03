@@ -51,7 +51,7 @@ function extractMarkdownFrontmatter(markdown: string): {
 }
 
 /** Well-known JSON fields that contain meaningful text content. */
-export const JSON_TEXT_FIELDS = [
+const JSON_TEXT_FIELDS = [
   'content',
   'body',
   'text',
