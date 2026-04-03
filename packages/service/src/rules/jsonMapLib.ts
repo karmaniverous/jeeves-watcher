@@ -105,27 +105,31 @@ export function createJsonMapLib(
 
       const { before = 3, after = 1, sort = 'name' } = options ?? {};
       const dir = dirname(filePath);
-      const ext = extname(filePath);
+      const ext = extname(filePath).toLowerCase();
 
-      // List all files in the directory with the same extension
+      // List all files in the directory with the same extension (case-insensitive)
       let entries: string[];
       try {
-        entries = readdirSync(dir).filter((name) => extname(name) === ext);
+        entries = readdirSync(dir).filter(
+          (name) => extname(name).toLowerCase() === ext,
+        );
       } catch {
         return [];
       }
 
-      // Sort by filename (default) or mtime
+      // Sort by filename (default) or mtime (Schwartzian transform to avoid
+      // redundant statSync calls inside the comparator)
       if (sort === 'mtime') {
-        entries.sort((a, b) => {
-          try {
-            const aStat = statSync(join(dir, a));
-            const bStat = statSync(join(dir, b));
-            return aStat.mtimeMs - bStat.mtimeMs;
-          } catch {
-            return 0;
-          }
-        });
+        entries = entries
+          .map((name) => {
+            try {
+              return { name, mtimeMs: statSync(join(dir, name)).mtimeMs };
+            } catch {
+              return { name, mtimeMs: 0 };
+            }
+          })
+          .sort((a, b) => a.mtimeMs - b.mtimeMs)
+          .map((e) => e.name);
       } else {
         entries.sort();
       }
