@@ -5,7 +5,11 @@
 
 import { dirname } from 'node:path';
 
-import { createStatusHandler as coreCreateStatusHandler } from '@karmaniverous/jeeves';
+import {
+  createConfigApplyHandler as coreCreateConfigApplyHandler,
+  createStatusHandler as coreCreateStatusHandler,
+  type JeevesComponentDescriptor,
+} from '@karmaniverous/jeeves';
 import Fastify, { type FastifyInstance } from 'fastify';
 import type pino from 'pino';
 
@@ -26,7 +30,6 @@ import {
   executeReindex,
   type ReindexScope,
 } from './executeReindex';
-import { createConfigApplyHandler } from './handlers/configApply';
 import { createConfigMatchHandler } from './handlers/configMatch';
 import { createConfigQueryHandler } from './handlers/configQuery';
 import { createConfigReindexHandler } from './handlers/configReindex';
@@ -61,6 +64,8 @@ export { ReindexTracker } from './ReindexTracker';
  * Options for {@link createApiServer}.
  */
 export interface ApiServerOptions {
+  /** The component descriptor (used for config-apply handler). */
+  descriptor: JeevesComponentDescriptor;
   /** The document processor. */
   processor: DocumentProcessorInterface;
   /** The vector store client. */
@@ -111,6 +116,7 @@ export interface ApiServerOptions {
  */
 export function createApiServer(options: ApiServerOptions): FastifyInstance {
   const {
+    descriptor,
     processor,
     vectorStore,
     embeddingProvider,
@@ -309,16 +315,24 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
     }),
   );
 
-  app.post(
-    '/config/apply',
-    createConfigApplyHandler({
-      getConfig,
-      configPath,
-      reindexTracker,
-      logger,
-      triggerReindex,
-    }),
-  );
+  const coreConfigApplyHandler = coreCreateConfigApplyHandler({
+    ...descriptor,
+    onConfigApply: () => {
+      const cfg = getConfig();
+      const reindexScope = cfg.configWatch?.reindex ?? 'issues';
+      triggerReindex(reindexScope);
+      return Promise.resolve();
+    },
+  });
+
+  app.post('/config/apply', async (request, reply) => {
+    const { patch, replace } = request.body as {
+      patch: Record<string, unknown>;
+      replace?: boolean;
+    };
+    const result = await coreConfigApplyHandler({ patch, replace });
+    return reply.status(result.status).send(result.body);
+  });
 
   // Virtual rules and points deletion routes
   if (virtualRuleStore) {

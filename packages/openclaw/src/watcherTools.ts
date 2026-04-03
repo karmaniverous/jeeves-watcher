@@ -1,6 +1,6 @@
 /**
  * @module plugin/watcherTools
- * Watcher tool registrations (watcher_* tools) for the OpenClaw plugin.
+ * Domain-specific watcher tool registrations (7 tools) for the OpenClaw plugin.
  */
 
 import {
@@ -67,16 +67,9 @@ function pickDefined(
   return body;
 }
 
-/** Register all 9 watcher_* tools with the OpenClaw plugin API. */
+/** Register the 7 domain-specific watcher_* tools with the OpenClaw plugin API. */
 export function registerWatcherTools(api: PluginApi, baseUrl: string): void {
   const tools: ApiToolConfig[] = [
-    {
-      name: 'watcher_status',
-      description:
-        'Get jeeves-watcher service health, uptime, and collection statistics.',
-      parameters: { type: 'object', properties: {} },
-      buildRequest: () => ['/status'],
-    },
     {
       name: 'watcher_search',
       description:
@@ -127,27 +120,6 @@ export function registerWatcherTools(api: PluginApi, baseUrl: string): void {
       ],
     },
     {
-      name: 'watcher_config',
-      description:
-        'Query the effective runtime config via JSONPath. Returns the full resolved merged document when no path is provided.',
-      parameters: {
-        type: 'object',
-        properties: {
-          path: {
-            type: 'string',
-            description: 'JSONPath expression (optional).',
-          },
-        },
-      },
-      buildRequest: (params) => {
-        const path = params.path as string | undefined;
-        if (path) {
-          return [`/config?path=${encodeURIComponent(path)}`];
-        }
-        return ['/config'];
-      },
-    },
-    {
       name: 'watcher_validate',
       description:
         'Validate a candidate config (or current config if omitted). Optionally test file paths against the config to preview rule matching and metadata output.',
@@ -171,22 +143,6 @@ export function registerWatcherTools(api: PluginApi, baseUrl: string): void {
         const body = pickDefined(params, ['config', 'testPaths']);
         return ['/config/validate', body];
       },
-    },
-    {
-      name: 'watcher_config_apply',
-      description:
-        'Apply a full or partial config. Validates, writes to disk, and triggers configured reindex behavior.',
-      parameters: {
-        type: 'object',
-        required: ['config'],
-        properties: {
-          config: {
-            type: 'object',
-            description: 'Full or partial config to apply.',
-          },
-        },
-      },
-      buildRequest: (params) => ['/config/apply', { config: params.config }],
     },
     {
       name: 'watcher_reindex',

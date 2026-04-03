@@ -212,6 +212,7 @@ describe.skipIf(skipIntegration)('Integration tests (requires Qdrant)', () => {
 
       const stateDir = config.stateDir ?? '.jeeves-metadata';
       const server = createApiServer({
+        descriptor: { name: 'watcher' } as never,
         processor,
         vectorStore,
         embeddingProvider,
@@ -238,6 +239,7 @@ describe.skipIf(skipIntegration)('Integration tests (requires Qdrant)', () => {
     it('POST /reindex with scope:rules should start reindex asynchronously', async () => {
       const stateDir = config.stateDir ?? '.jeeves-metadata';
       const server = createApiServer({
+        descriptor: { name: 'watcher' } as never,
         processor,
         vectorStore,
         embeddingProvider,
@@ -367,6 +369,7 @@ describe.skipIf(skipIntegration)('Integration tests (requires Qdrant)', () => {
 
       const stateDir = config.stateDir ?? '.jeeves-metadata';
       const server = createApiServer({
+        descriptor: { name: 'watcher' } as never,
         processor,
         vectorStore,
         embeddingProvider,
@@ -521,6 +524,7 @@ describe.skipIf(skipIntegration)('Integration tests (requires Qdrant)', () => {
 
       const stateDir = config.stateDir ?? '.jeeves-metadata';
       const server = createApiServer({
+        descriptor: { name: 'watcher' } as never,
         processor,
         vectorStore,
         embeddingProvider,

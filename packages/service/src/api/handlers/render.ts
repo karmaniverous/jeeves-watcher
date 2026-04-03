@@ -9,6 +9,7 @@ import type pino from 'pino';
 import type { WatchConfig } from '../../config/schemas';
 import type { DocumentProcessorInterface } from '../../processor';
 import { isPathWatched } from '../../util/isPathWatched';
+import { normalizeError } from '../../util/normalizeError';
 
 /** Dependencies for the render handler. */
 export interface RenderHandlerDeps {
@@ -65,14 +66,13 @@ export function createRenderHandler(deps: RenderHandlerDeps) {
         metadata: result.metadata,
       });
     } catch (error) {
-      const msg =
-        error instanceof Error ? error.message : 'Unknown render error';
+      const { message: msg } = normalizeError(error);
 
       if (msg.includes('ENOENT') || msg.includes('no such file')) {
         return reply.status(404).send({ error: 'File not found' });
       }
 
-      logger.error({ filePath, error: msg }, 'Render failed');
+      logger.error({ filePath, err: normalizeError(error) }, 'Render failed');
       return reply.status(422).send({ error: msg });
     }
   };

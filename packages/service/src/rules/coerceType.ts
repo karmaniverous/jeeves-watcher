@@ -16,9 +16,13 @@ export function coerceType(value: unknown, type?: string): unknown {
     return undefined;
   }
 
+  // Empty strings are only valid for the 'string' type
+  if (value === '' && type !== 'string') {
+    return undefined;
+  }
+
   switch (type) {
     case 'string': {
-      // Empty strings are valid for string type
       if (typeof value === 'string') return value;
       if (typeof value === 'number' || typeof value === 'boolean') {
         return String(value);
@@ -32,9 +36,6 @@ export function coerceType(value: unknown, type?: string): unknown {
     }
 
     case 'integer': {
-      // Empty strings are not valid integers
-      if (value === '') return undefined;
-
       if (typeof value === 'string') {
         // For strings, check that parsing yields an integer that matches the trimmed input
         const trimmed = value.trim();
@@ -51,17 +52,11 @@ export function coerceType(value: unknown, type?: string): unknown {
     }
 
     case 'number': {
-      // Empty strings are not valid numbers
-      if (value === '') return undefined;
-
       const num = typeof value === 'string' ? parseFloat(value) : Number(value);
       return Number.isFinite(num) ? num : undefined;
     }
 
     case 'boolean': {
-      // Empty strings are not valid booleans
-      if (value === '') return undefined;
-
       if (typeof value === 'boolean') return value;
       if (typeof value === 'string') {
         const lower = value.toLowerCase();
@@ -72,9 +67,6 @@ export function coerceType(value: unknown, type?: string): unknown {
     }
 
     case 'array': {
-      // Empty strings are not valid arrays
-      if (value === '') return undefined;
-
       if (Array.isArray(value)) return value;
       if (typeof value === 'string') {
         try {
@@ -88,9 +80,6 @@ export function coerceType(value: unknown, type?: string): unknown {
     }
 
     case 'object': {
-      // Empty strings are not valid objects
-      if (value === '') return undefined;
-
       if (typeof value === 'string') {
         try {
           const parsed = JSON.parse(value) as unknown;

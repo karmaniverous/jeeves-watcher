@@ -27,7 +27,7 @@ package "Primary Source" {
 }
 
 package "Enrichment Layer" {
-  database "Metadata Store\n(.meta.json)" as META
+  database "Metadata Store\n(enrichments.sqlite)" as META
   note bottom of META
     **Source of Truth:** Enrichment metadata
     **Written By:** Watcher only (via API)
@@ -47,11 +47,11 @@ package "Derived Index" {
 }
 
 FS -down-> QD : **Normal flow**\nFile change →\nextract → embed\n→ upsert
-FS -down-> META : **Enrichment flow**\nAPI call →\nwrite .meta.json
+FS -down-> META : **Enrichment flow**\nAPI call →\nwrite to SQLite
 
-QD -up-> META : **Rebuild metadata**\n//jeeves-watcher//\n//rebuild-metadata//\nExtract payloads\n→ write .meta.json
+QD -up-> META : **Rebuild metadata**\n//jeeves-watcher//\n//rebuild-metadata//\nExtract payloads\n→ write to SQLite
 
-FS -right-> QD : **Rebuild index**\n//jeeves-watcher reindex//\nRe-read files\n+ .meta.json\n→ re-embed → upsert
+FS -right-> QD : **Rebuild index**\n//jeeves-watcher reindex//\nRe-read files\n+ enrichments\n→ re-embed → upsert
 META -left-> QD
 
 @enduml

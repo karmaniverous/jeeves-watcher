@@ -4,31 +4,22 @@
  * the managed content writer via `@karmaniverous/jeeves` core.
  */
 
-import { createRequire } from 'node:module';
-
 import type { PluginApi } from '@karmaniverous/jeeves';
 import {
   createComponentWriter,
+  createPluginToolset,
+  getPackageVersion,
   init,
+  loadWorkspaceConfig,
   resolveWorkspacePath,
+  WORKSPACE_CONFIG_DEFAULTS,
 } from '@karmaniverous/jeeves';
 
 import { getApiUrl, getConfigRoot } from './helpers.js';
 import { createWatcherComponent } from './watcherComponent.js';
 import { registerWatcherTools } from './watcherTools.js';
 
-/**
- * Read the plugin version from the nearest package.json.
- *
- * @remarks
- * Uses `createRequire(import.meta.url)` — the same pattern as
- * `@karmaniverous/jeeves` core. Works whether executed from
- * `src/index.ts` (dev/test) or `dist/index.js` (built), since
- * both are exactly one directory level below `package.json`.
- */
-const require = createRequire(import.meta.url);
-const pkg = require('../package.json') as { version: string };
-const PLUGIN_VERSION: string = pkg.version;
+const PLUGIN_VERSION = getPackageVersion(import.meta.url);
 
 /** Detect test environments to avoid timers and filesystem writes. */
 function isTestEnv(): boolean {
@@ -38,22 +29,38 @@ function isTestEnv(): boolean {
 /** Register all jeeves-watcher tools with the OpenClaw plugin API. */
 export default function register(api: PluginApi): void {
   const apiUrl = getApiUrl(api);
-  registerWatcherTools(api, apiUrl);
-
-  // Avoid timers + filesystem writes in unit tests.
-  if (isTestEnv()) return;
-
-  // Initialize jeeves-core for managed content writing.
-  init({
-    workspacePath: resolveWorkspacePath(api),
-    configRoot: getConfigRoot(api),
-  });
 
   const component = createWatcherComponent({
     apiUrl,
     pluginVersion: PLUGIN_VERSION,
   });
 
-  const writer = createComponentWriter(component);
+  // 4 standard tools from core factory: watcher_status, watcher_config,
+  // watcher_config_apply, watcher_service.
+  for (const tool of createPluginToolset(component)) {
+    api.registerTool(tool, { optional: true });
+  }
+
+  // 7 domain-specific tools: watcher_search, watcher_enrich,
+  // watcher_validate, watcher_reindex, watcher_scan, watcher_issues,
+  // watcher_walk.
+  registerWatcherTools(api, apiUrl);
+
+  // Avoid timers + filesystem writes in unit tests.
+  if (isTestEnv()) return;
+
+  const workspacePath = resolveWorkspacePath(api);
+
+  // Initialize jeeves-core for managed content writing.
+  init({
+    workspacePath,
+    configRoot: getConfigRoot(api),
+  });
+
+  const gatewayUrl =
+    loadWorkspaceConfig(workspacePath)?.core?.gatewayUrl ??
+    WORKSPACE_CONFIG_DEFAULTS.core.gatewayUrl;
+
+  const writer = createComponentWriter(component, { gatewayUrl });
   writer.start();
 }

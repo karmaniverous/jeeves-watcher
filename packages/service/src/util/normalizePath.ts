@@ -3,6 +3,8 @@
  * Normalizes file paths for deterministic mapping: lowercase, forward slashes, optional drive letter stripping.
  */
 
+import { normalizeSlashes } from './normalizeSlashes';
+
 /**
  * Normalize a file path: lowercase, forward slashes, optionally strip drive letter colon.
  *
@@ -14,7 +16,7 @@ export function normalizePath(
   filePath: string,
   stripDriveLetter = false,
 ): string {
-  let result = filePath.replace(/\\/g, '/').toLowerCase();
+  let result = normalizeSlashes(filePath).toLowerCase();
   if (stripDriveLetter) {
     result = result.replace(/^([a-z]):/, (_m, letter: string) => letter);
   }

@@ -26,7 +26,7 @@ type RegisterRequest = FastifyRequest<{
  */
 export function createRulesRegisterHandler(deps: RulesRegisterDeps) {
   return wrapHandler(
-    async (request: RegisterRequest) => {
+    (request: RegisterRequest) => {
       const { source, rules } = request.body;
 
       if (!source || typeof source !== 'string') {
@@ -44,11 +44,11 @@ export function createRulesRegisterHandler(deps: RulesRegisterDeps) {
         'Virtual rules registered',
       );
 
-      return await Promise.resolve({
+      return {
         source,
         registered: rules.length,
         totalVirtualRules: deps.virtualRuleStore.size,
-      });
+      };
     },
     deps.logger,
     'RulesRegister',

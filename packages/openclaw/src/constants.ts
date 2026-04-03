@@ -7,6 +7,8 @@
  * (`cli.ts`). Rollup inlines these into each output independently.
  */
 
+import { DEFAULT_PORTS } from '@karmaniverous/jeeves';
+
 /** Component name shared across service and plugin descriptors. */
 export const COMPONENT_NAME = 'watcher';
 
@@ -20,7 +22,7 @@ export const SERVICE_PACKAGE = '@karmaniverous/jeeves-watcher';
 export const PLUGIN_PACKAGE = `@karmaniverous/${PLUGIN_ID}`;
 
 /** Default watcher API port. */
-export const DEFAULT_PORT = 1936;
+export const DEFAULT_PORT = DEFAULT_PORTS.watcher;
 
 /** Default watcher API base URL. */
 export const DEFAULT_API_URL = `http://127.0.0.1:${String(DEFAULT_PORT)}`;

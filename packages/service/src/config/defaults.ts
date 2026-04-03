@@ -3,6 +3,8 @@
  * Default configuration values for jeeves-watcher. Pure data export, no I/O or side effects.
  */
 
+import { DEFAULT_PORTS } from '@karmaniverous/jeeves';
+
 import type { JeevesWatcherConfig } from './types';
 
 /** Default root-level config values. */
@@ -20,7 +22,7 @@ export const CONFIG_WATCH_DEFAULTS = {
 /** Default API values. */
 export const API_DEFAULTS = {
   host: '127.0.0.1',
-  port: 1936,
+  port: DEFAULT_PORTS.watcher,
   cacheTtlMs: 30000,
 };
 

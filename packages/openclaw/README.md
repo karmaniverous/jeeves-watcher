@@ -65,7 +65,7 @@ This plugin integrates with [`@karmaniverous/jeeves`](https://www.npmjs.com/pack
 |------|-------------|
 | `watcher_status` | Service health, uptime, and collection stats |
 | `watcher_search` | Semantic search across indexed documents |
-| `watcher_enrich` | Enrich document metadata via rules engine |
+| `watcher_enrich` | Set or update document metadata by file path |
 | `watcher_config` | Query the effective runtime config via JSONPath |
 | `watcher_walk` | Walk watched filesystem paths with glob intersection |
 | `watcher_validate` | Validate a watcher configuration |
@@ -73,6 +73,7 @@ This plugin integrates with [`@karmaniverous/jeeves`](https://www.npmjs.com/pack
 | `watcher_reindex` | Trigger a scoped reindex with blast area plan |
 | `watcher_scan` | Filter-only point query with cursor pagination |
 | `watcher_issues` | List indexing issues and errors |
+| `watcher_service` | Manage watcher background service (install/uninstall/start/stop/restart/status) |
 
 ## Documentation
 

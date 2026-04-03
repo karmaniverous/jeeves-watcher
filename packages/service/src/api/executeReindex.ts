@@ -15,6 +15,7 @@ import type { DocumentProcessorInterface } from '../processor';
 import type { EventQueue } from '../queue';
 import { isPathWatched } from '../util/isPathWatched';
 import { normalizeError } from '../util/normalizeError';
+import { normalizeSlashes } from '../util/normalizeSlashes';
 import { retry } from '../util/retry';
 import type { ValuesManager } from '../values';
 import type { ScrolledPoint, VectorStoreClient } from '../vectorStore';
@@ -121,10 +122,10 @@ function groupByRoot(
 ): Record<string, number> {
   const byRoot: Record<string, number> = {};
   for (const fp of filePaths) {
-    const normalised = fp.replace(/\\/g, '/');
+    const normalised = normalizeSlashes(fp);
     let matched = false;
     for (const root of watchPaths) {
-      const rootNorm = root.replace(/\\/g, '/').replace(/\/?\*\*.*$/, '');
+      const rootNorm = normalizeSlashes(root).replace(/\/?\*\*.*$/, '');
       if (normalised.startsWith(rootNorm)) {
         byRoot[rootNorm] = (byRoot[rootNorm] ?? 0) + 1;
         matched = true;

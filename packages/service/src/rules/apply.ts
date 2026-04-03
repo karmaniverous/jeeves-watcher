@@ -96,6 +96,8 @@ export interface ApplyRulesOptions {
   customMapLib?: Record<string, (...args: unknown[]) => unknown>;
   /** Optional global schemas collection for resolving schema references. */
   globalSchemas?: Record<string, SchemaEntry>;
+  /** Optional callback to extract text from a file path (for fetchSiblings). */
+  extractText?: (filePath: string) => string | undefined;
 }
 
 /**
@@ -122,6 +124,7 @@ export async function applyRules(
     configDir,
     customMapLib,
     globalSchemas,
+    extractText,
   } = options;
   const hbs = templateEngine?.hbs ?? createHandlebarsInstance();
 
@@ -130,6 +133,7 @@ export async function applyRules(
   const lib = createJsonMapLib(
     configDir,
     customMapLib,
+    extractText,
   ) as unknown as JsonMapLib;
   let merged: Record<string, unknown> = {};
   let renderedContent: string | null = null;

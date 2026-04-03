@@ -42,7 +42,7 @@
     "semantic-search"
   ],
   "engines": {
-    "node": ">=20"
+    "node": ">=22"
   },
   "openclaw": {
     "extensions": [
@@ -57,7 +57,7 @@
     "hideCredit": true
   },
   "dependencies": {
-    "@karmaniverous/jeeves": "^0.4.6"
+    "@karmaniverous/jeeves": "^0.5.1"
   },
   "devDependencies": {
     "@dotenvx/dotenvx": "^1.59.1",

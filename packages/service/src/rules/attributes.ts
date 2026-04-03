@@ -33,6 +33,17 @@ export interface FileAttributes {
   json?: Record<string, unknown>;
 }
 
+/** Derive the path-based file properties shared by all attribute builders. */
+function buildFileProps(filePath: string) {
+  const normalised = normalizeSlashes(filePath);
+  return {
+    path: normalised,
+    directory: normalizeSlashes(dirname(normalised)),
+    filename: basename(normalised),
+    extension: extname(normalised),
+  };
+}
+
 /**
  * Build {@link FileAttributes} from a file path and stat info.
  *
@@ -48,13 +59,9 @@ export function buildAttributes(
   extractedFrontmatter?: Record<string, unknown>,
   extractedJson?: Record<string, unknown>,
 ): FileAttributes {
-  const normalised = normalizeSlashes(filePath);
   const attrs: FileAttributes = {
     file: {
-      path: normalised,
-      directory: normalizeSlashes(dirname(normalised)),
-      filename: basename(normalised),
-      extension: extname(normalised),
+      ...buildFileProps(filePath),
       sizeBytes: stats.size,
       modified: stats.mtime.toISOString(),
     },
@@ -72,13 +79,9 @@ export function buildAttributes(
  * @returns Synthetic file attributes with zeroed stats.
  */
 export function buildSyntheticAttributes(filePath: string): FileAttributes {
-  const normalised = normalizeSlashes(filePath);
   return {
     file: {
-      path: normalised,
-      directory: normalizeSlashes(dirname(normalised)),
-      filename: basename(normalised),
-      extension: extname(normalised),
+      ...buildFileProps(filePath),
       sizeBytes: 0,
       modified: new Date(0).toISOString(),
     },

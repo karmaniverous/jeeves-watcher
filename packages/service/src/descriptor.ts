@@ -9,10 +9,11 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import type { Command } from '@commander-js/extra-typings';
-import type {
-  JeevesComponentDescriptor,
-  PluginApi,
-  ToolDescriptor,
+import {
+  DEFAULT_PORTS,
+  type JeevesComponentDescriptor,
+  type PluginApi,
+  type ToolDescriptor,
 } from '@karmaniverous/jeeves';
 import { packageDirectorySync } from 'package-directory';
 
@@ -51,19 +52,16 @@ export const watcherDescriptor: JeevesComponentDescriptor = {
   version,
   servicePackage: '@karmaniverous/jeeves-watcher',
   pluginPackage: '@karmaniverous/jeeves-watcher-openclaw',
-  defaultPort: 1936,
+  defaultPort: DEFAULT_PORTS.watcher,
 
   // Config
   configSchema: jeevesWatcherConfigSchema,
   configFileName: 'config.json',
   initTemplate: () => ({ ...INIT_CONFIG_TEMPLATE }),
 
-  // Service behavior — onConfigApply wired at the Fastify layer (api/index.ts)
-  // where it has access to the live reindex tracker and config getter.
-  onConfigApply: async (config: Record<string, unknown>) => {
-    void config;
-    await Promise.resolve();
-  },
+  // onConfigApply is overridden in createApiServer (api/index.ts) via the
+  // descriptor passed as a dependency, where it has access to the live
+  // reindex tracker and config getter.
   customMerge: (
     target: Record<string, unknown>,
     source: Record<string, unknown>,
@@ -86,7 +84,7 @@ export const watcherDescriptor: JeevesComponentDescriptor = {
     configPath,
   ],
   run: async (configPath: string) => {
-    await startFromConfig(configPath);
+    await startFromConfig(configPath, watcherDescriptor);
   },
 
   // Content — generateToolsContent is wired in the plugin package

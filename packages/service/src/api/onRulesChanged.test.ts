@@ -28,6 +28,7 @@ const executeReindexMock = vi.mocked(executeReindex);
 describe('onRulesChanged auto-reindex (Fix 21)', () => {
   function makeServer(virtualRuleStore: VirtualRuleStore) {
     return createApiServer({
+      descriptor: { name: 'watcher' } as never,
       processor: {
         updateRules: vi.fn(),
       } as never,

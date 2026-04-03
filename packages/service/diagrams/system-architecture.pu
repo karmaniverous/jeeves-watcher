@@ -56,7 +56,7 @@ package "External Services" {
   [Embedding Provider] as EMBED
   note bottom of EMBED
     Configurable:
-    OpenAI, Voyage, etc.
+    Gemini (default), mock
   end note
   
   database "Qdrant\n(Vector DB)" as QD
@@ -67,7 +67,7 @@ package "API Layer" {
   note bottom of API
     /metadata - Enrichment
     /search - Semantic search
-    /health - Status
+    /status - Health & stats
   end note
 }
 

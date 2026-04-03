@@ -75,11 +75,12 @@ Semantic search across all indexed documents. Pass a natural-language query and 
 
 - `query` (string, required) — search text
 - `limit` (number) — max results (default: 10)
+- `offset` (number) — skip N results for pagination
 - `filter` (object) — Qdrant filter conditions
 
 ### `watcher_enrich`
 
-Run the rules engine against a document to infer or update metadata fields.
+Set or update metadata on a document by file path.
 
 ### `watcher_config`
 
@@ -129,6 +130,14 @@ Filter-only point query without vector search. Returns metadata for points match
 ### `watcher_issues`
 
 List current indexing issues — files that failed extraction, embedding errors, etc.
+
+### `watcher_service`
+
+Manage the watcher background service (install, uninstall, start, stop, restart, status).
+
+**Parameters:**
+
+- `action` (string, required) — one of: `install`, `uninstall`, `start`, `stop`, `restart`, `status`
 
 ## Architecture
 

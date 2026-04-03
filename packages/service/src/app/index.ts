@@ -3,7 +3,11 @@
  * Main application orchestrator. Wires components, manages lifecycle (start/stop/reload).
  */
 
-import { getBindAddress } from '@karmaniverous/jeeves';
+import {
+  DEFAULT_PORTS,
+  getBindAddress,
+  type JeevesComponentDescriptor,
+} from '@karmaniverous/jeeves';
 import type { FastifyInstance } from 'fastify';
 import type pino from 'pino';
 
@@ -51,6 +55,7 @@ export interface JeevesWatcherRuntimeOptions {
 export class JeevesWatcher {
   private config: JeevesWatcherConfig;
   private readonly configPath?: string;
+  private readonly descriptor: JeevesComponentDescriptor;
   private readonly factories: JeevesWatcherFactories;
   private readonly runtimeOptions: JeevesWatcherRuntimeOptions;
 
@@ -76,11 +81,18 @@ export class JeevesWatcher {
   constructor(
     config: JeevesWatcherConfig,
     configPath?: string,
+    descriptor?: JeevesComponentDescriptor,
     factories: Partial<JeevesWatcherFactories> = {},
     runtimeOptions: JeevesWatcherRuntimeOptions = {},
   ) {
+    if (!descriptor) {
+      throw new Error(
+        'JeevesWatcher requires a component descriptor. Pass watcherDescriptor from the descriptor module.',
+      );
+    }
     this.config = config;
     this.configPath = configPath;
+    this.descriptor = descriptor;
     this.factories = { ...defaultFactories, ...factories };
     this.runtimeOptions = runtimeOptions;
     this.virtualRuleStore = new VirtualRuleStore();
@@ -216,6 +228,7 @@ export class JeevesWatcher {
 
   private async startApiServer() {
     const server = this.factories.createApiServer({
+      descriptor: this.descriptor,
       processor: this.processor!,
       vectorStore: this.vectorStore!,
       embeddingProvider: this.embeddingProvider!,
@@ -238,7 +251,7 @@ export class JeevesWatcher {
 
     await server.listen({
       host: this.config.api?.host ?? getBindAddress('watcher'),
-      port: this.config.api?.port ?? 1936,
+      port: this.config.api?.port ?? DEFAULT_PORTS.watcher,
     });
 
     return server;
