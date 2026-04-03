@@ -58,12 +58,8 @@ export const watcherDescriptor: JeevesComponentDescriptor = {
   configFileName: 'config.json',
   initTemplate: () => ({ ...INIT_CONFIG_TEMPLATE }),
 
-  // Service behavior — onConfigApply wired at the Fastify layer (api/index.ts)
+  // onConfigApply is overridden at the Fastify layer (api/index.ts)
   // where it has access to the live reindex tracker and config getter.
-  onConfigApply: async (config: Record<string, unknown>) => {
-    void config;
-    await Promise.resolve();
-  },
   customMerge: (
     target: Record<string, unknown>,
     source: Record<string, unknown>,
