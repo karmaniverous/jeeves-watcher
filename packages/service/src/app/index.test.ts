@@ -22,16 +22,21 @@ describe('JeevesWatcher.stop', () => {
       vectorStore: { url: 'http://localhost:6333', collectionName: 'test' },
     };
 
-    const watcher = new JeevesWatcher(config as never, undefined, {
-      createLogger: () =>
-        ({
-          info: vi.fn(),
-          warn: vi.fn(),
-          error: vi.fn(),
-          debug: vi.fn(),
-          child: vi.fn().mockReturnThis(),
-        }) as never,
-    } as Partial<JeevesWatcherFactories> as never);
+    const watcher = new JeevesWatcher(
+      config as never,
+      undefined,
+      { name: 'watcher' } as never,
+      {
+        createLogger: () =>
+          ({
+            info: vi.fn(),
+            warn: vi.fn(),
+            error: vi.fn(),
+            debug: vi.fn(),
+            child: vi.fn().mockReturnThis(),
+          }) as never,
+      } as Partial<JeevesWatcherFactories> as never,
+    );
 
     // Inject internal state via any-cast to simulate a started watcher
     const w = watcher as unknown as Record<string, unknown>;

@@ -8,12 +8,12 @@ import { dirname } from 'node:path';
 import {
   createConfigApplyHandler as coreCreateConfigApplyHandler,
   createStatusHandler as coreCreateStatusHandler,
+  type JeevesComponentDescriptor,
 } from '@karmaniverous/jeeves';
 import Fastify, { type FastifyInstance } from 'fastify';
 import type pino from 'pino';
 
 import type { JeevesWatcherConfig } from '../config/types';
-import { watcherDescriptor } from '../descriptor';
 import type { EmbeddingProvider } from '../embedding';
 import type { EnrichmentStoreInterface } from '../enrichment';
 import type { GitignoreFilter } from '../gitignore';
@@ -64,6 +64,8 @@ export { ReindexTracker } from './ReindexTracker';
  * Options for {@link createApiServer}.
  */
 export interface ApiServerOptions {
+  /** The component descriptor (used for config-apply handler). */
+  descriptor: JeevesComponentDescriptor;
   /** The document processor. */
   processor: DocumentProcessorInterface;
   /** The vector store client. */
@@ -114,6 +116,7 @@ export interface ApiServerOptions {
  */
 export function createApiServer(options: ApiServerOptions): FastifyInstance {
   const {
+    descriptor,
     processor,
     vectorStore,
     embeddingProvider,
@@ -313,7 +316,7 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
   );
 
   const coreConfigApplyHandler = coreCreateConfigApplyHandler({
-    ...watcherDescriptor,
+    ...descriptor,
     onConfigApply: () => {
       const cfg = getConfig();
       const reindexScope = cfg.configWatch?.reindex ?? 'issues';

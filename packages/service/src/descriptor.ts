@@ -59,8 +59,9 @@ export const watcherDescriptor: JeevesComponentDescriptor = {
   configFileName: 'config.json',
   initTemplate: () => ({ ...INIT_CONFIG_TEMPLATE }),
 
-  // onConfigApply is overridden at the Fastify layer (api/index.ts)
-  // where it has access to the live reindex tracker and config getter.
+  // onConfigApply is overridden in createApiServer (api/index.ts) via the
+  // descriptor passed as a dependency, where it has access to the live
+  // reindex tracker and config getter.
   customMerge: (
     target: Record<string, unknown>,
     source: Record<string, unknown>,
@@ -83,7 +84,7 @@ export const watcherDescriptor: JeevesComponentDescriptor = {
     configPath,
   ],
   run: async (configPath: string) => {
-    await startFromConfig(configPath);
+    await startFromConfig(configPath, watcherDescriptor);
   },
 
   // Content — generateToolsContent is wired in the plugin package

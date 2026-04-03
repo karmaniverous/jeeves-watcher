@@ -3,9 +3,11 @@
  * Convenience entry point: loads config from disk and starts a {@link JeevesWatcher}.
  */
 
+import type { JeevesComponentDescriptor } from '@karmaniverous/jeeves';
+
 import { loadConfig } from '../config';
 import { migrateConfigPath } from '../config/migrateConfigPath';
-import { JeevesWatcher } from './index';
+import type { JeevesWatcher } from './index';
 import { installShutdownHandlers } from './shutdown';
 
 /**
@@ -21,6 +23,7 @@ import { installShutdownHandlers } from './shutdown';
  */
 export async function startFromConfig(
   configPath?: string,
+  descriptor?: JeevesComponentDescriptor,
 ): Promise<JeevesWatcher> {
   let resolvedPath = configPath;
 
@@ -48,7 +51,10 @@ export async function startFromConfig(
   }
 
   const config = await loadConfig(resolvedPath);
-  const app = new JeevesWatcher(config, resolvedPath);
+  // Dynamic import breaks the circular dependency between this module
+  // and app/index.ts (which defines JeevesWatcher and re-exports startFromConfig).
+  const { JeevesWatcher } = await import('./index.js');
+  const app = new JeevesWatcher(config, resolvedPath, descriptor);
 
   installShutdownHandlers(() => app.stop());
 
