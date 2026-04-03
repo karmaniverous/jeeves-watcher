@@ -9,7 +9,9 @@ import {
   createComponentWriter,
   getPackageVersion,
   init,
+  loadWorkspaceConfig,
   resolveWorkspacePath,
+  WORKSPACE_CONFIG_DEFAULTS,
 } from '@karmaniverous/jeeves';
 
 import { getApiUrl, getConfigRoot } from './helpers.js';
@@ -31,17 +33,23 @@ export default function register(api: PluginApi): void {
   // Avoid timers + filesystem writes in unit tests.
   if (isTestEnv()) return;
 
+  const workspacePath = resolveWorkspacePath(api);
+
   // Initialize jeeves-core for managed content writing.
   init({
-    workspacePath: resolveWorkspacePath(api),
+    workspacePath,
     configRoot: getConfigRoot(api),
   });
+
+  const gatewayUrl =
+    loadWorkspaceConfig(workspacePath)?.core?.gatewayUrl ??
+    WORKSPACE_CONFIG_DEFAULTS.core.gatewayUrl;
 
   const component = createWatcherComponent({
     apiUrl,
     pluginVersion: PLUGIN_VERSION,
   });
 
-  const writer = createComponentWriter(component);
+  const writer = createComponentWriter(component, { gatewayUrl });
   writer.start();
 }
