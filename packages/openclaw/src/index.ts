@@ -7,6 +7,7 @@
 import type { PluginApi } from '@karmaniverous/jeeves';
 import {
   createComponentWriter,
+  createPluginToolset,
   getPackageVersion,
   init,
   loadWorkspaceConfig,
@@ -28,6 +29,21 @@ function isTestEnv(): boolean {
 /** Register all jeeves-watcher tools with the OpenClaw plugin API. */
 export default function register(api: PluginApi): void {
   const apiUrl = getApiUrl(api);
+
+  const component = createWatcherComponent({
+    apiUrl,
+    pluginVersion: PLUGIN_VERSION,
+  });
+
+  // 4 standard tools from core factory: watcher_status, watcher_config,
+  // watcher_config_apply, watcher_service.
+  for (const tool of createPluginToolset(component)) {
+    api.registerTool(tool, { optional: true });
+  }
+
+  // 7 domain-specific tools: watcher_search, watcher_enrich,
+  // watcher_validate, watcher_reindex, watcher_scan, watcher_issues,
+  // watcher_walk.
   registerWatcherTools(api, apiUrl);
 
   // Avoid timers + filesystem writes in unit tests.
@@ -44,11 +60,6 @@ export default function register(api: PluginApi): void {
   const gatewayUrl =
     loadWorkspaceConfig(workspacePath)?.core?.gatewayUrl ??
     WORKSPACE_CONFIG_DEFAULTS.core.gatewayUrl;
-
-  const component = createWatcherComponent({
-    apiUrl,
-    pluginVersion: PLUGIN_VERSION,
-  });
 
   const writer = createComponentWriter(component, { gatewayUrl });
   writer.start();

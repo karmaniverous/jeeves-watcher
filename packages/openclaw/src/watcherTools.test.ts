@@ -34,7 +34,7 @@ afterEach(() => {
 });
 
 describe('registerWatcherTools', () => {
-  it('registers exactly 10 watcher tools', () => {
+  it('registers exactly 7 domain-specific watcher tools', () => {
     const tools: string[] = [];
     const api: PluginApi = {
       registerTool: (tool: { name: string }) => {
@@ -43,12 +43,9 @@ describe('registerWatcherTools', () => {
     };
     registerWatcherTools(api, BASE);
     expect(tools).toEqual([
-      'watcher_status',
       'watcher_search',
       'watcher_enrich',
-      'watcher_config',
       'watcher_validate',
-      'watcher_config_apply',
       'watcher_reindex',
       'watcher_scan',
       'watcher_issues',
@@ -72,14 +69,6 @@ describe('registerWatcherTools', () => {
 });
 
 describe('tool execution', () => {
-  it('watcher_status calls GET /status', async () => {
-    const fetchMock = mockFetch({ status: 'ok' });
-    vi.stubGlobal('fetch', fetchMock);
-    const tools = captureTools();
-    await tools.get('watcher_status')!('id', {});
-    expect(fetchMock).toHaveBeenCalledWith(`${BASE}/status`, undefined);
-  });
-
   it('watcher_issues calls GET /issues', async () => {
     const fetchMock = mockFetch([]);
     vi.stubGlobal('fetch', fetchMock);
@@ -130,27 +119,6 @@ describe('tool execution', () => {
     expect(body).toEqual({ path: 'foo.md', metadata: { tag: 'x' } });
   });
 
-  it('watcher_config calls GET /config with path query param', async () => {
-    const fetchMock = mockFetch({ result: [] });
-    vi.stubGlobal('fetch', fetchMock);
-    const tools = captureTools();
-    await tools.get('watcher_config')!('id', { path: '$.foo' });
-    const call = fetchMock.mock.calls[0] as [string, RequestInit | undefined];
-    expect(call[0]).toBe(`${BASE}/config?path=${encodeURIComponent('$.foo')}`);
-    // GET request — no body
-    expect(call[1]).toBeUndefined();
-  });
-
-  it('watcher_config calls GET /config without path for full document', async () => {
-    const fetchMock = mockFetch({ description: 'test' });
-    vi.stubGlobal('fetch', fetchMock);
-    const tools = captureTools();
-    await tools.get('watcher_config')!('id', {});
-    const call = fetchMock.mock.calls[0] as [string, RequestInit | undefined];
-    expect(call[0]).toBe(`${BASE}/config`);
-    expect(call[1]).toBeUndefined();
-  });
-
   it('watcher_validate POSTs config and testPaths', async () => {
     const fetchMock = mockFetch({ valid: true });
     vi.stubGlobal('fetch', fetchMock);
@@ -163,17 +131,6 @@ describe('tool execution', () => {
     expect(call[0]).toBe(`${BASE}/config/validate`);
     const body = JSON.parse(call[1].body as string) as Record<string, unknown>;
     expect(body).toEqual({ config: { rules: [] }, testPaths: ['a.md'] });
-  });
-
-  it('watcher_config_apply POSTs config', async () => {
-    const fetchMock = mockFetch({ applied: true });
-    vi.stubGlobal('fetch', fetchMock);
-    const tools = captureTools();
-    await tools.get('watcher_config_apply')!('id', { config: { x: 1 } });
-    const call = fetchMock.mock.calls[0] as [string, RequestInit];
-    expect(call[0]).toBe(`${BASE}/config/apply`);
-    const body = JSON.parse(call[1].body as string) as Record<string, unknown>;
-    expect(body).toEqual({ config: { x: 1 } });
   });
 
   it('watcher_reindex POSTs scope defaulting to rules', async () => {
@@ -224,7 +181,7 @@ describe('tool execution', () => {
       ),
     );
     const tools = captureTools();
-    const result = await tools.get('watcher_status')!('id', {});
+    const result = await tools.get('watcher_issues')!('id', {});
     expect(result.isError).toBe(true);
     expect(result.content[0].text).toContain('not reachable');
   });
