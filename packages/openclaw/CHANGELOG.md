@@ -2,11 +2,20 @@
 
 All notable changes to this project will be documented in this file. Dates are displayed in UTC.
 
-#### [0.14.1](https://github.com/karmaniverous/jeeves-watcher/compare/openclaw/0.14.0...0.14.1)
+#### [0.14.2](https://github.com/karmaniverous/jeeves-watcher/compare/openclaw/0.14.1...0.14.2)
+
+- chore: housekeeping batch [`#185`](https://github.com/karmaniverous/jeeves-watcher/pull/185)
+- chore: housekeeping batch (#184, #179, #176, #180, #178) [`7690901`](https://github.com/karmaniverous/jeeves-watcher/commit/7690901790f3e7a6c3bf0e60595334071024c81f)
+- chore: release @karmaniverous/jeeves-watcher v0.17.2 [`4c66bf5`](https://github.com/karmaniverous/jeeves-watcher/commit/4c66bf5f5e16321f096d9aa2372157170e4cbcf6)
+
+#### [openclaw/0.14.1](https://github.com/karmaniverous/jeeves-watcher/compare/openclaw/0.14.0...openclaw/0.14.1)
+
+> 5 April 2026
 
 - chore: update deps for jeeves-core v0.5.3 [`#183`](https://github.com/karmaniverous/jeeves-watcher/pull/183)
 - chore: update deps for @karmaniverous/jeeves-core v0.5.3 [`15319fd`](https://github.com/karmaniverous/jeeves-watcher/commit/15319fd8d85858daa5397356be4181baa63649cd)
 - npm audit fix [`a90e61c`](https://github.com/karmaniverous/jeeves-watcher/commit/a90e61c5c086e495c9b02b34d0f958f068a8c104)
+- chore: release @karmaniverous/jeeves-watcher-openclaw v0.14.1 [`49d8dfc`](https://github.com/karmaniverous/jeeves-watcher/commit/49d8dfc32489053221c1b5a468ab092156a0eb57)
 - chore: release @karmaniverous/jeeves-watcher v0.17.1 [`2751ece`](https://github.com/karmaniverous/jeeves-watcher/commit/2751eced0b02b1efdbe96df783c06422a1d32eec)
 
 #### [openclaw/0.14.0](https://github.com/karmaniverous/jeeves-watcher/compare/openclaw/0.13.2...openclaw/0.14.0)
