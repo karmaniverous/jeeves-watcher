@@ -31,5 +31,8 @@
   },
   "engines": {
     "node": ">=22"
+  },
+  "dependencies": {
+    "@karmaniverous/jeeves": "^0.5.5"
   }
 }
