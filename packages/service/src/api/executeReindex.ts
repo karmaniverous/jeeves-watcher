@@ -416,7 +416,7 @@ export async function executeReindex(
     // Rules scope with path filter: list from watch roots intersected with caller globs
     fileList = await listFilesFromWatchRoots(
       config.watch.paths,
-      config.watch.ignored ?? [],
+      config.watch.ignored,
       pathArray,
       isGitignored,
     );

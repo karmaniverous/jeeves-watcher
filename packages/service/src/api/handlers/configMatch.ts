@@ -66,7 +66,7 @@ export function createConfigMatchHandler(options: ConfigMatchHandlerOptions) {
     if (config !== cachedConfig) {
       compiledRules = compileRules(config.inferenceRules ?? []);
       watchMatcher = picomatch(config.watch.paths, { dot: true });
-      ignoreMatcher = config.watch.ignored?.length
+      ignoreMatcher = config.watch.ignored.length
         ? picomatch(config.watch.ignored, { dot: true })
         : undefined;
       cachedConfig = config;

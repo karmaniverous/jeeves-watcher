@@ -4,13 +4,13 @@
  * consumed by core factories (CLI, plugin tools, HTTP handlers, service manager).
  */
 
-import { createRequire } from 'node:module';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import type { Command } from '@commander-js/extra-typings';
 import {
   DEFAULT_PORTS,
+  getPackageVersion,
   type JeevesComponentDescriptor,
   type PluginApi,
   type ToolDescriptor,
@@ -37,10 +37,7 @@ if (!packageRoot) {
   throw new Error('Could not find package root from ' + thisDir);
 }
 
-const require = createRequire(import.meta.url);
-const { version } = require(resolve(packageRoot, 'package.json')) as {
-  version: string;
-};
+const version = getPackageVersion(import.meta.url);
 
 /**
  * Watcher component descriptor. Single source of truth for service identity,

@@ -19,7 +19,7 @@ export const watchConfigSchema = z.object({
   /** Glob patterns to ignore. */
   ignored: z
     .array(z.string())
-    .optional()
+    .default(['**/node_modules/**'])
     .describe(
       'Glob patterns to exclude from watching (e.g., "**/node_modules/**").',
     ),
