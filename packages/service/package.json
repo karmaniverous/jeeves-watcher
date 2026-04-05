@@ -112,7 +112,6 @@
     "build": "npm run generate:schema && rimraf dist && cross-env NO_COLOR=1 rollup --config rollup.config.ts --configPlugin @rollup/plugin-typescript",
     "changelog": "auto-changelog",
     "diagrams": "cd diagrams && plantuml -tpng -o ../assets -r .",
-    "knip": "knip",
     "lint": "eslint .",
     "lint:fix": "eslint --fix .",
     "release": "dotenvx run -f .env.local -- release-it",
@@ -140,8 +139,8 @@
     "hooks": {
       "after:init": [
         "npm run lint",
+        "npm run typecheck",
         "npm run test",
-        "npm run knip",
         "npm run build"
       ],
       "before:npm:release": [
