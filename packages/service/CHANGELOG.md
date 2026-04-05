@@ -2,7 +2,16 @@
 
 All notable changes to this project will be documented in this file. Dates are displayed in UTC.
 
-#### [0.17.0](https://github.com/karmaniverous/jeeves-watcher/compare/service/0.16.3...0.17.0)
+#### [0.17.1](https://github.com/karmaniverous/jeeves-watcher/compare/service/0.17.0...0.17.1)
+
+- chore: update deps for jeeves-core v0.5.3 [`#183`](https://github.com/karmaniverous/jeeves-watcher/pull/183)
+- chore: update deps for @karmaniverous/jeeves-core v0.5.3 [`15319fd`](https://github.com/karmaniverous/jeeves-watcher/commit/15319fd8d85858daa5397356be4181baa63649cd)
+- npm audit fix [`a90e61c`](https://github.com/karmaniverous/jeeves-watcher/commit/a90e61c5c086e495c9b02b34d0f958f068a8c104)
+- chore: release @karmaniverous/jeeves-watcher-openclaw v0.14.0 [`452c865`](https://github.com/karmaniverous/jeeves-watcher/commit/452c865f3241cf4ce26947d9739f958b5970f717)
+
+#### [service/0.17.0](https://github.com/karmaniverous/jeeves-watcher/compare/service/0.16.3...service/0.17.0)
+
+> 3 April 2026
 
 - feat: full core v0.5.1 adoption + fetchSiblings helper [`#177`](https://github.com/karmaniverous/jeeves-watcher/pull/177)
 - feat: add fetchSiblings built-in JsonMap helper for contextual embedding [`#163`](https://github.com/karmaniverous/jeeves-watcher/issues/163)
@@ -16,6 +25,7 @@ All notable changes to this project will be documented in this file. Dates are d
 - npm audit fix [`de56ddf`](https://github.com/karmaniverous/jeeves-watcher/commit/de56ddf265191d2c93ba16ba01282667708598da)
 - feat: bump core to ^0.5.1, engine floor &gt;=22, adopt getPackageVersion [`a032ff8`](https://github.com/karmaniverous/jeeves-watcher/commit/a032ff8fdb20622afa5e22af559227913100ce7a)
 - refactor: adopt core DEFAULT_PORTS for port constants [`bbf10fd`](https://github.com/karmaniverous/jeeves-watcher/commit/bbf10fd252208a0ad96d87c4bf60cecd37b15ae1)
+- chore: release @karmaniverous/jeeves-watcher v0.17.0 [`20a1d4b`](https://github.com/karmaniverous/jeeves-watcher/commit/20a1d4b11180441718cfaaae7a984032f995b093)
 - chore: release @karmaniverous/jeeves-watcher-openclaw v0.13.2 [`31238ad`](https://github.com/karmaniverous/jeeves-watcher/commit/31238ad0e4a212c05c3211a4243c2665c47a4fa0)
 - feat: wire gatewayUrl into ComponentWriter for cleanup escalation [`5d6d58d`](https://github.com/karmaniverous/jeeves-watcher/commit/5d6d58d0936bdc7f4ddd9b939a1880c6cbcb751a)
 - fix: remove unused JSON_TEXT_FIELDS export (knip) [`8d11ebe`](https://github.com/karmaniverous/jeeves-watcher/commit/8d11ebe4cd2ead7f0ad651681ae6eb1f859e17c2)
