@@ -2,11 +2,19 @@
 
 All notable changes to this project will be documented in this file. Dates are displayed in UTC.
 
-#### [0.17.3](https://github.com/karmaniverous/jeeves-watcher/compare/service/0.17.2...0.17.3)
+#### [0.17.4](https://github.com/karmaniverous/jeeves-watcher/compare/service/0.17.3...0.17.4)
+
+- unhoisted jeeves [`324fff3`](https://github.com/karmaniverous/jeeves-watcher/commit/324fff36b1614b0efe02d05abe357fea94bba825)
+- chore: release @karmaniverous/jeeves-watcher-openclaw v0.14.3 [`8aa2375`](https://github.com/karmaniverous/jeeves-watcher/commit/8aa23759efbb87dffe5dcde8c9f7ad15ac4516e5)
+
+#### [service/0.17.3](https://github.com/karmaniverous/jeeves-watcher/compare/service/0.17.2...service/0.17.3)
+
+> 5 April 2026
 
 - hoisted jeeves [`313d664`](https://github.com/karmaniverous/jeeves-watcher/commit/313d664d9a3bc32e6edb41163e16727949518f77)
 - hoisted knip [`33214f8`](https://github.com/karmaniverous/jeeves-watcher/commit/33214f88a533815c315b95e17354d3df15d85df5)
 - chore: release @karmaniverous/jeeves-watcher-openclaw v0.14.2 [`514fbf2`](https://github.com/karmaniverous/jeeves-watcher/commit/514fbf21edfa4ee71135ceb3181965a6fda045e8)
+- chore: release @karmaniverous/jeeves-watcher v0.17.3 [`89224c6`](https://github.com/karmaniverous/jeeves-watcher/commit/89224c68486baeba9a9265e9e3df73ffe3a609c5)
 
 #### [service/0.17.2](https://github.com/karmaniverous/jeeves-watcher/compare/service/0.17.1...service/0.17.2)
 
