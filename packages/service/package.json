@@ -1,6 +1,6 @@
 {
   "name": "@karmaniverous/jeeves-watcher",
-  "version": "0.17.2",
+  "version": "0.17.3",
   "author": "Jason Williscroft",
   "description": "Filesystem watcher that keeps a Qdrant vector store in sync with document changes",
   "license": "BSD-3-Clause",
