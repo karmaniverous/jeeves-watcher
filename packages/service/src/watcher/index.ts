@@ -102,7 +102,7 @@ export class FileSystemWatcher {
     // Chokidar v5's inline anymatch does exact string equality for string
     // matchers, breaking glob-based ignored patterns. Convert to picomatch
     // functions that chokidar passes through as-is.
-    const ignored = this.config.ignored
+    const ignored = this.config.ignored.length
       ? resolveIgnored(this.config.ignored)
       : undefined;
 

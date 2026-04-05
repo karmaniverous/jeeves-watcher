@@ -9,7 +9,7 @@ import { validateMetadataPayload } from './metadataValidation';
 
 describe('validateMetadataPayload', () => {
   const baseConfig: JeevesWatcherConfig = {
-    watch: { paths: ['**/*.md'] },
+    watch: { paths: ['**/*.md'], ignored: ['**/node_modules/**'] },
     embedding: { provider: 'mock', model: 'test' },
     vectorStore: { url: 'http://localhost:6333', collectionName: 'test' },
   };

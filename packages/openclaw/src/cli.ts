@@ -8,19 +8,13 @@
  * @module cli
  */
 
-import { resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
-
 import { createPluginCli } from '@karmaniverous/jeeves';
 
 import { PLUGIN_ID } from './constants.js';
 
-const thisFile = fileURLToPath(import.meta.url);
-const distDir = resolve(thisFile, '../..');
-
 const program = createPluginCli({
   pluginId: PLUGIN_ID,
-  distDir,
+  importMetaUrl: import.meta.url,
   pluginPackage: '@karmaniverous/jeeves-watcher-openclaw',
   componentName: 'watcher',
 });

@@ -10,7 +10,7 @@ import { mergeAndValidateConfig } from './mergeAndValidate';
 
 describe('mergeAndValidateConfig', () => {
   const baseConfig: JeevesWatcherConfig = {
-    watch: { paths: ['**/*.md'] },
+    watch: { paths: ['**/*.md'], ignored: ['**/node_modules/**'] },
     embedding: { provider: 'gemini', model: 'gemini-embedding-001' },
     vectorStore: { url: 'http://localhost:6333', collectionName: 'test' },
   };
