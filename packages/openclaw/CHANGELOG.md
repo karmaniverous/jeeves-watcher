@@ -2,9 +2,17 @@
 
 All notable changes to this project will be documented in this file. Dates are displayed in UTC.
 
-#### [0.14.7](https://github.com/karmaniverous/jeeves-watcher/compare/openclaw/0.14.6...0.14.7)
+#### [0.14.8](https://github.com/karmaniverous/jeeves-watcher/compare/openclaw/0.14.7...0.14.8)
+
+- updated jeeves core [`28703b7`](https://github.com/karmaniverous/jeeves-watcher/commit/28703b727e522e39e51f5eb01713a7154f163124)
+- chore: release @karmaniverous/jeeves-watcher v0.17.8 [`c697846`](https://github.com/karmaniverous/jeeves-watcher/commit/c69784685453103114d01b4697a960925ffa6861)
+
+#### [openclaw/0.14.7](https://github.com/karmaniverous/jeeves-watcher/compare/openclaw/0.14.6...openclaw/0.14.7)
+
+> 22 April 2026
 
 - updated jeeves core [`81c2010`](https://github.com/karmaniverous/jeeves-watcher/commit/81c20108bf0c81b4211de3c39f6321832833e8cf)
+- chore: release @karmaniverous/jeeves-watcher-openclaw v0.14.7 [`fc567f0`](https://github.com/karmaniverous/jeeves-watcher/commit/fc567f080eaeac729f68927865e1fb9ecc350194)
 - chore: release @karmaniverous/jeeves-watcher v0.17.7 [`ce37319`](https://github.com/karmaniverous/jeeves-watcher/commit/ce37319c366af12c5e8850b40742ca007d2fbbfd)
 
 #### [openclaw/0.14.6](https://github.com/karmaniverous/jeeves-watcher/compare/openclaw/0.14.5...openclaw/0.14.6)
