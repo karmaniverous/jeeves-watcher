@@ -95,17 +95,14 @@
     },
     "hooks": {
       "after:bump": [
-        "node -e \"const f='openclaw.plugin.json';const j=JSON.parse(require('fs').readFileSync(f,'utf8'));j.version='${version}';require('fs').writeFileSync(f,JSON.stringify(j,null,2)+'\\n')\""
+        "npx auto-changelog -p",
+        "git add CHANGELOG.md"
       ],
       "after:init": [
         "npm run lint",
         "npm run typecheck",
         "npm run test",
         "npm run build"
-      ],
-      "before:npm:release": [
-        "npx auto-changelog -p",
-        "git add -A"
       ],
       "after:release": [
         "git switch -c release/openclaw/${version}",
