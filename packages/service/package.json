@@ -144,14 +144,14 @@
         "npm run test",
         "npm run build"
       ],
-      "before:npm:release": [
-        "npx auto-changelog -p",
-        "git add -A"
-      ],
       "after:release": [
         "git switch -c release/service/${version}",
         "git push -u origin release/service/${version}",
         "git switch ${branchName}"
+      ],
+      "after:bump": [
+        "npx auto-changelog -p",
+        "git add CHANGELOG.md"
       ]
     },
     "npm": {
