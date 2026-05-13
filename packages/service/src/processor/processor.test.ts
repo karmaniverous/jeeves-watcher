@@ -2,7 +2,6 @@ import pino from 'pino';
 import { beforeEach, describe, expect, it, type Mock, vi } from 'vitest';
 
 import type { EmbeddingProvider } from '../embedding';
-import type { EnrichmentStoreInterface } from '../enrichment';
 import type { IssuesManager } from '../issues';
 import type { ValuesManager } from '../values';
 import type { VectorStoreClient } from '../vectorStore';
@@ -334,7 +333,7 @@ describe('DocumentProcessor', () => {
         vectorStore: vectorStore as unknown as VectorStoreClient,
         compiledRules: [],
         logger,
-        enrichmentStore: enrichmentStore as unknown as EnrichmentStoreInterface,
+        enrichmentStore: enrichmentStore,
       });
       const result = await processor.processMetadataUpdate('/test.txt', {
         newKey: 'val',
@@ -359,7 +358,7 @@ describe('DocumentProcessor', () => {
         vectorStore: vectorStore as unknown as VectorStoreClient,
         compiledRules: [],
         logger,
-        enrichmentStore: enrichmentStore as unknown as EnrichmentStoreInterface,
+        enrichmentStore: enrichmentStore,
       });
       const result = await processor.processMetadataUpdate('/test.txt', {
         key: 'val',
@@ -381,7 +380,7 @@ describe('DocumentProcessor', () => {
         vectorStore: vectorStore as unknown as VectorStoreClient,
         compiledRules: [],
         logger,
-        enrichmentStore: enrichmentStore as unknown as EnrichmentStoreInterface,
+        enrichmentStore: enrichmentStore,
       });
       await processor.deleteFile('/test.txt');
 

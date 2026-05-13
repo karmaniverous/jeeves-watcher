@@ -7,7 +7,6 @@ import pino from 'pino';
 import { beforeEach, describe, expect, it, type Mock, vi } from 'vitest';
 
 import type { EmbeddingProvider } from '../embedding';
-import type { EnrichmentStoreInterface } from '../enrichment';
 import type { IssuesManager } from '../issues';
 import type { ValuesManager } from '../values';
 import type { VectorStoreClient } from '../vectorStore';
@@ -188,7 +187,7 @@ describe('DocumentProcessor.moveFile', () => {
       vectorStore: vectorStore as unknown as VectorStoreClient,
       compiledRules: [],
       logger,
-      enrichmentStore: enrichmentStore as unknown as EnrichmentStoreInterface,
+      enrichmentStore: enrichmentStore,
       issuesManager: issuesManager as unknown as IssuesManager,
     });
     await processor.moveFile('/old.txt', '/new.txt');

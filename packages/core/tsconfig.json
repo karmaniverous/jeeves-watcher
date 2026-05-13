@@ -1,13 +1,8 @@
 {
   "extends": "../../tsconfig.json",
   "compilerOptions": {
-    "outDir": "dist",
-    "rootDir": ".",
-    "noEmit": false,
-    "declaration": true,
-    "declarationMap": true,
     "types": ["node", "vitest/globals"]
   },
-  "include": ["src/**/*", "vitest.config.ts"],
+  "include": ["src/**/*", "rollup.config.ts", "vitest.config.ts"],
   "exclude": ["dist", "node_modules"]
 }

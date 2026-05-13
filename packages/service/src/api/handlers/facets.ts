@@ -9,7 +9,6 @@ import type { JeevesWatcherConfig } from '../../config/types';
 import type {
   ResolvedProperty,
   SchemaMergeOptions,
-  SchemaReference,
 } from '../../rules/schemaMerge';
 import { mergeSchemas } from '../../rules/schemaMerge';
 import type { ValuesManager } from '../../values';
@@ -103,10 +102,7 @@ function buildFacetSchema(
   for (const rule of rules ?? []) {
     if (!rule.schema?.length) continue;
 
-    const resolved = mergeSchemas(
-      rule.schema as SchemaReference[],
-      mergeOptions,
-    );
+    const resolved = mergeSchemas(rule.schema, mergeOptions);
 
     for (const [propName, propDef] of Object.entries(resolved.properties)) {
       if (!isFacetable(propDef)) continue;

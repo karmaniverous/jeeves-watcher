@@ -22,7 +22,7 @@
   },
   "scripts": {
     "prebuild": "npx rimraf dist",
-    "build": "tsc",
+    "build": "cross-env NO_COLOR=1 rollup --config rollup.config.ts --configPlugin @rollup/plugin-typescript",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "lint": "eslint .",
@@ -34,23 +34,30 @@
   "exports": {
     ".": {
       "import": {
-        "types": "./dist/src/index.d.ts",
-        "default": "./dist/src/index.js"
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
       }
     }
   },
-  "types": "dist/src/index.d.ts",
+  "types": "dist/index.d.ts",
   "dependencies": {
-    "@karmaniverous/jeeves": "^0.5.9",
+    "@karmaniverous/jeeves": "^0.5.10",
     "@karmaniverous/jsonmap": "^2.1.1",
-    "zod": "^4.3.6"
+    "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@dotenvx/dotenvx": "^1.59.1",
-    "@types/node": "^25.5.2",
-    "release-it": "^19.2.4",
-    "typescript": "^5.9.3",
-    "vitest": "^4.1.2"
+    "@dotenvx/dotenvx": "^1.65.0",
+    "@rollup/plugin-commonjs": "^29.0.2",
+    "@rollup/plugin-json": "^6.1.0",
+    "@rollup/plugin-node-resolve": "^16.0.3",
+    "@rollup/plugin-typescript": "^12.3.0",
+    "@types/node": "^25.7.0",
+    "cross-env": "^10.1.0",
+    "release-it": "^20.0.1",
+    "rollup": "^4.60.3",
+    "rollup-plugin-dts": "^6.4.1",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6"
   },
   "release-it": {
     "git": {

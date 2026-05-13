@@ -5,7 +5,6 @@
 
 import { describe, expect, it, vi } from 'vitest';
 
-import type { JeevesWatcherFactories } from './factories';
 import { JeevesWatcher } from './index';
 
 describe('JeevesWatcher.stop', () => {
@@ -35,7 +34,7 @@ describe('JeevesWatcher.stop', () => {
             debug: vi.fn(),
             child: vi.fn().mockReturnThis(),
           }) as never,
-      } as Partial<JeevesWatcherFactories> as never,
+      },
     );
 
     // Inject internal state via any-cast to simulate a started watcher

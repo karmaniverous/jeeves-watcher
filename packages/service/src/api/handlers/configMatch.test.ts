@@ -25,7 +25,7 @@ function mockReply(): MockReply {
     status: vi.fn().mockReturnThis(),
     sent: false,
   };
-  return r as unknown as MockReply;
+  return r;
 }
 
 describe('POST /config/match handler', () => {

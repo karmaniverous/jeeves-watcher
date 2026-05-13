@@ -154,13 +154,13 @@ describe('resolveIgnored', () => {
 
   it('passes through function entries unchanged', () => {
     const fn = (path: string) => path.includes('skip');
-    const resolved = resolveIgnored([fn as unknown as string]);
+    const resolved = resolveIgnored([fn]);
     expect(resolved[0]).toBe(fn);
   });
 
   it('passes through RegExp entries unchanged', () => {
     const re = /\.tmp$/;
-    const resolved = resolveIgnored([re as unknown as string]);
+    const resolved = resolveIgnored([re]);
     expect(resolved[0]).toBe(re);
   });
 

@@ -20,7 +20,7 @@ let consoleLogSpy: MockInstance;
 let consoleErrorSpy: MockInstance;
 
 const mockFetch = vi.fn();
-global.fetch = mockFetch as unknown as typeof fetch;
+global.fetch = mockFetch;
 
 beforeEach(() => {
   consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {});

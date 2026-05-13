@@ -113,7 +113,7 @@ export function createProcessorConfig(
   return {
     chunkSize: config.embedding.chunkSize,
     chunkOverlap: config.embedding.chunkOverlap,
-    maps: resolveMapsConfig(config.maps as Record<string, unknown>),
+    maps: resolveMapsConfig(config.maps),
     configDir,
     customMapLib,
     globalSchemas: config.schemas,

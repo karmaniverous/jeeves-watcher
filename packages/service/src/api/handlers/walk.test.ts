@@ -38,14 +38,17 @@ describe('createWalkHandler', () => {
 
     await handler(request, reply);
 
-    expect(sendMock).toHaveBeenCalledWith({
-      paths: [
-        'j:/domains/foo/.meta/meta.json',
-        'j:/domains/baz/.meta/meta.json',
-      ],
-      matchedCount: 2,
-      scannedRoots: expect.any(Array) as unknown as string[],
-    });
+    const callArg = sendMock.mock.calls[0]?.[0] as {
+      paths: string[];
+      matchedCount: number;
+      scannedRoots: string[];
+    };
+    expect(callArg.paths).toEqual([
+      'j:/domains/foo/.meta/meta.json',
+      'j:/domains/baz/.meta/meta.json',
+    ]);
+    expect(callArg.matchedCount).toBe(2);
+    expect(Array.isArray(callArg.scannedRoots)).toBe(true);
   });
 
   it('uses the current watcher instance from the getter (survives rebuild)', async () => {
@@ -65,8 +68,8 @@ describe('createWalkHandler', () => {
 
     const getFileSystemWatcher = vi
       .fn()
-      .mockReturnValueOnce(oldWatcher as never)
-      .mockReturnValue(newWatcher as never);
+      .mockReturnValueOnce(oldWatcher)
+      .mockReturnValue(newWatcher);
 
     const deps: WalkRouteDeps = {
       ...makeDeps(),
