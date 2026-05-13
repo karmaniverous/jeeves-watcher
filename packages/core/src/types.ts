@@ -1,6 +1,6 @@
 /**
- * @module config/types
- * Re-exports TypeScript types from core. Supports schema-first development.
+ * @module types
+ * Re-exports TypeScript types inferred from Zod schemas. Supports schema-first development. No I/O. Import from './schemas.js' for runtime validation.
  */
 export type {
   ApiConfig,
@@ -10,7 +10,6 @@ export type {
   JeevesWatcherConfig,
   JeevesWatcherConfigInput,
   LoggingConfig,
-  SchemaEntry,
   VectorStoreConfig,
   WatchConfig,
-} from '@karmaniverous/jeeves-watcher-core';
+} from './schemas.js';

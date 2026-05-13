@@ -86,7 +86,7 @@ describe('onRulesChanged rejection handling (#161)', () => {
   it('calls processor.updateRules when template engine rebuild succeeds', async () => {
     // Override mock to succeed for this test
     vi.mocked(buildTemplateEngineAndCustomMapLib).mockResolvedValueOnce({
-      customMapLib: {} as never,
+      customMapLib: {},
       templateEngine: {} as never,
     });
 

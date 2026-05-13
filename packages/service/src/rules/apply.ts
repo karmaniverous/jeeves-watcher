@@ -24,7 +24,6 @@ import { createJsonMapLib } from './jsonMapLib';
 import {
   mergeSchemas,
   resolveAndCoerce,
-  type SchemaReference,
   validateFacetTypes,
   validateSchemaCompleteness,
 } from './schemaMerge';
@@ -153,7 +152,7 @@ export async function applyRules(
       if (rule.schema && rule.schema.length > 0) {
         try {
           // Merge schemas
-          const mergedSchema = mergeSchemas(rule.schema as SchemaReference[], {
+          const mergedSchema = mergeSchemas(rule.schema, {
             globalSchemas,
             configDir,
           });

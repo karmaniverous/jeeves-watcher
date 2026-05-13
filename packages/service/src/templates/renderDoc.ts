@@ -7,10 +7,7 @@ import type Handlebars from 'handlebars';
 import yaml from 'js-yaml';
 import { get, title } from 'radash';
 
-import type {
-  RenderBodySection,
-  RenderConfig,
-} from '../config/schemas/inference';
+import type { RenderBodySection, RenderConfig } from '../config/schemas';
 import { rebaseHeadings } from './rebaseHeadings';
 import { resolveFrontmatterKeys } from './resolveFrontmatterKeys';
 
@@ -87,9 +84,7 @@ function renderEach(
 
   const parts: string[] = [];
   for (const item of items) {
-    const headingText = headingTpl
-      ? headingTpl(item as Record<string, unknown>)
-      : '';
+    const headingText = headingTpl ? headingTpl(item) : '';
     if (headingText) {
       parts.push(`${'#'.repeat(subHeadingLevel)} ${headingText}`);
     }
@@ -99,7 +94,7 @@ function renderEach(
       : item;
     const md = renderValueAsMarkdown(
       hbs,
-      { ...section, heading: subHeadingLevel } as RenderBodySection,
+      { ...section, heading: subHeadingLevel },
       contentVal,
     );
     if (md.trim()) parts.push(md.trim());

@@ -1,5 +1,5 @@
 /**
- * @module config/schemas/moveDetection.test
+ * @module schemas/moveDetection.test
  * Tests for moveDetection config schema.
  */
 

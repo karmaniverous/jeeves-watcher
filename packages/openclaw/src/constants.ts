@@ -7,25 +7,20 @@
  * (`cli.ts`). Rollup inlines these into each output independently.
  */
 
-import { DEFAULT_PORTS } from '@karmaniverous/jeeves';
+import { DEFAULT_PORT as _DEFAULT_PORT } from '@karmaniverous/jeeves-watcher-core';
 
-/** Component name shared across service and plugin descriptors. */
-export const COMPONENT_NAME = 'watcher';
+export {
+  COMPONENT_NAME,
+  DEFAULT_PORT,
+  PLUGIN_PACKAGE,
+  SERVICE_PACKAGE,
+} from '@karmaniverous/jeeves-watcher-core';
 
 /** Plugin identifier used in OpenClaw config and extensions directory. */
 export const PLUGIN_ID = 'jeeves-watcher-openclaw';
 
-/** npm package name for the service. */
-export const SERVICE_PACKAGE = '@karmaniverous/jeeves-watcher';
-
-/** npm package name for the plugin. */
-export const PLUGIN_PACKAGE = `@karmaniverous/${PLUGIN_ID}`;
-
-/** Default watcher API port. */
-export const DEFAULT_PORT = DEFAULT_PORTS.watcher;
-
 /** Default watcher API base URL. */
-export const DEFAULT_API_URL = `http://127.0.0.1:${String(DEFAULT_PORT)}`;
+export const DEFAULT_API_URL = `http://127.0.0.1:${String(_DEFAULT_PORT)}`;
 
 /** Default platform config root path. */
 export const DEFAULT_CONFIG_ROOT = 'j:/config';

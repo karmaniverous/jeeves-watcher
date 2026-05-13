@@ -56,10 +56,7 @@ describe('watcherDescriptor', () => {
       inferenceRules: [{ name: 'rule-b', match: {} }],
     };
 
-    const result = merge!(
-      target as Record<string, unknown>,
-      source as Record<string, unknown>,
-    );
+    const result = merge!(target, source);
     const rules = result['inferenceRules'] as { name: string }[];
     expect(rules).toHaveLength(2);
     expect(rules.map((r) => r.name)).toContain('rule-a');
@@ -68,7 +65,7 @@ describe('watcherDescriptor', () => {
 
   it('customCliCommands registers domain-specific commands', () => {
     const program = new Command();
-    watcherDescriptor.customCliCommands?.(program as never);
+    watcherDescriptor.customCliCommands?.(program);
 
     const commandNames = program.commands.map((c) => c.name());
     expect(commandNames).toContain('search');

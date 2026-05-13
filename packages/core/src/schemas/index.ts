@@ -1,5 +1,5 @@
 /**
- * @module config/schemas
+ * @module schemas
  * Central export point for all configuration schemas.
  * Organizes schemas into logical groups: base, services, inference, root.
  */
@@ -14,21 +14,23 @@ export {
   loggingConfigSchema,
   type WatchConfig,
   watchConfigSchema,
-} from './base';
+} from './base.js';
 
 // Inference schemas
 export {
   type InferenceRule,
   inferenceRuleSchema,
+  type RenderBodySection,
+  type RenderConfig,
   type SchemaEntry,
-} from './inference';
+} from './inference.js';
 
 // Root schema
 export {
   type JeevesWatcherConfig,
   type JeevesWatcherConfigInput,
   jeevesWatcherConfigSchema,
-} from './root';
+} from './root.js';
 
 // Service schemas
 export {
@@ -36,4 +38,4 @@ export {
   embeddingConfigSchema,
   type VectorStoreConfig,
   vectorStoreConfigSchema,
-} from './services';
+} from './services.js';

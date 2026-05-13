@@ -5,29 +5,30 @@
     "packages/*"
   ],
   "scripts": {
-    "build": "npm run build --workspace=packages/service && npm run build --workspace=packages/openclaw",
+    "build": "npm run build --workspace=packages/core && npm run build --workspace=packages/service && npm run build --workspace=packages/openclaw",
     "lint": "eslint .",
     "lint:fix": "eslint --fix .",
-    "test": "npm run test --workspace=packages/service",
+    "test": "npm run test --workspace=packages/core && npm run test --workspace=packages/service",
     "knip": "knip",
     "docs": "typedoc",
-    "typecheck": "npm run typecheck --workspace=packages/service && npm run typecheck --workspace=packages/openclaw"
+    "typecheck": "npm run typecheck --workspace=packages/core && npm run typecheck --workspace=packages/service && npm run typecheck --workspace=packages/openclaw"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
-    "@vitest/eslint-plugin": "^1.6.14",
-    "eslint": "^10.2.0",
+    "@vitest/eslint-plugin": "^1.6.17",
+    "eslint": "^10.3.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-prettier": "^5.5.5",
-    "eslint-plugin-simple-import-sort": "^12.1.1",
+    "eslint-plugin-simple-import-sort": "^13.0.0",
     "eslint-plugin-tsdoc": "^0.5.2",
-    "knip": "^6.3.0",
-    "lefthook": "^2.1.4",
-    "prettier": "^3.8.1",
+    "git-cliff": "^2.13.1",
+    "knip": "^6.13.1",
+    "lefthook": "^2.1.6",
+    "prettier": "^3.8.3",
     "rimraf": "^6.1.3",
     "tsx": "^4.21.0",
-    "typescript": "^5.9.3",
-    "typescript-eslint": "^8.58.0"
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.59.3"
   },
   "engines": {
     "node": ">=22"

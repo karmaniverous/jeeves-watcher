@@ -5,7 +5,6 @@
 
 import dayjs from 'dayjs';
 import type Handlebars from 'handlebars';
-import type { Root as HastRoot } from 'hast';
 import { toMdast } from 'hast-util-to-mdast';
 import { fromADF } from 'mdast-util-from-adf';
 import { toMarkdown } from 'mdast-util-to-markdown';
@@ -37,7 +36,7 @@ export function registerBuiltinHelpers(hbs: typeof Handlebars): void {
   hbs.registerHelper('markdownify', function (html: unknown) {
     if (typeof html !== 'string' || !html.trim()) return '';
     try {
-      const hast = htmlParser.parse(html) as unknown as HastRoot;
+      const hast = htmlParser.parse(html);
       const mdast = toMdast(hast);
       return new hbs.SafeString(toMarkdown(mdast).trim());
     } catch {
