@@ -1,2146 +1,734 @@
-### Changelog
+# Changelog
 
-All notable changes to this project will be documented in this file. Dates are displayed in UTC.
+All notable changes to this project will be documented in this file.
 
-#### [0.14.8](https://github.com/karmaniverous/jeeves-watcher/compare/openclaw/0.14.7...0.14.8)
+## [unreleased]
 
-- updated jeeves core [`28703b7`](https://github.com/karmaniverous/jeeves-watcher/commit/28703b727e522e39e51f5eb01713a7154f163124)
-- chore: release @karmaniverous/jeeves-watcher v0.17.8 [`c697846`](https://github.com/karmaniverous/jeeves-watcher/commit/c69784685453103114d01b4697a960925ffa6861)
+### 🚀 Features
 
-#### [openclaw/0.14.7](https://github.com/karmaniverous/jeeves-watcher/compare/openclaw/0.14.6...openclaw/0.14.7)
+- Extract core package with shared schemas, types, defaults, and constants
 
-> 22 April 2026
+### ⚙️ Miscellaneous Tasks
 
-- updated jeeves core [`81c2010`](https://github.com/karmaniverous/jeeves-watcher/commit/81c20108bf0c81b4211de3c39f6321832833e8cf)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.14.7 [`fc567f0`](https://github.com/karmaniverous/jeeves-watcher/commit/fc567f080eaeac729f68927865e1fb9ecc350194)
-- chore: release @karmaniverous/jeeves-watcher v0.17.7 [`ce37319`](https://github.com/karmaniverous/jeeves-watcher/commit/ce37319c366af12c5e8850b40742ca007d2fbbfd)
+- Add npm publish safety net (.npmignore + gitignore *.local)
+- Move changelog generation to after:bump hook
+- Update all deps, switch core to rollup build, fix lint errors
+## [0.14.8] - 2026-05-03
 
-#### [openclaw/0.14.6](https://github.com/karmaniverous/jeeves-watcher/compare/openclaw/0.14.5...openclaw/0.14.6)
+### 💼 Other
 
-> 15 April 2026
+- Updated jeeves core
 
-- updated jeeves-core [`495ad96`](https://github.com/karmaniverous/jeeves-watcher/commit/495ad96ab4fb1730822214903a16fba3cde1ea00)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.14.6 [`7b2eb99`](https://github.com/karmaniverous/jeeves-watcher/commit/7b2eb99a0b122dda306cf45e23d253a3522dea28)
-- chore: release @karmaniverous/jeeves-watcher v0.17.6 [`c02c22f`](https://github.com/karmaniverous/jeeves-watcher/commit/c02c22f0a3ccc6713f2f469becda3e9292be82c0)
+### ⚙️ Miscellaneous Tasks
 
-#### [openclaw/0.14.5](https://github.com/karmaniverous/jeeves-watcher/compare/openclaw/0.14.4...openclaw/0.14.5)
+- Release @karmaniverous/jeeves-watcher-openclaw v0.14.8
+## [0.14.7] - 2026-04-22
 
-> 8 April 2026
+### 💼 Other
 
-- npm audit fix [`43a19a1`](https://github.com/karmaniverous/jeeves-watcher/commit/43a19a1499b0f61d7c37c403e4cd4c370bc0cf79)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.14.5 [`585f588`](https://github.com/karmaniverous/jeeves-watcher/commit/585f58844e083c91e5d37896a692f9935e91a08e)
-- chore: release @karmaniverous/jeeves-watcher v0.17.5 [`f3dc45c`](https://github.com/karmaniverous/jeeves-watcher/commit/f3dc45c801e5871b869a0f4706e28c5400ace7c4)
+- Updated jeeves core
 
-#### [openclaw/0.14.4](https://github.com/karmaniverous/jeeves-watcher/compare/openclaw/0.14.3...openclaw/0.14.4)
+### ⚙️ Miscellaneous Tasks
 
-> 5 April 2026
+- Release @karmaniverous/jeeves-watcher-openclaw v0.14.7
+## [0.14.6] - 2026-04-15
 
-- unhoisted jeeves [`324fff3`](https://github.com/karmaniverous/jeeves-watcher/commit/324fff36b1614b0efe02d05abe357fea94bba825)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.14.4 [`5154662`](https://github.com/karmaniverous/jeeves-watcher/commit/51546628ce3fd6982d1997f8a0bdd4a920b72dfb)
-- chore: release @karmaniverous/jeeves-watcher v0.17.4 [`b4ba317`](https://github.com/karmaniverous/jeeves-watcher/commit/b4ba31749d2b9a62c52ff1e89e000729c2059eed)
+### 💼 Other
 
-#### [openclaw/0.14.3](https://github.com/karmaniverous/jeeves-watcher/compare/openclaw/0.14.2...openclaw/0.14.3)
+- Updated jeeves-core
 
-> 5 April 2026
+### ⚙️ Miscellaneous Tasks
 
-- hoisted jeeves [`313d664`](https://github.com/karmaniverous/jeeves-watcher/commit/313d664d9a3bc32e6edb41163e16727949518f77)
-- hoisted knip [`33214f8`](https://github.com/karmaniverous/jeeves-watcher/commit/33214f88a533815c315b95e17354d3df15d85df5)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.14.3 [`8aa2375`](https://github.com/karmaniverous/jeeves-watcher/commit/8aa23759efbb87dffe5dcde8c9f7ad15ac4516e5)
-- chore: release @karmaniverous/jeeves-watcher v0.17.3 [`89224c6`](https://github.com/karmaniverous/jeeves-watcher/commit/89224c68486baeba9a9265e9e3df73ffe3a609c5)
-
-#### [openclaw/0.14.2](https://github.com/karmaniverous/jeeves-watcher/compare/openclaw/0.14.1...openclaw/0.14.2)
-
-> 5 April 2026
-
-- chore: housekeeping batch [`#185`](https://github.com/karmaniverous/jeeves-watcher/pull/185)
-- chore: housekeeping batch (#184, #179, #176, #180, #178) [`7690901`](https://github.com/karmaniverous/jeeves-watcher/commit/7690901790f3e7a6c3bf0e60595334071024c81f)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.14.2 [`514fbf2`](https://github.com/karmaniverous/jeeves-watcher/commit/514fbf21edfa4ee71135ceb3181965a6fda045e8)
-- chore: release @karmaniverous/jeeves-watcher v0.17.2 [`4c66bf5`](https://github.com/karmaniverous/jeeves-watcher/commit/4c66bf5f5e16321f096d9aa2372157170e4cbcf6)
-
-#### [openclaw/0.14.1](https://github.com/karmaniverous/jeeves-watcher/compare/openclaw/0.14.0...openclaw/0.14.1)
-
-> 5 April 2026
-
-- chore: update deps for jeeves-core v0.5.3 [`#183`](https://github.com/karmaniverous/jeeves-watcher/pull/183)
-- chore: update deps for @karmaniverous/jeeves-core v0.5.3 [`15319fd`](https://github.com/karmaniverous/jeeves-watcher/commit/15319fd8d85858daa5397356be4181baa63649cd)
-- npm audit fix [`a90e61c`](https://github.com/karmaniverous/jeeves-watcher/commit/a90e61c5c086e495c9b02b34d0f958f068a8c104)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.14.1 [`49d8dfc`](https://github.com/karmaniverous/jeeves-watcher/commit/49d8dfc32489053221c1b5a468ab092156a0eb57)
-- chore: release @karmaniverous/jeeves-watcher v0.17.1 [`2751ece`](https://github.com/karmaniverous/jeeves-watcher/commit/2751eced0b02b1efdbe96df783c06422a1d32eec)
-
-#### [openclaw/0.14.0](https://github.com/karmaniverous/jeeves-watcher/compare/openclaw/0.13.2...openclaw/0.14.0)
-
-> 3 April 2026
-
-- feat: full core v0.5.1 adoption + fetchSiblings helper [`#177`](https://github.com/karmaniverous/jeeves-watcher/pull/177)
-- feat: add fetchSiblings built-in JsonMap helper for contextual embedding [`#163`](https://github.com/karmaniverous/jeeves-watcher/issues/163)
-- refactor: adopt createPluginToolset, ship watcher_service tool [`#174`](https://github.com/karmaniverous/jeeves-watcher/issues/174)
-- refactor: adopt core createConfigApplyHandler for /config/apply [`#173`](https://github.com/karmaniverous/jeeves-watcher/issues/173)
-- chore: update safe devDeps (vitest-eslint, knip, typescript-eslint) [`e6d6d39`](https://github.com/karmaniverous/jeeves-watcher/commit/e6d6d39541c06b2cf08e1a3d340d32ce3bd43213)
-- refactor: SOLID/DRY pass across codebase [`5a12f6b`](https://github.com/karmaniverous/jeeves-watcher/commit/5a12f6b495d36d8ead887744b0cd2e5a0f016236)
-- fix: break circular dependencies, clean knip config [`9837178`](https://github.com/karmaniverous/jeeves-watcher/commit/98371783694be93bea2af698149e604aff53ddfe)
-- docs: update skill, READMEs, and diagrams for v0.17.0 [`f33d622`](https://github.com/karmaniverous/jeeves-watcher/commit/f33d6221056f21954c103cc2b1a0a3b1189ab35b)
-- docs: sync all documentation and diagrams with implementation [`dd36465`](https://github.com/karmaniverous/jeeves-watcher/commit/dd36465de5877ac2e53b9d87334a1665a8a005ca)
-- npm audit fix [`de56ddf`](https://github.com/karmaniverous/jeeves-watcher/commit/de56ddf265191d2c93ba16ba01282667708598da)
-- feat: bump core to ^0.5.1, engine floor &gt;=22, adopt getPackageVersion [`a032ff8`](https://github.com/karmaniverous/jeeves-watcher/commit/a032ff8fdb20622afa5e22af559227913100ce7a)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.14.0 [`452c865`](https://github.com/karmaniverous/jeeves-watcher/commit/452c865f3241cf4ce26947d9739f958b5970f717)
-- refactor: adopt core DEFAULT_PORTS for port constants [`bbf10fd`](https://github.com/karmaniverous/jeeves-watcher/commit/bbf10fd252208a0ad96d87c4bf60cecd37b15ae1)
-- chore: release @karmaniverous/jeeves-watcher v0.17.0 [`20a1d4b`](https://github.com/karmaniverous/jeeves-watcher/commit/20a1d4b11180441718cfaaae7a984032f995b093)
-- feat: wire gatewayUrl into ComponentWriter for cleanup escalation [`5d6d58d`](https://github.com/karmaniverous/jeeves-watcher/commit/5d6d58d0936bdc7f4ddd9b939a1880c6cbcb751a)
-- fix: remove unused JSON_TEXT_FIELDS export (knip) [`8d11ebe`](https://github.com/karmaniverous/jeeves-watcher/commit/8d11ebe4cd2ead7f0ad651681ae6eb1f859e17c2)
-- ci: drop Node 20 from Linux compatibility matrix [`3601d14`](https://github.com/karmaniverous/jeeves-watcher/commit/3601d14fe74050b2e0e228aef4b4442f96fa9c1b)
-
-#### [openclaw/0.13.2](https://github.com/karmaniverous/jeeves-watcher/compare/openclaw/0.13.1...openclaw/0.13.2)
-
-> 31 March 2026
-
-- feat: integrate core 0.4.6 - init before descriptor.run() [`#172`](https://github.com/karmaniverous/jeeves-watcher/pull/172)
-- [CORE-046] feat: integrate core 0.4.6 — init() called before descriptor.run() [`83d6d4a`](https://github.com/karmaniverous/jeeves-watcher/commit/83d6d4aa3bb983d3ac319f3857bbe7853eafe161)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.13.2 [`31238ad`](https://github.com/karmaniverous/jeeves-watcher/commit/31238ad0e4a212c05c3211a4243c2665c47a4fa0)
-- chore: release @karmaniverous/jeeves-watcher v0.16.3 [`fc80697`](https://github.com/karmaniverous/jeeves-watcher/commit/fc8069772771124831a2ca1f42c95f49b6a110bb)
-
-#### [openclaw/0.13.1](https://github.com/karmaniverous/jeeves-watcher/compare/openclaw/0.13.0...openclaw/0.13.1)
-
-> 31 March 2026
-
-- feat: integrate core 0.4.5 - add run callback to descriptor [`#170`](https://github.com/karmaniverous/jeeves-watcher/pull/170)
-- fix: use package-directory for robust bundled CLI package root resolution [`#169`](https://github.com/karmaniverous/jeeves-watcher/pull/169)
-- [PHASE-2] fix: use package-directory for robust package root resolution [`c1039b9`](https://github.com/karmaniverous/jeeves-watcher/commit/c1039b9a68501bc7b469f491de33480bd481b0b9)
-- [CORE-045] feat: integrate core 0.4.5 - add run callback to descriptor [`45a6400`](https://github.com/karmaniverous/jeeves-watcher/commit/45a64003d2496c56940624a06bc71393feea8aa4)
-- [PHASE-2] fix: resolve package root for bundled CLI entry point [`4fb5308`](https://github.com/karmaniverous/jeeves-watcher/commit/4fb5308d45efd3c7245e0e075fa6eef33b769a6a)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.13.1 [`d89a8b9`](https://github.com/karmaniverous/jeeves-watcher/commit/d89a8b959dda9ba50277c1ed478ad30de82faddc)
-- chore: release @karmaniverous/jeeves-watcher v0.16.1 [`bdcbea6`](https://github.com/karmaniverous/jeeves-watcher/commit/bdcbea63d4adfb7b8326993cbf87ecb93b659f60)
-- chore: release @karmaniverous/jeeves-watcher v0.16.2 [`7ccb0f1`](https://github.com/karmaniverous/jeeves-watcher/commit/7ccb0f1c756c7a225e892e7fc7e550c33a24ebf4)
-
-#### [openclaw/0.13.0](https://github.com/karmaniverous/jeeves-watcher/compare/openclaw/0.12.1...openclaw/0.13.0)
-
-> 30 March 2026
-
-- feat: core SDK adoption — descriptor, CLI factory, status handler [Phases 2-4] [`#166`](https://github.com/karmaniverous/jeeves-watcher/pull/166)
-- feat: config path migration to jeeves-watcher/config.json (#149) [`#165`](https://github.com/karmaniverous/jeeves-watcher/pull/165)
-- fix: pause + drain event queue during prune to prevent ECONNRESET under load [`#160`](https://github.com/karmaniverous/jeeves-watcher/pull/160)
-- fix: QdrantClient write path leaks undici Agents [`#157`](https://github.com/karmaniverous/jeeves-watcher/pull/157)
-- perf: ValuesManager binary serialization and debounced flush [`#156`](https://github.com/karmaniverous/jeeves-watcher/pull/156)
-- fix: EnrichmentStore SQLite recovery on startup [`#155`](https://github.com/karmaniverous/jeeves-watcher/pull/155)
-- fix: use getter for fileSystemWatcher in API handlers [`#154`](https://github.com/karmaniverous/jeeves-watcher/pull/154)
-- [PHASE-2] feat: core 0.4.4 + Zod 4, dep updates, descriptor definition [`197b5e8`](https://github.com/karmaniverous/jeeves-watcher/commit/197b5e84dddbaa6638710b4ec37742870348a06e)
-- [PHASE-2] [PHASE-3] feat: replace hand-rolled CLI with createServiceCli factory (S1) [`8c09f76`](https://github.com/karmaniverous/jeeves-watcher/commit/8c09f7670d8c70b6cb0bf842376e10ad87026aaa)
-- fix: Linux CI compatibility — cross-platform path test and skip integration tests without Qdrant [`fce55e9`](https://github.com/karmaniverous/jeeves-watcher/commit/fce55e9e56f6aa386c67f7c5505c19e33a79e8dc)
-- [PHASE-2] docs: sync all documentation with current implementation [`34144b9`](https://github.com/karmaniverous/jeeves-watcher/commit/34144b99df0efa5d11b552322c47df84323757bb)
-- [PHASE-2] refactor: SOLID/DRY review — extract shared patterns, consolidate constants [`300707e`](https://github.com/karmaniverous/jeeves-watcher/commit/300707e50d9ecd935d902c20ad0a92f269906698)
-- [PHASE-2] test: improve coverage for touched code, remove trivial and dead tests [`edb8120`](https://github.com/karmaniverous/jeeves-watcher/commit/edb81208b09688e7fa7cb0c8bf8116f1256f59ba)
-- [PHASE-2] [PHASE-4] feat: plugin refactor — core CLI factory, simplified menu, new status shape [`917a8e8`](https://github.com/karmaniverous/jeeves-watcher/commit/917a8e8c1a9e2fb5466d56c5ebf6413ddd3fe5da)
-- [PHASE-1] feat: config path migration to jeeves-watcher/config.json (#149) [`03f3efd`](https://github.com/karmaniverous/jeeves-watcher/commit/03f3efd3a267d7c7075321b3183d79a04d9282cf)
-- npm audit fix [`c58a678`](https://github.com/karmaniverous/jeeves-watcher/commit/c58a67867e659c71ea8f9e5aae6f3078c9dc9809)
-- [PHASE-0] fix: improve Phase 0 fixes - add tests, graceful facets degradation, waitForIdleWorkers [`3b6f015`](https://github.com/karmaniverous/jeeves-watcher/commit/3b6f015ff14ffae1a40c028371a5e66035983df1)
-- [PHASE-0] [#162] fix: batch embedAndUpsert to prevent OOM on large files [`8555815`](https://github.com/karmaniverous/jeeves-watcher/commit/8555815e126dd5f499890707934fdefae97d90cc)
-- [151] perf: ValuesManager binary serialization and debounced flush (#151) [`f3517fd`](https://github.com/karmaniverous/jeeves-watcher/commit/f3517fd7d185757d4850720abf02fde5ad8242b5)
-- [153] fix: use getter for fileSystemWatcher in API handlers (#153) [`4a81097`](https://github.com/karmaniverous/jeeves-watcher/commit/4a810977eedef7df97c8e2a1c63c42dc19599728)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.13.0 [`cc124d9`](https://github.com/karmaniverous/jeeves-watcher/commit/cc124d9029d9ea6e7ea2c459fcecfb018545820e)
-- [PHASE-2] [PHASE-3] feat: adopt core status handler + getBindAddress (S2/S3) [`cebe47e`](https://github.com/karmaniverous/jeeves-watcher/commit/cebe47e31bdfae991889a4d260084c51af1c5a40)
-- [152] fix: address PR review feedback on #152 [`0127d01`](https://github.com/karmaniverous/jeeves-watcher/commit/0127d01919764beae3344d11f810f6be1b81cf7d)
-- [PHASE-1] fix: address Gemini review - log migration errors, remove unused resolveConfigDir [`ad22e30`](https://github.com/karmaniverous/jeeves-watcher/commit/ad22e309ce21bcdcb295fd1262f5d2d3f1504ba4)
-- [150] fix: QdrantClient write path leaks undici Agents (#150) [`8ff3286`](https://github.com/karmaniverous/jeeves-watcher/commit/8ff328638865832b730841696ab694b80e69acdc)
-- chore: release @karmaniverous/jeeves-watcher v0.15.2 [`0d0a0be`](https://github.com/karmaniverous/jeeves-watcher/commit/0d0a0be11eee759dc48e601c0d6e11ad2722380f)
-- chore: release @karmaniverous/jeeves-watcher v0.16.0 [`1ed3376`](https://github.com/karmaniverous/jeeves-watcher/commit/1ed3376bda68c9eb48b0302a59672aa80465998c)
-- [PHASE-0] [#161] fix: catch async rejection in onRulesChanged instead of swallowing it [`642001a`](https://github.com/karmaniverous/jeeves-watcher/commit/642001ae7e71c7ad2ef96d5f4c4d1687ac553c8a)
-- [PHASE-2] docs: align guide index structure with jeeves-server pattern [`42a377b`](https://github.com/karmaniverous/jeeves-watcher/commit/42a377b9584d6c461dc6261fb552cb7d3e9d7053)
-- Merge pull request #164 from karmaniverous/bugfix/phase-0-bug-fixes [`9edfeda`](https://github.com/karmaniverous/jeeves-watcher/commit/9edfeda7a4a1d1579d9322779859a1b8575c88a6)
-- [120] fix: pause event queue during prune to prevent ECONNRESET under load [`5896afa`](https://github.com/karmaniverous/jeeves-watcher/commit/5896afadc90908eeb321e480936961cc00269a7e)
-- [150] refactor: address PR review feedback on #150 [`1474a8d`](https://github.com/karmaniverous/jeeves-watcher/commit/1474a8d85461c4525d3cd6eba80fe154f82c924e)
-- [PHASE-0] [#159] fix: add try/catch to facets handler for config and schema errors [`675f382`](https://github.com/karmaniverous/jeeves-watcher/commit/675f38289a4a86770a97651809a92db47a626552)
-- ci: add linux-compat workflow via shared gha-workflows [`76cc7e0`](https://github.com/karmaniverous/jeeves-watcher/commit/76cc7e008eb918d6fc068319719aceb1e3caa974)
-- [153] test: simplify walk rebuild getter test [`cab9526`](https://github.com/karmaniverous/jeeves-watcher/commit/cab9526dabca0d0ab8f88557b703e3f3948df851)
-- [120] fix: ensure queue resumes on all error paths (Gemini review) [`eaf0314`](https://github.com/karmaniverous/jeeves-watcher/commit/eaf03140c19929856ed3075a336e4ed2561df7db)
-- [151] refactor: address PR review feedback on #151 [`0002be9`](https://github.com/karmaniverous/jeeves-watcher/commit/0002be97ae8dd2d7b318ecd14d5c6d8bfe89de5d)
-- [PHASE-0] fix: guard upsertBatchSize against zero/negative (Gemini review) [`8bd7dda`](https://github.com/karmaniverous/jeeves-watcher/commit/8bd7dda1379c3190f89a31ca37354876e868cee0)
-- [152] fix: EnrichmentStore SQLite recovery on startup (#152) [`65becff`](https://github.com/karmaniverous/jeeves-watcher/commit/65becffdc9d7d0c45a8869e0359ba54941437e6f)
-- [120] fix: drain in-flight queue work before prune scroll [`11342a9`](https://github.com/karmaniverous/jeeves-watcher/commit/11342a95b1eb59c208c6bf9c1d92877595605334)
-- Merge pull request #148 from karmaniverous/bugfix/linux-compat-tests [`fd56a59`](https://github.com/karmaniverous/jeeves-watcher/commit/fd56a59ac34d3bd2cdd1657a1a71c33e0a00b23e)
-
-#### [openclaw/0.12.1](https://github.com/karmaniverous/jeeves-watcher/compare/openclaw/0.12.0...openclaw/0.12.1)
-
-> 25 March 2026
-
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.12.1 [`2616608`](https://github.com/karmaniverous/jeeves-watcher/commit/2616608f0b67a4c13fd50de35a19b8d4826559c5)
-- chore: release @karmaniverous/jeeves-watcher v0.15.1 [`20f2004`](https://github.com/karmaniverous/jeeves-watcher/commit/20f2004a4ba557d263fd2702d6e795822a91e32f)
-- chore: bump @karmaniverous/jeeves to 0.3.1 [`a5a6324`](https://github.com/karmaniverous/jeeves-watcher/commit/a5a632474b96749a891a4a69b581dbcde79b849e)
-- ci: add permissions block to Deploy Docs caller workflow [`7aed6d8`](https://github.com/karmaniverous/jeeves-watcher/commit/7aed6d86759f0f49d57573b1d1a66880974b9602)
-- chore: trigger CI [`1b88950`](https://github.com/karmaniverous/jeeves-watcher/commit/1b889506be8255846b079f2cdb68e16db2c8b1ac)
-
-#### [openclaw/0.12.0](https://github.com/karmaniverous/jeeves-watcher/compare/openclaw/0.11.0...openclaw/0.12.0)
-
-> 24 March 2026
-
-- feat: hot-reload and bugfixes v0.15.0 [`#147`](https://github.com/karmaniverous/jeeves-watcher/pull/147)
-- feat: add full hot-reload with watcher rebuild on config change [`#113`](https://github.com/karmaniverous/jeeves-watcher/pull/113)
-- fix: close EnrichmentStore on shutdown (#145), fix schema path resolution in metadata validation [`#116`](https://github.com/karmaniverous/jeeves-watcher/pull/116)
-- refactor: convert remaining captured config refs to getters in status, render, walk, search handlers (SOLID/DRY) [`c262e63`](https://github.com/karmaniverous/jeeves-watcher/commit/c262e63ca4c2a182d0704a402565284442e86d47)
-- refactor: replace captured config with getter pattern in API handlers (#144, #146) [`89a568c`](https://github.com/karmaniverous/jeeves-watcher/commit/89a568cd522c58ab0356b5f6f43c8678dbc88a8c)
-- chore: remove temporary TASK.md [`33e8181`](https://github.com/karmaniverous/jeeves-watcher/commit/33e8181363a619065dd2817895b513c5067b544d)
-- perf: cache compiled rules in configMatch handler, invalidate on config change [`c1821ca`](https://github.com/karmaniverous/jeeves-watcher/commit/c1821ca733be91a10cfe2e14cdc631602ac025f6)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.12.0 [`bf542de`](https://github.com/karmaniverous/jeeves-watcher/commit/bf542de1aa5b4c504a6a3d08026c18d3952d5aae)
-- chore: release @karmaniverous/jeeves-watcher v0.15.0 [`199cf02`](https://github.com/karmaniverous/jeeves-watcher/commit/199cf022f479a24052c020b58f7ca731acf67ccd)
-- chore: un-export unused types flagged by knip [`4532c6d`](https://github.com/karmaniverous/jeeves-watcher/commit/4532c6d6fe3cb8378a338791e877ebe691df72c4)
-- docs: update watcher_config_apply skill text to reflect hot-reload capability [`642dc80`](https://github.com/karmaniverous/jeeves-watcher/commit/642dc80dcaf1ab53bbafc75cfcde1c7b3f32d359)
-
-#### [openclaw/0.11.0](https://github.com/karmaniverous/jeeves-watcher/compare/openclaw/0.10.0...openclaw/0.11.0)
-
-> 23 March 2026
-
-- feat: move detection and durable enrichment store [`#143`](https://github.com/karmaniverous/jeeves-watcher/pull/143)
-- feat: add EnrichmentStore and composable merge utility [`50dc78e`](https://github.com/karmaniverous/jeeves-watcher/commit/50dc78efa213615b834ecaa7d92277d5e3944828)
-- feat: add MoveCorrelator and wire into FileSystemWatcher [`4012ad5`](https://github.com/karmaniverous/jeeves-watcher/commit/4012ad5481d2ddaf10166ba65085cf466245ebde)
-- refactor: wire EnrichmentStore into processor, remove sidecar metadata system [`49deb30`](https://github.com/karmaniverous/jeeves-watcher/commit/49deb30e2bafa75dec6940483a26a851f72059a4)
-- chore: release @karmaniverous/jeeves-watcher v0.14.0 [`c510b0f`](https://github.com/karmaniverous/jeeves-watcher/commit/c510b0f4de9ab10c4b54307d4f9398f9c0e40045)
-- feat: implement DocumentProcessor.moveFile for zero-embedding moves [`d4c3a87`](https://github.com/karmaniverous/jeeves-watcher/commit/d4c3a87f0d39906de93797f3c553eedc4ea8a9ad)
-- feat: extend interfaces for move detection and enrichment store [`8c3b109`](https://github.com/karmaniverous/jeeves-watcher/commit/8c3b109e049c243fb339ca3fd474c674301ed44e)
-- feat: add ContentHashCache for move detection [`0130011`](https://github.com/karmaniverous/jeeves-watcher/commit/0130011349c5878cce864f81d8da2083b3b7cb5f)
-- test: remove trivial tests, add move pipeline integration tests [`62cb933`](https://github.com/karmaniverous/jeeves-watcher/commit/62cb933fa02dbd44239d385b63e20527a65b48ba)
-- npm audit fix [`e93ece6`](https://github.com/karmaniverous/jeeves-watcher/commit/e93ece66db2fa70f26eb61faebbfe87f68681db3)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.11.0 [`eab6a75`](https://github.com/karmaniverous/jeeves-watcher/commit/eab6a758805ad1477980c51e3b1f67626bb1857b)
-- docs: sync README, SKILL.md with v0.14.0 implementation (move detection, enrichment store) [`c0bf11e`](https://github.com/karmaniverous/jeeves-watcher/commit/c0bf11eb6790d4fb0d0695317faef5331988caca)
-
-#### [openclaw/0.10.0](https://github.com/karmaniverous/jeeves-watcher/compare/openclaw/0.9.0...openclaw/0.10.0)
-
-> 23 March 2026
-
-- feat: upgrade @karmaniverous/jeeves to ^0.3.0 [`#141`](https://github.com/karmaniverous/jeeves-watcher/pull/141)
-- feat: upgrade @karmaniverous/jeeves to ^0.3.0 [`#140`](https://github.com/karmaniverous/jeeves-watcher/issues/140)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.10.0 [`09f1498`](https://github.com/karmaniverous/jeeves-watcher/commit/09f14982af678cdffc8e46583eb167b871efd718)
-- chore: release @karmaniverous/jeeves-watcher v0.13.0 [`ba76250`](https://github.com/karmaniverous/jeeves-watcher/commit/ba76250ede62254c389efa542dbd5072d6a27ec6)
-
-#### [openclaw/0.9.0](https://github.com/karmaniverous/jeeves-watcher/compare/openclaw/0.8.1...openclaw/0.9.0)
-
-> 21 March 2026
-
-- feat: adopt @karmaniverous/jeeves core v0.2.0 SDK [`#138`](https://github.com/karmaniverous/jeeves-watcher/pull/138)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.9.0 [`746f79d`](https://github.com/karmaniverous/jeeves-watcher/commit/746f79db08aebc2e4aa3922fba83299408422dc3)
-- chore: release @karmaniverous/jeeves-watcher v0.12.0 [`a31a0c1`](https://github.com/karmaniverous/jeeves-watcher/commit/a31a0c157ac3d6a913893e26c699c5711f90cf90)
-
-#### [openclaw/0.8.1](https://github.com/karmaniverous/jeeves-watcher/compare/openclaw/0.8.0...openclaw/0.8.1)
-
-> 19 March 2026
-
-- fix(openclaw): bundle @karmaniverous/jeeves into plugin output [`#130`](https://github.com/karmaniverous/jeeves-watcher/pull/130)
-- fix(openclaw): copy core content/ at build time, simplify rollup externals [`bdb6890`](https://github.com/karmaniverous/jeeves-watcher/commit/bdb6890f87adb3cd7ad5b42f394b6c7117bc936d)
-- refactor(openclaw): use core resolveWorkspacePath from @karmaniverous/jeeves@0.1.4 [`35d2e47`](https://github.com/karmaniverous/jeeves-watcher/commit/35d2e47190e30c81ff2ed6b7a719cb266df5d4af)
-- fix(openclaw): add 10s timeout to menu generation fetch calls [`3902554`](https://github.com/karmaniverous/jeeves-watcher/commit/3902554fbb2066b1d0d7fad9f586700347524fb7)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.8.1 [`e2fdb78`](https://github.com/karmaniverous/jeeves-watcher/commit/e2fdb7834be004d30a235f77ff2396edcf430b89)
-- chore: release @karmaniverous/jeeves-watcher v0.11.1 [`1152601`](https://github.com/karmaniverous/jeeves-watcher/commit/1152601aa538a0078b6ad310571bd0bd1e36f149)
-- feat(openclaw): update to @karmaniverous/jeeves@0.1.6, add servicePackage/pluginPackage [`fc0a16c`](https://github.com/karmaniverous/jeeves-watcher/commit/fc0a16c6d4ecfa23988517031026806c3312b91d)
-- fix(openclaw): update @karmaniverous/jeeves to 0.1.5 (workspace path priority fix) [`6e22dc5`](https://github.com/karmaniverous/jeeves-watcher/commit/6e22dc5e4c4e71a0c0f055bd2aa094d0da2b0e7b)
-- fix(openclaw): update @karmaniverous/jeeves to 0.1.3 (content path fix) [`2429876`](https://github.com/karmaniverous/jeeves-watcher/commit/2429876bc496f88787ff5af0dd3a250f5bafe913)
-- fix(openclaw): include content/ in CLI installer copy list [`29ef2e5`](https://github.com/karmaniverous/jeeves-watcher/commit/29ef2e5c20ff9681f685ee846441e2b55068554d)
-
-#### [openclaw/0.8.0](https://github.com/karmaniverous/jeeves-watcher/compare/openclaw/0.7.0...openclaw/0.8.0)
-
-> 18 March 2026
-
-- feat(openclaw): adopt @karmaniverous/jeeves core components [`#129`](https://github.com/karmaniverous/jeeves-watcher/pull/129)
-- docs: add embedding cost behavioral gate to plugin SKILL.md [`#126`](https://github.com/karmaniverous/jeeves-watcher/pull/126)
-- fix: use chokidar getWatched() for /walk endpoint [`#123`](https://github.com/karmaniverous/jeeves-watcher/pull/123)
-- [FIX-122] fix: use chokidar getWatched() for /walk endpoint instead of filesystem traversal [`#122`](https://github.com/karmaniverous/jeeves-watcher/issues/122)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.8.0 [`b462ff9`](https://github.com/karmaniverous/jeeves-watcher/commit/b462ff93d84e49ae7f7ddf97e40c2da3828079ce)
-- chore: release @karmaniverous/jeeves-watcher v0.11.0 [`0f5a404`](https://github.com/karmaniverous/jeeves-watcher/commit/0f5a4040b02bfe7b4176482b427e2d4447dfd8c8)
-- chore(openclaw): update dev dependencies [`2780581`](https://github.com/karmaniverous/jeeves-watcher/commit/27805819299ea56de497b85af7103e2dfd795f4d)
-- docs: sync documentation with implementation, replace Mermaid/ASCII with PlantUML diagrams [`a035758`](https://github.com/karmaniverous/jeeves-watcher/commit/a03575820eadebf284260541759e513c6bae4efe)
-- refactor(openclaw): upgrade to @karmaniverous/jeeves v0.1.1, use createAsyncContentCache, static imports, real integration tests [`a9e5eb8`](https://github.com/karmaniverous/jeeves-watcher/commit/a9e5eb8658062a773d40dbe46e3789e2f351dc22)
-- refactor(openclaw): resolve SOLID/DRY violations [`6a1598c`](https://github.com/karmaniverous/jeeves-watcher/commit/6a1598cba4176f5a71fe06f97a2a8c46a8e5bfe4)
-- test(openclaw): remove trivial typeof tests, add getApiUrl/getConfigRoot coverage [`366d604`](https://github.com/karmaniverous/jeeves-watcher/commit/366d604313276d2f238fe37bf9e1ee0bfcd6a9d0)
-- test(openclaw): add watcherComponent unit tests, document ServiceCommands in spec [`6549007`](https://github.com/karmaniverous/jeeves-watcher/commit/6549007a893bd3805c05de9a19a447df994f1444)
-- fix(openclaw): derive plugin version from package.json instead of hardcoding [`8932574`](https://github.com/karmaniverous/jeeves-watcher/commit/8932574dbdbbd5e85b044864090dfa159dba52e8)
-- chore: release @karmaniverous/jeeves-watcher v0.10.1 [`3c4e482`](https://github.com/karmaniverous/jeeves-watcher/commit/3c4e482fc26be40ac9086e5b0221079c58498a57)
-- refactor: use path.join() for getWatchedFiles path construction [`41315a3`](https://github.com/karmaniverous/jeeves-watcher/commit/41315a3d608f6bbe8a4b4c0b86d4ac5144053901)
-- Add footer with credits and love note [`3402c9c`](https://github.com/karmaniverous/jeeves-watcher/commit/3402c9c6da71576b4adee8c45a5614259273407d)
-- Update README.md [`03885cd`](https://github.com/karmaniverous/jeeves-watcher/commit/03885cd1b7e5c2e9ce24c34ac3ecfe613c29ad09)
-- fix: add tagPrefix to auto-changelog config for monorepo tags [`035ed94`](https://github.com/karmaniverous/jeeves-watcher/commit/035ed94c4ec6f0a91d391153707d44371a506e5a)
-- docs: remove duplicate reindex entry from root README CLI table [`0995a97`](https://github.com/karmaniverous/jeeves-watcher/commit/0995a97bfefff8cab2dc3cb36d032a3abec905a2)
-
-#### [openclaw/0.7.0](https://github.com/karmaniverous/jeeves-watcher/compare/openclaw/0.6.2...openclaw/0.7.0)
-
-> 15 March 2026
-
-- feat: API consolidation, walk endpoint, auto rules-reindex (Fixes 17-21) [`#121`](https://github.com/karmaniverous/jeeves-watcher/pull/121)
-- feat: v0.10.0 correctness and observability release [`#117`](https://github.com/karmaniverous/jeeves-watcher/pull/117)
-- fix: add nocase to fileScan picomatch calls [`#115`](https://github.com/karmaniverous/jeeves-watcher/pull/115)
-- [107] fix: remove HTML escaping from renderDoc markdown output [`#108`](https://github.com/karmaniverous/jeeves-watcher/pull/108)
-- [107] fix: remove HTML escaping from renderDoc markdown output [`#107`](https://github.com/karmaniverous/jeeves-watcher/issues/107)
-- [FIX-17] chore: gitignore generated docs directories [`96f6610`](https://github.com/karmaniverous/jeeves-watcher/commit/96f6610c21c26d8229727831ce3a1f2405127c1d)
-- [FIX-17] [DOCS] Resolve all docs warnings and root-level knip issues [`c855d3f`](https://github.com/karmaniverous/jeeves-watcher/commit/c855d3f1d4c42838eb25a232b56fb984da60681c)
-- [FIX-17] chore: remove changelogs (generated at build time) [`ad23fa9`](https://github.com/karmaniverous/jeeves-watcher/commit/ad23fa9aa49c559c8d66b52deb0918ca6c32fc3a)
-- [FIX-14] feat: prune reindex scope, blast area plan, dryRun (Fix 14) [`c2b1c9f`](https://github.com/karmaniverous/jeeves-watcher/commit/c2b1c9fc69d10a988f3f3b1b04701a0b460b90d7)
-- [FIX-17][FIX-18][FIX-19] feat: API Consolidation (Phase 8) [`750803a`](https://github.com/karmaniverous/jeeves-watcher/commit/750803a05d19c4eb33ceca90e050470e7ff6217a)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.7.0 [`5285b26`](https://github.com/karmaniverous/jeeves-watcher/commit/5285b26fc4f33b9442a09e4edd2a6686e5229fef)
-- chore: release @karmaniverous/jeeves-watcher v0.10.0 [`0fb8183`](https://github.com/karmaniverous/jeeves-watcher/commit/0fb81832bd1843ce30b885e1eaae74d76676e896)
-- [FIX-17] [FIX-20][FIX-21] Phase 9: POST /walk endpoint, watcher_walk tool, auto rules-reindex on rule registration [`aadd6fe`](https://github.com/karmaniverous/jeeves-watcher/commit/aadd6fec9e9b7170afd3966f7c361835aac741d2)
-- [FIX-17] [REFACTOR] DRY/SOLID pass: extract helpers, consolidate walk functions, separate onRulesChanged [`3870ff5`](https://github.com/karmaniverous/jeeves-watcher/commit/3870ff5d2c32427971785d3d8b99f87144484927)
-- [FIX-15] feat: initial scan visibility + prune scroll resilience (Fixes 15+16) [`058ebcf`](https://github.com/karmaniverous/jeeves-watcher/commit/058ebcf56397e4d1a4f4306424cf0583c7344f50)
-- [FIX-17] [TEST] Add missing test coverage: fileScan walk functions, extractMatchGlobs, rules+path reindex, createIsGitignored [`cf4879c`](https://github.com/karmaniverous/jeeves-watcher/commit/cf4879c51fd39d185078448aa6f97351d5c90158)
-- [V0_10_0] chore: fix lint errors in promptInjection, clean up knip config, regenerate schema [`5815c94`](https://github.com/karmaniverous/jeeves-watcher/commit/5815c944179d8c2cc2b0d41abae8f71571629a31)
-- [V0_10_0] feat: add scope validation, rules and path reindex scopes (Fixes 1, 2, 13) [`9f693db`](https://github.com/karmaniverous/jeeves-watcher/commit/9f693dbb36a4dd9e1ea51adc7c777db2ec382300)
-- [FIX-14] docs: update all guides for reindex scopes, dryRun, plan, and version [`7f2e3e3`](https://github.com/karmaniverous/jeeves-watcher/commit/7f2e3e3b11c41e182835394d6c3c3cc5ef366f4c)
-- [V0_10_0] feat: version in /status, live scoreThresholds, virtual rule template rebuild, remove dead config keys (Fixes 6, 10, 12) [`39ff1ff`](https://github.com/karmaniverous/jeeves-watcher/commit/39ff1ff86f474d0f3e3247eed633aeb34ddec6a7)
-- [FIX-17] [FIX-19] fix: consolidate CLI reindex commands, fix scope validation, update dev plan [`e430d8a`](https://github.com/karmaniverous/jeeves-watcher/commit/e430d8ab1f57b4c293c8d251b887f70f91244169)
-- [V0_10_0] test: fix mock dependencies and test assertions for reindex and cache handlers [`93901de`](https://github.com/karmaniverous/jeeves-watcher/commit/93901de7424ef1d40a05547027959720a7ffd302)
-- [V0_10_0] fix: wire gitignore filter into reindex path, support standalone .gitignore (Fixes 3, 4) [`1e3eaf1`](https://github.com/karmaniverous/jeeves-watcher/commit/1e3eaf19a73220a83906720298f79e46d9b9d984)
-- [V0_10_0] fix: replace brittle glob parsing in path reindex with full file list + directory filter [`335002e`](https://github.com/karmaniverous/jeeves-watcher/commit/335002e96f4164517cfccef4500f9e9d98772b13)
-- feat(watcher): add initial scan statistics logging [`06ea0b2`](https://github.com/karmaniverous/jeeves-watcher/commit/06ea0b233a062865adce9f921ac0f711f9b0cef3)
-- fix: use package-directory for version resolution in /status [`33e3542`](https://github.com/karmaniverous/jeeves-watcher/commit/33e3542e463bd7e5c5b8db527252cf0c2c6071fe)
-- npm audit fix [`579f19f`](https://github.com/karmaniverous/jeeves-watcher/commit/579f19fa1938faf5f84d99b361892e45b34cdb98)
-- [V0_10_0] fix: return actionable error details from wrapHandler, fix withCache payload capture (Fixes 7, 9) [`ec7cb04`](https://github.com/karmaniverous/jeeves-watcher/commit/ec7cb0415dc783c27da1d4c7c6e2b5468bd7c3a0)
-- [FIX-17] [FIX-19] fix: rename CLI config-reindex to reindex, fix stale doc refs, clean watch.ignored [`13e4869`](https://github.com/karmaniverous/jeeves-watcher/commit/13e48694ee8fa8a69e984da3a58be1c1aede87c7)
-- [FIX-15] docs: add initialScan to api-reference and SKILL.md [`34ee4a5`](https://github.com/karmaniverous/jeeves-watcher/commit/34ee4a5c0e4541ee0da3f63fd4f31ad2f4c18306)
-- [FIX-15] fix: rename initialScan.filesProcessed to filesEnqueued for clarity [`6ef93f6`](https://github.com/karmaniverous/jeeves-watcher/commit/6ef93f6b2ca770664411da22665671969bd20374)
-- [FIX-17] docs: update READMEs with renamed endpoints, tools, and new /walk endpoint [`d713830`](https://github.com/karmaniverous/jeeves-watcher/commit/d713830f2f81d1f3d8d91afd72c8e19163e2795b)
-- [FIX-17] ci: add Deploy Docs workflow from jeeves-meta [`ee5cb65`](https://github.com/karmaniverous/jeeves-watcher/commit/ee5cb65c20483e8ac6a2960c39d4cfd8170adf51)
-- [V0_10_0] docs: add score threshold guidance to SKILL.md, reference skill from TOOLS.md injection [`efae197`](https://github.com/karmaniverous/jeeves-watcher/commit/efae19780b7247eb8423c54d93108d332a253e0f)
-- chore: release @karmaniverous/jeeves-watcher v0.9.7 [`fd439c2`](https://github.com/karmaniverous/jeeves-watcher/commit/fd439c288655eacf6558edc289de7e1b695fb371)
-- chore: release @karmaniverous/jeeves-watcher v0.9.9 [`7b84256`](https://github.com/karmaniverous/jeeves-watcher/commit/7b84256780b47197c6ebfb3f4ec3867ff1e4adc9)
-- npm audit fix [`601840c`](https://github.com/karmaniverous/jeeves-watcher/commit/601840c254e0728ae6046ad6cf52e0934b5d804a)
-- chore: release @karmaniverous/jeeves-watcher v0.9.8 [`cd86be1`](https://github.com/karmaniverous/jeeves-watcher/commit/cd86be14c4b681d837cc9c39e50f890ca477c6f1)
-- [114] fix: add nocase to fileScan picomatch calls (#114) [`5a28b8c`](https://github.com/karmaniverous/jeeves-watcher/commit/5a28b8c4f25ed39e82ea258c3414bf9d2f827cf7)
-- [FIX-17] chore: remove orphaned packages/service/docs, simplify gitignore [`df670b0`](https://github.com/karmaniverous/jeeves-watcher/commit/df670b0a628eab9e846394c36241540395bbc620)
-
-#### [openclaw/0.6.2](https://github.com/karmaniverous/jeeves-watcher/compare/openclaw/0.6.1...openclaw/0.6.2)
-
-> 12 March 2026
-
-- feat: glob/negation patterns in render.frontmatter [`#105`](https://github.com/karmaniverous/jeeves-watcher/pull/105)
-- feat: support glob/negation patterns in render.frontmatter [`#104`](https://github.com/karmaniverous/jeeves-watcher/issues/104)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.6.2 [`200411d`](https://github.com/karmaniverous/jeeves-watcher/commit/200411db150a7a7780c6951257693b0a784906d1)
-- chore: release @karmaniverous/jeeves-watcher v0.9.6 [`432b3c5`](https://github.com/karmaniverous/jeeves-watcher/commit/432b3c513cda109c4d26fb78e9f89eb60b612742)
-
-#### [openclaw/0.6.1](https://github.com/karmaniverous/jeeves-watcher/compare/openclaw/0.6.0...openclaw/0.6.1)
-
-> 10 March 2026
-
-- feat: add concurrent file processing for reindex using radash parallel [`#103`](https://github.com/karmaniverous/jeeves-watcher/pull/103)
-- perf: use node:https with keep-alive for Gemini embedding (13s → 2-4s) [`#101`](https://github.com/karmaniverous/jeeves-watcher/pull/101)
-- perf: replace LangChain Gemini wrapper with direct API (13s → ~1s search) [`#100`](https://github.com/karmaniverous/jeeves-watcher/pull/100)
-- fix: skip live value aggregation for non-enumerated facet uiHint types [`#99`](https://github.com/karmaniverous/jeeves-watcher/pull/99)
-- feat: add concurrent file processing for reindex using radash parallel [`#102`](https://github.com/karmaniverous/jeeves-watcher/issues/102)
-- perf(service): replace LangChain Gemini wrapper with direct API calls [`5b7c35b`](https://github.com/karmaniverous/jeeves-watcher/commit/5b7c35bc2ddbec4583720e57c3a8f6425639ddf9)
-- fix(service): skip live value aggregation for non-enumerated facet uiHint types [`a048b9c`](https://github.com/karmaniverous/jeeves-watcher/commit/a048b9c7a3277ef9e18572eb4c5f4654b659688c)
-- perf(service): use node:https with keep-alive agent for Gemini API [`b79709e`](https://github.com/karmaniverous/jeeves-watcher/commit/b79709e445c71df67f9d8ac82d1aedf1f813a6af)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.6.1 [`de66cd0`](https://github.com/karmaniverous/jeeves-watcher/commit/de66cd0de6dc505fd1e7e5f5a866d4ca9bd71fd4)
-- chore: release @karmaniverous/jeeves-watcher v0.9.5 [`2e1bf8b`](https://github.com/karmaniverous/jeeves-watcher/commit/2e1bf8b87c8f67bdc25b4413e39b33192f1f1b54)
-- chore: release @karmaniverous/jeeves-watcher v0.9.2 [`e8c1b8f`](https://github.com/karmaniverous/jeeves-watcher/commit/e8c1b8f8a066eb908864e8c89d2baa67a6b8d5ff)
-- chore: release @karmaniverous/jeeves-watcher v0.9.4 [`c6528b9`](https://github.com/karmaniverous/jeeves-watcher/commit/c6528b98894649ede840edc8e31e3f4c112e0c0b)
-- chore: release @karmaniverous/jeeves-watcher v0.9.3 [`e80f787`](https://github.com/karmaniverous/jeeves-watcher/commit/e80f787268cfaf66065554c873afed900103cc11)
-- docs: document reindex.concurrency in published and dev skills [`d51fb40`](https://github.com/karmaniverous/jeeves-watcher/commit/d51fb4025216cba76a9c53d14b3000059fb38aba)
-
-#### [openclaw/0.6.0](https://github.com/karmaniverous/jeeves-watcher/compare/openclaw/0.6.0-0...openclaw/0.6.0)
-
-> 8 March 2026
-
-- chore: release @karmaniverous/jeeves-watcher v0.9.0-0 [`07004fc`](https://github.com/karmaniverous/jeeves-watcher/commit/07004fc427e43c9eef73b3e5be0882f3845ae7d6)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.6.0 [`6eff521`](https://github.com/karmaniverous/jeeves-watcher/commit/6eff521210b2348e703960b11ff9640e1be99781)
-- chore: release @karmaniverous/jeeves-watcher v0.9.0 [`9f210b1`](https://github.com/karmaniverous/jeeves-watcher/commit/9f210b1443db133c7598fa1815ee1702ffaaec82)
-
-#### [openclaw/0.6.0-0](https://github.com/karmaniverous/jeeves-watcher/compare/openclaw/0.5.7...openclaw/0.6.0-0)
-
-> 8 March 2026
-
-- feat: add POST /scan endpoint with cursor-based pagination [`#98`](https://github.com/karmaniverous/jeeves-watcher/pull/98)
-- chore: re-encode .gitignore as UTF-8 [`#97`](https://github.com/karmaniverous/jeeves-watcher/pull/97)
-- fix(values): decompose array metadata into individual trackable elements [`#96`](https://github.com/karmaniverous/jeeves-watcher/pull/96)
-- fix: update values index before hash check in processFile [`#95`](https://github.com/karmaniverous/jeeves-watcher/pull/95)
-- fix: pass valuesManager and issuesManager to config-reindex handler [`#94`](https://github.com/karmaniverous/jeeves-watcher/pull/94)
-- fix: update values index during rules reindex [`#93`](https://github.com/karmaniverous/jeeves-watcher/pull/93)
-- feat: v0.8.0 — renderAs, POST /render, GET /search/facets [`#92`](https://github.com/karmaniverous/jeeves-watcher/pull/92)
-- feature: add proactive bootstrap diagnostics to prompt injection [`#91`](https://github.com/karmaniverous/jeeves-watcher/pull/91)
-- updated docs [`9d7f100`](https://github.com/karmaniverous/jeeves-watcher/commit/9d7f1005b3cd1c8912d990e26e4318a631499fc0)
-- updated docs [`07afc9d`](https://github.com/karmaniverous/jeeves-watcher/commit/07afc9dc6b5a94ae94e8a1e60dabc0c3c49016a6)
-- updated docs [`06e474c`](https://github.com/karmaniverous/jeeves-watcher/commit/06e474cea44e8a34549565557b3f506bcdd27696)
-- feat: add GET /search/facets endpoint with schema-derived facet definitions [`7ee8f03`](https://github.com/karmaniverous/jeeves-watcher/commit/7ee8f035fbe8c8eeeb89857af52fa59a214ab7d5)
-- refactor(service): extract scrollPage/count helpers, eliminate DRY violations [`e8978ec`](https://github.com/karmaniverous/jeeves-watcher/commit/e8978ec72fb9bf0752fb4bec0cf5bbe4dd1fc104)
-- feat(service): add POST /scan handler with cursor-based pagination [`2ed435c`](https://github.com/karmaniverous/jeeves-watcher/commit/2ed435c0d60c64067868beb8c776faa1ae1e9857)
-- test: add render handler tests and buildMetadata last-match-wins test [`b119e5b`](https://github.com/karmaniverous/jeeves-watcher/commit/b119e5bb658b02ed794cedac7af96de2e3de8c4f)
-- feat: add POST /render endpoint with isPathWatched and renderFile [`0f86fd0`](https://github.com/karmaniverous/jeeves-watcher/commit/0f86fd071b415810c0fcbe60466385766bf322c8)
-- docs: add POST /scan and POST /rules/reapply to all documentation [`f61b2e4`](https://github.com/karmaniverous/jeeves-watcher/commit/f61b2e468d3072693fe2e553d824f6182bbd5646)
-- fix(service): clean up scan handler and test lint issues [`7caaf24`](https://github.com/karmaniverous/jeeves-watcher/commit/7caaf246dba425f9809937e2b0ab398f0fe3d0c9)
-- docs: add v0.8.0 documentation for renderAs, POST /render, GET /search/facets [`a8c4691`](https://github.com/karmaniverous/jeeves-watcher/commit/a8c4691d8c53ce38e0b9e2fe32e536d907e4a708)
-- chore(deps): upgrade dependencies (eslint pinned to v9) [`6b6cb66`](https://github.com/karmaniverous/jeeves-watcher/commit/6b6cb6681051b16e852499963d756d3f98dce775)
-- feat: add Cache-Control no-cache support to withCache, wrap /render endpoint [`104a6f9`](https://github.com/karmaniverous/jeeves-watcher/commit/104a6f96d207738d335fc7a30ebaaff846efa10b)
-- feat: add renderAs field to inference rule schema [`9202b61`](https://github.com/karmaniverous/jeeves-watcher/commit/9202b61c10cc69b7ef41b6c2e045bc3c54edb29a)
-- npm audit fix [`ddf2c57`](https://github.com/karmaniverous/jeeves-watcher/commit/ddf2c5788481bd85ead7c663d0a29fe34ccefc9b)
-- fix(facets): reject object-type properties as facets, validate uiHint types [`12a91e3`](https://github.com/karmaniverous/jeeves-watcher/commit/12a91e31dbdb6668a1b20908728fae053a095821)
-- feat: add renderAs to applyRules and buildMergedMetadata return types [`7d91be7`](https://github.com/karmaniverous/jeeves-watcher/commit/7d91be747aa7b47e79e9ba0fa321fdfd5807095d)
-- docs(skill): add watcher_scan tool section and query planning guidance [`3b51bf8`](https://github.com/karmaniverous/jeeves-watcher/commit/3b51bf8e72852836af699aece4d34a9e70c902af)
-- feat(plugin): add watcher_scan tool and update prompt injection [`e3738aa`](https://github.com/karmaniverous/jeeves-watcher/commit/e3738aac7f5626ef07773221f4070d4975664e64)
-- fix(test): properly type mock deps in configReindex.test.ts [`98ba53f`](https://github.com/karmaniverous/jeeves-watcher/commit/98ba53f1d159306d533fe015e984f57c7a507f04)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.6.0-0 [`bf0bd2b`](https://github.com/karmaniverous/jeeves-watcher/commit/bf0bd2bbf23170cb3a08d4e00b8982279c186ac5)
-- chore: release @karmaniverous/jeeves-watcher v0.8.0 [`4d6daaf`](https://github.com/karmaniverous/jeeves-watcher/commit/4d6daafc4decefe8b9567a22ffdd49ea7be973ad)
-- chore: release @karmaniverous/jeeves-watcher v0.8.5 [`0182d6a`](https://github.com/karmaniverous/jeeves-watcher/commit/0182d6a7cb20f61abce0559b57a52260b1b98643)
-- fix(app): pass valuesManager to processor during initialization [`ca226c3`](https://github.com/karmaniverous/jeeves-watcher/commit/ca226c30e4e4b08d86b6f12560aaa1a2629796b3)
-- fix: update values index during rules reindex (processRulesUpdate) [`ed3b00a`](https://github.com/karmaniverous/jeeves-watcher/commit/ed3b00a4398babc6959eb6df20b6786ec924b377)
-- style: format scrollPage return type [`cddedac`](https://github.com/karmaniverous/jeeves-watcher/commit/cddedac4e9dce6119b055bf1c66c3c1da48cadd4)
-- lintfix [`bcd21ca`](https://github.com/karmaniverous/jeeves-watcher/commit/bcd21ca44b83cb0298ae0cfde63c63ec90768d9e)
-- lintfix [`b4b954e`](https://github.com/karmaniverous/jeeves-watcher/commit/b4b954e04971ed319ba96d8a879ed24344d704ee)
-- chore: release @karmaniverous/jeeves-watcher v0.8.4 [`b02cf9a`](https://github.com/karmaniverous/jeeves-watcher/commit/b02cf9a0d89216bfa7474e7893f4c67f1301099b)
-- chore: release @karmaniverous/jeeves-watcher v0.8.2 [`aa84c02`](https://github.com/karmaniverous/jeeves-watcher/commit/aa84c02ee773b956e6d2f0413327eb58af147806)
-- chore: release @karmaniverous/jeeves-watcher v0.8.1 [`e5bef11`](https://github.com/karmaniverous/jeeves-watcher/commit/e5bef1103fd6e9d29a67cf3351bc28bbafcdaf6d)
-- docs(service): add TypeDoc for scrollPage return type fields [`96c5491`](https://github.com/karmaniverous/jeeves-watcher/commit/96c54916f7e0df87eb26d894ef2a1a66a78405eb)
-- chore: re-encode .gitignore as UTF-8 (was UTF-16 BOM from PowerShell) [`0a51edf`](https://github.com/karmaniverous/jeeves-watcher/commit/0a51edfe798914bcffbdc1b489ac27838d1fbc02)
-- updated diagrams [`5565f37`](https://github.com/karmaniverous/jeeves-watcher/commit/5565f376744abd4e16b3ad0fb8ff55d310ad0f92)
-
-#### [openclaw/0.5.7](https://github.com/karmaniverous/jeeves-watcher/compare/openclaw/0.5.6...openclaw/0.5.7)
-
-> 6 March 2026
-
-- docs: comprehensive documentation audit fixes [`#90`](https://github.com/karmaniverous/jeeves-watcher/pull/90)
-- feat(openclaw): strengthen escalation rule with search-first guidance [`#89`](https://github.com/karmaniverous/jeeves-watcher/pull/89)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.5.7 [`5fa60d6`](https://github.com/karmaniverous/jeeves-watcher/commit/5fa60d64756e145ff3403fc0c890943766f9e1cc)
-
-#### [openclaw/0.5.6](https://github.com/karmaniverous/jeeves-watcher/compare/openclaw/0.5.5...openclaw/0.5.6)
-
-> 5 March 2026
-
-- feat(openclaw): clean up TOOLS.md watcher section on uninstall [`#88`](https://github.com/karmaniverous/jeeves-watcher/pull/88)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.5.6 [`d982052`](https://github.com/karmaniverous/jeeves-watcher/commit/d98205251d99968663a5887c90ca9135e15ed78c)
-
-#### [openclaw/0.5.5](https://github.com/karmaniverous/jeeves-watcher/compare/openclaw/0.5.4...openclaw/0.5.5)
-
-> 5 March 2026
-
-- fix(openclaw): resolve lint and type errors in toolsWriter [`#87`](https://github.com/karmaniverous/jeeves-watcher/pull/87)
-- feat(openclaw): replace agent:bootstrap hook with disk-based TOOLS.md writer [`#86`](https://github.com/karmaniverous/jeeves-watcher/pull/86)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.5.5 [`4154260`](https://github.com/karmaniverous/jeeves-watcher/commit/4154260cc71074695bd997cb47c7977c1d689ef4)
-
-#### [openclaw/0.5.4](https://github.com/karmaniverous/jeeves-watcher/compare/openclaw/0.5.3...openclaw/0.5.4)
-
-> 5 March 2026
-
-- fix: prevent watcher menu duplication in TOOLS.md injection [`#85`](https://github.com/karmaniverous/jeeves-watcher/pull/85)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.5.4 [`4e865d0`](https://github.com/karmaniverous/jeeves-watcher/commit/4e865d089240a4314f69b4533b226c872dfaa753)
-
-#### [openclaw/0.5.3](https://github.com/karmaniverous/jeeves-watcher/compare/0.5.1...openclaw/0.5.3)
-
-> 5 March 2026
-
-- fix(openclaw): align registerHook opts type with OpenClawPluginHookOptions [`#84`](https://github.com/karmaniverous/jeeves-watcher/pull/84)
-- fix(openclaw): provide name option to registerHook [`#83`](https://github.com/karmaniverous/jeeves-watcher/pull/83)
-- fix(openclaw): use correct registerHook name for prompt injection [`#82`](https://github.com/karmaniverous/jeeves-watcher/pull/82)
-- bugfix: expose watch config and inject ignored paths [`#81`](https://github.com/karmaniverous/jeeves-watcher/pull/81)
-- feat: renderDoc helper, date normalization schemas, port fix (v0.7.0) [`#80`](https://github.com/karmaniverous/jeeves-watcher/pull/80)
-- chore: remove memory-core Gemini migration from bootstrap [`#79`](https://github.com/karmaniverous/jeeves-watcher/pull/79)
-- feat(openclaw): add complete bootstrap sequence to skill [`#78`](https://github.com/karmaniverous/jeeves-watcher/pull/78)
-- feat(openclaw)!: remove memory slot takeover [`#77`](https://github.com/karmaniverous/jeeves-watcher/pull/77)
-- chore: change default port from 3456 to 1936 [`#75`](https://github.com/karmaniverous/jeeves-watcher/pull/75)
-- chore: fix all eslint errors (210 → 0) [`#76`](https://github.com/karmaniverous/jeeves-watcher/pull/76)
-- feat(openclaw): add memory → archive escalation pattern to skill [`#74`](https://github.com/karmaniverous/jeeves-watcher/pull/74)
-- feat(openclaw): disable memory-core when installing with --memory [`#73`](https://github.com/karmaniverous/jeeves-watcher/pull/73)
-- feat(openclaw): brand memory tool responses with provider field [`#71`](https://github.com/karmaniverous/jeeves-watcher/pull/71)
-- docs(openclaw): add bootstrap, install modes, and proactive posture to skill [`#70`](https://github.com/karmaniverous/jeeves-watcher/pull/70)
-- feat(openclaw): --memory flag for install CLI [`#69`](https://github.com/karmaniverous/jeeves-watcher/pull/69)
-- feat(openclaw): decouple plugin from watcher config vocabulary [`#68`](https://github.com/karmaniverous/jeeves-watcher/pull/68)
-- fix: fresh QdrantClient for write ops to avoid stale keep-alive ECONNRESET [`#67`](https://github.com/karmaniverous/jeeves-watcher/pull/67)
-- fix: use domains (plural array) in virtual rules and search filter [`#66`](https://github.com/karmaniverous/jeeves-watcher/pull/66)
-- feat: POST /rules/reapply endpoint + plugin auto-reapply after registration [`#65`](https://github.com/karmaniverous/jeeves-watcher/pull/65)
-- fix: disable AJV strict mode to suppress schema type warnings [`#55`](https://github.com/karmaniverous/jeeves-watcher/pull/55)
-- fix: case-insensitive glob matching in AJV rule keyword [`#64`](https://github.com/karmaniverous/jeeves-watcher/pull/64)
-- fix: use glob instead of pattern for virtual rule matching [`#62`](https://github.com/karmaniverous/jeeves-watcher/pull/62)
-- fix: normalizePath preserves drive letter case to match service [`#61`](https://github.com/karmaniverous/jeeves-watcher/pull/61)
-- fix: ensure text index on startup + re-register virtual rules after watcher restart [`#60`](https://github.com/karmaniverous/jeeves-watcher/pull/60)
-- fix: plugin config lookup uses correct entry key (jeeves-watcher-openclaw) [`#59`](https://github.com/karmaniverous/jeeves-watcher/pull/59)
-- fix: update test fixture to include slots for idempotency check [`#58`](https://github.com/karmaniverous/jeeves-watcher/pull/58)
-- chore: bump @karmaniverous/jsonmap to 2.1.1 [`#57`](https://github.com/karmaniverous/jeeves-watcher/pull/57)
-- fix: plugin installer claims memory slot in OpenClaw config [`#56`](https://github.com/karmaniverous/jeeves-watcher/pull/56)
-- docs: update guides for v0.6.0 changes [`#54`](https://github.com/karmaniverous/jeeves-watcher/pull/54)
-- refactor: extract modules to fix 300 LOC violations [`#53`](https://github.com/karmaniverous/jeeves-watcher/pull/53)
-- refactor: DRY fixes and comprehensive test coverage for openclaw package [`#52`](https://github.com/karmaniverous/jeeves-watcher/pull/52)
-- refactor+test: service SOLID/DRY fixes + 54 new tests [`#51`](https://github.com/karmaniverous/jeeves-watcher/pull/51)
-- feat: memory slot takeover with virtual rules API [`#49`](https://github.com/karmaniverous/jeeves-watcher/pull/49)
-- feat: support external rule file references in inferenceRules config [`#50`](https://github.com/karmaniverous/jeeves-watcher/pull/50)
-- feat(service): add hybrid search with BM25 text index and RRF fusion [`#48`](https://github.com/karmaniverous/jeeves-watcher/pull/48)
-- feat(service): Handlebars set expressions + date normalization [`#47`](https://github.com/karmaniverous/jeeves-watcher/pull/47)
-- feat(service): add filesystem date metadata and line offsets [`#46`](https://github.com/karmaniverous/jeeves-watcher/pull/46)
-- fix(openclaw): skill review feedback [`#45`](https://github.com/karmaniverous/jeeves-watcher/pull/45)
-- chore(openclaw): merge skills, simplify build, improve error messaging [`#44`](https://github.com/karmaniverous/jeeves-watcher/pull/44)
-- docs: document self-installer CLI and Windows workaround [`#41`](https://github.com/karmaniverous/jeeves-watcher/pull/41)
-- fix: resolve lint errors in openclaw CLI [`#40`](https://github.com/karmaniverous/jeeves-watcher/pull/40)
-- feat: add install/uninstall CLI for OpenClaw plugin [`#39`](https://github.com/karmaniverous/jeeves-watcher/pull/39)
-- chore: fix monorepo release-it tags, plugin id, and version sync [`#38`](https://github.com/karmaniverous/jeeves-watcher/pull/38)
-- feat(service): add hybrid search with BM25 text index and RRF fusion (#48) [`#35`](https://github.com/karmaniverous/jeeves-watcher/issues/35)
-- feat(service): add filesystem date metadata and line offsets (#46) [`#24`](https://github.com/karmaniverous/jeeves-watcher/issues/24)
-- updated docs [`3028f04`](https://github.com/karmaniverous/jeeves-watcher/commit/3028f04a038935d6339c575f8c78dc10f301a2df)
-- docs: update spec for dynamic system prompt injection and caching [`216fc1d`](https://github.com/karmaniverous/jeeves-watcher/commit/216fc1dc51d8e8af4616a3ba25b5adf56f8be258)
-- feat(openclaw)!: remove memory slot takeover, simplify to pure extension [`0b1bdcb`](https://github.com/karmaniverous/jeeves-watcher/commit/0b1bdcb8ebbb602bc2ceb89ae61104a5d81427f8)
-- feat: add renderDoc helper and render block for structured document rendering [`4d6eefa`](https://github.com/karmaniverous/jeeves-watcher/commit/4d6eefaf4a149b8631e4fad6acd8ead49e1d4eca)
-- feat: add api caching and agent bootstrap prompt injection [`615d0f5`](https://github.com/karmaniverous/jeeves-watcher/commit/615d0f56de4bdc736401092a10978538f7d1a35e)
-- chore: copy tsdoc.json into package directories [`b27b408`](https://github.com/karmaniverous/jeeves-watcher/commit/b27b40812b808cfc2e97ac7d2dcfb5d745ad50d7)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.1.0 [`97e2834`](https://github.com/karmaniverous/jeeves-watcher/commit/97e2834986f0ce53098d0299d0da3025a432e43f)
-- feat: add install/uninstall CLI to bypass OpenClaw spawn EINVAL bug on Windows [`1ad7fbb`](https://github.com/karmaniverous/jeeves-watcher/commit/1ad7fbb1f4947d852a5a16a2b564b27ccb0620d5)
-- docs: fix template syntax, stale references, and add missing API/tool docs [`8af92ef`](https://github.com/karmaniverous/jeeves-watcher/commit/8af92efff989bc78b60fa7ab99020619aa72c5f7)
-- refactor: review pass — remove dead code, DRY context, harden tests, use radash title [`c1b04f0`](https://github.com/karmaniverous/jeeves-watcher/commit/c1b04f034d4268a95634d349f0743c45f9f236cd)
-- refactor: SOLID/DRY pass — extract buildSyntheticAttributes, shared sleep, deduplicate handlers [`6a47b48`](https://github.com/karmaniverous/jeeves-watcher/commit/6a47b48a46e01dc18b93175d18a5e46880196a2b)
-- chore: release @karmaniverous/jeeves-watcher v0.7.0 [`ba46a96`](https://github.com/karmaniverous/jeeves-watcher/commit/ba46a968057d044ff3696aa63b6ca426744bd315)
-- fix: resolve Gemini PR feedback (XSS escaping, js-yaml dump, radash get) [`fb318eb`](https://github.com/karmaniverous/jeeves-watcher/commit/fb318eb8b1c59dd6fb60125e4fd6a47ef4fd5106)
-- docs(skill): remove redundant Orientation Pattern and Quick Start step [`1e722b5`](https://github.com/karmaniverous/jeeves-watcher/commit/1e722b57516c896cd1151e008812a72cd5d3b281)
-- fix: resolve eslint unbound-method and prettier errors [`36b5803`](https://github.com/karmaniverous/jeeves-watcher/commit/36b5803e83cce02bcb124095662965f887ceec66)
-- fix: resolve lint errors in openclaw CLI and add rollup externals [`b4e8514`](https://github.com/karmaniverous/jeeves-watcher/commit/b4e8514d991daaed99bd7d7dff7028b4310109be)
-- fix: add nocase and dot options to AJV glob keyword [`3f7cb9b`](https://github.com/karmaniverous/jeeves-watcher/commit/3f7cb9b34638f0cdfe86057a2a9b5a70cd7e23da)
-- fix: resolve helper file paths relative to configDir in /config/validate [`b67ac47`](https://github.com/karmaniverous/jeeves-watcher/commit/b67ac479c959715304d5f86f5d0e2ab5e9c330c7)
-- docs: document self-installer CLI and Windows spawn EINVAL workaround [`e3d6351`](https://github.com/karmaniverous/jeeves-watcher/commit/e3d63512fe57b555e753c8f86bbfe57a1b97f70c)
-- docs: promote spec implementation gaps to Next Version and Dev Plan [`eb4ee1a`](https://github.com/karmaniverous/jeeves-watcher/commit/eb4ee1a75b2308ad1a2d8a03247906cac380b592)
-- chore: release @karmaniverous/jeeves-watcher v0.6.0 [`b7b207e`](https://github.com/karmaniverous/jeeves-watcher/commit/b7b207e96b1750bcacc4f5dd67ecf9c369415e25)
-- lintfix [`cd4c841`](https://github.com/karmaniverous/jeeves-watcher/commit/cd4c84150cfce2b541a9215966139f61e0ce6fcd)
-- fix: use fresh QdrantClient for write ops to avoid stale keep-alive connections [`e8215d5`](https://github.com/karmaniverous/jeeves-watcher/commit/e8215d5dc9f82deea59e8259f28be4b2e074f0fb)
-- feat: make plugin cache TTL configurable and fix API port fallback mismatch [`fecb768`](https://github.com/karmaniverous/jeeves-watcher/commit/fecb76841a28e51081cd5d195b25195e34add01a)
-- fix: complete Qdrant systemd setup and add WorkingDirectory to watcher service [`88bba3e`](https://github.com/karmaniverous/jeeves-watcher/commit/88bba3ebe1fd46922847a1d39a13182b4fb558a3)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.5.0 [`d458180`](https://github.com/karmaniverous/jeeves-watcher/commit/d458180cd6fc6fc4d0f1f115f50d42f1f7c9f154)
-- fix: restore strict typings in withCache and fix lint errors [`ccaeb6c`](https://github.com/karmaniverous/jeeves-watcher/commit/ccaeb6c532087a58533f50586480385be5fa9b03)
-- fix: inject ignored paths and expose watch config in merged document [`05bb9e7`](https://github.com/karmaniverous/jeeves-watcher/commit/05bb9e7c753246e08d7a00b7f093d55be14aead9)
-- fix: apply same conditional logic to tools.allow as plugins.allow [`4549569`](https://github.com/karmaniverous/jeeves-watcher/commit/4549569ea72e1bbe385fd7592497982bbc34ec39)
-- chore: fix tsdoc warnings (add tsdoc.json, escape &gt; chars in yamlEscape) [`902156e`](https://github.com/karmaniverous/jeeves-watcher/commit/902156e3ca16265efc0adc667a03c23e0d9a7d57)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.3.0 [`3ce4950`](https://github.com/karmaniverous/jeeves-watcher/commit/3ce4950d10de13300db94e90247739a3f4a6514a)
-- fix(openclaw): remove deployment-specific content from skill [`1df6a25`](https://github.com/karmaniverous/jeeves-watcher/commit/1df6a25ea2a57ca7f1e6d781ed2c1e4a7de41927)
-- fix: plugin installer now claims memory slot in OpenClaw config [`020c6cd`](https://github.com/karmaniverous/jeeves-watcher/commit/020c6cdd258ad8a6e092e173c88caabf05e5f323)
-- fix: remove plugins.allow management from CLI, only manage entries and tools.allow [`64106b4`](https://github.com/karmaniverous/jeeves-watcher/commit/64106b49be35f11c8e4b9a499b45067869decc4b)
-- fix(openclaw): correct embedding alignment config path in skill [`4965dec`](https://github.com/karmaniverous/jeeves-watcher/commit/4965dec812e837f1c090ed59aa8464cff77cce69)
-- fix: conditionally manage plugins.allow only when already populated [`c486c3a`](https://github.com/karmaniverous/jeeves-watcher/commit/c486c3a8bc12df5f1d233a0f974c0024e91e84b4)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.2.0 [`a6d4d7e`](https://github.com/karmaniverous/jeeves-watcher/commit/a6d4d7e57424b482b737cb6983dc5c9a86b96160)
-- fix(openclaw): use error.cause for precise connection error detection [`3bdd267`](https://github.com/karmaniverous/jeeves-watcher/commit/3bdd267225d129186ee6d9263379ddcd6808d7df)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.1.2 [`c019f41`](https://github.com/karmaniverous/jeeves-watcher/commit/c019f410d5cef94e653450b82966d64e1a70f900)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.5.3 [`9eb67ce`](https://github.com/karmaniverous/jeeves-watcher/commit/9eb67ce2f1f887753f058cb41450f3b1aadbc7aa)
-- chore: release @karmaniverous/jeeves-watcher v0.6.6 [`b64faf3`](https://github.com/karmaniverous/jeeves-watcher/commit/b64faf34ae7a5d10ebdd069dc5cfccedbe77d957)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.4.0 [`db0673c`](https://github.com/karmaniverous/jeeves-watcher/commit/db0673ce79a4525b4d7294f64f8365f8831b128a)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.3.6 [`e864fec`](https://github.com/karmaniverous/jeeves-watcher/commit/e864fecd732f8cd4fedd708ff6a95b31311ad854)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.1.1 [`008e757`](https://github.com/karmaniverous/jeeves-watcher/commit/008e757704e0cdf5bca7819a9b9eb36b7258a300)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.3.11 [`5ff129d`](https://github.com/karmaniverous/jeeves-watcher/commit/5ff129d3df997e9f06b67aeb630058ebb61a96ea)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.3.8 [`28a92a1`](https://github.com/karmaniverous/jeeves-watcher/commit/28a92a17b2be9039750b83b20657fd99b10a64eb)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.3.4 [`5b11938`](https://github.com/karmaniverous/jeeves-watcher/commit/5b119389b8dac493a4cf164e664338804ccd2dc5)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.3.1 [`de3215a`](https://github.com/karmaniverous/jeeves-watcher/commit/de3215ae4503eece2cb3823c26e6fa00fd1008d1)
-- chore: release @karmaniverous/jeeves-watcher v0.7.1 [`48c0024`](https://github.com/karmaniverous/jeeves-watcher/commit/48c002486f01f494d6689242b6925b6d3b8fd237)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.5.1 [`4ca2a63`](https://github.com/karmaniverous/jeeves-watcher/commit/4ca2a639be0656080b99a348ab66f0d248084a8b)
-- docs: sync spec with PR 80 state, fix numbering, restore release checklist [`8d37691`](https://github.com/karmaniverous/jeeves-watcher/commit/8d37691e4fb985f6d0b12c96e63562b586b00975)
-- refactor: SOLID/DRY pass — deduplicate attributes, handlers, sleep; fix extractor registry [`beceeaf`](https://github.com/karmaniverous/jeeves-watcher/commit/beceeaf37b86de226b06cf33b0a444e2da70e84b)
-- chore: release @karmaniverous/jeeves-watcher v0.6.9 [`e22e72e`](https://github.com/karmaniverous/jeeves-watcher/commit/e22e72ecf713c8e81e714a20748d5fa3387fa8cb)
-- chore: release @karmaniverous/jeeves-watcher v0.6.4 [`b41bfc3`](https://github.com/karmaniverous/jeeves-watcher/commit/b41bfc3905995768f9c881f74518f7a943dcea7e)
-- chore: release @karmaniverous/jeeves-watcher v0.6.2 [`fa2304d`](https://github.com/karmaniverous/jeeves-watcher/commit/fa2304db79539f712770f7a958fc30e3b4d46ded)
-- lint:fix [`4f13fb2`](https://github.com/karmaniverous/jeeves-watcher/commit/4f13fb2ffc6bdb72ae28642c01ca03c44748cebb)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.3.13 [`43d8d07`](https://github.com/karmaniverous/jeeves-watcher/commit/43d8d075019fc8ac53b7747f46a3725ee047b553)
-- chore: release @karmaniverous/jeeves-watcher v0.6.7 [`a692378`](https://github.com/karmaniverous/jeeves-watcher/commit/a6923786158eac99ad6fd8fd035d8cd706a55778)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.4.2 [`fcd75a2`](https://github.com/karmaniverous/jeeves-watcher/commit/fcd75a25d425524359171b10024bcfa190c4f9ab)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.3.10 [`3b4b22c`](https://github.com/karmaniverous/jeeves-watcher/commit/3b4b22c1cd2a5d9dbf0933ae74db03f09e210840)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.3.9 [`97c635e`](https://github.com/karmaniverous/jeeves-watcher/commit/97c635e25b7c7ac4a5e6315ac2c26af7d1e89a74)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.3.5 [`837a941`](https://github.com/karmaniverous/jeeves-watcher/commit/837a94145b086245df101f7dcf2fd7a0c5ebfbca)
-- chore: release @karmaniverous/jeeves-watcher v0.6.1 [`037d9c9`](https://github.com/karmaniverous/jeeves-watcher/commit/037d9c924e1bc3020fb6b497f59261dd027718bd)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.4.1 [`7863ad4`](https://github.com/karmaniverous/jeeves-watcher/commit/7863ad4edaa04cdc665cba608f6b84ccdbd2b841)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.3.7 [`4c12277`](https://github.com/karmaniverous/jeeves-watcher/commit/4c12277cddbfd048f2312f94a907f11ea748407a)
-- fix: use glob instead of pattern for virtual rule matching (case-insensitive on Windows) [`0526d5a`](https://github.com/karmaniverous/jeeves-watcher/commit/0526d5a811e243de11e196f6b27b0be3578e2db3)
-- chore: release @karmaniverous/jeeves-watcher v0.6.3 [`da7414c`](https://github.com/karmaniverous/jeeves-watcher/commit/da7414c19894031d02da4713e3d57957a9f96449)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.3.3 [`9db834e`](https://github.com/karmaniverous/jeeves-watcher/commit/9db834ee75686d4a0cad09743d4d96b3d9c41ee5)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.3.2 [`99be8d8`](https://github.com/karmaniverous/jeeves-watcher/commit/99be8d8c5a895d28cc124c9110dba7e1f49eefc5)
-- chore: release @karmaniverous/jeeves-watcher v0.6.8 [`a465d72`](https://github.com/karmaniverous/jeeves-watcher/commit/a465d72d25c51003550fa0fa87ecf8203de84a75)
-- fix: read CLI version from package.json instead of hardcoding [`22a9727`](https://github.com/karmaniverous/jeeves-watcher/commit/22a9727d9cccfb75d11535546c4a9194e6ccec35)
-- chore: release @karmaniverous/jeeves-watcher v0.6.5 [`1c5a7fe`](https://github.com/karmaniverous/jeeves-watcher/commit/1c5a7fee4d192ed736b3ea4700df7649b49fd1d6)
-- lintfix [`4bfe08e`](https://github.com/karmaniverous/jeeves-watcher/commit/4bfe08e06032779dd7bf09f3606b8e4d59f04a46)
-- fix: use consistent default port 1936 in server.listen() and schema description [`fe61181`](https://github.com/karmaniverous/jeeves-watcher/commit/fe6118154eb1bb4605b36bec11c79925d8c7322b)
-- fix: normalizePath preserves drive letter case to match service path normalization [`b79c8c4`](https://github.com/karmaniverous/jeeves-watcher/commit/b79c8c4cee38ccf989a7ee067a67c1879464e53d)
-- lint:fix [`0d86aea`](https://github.com/karmaniverous/jeeves-watcher/commit/0d86aeaa8efb03798853d6c95bee49b8e3b77bc2)
-- docs: update spec for shared Platform Tools H1 injection pattern [`230822a`](https://github.com/karmaniverous/jeeves-watcher/commit/230822adbcaed0f1de3adc634b8429019f015c79)
-- chore: remove temp commit script [`31d35a7`](https://github.com/karmaniverous/jeeves-watcher/commit/31d35a7341fdfe9d823ffbd04f4192396edcd638)
-- fix(openclaw): add required name option to registerHook call [`545684c`](https://github.com/karmaniverous/jeeves-watcher/commit/545684c30051fb9557f4c97c21b45cfe79987a29)
-- fix(openclaw): add deployment-discovery guidance to skill, prevent assumption of specific domains [`3da7cf3`](https://github.com/karmaniverous/jeeves-watcher/commit/3da7cf3252cf90788d0a8e3d162220d45c5ec6a6)
-- lintfix [`d410046`](https://github.com/karmaniverous/jeeves-watcher/commit/d410046d448b6d57a275686555998bfcc9919142)
-- fix(openclaw): skill proactive check matches positive case only [`4e9be5f`](https://github.com/karmaniverous/jeeves-watcher/commit/4e9be5ffe8e07fb67e62118fa416613e7680149f)
-- docs(skill): clarify date normalization convention via toUnix helper [`6f238bf`](https://github.com/karmaniverous/jeeves-watcher/commit/6f238bf94a2d346131981a4d3e9fd2eb31dab418)
-- fix(openclaw): rename hook registration to match plugin name [`0ca7b79`](https://github.com/karmaniverous/jeeves-watcher/commit/0ca7b794953304a54d52701ed91af2b6ce4cd1a2)
-- package version 0 [`eda1c58`](https://github.com/karmaniverous/jeeves-watcher/commit/eda1c58217fc89a4f1d2ff3e048c13973b5056fd)
-- docs(skill): add render/template authoring guidance and transformer definitions [`69a45de`](https://github.com/karmaniverous/jeeves-watcher/commit/69a45defdca0b92a5d058a319bac5c1699e55d83)
-- fix: revert unconditional ensureTextIndex from initialization.ts [`7ae6b62`](https://github.com/karmaniverous/jeeves-watcher/commit/7ae6b629352d3b48872186f469694d72132092d5)
-
-#### [0.5.1](https://github.com/karmaniverous/jeeves-watcher/compare/openclaw/0.5.1...0.5.1)
-
-> 25 February 2026
-
-#### [openclaw/0.5.1](https://github.com/karmaniverous/jeeves-watcher/compare/0.5.0...openclaw/0.5.1)
-
-> 5 March 2026
-
-- bugfix: expose watch config and inject ignored paths [`#81`](https://github.com/karmaniverous/jeeves-watcher/pull/81)
-- feat: renderDoc helper, date normalization schemas, port fix (v0.7.0) [`#80`](https://github.com/karmaniverous/jeeves-watcher/pull/80)
-- chore: remove memory-core Gemini migration from bootstrap [`#79`](https://github.com/karmaniverous/jeeves-watcher/pull/79)
-- feat(openclaw): add complete bootstrap sequence to skill [`#78`](https://github.com/karmaniverous/jeeves-watcher/pull/78)
-- feat(openclaw)!: remove memory slot takeover [`#77`](https://github.com/karmaniverous/jeeves-watcher/pull/77)
-- chore: change default port from 3456 to 1936 [`#75`](https://github.com/karmaniverous/jeeves-watcher/pull/75)
-- chore: fix all eslint errors (210 → 0) [`#76`](https://github.com/karmaniverous/jeeves-watcher/pull/76)
-- feat(openclaw): add memory → archive escalation pattern to skill [`#74`](https://github.com/karmaniverous/jeeves-watcher/pull/74)
-- feat(openclaw): disable memory-core when installing with --memory [`#73`](https://github.com/karmaniverous/jeeves-watcher/pull/73)
-- feat(openclaw): brand memory tool responses with provider field [`#71`](https://github.com/karmaniverous/jeeves-watcher/pull/71)
-- docs(openclaw): add bootstrap, install modes, and proactive posture to skill [`#70`](https://github.com/karmaniverous/jeeves-watcher/pull/70)
-- feat(openclaw): --memory flag for install CLI [`#69`](https://github.com/karmaniverous/jeeves-watcher/pull/69)
-- feat(openclaw): decouple plugin from watcher config vocabulary [`#68`](https://github.com/karmaniverous/jeeves-watcher/pull/68)
-- fix: fresh QdrantClient for write ops to avoid stale keep-alive ECONNRESET [`#67`](https://github.com/karmaniverous/jeeves-watcher/pull/67)
-- fix: use domains (plural array) in virtual rules and search filter [`#66`](https://github.com/karmaniverous/jeeves-watcher/pull/66)
-- feat: POST /rules/reapply endpoint + plugin auto-reapply after registration [`#65`](https://github.com/karmaniverous/jeeves-watcher/pull/65)
-- fix: disable AJV strict mode to suppress schema type warnings [`#55`](https://github.com/karmaniverous/jeeves-watcher/pull/55)
-- fix: case-insensitive glob matching in AJV rule keyword [`#64`](https://github.com/karmaniverous/jeeves-watcher/pull/64)
-- fix: use glob instead of pattern for virtual rule matching [`#62`](https://github.com/karmaniverous/jeeves-watcher/pull/62)
-- fix: normalizePath preserves drive letter case to match service [`#61`](https://github.com/karmaniverous/jeeves-watcher/pull/61)
-- fix: ensure text index on startup + re-register virtual rules after watcher restart [`#60`](https://github.com/karmaniverous/jeeves-watcher/pull/60)
-- fix: plugin config lookup uses correct entry key (jeeves-watcher-openclaw) [`#59`](https://github.com/karmaniverous/jeeves-watcher/pull/59)
-- fix: update test fixture to include slots for idempotency check [`#58`](https://github.com/karmaniverous/jeeves-watcher/pull/58)
-- chore: bump @karmaniverous/jsonmap to 2.1.1 [`#57`](https://github.com/karmaniverous/jeeves-watcher/pull/57)
-- fix: plugin installer claims memory slot in OpenClaw config [`#56`](https://github.com/karmaniverous/jeeves-watcher/pull/56)
-- docs: update guides for v0.6.0 changes [`#54`](https://github.com/karmaniverous/jeeves-watcher/pull/54)
-- refactor: extract modules to fix 300 LOC violations [`#53`](https://github.com/karmaniverous/jeeves-watcher/pull/53)
-- refactor: DRY fixes and comprehensive test coverage for openclaw package [`#52`](https://github.com/karmaniverous/jeeves-watcher/pull/52)
-- refactor+test: service SOLID/DRY fixes + 54 new tests [`#51`](https://github.com/karmaniverous/jeeves-watcher/pull/51)
-- feat: memory slot takeover with virtual rules API [`#49`](https://github.com/karmaniverous/jeeves-watcher/pull/49)
-- feat: support external rule file references in inferenceRules config [`#50`](https://github.com/karmaniverous/jeeves-watcher/pull/50)
-- feat(service): add hybrid search with BM25 text index and RRF fusion [`#48`](https://github.com/karmaniverous/jeeves-watcher/pull/48)
-- feat(service): Handlebars set expressions + date normalization [`#47`](https://github.com/karmaniverous/jeeves-watcher/pull/47)
-- feat(service): add filesystem date metadata and line offsets [`#46`](https://github.com/karmaniverous/jeeves-watcher/pull/46)
-- fix(openclaw): skill review feedback [`#45`](https://github.com/karmaniverous/jeeves-watcher/pull/45)
-- chore(openclaw): merge skills, simplify build, improve error messaging [`#44`](https://github.com/karmaniverous/jeeves-watcher/pull/44)
-- docs: document self-installer CLI and Windows workaround [`#41`](https://github.com/karmaniverous/jeeves-watcher/pull/41)
-- fix: resolve lint errors in openclaw CLI [`#40`](https://github.com/karmaniverous/jeeves-watcher/pull/40)
-- feat: add install/uninstall CLI for OpenClaw plugin [`#39`](https://github.com/karmaniverous/jeeves-watcher/pull/39)
-- chore: fix monorepo release-it tags, plugin id, and version sync [`#38`](https://github.com/karmaniverous/jeeves-watcher/pull/38)
-- feat: convert to monorepo with service and openclaw plugin packages [`#37`](https://github.com/karmaniverous/jeeves-watcher/pull/37)
-- feat(service): add hybrid search with BM25 text index and RRF fusion (#48) [`#35`](https://github.com/karmaniverous/jeeves-watcher/issues/35)
-- feat(service): add filesystem date metadata and line offsets (#46) [`#24`](https://github.com/karmaniverous/jeeves-watcher/issues/24)
-- updated docs [`3028f04`](https://github.com/karmaniverous/jeeves-watcher/commit/3028f04a038935d6339c575f8c78dc10f301a2df)
-- docs: update spec for dynamic system prompt injection and caching [`216fc1d`](https://github.com/karmaniverous/jeeves-watcher/commit/216fc1dc51d8e8af4616a3ba25b5adf56f8be258)
-- feat(openclaw)!: remove memory slot takeover, simplify to pure extension [`0b1bdcb`](https://github.com/karmaniverous/jeeves-watcher/commit/0b1bdcb8ebbb602bc2ceb89ae61104a5d81427f8)
-- feat: add renderDoc helper and render block for structured document rendering [`4d6eefa`](https://github.com/karmaniverous/jeeves-watcher/commit/4d6eefaf4a149b8631e4fad6acd8ead49e1d4eca)
-- feat: add api caching and agent bootstrap prompt injection [`615d0f5`](https://github.com/karmaniverous/jeeves-watcher/commit/615d0f56de4bdc736401092a10978538f7d1a35e)
-- chore: copy tsdoc.json into package directories [`b27b408`](https://github.com/karmaniverous/jeeves-watcher/commit/b27b40812b808cfc2e97ac7d2dcfb5d745ad50d7)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.1.0 [`97e2834`](https://github.com/karmaniverous/jeeves-watcher/commit/97e2834986f0ce53098d0299d0da3025a432e43f)
-- feat: add install/uninstall CLI to bypass OpenClaw spawn EINVAL bug on Windows [`1ad7fbb`](https://github.com/karmaniverous/jeeves-watcher/commit/1ad7fbb1f4947d852a5a16a2b564b27ccb0620d5)
-- docs: fix template syntax, stale references, and add missing API/tool docs [`8af92ef`](https://github.com/karmaniverous/jeeves-watcher/commit/8af92efff989bc78b60fa7ab99020619aa72c5f7)
-- refactor: review pass — remove dead code, DRY context, harden tests, use radash title [`c1b04f0`](https://github.com/karmaniverous/jeeves-watcher/commit/c1b04f034d4268a95634d349f0743c45f9f236cd)
-- refactor: SOLID/DRY pass — extract buildSyntheticAttributes, shared sleep, deduplicate handlers [`6a47b48`](https://github.com/karmaniverous/jeeves-watcher/commit/6a47b48a46e01dc18b93175d18a5e46880196a2b)
-- chore: release @karmaniverous/jeeves-watcher v0.7.0 [`ba46a96`](https://github.com/karmaniverous/jeeves-watcher/commit/ba46a968057d044ff3696aa63b6ca426744bd315)
-- fix: resolve Gemini PR feedback (XSS escaping, js-yaml dump, radash get) [`fb318eb`](https://github.com/karmaniverous/jeeves-watcher/commit/fb318eb8b1c59dd6fb60125e4fd6a47ef4fd5106)
-- chore: fix docs, READMEs, and rollup config for monorepo [`0b92399`](https://github.com/karmaniverous/jeeves-watcher/commit/0b92399eec0275c42ecb6a637c0c59756925c321)
-- docs(skill): remove redundant Orientation Pattern and Quick Start step [`1e722b5`](https://github.com/karmaniverous/jeeves-watcher/commit/1e722b57516c896cd1151e008812a72cd5d3b281)
-- fix: resolve eslint unbound-method and prettier errors [`36b5803`](https://github.com/karmaniverous/jeeves-watcher/commit/36b5803e83cce02bcb124095662965f887ceec66)
-- chore: align release-it config for monorepo [`938a3e0`](https://github.com/karmaniverous/jeeves-watcher/commit/938a3e0deb686f9f224c90f7e585782e072a6e3e)
-- chore: make service package ESM-only, remove CJS and IIFE outputs [`9a16492`](https://github.com/karmaniverous/jeeves-watcher/commit/9a164923ae10e7a391520794440aa05420bd99f6)
-- fix: resolve lint errors in openclaw CLI and add rollup externals [`b4e8514`](https://github.com/karmaniverous/jeeves-watcher/commit/b4e8514d991daaed99bd7d7dff7028b4310109be)
-- fix: add nocase and dot options to AJV glob keyword [`3f7cb9b`](https://github.com/karmaniverous/jeeves-watcher/commit/3f7cb9b34638f0cdfe86057a2a9b5a70cd7e23da)
-- fix: resolve helper file paths relative to configDir in /config/validate [`b67ac47`](https://github.com/karmaniverous/jeeves-watcher/commit/b67ac479c959715304d5f86f5d0e2ab5e9c330c7)
-- docs: document self-installer CLI and Windows spawn EINVAL workaround [`e3d6351`](https://github.com/karmaniverous/jeeves-watcher/commit/e3d63512fe57b555e753c8f86bbfe57a1b97f70c)
-- docs: promote spec implementation gaps to Next Version and Dev Plan [`eb4ee1a`](https://github.com/karmaniverous/jeeves-watcher/commit/eb4ee1a75b2308ad1a2d8a03247906cac380b592)
-- chore: release @karmaniverous/jeeves-watcher v0.6.0 [`b7b207e`](https://github.com/karmaniverous/jeeves-watcher/commit/b7b207e96b1750bcacc4f5dd67ecf9c369415e25)
-- lintfix [`cd4c841`](https://github.com/karmaniverous/jeeves-watcher/commit/cd4c84150cfce2b541a9215966139f61e0ce6fcd)
-- fix: use fresh QdrantClient for write ops to avoid stale keep-alive connections [`e8215d5`](https://github.com/karmaniverous/jeeves-watcher/commit/e8215d5dc9f82deea59e8259f28be4b2e074f0fb)
-- feat: make plugin cache TTL configurable and fix API port fallback mismatch [`fecb768`](https://github.com/karmaniverous/jeeves-watcher/commit/fecb76841a28e51081cd5d195b25195e34add01a)
-- fix: complete Qdrant systemd setup and add WorkingDirectory to watcher service [`88bba3e`](https://github.com/karmaniverous/jeeves-watcher/commit/88bba3ebe1fd46922847a1d39a13182b4fb558a3)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.5.0 [`d458180`](https://github.com/karmaniverous/jeeves-watcher/commit/d458180cd6fc6fc4d0f1f115f50d42f1f7c9f154)
-- chore: convert repo to npm workspaces monorepo [`d8fc6e8`](https://github.com/karmaniverous/jeeves-watcher/commit/d8fc6e821af4dde868f1c82b82f8c348788b4a65)
-- fix: restore strict typings in withCache and fix lint errors [`ccaeb6c`](https://github.com/karmaniverous/jeeves-watcher/commit/ccaeb6c532087a58533f50586480385be5fa9b03)
-- fix: inject ignored paths and expose watch config in merged document [`05bb9e7`](https://github.com/karmaniverous/jeeves-watcher/commit/05bb9e7c753246e08d7a00b7f093d55be14aead9)
-- fix: apply same conditional logic to tools.allow as plugins.allow [`4549569`](https://github.com/karmaniverous/jeeves-watcher/commit/4549569ea72e1bbe385fd7592497982bbc34ec39)
-- chore: fix tsdoc warnings (add tsdoc.json, escape &gt; chars in yamlEscape) [`902156e`](https://github.com/karmaniverous/jeeves-watcher/commit/902156e3ca16265efc0adc667a03c23e0d9a7d57)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.3.0 [`3ce4950`](https://github.com/karmaniverous/jeeves-watcher/commit/3ce4950d10de13300db94e90247739a3f4a6514a)
-- docs: add guides index pages for foldable typedoc sections [`1827505`](https://github.com/karmaniverous/jeeves-watcher/commit/1827505522859efbe89895f1b18d4c141c6f76f1)
-- fix(openclaw): remove deployment-specific content from skill [`1df6a25`](https://github.com/karmaniverous/jeeves-watcher/commit/1df6a25ea2a57ca7f1e6d781ed2c1e4a7de41927)
-- fix: plugin installer now claims memory slot in OpenClaw config [`020c6cd`](https://github.com/karmaniverous/jeeves-watcher/commit/020c6cdd258ad8a6e092e173c88caabf05e5f323)
-- fix: remove plugins.allow management from CLI, only manage entries and tools.allow [`64106b4`](https://github.com/karmaniverous/jeeves-watcher/commit/64106b49be35f11c8e4b9a499b45067869decc4b)
-- fix(openclaw): correct embedding alignment config path in skill [`4965dec`](https://github.com/karmaniverous/jeeves-watcher/commit/4965dec812e837f1c090ed59aa8464cff77cce69)
-- fix: conditionally manage plugins.allow only when already populated [`c486c3a`](https://github.com/karmaniverous/jeeves-watcher/commit/c486c3a8bc12df5f1d233a0f974c0024e91e84b4)
-- chore: release @karmaniverous/jeeves-watcher v0.5.1 [`b11e44e`](https://github.com/karmaniverous/jeeves-watcher/commit/b11e44e08911b12f719bb43357cc7647f3905ac6)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.2.0 [`a6d4d7e`](https://github.com/karmaniverous/jeeves-watcher/commit/a6d4d7e57424b482b737cb6983dc5c9a86b96160)
-- fix(openclaw): use error.cause for precise connection error detection [`3bdd267`](https://github.com/karmaniverous/jeeves-watcher/commit/3bdd267225d129186ee6d9263379ddcd6808d7df)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.1.2 [`c019f41`](https://github.com/karmaniverous/jeeves-watcher/commit/c019f410d5cef94e653450b82966d64e1a70f900)
-- chore: release @karmaniverous/jeeves-watcher v0.6.6 [`b64faf3`](https://github.com/karmaniverous/jeeves-watcher/commit/b64faf34ae7a5d10ebdd069dc5cfccedbe77d957)
-- chore: fix knip after monorepo split [`e16460b`](https://github.com/karmaniverous/jeeves-watcher/commit/e16460b90e5a695818bde2b47ac6577abf6cbf1c)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.4.0 [`db0673c`](https://github.com/karmaniverous/jeeves-watcher/commit/db0673ce79a4525b4d7294f64f8365f8831b128a)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.3.6 [`e864fec`](https://github.com/karmaniverous/jeeves-watcher/commit/e864fecd732f8cd4fedd708ff6a95b31311ad854)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.1.1 [`008e757`](https://github.com/karmaniverous/jeeves-watcher/commit/008e757704e0cdf5bca7819a9b9eb36b7258a300)
-- added env local template [`74aaa72`](https://github.com/karmaniverous/jeeves-watcher/commit/74aaa726761cb16d3f133a926e0a335b22417808)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.3.11 [`5ff129d`](https://github.com/karmaniverous/jeeves-watcher/commit/5ff129d3df997e9f06b67aeb630058ebb61a96ea)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.3.8 [`28a92a1`](https://github.com/karmaniverous/jeeves-watcher/commit/28a92a17b2be9039750b83b20657fd99b10a64eb)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.3.4 [`5b11938`](https://github.com/karmaniverous/jeeves-watcher/commit/5b119389b8dac493a4cf164e664338804ccd2dc5)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.3.1 [`de3215a`](https://github.com/karmaniverous/jeeves-watcher/commit/de3215ae4503eece2cb3823c26e6fa00fd1008d1)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.5.1 [`4ca2a63`](https://github.com/karmaniverous/jeeves-watcher/commit/4ca2a639be0656080b99a348ab66f0d248084a8b)
-- docs: sync spec with PR 80 state, fix numbering, restore release checklist [`8d37691`](https://github.com/karmaniverous/jeeves-watcher/commit/8d37691e4fb985f6d0b12c96e63562b586b00975)
-- refactor: SOLID/DRY pass — deduplicate attributes, handlers, sleep; fix extractor registry [`beceeaf`](https://github.com/karmaniverous/jeeves-watcher/commit/beceeaf37b86de226b06cf33b0a444e2da70e84b)
-- chore: release @karmaniverous/jeeves-watcher v0.6.9 [`e22e72e`](https://github.com/karmaniverous/jeeves-watcher/commit/e22e72ecf713c8e81e714a20748d5fa3387fa8cb)
-- chore: release @karmaniverous/jeeves-watcher v0.6.4 [`b41bfc3`](https://github.com/karmaniverous/jeeves-watcher/commit/b41bfc3905995768f9c881f74518f7a943dcea7e)
-- chore: release @karmaniverous/jeeves-watcher v0.6.2 [`fa2304d`](https://github.com/karmaniverous/jeeves-watcher/commit/fa2304db79539f712770f7a958fc30e3b4d46ded)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.3.13 [`43d8d07`](https://github.com/karmaniverous/jeeves-watcher/commit/43d8d075019fc8ac53b7747f46a3725ee047b553)
-- chore: release @karmaniverous/jeeves-watcher v0.6.7 [`a692378`](https://github.com/karmaniverous/jeeves-watcher/commit/a6923786158eac99ad6fd8fd035d8cd706a55778)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.4.2 [`fcd75a2`](https://github.com/karmaniverous/jeeves-watcher/commit/fcd75a25d425524359171b10024bcfa190c4f9ab)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.3.10 [`3b4b22c`](https://github.com/karmaniverous/jeeves-watcher/commit/3b4b22c1cd2a5d9dbf0933ae74db03f09e210840)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.3.9 [`97c635e`](https://github.com/karmaniverous/jeeves-watcher/commit/97c635e25b7c7ac4a5e6315ac2c26af7d1e89a74)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.3.5 [`837a941`](https://github.com/karmaniverous/jeeves-watcher/commit/837a94145b086245df101f7dcf2fd7a0c5ebfbca)
-- chore: release @karmaniverous/jeeves-watcher v0.6.1 [`037d9c9`](https://github.com/karmaniverous/jeeves-watcher/commit/037d9c924e1bc3020fb6b497f59261dd027718bd)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.4.1 [`7863ad4`](https://github.com/karmaniverous/jeeves-watcher/commit/7863ad4edaa04cdc665cba608f6b84ccdbd2b841)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.3.7 [`4c12277`](https://github.com/karmaniverous/jeeves-watcher/commit/4c12277cddbfd048f2312f94a907f11ea748407a)
-- fix: use glob instead of pattern for virtual rule matching (case-insensitive on Windows) [`0526d5a`](https://github.com/karmaniverous/jeeves-watcher/commit/0526d5a811e243de11e196f6b27b0be3578e2db3)
-- chore: release @karmaniverous/jeeves-watcher v0.6.3 [`da7414c`](https://github.com/karmaniverous/jeeves-watcher/commit/da7414c19894031d02da4713e3d57957a9f96449)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.3.3 [`9db834e`](https://github.com/karmaniverous/jeeves-watcher/commit/9db834ee75686d4a0cad09743d4d96b3d9c41ee5)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.3.2 [`99be8d8`](https://github.com/karmaniverous/jeeves-watcher/commit/99be8d8c5a895d28cc124c9110dba7e1f49eefc5)
-- chore: release @karmaniverous/jeeves-watcher v0.6.8 [`a465d72`](https://github.com/karmaniverous/jeeves-watcher/commit/a465d72d25c51003550fa0fa87ecf8203de84a75)
-- fix: read CLI version from package.json instead of hardcoding [`22a9727`](https://github.com/karmaniverous/jeeves-watcher/commit/22a9727d9cccfb75d11535546c4a9194e6ccec35)
-- chore: release @karmaniverous/jeeves-watcher v0.6.5 [`1c5a7fe`](https://github.com/karmaniverous/jeeves-watcher/commit/1c5a7fee4d192ed736b3ea4700df7649b49fd1d6)
-- lintfix [`4bfe08e`](https://github.com/karmaniverous/jeeves-watcher/commit/4bfe08e06032779dd7bf09f3606b8e4d59f04a46)
-- fix: use consistent default port 1936 in server.listen() and schema description [`fe61181`](https://github.com/karmaniverous/jeeves-watcher/commit/fe6118154eb1bb4605b36bec11c79925d8c7322b)
-- fix: normalizePath preserves drive letter case to match service path normalization [`b79c8c4`](https://github.com/karmaniverous/jeeves-watcher/commit/b79c8c4cee38ccf989a7ee067a67c1879464e53d)
-- docs: update spec for shared Platform Tools H1 injection pattern [`230822a`](https://github.com/karmaniverous/jeeves-watcher/commit/230822adbcaed0f1de3adc634b8429019f015c79)
-- chore: remove temp commit script [`31d35a7`](https://github.com/karmaniverous/jeeves-watcher/commit/31d35a7341fdfe9d823ffbd04f4192396edcd638)
-- fix(openclaw): add deployment-discovery guidance to skill, prevent assumption of specific domains [`3da7cf3`](https://github.com/karmaniverous/jeeves-watcher/commit/3da7cf3252cf90788d0a8e3d162220d45c5ec6a6)
-- lintfix [`d410046`](https://github.com/karmaniverous/jeeves-watcher/commit/d410046d448b6d57a275686555998bfcc9919142)
-- fix(openclaw): skill proactive check matches positive case only [`4e9be5f`](https://github.com/karmaniverous/jeeves-watcher/commit/4e9be5ffe8e07fb67e62118fa416613e7680149f)
-- docs(skill): clarify date normalization convention via toUnix helper [`6f238bf`](https://github.com/karmaniverous/jeeves-watcher/commit/6f238bf94a2d346131981a4d3e9fd2eb31dab418)
-- package version 0 [`eda1c58`](https://github.com/karmaniverous/jeeves-watcher/commit/eda1c58217fc89a4f1d2ff3e048c13973b5056fd)
-- docs(skill): add render/template authoring guidance and transformer definitions [`69a45de`](https://github.com/karmaniverous/jeeves-watcher/commit/69a45defdca0b92a5d058a319bac5c1699e55d83)
-- fix: revert unconditional ensureTextIndex from initialization.ts [`7ae6b62`](https://github.com/karmaniverous/jeeves-watcher/commit/7ae6b629352d3b48872186f469694d72132092d5)
-- removed docs from release script [`8878235`](https://github.com/karmaniverous/jeeves-watcher/commit/88782358db1a8ff2f1303d503d7086df4994d23b)
-
-#### [0.5.0](https://github.com/karmaniverous/jeeves-watcher/compare/openclaw/0.5.0...0.5.0)
-
-> 25 February 2026
-
-#### [openclaw/0.5.0](https://github.com/karmaniverous/jeeves-watcher/compare/0.5.0-1...openclaw/0.5.0)
-
-> 5 March 2026
-
-- feat: renderDoc helper, date normalization schemas, port fix (v0.7.0) [`#80`](https://github.com/karmaniverous/jeeves-watcher/pull/80)
-- chore: remove memory-core Gemini migration from bootstrap [`#79`](https://github.com/karmaniverous/jeeves-watcher/pull/79)
-- feat(openclaw): add complete bootstrap sequence to skill [`#78`](https://github.com/karmaniverous/jeeves-watcher/pull/78)
-- feat(openclaw)!: remove memory slot takeover [`#77`](https://github.com/karmaniverous/jeeves-watcher/pull/77)
-- chore: change default port from 3456 to 1936 [`#75`](https://github.com/karmaniverous/jeeves-watcher/pull/75)
-- chore: fix all eslint errors (210 → 0) [`#76`](https://github.com/karmaniverous/jeeves-watcher/pull/76)
-- feat(openclaw): add memory → archive escalation pattern to skill [`#74`](https://github.com/karmaniverous/jeeves-watcher/pull/74)
-- feat(openclaw): disable memory-core when installing with --memory [`#73`](https://github.com/karmaniverous/jeeves-watcher/pull/73)
-- feat(openclaw): brand memory tool responses with provider field [`#71`](https://github.com/karmaniverous/jeeves-watcher/pull/71)
-- docs(openclaw): add bootstrap, install modes, and proactive posture to skill [`#70`](https://github.com/karmaniverous/jeeves-watcher/pull/70)
-- feat(openclaw): --memory flag for install CLI [`#69`](https://github.com/karmaniverous/jeeves-watcher/pull/69)
-- feat(openclaw): decouple plugin from watcher config vocabulary [`#68`](https://github.com/karmaniverous/jeeves-watcher/pull/68)
-- fix: fresh QdrantClient for write ops to avoid stale keep-alive ECONNRESET [`#67`](https://github.com/karmaniverous/jeeves-watcher/pull/67)
-- fix: use domains (plural array) in virtual rules and search filter [`#66`](https://github.com/karmaniverous/jeeves-watcher/pull/66)
-- feat: POST /rules/reapply endpoint + plugin auto-reapply after registration [`#65`](https://github.com/karmaniverous/jeeves-watcher/pull/65)
-- fix: disable AJV strict mode to suppress schema type warnings [`#55`](https://github.com/karmaniverous/jeeves-watcher/pull/55)
-- fix: case-insensitive glob matching in AJV rule keyword [`#64`](https://github.com/karmaniverous/jeeves-watcher/pull/64)
-- fix: use glob instead of pattern for virtual rule matching [`#62`](https://github.com/karmaniverous/jeeves-watcher/pull/62)
-- fix: normalizePath preserves drive letter case to match service [`#61`](https://github.com/karmaniverous/jeeves-watcher/pull/61)
-- fix: ensure text index on startup + re-register virtual rules after watcher restart [`#60`](https://github.com/karmaniverous/jeeves-watcher/pull/60)
-- fix: plugin config lookup uses correct entry key (jeeves-watcher-openclaw) [`#59`](https://github.com/karmaniverous/jeeves-watcher/pull/59)
-- fix: update test fixture to include slots for idempotency check [`#58`](https://github.com/karmaniverous/jeeves-watcher/pull/58)
-- chore: bump @karmaniverous/jsonmap to 2.1.1 [`#57`](https://github.com/karmaniverous/jeeves-watcher/pull/57)
-- fix: plugin installer claims memory slot in OpenClaw config [`#56`](https://github.com/karmaniverous/jeeves-watcher/pull/56)
-- docs: update guides for v0.6.0 changes [`#54`](https://github.com/karmaniverous/jeeves-watcher/pull/54)
-- refactor: extract modules to fix 300 LOC violations [`#53`](https://github.com/karmaniverous/jeeves-watcher/pull/53)
-- refactor: DRY fixes and comprehensive test coverage for openclaw package [`#52`](https://github.com/karmaniverous/jeeves-watcher/pull/52)
-- refactor+test: service SOLID/DRY fixes + 54 new tests [`#51`](https://github.com/karmaniverous/jeeves-watcher/pull/51)
-- feat: memory slot takeover with virtual rules API [`#49`](https://github.com/karmaniverous/jeeves-watcher/pull/49)
-- feat: support external rule file references in inferenceRules config [`#50`](https://github.com/karmaniverous/jeeves-watcher/pull/50)
-- feat(service): add hybrid search with BM25 text index and RRF fusion [`#48`](https://github.com/karmaniverous/jeeves-watcher/pull/48)
-- feat(service): Handlebars set expressions + date normalization [`#47`](https://github.com/karmaniverous/jeeves-watcher/pull/47)
-- feat(service): add filesystem date metadata and line offsets [`#46`](https://github.com/karmaniverous/jeeves-watcher/pull/46)
-- fix(openclaw): skill review feedback [`#45`](https://github.com/karmaniverous/jeeves-watcher/pull/45)
-- chore(openclaw): merge skills, simplify build, improve error messaging [`#44`](https://github.com/karmaniverous/jeeves-watcher/pull/44)
-- docs: document self-installer CLI and Windows workaround [`#41`](https://github.com/karmaniverous/jeeves-watcher/pull/41)
-- fix: resolve lint errors in openclaw CLI [`#40`](https://github.com/karmaniverous/jeeves-watcher/pull/40)
-- feat: add install/uninstall CLI for OpenClaw plugin [`#39`](https://github.com/karmaniverous/jeeves-watcher/pull/39)
-- chore: fix monorepo release-it tags, plugin id, and version sync [`#38`](https://github.com/karmaniverous/jeeves-watcher/pull/38)
-- feat: convert to monorepo with service and openclaw plugin packages [`#37`](https://github.com/karmaniverous/jeeves-watcher/pull/37)
-- docs(skill): add theory of operation, remove stale SKILL.md [`#36`](https://github.com/karmaniverous/jeeves-watcher/pull/36)
-- feat: v0.5.0 — plugin expansion, two-skill architecture, API extensions [`#35`](https://github.com/karmaniverous/jeeves-watcher/pull/35)
-- feat(service): add hybrid search with BM25 text index and RRF fusion (#48) [`#35`](https://github.com/karmaniverous/jeeves-watcher/issues/35)
-- feat(service): add filesystem date metadata and line offsets (#46) [`#24`](https://github.com/karmaniverous/jeeves-watcher/issues/24)
-- updated docs [`3028f04`](https://github.com/karmaniverous/jeeves-watcher/commit/3028f04a038935d6339c575f8c78dc10f301a2df)
-- docs: update spec for dynamic system prompt injection and caching [`216fc1d`](https://github.com/karmaniverous/jeeves-watcher/commit/216fc1dc51d8e8af4616a3ba25b5adf56f8be258)
-- feat(openclaw)!: remove memory slot takeover, simplify to pure extension [`0b1bdcb`](https://github.com/karmaniverous/jeeves-watcher/commit/0b1bdcb8ebbb602bc2ceb89ae61104a5d81427f8)
-- feat: add renderDoc helper and render block for structured document rendering [`4d6eefa`](https://github.com/karmaniverous/jeeves-watcher/commit/4d6eefaf4a149b8631e4fad6acd8ead49e1d4eca)
-- chore: release v0.5.0 [`aa5a5aa`](https://github.com/karmaniverous/jeeves-watcher/commit/aa5a5aa2ed2f40f581ee28bf9946c1a065c5a9bd)
-- feat: add api caching and agent bootstrap prompt injection [`615d0f5`](https://github.com/karmaniverous/jeeves-watcher/commit/615d0f56de4bdc736401092a10978538f7d1a35e)
-- chore: copy tsdoc.json into package directories [`b27b408`](https://github.com/karmaniverous/jeeves-watcher/commit/b27b40812b808cfc2e97ac7d2dcfb5d745ad50d7)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.1.0 [`97e2834`](https://github.com/karmaniverous/jeeves-watcher/commit/97e2834986f0ce53098d0299d0da3025a432e43f)
-- feat: add install/uninstall CLI to bypass OpenClaw spawn EINVAL bug on Windows [`1ad7fbb`](https://github.com/karmaniverous/jeeves-watcher/commit/1ad7fbb1f4947d852a5a16a2b564b27ccb0620d5)
-- docs: fix template syntax, stale references, and add missing API/tool docs [`8af92ef`](https://github.com/karmaniverous/jeeves-watcher/commit/8af92efff989bc78b60fa7ab99020619aa72c5f7)
-- refactor: review pass — remove dead code, DRY context, harden tests, use radash title [`c1b04f0`](https://github.com/karmaniverous/jeeves-watcher/commit/c1b04f034d4268a95634d349f0743c45f9f236cd)
-- refactor: SOLID/DRY pass — extract buildSyntheticAttributes, shared sleep, deduplicate handlers [`6a47b48`](https://github.com/karmaniverous/jeeves-watcher/commit/6a47b48a46e01dc18b93175d18a5e46880196a2b)
-- chore: release @karmaniverous/jeeves-watcher v0.7.0 [`ba46a96`](https://github.com/karmaniverous/jeeves-watcher/commit/ba46a968057d044ff3696aa63b6ca426744bd315)
-- fix: resolve Gemini PR feedback (XSS escaping, js-yaml dump, radash get) [`fb318eb`](https://github.com/karmaniverous/jeeves-watcher/commit/fb318eb8b1c59dd6fb60125e4fd6a47ef4fd5106)
-- chore: fix docs, READMEs, and rollup config for monorepo [`0b92399`](https://github.com/karmaniverous/jeeves-watcher/commit/0b92399eec0275c42ecb6a637c0c59756925c321)
-- docs(skill): add theory of operation narrative, remove stale plugin/skill/SKILL.md [`979993d`](https://github.com/karmaniverous/jeeves-watcher/commit/979993dfbd19a8102441fb95d7be10ae0000c6e5)
-- docs(skill): remove redundant Orientation Pattern and Quick Start step [`1e722b5`](https://github.com/karmaniverous/jeeves-watcher/commit/1e722b57516c896cd1151e008812a72cd5d3b281)
-- fix: resolve eslint unbound-method and prettier errors [`36b5803`](https://github.com/karmaniverous/jeeves-watcher/commit/36b5803e83cce02bcb124095662965f887ceec66)
-- chore: align release-it config for monorepo [`938a3e0`](https://github.com/karmaniverous/jeeves-watcher/commit/938a3e0deb686f9f224c90f7e585782e072a6e3e)
-- chore: make service package ESM-only, remove CJS and IIFE outputs [`9a16492`](https://github.com/karmaniverous/jeeves-watcher/commit/9a164923ae10e7a391520794440aa05420bd99f6)
-- fix: resolve lint errors in openclaw CLI and add rollup externals [`b4e8514`](https://github.com/karmaniverous/jeeves-watcher/commit/b4e8514d991daaed99bd7d7dff7028b4310109be)
-- fix: add nocase and dot options to AJV glob keyword [`3f7cb9b`](https://github.com/karmaniverous/jeeves-watcher/commit/3f7cb9b34638f0cdfe86057a2a9b5a70cd7e23da)
-- fix: resolve helper file paths relative to configDir in /config/validate [`b67ac47`](https://github.com/karmaniverous/jeeves-watcher/commit/b67ac479c959715304d5f86f5d0e2ab5e9c330c7)
-- docs: document self-installer CLI and Windows spawn EINVAL workaround [`e3d6351`](https://github.com/karmaniverous/jeeves-watcher/commit/e3d63512fe57b555e753c8f86bbfe57a1b97f70c)
-- docs: promote spec implementation gaps to Next Version and Dev Plan [`eb4ee1a`](https://github.com/karmaniverous/jeeves-watcher/commit/eb4ee1a75b2308ad1a2d8a03247906cac380b592)
-- chore: release @karmaniverous/jeeves-watcher v0.6.0 [`b7b207e`](https://github.com/karmaniverous/jeeves-watcher/commit/b7b207e96b1750bcacc4f5dd67ecf9c369415e25)
-- lintfix [`cd4c841`](https://github.com/karmaniverous/jeeves-watcher/commit/cd4c84150cfce2b541a9215966139f61e0ce6fcd)
-- fix: use fresh QdrantClient for write ops to avoid stale keep-alive connections [`e8215d5`](https://github.com/karmaniverous/jeeves-watcher/commit/e8215d5dc9f82deea59e8259f28be4b2e074f0fb)
-- feat: make plugin cache TTL configurable and fix API port fallback mismatch [`fecb768`](https://github.com/karmaniverous/jeeves-watcher/commit/fecb76841a28e51081cd5d195b25195e34add01a)
-- fix: complete Qdrant systemd setup and add WorkingDirectory to watcher service [`88bba3e`](https://github.com/karmaniverous/jeeves-watcher/commit/88bba3ebe1fd46922847a1d39a13182b4fb558a3)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.5.0 [`d458180`](https://github.com/karmaniverous/jeeves-watcher/commit/d458180cd6fc6fc4d0f1f115f50d42f1f7c9f154)
-- chore: convert repo to npm workspaces monorepo [`d8fc6e8`](https://github.com/karmaniverous/jeeves-watcher/commit/d8fc6e821af4dde868f1c82b82f8c348788b4a65)
-- fix: apply same conditional logic to tools.allow as plugins.allow [`4549569`](https://github.com/karmaniverous/jeeves-watcher/commit/4549569ea72e1bbe385fd7592497982bbc34ec39)
-- chore: fix tsdoc warnings (add tsdoc.json, escape &gt; chars in yamlEscape) [`902156e`](https://github.com/karmaniverous/jeeves-watcher/commit/902156e3ca16265efc0adc667a03c23e0d9a7d57)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.3.0 [`3ce4950`](https://github.com/karmaniverous/jeeves-watcher/commit/3ce4950d10de13300db94e90247739a3f4a6514a)
-- docs: add guides index pages for foldable typedoc sections [`1827505`](https://github.com/karmaniverous/jeeves-watcher/commit/1827505522859efbe89895f1b18d4c141c6f76f1)
-- fix(openclaw): remove deployment-specific content from skill [`1df6a25`](https://github.com/karmaniverous/jeeves-watcher/commit/1df6a25ea2a57ca7f1e6d781ed2c1e4a7de41927)
-- fix: plugin installer now claims memory slot in OpenClaw config [`020c6cd`](https://github.com/karmaniverous/jeeves-watcher/commit/020c6cdd258ad8a6e092e173c88caabf05e5f323)
-- fix: remove plugins.allow management from CLI, only manage entries and tools.allow [`64106b4`](https://github.com/karmaniverous/jeeves-watcher/commit/64106b49be35f11c8e4b9a499b45067869decc4b)
-- fix(openclaw): correct embedding alignment config path in skill [`4965dec`](https://github.com/karmaniverous/jeeves-watcher/commit/4965dec812e837f1c090ed59aa8464cff77cce69)
-- fix: conditionally manage plugins.allow only when already populated [`c486c3a`](https://github.com/karmaniverous/jeeves-watcher/commit/c486c3a8bc12df5f1d233a0f974c0024e91e84b4)
-- chore: release @karmaniverous/jeeves-watcher v0.5.1 [`b11e44e`](https://github.com/karmaniverous/jeeves-watcher/commit/b11e44e08911b12f719bb43357cc7647f3905ac6)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.2.0 [`a6d4d7e`](https://github.com/karmaniverous/jeeves-watcher/commit/a6d4d7e57424b482b737cb6983dc5c9a86b96160)
-- fix(openclaw): use error.cause for precise connection error detection [`3bdd267`](https://github.com/karmaniverous/jeeves-watcher/commit/3bdd267225d129186ee6d9263379ddcd6808d7df)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.1.2 [`c019f41`](https://github.com/karmaniverous/jeeves-watcher/commit/c019f410d5cef94e653450b82966d64e1a70f900)
-- chore: release @karmaniverous/jeeves-watcher v0.6.6 [`b64faf3`](https://github.com/karmaniverous/jeeves-watcher/commit/b64faf34ae7a5d10ebdd069dc5cfccedbe77d957)
-- chore: fix knip after monorepo split [`e16460b`](https://github.com/karmaniverous/jeeves-watcher/commit/e16460b90e5a695818bde2b47ac6577abf6cbf1c)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.4.0 [`db0673c`](https://github.com/karmaniverous/jeeves-watcher/commit/db0673ce79a4525b4d7294f64f8365f8831b128a)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.3.6 [`e864fec`](https://github.com/karmaniverous/jeeves-watcher/commit/e864fecd732f8cd4fedd708ff6a95b31311ad854)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.1.1 [`008e757`](https://github.com/karmaniverous/jeeves-watcher/commit/008e757704e0cdf5bca7819a9b9eb36b7258a300)
-- added env local template [`74aaa72`](https://github.com/karmaniverous/jeeves-watcher/commit/74aaa726761cb16d3f133a926e0a335b22417808)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.3.11 [`5ff129d`](https://github.com/karmaniverous/jeeves-watcher/commit/5ff129d3df997e9f06b67aeb630058ebb61a96ea)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.3.8 [`28a92a1`](https://github.com/karmaniverous/jeeves-watcher/commit/28a92a17b2be9039750b83b20657fd99b10a64eb)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.3.4 [`5b11938`](https://github.com/karmaniverous/jeeves-watcher/commit/5b119389b8dac493a4cf164e664338804ccd2dc5)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.3.1 [`de3215a`](https://github.com/karmaniverous/jeeves-watcher/commit/de3215ae4503eece2cb3823c26e6fa00fd1008d1)
-- docs: sync spec with PR 80 state, fix numbering, restore release checklist [`8d37691`](https://github.com/karmaniverous/jeeves-watcher/commit/8d37691e4fb985f6d0b12c96e63562b586b00975)
-- refactor: SOLID/DRY pass — deduplicate attributes, handlers, sleep; fix extractor registry [`beceeaf`](https://github.com/karmaniverous/jeeves-watcher/commit/beceeaf37b86de226b06cf33b0a444e2da70e84b)
-- chore: release @karmaniverous/jeeves-watcher v0.6.9 [`e22e72e`](https://github.com/karmaniverous/jeeves-watcher/commit/e22e72ecf713c8e81e714a20748d5fa3387fa8cb)
-- chore: release @karmaniverous/jeeves-watcher v0.6.4 [`b41bfc3`](https://github.com/karmaniverous/jeeves-watcher/commit/b41bfc3905995768f9c881f74518f7a943dcea7e)
-- chore: release @karmaniverous/jeeves-watcher v0.6.2 [`fa2304d`](https://github.com/karmaniverous/jeeves-watcher/commit/fa2304db79539f712770f7a958fc30e3b4d46ded)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.3.13 [`43d8d07`](https://github.com/karmaniverous/jeeves-watcher/commit/43d8d075019fc8ac53b7747f46a3725ee047b553)
-- chore: release @karmaniverous/jeeves-watcher v0.6.7 [`a692378`](https://github.com/karmaniverous/jeeves-watcher/commit/a6923786158eac99ad6fd8fd035d8cd706a55778)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.4.2 [`fcd75a2`](https://github.com/karmaniverous/jeeves-watcher/commit/fcd75a25d425524359171b10024bcfa190c4f9ab)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.3.10 [`3b4b22c`](https://github.com/karmaniverous/jeeves-watcher/commit/3b4b22c1cd2a5d9dbf0933ae74db03f09e210840)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.3.9 [`97c635e`](https://github.com/karmaniverous/jeeves-watcher/commit/97c635e25b7c7ac4a5e6315ac2c26af7d1e89a74)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.3.5 [`837a941`](https://github.com/karmaniverous/jeeves-watcher/commit/837a94145b086245df101f7dcf2fd7a0c5ebfbca)
-- chore: release @karmaniverous/jeeves-watcher v0.6.1 [`037d9c9`](https://github.com/karmaniverous/jeeves-watcher/commit/037d9c924e1bc3020fb6b497f59261dd027718bd)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.4.1 [`7863ad4`](https://github.com/karmaniverous/jeeves-watcher/commit/7863ad4edaa04cdc665cba608f6b84ccdbd2b841)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.3.7 [`4c12277`](https://github.com/karmaniverous/jeeves-watcher/commit/4c12277cddbfd048f2312f94a907f11ea748407a)
-- fix: use glob instead of pattern for virtual rule matching (case-insensitive on Windows) [`0526d5a`](https://github.com/karmaniverous/jeeves-watcher/commit/0526d5a811e243de11e196f6b27b0be3578e2db3)
-- chore: release @karmaniverous/jeeves-watcher v0.6.3 [`da7414c`](https://github.com/karmaniverous/jeeves-watcher/commit/da7414c19894031d02da4713e3d57957a9f96449)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.3.3 [`9db834e`](https://github.com/karmaniverous/jeeves-watcher/commit/9db834ee75686d4a0cad09743d4d96b3d9c41ee5)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.3.2 [`99be8d8`](https://github.com/karmaniverous/jeeves-watcher/commit/99be8d8c5a895d28cc124c9110dba7e1f49eefc5)
-- chore: release @karmaniverous/jeeves-watcher v0.6.8 [`a465d72`](https://github.com/karmaniverous/jeeves-watcher/commit/a465d72d25c51003550fa0fa87ecf8203de84a75)
-- fix: read CLI version from package.json instead of hardcoding [`22a9727`](https://github.com/karmaniverous/jeeves-watcher/commit/22a9727d9cccfb75d11535546c4a9194e6ccec35)
-- chore: release @karmaniverous/jeeves-watcher v0.6.5 [`1c5a7fe`](https://github.com/karmaniverous/jeeves-watcher/commit/1c5a7fee4d192ed736b3ea4700df7649b49fd1d6)
-- fix: use consistent default port 1936 in server.listen() and schema description [`fe61181`](https://github.com/karmaniverous/jeeves-watcher/commit/fe6118154eb1bb4605b36bec11c79925d8c7322b)
-- fix: normalizePath preserves drive letter case to match service path normalization [`b79c8c4`](https://github.com/karmaniverous/jeeves-watcher/commit/b79c8c4cee38ccf989a7ee067a67c1879464e53d)
-- docs: update spec for shared Platform Tools H1 injection pattern [`230822a`](https://github.com/karmaniverous/jeeves-watcher/commit/230822adbcaed0f1de3adc634b8429019f015c79)
-- chore: remove temp commit script [`31d35a7`](https://github.com/karmaniverous/jeeves-watcher/commit/31d35a7341fdfe9d823ffbd04f4192396edcd638)
-- fix(openclaw): add deployment-discovery guidance to skill, prevent assumption of specific domains [`3da7cf3`](https://github.com/karmaniverous/jeeves-watcher/commit/3da7cf3252cf90788d0a8e3d162220d45c5ec6a6)
-- lintfix [`d410046`](https://github.com/karmaniverous/jeeves-watcher/commit/d410046d448b6d57a275686555998bfcc9919142)
-- fix(openclaw): skill proactive check matches positive case only [`4e9be5f`](https://github.com/karmaniverous/jeeves-watcher/commit/4e9be5ffe8e07fb67e62118fa416613e7680149f)
-- docs(skill): clarify date normalization convention via toUnix helper [`6f238bf`](https://github.com/karmaniverous/jeeves-watcher/commit/6f238bf94a2d346131981a4d3e9fd2eb31dab418)
-- package version 0 [`eda1c58`](https://github.com/karmaniverous/jeeves-watcher/commit/eda1c58217fc89a4f1d2ff3e048c13973b5056fd)
-- docs(skill): add render/template authoring guidance and transformer definitions [`69a45de`](https://github.com/karmaniverous/jeeves-watcher/commit/69a45defdca0b92a5d058a319bac5c1699e55d83)
-- fix: revert unconditional ensureTextIndex from initialization.ts [`7ae6b62`](https://github.com/karmaniverous/jeeves-watcher/commit/7ae6b629352d3b48872186f469694d72132092d5)
-- removed docs from release script [`8878235`](https://github.com/karmaniverous/jeeves-watcher/commit/88782358db1a8ff2f1303d503d7086df4994d23b)
-
-#### [0.5.0-1](https://github.com/karmaniverous/jeeves-watcher/compare/0.5.0-0...0.5.0-1)
-
-> 25 February 2026
-
-- docs: export missing symbols, add TSDoc, fix typedoc warnings [`85f5f02`](https://github.com/karmaniverous/jeeves-watcher/commit/85f5f02c84c2ecf309ef799d186d689a5e8412ef)
-- chore: release v0.5.0-1 [`2b330da`](https://github.com/karmaniverous/jeeves-watcher/commit/2b330dabb6f630394138a8132e51e49ae6f0cfb2)
-
-#### [0.5.0-0](https://github.com/karmaniverous/jeeves-watcher/compare/0.4.4...0.5.0-0)
-
-> 25 February 2026
-
-- chore: release v0.5.0-0 [`0c181d9`](https://github.com/karmaniverous/jeeves-watcher/commit/0c181d95303c04178aa7cb51a4ffe852354d6f02)
-- docs: complete v0.5.0 documentation pass [`e563ee8`](https://github.com/karmaniverous/jeeves-watcher/commit/e563ee870a92229be2fc71fb0fefdd7bbd23dbe7)
-- docs: fix TypeDoc warnings — constructor params, JsonFileStore props, handlebars highlight [`388bed4`](https://github.com/karmaniverous/jeeves-watcher/commit/388bed46c1d49360adca7109476d502abb13f007)
-- feat(schema): implement Phase 1 - core schema system [`4b538ad`](https://github.com/karmaniverous/jeeves-watcher/commit/4b538ad12dd4f68a093faf7e5460a2cfcc716d84)
-- feat: foundation for v0.5.0 - issues, values, named rules, config schema [`a81cfa9`](https://github.com/karmaniverous/jeeves-watcher/commit/a81cfa98f8b16cc3e0559571d6db36dd00a5e440)
-- refactor(DRY): split config schemas into logical modules [`fc24cb4`](https://github.com/karmaniverous/jeeves-watcher/commit/fc24cb4ffb306ca8454f3467074be0569ce64ad8)
-- feat: API endpoints for v0.5.0 — query validate apply issues reindex tracking [`97b0f75`](https://github.com/karmaniverous/jeeves-watcher/commit/97b0f7516de416c68bb5af95491150cd318680ba)
-- feat: validate metadata and align issues + skill docs [`1ffdc0c`](https://github.com/karmaniverous/jeeves-watcher/commit/1ffdc0cfbf56411a060c924e3f3b0918c54b7720)
-- feat: helper namespace prefixing and JSDoc introspection [`ffbaba5`](https://github.com/karmaniverous/jeeves-watcher/commit/ffbaba5e7661089566aab452d0c3c3b45d0f494f)
-- docs: update guides for v0.5.0 endpoints, config, and CLI [`0c79850`](https://github.com/karmaniverous/jeeves-watcher/commit/0c79850ad5906ce60dec257e502b7bcd83a09de6)
-- feat: complete v2 spec implementation gaps (P0-P2) [`fa45008`](https://github.com/karmaniverous/jeeves-watcher/commit/fa45008b0aebd103302ffa72ed216398615b9674)
-- refactor: DRY helper module loading into shared utility [`fef881a`](https://github.com/karmaniverous/jeeves-watcher/commit/fef881a4ae00bb6e09eccfc3fe08b69741d18c4a)
-- test: add critical test coverage for utilities and handlers [`b9b94d7`](https://github.com/karmaniverous/jeeves-watcher/commit/b9b94d7be0bf6d39a5df959202c978daaa55284b)
-- refactor(DRY): add withApiOptions helper for CLI commands [`26df301`](https://github.com/karmaniverous/jeeves-watcher/commit/26df3015d41b0e351b762a116077f4afcd04a090)
-- fix: replace eslint-disable comments with properly typed mocks [`025e322`](https://github.com/karmaniverous/jeeves-watcher/commit/025e322946827fc0ffd37258d3fa5cf1cf2fa0f8)
-- feat: expand plugin to 8 tools for v0.5.0 [`bde15f4`](https://github.com/karmaniverous/jeeves-watcher/commit/bde15f465b0ab503519999c5fd0049fa255ebece)
-- refactor(SRP): extract app initialization logic to separate module [`63147f4`](https://github.com/karmaniverous/jeeves-watcher/commit/63147f4fce30c692bc134bdb27eda4aa8ee49940)
-- feat: two-skill architecture with build pipeline [`898db5e`](https://github.com/karmaniverous/jeeves-watcher/commit/898db5e3253d7986de35b8292afa7e2e944a24c1)
-- refactor(SRP/OCP): split embedding providers into separate files [`d07f4c9`](https://github.com/karmaniverous/jeeves-watcher/commit/d07f4c9553c7b926db1a2d8550469fdcff54879d)
-- refactor: extract shared mergeAndValidateConfig [`aecab7f`](https://github.com/karmaniverous/jeeves-watcher/commit/aecab7f348f22f3e41160bad251e6d51a8306c5e)
-- test: update test files to use new schema format [`336ff00`](https://github.com/karmaniverous/jeeves-watcher/commit/336ff00db2595b125bb3d71d1923d81f0baadf89)
-- refactor: extract shared executeReindex to eliminate duplication [`7658108`](https://github.com/karmaniverous/jeeves-watcher/commit/7658108fc9899557fc3d65b82a1947a2bddc1e25)
-- test: add DocumentProcessor unit tests [`987012f`](https://github.com/karmaniverous/jeeves-watcher/commit/987012fb754b43c7324929e537ec7676e9848e63)
-- test: add more critical test coverage [`233082c`](https://github.com/karmaniverous/jeeves-watcher/commit/233082c410cbd8c32f71cd40e64b6028f08c521e)
-- feat: implement Phase 3 API endpoints [`eb697cf`](https://github.com/karmaniverous/jeeves-watcher/commit/eb697cfd894af3dda446d2988fcc2e0eefee2a97)
-- refactor(DIP): introduce VectorStore interface and update consumers [`1975dee`](https://github.com/karmaniverous/jeeves-watcher/commit/1975deeb610dafa76aceb4e84e82ca7229cd9b5e)
-- refactor(DRY): extract repeated patterns to utilities [`12842de`](https://github.com/karmaniverous/jeeves-watcher/commit/12842dea5442fd38ddea5d6a3c4ad841c0177f43)
-- fix: resolve all lint errors in test files and wrapHandler [`bbcde3f`](https://github.com/karmaniverous/jeeves-watcher/commit/bbcde3f8c6e19ff975cfda83826226e93181183b)
-- refactor: DRY API handler error handling with wrapHandler; fix writeFileSync in configApply [`8995d2e`](https://github.com/karmaniverous/jeeves-watcher/commit/8995d2e85c48a75503812e20331db8fe88816d38)
-- test: add EventQueue tests [`93a7eab`](https://github.com/karmaniverous/jeeves-watcher/commit/93a7eab2573d92ef4ef7217a6c373fe89f3be29f)
-- refactor: extract JsonFileStore base for issues/values [`c36112f`](https://github.com/karmaniverous/jeeves-watcher/commit/c36112f43dd415893db4ff999e10b63034870ad8)
-- test: add mergedDocument tests [`41a2561`](https://github.com/karmaniverous/jeeves-watcher/commit/41a25615cbaf3e5d1773abd5a78c89e9dc725f1d)
-- revert: remove manual CHANGELOG.md edits (auto-generated on release) [`c20e149`](https://github.com/karmaniverous/jeeves-watcher/commit/c20e14967723b52b877acb3de062d276587bcf44)
-- test: add configValidate handler tests [`00d52fd`](https://github.com/karmaniverous/jeeves-watcher/commit/00d52fd7a4d19621b7318eb2b6512d062b8e6acf)
-- test: add configApply handler tests [`5fb3b43`](https://github.com/karmaniverous/jeeves-watcher/commit/5fb3b436b8a205ef76fdf88389655b2246ec665f)
-- test: add configQuery handler tests [`6adfcab`](https://github.com/karmaniverous/jeeves-watcher/commit/6adfcab476aa7c63119c340f5dad7428f8544a41)
-- fix: resolve all STAN lint errors and reduce docs warnings [`062594f`](https://github.com/karmaniverous/jeeves-watcher/commit/062594ff6645b7ff35cc90df38e55ee1eab645b3)
-- refactor(DIP): add DocumentProcessor interface and update factory/consumers [`8a30433`](https://github.com/karmaniverous/jeeves-watcher/commit/8a30433c4c767eac7ea1eba96153ec3d0ad06107)
-- refactor(ISP): convert buildMergedMetadata to options object pattern [`0d67913`](https://github.com/karmaniverous/jeeves-watcher/commit/0d6791301736252bc4fffb068ca06ef30eb554be)
-- fix: resolveReferences only resolves known config reference positions [`1890bf9`](https://github.com/karmaniverous/jeeves-watcher/commit/1890bf9a2216c769ca1640e70600e8b079cafbcd)
-- fix(lint): address majority of lint issues in new tests [`aec00f8`](https://github.com/karmaniverous/jeeves-watcher/commit/aec00f86b86526d706b1dca3c2d851b77b4c3b75)
-- test: add configReindex handler tests [`506b638`](https://github.com/karmaniverous/jeeves-watcher/commit/506b6387ca73af4d368fececb95c19113696313b)
-- refactor(ISP): narrow API handler deps to required fields [`309daa3`](https://github.com/karmaniverous/jeeves-watcher/commit/309daa37ba7b296889b6c9b53818e4c2f2549682)
-- fix: resolve lint errors and align tests with spec [`29c5217`](https://github.com/karmaniverous/jeeves-watcher/commit/29c52177aa5507817656c441fb67c287e27a8cb4)
-- refactor(SRP): extract shared template/map helper wiring from JeevesWatcher [`7d1b629`](https://github.com/karmaniverous/jeeves-watcher/commit/7d1b6299c8055ae15fbbf6c000b9eb0f166219a3)
-- test: add ReindexTracker tests [`5830048`](https://github.com/karmaniverous/jeeves-watcher/commit/5830048c62a9950b4f5940f99c140d6caa5b161f)
-- refactor(DRY): extract vectorStore payload type inference [`8f70a7c`](https://github.com/karmaniverous/jeeves-watcher/commit/8f70a7c99a2937e26b6f1aa27317a6304e40947b)
-- fix: implement actual rule matching in testPaths validation [`dba6f4e`](https://github.com/karmaniverous/jeeves-watcher/commit/dba6f4e79f4a2013e42060d84f993bb36346d95d)
-- refactor(DRY): align logError helper signature with standard pattern [`a014202`](https://github.com/karmaniverous/jeeves-watcher/commit/a014202e0795d015b913e4e113e427f51edeb76f)
-- refactor: centralize processor payload field names [`34836ce`](https://github.com/karmaniverous/jeeves-watcher/commit/34836cebe3d66dab7ae7475ac0aa1ca5dfcd4aa3)
-- refactor(DRY): apply logError utility in DocumentProcessor [`42f5b3e`](https://github.com/karmaniverous/jeeves-watcher/commit/42f5b3e5d6b2a3dc9af886107e9ae981b6fb0108)
-- fix: resolve typecheck errors in tests and initialization [`47b92e1`](https://github.com/karmaniverous/jeeves-watcher/commit/47b92e1b43b9513273c2a4bff1a119a774243043)
-- refactor(OCP): allow custom extractors via additionalExtractors parameter [`36b7ae2`](https://github.com/karmaniverous/jeeves-watcher/commit/36b7ae29cdc24109feb8c1a00555f93c5a1a5850)
-- fix(lint): resolve unsafe-assignment and unbound-method in tests [`9e41021`](https://github.com/karmaniverous/jeeves-watcher/commit/9e41021de4513b8cb9f684bbf90e184b5559011e)
-- chore: tune docs warnPattern to ignore Zod enum TSDoc warnings [`b09909a`](https://github.com/karmaniverous/jeeves-watcher/commit/b09909a51b5b076ea071c2e83047c21eec1f594f)
-
-#### [0.4.4](https://github.com/karmaniverous/jeeves-watcher/compare/0.4.3...0.4.4)
-
-> 23 February 2026
-
-- fix: use pathToFileURL for dynamic imports on Windows [`#31`](https://github.com/karmaniverous/jeeves-watcher/pull/31)
-- fix: use pathToFileURL for dynamic imports on Windows (#31) [`#30`](https://github.com/karmaniverous/jeeves-watcher/issues/30)
-- chore: release v0.4.4 [`f3a284c`](https://github.com/karmaniverous/jeeves-watcher/commit/f3a284ce1c940f0ea1e5e9338492cc0de61c5b97)
-
-#### [0.4.3](https://github.com/karmaniverous/jeeves-watcher/compare/0.4.2...0.4.3)
-
-> 23 February 2026
-
-- feat: support custom JsonMap lib functions via config [`#29`](https://github.com/karmaniverous/jeeves-watcher/pull/29)
-- chore: release v0.4.3 [`8b82d0c`](https://github.com/karmaniverous/jeeves-watcher/commit/8b82d0cf01dee60ab3a135ac6c0c70ae726d31fd)
-
-#### [0.4.2](https://github.com/karmaniverous/jeeves-watcher/compare/openclaw/0.4.2...0.4.2)
-
-> 23 February 2026
-
-#### [openclaw/0.4.2](https://github.com/karmaniverous/jeeves-watcher/compare/0.4.1...openclaw/0.4.2)
-
-> 1 March 2026
-
-- chore: remove memory-core Gemini migration from bootstrap [`#79`](https://github.com/karmaniverous/jeeves-watcher/pull/79)
-- feat(openclaw): add complete bootstrap sequence to skill [`#78`](https://github.com/karmaniverous/jeeves-watcher/pull/78)
-- feat(openclaw)!: remove memory slot takeover [`#77`](https://github.com/karmaniverous/jeeves-watcher/pull/77)
-- chore: change default port from 3456 to 1936 [`#75`](https://github.com/karmaniverous/jeeves-watcher/pull/75)
-- chore: fix all eslint errors (210 → 0) [`#76`](https://github.com/karmaniverous/jeeves-watcher/pull/76)
-- feat(openclaw): add memory → archive escalation pattern to skill [`#74`](https://github.com/karmaniverous/jeeves-watcher/pull/74)
-- feat(openclaw): disable memory-core when installing with --memory [`#73`](https://github.com/karmaniverous/jeeves-watcher/pull/73)
-- feat(openclaw): brand memory tool responses with provider field [`#71`](https://github.com/karmaniverous/jeeves-watcher/pull/71)
-- docs(openclaw): add bootstrap, install modes, and proactive posture to skill [`#70`](https://github.com/karmaniverous/jeeves-watcher/pull/70)
-- feat(openclaw): --memory flag for install CLI [`#69`](https://github.com/karmaniverous/jeeves-watcher/pull/69)
-- feat(openclaw): decouple plugin from watcher config vocabulary [`#68`](https://github.com/karmaniverous/jeeves-watcher/pull/68)
-- fix: fresh QdrantClient for write ops to avoid stale keep-alive ECONNRESET [`#67`](https://github.com/karmaniverous/jeeves-watcher/pull/67)
-- fix: use domains (plural array) in virtual rules and search filter [`#66`](https://github.com/karmaniverous/jeeves-watcher/pull/66)
-- feat: POST /rules/reapply endpoint + plugin auto-reapply after registration [`#65`](https://github.com/karmaniverous/jeeves-watcher/pull/65)
-- fix: disable AJV strict mode to suppress schema type warnings [`#55`](https://github.com/karmaniverous/jeeves-watcher/pull/55)
-- fix: case-insensitive glob matching in AJV rule keyword [`#64`](https://github.com/karmaniverous/jeeves-watcher/pull/64)
-- fix: use glob instead of pattern for virtual rule matching [`#62`](https://github.com/karmaniverous/jeeves-watcher/pull/62)
-- fix: normalizePath preserves drive letter case to match service [`#61`](https://github.com/karmaniverous/jeeves-watcher/pull/61)
-- fix: ensure text index on startup + re-register virtual rules after watcher restart [`#60`](https://github.com/karmaniverous/jeeves-watcher/pull/60)
-- fix: plugin config lookup uses correct entry key (jeeves-watcher-openclaw) [`#59`](https://github.com/karmaniverous/jeeves-watcher/pull/59)
-- fix: update test fixture to include slots for idempotency check [`#58`](https://github.com/karmaniverous/jeeves-watcher/pull/58)
-- chore: bump @karmaniverous/jsonmap to 2.1.1 [`#57`](https://github.com/karmaniverous/jeeves-watcher/pull/57)
-- fix: plugin installer claims memory slot in OpenClaw config [`#56`](https://github.com/karmaniverous/jeeves-watcher/pull/56)
-- docs: update guides for v0.6.0 changes [`#54`](https://github.com/karmaniverous/jeeves-watcher/pull/54)
-- refactor: extract modules to fix 300 LOC violations [`#53`](https://github.com/karmaniverous/jeeves-watcher/pull/53)
-- refactor: DRY fixes and comprehensive test coverage for openclaw package [`#52`](https://github.com/karmaniverous/jeeves-watcher/pull/52)
-- refactor+test: service SOLID/DRY fixes + 54 new tests [`#51`](https://github.com/karmaniverous/jeeves-watcher/pull/51)
-- feat: memory slot takeover with virtual rules API [`#49`](https://github.com/karmaniverous/jeeves-watcher/pull/49)
-- feat: support external rule file references in inferenceRules config [`#50`](https://github.com/karmaniverous/jeeves-watcher/pull/50)
-- feat(service): add hybrid search with BM25 text index and RRF fusion [`#48`](https://github.com/karmaniverous/jeeves-watcher/pull/48)
-- feat(service): Handlebars set expressions + date normalization [`#47`](https://github.com/karmaniverous/jeeves-watcher/pull/47)
-- feat(service): add filesystem date metadata and line offsets [`#46`](https://github.com/karmaniverous/jeeves-watcher/pull/46)
-- fix(openclaw): skill review feedback [`#45`](https://github.com/karmaniverous/jeeves-watcher/pull/45)
-- chore(openclaw): merge skills, simplify build, improve error messaging [`#44`](https://github.com/karmaniverous/jeeves-watcher/pull/44)
-- docs: document self-installer CLI and Windows workaround [`#41`](https://github.com/karmaniverous/jeeves-watcher/pull/41)
-- fix: resolve lint errors in openclaw CLI [`#40`](https://github.com/karmaniverous/jeeves-watcher/pull/40)
-- feat: add install/uninstall CLI for OpenClaw plugin [`#39`](https://github.com/karmaniverous/jeeves-watcher/pull/39)
-- chore: fix monorepo release-it tags, plugin id, and version sync [`#38`](https://github.com/karmaniverous/jeeves-watcher/pull/38)
-- feat: convert to monorepo with service and openclaw plugin packages [`#37`](https://github.com/karmaniverous/jeeves-watcher/pull/37)
-- docs(skill): add theory of operation, remove stale SKILL.md [`#36`](https://github.com/karmaniverous/jeeves-watcher/pull/36)
-- feat: v0.5.0 — plugin expansion, two-skill architecture, API extensions [`#35`](https://github.com/karmaniverous/jeeves-watcher/pull/35)
-- fix: use pathToFileURL for dynamic imports on Windows [`#31`](https://github.com/karmaniverous/jeeves-watcher/pull/31)
-- feat: support custom JsonMap lib functions via config [`#29`](https://github.com/karmaniverous/jeeves-watcher/pull/29)
-- fix: resolve file path references in named maps config [`#28`](https://github.com/karmaniverous/jeeves-watcher/pull/28)
-- feat(service): add hybrid search with BM25 text index and RRF fusion (#48) [`#35`](https://github.com/karmaniverous/jeeves-watcher/issues/35)
-- feat(service): add filesystem date metadata and line offsets (#46) [`#24`](https://github.com/karmaniverous/jeeves-watcher/issues/24)
-- fix: use pathToFileURL for dynamic imports on Windows (#31) [`#30`](https://github.com/karmaniverous/jeeves-watcher/issues/30)
-- updated docs [`3028f04`](https://github.com/karmaniverous/jeeves-watcher/commit/3028f04a038935d6339c575f8c78dc10f301a2df)
-- chore: release v0.5.0-0 [`0c181d9`](https://github.com/karmaniverous/jeeves-watcher/commit/0c181d95303c04178aa7cb51a4ffe852354d6f02)
-- docs: complete v0.5.0 documentation pass [`e563ee8`](https://github.com/karmaniverous/jeeves-watcher/commit/e563ee870a92229be2fc71fb0fefdd7bbd23dbe7)
-- docs: export missing symbols, add TSDoc, fix typedoc warnings [`85f5f02`](https://github.com/karmaniverous/jeeves-watcher/commit/85f5f02c84c2ecf309ef799d186d689a5e8412ef)
-- docs: fix TypeDoc warnings — constructor params, JsonFileStore props, handlebars highlight [`388bed4`](https://github.com/karmaniverous/jeeves-watcher/commit/388bed46c1d49360adca7109476d502abb13f007)
-- feat(openclaw)!: remove memory slot takeover, simplify to pure extension [`0b1bdcb`](https://github.com/karmaniverous/jeeves-watcher/commit/0b1bdcb8ebbb602bc2ceb89ae61104a5d81427f8)
-- feat(schema): implement Phase 1 - core schema system [`4b538ad`](https://github.com/karmaniverous/jeeves-watcher/commit/4b538ad12dd4f68a093faf7e5460a2cfcc716d84)
-- feat: foundation for v0.5.0 - issues, values, named rules, config schema [`a81cfa9`](https://github.com/karmaniverous/jeeves-watcher/commit/a81cfa98f8b16cc3e0559571d6db36dd00a5e440)
-- refactor(DRY): split config schemas into logical modules [`fc24cb4`](https://github.com/karmaniverous/jeeves-watcher/commit/fc24cb4ffb306ca8454f3467074be0569ce64ad8)
-- feat: API endpoints for v0.5.0 — query validate apply issues reindex tracking [`97b0f75`](https://github.com/karmaniverous/jeeves-watcher/commit/97b0f7516de416c68bb5af95491150cd318680ba)
-- feat: validate metadata and align issues + skill docs [`1ffdc0c`](https://github.com/karmaniverous/jeeves-watcher/commit/1ffdc0cfbf56411a060c924e3f3b0918c54b7720)
-- chore: release v0.5.0 [`aa5a5aa`](https://github.com/karmaniverous/jeeves-watcher/commit/aa5a5aa2ed2f40f581ee28bf9946c1a065c5a9bd)
-- chore: release v0.5.0-1 [`2b330da`](https://github.com/karmaniverous/jeeves-watcher/commit/2b330dabb6f630394138a8132e51e49ae6f0cfb2)
-- feat: helper namespace prefixing and JSDoc introspection [`ffbaba5`](https://github.com/karmaniverous/jeeves-watcher/commit/ffbaba5e7661089566aab452d0c3c3b45d0f494f)
-- docs: update guides for v0.5.0 endpoints, config, and CLI [`0c79850`](https://github.com/karmaniverous/jeeves-watcher/commit/0c79850ad5906ce60dec257e502b7bcd83a09de6)
-- feat: complete v2 spec implementation gaps (P0-P2) [`fa45008`](https://github.com/karmaniverous/jeeves-watcher/commit/fa45008b0aebd103302ffa72ed216398615b9674)
-- chore: release v0.4.3 [`8b82d0c`](https://github.com/karmaniverous/jeeves-watcher/commit/8b82d0cf01dee60ab3a135ac6c0c70ae726d31fd)
-- chore: release v0.4.2 [`4ea9215`](https://github.com/karmaniverous/jeeves-watcher/commit/4ea9215f5ae9506bf497fffdcbf414160ae03310)
-- chore: release v0.4.4 [`f3a284c`](https://github.com/karmaniverous/jeeves-watcher/commit/f3a284ce1c940f0ea1e5e9338492cc0de61c5b97)
-- refactor: DRY helper module loading into shared utility [`fef881a`](https://github.com/karmaniverous/jeeves-watcher/commit/fef881a4ae00bb6e09eccfc3fe08b69741d18c4a)
-- test: add critical test coverage for utilities and handlers [`b9b94d7`](https://github.com/karmaniverous/jeeves-watcher/commit/b9b94d7be0bf6d39a5df959202c978daaa55284b)
-- refactor(DRY): add withApiOptions helper for CLI commands [`26df301`](https://github.com/karmaniverous/jeeves-watcher/commit/26df3015d41b0e351b762a116077f4afcd04a090)
-- fix: replace eslint-disable comments with properly typed mocks [`025e322`](https://github.com/karmaniverous/jeeves-watcher/commit/025e322946827fc0ffd37258d3fa5cf1cf2fa0f8)
-- feat: expand plugin to 8 tools for v0.5.0 [`bde15f4`](https://github.com/karmaniverous/jeeves-watcher/commit/bde15f465b0ab503519999c5fd0049fa255ebece)
-- refactor(SRP): extract app initialization logic to separate module [`63147f4`](https://github.com/karmaniverous/jeeves-watcher/commit/63147f4fce30c692bc134bdb27eda4aa8ee49940)
-- feat: two-skill architecture with build pipeline [`898db5e`](https://github.com/karmaniverous/jeeves-watcher/commit/898db5e3253d7986de35b8292afa7e2e944a24c1)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.1.0 [`97e2834`](https://github.com/karmaniverous/jeeves-watcher/commit/97e2834986f0ce53098d0299d0da3025a432e43f)
-- refactor(SRP/OCP): split embedding providers into separate files [`d07f4c9`](https://github.com/karmaniverous/jeeves-watcher/commit/d07f4c9553c7b926db1a2d8550469fdcff54879d)
-- feat: add install/uninstall CLI to bypass OpenClaw spawn EINVAL bug on Windows [`1ad7fbb`](https://github.com/karmaniverous/jeeves-watcher/commit/1ad7fbb1f4947d852a5a16a2b564b27ccb0620d5)
-- docs: fix template syntax, stale references, and add missing API/tool docs [`8af92ef`](https://github.com/karmaniverous/jeeves-watcher/commit/8af92efff989bc78b60fa7ab99020619aa72c5f7)
-- refactor: extract shared mergeAndValidateConfig [`aecab7f`](https://github.com/karmaniverous/jeeves-watcher/commit/aecab7f348f22f3e41160bad251e6d51a8306c5e)
-- test: update test files to use new schema format [`336ff00`](https://github.com/karmaniverous/jeeves-watcher/commit/336ff00db2595b125bb3d71d1923d81f0baadf89)
-- refactor: extract shared executeReindex to eliminate duplication [`7658108`](https://github.com/karmaniverous/jeeves-watcher/commit/7658108fc9899557fc3d65b82a1947a2bddc1e25)
-- test: add DocumentProcessor unit tests [`987012f`](https://github.com/karmaniverous/jeeves-watcher/commit/987012fb754b43c7324929e537ec7676e9848e63)
-- test: add more critical test coverage [`233082c`](https://github.com/karmaniverous/jeeves-watcher/commit/233082c410cbd8c32f71cd40e64b6028f08c521e)
-- feat: implement Phase 3 API endpoints [`eb697cf`](https://github.com/karmaniverous/jeeves-watcher/commit/eb697cfd894af3dda446d2988fcc2e0eefee2a97)
-- refactor(DIP): introduce VectorStore interface and update consumers [`1975dee`](https://github.com/karmaniverous/jeeves-watcher/commit/1975deeb610dafa76aceb4e84e82ca7229cd9b5e)
-- refactor(DRY): extract repeated patterns to utilities [`12842de`](https://github.com/karmaniverous/jeeves-watcher/commit/12842dea5442fd38ddea5d6a3c4ad841c0177f43)
-- chore: fix docs, READMEs, and rollup config for monorepo [`0b92399`](https://github.com/karmaniverous/jeeves-watcher/commit/0b92399eec0275c42ecb6a637c0c59756925c321)
-- fix: resolve all lint errors in test files and wrapHandler [`bbcde3f`](https://github.com/karmaniverous/jeeves-watcher/commit/bbcde3f8c6e19ff975cfda83826226e93181183b)
-- docs(skill): add theory of operation narrative, remove stale plugin/skill/SKILL.md [`979993d`](https://github.com/karmaniverous/jeeves-watcher/commit/979993dfbd19a8102441fb95d7be10ae0000c6e5)
-- refactor: DRY API handler error handling with wrapHandler; fix writeFileSync in configApply [`8995d2e`](https://github.com/karmaniverous/jeeves-watcher/commit/8995d2e85c48a75503812e20331db8fe88816d38)
-- test: add EventQueue tests [`93a7eab`](https://github.com/karmaniverous/jeeves-watcher/commit/93a7eab2573d92ef4ef7217a6c373fe89f3be29f)
-- refactor: extract JsonFileStore base for issues/values [`c36112f`](https://github.com/karmaniverous/jeeves-watcher/commit/c36112f43dd415893db4ff999e10b63034870ad8)
-- test: add mergedDocument tests [`41a2561`](https://github.com/karmaniverous/jeeves-watcher/commit/41a25615cbaf3e5d1773abd5a78c89e9dc725f1d)
-- revert: remove manual CHANGELOG.md edits (auto-generated on release) [`c20e149`](https://github.com/karmaniverous/jeeves-watcher/commit/c20e14967723b52b877acb3de062d276587bcf44)
-- test: add configValidate handler tests [`00d52fd`](https://github.com/karmaniverous/jeeves-watcher/commit/00d52fd7a4d19621b7318eb2b6512d062b8e6acf)
-- test: add configApply handler tests [`5fb3b43`](https://github.com/karmaniverous/jeeves-watcher/commit/5fb3b436b8a205ef76fdf88389655b2246ec665f)
-- fix: resolve eslint unbound-method and prettier errors [`36b5803`](https://github.com/karmaniverous/jeeves-watcher/commit/36b5803e83cce02bcb124095662965f887ceec66)
-- chore: align release-it config for monorepo [`938a3e0`](https://github.com/karmaniverous/jeeves-watcher/commit/938a3e0deb686f9f224c90f7e585782e072a6e3e)
-- test: add configQuery handler tests [`6adfcab`](https://github.com/karmaniverous/jeeves-watcher/commit/6adfcab476aa7c63119c340f5dad7428f8544a41)
-- fix: resolve all STAN lint errors and reduce docs warnings [`062594f`](https://github.com/karmaniverous/jeeves-watcher/commit/062594ff6645b7ff35cc90df38e55ee1eab645b3)
-- refactor(DIP): add DocumentProcessor interface and update factory/consumers [`8a30433`](https://github.com/karmaniverous/jeeves-watcher/commit/8a30433c4c767eac7ea1eba96153ec3d0ad06107)
-- refactor(ISP): convert buildMergedMetadata to options object pattern [`0d67913`](https://github.com/karmaniverous/jeeves-watcher/commit/0d6791301736252bc4fffb068ca06ef30eb554be)
-- chore: make service package ESM-only, remove CJS and IIFE outputs [`9a16492`](https://github.com/karmaniverous/jeeves-watcher/commit/9a164923ae10e7a391520794440aa05420bd99f6)
-- fix: resolveReferences only resolves known config reference positions [`1890bf9`](https://github.com/karmaniverous/jeeves-watcher/commit/1890bf9a2216c769ca1640e70600e8b079cafbcd)
-- fix(lint): address majority of lint issues in new tests [`aec00f8`](https://github.com/karmaniverous/jeeves-watcher/commit/aec00f86b86526d706b1dca3c2d851b77b4c3b75)
-- test: add configReindex handler tests [`506b638`](https://github.com/karmaniverous/jeeves-watcher/commit/506b6387ca73af4d368fececb95c19113696313b)
-- fix: resolve lint errors in openclaw CLI and add rollup externals [`b4e8514`](https://github.com/karmaniverous/jeeves-watcher/commit/b4e8514d991daaed99bd7d7dff7028b4310109be)
-- refactor(ISP): narrow API handler deps to required fields [`309daa3`](https://github.com/karmaniverous/jeeves-watcher/commit/309daa37ba7b296889b6c9b53818e4c2f2549682)
-- fix: add nocase and dot options to AJV glob keyword [`3f7cb9b`](https://github.com/karmaniverous/jeeves-watcher/commit/3f7cb9b34638f0cdfe86057a2a9b5a70cd7e23da)
-- fix: resolve lint errors and align tests with spec [`29c5217`](https://github.com/karmaniverous/jeeves-watcher/commit/29c52177aa5507817656c441fb67c287e27a8cb4)
-- docs: document self-installer CLI and Windows spawn EINVAL workaround [`e3d6351`](https://github.com/karmaniverous/jeeves-watcher/commit/e3d63512fe57b555e753c8f86bbfe57a1b97f70c)
-- refactor(SRP): extract shared template/map helper wiring from JeevesWatcher [`7d1b629`](https://github.com/karmaniverous/jeeves-watcher/commit/7d1b6299c8055ae15fbbf6c000b9eb0f166219a3)
-- chore: release @karmaniverous/jeeves-watcher v0.6.0 [`b7b207e`](https://github.com/karmaniverous/jeeves-watcher/commit/b7b207e96b1750bcacc4f5dd67ecf9c369415e25)
-- test: add ReindexTracker tests [`5830048`](https://github.com/karmaniverous/jeeves-watcher/commit/5830048c62a9950b4f5940f99c140d6caa5b161f)
-- lintfix [`cd4c841`](https://github.com/karmaniverous/jeeves-watcher/commit/cd4c84150cfce2b541a9215966139f61e0ce6fcd)
-- refactor(DRY): extract vectorStore payload type inference [`8f70a7c`](https://github.com/karmaniverous/jeeves-watcher/commit/8f70a7c99a2937e26b6f1aa27317a6304e40947b)
-- fix: use fresh QdrantClient for write ops to avoid stale keep-alive connections [`e8215d5`](https://github.com/karmaniverous/jeeves-watcher/commit/e8215d5dc9f82deea59e8259f28be4b2e074f0fb)
-- fix: implement actual rule matching in testPaths validation [`dba6f4e`](https://github.com/karmaniverous/jeeves-watcher/commit/dba6f4e79f4a2013e42060d84f993bb36346d95d)
-- fix: complete Qdrant systemd setup and add WorkingDirectory to watcher service [`88bba3e`](https://github.com/karmaniverous/jeeves-watcher/commit/88bba3ebe1fd46922847a1d39a13182b4fb558a3)
-- chore: convert repo to npm workspaces monorepo [`d8fc6e8`](https://github.com/karmaniverous/jeeves-watcher/commit/d8fc6e821af4dde868f1c82b82f8c348788b4a65)
-- fix: apply same conditional logic to tools.allow as plugins.allow [`4549569`](https://github.com/karmaniverous/jeeves-watcher/commit/4549569ea72e1bbe385fd7592497982bbc34ec39)
-- refactor(DRY): align logError helper signature with standard pattern [`a014202`](https://github.com/karmaniverous/jeeves-watcher/commit/a014202e0795d015b913e4e113e427f51edeb76f)
-- refactor: centralize processor payload field names [`34836ce`](https://github.com/karmaniverous/jeeves-watcher/commit/34836cebe3d66dab7ae7475ac0aa1ca5dfcd4aa3)
-- refactor(DRY): apply logError utility in DocumentProcessor [`42f5b3e`](https://github.com/karmaniverous/jeeves-watcher/commit/42f5b3e5d6b2a3dc9af886107e9ae981b6fb0108)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.3.0 [`3ce4950`](https://github.com/karmaniverous/jeeves-watcher/commit/3ce4950d10de13300db94e90247739a3f4a6514a)
-- docs: add guides index pages for foldable typedoc sections [`1827505`](https://github.com/karmaniverous/jeeves-watcher/commit/1827505522859efbe89895f1b18d4c141c6f76f1)
-- fix(openclaw): remove deployment-specific content from skill [`1df6a25`](https://github.com/karmaniverous/jeeves-watcher/commit/1df6a25ea2a57ca7f1e6d781ed2c1e4a7de41927)
-- fix: plugin installer now claims memory slot in OpenClaw config [`020c6cd`](https://github.com/karmaniverous/jeeves-watcher/commit/020c6cdd258ad8a6e092e173c88caabf05e5f323)
-- fix: remove plugins.allow management from CLI, only manage entries and tools.allow [`64106b4`](https://github.com/karmaniverous/jeeves-watcher/commit/64106b49be35f11c8e4b9a499b45067869decc4b)
-- fix(openclaw): correct embedding alignment config path in skill [`4965dec`](https://github.com/karmaniverous/jeeves-watcher/commit/4965dec812e837f1c090ed59aa8464cff77cce69)
-- fix: conditionally manage plugins.allow only when already populated [`c486c3a`](https://github.com/karmaniverous/jeeves-watcher/commit/c486c3a8bc12df5f1d233a0f974c0024e91e84b4)
-- chore: release @karmaniverous/jeeves-watcher v0.5.1 [`b11e44e`](https://github.com/karmaniverous/jeeves-watcher/commit/b11e44e08911b12f719bb43357cc7647f3905ac6)
-- fix: resolve typecheck errors in tests and initialization [`47b92e1`](https://github.com/karmaniverous/jeeves-watcher/commit/47b92e1b43b9513273c2a4bff1a119a774243043)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.2.0 [`a6d4d7e`](https://github.com/karmaniverous/jeeves-watcher/commit/a6d4d7e57424b482b737cb6983dc5c9a86b96160)
-- fix(openclaw): use error.cause for precise connection error detection [`3bdd267`](https://github.com/karmaniverous/jeeves-watcher/commit/3bdd267225d129186ee6d9263379ddcd6808d7df)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.1.2 [`c019f41`](https://github.com/karmaniverous/jeeves-watcher/commit/c019f410d5cef94e653450b82966d64e1a70f900)
-- refactor(OCP): allow custom extractors via additionalExtractors parameter [`36b7ae2`](https://github.com/karmaniverous/jeeves-watcher/commit/36b7ae29cdc24109feb8c1a00555f93c5a1a5850)
-- chore: release @karmaniverous/jeeves-watcher v0.6.6 [`b64faf3`](https://github.com/karmaniverous/jeeves-watcher/commit/b64faf34ae7a5d10ebdd069dc5cfccedbe77d957)
-- chore: fix knip after monorepo split [`e16460b`](https://github.com/karmaniverous/jeeves-watcher/commit/e16460b90e5a695818bde2b47ac6577abf6cbf1c)
-- fix(lint): resolve unsafe-assignment and unbound-method in tests [`9e41021`](https://github.com/karmaniverous/jeeves-watcher/commit/9e41021de4513b8cb9f684bbf90e184b5559011e)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.4.0 [`db0673c`](https://github.com/karmaniverous/jeeves-watcher/commit/db0673ce79a4525b4d7294f64f8365f8831b128a)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.3.6 [`e864fec`](https://github.com/karmaniverous/jeeves-watcher/commit/e864fecd732f8cd4fedd708ff6a95b31311ad854)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.1.1 [`008e757`](https://github.com/karmaniverous/jeeves-watcher/commit/008e757704e0cdf5bca7819a9b9eb36b7258a300)
-- added env local template [`74aaa72`](https://github.com/karmaniverous/jeeves-watcher/commit/74aaa726761cb16d3f133a926e0a335b22417808)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.3.11 [`5ff129d`](https://github.com/karmaniverous/jeeves-watcher/commit/5ff129d3df997e9f06b67aeb630058ebb61a96ea)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.3.8 [`28a92a1`](https://github.com/karmaniverous/jeeves-watcher/commit/28a92a17b2be9039750b83b20657fd99b10a64eb)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.3.4 [`5b11938`](https://github.com/karmaniverous/jeeves-watcher/commit/5b119389b8dac493a4cf164e664338804ccd2dc5)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.3.1 [`de3215a`](https://github.com/karmaniverous/jeeves-watcher/commit/de3215ae4503eece2cb3823c26e6fa00fd1008d1)
-- chore: release @karmaniverous/jeeves-watcher v0.6.9 [`e22e72e`](https://github.com/karmaniverous/jeeves-watcher/commit/e22e72ecf713c8e81e714a20748d5fa3387fa8cb)
-- chore: release @karmaniverous/jeeves-watcher v0.6.4 [`b41bfc3`](https://github.com/karmaniverous/jeeves-watcher/commit/b41bfc3905995768f9c881f74518f7a943dcea7e)
-- chore: release @karmaniverous/jeeves-watcher v0.6.2 [`fa2304d`](https://github.com/karmaniverous/jeeves-watcher/commit/fa2304db79539f712770f7a958fc30e3b4d46ded)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.3.13 [`43d8d07`](https://github.com/karmaniverous/jeeves-watcher/commit/43d8d075019fc8ac53b7747f46a3725ee047b553)
-- chore: release @karmaniverous/jeeves-watcher v0.6.7 [`a692378`](https://github.com/karmaniverous/jeeves-watcher/commit/a6923786158eac99ad6fd8fd035d8cd706a55778)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.4.2 [`fcd75a2`](https://github.com/karmaniverous/jeeves-watcher/commit/fcd75a25d425524359171b10024bcfa190c4f9ab)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.3.10 [`3b4b22c`](https://github.com/karmaniverous/jeeves-watcher/commit/3b4b22c1cd2a5d9dbf0933ae74db03f09e210840)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.3.9 [`97c635e`](https://github.com/karmaniverous/jeeves-watcher/commit/97c635e25b7c7ac4a5e6315ac2c26af7d1e89a74)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.3.5 [`837a941`](https://github.com/karmaniverous/jeeves-watcher/commit/837a94145b086245df101f7dcf2fd7a0c5ebfbca)
-- chore: release @karmaniverous/jeeves-watcher v0.6.1 [`037d9c9`](https://github.com/karmaniverous/jeeves-watcher/commit/037d9c924e1bc3020fb6b497f59261dd027718bd)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.4.1 [`7863ad4`](https://github.com/karmaniverous/jeeves-watcher/commit/7863ad4edaa04cdc665cba608f6b84ccdbd2b841)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.3.7 [`4c12277`](https://github.com/karmaniverous/jeeves-watcher/commit/4c12277cddbfd048f2312f94a907f11ea748407a)
-- fix: use glob instead of pattern for virtual rule matching (case-insensitive on Windows) [`0526d5a`](https://github.com/karmaniverous/jeeves-watcher/commit/0526d5a811e243de11e196f6b27b0be3578e2db3)
-- chore: release @karmaniverous/jeeves-watcher v0.6.3 [`da7414c`](https://github.com/karmaniverous/jeeves-watcher/commit/da7414c19894031d02da4713e3d57957a9f96449)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.3.3 [`9db834e`](https://github.com/karmaniverous/jeeves-watcher/commit/9db834ee75686d4a0cad09743d4d96b3d9c41ee5)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.3.2 [`99be8d8`](https://github.com/karmaniverous/jeeves-watcher/commit/99be8d8c5a895d28cc124c9110dba7e1f49eefc5)
-- chore: release @karmaniverous/jeeves-watcher v0.6.8 [`a465d72`](https://github.com/karmaniverous/jeeves-watcher/commit/a465d72d25c51003550fa0fa87ecf8203de84a75)
-- fix: read CLI version from package.json instead of hardcoding [`22a9727`](https://github.com/karmaniverous/jeeves-watcher/commit/22a9727d9cccfb75d11535546c4a9194e6ccec35)
-- chore: release @karmaniverous/jeeves-watcher v0.6.5 [`1c5a7fe`](https://github.com/karmaniverous/jeeves-watcher/commit/1c5a7fee4d192ed736b3ea4700df7649b49fd1d6)
-- fix: normalizePath preserves drive letter case to match service path normalization [`b79c8c4`](https://github.com/karmaniverous/jeeves-watcher/commit/b79c8c4cee38ccf989a7ee067a67c1879464e53d)
-- chore: remove temp commit script [`31d35a7`](https://github.com/karmaniverous/jeeves-watcher/commit/31d35a7341fdfe9d823ffbd04f4192396edcd638)
-- fix(openclaw): add deployment-discovery guidance to skill, prevent assumption of specific domains [`3da7cf3`](https://github.com/karmaniverous/jeeves-watcher/commit/3da7cf3252cf90788d0a8e3d162220d45c5ec6a6)
-- lintfix [`d410046`](https://github.com/karmaniverous/jeeves-watcher/commit/d410046d448b6d57a275686555998bfcc9919142)
-- fix(openclaw): skill proactive check matches positive case only [`4e9be5f`](https://github.com/karmaniverous/jeeves-watcher/commit/4e9be5ffe8e07fb67e62118fa416613e7680149f)
-- package version 0 [`eda1c58`](https://github.com/karmaniverous/jeeves-watcher/commit/eda1c58217fc89a4f1d2ff3e048c13973b5056fd)
-- chore: tune docs warnPattern to ignore Zod enum TSDoc warnings [`b09909a`](https://github.com/karmaniverous/jeeves-watcher/commit/b09909a51b5b076ea071c2e83047c21eec1f594f)
-- fix: revert unconditional ensureTextIndex from initialization.ts [`7ae6b62`](https://github.com/karmaniverous/jeeves-watcher/commit/7ae6b629352d3b48872186f469694d72132092d5)
-- removed docs from release script [`8878235`](https://github.com/karmaniverous/jeeves-watcher/commit/88782358db1a8ff2f1303d503d7086df4994d23b)
-
-#### [0.4.1](https://github.com/karmaniverous/jeeves-watcher/compare/openclaw/0.4.1...0.4.1)
-
-> 23 February 2026
-
-#### [openclaw/0.4.1](https://github.com/karmaniverous/jeeves-watcher/compare/0.4.0...openclaw/0.4.1)
-
-> 1 March 2026
-
-- feat(openclaw): add complete bootstrap sequence to skill [`#78`](https://github.com/karmaniverous/jeeves-watcher/pull/78)
-- feat(openclaw)!: remove memory slot takeover [`#77`](https://github.com/karmaniverous/jeeves-watcher/pull/77)
-- chore: change default port from 3456 to 1936 [`#75`](https://github.com/karmaniverous/jeeves-watcher/pull/75)
-- chore: fix all eslint errors (210 → 0) [`#76`](https://github.com/karmaniverous/jeeves-watcher/pull/76)
-- feat(openclaw): add memory → archive escalation pattern to skill [`#74`](https://github.com/karmaniverous/jeeves-watcher/pull/74)
-- feat(openclaw): disable memory-core when installing with --memory [`#73`](https://github.com/karmaniverous/jeeves-watcher/pull/73)
-- feat(openclaw): brand memory tool responses with provider field [`#71`](https://github.com/karmaniverous/jeeves-watcher/pull/71)
-- docs(openclaw): add bootstrap, install modes, and proactive posture to skill [`#70`](https://github.com/karmaniverous/jeeves-watcher/pull/70)
-- feat(openclaw): --memory flag for install CLI [`#69`](https://github.com/karmaniverous/jeeves-watcher/pull/69)
-- feat(openclaw): decouple plugin from watcher config vocabulary [`#68`](https://github.com/karmaniverous/jeeves-watcher/pull/68)
-- fix: fresh QdrantClient for write ops to avoid stale keep-alive ECONNRESET [`#67`](https://github.com/karmaniverous/jeeves-watcher/pull/67)
-- fix: use domains (plural array) in virtual rules and search filter [`#66`](https://github.com/karmaniverous/jeeves-watcher/pull/66)
-- feat: POST /rules/reapply endpoint + plugin auto-reapply after registration [`#65`](https://github.com/karmaniverous/jeeves-watcher/pull/65)
-- fix: disable AJV strict mode to suppress schema type warnings [`#55`](https://github.com/karmaniverous/jeeves-watcher/pull/55)
-- fix: case-insensitive glob matching in AJV rule keyword [`#64`](https://github.com/karmaniverous/jeeves-watcher/pull/64)
-- fix: use glob instead of pattern for virtual rule matching [`#62`](https://github.com/karmaniverous/jeeves-watcher/pull/62)
-- fix: normalizePath preserves drive letter case to match service [`#61`](https://github.com/karmaniverous/jeeves-watcher/pull/61)
-- fix: ensure text index on startup + re-register virtual rules after watcher restart [`#60`](https://github.com/karmaniverous/jeeves-watcher/pull/60)
-- fix: plugin config lookup uses correct entry key (jeeves-watcher-openclaw) [`#59`](https://github.com/karmaniverous/jeeves-watcher/pull/59)
-- fix: update test fixture to include slots for idempotency check [`#58`](https://github.com/karmaniverous/jeeves-watcher/pull/58)
-- chore: bump @karmaniverous/jsonmap to 2.1.1 [`#57`](https://github.com/karmaniverous/jeeves-watcher/pull/57)
-- fix: plugin installer claims memory slot in OpenClaw config [`#56`](https://github.com/karmaniverous/jeeves-watcher/pull/56)
-- docs: update guides for v0.6.0 changes [`#54`](https://github.com/karmaniverous/jeeves-watcher/pull/54)
-- refactor: extract modules to fix 300 LOC violations [`#53`](https://github.com/karmaniverous/jeeves-watcher/pull/53)
-- refactor: DRY fixes and comprehensive test coverage for openclaw package [`#52`](https://github.com/karmaniverous/jeeves-watcher/pull/52)
-- refactor+test: service SOLID/DRY fixes + 54 new tests [`#51`](https://github.com/karmaniverous/jeeves-watcher/pull/51)
-- feat: memory slot takeover with virtual rules API [`#49`](https://github.com/karmaniverous/jeeves-watcher/pull/49)
-- feat: support external rule file references in inferenceRules config [`#50`](https://github.com/karmaniverous/jeeves-watcher/pull/50)
-- feat(service): add hybrid search with BM25 text index and RRF fusion [`#48`](https://github.com/karmaniverous/jeeves-watcher/pull/48)
-- feat(service): Handlebars set expressions + date normalization [`#47`](https://github.com/karmaniverous/jeeves-watcher/pull/47)
-- feat(service): add filesystem date metadata and line offsets [`#46`](https://github.com/karmaniverous/jeeves-watcher/pull/46)
-- fix(openclaw): skill review feedback [`#45`](https://github.com/karmaniverous/jeeves-watcher/pull/45)
-- chore(openclaw): merge skills, simplify build, improve error messaging [`#44`](https://github.com/karmaniverous/jeeves-watcher/pull/44)
-- docs: document self-installer CLI and Windows workaround [`#41`](https://github.com/karmaniverous/jeeves-watcher/pull/41)
-- fix: resolve lint errors in openclaw CLI [`#40`](https://github.com/karmaniverous/jeeves-watcher/pull/40)
-- feat: add install/uninstall CLI for OpenClaw plugin [`#39`](https://github.com/karmaniverous/jeeves-watcher/pull/39)
-- chore: fix monorepo release-it tags, plugin id, and version sync [`#38`](https://github.com/karmaniverous/jeeves-watcher/pull/38)
-- feat: convert to monorepo with service and openclaw plugin packages [`#37`](https://github.com/karmaniverous/jeeves-watcher/pull/37)
-- docs(skill): add theory of operation, remove stale SKILL.md [`#36`](https://github.com/karmaniverous/jeeves-watcher/pull/36)
-- feat: v0.5.0 — plugin expansion, two-skill architecture, API extensions [`#35`](https://github.com/karmaniverous/jeeves-watcher/pull/35)
-- fix: use pathToFileURL for dynamic imports on Windows [`#31`](https://github.com/karmaniverous/jeeves-watcher/pull/31)
-- feat: support custom JsonMap lib functions via config [`#29`](https://github.com/karmaniverous/jeeves-watcher/pull/29)
-- fix: resolve file path references in named maps config [`#28`](https://github.com/karmaniverous/jeeves-watcher/pull/28)
-- fix: resolve chokidar v5 ignored glob patterns via picomatch matchers [`#27`](https://github.com/karmaniverous/jeeves-watcher/pull/27)
-- feat(service): add hybrid search with BM25 text index and RRF fusion (#48) [`#35`](https://github.com/karmaniverous/jeeves-watcher/issues/35)
-- feat(service): add filesystem date metadata and line offsets (#46) [`#24`](https://github.com/karmaniverous/jeeves-watcher/issues/24)
-- fix: use pathToFileURL for dynamic imports on Windows (#31) [`#30`](https://github.com/karmaniverous/jeeves-watcher/issues/30)
-- updated docs [`3028f04`](https://github.com/karmaniverous/jeeves-watcher/commit/3028f04a038935d6339c575f8c78dc10f301a2df)
-- chore: release v0.5.0-0 [`0c181d9`](https://github.com/karmaniverous/jeeves-watcher/commit/0c181d95303c04178aa7cb51a4ffe852354d6f02)
-- docs: complete v0.5.0 documentation pass [`e563ee8`](https://github.com/karmaniverous/jeeves-watcher/commit/e563ee870a92229be2fc71fb0fefdd7bbd23dbe7)
-- docs: export missing symbols, add TSDoc, fix typedoc warnings [`85f5f02`](https://github.com/karmaniverous/jeeves-watcher/commit/85f5f02c84c2ecf309ef799d186d689a5e8412ef)
-- docs: fix TypeDoc warnings — constructor params, JsonFileStore props, handlebars highlight [`388bed4`](https://github.com/karmaniverous/jeeves-watcher/commit/388bed46c1d49360adca7109476d502abb13f007)
-- feat(openclaw)!: remove memory slot takeover, simplify to pure extension [`0b1bdcb`](https://github.com/karmaniverous/jeeves-watcher/commit/0b1bdcb8ebbb602bc2ceb89ae61104a5d81427f8)
-- feat(schema): implement Phase 1 - core schema system [`4b538ad`](https://github.com/karmaniverous/jeeves-watcher/commit/4b538ad12dd4f68a093faf7e5460a2cfcc716d84)
-- feat: foundation for v0.5.0 - issues, values, named rules, config schema [`a81cfa9`](https://github.com/karmaniverous/jeeves-watcher/commit/a81cfa98f8b16cc3e0559571d6db36dd00a5e440)
-- refactor(DRY): split config schemas into logical modules [`fc24cb4`](https://github.com/karmaniverous/jeeves-watcher/commit/fc24cb4ffb306ca8454f3467074be0569ce64ad8)
-- feat: API endpoints for v0.5.0 — query validate apply issues reindex tracking [`97b0f75`](https://github.com/karmaniverous/jeeves-watcher/commit/97b0f7516de416c68bb5af95491150cd318680ba)
-- feat: validate metadata and align issues + skill docs [`1ffdc0c`](https://github.com/karmaniverous/jeeves-watcher/commit/1ffdc0cfbf56411a060c924e3f3b0918c54b7720)
-- chore: release v0.5.0 [`aa5a5aa`](https://github.com/karmaniverous/jeeves-watcher/commit/aa5a5aa2ed2f40f581ee28bf9946c1a065c5a9bd)
-- chore: release v0.5.0-1 [`2b330da`](https://github.com/karmaniverous/jeeves-watcher/commit/2b330dabb6f630394138a8132e51e49ae6f0cfb2)
-- feat: helper namespace prefixing and JSDoc introspection [`ffbaba5`](https://github.com/karmaniverous/jeeves-watcher/commit/ffbaba5e7661089566aab452d0c3c3b45d0f494f)
-- docs: update guides for v0.5.0 endpoints, config, and CLI [`0c79850`](https://github.com/karmaniverous/jeeves-watcher/commit/0c79850ad5906ce60dec257e502b7bcd83a09de6)
-- feat: complete v2 spec implementation gaps (P0-P2) [`fa45008`](https://github.com/karmaniverous/jeeves-watcher/commit/fa45008b0aebd103302ffa72ed216398615b9674)
-- chore: release v0.4.3 [`8b82d0c`](https://github.com/karmaniverous/jeeves-watcher/commit/8b82d0cf01dee60ab3a135ac6c0c70ae726d31fd)
-- chore: release v0.4.2 [`4ea9215`](https://github.com/karmaniverous/jeeves-watcher/commit/4ea9215f5ae9506bf497fffdcbf414160ae03310)
-- chore: release v0.4.4 [`f3a284c`](https://github.com/karmaniverous/jeeves-watcher/commit/f3a284ce1c940f0ea1e5e9338492cc0de61c5b97)
-- chore: release v0.4.1 [`c736409`](https://github.com/karmaniverous/jeeves-watcher/commit/c7364099798bc494ea633f376bf747e1cb995209)
-- refactor: DRY helper module loading into shared utility [`fef881a`](https://github.com/karmaniverous/jeeves-watcher/commit/fef881a4ae00bb6e09eccfc3fe08b69741d18c4a)
-- test: add critical test coverage for utilities and handlers [`b9b94d7`](https://github.com/karmaniverous/jeeves-watcher/commit/b9b94d7be0bf6d39a5df959202c978daaa55284b)
-- refactor(DRY): add withApiOptions helper for CLI commands [`26df301`](https://github.com/karmaniverous/jeeves-watcher/commit/26df3015d41b0e351b762a116077f4afcd04a090)
-- fix: replace eslint-disable comments with properly typed mocks [`025e322`](https://github.com/karmaniverous/jeeves-watcher/commit/025e322946827fc0ffd37258d3fa5cf1cf2fa0f8)
-- feat: expand plugin to 8 tools for v0.5.0 [`bde15f4`](https://github.com/karmaniverous/jeeves-watcher/commit/bde15f465b0ab503519999c5fd0049fa255ebece)
-- refactor(SRP): extract app initialization logic to separate module [`63147f4`](https://github.com/karmaniverous/jeeves-watcher/commit/63147f4fce30c692bc134bdb27eda4aa8ee49940)
-- feat: two-skill architecture with build pipeline [`898db5e`](https://github.com/karmaniverous/jeeves-watcher/commit/898db5e3253d7986de35b8292afa7e2e944a24c1)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.1.0 [`97e2834`](https://github.com/karmaniverous/jeeves-watcher/commit/97e2834986f0ce53098d0299d0da3025a432e43f)
-- refactor(SRP/OCP): split embedding providers into separate files [`d07f4c9`](https://github.com/karmaniverous/jeeves-watcher/commit/d07f4c9553c7b926db1a2d8550469fdcff54879d)
-- feat: add install/uninstall CLI to bypass OpenClaw spawn EINVAL bug on Windows [`1ad7fbb`](https://github.com/karmaniverous/jeeves-watcher/commit/1ad7fbb1f4947d852a5a16a2b564b27ccb0620d5)
-- docs: fix template syntax, stale references, and add missing API/tool docs [`8af92ef`](https://github.com/karmaniverous/jeeves-watcher/commit/8af92efff989bc78b60fa7ab99020619aa72c5f7)
-- refactor: extract shared mergeAndValidateConfig [`aecab7f`](https://github.com/karmaniverous/jeeves-watcher/commit/aecab7f348f22f3e41160bad251e6d51a8306c5e)
-- test: update test files to use new schema format [`336ff00`](https://github.com/karmaniverous/jeeves-watcher/commit/336ff00db2595b125bb3d71d1923d81f0baadf89)
-- refactor: extract shared executeReindex to eliminate duplication [`7658108`](https://github.com/karmaniverous/jeeves-watcher/commit/7658108fc9899557fc3d65b82a1947a2bddc1e25)
-- test: add DocumentProcessor unit tests [`987012f`](https://github.com/karmaniverous/jeeves-watcher/commit/987012fb754b43c7324929e537ec7676e9848e63)
-- test: add more critical test coverage [`233082c`](https://github.com/karmaniverous/jeeves-watcher/commit/233082c410cbd8c32f71cd40e64b6028f08c521e)
-- feat: implement Phase 3 API endpoints [`eb697cf`](https://github.com/karmaniverous/jeeves-watcher/commit/eb697cfd894af3dda446d2988fcc2e0eefee2a97)
-- refactor(DIP): introduce VectorStore interface and update consumers [`1975dee`](https://github.com/karmaniverous/jeeves-watcher/commit/1975deeb610dafa76aceb4e84e82ca7229cd9b5e)
-- refactor(DRY): extract repeated patterns to utilities [`12842de`](https://github.com/karmaniverous/jeeves-watcher/commit/12842dea5442fd38ddea5d6a3c4ad841c0177f43)
-- chore: fix docs, READMEs, and rollup config for monorepo [`0b92399`](https://github.com/karmaniverous/jeeves-watcher/commit/0b92399eec0275c42ecb6a637c0c59756925c321)
-- fix: resolve all lint errors in test files and wrapHandler [`bbcde3f`](https://github.com/karmaniverous/jeeves-watcher/commit/bbcde3f8c6e19ff975cfda83826226e93181183b)
-- docs(skill): add theory of operation narrative, remove stale plugin/skill/SKILL.md [`979993d`](https://github.com/karmaniverous/jeeves-watcher/commit/979993dfbd19a8102441fb95d7be10ae0000c6e5)
-- refactor: DRY API handler error handling with wrapHandler; fix writeFileSync in configApply [`8995d2e`](https://github.com/karmaniverous/jeeves-watcher/commit/8995d2e85c48a75503812e20331db8fe88816d38)
-- test: add EventQueue tests [`93a7eab`](https://github.com/karmaniverous/jeeves-watcher/commit/93a7eab2573d92ef4ef7217a6c373fe89f3be29f)
-- refactor: extract JsonFileStore base for issues/values [`c36112f`](https://github.com/karmaniverous/jeeves-watcher/commit/c36112f43dd415893db4ff999e10b63034870ad8)
-- test: add mergedDocument tests [`41a2561`](https://github.com/karmaniverous/jeeves-watcher/commit/41a25615cbaf3e5d1773abd5a78c89e9dc725f1d)
-- revert: remove manual CHANGELOG.md edits (auto-generated on release) [`c20e149`](https://github.com/karmaniverous/jeeves-watcher/commit/c20e14967723b52b877acb3de062d276587bcf44)
-- test: add configValidate handler tests [`00d52fd`](https://github.com/karmaniverous/jeeves-watcher/commit/00d52fd7a4d19621b7318eb2b6512d062b8e6acf)
-- test: add configApply handler tests [`5fb3b43`](https://github.com/karmaniverous/jeeves-watcher/commit/5fb3b436b8a205ef76fdf88389655b2246ec665f)
-- fix: resolve eslint unbound-method and prettier errors [`36b5803`](https://github.com/karmaniverous/jeeves-watcher/commit/36b5803e83cce02bcb124095662965f887ceec66)
-- chore: align release-it config for monorepo [`938a3e0`](https://github.com/karmaniverous/jeeves-watcher/commit/938a3e0deb686f9f224c90f7e585782e072a6e3e)
-- test: add configQuery handler tests [`6adfcab`](https://github.com/karmaniverous/jeeves-watcher/commit/6adfcab476aa7c63119c340f5dad7428f8544a41)
-- fix: resolve all STAN lint errors and reduce docs warnings [`062594f`](https://github.com/karmaniverous/jeeves-watcher/commit/062594ff6645b7ff35cc90df38e55ee1eab645b3)
-- refactor(DIP): add DocumentProcessor interface and update factory/consumers [`8a30433`](https://github.com/karmaniverous/jeeves-watcher/commit/8a30433c4c767eac7ea1eba96153ec3d0ad06107)
-- refactor(ISP): convert buildMergedMetadata to options object pattern [`0d67913`](https://github.com/karmaniverous/jeeves-watcher/commit/0d6791301736252bc4fffb068ca06ef30eb554be)
-- chore: make service package ESM-only, remove CJS and IIFE outputs [`9a16492`](https://github.com/karmaniverous/jeeves-watcher/commit/9a164923ae10e7a391520794440aa05420bd99f6)
-- fix: resolveReferences only resolves known config reference positions [`1890bf9`](https://github.com/karmaniverous/jeeves-watcher/commit/1890bf9a2216c769ca1640e70600e8b079cafbcd)
-- fix(lint): address majority of lint issues in new tests [`aec00f8`](https://github.com/karmaniverous/jeeves-watcher/commit/aec00f86b86526d706b1dca3c2d851b77b4c3b75)
-- test: add configReindex handler tests [`506b638`](https://github.com/karmaniverous/jeeves-watcher/commit/506b6387ca73af4d368fececb95c19113696313b)
-- fix: resolve lint errors in openclaw CLI and add rollup externals [`b4e8514`](https://github.com/karmaniverous/jeeves-watcher/commit/b4e8514d991daaed99bd7d7dff7028b4310109be)
-- refactor(ISP): narrow API handler deps to required fields [`309daa3`](https://github.com/karmaniverous/jeeves-watcher/commit/309daa37ba7b296889b6c9b53818e4c2f2549682)
-- fix: add nocase and dot options to AJV glob keyword [`3f7cb9b`](https://github.com/karmaniverous/jeeves-watcher/commit/3f7cb9b34638f0cdfe86057a2a9b5a70cd7e23da)
-- fix: resolve lint errors and align tests with spec [`29c5217`](https://github.com/karmaniverous/jeeves-watcher/commit/29c52177aa5507817656c441fb67c287e27a8cb4)
-- docs: document self-installer CLI and Windows spawn EINVAL workaround [`e3d6351`](https://github.com/karmaniverous/jeeves-watcher/commit/e3d63512fe57b555e753c8f86bbfe57a1b97f70c)
-- refactor(SRP): extract shared template/map helper wiring from JeevesWatcher [`7d1b629`](https://github.com/karmaniverous/jeeves-watcher/commit/7d1b6299c8055ae15fbbf6c000b9eb0f166219a3)
-- chore: release @karmaniverous/jeeves-watcher v0.6.0 [`b7b207e`](https://github.com/karmaniverous/jeeves-watcher/commit/b7b207e96b1750bcacc4f5dd67ecf9c369415e25)
-- test: add ReindexTracker tests [`5830048`](https://github.com/karmaniverous/jeeves-watcher/commit/5830048c62a9950b4f5940f99c140d6caa5b161f)
-- lintfix [`cd4c841`](https://github.com/karmaniverous/jeeves-watcher/commit/cd4c84150cfce2b541a9215966139f61e0ce6fcd)
-- refactor(DRY): extract vectorStore payload type inference [`8f70a7c`](https://github.com/karmaniverous/jeeves-watcher/commit/8f70a7c99a2937e26b6f1aa27317a6304e40947b)
-- fix: use fresh QdrantClient for write ops to avoid stale keep-alive connections [`e8215d5`](https://github.com/karmaniverous/jeeves-watcher/commit/e8215d5dc9f82deea59e8259f28be4b2e074f0fb)
-- fix: implement actual rule matching in testPaths validation [`dba6f4e`](https://github.com/karmaniverous/jeeves-watcher/commit/dba6f4e79f4a2013e42060d84f993bb36346d95d)
-- chore: convert repo to npm workspaces monorepo [`d8fc6e8`](https://github.com/karmaniverous/jeeves-watcher/commit/d8fc6e821af4dde868f1c82b82f8c348788b4a65)
-- fix: apply same conditional logic to tools.allow as plugins.allow [`4549569`](https://github.com/karmaniverous/jeeves-watcher/commit/4549569ea72e1bbe385fd7592497982bbc34ec39)
-- refactor(DRY): align logError helper signature with standard pattern [`a014202`](https://github.com/karmaniverous/jeeves-watcher/commit/a014202e0795d015b913e4e113e427f51edeb76f)
-- refactor: centralize processor payload field names [`34836ce`](https://github.com/karmaniverous/jeeves-watcher/commit/34836cebe3d66dab7ae7475ac0aa1ca5dfcd4aa3)
-- refactor(DRY): apply logError utility in DocumentProcessor [`42f5b3e`](https://github.com/karmaniverous/jeeves-watcher/commit/42f5b3e5d6b2a3dc9af886107e9ae981b6fb0108)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.3.0 [`3ce4950`](https://github.com/karmaniverous/jeeves-watcher/commit/3ce4950d10de13300db94e90247739a3f4a6514a)
-- docs: add guides index pages for foldable typedoc sections [`1827505`](https://github.com/karmaniverous/jeeves-watcher/commit/1827505522859efbe89895f1b18d4c141c6f76f1)
-- fix(openclaw): remove deployment-specific content from skill [`1df6a25`](https://github.com/karmaniverous/jeeves-watcher/commit/1df6a25ea2a57ca7f1e6d781ed2c1e4a7de41927)
-- fix: plugin installer now claims memory slot in OpenClaw config [`020c6cd`](https://github.com/karmaniverous/jeeves-watcher/commit/020c6cdd258ad8a6e092e173c88caabf05e5f323)
-- fix: remove plugins.allow management from CLI, only manage entries and tools.allow [`64106b4`](https://github.com/karmaniverous/jeeves-watcher/commit/64106b49be35f11c8e4b9a499b45067869decc4b)
-- fix(openclaw): correct embedding alignment config path in skill [`4965dec`](https://github.com/karmaniverous/jeeves-watcher/commit/4965dec812e837f1c090ed59aa8464cff77cce69)
-- fix: conditionally manage plugins.allow only when already populated [`c486c3a`](https://github.com/karmaniverous/jeeves-watcher/commit/c486c3a8bc12df5f1d233a0f974c0024e91e84b4)
-- chore: release @karmaniverous/jeeves-watcher v0.5.1 [`b11e44e`](https://github.com/karmaniverous/jeeves-watcher/commit/b11e44e08911b12f719bb43357cc7647f3905ac6)
-- fix: resolve typecheck errors in tests and initialization [`47b92e1`](https://github.com/karmaniverous/jeeves-watcher/commit/47b92e1b43b9513273c2a4bff1a119a774243043)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.2.0 [`a6d4d7e`](https://github.com/karmaniverous/jeeves-watcher/commit/a6d4d7e57424b482b737cb6983dc5c9a86b96160)
-- fix(openclaw): use error.cause for precise connection error detection [`3bdd267`](https://github.com/karmaniverous/jeeves-watcher/commit/3bdd267225d129186ee6d9263379ddcd6808d7df)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.1.2 [`c019f41`](https://github.com/karmaniverous/jeeves-watcher/commit/c019f410d5cef94e653450b82966d64e1a70f900)
-- refactor(OCP): allow custom extractors via additionalExtractors parameter [`36b7ae2`](https://github.com/karmaniverous/jeeves-watcher/commit/36b7ae29cdc24109feb8c1a00555f93c5a1a5850)
-- chore: release @karmaniverous/jeeves-watcher v0.6.6 [`b64faf3`](https://github.com/karmaniverous/jeeves-watcher/commit/b64faf34ae7a5d10ebdd069dc5cfccedbe77d957)
-- chore: fix knip after monorepo split [`e16460b`](https://github.com/karmaniverous/jeeves-watcher/commit/e16460b90e5a695818bde2b47ac6577abf6cbf1c)
-- fix(lint): resolve unsafe-assignment and unbound-method in tests [`9e41021`](https://github.com/karmaniverous/jeeves-watcher/commit/9e41021de4513b8cb9f684bbf90e184b5559011e)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.4.0 [`db0673c`](https://github.com/karmaniverous/jeeves-watcher/commit/db0673ce79a4525b4d7294f64f8365f8831b128a)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.3.6 [`e864fec`](https://github.com/karmaniverous/jeeves-watcher/commit/e864fecd732f8cd4fedd708ff6a95b31311ad854)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.1.1 [`008e757`](https://github.com/karmaniverous/jeeves-watcher/commit/008e757704e0cdf5bca7819a9b9eb36b7258a300)
-- added env local template [`74aaa72`](https://github.com/karmaniverous/jeeves-watcher/commit/74aaa726761cb16d3f133a926e0a335b22417808)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.3.11 [`5ff129d`](https://github.com/karmaniverous/jeeves-watcher/commit/5ff129d3df997e9f06b67aeb630058ebb61a96ea)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.3.8 [`28a92a1`](https://github.com/karmaniverous/jeeves-watcher/commit/28a92a17b2be9039750b83b20657fd99b10a64eb)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.3.4 [`5b11938`](https://github.com/karmaniverous/jeeves-watcher/commit/5b119389b8dac493a4cf164e664338804ccd2dc5)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.3.1 [`de3215a`](https://github.com/karmaniverous/jeeves-watcher/commit/de3215ae4503eece2cb3823c26e6fa00fd1008d1)
-- lintfix [`c36da17`](https://github.com/karmaniverous/jeeves-watcher/commit/c36da17951cdbe955e620cf8a8626d2f1bb8a8c1)
-- chore: release @karmaniverous/jeeves-watcher v0.6.9 [`e22e72e`](https://github.com/karmaniverous/jeeves-watcher/commit/e22e72ecf713c8e81e714a20748d5fa3387fa8cb)
-- chore: release @karmaniverous/jeeves-watcher v0.6.4 [`b41bfc3`](https://github.com/karmaniverous/jeeves-watcher/commit/b41bfc3905995768f9c881f74518f7a943dcea7e)
-- chore: release @karmaniverous/jeeves-watcher v0.6.2 [`fa2304d`](https://github.com/karmaniverous/jeeves-watcher/commit/fa2304db79539f712770f7a958fc30e3b4d46ded)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.3.13 [`43d8d07`](https://github.com/karmaniverous/jeeves-watcher/commit/43d8d075019fc8ac53b7747f46a3725ee047b553)
-- chore: release @karmaniverous/jeeves-watcher v0.6.7 [`a692378`](https://github.com/karmaniverous/jeeves-watcher/commit/a6923786158eac99ad6fd8fd035d8cd706a55778)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.3.10 [`3b4b22c`](https://github.com/karmaniverous/jeeves-watcher/commit/3b4b22c1cd2a5d9dbf0933ae74db03f09e210840)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.3.9 [`97c635e`](https://github.com/karmaniverous/jeeves-watcher/commit/97c635e25b7c7ac4a5e6315ac2c26af7d1e89a74)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.3.5 [`837a941`](https://github.com/karmaniverous/jeeves-watcher/commit/837a94145b086245df101f7dcf2fd7a0c5ebfbca)
-- chore: release @karmaniverous/jeeves-watcher v0.6.1 [`037d9c9`](https://github.com/karmaniverous/jeeves-watcher/commit/037d9c924e1bc3020fb6b497f59261dd027718bd)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.4.1 [`7863ad4`](https://github.com/karmaniverous/jeeves-watcher/commit/7863ad4edaa04cdc665cba608f6b84ccdbd2b841)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.3.7 [`4c12277`](https://github.com/karmaniverous/jeeves-watcher/commit/4c12277cddbfd048f2312f94a907f11ea748407a)
-- fix: use glob instead of pattern for virtual rule matching (case-insensitive on Windows) [`0526d5a`](https://github.com/karmaniverous/jeeves-watcher/commit/0526d5a811e243de11e196f6b27b0be3578e2db3)
-- chore: release @karmaniverous/jeeves-watcher v0.6.3 [`da7414c`](https://github.com/karmaniverous/jeeves-watcher/commit/da7414c19894031d02da4713e3d57957a9f96449)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.3.3 [`9db834e`](https://github.com/karmaniverous/jeeves-watcher/commit/9db834ee75686d4a0cad09743d4d96b3d9c41ee5)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.3.2 [`99be8d8`](https://github.com/karmaniverous/jeeves-watcher/commit/99be8d8c5a895d28cc124c9110dba7e1f49eefc5)
-- chore: release @karmaniverous/jeeves-watcher v0.6.8 [`a465d72`](https://github.com/karmaniverous/jeeves-watcher/commit/a465d72d25c51003550fa0fa87ecf8203de84a75)
-- fix: read CLI version from package.json instead of hardcoding [`22a9727`](https://github.com/karmaniverous/jeeves-watcher/commit/22a9727d9cccfb75d11535546c4a9194e6ccec35)
-- chore: release @karmaniverous/jeeves-watcher v0.6.5 [`1c5a7fe`](https://github.com/karmaniverous/jeeves-watcher/commit/1c5a7fee4d192ed736b3ea4700df7649b49fd1d6)
-- fix: normalizePath preserves drive letter case to match service path normalization [`b79c8c4`](https://github.com/karmaniverous/jeeves-watcher/commit/b79c8c4cee38ccf989a7ee067a67c1879464e53d)
-- chore: remove temp commit script [`31d35a7`](https://github.com/karmaniverous/jeeves-watcher/commit/31d35a7341fdfe9d823ffbd04f4192396edcd638)
-- fix(openclaw): add deployment-discovery guidance to skill, prevent assumption of specific domains [`3da7cf3`](https://github.com/karmaniverous/jeeves-watcher/commit/3da7cf3252cf90788d0a8e3d162220d45c5ec6a6)
-- lintfix [`d410046`](https://github.com/karmaniverous/jeeves-watcher/commit/d410046d448b6d57a275686555998bfcc9919142)
-- fix(openclaw): skill proactive check matches positive case only [`4e9be5f`](https://github.com/karmaniverous/jeeves-watcher/commit/4e9be5ffe8e07fb67e62118fa416613e7680149f)
-- package version 0 [`eda1c58`](https://github.com/karmaniverous/jeeves-watcher/commit/eda1c58217fc89a4f1d2ff3e048c13973b5056fd)
-- chore: tune docs warnPattern to ignore Zod enum TSDoc warnings [`b09909a`](https://github.com/karmaniverous/jeeves-watcher/commit/b09909a51b5b076ea071c2e83047c21eec1f594f)
-- fix: revert unconditional ensureTextIndex from initialization.ts [`7ae6b62`](https://github.com/karmaniverous/jeeves-watcher/commit/7ae6b629352d3b48872186f469694d72132092d5)
-- removed docs from release script [`8878235`](https://github.com/karmaniverous/jeeves-watcher/commit/88782358db1a8ff2f1303d503d7086df4994d23b)
-
-#### [0.4.0](https://github.com/karmaniverous/jeeves-watcher/compare/openclaw/0.4.0...0.4.0)
-
-> 23 February 2026
-
-#### [openclaw/0.4.0](https://github.com/karmaniverous/jeeves-watcher/compare/openclaw/0.3.13...openclaw/0.4.0)
-
-> 1 March 2026
-
-- feat(openclaw)!: remove memory slot takeover [`#77`](https://github.com/karmaniverous/jeeves-watcher/pull/77)
-- feat(openclaw)!: remove memory slot takeover, simplify to pure extension [`0b1bdcb`](https://github.com/karmaniverous/jeeves-watcher/commit/0b1bdcb8ebbb602bc2ceb89ae61104a5d81427f8)
-- fix(openclaw): remove deployment-specific content from skill [`1df6a25`](https://github.com/karmaniverous/jeeves-watcher/commit/1df6a25ea2a57ca7f1e6d781ed2c1e4a7de41927)
-- fix(openclaw): correct embedding alignment config path in skill [`4965dec`](https://github.com/karmaniverous/jeeves-watcher/commit/4965dec812e837f1c090ed59aa8464cff77cce69)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.4.0 [`db0673c`](https://github.com/karmaniverous/jeeves-watcher/commit/db0673ce79a4525b4d7294f64f8365f8831b128a)
-- chore: release @karmaniverous/jeeves-watcher v0.6.9 [`e22e72e`](https://github.com/karmaniverous/jeeves-watcher/commit/e22e72ecf713c8e81e714a20748d5fa3387fa8cb)
-- fix(openclaw): add deployment-discovery guidance to skill, prevent assumption of specific domains [`3da7cf3`](https://github.com/karmaniverous/jeeves-watcher/commit/3da7cf3252cf90788d0a8e3d162220d45c5ec6a6)
-
-#### [openclaw/0.3.13](https://github.com/karmaniverous/jeeves-watcher/compare/openclaw/0.3.11...openclaw/0.3.13)
-
-> 1 March 2026
-
-- chore: change default port from 3456 to 1936 [`#75`](https://github.com/karmaniverous/jeeves-watcher/pull/75)
-- chore: fix all eslint errors (210 → 0) [`#76`](https://github.com/karmaniverous/jeeves-watcher/pull/76)
-- feat(openclaw): add memory → archive escalation pattern to skill [`#74`](https://github.com/karmaniverous/jeeves-watcher/pull/74)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.3.13 [`43d8d07`](https://github.com/karmaniverous/jeeves-watcher/commit/43d8d075019fc8ac53b7747f46a3725ee047b553)
-
-#### [openclaw/0.3.11](https://github.com/karmaniverous/jeeves-watcher/compare/openclaw/0.3.10...openclaw/0.3.11)
-
-> 28 February 2026
-
-- feat(openclaw): disable memory-core when installing with --memory [`#73`](https://github.com/karmaniverous/jeeves-watcher/pull/73)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.3.11 [`5ff129d`](https://github.com/karmaniverous/jeeves-watcher/commit/5ff129d3df997e9f06b67aeb630058ebb61a96ea)
-- chore: release @karmaniverous/jeeves-watcher v0.6.7 [`a692378`](https://github.com/karmaniverous/jeeves-watcher/commit/a6923786158eac99ad6fd8fd035d8cd706a55778)
-- chore: release @karmaniverous/jeeves-watcher v0.6.8 [`a465d72`](https://github.com/karmaniverous/jeeves-watcher/commit/a465d72d25c51003550fa0fa87ecf8203de84a75)
-- fix: read CLI version from package.json instead of hardcoding [`22a9727`](https://github.com/karmaniverous/jeeves-watcher/commit/22a9727d9cccfb75d11535546c4a9194e6ccec35)
-- lintfix [`d410046`](https://github.com/karmaniverous/jeeves-watcher/commit/d410046d448b6d57a275686555998bfcc9919142)
-
-#### [openclaw/0.3.10](https://github.com/karmaniverous/jeeves-watcher/compare/openclaw/0.3.9...openclaw/0.3.10)
-
-> 28 February 2026
-
-- feat(openclaw): brand memory tool responses with provider field [`#71`](https://github.com/karmaniverous/jeeves-watcher/pull/71)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.3.10 [`3b4b22c`](https://github.com/karmaniverous/jeeves-watcher/commit/3b4b22c1cd2a5d9dbf0933ae74db03f09e210840)
-- fix(openclaw): skill proactive check matches positive case only [`4e9be5f`](https://github.com/karmaniverous/jeeves-watcher/commit/4e9be5ffe8e07fb67e62118fa416613e7680149f)
-
-#### [openclaw/0.3.9](https://github.com/karmaniverous/jeeves-watcher/compare/openclaw/0.3.8...openclaw/0.3.9)
-
-> 28 February 2026
-
-- docs(openclaw): add bootstrap, install modes, and proactive posture to skill [`#70`](https://github.com/karmaniverous/jeeves-watcher/pull/70)
-- chore: release @karmaniverous/jeeves-watcher v0.6.6 [`b64faf3`](https://github.com/karmaniverous/jeeves-watcher/commit/b64faf34ae7a5d10ebdd069dc5cfccedbe77d957)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.3.9 [`97c635e`](https://github.com/karmaniverous/jeeves-watcher/commit/97c635e25b7c7ac4a5e6315ac2c26af7d1e89a74)
-
-#### [openclaw/0.3.8](https://github.com/karmaniverous/jeeves-watcher/compare/openclaw/0.3.7...openclaw/0.3.8)
-
-> 28 February 2026
-
-- feat(openclaw): --memory flag for install CLI [`#69`](https://github.com/karmaniverous/jeeves-watcher/pull/69)
-- feat(openclaw): decouple plugin from watcher config vocabulary [`#68`](https://github.com/karmaniverous/jeeves-watcher/pull/68)
-- fix: fresh QdrantClient for write ops to avoid stale keep-alive ECONNRESET [`#67`](https://github.com/karmaniverous/jeeves-watcher/pull/67)
-- lintfix [`cd4c841`](https://github.com/karmaniverous/jeeves-watcher/commit/cd4c84150cfce2b541a9215966139f61e0ce6fcd)
-- fix: use fresh QdrantClient for write ops to avoid stale keep-alive connections [`e8215d5`](https://github.com/karmaniverous/jeeves-watcher/commit/e8215d5dc9f82deea59e8259f28be4b2e074f0fb)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.3.8 [`28a92a1`](https://github.com/karmaniverous/jeeves-watcher/commit/28a92a17b2be9039750b83b20657fd99b10a64eb)
-
-#### [openclaw/0.3.7](https://github.com/karmaniverous/jeeves-watcher/compare/openclaw/0.3.6...openclaw/0.3.7)
-
-> 28 February 2026
-
-- fix: use domains (plural array) in virtual rules and search filter [`#66`](https://github.com/karmaniverous/jeeves-watcher/pull/66)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.3.7 [`4c12277`](https://github.com/karmaniverous/jeeves-watcher/commit/4c12277cddbfd048f2312f94a907f11ea748407a)
-
-#### [openclaw/0.3.6](https://github.com/karmaniverous/jeeves-watcher/compare/openclaw/0.3.5...openclaw/0.3.6)
-
-> 28 February 2026
-
-- feat: POST /rules/reapply endpoint + plugin auto-reapply after registration [`#65`](https://github.com/karmaniverous/jeeves-watcher/pull/65)
-- fix: disable AJV strict mode to suppress schema type warnings [`#55`](https://github.com/karmaniverous/jeeves-watcher/pull/55)
-- fix: case-insensitive glob matching in AJV rule keyword [`#64`](https://github.com/karmaniverous/jeeves-watcher/pull/64)
-- fix: add nocase and dot options to AJV glob keyword [`3f7cb9b`](https://github.com/karmaniverous/jeeves-watcher/commit/3f7cb9b34638f0cdfe86057a2a9b5a70cd7e23da)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.3.6 [`e864fec`](https://github.com/karmaniverous/jeeves-watcher/commit/e864fecd732f8cd4fedd708ff6a95b31311ad854)
-- chore: release @karmaniverous/jeeves-watcher v0.6.4 [`b41bfc3`](https://github.com/karmaniverous/jeeves-watcher/commit/b41bfc3905995768f9c881f74518f7a943dcea7e)
-- chore: release @karmaniverous/jeeves-watcher v0.6.5 [`1c5a7fe`](https://github.com/karmaniverous/jeeves-watcher/commit/1c5a7fee4d192ed736b3ea4700df7649b49fd1d6)
-
-#### [openclaw/0.3.5](https://github.com/karmaniverous/jeeves-watcher/compare/openclaw/0.3.4...openclaw/0.3.5)
-
-> 28 February 2026
-
-- fix: use glob instead of pattern for virtual rule matching [`#62`](https://github.com/karmaniverous/jeeves-watcher/pull/62)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.3.5 [`837a941`](https://github.com/karmaniverous/jeeves-watcher/commit/837a94145b086245df101f7dcf2fd7a0c5ebfbca)
-- fix: use glob instead of pattern for virtual rule matching (case-insensitive on Windows) [`0526d5a`](https://github.com/karmaniverous/jeeves-watcher/commit/0526d5a811e243de11e196f6b27b0be3578e2db3)
-
-#### [openclaw/0.3.4](https://github.com/karmaniverous/jeeves-watcher/compare/openclaw/0.3.3...openclaw/0.3.4)
-
-> 28 February 2026
-
-- fix: normalizePath preserves drive letter case to match service [`#61`](https://github.com/karmaniverous/jeeves-watcher/pull/61)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.3.4 [`5b11938`](https://github.com/karmaniverous/jeeves-watcher/commit/5b119389b8dac493a4cf164e664338804ccd2dc5)
-- chore: release @karmaniverous/jeeves-watcher v0.6.2 [`fa2304d`](https://github.com/karmaniverous/jeeves-watcher/commit/fa2304db79539f712770f7a958fc30e3b4d46ded)
-- chore: release @karmaniverous/jeeves-watcher v0.6.3 [`da7414c`](https://github.com/karmaniverous/jeeves-watcher/commit/da7414c19894031d02da4713e3d57957a9f96449)
-- fix: normalizePath preserves drive letter case to match service path normalization [`b79c8c4`](https://github.com/karmaniverous/jeeves-watcher/commit/b79c8c4cee38ccf989a7ee067a67c1879464e53d)
-- fix: revert unconditional ensureTextIndex from initialization.ts [`7ae6b62`](https://github.com/karmaniverous/jeeves-watcher/commit/7ae6b629352d3b48872186f469694d72132092d5)
-
-#### [openclaw/0.3.3](https://github.com/karmaniverous/jeeves-watcher/compare/openclaw/0.3.2...openclaw/0.3.3)
-
-> 28 February 2026
-
-- fix: ensure text index on startup + re-register virtual rules after watcher restart [`#60`](https://github.com/karmaniverous/jeeves-watcher/pull/60)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.3.3 [`9db834e`](https://github.com/karmaniverous/jeeves-watcher/commit/9db834ee75686d4a0cad09743d4d96b3d9c41ee5)
-
-#### [openclaw/0.3.2](https://github.com/karmaniverous/jeeves-watcher/compare/0.3.1...openclaw/0.3.2)
-
-> 28 February 2026
-
-- fix: plugin config lookup uses correct entry key (jeeves-watcher-openclaw) [`#59`](https://github.com/karmaniverous/jeeves-watcher/pull/59)
-- fix: update test fixture to include slots for idempotency check [`#58`](https://github.com/karmaniverous/jeeves-watcher/pull/58)
-- chore: bump @karmaniverous/jsonmap to 2.1.1 [`#57`](https://github.com/karmaniverous/jeeves-watcher/pull/57)
-- fix: plugin installer claims memory slot in OpenClaw config [`#56`](https://github.com/karmaniverous/jeeves-watcher/pull/56)
-- docs: update guides for v0.6.0 changes [`#54`](https://github.com/karmaniverous/jeeves-watcher/pull/54)
-- refactor: extract modules to fix 300 LOC violations [`#53`](https://github.com/karmaniverous/jeeves-watcher/pull/53)
-- refactor: DRY fixes and comprehensive test coverage for openclaw package [`#52`](https://github.com/karmaniverous/jeeves-watcher/pull/52)
-- refactor+test: service SOLID/DRY fixes + 54 new tests [`#51`](https://github.com/karmaniverous/jeeves-watcher/pull/51)
-- feat: memory slot takeover with virtual rules API [`#49`](https://github.com/karmaniverous/jeeves-watcher/pull/49)
-- feat: support external rule file references in inferenceRules config [`#50`](https://github.com/karmaniverous/jeeves-watcher/pull/50)
-- feat(service): add hybrid search with BM25 text index and RRF fusion [`#48`](https://github.com/karmaniverous/jeeves-watcher/pull/48)
-- feat(service): Handlebars set expressions + date normalization [`#47`](https://github.com/karmaniverous/jeeves-watcher/pull/47)
-- feat(service): add filesystem date metadata and line offsets [`#46`](https://github.com/karmaniverous/jeeves-watcher/pull/46)
-- fix(openclaw): skill review feedback [`#45`](https://github.com/karmaniverous/jeeves-watcher/pull/45)
-- chore(openclaw): merge skills, simplify build, improve error messaging [`#44`](https://github.com/karmaniverous/jeeves-watcher/pull/44)
-- docs: document self-installer CLI and Windows workaround [`#41`](https://github.com/karmaniverous/jeeves-watcher/pull/41)
-- fix: resolve lint errors in openclaw CLI [`#40`](https://github.com/karmaniverous/jeeves-watcher/pull/40)
-- feat: add install/uninstall CLI for OpenClaw plugin [`#39`](https://github.com/karmaniverous/jeeves-watcher/pull/39)
-- chore: fix monorepo release-it tags, plugin id, and version sync [`#38`](https://github.com/karmaniverous/jeeves-watcher/pull/38)
-- feat: convert to monorepo with service and openclaw plugin packages [`#37`](https://github.com/karmaniverous/jeeves-watcher/pull/37)
-- docs(skill): add theory of operation, remove stale SKILL.md [`#36`](https://github.com/karmaniverous/jeeves-watcher/pull/36)
-- feat: v0.5.0 — plugin expansion, two-skill architecture, API extensions [`#35`](https://github.com/karmaniverous/jeeves-watcher/pull/35)
-- fix: use pathToFileURL for dynamic imports on Windows [`#31`](https://github.com/karmaniverous/jeeves-watcher/pull/31)
-- feat: support custom JsonMap lib functions via config [`#29`](https://github.com/karmaniverous/jeeves-watcher/pull/29)
-- fix: resolve file path references in named maps config [`#28`](https://github.com/karmaniverous/jeeves-watcher/pull/28)
-- fix: resolve chokidar v5 ignored glob patterns via picomatch matchers [`#27`](https://github.com/karmaniverous/jeeves-watcher/pull/27)
-- fix: adapt to chokidar v4 glob removal — watch directory roots with picomatch filtering [`#26`](https://github.com/karmaniverous/jeeves-watcher/pull/26)
-- feat: Content Templates (v0.4.0) — Handlebars-based content transformation at index time [`#23`](https://github.com/karmaniverous/jeeves-watcher/pull/23)
-- feat(service): add hybrid search with BM25 text index and RRF fusion (#48) [`#35`](https://github.com/karmaniverous/jeeves-watcher/issues/35)
-- feat(service): add filesystem date metadata and line offsets (#46) [`#24`](https://github.com/karmaniverous/jeeves-watcher/issues/24)
-- fix: use pathToFileURL for dynamic imports on Windows (#31) [`#30`](https://github.com/karmaniverous/jeeves-watcher/issues/30)
-- fix: resolve chokidar glob pattern failure on Windows by extracting directory roots [`#25`](https://github.com/karmaniverous/jeeves-watcher/issues/25)
-- updated docs [`3028f04`](https://github.com/karmaniverous/jeeves-watcher/commit/3028f04a038935d6339c575f8c78dc10f301a2df)
-- chore: release v0.5.0-0 [`0c181d9`](https://github.com/karmaniverous/jeeves-watcher/commit/0c181d95303c04178aa7cb51a4ffe852354d6f02)
-- docs: complete v0.5.0 documentation pass [`e563ee8`](https://github.com/karmaniverous/jeeves-watcher/commit/e563ee870a92229be2fc71fb0fefdd7bbd23dbe7)
-- feat: add template engine dependencies (handlebars, mdast-util-from-adf, etc.) [`f6d090c`](https://github.com/karmaniverous/jeeves-watcher/commit/f6d090cfe710adf94013e2d5a6f791ce72474f7a)
-- docs: export missing symbols, add TSDoc, fix typedoc warnings [`85f5f02`](https://github.com/karmaniverous/jeeves-watcher/commit/85f5f02c84c2ecf309ef799d186d689a5e8412ef)
-- docs: fix TypeDoc warnings — constructor params, JsonFileStore props, handlebars highlight [`388bed4`](https://github.com/karmaniverous/jeeves-watcher/commit/388bed46c1d49360adca7109476d502abb13f007)
-- feat(schema): implement Phase 1 - core schema system [`4b538ad`](https://github.com/karmaniverous/jeeves-watcher/commit/4b538ad12dd4f68a093faf7e5460a2cfcc716d84)
-- feat: foundation for v0.5.0 - issues, values, named rules, config schema [`a81cfa9`](https://github.com/karmaniverous/jeeves-watcher/commit/a81cfa98f8b16cc3e0559571d6db36dd00a5e440)
-- refactor(DRY): split config schemas into logical modules [`fc24cb4`](https://github.com/karmaniverous/jeeves-watcher/commit/fc24cb4ffb306ca8454f3467074be0569ce64ad8)
-- chore: release v0.4.0 [`79f7f8d`](https://github.com/karmaniverous/jeeves-watcher/commit/79f7f8d002f7deae4d4923e9e490f0e3d4e8ca3a)
-- feat: API endpoints for v0.5.0 — query validate apply issues reindex tracking [`97b0f75`](https://github.com/karmaniverous/jeeves-watcher/commit/97b0f7516de416c68bb5af95491150cd318680ba)
-- feat: validate metadata and align issues + skill docs [`1ffdc0c`](https://github.com/karmaniverous/jeeves-watcher/commit/1ffdc0cfbf56411a060c924e3f3b0918c54b7720)
-- chore: release v0.5.0 [`aa5a5aa`](https://github.com/karmaniverous/jeeves-watcher/commit/aa5a5aa2ed2f40f581ee28bf9946c1a065c5a9bd)
-- chore: release v0.5.0-1 [`2b330da`](https://github.com/karmaniverous/jeeves-watcher/commit/2b330dabb6f630394138a8132e51e49ae6f0cfb2)
-- chore: update deps (hast, knip, rollup) [`3790582`](https://github.com/karmaniverous/jeeves-watcher/commit/3790582cdd5f984fc3101ed93580e34de0fccc4d)
-- feat: helper namespace prefixing and JSDoc introspection [`ffbaba5`](https://github.com/karmaniverous/jeeves-watcher/commit/ffbaba5e7661089566aab452d0c3c3b45d0f494f)
-- docs: update guides for v0.5.0 endpoints, config, and CLI [`0c79850`](https://github.com/karmaniverous/jeeves-watcher/commit/0c79850ad5906ce60dec257e502b7bcd83a09de6)
-- feat: complete v2 spec implementation gaps (P0-P2) [`fa45008`](https://github.com/karmaniverous/jeeves-watcher/commit/fa45008b0aebd103302ffa72ed216398615b9674)
-- chore: release v0.4.3 [`8b82d0c`](https://github.com/karmaniverous/jeeves-watcher/commit/8b82d0cf01dee60ab3a135ac6c0c70ae726d31fd)
-- chore: release v0.4.2 [`4ea9215`](https://github.com/karmaniverous/jeeves-watcher/commit/4ea9215f5ae9506bf497fffdcbf414160ae03310)
-- chore: release v0.4.4 [`f3a284c`](https://github.com/karmaniverous/jeeves-watcher/commit/f3a284ce1c940f0ea1e5e9338492cc0de61c5b97)
-- chore: release v0.4.1 [`c736409`](https://github.com/karmaniverous/jeeves-watcher/commit/c7364099798bc494ea633f376bf747e1cb995209)
-- refactor: DRY helper module loading into shared utility [`fef881a`](https://github.com/karmaniverous/jeeves-watcher/commit/fef881a4ae00bb6e09eccfc3fe08b69741d18c4a)
-- feat: export template engine types, fix knip (add hast dep) [`7ae0597`](https://github.com/karmaniverous/jeeves-watcher/commit/7ae059712e46ecabcbf7539814a0783bb9410dc6)
-- refactor: decompose app/index.ts into factories and startFromConfig modules (300 LOC limit) [`33736c2`](https://github.com/karmaniverous/jeeves-watcher/commit/33736c2f2418c85c4b2c81cd48dc08758de62dcb)
-- test: add critical test coverage for utilities and handlers [`b9b94d7`](https://github.com/karmaniverous/jeeves-watcher/commit/b9b94d7be0bf6d39a5df959202c978daaa55284b)
-- feat: add template engine module and config schema changes [`968132f`](https://github.com/karmaniverous/jeeves-watcher/commit/968132f71cc7159afd574a4d3e90a67784a8e0ac)
-- refactor(DRY): add withApiOptions helper for CLI commands [`26df301`](https://github.com/karmaniverous/jeeves-watcher/commit/26df3015d41b0e351b762a116077f4afcd04a090)
-- fix: replace eslint-disable comments with properly typed mocks [`025e322`](https://github.com/karmaniverous/jeeves-watcher/commit/025e322946827fc0ffd37258d3fa5cf1cf2fa0f8)
-- feat: expand plugin to 8 tools for v0.5.0 [`bde15f4`](https://github.com/karmaniverous/jeeves-watcher/commit/bde15f465b0ab503519999c5fd0049fa255ebece)
-- refactor(SRP): extract app initialization logic to separate module [`63147f4`](https://github.com/karmaniverous/jeeves-watcher/commit/63147f4fce30c692bc134bdb27eda4aa8ee49940)
-- feat: two-skill architecture with build pipeline [`898db5e`](https://github.com/karmaniverous/jeeves-watcher/commit/898db5e3253d7986de35b8292afa7e2e944a24c1)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.1.0 [`97e2834`](https://github.com/karmaniverous/jeeves-watcher/commit/97e2834986f0ce53098d0299d0da3025a432e43f)
-- refactor(SRP/OCP): split embedding providers into separate files [`d07f4c9`](https://github.com/karmaniverous/jeeves-watcher/commit/d07f4c9553c7b926db1a2d8550469fdcff54879d)
-- feat: add install/uninstall CLI to bypass OpenClaw spawn EINVAL bug on Windows [`1ad7fbb`](https://github.com/karmaniverous/jeeves-watcher/commit/1ad7fbb1f4947d852a5a16a2b564b27ccb0620d5)
-- docs: fix template syntax, stale references, and add missing API/tool docs [`8af92ef`](https://github.com/karmaniverous/jeeves-watcher/commit/8af92efff989bc78b60fa7ab99020619aa72c5f7)
-- refactor: extract shared mergeAndValidateConfig [`aecab7f`](https://github.com/karmaniverous/jeeves-watcher/commit/aecab7f348f22f3e41160bad251e6d51a8306c5e)
-- test: update test files to use new schema format [`336ff00`](https://github.com/karmaniverous/jeeves-watcher/commit/336ff00db2595b125bb3d71d1923d81f0baadf89)
-- refactor: extract shared executeReindex to eliminate duplication [`7658108`](https://github.com/karmaniverous/jeeves-watcher/commit/7658108fc9899557fc3d65b82a1947a2bddc1e25)
-- test: add DocumentProcessor unit tests [`987012f`](https://github.com/karmaniverous/jeeves-watcher/commit/987012fb754b43c7324929e537ec7676e9848e63)
-- test: add more critical test coverage [`233082c`](https://github.com/karmaniverous/jeeves-watcher/commit/233082c410cbd8c32f71cd40e64b6028f08c521e)
-- feat: integrate template engine into pipeline (applyRules, processFile, config reload) [`64cc135`](https://github.com/karmaniverous/jeeves-watcher/commit/64cc13509c54532a09d04647e08df8795bbcff57)
-- feat: implement Phase 3 API endpoints [`eb697cf`](https://github.com/karmaniverous/jeeves-watcher/commit/eb697cfd894af3dda446d2988fcc2e0eefee2a97)
-- refactor(DIP): introduce VectorStore interface and update consumers [`1975dee`](https://github.com/karmaniverous/jeeves-watcher/commit/1975deeb610dafa76aceb4e84e82ca7229cd9b5e)
-- test: add template engine tests and update existing rule tests for new return shape [`d6ef7d7`](https://github.com/karmaniverous/jeeves-watcher/commit/d6ef7d7a54f20d54e0b88a36505eca74606751f5)
-- refactor(DRY): extract repeated patterns to utilities [`12842de`](https://github.com/karmaniverous/jeeves-watcher/commit/12842dea5442fd38ddea5d6a3c4ad841c0177f43)
-- chore: fix docs, READMEs, and rollup config for monorepo [`0b92399`](https://github.com/karmaniverous/jeeves-watcher/commit/0b92399eec0275c42ecb6a637c0c59756925c321)
-- fix: resolve all lint errors in test files and wrapHandler [`bbcde3f`](https://github.com/karmaniverous/jeeves-watcher/commit/bbcde3f8c6e19ff975cfda83826226e93181183b)
-- docs(skill): add theory of operation narrative, remove stale plugin/skill/SKILL.md [`979993d`](https://github.com/karmaniverous/jeeves-watcher/commit/979993dfbd19a8102441fb95d7be10ae0000c6e5)
-- refactor: DRY API handler error handling with wrapHandler; fix writeFileSync in configApply [`8995d2e`](https://github.com/karmaniverous/jeeves-watcher/commit/8995d2e85c48a75503812e20331db8fe88816d38)
-- test: add EventQueue tests [`93a7eab`](https://github.com/karmaniverous/jeeves-watcher/commit/93a7eab2573d92ef4ef7217a6c373fe89f3be29f)
-- refactor: extract JsonFileStore base for issues/values [`c36112f`](https://github.com/karmaniverous/jeeves-watcher/commit/c36112f43dd415893db4ff999e10b63034870ad8)
-- docs: add content templates section to inference-rules guide [`ebf74ef`](https://github.com/karmaniverous/jeeves-watcher/commit/ebf74efc7fdba17dc4c90f7b477be3d415f716f1)
-- test: add mergedDocument tests [`41a2561`](https://github.com/karmaniverous/jeeves-watcher/commit/41a25615cbaf3e5d1773abd5a78c89e9dc725f1d)
-- revert: remove manual CHANGELOG.md edits (auto-generated on release) [`c20e149`](https://github.com/karmaniverous/jeeves-watcher/commit/c20e14967723b52b877acb3de062d276587bcf44)
-- test: add configValidate handler tests [`00d52fd`](https://github.com/karmaniverous/jeeves-watcher/commit/00d52fd7a4d19621b7318eb2b6512d062b8e6acf)
-- test: add configApply handler tests [`5fb3b43`](https://github.com/karmaniverous/jeeves-watcher/commit/5fb3b436b8a205ef76fdf88389655b2246ec665f)
-- fix: resolve eslint unbound-method and prettier errors [`36b5803`](https://github.com/karmaniverous/jeeves-watcher/commit/36b5803e83cce02bcb124095662965f887ceec66)
-- chore: align release-it config for monorepo [`938a3e0`](https://github.com/karmaniverous/jeeves-watcher/commit/938a3e0deb686f9f224c90f7e585782e072a6e3e)
-- test: add configQuery handler tests [`6adfcab`](https://github.com/karmaniverous/jeeves-watcher/commit/6adfcab476aa7c63119c340f5dad7428f8544a41)
-- fix: resolve all STAN lint errors and reduce docs warnings [`062594f`](https://github.com/karmaniverous/jeeves-watcher/commit/062594ff6645b7ff35cc90df38e55ee1eab645b3)
-- refactor(DIP): add DocumentProcessor interface and update factory/consumers [`8a30433`](https://github.com/karmaniverous/jeeves-watcher/commit/8a30433c4c767eac7ea1eba96153ec3d0ad06107)
-- refactor(ISP): convert buildMergedMetadata to options object pattern [`0d67913`](https://github.com/karmaniverous/jeeves-watcher/commit/0d6791301736252bc4fffb068ca06ef30eb554be)
-- chore: make service package ESM-only, remove CJS and IIFE outputs [`9a16492`](https://github.com/karmaniverous/jeeves-watcher/commit/9a164923ae10e7a391520794440aa05420bd99f6)
-- fix: resolveReferences only resolves known config reference positions [`1890bf9`](https://github.com/karmaniverous/jeeves-watcher/commit/1890bf9a2216c769ca1640e70600e8b079cafbcd)
-- fix(lint): address majority of lint issues in new tests [`aec00f8`](https://github.com/karmaniverous/jeeves-watcher/commit/aec00f86b86526d706b1dca3c2d851b77b4c3b75)
-- test: add configReindex handler tests [`506b638`](https://github.com/karmaniverous/jeeves-watcher/commit/506b6387ca73af4d368fececb95c19113696313b)
-- fix: resolve lint errors in openclaw CLI and add rollup externals [`b4e8514`](https://github.com/karmaniverous/jeeves-watcher/commit/b4e8514d991daaed99bd7d7dff7028b4310109be)
-- refactor(ISP): narrow API handler deps to required fields [`309daa3`](https://github.com/karmaniverous/jeeves-watcher/commit/309daa37ba7b296889b6c9b53818e4c2f2549682)
-- fix: resolve lint errors and align tests with spec [`29c5217`](https://github.com/karmaniverous/jeeves-watcher/commit/29c52177aa5507817656c441fb67c287e27a8cb4)
-- docs: document self-installer CLI and Windows spawn EINVAL workaround [`e3d6351`](https://github.com/karmaniverous/jeeves-watcher/commit/e3d63512fe57b555e753c8f86bbfe57a1b97f70c)
-- docs: add production directory structure guidance for maps and templates [`14c51c8`](https://github.com/karmaniverous/jeeves-watcher/commit/14c51c83fedb4d626e56a021870260ccf13eefcf)
-- refactor(SRP): extract shared template/map helper wiring from JeevesWatcher [`7d1b629`](https://github.com/karmaniverous/jeeves-watcher/commit/7d1b6299c8055ae15fbbf6c000b9eb0f166219a3)
-- chore: release @karmaniverous/jeeves-watcher v0.6.0 [`b7b207e`](https://github.com/karmaniverous/jeeves-watcher/commit/b7b207e96b1750bcacc4f5dd67ecf9c369415e25)
-- test: add ReindexTracker tests [`5830048`](https://github.com/karmaniverous/jeeves-watcher/commit/5830048c62a9950b4f5940f99c140d6caa5b161f)
-- refactor(DRY): extract vectorStore payload type inference [`8f70a7c`](https://github.com/karmaniverous/jeeves-watcher/commit/8f70a7c99a2937e26b6f1aa27317a6304e40947b)
-- fix: implement actual rule matching in testPaths validation [`dba6f4e`](https://github.com/karmaniverous/jeeves-watcher/commit/dba6f4e79f4a2013e42060d84f993bb36346d95d)
-- chore: convert repo to npm workspaces monorepo [`d8fc6e8`](https://github.com/karmaniverous/jeeves-watcher/commit/d8fc6e821af4dde868f1c82b82f8c348788b4a65)
-- fix: apply same conditional logic to tools.allow as plugins.allow [`4549569`](https://github.com/karmaniverous/jeeves-watcher/commit/4549569ea72e1bbe385fd7592497982bbc34ec39)
-- refactor(DRY): align logError helper signature with standard pattern [`a014202`](https://github.com/karmaniverous/jeeves-watcher/commit/a014202e0795d015b913e4e113e427f51edeb76f)
-- refactor: centralize processor payload field names [`34836ce`](https://github.com/karmaniverous/jeeves-watcher/commit/34836cebe3d66dab7ae7475ac0aa1ca5dfcd4aa3)
-- refactor(DRY): apply logError utility in DocumentProcessor [`42f5b3e`](https://github.com/karmaniverous/jeeves-watcher/commit/42f5b3e5d6b2a3dc9af886107e9ae981b6fb0108)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.3.0 [`3ce4950`](https://github.com/karmaniverous/jeeves-watcher/commit/3ce4950d10de13300db94e90247739a3f4a6514a)
-- docs: add guides index pages for foldable typedoc sections [`1827505`](https://github.com/karmaniverous/jeeves-watcher/commit/1827505522859efbe89895f1b18d4c141c6f76f1)
-- fix: plugin installer now claims memory slot in OpenClaw config [`020c6cd`](https://github.com/karmaniverous/jeeves-watcher/commit/020c6cdd258ad8a6e092e173c88caabf05e5f323)
-- fix: remove plugins.allow management from CLI, only manage entries and tools.allow [`64106b4`](https://github.com/karmaniverous/jeeves-watcher/commit/64106b49be35f11c8e4b9a499b45067869decc4b)
-- fix: conditionally manage plugins.allow only when already populated [`c486c3a`](https://github.com/karmaniverous/jeeves-watcher/commit/c486c3a8bc12df5f1d233a0f974c0024e91e84b4)
-- chore: release @karmaniverous/jeeves-watcher v0.5.1 [`b11e44e`](https://github.com/karmaniverous/jeeves-watcher/commit/b11e44e08911b12f719bb43357cc7647f3905ac6)
-- fix: resolve typecheck errors in tests and initialization [`47b92e1`](https://github.com/karmaniverous/jeeves-watcher/commit/47b92e1b43b9513273c2a4bff1a119a774243043)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.2.0 [`a6d4d7e`](https://github.com/karmaniverous/jeeves-watcher/commit/a6d4d7e57424b482b737cb6983dc5c9a86b96160)
-- fix(openclaw): use error.cause for precise connection error detection [`3bdd267`](https://github.com/karmaniverous/jeeves-watcher/commit/3bdd267225d129186ee6d9263379ddcd6808d7df)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.1.2 [`c019f41`](https://github.com/karmaniverous/jeeves-watcher/commit/c019f410d5cef94e653450b82966d64e1a70f900)
-- refactor(OCP): allow custom extractors via additionalExtractors parameter [`36b7ae2`](https://github.com/karmaniverous/jeeves-watcher/commit/36b7ae29cdc24109feb8c1a00555f93c5a1a5850)
-- chore: fix knip after monorepo split [`e16460b`](https://github.com/karmaniverous/jeeves-watcher/commit/e16460b90e5a695818bde2b47ac6577abf6cbf1c)
-- fix(lint): resolve unsafe-assignment and unbound-method in tests [`9e41021`](https://github.com/karmaniverous/jeeves-watcher/commit/9e41021de4513b8cb9f684bbf90e184b5559011e)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.1.1 [`008e757`](https://github.com/karmaniverous/jeeves-watcher/commit/008e757704e0cdf5bca7819a9b9eb36b7258a300)
-- added env local template [`74aaa72`](https://github.com/karmaniverous/jeeves-watcher/commit/74aaa726761cb16d3f133a926e0a335b22417808)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.3.1 [`de3215a`](https://github.com/karmaniverous/jeeves-watcher/commit/de3215ae4503eece2cb3823c26e6fa00fd1008d1)
-- lintfix [`c36da17`](https://github.com/karmaniverous/jeeves-watcher/commit/c36da17951cdbe955e620cf8a8626d2f1bb8a8c1)
-- chore: release @karmaniverous/jeeves-watcher v0.6.1 [`037d9c9`](https://github.com/karmaniverous/jeeves-watcher/commit/037d9c924e1bc3020fb6b497f59261dd027718bd)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.3.2 [`99be8d8`](https://github.com/karmaniverous/jeeves-watcher/commit/99be8d8c5a895d28cc124c9110dba7e1f49eefc5)
-- chore: remove temp commit script [`31d35a7`](https://github.com/karmaniverous/jeeves-watcher/commit/31d35a7341fdfe9d823ffbd04f4192396edcd638)
-- package version 0 [`eda1c58`](https://github.com/karmaniverous/jeeves-watcher/commit/eda1c58217fc89a4f1d2ff3e048c13973b5056fd)
-- chore: tune docs warnPattern to ignore Zod enum TSDoc warnings [`b09909a`](https://github.com/karmaniverous/jeeves-watcher/commit/b09909a51b5b076ea071c2e83047c21eec1f594f)
-- removed docs from release script [`8878235`](https://github.com/karmaniverous/jeeves-watcher/commit/88782358db1a8ff2f1303d503d7086df4994d23b)
-
-#### [0.3.1](https://github.com/karmaniverous/jeeves-watcher/compare/openclaw/0.3.1...0.3.1)
-
-> 23 February 2026
-
-#### [openclaw/0.3.1](https://github.com/karmaniverous/jeeves-watcher/compare/0.3.0...openclaw/0.3.1)
-
-> 28 February 2026
-
-- fix: update test fixture to include slots for idempotency check [`#58`](https://github.com/karmaniverous/jeeves-watcher/pull/58)
-- chore: bump @karmaniverous/jsonmap to 2.1.1 [`#57`](https://github.com/karmaniverous/jeeves-watcher/pull/57)
-- fix: plugin installer claims memory slot in OpenClaw config [`#56`](https://github.com/karmaniverous/jeeves-watcher/pull/56)
-- docs: update guides for v0.6.0 changes [`#54`](https://github.com/karmaniverous/jeeves-watcher/pull/54)
-- refactor: extract modules to fix 300 LOC violations [`#53`](https://github.com/karmaniverous/jeeves-watcher/pull/53)
-- refactor: DRY fixes and comprehensive test coverage for openclaw package [`#52`](https://github.com/karmaniverous/jeeves-watcher/pull/52)
-- refactor+test: service SOLID/DRY fixes + 54 new tests [`#51`](https://github.com/karmaniverous/jeeves-watcher/pull/51)
-- feat: memory slot takeover with virtual rules API [`#49`](https://github.com/karmaniverous/jeeves-watcher/pull/49)
-- feat: support external rule file references in inferenceRules config [`#50`](https://github.com/karmaniverous/jeeves-watcher/pull/50)
-- feat(service): add hybrid search with BM25 text index and RRF fusion [`#48`](https://github.com/karmaniverous/jeeves-watcher/pull/48)
-- feat(service): Handlebars set expressions + date normalization [`#47`](https://github.com/karmaniverous/jeeves-watcher/pull/47)
-- feat(service): add filesystem date metadata and line offsets [`#46`](https://github.com/karmaniverous/jeeves-watcher/pull/46)
-- fix(openclaw): skill review feedback [`#45`](https://github.com/karmaniverous/jeeves-watcher/pull/45)
-- chore(openclaw): merge skills, simplify build, improve error messaging [`#44`](https://github.com/karmaniverous/jeeves-watcher/pull/44)
-- docs: document self-installer CLI and Windows workaround [`#41`](https://github.com/karmaniverous/jeeves-watcher/pull/41)
-- fix: resolve lint errors in openclaw CLI [`#40`](https://github.com/karmaniverous/jeeves-watcher/pull/40)
-- feat: add install/uninstall CLI for OpenClaw plugin [`#39`](https://github.com/karmaniverous/jeeves-watcher/pull/39)
-- chore: fix monorepo release-it tags, plugin id, and version sync [`#38`](https://github.com/karmaniverous/jeeves-watcher/pull/38)
-- feat: convert to monorepo with service and openclaw plugin packages [`#37`](https://github.com/karmaniverous/jeeves-watcher/pull/37)
-- docs(skill): add theory of operation, remove stale SKILL.md [`#36`](https://github.com/karmaniverous/jeeves-watcher/pull/36)
-- feat: v0.5.0 — plugin expansion, two-skill architecture, API extensions [`#35`](https://github.com/karmaniverous/jeeves-watcher/pull/35)
-- fix: use pathToFileURL for dynamic imports on Windows [`#31`](https://github.com/karmaniverous/jeeves-watcher/pull/31)
-- feat: support custom JsonMap lib functions via config [`#29`](https://github.com/karmaniverous/jeeves-watcher/pull/29)
-- fix: resolve file path references in named maps config [`#28`](https://github.com/karmaniverous/jeeves-watcher/pull/28)
-- fix: resolve chokidar v5 ignored glob patterns via picomatch matchers [`#27`](https://github.com/karmaniverous/jeeves-watcher/pull/27)
-- fix: adapt to chokidar v4 glob removal — watch directory roots with picomatch filtering [`#26`](https://github.com/karmaniverous/jeeves-watcher/pull/26)
-- feat: Content Templates (v0.4.0) — Handlebars-based content transformation at index time [`#23`](https://github.com/karmaniverous/jeeves-watcher/pull/23)
-- fix: restore shebang in CLI output for correct npm .cmd wrapper generation [`#20`](https://github.com/karmaniverous/jeeves-watcher/pull/20)
-- feat(service): add hybrid search with BM25 text index and RRF fusion (#48) [`#35`](https://github.com/karmaniverous/jeeves-watcher/issues/35)
-- feat(service): add filesystem date metadata and line offsets (#46) [`#24`](https://github.com/karmaniverous/jeeves-watcher/issues/24)
-- fix: use pathToFileURL for dynamic imports on Windows (#31) [`#30`](https://github.com/karmaniverous/jeeves-watcher/issues/30)
-- fix: resolve chokidar glob pattern failure on Windows by extracting directory roots [`#25`](https://github.com/karmaniverous/jeeves-watcher/issues/25)
-- updated docs [`3028f04`](https://github.com/karmaniverous/jeeves-watcher/commit/3028f04a038935d6339c575f8c78dc10f301a2df)
-- chore: release v0.5.0-0 [`0c181d9`](https://github.com/karmaniverous/jeeves-watcher/commit/0c181d95303c04178aa7cb51a4ffe852354d6f02)
-- docs: complete v0.5.0 documentation pass [`e563ee8`](https://github.com/karmaniverous/jeeves-watcher/commit/e563ee870a92229be2fc71fb0fefdd7bbd23dbe7)
-- feat: add template engine dependencies (handlebars, mdast-util-from-adf, etc.) [`f6d090c`](https://github.com/karmaniverous/jeeves-watcher/commit/f6d090cfe710adf94013e2d5a6f791ce72474f7a)
-- docs: export missing symbols, add TSDoc, fix typedoc warnings [`85f5f02`](https://github.com/karmaniverous/jeeves-watcher/commit/85f5f02c84c2ecf309ef799d186d689a5e8412ef)
-- docs: fix TypeDoc warnings — constructor params, JsonFileStore props, handlebars highlight [`388bed4`](https://github.com/karmaniverous/jeeves-watcher/commit/388bed46c1d49360adca7109476d502abb13f007)
-- feat(schema): implement Phase 1 - core schema system [`4b538ad`](https://github.com/karmaniverous/jeeves-watcher/commit/4b538ad12dd4f68a093faf7e5460a2cfcc716d84)
-- feat: foundation for v0.5.0 - issues, values, named rules, config schema [`a81cfa9`](https://github.com/karmaniverous/jeeves-watcher/commit/a81cfa98f8b16cc3e0559571d6db36dd00a5e440)
-- refactor(DRY): split config schemas into logical modules [`fc24cb4`](https://github.com/karmaniverous/jeeves-watcher/commit/fc24cb4ffb306ca8454f3467074be0569ce64ad8)
-- chore: release v0.4.0 [`79f7f8d`](https://github.com/karmaniverous/jeeves-watcher/commit/79f7f8d002f7deae4d4923e9e490f0e3d4e8ca3a)
-- feat: API endpoints for v0.5.0 — query validate apply issues reindex tracking [`97b0f75`](https://github.com/karmaniverous/jeeves-watcher/commit/97b0f7516de416c68bb5af95491150cd318680ba)
-- feat: validate metadata and align issues + skill docs [`1ffdc0c`](https://github.com/karmaniverous/jeeves-watcher/commit/1ffdc0cfbf56411a060c924e3f3b0918c54b7720)
-- chore: release v0.5.0 [`aa5a5aa`](https://github.com/karmaniverous/jeeves-watcher/commit/aa5a5aa2ed2f40f581ee28bf9946c1a065c5a9bd)
-- chore: release v0.5.0-1 [`2b330da`](https://github.com/karmaniverous/jeeves-watcher/commit/2b330dabb6f630394138a8132e51e49ae6f0cfb2)
-- chore: update deps (hast, knip, rollup) [`3790582`](https://github.com/karmaniverous/jeeves-watcher/commit/3790582cdd5f984fc3101ed93580e34de0fccc4d)
-- feat: helper namespace prefixing and JSDoc introspection [`ffbaba5`](https://github.com/karmaniverous/jeeves-watcher/commit/ffbaba5e7661089566aab452d0c3c3b45d0f494f)
-- docs: update guides for v0.5.0 endpoints, config, and CLI [`0c79850`](https://github.com/karmaniverous/jeeves-watcher/commit/0c79850ad5906ce60dec257e502b7bcd83a09de6)
-- feat: complete v2 spec implementation gaps (P0-P2) [`fa45008`](https://github.com/karmaniverous/jeeves-watcher/commit/fa45008b0aebd103302ffa72ed216398615b9674)
-- chore: release v0.4.3 [`8b82d0c`](https://github.com/karmaniverous/jeeves-watcher/commit/8b82d0cf01dee60ab3a135ac6c0c70ae726d31fd)
-- chore: release v0.4.2 [`4ea9215`](https://github.com/karmaniverous/jeeves-watcher/commit/4ea9215f5ae9506bf497fffdcbf414160ae03310)
-- chore: release v0.4.4 [`f3a284c`](https://github.com/karmaniverous/jeeves-watcher/commit/f3a284ce1c940f0ea1e5e9338492cc0de61c5b97)
-- chore: release v0.4.1 [`c736409`](https://github.com/karmaniverous/jeeves-watcher/commit/c7364099798bc494ea633f376bf747e1cb995209)
-- refactor: DRY helper module loading into shared utility [`fef881a`](https://github.com/karmaniverous/jeeves-watcher/commit/fef881a4ae00bb6e09eccfc3fe08b69741d18c4a)
-- feat: export template engine types, fix knip (add hast dep) [`7ae0597`](https://github.com/karmaniverous/jeeves-watcher/commit/7ae059712e46ecabcbf7539814a0783bb9410dc6)
-- chore: release v0.3.1 [`8a6de18`](https://github.com/karmaniverous/jeeves-watcher/commit/8a6de183a9ab5214f83d395cebd547da799f7834)
-- refactor: decompose app/index.ts into factories and startFromConfig modules (300 LOC limit) [`33736c2`](https://github.com/karmaniverous/jeeves-watcher/commit/33736c2f2418c85c4b2c81cd48dc08758de62dcb)
-- test: add critical test coverage for utilities and handlers [`b9b94d7`](https://github.com/karmaniverous/jeeves-watcher/commit/b9b94d7be0bf6d39a5df959202c978daaa55284b)
-- feat: add template engine module and config schema changes [`968132f`](https://github.com/karmaniverous/jeeves-watcher/commit/968132f71cc7159afd574a4d3e90a67784a8e0ac)
-- refactor(DRY): add withApiOptions helper for CLI commands [`26df301`](https://github.com/karmaniverous/jeeves-watcher/commit/26df3015d41b0e351b762a116077f4afcd04a090)
-- fix: replace eslint-disable comments with properly typed mocks [`025e322`](https://github.com/karmaniverous/jeeves-watcher/commit/025e322946827fc0ffd37258d3fa5cf1cf2fa0f8)
-- feat: expand plugin to 8 tools for v0.5.0 [`bde15f4`](https://github.com/karmaniverous/jeeves-watcher/commit/bde15f465b0ab503519999c5fd0049fa255ebece)
-- refactor(SRP): extract app initialization logic to separate module [`63147f4`](https://github.com/karmaniverous/jeeves-watcher/commit/63147f4fce30c692bc134bdb27eda4aa8ee49940)
-- feat: two-skill architecture with build pipeline [`898db5e`](https://github.com/karmaniverous/jeeves-watcher/commit/898db5e3253d7986de35b8292afa7e2e944a24c1)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.1.0 [`97e2834`](https://github.com/karmaniverous/jeeves-watcher/commit/97e2834986f0ce53098d0299d0da3025a432e43f)
-- refactor(SRP/OCP): split embedding providers into separate files [`d07f4c9`](https://github.com/karmaniverous/jeeves-watcher/commit/d07f4c9553c7b926db1a2d8550469fdcff54879d)
-- feat: add install/uninstall CLI to bypass OpenClaw spawn EINVAL bug on Windows [`1ad7fbb`](https://github.com/karmaniverous/jeeves-watcher/commit/1ad7fbb1f4947d852a5a16a2b564b27ccb0620d5)
-- docs: fix template syntax, stale references, and add missing API/tool docs [`8af92ef`](https://github.com/karmaniverous/jeeves-watcher/commit/8af92efff989bc78b60fa7ab99020619aa72c5f7)
-- refactor: extract shared mergeAndValidateConfig [`aecab7f`](https://github.com/karmaniverous/jeeves-watcher/commit/aecab7f348f22f3e41160bad251e6d51a8306c5e)
-- test: update test files to use new schema format [`336ff00`](https://github.com/karmaniverous/jeeves-watcher/commit/336ff00db2595b125bb3d71d1923d81f0baadf89)
-- refactor: extract shared executeReindex to eliminate duplication [`7658108`](https://github.com/karmaniverous/jeeves-watcher/commit/7658108fc9899557fc3d65b82a1947a2bddc1e25)
-- test: add DocumentProcessor unit tests [`987012f`](https://github.com/karmaniverous/jeeves-watcher/commit/987012fb754b43c7324929e537ec7676e9848e63)
-- test: add more critical test coverage [`233082c`](https://github.com/karmaniverous/jeeves-watcher/commit/233082c410cbd8c32f71cd40e64b6028f08c521e)
-- feat: integrate template engine into pipeline (applyRules, processFile, config reload) [`64cc135`](https://github.com/karmaniverous/jeeves-watcher/commit/64cc13509c54532a09d04647e08df8795bbcff57)
-- feat: implement Phase 3 API endpoints [`eb697cf`](https://github.com/karmaniverous/jeeves-watcher/commit/eb697cfd894af3dda446d2988fcc2e0eefee2a97)
-- refactor(DIP): introduce VectorStore interface and update consumers [`1975dee`](https://github.com/karmaniverous/jeeves-watcher/commit/1975deeb610dafa76aceb4e84e82ca7229cd9b5e)
-- test: add template engine tests and update existing rule tests for new return shape [`d6ef7d7`](https://github.com/karmaniverous/jeeves-watcher/commit/d6ef7d7a54f20d54e0b88a36505eca74606751f5)
-- refactor(DRY): extract repeated patterns to utilities [`12842de`](https://github.com/karmaniverous/jeeves-watcher/commit/12842dea5442fd38ddea5d6a3c4ad841c0177f43)
-- chore: fix docs, READMEs, and rollup config for monorepo [`0b92399`](https://github.com/karmaniverous/jeeves-watcher/commit/0b92399eec0275c42ecb6a637c0c59756925c321)
-- fix: resolve all lint errors in test files and wrapHandler [`bbcde3f`](https://github.com/karmaniverous/jeeves-watcher/commit/bbcde3f8c6e19ff975cfda83826226e93181183b)
-- docs(skill): add theory of operation narrative, remove stale plugin/skill/SKILL.md [`979993d`](https://github.com/karmaniverous/jeeves-watcher/commit/979993dfbd19a8102441fb95d7be10ae0000c6e5)
-- refactor: DRY API handler error handling with wrapHandler; fix writeFileSync in configApply [`8995d2e`](https://github.com/karmaniverous/jeeves-watcher/commit/8995d2e85c48a75503812e20331db8fe88816d38)
-- test: add EventQueue tests [`93a7eab`](https://github.com/karmaniverous/jeeves-watcher/commit/93a7eab2573d92ef4ef7217a6c373fe89f3be29f)
-- refactor: extract JsonFileStore base for issues/values [`c36112f`](https://github.com/karmaniverous/jeeves-watcher/commit/c36112f43dd415893db4ff999e10b63034870ad8)
-- docs: add content templates section to inference-rules guide [`ebf74ef`](https://github.com/karmaniverous/jeeves-watcher/commit/ebf74efc7fdba17dc4c90f7b477be3d415f716f1)
-- test: add mergedDocument tests [`41a2561`](https://github.com/karmaniverous/jeeves-watcher/commit/41a25615cbaf3e5d1773abd5a78c89e9dc725f1d)
-- revert: remove manual CHANGELOG.md edits (auto-generated on release) [`c20e149`](https://github.com/karmaniverous/jeeves-watcher/commit/c20e14967723b52b877acb3de062d276587bcf44)
-- test: add configValidate handler tests [`00d52fd`](https://github.com/karmaniverous/jeeves-watcher/commit/00d52fd7a4d19621b7318eb2b6512d062b8e6acf)
-- test: add configApply handler tests [`5fb3b43`](https://github.com/karmaniverous/jeeves-watcher/commit/5fb3b436b8a205ef76fdf88389655b2246ec665f)
-- fix: resolve eslint unbound-method and prettier errors [`36b5803`](https://github.com/karmaniverous/jeeves-watcher/commit/36b5803e83cce02bcb124095662965f887ceec66)
-- chore: align release-it config for monorepo [`938a3e0`](https://github.com/karmaniverous/jeeves-watcher/commit/938a3e0deb686f9f224c90f7e585782e072a6e3e)
-- test: add configQuery handler tests [`6adfcab`](https://github.com/karmaniverous/jeeves-watcher/commit/6adfcab476aa7c63119c340f5dad7428f8544a41)
-- fix: resolve all STAN lint errors and reduce docs warnings [`062594f`](https://github.com/karmaniverous/jeeves-watcher/commit/062594ff6645b7ff35cc90df38e55ee1eab645b3)
-- refactor(DIP): add DocumentProcessor interface and update factory/consumers [`8a30433`](https://github.com/karmaniverous/jeeves-watcher/commit/8a30433c4c767eac7ea1eba96153ec3d0ad06107)
-- refactor(ISP): convert buildMergedMetadata to options object pattern [`0d67913`](https://github.com/karmaniverous/jeeves-watcher/commit/0d6791301736252bc4fffb068ca06ef30eb554be)
-- chore: make service package ESM-only, remove CJS and IIFE outputs [`9a16492`](https://github.com/karmaniverous/jeeves-watcher/commit/9a164923ae10e7a391520794440aa05420bd99f6)
-- fix: resolveReferences only resolves known config reference positions [`1890bf9`](https://github.com/karmaniverous/jeeves-watcher/commit/1890bf9a2216c769ca1640e70600e8b079cafbcd)
-- fix(lint): address majority of lint issues in new tests [`aec00f8`](https://github.com/karmaniverous/jeeves-watcher/commit/aec00f86b86526d706b1dca3c2d851b77b4c3b75)
-- test: add configReindex handler tests [`506b638`](https://github.com/karmaniverous/jeeves-watcher/commit/506b6387ca73af4d368fececb95c19113696313b)
-- fix: resolve lint errors in openclaw CLI and add rollup externals [`b4e8514`](https://github.com/karmaniverous/jeeves-watcher/commit/b4e8514d991daaed99bd7d7dff7028b4310109be)
-- refactor(ISP): narrow API handler deps to required fields [`309daa3`](https://github.com/karmaniverous/jeeves-watcher/commit/309daa37ba7b296889b6c9b53818e4c2f2549682)
-- fix: resolve lint errors and align tests with spec [`29c5217`](https://github.com/karmaniverous/jeeves-watcher/commit/29c52177aa5507817656c441fb67c287e27a8cb4)
-- docs: document self-installer CLI and Windows spawn EINVAL workaround [`e3d6351`](https://github.com/karmaniverous/jeeves-watcher/commit/e3d63512fe57b555e753c8f86bbfe57a1b97f70c)
-- docs: add production directory structure guidance for maps and templates [`14c51c8`](https://github.com/karmaniverous/jeeves-watcher/commit/14c51c83fedb4d626e56a021870260ccf13eefcf)
-- refactor(SRP): extract shared template/map helper wiring from JeevesWatcher [`7d1b629`](https://github.com/karmaniverous/jeeves-watcher/commit/7d1b6299c8055ae15fbbf6c000b9eb0f166219a3)
-- chore: release @karmaniverous/jeeves-watcher v0.6.0 [`b7b207e`](https://github.com/karmaniverous/jeeves-watcher/commit/b7b207e96b1750bcacc4f5dd67ecf9c369415e25)
-- test: add ReindexTracker tests [`5830048`](https://github.com/karmaniverous/jeeves-watcher/commit/5830048c62a9950b4f5940f99c140d6caa5b161f)
-- refactor(DRY): extract vectorStore payload type inference [`8f70a7c`](https://github.com/karmaniverous/jeeves-watcher/commit/8f70a7c99a2937e26b6f1aa27317a6304e40947b)
-- fix: implement actual rule matching in testPaths validation [`dba6f4e`](https://github.com/karmaniverous/jeeves-watcher/commit/dba6f4e79f4a2013e42060d84f993bb36346d95d)
-- chore: convert repo to npm workspaces monorepo [`d8fc6e8`](https://github.com/karmaniverous/jeeves-watcher/commit/d8fc6e821af4dde868f1c82b82f8c348788b4a65)
-- fix: apply same conditional logic to tools.allow as plugins.allow [`4549569`](https://github.com/karmaniverous/jeeves-watcher/commit/4549569ea72e1bbe385fd7592497982bbc34ec39)
-- refactor(DRY): align logError helper signature with standard pattern [`a014202`](https://github.com/karmaniverous/jeeves-watcher/commit/a014202e0795d015b913e4e113e427f51edeb76f)
-- refactor: centralize processor payload field names [`34836ce`](https://github.com/karmaniverous/jeeves-watcher/commit/34836cebe3d66dab7ae7475ac0aa1ca5dfcd4aa3)
-- refactor(DRY): apply logError utility in DocumentProcessor [`42f5b3e`](https://github.com/karmaniverous/jeeves-watcher/commit/42f5b3e5d6b2a3dc9af886107e9ae981b6fb0108)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.3.0 [`3ce4950`](https://github.com/karmaniverous/jeeves-watcher/commit/3ce4950d10de13300db94e90247739a3f4a6514a)
-- docs: add guides index pages for foldable typedoc sections [`1827505`](https://github.com/karmaniverous/jeeves-watcher/commit/1827505522859efbe89895f1b18d4c141c6f76f1)
-- fix: plugin installer now claims memory slot in OpenClaw config [`020c6cd`](https://github.com/karmaniverous/jeeves-watcher/commit/020c6cdd258ad8a6e092e173c88caabf05e5f323)
-- fix: remove plugins.allow management from CLI, only manage entries and tools.allow [`64106b4`](https://github.com/karmaniverous/jeeves-watcher/commit/64106b49be35f11c8e4b9a499b45067869decc4b)
-- fix: conditionally manage plugins.allow only when already populated [`c486c3a`](https://github.com/karmaniverous/jeeves-watcher/commit/c486c3a8bc12df5f1d233a0f974c0024e91e84b4)
-- chore: release @karmaniverous/jeeves-watcher v0.5.1 [`b11e44e`](https://github.com/karmaniverous/jeeves-watcher/commit/b11e44e08911b12f719bb43357cc7647f3905ac6)
-- fix: resolve typecheck errors in tests and initialization [`47b92e1`](https://github.com/karmaniverous/jeeves-watcher/commit/47b92e1b43b9513273c2a4bff1a119a774243043)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.2.0 [`a6d4d7e`](https://github.com/karmaniverous/jeeves-watcher/commit/a6d4d7e57424b482b737cb6983dc5c9a86b96160)
-- fix(openclaw): use error.cause for precise connection error detection [`3bdd267`](https://github.com/karmaniverous/jeeves-watcher/commit/3bdd267225d129186ee6d9263379ddcd6808d7df)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.1.2 [`c019f41`](https://github.com/karmaniverous/jeeves-watcher/commit/c019f410d5cef94e653450b82966d64e1a70f900)
-- refactor(OCP): allow custom extractors via additionalExtractors parameter [`36b7ae2`](https://github.com/karmaniverous/jeeves-watcher/commit/36b7ae29cdc24109feb8c1a00555f93c5a1a5850)
-- chore: fix knip after monorepo split [`e16460b`](https://github.com/karmaniverous/jeeves-watcher/commit/e16460b90e5a695818bde2b47ac6577abf6cbf1c)
-- fix(lint): resolve unsafe-assignment and unbound-method in tests [`9e41021`](https://github.com/karmaniverous/jeeves-watcher/commit/9e41021de4513b8cb9f684bbf90e184b5559011e)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.1.1 [`008e757`](https://github.com/karmaniverous/jeeves-watcher/commit/008e757704e0cdf5bca7819a9b9eb36b7258a300)
-- added env local template [`74aaa72`](https://github.com/karmaniverous/jeeves-watcher/commit/74aaa726761cb16d3f133a926e0a335b22417808)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.3.1 [`de3215a`](https://github.com/karmaniverous/jeeves-watcher/commit/de3215ae4503eece2cb3823c26e6fa00fd1008d1)
-- lintfix [`c36da17`](https://github.com/karmaniverous/jeeves-watcher/commit/c36da17951cdbe955e620cf8a8626d2f1bb8a8c1)
-- chore: release @karmaniverous/jeeves-watcher v0.6.1 [`037d9c9`](https://github.com/karmaniverous/jeeves-watcher/commit/037d9c924e1bc3020fb6b497f59261dd027718bd)
-- chore: remove temp commit script [`31d35a7`](https://github.com/karmaniverous/jeeves-watcher/commit/31d35a7341fdfe9d823ffbd04f4192396edcd638)
-- package version 0 [`eda1c58`](https://github.com/karmaniverous/jeeves-watcher/commit/eda1c58217fc89a4f1d2ff3e048c13973b5056fd)
-- chore: tune docs warnPattern to ignore Zod enum TSDoc warnings [`b09909a`](https://github.com/karmaniverous/jeeves-watcher/commit/b09909a51b5b076ea071c2e83047c21eec1f594f)
-- removed docs from release script [`8878235`](https://github.com/karmaniverous/jeeves-watcher/commit/88782358db1a8ff2f1303d503d7086df4994d23b)
-
-#### [0.3.0](https://github.com/karmaniverous/jeeves-watcher/compare/openclaw/0.3.0...0.3.0)
-
-> 22 February 2026
-
-#### [openclaw/0.3.0](https://github.com/karmaniverous/jeeves-watcher/compare/0.2.6...openclaw/0.3.0)
-
-> 27 February 2026
-
-- docs: update guides for v0.6.0 changes [`#54`](https://github.com/karmaniverous/jeeves-watcher/pull/54)
-- refactor: extract modules to fix 300 LOC violations [`#53`](https://github.com/karmaniverous/jeeves-watcher/pull/53)
-- refactor: DRY fixes and comprehensive test coverage for openclaw package [`#52`](https://github.com/karmaniverous/jeeves-watcher/pull/52)
-- refactor+test: service SOLID/DRY fixes + 54 new tests [`#51`](https://github.com/karmaniverous/jeeves-watcher/pull/51)
-- feat: memory slot takeover with virtual rules API [`#49`](https://github.com/karmaniverous/jeeves-watcher/pull/49)
-- feat: support external rule file references in inferenceRules config [`#50`](https://github.com/karmaniverous/jeeves-watcher/pull/50)
-- feat(service): add hybrid search with BM25 text index and RRF fusion [`#48`](https://github.com/karmaniverous/jeeves-watcher/pull/48)
-- feat(service): Handlebars set expressions + date normalization [`#47`](https://github.com/karmaniverous/jeeves-watcher/pull/47)
-- feat(service): add filesystem date metadata and line offsets [`#46`](https://github.com/karmaniverous/jeeves-watcher/pull/46)
-- fix(openclaw): skill review feedback [`#45`](https://github.com/karmaniverous/jeeves-watcher/pull/45)
-- chore(openclaw): merge skills, simplify build, improve error messaging [`#44`](https://github.com/karmaniverous/jeeves-watcher/pull/44)
-- docs: document self-installer CLI and Windows workaround [`#41`](https://github.com/karmaniverous/jeeves-watcher/pull/41)
-- fix: resolve lint errors in openclaw CLI [`#40`](https://github.com/karmaniverous/jeeves-watcher/pull/40)
-- feat: add install/uninstall CLI for OpenClaw plugin [`#39`](https://github.com/karmaniverous/jeeves-watcher/pull/39)
-- chore: fix monorepo release-it tags, plugin id, and version sync [`#38`](https://github.com/karmaniverous/jeeves-watcher/pull/38)
-- feat: convert to monorepo with service and openclaw plugin packages [`#37`](https://github.com/karmaniverous/jeeves-watcher/pull/37)
-- docs(skill): add theory of operation, remove stale SKILL.md [`#36`](https://github.com/karmaniverous/jeeves-watcher/pull/36)
-- feat: v0.5.0 — plugin expansion, two-skill architecture, API extensions [`#35`](https://github.com/karmaniverous/jeeves-watcher/pull/35)
-- fix: use pathToFileURL for dynamic imports on Windows [`#31`](https://github.com/karmaniverous/jeeves-watcher/pull/31)
-- feat: support custom JsonMap lib functions via config [`#29`](https://github.com/karmaniverous/jeeves-watcher/pull/29)
-- fix: resolve file path references in named maps config [`#28`](https://github.com/karmaniverous/jeeves-watcher/pull/28)
-- fix: resolve chokidar v5 ignored glob patterns via picomatch matchers [`#27`](https://github.com/karmaniverous/jeeves-watcher/pull/27)
-- fix: adapt to chokidar v4 glob removal — watch directory roots with picomatch filtering [`#26`](https://github.com/karmaniverous/jeeves-watcher/pull/26)
-- feat: Content Templates (v0.4.0) — Handlebars-based content transformation at index time [`#23`](https://github.com/karmaniverous/jeeves-watcher/pull/23)
-- fix: restore shebang in CLI output for correct npm .cmd wrapper generation [`#20`](https://github.com/karmaniverous/jeeves-watcher/pull/20)
-- feat: OpenClaw plugin with agent tools and skill (v0.3.0) [`#19`](https://github.com/karmaniverous/jeeves-watcher/pull/19)
-- docs: sync all documentation with implementation [`#17`](https://github.com/karmaniverous/jeeves-watcher/pull/17)
-- feat(service): add hybrid search with BM25 text index and RRF fusion (#48) [`#35`](https://github.com/karmaniverous/jeeves-watcher/issues/35)
-- feat(service): add filesystem date metadata and line offsets (#46) [`#24`](https://github.com/karmaniverous/jeeves-watcher/issues/24)
-- fix: use pathToFileURL for dynamic imports on Windows (#31) [`#30`](https://github.com/karmaniverous/jeeves-watcher/issues/30)
-- fix: resolve chokidar glob pattern failure on Windows by extracting directory roots [`#25`](https://github.com/karmaniverous/jeeves-watcher/issues/25)
-- updated docs [`3028f04`](https://github.com/karmaniverous/jeeves-watcher/commit/3028f04a038935d6339c575f8c78dc10f301a2df)
-- chore: release v0.5.0-0 [`0c181d9`](https://github.com/karmaniverous/jeeves-watcher/commit/0c181d95303c04178aa7cb51a4ffe852354d6f02)
-- docs: complete v0.5.0 documentation pass [`e563ee8`](https://github.com/karmaniverous/jeeves-watcher/commit/e563ee870a92229be2fc71fb0fefdd7bbd23dbe7)
-- feat: add template engine dependencies (handlebars, mdast-util-from-adf, etc.) [`f6d090c`](https://github.com/karmaniverous/jeeves-watcher/commit/f6d090cfe710adf94013e2d5a6f791ce72474f7a)
-- docs: export missing symbols, add TSDoc, fix typedoc warnings [`85f5f02`](https://github.com/karmaniverous/jeeves-watcher/commit/85f5f02c84c2ecf309ef799d186d689a5e8412ef)
-- docs: fix TypeDoc warnings — constructor params, JsonFileStore props, handlebars highlight [`388bed4`](https://github.com/karmaniverous/jeeves-watcher/commit/388bed46c1d49360adca7109476d502abb13f007)
-- feat(schema): implement Phase 1 - core schema system [`4b538ad`](https://github.com/karmaniverous/jeeves-watcher/commit/4b538ad12dd4f68a093faf7e5460a2cfcc716d84)
-- feat: foundation for v0.5.0 - issues, values, named rules, config schema [`a81cfa9`](https://github.com/karmaniverous/jeeves-watcher/commit/a81cfa98f8b16cc3e0559571d6db36dd00a5e440)
-- refactor(DRY): split config schemas into logical modules [`fc24cb4`](https://github.com/karmaniverous/jeeves-watcher/commit/fc24cb4ffb306ca8454f3467074be0569ce64ad8)
-- chore: release v0.4.0 [`79f7f8d`](https://github.com/karmaniverous/jeeves-watcher/commit/79f7f8d002f7deae4d4923e9e490f0e3d4e8ca3a)
-- feat: API endpoints for v0.5.0 — query validate apply issues reindex tracking [`97b0f75`](https://github.com/karmaniverous/jeeves-watcher/commit/97b0f7516de416c68bb5af95491150cd318680ba)
-- feat: validate metadata and align issues + skill docs [`1ffdc0c`](https://github.com/karmaniverous/jeeves-watcher/commit/1ffdc0cfbf56411a060c924e3f3b0918c54b7720)
-- chore: release v0.3.0 [`0e03c00`](https://github.com/karmaniverous/jeeves-watcher/commit/0e03c000e94d776a6724b8e92de4a7a432808785)
-- chore: release v0.5.0 [`aa5a5aa`](https://github.com/karmaniverous/jeeves-watcher/commit/aa5a5aa2ed2f40f581ee28bf9946c1a065c5a9bd)
-- chore: release v0.5.0-1 [`2b330da`](https://github.com/karmaniverous/jeeves-watcher/commit/2b330dabb6f630394138a8132e51e49ae6f0cfb2)
-- chore: update deps (hast, knip, rollup) [`3790582`](https://github.com/karmaniverous/jeeves-watcher/commit/3790582cdd5f984fc3101ed93580e34de0fccc4d)
-- feat: helper namespace prefixing and JSDoc introspection [`ffbaba5`](https://github.com/karmaniverous/jeeves-watcher/commit/ffbaba5e7661089566aab452d0c3c3b45d0f494f)
-- docs: update guides for v0.5.0 endpoints, config, and CLI [`0c79850`](https://github.com/karmaniverous/jeeves-watcher/commit/0c79850ad5906ce60dec257e502b7bcd83a09de6)
-- feat: complete v2 spec implementation gaps (P0-P2) [`fa45008`](https://github.com/karmaniverous/jeeves-watcher/commit/fa45008b0aebd103302ffa72ed216398615b9674)
-- chore: release v0.4.3 [`8b82d0c`](https://github.com/karmaniverous/jeeves-watcher/commit/8b82d0cf01dee60ab3a135ac6c0c70ae726d31fd)
-- chore: release v0.4.2 [`4ea9215`](https://github.com/karmaniverous/jeeves-watcher/commit/4ea9215f5ae9506bf497fffdcbf414160ae03310)
-- chore: release v0.4.4 [`f3a284c`](https://github.com/karmaniverous/jeeves-watcher/commit/f3a284ce1c940f0ea1e5e9338492cc0de61c5b97)
-- chore: release v0.4.1 [`c736409`](https://github.com/karmaniverous/jeeves-watcher/commit/c7364099798bc494ea633f376bf747e1cb995209)
-- refactor: DRY helper module loading into shared utility [`fef881a`](https://github.com/karmaniverous/jeeves-watcher/commit/fef881a4ae00bb6e09eccfc3fe08b69741d18c4a)
-- feat: export template engine types, fix knip (add hast dep) [`7ae0597`](https://github.com/karmaniverous/jeeves-watcher/commit/7ae059712e46ecabcbf7539814a0783bb9410dc6)
-- chore: release v0.3.1 [`8a6de18`](https://github.com/karmaniverous/jeeves-watcher/commit/8a6de183a9ab5214f83d395cebd547da799f7834)
-- refactor: decompose app/index.ts into factories and startFromConfig modules (300 LOC limit) [`33736c2`](https://github.com/karmaniverous/jeeves-watcher/commit/33736c2f2418c85c4b2c81cd48dc08758de62dcb)
-- test: add critical test coverage for utilities and handlers [`b9b94d7`](https://github.com/karmaniverous/jeeves-watcher/commit/b9b94d7be0bf6d39a5df959202c978daaa55284b)
-- feat: add template engine module and config schema changes [`968132f`](https://github.com/karmaniverous/jeeves-watcher/commit/968132f71cc7159afd574a4d3e90a67784a8e0ac)
-- refactor(DRY): add withApiOptions helper for CLI commands [`26df301`](https://github.com/karmaniverous/jeeves-watcher/commit/26df3015d41b0e351b762a116077f4afcd04a090)
-- fix: replace eslint-disable comments with properly typed mocks [`025e322`](https://github.com/karmaniverous/jeeves-watcher/commit/025e322946827fc0ffd37258d3fa5cf1cf2fa0f8)
-- feat: expand plugin to 8 tools for v0.5.0 [`bde15f4`](https://github.com/karmaniverous/jeeves-watcher/commit/bde15f465b0ab503519999c5fd0049fa255ebece)
-- refactor(SRP): extract app initialization logic to separate module [`63147f4`](https://github.com/karmaniverous/jeeves-watcher/commit/63147f4fce30c692bc134bdb27eda4aa8ee49940)
-- feat: two-skill architecture with build pipeline [`898db5e`](https://github.com/karmaniverous/jeeves-watcher/commit/898db5e3253d7986de35b8292afa7e2e944a24c1)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.1.0 [`97e2834`](https://github.com/karmaniverous/jeeves-watcher/commit/97e2834986f0ce53098d0299d0da3025a432e43f)
-- refactor(SRP/OCP): split embedding providers into separate files [`d07f4c9`](https://github.com/karmaniverous/jeeves-watcher/commit/d07f4c9553c7b926db1a2d8550469fdcff54879d)
-- feat: add install/uninstall CLI to bypass OpenClaw spawn EINVAL bug on Windows [`1ad7fbb`](https://github.com/karmaniverous/jeeves-watcher/commit/1ad7fbb1f4947d852a5a16a2b564b27ccb0620d5)
-- docs: fix template syntax, stale references, and add missing API/tool docs [`8af92ef`](https://github.com/karmaniverous/jeeves-watcher/commit/8af92efff989bc78b60fa7ab99020619aa72c5f7)
-- refactor: extract shared mergeAndValidateConfig [`aecab7f`](https://github.com/karmaniverous/jeeves-watcher/commit/aecab7f348f22f3e41160bad251e6d51a8306c5e)
-- test: update test files to use new schema format [`336ff00`](https://github.com/karmaniverous/jeeves-watcher/commit/336ff00db2595b125bb3d71d1923d81f0baadf89)
-- refactor: extract shared executeReindex to eliminate duplication [`7658108`](https://github.com/karmaniverous/jeeves-watcher/commit/7658108fc9899557fc3d65b82a1947a2bddc1e25)
-- test: add DocumentProcessor unit tests [`987012f`](https://github.com/karmaniverous/jeeves-watcher/commit/987012fb754b43c7324929e537ec7676e9848e63)
-- test: add more critical test coverage [`233082c`](https://github.com/karmaniverous/jeeves-watcher/commit/233082c410cbd8c32f71cd40e64b6028f08c521e)
-- feat: integrate template engine into pipeline (applyRules, processFile, config reload) [`64cc135`](https://github.com/karmaniverous/jeeves-watcher/commit/64cc13509c54532a09d04647e08df8795bbcff57)
-- feat: implement Phase 3 API endpoints [`eb697cf`](https://github.com/karmaniverous/jeeves-watcher/commit/eb697cfd894af3dda446d2988fcc2e0eefee2a97)
-- refactor(DIP): introduce VectorStore interface and update consumers [`1975dee`](https://github.com/karmaniverous/jeeves-watcher/commit/1975deeb610dafa76aceb4e84e82ca7229cd9b5e)
-- test: add template engine tests and update existing rule tests for new return shape [`d6ef7d7`](https://github.com/karmaniverous/jeeves-watcher/commit/d6ef7d7a54f20d54e0b88a36505eca74606751f5)
-- refactor(DRY): extract repeated patterns to utilities [`12842de`](https://github.com/karmaniverous/jeeves-watcher/commit/12842dea5442fd38ddea5d6a3c4ad841c0177f43)
-- chore: fix docs, READMEs, and rollup config for monorepo [`0b92399`](https://github.com/karmaniverous/jeeves-watcher/commit/0b92399eec0275c42ecb6a637c0c59756925c321)
-- fix: resolve all lint errors in test files and wrapHandler [`bbcde3f`](https://github.com/karmaniverous/jeeves-watcher/commit/bbcde3f8c6e19ff975cfda83826226e93181183b)
-- docs(skill): add theory of operation narrative, remove stale plugin/skill/SKILL.md [`979993d`](https://github.com/karmaniverous/jeeves-watcher/commit/979993dfbd19a8102441fb95d7be10ae0000c6e5)
-- docs: sync documentation with implementation [`8442160`](https://github.com/karmaniverous/jeeves-watcher/commit/844216071098d3e2672cd284df06723d3af6c71e)
-- refactor: DRY API handler error handling with wrapHandler; fix writeFileSync in configApply [`8995d2e`](https://github.com/karmaniverous/jeeves-watcher/commit/8995d2e85c48a75503812e20331db8fe88816d38)
-- test: add EventQueue tests [`93a7eab`](https://github.com/karmaniverous/jeeves-watcher/commit/93a7eab2573d92ef4ef7217a6c373fe89f3be29f)
-- refactor: extract JsonFileStore base for issues/values [`c36112f`](https://github.com/karmaniverous/jeeves-watcher/commit/c36112f43dd415893db4ff999e10b63034870ad8)
-- docs: add content templates section to inference-rules guide [`ebf74ef`](https://github.com/karmaniverous/jeeves-watcher/commit/ebf74efc7fdba17dc4c90f7b477be3d415f716f1)
-- test: add mergedDocument tests [`41a2561`](https://github.com/karmaniverous/jeeves-watcher/commit/41a25615cbaf3e5d1773abd5a78c89e9dc725f1d)
-- revert: remove manual CHANGELOG.md edits (auto-generated on release) [`c20e149`](https://github.com/karmaniverous/jeeves-watcher/commit/c20e14967723b52b877acb3de062d276587bcf44)
-- test: add configValidate handler tests [`00d52fd`](https://github.com/karmaniverous/jeeves-watcher/commit/00d52fd7a4d19621b7318eb2b6512d062b8e6acf)
-- test: add configApply handler tests [`5fb3b43`](https://github.com/karmaniverous/jeeves-watcher/commit/5fb3b436b8a205ef76fdf88389655b2246ec665f)
-- fix: resolve eslint unbound-method and prettier errors [`36b5803`](https://github.com/karmaniverous/jeeves-watcher/commit/36b5803e83cce02bcb124095662965f887ceec66)
-- chore: align release-it config for monorepo [`938a3e0`](https://github.com/karmaniverous/jeeves-watcher/commit/938a3e0deb686f9f224c90f7e585782e072a6e3e)
-- test: add configQuery handler tests [`6adfcab`](https://github.com/karmaniverous/jeeves-watcher/commit/6adfcab476aa7c63119c340f5dad7428f8544a41)
-- fix: resolve all STAN lint errors and reduce docs warnings [`062594f`](https://github.com/karmaniverous/jeeves-watcher/commit/062594ff6645b7ff35cc90df38e55ee1eab645b3)
-- refactor(DIP): add DocumentProcessor interface and update factory/consumers [`8a30433`](https://github.com/karmaniverous/jeeves-watcher/commit/8a30433c4c767eac7ea1eba96153ec3d0ad06107)
-- refactor(ISP): convert buildMergedMetadata to options object pattern [`0d67913`](https://github.com/karmaniverous/jeeves-watcher/commit/0d6791301736252bc4fffb068ca06ef30eb554be)
-- chore: make service package ESM-only, remove CJS and IIFE outputs [`9a16492`](https://github.com/karmaniverous/jeeves-watcher/commit/9a164923ae10e7a391520794440aa05420bd99f6)
-- fix: resolveReferences only resolves known config reference positions [`1890bf9`](https://github.com/karmaniverous/jeeves-watcher/commit/1890bf9a2216c769ca1640e70600e8b079cafbcd)
-- fix(lint): address majority of lint issues in new tests [`aec00f8`](https://github.com/karmaniverous/jeeves-watcher/commit/aec00f86b86526d706b1dca3c2d851b77b4c3b75)
-- test: add configReindex handler tests [`506b638`](https://github.com/karmaniverous/jeeves-watcher/commit/506b6387ca73af4d368fececb95c19113696313b)
-- fix: resolve lint errors in openclaw CLI and add rollup externals [`b4e8514`](https://github.com/karmaniverous/jeeves-watcher/commit/b4e8514d991daaed99bd7d7dff7028b4310109be)
-- refactor(ISP): narrow API handler deps to required fields [`309daa3`](https://github.com/karmaniverous/jeeves-watcher/commit/309daa37ba7b296889b6c9b53818e4c2f2549682)
-- fix: resolve lint errors and align tests with spec [`29c5217`](https://github.com/karmaniverous/jeeves-watcher/commit/29c52177aa5507817656c441fb67c287e27a8cb4)
-- docs: document self-installer CLI and Windows spawn EINVAL workaround [`e3d6351`](https://github.com/karmaniverous/jeeves-watcher/commit/e3d63512fe57b555e753c8f86bbfe57a1b97f70c)
-- docs: add production directory structure guidance for maps and templates [`14c51c8`](https://github.com/karmaniverous/jeeves-watcher/commit/14c51c83fedb4d626e56a021870260ccf13eefcf)
-- refactor(SRP): extract shared template/map helper wiring from JeevesWatcher [`7d1b629`](https://github.com/karmaniverous/jeeves-watcher/commit/7d1b6299c8055ae15fbbf6c000b9eb0f166219a3)
-- chore: release @karmaniverous/jeeves-watcher v0.6.0 [`b7b207e`](https://github.com/karmaniverous/jeeves-watcher/commit/b7b207e96b1750bcacc4f5dd67ecf9c369415e25)
-- test: add ReindexTracker tests [`5830048`](https://github.com/karmaniverous/jeeves-watcher/commit/5830048c62a9950b4f5940f99c140d6caa5b161f)
-- refactor(DRY): extract vectorStore payload type inference [`8f70a7c`](https://github.com/karmaniverous/jeeves-watcher/commit/8f70a7c99a2937e26b6f1aa27317a6304e40947b)
-- fix: implement actual rule matching in testPaths validation [`dba6f4e`](https://github.com/karmaniverous/jeeves-watcher/commit/dba6f4e79f4a2013e42060d84f993bb36346d95d)
-- chore: convert repo to npm workspaces monorepo [`d8fc6e8`](https://github.com/karmaniverous/jeeves-watcher/commit/d8fc6e821af4dde868f1c82b82f8c348788b4a65)
-- fix: apply same conditional logic to tools.allow as plugins.allow [`4549569`](https://github.com/karmaniverous/jeeves-watcher/commit/4549569ea72e1bbe385fd7592497982bbc34ec39)
-- refactor(DRY): align logError helper signature with standard pattern [`a014202`](https://github.com/karmaniverous/jeeves-watcher/commit/a014202e0795d015b913e4e113e427f51edeb76f)
-- refactor: centralize processor payload field names [`34836ce`](https://github.com/karmaniverous/jeeves-watcher/commit/34836cebe3d66dab7ae7475ac0aa1ca5dfcd4aa3)
-- refactor(DRY): apply logError utility in DocumentProcessor [`42f5b3e`](https://github.com/karmaniverous/jeeves-watcher/commit/42f5b3e5d6b2a3dc9af886107e9ae981b6fb0108)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.3.0 [`3ce4950`](https://github.com/karmaniverous/jeeves-watcher/commit/3ce4950d10de13300db94e90247739a3f4a6514a)
-- docs: add guides index pages for foldable typedoc sections [`1827505`](https://github.com/karmaniverous/jeeves-watcher/commit/1827505522859efbe89895f1b18d4c141c6f76f1)
-- fix: remove plugins.allow management from CLI, only manage entries and tools.allow [`64106b4`](https://github.com/karmaniverous/jeeves-watcher/commit/64106b49be35f11c8e4b9a499b45067869decc4b)
-- fix: conditionally manage plugins.allow only when already populated [`c486c3a`](https://github.com/karmaniverous/jeeves-watcher/commit/c486c3a8bc12df5f1d233a0f974c0024e91e84b4)
-- chore: release @karmaniverous/jeeves-watcher v0.5.1 [`b11e44e`](https://github.com/karmaniverous/jeeves-watcher/commit/b11e44e08911b12f719bb43357cc7647f3905ac6)
-- fix: resolve typecheck errors in tests and initialization [`47b92e1`](https://github.com/karmaniverous/jeeves-watcher/commit/47b92e1b43b9513273c2a4bff1a119a774243043)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.2.0 [`a6d4d7e`](https://github.com/karmaniverous/jeeves-watcher/commit/a6d4d7e57424b482b737cb6983dc5c9a86b96160)
-- fix(openclaw): use error.cause for precise connection error detection [`3bdd267`](https://github.com/karmaniverous/jeeves-watcher/commit/3bdd267225d129186ee6d9263379ddcd6808d7df)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.1.2 [`c019f41`](https://github.com/karmaniverous/jeeves-watcher/commit/c019f410d5cef94e653450b82966d64e1a70f900)
-- refactor(OCP): allow custom extractors via additionalExtractors parameter [`36b7ae2`](https://github.com/karmaniverous/jeeves-watcher/commit/36b7ae29cdc24109feb8c1a00555f93c5a1a5850)
-- chore: fix knip after monorepo split [`e16460b`](https://github.com/karmaniverous/jeeves-watcher/commit/e16460b90e5a695818bde2b47ac6577abf6cbf1c)
-- fix(lint): resolve unsafe-assignment and unbound-method in tests [`9e41021`](https://github.com/karmaniverous/jeeves-watcher/commit/9e41021de4513b8cb9f684bbf90e184b5559011e)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.1.1 [`008e757`](https://github.com/karmaniverous/jeeves-watcher/commit/008e757704e0cdf5bca7819a9b9eb36b7258a300)
-- added env local template [`74aaa72`](https://github.com/karmaniverous/jeeves-watcher/commit/74aaa726761cb16d3f133a926e0a335b22417808)
-- lintfix [`c36da17`](https://github.com/karmaniverous/jeeves-watcher/commit/c36da17951cdbe955e620cf8a8626d2f1bb8a8c1)
-- chore: remove temp commit script [`31d35a7`](https://github.com/karmaniverous/jeeves-watcher/commit/31d35a7341fdfe9d823ffbd04f4192396edcd638)
-- package version 0 [`eda1c58`](https://github.com/karmaniverous/jeeves-watcher/commit/eda1c58217fc89a4f1d2ff3e048c13973b5056fd)
-- chore: tune docs warnPattern to ignore Zod enum TSDoc warnings [`b09909a`](https://github.com/karmaniverous/jeeves-watcher/commit/b09909a51b5b076ea071c2e83047c21eec1f594f)
-- removed docs from release script [`8878235`](https://github.com/karmaniverous/jeeves-watcher/commit/88782358db1a8ff2f1303d503d7086df4994d23b)
-
-#### [0.2.6](https://github.com/karmaniverous/jeeves-watcher/compare/0.2.5...0.2.6)
-
-> 22 February 2026
-
-- fix: remove shebang from ESM CLI output [`#16`](https://github.com/karmaniverous/jeeves-watcher/pull/16)
-- [ISSUE-15] fix: remove shebang from ESM CLI output (closes #15) [`#15`](https://github.com/karmaniverous/jeeves-watcher/issues/15)
-- chore: release v0.2.6 [`2fe3b56`](https://github.com/karmaniverous/jeeves-watcher/commit/2fe3b56d05d3ae258196214a010dab86d2ab9df4)
-
-#### [0.2.5](https://github.com/karmaniverous/jeeves-watcher/compare/0.2.4...0.2.5)
-
-> 22 February 2026
-
-- feat: respect .gitignore patterns in watched directories [`#14`](https://github.com/karmaniverous/jeeves-watcher/pull/14)
-- chore: release v0.2.5 [`6e86776`](https://github.com/karmaniverous/jeeves-watcher/commit/6e867768970a01718a219f49fc1f4e58eb1d6453)
-- feat: add gitignore filter service with ignore package [`b840a9d`](https://github.com/karmaniverous/jeeves-watcher/commit/b840a9dd8f994be1215bc4c475c9fe58d18336b5)
-- feat: add respectGitignore config option [`ec34a48`](https://github.com/karmaniverous/jeeves-watcher/commit/ec34a4833bc3c7842a1a49e5c221fb558f7ba07f)
-- test: add gitignore integration test [`4993208`](https://github.com/karmaniverous/jeeves-watcher/commit/4993208194b933711addfdbe7b649070c5ae9092)
-- fix: support glob watch paths in gitignore filter scan [`dbccaf0`](https://github.com/karmaniverous/jeeves-watcher/commit/dbccaf08092ead8e0eb575766102580120616c2b)
-- feat: integrate gitignore filtering into processing pipeline [`9f5bf1b`](https://github.com/karmaniverous/jeeves-watcher/commit/9f5bf1b47583b7a9bd6a60d3bdeda1287c429aaa)
-- docs: document gitignore support in README [`86d1329`](https://github.com/karmaniverous/jeeves-watcher/commit/86d1329388b0618c5e733230157461ca0c80e8a0)
-
-#### [0.2.4](https://github.com/karmaniverous/jeeves-watcher/compare/0.2.3...0.2.4)
-
-> 22 February 2026
-
-- feat: graceful error handling with BOM stripping, system health tracking, and exponential backoff [`#12`](https://github.com/karmaniverous/jeeves-watcher/pull/12)
-- chore: release v0.2.4 [`6d4d18e`](https://github.com/karmaniverous/jeeves-watcher/commit/6d4d18ef894b842a06d3d5c59ded83efa36a2fe0)
-- feat: graceful error handling with BOM stripping, system health tracking, and exponential backoff (#11) [`ad01be1`](https://github.com/karmaniverous/jeeves-watcher/commit/ad01be1d3115a0643f211ed4429c9b0530396b3f)
-- chore: lint fixes and regenerate config schema (#11) [`eb5d57b`](https://github.com/karmaniverous/jeeves-watcher/commit/eb5d57b9dbcf6494ba520a557e83d380041e10ee)
-- docs: add JSDoc to JeevesWatcher class (#11) [`c3825fc`](https://github.com/karmaniverous/jeeves-watcher/commit/c3825fcbbad7a5c5f5506668686e062e4399dee2)
-- updated diagrams [`22eaf09`](https://github.com/karmaniverous/jeeves-watcher/commit/22eaf09d499c15c4734c1b129c62f67d87a8ba19)
-
-#### [0.2.3](https://github.com/karmaniverous/jeeves-watcher/compare/0.2.2...0.2.3)
-
-> 21 February 2026
-
-- docs: document env var pass-through behavior [`#10`](https://github.com/karmaniverous/jeeves-watcher/pull/10)
-- fix: leave unresolvable env var expressions untouched in config [`#9`](https://github.com/karmaniverous/jeeves-watcher/pull/9)
-- [ISSUE-8] fix: leave unresolvable env var expressions untouched in config (closes #8) [`#8`](https://github.com/karmaniverous/jeeves-watcher/issues/8)
-- chore: release v0.2.3 [`d7d9a90`](https://github.com/karmaniverous/jeeves-watcher/commit/d7d9a905ba8c74433f8e3de69fdbae89a836ac57)
-- [ISSUE-8] docs: document env var pass-through behavior in README [`ca379f3`](https://github.com/karmaniverous/jeeves-watcher/commit/ca379f32aabc2ca6acab8b87033e2126aa69be89)
-
-#### [0.2.2](https://github.com/karmaniverous/jeeves-watcher/compare/0.2.1...0.2.2)
-
-> 21 February 2026
-
-- fix: resolve issues #4 and #5 [`#7`](https://github.com/karmaniverous/jeeves-watcher/pull/7)
-- chore: release v0.2.2 [`3d07303`](https://github.com/karmaniverous/jeeves-watcher/commit/3d07303226b3c04a520556d2ad65ff16d2f251c5)
-- [ISSUES-4] fix: improve error serialization for pino logging [`021d18c`](https://github.com/karmaniverous/jeeves-watcher/commit/021d18c84d421b978c04478ccd0167e87c603c27)
-- [ISSUES-4] feat: implement ${ENV_VAR} substitution in config strings [`5bbb09f`](https://github.com/karmaniverous/jeeves-watcher/commit/5bbb09fad11c10341e742a06b0d228f34b4ec1de)
-- lint:fix [`b6446c5`](https://github.com/karmaniverous/jeeves-watcher/commit/b6446c5ab3692bbaa450a9c5c5e5d79057be59ac)
-- [ISSUES-4] fix: skip frontmatter parsing when markdown doesn't start with --- [`468c71a`](https://github.com/karmaniverous/jeeves-watcher/commit/468c71a047abe477af1ab023850a0ce5030d5178)
-
-#### [0.2.1](https://github.com/karmaniverous/jeeves-watcher/compare/0.2.0...0.2.1)
-
-> 21 February 2026
-
-- feat: schema-first config with Zod + JsonMap, SOLID/DRY refactor [`#6`](https://github.com/karmaniverous/jeeves-watcher/pull/6)
-- refactor: decompose rules module into focused submodules (ajvSetup, attributes, compile, templates, apply) [`5fc1fe8`](https://github.com/karmaniverous/jeeves-watcher/commit/5fc1fe80a46eb640f742c16a4567b22761b78cc3)
-- chore: release v0.2.1 [`1f9b997`](https://github.com/karmaniverous/jeeves-watcher/commit/1f9b9979b4596b539f4d29b5ab94223c5156da80)
-- refactor: extract API route handlers into api/handlers with narrow deps [`058d6f3`](https://github.com/karmaniverous/jeeves-watcher/commit/058d6f30597501c5fcac4063621ba780b0f8e85a)
-- refactor: extract shared utilities (normalizePath, errors, logger, constants, CLI defaults) [`880e9a2`](https://github.com/karmaniverous/jeeves-watcher/commit/880e9a2cdcdce83d43e5950398f447064937308c)
-- refactor: decompose JeevesWatcher with ConfigWatcher + injectable factories [`ee92af5`](https://github.com/karmaniverous/jeeves-watcher/commit/ee92af53b2867a7edb5b2ff5939b4a718e6f5b9d)
-- refactor: DRY CLI API commands via shared runApiCommand + formatResponse [`cb71522`](https://github.com/karmaniverous/jeeves-watcher/commit/cb71522eee05089f0df559b4067fa387871c53bb)
-- docs: add TSDoc to exported RuleLogger and JeevesWatcherFactories members [`1bc80c7`](https://github.com/karmaniverous/jeeves-watcher/commit/1bc80c7766067846065d4ba786080f144ee8463b)
-- refactor: remove unused errors utility [`e826dfd`](https://github.com/karmaniverous/jeeves-watcher/commit/e826dfd1bb7f5aeb075a6c158b6b4e68aa8ae336)
-
-#### [0.2.0](https://github.com/karmaniverous/jeeves-watcher/compare/openclaw/0.2.0...0.2.0)
-
-> 21 February 2026
-
-#### [openclaw/0.2.0](https://github.com/karmaniverous/jeeves-watcher/compare/openclaw/0.1.2...openclaw/0.2.0)
-
-> 27 February 2026
-
-- fix(openclaw): skill review feedback [`#45`](https://github.com/karmaniverous/jeeves-watcher/pull/45)
-- chore(openclaw): merge skills, simplify build, improve error messaging [`#44`](https://github.com/karmaniverous/jeeves-watcher/pull/44)
-- updated docs [`3028f04`](https://github.com/karmaniverous/jeeves-watcher/commit/3028f04a038935d6339c575f8c78dc10f301a2df)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.2.0 [`a6d4d7e`](https://github.com/karmaniverous/jeeves-watcher/commit/a6d4d7e57424b482b737cb6983dc5c9a86b96160)
-- fix(openclaw): use error.cause for precise connection error detection [`3bdd267`](https://github.com/karmaniverous/jeeves-watcher/commit/3bdd267225d129186ee6d9263379ddcd6808d7df)
-- chore: remove temp commit script [`31d35a7`](https://github.com/karmaniverous/jeeves-watcher/commit/31d35a7341fdfe9d823ffbd04f4192396edcd638)
-
-#### [openclaw/0.1.2](https://github.com/karmaniverous/jeeves-watcher/compare/openclaw/0.1.1...openclaw/0.1.2)
-
-> 25 February 2026
-
-- docs: document self-installer CLI and Windows workaround [`#41`](https://github.com/karmaniverous/jeeves-watcher/pull/41)
-- fix: resolve lint errors in openclaw CLI [`#40`](https://github.com/karmaniverous/jeeves-watcher/pull/40)
-- feat: add install/uninstall CLI for OpenClaw plugin [`#39`](https://github.com/karmaniverous/jeeves-watcher/pull/39)
-- feat: add install/uninstall CLI to bypass OpenClaw spawn EINVAL bug on Windows [`1ad7fbb`](https://github.com/karmaniverous/jeeves-watcher/commit/1ad7fbb1f4947d852a5a16a2b564b27ccb0620d5)
-- fix: resolve lint errors in openclaw CLI and add rollup externals [`b4e8514`](https://github.com/karmaniverous/jeeves-watcher/commit/b4e8514d991daaed99bd7d7dff7028b4310109be)
-- docs: document self-installer CLI and Windows spawn EINVAL workaround [`e3d6351`](https://github.com/karmaniverous/jeeves-watcher/commit/e3d63512fe57b555e753c8f86bbfe57a1b97f70c)
-- fix: apply same conditional logic to tools.allow as plugins.allow [`4549569`](https://github.com/karmaniverous/jeeves-watcher/commit/4549569ea72e1bbe385fd7592497982bbc34ec39)
-- fix: remove plugins.allow management from CLI, only manage entries and tools.allow [`64106b4`](https://github.com/karmaniverous/jeeves-watcher/commit/64106b49be35f11c8e4b9a499b45067869decc4b)
-- fix: conditionally manage plugins.allow only when already populated [`c486c3a`](https://github.com/karmaniverous/jeeves-watcher/commit/c486c3a8bc12df5f1d233a0f974c0024e91e84b4)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.1.2 [`c019f41`](https://github.com/karmaniverous/jeeves-watcher/commit/c019f410d5cef94e653450b82966d64e1a70f900)
-
-#### [openclaw/0.1.1](https://github.com/karmaniverous/jeeves-watcher/compare/0.1.0...openclaw/0.1.1)
-
-> 25 February 2026
-
-- chore: fix monorepo release-it tags, plugin id, and version sync [`#38`](https://github.com/karmaniverous/jeeves-watcher/pull/38)
-- feat: convert to monorepo with service and openclaw plugin packages [`#37`](https://github.com/karmaniverous/jeeves-watcher/pull/37)
-- docs(skill): add theory of operation, remove stale SKILL.md [`#36`](https://github.com/karmaniverous/jeeves-watcher/pull/36)
-- feat: v0.5.0 — plugin expansion, two-skill architecture, API extensions [`#35`](https://github.com/karmaniverous/jeeves-watcher/pull/35)
-- fix: use pathToFileURL for dynamic imports on Windows [`#31`](https://github.com/karmaniverous/jeeves-watcher/pull/31)
-- feat: support custom JsonMap lib functions via config [`#29`](https://github.com/karmaniverous/jeeves-watcher/pull/29)
-- fix: resolve file path references in named maps config [`#28`](https://github.com/karmaniverous/jeeves-watcher/pull/28)
-- fix: resolve chokidar v5 ignored glob patterns via picomatch matchers [`#27`](https://github.com/karmaniverous/jeeves-watcher/pull/27)
-- fix: adapt to chokidar v4 glob removal — watch directory roots with picomatch filtering [`#26`](https://github.com/karmaniverous/jeeves-watcher/pull/26)
-- feat: Content Templates (v0.4.0) — Handlebars-based content transformation at index time [`#23`](https://github.com/karmaniverous/jeeves-watcher/pull/23)
-- fix: restore shebang in CLI output for correct npm .cmd wrapper generation [`#20`](https://github.com/karmaniverous/jeeves-watcher/pull/20)
-- feat: OpenClaw plugin with agent tools and skill (v0.3.0) [`#19`](https://github.com/karmaniverous/jeeves-watcher/pull/19)
-- docs: sync all documentation with implementation [`#17`](https://github.com/karmaniverous/jeeves-watcher/pull/17)
-- fix: remove shebang from ESM CLI output [`#16`](https://github.com/karmaniverous/jeeves-watcher/pull/16)
-- feat: respect .gitignore patterns in watched directories [`#14`](https://github.com/karmaniverous/jeeves-watcher/pull/14)
-- feat: graceful error handling with BOM stripping, system health tracking, and exponential backoff [`#12`](https://github.com/karmaniverous/jeeves-watcher/pull/12)
-- docs: document env var pass-through behavior [`#10`](https://github.com/karmaniverous/jeeves-watcher/pull/10)
-- fix: leave unresolvable env var expressions untouched in config [`#9`](https://github.com/karmaniverous/jeeves-watcher/pull/9)
-- fix: resolve issues #4 and #5 [`#7`](https://github.com/karmaniverous/jeeves-watcher/pull/7)
-- feat: schema-first config with Zod + JsonMap, SOLID/DRY refactor [`#6`](https://github.com/karmaniverous/jeeves-watcher/pull/6)
-- feat: schema-first config (Zod 4), JsonMap integration, DRY/SOLID refactor [`#3`](https://github.com/karmaniverous/jeeves-watcher/pull/3)
-- fix: use pathToFileURL for dynamic imports on Windows (#31) [`#30`](https://github.com/karmaniverous/jeeves-watcher/issues/30)
-- fix: resolve chokidar glob pattern failure on Windows by extracting directory roots [`#25`](https://github.com/karmaniverous/jeeves-watcher/issues/25)
-- [ISSUE-15] fix: remove shebang from ESM CLI output (closes #15) [`#15`](https://github.com/karmaniverous/jeeves-watcher/issues/15)
-- [ISSUE-8] fix: leave unresolvable env var expressions untouched in config (closes #8) [`#8`](https://github.com/karmaniverous/jeeves-watcher/issues/8)
-- chore: release v0.5.0-0 [`0c181d9`](https://github.com/karmaniverous/jeeves-watcher/commit/0c181d95303c04178aa7cb51a4ffe852354d6f02)
-- docs: complete v0.5.0 documentation pass [`e563ee8`](https://github.com/karmaniverous/jeeves-watcher/commit/e563ee870a92229be2fc71fb0fefdd7bbd23dbe7)
-- feat: add template engine dependencies (handlebars, mdast-util-from-adf, etc.) [`f6d090c`](https://github.com/karmaniverous/jeeves-watcher/commit/f6d090cfe710adf94013e2d5a6f791ce72474f7a)
-- docs: export missing symbols, add TSDoc, fix typedoc warnings [`85f5f02`](https://github.com/karmaniverous/jeeves-watcher/commit/85f5f02c84c2ecf309ef799d186d689a5e8412ef)
-- docs: fix TypeDoc warnings — constructor params, JsonFileStore props, handlebars highlight [`388bed4`](https://github.com/karmaniverous/jeeves-watcher/commit/388bed46c1d49360adca7109476d502abb13f007)
-- feat(schema): implement Phase 1 - core schema system [`4b538ad`](https://github.com/karmaniverous/jeeves-watcher/commit/4b538ad12dd4f68a093faf7e5460a2cfcc716d84)
-- chore: release v0.2.0 [`f0d1ce2`](https://github.com/karmaniverous/jeeves-watcher/commit/f0d1ce260f48cc9c0ab5cb25098d52a498f44408)
-- feat: foundation for v0.5.0 - issues, values, named rules, config schema [`a81cfa9`](https://github.com/karmaniverous/jeeves-watcher/commit/a81cfa98f8b16cc3e0559571d6db36dd00a5e440)
-- refactor(DRY): split config schemas into logical modules [`fc24cb4`](https://github.com/karmaniverous/jeeves-watcher/commit/fc24cb4ffb306ca8454f3467074be0569ce64ad8)
-- chore: release v0.4.0 [`79f7f8d`](https://github.com/karmaniverous/jeeves-watcher/commit/79f7f8d002f7deae4d4923e9e490f0e3d4e8ca3a)
-- feat: API endpoints for v0.5.0 — query validate apply issues reindex tracking [`97b0f75`](https://github.com/karmaniverous/jeeves-watcher/commit/97b0f7516de416c68bb5af95491150cd318680ba)
-- fix: resolve typedoc warnings, export schemas, update deps, add logging [`9b75e80`](https://github.com/karmaniverous/jeeves-watcher/commit/9b75e808750f0fa7238557b45c702b57784a5c47)
-- feat: validate metadata and align issues + skill docs [`1ffdc0c`](https://github.com/karmaniverous/jeeves-watcher/commit/1ffdc0cfbf56411a060c924e3f3b0918c54b7720)
-- chore: release v0.3.0 [`0e03c00`](https://github.com/karmaniverous/jeeves-watcher/commit/0e03c000e94d776a6724b8e92de4a7a432808785)
-- chore: release v0.5.0 [`aa5a5aa`](https://github.com/karmaniverous/jeeves-watcher/commit/aa5a5aa2ed2f40f581ee28bf9946c1a065c5a9bd)
-- chore: release v0.5.0-1 [`2b330da`](https://github.com/karmaniverous/jeeves-watcher/commit/2b330dabb6f630394138a8132e51e49ae6f0cfb2)
-- chore: update deps (hast, knip, rollup) [`3790582`](https://github.com/karmaniverous/jeeves-watcher/commit/3790582cdd5f984fc3101ed93580e34de0fccc4d)
-- feat: helper namespace prefixing and JSDoc introspection [`ffbaba5`](https://github.com/karmaniverous/jeeves-watcher/commit/ffbaba5e7661089566aab452d0c3c3b45d0f494f)
-- feat: add Zod schema descriptions [`531939f`](https://github.com/karmaniverous/jeeves-watcher/commit/531939fbe3c6f80e25df9ed36ad9d048618edcc8)
-- refactor: DRY API routes and CLI commands [`1b8cb4f`](https://github.com/karmaniverous/jeeves-watcher/commit/1b8cb4f1b6ac9ac6f05ae202c8fdb07dfa695de4)
-- docs: add PlantUML architecture diagrams and embed in documentation [`79daf6b`](https://github.com/karmaniverous/jeeves-watcher/commit/79daf6b8f79af03be9e9f3cb175fbf3478447abb)
-- docs: update guides for v0.5.0 endpoints, config, and CLI [`0c79850`](https://github.com/karmaniverous/jeeves-watcher/commit/0c79850ad5906ce60dec257e502b7bcd83a09de6)
-- feat: complete v2 spec implementation gaps (P0-P2) [`fa45008`](https://github.com/karmaniverous/jeeves-watcher/commit/fa45008b0aebd103302ffa72ed216398615b9674)
-- refactor: decompose rules module into focused submodules (ajvSetup, attributes, compile, templates, apply) [`5fc1fe8`](https://github.com/karmaniverous/jeeves-watcher/commit/5fc1fe80a46eb640f742c16a4567b22761b78cc3)
-- chore: release v0.4.3 [`8b82d0c`](https://github.com/karmaniverous/jeeves-watcher/commit/8b82d0cf01dee60ab3a135ac6c0c70ae726d31fd)
-- chore: release v0.4.2 [`4ea9215`](https://github.com/karmaniverous/jeeves-watcher/commit/4ea9215f5ae9506bf497fffdcbf414160ae03310)
-- chore: release v0.4.4 [`f3a284c`](https://github.com/karmaniverous/jeeves-watcher/commit/f3a284ce1c940f0ea1e5e9338492cc0de61c5b97)
-- chore: release v0.4.1 [`c736409`](https://github.com/karmaniverous/jeeves-watcher/commit/c7364099798bc494ea633f376bf747e1cb995209)
-- chore: release v0.2.5 [`6e86776`](https://github.com/karmaniverous/jeeves-watcher/commit/6e867768970a01718a219f49fc1f4e58eb1d6453)
-- refactor: DRY helper module loading into shared utility [`fef881a`](https://github.com/karmaniverous/jeeves-watcher/commit/fef881a4ae00bb6e09eccfc3fe08b69741d18c4a)
-- chore: release v0.2.4 [`6d4d18e`](https://github.com/karmaniverous/jeeves-watcher/commit/6d4d18ef894b842a06d3d5c59ded83efa36a2fe0)
-- test: add CLI command tests (status, search, reindex, configReindex, rebuildMetadata, service) [`094c333`](https://github.com/karmaniverous/jeeves-watcher/commit/094c333bc20b4961f8cd15a7a9ea3f77c2cc9d14)
-- feat: export template engine types, fix knip (add hast dep) [`7ae0597`](https://github.com/karmaniverous/jeeves-watcher/commit/7ae059712e46ecabcbf7539814a0783bb9410dc6)
-- chore: release v0.3.1 [`8a6de18`](https://github.com/karmaniverous/jeeves-watcher/commit/8a6de183a9ab5214f83d395cebd547da799f7834)
-- chore: release v0.2.1 [`1f9b997`](https://github.com/karmaniverous/jeeves-watcher/commit/1f9b9979b4596b539f4d29b5ab94223c5156da80)
-- chore: release v0.2.6 [`2fe3b56`](https://github.com/karmaniverous/jeeves-watcher/commit/2fe3b56d05d3ae258196214a010dab86d2ab9df4)
-- feat: schema-first config with Zod 4 [`fd8987b`](https://github.com/karmaniverous/jeeves-watcher/commit/fd8987b4796e62d28e40b0cca4c80f465ed43954)
-- feat: generate config JSON schema and standardize defaults [`d56659f`](https://github.com/karmaniverous/jeeves-watcher/commit/d56659f72f293e7b3b8ac3094f3163a91648d182)
-- feat: graceful error handling with BOM stripping, system health tracking, and exponential backoff (#11) [`ad01be1`](https://github.com/karmaniverous/jeeves-watcher/commit/ad01be1d3115a0643f211ed4429c9b0530396b3f)
-- refactor: decompose app/index.ts into factories and startFromConfig modules (300 LOC limit) [`33736c2`](https://github.com/karmaniverous/jeeves-watcher/commit/33736c2f2418c85c4b2c81cd48dc08758de62dcb)
-- feat: add gitignore filter service with ignore package [`b840a9d`](https://github.com/karmaniverous/jeeves-watcher/commit/b840a9dd8f994be1215bc4c475c9fe58d18336b5)
-- chore: release v0.2.2 [`3d07303`](https://github.com/karmaniverous/jeeves-watcher/commit/3d07303226b3c04a520556d2ad65ff16d2f251c5)
-- chore: release v0.2.3 [`d7d9a90`](https://github.com/karmaniverous/jeeves-watcher/commit/d7d9a905ba8c74433f8e3de69fdbae89a836ac57)
-- refactor: extract API route handlers into api/handlers with narrow deps [`058d6f3`](https://github.com/karmaniverous/jeeves-watcher/commit/058d6f30597501c5fcac4063621ba780b0f8e85a)
-- test: add critical test coverage for utilities and handlers [`b9b94d7`](https://github.com/karmaniverous/jeeves-watcher/commit/b9b94d7be0bf6d39a5df959202c978daaa55284b)
-- feat: add template engine module and config schema changes [`968132f`](https://github.com/karmaniverous/jeeves-watcher/commit/968132f71cc7159afd574a4d3e90a67784a8e0ac)
-- refactor: decompose DocumentProcessor (SRP) [`99db65f`](https://github.com/karmaniverous/jeeves-watcher/commit/99db65f8b590a92688de2ba60fa64000ceee3f47)
-- refactor(DRY): add withApiOptions helper for CLI commands [`26df301`](https://github.com/karmaniverous/jeeves-watcher/commit/26df3015d41b0e351b762a116077f4afcd04a090)
-- fix: replace eslint-disable comments with properly typed mocks [`025e322`](https://github.com/karmaniverous/jeeves-watcher/commit/025e322946827fc0ffd37258d3fa5cf1cf2fa0f8)
-- feat: expand plugin to 8 tools for v0.5.0 [`bde15f4`](https://github.com/karmaniverous/jeeves-watcher/commit/bde15f465b0ab503519999c5fd0049fa255ebece)
-- refactor(SRP): extract app initialization logic to separate module [`63147f4`](https://github.com/karmaniverous/jeeves-watcher/commit/63147f4fce30c692bc134bdb27eda4aa8ee49940)
-- feat: two-skill architecture with build pipeline [`898db5e`](https://github.com/karmaniverous/jeeves-watcher/commit/898db5e3253d7986de35b8292afa7e2e944a24c1)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.1.0 [`97e2834`](https://github.com/karmaniverous/jeeves-watcher/commit/97e2834986f0ce53098d0299d0da3025a432e43f)
-- refactor(SRP/OCP): split embedding providers into separate files [`d07f4c9`](https://github.com/karmaniverous/jeeves-watcher/commit/d07f4c9553c7b926db1a2d8550469fdcff54879d)
-- refactor: extract shared mergeAndValidateConfig [`aecab7f`](https://github.com/karmaniverous/jeeves-watcher/commit/aecab7f348f22f3e41160bad251e6d51a8306c5e)
-- test: update test files to use new schema format [`336ff00`](https://github.com/karmaniverous/jeeves-watcher/commit/336ff00db2595b125bb3d71d1923d81f0baadf89)
-- refactor: extract shared executeReindex to eliminate duplication [`7658108`](https://github.com/karmaniverous/jeeves-watcher/commit/7658108fc9899557fc3d65b82a1947a2bddc1e25)
-- test: add DocumentProcessor unit tests [`987012f`](https://github.com/karmaniverous/jeeves-watcher/commit/987012fb754b43c7324929e537ec7676e9848e63)
-- refactor: extract shared utilities (normalizePath, errors, logger, constants, CLI defaults) [`880e9a2`](https://github.com/karmaniverous/jeeves-watcher/commit/880e9a2cdcdce83d43e5950398f447064937308c)
-- test: add more critical test coverage [`233082c`](https://github.com/karmaniverous/jeeves-watcher/commit/233082c410cbd8c32f71cd40e64b6028f08c521e)
-- feat: integrate template engine into pipeline (applyRules, processFile, config reload) [`64cc135`](https://github.com/karmaniverous/jeeves-watcher/commit/64cc13509c54532a09d04647e08df8795bbcff57)
-- feat: implement Phase 3 API endpoints [`eb697cf`](https://github.com/karmaniverous/jeeves-watcher/commit/eb697cfd894af3dda446d2988fcc2e0eefee2a97)
-- refactor(DIP): introduce VectorStore interface and update consumers [`1975dee`](https://github.com/karmaniverous/jeeves-watcher/commit/1975deeb610dafa76aceb4e84e82ca7229cd9b5e)
-- test: add template engine tests and update existing rule tests for new return shape [`d6ef7d7`](https://github.com/karmaniverous/jeeves-watcher/commit/d6ef7d7a54f20d54e0b88a36505eca74606751f5)
-- refactor: decompose JeevesWatcher with ConfigWatcher + injectable factories [`ee92af5`](https://github.com/karmaniverous/jeeves-watcher/commit/ee92af53b2867a7edb5b2ff5939b4a718e6f5b9d)
-- feat: execute jsonmap in inference rules [`2f48426`](https://github.com/karmaniverous/jeeves-watcher/commit/2f484267a4deec45dcfc8700735f91b7ac6343a2)
-- docs: document jsonmap maps and regenerate schema [`a6db501`](https://github.com/karmaniverous/jeeves-watcher/commit/a6db501b8316340db12d6fe9f61127675ea140c1)
-- refactor: DRY CLI API commands via shared runApiCommand + formatResponse [`cb71522`](https://github.com/karmaniverous/jeeves-watcher/commit/cb71522eee05089f0df559b4067fa387871c53bb)
-- test: add integration error-path coverage (skip if qdrant down) [`fb4e646`](https://github.com/karmaniverous/jeeves-watcher/commit/fb4e646086409fb5b69145991ed1047e3507ce61)
-- refactor(DRY): extract repeated patterns to utilities [`12842de`](https://github.com/karmaniverous/jeeves-watcher/commit/12842dea5442fd38ddea5d6a3c4ad841c0177f43)
-- chore: fix docs, READMEs, and rollup config for monorepo [`0b92399`](https://github.com/karmaniverous/jeeves-watcher/commit/0b92399eec0275c42ecb6a637c0c59756925c321)
-- fix: resolve all lint errors in test files and wrapHandler [`bbcde3f`](https://github.com/karmaniverous/jeeves-watcher/commit/bbcde3f8c6e19ff975cfda83826226e93181183b)
-- feat: add respectGitignore config option [`ec34a48`](https://github.com/karmaniverous/jeeves-watcher/commit/ec34a4833bc3c7842a1a49e5c221fb558f7ba07f)
-- docs(skill): add theory of operation narrative, remove stale plugin/skill/SKILL.md [`979993d`](https://github.com/karmaniverous/jeeves-watcher/commit/979993dfbd19a8102441fb95d7be10ae0000c6e5)
-- [ISSUES-4] fix: improve error serialization for pino logging [`021d18c`](https://github.com/karmaniverous/jeeves-watcher/commit/021d18c84d421b978c04478ccd0167e87c603c27)
-- docs: sync documentation with implementation [`8442160`](https://github.com/karmaniverous/jeeves-watcher/commit/844216071098d3e2672cd284df06723d3af6c71e)
-- refactor: DRY API handler error handling with wrapHandler; fix writeFileSync in configApply [`8995d2e`](https://github.com/karmaniverous/jeeves-watcher/commit/8995d2e85c48a75503812e20331db8fe88816d38)
-- test: add EventQueue tests [`93a7eab`](https://github.com/karmaniverous/jeeves-watcher/commit/93a7eab2573d92ef4ef7217a6c373fe89f3be29f)
-- docs: fix all documentation gaps and inaccuracies [`1c7128d`](https://github.com/karmaniverous/jeeves-watcher/commit/1c7128d39fb0ce509968487eb5343c5c51ea3bb4)
-- refactor: extractor and embedding provider registries (OCP) [`9fbf9e3`](https://github.com/karmaniverous/jeeves-watcher/commit/9fbf9e3fdd0d275b5ccaf0015d1c0bd108c33c3c)
-- test: add gitignore integration test [`4993208`](https://github.com/karmaniverous/jeeves-watcher/commit/4993208194b933711addfdbe7b649070c5ae9092)
-- test: add config loading and schema validation edge cases [`878a888`](https://github.com/karmaniverous/jeeves-watcher/commit/878a888053e1460660b21ff2a52c97414cfa99fa)
-- [ISSUES-4] feat: implement ${ENV_VAR} substitution in config strings [`5bbb09f`](https://github.com/karmaniverous/jeeves-watcher/commit/5bbb09fad11c10341e742a06b0d228f34b4ec1de)
-- feat: centralize config defaults [`4310e75`](https://github.com/karmaniverous/jeeves-watcher/commit/4310e7588d4c4a49b1513e0288c51dd321cba030)
-- refactor: extract JsonFileStore base for issues/values [`c36112f`](https://github.com/karmaniverous/jeeves-watcher/commit/c36112f43dd415893db4ff999e10b63034870ad8)
-- docs: add content templates section to inference-rules guide [`ebf74ef`](https://github.com/karmaniverous/jeeves-watcher/commit/ebf74efc7fdba17dc4c90f7b477be3d415f716f1)
-- test: add mergedDocument tests [`41a2561`](https://github.com/karmaniverous/jeeves-watcher/commit/41a25615cbaf3e5d1773abd5a78c89e9dc725f1d)
-- revert: remove manual CHANGELOG.md edits (auto-generated on release) [`c20e149`](https://github.com/karmaniverous/jeeves-watcher/commit/c20e14967723b52b877acb3de062d276587bcf44)
-- fix: replace console.warn with pino logger in retry logic [`63a9888`](https://github.com/karmaniverous/jeeves-watcher/commit/63a9888e4c3f2363a038954ca502cb2ce96ab67e)
-- test: add configValidate handler tests [`00d52fd`](https://github.com/karmaniverous/jeeves-watcher/commit/00d52fd7a4d19621b7318eb2b6512d062b8e6acf)
-- test: add configApply handler tests [`5fb3b43`](https://github.com/karmaniverous/jeeves-watcher/commit/5fb3b436b8a205ef76fdf88389655b2246ec665f)
-- chore: align release-it config for monorepo [`938a3e0`](https://github.com/karmaniverous/jeeves-watcher/commit/938a3e0deb686f9f224c90f7e585782e072a6e3e)
-- test: add configQuery handler tests [`6adfcab`](https://github.com/karmaniverous/jeeves-watcher/commit/6adfcab476aa7c63119c340f5dad7428f8544a41)
-- feat: implement enrich CLI command [`1abda09`](https://github.com/karmaniverous/jeeves-watcher/commit/1abda0918bece26c61aa4f6f3758fa0df78f6353)
-- fix: resolve all STAN lint errors and reduce docs warnings [`062594f`](https://github.com/karmaniverous/jeeves-watcher/commit/062594ff6645b7ff35cc90df38e55ee1eab645b3)
-- test: cover rules engine edge cases [`e631e48`](https://github.com/karmaniverous/jeeves-watcher/commit/e631e48ca9229c1025ad21f627318c7a69f4a1e2)
-- refactor(DIP): add DocumentProcessor interface and update factory/consumers [`8a30433`](https://github.com/karmaniverous/jeeves-watcher/commit/8a30433c4c767eac7ea1eba96153ec3d0ad06107)
-- refactor(ISP): convert buildMergedMetadata to options object pattern [`0d67913`](https://github.com/karmaniverous/jeeves-watcher/commit/0d6791301736252bc4fffb068ca06ef30eb554be)
-- chore: make service package ESM-only, remove CJS and IIFE outputs [`9a16492`](https://github.com/karmaniverous/jeeves-watcher/commit/9a164923ae10e7a391520794440aa05420bd99f6)
-- fix: resolveReferences only resolves known config reference positions [`1890bf9`](https://github.com/karmaniverous/jeeves-watcher/commit/1890bf9a2216c769ca1640e70600e8b079cafbcd)
-- fix(lint): address majority of lint issues in new tests [`aec00f8`](https://github.com/karmaniverous/jeeves-watcher/commit/aec00f86b86526d706b1dca3c2d851b77b4c3b75)
-- test: add configReindex handler tests [`506b638`](https://github.com/karmaniverous/jeeves-watcher/commit/506b6387ca73af4d368fececb95c19113696313b)
-- refactor(ISP): narrow API handler deps to required fields [`309daa3`](https://github.com/karmaniverous/jeeves-watcher/commit/309daa37ba7b296889b6c9b53818e4c2f2549682)
-- fix: resolve lint errors and align tests with spec [`29c5217`](https://github.com/karmaniverous/jeeves-watcher/commit/29c52177aa5507817656c441fb67c287e27a8cb4)
-- feat: add @module TSDoc, checkCompatibility, mark enrich as planned [`d3aae8a`](https://github.com/karmaniverous/jeeves-watcher/commit/d3aae8a3d90d277cf51299ff300b80c38fa048ad)
-- docs: add production directory structure guidance for maps and templates [`14c51c8`](https://github.com/karmaniverous/jeeves-watcher/commit/14c51c83fedb4d626e56a021870260ccf13eefcf)
-- refactor(SRP): extract shared template/map helper wiring from JeevesWatcher [`7d1b629`](https://github.com/karmaniverous/jeeves-watcher/commit/7d1b6299c8055ae15fbbf6c000b9eb0f166219a3)
-- fix: support glob watch paths in gitignore filter scan [`dbccaf0`](https://github.com/karmaniverous/jeeves-watcher/commit/dbccaf08092ead8e0eb575766102580120616c2b)
-- docs: add TSDoc to exported RuleLogger and JeevesWatcherFactories members [`1bc80c7`](https://github.com/karmaniverous/jeeves-watcher/commit/1bc80c7766067846065d4ba786080f144ee8463b)
-- feat: integrate gitignore filtering into processing pipeline [`9f5bf1b`](https://github.com/karmaniverous/jeeves-watcher/commit/9f5bf1b47583b7a9bd6a60d3bdeda1287c429aaa)
-- refactor: narrow processor interface (ISP) + misc cleanup [`975daf1`](https://github.com/karmaniverous/jeeves-watcher/commit/975daf1ded93dc407acf1de3f47c7b57b7b66100)
-- test: add ReindexTracker tests [`5830048`](https://github.com/karmaniverous/jeeves-watcher/commit/5830048c62a9950b4f5940f99c140d6caa5b161f)
-- lint:fix [`b6446c5`](https://github.com/karmaniverous/jeeves-watcher/commit/b6446c5ab3692bbaa450a9c5c5e5d79057be59ac)
-- refactor(DRY): extract vectorStore payload type inference [`8f70a7c`](https://github.com/karmaniverous/jeeves-watcher/commit/8f70a7c99a2937e26b6f1aa27317a6304e40947b)
-- feat: add jsonmap to config schema (maps + map on rules) [`5e70229`](https://github.com/karmaniverous/jeeves-watcher/commit/5e702298a702be8045856af417f54d83a34a3c2f)
-- chore: lint fixes and regenerate config schema (#11) [`eb5d57b`](https://github.com/karmaniverous/jeeves-watcher/commit/eb5d57b9dbcf6494ba520a557e83d380041e10ee)
-- fix: implement actual rule matching in testPaths validation [`dba6f4e`](https://github.com/karmaniverous/jeeves-watcher/commit/dba6f4e79f4a2013e42060d84f993bb36346d95d)
-- refactor: replace hand-rolled utilities with radash (get) [`ae1e537`](https://github.com/karmaniverous/jeeves-watcher/commit/ae1e537b6ed763545e8a7c09ddddccc1d47e4965)
-- fix: align diagram paths with .vscode/settings.json conventions [`9430b98`](https://github.com/karmaniverous/jeeves-watcher/commit/9430b98ccdf4c0b21cef98fea00c7795ea77f02b)
-- chore: convert repo to npm workspaces monorepo [`d8fc6e8`](https://github.com/karmaniverous/jeeves-watcher/commit/d8fc6e821af4dde868f1c82b82f8c348788b4a65)
-- refactor(DRY): align logError helper signature with standard pattern [`a014202`](https://github.com/karmaniverous/jeeves-watcher/commit/a014202e0795d015b913e4e113e427f51edeb76f)
-- refactor: centralize processor payload field names [`34836ce`](https://github.com/karmaniverous/jeeves-watcher/commit/34836cebe3d66dab7ae7475ac0aa1ca5dfcd4aa3)
-- refactor: remove unused errors utility [`e826dfd`](https://github.com/karmaniverous/jeeves-watcher/commit/e826dfd1bb7f5aeb075a6c158b6b4e68aa8ae336)
-- refactor(DRY): apply logError utility in DocumentProcessor [`42f5b3e`](https://github.com/karmaniverous/jeeves-watcher/commit/42f5b3e5d6b2a3dc9af886107e9ae981b6fb0108)
-- docs: add guides index pages for foldable typedoc sections [`1827505`](https://github.com/karmaniverous/jeeves-watcher/commit/1827505522859efbe89895f1b18d4c141c6f76f1)
-- [ISSUES-4] fix: skip frontmatter parsing when markdown doesn't start with --- [`468c71a`](https://github.com/karmaniverous/jeeves-watcher/commit/468c71a047abe477af1ab023850a0ce5030d5178)
-- chore: release @karmaniverous/jeeves-watcher v0.5.1 [`b11e44e`](https://github.com/karmaniverous/jeeves-watcher/commit/b11e44e08911b12f719bb43357cc7647f3905ac6)
-- fix: resolve typecheck errors in tests and initialization [`47b92e1`](https://github.com/karmaniverous/jeeves-watcher/commit/47b92e1b43b9513273c2a4bff1a119a774243043)
-- refactor(OCP): allow custom extractors via additionalExtractors parameter [`36b7ae2`](https://github.com/karmaniverous/jeeves-watcher/commit/36b7ae29cdc24109feb8c1a00555f93c5a1a5850)
-- chore: fix knip after monorepo split [`e16460b`](https://github.com/karmaniverous/jeeves-watcher/commit/e16460b90e5a695818bde2b47ac6577abf6cbf1c)
-- fix(lint): resolve unsafe-assignment and unbound-method in tests [`9e41021`](https://github.com/karmaniverous/jeeves-watcher/commit/9e41021de4513b8cb9f684bbf90e184b5559011e)
-- [ISSUE-8] docs: document env var pass-through behavior in README [`ca379f3`](https://github.com/karmaniverous/jeeves-watcher/commit/ca379f32aabc2ca6acab8b87033e2126aa69be89)
-- chore: release @karmaniverous/jeeves-watcher-openclaw v0.1.1 [`008e757`](https://github.com/karmaniverous/jeeves-watcher/commit/008e757704e0cdf5bca7819a9b9eb36b7258a300)
-- added env local template [`74aaa72`](https://github.com/karmaniverous/jeeves-watcher/commit/74aaa726761cb16d3f133a926e0a335b22417808)
-- lintfix [`c36da17`](https://github.com/karmaniverous/jeeves-watcher/commit/c36da17951cdbe955e620cf8a8626d2f1bb8a8c1)
-- docs: document gitignore support in README [`86d1329`](https://github.com/karmaniverous/jeeves-watcher/commit/86d1329388b0618c5e733230157461ca0c80e8a0)
-- docs: add JSDoc to JeevesWatcher class (#11) [`c3825fc`](https://github.com/karmaniverous/jeeves-watcher/commit/c3825fcbbad7a5c5f5506668686e062e4399dee2)
-- package version 0 [`eda1c58`](https://github.com/karmaniverous/jeeves-watcher/commit/eda1c58217fc89a4f1d2ff3e048c13973b5056fd)
-- chore: tune docs warnPattern to ignore Zod enum TSDoc warnings [`b09909a`](https://github.com/karmaniverous/jeeves-watcher/commit/b09909a51b5b076ea071c2e83047c21eec1f594f)
-- rendered diagrams [`ecdef44`](https://github.com/karmaniverous/jeeves-watcher/commit/ecdef44a7f7082064f36f562bfff81a34bdc7f17)
-- merge: resolve package-lock conflict with main [`a358b80`](https://github.com/karmaniverous/jeeves-watcher/commit/a358b808836c254ba6eb362fc6f99a417082aa0d)
-- updated plantuml settings [`002dbf2`](https://github.com/karmaniverous/jeeves-watcher/commit/002dbf2dcd2cce71829f2b179751bb6befa64cf5)
-- docs: remove OpenAI embedding provider (not implemented) [`abf0b9c`](https://github.com/karmaniverous/jeeves-watcher/commit/abf0b9c0c6501dbc8139f745ab16cc107a14b961)
-- chore: install radash [`30a456d`](https://github.com/karmaniverous/jeeves-watcher/commit/30a456def10505fa2dec42df5d7ff68db7c78289)
-- fix: make rebuild-metadata system keys mutable [`93fbb42`](https://github.com/karmaniverous/jeeves-watcher/commit/93fbb42e11e413e08dab9ba655f416301024d300)
-- fix: make queue drain timeout check lint-friendly [`8cd217e`](https://github.com/karmaniverous/jeeves-watcher/commit/8cd217ef7ed1c50a8b1134f12473ed7daf00163a)
-- fix: make queue drain timeout check lint-friendly [`7dd8534`](https://github.com/karmaniverous/jeeves-watcher/commit/7dd8534b263f1d7ce24b1994db20b2bbde9c9e30)
-- fix: relax search command header assertion to satisfy lint [`82a6a68`](https://github.com/karmaniverous/jeeves-watcher/commit/82a6a68bddf2ec4832725421a3fa79c17dd84f70)
-- fix: align buildMergedMetadata logger type with applyRules [`78455eb`](https://github.com/karmaniverous/jeeves-watcher/commit/78455eb06c8c9bf0fc86d958e91ab0fc177cf04f)
-- fix: remove unused error variable in enrich command [`cd61437`](https://github.com/karmaniverous/jeeves-watcher/commit/cd61437259b11b55a44919962f1d1d058d32869d)
-- removed docs from release script [`8878235`](https://github.com/karmaniverous/jeeves-watcher/commit/88782358db1a8ff2f1303d503d7086df4994d23b)
-- updated diagrams [`22eaf09`](https://github.com/karmaniverous/jeeves-watcher/commit/22eaf09d499c15c4734c1b129c62f67d87a8ba19)
-
-#### 0.1.0
-
-> 20 February 2026
-
-- Initial commit [`5981aa4`](https://github.com/karmaniverous/jeeves-watcher/commit/5981aa4a62c69e1c87ea5b4c3fda7b8111aa31f2)
-- updated docs [`688bb79`](https://github.com/karmaniverous/jeeves-watcher/commit/688bb796b3e89ed81c589946e68a5b3ae0c3b998)
-- fix: resolve typedoc cross-reference anchors and add highlight languages [`1a05a39`](https://github.com/karmaniverous/jeeves-watcher/commit/1a05a39e896c5912204b204e2cb35f4cfc5af2c7)
-- feat: initial scaffolding for jeeves-watcher [`b2aa733`](https://github.com/karmaniverous/jeeves-watcher/commit/b2aa733558c36ed460404fcebc70648cd07acee5)
-- docs: add comprehensive guide pages and update typedoc config [`9c79760`](https://github.com/karmaniverous/jeeves-watcher/commit/9c797601e4ccc974b3f29aa092af47398d1689b3)
-- chore: update package.json keywords [`a9147f6`](https://github.com/karmaniverous/jeeves-watcher/commit/a9147f6fdaedad2147ece8d536ed2a818c8869b0)
-- chore: release v0.1.0 [`87b4650`](https://github.com/karmaniverous/jeeves-watcher/commit/87b4650ad9ef6399bfa598a3ddbaf1e4acd5ece5)
-- updated docs [`d65d32b`](https://github.com/karmaniverous/jeeves-watcher/commit/d65d32bc6618721280b187e78e056ee365064273)
-- chore: replace npm-package-template-ts with jeeves-watcher [`d1a8014`](https://github.com/karmaniverous/jeeves-watcher/commit/d1a8014995a53e2a2fb2b907b369c9949312703e)
-- updated changelog [`ec215ea`](https://github.com/karmaniverous/jeeves-watcher/commit/ec215ea092fcebc647e773cb4d18afff8ebd3cb2)
-- feat: add inference rules engine with glob matching and templated metadata [`0b1a60b`](https://github.com/karmaniverous/jeeves-watcher/commit/0b1a60b282fc767923f8517e46fe80add1dff685)
-- chore: regenerate typedoc output [`c751fd6`](https://github.com/karmaniverous/jeeves-watcher/commit/c751fd6044f707c9cd391258c8f00a5e66cd846f)
-- feat: add config reindex endpoint and CLI [`b103059`](https://github.com/karmaniverous/jeeves-watcher/commit/b1030594cfc8f1e58dedba0d8b6580ef2c6bf030)
-- test: add Qdrant integration tests [`129070f`](https://github.com/karmaniverous/jeeves-watcher/commit/129070f17a320c73ee8b0a82b93164dabd4b005f)
-- feat: document processor pipeline [`fc3f239`](https://github.com/karmaniverous/jeeves-watcher/commit/fc3f239627fd854490d202607881ea04c52fe3f2)
-- docs: add contributing guide [`549231f`](https://github.com/karmaniverous/jeeves-watcher/commit/549231fa761c400b0fc2991413857174337386f0)
-- docs: expand README with comprehensive documentation [`558eb10`](https://github.com/karmaniverous/jeeves-watcher/commit/558eb10fe6de21b1314652e67e487378517df171)
-- feat: implement DOCX text extractor [`a0e3eb8`](https://github.com/karmaniverous/jeeves-watcher/commit/a0e3eb8f83d19d73b76c1cc5fcea938b5697921d)
-- feat(api): implement reindex and rebuild-metadata [`45a6fd7`](https://github.com/karmaniverous/jeeves-watcher/commit/45a6fd7c9e72a9339a473b615380af6dbebc47d8)
-- feat: add JeevesWatcher app entry point and wire CLI commands [`effb2df`](https://github.com/karmaniverous/jeeves-watcher/commit/effb2df6a169d615a2c35ce412824dd0737beda2)
-- feat: add logger module, expand config types with defaults and ajv validation [`244a318`](https://github.com/karmaniverous/jeeves-watcher/commit/244a318454ae1b4fa535c0f608ff13e2de166b8d)
-- feat: Qdrant vector store client wrapper [`e3b5152`](https://github.com/karmaniverous/jeeves-watcher/commit/e3b51521a286c0094a0bfd1591d5b75b1a04c6ec)
-- feat: add debounced rate-limited event queue with concurrency and drain [`19aec40`](https://github.com/karmaniverous/jeeves-watcher/commit/19aec40d8d2b6689a92cc52fd2765f490c28ca6c)
-- feat: add text extractors for markdown, plaintext, and json [`521435e`](https://github.com/karmaniverous/jeeves-watcher/commit/521435e45dbdd42846e1c412de71c3bfecc37bb7)
-- feat: add content hashing, metadata persistence, and deterministic point IDs [`f8aabe8`](https://github.com/karmaniverous/jeeves-watcher/commit/f8aabe8a29b171df69f2f3dcde02cabb40a923ee)
-- test: expand integration tests with full lifecycle, metadata enrichment API, and search endpoint [`4e81704`](https://github.com/karmaniverous/jeeves-watcher/commit/4e817041906c4cdade393f2de4527ff9236e5ab5)
-- feat: implement Gemini embedding provider [`88959bb`](https://github.com/karmaniverous/jeeves-watcher/commit/88959bb8127dbdd768dccba9895c72e744b6bbd9)
-- feat: add config file watching with debounced reload [`9c27c0e`](https://github.com/karmaniverous/jeeves-watcher/commit/9c27c0e1639779236cb108c48f5f562c184a6733)
-- feat: implement PDF text extraction using unpdf [`4ddff5a`](https://github.com/karmaniverous/jeeves-watcher/commit/4ddff5ae9e310f299713934c18244438891f6bc5)
-- feat: add FileSystemWatcher module [`29f8875`](https://github.com/karmaniverous/jeeves-watcher/commit/29f887595aff9e680c9203f9b31c37e0aeaad97b)
-- feat: add API server module [`7001681`](https://github.com/karmaniverous/jeeves-watcher/commit/70016811f208f6de13ef462cb4bc99150001eb14)
-- feat(cli): wire reindex rebuild-metadata and search [`104d35f`](https://github.com/karmaniverous/jeeves-watcher/commit/104d35f7f8211a9aee00a772b6b1db1aa3563435)
-- feat: embedding provider abstraction with mock provider [`90b40a5`](https://github.com/karmaniverous/jeeves-watcher/commit/90b40a5d3e33d4f6542c24934ee4fc4781ac4d20)
-- feat(cli): add service install/uninstall instructions [`de6c363`](https://github.com/karmaniverous/jeeves-watcher/commit/de6c363d773ece06a0c903a6b7a8a537a90797f8)
-- feat(cli): add init command [`dcb7462`](https://github.com/karmaniverous/jeeves-watcher/commit/dcb74625ecbf349be62cea32a79f4ecdd41a9f07)
-- feat: implement Gemini embedding provider [`40d46f1`](https://github.com/karmaniverous/jeeves-watcher/commit/40d46f17b6bb39d1e58662d538c218a97ddf2497)
-- feat: update public exports with all new modules [`0ef5413`](https://github.com/karmaniverous/jeeves-watcher/commit/0ef5413a20aa9670a62bac8f880d609a13caaaae)
+- Release @karmaniverous/jeeves-watcher-openclaw v0.14.6
+## [0.14.5] - 2026-04-08
+
+### ⚙️ Miscellaneous Tasks
+
+- Release @karmaniverous/jeeves-watcher-openclaw v0.14.5
+## [0.14.4] - 2026-04-05
+
+### 💼 Other
+
+- Unhoisted jeeves
+
+### ⚙️ Miscellaneous Tasks
+
+- Release @karmaniverous/jeeves-watcher-openclaw v0.14.4
+## [0.14.3] - 2026-04-05
+
+### 💼 Other
+
+- Hoisted jeeves
+- Hoisted knip
+
+### ⚙️ Miscellaneous Tasks
+
+- Release @karmaniverous/jeeves-watcher-openclaw v0.14.3
+## [0.14.2] - 2026-04-05
+
+### ⚙️ Miscellaneous Tasks
+
+- Housekeeping batch (#184, #179, #176, #180, #178)
+- Release @karmaniverous/jeeves-watcher-openclaw v0.14.2
+## [0.14.1] - 2026-04-05
+
+### ⚙️ Miscellaneous Tasks
+
+- Update deps for @karmaniverous/jeeves-core v0.5.3
+- Release @karmaniverous/jeeves-watcher-openclaw v0.14.1
+## [0.14.0] - 2026-04-03
+
+### 🚀 Features
+
+- Bump core to ^0.5.1, engine floor >=22, adopt getPackageVersion
+- Wire gatewayUrl into ComponentWriter for cleanup escalation
+
+### 🐛 Bug Fixes
+
+- Break circular dependencies, clean knip config
+
+### 🚜 Refactor
+
+- Adopt createPluginToolset, ship watcher_service tool
+- Adopt core DEFAULT_PORTS for port constants
+
+### 📚 Documentation
+
+- Update skill, READMEs, and diagrams for v0.17.0
+- Sync all documentation and diagrams with implementation
+
+### ⚙️ Miscellaneous Tasks
+
+- Release @karmaniverous/jeeves-watcher-openclaw v0.14.0
+## [0.13.2] - 2026-03-31
+
+### 💼 Other
+
+- [CORE-046] feat: integrate core 0.4.6 — init() called before descriptor.run()
+
+Bumps @karmaniverous/jeeves to 0.4.6 which fixes karmaniverous/jeeves#53:
+createServiceCli now calls init() before descriptor.run() in the start
+command, so getBindAddress() and other core functions that require
+initialization work correctly.
+
+This unblocks upgrading prod from 0.15.2 to the current release.
+
+### ⚙️ Miscellaneous Tasks
+
+- Release @karmaniverous/jeeves-watcher-openclaw v0.13.2
+## [0.13.1] - 2026-03-30
+
+### 💼 Other
+
+- [CORE-045] feat: integrate core 0.4.5 - add run callback to descriptor
+
+### ⚙️ Miscellaneous Tasks
+
+- Release @karmaniverous/jeeves-watcher-openclaw v0.13.1
+## [0.13.0] - 2026-03-30
+
+### 💼 Other
+
+- [PHASE-2] feat: core 0.4.4 + Zod 4, dep updates, descriptor definition
+
+- Bump @karmaniverous/jeeves to ^0.4.4 (Zod 4)
+- Update all deps not blocked by peer constraints (eslint 10, knip 6, vitest 4.1.2, etc)
+- Fix ESLint 10 new rules: no-useless-assignment, preserve-caught-error
+- Rewrite watcherComponent.ts to return clean JeevesComponentDescriptor
+- Add descriptor.ts + descriptor.test.ts (Phase 2 D2)
+- Remove unused PROBE_TIMEOUT_MS export
+- Update writerIntegration test for core managed-content position change
+- [PHASE-2] [PHASE-4] feat: plugin refactor — core CLI factory, simplified menu, new status shape
+
+O2: Remove ACTION REQUIRED blocks from generateWatcherMenu
+  - Core ComponentWriter handles unreachable state independently
+  - Function now throws on failure (createAsyncContentCache retains last good value)
+O3: Replace hand-rolled plugin CLI with createPluginCli factory
+O4: Update status parsing for core StatusResponse convention
+  - Read health.collection.pointCount instead of collection.pointCount
+- Remove unused DEFAULT_QDRANT_URL constant
+- [PHASE-2] refactor: SOLID/DRY review — extract shared patterns, consolidate constants
+
+DRY fixes in customCommands.ts:
+- Extract withApiOptions helper (eliminates 7x repeated --port/--host options)
+- Extract handleErrors wrapper (eliminates 7x identical try/catch blocks)
+- Extract parseMetadataArgs (enrich command validation logic)
+- Extract baseUrl helper accepting ApiOpts interface
+
+DRY fixes in plugin constants:
+- Extract COMPONENT_NAME, SERVICE_PACKAGE, PLUGIN_PACKAGE, DEFAULT_PORT
+- watcherComponent.ts now references constants instead of hardcoded strings
+- DEFAULT_API_URL derived from DEFAULT_PORT
+
+Cleanup:
+- Remove stale Phase 3/4 placeholder comments from descriptor.ts
+- Add descriptive comments explaining why onConfigApply and generateToolsContent
+  are wired at different layers
+- Remove accidentally committed commit-msg.txt, add to .gitignore
+- [PHASE-2] docs: sync all documentation with current implementation
+
+CLI reference (guides/cli-reference.md) — full rewrite:
+- Remove stale commands: query, config-reindex, config-apply, validate (standalone)
+- Document current CLI structure: core standard commands + domain-specific commands
+- Add service start/stop/restart/status subcommands
+- Document config/config validate/config apply subcommand structure
+
+SKILL.md:
+- Update /status response description for core StatusResponse shape
+  (health.collection.pointCount instead of collection.pointCount)
+- Fix vectorStore config example: collection → collectionName
+- Update watcher_status tool description
+
+Delete dead status handler:
+- handlers/status.ts replaced by core createStatusHandler in api/index.ts
+- handlers/status.test.ts tested dead code
+- [PHASE-2] docs: align guide index structure with jeeves-server pattern
+
+- Add CHANGELOG to children front matter in both index files
+- Add descriptive list body to service and plugin guide indexes
+- Individual guides already have title front matter
+
+### ⚙️ Miscellaneous Tasks
+
+- Release @karmaniverous/jeeves-watcher-openclaw v0.13.0
+## [0.12.1] - 2026-03-25
+
+### ⚙️ Miscellaneous Tasks
+
+- Release @karmaniverous/jeeves-watcher-openclaw v0.12.1
+## [0.12.0] - 2026-03-24
+
+### 📚 Documentation
+
+- Update watcher_config_apply skill text to reflect hot-reload capability
+
+### ⚙️ Miscellaneous Tasks
+
+- Release @karmaniverous/jeeves-watcher-openclaw v0.12.0
+## [0.11.0] - 2026-03-23
+
+### 📚 Documentation
+
+- Sync README, SKILL.md with v0.14.0 implementation (move detection, enrichment store)
+
+### ⚙️ Miscellaneous Tasks
+
+- Release @karmaniverous/jeeves-watcher-openclaw v0.11.0
+## [0.10.0] - 2026-03-22
+
+### 🚀 Features
+
+- Upgrade @karmaniverous/jeeves to ^0.3.0
+
+### ⚙️ Miscellaneous Tasks
+
+- Release @karmaniverous/jeeves-watcher-openclaw v0.10.0
+## [0.9.0] - 2026-03-21
+
+### 🚀 Features
+
+- Adopt @karmaniverous/jeeves core v0.2.0 SDK (#138) ([#138](https://github.com/karmaniverous/jeeves-watcher/pull/138))
+
+### ⚙️ Miscellaneous Tasks
+
+- Release @karmaniverous/jeeves-watcher-openclaw v0.9.0
+## [0.8.1] - 2026-03-19
+
+### 🚀 Features
+
+- *(openclaw)* Update to @karmaniverous/jeeves@0.1.6, add servicePackage/pluginPackage
+
+### 🐛 Bug Fixes
+
+- *(openclaw)* Bundle @karmaniverous/jeeves into plugin output
+- *(openclaw)* Update @karmaniverous/jeeves to 0.1.3 (content path fix)
+- *(openclaw)* Copy core content/ at build time, simplify rollup externals
+- *(openclaw)* Include content/ in CLI installer copy list
+- *(openclaw)* Add 10s timeout to menu generation fetch calls
+- *(openclaw)* Update @karmaniverous/jeeves to 0.1.5 (workspace path priority fix)
+
+### 🚜 Refactor
+
+- *(openclaw)* Use core resolveWorkspacePath from @karmaniverous/jeeves@0.1.4
+
+### ⚙️ Miscellaneous Tasks
+
+- Release @karmaniverous/jeeves-watcher-openclaw v0.8.1
+## [0.8.0] - 2026-03-18
+
+### 🚀 Features
+
+- *(openclaw)* Adopt @karmaniverous/jeeves core components
+
+### 🐛 Bug Fixes
+
+- Add tagPrefix to auto-changelog config for monorepo tags
+- *(openclaw)* Derive plugin version from package.json instead of hardcoding
+
+### 🚜 Refactor
+
+- *(openclaw)* Upgrade to @karmaniverous/jeeves v0.1.1, use createAsyncContentCache, static imports, real integration tests
+- *(openclaw)* Resolve SOLID/DRY violations
+
+### 📚 Documentation
+
+- Add embedding cost behavioral gate to plugin SKILL.md
+- Sync documentation with implementation, replace Mermaid/ASCII with PlantUML diagrams
+
+### 🧪 Testing
+
+- *(openclaw)* Add watcherComponent unit tests, document ServiceCommands in spec
+- *(openclaw)* Remove trivial typeof tests, add getApiUrl/getConfigRoot coverage
+
+### ⚙️ Miscellaneous Tasks
+
+- *(openclaw)* Update dev dependencies
+- Release @karmaniverous/jeeves-watcher-openclaw v0.8.0
+## [0.7.0] - 2026-03-15
+
+### 💼 Other
+
+- [V0_10_0] feat: add scope validation, rules and path reindex scopes (Fixes 1, 2, 13)
+
+- Validate reindex scope against VALID_REINDEX_SCOPES; reject unknown scopes with 400
+- Add 'rules' scope: re-applies inference rules via processRulesUpdate without re-embedding
+- Add 'path' scope: reindex a specific file or directory with watch scope and gitignore validation
+- Update configWatchConfigSchema to accept 'rules'
+- Update watcher_reindex plugin tool with new scopes and optional path parameter
+- Broaden triggerReindex type to ReindexScope across configApply and API index
+- [V0_10_0] feat: version in /status, live scoreThresholds, virtual rule template rebuild, remove dead config keys (Fixes 6, 10, 12)
+
+- Add version field to /status response (read from package.json at startup)
+- Plugin reads search.scoreThresholds from config via /config/query, falls back to defaults
+- Score interpretation includes actionable guidance (strong/relevant/noise)
+- onRulesChanged rebuilds template engine with merged rules (config + virtual)
+- Remove slots and extractors from root config schema (dead keys)
+- Remove slots from merged virtual document
+- Fix 11 (port fallback) already resolved in prior version — no 3456 reference found
+- [V0_10_0] chore: fix lint errors in promptInjection, clean up knip config, regenerate schema
+- [V0_10_0] docs: add score threshold guidance to SKILL.md, reference skill from TOOLS.md injection
+- [FIX-14] feat: prune reindex scope, blast area plan, dryRun (Fix 14)
+
+- Add 'prune' reindex scope: scrolls Qdrant points, checks file_path
+  against watch scope + gitignore, batch-deletes orphaned points
+- Add blast area 'plan' object to all reindex responses (counts by root)
+- Add dryRun parameter: returns plan without executing
+- Thread vectorStore into ExecuteReindexDeps for prune access
+- Refactor processAllFiles to accept pre-computed file list
+- Guard configWatch auto-trigger against prune scope
+- Add CONFIG_WATCH_VALID_SCOPES constant
+- Update plugin tool: prune in scope enum, dryRun parameter
+- Tests: dryRun per scope (issues/full/rules/prune), prune execution
+
+Closes Phase 6 of spec dev plan.
+- [FIX-14] docs: update all guides for reindex scopes, dryRun, plan, and version
+
+- api-reference.md: /config-reindex now documents all 5 scopes, dryRun,
+  plan response shape; /status includes version field; error response
+  includes error+message fields
+- cli-reference.md: config-reindex documents all scopes, --path, --dry-run
+- configuration.md: configWatch.reindex includes rules scope, notes
+  path/prune exclusion
+- inference-rules.md: config watch reindex table adds rules scope, notes
+  path/prune exclusion
+- README.md: updated API and CLI tables for all scopes
+- openclaw README.md: updated watcher_reindex description
+- SKILL.md: already updated in previous commit ([#118](https://github.com/karmaniverous/jeeves-watcher/pull/118))
+- [FIX-15] docs: add initialScan to api-reference and SKILL.md
+
+- api-reference.md: initialScan fields in /status response + table
+- SKILL.md: watcher_status documents initialScan field, diagnostics updated
+- [FIX-17][FIX-18][FIX-19] feat: API Consolidation (Phase 8)
+
+- Convert POST /config/query to GET /config with unified inference rules
+- Rename watcher_query to watcher_config tool
+- Rename POST /config-reindex to POST /reindex with array path support
+- Update CLI, plugin, and tests to match
+- [FIX-17] [FIX-20][FIX-21] Phase 9: POST /walk endpoint, watcher_walk tool, auto rules-reindex on rule registration
+
+Fix 20:
+- New POST /walk handler: accepts { globs: string[] }, walks watch roots with
+  glob intersection, returns { paths, matchedCount, scannedRoots }
+- Route registered in api/index.ts
+- New watcher_walk OpenClaw tool in watcherTools.ts
+- Tests: walk handler (4 tests), plugin tool registration + execution
+
+Fix 21:
+- onRulesChanged now extracts match globs from virtual rules
+  (match.properties.file.properties.path.glob) and fires executeReindex
+  with scope 'rules' and extracted globs array (fire-and-forget)
+- Skips reindex when no rules have match globs
+- Tests: 3 integration tests via Fastify inject
+
+Docs:
+- SKILL.md: added watcher_walk docs, updated API reference table
+  (POST /walk, renamed endpoints from Phase 8), renamed watcher_query
+  references to watcher_config, noted auto-reindex on rule registration
+
+Quality gates: 492 service tests, 28 plugin tests, zero lint/typecheck/knip errors.
+- [FIX-17] [FIX-19] fix: rename CLI config-reindex to reindex, fix stale doc refs, clean watch.ignored
+- [FIX-17] [DOCS] Resolve all docs warnings and root-level knip issues
+- [FIX-17] chore: remove changelogs (generated at build time)
+- [FIX-17] docs: update READMEs with renamed endpoints, tools, and new /walk endpoint
+
+### ⚙️ Miscellaneous Tasks
+
+- Release @karmaniverous/jeeves-watcher-openclaw v0.7.0
+## [0.6.2] - 2026-03-12
+
+### ⚙️ Miscellaneous Tasks
+
+- Release @karmaniverous/jeeves-watcher-openclaw v0.6.2
+## [0.6.1] - 2026-03-10
+
+### 📚 Documentation
+
+- Document reindex.concurrency in published and dev skills
+
+### ⚙️ Miscellaneous Tasks
+
+- Release @karmaniverous/jeeves-watcher-openclaw v0.6.1
+## [0.6.0] - 2026-03-08
+
+### ⚙️ Miscellaneous Tasks
+
+- Release @karmaniverous/jeeves-watcher-openclaw v0.6.0
+## [0.6.0-0] - 2026-03-08
+
+### 🚀 Features
+
+- Add proactive bootstrap diagnostics to prompt injection
+- Add renderAs field to inference rule schema
+- Add renderAs to applyRules and buildMergedMetadata return types
+- *(plugin)* Add watcher_scan tool and update prompt injection
+
+### 🚜 Refactor
+
+- *(service)* Extract scrollPage/count helpers, eliminate DRY violations
+
+### 📚 Documentation
+
+- *(skill)* Add watcher_scan tool section and query planning guidance
+- Add POST /scan and POST /rules/reapply to all documentation
+
+### ⚙️ Miscellaneous Tasks
+
+- Release @karmaniverous/jeeves-watcher-openclaw v0.6.0-0
+## [0.5.7] - 2026-03-05
+
+### 🚀 Features
+
+- *(openclaw)* Strengthen escalation rule with search-first guidance
+
+### 📚 Documentation
+
+- Comprehensive documentation audit fixes
+
+### ⚙️ Miscellaneous Tasks
+
+- Release @karmaniverous/jeeves-watcher-openclaw v0.5.7
+## [0.5.6] - 2026-03-05
+
+### 🚀 Features
+
+- *(openclaw)* Clean up TOOLS.md watcher section on uninstall
+
+### ⚙️ Miscellaneous Tasks
+
+- Release @karmaniverous/jeeves-watcher-openclaw v0.5.6
+## [0.5.5] - 2026-03-05
+
+### 🚀 Features
+
+- *(openclaw)* Replace agent:bootstrap hook with disk-based TOOLS.md writer
+
+### 🐛 Bug Fixes
+
+- *(openclaw)* Resolve lint and type errors in toolsWriter
+
+### ⚙️ Miscellaneous Tasks
+
+- Release @karmaniverous/jeeves-watcher-openclaw v0.5.5
+## [0.5.4] - 2026-03-05
+
+### 🐛 Bug Fixes
+
+- Prevent watcher menu duplication in TOOLS.md injection
+
+### ⚙️ Miscellaneous Tasks
+
+- Release @karmaniverous/jeeves-watcher-openclaw v0.5.4
+## [0.5.3] - 2026-03-05
+
+### 🐛 Bug Fixes
+
+- *(openclaw)* Use correct registerHook name for prompt injection (#82) ([#82](https://github.com/karmaniverous/jeeves-watcher/pull/82))
+- *(openclaw)* Add required name option to registerHook call
+- *(openclaw)* Rename hook registration to match plugin name
+- *(openclaw)* Align registerHook opts type with OpenClawPluginHookOptions
+
+### 💼 Other
+
+- Fix
+- Fix
+
+### ⚙️ Miscellaneous Tasks
+
+- Release @karmaniverous/jeeves-watcher-openclaw v0.5.3
+## [0.5.1] - 2026-03-05
+
+### 🐛 Bug Fixes
+
+- Inject ignored paths and expose watch config in merged document
+
+### 💼 Other
+
+- Lintfix
+
+### ⚙️ Miscellaneous Tasks
+
+- Release @karmaniverous/jeeves-watcher-openclaw v0.5.1
+## [0.5.0] - 2026-03-05
+
+### 🚀 Features
+
+- Add api caching and agent bootstrap prompt injection
+- Make plugin cache TTL configurable and fix API port fallback mismatch
+
+### 📚 Documentation
+
+- *(skill)* Clarify date normalization convention via toUnix helper
+- *(skill)* Add render/template authoring guidance and transformer definitions
+- *(skill)* Remove redundant Orientation Pattern and Quick Start step
+
+### ⚙️ Miscellaneous Tasks
+
+- Copy tsdoc.json into package directories
+- Release @karmaniverous/jeeves-watcher-openclaw v0.5.0
+## [0.4.2] - 2026-03-01
+
+### 🐛 Bug Fixes
+
+- Complete Qdrant systemd setup and add WorkingDirectory to watcher service
+
+### ⚙️ Miscellaneous Tasks
+
+- Remove memory-core Gemini migration from bootstrap
+- Release @karmaniverous/jeeves-watcher-openclaw v0.4.2
+## [0.4.1] - 2026-03-01
+
+### 🚀 Features
+
+- *(openclaw)* Add complete bootstrap sequence to skill (#78) ([#78](https://github.com/karmaniverous/jeeves-watcher/pull/78))
+
+### ⚙️ Miscellaneous Tasks
+
+- Release @karmaniverous/jeeves-watcher-openclaw v0.4.1
+## [0.4.0] - 2026-03-01
+
+### 🚀 Features
+
+- *(openclaw)* [**breaking**] Remove memory slot takeover, simplify to pure extension
+
+### 🐛 Bug Fixes
+
+- *(openclaw)* Correct embedding alignment config path in skill
+- *(openclaw)* Remove deployment-specific content from skill
+- *(openclaw)* Add deployment-discovery guidance to skill, prevent assumption of specific domains
+
+### ⚙️ Miscellaneous Tasks
+
+- Release @karmaniverous/jeeves-watcher-openclaw v0.4.0
+## [0.3.13] - 2026-03-01
+
+### 🚀 Features
+
+- *(openclaw)* Add memory → archive escalation pattern to skill
+
+### ⚙️ Miscellaneous Tasks
+
+- Change default port from 3456 to 1936 (#75) ([#75](https://github.com/karmaniverous/jeeves-watcher/pull/75))
+- Release @karmaniverous/jeeves-watcher-openclaw v0.3.13
+## [0.3.11] - 2026-02-28
+
+### 🚀 Features
+
+- *(openclaw)* Disable memory-core when installing with --memory
+
+### 💼 Other
+
+- Lintfix
+
+### ⚙️ Miscellaneous Tasks
+
+- Release @karmaniverous/jeeves-watcher-openclaw v0.3.11
+## [0.3.10] - 2026-02-28
+
+### 🚀 Features
+
+- *(openclaw)* Brand memory tool responses with provider field
+
+### 🐛 Bug Fixes
+
+- *(openclaw)* Skill proactive check matches positive case only
+
+### ⚙️ Miscellaneous Tasks
+
+- Release @karmaniverous/jeeves-watcher-openclaw v0.3.10
+## [0.3.9] - 2026-02-28
+
+### 📚 Documentation
+
+- *(openclaw)* Add bootstrap, install modes, and proactive posture to skill
+
+### ⚙️ Miscellaneous Tasks
+
+- Release @karmaniverous/jeeves-watcher-openclaw v0.3.9
+## [0.3.8] - 2026-02-28
+
+### 🚀 Features
+
+- *(openclaw)* Decouple plugin from watcher config vocabulary
+- *(openclaw)* --memory flag for install CLI
+
+### 💼 Other
+
+- Lintfix
+
+### ⚙️ Miscellaneous Tasks
+
+- Release @karmaniverous/jeeves-watcher-openclaw v0.3.8
+## [0.3.7] - 2026-02-28
+
+### 🐛 Bug Fixes
+
+- Use domains (plural array) in virtual rules and search filter (#66) ([#66](https://github.com/karmaniverous/jeeves-watcher/pull/66))
+
+### ⚙️ Miscellaneous Tasks
+
+- Release @karmaniverous/jeeves-watcher-openclaw v0.3.7
+## [0.3.6] - 2026-02-28
+
+### 🚀 Features
+
+- POST /rules/reapply endpoint + plugin auto-reapply after registration (#65) ([#65](https://github.com/karmaniverous/jeeves-watcher/pull/65))
+
+### ⚙️ Miscellaneous Tasks
+
+- Release @karmaniverous/jeeves-watcher-openclaw v0.3.6
+## [0.3.5] - 2026-02-27
+
+### 🐛 Bug Fixes
+
+- Use glob instead of pattern for virtual rule matching (case-insensitive on Windows)
+
+### ⚙️ Miscellaneous Tasks
+
+- Release @karmaniverous/jeeves-watcher-openclaw v0.3.5
+## [0.3.4] - 2026-02-27
+
+### 🐛 Bug Fixes
+
+- NormalizePath preserves drive letter case to match service path normalization
+
+### ⚙️ Miscellaneous Tasks
+
+- Release @karmaniverous/jeeves-watcher-openclaw v0.3.4
+## [0.3.3] - 2026-02-27
+
+### 🐛 Bug Fixes
+
+- Ensure text index on startup + re-register virtual rules after watcher restart (#60) ([#60](https://github.com/karmaniverous/jeeves-watcher/pull/60))
+
+### ⚙️ Miscellaneous Tasks
+
+- Release @karmaniverous/jeeves-watcher-openclaw v0.3.3
+## [0.3.2] - 2026-02-27
+
+### 🐛 Bug Fixes
+
+- Plugin config lookup uses correct entry key (jeeves-watcher-openclaw) (#59) ([#59](https://github.com/karmaniverous/jeeves-watcher/pull/59))
+
+### ⚙️ Miscellaneous Tasks
+
+- Release @karmaniverous/jeeves-watcher-openclaw v0.3.2
+## [0.3.1] - 2026-02-27
+
+### 🐛 Bug Fixes
+
+- Plugin installer now claims memory slot in OpenClaw config
+- Update test fixture to include slots for idempotency check (#58) ([#58](https://github.com/karmaniverous/jeeves-watcher/pull/58))
+
+### ⚙️ Miscellaneous Tasks
+
+- Release @karmaniverous/jeeves-watcher-openclaw v0.3.1
+## [0.3.0] - 2026-02-27
+
+### 🚀 Features
+
+- Memory slot takeover with virtual rules API (#49) ([#49](https://github.com/karmaniverous/jeeves-watcher/pull/49))
+
+### 🚜 Refactor
+
+- DRY fixes and comprehensive test coverage for openclaw package (#52) ([#52](https://github.com/karmaniverous/jeeves-watcher/pull/52))
+
+### 📚 Documentation
+
+- Fix template syntax, stale references, and add missing API/tool docs
+
+### ⚙️ Miscellaneous Tasks
+
+- Release @karmaniverous/jeeves-watcher-openclaw v0.3.0
+## [0.2.0] - 2026-02-27
+
+### 🐛 Bug Fixes
+
+- *(openclaw)* Use error.cause for precise connection error detection
+- *(openclaw)* Skill review feedback (#45) ([#45](https://github.com/karmaniverous/jeeves-watcher/pull/45))
+
+### ⚙️ Miscellaneous Tasks
+
+- *(openclaw)* Merge skills, simplify build, improve error messaging
+- Release @karmaniverous/jeeves-watcher-openclaw v0.2.0
+## [0.1.2] - 2026-02-25
+
+### 🚀 Features
+
+- Add install/uninstall CLI to bypass OpenClaw spawn EINVAL bug on Windows
+
+### 🐛 Bug Fixes
+
+- Resolve lint errors in openclaw CLI and add rollup externals
+- Remove plugins.allow management from CLI, only manage entries and tools.allow
+- Conditionally manage plugins.allow only when already populated
+- Apply same conditional logic to tools.allow as plugins.allow
+
+### 📚 Documentation
+
+- Document self-installer CLI and Windows spawn EINVAL workaround
+
+### ⚙️ Miscellaneous Tasks
+
+- Release @karmaniverous/jeeves-watcher-openclaw v0.1.2
+## [0.1.1] - 2026-02-25
+
+### 🚀 Features
+
+- Convert to monorepo with service and openclaw plugin packages
+
+### 💼 Other
+
+- Added env local template
+- Package version 0
+
+### 📚 Documentation
+
+- Add guides index pages for foldable typedoc sections
+
+### ⚙️ Miscellaneous Tasks
+
+- Fix docs, READMEs, and rollup config for monorepo
+- Align release-it config for monorepo
+- Release @karmaniverous/jeeves-watcher-openclaw v0.1.0
+- Fix monorepo release-it tags, plugin id, and version sync
+- Release @karmaniverous/jeeves-watcher-openclaw v0.1.1
