@@ -60,7 +60,7 @@ export const INIT_CONFIG_TEMPLATE = {
   embedding: {
     provider: 'gemini' as const,
     model: 'gemini-embedding-001',
-    dimensions: EMBEDDING_DEFAULTS.dimensions,
+    dimensions: 768,
   },
   vectorStore: {
     url: 'http://127.0.0.1:6333',

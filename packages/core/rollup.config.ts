@@ -12,12 +12,7 @@ import typescriptPlugin from '@rollup/plugin-typescript';
 import type { RollupOptions } from 'rollup';
 import dtsPlugin from 'rollup-plugin-dts';
 
-const external = [
-  '@karmaniverous/jeeves',
-  '@karmaniverous/jsonmap',
-  'zod',
-  'tslib',
-];
+const external = ['@karmaniverous/jeeves', '@karmaniverous/jsonmap', 'zod'];
 
 const typescript = typescriptPlugin({
   tsconfig: './tsconfig.json',
