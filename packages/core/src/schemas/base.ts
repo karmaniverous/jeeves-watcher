@@ -1,5 +1,5 @@
 /**
- * @module config/schemas/base
+ * @module schemas/base
  * Base configuration schemas: watch, logging, API.
  */
 

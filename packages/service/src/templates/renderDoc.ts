@@ -7,10 +7,7 @@ import type Handlebars from 'handlebars';
 import yaml from 'js-yaml';
 import { get, title } from 'radash';
 
-import type {
-  RenderBodySection,
-  RenderConfig,
-} from '../config/schemas/inference';
+import type { RenderBodySection, RenderConfig } from '../config/schemas';
 import { rebaseHeadings } from './rebaseHeadings';
 import { resolveFrontmatterKeys } from './resolveFrontmatterKeys';
 

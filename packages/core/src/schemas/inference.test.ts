@@ -1,5 +1,5 @@
 /**
- * @module config/schemas/inference.test
+ * @module schemas/inference.test
  * Tests for inference schema validation.
  */
 

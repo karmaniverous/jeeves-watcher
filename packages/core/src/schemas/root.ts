@@ -1,5 +1,5 @@
 /**
- * @module config/schemas/root
+ * @module schemas/root
  * Root configuration schema combining all sub-schemas.
  */
 
@@ -11,13 +11,13 @@ import {
   configWatchConfigSchema,
   loggingConfigSchema,
   watchConfigSchema,
-} from './base';
+} from './base.js';
 import {
   type InferenceRule,
   inferenceRuleSchema,
   schemaEntrySchema,
-} from './inference';
-import { embeddingConfigSchema, vectorStoreConfigSchema } from './services';
+} from './inference.js';
+import { embeddingConfigSchema, vectorStoreConfigSchema } from './services.js';
 
 /**
  * Top-level configuration for jeeves-watcher.
@@ -145,7 +145,6 @@ export const jeevesWatcherConfigSchema = z.object({
     })
     .optional()
     .describe('Reindex configuration.'),
-  /** Named Qdrant filter patterns for skill-activated behaviors. */
   /** Search configuration including score thresholds and hybrid search. */
   search: z
     .object({

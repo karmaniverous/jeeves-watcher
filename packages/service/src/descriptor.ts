@@ -9,19 +9,24 @@ import { fileURLToPath } from 'node:url';
 
 import type { Command } from '@commander-js/extra-typings';
 import {
-  DEFAULT_PORTS,
   getPackageVersion,
   type JeevesComponentDescriptor,
   type PluginApi,
   type ToolDescriptor,
 } from '@karmaniverous/jeeves';
+import {
+  COMPONENT_NAME,
+  DEFAULT_PORT,
+  INIT_CONFIG_TEMPLATE,
+  jeevesWatcherConfigSchema,
+  PLUGIN_PACKAGE,
+  SERVICE_PACKAGE,
+} from '@karmaniverous/jeeves-watcher-core';
 import { packageDirectorySync } from 'package-directory';
 
 import { mergeInferenceRules } from './api/handlers/configMerge';
 import { startFromConfig } from './app/startFromConfig';
 import { registerCustomCommands } from './cli/jeeves-watcher/customCommands';
-import { INIT_CONFIG_TEMPLATE } from './config/defaults';
-import { jeevesWatcherConfigSchema } from './config/schemas';
 
 /**
  * Resolve the package root directory using `package-directory`.
@@ -45,11 +50,11 @@ const version = getPackageVersion(import.meta.url);
  */
 export const watcherDescriptor: JeevesComponentDescriptor = {
   // Identity
-  name: 'watcher',
+  name: COMPONENT_NAME,
   version,
-  servicePackage: '@karmaniverous/jeeves-watcher',
-  pluginPackage: '@karmaniverous/jeeves-watcher-openclaw',
-  defaultPort: DEFAULT_PORTS.watcher,
+  servicePackage: SERVICE_PACKAGE,
+  pluginPackage: PLUGIN_PACKAGE,
+  defaultPort: DEFAULT_PORT,
 
   // Config
   configSchema: jeevesWatcherConfigSchema,

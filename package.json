@@ -5,13 +5,13 @@
     "packages/*"
   ],
   "scripts": {
-    "build": "npm run build --workspace=packages/service && npm run build --workspace=packages/openclaw",
+    "build": "npm run build --workspace=packages/core && npm run build --workspace=packages/service && npm run build --workspace=packages/openclaw",
     "lint": "eslint .",
     "lint:fix": "eslint --fix .",
-    "test": "npm run test --workspace=packages/service",
+    "test": "npm run test --workspace=packages/core && npm run test --workspace=packages/service",
     "knip": "knip",
     "docs": "typedoc",
-    "typecheck": "npm run typecheck --workspace=packages/service && npm run typecheck --workspace=packages/openclaw"
+    "typecheck": "npm run typecheck --workspace=packages/core && npm run typecheck --workspace=packages/service && npm run typecheck --workspace=packages/openclaw"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
@@ -21,6 +21,7 @@
     "eslint-plugin-prettier": "^5.5.5",
     "eslint-plugin-simple-import-sort": "^12.1.1",
     "eslint-plugin-tsdoc": "^0.5.2",
+    "git-cliff": "^2.13.1",
     "knip": "^6.3.0",
     "lefthook": "^2.1.4",
     "prettier": "^3.8.1",

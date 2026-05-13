@@ -52,6 +52,7 @@
   "dependencies": {
     "@commander-js/extra-typings": "^14.0.0",
     "@karmaniverous/jeeves": "^0.5.9",
+    "@karmaniverous/jeeves-watcher-core": "*",
     "@karmaniverous/jsonmap": "^2.1.1",
     "@langchain/textsplitters": "*",
     "@qdrant/js-client-rest": "*",
@@ -94,7 +95,6 @@
     "@types/node": "^25.5.2",
     "@types/picomatch": "^4.0.3",
     "@vitest/coverage-v8": "^4.1.2",
-    "auto-changelog": "^2.5.0",
     "cross-env": "^10.1.0",
     "fs-extra": "^11.3.4",
     "happy-dom": "^20.8.9",
@@ -111,7 +111,7 @@
   "scripts": {
     "generate:schema": "tsx src/config/generate-schema.ts",
     "build": "npm run generate:schema && rimraf dist && cross-env NO_COLOR=1 rollup --config rollup.config.ts --configPlugin @rollup/plugin-typescript",
-    "changelog": "auto-changelog",
+    "changelog": "git-cliff -o CHANGELOG.md",
     "diagrams": "cd diagrams && plantuml -tpng -o ../assets -r .",
     "lint": "eslint .",
     "lint:fix": "eslint --fix .",
@@ -120,16 +120,9 @@
     "test": "vitest run",
     "typecheck": "tsc"
   },
-  "auto-changelog": {
-    "output": "CHANGELOG.md",
-    "tagPrefix": "service/",
-    "unreleased": true,
-    "commitLimit": false,
-    "hideCredit": true
-  },
   "release-it": {
     "git": {
-      "changelog": "npx auto-changelog --unreleased-only --stdout --template https://raw.githubusercontent.com/release-it/release-it/main/templates/changelog-compact.hbs",
+      "changelog": "npx git-cliff --unreleased --strip header",
       "commitMessage": "chore: release @karmaniverous/jeeves-watcher v${version}",
       "tagName": "service/${version}",
       "requireBranch": "main"
@@ -144,14 +137,14 @@
         "npm run test",
         "npm run build"
       ],
+      "before:npm:release": [
+        "npx git-cliff -o CHANGELOG.md",
+        "git add -A"
+      ],
       "after:release": [
         "git switch -c release/service/${version}",
         "git push -u origin release/service/${version}",
         "git switch ${branchName}"
-      ],
-      "after:bump": [
-        "npx auto-changelog -p",
-        "git add CHANGELOG.md"
       ]
     },
     "npm": {

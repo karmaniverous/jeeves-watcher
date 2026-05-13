@@ -3,6 +3,9 @@
   "ignoreBinaries": ["typedoc", "plantuml"],
   "ignore": [],
   "workspaces": {
+    "packages/core": {
+      "entry": ["src/index.ts"]
+    },
     "packages/service": {
       "entry": ["src/index.ts", "src/cli/jeeves-watcher/index.ts"]
     },

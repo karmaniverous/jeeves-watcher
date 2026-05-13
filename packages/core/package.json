@@ -1,0 +1,86 @@
+{
+  "name": "@karmaniverous/jeeves-watcher-core",
+  "version": "0.1.0",
+  "type": "module",
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/karmaniverous/jeeves-watcher.git",
+    "directory": "packages/core"
+  },
+  "bugs": {
+    "url": "https://github.com/karmaniverous/jeeves-watcher/issues"
+  },
+  "homepage": "https://github.com/karmaniverous/jeeves-watcher#readme",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "prebuild": "npx rimraf dist",
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "lint": "eslint .",
+    "lint:fix": "eslint --fix .",
+    "changelog": "git-cliff -o CHANGELOG.md",
+    "release": "dotenvx run -f .env.local -- release-it",
+    "release:pre": "dotenvx run -f .env.local -- release-it --no-git.requireBranch --github.prerelease --preRelease"
+  },
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/src/index.d.ts",
+        "default": "./dist/src/index.js"
+      }
+    }
+  },
+  "types": "dist/src/index.d.ts",
+  "dependencies": {
+    "@karmaniverous/jeeves": "^0.5.9",
+    "@karmaniverous/jsonmap": "^2.1.1",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@dotenvx/dotenvx": "^1.59.1",
+    "@types/node": "^25.5.2",
+    "release-it": "^19.2.4",
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.2"
+  },
+  "release-it": {
+    "git": {
+      "changelog": "npx git-cliff --unreleased --strip header",
+      "commitMessage": "chore: release @karmaniverous/jeeves-watcher-core v${version}",
+      "tagName": "core/${version}",
+      "requireBranch": "main"
+    },
+    "github": {
+      "release": true
+    },
+    "hooks": {
+      "after:init": [
+        "npm run lint",
+        "npm run typecheck",
+        "npm run test",
+        "npm run build"
+      ],
+      "before:npm:release": [
+        "npx git-cliff -o CHANGELOG.md",
+        "git add -A"
+      ],
+      "after:release": [
+        "git switch -c release/core/${version}",
+        "git push -u origin release/core/${version}",
+        "git switch ${branchName}"
+      ]
+    },
+    "npm": {
+      "publish": true
+    }
+  }
+}

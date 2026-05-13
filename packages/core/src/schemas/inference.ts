@@ -1,5 +1,5 @@
 /**
- * @module config/schemas/inference
+ * @module schemas/inference
  * Inference rule and schema configuration schemas.
  */
 

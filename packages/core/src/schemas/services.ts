@@ -1,5 +1,5 @@
 /**
- * @module config/schemas/services
+ * @module schemas/services
  * Service configuration schemas: embedding and vector store.
  */
 
