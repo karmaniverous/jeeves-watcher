@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [unreleased]
 
+### 🐛 Bug Fixes
+
+- Pin jeeves-watcher-core dependency to ^0.1.1
+## [0.17.9] - 2026-05-13
+
 ### 🚀 Features
 
 - Extract core package with shared schemas, types, defaults, and constants
@@ -13,6 +18,7 @@ All notable changes to this project will be documented in this file.
 - Add npm publish safety net (.npmignore + gitignore *.local)
 - Move changelog generation to after:bump hook
 - Update all deps, switch core to rollup build, fix lint errors
+- Release @karmaniverous/jeeves-watcher v0.17.9
 ## [0.17.8] - 2026-05-03
 
 ### 💼 Other
