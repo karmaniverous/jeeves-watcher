@@ -52,7 +52,7 @@
   "dependencies": {
     "@commander-js/extra-typings": "^14.0.0",
     "@karmaniverous/jeeves": "^0.5.10",
-    "@karmaniverous/jeeves-watcher-core": "*",
+    "@karmaniverous/jeeves-watcher-core": "^0.1.1",
     "@karmaniverous/jsonmap": "^2.1.1",
     "@langchain/textsplitters": "*",
     "@qdrant/js-client-rest": "*",

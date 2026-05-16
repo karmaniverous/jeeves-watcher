@@ -111,6 +111,6 @@
   },
   "dependencies": {
     "@karmaniverous/jeeves": "^0.5.10",
-    "@karmaniverous/jeeves-watcher-core": "*"
+    "@karmaniverous/jeeves-watcher-core": "^0.1.1"
   }
 }
