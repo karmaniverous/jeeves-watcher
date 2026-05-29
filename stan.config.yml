@@ -23,5 +23,5 @@ stan-cli:
       warnPattern: "\\[warning\\](?!.*\\.__type\\.|.*Found \\d+ errors and \\d+ warnings)"
     build: cross-env NO_COLOR=1 npm run build
     knip:
-      script: npm run knip --workspace=packages/service
+      script: npm run knip
       warnPattern: hints
