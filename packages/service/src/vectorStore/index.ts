@@ -311,6 +311,7 @@ export class VectorStoreClient implements VectorStore {
    * @param limit - Maximum results to return.
    * @param textWeight - Weight for text results in RRF (0–1).
    * @param filter - Optional Qdrant filter.
+   * @param offset - Optional result offset for pagination.
    * @returns An array of search results.
    */
   async hybridSearch(

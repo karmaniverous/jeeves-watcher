@@ -1,6 +1,6 @@
 /**
  * @module processor/processingPipeline.test
- * Tests for the embedAndUpsert pipeline — specifically batched upsert (#162).
+ * Tests for the embedAndUpsert pipeline — batched upsert (#162) and embedding batch splitting (#186).
  */
 
 import { describe, expect, it, vi } from 'vitest';
