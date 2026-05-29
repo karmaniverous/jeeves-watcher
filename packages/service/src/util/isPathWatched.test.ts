@@ -37,4 +37,22 @@ describe('isPathWatched', () => {
       true,
     );
   });
+
+  it.skipIf(process.platform !== 'win32')(
+    'matches mixed-case drive letters on Windows',
+    () => {
+      expect(isPathWatched('J:/domains/foo.md', watchPaths)).toBe(true);
+      expect(isPathWatched('J:/domains/foo.json', watchPaths)).toBe(true);
+    },
+  );
+
+  it.skipIf(process.platform !== 'win32')(
+    'case-insensitive ignored paths on Windows',
+    () => {
+      const ignored = ['J:/domains/SECRET/**'];
+      expect(
+        isPathWatched('j:/domains/secret/file.md', watchPaths, ignored),
+      ).toBe(false);
+    },
+  );
 });

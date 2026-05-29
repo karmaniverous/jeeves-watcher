@@ -77,8 +77,34 @@ describe('createSearchHandler', () => {
       5,
       0.3,
       filter,
+      undefined,
     );
     expect(searchMock).not.toHaveBeenCalledTimes(3);
+  });
+
+  it('passes offset through hybrid search path', async () => {
+    hybridSearchMock.mockClear();
+    const hybridDeps = {
+      ...mockDeps,
+      getHybridConfig: () => ({ enabled: true, textWeight: 0.3 }),
+    } as unknown as SearchRouteDeps;
+
+    const handler = createSearchHandler(hybridDeps);
+    const request = {
+      body: { query: 'test', limit: 5, offset: 10 },
+    } as never;
+    const reply = { status: vi.fn().mockReturnThis(), send: vi.fn() } as never;
+
+    await handler(request, reply);
+
+    expect(hybridSearchMock).toHaveBeenCalledWith(
+      [0.1, 0.2, 0.3],
+      'test',
+      5,
+      0.3,
+      undefined,
+      10,
+    );
   });
 
   it('falls back to vector search when hybrid is disabled', async () => {

@@ -22,6 +22,21 @@
       }
     }
   },
+  "contracts": {
+    "tools": [
+      "watcher_status",
+      "watcher_config",
+      "watcher_config_apply",
+      "watcher_service",
+      "watcher_search",
+      "watcher_enrich",
+      "watcher_validate",
+      "watcher_reindex",
+      "watcher_scan",
+      "watcher_issues",
+      "watcher_walk"
+    ]
+  },
   "uiHints": {
     "apiUrl": {
       "label": "Watcher API URL",

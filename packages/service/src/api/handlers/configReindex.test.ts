@@ -160,6 +160,69 @@ describe('createConfigReindexHandler', () => {
     );
   });
 
+  it('live prune returns immediately without plan (no double scroll)', async () => {
+    mockedExecuteReindex.mockClear();
+    const deps = {
+      ...createDeps(),
+      vectorStore: {} as unknown as ConfigReindexRouteDeps['vectorStore'],
+    };
+    const handler = createConfigReindexHandler(
+      deps,
+    ) as unknown as ConfigReindexHandler;
+    const reply = mockReply();
+    await handler(
+      mockRequest({ scope: 'prune', dryRun: false }),
+      reply as unknown as FastifyReply,
+    );
+
+    expect(reply.status).toHaveBeenCalledWith(200);
+    expect(reply.send).toHaveBeenCalledWith({
+      status: 'started',
+      scope: 'prune',
+    });
+
+    // Only one call to executeReindex (the live execution), NOT two
+    expect(mockedExecuteReindex).toHaveBeenCalledTimes(1);
+    expect(mockedExecuteReindex).toHaveBeenCalledWith(
+      expect.anything(),
+      'prune',
+      undefined,
+      false,
+    );
+  });
+
+  it('dry-run prune returns full plan', async () => {
+    mockedExecuteReindex.mockClear();
+    const deps = {
+      ...createDeps(),
+      vectorStore: {} as unknown as ConfigReindexRouteDeps['vectorStore'],
+    };
+    const handler = createConfigReindexHandler(
+      deps,
+    ) as unknown as ConfigReindexHandler;
+    const reply = mockReply();
+    await handler(
+      mockRequest({ scope: 'prune', dryRun: true }),
+      reply as unknown as FastifyReply,
+    );
+
+    expect(reply.send).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: 'dry_run',
+        scope: 'prune',
+        plan: expect.any(Object) as unknown,
+      }),
+    );
+    // Dry-run: only one call
+    expect(mockedExecuteReindex).toHaveBeenCalledTimes(1);
+    expect(mockedExecuteReindex).toHaveBeenCalledWith(
+      expect.anything(),
+      'prune',
+      undefined,
+      true,
+    );
+  });
+
   it('returns dry_run status when dryRun is true', async () => {
     const deps = createDeps();
     const handler = createConfigReindexHandler(

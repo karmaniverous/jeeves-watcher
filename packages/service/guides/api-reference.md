@@ -605,7 +605,7 @@ curl -X POST http://localhost:1936/rebuild-metadata
 
 ## POST /config-reindex
 
-Trigger a scoped reindex operation. All responses include a `plan` object showing blast area.
+Trigger a scoped reindex operation. Non-prune scopes include a `plan` object showing blast area. Live prune (non-dry-run) returns immediately without a plan.
 
 ### Request
 
@@ -670,6 +670,15 @@ curl -X POST http://localhost:1936/config-reindex \
       "j:/config": 3000
     }
   }
+}
+```
+
+**Success (200 OK) — live prune (no plan):**
+
+```json
+{
+  "status": "started",
+  "scope": "prune"
 }
 ```
 

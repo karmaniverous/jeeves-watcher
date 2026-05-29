@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 
+import { substituteEnvVars } from '@karmaniverous/jeeves';
 import type { JsonMapMap } from '@karmaniverous/jsonmap';
 import { cosmiconfig } from 'cosmiconfig';
 import { ZodError } from 'zod';
@@ -15,7 +16,6 @@ import {
 } from './defaults';
 import type { InferenceRule } from './schemas';
 import { type JeevesWatcherConfig, jeevesWatcherConfigSchema } from './schemas';
-import { substituteEnvVars } from './substituteEnvVars';
 
 const MODULE_NAME = 'jeeves-watcher';
 

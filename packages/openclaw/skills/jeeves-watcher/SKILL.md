@@ -397,7 +397,7 @@ Apply config changes atomically.
 Validates, writes to disk, and triggers configured reindex behavior. Returns validation errors if invalid. Config changes take full effect without service restart — including new/removed watch paths (filesystem watcher is rebuilt), inference rule changes, move detection settings, and gitignore filter updates.
 
 ### `watcher_reindex`
-Trigger a reindex operation. All scopes return a `plan` object showing blast area before execution begins.
+Trigger a reindex operation. Non-prune scopes return a `plan` object showing blast area before execution begins. Live prune (non-dry-run) returns immediately without a plan.
 
 **Parameters:**
 - `scope` (string, optional) — Reindex scope. Default: `"rules"`. One of:

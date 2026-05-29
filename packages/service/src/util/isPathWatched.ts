@@ -24,11 +24,12 @@ export function isPathWatched(
   ignoredPaths?: string[],
 ): boolean {
   const normalised = normalizeSlashes(filePath);
-  const isIncluded = picomatch(watchPaths, { dot: true });
+  const opts = { dot: true, nocase: process.platform === 'win32' };
+  const isIncluded = picomatch(watchPaths, opts);
   if (!isIncluded(normalised)) return false;
 
   if (ignoredPaths && ignoredPaths.length > 0) {
-    const isExcluded = picomatch(ignoredPaths, { dot: true });
+    const isExcluded = picomatch(ignoredPaths, opts);
     if (isExcluded(normalised)) return false;
   }
 

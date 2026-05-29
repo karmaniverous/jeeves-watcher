@@ -266,10 +266,12 @@ Generates deterministic embeddings from content hashes. No API calls, no cost. I
 
 **On startup**, the watcher:
 1. Checks if the collection exists
-2. If not, creates it with the configured vector dimensions
-3. If it exists with **different dimensions**, logs an error and refuses to start (dimension mismatch)
+2. If not, creates it with the configured vector dimensions and Cosine distance
+3. If it already exists, uses it as-is (dimensions and distance are not validated)
 
-To change embedding settings that affect vector dimensions, you must:
+**Warning:** If the collection exists with different dimensions (e.g., manually created with 768 instead of 3072), the service will start but embedding upserts will fail with a dimension mismatch error.
+
+To change embedding settings that affect vector dimensions:
 1. Delete the old collection (or rename `collectionName` in config)
 2. Restart the watcher (it will recreate the collection and reindex)
 

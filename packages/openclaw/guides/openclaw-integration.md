@@ -100,7 +100,7 @@ Apply a new configuration to the running watcher service. Triggers re-evaluation
 
 ### `watcher_reindex`
 
-Trigger a scoped reindex of watched files. Supports `rules` (default), `full`, `issues`, `path`, and `prune` scopes. Returns a blast area plan.
+Trigger a scoped reindex of watched files. Supports `rules` (default), `full`, `issues`, `path`, and `prune` scopes. Non-prune scopes return a blast area plan. Live prune returns immediately without a plan.
 
 **Parameters:**
 

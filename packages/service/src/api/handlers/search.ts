@@ -51,6 +51,7 @@ export function createSearchHandler(deps: SearchRouteDeps) {
           limit,
           hybridConfig.textWeight,
           filter,
+          offset,
         );
       }
 

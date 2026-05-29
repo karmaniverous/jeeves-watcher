@@ -19,6 +19,11 @@ Filesystem watcher that keeps a Qdrant vector store in sync with document change
 
 For detailed architecture documentation, see [packages/service/guides/architecture.md](packages/service/guides/architecture.md).
 
+## Prerequisites
+
+- **Node.js** >=22
+- **Qdrant** must be running and reachable before starting jeeves-watcher. The Qdrant collection is created automatically on first startup — no manual collection creation required.
+
 ## Quick Start
 
 ### Installation

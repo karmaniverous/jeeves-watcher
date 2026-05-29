@@ -108,16 +108,22 @@ export function createConfigReindexHandler(deps: ConfigReindexRouteDeps) {
         });
       }
 
-      // Fire and forget — plan is computed inside but we need it for the response.
-      // For non-prune scopes, compute plan first then execute async.
+      // Live prune: fire and forget without pre-computing plan (avoids double-scrolling the collection).
+      if (validScope === 'prune') {
+        void executeReindex(reindexDeps, 'prune', pathParam, false);
+        return await reply
+          .status(200)
+          .send({ status: 'started', scope: 'prune' });
+      }
+
+      // Non-prune scopes: compute plan first then execute async.
       const planResult = await executeReindex(
         reindexDeps,
         validScope,
         pathParam,
-        true, // get plan only
+        true,
       );
 
-      // Now fire actual reindex async
       void executeReindex(reindexDeps, validScope, pathParam, false);
 
       return await reply

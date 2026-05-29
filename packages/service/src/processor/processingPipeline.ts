@@ -28,6 +28,9 @@ import type { Splitter } from './splitter';
 /** Default number of points to upsert per batch (prevents OOM on large files). */
 const DEFAULT_UPSERT_BATCH_SIZE = 50;
 
+/** Maximum chunks per Gemini batchEmbedContents request. */
+const EMBED_BATCH_SIZE = 100;
+
 /**
  * Dependencies for the embed-and-upsert pipeline.
  */
@@ -75,8 +78,14 @@ export async function embedAndUpsert(
   // Compute line offsets
   const offsets = computeLineOffsets(text, chunks);
 
-  // Embed all chunks
-  const vectors = await embeddingProvider.embed(chunks);
+  // Embed chunks in batches to respect Gemini's 100-doc limit
+  const allVectors: number[][] = [];
+  for (let start = 0; start < chunks.length; start += EMBED_BATCH_SIZE) {
+    const batch = chunks.slice(start, start + EMBED_BATCH_SIZE);
+    const batchVectors = await embeddingProvider.embed(batch);
+    allVectors.push(...batchVectors);
+  }
+  const vectors = allVectors;
 
   // Build all points
   const points = chunks.map((chunk, i) => ({

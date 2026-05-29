@@ -1,6 +1,6 @@
 /**
  * @module processor/processingPipeline.test
- * Tests for the embedAndUpsert pipeline — specifically batched upsert (#162).
+ * Tests for the embedAndUpsert pipeline — batched upsert (#162) and embedding batch splitting (#186).
  */
 
 import { describe, expect, it, vi } from 'vitest';
@@ -13,10 +13,15 @@ function makeSplitter(count: number) {
   return { splitText: vi.fn().mockResolvedValue(chunks) };
 }
 
-/** Build a minimal embedding provider that returns a zero-vector per chunk. */
-function makeEmbeddingProvider(chunkCount: number) {
-  const vectors = Array.from({ length: chunkCount }, () => [0]);
-  return { embed: vi.fn().mockResolvedValue(vectors) };
+/** Build a minimal embedding provider that returns a zero-vector per input text. */
+function makeEmbeddingProvider() {
+  return {
+    embed: vi
+      .fn()
+      .mockImplementation((texts: string[]) =>
+        Promise.resolve(texts.map(() => [0])),
+      ),
+  };
 }
 
 describe('embedAndUpsert — batched upsert (#162)', () => {
@@ -24,7 +29,7 @@ describe('embedAndUpsert — batched upsert (#162)', () => {
     const chunks = 10;
     const upsertMock = vi.fn().mockResolvedValue(undefined);
     const deps = {
-      embeddingProvider: makeEmbeddingProvider(chunks),
+      embeddingProvider: makeEmbeddingProvider(),
       vectorStore: { upsert: upsertMock, delete: vi.fn() },
       splitter: makeSplitter(chunks),
       logger: { info: vi.fn() } as never,
@@ -49,7 +54,7 @@ describe('embedAndUpsert — batched upsert (#162)', () => {
     const batchSize = 50;
     const upsertMock = vi.fn().mockResolvedValue(undefined);
     const deps = {
-      embeddingProvider: makeEmbeddingProvider(chunks),
+      embeddingProvider: makeEmbeddingProvider(),
       vectorStore: { upsert: upsertMock, delete: vi.fn() },
       splitter: makeSplitter(chunks),
       logger: { info: vi.fn() } as never,
@@ -76,7 +81,7 @@ describe('embedAndUpsert — batched upsert (#162)', () => {
     const chunks = 100;
     const upsertMock = vi.fn().mockResolvedValue(undefined);
     const deps = {
-      embeddingProvider: makeEmbeddingProvider(chunks),
+      embeddingProvider: makeEmbeddingProvider(),
       vectorStore: { upsert: upsertMock, delete: vi.fn() },
       splitter: makeSplitter(chunks),
       logger: { info: vi.fn() } as never,
@@ -102,7 +107,7 @@ describe('embedAndUpsert — batched upsert (#162)', () => {
     const upsertMock = vi.fn().mockResolvedValue(undefined);
     const deleteMock = vi.fn().mockResolvedValue(undefined);
     const deps = {
-      embeddingProvider: makeEmbeddingProvider(chunks),
+      embeddingProvider: makeEmbeddingProvider(),
       vectorStore: { upsert: upsertMock, delete: deleteMock },
       splitter: makeSplitter(chunks),
       logger: { info: vi.fn() } as never,
@@ -126,7 +131,7 @@ describe('embedAndUpsert — batched upsert (#162)', () => {
     const batchSize = 30;
     const upsertMock = vi.fn().mockResolvedValue(undefined);
     const deps = {
-      embeddingProvider: makeEmbeddingProvider(chunks),
+      embeddingProvider: makeEmbeddingProvider(),
       vectorStore: { upsert: upsertMock, delete: vi.fn() },
       splitter: makeSplitter(chunks),
       logger: { info: vi.fn() } as never,
@@ -148,5 +153,100 @@ describe('embedAndUpsert — batched upsert (#162)', () => {
       0,
     );
     expect(totalPointsUpserted).toBe(chunks);
+  });
+});
+
+describe('embedAndUpsert — embedding batch splitting (#186)', () => {
+  it('calls embed twice when chunk count exceeds 100', async () => {
+    const chunks = 150;
+    const embeddingProvider = makeEmbeddingProvider();
+    const deps = {
+      embeddingProvider,
+      vectorStore: {
+        upsert: vi.fn().mockResolvedValue(undefined),
+        delete: vi.fn(),
+      },
+      splitter: makeSplitter(chunks),
+      logger: { info: vi.fn() } as never,
+    };
+
+    await embedAndUpsert(
+      deps as never,
+      'hello world',
+      'test/large.md',
+      {},
+      null,
+      { createdAt: 1000, modifiedAt: 2000 },
+    );
+
+    // 150 chunks → 2 embed calls (100 + 50)
+    expect(embeddingProvider.embed).toHaveBeenCalledTimes(2);
+    expect(embeddingProvider.embed.mock.calls[0][0]).toHaveLength(100);
+    expect(embeddingProvider.embed.mock.calls[1][0]).toHaveLength(50);
+  });
+
+  it('calls embed once when chunk count is exactly 100', async () => {
+    const chunks = 100;
+    const embeddingProvider = makeEmbeddingProvider();
+    const deps = {
+      embeddingProvider,
+      vectorStore: {
+        upsert: vi.fn().mockResolvedValue(undefined),
+        delete: vi.fn(),
+      },
+      splitter: makeSplitter(chunks),
+      logger: { info: vi.fn() } as never,
+    };
+
+    await embedAndUpsert(
+      deps as never,
+      'hello world',
+      'test/exact.md',
+      {},
+      null,
+      { createdAt: 1000, modifiedAt: 2000 },
+    );
+
+    expect(embeddingProvider.embed).toHaveBeenCalledTimes(1);
+    expect(embeddingProvider.embed.mock.calls[0][0]).toHaveLength(100);
+  });
+
+  it('assembles vectors in correct order across batches', async () => {
+    const chunks = 150;
+    let callIndex = 0;
+    const embeddingProvider = {
+      embed: vi.fn().mockImplementation((texts: string[]) => {
+        const base = callIndex * 100;
+        callIndex++;
+        return Promise.resolve(texts.map((_, i) => [base + i]));
+      }),
+    };
+    const upsertMock = vi.fn().mockResolvedValue(undefined);
+    const deps = {
+      embeddingProvider,
+      vectorStore: { upsert: upsertMock, delete: vi.fn() },
+      splitter: makeSplitter(chunks),
+      logger: { info: vi.fn() } as never,
+    };
+
+    await embedAndUpsert(
+      deps as never,
+      'hello world',
+      'test/order.md',
+      {},
+      null,
+      { createdAt: 1000, modifiedAt: 2000 },
+    );
+
+    // Verify all 150 points were upserted with correctly ordered vectors
+    const allPoints = upsertMock.mock.calls.flatMap(
+      (call) => call[0] as Array<{ vector: number[] }>,
+    );
+    expect(allPoints).toHaveLength(150);
+    // First point vector should be [0], 100th should be [99], 101st should be [100]
+    expect(allPoints[0].vector).toEqual([0]);
+    expect(allPoints[99].vector).toEqual([99]);
+    expect(allPoints[100].vector).toEqual([100]);
+    expect(allPoints[149].vector).toEqual([149]);
   });
 });

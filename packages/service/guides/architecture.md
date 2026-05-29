@@ -432,9 +432,11 @@ await qdrant.createCollection(collectionName, {
 });
 ```
 
-**Dimension mismatch:** If the collection exists with different dimensions (e.g., after switching embedding providers), the watcher logs an error and refuses to start.
+**Existing collections:** If the collection already exists, it is used as-is — dimensions and distance metric are not validated against config on startup.
 
-**Recovery:** Delete the collection manually (or rename `collectionName` in config), then restart.
+**Dimension mismatch warning:** If you manually create the collection with different dimensions (e.g., 768 instead of 3072), the service will start but embedding upserts will fail with a dimension mismatch error.
+
+**Recovery:** Delete the collection manually (or rename `collectionName` in config), then restart. The watcher will recreate the collection with correct dimensions.
 
 ---
 
