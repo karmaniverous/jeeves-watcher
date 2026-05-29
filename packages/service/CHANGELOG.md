@@ -4,9 +4,48 @@ All notable changes to this project will be documented in this file.
 
 ## [unreleased]
 
+### 💼 Other
+
+- [0-18] chore: update dependencies
+
+Pin ajv to ~8.18.0 to avoid type mismatch with @fastify/ajv-compiler.
+Remove unused hast dependency. Fix knip config and stan integration.
+
+Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>
+- [0-18] fix: case-insensitive path matching on Windows (#199)
+
+Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>
+- [0-18] fix: pass offset through hybrid search path (#200)
+
+Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>
+- [0-18] fix: eliminate double collection scroll on live prune (#182)
+
+Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>
+- [0-18] fix: batch embedding calls to respect Gemini 100-doc limit (#186)
+
+Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>
+- [0-18] style: add missing JSDoc offset param + fix stale test module doc
+- [0-18] test: add offset-zero edge case for hybridSearch (#200)
+- [0-18] docs: fix stale prune response and collection bootstrap claims in guides
+- [0-18] chore: update dependencies
+
+Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>
+- [0-18] fix: consume substituteEnvVars from jeeves core (#202)
+
+Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>
+- [0-18] fix: sort imports and revert ajv bump for fastify compat
+
+Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>
+- Updated core
+## [0.17.10] - 2026-05-16
+
 ### 🐛 Bug Fixes
 
 - Pin jeeves-watcher-core dependency to ^0.1.1
+
+### ⚙️ Miscellaneous Tasks
+
+- Release @karmaniverous/jeeves-watcher v0.17.10
 ## [0.17.9] - 2026-05-13
 
 ### 🚀 Features
