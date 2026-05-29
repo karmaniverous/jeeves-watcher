@@ -184,6 +184,7 @@ export interface VectorStore {
     limit: number,
     textWeight: number,
     filter?: Record<string, unknown>,
+    offset?: number,
   ): Promise<SearchResult[]>;
 
   /**

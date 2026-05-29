@@ -319,6 +319,7 @@ export class VectorStoreClient implements VectorStore {
     limit: number,
     textWeight: number,
     filter?: Record<string, unknown>,
+    offset?: number,
   ): Promise<SearchResult[]> {
     return hybridSearchHelper(
       this.client,
@@ -328,6 +329,7 @@ export class VectorStoreClient implements VectorStore {
       limit,
       textWeight,
       filter,
+      offset,
     );
   }
 
