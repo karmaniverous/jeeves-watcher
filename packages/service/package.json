@@ -1,58 +1,15 @@
 {
-  "name": "@karmaniverous/jeeves-watcher",
-  "version": "0.17.10",
   "author": "Jason Williscroft",
-  "description": "Filesystem watcher that keeps a Qdrant vector store in sync with document changes",
-  "license": "BSD-3-Clause",
-  "type": "module",
-  "module": "dist/index.js",
-  "types": "dist/index.d.ts",
   "bin": {
     "jeeves-watcher": "./dist/cli/jeeves-watcher/index.js"
-  },
-  "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "default": "./dist/index.js"
-    }
-  },
-  "files": [
-    "dist",
-    "config.schema.json"
-  ],
-  "publishConfig": {
-    "access": "public"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/karmaniverous/jeeves-watcher.git",
-    "directory": "packages/service"
   },
   "bugs": {
     "url": "https://github.com/karmaniverous/jeeves-watcher/issues"
   },
-  "homepage": "https://github.com/karmaniverous/jeeves-watcher#readme",
-  "keywords": [
-    "filesystem",
-    "watcher",
-    "qdrant",
-    "vector-store",
-    "embeddings",
-    "semantic-search",
-    "document-indexing",
-    "rag",
-    "langchain",
-    "gemini",
-    "typescript",
-    "cli"
-  ],
-  "engines": {
-    "node": ">=22"
-  },
   "dependencies": {
     "@commander-js/extra-typings": "^14.0.0",
     "@karmaniverous/jeeves": "^0.5.11",
-    "@karmaniverous/jeeves-watcher-core": "^0.1.1",
+    "@karmaniverous/jeeves-watcher-core": "^0.1.2",
     "@karmaniverous/jsonmap": "^2.1.1",
     "@langchain/textsplitters": "*",
     "@qdrant/js-client-rest": "*",
@@ -81,6 +38,7 @@
     "uuid": "*",
     "zod": "^4.4.3"
   },
+  "description": "Filesystem watcher that keeps a Qdrant vector store in sync with document changes",
   "devDependencies": {
     "@dotenvx/dotenvx": "^1.69.1",
     "@rollup/plugin-alias": "^6.0.0",
@@ -107,24 +65,46 @@
     "typedoc-plugin-replace-text": "^4.2.0",
     "vitest": "^4.1.7"
   },
-  "scripts": {
-    "generate:schema": "tsx src/config/generate-schema.ts",
-    "build": "npm run generate:schema && rimraf dist && cross-env NO_COLOR=1 rollup --config rollup.config.ts --configPlugin @rollup/plugin-typescript",
-    "changelog": "git-cliff -o CHANGELOG.md",
-    "diagrams": "cd diagrams && plantuml -tpng -o ../assets -r .",
-    "lint": "eslint .",
-    "lint:fix": "eslint --fix .",
-    "release": "dotenvx run -f .env.local -- release-it",
-    "release:pre": "dotenvx run -f .env.local -- release-it --no-git.requireBranch --github.prerelease --preRelease",
-    "test": "vitest run",
-    "typecheck": "tsc"
+  "engines": {
+    "node": ">=22"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "config.schema.json"
+  ],
+  "homepage": "https://github.com/karmaniverous/jeeves-watcher#readme",
+  "keywords": [
+    "filesystem",
+    "watcher",
+    "qdrant",
+    "vector-store",
+    "embeddings",
+    "semantic-search",
+    "document-indexing",
+    "rag",
+    "langchain",
+    "gemini",
+    "typescript",
+    "cli"
+  ],
+  "license": "BSD-3-Clause",
+  "module": "dist/index.js",
+  "name": "@karmaniverous/jeeves-watcher",
+  "publishConfig": {
+    "access": "public"
   },
   "release-it": {
     "git": {
       "changelog": "npx git-cliff --unreleased --strip header",
       "commitMessage": "chore: release @karmaniverous/jeeves-watcher v${version}",
-      "tagName": "service/${version}",
-      "requireBranch": "main"
+      "requireBranch": "main",
+      "tagName": "service/${version}"
     },
     "github": {
       "release": true
@@ -136,18 +116,38 @@
         "npm run test",
         "npm run build"
       ],
-      "before:npm:release": [
-        "npx git-cliff -o CHANGELOG.md",
-        "git add -A"
-      ],
       "after:release": [
         "git switch -c release/service/${version}",
         "git push -u origin release/service/${version}",
         "git switch ${branchName}"
+      ],
+      "before:npm:release": [
+        "npx git-cliff -o CHANGELOG.md",
+        "git add -A"
       ]
     },
     "npm": {
       "publish": true
     }
-  }
+  },
+  "repository": {
+    "directory": "packages/service",
+    "type": "git",
+    "url": "git+https://github.com/karmaniverous/jeeves-watcher.git"
+  },
+  "scripts": {
+    "build": "npm run generate:schema && rimraf dist && cross-env NO_COLOR=1 rollup --config rollup.config.ts --configPlugin @rollup/plugin-typescript",
+    "changelog": "git-cliff -o CHANGELOG.md",
+    "diagrams": "cd diagrams && plantuml -tpng -o ../assets -r .",
+    "generate:schema": "tsx src/config/generate-schema.ts",
+    "lint": "eslint .",
+    "lint:fix": "eslint --fix .",
+    "release": "dotenvx run -f .env.local -- release-it",
+    "release:pre": "dotenvx run -f .env.local -- release-it --no-git.requireBranch --github.prerelease --preRelease",
+    "test": "vitest run",
+    "typecheck": "tsc"
+  },
+  "type": "module",
+  "types": "dist/index.d.ts",
+  "version": "0.17.10"
 }

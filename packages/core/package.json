@@ -1,45 +1,7 @@
 {
-  "name": "@karmaniverous/jeeves-watcher-core",
-  "version": "0.1.2",
-  "type": "module",
-  "files": [
-    "dist"
-  ],
-  "publishConfig": {
-    "access": "public"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/karmaniverous/jeeves-watcher.git",
-    "directory": "packages/core"
-  },
   "bugs": {
     "url": "https://github.com/karmaniverous/jeeves-watcher/issues"
   },
-  "homepage": "https://github.com/karmaniverous/jeeves-watcher#readme",
-  "engines": {
-    "node": ">=22"
-  },
-  "scripts": {
-    "prebuild": "npx rimraf dist",
-    "build": "cross-env NO_COLOR=1 rollup --config rollup.config.ts --configPlugin @rollup/plugin-typescript",
-    "typecheck": "tsc --noEmit",
-    "test": "vitest run",
-    "lint": "eslint .",
-    "lint:fix": "eslint --fix .",
-    "changelog": "git-cliff -o CHANGELOG.md",
-    "release": "dotenvx run -f .env.local -- release-it",
-    "release:pre": "dotenvx run -f .env.local -- release-it --no-git.requireBranch --github.prerelease --preRelease"
-  },
-  "exports": {
-    ".": {
-      "import": {
-        "types": "./dist/index.d.ts",
-        "default": "./dist/index.js"
-      }
-    }
-  },
-  "types": "dist/index.d.ts",
   "dependencies": {
     "@karmaniverous/jeeves": "^0.5.11",
     "@karmaniverous/jsonmap": "^2.1.1",
@@ -59,12 +21,31 @@
     "typescript": "^6.0.3",
     "vitest": "^4.1.7"
   },
+  "engines": {
+    "node": ">=22"
+  },
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      }
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "homepage": "https://github.com/karmaniverous/jeeves-watcher#readme",
+  "name": "@karmaniverous/jeeves-watcher-core",
+  "publishConfig": {
+    "access": "public"
+  },
   "release-it": {
     "git": {
       "changelog": "npx git-cliff --unreleased --strip header",
       "commitMessage": "chore: release @karmaniverous/jeeves-watcher-core v${version}",
-      "tagName": "core/${version}",
-      "requireBranch": "main"
+      "requireBranch": "main",
+      "tagName": "core/${version}"
     },
     "github": {
       "release": true
@@ -76,18 +57,37 @@
         "npm run test",
         "npm run build"
       ],
-      "before:npm:release": [
-        "npx git-cliff -o CHANGELOG.md",
-        "git add -A"
-      ],
       "after:release": [
         "git switch -c release/core/${version}",
         "git push -u origin release/core/${version}",
         "git switch ${branchName}"
+      ],
+      "before:npm:release": [
+        "npx git-cliff -o CHANGELOG.md",
+        "git add -A"
       ]
     },
     "npm": {
       "publish": true
     }
-  }
+  },
+  "repository": {
+    "directory": "packages/core",
+    "type": "git",
+    "url": "git+https://github.com/karmaniverous/jeeves-watcher.git"
+  },
+  "scripts": {
+    "build": "cross-env NO_COLOR=1 rollup --config rollup.config.ts --configPlugin @rollup/plugin-typescript",
+    "changelog": "git-cliff -o CHANGELOG.md",
+    "lint": "eslint .",
+    "lint:fix": "eslint --fix .",
+    "prebuild": "npx rimraf dist",
+    "release": "dotenvx run -f .env.local -- release-it",
+    "release:pre": "dotenvx run -f .env.local -- release-it --no-git.requireBranch --github.prerelease --preRelease",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "type": "module",
+  "types": "dist/index.d.ts",
+  "version": "0.1.2"
 }
