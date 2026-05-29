@@ -41,7 +41,7 @@
   },
   "types": "dist/index.d.ts",
   "dependencies": {
-    "@karmaniverous/jeeves": "^0.5.10",
+    "@karmaniverous/jeeves": "^0.5.11",
     "@karmaniverous/jsonmap": "^2.1.1",
     "zod": "^4.4.3"
   },
