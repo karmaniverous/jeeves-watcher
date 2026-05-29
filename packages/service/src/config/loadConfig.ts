@@ -15,7 +15,7 @@ import {
 } from './defaults';
 import type { InferenceRule } from './schemas';
 import { type JeevesWatcherConfig, jeevesWatcherConfigSchema } from './schemas';
-import { substituteEnvVars } from './substituteEnvVars';
+import { substituteEnvVars } from '@karmaniverous/jeeves';
 
 const MODULE_NAME = 'jeeves-watcher';
 
