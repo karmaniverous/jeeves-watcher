@@ -129,6 +129,17 @@ describe('hybridSearch', () => {
     expect(params).toHaveProperty('offset', 5);
   });
 
+  it('passes offset: 0 through to Qdrant query (not omitted as falsy)', async () => {
+    const { client, queryFn } = makeMockClient([]);
+
+    await hybridSearch(client, 'col', [1], 'q', 10, 0.5, undefined, 0);
+
+    const params = (
+      queryFn.mock.calls[0] as [string, Record<string, unknown>]
+    )[1];
+    expect(params).toHaveProperty('offset', 0);
+  });
+
   it('omits offset from Qdrant query when undefined', async () => {
     const { client, queryFn } = makeMockClient([]);
 
