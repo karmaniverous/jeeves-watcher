@@ -4,9 +4,34 @@ All notable changes to this project will be documented in this file.
 
 ## [unreleased]
 
+### 💼 Other
+
+- [0-18] chore: update dependencies
+
+Pin ajv to ~8.18.0 to avoid type mismatch with @fastify/ajv-compiler.
+Remove unused hast dependency. Fix knip config and stan integration.
+
+Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>
+- [0-18] fix(openclaw): add contracts.tools manifest (#192)
+
+Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>
+- [0-18] docs: sync README and guides with 0.18.0 changes
+
+Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>
+- [0-18] docs: fix stale prune response and collection bootstrap claims in guides
+- [0-18] chore: update dependencies
+
+Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>
+- Updated core
+## [0.14.10] - 2026-05-16
+
 ### 🐛 Bug Fixes
 
 - Pin jeeves-watcher-core dependency to ^0.1.1
+
+### ⚙️ Miscellaneous Tasks
+
+- Release @karmaniverous/jeeves-watcher-openclaw v0.14.10
 ## [0.14.9] - 2026-05-13
 
 ### 🚀 Features
