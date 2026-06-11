@@ -407,6 +407,7 @@ export class SquashManager {
 
       await execFileAsync('git', ['push', '--force', pushUrl, 'HEAD'], {
         cwd: this.rootPath,
+        env: { ...process.env, GIT_TERMINAL_PROMPT: '0' },
       });
 
       this.logger.info(

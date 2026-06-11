@@ -373,6 +373,7 @@ export class VcsManager {
 
       await execFileAsync('git', ['push', pushUrl, 'HEAD'], {
         cwd: this.rootPath,
+        env: { ...process.env, GIT_TERMINAL_PROMPT: '0' },
       });
 
       this._lastPushTime = new Date().toISOString();
