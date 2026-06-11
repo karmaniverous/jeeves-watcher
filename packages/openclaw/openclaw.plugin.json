@@ -34,7 +34,14 @@
       "watcher_reindex",
       "watcher_scan",
       "watcher_issues",
-      "watcher_walk"
+      "watcher_walk",
+      "watcher_vcs_status",
+      "watcher_vcs_history",
+      "watcher_vcs_show",
+      "watcher_vcs_diff",
+      "watcher_vcs_revert",
+      "watcher_vcs_exclude",
+      "watcher_vcs_check"
     ]
   },
   "uiHints": {

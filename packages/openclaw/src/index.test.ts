@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import register from './index.js';
 
 describe('register', () => {
-  it('registers 11 watcher tools (4 factory + 7 domain)', () => {
+  it('registers 18 watcher tools (4 factory + 14 domain)', () => {
     const tools: string[] = [];
     const api: PluginApi = {
       config: {
@@ -24,7 +24,7 @@ describe('register', () => {
       },
     };
     register(api);
-    expect(tools).toHaveLength(11);
+    expect(tools).toHaveLength(18);
     // 4 factory tools
     expect(tools).toContain('watcher_status');
     expect(tools).toContain('watcher_config');
