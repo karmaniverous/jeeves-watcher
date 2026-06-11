@@ -4,6 +4,34 @@ All notable changes to this project will be documented in this file.
 
 ## [unreleased]
 
+### 🚀 Features
+
+- *(vcs)* Phase 8 — plugin tools (7 VCS tools)
+
+### 🐛 Bug Fixes
+
+- Export VCS types + fix typedoc anchor
+- Address Copilot review comments
+
+### 💼 Other
+
+- [204] fix(openclaw): externalize @karmaniverous/jeeves in rollup config
+
+Moves @karmaniverous/jeeves from bundled to external in both plugin and
+CLI rollup builds. The plugin installer copies the jeeves core lib into
+the extensions directory, so it is always resolvable at runtime.
+
+Service package already externalizes via dynamic dependency list.
+
+Closes #204
+- Updated core
+
+### 📚 Documentation
+
+- *(vcs)* Phase 9 — skill, README, code comments, TOOLS.md
+- *(openclaw)* Sync README and integration guide with VCS tools
+## [0.14.11] - 2026-05-29
+
 ### 💼 Other
 
 - [0-18] chore: update dependencies
@@ -23,6 +51,10 @@ Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>
 
 Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>
 - Updated core
+
+### ⚙️ Miscellaneous Tasks
+
+- Release @karmaniverous/jeeves-watcher-openclaw v0.14.11
 ## [0.14.10] - 2026-05-16
 
 ### 🐛 Bug Fixes
