@@ -74,6 +74,13 @@ This plugin integrates with [`@karmaniverous/jeeves`](https://www.npmjs.com/pack
 | `watcher_scan` | Filter-only point query with cursor pagination |
 | `watcher_issues` | List indexing issues and errors |
 | `watcher_service` | Manage watcher background service (install/uninstall/start/stop/restart/status) |
+| `watcher_vcs_status` | Version tracking health: enabled state, tracked roots, remote status |
+| `watcher_vcs_history` | Query change history by path or glob with optional date range |
+| `watcher_vcs_show` | Retrieve file content at a specific version |
+| `watcher_vcs_diff` | Show changes between two versions, or between a version and current |
+| `watcher_vcs_revert` | Undo changes by restoring files to a specific version |
+| `watcher_vcs_exclude` | Exclude or re-include paths from version tracking |
+| `watcher_vcs_check` | Check whether a path is excluded from version tracking and why |
 
 ## Documentation
 
