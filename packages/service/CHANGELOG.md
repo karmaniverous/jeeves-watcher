@@ -4,6 +4,40 @@ All notable changes to this project will be documented in this file.
 
 ## [unreleased]
 
+### 🚀 Features
+
+- *(vcs)* Phase 1 — foundation (config schema, watch.paths, startup checks)
+- *(vcs)* Phase 2 — commit pipeline (debounce, batch, git commit)
+- *(vcs)* Phase 3 — read API (status, history, show, diff, check-exclusion)
+- *(vcs)* Phase 4 — write API (revert, exclude)
+- *(vcs)* Phase 5 — AI-generated commit messages
+- *(vcs)* Phase 6 — remote push after commit
+- *(vcs)* Phase 7 — squash retention on schedule
+- *(vcs)* Gateway credential fallback for AI commit messages (D6)
+
+### 🐛 Bug Fixes
+
+- Export VCS types + fix typedoc anchor
+- Address Copilot review comments
+
+### 💼 Other
+
+- Updated core
+
+### 🚜 Refactor
+
+- *(vcs)* SOLID/DRY pass — extract shared utilities, separate bootstrap from runtime
+
+### 📚 Documentation
+
+- *(vcs)* Phase 9 — skill, README, code comments, TOOLS.md
+- *(service)* VCS guide + cross-references in all service guides
+
+### 🧪 Testing
+
+- *(vcs)* Dedicated unit tests for gitExec, vcsBootstrap; cron edge case
+## [0.17.11] - 2026-05-29
+
 ### 💼 Other
 
 - [0-18] chore: update dependencies
@@ -37,6 +71,10 @@ Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>
 
 Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>
 - Updated core
+
+### ⚙️ Miscellaneous Tasks
+
+- Release @karmaniverous/jeeves-watcher v0.17.11
 ## [0.17.10] - 2026-05-16
 
 ### 🐛 Bug Fixes
