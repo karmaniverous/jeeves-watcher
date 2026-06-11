@@ -12,6 +12,7 @@ import type { VcsConfig } from '@karmaniverous/jeeves-watcher-core';
 import type pino from 'pino';
 
 import { normalizeError } from '../util/normalizeError';
+import type { CommitMessageGenerator } from './CommitMessageGenerator';
 
 const execFileAsync = promisify(execFile);
 
@@ -67,16 +68,23 @@ export class VcsManager {
   readonly config: VcsConfig;
   readonly rootPath: string;
   private readonly logger: pino.Logger;
+  private readonly commitMessageGenerator: CommitMessageGenerator | undefined;
   private readonly pending: Set<string> = new Set();
   private readonly pendingReversions: PendingReversion[] = [];
   private debounceTimer: ReturnType<typeof setTimeout> | undefined;
   private commitInFlight: Promise<void> = Promise.resolve();
   private started = false;
 
-  constructor(rootPath: string, config: VcsConfig, logger: pino.Logger) {
+  constructor(
+    rootPath: string,
+    config: VcsConfig,
+    logger: pino.Logger,
+    commitMessageGenerator?: CommitMessageGenerator,
+  ) {
     this.rootPath = rootPath;
     this.config = config;
     this.logger = logger;
+    this.commitMessageGenerator = commitMessageGenerator;
   }
 
   /**
@@ -262,9 +270,30 @@ export class VcsManager {
   }
 
   /**
-   * Build the commit message, using reversion metadata when available.
+   * Get the cached diff for staged files, for AI context.
    */
-  private buildCommitMessage(fileCount: number): string {
+  private async getStagedDiff(): Promise<string> {
+    try {
+      const { stdout: stat } = await execFileAsync(
+        'git',
+        ['diff', '--cached', '--stat'],
+        { cwd: this.rootPath },
+      );
+      const { stdout: patch } = await execFileAsync(
+        'git',
+        ['diff', '--cached'],
+        { cwd: this.rootPath },
+      );
+      return `${stat}\n${patch}`;
+    } catch {
+      return '';
+    }
+  }
+
+  /**
+   * Build the template commit message (no AI).
+   */
+  private buildTemplateMessage(fileCount: number): string {
     if (this.pendingReversions.length === 0) {
       const timestamp = new Date().toISOString();
       return `watcher: batch ${timestamp} (${String(fileCount)} files)`;
@@ -290,19 +319,65 @@ export class VcsManager {
   }
 
   /**
+   * Build the commit message, using AI when available with template fallback.
+   */
+  private async buildCommitMessage(files: string[]): Promise<string> {
+    const fileCount = files.length;
+    const templateMessage = this.buildTemplateMessage(fileCount);
+
+    if (!this.commitMessageGenerator) {
+      return templateMessage;
+    }
+
+    try {
+      const diffSummary = await this.getStagedDiff();
+      const aiMessage = await this.commitMessageGenerator.generate(
+        files,
+        diffSummary,
+      );
+
+      if (!aiMessage) {
+        this.logger.warn(
+          'AI commit message generation returned null; using template',
+        );
+        return templateMessage;
+      }
+
+      // For reversions: prefix with revert info + AI description
+      if (this.pendingReversions.length > 0) {
+        const { glob, commit } = this.pendingReversions[0];
+        const shortCommit = commit.slice(0, 7);
+        return `revert: ${glob} to ${shortCommit} — ${aiMessage}`;
+      }
+
+      return aiMessage;
+    } catch (error) {
+      this.logger.warn(
+        { err: normalizeError(error) },
+        'AI commit message generation failed; using template',
+      );
+      return templateMessage;
+    }
+  }
+
+  /**
    * Commit a batch of files to the git repo with index.lock retry.
    */
   private async commitBatch(files: string[]): Promise<void> {
     if (files.length === 0) return;
-
-    const message = this.buildCommitMessage(files.length);
-    this.pendingReversions.length = 0;
 
     for (let attempt = 0; attempt <= MAX_LOCK_RETRIES; attempt++) {
       try {
         await execFileAsync('git', ['add', '--', ...files], {
           cwd: this.rootPath,
         });
+
+        // Build message after staging so getStagedDiff can see the changes
+        const message =
+          attempt === 0
+            ? await this.buildCommitMessage(files)
+            : this.buildTemplateMessage(files.length);
+        this.pendingReversions.length = 0;
 
         const { stdout } = await execFileAsync(
           'git',

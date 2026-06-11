@@ -14,6 +14,7 @@ import type pino from 'pino';
 
 import type { JeevesWatcherConfig } from '../config/types';
 import { normalizeSlashes } from '../util/normalizeSlashes';
+import { CommitMessageGenerator } from './CommitMessageGenerator';
 import { VcsManager } from './VcsManager';
 
 /**
@@ -41,10 +42,23 @@ export class VcsCoordinator {
         enabled: true,
       };
 
+      // Create CommitMessageGenerator if AI commit messages are configured
+      const cmConfig = mergedConfig.commitMessage;
+      const generator =
+        cmConfig?.enabled !== false && cmConfig?.apiKey
+          ? new CommitMessageGenerator(
+              cmConfig.provider,
+              cmConfig.model,
+              cmConfig.apiKey,
+              logger.child({ vcsRoot: resolvedRoot }),
+            )
+          : undefined;
+
       const manager = new VcsManager(
         resolvedRoot,
         mergedConfig,
         logger.child({ vcsRoot: resolvedRoot }),
+        generator,
       );
       this.managers.set(resolvedRoot, manager);
       this.roots.push(resolvedRoot);

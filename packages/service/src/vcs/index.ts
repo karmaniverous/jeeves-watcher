@@ -3,6 +3,7 @@
  * VCS (version control system) utilities for git-backed content versioning.
  */
 
+export { CommitMessageGenerator } from './CommitMessageGenerator.js';
 export {
   type ResolvedWatchRoot,
   resolveWatchRoot,
