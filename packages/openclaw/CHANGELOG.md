@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [unreleased]
 
+### 💼 Other
+
+- Installed deps
+## [0.15.0] - 2026-06-11
+
 ### 🚀 Features
 
 - *(vcs)* Phase 8 — plugin tools (7 VCS tools)
@@ -30,6 +35,10 @@ Closes #204
 
 - *(vcs)* Phase 9 — skill, README, code comments, TOOLS.md
 - *(openclaw)* Sync README and integration guide with VCS tools
+
+### ⚙️ Miscellaneous Tasks
+
+- Release @karmaniverous/jeeves-watcher-openclaw v0.15.0
 ## [0.14.11] - 2026-05-29
 
 ### 💼 Other
