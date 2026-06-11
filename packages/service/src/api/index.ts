@@ -24,6 +24,7 @@ import type { DocumentProcessorInterface } from '../processor';
 import type { EventQueue } from '../queue';
 import type { VirtualRuleStore } from '../rules/virtualRules';
 import type { ValuesManager } from '../values';
+import type { VcsCoordinator } from '../vcs/VcsCoordinator';
 import type { VectorStoreClient } from '../vectorStore';
 import type { FileSystemWatcher } from '../watcher';
 import {
@@ -50,6 +51,13 @@ import {
 } from './handlers/rulesUnregister';
 import { createScanHandler } from './handlers/scan';
 import { createSearchHandler } from './handlers/search';
+import {
+  createVcsCheckExclusionHandler,
+  createVcsDiffHandler,
+  createVcsHistoryHandler,
+  createVcsShowHandler,
+  createVcsStatusHandler,
+} from './handlers/vcs';
 import { createWalkHandler } from './handlers/walk';
 import { withCache } from './handlers/withCache';
 import type { InitialScanTracker } from './InitialScanTracker';
@@ -105,6 +113,8 @@ export interface ApiServerOptions {
   getFileSystemWatcher?: () => FileSystemWatcher | undefined;
   /** Optional enrichment store for persisted enrichment metadata. */
   enrichmentStore?: EnrichmentStoreInterface;
+  /** VCS coordinator for git-backed versioning API routes. */
+  vcsCoordinator?: VcsCoordinator;
 }
 
 /**
@@ -385,6 +395,24 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
     app.post(
       '/rules/reapply',
       createRulesReapplyHandler({ processor, vectorStore, logger }),
+    );
+  }
+
+  // VCS routes — only registered when a VcsCoordinator is provided
+  if (options.vcsCoordinator) {
+    const coordinator = options.vcsCoordinator;
+
+    app.get('/vcs/status', createVcsStatusHandler({ coordinator, logger }));
+
+    app.get('/vcs/history', createVcsHistoryHandler({ coordinator, logger }));
+
+    app.get('/vcs/show', createVcsShowHandler({ coordinator, logger }));
+
+    app.get('/vcs/diff', createVcsDiffHandler({ coordinator, logger }));
+
+    app.get(
+      '/vcs/check-exclusion',
+      createVcsCheckExclusionHandler({ coordinator, logger }),
     );
   }
 

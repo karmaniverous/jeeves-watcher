@@ -75,7 +75,7 @@ export class VcsCoordinator {
    */
   onFileChange(filePath: string, event: 'add' | 'change' | 'unlink'): void {
     const normalizedPath = normalizeSlashes(resolve(filePath));
-    const manager: VcsManager | undefined = this.findManager(normalizedPath);
+    const manager = this.findManagerForPath(normalizedPath);
     if (!manager) return;
 
     if (event === 'unlink') {
@@ -98,10 +98,34 @@ export class VcsCoordinator {
   }
 
   /**
-   * Find the VcsManager that owns the given file path.
-   * Matches against normalized, resolved watch roots.
+   * Get the sorted root paths (longest-first).
    */
-  private findManager(normalizedPath: string): VcsManager | undefined {
+  getRoots(): readonly string[] {
+    return this.roots;
+  }
+
+  /**
+   * Get the VcsManager for a specific root path.
+   */
+  getManager(root: string): VcsManager | undefined {
+    return this.managers.get(root);
+  }
+
+  /**
+   * Get all managers as [root, manager] pairs.
+   */
+  getAllManagers(): ReadonlyMap<string, VcsManager> {
+    return this.managers;
+  }
+
+  /**
+   * Find the VcsManager that owns the given normalized file path.
+   * Uses longest-prefix-match against resolved watch roots.
+   *
+   * @param normalizedPath - Normalized absolute path (forward slashes).
+   * @returns The matching VcsManager, or undefined.
+   */
+  findManagerForPath(normalizedPath: string): VcsManager | undefined {
     for (const root of this.roots) {
       if (normalizedPath === root || normalizedPath.startsWith(root + '/')) {
         return this.managers.get(root);

@@ -1,0 +1,479 @@
+/**
+ * @module api/handlers/vcs/vcs.test
+ * Tests for VCS API handlers using real git repos.
+ */
+
+import { execFile } from 'node:child_process';
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join, resolve } from 'node:path';
+import { promisify } from 'node:util';
+
+import pino from 'pino';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+
+import type { JeevesWatcherConfig } from '../../../config/types';
+import { normalizeSlashes } from '../../../util/normalizeSlashes';
+import { VcsCoordinator } from '../../../vcs/VcsCoordinator';
+import { VcsManager } from '../../../vcs/VcsManager';
+import { createVcsCheckExclusionHandler } from './vcsCheckExclusion';
+import { createVcsDiffHandler } from './vcsDiff';
+import { createVcsHistoryHandler } from './vcsHistory';
+import { createVcsShowHandler } from './vcsShow';
+import { createVcsStatusHandler } from './vcsStatus';
+
+const execFileAsync = promisify(execFile);
+const silentLogger = pino({ level: 'silent' });
+
+/** Create a mock reply object. */
+function mockReply() {
+  const reply = {
+    sent: false,
+    statusCode: 200,
+    headers: {} as Record<string, string>,
+    body: undefined as unknown,
+    status(code: number) {
+      reply.statusCode = code;
+      return reply;
+    },
+    send(data: unknown) {
+      reply.body = data;
+      reply.sent = true;
+      return reply;
+    },
+    header(name: string, value: string) {
+      reply.headers[name] = value;
+      return reply;
+    },
+  };
+  return reply;
+}
+
+describe('VCS API handlers', () => {
+  let rootA: string;
+  let coordinator: VcsCoordinator;
+
+  beforeEach(async () => {
+    rootA = normalizeSlashes(
+      resolve(await mkdtemp(join(tmpdir(), 'vcs-api-a-'))),
+    );
+
+    await VcsManager.initRepo(rootA);
+    await execFileAsync('git', ['config', 'user.email', 'test@test.com'], {
+      cwd: rootA,
+    });
+    await execFileAsync('git', ['config', 'user.name', 'Test'], {
+      cwd: rootA,
+    });
+
+    // Create initial commit
+    await writeFile(join(rootA, 'hello.txt'), 'hello world', 'utf8');
+    await execFileAsync('git', ['add', '.'], { cwd: rootA });
+    await execFileAsync('git', ['commit', '-m', 'initial commit'], {
+      cwd: rootA,
+    });
+
+    const config = {
+      vcs: { enabled: true, commitDebounceMs: 60000, maxBatchSize: 1000 },
+      watch: { paths: [rootA], ignored: [] },
+    } as unknown as JeevesWatcherConfig;
+    coordinator = new VcsCoordinator(config, silentLogger);
+  });
+
+  afterEach(async () => {
+    await rm(rootA, { recursive: true, force: true });
+  });
+
+  describe('GET /vcs/status', () => {
+    it('returns status with root info', async () => {
+      const handler = createVcsStatusHandler({
+        coordinator,
+        logger: silentLogger,
+      });
+
+      const request = { query: {} } as never;
+      const reply = mockReply();
+      await handler(request, reply as never);
+
+      const body = reply.body as {
+        enabled: boolean;
+        roots: Array<{
+          path: string;
+          tracked: number;
+          lastCommit: {
+            hash: string;
+            message: string;
+            timestamp: string;
+          } | null;
+          remoteUrl: string | null;
+        }>;
+      };
+      expect(body.enabled).toBe(true);
+      expect(body.roots).toHaveLength(1);
+      expect(body.roots[0].path).toBe(rootA);
+      expect(body.roots[0].tracked).toBeGreaterThan(0);
+      expect(body.roots[0].lastCommit).toBeDefined();
+      expect(body.roots[0].lastCommit!.message).toBe('initial commit');
+      expect(body.roots[0].remoteUrl).toBeNull();
+    });
+
+    it('returns enabled:false when no VCS roots exist', async () => {
+      const emptyConfig = {
+        vcs: { enabled: false, commitDebounceMs: 5000, maxBatchSize: 1000 },
+        watch: { paths: [], ignored: [] },
+      } as unknown as JeevesWatcherConfig;
+      const emptyCoordinator = new VcsCoordinator(emptyConfig, silentLogger);
+
+      const handler = createVcsStatusHandler({
+        coordinator: emptyCoordinator,
+        logger: silentLogger,
+      });
+
+      const request = { query: {} } as never;
+      const reply = mockReply();
+      await handler(request, reply as never);
+
+      const body = reply.body as { enabled: boolean; roots: unknown[] };
+      expect(body.enabled).toBe(false);
+      expect(body.roots).toHaveLength(0);
+    });
+  });
+
+  describe('GET /vcs/history', () => {
+    it('returns commit history for a glob', async () => {
+      // Add a second commit
+      await writeFile(join(rootA, 'hello.txt'), 'updated', 'utf8');
+      await execFileAsync('git', ['add', '.'], { cwd: rootA });
+      await execFileAsync('git', ['commit', '-m', 'update hello'], {
+        cwd: rootA,
+      });
+
+      const handler = createVcsHistoryHandler({
+        coordinator,
+        logger: silentLogger,
+      });
+
+      const request = {
+        query: { glob: rootA + '/hello.txt' },
+      } as never;
+      const reply = mockReply();
+      await handler(request, reply as never);
+
+      const body = reply.body as Array<{
+        commit: string;
+        message: string;
+        timestamp: string;
+        files: string[];
+      }>;
+      expect(body).toHaveLength(2);
+      expect(body[0].message).toBe('update hello');
+      expect(body[1].message).toBe('initial commit');
+    });
+
+    it('respects limit parameter', async () => {
+      // Add more commits
+      for (let i = 0; i < 3; i++) {
+        await writeFile(join(rootA, 'hello.txt'), `v${String(i)}`, 'utf8');
+        await execFileAsync('git', ['add', '.'], { cwd: rootA });
+        await execFileAsync('git', ['commit', '-m', `commit ${String(i)}`], {
+          cwd: rootA,
+        });
+      }
+
+      const handler = createVcsHistoryHandler({
+        coordinator,
+        logger: silentLogger,
+      });
+
+      const request = {
+        query: { glob: rootA + '/hello.txt', limit: '2' },
+      } as never;
+      const reply = mockReply();
+      await handler(request, reply as never);
+
+      const body = reply.body as unknown[];
+      expect(body).toHaveLength(2);
+    });
+
+    it('returns 400 for missing glob', async () => {
+      const handler = createVcsHistoryHandler({
+        coordinator,
+        logger: silentLogger,
+      });
+
+      const request = { query: {} } as never;
+      const reply = mockReply();
+      await handler(request, reply as never);
+
+      expect(reply.statusCode).toBe(400);
+    });
+
+    it('returns 404 for glob outside any root', async () => {
+      const handler = createVcsHistoryHandler({
+        coordinator,
+        logger: silentLogger,
+      });
+
+      const request = {
+        query: { glob: '/nonexistent/path/*.txt' },
+      } as never;
+      const reply = mockReply();
+      await handler(request, reply as never);
+
+      expect(reply.statusCode).toBe(404);
+    });
+
+    it('filters by date range', async () => {
+      // Use a future date so "since" excludes all commits
+      const handler = createVcsHistoryHandler({
+        coordinator,
+        logger: silentLogger,
+      });
+
+      const futureDate = new Date(Date.now() + 86400000).toISOString();
+      const request = {
+        query: { glob: rootA + '/hello.txt', since: futureDate },
+      } as never;
+      const reply = mockReply();
+      await handler(request, reply as never);
+
+      const body = reply.body as unknown[];
+      expect(body).toHaveLength(0);
+    });
+  });
+
+  describe('GET /vcs/show', () => {
+    it('returns file content at a specific commit', async () => {
+      // Get the commit hash
+      const { stdout } = await execFileAsync('git', ['rev-parse', 'HEAD'], {
+        cwd: rootA,
+      });
+      const commitHash = stdout.trim();
+
+      const handler = createVcsShowHandler({
+        coordinator,
+        logger: silentLogger,
+      });
+
+      const request = {
+        query: { path: rootA + '/hello.txt', commit: commitHash },
+      } as never;
+      const reply = mockReply();
+      await handler(request, reply as never);
+
+      expect(reply.body).toBe('hello world');
+      expect(reply.headers['content-type']).toBe('text/plain');
+    });
+
+    it('returns 404 for nonexistent file at commit', async () => {
+      const { stdout } = await execFileAsync('git', ['rev-parse', 'HEAD'], {
+        cwd: rootA,
+      });
+
+      const handler = createVcsShowHandler({
+        coordinator,
+        logger: silentLogger,
+      });
+
+      const request = {
+        query: {
+          path: rootA + '/nonexistent.txt',
+          commit: stdout.trim(),
+        },
+      } as never;
+      const reply = mockReply();
+      await handler(request, reply as never);
+
+      expect(reply.statusCode).toBe(404);
+    });
+
+    it('returns 400 for missing parameters', async () => {
+      const handler = createVcsShowHandler({
+        coordinator,
+        logger: silentLogger,
+      });
+
+      const request = { query: {} } as never;
+      const reply = mockReply();
+      await handler(request, reply as never);
+
+      expect(reply.statusCode).toBe(400);
+    });
+
+    it('returns 404 for path outside any root', async () => {
+      const handler = createVcsShowHandler({
+        coordinator,
+        logger: silentLogger,
+      });
+
+      const request = {
+        query: { path: '/nonexistent/file.txt', commit: 'HEAD' },
+      } as never;
+      const reply = mockReply();
+      await handler(request, reply as never);
+
+      expect(reply.statusCode).toBe(404);
+    });
+  });
+
+  describe('GET /vcs/diff', () => {
+    it('returns diff between commits', async () => {
+      // Get first commit hash
+      const { stdout: firstHash } = await execFileAsync(
+        'git',
+        ['rev-parse', 'HEAD'],
+        { cwd: rootA },
+      );
+
+      // Make a change
+      await writeFile(join(rootA, 'hello.txt'), 'changed content', 'utf8');
+      await execFileAsync('git', ['add', '.'], { cwd: rootA });
+      await execFileAsync('git', ['commit', '-m', 'change hello'], {
+        cwd: rootA,
+      });
+
+      const handler = createVcsDiffHandler({
+        coordinator,
+        logger: silentLogger,
+      });
+
+      const request = {
+        query: {
+          glob: rootA + '/hello.txt',
+          commit: firstHash.trim(),
+        },
+      } as never;
+      const reply = mockReply();
+      await handler(request, reply as never);
+
+      const body = reply.body as string;
+      expect(body).toContain('hello world');
+      expect(body).toContain('changed content');
+      expect(reply.headers['content-type']).toBe('text/plain');
+    });
+
+    it('returns diff between two specific commits', async () => {
+      const { stdout: firstHash } = await execFileAsync(
+        'git',
+        ['rev-parse', 'HEAD'],
+        { cwd: rootA },
+      );
+
+      await writeFile(join(rootA, 'hello.txt'), 'v2', 'utf8');
+      await execFileAsync('git', ['add', '.'], { cwd: rootA });
+      await execFileAsync('git', ['commit', '-m', 'v2'], { cwd: rootA });
+
+      const { stdout: secondHash } = await execFileAsync(
+        'git',
+        ['rev-parse', 'HEAD'],
+        { cwd: rootA },
+      );
+
+      const handler = createVcsDiffHandler({
+        coordinator,
+        logger: silentLogger,
+      });
+
+      const request = {
+        query: {
+          glob: rootA + '/hello.txt',
+          commit: firstHash.trim(),
+          commitEnd: secondHash.trim(),
+        },
+      } as never;
+      const reply = mockReply();
+      await handler(request, reply as never);
+
+      const body = reply.body as string;
+      expect(body).toContain('hello world');
+      expect(body).toContain('v2');
+    });
+
+    it('returns 400 for missing parameters', async () => {
+      const handler = createVcsDiffHandler({
+        coordinator,
+        logger: silentLogger,
+      });
+
+      const request = { query: {} } as never;
+      const reply = mockReply();
+      await handler(request, reply as never);
+
+      expect(reply.statusCode).toBe(400);
+    });
+  });
+
+  describe('GET /vcs/check-exclusion', () => {
+    it('returns excluded:false for tracked files', async () => {
+      const handler = createVcsCheckExclusionHandler({
+        coordinator,
+        logger: silentLogger,
+      });
+
+      const request = {
+        query: { path: rootA + '/hello.txt' },
+      } as never;
+      const reply = mockReply();
+      await handler(request, reply as never);
+
+      const body = reply.body as { excluded: boolean };
+      expect(body.excluded).toBe(false);
+    });
+
+    it('returns excluded:true for gitignored files', async () => {
+      // Create a .gitignore
+      await writeFile(join(rootA, '.gitignore'), '*.log\n', 'utf8');
+      await execFileAsync('git', ['add', '.'], { cwd: rootA });
+      await execFileAsync('git', ['commit', '-m', 'add gitignore'], {
+        cwd: rootA,
+      });
+
+      const handler = createVcsCheckExclusionHandler({
+        coordinator,
+        logger: silentLogger,
+      });
+
+      const request = {
+        query: { path: rootA + '/debug.log' },
+      } as never;
+      const reply = mockReply();
+      await handler(request, reply as never);
+
+      const body = reply.body as {
+        excluded: boolean;
+        rule?: string;
+        source?: string;
+      };
+      expect(body.excluded).toBe(true);
+      expect(body.rule).toBe('*.log');
+    });
+
+    it('returns 400 for missing path', async () => {
+      const handler = createVcsCheckExclusionHandler({
+        coordinator,
+        logger: silentLogger,
+      });
+
+      const request = { query: {} } as never;
+      const reply = mockReply();
+      await handler(request, reply as never);
+
+      expect(reply.statusCode).toBe(400);
+    });
+
+    it('returns 404 for path outside any root', async () => {
+      const handler = createVcsCheckExclusionHandler({
+        coordinator,
+        logger: silentLogger,
+      });
+
+      const request = {
+        query: { path: '/nonexistent/file.txt' },
+      } as never;
+      const reply = mockReply();
+      await handler(request, reply as never);
+
+      expect(reply.statusCode).toBe(404);
+    });
+  });
+});

@@ -263,6 +263,7 @@ export class JeevesWatcher {
       fileSystemWatcher: this.watcher,
       getFileSystemWatcher: () => this.watcher,
       enrichmentStore: this.enrichmentStore,
+      vcsCoordinator: this.vcsCoordinator,
     });
 
     await server.listen({
