@@ -13,6 +13,7 @@ import type pino from 'pino';
 
 import { normalizeError } from '../util/normalizeError';
 import type { CommitMessageGenerator } from './CommitMessageGenerator';
+import { SquashManager } from './SquashManager';
 
 const execFileAsync = promisify(execFile);
 
@@ -80,6 +81,7 @@ export class VcsManager {
   private readonly pending: Set<string> = new Set();
   private readonly pendingReversions: PendingReversion[] = [];
   private readonly _pushErrors: PushError[] = [];
+  private readonly squashManager: SquashManager | undefined;
   private debounceTimer: ReturnType<typeof setTimeout> | undefined;
   private commitInFlight: Promise<void> = Promise.resolve();
   private started = false;
@@ -99,6 +101,16 @@ export class VcsManager {
     this.commitMessageGenerator = commitMessageGenerator;
     this.remoteUrl = remoteUrl;
     this.accessToken = accessToken;
+
+    if (config.retention) {
+      this.squashManager = new SquashManager(
+        rootPath,
+        config.retention,
+        logger,
+        remoteUrl,
+        accessToken,
+      );
+    }
   }
 
   get lastPushTime(): string | null {
@@ -186,6 +198,7 @@ export class VcsManager {
    */
   start(): void {
     this.started = true;
+    this.squashManager?.start();
     this.logger.info({ root: this.rootPath }, 'VcsManager started');
   }
 
@@ -251,6 +264,7 @@ export class VcsManager {
    */
   async stop(): Promise<void> {
     this.started = false;
+    this.squashManager?.stop();
     await this.flush();
     this.logger.info({ root: this.rootPath }, 'VcsManager stopped');
   }
