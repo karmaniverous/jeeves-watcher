@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [unreleased]
 
+### 💼 Other
+
+- Updated jeeves-core
+## [0.2.0] - 2026-06-11
+
 ### 🚀 Features
 
 - *(vcs)* Phase 1 — foundation (config schema, watch.paths, startup checks)
@@ -16,6 +21,10 @@ All notable changes to this project will be documented in this file.
 ### 💼 Other
 
 - Updated core
+
+### ⚙️ Miscellaneous Tasks
+
+- Release @karmaniverous/jeeves-watcher-core v0.2.0
 ## [0.1.2] - 2026-05-29
 
 ### 💼 Other
