@@ -69,7 +69,13 @@ export interface PushError {
 
 /**
  * Per-root VCS manager for git-backed content versioning.
- * Constructor takes the resolved VCS config for one watch root.
+ *
+ * Each VCS-enabled watch root gets its own VcsManager instance, which owns
+ * a debounced commit pipeline: file changes are batched, staged, committed
+ * (with optional AI-generated messages), and optionally pushed to a remote.
+ *
+ * Concurrency: only one commit is in-flight at a time per root. Index.lock
+ * contention is handled with exponential backoff retries (D10).
  */
 export class VcsManager {
   readonly config: VcsConfig;

@@ -17,6 +17,134 @@ Filesystem watcher that keeps a [Qdrant](https://qdrant.tech/) vector store in s
 - **REST API** — Fastify server for search, status, config, and management
 - **CLI** — `jeeves-watcher init`, `validate`, `start`, and more
 
+## Version Control (VCS)
+
+The watcher supports optional git-backed version control of watched content. When enabled, every file change under a watch root is automatically committed, providing full history, diff, and revert capabilities.
+
+### Configuration
+
+Add a `vcs` block to your config:
+
+```json
+{
+  "vcs": {
+    "enabled": true,
+    "commitDebounceMs": 30000,
+    "maxBatchSize": 1000,
+    "commitMessage": {
+      "enabled": true,
+      "provider": "anthropic",
+      "model": "claude-haiku-4-0",
+      "apiKey": "${ANTHROPIC_API_KEY}"
+    },
+    "retention": {
+      "maxAgeDays": 30,
+      "maxVersions": 100,
+      "squashCron": "0 0 * * *"
+    },
+    "defaultAccessToken": "${GIT_TOKEN}"
+  }
+}
+```
+
+| Property | Default | Description |
+|----------|---------|-------------|
+| `vcs.enabled` | `false` | Enable git-backed version control globally |
+| `vcs.commitDebounceMs` | `30000` | Debounce interval (ms) for batching file changes into commits. Min: 1000 |
+| `vcs.maxBatchSize` | `1000` | Maximum files per commit batch. Flushes immediately when exceeded. Min: 1 |
+| `vcs.commitMessage.enabled` | `true` | Enable AI-generated commit messages |
+| `vcs.commitMessage.provider` | `"anthropic"` | AI provider (currently only `"anthropic"` supported) |
+| `vcs.commitMessage.model` | `"claude-haiku-4-0"` | AI model for commit message generation |
+| `vcs.commitMessage.apiKey` | — | API key for the commit message provider. Supports env var substitution |
+| `vcs.retention.maxAgeDays` | `30` | Commits older than this are squashed into a baseline |
+| `vcs.retention.maxVersions` | `100` | Maximum commits retained per root (older ones squashed) |
+| `vcs.retention.squashCron` | `"0 0 * * *"` | Cron schedule for squash retention (5-field, checked every 60s) |
+| `vcs.defaultAccessToken` | — | Fallback git access token for all roots. Supports env var substitution |
+
+### Per-Root Overrides via `watch.paths`
+
+Watch path entries can be objects with per-root VCS overrides:
+
+```json
+{
+  "watch": {
+    "paths": [
+      "J:/domains/notes/**/*.md",
+      {
+        "path": "J:/domains/jira/**/*.json",
+        "vcs": {
+          "enabled": false
+        }
+      },
+      {
+        "path": "J:/domains/email/**/*.json",
+        "vcs": {
+          "remote": "https://github.com/org/email-archive.git",
+          "accessToken": "${GITHUB_TOKEN}",
+          "retention": {
+            "maxAgeDays": 7,
+            "maxVersions": 50
+          }
+        }
+      }
+    ]
+  }
+}
+```
+
+Per-root properties (`remote`, `accessToken`) are only available in per-root overrides. All other `vcs.*` properties can be overridden per root.
+
+### Deployment Notes
+
+- **Git dependency:** `git` must be on the system PATH. The watcher initializes a git repository in each VCS-enabled watch root automatically.
+- **stateDir:** The `.jeeves-metadata/` directory (configurable via `stateDir`) is always gitignored. VCS state (git repos) lives inside the watch roots themselves, not in stateDir.
+- **Filesystem constraints:** Each VCS-enabled watch path entry must resolve to a single directory root (not a glob with wildcards in directory segments).
+
+### Remote Push
+
+When `remote` is set on a per-root VCS config, the watcher pushes to the remote after every commit. Configure authentication via `accessToken` (per-root) or `defaultAccessToken` (global fallback):
+
+```json
+{
+  "vcs": {
+    "enabled": true,
+    "defaultAccessToken": "${GIT_TOKEN}"
+  },
+  "watch": {
+    "paths": [
+      {
+        "path": "J:/domains/notes",
+        "vcs": {
+          "remote": "https://github.com/org/notes-archive.git"
+        }
+      }
+    ]
+  }
+}
+```
+
+Push failures are logged and recorded in `/vcs/status` but do not block commits.
+
+### Squash Retention
+
+To prevent unbounded history growth, the squash retention system periodically compresses old commits into a single baseline. Controlled by `vcs.retention`:
+
+- **`maxAgeDays`** and **`maxVersions`** define retention boundaries. The tighter constraint wins — if `maxAgeDays: 30` would keep 200 commits but `maxVersions: 100` caps at 100, only 100 are retained.
+- **`squashCron`** controls when squash runs (e.g., `"0 0 * * *"` = daily at midnight). Checked every 60 seconds.
+- After squash, old commits are replaced with a single "historical baseline" commit. If a remote is configured, squash triggers a force push.
+
+### API Endpoints
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/vcs/status` | GET | VCS state for all roots |
+| `/vcs/history` | GET | Commit history for a path/glob |
+| `/vcs/show` | GET | File content at a specific commit |
+| `/vcs/diff` | GET | Diff between commits |
+| `/vcs/revert` | POST | Restore files from a past commit |
+| `/vcs/exclude` | POST | Manage gitignore exclusions |
+| `/vcs/check-exclusion` | GET | Check gitignore status of a path |
+
 ## JsonMap Built-in Helpers
 
 The following helpers are available in every JsonMap `lib` context:

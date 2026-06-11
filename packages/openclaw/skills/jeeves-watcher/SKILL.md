@@ -837,6 +837,70 @@ Use `watcher_enrich` to tag documents after analysis (e.g., `reviewed: true`, pr
 
 ---
 
+## Version Tracking
+
+The watcher includes built-in history and undo for your watched files. When enabled, every change to a watched file is automatically versioned. You can view the history of any file or folder, see exactly what changed between versions, retrieve old versions, and undo changes — all through the `watcher_vcs_*` tools.
+
+### Tools
+
+| Tool | Purpose |
+|------|---------|
+| `watcher_vcs_status` | Check version tracking health: enabled state, tracked roots, remote sync status |
+| `watcher_vcs_history` | View change history for a file or folder, with optional date range and limit |
+| `watcher_vcs_show` | Retrieve the content of a file at a specific past version |
+| `watcher_vcs_diff` | Show what changed between two versions, or between a past version and now |
+| `watcher_vcs_revert` | Undo changes by restoring files to a specific past version |
+| `watcher_vcs_exclude` | Exclude (or re-include) paths from version tracking |
+| `watcher_vcs_check` | Check whether a path is excluded from version tracking and why |
+
+### Usage Patterns
+
+**View recent changes to a file:**
+```
+watcher_vcs_history: glob="J:/domains/jira/PROJ-123.json", limit=10
+```
+
+**See what changed between two versions:**
+```
+watcher_vcs_diff: glob="J:/domains/jira/PROJ-123.json", commit="abc1234"
+```
+
+**Restore a file to a previous version:**
+```
+watcher_vcs_revert: glob="J:/domains/jira/PROJ-123.json", commit="abc1234"
+```
+
+**View old content without restoring:**
+```
+watcher_vcs_show: path="J:/domains/jira/PROJ-123.json", commit="abc1234"
+```
+
+**Exclude files that don't need versioning** (e.g., Jira issues that are read-only syncs):
+```
+watcher_vcs_exclude: glob="J:/domains/jira/**/*.json"
+```
+
+**Check if a file is excluded and why:**
+```
+watcher_vcs_check: path="J:/domains/jira/PROJ-123.json"
+```
+
+### Enabling Version Tracking
+
+Version tracking is controlled by the `vcs.enabled` config setting. When set to `true`, the watcher automatically versions all watched files. No additional setup is required — just enable it and history starts accumulating.
+
+### Excluding Paths
+
+Not all watched files need version history. For example, if Jira issues are synced read-only, there's nothing to "undo." Use `watcher_vcs_exclude` to stop tracking specific paths.
+
+Exclusions are placed as close to the target as possible: if you exclude `J:/domains/jira/**/*.json`, the exclusion rule is written inside the `J:/domains/jira/` directory, not at the root. This keeps exclusions local and easy to reason about. Re-include a path by calling `watcher_vcs_exclude` with `remove: true`.
+
+### Score Interpretation
+
+VCS tools do not use vector search. There are no relevance scores to interpret — results are exact history lookups, diffs, and file retrievals.
+
+---
+
 ## Error Handling
 
 If the watcher is unreachable:

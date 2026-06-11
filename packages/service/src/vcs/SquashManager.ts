@@ -104,6 +104,12 @@ export interface CommitInfo {
 
 /**
  * Manages scheduled squash retention for a single VCS root.
+ *
+ * Runs on a cron schedule (checked every 60s). When triggered, squashes
+ * commits older than the retention boundary (the tighter of maxAgeDays
+ * and maxVersions) into a single "historical baseline" orphan commit,
+ * then cherry-picks retained commits on top. Force-pushes to remote
+ * if configured (D13).
  */
 export class SquashManager {
   private readonly rootPath: string;
