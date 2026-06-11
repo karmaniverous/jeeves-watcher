@@ -18,6 +18,7 @@ import {
   schemaEntrySchema,
 } from './inference.js';
 import { embeddingConfigSchema, vectorStoreConfigSchema } from './services.js';
+import { vcsConfigSchema } from './vcs.js';
 
 /**
  * Top-level configuration for jeeves-watcher.
@@ -172,6 +173,12 @@ export const jeevesWatcherConfigSchema = z.object({
     .optional()
     .describe(
       'Search configuration including score thresholds and hybrid search.',
+    ),
+  /** VCS (version control) configuration for git-backed content versioning. */
+  vcs: vcsConfigSchema
+    .optional()
+    .describe(
+      'VCS configuration for git-backed version control of watched content.',
     ),
   /** Logging configuration. */
   logging: loggingConfigSchema.optional().describe('Logging configuration.'),

@@ -40,6 +40,23 @@ export const WATCH_DEFAULTS = {
   respectGitignore: true,
 };
 
+/** Default VCS configuration. */
+export const VCS_DEFAULTS = {
+  enabled: false,
+  commitDebounceMs: 30000,
+  maxBatchSize: 1000,
+  commitMessage: {
+    enabled: true,
+    provider: 'anthropic',
+    model: 'claude-haiku-4-0',
+  },
+  retention: {
+    maxAgeDays: 30,
+    maxVersions: 100,
+    squashCron: '0 0 * * *',
+  },
+};
+
 /** Default embedding configuration. */
 export const EMBEDDING_DEFAULTS = {
   chunkSize: 1000,

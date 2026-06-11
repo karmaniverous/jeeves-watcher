@@ -3,6 +3,7 @@
  * POST /render route handler. Runs a file through the inference rule engine and returns rendered content.
  */
 
+import { extractWatchPathStrings } from '@karmaniverous/jeeves-watcher-core';
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import type pino from 'pino';
 
@@ -47,7 +48,13 @@ export function createRenderHandler(deps: RenderHandlerDeps) {
 
     // Validate path is within watched scope (live config)
     const watch = getWatch();
-    if (!isPathWatched(filePath, watch.paths, watch.ignored)) {
+    if (
+      !isPathWatched(
+        filePath,
+        extractWatchPathStrings(watch.paths),
+        watch.ignored,
+      )
+    ) {
       return reply.status(403).send({ error: 'Path is outside watched scope' });
     }
 

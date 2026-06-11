@@ -3,6 +3,7 @@
  * Tests file paths against inference rules and watch scope.
  */
 
+import { extractWatchPathStrings } from '@karmaniverous/jeeves-watcher-core';
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import picomatch from 'picomatch';
 import type pino from 'pino';
@@ -65,7 +66,9 @@ export function createConfigMatchHandler(options: ConfigMatchHandlerOptions) {
     const config = getConfig();
     if (config !== cachedConfig) {
       compiledRules = compileRules(config.inferenceRules ?? []);
-      watchMatcher = picomatch(config.watch.paths, { dot: true });
+      watchMatcher = picomatch(extractWatchPathStrings(config.watch.paths), {
+        dot: true,
+      });
       ignoreMatcher = config.watch.ignored.length
         ? picomatch(config.watch.ignored, { dot: true })
         : undefined;

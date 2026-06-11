@@ -5,16 +5,18 @@
 
 import { z } from 'zod';
 
+import { watchPathEntrySchema } from './vcs.js';
+
 /**
  * Watch configuration for file system monitoring.
  */
 export const watchConfigSchema = z.object({
-  /** Glob patterns to watch. */
+  /** Glob patterns or watch path objects to watch. */
   paths: z
-    .array(z.string())
+    .array(watchPathEntrySchema)
     .min(1)
     .describe(
-      'Glob patterns for files to watch (e.g., "**/*.md"). At least one required.',
+      'Paths to watch. Each entry may be a glob string (e.g., "**/*.md") or an object with a path and optional per-root VCS overrides. At least one required.',
     ),
   /** Glob patterns to ignore. */
   ignored: z

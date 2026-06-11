@@ -172,6 +172,70 @@ The plugin exposes lifecycle commands via the `JeevesComponent` interface:
 
 The CLI uninstall command uses core's `parseManaged()` to locate and remove the Watcher section from TOOLS.md. If no other sections remain, the entire managed block is removed.
 
+### Version Control (VCS) Tools
+
+### `watcher_vcs_status`
+
+Get version tracking health: enabled state, tracked roots, remote status, last activity. No parameters required.
+
+### `watcher_vcs_history`
+
+Query change history by path or glob with optional date range.
+
+**Parameters:**
+
+- `glob` (string, required) — path or glob pattern to query history for
+- `since` (string) — start date (ISO 8601 or date string)
+- `until` (string) — end date (ISO 8601 or date string)
+- `limit` (number) — maximum number of history entries to return
+
+### `watcher_vcs_show`
+
+Retrieve file content at a specific version.
+
+**Parameters:**
+
+- `path` (string, required) — file path to retrieve
+- `commit` (string, required) — version identifier
+
+### `watcher_vcs_diff`
+
+Show what changed between two versions, or between a version and current.
+
+**Parameters:**
+
+- `glob` (string, required) — path or glob pattern to diff
+- `commit` (string, required) — start version identifier
+- `commitEnd` (string) — end version identifier (defaults to current if omitted)
+
+### `watcher_vcs_revert`
+
+Undo changes by restoring files to a specific version.
+
+**Parameters:**
+
+- `glob` (string, required) — path or glob pattern to revert
+- `commit` (string, required) — version to restore files to
+- `existingOnly` (boolean) — when true, only revert files that currently exist (skip deleted files)
+
+### `watcher_vcs_exclude`
+
+Exclude or re-include paths from version tracking.
+
+**Parameters:**
+
+- `glob` (string, required) — glob pattern to exclude or re-include
+- `root` (string) — tracked root to target (defaults to auto-detect)
+- `remove` (boolean) — when true, remove the exclusion rule (re-include the path)
+
+### `watcher_vcs_check`
+
+Check whether a path is excluded from version tracking and why.
+
+**Parameters:**
+
+- `path` (string, required) — file path to check exclusion status for
+
 ## Example Usage Patterns
 
 ### Search for relevant documents

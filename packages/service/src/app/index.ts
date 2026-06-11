@@ -22,6 +22,7 @@ import type { DocumentProcessorInterface } from '../processor';
 import type { EventQueue } from '../queue';
 import { VirtualRuleStore } from '../rules/virtualRules';
 import { ValuesManager } from '../values';
+import { VcsCoordinator } from '../vcs/VcsCoordinator';
 import type { FileSystemWatcher } from '../watcher';
 import { reloadConfig } from './configReload';
 import { ConfigWatcher } from './configWatcher';
@@ -32,6 +33,7 @@ import {
   createWatcher,
   getConfigDir,
   initEmbeddingAndStore,
+  initVcs,
   introspectHelpers,
   resolveVersion,
 } from './initialization';
@@ -74,6 +76,7 @@ export class JeevesWatcher {
   private gitignoreFilter: GitignoreFilter | undefined;
   private enrichmentStore: EnrichmentStore | undefined;
   private contentHashCache: ContentHashCache | undefined;
+  private vcsCoordinator: VcsCoordinator | undefined;
   private readonly initialScanTracker: InitialScanTracker;
   private readonly version: string;
 
@@ -106,6 +109,8 @@ export class JeevesWatcher {
   async start(): Promise<void> {
     const logger = this.factories.createLogger(this.config.logging);
     this.logger = logger;
+
+    await initVcs(this.config, logger);
 
     const { embeddingProvider, vectorStore } = await initEmbeddingAndStore(
       this.config,
@@ -163,6 +168,9 @@ export class JeevesWatcher {
       rateLimitPerMinute: this.config.embedding.rateLimitPerMinute,
     });
 
+    const vcsCoordinator = new VcsCoordinator(this.config, logger);
+    this.vcsCoordinator = vcsCoordinator;
+
     const { watcher, gitignoreFilter } = createWatcher(
       this.config,
       this.factories,
@@ -172,12 +180,16 @@ export class JeevesWatcher {
       this.runtimeOptions,
       this.initialScanTracker,
       contentHashCache,
+      (filePath, event) => {
+        vcsCoordinator.onFileChange(filePath, event);
+      },
     );
     this.watcher = watcher;
     this.gitignoreFilter = gitignoreFilter;
 
     this.server = await this.startApiServer();
 
+    vcsCoordinator.start();
     this.watcher.start();
     this.startConfigWatch();
 
@@ -189,6 +201,10 @@ export class JeevesWatcher {
    */
   async stop(): Promise<void> {
     await this.stopConfigWatch();
+
+    if (this.vcsCoordinator) {
+      await this.vcsCoordinator.stop();
+    }
 
     if (this.watcher) {
       await this.watcher.stop();
@@ -247,6 +263,7 @@ export class JeevesWatcher {
       fileSystemWatcher: this.watcher,
       getFileSystemWatcher: () => this.watcher,
       enrichmentStore: this.enrichmentStore,
+      vcsCoordinator: this.vcsCoordinator,
     });
 
     await server.listen({

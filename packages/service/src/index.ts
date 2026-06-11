@@ -86,6 +86,17 @@ export {
   TemplateEngine,
 } from './templates';
 export { type ValuesIndex, ValuesManager } from './values';
+export type { ResolvedWatchRoot } from './vcs';
+export {
+  type CommitInfo,
+  CommitMessageGenerator,
+  type PendingReversion,
+  type PushError,
+  SquashManager,
+  type SquashResult,
+  VcsCoordinator,
+  VcsManager,
+} from './vcs';
 export type {
   CollectionInfo,
   PayloadFieldSchema,

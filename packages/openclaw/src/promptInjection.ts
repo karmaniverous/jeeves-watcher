@@ -2,7 +2,7 @@ import { fetchJson } from '@karmaniverous/jeeves';
 
 import { MENU_FETCH_TIMEOUT_MS } from './constants.js';
 
-/** Shape of the new core-convention /status response. */
+/** Shape of the core-convention /status response. */
 interface StatusResponse {
   health?: {
     collection?: { pointCount: number };
@@ -11,6 +11,12 @@ interface StatusResponse {
 
 interface QueryResponse<T = unknown> {
   result: T[];
+}
+
+/** Shape of the /vcs/status response. */
+interface VcsStatusResponse {
+  enabled: boolean;
+  roots?: Array<{ path: string }>;
 }
 
 /**
@@ -30,13 +36,20 @@ export async function generateWatcherMenu(apiUrl: string): Promise<string> {
 
   const fetchOpts = { signal: AbortSignal.timeout(MENU_FETCH_TIMEOUT_MS) };
 
-  const [statusRes, thresholdsRes] = (await Promise.all([
+  const [statusRes, thresholdsRes, vcsRes] = (await Promise.all([
     fetchJson(`${apiUrl}/status`, fetchOpts),
     fetchJson(
       `${apiUrl}/config?path=${encodeURIComponent('$.search.scoreThresholds')}`,
       fetchOpts,
     ),
-  ])) as [StatusResponse, QueryResponse<Record<string, unknown>>];
+    fetchJson(`${apiUrl}/vcs/status`, fetchOpts).catch(() => ({
+      enabled: false,
+    })),
+  ])) as [
+    StatusResponse,
+    QueryResponse<Record<string, unknown>>,
+    VcsStatusResponse,
+  ];
 
   const pointCount = statusRes.health?.collection?.pointCount ?? 0;
 
@@ -63,6 +76,15 @@ export async function generateWatcherMenu(apiUrl: string): Promise<string> {
     '* Watched paths: `$.watch.paths[*]`',
     '* Ignored paths: `$.watch.ignored[*]`',
   ];
+
+  if (vcsRes.enabled) {
+    const rootCount = vcsRes.roots?.length ?? 0;
+    lines.push(
+      '',
+      `### Version Tracking: enabled (${String(rootCount)} tracked ${rootCount === 1 ? 'root' : 'roots'})`,
+      'Use `watcher_vcs_*` tools for history, diff, revert, and exclusion management. See skill for details.',
+    );
+  }
 
   return lines.join('\n');
 }

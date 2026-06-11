@@ -39,3 +39,20 @@ export {
   type VectorStoreConfig,
   vectorStoreConfigSchema,
 } from './services.js';
+
+// VCS schemas
+export {
+  extractWatchPathStrings,
+  type NormalizedWatchPath,
+  normalizeWatchPaths,
+  type VcsCommitMessageConfig,
+  vcsCommitMessageConfigSchema,
+  type VcsConfig,
+  vcsConfigSchema,
+  type VcsRetentionConfig,
+  vcsRetentionConfigSchema,
+  type WatchPathEntry,
+  watchPathEntrySchema,
+  type WatchPathVcsConfig,
+  watchPathVcsConfigSchema,
+} from './vcs.js';

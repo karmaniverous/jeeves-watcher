@@ -532,6 +532,43 @@ export function createEmbeddingProvider(config: EmbeddingConfig): EmbeddingProvi
 
 ---
 
+## Version Control Subsystem
+
+The VCS subsystem runs alongside the embedding pipeline as an independent data flow. Both systems share watch paths but maintain separate state.
+
+### VCS Data Flow
+
+1. **File change event** → routed to both the embedding pipeline and VCS coordinator
+2. **VCS coordinator** → maps the file to the correct watch root's `VcsManager`
+3. **VcsManager** → adds file to pending set, resets debounce timer
+4. **Debounce expires or batch full** → `commitBatch()` stages files, generates commit message, commits
+5. **If remote configured** → pushes to remote (non-blocking)
+6. **Squash scheduler** (cron) → periodically squashes old commits per retention rules
+
+### Key Design Decisions
+
+- **D1:** VCS is opt-in (`vcs.enabled: false` by default)
+- **D2:** One git repo per watch root — isolated histories
+- **D3:** VCS and watcher indexing are independent — git can track files the watcher cannot embed and vice versa
+- **D4:** Child repos tracked uniformly; child `.git/` directories excluded
+- **D5:** Debounced batch commits prevent per-file commit noise
+- **D6:** AI commit messages via Anthropic API with OpenClaw gateway fallback
+- **D7:** Squash retention with `maxAgeDays` / `maxVersions` (tighter wins)
+- **D8:** Forward-only reversion — `git show` + write, HEAD never moves backward
+- **D9:** Optional remote push per root with access token auth
+- **D12:** Per-root config overrides via `watch.paths` object entries
+- **D13:** Force push after squash — acceptable because remote is a backup mirror
+- **D14:** Git is a soft dependency — graceful degradation if not installed
+- **D15:** `stateDir` must not overlap watch paths — validated at startup
+
+### Concurrency
+
+Each `VcsManager` serializes commits within its root (single commit in-flight). The `index.lock` retry mechanism (4 attempts, exponential backoff) handles contention with external git processes. Squash operations that encounter a held lock abort cleanly and retry on the next cron cycle.
+
+See the [Version Control (VCS) Guide](./version-control.md) for full operational details.
+
+---
+
 ## Next Steps
 
 - [Configuration Reference](./configuration.md) — All config options

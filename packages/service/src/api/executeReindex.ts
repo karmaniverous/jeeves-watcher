@@ -6,6 +6,7 @@
 import { stat } from 'node:fs/promises';
 import { resolve } from 'node:path';
 
+import { extractWatchPathStrings } from '@karmaniverous/jeeves-watcher-core';
 import type pino from 'pino';
 import { parallel } from 'radash';
 
@@ -233,7 +234,7 @@ async function computePrunePlan(
 
         const watched = isPathWatched(
           filePath,
-          config.watch.paths,
+          extractWatchPathStrings(config.watch.paths),
           config.watch.ignored,
         );
         const gitignored = gitignoreFilter
@@ -259,7 +260,10 @@ async function computePrunePlan(
   }
 
   const orphanedFileList = [...orphanedFiles];
-  const byRoot = groupByRoot(orphanedFileList, config.watch.paths);
+  const byRoot = groupByRoot(
+    orphanedFileList,
+    extractWatchPathStrings(config.watch.paths),
+  );
 
   return {
     plan: {
@@ -415,7 +419,7 @@ export async function executeReindex(
   } else if (scope === 'rules' && pathArray && pathArray.length > 0) {
     // Rules scope with path filter: list from watch roots intersected with caller globs
     fileList = await listFilesFromWatchRoots(
-      config.watch.paths,
+      extractWatchPathStrings(config.watch.paths),
       config.watch.ignored,
       pathArray,
       isGitignored,
@@ -423,7 +427,7 @@ export async function executeReindex(
   } else {
     // rules or full: list files from globs
     fileList = await listFilesFromGlobs(
-      config.watch.paths,
+      extractWatchPathStrings(config.watch.paths),
       config.watch.ignored,
       isGitignored,
     );
@@ -434,7 +438,10 @@ export async function executeReindex(
       total: fileList.length,
       toProcess: fileList.length,
       toDelete: 0,
-      byRoot: groupByRoot(fileList, config.watch.paths),
+      byRoot: groupByRoot(
+        fileList,
+        extractWatchPathStrings(config.watch.paths),
+      ),
     };
   }
 
@@ -450,7 +457,10 @@ export async function executeReindex(
         total: pathFiles.length,
         toProcess: pathFiles.length,
         toDelete: 0,
-        byRoot: groupByRoot(pathFiles, config.watch.paths),
+        byRoot: groupByRoot(
+          pathFiles,
+          extractWatchPathStrings(config.watch.paths),
+        ),
       };
     }
     return { filesProcessed: 0, durationMs: 0, errors: 0, plan };
@@ -483,7 +493,7 @@ export async function executeReindex(
       });
     } else if (scope === 'rules') {
       filesProcessed = await processAllFiles(
-        config.watch.paths,
+        extractWatchPathStrings(config.watch.paths),
         config.watch.ignored,
         processor,
         'processRulesUpdate',
@@ -506,7 +516,10 @@ export async function executeReindex(
         total: uniqueFiles.length,
         toProcess: uniqueFiles.length,
         toDelete: 0,
-        byRoot: groupByRoot(uniqueFiles, config.watch.paths),
+        byRoot: groupByRoot(
+          uniqueFiles,
+          extractWatchPathStrings(config.watch.paths),
+        ),
       };
 
       reindexTracker?.setTotal(uniqueFiles.length);
@@ -519,7 +532,7 @@ export async function executeReindex(
     } else {
       // Full reindex
       filesProcessed = await processAllFiles(
-        config.watch.paths,
+        extractWatchPathStrings(config.watch.paths),
         config.watch.ignored,
         processor,
         'processFile',
@@ -604,7 +617,7 @@ async function getPathFileList(
 ): Promise<string[]> {
   const watched = isPathWatched(
     targetPath,
-    config.watch.paths,
+    extractWatchPathStrings(config.watch.paths),
     config.watch.ignored,
   );
   if (!watched) {
@@ -620,7 +633,7 @@ async function getPathFileList(
   if (stats.isDirectory()) {
     const isGitignored = createIsGitignored(gitignoreFilter);
     const allWatchedFiles = await listFilesFromGlobs(
-      config.watch.paths,
+      extractWatchPathStrings(config.watch.paths),
       config.watch.ignored,
       isGitignored,
     );

@@ -10,6 +10,7 @@ import type { JeevesWatcherConfig } from '../config/types';
 import type { JeevesWatcherFactories } from './factories';
 import {
   getConfigDir,
+  initVcs,
   rebuildWatcher,
   resolveMapsConfig,
   watchConfigChanged,
@@ -148,6 +149,33 @@ describe('watchConfigChanged', () => {
       moveDetection: { enabled: true },
     } as never);
     expect(watchConfigChanged(old, next)).toBe(true);
+  });
+});
+
+describe('initVcs', () => {
+  it('skips watch paths containing glob characters', async () => {
+    const logger = pino({ level: 'silent' });
+    const warnSpy = vi.spyOn(logger, 'warn');
+
+    const config = {
+      vcs: {
+        enabled: true,
+        commitDebounceMs: 5000,
+        maxBatchSize: 1000,
+      },
+      watch: {
+        paths: ['/some/path/**/*.txt'],
+        ignored: [],
+      },
+    } as unknown as JeevesWatcherConfig;
+
+    const result = await initVcs(config, logger);
+
+    expect(result).toBe(true);
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ path: '/some/path/**/*.txt' }),
+      'Skipping VCS init for watch path containing glob characters',
+    );
   });
 });
 

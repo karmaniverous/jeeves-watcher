@@ -26,6 +26,18 @@ Production deployment recommendations for `jeeves-watcher`.
 node --version  # Should be v20.0.0 or higher
 ```
 
+### Git (Optional — for VCS)
+
+**Version:** Git 2.x+
+
+Git is required only if you enable the VCS subsystem (`vcs.enabled: true`). Without git, the watcher operates normally — VCS features are gracefully disabled.
+
+**Verify:**
+
+```bash
+git --version  # Should be v2.x.x or higher
+```
+
 ### Qdrant
 
 **Required:** Qdrant must be accessible before starting the watcher.
@@ -649,6 +661,58 @@ location /watcher/ {
 - Enable Qdrant API key authentication
 - Use TLS for Qdrant HTTP/gRPC
 - Restrict network access (firewall rules)
+
+---
+
+## Version Control (VCS)
+
+To enable git-backed content versioning, add the `vcs` block to your config:
+
+```json
+{
+  "vcs": {
+    "enabled": true
+  }
+}
+```
+
+This initializes a git repository in each watch root and begins tracking file changes with debounced batch commits.
+
+### Remote Push Setup
+
+To push commit history to a remote repository (backup mirror):
+
+```json
+{
+  "watch": {
+    "paths": [
+      {
+        "path": "/data/documents/**/*.md",
+        "vcs": {
+          "remote": "https://github.com/org/docs-backup.git",
+          "accessToken": "${GIT_ACCESS_TOKEN}"
+        }
+      }
+    ]
+  }
+}
+```
+
+Set the access token as an environment variable:
+
+```bash
+# Linux/macOS
+export GIT_ACCESS_TOKEN="ghp_your_token_here"
+
+# Windows (PowerShell)
+$env:GIT_ACCESS_TOKEN = "ghp_your_token_here"
+```
+
+For systemd/NSSM services, add the environment variable to the service configuration (see [Environment Variables](#environment-variables) above).
+
+Push failures are non-blocking — local commits succeed regardless. Check `GET /vcs/status` for push error details.
+
+See the [Version Control (VCS) Guide](./version-control.md) for full details on configuration, squash retention, AI commit messages, and troubleshooting.
 
 ---
 
