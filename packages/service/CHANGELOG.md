@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 ## [unreleased]
 
+### 🧪 Testing
+
+- Increase VCS test timeouts from 15s to 30s
+- Increase timeout for VCS tests that create real git repos
+## [0.18.0] - 2026-06-11
+
 ### 🚀 Features
 
 - *(vcs)* Phase 1 — foundation (config schema, watch.paths, startup checks)
@@ -36,6 +42,10 @@ All notable changes to this project will be documented in this file.
 ### 🧪 Testing
 
 - *(vcs)* Dedicated unit tests for gitExec, vcsBootstrap; cron edge case
+
+### ⚙️ Miscellaneous Tasks
+
+- Release @karmaniverous/jeeves-watcher v0.18.0
 ## [0.17.11] - 2026-05-29
 
 ### 💼 Other
