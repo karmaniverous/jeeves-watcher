@@ -8,8 +8,8 @@
   },
   "dependencies": {
     "@commander-js/extra-typings": "^14.0.0",
-    "@karmaniverous/jeeves": "^0.5.11",
-    "@karmaniverous/jeeves-watcher-core": "^0.2.0",
+    "@karmaniverous/jeeves": "^0.5.12",
+    "@karmaniverous/jeeves-watcher-core": "^0.2.1",
     "@karmaniverous/jsonmap": "^2.1.1",
     "@langchain/textsplitters": "*",
     "@qdrant/js-client-rest": "*",
