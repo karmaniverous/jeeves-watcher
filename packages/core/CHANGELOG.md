@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 
 ## [unreleased]
 
+### 🚀 Features
+
+- *(vcs)* Phase 1 — foundation (config schema, watch.paths, startup checks)
+
+### 🐛 Bug Fixes
+
+- Export VCS types + fix typedoc anchor
+- Address Copilot review comments
+
+### 💼 Other
+
+- Updated core
+## [0.1.2] - 2026-05-29
+
 ### 💼 Other
 
 - [0-18] chore: update dependencies
@@ -15,6 +29,10 @@ Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>
 - [0-18] chore: update dependencies
 
 Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>
+
+### ⚙️ Miscellaneous Tasks
+
+- Release @karmaniverous/jeeves-watcher-core v0.1.2
 ## [0.1.1] - 2026-05-13
 
 ### 🚀 Features
