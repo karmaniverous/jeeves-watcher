@@ -235,6 +235,22 @@ jeeves-watcher service install
 
 Both commands print installation instructions — follow them to set up the service.
 
+## Enable Version Tracking
+
+To track file history with git-backed versioning, add the `vcs` block to your config:
+
+```json
+{
+  "vcs": {
+    "enabled": true
+  }
+}
+```
+
+The watcher will initialize a git repository in each watch root and automatically commit file changes in debounced batches. No additional setup is required — git must be installed and on `PATH`.
+
+See the [Version Control (VCS) Guide](./version-control.md) for full details on configuration, remote push, squash retention, and reversion.
+
 ## Next Steps
 
 - [Configuration Reference](./configuration.md) — Full config options

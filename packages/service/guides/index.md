@@ -8,6 +8,7 @@ children:
   - ./api-reference.md
   - ./cli-reference.md
   - ./deployment.md
+  - ./version-control.md
   - ../CHANGELOG.md
 ---
 
@@ -20,4 +21,5 @@ children:
 - [API Reference](./api-reference.md) — HTTP endpoint reference for search, config, reindex, scan, metadata, and diagnostics.
 - [CLI Reference](./cli-reference.md) — All `jeeves-watcher` commands: core standard commands and domain-specific commands.
 - [Deployment](./deployment.md) — Running as a service (NSSM/systemd), production config, log management, and updates.
+- [Version Control (VCS)](./version-control.md) — Git-backed content versioning, commit batching, squash retention, remote push, and reversion.
 - [Changelog](../CHANGELOG.md) — Release history for `@karmaniverous/jeeves-watcher`.

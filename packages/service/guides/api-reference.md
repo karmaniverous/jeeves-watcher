@@ -1353,6 +1353,305 @@ curl -X POST http://localhost:1936/rules/reapply \
 
 ---
 
+## VCS Endpoints
+
+Version control endpoints for git-backed content history. Requires `vcs.enabled: true` in config. See the [Version Control (VCS) Guide](./version-control.md) for architectural context, configuration, and operational details.
+
+---
+
+### GET /vcs/status
+
+VCS state for all watch roots.
+
+#### Request
+
+```bash
+curl http://localhost:1936/vcs/status
+```
+
+#### Response
+
+**Success (200 OK):**
+
+```json
+{
+  "enabled": true,
+  "roots": [
+    {
+      "path": "d:/documents",
+      "tracked": 1523,
+      "lastCommit": {
+        "hash": "a1b2c3d",
+        "message": "update project notes and readme",
+        "timestamp": "2026-06-10T14:30:00Z"
+      },
+      "remoteUrl": "https://github.com/org/docs-backup.git",
+      "lastPush": "2026-06-10T14:30:05Z",
+      "pushErrors": []
+    }
+  ]
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `enabled` | `boolean` | Whether VCS is enabled globally. |
+| `roots` | `array` | Per-root VCS state. |
+| `roots[].path` | `string` | Watch root path. |
+| `roots[].tracked` | `number` | Number of tracked files in this root. |
+| `roots[].lastCommit` | `object?` | Most recent commit (null if no commits yet). |
+| `roots[].remoteUrl` | `string?` | Configured remote URL (if any). |
+| `roots[].lastPush` | `string?` | ISO-8601 timestamp of last successful push. |
+| `roots[].pushErrors` | `string[]` | Recent push error messages. |
+
+---
+
+### GET /vcs/history
+
+Commit history for files matching a glob pattern.
+
+#### Request
+
+```bash
+curl "http://localhost:1936/vcs/history?glob=d:/documents/**/*.md&limit=10&since=2026-06-01T00:00:00Z"
+```
+
+**Query parameters:**
+
+| Param | Type | Default | Description |
+|-------|------|---------|-------------|
+| `glob` | `string` | **Required** | Glob pattern to filter history. |
+| `since` | `string` | `undefined` | ISO-8601 lower bound (inclusive). |
+| `until` | `string` | `undefined` | ISO-8601 upper bound (inclusive). |
+| `limit` | `number` | `20` | Max entries to return. |
+
+#### Response
+
+**Success (200 OK):**
+
+```json
+[
+  {
+    "commit": "a1b2c3d",
+    "message": "update project notes and readme",
+    "timestamp": "2026-06-10T14:30:00Z",
+    "files": ["d:/documents/projects/readme.md", "d:/documents/projects/notes.md"]
+  }
+]
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `commit` | `string` | Short commit hash. |
+| `message` | `string` | Commit message. |
+| `timestamp` | `string` | ISO-8601 commit timestamp. |
+| `files` | `string[]` | Files changed in this commit (filtered by glob). |
+
+#### Behavior
+
+Parses the git log for all roots matching the glob. Results are sorted by timestamp descending.
+
+---
+
+### GET /vcs/show
+
+Retrieve file content at a specific commit.
+
+#### Request
+
+```bash
+curl "http://localhost:1936/vcs/show?path=d:/documents/readme.md&commit=a1b2c3d"
+```
+
+**Query parameters:**
+
+| Param | Type | Description |
+|-------|------|-------------|
+| `path` | `string` | **Required.** Absolute file path. |
+| `commit` | `string` | **Required.** Commit hash. |
+
+#### Response
+
+Returns the raw file content with an appropriate `Content-Type` header based on file extension.
+
+#### Behavior
+
+Resolves the watch root for the path, computes the relative path, and runs `git show {commit}:{relativePath}`.
+
+---
+
+### GET /vcs/diff
+
+Unified diff between commits for files matching a glob.
+
+#### Request
+
+```bash
+curl "http://localhost:1936/vcs/diff?glob=d:/documents/**/*.md&commit=a1b2c3d"
+```
+
+**Query parameters:**
+
+| Param | Type | Description |
+|-------|------|-------------|
+| `glob` | `string` | **Required.** Glob pattern to filter files. |
+| `commit` | `string` | **Required.** Start commit hash. |
+| `commitEnd` | `string` | End commit hash. Defaults to HEAD if omitted. |
+
+#### Response
+
+Returns unified diff text (`Content-Type: text/plain`).
+
+#### Behavior
+
+Resolves matching watch roots and runs `git diff {commit}..{commitEnd}` (or `..HEAD`) filtered to matching paths.
+
+---
+
+### POST /vcs/revert
+
+Restore files from a historical commit. Forward-only — writes old content as new changes, HEAD never moves backward.
+
+#### Request
+
+```bash
+curl -X POST http://localhost:1936/vcs/revert \
+  -H "Content-Type: application/json" \
+  -d '{
+    "glob": "d:/documents/projects/**",
+    "commit": "a1b2c3d",
+    "existingOnly": true
+  }'
+```
+
+**Body schema:**
+
+```typescript
+{
+  glob: string;            // Glob pattern for files to revert
+  commit: string;          // Commit hash to revert to
+  existingOnly?: boolean;  // Only restore files that currently exist on disk (default: false)
+}
+```
+
+#### Response
+
+**Success (200 OK):**
+
+```json
+{
+  "restored": 3,
+  "files": [
+    "d:/documents/projects/readme.md",
+    "d:/documents/projects/notes.md",
+    "d:/documents/projects/spec.md"
+  ]
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `restored` | `number` | Number of files restored. |
+| `files` | `string[]` | Paths of restored files. |
+
+#### Behavior
+
+1. Lists files at the specified commit matching the glob
+2. Retrieves content via `git show` and writes to disk
+3. Records reversion metadata — the resulting commit is prefixed with `revert: {glob} to {shortCommit}`
+4. Triggers watcher file events for re-embedding
+
+---
+
+### POST /vcs/exclude
+
+Manage `.gitignore` entries with locality-based placement.
+
+#### Request
+
+```bash
+curl -X POST http://localhost:1936/vcs/exclude \
+  -H "Content-Type: application/json" \
+  -d '{
+    "glob": "d:/documents/temp/**/*.tmp",
+    "remove": false
+  }'
+```
+
+**Body schema:**
+
+```typescript
+{
+  glob: string;      // Glob pattern to add or remove
+  root?: string;     // Watch root (resolved automatically if omitted)
+  remove?: boolean;  // Remove the entry instead of adding (default: false)
+}
+```
+
+#### Response
+
+**Success (200 OK):**
+
+```json
+{
+  "ok": true,
+  "gitignorePath": "d:/documents/temp/.gitignore",
+  "action": "added"
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `ok` | `boolean` | Success indicator. |
+| `gitignorePath` | `string` | Path to the `.gitignore` file that was modified. |
+| `action` | `string` | `"added"` or `"removed"`. |
+
+#### Behavior
+
+Splits the glob into a directory prefix and pattern suffix, then places the entry in a `.gitignore` at the deepest appropriate directory (locality principle).
+
+---
+
+### GET /vcs/check-exclusion
+
+Check whether a file is excluded by `.gitignore`.
+
+#### Request
+
+```bash
+curl "http://localhost:1936/vcs/check-exclusion?path=d:/documents/temp/scratch.tmp"
+```
+
+**Query parameters:**
+
+| Param | Type | Description |
+|-------|------|-------------|
+| `path` | `string` | **Required.** Absolute file path to check. |
+
+#### Response
+
+**Success (200 OK):**
+
+```json
+{
+  "excluded": true,
+  "rule": "**/*.tmp",
+  "source": "d:/documents/temp/.gitignore"
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `excluded` | `boolean` | Whether the file is ignored by git. |
+| `rule` | `string?` | The matching `.gitignore` pattern (if excluded). |
+| `source` | `string?` | Path to the `.gitignore` file containing the rule. |
+
+#### Behavior
+
+Uses `git check-ignore -v` to determine exclusion status and the specific rule/source responsible.
+
+---
+
 ## Error Handling
 
 All endpoints return JSON errors with this schema:

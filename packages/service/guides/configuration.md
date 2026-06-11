@@ -53,6 +53,7 @@ interface JeevesWatcherConfig {
   slots?: Record<string, QdrantFilter>;           // Named Qdrant filter patterns
   search?: SearchConfig;                          // Search behavior settings (scoreThresholds in v0.5.0+)
   reindex?: ReindexConfig;                        // Reindex behavior settings
+  vcs?: VcsConfig;                               // Version control settings
   logging?: LoggingConfig;
   shutdownTimeoutMs?: number;
   maxRetries?: number;
@@ -637,6 +638,48 @@ On shutdown, the watcher:
 |-------|------|---------|-------------|
 | `maxRetries` | `number` | `Infinity` | Maximum consecutive system-level failures before triggering fatal error. |
 | `maxBackoffMs` | `number` | `60000` | Maximum backoff delay in milliseconds for system errors. |
+
+---
+
+## `vcs` — Version Control
+
+```json
+{
+  "vcs": {
+    "enabled": true,
+    "commitDebounceMs": 30000,
+    "maxBatchSize": 1000,
+    "commitMessage": {
+      "enabled": true,
+      "provider": "anthropic",
+      "model": "claude-haiku-4-0",
+      "apiKey": "${ANTHROPIC_API_KEY}"
+    },
+    "retention": {
+      "maxAgeDays": 30,
+      "maxVersions": 100,
+      "squashCron": "0 0 * * *"
+    },
+    "defaultAccessToken": "${GIT_ACCESS_TOKEN}"
+  }
+}
+```
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `enabled` | `boolean` | `false` | Enable git-backed content versioning. |
+| `commitDebounceMs` | `number` | `30000` | Debounce window (ms) before committing (min: 1000). |
+| `maxBatchSize` | `number` | `1000` | Max files per commit batch (min: 1). |
+| `commitMessage.enabled` | `boolean` | `true` | Enable AI-generated commit messages. |
+| `commitMessage.provider` | `string` | `"anthropic"` | LLM provider. |
+| `commitMessage.model` | `string` | `"claude-haiku-4-0"` | Model name. |
+| `commitMessage.apiKey` | `string` | `undefined` | API key (`${ENV_VAR}` supported). Falls back to OpenClaw gateway. |
+| `retention.maxAgeDays` | `number` | `30` | Squash commits older than this (min: 1). |
+| `retention.maxVersions` | `number` | `100` | Keep at most this many commits (min: 1). |
+| `retention.squashCron` | `string` | `"0 0 * * *"` | Cron schedule for squash (5-field format). |
+| `defaultAccessToken` | `string` | `undefined` | Shared access token for remote push (`${ENV_VAR}` supported). |
+
+Per-root overrides (including `remote` and `accessToken`) are configured via `watch.paths` object entries. See [Version Control (VCS) Guide](./version-control.md) for full details on configuration, API endpoints, squash retention, and remote push.
 
 ---
 
