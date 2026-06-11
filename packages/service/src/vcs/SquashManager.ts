@@ -399,7 +399,10 @@ export class SquashManager {
 
     try {
       const pushUrl = this.accessToken
-        ? this.remoteUrl.replace(/^https:\/\//, `https://${this.accessToken}@`)
+        ? this.remoteUrl.replace(
+            /^https:\/\//,
+            `https://${encodeURIComponent(this.accessToken)}@`,
+          )
         : this.remoteUrl;
 
       await execFileAsync('git', ['push', '--force', pushUrl, 'HEAD'], {

@@ -318,12 +318,21 @@ export async function initVcs(
 
   const stateDir = config.stateDir ?? '.jeeves-metadata';
   const pathStrings = extractWatchPathStrings(config.watch.paths);
-  validateStateDirOverlap(stateDir, pathStrings);
+  const staticPaths = pathStrings.filter((p) => !/[*?{[]/.test(p));
+  validateStateDirOverlap(stateDir, staticPaths);
 
   const normalized = normalizeWatchPaths(config.watch.paths);
   for (const entry of normalized) {
     const rootVcs = entry.vcs?.enabled ?? config.vcs.enabled;
     if (!rootVcs) continue;
+
+    if (/[*?{[]/.test(entry.path)) {
+      logger.warn(
+        { path: entry.path },
+        'Skipping VCS init for watch path containing glob characters',
+      );
+      continue;
+    }
 
     await initRepo(entry.path);
     await ensureGitignore(entry.path);

@@ -10,7 +10,7 @@ import { join, resolve } from 'node:path';
 import { promisify } from 'node:util';
 
 import pino from 'pino';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { JeevesWatcherConfig } from '../config/types';
 import { initRepo } from './vcsBootstrap';
@@ -154,6 +154,21 @@ describe('VcsCoordinator', () => {
 
     // Should have a second commit removing the file
     expect(await commitCount(rootA)).toBe(2);
+  });
+
+  it('skips watch paths containing glob characters', () => {
+    const logger = pino({ level: 'silent' });
+    const warnSpy = vi.spyOn(logger, 'warn');
+
+    const config = makeConfig([rootA, '/some/path/**/*.txt']);
+    const coordinator = new VcsCoordinator(config, logger);
+
+    // Should only have one root (the non-glob one)
+    expect(coordinator.getRoots()).toHaveLength(1);
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ path: '/some/path/**/*.txt' }),
+      'Skipping VCS for watch path containing glob characters',
+    );
   });
 
   it('stop flushes all pending changes', async () => {

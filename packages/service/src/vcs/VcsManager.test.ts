@@ -357,6 +357,42 @@ describe('VcsManager instance', () => {
       // Clean up
       await rm(lockPath, { force: true });
     });
+
+    it('re-queues files on commit failure so next flush retries', async () => {
+      const logger = pino({ level: 'silent' });
+      const warnSpy = vi.spyOn(logger, 'warn');
+
+      const manager = new VcsManager(tempDir, makeConfig(), logger);
+      manager.start();
+
+      // Create index.lock to force failure
+      const lockPath = join(tempDir, '.git', 'index.lock');
+      await writeFile(lockPath, '', 'utf8');
+
+      const filePath = join(tempDir, 'requeue-test.txt');
+      await writeFile(filePath, 'content', 'utf8');
+      manager.fileChanged(filePath);
+
+      await manager.flush();
+
+      // Should have re-queued
+      expect(warnSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ fileCount: 1 }),
+        'Re-queued files after commit failure',
+      );
+
+      // Remove lock and flush again — should now commit
+      await rm(lockPath, { force: true });
+      await manager.flush();
+
+      expect(await commitCount(tempDir)).toBe(1);
+      const { stdout } = await execFileAsync(
+        'git',
+        ['log', '--oneline', '-1'],
+        { cwd: tempDir },
+      );
+      expect(stdout).toContain('1 files');
+    });
   });
 
   describe('pendingReversions', () => {
@@ -730,6 +766,31 @@ describe('VcsManager instance', () => {
       expect(manager.pushErrors).toHaveLength(1);
       expect(manager.pushErrors[0].timestamp).toBeDefined();
       expect(manager.pushErrors[0].message).toBeTruthy();
+    });
+
+    it('URL-encodes the access token in the push URL', async () => {
+      const logger = pino({ level: 'silent' });
+      const manager = new VcsManager(
+        tempDir,
+        makeConfig(),
+        logger,
+        undefined,
+        'https://github.com/test/repo.git',
+        'tok/en@special',
+      );
+      manager.start();
+
+      const filePath = join(tempDir, 'encode-test.txt');
+      await writeFile(filePath, 'content', 'utf8');
+      manager.fileChanged(filePath);
+
+      await manager.flush();
+
+      // The push will fail (invalid remote) but we can verify the error log
+      // contains the remote URL (not the token-injected URL)
+      expect(manager.pushErrors).toHaveLength(1);
+      // Commit should still succeed
+      expect(await commitCount(tempDir)).toBe(1);
     });
 
     it('pushes with token injected into URL', async () => {

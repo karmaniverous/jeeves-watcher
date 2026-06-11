@@ -108,7 +108,9 @@ export class VcsManager {
     if (this.pending.size >= this.config.maxBatchSize) {
       this.clearDebounce();
       const batch = this.takeBatch(this.config.maxBatchSize);
-      this.commitInFlight = this.commitBatch(batch);
+      this.commitInFlight = this.commitInFlight.then(() =>
+        this.commitBatch(batch),
+      );
       if (this.pending.size > 0) {
         this.resetDebounce();
       }
@@ -143,12 +145,14 @@ export class VcsManager {
    */
   async flush(): Promise<void> {
     this.clearDebounce();
+    if (this.pending.size > 0) {
+      const batch = [...this.pending];
+      this.pending.clear();
+      this.commitInFlight = this.commitInFlight.then(() =>
+        this.commitBatch(batch),
+      );
+    }
     await this.commitInFlight;
-    if (this.pending.size === 0) return;
-
-    const batch = [...this.pending];
-    this.pending.clear();
-    await this.commitBatch(batch);
   }
 
   /**
@@ -308,14 +312,16 @@ export class VcsManager {
               : this.buildTemplateMessage(files.length);
           this.pendingReversions.length = 0;
 
-          const { stdout } = await execFileAsync(
+          await execFileAsync('git', ['commit', '-m', message], {
+            cwd: this.rootPath,
+          });
+
+          const { stdout: hashOut } = await execFileAsync(
             'git',
-            ['commit', '-m', message],
+            ['rev-parse', '--short', 'HEAD'],
             { cwd: this.rootPath },
           );
-
-          const hashMatch = /\[[\w-]+ ([a-f0-9]+)\]/.exec(stdout);
-          const hash = hashMatch?.[1] ?? 'unknown';
+          const hash = hashOut.trim();
           this.logger.info(
             { root: this.rootPath, hash, fileCount: files.length },
             'VCS commit created',
@@ -335,6 +341,13 @@ export class VcsManager {
         },
       );
     } catch (error) {
+      for (const f of files) {
+        this.pending.add(f);
+      }
+      this.logger.warn(
+        { root: this.rootPath, fileCount: files.length },
+        'Re-queued files after commit failure',
+      );
       this.logger.error(
         { root: this.rootPath, err: normalizeError(error) },
         'VCS commit failed',
@@ -352,7 +365,10 @@ export class VcsManager {
     try {
       // Build the authenticated URL if a token is available
       const pushUrl = this.accessToken
-        ? this.remoteUrl.replace(/^https:\/\//, `https://${this.accessToken}@`)
+        ? this.remoteUrl.replace(
+            /^https:\/\//,
+            `https://${encodeURIComponent(this.accessToken)}@`,
+          )
         : this.remoteUrl;
 
       await execFileAsync('git', ['push', pushUrl, 'HEAD'], {

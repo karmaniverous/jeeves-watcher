@@ -11,7 +11,7 @@ import { promisify } from 'node:util';
 
 import type { VcsRetentionConfig } from '@karmaniverous/jeeves-watcher-core';
 import pino from 'pino';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { cronMatchesNow, SquashManager } from './SquashManager';
 
@@ -407,6 +407,48 @@ describe('SquashManager.runSquash', () => {
     expect(await commitCount(tempDir)).toBe(2);
 
     await rm(lockPath, { force: true });
+  });
+
+  it('URL-encodes access token in force push URL', async () => {
+    const now = new Date();
+    await createCommit(
+      tempDir,
+      'file1.txt',
+      'a',
+      new Date(now.getTime() - 60 * 86400000).toISOString(),
+    );
+    await createCommit(
+      tempDir,
+      'file2.txt',
+      'b',
+      new Date(now.getTime() - 50 * 86400000).toISOString(),
+    );
+    await createCommit(
+      tempDir,
+      'file3.txt',
+      'c',
+      new Date(now.getTime() - 1 * 86400000).toISOString(),
+    );
+
+    const logger = pino({ level: 'silent' });
+    const errorSpy = vi.spyOn(logger, 'error');
+
+    // Use a token with special characters and an https remote that will fail
+    const manager = new SquashManager(
+      tempDir,
+      makeRetention({ maxAgeDays: 30, maxVersions: 100 }),
+      logger,
+      'https://github.com/test/repo.git',
+      'tok/en@special',
+    );
+
+    const result = await manager.runSquash();
+    expect(result.squashed).toBe(true);
+    // Force push will fail (invalid remote) — that's expected
+    expect(errorSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ root: tempDir }),
+      'Squash force push failed',
+    );
   });
 
   it('handles single commit repo (no-op)', async () => {

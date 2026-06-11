@@ -37,6 +37,14 @@ export class VcsCoordinator {
       const rootVcs = entry.vcs?.enabled ?? config.vcs.enabled;
       if (!rootVcs) continue;
 
+      if (/[*?{[]/.test(entry.path)) {
+        logger.warn(
+          { path: entry.path },
+          'Skipping VCS for watch path containing glob characters',
+        );
+        continue;
+      }
+
       const resolvedRoot = normalizeSlashes(resolve(entry.path));
       const mergedConfig: VcsConfig = {
         ...config.vcs,
