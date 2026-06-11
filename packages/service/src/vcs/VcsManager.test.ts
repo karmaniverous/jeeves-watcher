@@ -449,4 +449,109 @@ describe('VcsManager instance', () => {
       await rm(lockPath, { force: true });
     });
   });
+
+  describe('pendingReversions', () => {
+    it('generates revert-prefixed commit message when reversion is pending', async () => {
+      const manager = new VcsManager(tempDir, makeConfig(), silentLogger);
+      manager.start();
+
+      const filePath = join(tempDir, 'reverted.txt');
+      await writeFile(filePath, 'original', 'utf8');
+      await execFileAsync('git', ['add', '.'], { cwd: tempDir });
+      await execFileAsync('git', ['commit', '-m', 'initial'], {
+        cwd: tempDir,
+      });
+
+      // Modify the file and record a reversion
+      await writeFile(filePath, 'restored content', 'utf8');
+      manager.fileChanged(filePath);
+
+      const fakeCommit = 'abc1234567890def';
+      manager.addPendingReversion({
+        glob: '*.txt',
+        commit: fakeCommit,
+        paths: [filePath],
+      });
+
+      await manager.flush();
+
+      const { stdout } = await execFileAsync(
+        'git',
+        ['log', '--oneline', '-1'],
+        { cwd: tempDir },
+      );
+      expect(stdout).toContain('revert: *.txt to abc1234');
+      expect(stdout).toContain('restored 1 files');
+    });
+
+    it('includes other changes count in revert message when mixed', async () => {
+      const manager = new VcsManager(tempDir, makeConfig(), silentLogger);
+      manager.start();
+
+      // Create initial commit
+      const file1 = join(tempDir, 'reverted.txt');
+      const file2 = join(tempDir, 'other.txt');
+      await writeFile(file1, 'original', 'utf8');
+      await writeFile(file2, 'other original', 'utf8');
+      await execFileAsync('git', ['add', '.'], { cwd: tempDir });
+      await execFileAsync('git', ['commit', '-m', 'initial'], {
+        cwd: tempDir,
+      });
+
+      // Modify both files
+      await writeFile(file1, 'restored', 'utf8');
+      await writeFile(file2, 'also changed', 'utf8');
+      manager.fileChanged(file1);
+      manager.fileChanged(file2);
+
+      // Only file1 is a reversion
+      manager.addPendingReversion({
+        glob: '*.txt',
+        commit: 'deadbeef12345678',
+        paths: [file1],
+      });
+
+      await manager.flush();
+
+      const { stdout } = await execFileAsync(
+        'git',
+        ['log', '--oneline', '-1'],
+        { cwd: tempDir },
+      );
+      expect(stdout).toContain('revert:');
+      expect(stdout).toContain('restored 1 files');
+      expect(stdout).toContain('(+ 1 other changes)');
+    });
+
+    it('clears pending reversions after commit', async () => {
+      const manager = new VcsManager(tempDir, makeConfig(), silentLogger);
+      manager.start();
+
+      const file1 = join(tempDir, 'first.txt');
+      await writeFile(file1, 'content', 'utf8');
+      manager.fileChanged(file1);
+      manager.addPendingReversion({
+        glob: '*.txt',
+        commit: 'abc1234567890def',
+        paths: [file1],
+      });
+
+      await manager.flush();
+
+      // Second commit should use normal message
+      const file2 = join(tempDir, 'second.txt');
+      await writeFile(file2, 'normal change', 'utf8');
+      manager.fileChanged(file2);
+
+      await manager.flush();
+
+      const { stdout } = await execFileAsync(
+        'git',
+        ['log', '--oneline', '-1'],
+        { cwd: tempDir },
+      );
+      expect(stdout).toContain('watcher: batch');
+      expect(stdout).not.toContain('revert:');
+    });
+  });
 });

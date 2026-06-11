@@ -54,7 +54,9 @@ import { createSearchHandler } from './handlers/search';
 import {
   createVcsCheckExclusionHandler,
   createVcsDiffHandler,
+  createVcsExcludeHandler,
   createVcsHistoryHandler,
+  createVcsRevertHandler,
   createVcsShowHandler,
   createVcsStatusHandler,
 } from './handlers/vcs';
@@ -414,6 +416,10 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
       '/vcs/check-exclusion',
       createVcsCheckExclusionHandler({ coordinator, logger }),
     );
+
+    app.post('/vcs/revert', createVcsRevertHandler({ coordinator, logger }));
+
+    app.post('/vcs/exclude', createVcsExcludeHandler({ coordinator, logger }));
   }
 
   return app;

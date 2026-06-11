@@ -15,6 +15,13 @@ import { normalizeError } from '../util/normalizeError';
 
 const execFileAsync = promisify(execFile);
 
+/** Metadata for a pending reversion to include in the commit message. */
+export interface PendingReversion {
+  glob: string;
+  commit: string;
+  paths: string[];
+}
+
 /** Always-on .gitignore entries for VCS-managed watch roots. */
 const ALWAYS_GITIGNORE_ENTRIES = [
   '.git/',
@@ -61,6 +68,7 @@ export class VcsManager {
   readonly rootPath: string;
   private readonly logger: pino.Logger;
   private readonly pending: Set<string> = new Set();
+  private readonly pendingReversions: PendingReversion[] = [];
   private debounceTimer: ReturnType<typeof setTimeout> | undefined;
   private commitInFlight: Promise<void> = Promise.resolve();
   private started = false;
@@ -176,6 +184,15 @@ export class VcsManager {
   }
 
   /**
+   * Record reversion metadata so the next commit uses a revert-prefixed message.
+   *
+   * @param reversion - The reversion metadata to record.
+   */
+  addPendingReversion(reversion: PendingReversion): void {
+    this.pendingReversions.push(reversion);
+  }
+
+  /**
    * Stage a file deletion and add to pending set.
    * git add handles deleted files when the file is gone from disk.
    *
@@ -245,13 +262,41 @@ export class VcsManager {
   }
 
   /**
+   * Build the commit message, using reversion metadata when available.
+   */
+  private buildCommitMessage(fileCount: number): string {
+    if (this.pendingReversions.length === 0) {
+      const timestamp = new Date().toISOString();
+      return `watcher: batch ${timestamp} (${String(fileCount)} files)`;
+    }
+
+    // Count total reverted files across all pending reversions
+    const revertedPaths = new Set(
+      this.pendingReversions.flatMap((r) => r.paths),
+    );
+    const revertedCount = revertedPaths.size;
+    const otherCount = fileCount - revertedCount;
+
+    // Use the first reversion's glob and commit for the message
+    const { glob, commit } = this.pendingReversions[0];
+    const shortCommit = commit.slice(0, 7);
+
+    let message = `revert: ${glob} to ${shortCommit} — restored ${String(revertedCount)} files`;
+    if (otherCount > 0) {
+      message += ` (+ ${String(otherCount)} other changes)`;
+    }
+
+    return message;
+  }
+
+  /**
    * Commit a batch of files to the git repo with index.lock retry.
    */
   private async commitBatch(files: string[]): Promise<void> {
     if (files.length === 0) return;
 
-    const timestamp = new Date().toISOString();
-    const message = `watcher: batch ${timestamp} (${String(files.length)} files)`;
+    const message = this.buildCommitMessage(files.length);
+    this.pendingReversions.length = 0;
 
     for (let attempt = 0; attempt <= MAX_LOCK_RETRIES; attempt++) {
       try {
