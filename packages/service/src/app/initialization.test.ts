@@ -152,10 +152,18 @@ describe('watchConfigChanged', () => {
   });
 });
 
+vi.mock('../vcs', async (importOriginal) => ({
+  ...(await importOriginal()),
+  checkGitAvailable: vi.fn().mockResolvedValue(true),
+  initRepo: vi.fn().mockResolvedValue(undefined),
+  ensureGitignore: vi.fn().mockResolvedValue(undefined),
+}));
+
 describe('initVcs', () => {
-  it('skips watch paths containing glob characters', async () => {
+  it('extracts static root from glob watch paths', async () => {
+    const { initRepo: mockInitRepo } = await import('../vcs');
     const logger = pino({ level: 'silent' });
-    const warnSpy = vi.spyOn(logger, 'warn');
+    const infoSpy = vi.spyOn(logger, 'info');
 
     const config = {
       vcs: {
@@ -172,9 +180,11 @@ describe('initVcs', () => {
     const result = await initVcs(config, logger);
 
     expect(result).toBe(true);
-    expect(warnSpy).toHaveBeenCalledWith(
-      expect.objectContaining({ path: '/some/path/**/*.txt' }),
-      'Skipping VCS init for watch path containing glob characters',
+    // Should call initRepo with the static root, not the full glob
+    expect(mockInitRepo).toHaveBeenCalledWith('/some/path');
+    expect(infoSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ root: '/some/path' }),
+      'VCS initialized for watch root',
     );
   });
 });

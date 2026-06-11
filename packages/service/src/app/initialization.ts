@@ -32,6 +32,7 @@ import {
   validateStateDirOverlap,
 } from '../vcs';
 import type { FileSystemWatcher } from '../watcher';
+import { globRoot } from '../watcher/globToDir.js';
 import type { JeevesWatcherFactories } from './factories';
 
 /**
@@ -318,25 +319,24 @@ export async function initVcs(
 
   const stateDir = config.stateDir ?? '.jeeves-metadata';
   const pathStrings = extractWatchPathStrings(config.watch.paths);
-  const staticPaths = pathStrings.filter((p) => !/[*?{[]/.test(p));
+  const staticPaths = pathStrings.map((p) => globRoot(p));
   validateStateDirOverlap(stateDir, staticPaths);
 
   const normalized = normalizeWatchPaths(config.watch.paths);
+  const initializedRoots = new Set<string>();
   for (const entry of normalized) {
     const rootVcs = entry.vcs?.enabled ?? config.vcs.enabled;
     if (!rootVcs) continue;
 
-    if (/[*?{[]/.test(entry.path)) {
-      logger.warn(
-        { path: entry.path },
-        'Skipping VCS init for watch path containing glob characters',
-      );
-      continue;
-    }
+    const root = globRoot(entry.path);
 
-    await initRepo(entry.path);
-    await ensureGitignore(entry.path);
-    logger.info({ root: entry.path }, 'VCS initialized for watch root');
+    // Deduplicate: skip if another glob already resolved to this root.
+    if (initializedRoots.has(root)) continue;
+    initializedRoots.add(root);
+
+    await initRepo(root);
+    await ensureGitignore(root);
+    logger.info({ root }, 'VCS initialized for watch root');
   }
 
   return true;

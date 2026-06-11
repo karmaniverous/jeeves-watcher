@@ -14,6 +14,7 @@ import type pino from 'pino';
 
 import type { JeevesWatcherConfig } from '../config/types';
 import { normalizeSlashes } from '../util/normalizeSlashes';
+import { globRoot } from '../watcher/globToDir.js';
 import { CommitMessageGenerator } from './CommitMessageGenerator';
 import { findRootForPath } from './gitExec';
 import { resolveCommitMessageApiKey } from './resolveCommitMessageApiKey';
@@ -37,15 +38,10 @@ export class VcsCoordinator {
       const rootVcs = entry.vcs?.enabled ?? config.vcs.enabled;
       if (!rootVcs) continue;
 
-      if (/[*?{[]/.test(entry.path)) {
-        logger.warn(
-          { path: entry.path },
-          'Skipping VCS for watch path containing glob characters',
-        );
-        continue;
-      }
+      const resolvedRoot = normalizeSlashes(resolve(globRoot(entry.path)));
 
-      const resolvedRoot = normalizeSlashes(resolve(entry.path));
+      // Deduplicate: skip if another glob already resolved to this root.
+      if (this.managers.has(resolvedRoot)) continue;
       const mergedConfig: VcsConfig = {
         ...config.vcs,
         ...entry.vcs,
