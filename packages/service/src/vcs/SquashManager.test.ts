@@ -131,6 +131,18 @@ describe('cronMatchesNow', () => {
   it('returns false for invalid expression', () => {
     expect(cronMatchesNow('invalid')).toBe(false);
   });
+
+  it('matches specific month and day-of-month', () => {
+    // Dec 25 at midnight
+    const christmas = new Date(2024, 11, 25, 0, 0);
+    expect(cronMatchesNow('0 0 25 12 *', christmas)).toBe(true);
+  });
+
+  it('does not match wrong month', () => {
+    // Nov 25 at midnight — month 11 is not December (12)
+    const nov25 = new Date(2024, 10, 25, 0, 0);
+    expect(cronMatchesNow('0 0 25 12 *', nov25)).toBe(false);
+  });
 });
 
 // ─── Retention boundary calculation ───
