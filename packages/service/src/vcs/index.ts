@@ -11,7 +11,12 @@ export {
   resolveWatchRoot,
   resolveWatchRootsForGlob,
 } from './resolveWatchRoot.js';
-export { cronMatchesNow, SquashManager } from './SquashManager.js';
+export {
+  type CommitInfo,
+  cronMatchesNow,
+  SquashManager,
+  type SquashResult,
+} from './SquashManager.js';
 export { validateStateDirOverlap } from './validateStateDirOverlap.js';
 export {
   ALWAYS_GITIGNORE_ENTRIES,
@@ -20,4 +25,8 @@ export {
   initRepo,
 } from './vcsBootstrap.js';
 export { VcsCoordinator } from './VcsCoordinator.js';
-export { VcsManager } from './VcsManager.js';
+export {
+  type PendingReversion,
+  type PushError,
+  VcsManager,
+} from './VcsManager.js';

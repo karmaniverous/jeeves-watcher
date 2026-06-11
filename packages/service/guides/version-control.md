@@ -597,7 +597,7 @@ If a watch root contains child git repositories (nested `.git/` directories), th
 
 ## Next Steps
 
-- [Configuration Reference](./configuration.md#vcs--version-control) — VCS config schema table
+- [Configuration Reference](./configuration.md#-version-control) — VCS config schema table
 - [API Reference](./api-reference.md#vcs-endpoints) — Full endpoint documentation
 - [Architecture Guide](./architecture.md#version-control-subsystem) — VCS data flow
 - [Deployment Guide](./deployment.md#version-control-vcs) — Git dependency and setup
