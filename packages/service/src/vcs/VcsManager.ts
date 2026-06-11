@@ -60,6 +60,12 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+/** Push error record for status reporting. */
+export interface PushError {
+  timestamp: string;
+  message: string;
+}
+
 /**
  * Per-root VCS manager for git-backed content versioning.
  * Constructor takes the resolved VCS config for one watch root.
@@ -67,24 +73,40 @@ function sleep(ms: number): Promise<void> {
 export class VcsManager {
   readonly config: VcsConfig;
   readonly rootPath: string;
+  readonly remoteUrl: string | undefined;
+  private readonly accessToken: string | undefined;
   private readonly logger: pino.Logger;
   private readonly commitMessageGenerator: CommitMessageGenerator | undefined;
   private readonly pending: Set<string> = new Set();
   private readonly pendingReversions: PendingReversion[] = [];
+  private readonly _pushErrors: PushError[] = [];
   private debounceTimer: ReturnType<typeof setTimeout> | undefined;
   private commitInFlight: Promise<void> = Promise.resolve();
   private started = false;
+  private _lastPushTime: string | null = null;
 
   constructor(
     rootPath: string,
     config: VcsConfig,
     logger: pino.Logger,
     commitMessageGenerator?: CommitMessageGenerator,
+    remoteUrl?: string,
+    accessToken?: string,
   ) {
     this.rootPath = rootPath;
     this.config = config;
     this.logger = logger;
     this.commitMessageGenerator = commitMessageGenerator;
+    this.remoteUrl = remoteUrl;
+    this.accessToken = accessToken;
+  }
+
+  get lastPushTime(): string | null {
+    return this._lastPushTime;
+  }
+
+  get pushErrors(): readonly PushError[] {
+    return this._pushErrors;
   }
 
   /**
@@ -391,6 +413,7 @@ export class VcsManager {
           { root: this.rootPath, hash, fileCount: files.length },
           'VCS commit created',
         );
+        await this.pushIfConfigured();
         return;
       } catch (error) {
         if (isIndexLockError(error) && attempt < MAX_LOCK_RETRIES) {
@@ -409,6 +432,41 @@ export class VcsManager {
         );
         return;
       }
+    }
+  }
+
+  /**
+   * Push to the configured remote if remoteUrl is set.
+   * On failure: logs the error and records it in pushErrors; never throws.
+   */
+  private async pushIfConfigured(): Promise<void> {
+    if (!this.remoteUrl) return;
+
+    try {
+      // Build the authenticated URL if a token is available
+      const pushUrl = this.accessToken
+        ? this.remoteUrl.replace(/^https:\/\//, `https://${this.accessToken}@`)
+        : this.remoteUrl;
+
+      await execFileAsync('git', ['push', pushUrl, 'HEAD'], {
+        cwd: this.rootPath,
+      });
+
+      this._lastPushTime = new Date().toISOString();
+      this.logger.info(
+        { root: this.rootPath, remote: this.remoteUrl },
+        'VCS push succeeded',
+      );
+    } catch (error) {
+      const pushError: PushError = {
+        timestamp: new Date().toISOString(),
+        message: normalizeError(error).message,
+      };
+      this._pushErrors.push(pushError);
+      this.logger.error(
+        { root: this.rootPath, err: normalizeError(error) },
+        'VCS push failed',
+      );
     }
   }
 }

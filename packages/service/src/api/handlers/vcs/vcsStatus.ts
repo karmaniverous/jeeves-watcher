@@ -9,6 +9,7 @@ import { promisify } from 'node:util';
 import type pino from 'pino';
 
 import type { VcsCoordinator } from '../../../vcs/VcsCoordinator';
+import type { PushError } from '../../../vcs/VcsManager';
 import { wrapHandler } from '../wrapHandler';
 
 const execFileAsync = promisify(execFile);
@@ -29,6 +30,8 @@ interface RootStatus {
   tracked: number;
   lastCommit: LastCommitInfo | null;
   remoteUrl: string | null;
+  lastPush: string | null;
+  pushErrors: readonly PushError[];
 }
 
 async function getLastCommit(cwd: string): Promise<LastCommitInfo | null> {
@@ -85,12 +88,20 @@ export function createVcsStatusHandler(deps: VcsStatusRouteDeps) {
 
       const rootStatuses: RootStatus[] = await Promise.all(
         roots.map(async (root) => {
+          const manager = deps.coordinator.getManager(root);
           const [tracked, lastCommit, remoteUrl] = await Promise.all([
             getTrackedCount(root),
             getLastCommit(root),
             getRemoteUrl(root),
           ]);
-          return { path: root, tracked, lastCommit, remoteUrl };
+          return {
+            path: root,
+            tracked,
+            lastCommit,
+            remoteUrl: manager?.remoteUrl ?? remoteUrl,
+            lastPush: manager?.lastPushTime ?? null,
+            pushErrors: manager?.pushErrors ?? [],
+          };
         }),
       );
 

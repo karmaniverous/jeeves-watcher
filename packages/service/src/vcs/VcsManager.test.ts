@@ -742,4 +742,116 @@ describe('VcsManager instance', () => {
       expect(stdout).toContain('restored 1 files');
     });
   });
+
+  describe('remote push', () => {
+    let bareRemote: string;
+
+    beforeEach(async () => {
+      bareRemote = await mkdtemp(join(tmpdir(), 'vcs-bare-'));
+      await execFileAsync('git', ['init', '--bare'], { cwd: bareRemote });
+    });
+
+    afterEach(async () => {
+      await rm(bareRemote, { recursive: true, force: true });
+    });
+
+    it('pushes to remote after successful commit', async () => {
+      const remoteUrl = bareRemote.replace(/\\/g, '/');
+      const manager = new VcsManager(
+        tempDir,
+        makeConfig(),
+        silentLogger,
+        undefined,
+        remoteUrl,
+      );
+      manager.start();
+
+      const filePath = join(tempDir, 'push-test.txt');
+      await writeFile(filePath, 'push content', 'utf8');
+      manager.fileChanged(filePath);
+
+      await manager.flush();
+
+      // Verify push succeeded: check bare repo has the commit
+      const { stdout } = await execFileAsync(
+        'git',
+        ['log', '--oneline', '-1'],
+        { cwd: bareRemote },
+      );
+      expect(stdout).toContain('1 files');
+      expect(manager.lastPushTime).not.toBeNull();
+      expect(manager.pushErrors).toHaveLength(0);
+    });
+
+    it('does nothing when no remote is configured', async () => {
+      const manager = new VcsManager(tempDir, makeConfig(), silentLogger);
+      manager.start();
+
+      const filePath = join(tempDir, 'no-remote.txt');
+      await writeFile(filePath, 'no remote', 'utf8');
+      manager.fileChanged(filePath);
+
+      await manager.flush();
+
+      // Commit should succeed without push
+      expect(await commitCount(tempDir)).toBe(1);
+      expect(manager.lastPushTime).toBeNull();
+      expect(manager.pushErrors).toHaveLength(0);
+    });
+
+    it('records push error on failure without blocking commits', async () => {
+      const logger = pino({ level: 'silent' });
+      const manager = new VcsManager(
+        tempDir,
+        makeConfig(),
+        logger,
+        undefined,
+        'https://invalid.example.com/nonexistent/repo.git',
+      );
+      manager.start();
+
+      const filePath = join(tempDir, 'push-fail.txt');
+      await writeFile(filePath, 'will fail push', 'utf8');
+      manager.fileChanged(filePath);
+
+      await manager.flush();
+
+      // Commit should still succeed
+      expect(await commitCount(tempDir)).toBe(1);
+      expect(manager.lastPushTime).toBeNull();
+      expect(manager.pushErrors).toHaveLength(1);
+      expect(manager.pushErrors[0].timestamp).toBeDefined();
+      expect(manager.pushErrors[0].message).toBeTruthy();
+    });
+
+    it('pushes with token injected into URL', async () => {
+      const remoteUrl = bareRemote.replace(/\\/g, '/');
+      // For local bare repos the token injection is a no-op since the URL
+      // isn't https://. The token path is exercised via the URL construction logic.
+      const manager = new VcsManager(
+        tempDir,
+        makeConfig(),
+        silentLogger,
+        undefined,
+        remoteUrl, // use plain path so push actually works
+        'fake-token',
+      );
+      manager.start();
+
+      const filePath = join(tempDir, 'token-push.txt');
+      await writeFile(filePath, 'token push content', 'utf8');
+      manager.fileChanged(filePath);
+
+      await manager.flush();
+
+      // Verify push succeeded via bare remote
+      const { stdout } = await execFileAsync(
+        'git',
+        ['log', '--oneline', '-1'],
+        { cwd: bareRemote },
+      );
+      expect(stdout).toContain('1 files');
+      expect(manager.lastPushTime).not.toBeNull();
+    });
+  });
 });

@@ -54,11 +54,18 @@ export class VcsCoordinator {
             )
           : undefined;
 
+      // Resolve remote config: per-root overrides fall back to root-level defaults
+      const remoteUrl = entry.vcs?.remote;
+      const accessToken =
+        entry.vcs?.accessToken ?? config.vcs.defaultAccessToken;
+
       const manager = new VcsManager(
         resolvedRoot,
         mergedConfig,
         logger.child({ vcsRoot: resolvedRoot }),
         generator,
+        remoteUrl,
+        accessToken,
       );
       this.managers.set(resolvedRoot, manager);
       this.roots.push(resolvedRoot);

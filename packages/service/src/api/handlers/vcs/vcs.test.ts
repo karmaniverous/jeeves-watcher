@@ -108,6 +108,8 @@ describe('VCS API handlers', () => {
             timestamp: string;
           } | null;
           remoteUrl: string | null;
+          lastPush: string | null;
+          pushErrors: Array<{ timestamp: string; message: string }>;
         }>;
       };
       expect(body.enabled).toBe(true);
@@ -117,6 +119,8 @@ describe('VCS API handlers', () => {
       expect(body.roots[0].lastCommit).toBeDefined();
       expect(body.roots[0].lastCommit!.message).toBe('initial commit');
       expect(body.roots[0].remoteUrl).toBeNull();
+      expect(body.roots[0].lastPush).toBeNull();
+      expect(body.roots[0].pushErrors).toEqual([]);
     });
 
     it('returns enabled:false when no VCS roots exist', async () => {
