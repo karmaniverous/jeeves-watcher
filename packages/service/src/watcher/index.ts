@@ -35,6 +35,11 @@ export interface FileSystemWatcherOptions {
   initialScanTracker?: InitialScanTracker;
   /** Optional content hash cache for move detection. */
   contentHashCache?: ContentHashCache;
+  /** Optional callback for VCS file change notifications. */
+  onVcsFileChange?: (
+    filePath: string,
+    event: 'add' | 'change' | 'unlink',
+  ) => void;
 }
 
 /**
@@ -49,6 +54,10 @@ export class FileSystemWatcher {
   private readonly gitignoreFilter?: GitignoreFilter;
   private readonly initialScanTracker?: InitialScanTracker;
   private readonly contentHashCache?: ContentHashCache;
+  private readonly onVcsFileChange?: (
+    filePath: string,
+    event: 'add' | 'change' | 'unlink',
+  ) => void;
   private moveCorrelator?: MoveCorrelator;
   private globMatches: (filePath: string) => boolean;
   private watcher: FSWatcher | undefined;
@@ -77,6 +86,7 @@ export class FileSystemWatcher {
     this.gitignoreFilter = options.gitignoreFilter;
     this.initialScanTracker = options.initialScanTracker;
     this.contentHashCache = options.contentHashCache;
+    this.onVcsFileChange = options.onVcsFileChange;
     this.globMatches = () => true;
 
     const healthOptions: SystemHealthOptions = {
@@ -202,6 +212,7 @@ export class FileSystemWatcher {
         this.initialScanTracker?.incrementEnqueued();
       }
       this.logger.debug({ path }, 'File added');
+      if (initialScanComplete) this.onVcsFileChange?.(path, 'add');
       if (correlator && initialScanComplete) {
         void correlator.handleAdd(path);
       } else {
@@ -219,6 +230,7 @@ export class FileSystemWatcher {
       }
       if (this.isGitignored(path)) return;
       this.logger.debug({ path }, 'File changed');
+      this.onVcsFileChange?.(path, 'change');
       this.queue.enqueue({ type: 'modify', path, priority: 'normal' }, () =>
         this.wrapProcessing(() => this.processor.processFile(path)),
       );
@@ -229,6 +241,7 @@ export class FileSystemWatcher {
       if (!this.globMatches(path)) return;
       if (this.isGitignored(path)) return;
       this.logger.debug({ path }, 'File removed');
+      this.onVcsFileChange?.(path, 'unlink');
       if (correlator) {
         correlator.handleUnlink(path);
       } else {

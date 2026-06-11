@@ -9,6 +9,9 @@ import { join } from 'node:path';
 import { promisify } from 'node:util';
 
 import type { VcsConfig } from '@karmaniverous/jeeves-watcher-core';
+import type pino from 'pino';
+
+import { normalizeError } from '../util/normalizeError';
 
 const execFileAsync = promisify(execFile);
 
@@ -20,15 +23,52 @@ const ALWAYS_GITIGNORE_ENTRIES = [
   '.jeeves-metadata/',
 ];
 
+/** Maximum retries for index.lock contention. */
+const MAX_LOCK_RETRIES = 3;
+
+/** Backoff delays in ms for index.lock retries. */
+const LOCK_RETRY_DELAYS = [500, 1000, 2000];
+
+/**
+ * Check whether an error is caused by index.lock contention.
+ */
+function isIndexLockError(error: unknown): boolean {
+  if (!(error instanceof Error)) return false;
+  const message = error.message || '';
+  const stderr =
+    'stderr' in error ? String((error as { stderr: unknown }).stderr) : '';
+  return (
+    message.includes('index.lock') ||
+    stderr.includes('index.lock') ||
+    message.includes('EEXIST') ||
+    stderr.includes('EEXIST')
+  );
+}
+
+/**
+ * Sleep for the given number of milliseconds.
+ */
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 /**
  * Per-root VCS manager for git-backed content versioning.
  * Constructor takes the resolved VCS config for one watch root.
  */
 export class VcsManager {
   readonly config: VcsConfig;
+  readonly rootPath: string;
+  private readonly logger: pino.Logger;
+  private readonly pending: Set<string> = new Set();
+  private debounceTimer: ReturnType<typeof setTimeout> | undefined;
+  private commitInFlight: Promise<void> = Promise.resolve();
+  private started = false;
 
-  constructor(config: VcsConfig) {
+  constructor(rootPath: string, config: VcsConfig, logger: pino.Logger) {
+    this.rootPath = rootPath;
     this.config = config;
+    this.logger = logger;
   }
 
   /**
@@ -100,6 +140,155 @@ export class VcsManager {
         prefix + missing.join('\n') + '\n',
         'utf8',
       );
+    }
+  }
+
+  /**
+   * Begin accepting file changes. Sets up the debounce mechanism.
+   */
+  start(): void {
+    this.started = true;
+    this.logger.info({ root: this.rootPath }, 'VcsManager started');
+  }
+
+  /**
+   * Add a file to the pending set and reset the debounce timer.
+   * If the pending set exceeds maxBatchSize, flush immediately.
+   *
+   * @param filePath - Absolute path of the changed file.
+   */
+  fileChanged(filePath: string): void {
+    if (!this.started) return;
+
+    this.pending.add(filePath);
+
+    if (this.pending.size >= this.config.maxBatchSize) {
+      this.clearDebounce();
+      const batch = this.takeBatch(this.config.maxBatchSize);
+      this.commitInFlight = this.commitBatch(batch);
+      if (this.pending.size > 0) {
+        this.resetDebounce();
+      }
+      return;
+    }
+
+    this.resetDebounce();
+  }
+
+  /**
+   * Stage a file deletion and add to pending set.
+   * git add handles deleted files when the file is gone from disk.
+   *
+   * @param filePath - Absolute path of the deleted file.
+   */
+  handleUnlink(filePath: string): void {
+    if (!this.started) return;
+    this.fileChanged(filePath);
+  }
+
+  /**
+   * Flush all pending files immediately.
+   */
+  async flush(): Promise<void> {
+    this.clearDebounce();
+    await this.commitInFlight;
+    if (this.pending.size === 0) return;
+
+    const batch = [...this.pending];
+    this.pending.clear();
+    await this.commitBatch(batch);
+  }
+
+  /**
+   * Stop accepting file changes, flush pending, and clean up timers.
+   */
+  async stop(): Promise<void> {
+    this.started = false;
+    await this.flush();
+    this.logger.info({ root: this.rootPath }, 'VcsManager stopped');
+  }
+
+  /**
+   * Take up to N items from the pending set.
+   */
+  private takeBatch(n: number): string[] {
+    const batch: string[] = [];
+    for (const item of this.pending) {
+      if (batch.length >= n) break;
+      batch.push(item);
+    }
+    for (const item of batch) {
+      this.pending.delete(item);
+    }
+    return batch;
+  }
+
+  /**
+   * Clear the debounce timer.
+   */
+  private clearDebounce(): void {
+    if (this.debounceTimer !== undefined) {
+      clearTimeout(this.debounceTimer);
+      this.debounceTimer = undefined;
+    }
+  }
+
+  /**
+   * Reset the debounce timer to fire flush() after commitDebounceMs.
+   */
+  private resetDebounce(): void {
+    this.clearDebounce();
+    this.debounceTimer = setTimeout(() => {
+      this.debounceTimer = undefined;
+      void this.flush();
+    }, this.config.commitDebounceMs);
+  }
+
+  /**
+   * Commit a batch of files to the git repo with index.lock retry.
+   */
+  private async commitBatch(files: string[]): Promise<void> {
+    if (files.length === 0) return;
+
+    const timestamp = new Date().toISOString();
+    const message = `watcher: batch ${timestamp} (${String(files.length)} files)`;
+
+    for (let attempt = 0; attempt <= MAX_LOCK_RETRIES; attempt++) {
+      try {
+        await execFileAsync('git', ['add', '--', ...files], {
+          cwd: this.rootPath,
+        });
+
+        const { stdout } = await execFileAsync(
+          'git',
+          ['commit', '-m', message],
+          { cwd: this.rootPath },
+        );
+
+        const hashMatch = /\[[\w-]+ ([a-f0-9]+)\]/.exec(stdout);
+        const hash = hashMatch?.[1] ?? 'unknown';
+        this.logger.info(
+          { root: this.rootPath, hash, fileCount: files.length },
+          'VCS commit created',
+        );
+        return;
+      } catch (error) {
+        if (isIndexLockError(error) && attempt < MAX_LOCK_RETRIES) {
+          const delay = LOCK_RETRY_DELAYS[attempt];
+          this.logger.warn(
+            { root: this.rootPath, attempt: attempt + 1, delay },
+            'index.lock contention, retrying',
+          );
+          await sleep(delay);
+          continue;
+        }
+
+        this.logger.error(
+          { root: this.rootPath, err: normalizeError(error) },
+          'VCS commit failed',
+        );
+        return;
+      }
     }
   }
 }
