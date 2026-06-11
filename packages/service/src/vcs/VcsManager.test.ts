@@ -14,6 +14,7 @@ import pino from 'pino';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { CommitMessageGenerator } from './CommitMessageGenerator';
+import { checkGitAvailable, ensureGitignore, initRepo } from './vcsBootstrap';
 import { VcsManager } from './VcsManager';
 
 const execFileAsync = promisify(execFile);
@@ -47,14 +48,14 @@ async function commitCount(cwd: string): Promise<number> {
 
 // ─── Static methods ───
 
-describe('VcsManager.checkGitAvailable', () => {
+describe('checkGitAvailable', () => {
   it('returns true when git is available', async () => {
-    const result = await VcsManager.checkGitAvailable();
+    const result = await checkGitAvailable();
     expect(result).toBe(true);
   });
 });
 
-describe('VcsManager.initRepo', () => {
+describe('initRepo', () => {
   let tempDir: string;
 
   beforeEach(async () => {
@@ -62,18 +63,18 @@ describe('VcsManager.initRepo', () => {
   });
 
   it('initializes a git repo in an empty directory', async () => {
-    await VcsManager.initRepo(tempDir);
+    await initRepo(tempDir);
     await expect(access(join(tempDir, '.git'))).resolves.toBeUndefined();
   });
 
   it('is idempotent — does not fail on existing repo', async () => {
-    await VcsManager.initRepo(tempDir);
-    await VcsManager.initRepo(tempDir);
+    await initRepo(tempDir);
+    await initRepo(tempDir);
     await expect(access(join(tempDir, '.git'))).resolves.toBeUndefined();
   });
 });
 
-describe('VcsManager.ensureGitignore', () => {
+describe('ensureGitignore', () => {
   let tempDir: string;
 
   beforeEach(async () => {
@@ -81,7 +82,7 @@ describe('VcsManager.ensureGitignore', () => {
   });
 
   it('creates .gitignore with default entries when file does not exist', async () => {
-    await VcsManager.ensureGitignore(tempDir);
+    await ensureGitignore(tempDir);
     const content = await readFile(join(tempDir, '.gitignore'), 'utf8');
     expect(content).toContain('.git/');
     expect(content).toContain('node_modules/');
@@ -95,7 +96,7 @@ describe('VcsManager.ensureGitignore', () => {
       '.git/\ncustom-entry\n',
       'utf8',
     );
-    await VcsManager.ensureGitignore(tempDir);
+    await ensureGitignore(tempDir);
     const content = await readFile(join(tempDir, '.gitignore'), 'utf8');
     expect(content).toContain('.git/');
     expect(content).toContain('custom-entry');
@@ -111,7 +112,7 @@ describe('VcsManager.ensureGitignore', () => {
     const existing =
       '.git/\nnode_modules/\n.jeeves-watcher/\n.jeeves-metadata/\n';
     await writeFile(join(tempDir, '.gitignore'), existing, 'utf8');
-    await VcsManager.ensureGitignore(tempDir);
+    await ensureGitignore(tempDir);
     const content = await readFile(join(tempDir, '.gitignore'), 'utf8');
     expect(content).toBe(existing);
   });
@@ -122,7 +123,7 @@ describe('VcsManager.ensureGitignore', () => {
       '.git/\nnode_modules/',
       'utf8',
     );
-    await VcsManager.ensureGitignore(tempDir);
+    await ensureGitignore(tempDir);
     const content = await readFile(join(tempDir, '.gitignore'), 'utf8');
     expect(content).toContain('.jeeves-watcher/');
     expect(content).toContain('.jeeves-metadata/');
@@ -131,7 +132,7 @@ describe('VcsManager.ensureGitignore', () => {
   });
 
   it('includes custom always-on entries', async () => {
-    await VcsManager.ensureGitignore(tempDir, ['*.log', 'tmp/']);
+    await ensureGitignore(tempDir, ['*.log', 'tmp/']);
     const content = await readFile(join(tempDir, '.gitignore'), 'utf8');
     expect(content).toContain('*.log');
     expect(content).toContain('tmp/');
@@ -145,7 +146,7 @@ describe('VcsManager instance', () => {
 
   beforeEach(async () => {
     tempDir = await mkdtemp(join(tmpdir(), 'vcs-instance-'));
-    await VcsManager.initRepo(tempDir);
+    await initRepo(tempDir);
     // Configure git user for commits
     await execFileAsync('git', ['config', 'user.email', 'test@test.com'], {
       cwd: tempDir,

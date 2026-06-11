@@ -3,20 +3,17 @@
  * Fastify route handler for POST /vcs/revert. Restores files from a past commit.
  */
 
-import { execFile } from 'node:child_process';
 import { access, mkdir, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
-import { promisify } from 'node:util';
 
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import type pino from 'pino';
 
 import { normalizeSlashes } from '../../../util/normalizeSlashes';
+import { execFileAsync } from '../../../vcs/gitExec';
 import { resolveWatchRootsForGlob } from '../../../vcs/resolveWatchRoot';
 import type { VcsCoordinator } from '../../../vcs/VcsCoordinator';
 import { wrapHandler } from '../wrapHandler';
-
-const execFileAsync = promisify(execFile);
 
 export interface VcsRevertRouteDeps {
   coordinator: VcsCoordinator;

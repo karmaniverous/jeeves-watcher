@@ -3,16 +3,12 @@
  * Fastify route handler for GET /vcs/status. Returns VCS state for all roots.
  */
 
-import { execFile } from 'node:child_process';
-import { promisify } from 'node:util';
-
 import type pino from 'pino';
 
+import { execFileAsync } from '../../../vcs/gitExec';
 import type { VcsCoordinator } from '../../../vcs/VcsCoordinator';
 import type { PushError } from '../../../vcs/VcsManager';
 import { wrapHandler } from '../wrapHandler';
-
-const execFileAsync = promisify(execFile);
 
 export interface VcsStatusRouteDeps {
   coordinator: VcsCoordinator;

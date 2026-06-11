@@ -3,17 +3,14 @@
  * Handles scheduled squash retention for git-backed VCS roots.
  */
 
-import { execFile } from 'node:child_process';
 import { access, rm } from 'node:fs/promises';
 import { join } from 'node:path';
-import { promisify } from 'node:util';
 
 import type { VcsRetentionConfig } from '@karmaniverous/jeeves-watcher-core';
 import type pino from 'pino';
 
 import { normalizeError } from '../util/normalizeError';
-
-const execFileAsync = promisify(execFile);
+import { execFileAsync } from './gitExec';
 
 /**
  * Parse a standard 5-field cron expression and check if the current time matches.

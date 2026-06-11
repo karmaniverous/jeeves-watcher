@@ -3,17 +3,13 @@
  * Fastify route handler for GET /vcs/check-exclusion. Checks gitignore status of a path.
  */
 
-import { execFile } from 'node:child_process';
-import { promisify } from 'node:util';
-
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import type pino from 'pino';
 
+import { execFileAsync } from '../../../vcs/gitExec';
 import { resolveWatchRoot } from '../../../vcs/resolveWatchRoot';
 import type { VcsCoordinator } from '../../../vcs/VcsCoordinator';
 import { wrapHandler } from '../wrapHandler';
-
-const execFileAsync = promisify(execFile);
 
 export interface VcsCheckExclusionRouteDeps {
   coordinator: VcsCoordinator;

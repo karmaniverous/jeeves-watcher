@@ -11,6 +11,7 @@ import type { FastifyReply, FastifyRequest } from 'fastify';
 import type pino from 'pino';
 
 import { normalizeSlashes } from '../../../util/normalizeSlashes';
+import { findRootForPath } from '../../../vcs/gitExec';
 import type { VcsCoordinator } from '../../../vcs/VcsCoordinator';
 import { wrapHandler } from '../wrapHandler';
 
@@ -93,9 +94,9 @@ export function createVcsExcludeHandler(deps: VcsExcludeRouteDeps) {
         // Resolve root from the glob path
         const normalizedGlob = normalizeSlashes(glob);
         const basePath = normalizedGlob.replace(/[*?[\]{}].*/g, '');
-        const roots = deps.coordinator.getRoots();
-        const matchedRoot = roots.find(
-          (r) => basePath === r || basePath.startsWith(r + '/'),
+        const matchedRoot = findRootForPath(
+          deps.coordinator.getRoots(),
+          basePath,
         );
         if (!matchedRoot) {
           void reply

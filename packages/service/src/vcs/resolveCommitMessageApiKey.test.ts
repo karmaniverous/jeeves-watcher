@@ -10,7 +10,7 @@ import { join } from 'node:path';
 import pino from 'pino';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { resolveCommitMessageApiKey } from './VcsCoordinator';
+import { resolveCommitMessageApiKey } from './resolveCommitMessageApiKey';
 
 const silentLogger = pino({ level: 'silent' });
 

@@ -4,9 +4,7 @@
  * root's VcsManager instance.
  */
 
-import { readFileSync } from 'node:fs';
-import { homedir } from 'node:os';
-import { join, resolve } from 'node:path';
+import { resolve } from 'node:path';
 
 import {
   normalizeWatchPaths,
@@ -17,46 +15,9 @@ import type pino from 'pino';
 import type { JeevesWatcherConfig } from '../config/types';
 import { normalizeSlashes } from '../util/normalizeSlashes';
 import { CommitMessageGenerator } from './CommitMessageGenerator';
+import { findRootForPath } from './gitExec';
+import { resolveCommitMessageApiKey } from './resolveCommitMessageApiKey';
 import { VcsManager } from './VcsManager';
-
-/**
- * Resolve the API key for commit message generation.
- * Checks config first, then falls back to OpenClaw gateway credentials.
- */
-export function resolveCommitMessageApiKey(
-  provider: string,
-  configApiKey: string | undefined,
-  logger: pino.Logger,
-): string | undefined {
-  if (configApiKey) {
-    logger.debug('Using commit message API key from config');
-    return configApiKey;
-  }
-
-  try {
-    const openclawPath = join(homedir(), '.openclaw', 'openclaw.json');
-    const raw = readFileSync(openclawPath, 'utf8');
-    const parsed = JSON.parse(raw) as {
-      models?: { providers?: Record<string, { apiKey?: string }> };
-    };
-    const gatewayKey = parsed.models?.providers?.[provider]?.apiKey;
-    if (gatewayKey) {
-      logger.debug(
-        { provider },
-        'Using commit message API key from OpenClaw gateway config',
-      );
-      return gatewayKey;
-    }
-    logger.warn(
-      { provider },
-      'OpenClaw gateway config found but no API key for provider',
-    );
-  } catch {
-    logger.warn('No commit message API key in config or OpenClaw gateway');
-  }
-
-  return undefined;
-}
 
 /**
  * Orchestrates VCS across all VCS-enabled watch roots.
@@ -197,11 +158,7 @@ export class VcsCoordinator {
    * @returns The matching VcsManager, or undefined.
    */
   findManagerForPath(normalizedPath: string): VcsManager | undefined {
-    for (const root of this.roots) {
-      if (normalizedPath === root || normalizedPath.startsWith(root + '/')) {
-        return this.managers.get(root);
-      }
-    }
-    return undefined;
+    const root = findRootForPath(this.roots, normalizedPath);
+    return root ? this.managers.get(root) : undefined;
   }
 }

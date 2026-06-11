@@ -13,8 +13,8 @@ import pino from 'pino';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import type { JeevesWatcherConfig } from '../config/types';
+import { initRepo } from './vcsBootstrap';
 import { VcsCoordinator } from './VcsCoordinator';
-import { VcsManager } from './VcsManager';
 
 const execFileAsync = promisify(execFile);
 const silentLogger = pino({ level: 'silent' });
@@ -45,7 +45,7 @@ describe('VcsCoordinator', () => {
 
     // Initialize git repos
     for (const root of [rootA, rootB]) {
-      await VcsManager.initRepo(root);
+      await initRepo(root);
       await execFileAsync('git', ['config', 'user.email', 'test@test.com'], {
         cwd: root,
       });

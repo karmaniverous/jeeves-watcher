@@ -6,6 +6,7 @@
 import { relative, resolve } from 'node:path';
 
 import { normalizeSlashes } from '../util/normalizeSlashes';
+import { findRootForPath } from './gitExec';
 import type { VcsCoordinator } from './VcsCoordinator';
 
 /** Result of resolving a path to its watch root. */
@@ -28,17 +29,12 @@ export function resolveWatchRoot(
   absolutePath: string,
 ): ResolvedWatchRoot | undefined {
   const normalized = normalizeSlashes(resolve(absolutePath));
-  const roots = coordinator.getRoots();
-
-  for (const root of roots) {
-    if (normalized === root || normalized.startsWith(root + '/')) {
-      return {
-        root,
-        relativePath: normalizeSlashes(relative(root, normalized)),
-      };
-    }
-  }
-  return undefined;
+  const root = findRootForPath(coordinator.getRoots(), normalized);
+  if (!root) return undefined;
+  return {
+    root,
+    relativePath: normalizeSlashes(relative(root, normalized)),
+  };
 }
 
 /**

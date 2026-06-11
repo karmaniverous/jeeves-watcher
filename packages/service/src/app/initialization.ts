@@ -25,7 +25,12 @@ import type { EventQueue } from '../queue';
 import { loadCustomMapHelpers } from '../rules/apply';
 import { buildTemplateEngine, type TemplateEngine } from '../templates';
 import { normalizeError } from '../util/normalizeError';
-import { validateStateDirOverlap, VcsManager } from '../vcs';
+import {
+  checkGitAvailable,
+  ensureGitignore,
+  initRepo,
+  validateStateDirOverlap,
+} from '../vcs';
 import type { FileSystemWatcher } from '../watcher';
 import type { JeevesWatcherFactories } from './factories';
 
@@ -305,7 +310,7 @@ export async function initVcs(
 ): Promise<boolean> {
   if (!config.vcs?.enabled) return false;
 
-  const gitAvailable = await VcsManager.checkGitAvailable();
+  const gitAvailable = await checkGitAvailable();
   if (!gitAvailable) {
     logger.warn('git not found on PATH — VCS disabled for this session');
     return false;
@@ -320,8 +325,8 @@ export async function initVcs(
     const rootVcs = entry.vcs?.enabled ?? config.vcs.enabled;
     if (!rootVcs) continue;
 
-    await VcsManager.initRepo(entry.path);
-    await VcsManager.ensureGitignore(entry.path);
+    await initRepo(entry.path);
+    await ensureGitignore(entry.path);
     logger.info({ root: entry.path }, 'VCS initialized for watch root');
   }
 

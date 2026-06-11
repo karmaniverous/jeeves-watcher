@@ -14,8 +14,8 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import type { JeevesWatcherConfig } from '../../../config/types';
 import { normalizeSlashes } from '../../../util/normalizeSlashes';
+import { initRepo } from '../../../vcs/vcsBootstrap';
 import { VcsCoordinator } from '../../../vcs/VcsCoordinator';
-import { VcsManager } from '../../../vcs/VcsManager';
 import { createVcsCheckExclusionHandler } from './vcsCheckExclusion';
 import { createVcsDiffHandler } from './vcsDiff';
 import { createVcsExcludeHandler } from './vcsExclude';
@@ -60,7 +60,7 @@ describe('VCS API handlers', () => {
       resolve(await mkdtemp(join(tmpdir(), 'vcs-api-a-'))),
     );
 
-    await VcsManager.initRepo(rootA);
+    await initRepo(rootA);
     await execFileAsync('git', ['config', 'user.email', 'test@test.com'], {
       cwd: rootA,
     });
