@@ -4,7 +4,9 @@
  * root's VcsManager instance.
  */
 
-import { resolve } from 'node:path';
+import { readFileSync } from 'node:fs';
+import { homedir } from 'node:os';
+import { join, resolve } from 'node:path';
 
 import {
   normalizeWatchPaths,
@@ -16,6 +18,45 @@ import type { JeevesWatcherConfig } from '../config/types';
 import { normalizeSlashes } from '../util/normalizeSlashes';
 import { CommitMessageGenerator } from './CommitMessageGenerator';
 import { VcsManager } from './VcsManager';
+
+/**
+ * Resolve the API key for commit message generation.
+ * Checks config first, then falls back to OpenClaw gateway credentials.
+ */
+export function resolveCommitMessageApiKey(
+  provider: string,
+  configApiKey: string | undefined,
+  logger: pino.Logger,
+): string | undefined {
+  if (configApiKey) {
+    logger.debug('Using commit message API key from config');
+    return configApiKey;
+  }
+
+  try {
+    const openclawPath = join(homedir(), '.openclaw', 'openclaw.json');
+    const raw = readFileSync(openclawPath, 'utf8');
+    const parsed = JSON.parse(raw) as {
+      models?: { providers?: Record<string, { apiKey?: string }> };
+    };
+    const gatewayKey = parsed.models?.providers?.[provider]?.apiKey;
+    if (gatewayKey) {
+      logger.debug(
+        { provider },
+        'Using commit message API key from OpenClaw gateway config',
+      );
+      return gatewayKey;
+    }
+    logger.warn(
+      { provider },
+      'OpenClaw gateway config found but no API key for provider',
+    );
+  } catch {
+    logger.warn('No commit message API key in config or OpenClaw gateway');
+  }
+
+  return undefined;
+}
 
 /**
  * Orchestrates VCS across all VCS-enabled watch roots.
@@ -44,13 +85,22 @@ export class VcsCoordinator {
 
       // Create CommitMessageGenerator if AI commit messages are configured
       const cmConfig = mergedConfig.commitMessage;
+      const rootLogger = logger.child({ vcsRoot: resolvedRoot });
+      const resolvedApiKey =
+        cmConfig?.enabled !== false
+          ? resolveCommitMessageApiKey(
+              cmConfig?.provider ?? 'anthropic',
+              cmConfig?.apiKey,
+              rootLogger,
+            )
+          : undefined;
       const generator =
-        cmConfig?.enabled !== false && cmConfig?.apiKey
+        cmConfig?.enabled !== false && resolvedApiKey
           ? new CommitMessageGenerator(
-              cmConfig.provider,
-              cmConfig.model,
-              cmConfig.apiKey,
-              logger.child({ vcsRoot: resolvedRoot }),
+              cmConfig?.provider ?? 'anthropic',
+              cmConfig?.model ?? 'claude-haiku-4-0',
+              resolvedApiKey,
+              rootLogger,
             )
           : undefined;
 
