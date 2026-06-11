@@ -4,6 +4,7 @@
  */
 import { join } from 'node:path';
 
+import { extractWatchPathStrings } from '@karmaniverous/jeeves-watcher-core';
 import chokidar, { type FSWatcher } from 'chokidar';
 import type pino from 'pino';
 
@@ -95,7 +96,9 @@ export class FileSystemWatcher {
     // Glob patterns are silently treated as literal strings, producing zero
     // events. We extract static directory roots for chokidar to watch, then
     // filter emitted events against the original globs via picomatch.
-    const { roots, matches } = resolveWatchPaths(this.config.paths);
+    const { roots, matches } = resolveWatchPaths(
+      extractWatchPathStrings(this.config.paths),
+    );
     this.globMatches = matches;
     this.logger.info({ roots }, 'Resolved watch roots from globs');
 

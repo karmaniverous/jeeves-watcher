@@ -32,6 +32,7 @@ import {
   createWatcher,
   getConfigDir,
   initEmbeddingAndStore,
+  initVcs,
   introspectHelpers,
   resolveVersion,
 } from './initialization';
@@ -106,6 +107,8 @@ export class JeevesWatcher {
   async start(): Promise<void> {
     const logger = this.factories.createLogger(this.config.logging);
     this.logger = logger;
+
+    await initVcs(this.config, logger);
 
     const { embeddingProvider, vectorStore } = await initEmbeddingAndStore(
       this.config,

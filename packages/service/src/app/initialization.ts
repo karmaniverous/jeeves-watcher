@@ -7,6 +7,10 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import {
+  extractWatchPathStrings,
+  normalizeWatchPaths,
+} from '@karmaniverous/jeeves-watcher-core';
 import type { JsonMapMap } from '@karmaniverous/jsonmap';
 import { packageDirectorySync } from 'package-directory';
 import type pino from 'pino';
@@ -21,6 +25,7 @@ import type { EventQueue } from '../queue';
 import { loadCustomMapHelpers } from '../rules/apply';
 import { buildTemplateEngine, type TemplateEngine } from '../templates';
 import { normalizeError } from '../util/normalizeError';
+import { validateStateDirOverlap, VcsManager } from '../vcs';
 import type { FileSystemWatcher } from '../watcher';
 import type { JeevesWatcherFactories } from './factories';
 
@@ -139,7 +144,7 @@ export function createWatcher(
 ): { watcher: FileSystemWatcher; gitignoreFilter?: GitignoreFilter } {
   const respectGitignore = config.watch.respectGitignore ?? true;
   const gitignoreFilter = respectGitignore
-    ? new GitignoreFilter(config.watch.paths)
+    ? new GitignoreFilter(extractWatchPathStrings(config.watch.paths))
     : undefined;
 
   const watcher = factories.createFileSystemWatcher(
@@ -279,4 +284,41 @@ export function resolveVersion(referenceUrl: string): string {
   } catch {
     return 'unknown';
   }
+}
+
+/**
+ * Initialize VCS for all watch roots where VCS is enabled.
+ * Checks git availability, validates stateDir overlap, and initializes repos.
+ *
+ * @param config - The resolved configuration (mutated in place if git unavailable).
+ * @param logger - Logger instance.
+ * @returns The effective VCS enabled state (false if git unavailable).
+ */
+export async function initVcs(
+  config: JeevesWatcherConfig,
+  logger: pino.Logger,
+): Promise<boolean> {
+  if (!config.vcs?.enabled) return false;
+
+  const gitAvailable = await VcsManager.checkGitAvailable();
+  if (!gitAvailable) {
+    logger.warn('git not found on PATH — VCS disabled for this session');
+    return false;
+  }
+
+  const stateDir = config.stateDir ?? '.jeeves-metadata';
+  const pathStrings = extractWatchPathStrings(config.watch.paths);
+  validateStateDirOverlap(stateDir, pathStrings);
+
+  const normalized = normalizeWatchPaths(config.watch.paths);
+  for (const entry of normalized) {
+    const rootVcs = entry.vcs?.enabled ?? config.vcs.enabled;
+    if (!rootVcs) continue;
+
+    await VcsManager.initRepo(entry.path);
+    await VcsManager.ensureGitignore(entry.path);
+    logger.info({ root: entry.path }, 'VCS initialized for watch root');
+  }
+
+  return true;
 }

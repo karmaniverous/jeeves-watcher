@@ -10,6 +10,7 @@ import {
   createStatusHandler as coreCreateStatusHandler,
   type JeevesComponentDescriptor,
 } from '@karmaniverous/jeeves';
+import { extractWatchPathStrings } from '@karmaniverous/jeeves-watcher-core';
 import Fastify, { type FastifyInstance } from 'fastify';
 import type pino from 'pino';
 
@@ -235,7 +236,7 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
   app.post(
     '/walk',
     createWalkHandler({
-      getWatchPaths: () => getConfig().watch.paths,
+      getWatchPaths: () => extractWatchPathStrings(getConfig().watch.paths),
       getFileSystemWatcher,
       logger,
     }),

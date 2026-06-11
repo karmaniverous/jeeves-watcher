@@ -10,6 +10,12 @@ export type {
   JeevesWatcherConfig,
   JeevesWatcherConfigInput,
   LoggingConfig,
+  NormalizedWatchPath,
+  VcsCommitMessageConfig,
+  VcsConfig,
+  VcsRetentionConfig,
   VectorStoreConfig,
   WatchConfig,
+  WatchPathEntry,
+  WatchPathVcsConfig,
 } from './schemas.js';
