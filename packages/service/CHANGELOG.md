@@ -4,9 +4,18 @@ All notable changes to this project will be documented in this file.
 
 ## [unreleased]
 
+### 🐛 Bug Fixes
+
+- *(vcs)* Extract static roots from glob watch paths instead of skipping
+## [0.18.2] - 2026-06-11
+
 ### 💼 Other
 
 - Installed deps
+
+### ⚙️ Miscellaneous Tasks
+
+- Release @karmaniverous/jeeves-watcher v0.18.2
 ## [0.18.1] - 2026-06-11
 
 ### 🧪 Testing
