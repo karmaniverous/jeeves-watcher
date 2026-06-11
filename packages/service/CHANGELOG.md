@@ -4,10 +4,19 @@ All notable changes to this project will be documented in this file.
 
 ## [unreleased]
 
+### 💼 Other
+
+- Installed deps
+## [0.18.1] - 2026-06-11
+
 ### 🧪 Testing
 
 - Increase VCS test timeouts from 15s to 30s
 - Increase timeout for VCS tests that create real git repos
+
+### ⚙️ Miscellaneous Tasks
+
+- Release @karmaniverous/jeeves-watcher v0.18.1
 ## [0.18.0] - 2026-06-11
 
 ### 🚀 Features
