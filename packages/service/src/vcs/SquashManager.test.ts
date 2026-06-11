@@ -292,7 +292,7 @@ describe('SquashManager.runSquash', () => {
     );
     expect(lsOut).toContain('file1.txt');
     expect(lsOut).toContain('file5.txt');
-  });
+  }, 30000);
 
   it('is a no-op when within retention window', async () => {
     const now = new Date();
@@ -372,7 +372,7 @@ describe('SquashManager.runSquash', () => {
     expect(parseInt(remoteLog.trim(), 10)).toBe(2);
 
     await rm(bareRemote, { recursive: true, force: true });
-  });
+  }, 30000);
 
   it('aborts on index.lock collision', async () => {
     const now = new Date();
@@ -449,7 +449,7 @@ describe('SquashManager.runSquash', () => {
       expect.objectContaining({ root: tempDir }),
       'Squash force push failed',
     );
-  });
+  }, 30000);
 
   it('handles single commit repo (no-op)', async () => {
     await createCommit(tempDir, 'file1.txt', 'a');

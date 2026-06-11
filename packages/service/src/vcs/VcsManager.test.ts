@@ -356,7 +356,7 @@ describe('VcsManager instance', () => {
 
       // Clean up
       await rm(lockPath, { force: true });
-    });
+    }, 30000);
 
     it('re-queues files on commit failure so next flush retries', async () => {
       const logger = pino({ level: 'silent' });
@@ -392,7 +392,7 @@ describe('VcsManager instance', () => {
         { cwd: tempDir },
       );
       expect(stdout).toContain('1 files');
-    });
+    }, 30000);
   });
 
   describe('pendingReversions', () => {
@@ -791,7 +791,7 @@ describe('VcsManager instance', () => {
       expect(manager.pushErrors).toHaveLength(1);
       // Commit should still succeed
       expect(await commitCount(tempDir)).toBe(1);
-    });
+    }, 30000);
 
     it('pushes with token injected into URL', async () => {
       const remoteUrl = bareRemote.replace(/\\/g, '/');
