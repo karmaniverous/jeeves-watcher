@@ -6,7 +6,17 @@ All notable changes to this project will be documented in this file.
 
 ### 🐛 Bug Fixes
 
+- Case-insensitive VCS path matching on Windows + baseline commit for pre-existing files
+- Address Copilot review - baseline skips AI, isBaseline persists across batches, null-byte ls-files, injectable platform
+## [0.18.3] - 2026-06-11
+
+### 🐛 Bug Fixes
+
 - *(vcs)* Extract static roots from glob watch paths instead of skipping
+
+### ⚙️ Miscellaneous Tasks
+
+- Release @karmaniverous/jeeves-watcher v0.18.3
 ## [0.18.2] - 2026-06-11
 
 ### 💼 Other
