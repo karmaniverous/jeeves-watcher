@@ -94,12 +94,10 @@ export class VcsCoordinator {
   /**
    * Start all VcsManager instances.
    */
-  async start(): Promise<void> {
-    const startPromises: Promise<void>[] = [];
+  start(): void {
     this.managers.forEach((manager) => {
-      startPromises.push(manager.start());
+      manager.start();
     });
-    await Promise.all(startPromises);
     this.logger.info(
       { rootCount: this.managers.size },
       'VcsCoordinator started',
@@ -122,6 +120,22 @@ export class VcsCoordinator {
     } else {
       manager.fileChanged(normalizedPath);
     }
+  }
+
+  /**
+   * Signal that the initial filesystem scan is complete.
+   *
+   * Flushes each manager's debounce buffer before ending baseline mode, ensuring
+   * any files still pending in the VCS debounce are committed with a
+   * `"baseline:"` prefix rather than `"watcher:"`. AI generation is not enabled
+   * until all managers have completed their flush.
+   */
+  async onInitialScanComplete(): Promise<void> {
+    for (const manager of this.managers.values()) {
+      await manager.flush();
+      manager.endBaseline();
+    }
+    this.logger.debug('VcsCoordinator: initial scan complete, baseline ended');
   }
 
   /**

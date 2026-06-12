@@ -8,22 +8,14 @@ import type pino from 'pino';
 
 import { normalizeError } from '../util/normalizeError';
 import { retry } from '../util/retry';
+import { CommitMessageBuilder } from './CommitMessageBuilder';
 import type { CommitMessageGenerator } from './CommitMessageGenerator';
 import { execFileAsync, gitAddViaStdin } from './gitExec';
 import { SquashManager } from './SquashManager';
+import type { PendingReversion, PushError } from './types';
+import { pushToRemote } from './vcsPush';
 
-/** Metadata for a pending reversion to include in the commit message. */
-export interface PendingReversion {
-  glob: string;
-  commit: string;
-  paths: string[];
-}
-
-/** Push error record for status reporting. */
-export interface PushError {
-  timestamp: string;
-  message: string;
-}
+export type { PendingReversion, PushError };
 
 /**
  * Per-root VCS manager for git-backed content versioning.
@@ -41,7 +33,7 @@ export class VcsManager {
   readonly remoteUrl: string | undefined;
   private readonly accessToken: string | undefined;
   private readonly logger: pino.Logger;
-  private readonly commitMessageGenerator: CommitMessageGenerator | undefined;
+  private readonly commitMessageBuilder: CommitMessageBuilder;
   private readonly pending: Set<string> = new Set();
   private readonly pendingReversions: PendingReversion[] = [];
   private readonly _pushErrors: PushError[] = [];
@@ -49,7 +41,7 @@ export class VcsManager {
   private debounceTimer: ReturnType<typeof setTimeout> | undefined;
   private commitInFlight: Promise<void> = Promise.resolve();
   private started = false;
-  private isBaseline = false;
+  private isBaseline = true;
   private _lastPushTime: string | null = null;
 
   constructor(
@@ -63,9 +55,14 @@ export class VcsManager {
     this.rootPath = rootPath;
     this.config = config;
     this.logger = logger;
-    this.commitMessageGenerator = commitMessageGenerator;
     this.remoteUrl = remoteUrl;
     this.accessToken = accessToken;
+
+    this.commitMessageBuilder = new CommitMessageBuilder(
+      rootPath,
+      logger,
+      commitMessageGenerator,
+    );
 
     if (config.retention) {
       this.squashManager = new SquashManager(
@@ -87,62 +84,24 @@ export class VcsManager {
   }
 
   /**
-   * Begin accepting file changes. Sets up the debounce mechanism.
-   * Enqueues a baseline commit for pre-existing files if the repo has no commits.
+   * Begin accepting file changes. Sets the manager to started state and
+   * starts the squash manager if configured.
+   *
+   * Baseline mode (commit prefix `"baseline:"`) remains active until
+   * {@link endBaseline} is called by the coordinator after the initial scan.
    */
-  async start(): Promise<void> {
+  start(): void {
     this.started = true;
     this.squashManager?.start();
     this.logger.info({ root: this.rootPath }, 'VcsManager started');
-
-    await this.enqueueBaselineIfNeeded();
   }
 
   /**
-   * If the repo has no commits, enumerate untracked files and feed them
-   * through fileChanged() to create a baseline commit.
+   * Signal that the initial filesystem scan is complete.
+   * Clears the baseline flag so subsequent commits use normal "watcher: batch" messages.
    */
-  private async enqueueBaselineIfNeeded(): Promise<void> {
-    try {
-      await execFileAsync('git', ['rev-parse', 'HEAD'], {
-        cwd: this.rootPath,
-      });
-      // HEAD exists — repo already has commits
-      return;
-    } catch {
-      // No commits yet — proceed with baseline
-    }
-
-    try {
-      const { stdout } = await execFileAsync(
-        'git',
-        ['ls-files', '--others', '--exclude-standard', '-z'],
-        { cwd: this.rootPath },
-      );
-
-      const files = stdout
-        .split('\0')
-        .map((line) => line.trim())
-        .filter((line) => line.length > 0);
-
-      if (files.length === 0) return;
-
-      this.logger.info(
-        { root: this.rootPath, fileCount: files.length },
-        'Enqueuing baseline commit for pre-existing files',
-      );
-
-      this.isBaseline = true;
-      const absolutePaths = files.map((f) => this.rootPath + '/' + f);
-      for (const filePath of absolutePaths) {
-        this.fileChanged(filePath);
-      }
-    } catch (error) {
-      this.logger.warn(
-        { root: this.rootPath, err: normalizeError(error) },
-        'Failed to enumerate untracked files for baseline commit',
-      );
-    }
+  endBaseline(): void {
+    this.isBaseline = false;
   }
 
   /**
@@ -253,100 +212,6 @@ export class VcsManager {
   }
 
   /**
-   * Get the cached diff for staged files, for AI context.
-   */
-  private async getStagedDiff(): Promise<string> {
-    try {
-      const { stdout: stat } = await execFileAsync(
-        'git',
-        ['diff', '--cached', '--stat'],
-        { cwd: this.rootPath },
-      );
-      const { stdout: patch } = await execFileAsync(
-        'git',
-        ['diff', '--cached'],
-        { cwd: this.rootPath },
-      );
-      return `${stat}\n${patch}`;
-    } catch {
-      return '';
-    }
-  }
-
-  /**
-   * Build the template commit message (no AI).
-   */
-  private buildTemplateMessage(fileCount: number): string {
-    if (this.pendingReversions.length === 0) {
-      if (this.isBaseline) {
-        return `baseline: batch (${String(fileCount)} files)`;
-      }
-      const timestamp = new Date().toISOString();
-      return `watcher: batch ${timestamp} (${String(fileCount)} files)`;
-    }
-
-    // Count total reverted files across all pending reversions
-    const revertedPaths = new Set(
-      this.pendingReversions.flatMap((r) => r.paths),
-    );
-    const revertedCount = revertedPaths.size;
-    const otherCount = fileCount - revertedCount;
-
-    // Use the first reversion's glob and commit for the message
-    const { glob, commit } = this.pendingReversions[0];
-    const shortCommit = commit.slice(0, 7);
-
-    let message = `revert: ${glob} to ${shortCommit} — restored ${String(revertedCount)} files`;
-    if (otherCount > 0) {
-      message += ` (+ ${String(otherCount)} other changes)`;
-    }
-
-    return message;
-  }
-
-  /**
-   * Build the commit message, using AI when available with template fallback.
-   */
-  private async buildCommitMessage(files: string[]): Promise<string> {
-    const fileCount = files.length;
-    const templateMessage = this.buildTemplateMessage(fileCount);
-
-    if (!this.commitMessageGenerator) {
-      return templateMessage;
-    }
-
-    try {
-      const diffSummary = await this.getStagedDiff();
-      const aiMessage = await this.commitMessageGenerator.generate(
-        files,
-        diffSummary,
-      );
-
-      if (!aiMessage) {
-        this.logger.warn(
-          'AI commit message generation returned null; using template',
-        );
-        return templateMessage;
-      }
-
-      // For reversions: prefix with revert info + AI description
-      if (this.pendingReversions.length > 0) {
-        const { glob, commit } = this.pendingReversions[0];
-        const shortCommit = commit.slice(0, 7);
-        return `revert: ${glob} to ${shortCommit} — ${aiMessage}`;
-      }
-
-      return aiMessage;
-    } catch (error) {
-      this.logger.warn(
-        { err: normalizeError(error) },
-        'AI commit message generation failed; using template',
-      );
-      return templateMessage;
-    }
-  }
-
-  /**
    * Commit a batch of files to the git repo with index.lock retry.
    */
   private async commitBatch(files: string[]): Promise<void> {
@@ -357,18 +222,22 @@ export class VcsManager {
         async (attempt) => {
           await gitAddViaStdin(files, this.rootPath);
 
-          // Build message after staging so getStagedDiff can see the changes
-          // Skip AI for baselines and retries — use template directly
+          // Build message after staging so getStagedDiff can see the changes.
+          // Skip AI for baselines and retries — use template directly.
           const message =
             this.isBaseline || attempt > 1
-              ? this.buildTemplateMessage(files.length)
-              : await this.buildCommitMessage(files);
-          this.pendingReversions.length = 0;
-          // Only clear baseline flag when all baseline files have been committed
-          if (this.pending.size === 0) {
-            this.isBaseline = false;
-          }
+              ? this.commitMessageBuilder.buildTemplateMessage(
+                  files.length,
+                  this.isBaseline,
+                  this.pendingReversions,
+                )
+              : await this.commitMessageBuilder.buildCommitMessage(
+                  files,
+                  this.isBaseline,
+                  this.pendingReversions,
+                );
 
+          this.pendingReversions.length = 0;
           await execFileAsync('git', ['commit', '-m', message], {
             cwd: this.rootPath,
           });
@@ -383,7 +252,15 @@ export class VcsManager {
             { root: this.rootPath, hash, fileCount: files.length },
             'VCS commit created',
           );
-          await this.pushIfConfigured();
+
+          const pushTime = await pushToRemote(
+            this.rootPath,
+            this.remoteUrl,
+            this.accessToken,
+            this._pushErrors,
+            this.logger,
+          );
+          if (pushTime) this._lastPushTime = pushTime;
         },
         {
           attempts: 4,
@@ -408,45 +285,6 @@ export class VcsManager {
       this.logger.error(
         { root: this.rootPath, err: normalizeError(error) },
         'VCS commit failed',
-      );
-    }
-  }
-
-  /**
-   * Push to the configured remote if remoteUrl is set.
-   * On failure: logs the error and records it in pushErrors; never throws.
-   */
-  private async pushIfConfigured(): Promise<void> {
-    if (!this.remoteUrl) return;
-
-    try {
-      // Build the authenticated URL if a token is available
-      const pushUrl = this.accessToken
-        ? this.remoteUrl.replace(
-            /^https:\/\//,
-            `https://${encodeURIComponent(this.accessToken)}@`,
-          )
-        : this.remoteUrl;
-
-      await execFileAsync('git', ['push', pushUrl, 'HEAD'], {
-        cwd: this.rootPath,
-        env: { ...process.env, GIT_TERMINAL_PROMPT: '0' },
-      });
-
-      this._lastPushTime = new Date().toISOString();
-      this.logger.info(
-        { root: this.rootPath, remote: this.remoteUrl },
-        'VCS push succeeded',
-      );
-    } catch (error) {
-      const pushError: PushError = {
-        timestamp: new Date().toISOString(),
-        message: normalizeError(error).message,
-      };
-      this._pushErrors.push(pushError);
-      this.logger.error(
-        { root: this.rootPath, err: normalizeError(error) },
-        'VCS push failed',
       );
     }
   }

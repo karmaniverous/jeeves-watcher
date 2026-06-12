@@ -20,9 +20,8 @@ import type { JeevesWatcherFactories } from './factories';
 import {
   buildTemplateEngineAndCustomMapLib,
   getConfigDir,
-  rebuildWatcher,
-  watchConfigChanged,
 } from './initialization';
+import { rebuildWatcher, watchConfigChanged } from './watcherFactory';
 
 /** Mutable state held by JeevesWatcher that reload needs to read/write. */
 interface ReloadableState {

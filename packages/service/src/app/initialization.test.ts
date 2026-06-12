@@ -8,13 +8,8 @@ import { describe, expect, it, vi } from 'vitest';
 
 import type { JeevesWatcherConfig } from '../config/types';
 import type { JeevesWatcherFactories } from './factories';
-import {
-  getConfigDir,
-  initVcs,
-  rebuildWatcher,
-  resolveMapsConfig,
-  watchConfigChanged,
-} from './initialization';
+import { getConfigDir, initVcs, resolveMapsConfig } from './initialization';
+import { rebuildWatcher, watchConfigChanged } from './watcherFactory';
 
 describe('resolveMapsConfig', () => {
   it('should return undefined for undefined input', () => {

@@ -18,6 +18,7 @@ import type { EventQueue } from '../queue';
 import { normalizeError } from '../util/normalizeError';
 import { resolveIgnored, resolveWatchPaths } from './globToDir';
 import { MoveCorrelator } from './MoveCorrelator';
+import { ScanStats } from './ScanStats';
 
 /**
  * Options for {@link FileSystemWatcher} beyond basic config.
@@ -40,6 +41,8 @@ export interface FileSystemWatcherOptions {
     filePath: string,
     event: 'add' | 'change' | 'unlink',
   ) => void;
+  /** Optional callback invoked when the initial filesystem scan completes. */
+  onInitialScanComplete?: () => void | Promise<void>;
 }
 
 /**
@@ -58,6 +61,7 @@ export class FileSystemWatcher {
     filePath: string,
     event: 'add' | 'change' | 'unlink',
   ) => void;
+  private readonly onInitialScanComplete?: () => void | Promise<void>;
   private moveCorrelator?: MoveCorrelator;
   private globMatches: (filePath: string) => boolean;
   private watcher: FSWatcher | undefined;
@@ -87,6 +91,7 @@ export class FileSystemWatcher {
     this.initialScanTracker = options.initialScanTracker;
     this.contentHashCache = options.contentHashCache;
     this.onVcsFileChange = options.onVcsFileChange;
+    this.onInitialScanComplete = options.onInitialScanComplete;
     this.globMatches = () => true;
 
     const healthOptions: SystemHealthOptions = {
@@ -120,28 +125,9 @@ export class FileSystemWatcher {
       : undefined;
 
     // Track initial scan statistics per root for diagnostics.
-    const scanStats = {
-      total: 0,
-      matched: 0,
-      globRejected: 0,
-      gitignored: 0,
-      byRoot: Object.fromEntries(roots.map((r) => [r, 0])) as Record<
-        string,
-        number
-      >,
-    };
+    const scanStats = new ScanStats(roots);
     let initialScanComplete = false;
     this.initialScanTracker?.start();
-
-    const classifyByRoot = (path: string): void => {
-      const normalized = path.replace(/\\/g, '/').toLowerCase();
-      for (const root of roots) {
-        if (normalized.startsWith(root + '/') || normalized === root) {
-          scanStats.byRoot[root] = (scanStats.byRoot[root] ?? 0) + 1;
-          break;
-        }
-      }
-    };
 
     // Create move correlator if move detection is configured and cache is available.
     const moveConfig = this.config.moveDetection;
@@ -194,7 +180,7 @@ export class FileSystemWatcher {
     this.watcher.on('add', (path: string) => {
       if (!initialScanComplete) {
         scanStats.total++;
-        classifyByRoot(path);
+        scanStats.classifyByRoot(path);
       }
       this.handleGitignoreChange(path);
       if (!this.globMatches(path)) {
@@ -212,7 +198,7 @@ export class FileSystemWatcher {
         this.initialScanTracker?.incrementEnqueued();
       }
       this.logger.debug({ path }, 'File added');
-      if (initialScanComplete) this.onVcsFileChange?.(path, 'add');
+      this.onVcsFileChange?.(path, 'add');
       if (correlator && initialScanComplete) {
         void correlator.handleAdd(path);
       } else {
@@ -255,6 +241,7 @@ export class FileSystemWatcher {
       initialScanComplete = true;
       this.initialScanTracker?.complete();
       this.logger.info({ scanStats }, 'Initial scan complete');
+      void this.onInitialScanComplete?.();
     });
 
     this.watcher.on('error', (error: unknown) => {
