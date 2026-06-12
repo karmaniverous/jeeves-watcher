@@ -124,12 +124,17 @@ export class VcsCoordinator {
 
   /**
    * Signal that the initial filesystem scan is complete.
-   * Calls endBaseline() on all managers so subsequent commits use normal messages.
+   *
+   * Flushes each manager's debounce buffer before ending baseline mode, ensuring
+   * any files still pending in the VCS debounce are committed with a
+   * `"baseline:"` prefix rather than `"watcher:"`. AI generation is not enabled
+   * until all managers have completed their flush.
    */
-  onInitialScanComplete(): void {
-    this.managers.forEach((manager) => {
+  async onInitialScanComplete(): Promise<void> {
+    for (const manager of this.managers.values()) {
+      await manager.flush();
       manager.endBaseline();
-    });
+    }
     this.logger.debug('VcsCoordinator: initial scan complete, baseline ended');
   }
 

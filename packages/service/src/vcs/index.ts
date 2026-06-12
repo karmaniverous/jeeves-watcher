@@ -3,6 +3,7 @@
  * VCS (version control system) utilities for git-backed content versioning.
  */
 
+export { CommitMessageBuilder } from './CommitMessageBuilder.js';
 export { CommitMessageGenerator } from './CommitMessageGenerator.js';
 export {
   execFileAsync,
@@ -23,6 +24,7 @@ export {
   SquashManager,
   type SquashResult,
 } from './SquashManager.js';
+export { type PendingReversion, type PushError } from './types.js';
 export { validateStateDirOverlap } from './validateStateDirOverlap.js';
 export {
   ALWAYS_GITIGNORE_ENTRIES,
@@ -32,8 +34,5 @@ export {
   initRepo,
 } from './vcsBootstrap.js';
 export { VcsCoordinator } from './VcsCoordinator.js';
-export {
-  type PendingReversion,
-  type PushError,
-  VcsManager,
-} from './VcsManager.js';
+export { VcsManager } from './VcsManager.js';
+export { pushToRemote } from './vcsPush.js';

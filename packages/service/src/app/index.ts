@@ -30,13 +30,13 @@ import { defaultFactories, type JeevesWatcherFactories } from './factories';
 import {
   buildTemplateEngineAndCustomMapLib,
   createProcessorConfig,
-  createWatcher,
   getConfigDir,
   initEmbeddingAndStore,
   initVcs,
   introspectHelpers,
   resolveVersion,
 } from './initialization';
+import { createWatcher } from './watcherFactory';
 
 type ApiServerOptions = Parameters<
   JeevesWatcherFactories['createApiServer']
@@ -107,6 +107,13 @@ export class JeevesWatcher {
    * Start the watcher, API server, and all components.
    */
   async start(): Promise<void> {
+    await this.initInfrastructure();
+    await this.initPipeline();
+    await this.startServicesAndWatcher();
+  }
+
+  /** Set up logger, VCS, embedding provider, and vector store. */
+  private async initInfrastructure(): Promise<void> {
     const logger = this.factories.createLogger(this.config.logging);
     this.logger = logger;
 
@@ -123,6 +130,11 @@ export class JeevesWatcher {
     if (this.config.search?.hybrid?.enabled) {
       await vectorStore.ensureTextIndex('chunk_text');
     }
+  }
+
+  /** Build the processing pipeline: rules, templates, processor, queue, VCS. */
+  private async initPipeline(): Promise<void> {
+    const logger = this.logger!;
 
     const compiledRules = this.factories.compileRules(
       this.config.inferenceRules ?? [],
@@ -144,23 +156,20 @@ export class JeevesWatcher {
     this.issuesManager = new IssuesManager(stateDir, logger);
     this.valuesManager = new ValuesManager(stateDir, logger);
     this.enrichmentStore = new EnrichmentStore(stateDir, logger);
-    const enrichmentStore = this.enrichmentStore;
     this.contentHashCache = new ContentHashCache();
-    const contentHashCache = this.contentHashCache;
 
-    const processor = this.factories.createDocumentProcessor({
+    this.processor = this.factories.createDocumentProcessor({
       config: processorConfig,
-      embeddingProvider,
-      vectorStore,
+      embeddingProvider: this.embeddingProvider!,
+      vectorStore: this.vectorStore!,
       compiledRules,
       logger,
       templateEngine,
-      enrichmentStore,
+      enrichmentStore: this.enrichmentStore,
       issuesManager: this.issuesManager,
       valuesManager: this.valuesManager,
-      contentHashCache,
+      contentHashCache: this.contentHashCache,
     });
-    this.processor = processor;
 
     this.queue = this.factories.createEventQueue({
       debounceMs: this.config.watch.debounceMs ?? 2000,
@@ -168,23 +177,28 @@ export class JeevesWatcher {
       rateLimitPerMinute: this.config.embedding.rateLimitPerMinute,
     });
 
-    const vcsCoordinator = new VcsCoordinator(this.config, logger);
-    this.vcsCoordinator = vcsCoordinator;
+    this.vcsCoordinator = new VcsCoordinator(this.config, logger);
+  }
+
+  /** Wire up watcher and VCS coordinator, then start all services. */
+  private async startServicesAndWatcher(): Promise<void> {
+    const logger = this.logger!;
+    const vcsCoordinator = this.vcsCoordinator!;
 
     const { watcher, gitignoreFilter } = createWatcher(
       this.config,
       this.factories,
-      this.queue,
-      processor,
+      this.queue!,
+      this.processor!,
       logger,
       this.runtimeOptions,
       this.initialScanTracker,
-      contentHashCache,
+      this.contentHashCache,
       (filePath, event) => {
         vcsCoordinator.onFileChange(filePath, event);
       },
       () => {
-        vcsCoordinator.onInitialScanComplete();
+        void vcsCoordinator.onInitialScanComplete();
       },
     );
     this.watcher = watcher;

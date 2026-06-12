@@ -178,7 +178,7 @@ describe('VcsCoordinator', () => {
     coordinator.start();
 
     // Call onInitialScanComplete to end baseline on all managers
-    coordinator.onInitialScanComplete();
+    await coordinator.onInitialScanComplete();
 
     // After onInitialScanComplete, commits should use normal "watcher: batch" messages
     const fileA = join(resolve(rootA), 'post-baseline.txt');
