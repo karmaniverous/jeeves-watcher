@@ -12,5 +12,5 @@
     "strict": true,
     "target": "ES2022"
   },
-  "exclude": ["coverage", "dist", "docs", "node_modules", ".rollup.cache", ".stan"]
+  "exclude": ["coverage", "dist", "docs", "node_modules", ".rollup.cache"]
 }

@@ -159,13 +159,7 @@ This keeps tests stable and fast while still exercising the full Qdrant integrat
 
 ## Code Quality / Required Checks
 
-Before opening a PR (and before each commit when working in this repo), run:
-
-```bash
-npx stan run --sequential
-```
-
-This runs (in order):
+Before opening a PR (and before each commit when working in this repo), run all code quality checks, including:
 
 - typecheck
 - lint
@@ -175,7 +169,7 @@ This runs (in order):
 - build
 - knip
 
-All must pass.
+All must pass with no errors or warnings.
 
 ---
 
@@ -193,6 +187,7 @@ Architecture diagrams are created with **PlantUML** and embedded in documentatio
 The [jebbs.plantuml](https://marketplace.visualstudio.com/items?itemName=jebbs.plantuml) extension is configured in `.vscode/settings.json` for live preview and rendering.
 
 Install it for:
+
 - Live diagram preview (Alt+D)
 - Export to PNG/SVG directly from the editor
 - Syntax highlighting and validation
@@ -210,8 +205,6 @@ To render a single diagram:
 ```bash
 plantuml -tpng -o "../assets" diagrams/my-diagram.pu
 ```
-
-The `diagrams` STAN job automatically renders all diagrams and verifies outputs.
 
 ### Embedding in Documentation
 
