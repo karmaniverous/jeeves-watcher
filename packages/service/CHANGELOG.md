@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [unreleased]
+
+### 🐛 Bug Fixes
+
+- *(vcs)* Eliminate redundant baseline enumeration (#214)
+- *(vcs)* Address review — flush race, JSDoc, LOC decomposition
+## [0.18.7] - 2026-06-12
+
+### ⚙️ Miscellaneous Tasks
+
+- Release @karmaniverous/jeeves-watcher v0.18.7
 ## [0.18.6] - 2026-06-12
 
 ### 🐛 Bug Fixes
