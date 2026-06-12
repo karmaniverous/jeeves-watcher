@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 ## [unreleased]
 
+### 🐛 Bug Fixes
+
+- Use stdin-based git add to avoid ENAMETOOLONG (#211)
+- *(vcs)* Handle EPIPE on gitAddViaStdin stdin writes
+## [0.18.5] - 2026-06-12
+
 ### 🚀 Features
 
 - Declarative VCS git identity config (#209)
@@ -15,6 +21,10 @@ All notable changes to this project will be documented in this file.
 ### 💼 Other
 
 - Updated core
+
+### ⚙️ Miscellaneous Tasks
+
+- Release @karmaniverous/jeeves-watcher v0.18.5
 ## [0.18.4] - 2026-06-12
 
 ### 🐛 Bug Fixes
