@@ -4,9 +4,22 @@ All notable changes to this project will be documented in this file.
 
 ## [unreleased]
 
+### 🚀 Features
+
+- Declarative VCS git identity config (#209)
+
+### 🐛 Bug Fixes
+
+- Address Copilot review comments on PR #210
+## [0.2.1] - 2026-06-11
+
 ### 💼 Other
 
 - Updated jeeves-core
+
+### ⚙️ Miscellaneous Tasks
+
+- Release @karmaniverous/jeeves-watcher-core v0.2.1
 ## [0.2.0] - 2026-06-11
 
 ### 🚀 Features
