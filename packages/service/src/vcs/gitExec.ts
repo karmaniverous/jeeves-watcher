@@ -14,10 +14,14 @@ export const execFileAsync = promisify(execFile);
  * On Windows, lowercases the entire path; on other platforms, returns as-is.
  *
  * @param p - The path string to normalize.
+ * @param platform - The platform to check against (default: `process.platform`).
  * @returns The normalized path.
  */
-export function normalizePathCase(p: string): string {
-  return process.platform === 'win32' ? p.toLowerCase() : p;
+export function normalizePathCase(
+  p: string,
+  platform: string = process.platform,
+): string {
+  return platform === 'win32' ? p.toLowerCase() : p;
 }
 
 /**
@@ -26,15 +30,17 @@ export function normalizePathCase(p: string): string {
  *
  * @param roots - Root paths sorted longest-first.
  * @param normalizedPath - Normalized absolute path (forward slashes).
+ * @param platform - The platform to check against (default: `process.platform`).
  * @returns The matching root, or undefined.
  */
 export function findRootForPath(
   roots: readonly string[],
   normalizedPath: string,
+  platform: string = process.platform,
 ): string | undefined {
-  const comparePath = normalizePathCase(normalizedPath);
+  const comparePath = normalizePathCase(normalizedPath, platform);
   for (const root of roots) {
-    const compareRoot = normalizePathCase(root);
+    const compareRoot = normalizePathCase(root, platform);
     if (
       comparePath === compareRoot ||
       comparePath.startsWith(compareRoot + '/')

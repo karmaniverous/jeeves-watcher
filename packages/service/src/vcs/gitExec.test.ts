@@ -31,25 +31,22 @@ describe('findRootForPath', () => {
   });
 
   it('matches case-insensitively on Windows (drive letter mismatch)', () => {
-    if (process.platform !== 'win32') return;
     const roots = ['j:/domains/projects'];
-    expect(findRootForPath(roots, 'J:/domains/projects/file.txt')).toBe(
-      'j:/domains/projects',
-    );
+    expect(
+      findRootForPath(roots, 'J:/domains/projects/file.txt', 'win32'),
+    ).toBe('j:/domains/projects');
   });
 
   it('matches case-insensitively on Windows (root uppercase, path lowercase)', () => {
-    if (process.platform !== 'win32') return;
     const roots = ['J:/Domains/Projects'];
-    expect(findRootForPath(roots, 'j:/domains/projects/file.txt')).toBe(
-      'J:/Domains/Projects',
-    );
+    expect(
+      findRootForPath(roots, 'j:/domains/projects/file.txt', 'win32'),
+    ).toBe('J:/Domains/Projects');
   });
 
   it('matches case-insensitively on Windows (exact path equals root)', () => {
-    if (process.platform !== 'win32') return;
     const roots = ['j:/domains'];
-    expect(findRootForPath(roots, 'J:/domains')).toBe('j:/domains');
+    expect(findRootForPath(roots, 'J:/domains', 'win32')).toBe('j:/domains');
   });
 });
 

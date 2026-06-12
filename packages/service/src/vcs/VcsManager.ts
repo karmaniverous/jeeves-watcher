@@ -116,12 +116,12 @@ export class VcsManager {
     try {
       const { stdout } = await execFileAsync(
         'git',
-        ['ls-files', '--others', '--exclude-standard'],
+        ['ls-files', '--others', '--exclude-standard', '-z'],
         { cwd: this.rootPath },
       );
 
       const files = stdout
-        .split('\n')
+        .split('\0')
         .map((line) => line.trim())
         .filter((line) => line.length > 0);
 
@@ -360,12 +360,16 @@ export class VcsManager {
           });
 
           // Build message after staging so getStagedDiff can see the changes
+          // Skip AI for baselines and retries — use template directly
           const message =
-            attempt === 1
-              ? await this.buildCommitMessage(files)
-              : this.buildTemplateMessage(files.length);
+            this.isBaseline || attempt > 1
+              ? this.buildTemplateMessage(files.length)
+              : await this.buildCommitMessage(files);
           this.pendingReversions.length = 0;
-          this.isBaseline = false;
+          // Only clear baseline flag when all baseline files have been committed
+          if (this.pending.size === 0) {
+            this.isBaseline = false;
+          }
 
           await execFileAsync('git', ['commit', '-m', message], {
             cwd: this.rootPath,
