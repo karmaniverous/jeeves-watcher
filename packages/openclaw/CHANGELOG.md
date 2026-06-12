@@ -6,7 +6,16 @@ All notable changes to this project will be documented in this file.
 
 ### 💼 Other
 
+- Updated core
+## [0.15.1] - 2026-06-11
+
+### 💼 Other
+
 - Installed deps
+
+### ⚙️ Miscellaneous Tasks
+
+- Release @karmaniverous/jeeves-watcher-openclaw v0.15.1
 ## [0.15.0] - 2026-06-11
 
 ### 🚀 Features
