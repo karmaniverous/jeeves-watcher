@@ -32,8 +32,17 @@ export function gitAddViaStdin(files: string[], cwd: string): Promise<void> {
         else resolve();
       },
     );
-    child.stdin!.write(files.join('\0'));
-    child.stdin!.end();
+    if (!child.stdin) {
+      reject(new Error('Failed to open stdin for git add'));
+      return;
+    }
+    // Suppress EPIPE — expected if git exits before we finish writing
+    child.stdin.on('error', (err: NodeJS.ErrnoException) => {
+      if (err.code !== 'EPIPE') {
+        reject(err);
+      }
+    });
+    child.stdin.end(files.join('\0'));
   });
 }
 
