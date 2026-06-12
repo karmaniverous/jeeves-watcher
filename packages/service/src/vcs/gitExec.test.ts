@@ -1,11 +1,20 @@
 /**
  * @module vcs/gitExec.test
- * Unit tests for findRootForPath and isIndexLockError.
+ * Unit tests for findRootForPath, isIndexLockError, and gitAddViaStdin.
  */
 
-import { describe, expect, it } from 'vitest';
+import { execFile } from 'node:child_process';
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { promisify } from 'node:util';
 
-import { findRootForPath, isIndexLockError } from './gitExec';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+
+import { findRootForPath, gitAddViaStdin, isIndexLockError } from './gitExec';
+import { initRepo } from './vcsBootstrap';
+
+const execFileAsync = promisify(execFile);
 
 describe('findRootForPath', () => {
   it('returns matching root for path under a single root', () => {
@@ -47,6 +56,97 @@ describe('findRootForPath', () => {
   it('matches case-insensitively on Windows (exact path equals root)', () => {
     const roots = ['j:/domains'];
     expect(findRootForPath(roots, 'J:/domains', 'win32')).toBe('j:/domains');
+  });
+});
+
+describe('gitAddViaStdin', () => {
+  let tempDir: string;
+
+  beforeEach(async () => {
+    tempDir = await mkdtemp(join(tmpdir(), 'git-add-stdin-'));
+    await initRepo(tempDir);
+    await execFileAsync('git', ['config', 'user.email', 'test@test.com'], {
+      cwd: tempDir,
+    });
+    await execFileAsync('git', ['config', 'user.name', 'Test'], {
+      cwd: tempDir,
+    });
+  });
+
+  afterEach(async () => {
+    await rm(tempDir, { recursive: true, force: true });
+  });
+
+  it('stages a single file', async () => {
+    const filePath = join(tempDir, 'hello.txt');
+    await writeFile(filePath, 'hello', 'utf8');
+
+    await gitAddViaStdin([filePath], tempDir);
+
+    const { stdout } = await execFileAsync(
+      'git',
+      ['diff', '--cached', '--name-only'],
+      { cwd: tempDir },
+    );
+    expect(stdout.trim()).toBe('hello.txt');
+  });
+
+  it('stages multiple files in one call', async () => {
+    const paths: string[] = [];
+    for (let i = 0; i < 5; i++) {
+      const p = join(tempDir, `file${String(i)}.txt`);
+      await writeFile(p, `content ${String(i)}`, 'utf8');
+      paths.push(p);
+    }
+
+    await gitAddViaStdin(paths, tempDir);
+
+    const { stdout } = await execFileAsync(
+      'git',
+      ['diff', '--cached', '--name-only'],
+      { cwd: tempDir },
+    );
+    const staged = stdout.trim().split('\n').sort();
+    expect(staged).toEqual([
+      'file0.txt',
+      'file1.txt',
+      'file2.txt',
+      'file3.txt',
+      'file4.txt',
+    ]);
+  });
+
+  it('stages deleted files correctly', async () => {
+    const filePath = join(tempDir, 'to-delete.txt');
+    await writeFile(filePath, 'content', 'utf8');
+    await execFileAsync('git', ['add', '.'], { cwd: tempDir });
+    await execFileAsync('git', ['commit', '-m', 'add file'], {
+      cwd: tempDir,
+    });
+
+    await rm(filePath);
+    await gitAddViaStdin([filePath], tempDir);
+
+    const { stdout } = await execFileAsync(
+      'git',
+      ['diff', '--cached', '--name-status'],
+      { cwd: tempDir },
+    );
+    expect(stdout.trim()).toMatch(/^D\s+to-delete\.txt$/);
+  });
+
+  it('handles files with spaces in paths', async () => {
+    const filePath = join(tempDir, 'file with spaces.txt');
+    await writeFile(filePath, 'content', 'utf8');
+
+    await gitAddViaStdin([filePath], tempDir);
+
+    const { stdout } = await execFileAsync(
+      'git',
+      ['diff', '--cached', '--name-only'],
+      { cwd: tempDir },
+    );
+    expect(stdout.trim()).toBe('file with spaces.txt');
   });
 });
 

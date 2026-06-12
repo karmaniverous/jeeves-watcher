@@ -7,6 +7,7 @@ export { CommitMessageGenerator } from './CommitMessageGenerator.js';
 export {
   execFileAsync,
   findRootForPath,
+  gitAddViaStdin,
   isIndexLockError,
   normalizePathCase,
 } from './gitExec.js';

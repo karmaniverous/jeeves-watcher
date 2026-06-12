@@ -10,6 +10,34 @@ import { promisify } from 'node:util';
 export const execFileAsync = promisify(execFile);
 
 /**
+ * Stage files via stdin to avoid ENAMETOOLONG on Windows.
+ *
+ * Uses `git add --pathspec-from-file=- --pathspec-file-nul` so the file list is piped
+ * through stdin (NUL-delimited) instead of passed as command-line
+ * arguments.  This sidesteps the Windows CreateProcessW 32 767-char
+ * limit that triggers ENAMETOOLONG when batches contain many files
+ * with long absolute paths.
+ *
+ * @param files - Absolute paths of files to stage.
+ * @param cwd   - Repository root (working directory for git).
+ */
+export function gitAddViaStdin(files: string[], cwd: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const child = execFile(
+      'git',
+      ['add', '--pathspec-from-file=-', '--pathspec-file-nul'],
+      { cwd },
+      (error: Error | null) => {
+        if (error) reject(error);
+        else resolve();
+      },
+    );
+    child.stdin!.write(files.join('\0'));
+    child.stdin!.end();
+  });
+}
+
+/**
  * Normalize a path for case-insensitive comparison on Windows.
  * On Windows, lowercases the entire path; on other platforms, returns as-is.
  *

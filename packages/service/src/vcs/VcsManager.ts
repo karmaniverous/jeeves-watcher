@@ -9,7 +9,7 @@ import type pino from 'pino';
 import { normalizeError } from '../util/normalizeError';
 import { retry } from '../util/retry';
 import type { CommitMessageGenerator } from './CommitMessageGenerator';
-import { execFileAsync } from './gitExec';
+import { execFileAsync, gitAddViaStdin } from './gitExec';
 import { SquashManager } from './SquashManager';
 
 /** Metadata for a pending reversion to include in the commit message. */
@@ -355,9 +355,7 @@ export class VcsManager {
     try {
       await retry(
         async (attempt) => {
-          await execFileAsync('git', ['add', '--', ...files], {
-            cwd: this.rootPath,
-          });
+          await gitAddViaStdin(files, this.rootPath);
 
           // Build message after staging so getStagedDiff can see the changes
           // Skip AI for baselines and retries — use template directly
