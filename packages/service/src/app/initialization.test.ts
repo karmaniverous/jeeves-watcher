@@ -155,6 +155,7 @@ describe('watchConfigChanged', () => {
 vi.mock('../vcs', async (importOriginal) => ({
   ...(await importOriginal()),
   checkGitAvailable: vi.fn().mockResolvedValue(true),
+  configureRepoIdentity: vi.fn().mockResolvedValue(undefined),
   initRepo: vi.fn().mockResolvedValue(undefined),
   ensureGitignore: vi.fn().mockResolvedValue(undefined),
 }));
@@ -185,6 +186,90 @@ describe('initVcs', () => {
     expect(infoSpy).toHaveBeenCalledWith(
       expect.objectContaining({ root: '/some/path' }),
       'VCS initialized for watch root',
+    );
+  });
+
+  it('calls configureRepoIdentity with defaults when no author specified', async () => {
+    const { configureRepoIdentity: mockConfigure } = await import('../vcs');
+    const logger = pino({ level: 'silent' });
+
+    const config = {
+      vcs: {
+        enabled: true,
+        commitDebounceMs: 5000,
+        maxBatchSize: 1000,
+      },
+      watch: {
+        paths: ['/repo/root/**'],
+        ignored: [],
+      },
+    } as unknown as JeevesWatcherConfig;
+
+    await initVcs(config, logger);
+
+    expect(mockConfigure).toHaveBeenCalledWith(
+      '/repo/root',
+      'jeeves-watcher',
+      'watcher@localhost',
+    );
+  });
+
+  it('resolves root-level author config', async () => {
+    const { configureRepoIdentity: mockConfigure } = await import('../vcs');
+    vi.mocked(mockConfigure).mockClear();
+    const logger = pino({ level: 'silent' });
+
+    const config = {
+      vcs: {
+        enabled: true,
+        commitDebounceMs: 5000,
+        maxBatchSize: 1000,
+        author: { name: 'root-bot', email: 'root@bot.local' },
+      },
+      watch: {
+        paths: ['/repo/**'],
+        ignored: [],
+      },
+    } as unknown as JeevesWatcherConfig;
+
+    await initVcs(config, logger);
+
+    expect(mockConfigure).toHaveBeenCalledWith(
+      '/repo',
+      'root-bot',
+      'root@bot.local',
+    );
+  });
+
+  it('per-path author overrides root-level author', async () => {
+    const { configureRepoIdentity: mockConfigure } = await import('../vcs');
+    vi.mocked(mockConfigure).mockClear();
+    const logger = pino({ level: 'silent' });
+
+    const config = {
+      vcs: {
+        enabled: true,
+        commitDebounceMs: 5000,
+        maxBatchSize: 1000,
+        author: { name: 'root-bot', email: 'root@bot.local' },
+      },
+      watch: {
+        paths: [
+          {
+            path: '/override/**',
+            vcs: { author: { name: 'path-bot', email: 'path@bot.local' } },
+          },
+        ],
+        ignored: [],
+      },
+    } as unknown as JeevesWatcherConfig;
+
+    await initVcs(config, logger);
+
+    expect(mockConfigure).toHaveBeenCalledWith(
+      '/override',
+      'path-bot',
+      'path@bot.local',
     );
   });
 });

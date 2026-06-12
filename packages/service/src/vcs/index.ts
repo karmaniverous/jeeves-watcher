@@ -26,6 +26,7 @@ export { validateStateDirOverlap } from './validateStateDirOverlap.js';
 export {
   ALWAYS_GITIGNORE_ENTRIES,
   checkGitAvailable,
+  configureRepoIdentity,
   ensureGitignore,
   initRepo,
 } from './vcsBootstrap.js';

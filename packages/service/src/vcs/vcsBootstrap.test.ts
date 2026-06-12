@@ -9,7 +9,13 @@ import { join } from 'node:path';
 
 import { beforeEach, describe, expect, it } from 'vitest';
 
-import { checkGitAvailable, ensureGitignore, initRepo } from './vcsBootstrap';
+import { execFileAsync } from './gitExec';
+import {
+  checkGitAvailable,
+  configureRepoIdentity,
+  ensureGitignore,
+  initRepo,
+} from './vcsBootstrap';
 
 // ─── checkGitAvailable ───
 
@@ -38,6 +44,54 @@ describe('initRepo', () => {
     await initRepo(tempDir);
     await initRepo(tempDir);
     await expect(access(join(tempDir, '.git'))).resolves.toBeUndefined();
+  });
+});
+
+// ─── configureRepoIdentity ───
+
+describe('configureRepoIdentity', () => {
+  let tempDir: string;
+
+  beforeEach(async () => {
+    tempDir = await mkdtemp(join(tmpdir(), 'vcs-identity-'));
+    await initRepo(tempDir);
+  });
+
+  it('sets local git user.name and user.email', async () => {
+    await configureRepoIdentity(tempDir, 'test-bot', 'bot@test.local');
+
+    const { stdout: name } = await execFileAsync(
+      'git',
+      ['config', '--local', 'user.name'],
+      { cwd: tempDir },
+    );
+    const { stdout: email } = await execFileAsync(
+      'git',
+      ['config', '--local', 'user.email'],
+      { cwd: tempDir },
+    );
+
+    expect(name.trim()).toBe('test-bot');
+    expect(email.trim()).toBe('bot@test.local');
+  });
+
+  it('overwrites existing local identity', async () => {
+    await configureRepoIdentity(tempDir, 'first', 'first@test.local');
+    await configureRepoIdentity(tempDir, 'second', 'second@test.local');
+
+    const { stdout: name } = await execFileAsync(
+      'git',
+      ['config', '--local', 'user.name'],
+      { cwd: tempDir },
+    );
+    const { stdout: email } = await execFileAsync(
+      'git',
+      ['config', '--local', 'user.email'],
+      { cwd: tempDir },
+    );
+
+    expect(name.trim()).toBe('second');
+    expect(email.trim()).toBe('second@test.local');
   });
 });
 

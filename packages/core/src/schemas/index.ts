@@ -45,6 +45,8 @@ export {
   extractWatchPathStrings,
   type NormalizedWatchPath,
   normalizeWatchPaths,
+  type VcsAuthorConfig,
+  vcsAuthorConfigSchema,
   type VcsCommitMessageConfig,
   vcsCommitMessageConfigSchema,
   type VcsConfig,

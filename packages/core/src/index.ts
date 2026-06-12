@@ -41,6 +41,8 @@ export {
   type RenderBodySection,
   type RenderConfig,
   type SchemaEntry,
+  type VcsAuthorConfig,
+  vcsAuthorConfigSchema,
   type VcsCommitMessageConfig,
   vcsCommitMessageConfigSchema,
   type VcsConfig,
