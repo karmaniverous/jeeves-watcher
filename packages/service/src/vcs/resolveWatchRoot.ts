@@ -6,7 +6,7 @@
 import { relative, resolve } from 'node:path';
 
 import { normalizeSlashes } from '../util/normalizeSlashes';
-import { findRootForPath } from './gitExec';
+import { findRootForPath, normalizePathCase } from './gitExec';
 import type { VcsCoordinator } from './VcsCoordinator';
 
 /** Result of resolving a path to its watch root. */
@@ -53,14 +53,19 @@ export function resolveWatchRootsForGlob(
   const roots = coordinator.getRoots();
   const results: ResolvedWatchRoot[] = [];
 
+  const compareGlob = normalizePathCase(normalizedGlob);
   for (const root of roots) {
-    if (normalizedGlob.startsWith(root + '/') || normalizedGlob === root) {
+    const compareRoot = normalizePathCase(root);
+    if (
+      compareGlob.startsWith(compareRoot + '/') ||
+      compareGlob === compareRoot
+    ) {
       // Glob is under this root
       results.push({
         root,
         relativePath: normalizeSlashes(relative(root, normalizedGlob)),
       });
-    } else if (root.startsWith(normalizedGlob.replace(/[*?[\]{}]/g, ''))) {
+    } else if (compareRoot.startsWith(compareGlob.replace(/[*?[\]{}]/g, ''))) {
       // Root is under the glob's base path — include with root-relative glob
       results.push({
         root,

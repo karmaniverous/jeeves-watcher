@@ -16,7 +16,7 @@ import type { JeevesWatcherConfig } from '../config/types';
 import { normalizeSlashes } from '../util/normalizeSlashes';
 import { globRoot } from '../watcher/globToDir.js';
 import { CommitMessageGenerator } from './CommitMessageGenerator';
-import { findRootForPath } from './gitExec';
+import { findRootForPath, normalizePathCase } from './gitExec';
 import { resolveCommitMessageApiKey } from './resolveCommitMessageApiKey';
 import { VcsManager } from './VcsManager';
 
@@ -39,9 +39,10 @@ export class VcsCoordinator {
       if (!rootVcs) continue;
 
       const resolvedRoot = normalizeSlashes(resolve(globRoot(entry.path)));
+      const rootKey = normalizePathCase(resolvedRoot);
 
       // Deduplicate: skip if another glob already resolved to this root.
-      if (this.managers.has(resolvedRoot)) continue;
+      if (this.managers.has(rootKey)) continue;
       const mergedConfig: VcsConfig = {
         ...config.vcs,
         ...entry.vcs,
@@ -82,7 +83,7 @@ export class VcsCoordinator {
         remoteUrl,
         accessToken,
       );
-      this.managers.set(resolvedRoot, manager);
+      this.managers.set(rootKey, manager);
       this.roots.push(resolvedRoot);
     }
 
@@ -93,10 +94,12 @@ export class VcsCoordinator {
   /**
    * Start all VcsManager instances.
    */
-  start(): void {
+  async start(): Promise<void> {
+    const startPromises: Promise<void>[] = [];
     this.managers.forEach((manager) => {
-      manager.start();
+      startPromises.push(manager.start());
     });
+    await Promise.all(startPromises);
     this.logger.info(
       { rootCount: this.managers.size },
       'VcsCoordinator started',
@@ -144,7 +147,7 @@ export class VcsCoordinator {
    * Get the VcsManager for a specific root path.
    */
   getManager(root: string): VcsManager | undefined {
-    return this.managers.get(root);
+    return this.managers.get(normalizePathCase(root));
   }
 
   /**
@@ -163,6 +166,6 @@ export class VcsCoordinator {
    */
   findManagerForPath(normalizedPath: string): VcsManager | undefined {
     const root = findRootForPath(this.roots, normalizedPath);
-    return root ? this.managers.get(root) : undefined;
+    return root ? this.managers.get(normalizePathCase(root)) : undefined;
   }
 }
