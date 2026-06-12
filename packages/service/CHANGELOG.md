@@ -4,10 +4,27 @@ All notable changes to this project will be documented in this file.
 
 ## [unreleased]
 
+### 🚀 Features
+
+- Declarative VCS git identity config (#209)
+
+### 🐛 Bug Fixes
+
+- Address Copilot review comments on PR #210
+
+### 💼 Other
+
+- Updated core
+## [0.18.4] - 2026-06-12
+
 ### 🐛 Bug Fixes
 
 - Case-insensitive VCS path matching on Windows + baseline commit for pre-existing files
 - Address Copilot review - baseline skips AI, isBaseline persists across batches, null-byte ls-files, injectable platform
+
+### ⚙️ Miscellaneous Tasks
+
+- Release @karmaniverous/jeeves-watcher v0.18.4
 ## [0.18.3] - 2026-06-11
 
 ### 🐛 Bug Fixes
