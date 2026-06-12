@@ -10,6 +10,17 @@ import { promisify } from 'node:util';
 export const execFileAsync = promisify(execFile);
 
 /**
+ * Normalize a path for case-insensitive comparison on Windows.
+ * On Windows, lowercases the entire path; on other platforms, returns as-is.
+ *
+ * @param p - The path string to normalize.
+ * @returns The normalized path.
+ */
+export function normalizePathCase(p: string): string {
+  return process.platform === 'win32' ? p.toLowerCase() : p;
+}
+
+/**
  * Find the longest-prefix-match root for a normalized path.
  * Roots must be sorted longest-first for correct nested matching.
  *
@@ -21,8 +32,13 @@ export function findRootForPath(
   roots: readonly string[],
   normalizedPath: string,
 ): string | undefined {
+  const comparePath = normalizePathCase(normalizedPath);
   for (const root of roots) {
-    if (normalizedPath === root || normalizedPath.startsWith(root + '/')) {
+    const compareRoot = normalizePathCase(root);
+    if (
+      comparePath === compareRoot ||
+      comparePath.startsWith(compareRoot + '/')
+    ) {
       return root;
     }
   }

@@ -77,7 +77,7 @@ describe('VcsCoordinator', () => {
   it('routes file changes to the correct root manager', async () => {
     const config = makeConfig([rootA, rootB]);
     const coordinator = new VcsCoordinator(config, silentLogger);
-    coordinator.start();
+    await coordinator.start();
 
     // Write files to both roots
     const fileA = join(resolve(rootA), 'a.txt');
@@ -105,7 +105,7 @@ describe('VcsCoordinator', () => {
   it('ignores files that do not match any root', async () => {
     const config = makeConfig([rootA]);
     const coordinator = new VcsCoordinator(config, silentLogger);
-    coordinator.start();
+    await coordinator.start();
 
     // A file outside all roots — should be silently ignored
     coordinator.onFileChange('/nonexistent/path/file.txt', 'add');
@@ -123,7 +123,7 @@ describe('VcsCoordinator', () => {
     } as unknown as JeevesWatcherConfig;
 
     const coordinator = new VcsCoordinator(config, silentLogger);
-    coordinator.start();
+    await coordinator.start();
 
     const fileA = join(resolve(rootA), 'a.txt');
     await writeFile(fileA, 'content', 'utf8');
@@ -138,7 +138,7 @@ describe('VcsCoordinator', () => {
   it('handles unlink events by staging deletions', async () => {
     const config = makeConfig([rootA]);
     const coordinator = new VcsCoordinator(config, silentLogger);
-    coordinator.start();
+    await coordinator.start();
 
     // Create and commit a file first
     const filePath = join(resolve(rootA), 'to-remove.txt');
@@ -175,7 +175,7 @@ describe('VcsCoordinator', () => {
   it('stop flushes all pending changes', async () => {
     const config = makeConfig([rootA, rootB]);
     const coordinator = new VcsCoordinator(config, silentLogger);
-    coordinator.start();
+    await coordinator.start();
 
     // Add files to both roots without flushing
     const fileA = join(resolve(rootA), 'pending-a.txt');

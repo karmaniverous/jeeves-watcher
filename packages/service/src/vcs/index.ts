@@ -4,7 +4,12 @@
  */
 
 export { CommitMessageGenerator } from './CommitMessageGenerator.js';
-export { execFileAsync, findRootForPath, isIndexLockError } from './gitExec.js';
+export {
+  execFileAsync,
+  findRootForPath,
+  isIndexLockError,
+  normalizePathCase,
+} from './gitExec.js';
 export { resolveCommitMessageApiKey } from './resolveCommitMessageApiKey.js';
 export {
   type ResolvedWatchRoot,

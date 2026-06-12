@@ -29,6 +29,28 @@ describe('findRootForPath', () => {
   it('handles empty roots array', () => {
     expect(findRootForPath([], '/a/b/c')).toBeUndefined();
   });
+
+  it('matches case-insensitively on Windows (drive letter mismatch)', () => {
+    if (process.platform !== 'win32') return;
+    const roots = ['j:/domains/projects'];
+    expect(findRootForPath(roots, 'J:/domains/projects/file.txt')).toBe(
+      'j:/domains/projects',
+    );
+  });
+
+  it('matches case-insensitively on Windows (root uppercase, path lowercase)', () => {
+    if (process.platform !== 'win32') return;
+    const roots = ['J:/Domains/Projects'];
+    expect(findRootForPath(roots, 'j:/domains/projects/file.txt')).toBe(
+      'J:/Domains/Projects',
+    );
+  });
+
+  it('matches case-insensitively on Windows (exact path equals root)', () => {
+    if (process.platform !== 'win32') return;
+    const roots = ['j:/domains'];
+    expect(findRootForPath(roots, 'J:/domains')).toBe('j:/domains');
+  });
 });
 
 describe('isIndexLockError', () => {
