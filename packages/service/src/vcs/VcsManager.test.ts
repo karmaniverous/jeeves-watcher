@@ -70,7 +70,8 @@ describe('VcsManager instance', () => {
   describe('flush', () => {
     it('commits pending files to git', async () => {
       const manager = new VcsManager(tempDir, makeConfig(), silentLogger);
-      await manager.start();
+      manager.start();
+      manager.endBaseline();
 
       const filePath = join(tempDir, 'test.txt');
       await writeFile(filePath, 'hello', 'utf8');
@@ -97,7 +98,7 @@ describe('VcsManager instance', () => {
       });
 
       const manager = new VcsManager(tempDir, makeConfig(), silentLogger);
-      await manager.start();
+      manager.start();
 
       const { stdout: before } = await execFileAsync(
         'git',
@@ -116,7 +117,7 @@ describe('VcsManager instance', () => {
 
     it('handles multiple files in a single commit', async () => {
       const manager = new VcsManager(tempDir, makeConfig(), silentLogger);
-      await manager.start();
+      manager.start();
 
       for (let i = 0; i < 5; i++) {
         const filePath = join(tempDir, `file${String(i)}.txt`);
@@ -138,7 +139,8 @@ describe('VcsManager instance', () => {
   describe('handleUnlink', () => {
     it('stages file deletion in pending set', async () => {
       const manager = new VcsManager(tempDir, makeConfig(), silentLogger);
-      await manager.start();
+      manager.start();
+      manager.endBaseline();
 
       // Create and commit a file first
       const filePath = join(tempDir, 'to-delete.txt');
@@ -175,7 +177,7 @@ describe('VcsManager instance', () => {
 
       const config = makeConfig({ commitDebounceMs: 5000 });
       const manager = new VcsManager(tempDir, config, silentLogger);
-      await manager.start();
+      manager.start();
 
       // Mock flush to avoid real git operations with fake timers
       const flushSpy = vi.spyOn(manager, 'flush').mockResolvedValue(undefined);
@@ -209,7 +211,7 @@ describe('VcsManager instance', () => {
         commitDebounceMs: 60000,
       });
       const manager = new VcsManager(tempDir, config, silentLogger);
-      await manager.start();
+      manager.start();
 
       for (let i = 0; i < 3; i++) {
         const filePath = join(tempDir, `file${String(i)}.txt`);
@@ -235,7 +237,7 @@ describe('VcsManager instance', () => {
         commitDebounceMs: 1000,
       });
       const manager = new VcsManager(tempDir, config, silentLogger);
-      await manager.start();
+      manager.start();
 
       // Create 3 files — 2 should commit immediately, 1 starts new timer
       for (let i = 0; i < 3; i++) {
@@ -255,7 +257,8 @@ describe('VcsManager instance', () => {
   describe('stop', () => {
     it('flushes pending changes on stop', async () => {
       const manager = new VcsManager(tempDir, makeConfig(), silentLogger);
-      await manager.start();
+      manager.start();
+      manager.endBaseline();
 
       const filePath = join(tempDir, 'stop-test.txt');
       await writeFile(filePath, 'should be committed on stop', 'utf8');
@@ -273,7 +276,7 @@ describe('VcsManager instance', () => {
 
     it('ignores fileChanged calls after stop', async () => {
       const manager = new VcsManager(tempDir, makeConfig(), silentLogger);
-      await manager.start();
+      manager.start();
 
       const file1 = join(tempDir, 'before-stop.txt');
       await writeFile(file1, 'before', 'utf8');
@@ -305,7 +308,8 @@ describe('VcsManager instance', () => {
       const warnSpy = vi.spyOn(logger, 'warn');
 
       const manager = new VcsManager(tempDir, makeConfig(), logger);
-      await manager.start();
+      manager.start();
+      manager.endBaseline();
 
       // Create index.lock to simulate contention
       const lockPath = join(tempDir, '.git', 'index.lock');
@@ -339,7 +343,7 @@ describe('VcsManager instance', () => {
       const errorSpy = vi.spyOn(logger, 'error');
 
       const manager = new VcsManager(tempDir, makeConfig(), logger);
-      await manager.start();
+      manager.start();
 
       // Create index.lock and keep it there
       const lockPath = join(tempDir, '.git', 'index.lock');
@@ -363,7 +367,7 @@ describe('VcsManager instance', () => {
       const warnSpy = vi.spyOn(logger, 'warn');
 
       const manager = new VcsManager(tempDir, makeConfig(), logger);
-      await manager.start();
+      manager.start();
 
       // Create index.lock to force failure
       const lockPath = join(tempDir, '.git', 'index.lock');
@@ -398,7 +402,7 @@ describe('VcsManager instance', () => {
   describe('pendingReversions', () => {
     it('generates revert-prefixed commit message when reversion is pending', async () => {
       const manager = new VcsManager(tempDir, makeConfig(), silentLogger);
-      await manager.start();
+      manager.start();
 
       const filePath = join(tempDir, 'reverted.txt');
       await writeFile(filePath, 'original', 'utf8');
@@ -431,7 +435,7 @@ describe('VcsManager instance', () => {
 
     it('includes other changes count in revert message when mixed', async () => {
       const manager = new VcsManager(tempDir, makeConfig(), silentLogger);
-      await manager.start();
+      manager.start();
 
       // Create initial commit
       const file1 = join(tempDir, 'reverted.txt');
@@ -470,7 +474,7 @@ describe('VcsManager instance', () => {
 
     it('clears pending reversions after commit', async () => {
       const manager = new VcsManager(tempDir, makeConfig(), silentLogger);
-      await manager.start();
+      manager.start();
 
       const file1 = join(tempDir, 'first.txt');
       await writeFile(file1, 'content', 'utf8');
@@ -482,6 +486,9 @@ describe('VcsManager instance', () => {
       });
 
       await manager.flush();
+
+      // End baseline so second commit uses normal message
+      manager.endBaseline();
 
       // Second commit should use normal message
       const file2 = join(tempDir, 'second.txt');
@@ -516,7 +523,8 @@ describe('VcsManager instance', () => {
         silentLogger,
         generator,
       );
-      await manager.start();
+      manager.start();
+      manager.endBaseline();
 
       const filePath = join(tempDir, 'ai-test.txt');
       await writeFile(filePath, 'hello', 'utf8');
@@ -547,7 +555,8 @@ describe('VcsManager instance', () => {
         silentLogger,
         generator,
       );
-      await manager.start();
+      manager.start();
+      manager.endBaseline();
 
       const filePath = join(tempDir, 'fallback.txt');
       await writeFile(filePath, 'hello', 'utf8');
@@ -580,7 +589,8 @@ describe('VcsManager instance', () => {
         silentLogger,
         generator,
       );
-      await manager.start();
+      manager.start();
+      manager.endBaseline();
 
       const filePath = join(tempDir, 'error-fallback.txt');
       await writeFile(filePath, 'hello', 'utf8');
@@ -613,7 +623,8 @@ describe('VcsManager instance', () => {
         silentLogger,
         generator,
       );
-      await manager.start();
+      manager.start();
+      manager.endBaseline();
 
       const filePath = join(tempDir, 'reverted-ai.txt');
       await writeFile(filePath, 'original', 'utf8');
@@ -658,7 +669,7 @@ describe('VcsManager instance', () => {
         silentLogger,
         generator,
       );
-      await manager.start();
+      manager.start();
 
       const filePath = join(tempDir, 'revert-fallback.txt');
       await writeFile(filePath, 'original', 'utf8');
@@ -687,20 +698,16 @@ describe('VcsManager instance', () => {
     });
   });
 
-  describe('baseline commit', () => {
-    it('creates a baseline commit for pre-existing files in an empty repo', async () => {
-      // Do NOT make any initial commits — the repo should be empty
-      const filePath = join(tempDir, 'pre-existing.txt');
-      await writeFile(filePath, 'already here', 'utf8');
+  describe('endBaseline', () => {
+    it('uses baseline message before endBaseline is called', async () => {
+      const manager = new VcsManager(tempDir, makeConfig(), silentLogger);
+      manager.start();
+      // isBaseline starts true — no endBaseline call
 
-      const manager = new VcsManager(
-        tempDir,
-        makeConfig({ commitDebounceMs: 100 }),
-        silentLogger,
-      );
-      await manager.start();
+      const filePath = join(tempDir, 'baseline-file.txt');
+      await writeFile(filePath, 'initial content', 'utf8');
+      manager.fileChanged(filePath);
 
-      // Wait for debounce + commit
       await manager.flush();
 
       expect(await commitCount(tempDir)).toBe(1);
@@ -713,53 +720,20 @@ describe('VcsManager instance', () => {
       expect(stdout).toContain('1 files');
     });
 
-    it('does not create baseline when repo already has commits', async () => {
-      // initRepo already ran in beforeEach; create and commit a file
-      const filePath = join(tempDir, 'existing.txt');
-      await writeFile(filePath, 'content', 'utf8');
-      await execFileAsync('git', ['add', '.'], { cwd: tempDir });
-      await execFileAsync('git', ['commit', '-m', 'initial'], {
-        cwd: tempDir,
-      });
+    it('switches to normal messages after endBaseline is called', async () => {
+      const manager = new VcsManager(tempDir, makeConfig(), silentLogger);
+      manager.start();
 
-      // Create another file that is untracked
-      const filePath2 = join(tempDir, 'untracked.txt');
-      await writeFile(filePath2, 'untracked', 'utf8');
+      const filePath = join(tempDir, 'pre-scan.txt');
+      await writeFile(filePath, 'initial', 'utf8');
+      manager.fileChanged(filePath);
 
-      const manager = new VcsManager(
-        tempDir,
-        makeConfig({ commitDebounceMs: 100 }),
-        silentLogger,
-      );
-      await manager.start();
+      // Signal end of initial scan — clears baseline flag
+      manager.endBaseline();
 
-      // Flush should be a no-op — baseline should not have enqueued
       await manager.flush();
 
-      // Should still be at 1 commit (the initial one)
       expect(await commitCount(tempDir)).toBe(1);
-    });
-
-    it('uses normal commit messages after baseline is done', async () => {
-      // Start with pre-existing file, no commits
-      const filePath = join(tempDir, 'pre-existing.txt');
-      await writeFile(filePath, 'baseline content', 'utf8');
-
-      const manager = new VcsManager(
-        tempDir,
-        makeConfig({ commitDebounceMs: 100 }),
-        silentLogger,
-      );
-      await manager.start();
-      await manager.flush();
-
-      // Now add a second file — should use normal message
-      const filePath2 = join(tempDir, 'new-file.txt');
-      await writeFile(filePath2, 'new content', 'utf8');
-      manager.fileChanged(filePath2);
-      await manager.flush();
-
-      expect(await commitCount(tempDir)).toBe(2);
       const { stdout } = await execFileAsync(
         'git',
         ['log', '--oneline', '-1'],
@@ -769,21 +743,39 @@ describe('VcsManager instance', () => {
       expect(stdout).not.toContain('baseline');
     });
 
-    it('handles empty repo with no untracked files', async () => {
-      const manager = new VcsManager(
-        tempDir,
-        makeConfig({ commitDebounceMs: 100 }),
-        silentLogger,
-      );
-      // tempDir has .gitignore from initRepo but no other untracked files
-      // (actually initRepo just does git init, so it might be empty)
-      await manager.start();
+    it('uses normal message for second commit after endBaseline', async () => {
+      const manager = new VcsManager(tempDir, makeConfig(), silentLogger);
+      manager.start();
+
+      const filePath = join(tempDir, 'first.txt');
+      await writeFile(filePath, 'first', 'utf8');
+      manager.fileChanged(filePath);
       await manager.flush();
 
-      // Should have 0 or 1 commits depending on whether .gitignore exists
-      const count = await commitCount(tempDir);
-      // The initRepo creates .git but no .gitignore, so 0 untracked files
-      expect(count).toBeLessThanOrEqual(1);
+      // First commit used baseline message
+      const { stdout: first } = await execFileAsync(
+        'git',
+        ['log', '--oneline', '-1'],
+        { cwd: tempDir },
+      );
+      expect(first).toContain('baseline: batch');
+
+      // End baseline then add another file
+      manager.endBaseline();
+
+      const filePath2 = join(tempDir, 'second.txt');
+      await writeFile(filePath2, 'second', 'utf8');
+      manager.fileChanged(filePath2);
+      await manager.flush();
+
+      expect(await commitCount(tempDir)).toBe(2);
+      const { stdout: second } = await execFileAsync(
+        'git',
+        ['log', '--oneline', '-1'],
+        { cwd: tempDir },
+      );
+      expect(second).toContain('watcher: batch');
+      expect(second).not.toContain('baseline');
     });
   });
 
@@ -808,7 +800,7 @@ describe('VcsManager instance', () => {
         undefined,
         remoteUrl,
       );
-      await manager.start();
+      manager.start();
 
       const filePath = join(tempDir, 'push-test.txt');
       await writeFile(filePath, 'push content', 'utf8');
@@ -829,7 +821,7 @@ describe('VcsManager instance', () => {
 
     it('does nothing when no remote is configured', async () => {
       const manager = new VcsManager(tempDir, makeConfig(), silentLogger);
-      await manager.start();
+      manager.start();
 
       const filePath = join(tempDir, 'no-remote.txt');
       await writeFile(filePath, 'no remote', 'utf8');
@@ -852,7 +844,7 @@ describe('VcsManager instance', () => {
         undefined,
         'https://invalid.example.com/nonexistent/repo.git',
       );
-      await manager.start();
+      manager.start();
 
       const filePath = join(tempDir, 'push-fail.txt');
       await writeFile(filePath, 'will fail push', 'utf8');
@@ -878,7 +870,7 @@ describe('VcsManager instance', () => {
         'https://github.com/test/repo.git',
         'tok/en@special',
       );
-      await manager.start();
+      manager.start();
 
       const filePath = join(tempDir, 'encode-test.txt');
       await writeFile(filePath, 'content', 'utf8');
@@ -905,7 +897,7 @@ describe('VcsManager instance', () => {
         remoteUrl, // use plain path so push actually works
         'fake-token',
       );
-      await manager.start();
+      manager.start();
 
       const filePath = join(tempDir, 'token-push.txt');
       await writeFile(filePath, 'token push content', 'utf8');

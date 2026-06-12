@@ -183,13 +183,16 @@ export class JeevesWatcher {
       (filePath, event) => {
         vcsCoordinator.onFileChange(filePath, event);
       },
+      () => {
+        vcsCoordinator.onInitialScanComplete();
+      },
     );
     this.watcher = watcher;
     this.gitignoreFilter = gitignoreFilter;
 
     this.server = await this.startApiServer();
 
-    await vcsCoordinator.start();
+    vcsCoordinator.start();
     this.watcher.start();
     this.startConfigWatch();
 

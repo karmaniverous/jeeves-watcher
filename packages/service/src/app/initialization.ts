@@ -153,6 +153,7 @@ export function createWatcher(
     filePath: string,
     event: 'add' | 'change' | 'unlink',
   ) => void,
+  onInitialScanComplete?: () => void,
 ): { watcher: FileSystemWatcher; gitignoreFilter?: GitignoreFilter } {
   const respectGitignore = config.watch.respectGitignore ?? true;
   const gitignoreFilter = respectGitignore
@@ -172,6 +173,7 @@ export function createWatcher(
       initialScanTracker,
       contentHashCache,
       onVcsFileChange,
+      onInitialScanComplete,
     },
   );
 

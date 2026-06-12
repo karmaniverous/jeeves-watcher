@@ -49,7 +49,7 @@ export class VcsManager {
   private debounceTimer: ReturnType<typeof setTimeout> | undefined;
   private commitInFlight: Promise<void> = Promise.resolve();
   private started = false;
-  private isBaseline = false;
+  private isBaseline = true;
   private _lastPushTime: string | null = null;
 
   constructor(
@@ -90,59 +90,18 @@ export class VcsManager {
    * Begin accepting file changes. Sets up the debounce mechanism.
    * Enqueues a baseline commit for pre-existing files if the repo has no commits.
    */
-  async start(): Promise<void> {
+  start(): void {
     this.started = true;
     this.squashManager?.start();
     this.logger.info({ root: this.rootPath }, 'VcsManager started');
-
-    await this.enqueueBaselineIfNeeded();
   }
 
   /**
-   * If the repo has no commits, enumerate untracked files and feed them
-   * through fileChanged() to create a baseline commit.
+   * Signal that the initial filesystem scan is complete.
+   * Clears the baseline flag so subsequent commits use normal "watcher: batch" messages.
    */
-  private async enqueueBaselineIfNeeded(): Promise<void> {
-    try {
-      await execFileAsync('git', ['rev-parse', 'HEAD'], {
-        cwd: this.rootPath,
-      });
-      // HEAD exists — repo already has commits
-      return;
-    } catch {
-      // No commits yet — proceed with baseline
-    }
-
-    try {
-      const { stdout } = await execFileAsync(
-        'git',
-        ['ls-files', '--others', '--exclude-standard', '-z'],
-        { cwd: this.rootPath },
-      );
-
-      const files = stdout
-        .split('\0')
-        .map((line) => line.trim())
-        .filter((line) => line.length > 0);
-
-      if (files.length === 0) return;
-
-      this.logger.info(
-        { root: this.rootPath, fileCount: files.length },
-        'Enqueuing baseline commit for pre-existing files',
-      );
-
-      this.isBaseline = true;
-      const absolutePaths = files.map((f) => this.rootPath + '/' + f);
-      for (const filePath of absolutePaths) {
-        this.fileChanged(filePath);
-      }
-    } catch (error) {
-      this.logger.warn(
-        { root: this.rootPath, err: normalizeError(error) },
-        'Failed to enumerate untracked files for baseline commit',
-      );
-    }
+  endBaseline(): void {
+    this.isBaseline = false;
   }
 
   /**
@@ -364,11 +323,6 @@ export class VcsManager {
               ? this.buildTemplateMessage(files.length)
               : await this.buildCommitMessage(files);
           this.pendingReversions.length = 0;
-          // Only clear baseline flag when all baseline files have been committed
-          if (this.pending.size === 0) {
-            this.isBaseline = false;
-          }
-
           await execFileAsync('git', ['commit', '-m', message], {
             cwd: this.rootPath,
           });

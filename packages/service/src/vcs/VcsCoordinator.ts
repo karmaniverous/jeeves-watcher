@@ -94,12 +94,10 @@ export class VcsCoordinator {
   /**
    * Start all VcsManager instances.
    */
-  async start(): Promise<void> {
-    const startPromises: Promise<void>[] = [];
+  start(): void {
     this.managers.forEach((manager) => {
-      startPromises.push(manager.start());
+      manager.start();
     });
-    await Promise.all(startPromises);
     this.logger.info(
       { rootCount: this.managers.size },
       'VcsCoordinator started',
@@ -122,6 +120,17 @@ export class VcsCoordinator {
     } else {
       manager.fileChanged(normalizedPath);
     }
+  }
+
+  /**
+   * Signal that the initial filesystem scan is complete.
+   * Calls endBaseline() on all managers so subsequent commits use normal messages.
+   */
+  onInitialScanComplete(): void {
+    this.managers.forEach((manager) => {
+      manager.endBaseline();
+    });
+    this.logger.debug('VcsCoordinator: initial scan complete, baseline ended');
   }
 
   /**

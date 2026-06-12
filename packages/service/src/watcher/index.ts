@@ -40,6 +40,8 @@ export interface FileSystemWatcherOptions {
     filePath: string,
     event: 'add' | 'change' | 'unlink',
   ) => void;
+  /** Optional callback invoked when the initial filesystem scan completes. */
+  onInitialScanComplete?: () => void;
 }
 
 /**
@@ -58,6 +60,7 @@ export class FileSystemWatcher {
     filePath: string,
     event: 'add' | 'change' | 'unlink',
   ) => void;
+  private readonly onInitialScanComplete?: () => void;
   private moveCorrelator?: MoveCorrelator;
   private globMatches: (filePath: string) => boolean;
   private watcher: FSWatcher | undefined;
@@ -87,6 +90,7 @@ export class FileSystemWatcher {
     this.initialScanTracker = options.initialScanTracker;
     this.contentHashCache = options.contentHashCache;
     this.onVcsFileChange = options.onVcsFileChange;
+    this.onInitialScanComplete = options.onInitialScanComplete;
     this.globMatches = () => true;
 
     const healthOptions: SystemHealthOptions = {
@@ -212,7 +216,7 @@ export class FileSystemWatcher {
         this.initialScanTracker?.incrementEnqueued();
       }
       this.logger.debug({ path }, 'File added');
-      if (initialScanComplete) this.onVcsFileChange?.(path, 'add');
+      this.onVcsFileChange?.(path, 'add');
       if (correlator && initialScanComplete) {
         void correlator.handleAdd(path);
       } else {
@@ -255,6 +259,7 @@ export class FileSystemWatcher {
       initialScanComplete = true;
       this.initialScanTracker?.complete();
       this.logger.info({ scanStats }, 'Initial scan complete');
+      this.onInitialScanComplete?.();
     });
 
     this.watcher.on('error', (error: unknown) => {
