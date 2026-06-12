@@ -2,12 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
-## [unreleased]
+## [0.18.6] - 2026-06-12
 
 ### 🐛 Bug Fixes
 
 - Use stdin-based git add to avoid ENAMETOOLONG (#211)
 - *(vcs)* Handle EPIPE on gitAddViaStdin stdin writes
+
+### ⚙️ Miscellaneous Tasks
+
+- Release @karmaniverous/jeeves-watcher v0.18.6
 ## [0.18.5] - 2026-06-12
 
 ### 🚀 Features
