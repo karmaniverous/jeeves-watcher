@@ -79,11 +79,13 @@ export const vcsAuthorConfigSchema = z.object({
   /** Author name for git commits. */
   name: z
     .string()
+    .min(1)
     .default('jeeves-watcher')
     .describe('Author name for git commits. Default: "jeeves-watcher".'),
   /** Author email for git commits. */
   email: z
     .string()
+    .min(1)
     .default('watcher@localhost')
     .describe('Author email for git commits. Default: "watcher@localhost".'),
 });

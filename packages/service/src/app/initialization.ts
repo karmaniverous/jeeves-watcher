@@ -10,6 +10,7 @@ import { fileURLToPath } from 'node:url';
 import {
   extractWatchPathStrings,
   normalizeWatchPaths,
+  vcsAuthorConfigSchema,
 } from '@karmaniverous/jeeves-watcher-core';
 import type { JsonMapMap } from '@karmaniverous/jsonmap';
 import { packageDirectorySync } from 'package-directory';
@@ -338,17 +339,19 @@ export async function initVcs(
     await initRepo(root);
     await ensureGitignore(root);
 
-    // Resolve author identity: per-path → root-level → defaults.
+    // Resolve author identity: per-path → root-level → schema defaults.
+    const defaults = vcsAuthorConfigSchema.parse({});
     const pathAuthor = entry.vcs?.author;
     const rootAuthor = config.vcs.author;
-    const authorName = pathAuthor?.name ?? rootAuthor?.name ?? 'jeeves-watcher';
+    const authorName = pathAuthor?.name ?? rootAuthor?.name ?? defaults.name;
     const authorEmail =
-      pathAuthor?.email ?? rootAuthor?.email ?? 'watcher@localhost';
+      pathAuthor?.email ?? rootAuthor?.email ?? defaults.email;
     await configureRepoIdentity(root, authorName, authorEmail);
 
-    logger.info(
+    logger.info({ root }, 'VCS initialized for watch root');
+    logger.debug(
       { root, authorName, authorEmail },
-      'VCS initialized for watch root',
+      'VCS author identity configured',
     );
   }
 

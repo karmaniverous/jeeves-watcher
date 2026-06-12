@@ -59,10 +59,10 @@ export async function configureRepoIdentity(
   name: string,
   email: string,
 ): Promise<void> {
-  await execFileAsync('git', ['config', 'user.name', name], {
+  await execFileAsync('git', ['config', '--local', 'user.name', name], {
     cwd: rootPath,
   });
-  await execFileAsync('git', ['config', 'user.email', email], {
+  await execFileAsync('git', ['config', '--local', 'user.email', email], {
     cwd: rootPath,
   });
 }
