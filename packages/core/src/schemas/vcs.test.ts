@@ -8,8 +8,10 @@ import { describe, expect, it } from 'vitest';
 import {
   extractWatchPathStrings,
   normalizeWatchPaths,
+  vcsAuthorConfigSchema,
   vcsConfigSchema,
   watchPathEntrySchema,
+  watchPathVcsConfigSchema,
 } from './vcs';
 
 describe('vcsConfigSchema', () => {
@@ -76,6 +78,71 @@ describe('vcsConfigSchema', () => {
   it('all fields are optional at top level', () => {
     const result = vcsConfigSchema.safeParse({});
     expect(result.success).toBe(true);
+  });
+});
+
+describe('vcsAuthorConfigSchema', () => {
+  it('applies default name and email', () => {
+    const result = vcsAuthorConfigSchema.parse({});
+    expect(result.name).toBe('jeeves-watcher');
+    expect(result.email).toBe('watcher@localhost');
+  });
+
+  it('accepts custom name and email', () => {
+    const result = vcsAuthorConfigSchema.parse({
+      name: 'my-bot',
+      email: 'bot@example.com',
+    });
+    expect(result.name).toBe('my-bot');
+    expect(result.email).toBe('bot@example.com');
+  });
+
+  it('allows partial override — name only', () => {
+    const result = vcsAuthorConfigSchema.parse({ name: 'custom-name' });
+    expect(result.name).toBe('custom-name');
+    expect(result.email).toBe('watcher@localhost');
+  });
+
+  it('allows partial override — email only', () => {
+    const result = vcsAuthorConfigSchema.parse({ email: 'custom@example.com' });
+    expect(result.name).toBe('jeeves-watcher');
+    expect(result.email).toBe('custom@example.com');
+  });
+});
+
+describe('vcsConfigSchema author field', () => {
+  it('author is optional and undefined by default', () => {
+    const result = vcsConfigSchema.parse({});
+    expect(result.author).toBeUndefined();
+  });
+
+  it('applies author defaults when empty object provided', () => {
+    const result = vcsConfigSchema.parse({ author: {} });
+    expect(result.author!.name).toBe('jeeves-watcher');
+    expect(result.author!.email).toBe('watcher@localhost');
+  });
+
+  it('accepts custom author', () => {
+    const result = vcsConfigSchema.parse({
+      author: { name: 'deploy-bot', email: 'deploy@ci.local' },
+    });
+    expect(result.author!.name).toBe('deploy-bot');
+    expect(result.author!.email).toBe('deploy@ci.local');
+  });
+});
+
+describe('watchPathVcsConfigSchema author field', () => {
+  it('inherits author from vcsConfigSchema extension', () => {
+    const result = watchPathVcsConfigSchema.parse({
+      author: { name: 'path-bot', email: 'path@local' },
+    });
+    expect(result.author!.name).toBe('path-bot');
+    expect(result.author!.email).toBe('path@local');
+  });
+
+  it('author is optional in per-path config', () => {
+    const result = watchPathVcsConfigSchema.parse({});
+    expect(result.author).toBeUndefined();
   });
 });
 

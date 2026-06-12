@@ -73,6 +73,25 @@ export const vcsRetentionConfigSchema = z.object({
 export type VcsRetentionConfig = z.infer<typeof vcsRetentionConfigSchema>;
 
 /**
+ * Git commit author identity configuration.
+ */
+export const vcsAuthorConfigSchema = z.object({
+  /** Author name for git commits. */
+  name: z
+    .string()
+    .default('jeeves-watcher')
+    .describe('Author name for git commits. Default: "jeeves-watcher".'),
+  /** Author email for git commits. */
+  email: z
+    .string()
+    .default('watcher@localhost')
+    .describe('Author email for git commits. Default: "watcher@localhost".'),
+});
+
+/** Git commit author identity configuration. */
+export type VcsAuthorConfig = z.infer<typeof vcsAuthorConfigSchema>;
+
+/**
  * Root-level VCS configuration.
  */
 export const vcsConfigSchema = z.object({
@@ -82,6 +101,12 @@ export const vcsConfigSchema = z.object({
     .default(false)
     .describe(
       'Enable git-backed version control of watched content. Default: false.',
+    ),
+  /** Git commit author identity. Set per-repo during init. */
+  author: vcsAuthorConfigSchema
+    .optional()
+    .describe(
+      'Git commit author identity. Set per-repo during init. Defaults: name="jeeves-watcher", email="watcher@localhost".',
     ),
   /** Debounce interval in milliseconds for batching commits. */
   commitDebounceMs: z

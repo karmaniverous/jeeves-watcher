@@ -27,6 +27,7 @@ import { buildTemplateEngine, type TemplateEngine } from '../templates';
 import { normalizeError } from '../util/normalizeError';
 import {
   checkGitAvailable,
+  configureRepoIdentity,
   ensureGitignore,
   initRepo,
   validateStateDirOverlap,
@@ -336,7 +337,19 @@ export async function initVcs(
 
     await initRepo(root);
     await ensureGitignore(root);
-    logger.info({ root }, 'VCS initialized for watch root');
+
+    // Resolve author identity: per-path → root-level → defaults.
+    const pathAuthor = entry.vcs?.author;
+    const rootAuthor = config.vcs.author;
+    const authorName = pathAuthor?.name ?? rootAuthor?.name ?? 'jeeves-watcher';
+    const authorEmail =
+      pathAuthor?.email ?? rootAuthor?.email ?? 'watcher@localhost';
+    await configureRepoIdentity(root, authorName, authorEmail);
+
+    logger.info(
+      { root, authorName, authorEmail },
+      'VCS initialized for watch root',
+    );
   }
 
   return true;

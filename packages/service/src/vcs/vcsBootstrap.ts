@@ -47,6 +47,27 @@ export async function initRepo(rootPath: string): Promise<void> {
 }
 
 /**
+ * Configure local git identity for a repository.
+ * Sets repo-level (not global) user.name and user.email.
+ *
+ * @param rootPath - Directory of the git repository.
+ * @param name - Author name for commits.
+ * @param email - Author email for commits.
+ */
+export async function configureRepoIdentity(
+  rootPath: string,
+  name: string,
+  email: string,
+): Promise<void> {
+  await execFileAsync('git', ['config', 'user.name', name], {
+    cwd: rootPath,
+  });
+  await execFileAsync('git', ['config', 'user.email', email], {
+    cwd: rootPath,
+  });
+}
+
+/**
  * Ensure a .gitignore file exists at rootPath with all always-on entries.
  * Creates the file if missing. Appends only entries not already present.
  *
