@@ -6,11 +6,20 @@ All notable changes to this project will be documented in this file.
 
 ### 🚀 Features
 
+- *(core)* Add staleLockThresholdMs and maxConsecutiveFailures to vcsConfigSchema
+## [0.2.2] - 2026-06-12
+
+### 🚀 Features
+
 - Declarative VCS git identity config (#209)
 
 ### 🐛 Bug Fixes
 
 - Address Copilot review comments on PR #210
+
+### ⚙️ Miscellaneous Tasks
+
+- Release @karmaniverous/jeeves-watcher-core v0.2.2
 ## [0.2.1] - 2026-06-11
 
 ### 💼 Other
