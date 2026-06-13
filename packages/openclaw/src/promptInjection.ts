@@ -1,4 +1,5 @@
 import { fetchJson } from '@karmaniverous/jeeves';
+import { getEndpoint } from '@karmaniverous/jeeves-watcher-core';
 
 import { MENU_FETCH_TIMEOUT_MS } from './constants.js';
 
@@ -37,14 +38,16 @@ export async function generateWatcherMenu(apiUrl: string): Promise<string> {
   const fetchOpts = { signal: AbortSignal.timeout(MENU_FETCH_TIMEOUT_MS) };
 
   const [statusRes, thresholdsRes, vcsRes] = (await Promise.all([
-    fetchJson(`${apiUrl}/status`, fetchOpts),
+    fetchJson(`${apiUrl}${getEndpoint('status').path}`, fetchOpts),
     fetchJson(
-      `${apiUrl}/config?path=${encodeURIComponent('$.search.scoreThresholds')}`,
+      `${apiUrl}${getEndpoint('config').path}?path=${encodeURIComponent('$.search.scoreThresholds')}`,
       fetchOpts,
     ),
-    fetchJson(`${apiUrl}/vcs/status`, fetchOpts).catch(() => ({
-      enabled: false,
-    })),
+    fetchJson(`${apiUrl}${getEndpoint('vcsStatus').path}`, fetchOpts).catch(
+      () => ({
+        enabled: false,
+      }),
+    ),
   ])) as [
     StatusResponse,
     QueryResponse<Record<string, unknown>>,

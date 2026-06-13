@@ -10,7 +10,10 @@ import {
   createStatusHandler as coreCreateStatusHandler,
   type JeevesComponentDescriptor,
 } from '@karmaniverous/jeeves';
-import { extractWatchPathStrings } from '@karmaniverous/jeeves-watcher-core';
+import {
+  extractWatchPathStrings,
+  getEndpoint,
+} from '@karmaniverous/jeeves-watcher-core';
 import Fastify, { type FastifyInstance } from 'fastify';
 import type pino from 'pino';
 
@@ -199,7 +202,7 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
   });
 
   app.get(
-    '/status',
+    getEndpoint('status').path,
     withCache(cacheTtlMs, async () => {
       const result = await coreStatusHandler();
       return result.body;
@@ -207,7 +210,7 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
   );
 
   app.post(
-    '/metadata',
+    getEndpoint('metadata').path,
     createMetadataHandler({
       processor,
       getConfig,
@@ -217,7 +220,7 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
   );
 
   app.post(
-    '/render',
+    getEndpoint('render').path,
     withCache(
       cacheTtlMs,
       createRenderHandler({
@@ -229,7 +232,7 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
   );
 
   app.get(
-    '/search/facets',
+    getEndpoint('searchFacets').path,
     createFacetsHandler({
       getConfig,
       valuesManager,
@@ -238,7 +241,7 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
   );
 
   app.post(
-    '/scan',
+    getEndpoint('scan').path,
     createScanHandler({
       vectorStore,
       logger,
@@ -246,7 +249,7 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
   );
 
   app.post(
-    '/walk',
+    getEndpoint('walk').path,
     createWalkHandler({
       getWatchPaths: () => extractWatchPathStrings(getConfig().watch.paths),
       getFileSystemWatcher,
@@ -255,7 +258,7 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
   );
 
   app.post(
-    '/search',
+    getEndpoint('search').path,
     createSearchHandler({
       embeddingProvider,
       vectorStore,
@@ -270,7 +273,7 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
   );
 
   app.post(
-    '/rebuild-metadata',
+    getEndpoint('rebuildMetadata').path,
     createRebuildMetadataHandler({
       enrichmentStore: options.enrichmentStore,
       vectorStore,
@@ -279,7 +282,7 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
   );
 
   app.post(
-    '/reindex',
+    getEndpoint('reindex').path,
     createConfigReindexHandler({
       getConfig,
       processor,
@@ -294,16 +297,22 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
   );
 
   app.get(
-    '/issues',
+    getEndpoint('issues').path,
     withCache(cacheTtlMs, createIssuesHandler({ issuesManager })),
   );
 
-  app.get('/config/schema', withCache(cacheTtlMs, createConfigSchemaHandler()));
+  app.get(
+    getEndpoint('configSchema').path,
+    withCache(cacheTtlMs, createConfigSchemaHandler()),
+  );
 
-  app.post('/config/match', createConfigMatchHandler({ getConfig, logger }));
+  app.post(
+    getEndpoint('configMatch').path,
+    createConfigMatchHandler({ getConfig, logger }),
+  );
 
   app.get(
-    '/config',
+    getEndpoint('config').path,
     withCache(
       cacheTtlMs,
       createConfigQueryHandler({
@@ -320,7 +329,7 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
   );
 
   app.post(
-    '/config/validate',
+    getEndpoint('configValidate').path,
     createConfigValidateHandler({
       getConfig,
       logger,
@@ -338,7 +347,7 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
     },
   });
 
-  app.post('/config/apply', async (request, reply) => {
+  app.post(getEndpoint('configApply').path, async (request, reply) => {
     const { patch, replace } = request.body as {
       patch: Record<string, unknown>;
       replace?: boolean;
@@ -363,7 +372,7 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
     });
 
     app.post(
-      '/rules/register',
+      getEndpoint('rulesRegister').path,
       createRulesRegisterHandler({
         virtualRuleStore,
         logger,
@@ -372,7 +381,7 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
     );
 
     app.delete(
-      '/rules/unregister',
+      getEndpoint('rulesUnregister').path,
       createRulesUnregisterHandler({
         virtualRuleStore,
         logger,
@@ -381,7 +390,7 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
     );
 
     app.delete(
-      '/rules/unregister/:source',
+      getEndpoint('rulesUnregisterBySource').path,
       createRulesUnregisterParamHandler({
         virtualRuleStore,
         logger,
@@ -390,12 +399,12 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
     );
 
     app.post(
-      '/points/delete',
+      getEndpoint('pointsDelete').path,
       createPointsDeleteHandler({ vectorStore, logger }),
     );
 
     app.post(
-      '/rules/reapply',
+      getEndpoint('rulesReapply').path,
       createRulesReapplyHandler({ processor, vectorStore, logger }),
     );
   }
@@ -404,22 +413,40 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
   if (options.vcsCoordinator) {
     const coordinator = options.vcsCoordinator;
 
-    app.get('/vcs/status', createVcsStatusHandler({ coordinator, logger }));
-
-    app.get('/vcs/history', createVcsHistoryHandler({ coordinator, logger }));
-
-    app.get('/vcs/show', createVcsShowHandler({ coordinator, logger }));
-
-    app.get('/vcs/diff', createVcsDiffHandler({ coordinator, logger }));
+    app.get(
+      getEndpoint('vcsStatus').path,
+      createVcsStatusHandler({ coordinator, logger }),
+    );
 
     app.get(
-      '/vcs/check-exclusion',
+      getEndpoint('vcsHistory').path,
+      createVcsHistoryHandler({ coordinator, logger }),
+    );
+
+    app.get(
+      getEndpoint('vcsShow').path,
+      createVcsShowHandler({ coordinator, logger }),
+    );
+
+    app.get(
+      getEndpoint('vcsDiff').path,
+      createVcsDiffHandler({ coordinator, logger }),
+    );
+
+    app.get(
+      getEndpoint('vcsCheckExclusion').path,
       createVcsCheckExclusionHandler({ coordinator, logger }),
     );
 
-    app.post('/vcs/revert', createVcsRevertHandler({ coordinator, logger }));
+    app.post(
+      getEndpoint('vcsRevert').path,
+      createVcsRevertHandler({ coordinator, logger }),
+    );
 
-    app.post('/vcs/exclude', createVcsExcludeHandler({ coordinator, logger }));
+    app.post(
+      getEndpoint('vcsExclude').path,
+      createVcsExcludeHandler({ coordinator, logger }),
+    );
   }
 
   return app;
