@@ -43,7 +43,7 @@ export const WATCH_DEFAULTS = {
 /** Default VCS configuration. */
 export const VCS_DEFAULTS = {
   enabled: false,
-  commitDebounceMs: 30000,
+  commitThrottleMs: 30000,
   maxBatchSize: 1000,
   commitMessage: {
     enabled: true,

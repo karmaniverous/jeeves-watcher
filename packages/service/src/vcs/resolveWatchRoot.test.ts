@@ -33,7 +33,7 @@ describe('resolveWatchRoot', () => {
 
   function makeCoordinator(roots: string[]): VcsCoordinator {
     const config = {
-      vcs: { enabled: true, commitDebounceMs: 5000, maxBatchSize: 1000 },
+      vcs: { enabled: true, commitThrottleMs: 5000, maxBatchSize: 1000 },
       watch: { paths: roots, ignored: [] },
     } as unknown as JeevesWatcherConfig;
     return new VcsCoordinator(config, silentLogger);
@@ -91,7 +91,7 @@ describe('resolveWatchRootsForGlob', () => {
 
   function makeCoordinator(roots: string[]): VcsCoordinator {
     const config = {
-      vcs: { enabled: true, commitDebounceMs: 5000, maxBatchSize: 1000 },
+      vcs: { enabled: true, commitThrottleMs: 5000, maxBatchSize: 1000 },
       watch: { paths: roots, ignored: [] },
     } as unknown as JeevesWatcherConfig;
     return new VcsCoordinator(config, silentLogger);
