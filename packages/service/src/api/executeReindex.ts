@@ -144,7 +144,7 @@ function groupByRoot(
 const PRUNE_SCROLL_PAGE_SIZE = 500;
 
 /** Max retry attempts for scroll page failures. */
-const SCROLL_RETRY_ATTEMPTS = 3;
+const SCROLL_RETRY_ATTEMPTS = 5;
 
 /** Base delay for scroll retry backoff (ms). */
 const SCROLL_RETRY_BASE_DELAY_MS = 1000;
@@ -211,8 +211,8 @@ async function computePrunePlan(
   let cursor: string | number | undefined;
 
   try {
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- cursor is updated each iteration
-    while (true) {
+    let hasMore = true;
+    while (hasMore) {
       const page = await scrollPageWithRetry(vectorStore, cursor, logger);
 
       for (const point of page.points) {
@@ -247,8 +247,19 @@ async function computePrunePlan(
         }
       }
 
-      if (!page.nextCursor) break;
-      cursor = page.nextCursor;
+      // Progress logging every 100K points
+      if (totalPoints % 100000 === 0) {
+        logger.info(
+          { totalPoints, orphanedCount: orphanedIds.length },
+          'Prune scroll progress',
+        );
+      }
+
+      if (!page.nextCursor) {
+        hasMore = false;
+      } else {
+        cursor = page.nextCursor;
+      }
     }
   } catch (error) {
     // All retries exhausted - return partial results
@@ -340,6 +351,16 @@ export async function executeReindex(
     if (dryRun) {
       deps.queue?.resume();
       return { filesProcessed: 0, durationMs: 0, errors: 0, plan };
+    }
+
+    // Abort live prune when plan is incomplete — never silently delete partial data
+    if (plan.incomplete) {
+      deps.queue?.resume();
+      logger.error(
+        { totalPoints: plan.total, orphanedIds: plan.toDelete },
+        'Aborting live prune — scroll was incomplete; partial deletes are unsafe',
+      );
+      return { filesProcessed: 0, durationMs: 0, errors: 1, plan };
     }
 
     // Execute prune
