@@ -6,7 +6,28 @@ All notable changes to this project will be documented in this file.
 
 ### 🚀 Features
 
+- Add shared endpoint catalog in core package (#196)
+
+### 🐛 Bug Fixes
+
+- Replace VCS commit debounce with throttle (#221)
+
+### 💼 Other
+
+- Fix
+
+### 🧪 Testing
+
+- Add endpoint catalog unit tests
+## [0.2.3] - 2026-06-13
+
+### 🚀 Features
+
 - *(core)* Add staleLockThresholdMs and maxConsecutiveFailures to vcsConfigSchema
+
+### ⚙️ Miscellaneous Tasks
+
+- Release @karmaniverous/jeeves-watcher-core v0.2.3
 ## [0.2.2] - 2026-06-12
 
 ### 🚀 Features
