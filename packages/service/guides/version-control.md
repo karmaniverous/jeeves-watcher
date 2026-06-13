@@ -54,7 +54,9 @@ VCS tracking and watcher embedding are independent concerns. Git can track files
       "maxVersions": 100,
       "squashCron": "0 0 * * *"
     },
-    "defaultAccessToken": "${GIT_ACCESS_TOKEN}"
+    "defaultAccessToken": "${GIT_ACCESS_TOKEN}",
+    "staleLockThresholdMs": 60000,
+    "maxConsecutiveFailures": 5
   }
 }
 ```
@@ -74,6 +76,8 @@ VCS tracking and watcher embedding are independent concerns. Git can track files
 | `retention.maxVersions` | `number` | `100` | Keep at most this many commits (min: 1). |
 | `retention.squashCron` | `string` | `"0 0 * * *"` | Cron schedule for squash retention (5-field format). |
 | `defaultAccessToken` | `string` | `undefined` | Shared access token for remote push. Supports `${ENV_VAR}` substitution. |
+| `staleLockThresholdMs` | `number` | `60000` | Age in ms after which an `index.lock` is considered stale and force-removed (min: 5000). |
+| `maxConsecutiveFailures` | `number` | `5` | Circuit breaker: stop re-queuing commits after this many consecutive failures (min: 1). |
 
 ### Per-Root Overrides
 
@@ -477,7 +481,7 @@ Push failures are **non-blocking** — the commit succeeds locally regardless. E
 
 ## Squash Retention
 
-The VCS subsystem periodically squashes old commits to prevent unbounded history growth.
+The VCS subsystem periodically squashes old commits to prevent unbounded history growth. Retention defaults apply automatically when `vcs.enabled` is `true`, even if the `retention` block is omitted from config. The defaults are: 30 days max age, 100 versions max, daily midnight cron schedule.
 
 ### Retention Rules
 
@@ -562,11 +566,18 @@ If a watch root contains child git repositories (nested `.git/` directories), th
 
 ### index.lock Contention
 
-**Symptom:** Commits fail intermittently with `index.lock` errors.
+**Symptom:** Commits fail with `index.lock` errors.
 
-**Cause:** Another git process (IDE, manual git command, squash) holds the lock.
+**Cause:** Another git process (IDE, manual git command, squash) holds the lock, or a crashed process left a stale lock file behind.
 
-**Resolution:** The VCS subsystem retries with exponential backoff (4 attempts). If all retries fail, the commit is deferred to the next batch cycle. No data is lost — pending files accumulate until the lock is released. If the problem persists, check for rogue git processes or IDE integrations that hold locks.
+**Automatic recovery:** The VCS subsystem handles lock contention automatically:
+
+1. **Stale lock detection.** Before each commit attempt, the lock file's modification time is checked. If it's older than `staleLockThresholdMs` (default: 60 seconds), the lock is force-removed and the commit proceeds.
+2. **Exponential backoff retries.** If the lock is fresh (held by a live process), the commit is retried with exponential backoff (4 attempts, 500ms-2s delays).
+3. **Re-queue cap.** If all retries fail, pending files are re-queued for the next batch cycle, capped at `maxBatchSize` to prevent unbounded growth.
+4. **Circuit breaker.** After `maxConsecutiveFailures` (default: 5) consecutive commit failures, the VCS subsystem stops re-queuing and logs an error. The circuit breaker resets on the next successful commit.
+
+No manual intervention is needed in most cases. If the circuit breaker trips, investigate and resolve the underlying lock issue — once the next commit succeeds, normal operation resumes automatically.
 
 ### Large Initial Commits
 
