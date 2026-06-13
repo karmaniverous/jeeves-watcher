@@ -24,7 +24,7 @@ export type { PendingReversion, PushError };
  * Per-root VCS manager for git-backed content versioning.
  *
  * Each VCS-enabled watch root gets its own VcsManager instance, which owns
- * a debounced commit pipeline: file changes are batched, staged, committed
+ * a throttled commit pipeline: file changes are batched, staged, committed
  * (with optional AI-generated messages), and optionally pushed to a remote.
  *
  * Concurrency: only one commit is in-flight at a time per root. Index.lock
@@ -41,7 +41,7 @@ export class VcsManager {
   private readonly pendingReversions: PendingReversion[] = [];
   private readonly _pushErrors: PushError[] = [];
   private readonly squashManager: SquashManager | undefined;
-  private debounceTimer: ReturnType<typeof setTimeout> | undefined;
+  private throttleTimer: ReturnType<typeof setTimeout> | undefined;
   private commitInFlight: Promise<void> = Promise.resolve();
   private consecutiveCommitFailures = 0;
   private started = false;
@@ -109,7 +109,7 @@ export class VcsManager {
   }
 
   /**
-   * Add a file to the pending set and reset the debounce timer.
+   * Add a file to the pending set and start the throttle timer.
    * If the pending set exceeds maxBatchSize, flush immediately.
    *
    * @param filePath - Absolute path of the changed file.
@@ -129,18 +129,18 @@ export class VcsManager {
     this.pending.add(filePath);
 
     if (this.pending.size >= this.config.maxBatchSize) {
-      this.clearDebounce();
+      this.clearThrottle();
       const batch = this.takeBatch(this.config.maxBatchSize);
       this.commitInFlight = this.commitInFlight.then(() =>
         this.commitBatch(batch),
       );
       if (this.pending.size > 0) {
-        this.resetDebounce();
+        this.resetThrottle();
       }
       return;
     }
 
-    this.resetDebounce();
+    this.resetThrottle();
   }
 
   /**
@@ -167,7 +167,7 @@ export class VcsManager {
    * Flush all pending files immediately.
    */
   async flush(): Promise<void> {
-    this.clearDebounce();
+    this.clearThrottle();
     if (this.pending.size > 0) {
       const batch = [...this.pending];
       this.pending.clear();
@@ -204,24 +204,25 @@ export class VcsManager {
   }
 
   /**
-   * Clear the debounce timer.
+   * Clear the throttle timer.
    */
-  private clearDebounce(): void {
-    if (this.debounceTimer !== undefined) {
-      clearTimeout(this.debounceTimer);
-      this.debounceTimer = undefined;
+  private clearThrottle(): void {
+    if (this.throttleTimer !== undefined) {
+      clearTimeout(this.throttleTimer);
+      this.throttleTimer = undefined;
     }
   }
 
   /**
-   * Reset the debounce timer to fire flush() after commitDebounceMs.
+   * Start the throttle timer to fire flush() after commitThrottleMs.
+   * If a timer is already running, do not reset it — this is throttle, not debounce.
    */
-  private resetDebounce(): void {
-    this.clearDebounce();
-    this.debounceTimer = setTimeout(() => {
-      this.debounceTimer = undefined;
+  private resetThrottle(): void {
+    if (this.throttleTimer !== undefined) return;
+    this.throttleTimer = setTimeout(() => {
+      this.throttleTimer = undefined;
       void this.flush();
-    }, this.config.commitDebounceMs);
+    }, this.config.commitThrottleMs);
   }
 
   /**

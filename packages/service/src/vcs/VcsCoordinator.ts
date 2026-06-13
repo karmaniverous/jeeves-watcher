@@ -131,8 +131,8 @@ export class VcsCoordinator {
   /**
    * Signal that the initial filesystem scan is complete.
    *
-   * Flushes each manager's debounce buffer before ending baseline mode, ensuring
-   * any files still pending in the VCS debounce are committed with a
+   * Flushes each manager's throttle buffer before ending baseline mode, ensuring
+   * any files still pending in the VCS throttle are committed with a
    * `"baseline:"` prefix rather than `"watcher:"`. AI generation is not enabled
    * until all managers have completed their flush.
    */

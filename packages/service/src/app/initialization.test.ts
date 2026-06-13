@@ -164,7 +164,7 @@ describe('initVcs', () => {
     const config = {
       vcs: {
         enabled: true,
-        commitDebounceMs: 5000,
+        commitThrottleMs: 5000,
         maxBatchSize: 1000,
       },
       watch: {
@@ -191,7 +191,7 @@ describe('initVcs', () => {
     const config = {
       vcs: {
         enabled: true,
-        commitDebounceMs: 5000,
+        commitThrottleMs: 5000,
         maxBatchSize: 1000,
       },
       watch: {
@@ -217,7 +217,7 @@ describe('initVcs', () => {
     const config = {
       vcs: {
         enabled: true,
-        commitDebounceMs: 5000,
+        commitThrottleMs: 5000,
         maxBatchSize: 1000,
         author: { name: 'root-bot', email: 'root@bot.local' },
       },
@@ -244,7 +244,7 @@ describe('initVcs', () => {
     const config = {
       vcs: {
         enabled: true,
-        commitDebounceMs: 5000,
+        commitThrottleMs: 5000,
         maxBatchSize: 1000,
         author: { name: 'root-bot', email: 'root@bot.local' },
       },

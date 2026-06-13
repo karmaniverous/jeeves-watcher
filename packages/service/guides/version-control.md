@@ -4,7 +4,7 @@ title: Version Control (VCS)
 
 # Version Control (VCS)
 
-Git-backed versioning of watched content. The VCS subsystem maintains a forward-only history of file changes in each watch root, with debounced batch commits, AI-generated commit messages, squash retention, and optional remote push.
+Git-backed versioning of watched content. The VCS subsystem maintains a forward-only history of file changes in each watch root, with throttled batch commits, AI-generated commit messages, squash retention, and optional remote push.
 
 Git terminology is used throughout — this is an operator-facing feature.
 
@@ -16,12 +16,12 @@ Git terminology is used throughout — this is an operator-facing feature.
 
 Each watch path gets its own git repository, initialized automatically at startup. This keeps histories isolated — a revert in one root never affects another.
 
-### Debounced Batch Commits
+### Throttled Batch Commits
 
 File changes are collected into batches rather than committed individually. The commit pipeline uses two controls:
 
-- **`commitDebounceMs`** (default: 30000) — After the last file change, wait this long before committing. Resets on each new change.
-- **`maxBatchSize`** (default: 1000) — If the pending set reaches this size, flush immediately without waiting for the debounce timer. Overflow files roll into the next commit cycle.
+- **`commitThrottleMs`** (default: 30000) — After the first file change, wait this long before committing. New changes during the interval are batched but do not reset the timer.
+- **`maxBatchSize`** (default: 1000) — If the pending set reaches this size, flush immediately without waiting for the throttle timer. Overflow files roll into the next commit cycle.
 
 ### Forward-Only Reversion
 
@@ -41,7 +41,7 @@ VCS tracking and watcher embedding are independent concerns. Git can track files
 {
   "vcs": {
     "enabled": true,
-    "commitDebounceMs": 30000,
+    "commitThrottleMs": 30000,
     "maxBatchSize": 1000,
     "commitMessage": {
       "enabled": true,
@@ -64,7 +64,7 @@ VCS tracking and watcher embedding are independent concerns. Git can track files
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `enabled` | `boolean` | `false` | Enable VCS tracking globally. |
-| `commitDebounceMs` | `number` | `30000` | Milliseconds to wait after last file change before committing (min: 1000). |
+| `commitThrottleMs` | `number` | `30000` | Throttle interval in milliseconds for batching commits (min: 1000). Timer starts on first change and does not reset. |
 | `maxBatchSize` | `number` | `1000` | Max files per commit batch (min: 1). Overflow rolls to next cycle. |
 | `commitMessage` | `object` | See below | AI commit message generation settings. |
 | `commitMessage.enabled` | `boolean` | `true` | Enable AI-generated commit messages. Falls back to template on failure. |
@@ -93,7 +93,7 @@ Watch paths can override any VCS setting and add root-specific `remote` and `acc
           "enabled": true,
           "remote": "https://github.com/org/docs-backup.git",
           "accessToken": "${DOCS_GIT_TOKEN}",
-          "commitDebounceMs": 10000,
+          "commitThrottleMs": 10000,
           "maxBatchSize": 500
         }
       },

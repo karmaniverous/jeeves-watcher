@@ -64,7 +64,7 @@ describe('VcsCoordinator', () => {
     return {
       vcs: {
         enabled: true,
-        commitDebounceMs: 60000,
+        commitThrottleMs: 60000,
         maxBatchSize: 1000,
       },
       watch: {
@@ -118,7 +118,7 @@ describe('VcsCoordinator', () => {
 
   it('does not create managers when VCS is disabled', async () => {
     const config = {
-      vcs: { enabled: false, commitDebounceMs: 5000, maxBatchSize: 1000 },
+      vcs: { enabled: false, commitThrottleMs: 5000, maxBatchSize: 1000 },
       watch: { paths: [rootA], ignored: [] },
     } as unknown as JeevesWatcherConfig;
 
@@ -174,7 +174,7 @@ describe('VcsCoordinator', () => {
 
   it('creates SquashManager even when retention is omitted from config', () => {
     const config = {
-      vcs: { enabled: true, commitDebounceMs: 5000, maxBatchSize: 1000 },
+      vcs: { enabled: true, commitThrottleMs: 5000, maxBatchSize: 1000 },
       watch: { paths: [rootA], ignored: [] },
     } as unknown as JeevesWatcherConfig;
 
@@ -192,7 +192,7 @@ describe('VcsCoordinator', () => {
 
   it('uses default retention values (30 days, 100 versions, daily midnight)', () => {
     const config = {
-      vcs: { enabled: true, commitDebounceMs: 5000, maxBatchSize: 1000 },
+      vcs: { enabled: true, commitThrottleMs: 5000, maxBatchSize: 1000 },
       watch: { paths: [rootA], ignored: [] },
     } as unknown as JeevesWatcherConfig;
 
@@ -210,7 +210,7 @@ describe('VcsCoordinator', () => {
     const config = {
       vcs: {
         enabled: true,
-        commitDebounceMs: 5000,
+        commitThrottleMs: 5000,
         maxBatchSize: 1000,
         retention: {
           maxAgeDays: 7,
