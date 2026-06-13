@@ -295,6 +295,44 @@ describe('rebuildWatcher', () => {
     expect(result.watcher).toBe(newWatcher);
   });
 
+  it('passes VCS callbacks through to createWatcher', async () => {
+    const oldStop = vi.fn().mockResolvedValue(undefined);
+    const newStart = vi.fn();
+    const newWatcher = { start: newStart, stop: vi.fn() };
+    const logger = pino({ level: 'silent' });
+    const createWatcherMock = vi.fn().mockReturnValue(newWatcher);
+
+    const factories = {
+      createFileSystemWatcher: createWatcherMock,
+    } as unknown as JeevesWatcherFactories;
+
+    const onVcsFileChange = vi.fn();
+    const onInitialScanComplete = vi.fn();
+
+    await rebuildWatcher(
+      makeWatchConfig(),
+      factories,
+      {} as never,
+      {} as never,
+      logger,
+      {},
+      { watcher: { start: vi.fn(), stop: oldStop } as never },
+      undefined,
+      undefined,
+      onVcsFileChange,
+      onInitialScanComplete,
+    );
+
+    // Verify createFileSystemWatcher received the callbacks in its options (5th arg, index 4)
+    expect(createWatcherMock).toHaveBeenCalledOnce();
+    const options = createWatcherMock.mock.calls[0][4] as Record<
+      string,
+      unknown
+    >;
+    expect(options.onVcsFileChange).toBe(onVcsFileChange);
+    expect(options.onInitialScanComplete).toBe(onInitialScanComplete);
+  });
+
   it('falls back to old watcher when creation fails', async () => {
     const oldStart = vi.fn();
     const oldStop = vi.fn().mockResolvedValue(undefined);

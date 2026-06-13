@@ -3,6 +3,9 @@
  * Per-root VCS manager for git-backed content versioning.
  */
 
+import { rm, stat } from 'node:fs/promises';
+import { join } from 'node:path';
+
 import type { VcsConfig } from '@karmaniverous/jeeves-watcher-core';
 import type pino from 'pino';
 
@@ -40,6 +43,7 @@ export class VcsManager {
   private readonly squashManager: SquashManager | undefined;
   private debounceTimer: ReturnType<typeof setTimeout> | undefined;
   private commitInFlight: Promise<void> = Promise.resolve();
+  private consecutiveCommitFailures = 0;
   private started = false;
   private isBaseline = true;
   private _lastPushTime: string | null = null;
@@ -112,6 +116,15 @@ export class VcsManager {
    */
   fileChanged(filePath: string): void {
     if (!this.started) return;
+
+    // Reset circuit breaker on new file change so the system can recover
+    if (this.consecutiveCommitFailures >= this.config.maxConsecutiveFailures) {
+      this.logger.info(
+        { root: this.rootPath },
+        'VCS circuit breaker reset — new file change received, retrying commits',
+      );
+      this.consecutiveCommitFailures = 0;
+    }
 
     this.pending.add(filePath);
 
@@ -212,12 +225,55 @@ export class VcsManager {
   }
 
   /**
-   * Commit a batch of files to the git repo with index.lock retry.
+   * Check for and remove stale index.lock files before retrying.
+   */
+  private async removeStaleLock(): Promise<void> {
+    const lockPath = join(this.rootPath, '.git', 'index.lock');
+    try {
+      const lockStat = await stat(lockPath);
+      const ageMs = Date.now() - lockStat.mtimeMs;
+      if (ageMs > this.config.staleLockThresholdMs) {
+        await rm(lockPath, { force: true });
+        this.logger.warn(
+          { root: this.rootPath, ageMs },
+          'Removed stale index.lock',
+        );
+      }
+    } catch (error) {
+      const code = (error as NodeJS.ErrnoException).code;
+      if (code !== 'ENOENT') {
+        this.logger.warn(
+          { root: this.rootPath, err: normalizeError(error) },
+          'Unable to remove stale index.lock',
+        );
+      }
+    }
+  }
+
+  /**
+   * Commit a batch of files to the git repo with index.lock retry,
+   * stale lock detection, circuit breaker, and re-queue cap.
    */
   private async commitBatch(files: string[]): Promise<void> {
     if (files.length === 0) return;
 
+    // Circuit breaker: skip if too many consecutive failures
+    if (this.consecutiveCommitFailures >= this.config.maxConsecutiveFailures) {
+      this.logger.error(
+        {
+          root: this.rootPath,
+          consecutiveFailures: this.consecutiveCommitFailures,
+          discardedFiles: files.length,
+        },
+        'VCS circuit breaker tripped — pending files discarded until next successful commit',
+      );
+      return;
+    }
+
     try {
+      // Check for stale lock before first attempt
+      await this.removeStaleLock();
+
       await retry(
         async (attempt) => {
           await gitAddViaStdin(files, this.rootPath);
@@ -274,12 +330,30 @@ export class VcsManager {
           },
         },
       );
+
+      // Success — reset circuit breaker
+      this.consecutiveCommitFailures = 0;
     } catch (error) {
-      for (const f of files) {
+      this.consecutiveCommitFailures++;
+
+      // Re-queue cap: only re-queue up to maxBatchSize files
+      const cap = this.config.maxBatchSize;
+      const toRequeue = files.slice(0, cap);
+      const overflow = files.length - toRequeue.length;
+
+      for (const f of toRequeue) {
         this.pending.add(f);
       }
+
+      if (overflow > 0) {
+        this.logger.warn(
+          { root: this.rootPath, overflow, cap },
+          'Re-queue cap exceeded — discarded overflow files',
+        );
+      }
+
       this.logger.warn(
-        { root: this.rootPath, fileCount: files.length },
+        { root: this.rootPath, fileCount: toRequeue.length },
         'Re-queued files after commit failure',
       );
       this.logger.error(

@@ -97,6 +97,50 @@ describe('reloadConfig', () => {
     expect(state.config).toBe(newConfig);
   });
 
+  it('passes VCS callbacks through to rebuildWatcher when watch config changes', async () => {
+    const oldConfig = makeConfig({ paths: ['**/*.md'] });
+    const newConfig = makeConfig({ paths: ['**/*.ts'] });
+
+    const oldStop = vi.fn().mockResolvedValue(undefined);
+    const newStart = vi.fn();
+    const newWatcher = { start: newStart, stop: vi.fn() };
+    const createWatcherMock = vi.fn().mockReturnValue(newWatcher);
+
+    const { logger, processor, factories } = makeDeps(newConfig, {
+      createFileSystemWatcher: createWatcherMock,
+    });
+
+    const onVcsFileChange = vi.fn();
+    const onInitialScanComplete = vi.fn();
+
+    const state = {
+      config: oldConfig,
+      watcher: { start: vi.fn(), stop: oldStop } as never,
+      gitignoreFilter: undefined,
+    };
+
+    await reloadConfig(state, {
+      configPath: '/path/to/config.json',
+      factories,
+      queue: {} as never,
+      processor,
+      logger,
+      runtimeOptions: {},
+      initialScanTracker: {} as never,
+      onVcsFileChange,
+      onInitialScanComplete,
+    });
+
+    // Verify the factory received the callbacks in the options object (5th arg)
+    expect(createWatcherMock).toHaveBeenCalledOnce();
+    const options = createWatcherMock.mock.calls[0][4] as Record<
+      string,
+      unknown
+    >;
+    expect(options.onVcsFileChange).toBe(onVcsFileChange);
+    expect(options.onInitialScanComplete).toBe(onInitialScanComplete);
+  });
+
   it('does not rebuild watcher when watch config is unchanged', async () => {
     const config = makeConfig({ paths: ['**/*.md'] });
     const newConfig = makeConfig({ paths: ['**/*.md'] });

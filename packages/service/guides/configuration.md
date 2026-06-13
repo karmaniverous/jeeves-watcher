@@ -660,7 +660,9 @@ On shutdown, the watcher:
       "maxVersions": 100,
       "squashCron": "0 0 * * *"
     },
-    "defaultAccessToken": "${GIT_ACCESS_TOKEN}"
+    "defaultAccessToken": "${GIT_ACCESS_TOKEN}",
+    "staleLockThresholdMs": 60000,
+    "maxConsecutiveFailures": 5
   }
 }
 ```
@@ -678,6 +680,10 @@ On shutdown, the watcher:
 | `retention.maxVersions` | `number` | `100` | Keep at most this many commits (min: 1). |
 | `retention.squashCron` | `string` | `"0 0 * * *"` | Cron schedule for squash (5-field format). |
 | `defaultAccessToken` | `string` | `undefined` | Shared access token for remote push (`${ENV_VAR}` supported). |
+| `staleLockThresholdMs` | `number` | `60000` | Age in ms after which an `index.lock` is considered stale and force-removed (min: 5000). |
+| `maxConsecutiveFailures` | `number` | `5` | Circuit breaker: stop re-queuing commits after this many consecutive failures (min: 1). |
+
+Retention defaults (30 days, 100 versions, daily midnight cron) apply automatically when `vcs.enabled` is `true`, even if the `retention` block is omitted.
 
 Per-root overrides (including `remote` and `accessToken`) are configured via `watch.paths` object entries. See [Version Control (VCS) Guide](./version-control.md) for full details on configuration, API endpoints, squash retention, and remote push.
 

@@ -141,6 +141,24 @@ export const vcsConfigSchema = z.object({
     .describe(
       'Default git access token for all roots. Supports env var substitution (e.g., "${GIT_TOKEN}").',
     ),
+  /** Age in ms after which an index.lock is considered stale and force-removed. */
+  staleLockThresholdMs: z
+    .number()
+    .int()
+    .min(5000)
+    .default(60000)
+    .describe(
+      'Age in ms after which an index.lock is considered stale and force-removed. Default: 60000.',
+    ),
+  /** Circuit breaker: stop re-queuing after this many consecutive commit failures. */
+  maxConsecutiveFailures: z
+    .number()
+    .int()
+    .min(1)
+    .default(5)
+    .describe(
+      'Circuit breaker: stop re-queuing after this many consecutive commit failures. Default: 5.',
+    ),
 });
 
 /** Root-level VCS configuration. */

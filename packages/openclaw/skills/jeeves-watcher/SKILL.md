@@ -889,6 +889,8 @@ watcher_vcs_check: path="J:/domains/jira/PROJ-123.json"
 
 Version tracking is controlled by the `vcs.enabled` config setting. When set to `true`, the watcher automatically versions all watched files. No additional setup is required — just enable it and history starts accumulating.
 
+Squash retention activates by default when VCS is enabled, even without explicit `retention` config. The defaults are: 30 days max age, 100 versions max, and a daily midnight cron schedule (`0 0 * * *`). These defaults prevent unbounded commit history growth.
+
 ### Excluding Paths
 
 Not all watched files need version history. For example, if Jira issues are synced read-only, there's nothing to "undo." Use `watcher_vcs_exclude` to stop tracking specific paths.

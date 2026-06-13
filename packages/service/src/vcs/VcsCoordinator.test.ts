@@ -172,6 +172,65 @@ describe('VcsCoordinator', () => {
     expect(coordinator.getRoots()).toHaveLength(1);
   });
 
+  it('creates SquashManager even when retention is omitted from config', () => {
+    const config = {
+      vcs: { enabled: true, commitDebounceMs: 5000, maxBatchSize: 1000 },
+      watch: { paths: [rootA], ignored: [] },
+    } as unknown as JeevesWatcherConfig;
+
+    const coordinator = new VcsCoordinator(config, silentLogger);
+    const roots = coordinator.getRoots();
+    expect(roots).toHaveLength(1);
+    const manager = coordinator.getManager(roots[0]);
+    expect(manager).toBeDefined();
+    // The config should have retention defaults applied
+    expect(manager!.config.retention).toBeDefined();
+    expect(manager!.config.retention!.maxAgeDays).toBe(30);
+    expect(manager!.config.retention!.maxVersions).toBe(100);
+    expect(manager!.config.retention!.squashCron).toBe('0 0 * * *');
+  });
+
+  it('uses default retention values (30 days, 100 versions, daily midnight)', () => {
+    const config = {
+      vcs: { enabled: true, commitDebounceMs: 5000, maxBatchSize: 1000 },
+      watch: { paths: [rootA], ignored: [] },
+    } as unknown as JeevesWatcherConfig;
+
+    const coordinator = new VcsCoordinator(config, silentLogger);
+    const roots = coordinator.getRoots();
+    const manager = coordinator.getManager(roots[0]);
+    expect(manager!.config.retention).toEqual({
+      maxAgeDays: 30,
+      maxVersions: 100,
+      squashCron: '0 0 * * *',
+    });
+  });
+
+  it('explicit retention config overrides defaults', () => {
+    const config = {
+      vcs: {
+        enabled: true,
+        commitDebounceMs: 5000,
+        maxBatchSize: 1000,
+        retention: {
+          maxAgeDays: 7,
+          maxVersions: 50,
+          squashCron: '0 */6 * * *',
+        },
+      },
+      watch: { paths: [rootA], ignored: [] },
+    } as unknown as JeevesWatcherConfig;
+
+    const coordinator = new VcsCoordinator(config, silentLogger);
+    const roots = coordinator.getRoots();
+    const manager = coordinator.getManager(roots[0]);
+    expect(manager!.config.retention).toEqual({
+      maxAgeDays: 7,
+      maxVersions: 50,
+      squashCron: '0 */6 * * *',
+    });
+  });
+
   it('onInitialScanComplete calls endBaseline on all managers', async () => {
     const config = makeConfig([rootA, rootB]);
     const coordinator = new VcsCoordinator(config, silentLogger);

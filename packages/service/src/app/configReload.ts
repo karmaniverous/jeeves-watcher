@@ -46,6 +46,11 @@ interface ReloadDeps {
   contentHashCache?: ContentHashCache;
   valuesManager?: ValuesManager;
   issuesManager?: IssuesManager;
+  onVcsFileChange?: (
+    filePath: string,
+    event: 'add' | 'change' | 'unlink',
+  ) => void;
+  onInitialScanComplete?: () => void | Promise<void>;
 }
 
 /**
@@ -90,6 +95,8 @@ export async function reloadConfig(
         { watcher: state.watcher!, gitignoreFilter: state.gitignoreFilter },
         deps.initialScanTracker,
         deps.contentHashCache,
+        deps.onVcsFileChange,
+        deps.onInitialScanComplete,
       );
       state.watcher = newState.watcher;
       state.gitignoreFilter = newState.gitignoreFilter;
