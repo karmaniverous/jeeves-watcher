@@ -29,7 +29,7 @@ Add a `vcs` block to your config:
 {
   "vcs": {
     "enabled": true,
-    "commitDebounceMs": 30000,
+    "commitThrottleMs": 30000,
     "maxBatchSize": 1000,
     "commitMessage": {
       "enabled": true,
@@ -50,7 +50,7 @@ Add a `vcs` block to your config:
 | Property | Default | Description |
 |----------|---------|-------------|
 | `vcs.enabled` | `false` | Enable git-backed version control globally |
-| `vcs.commitDebounceMs` | `30000` | Debounce interval (ms) for batching file changes into commits. Min: 1000 |
+| `vcs.commitThrottleMs` | `30000` | Throttle interval (ms) for batching file changes into commits. Min: 1000 |
 | `vcs.maxBatchSize` | `1000` | Maximum files per commit batch. Flushes immediately when exceeded. Min: 1 |
 | `vcs.commitMessage.enabled` | `true` | Enable AI-generated commit messages |
 | `vcs.commitMessage.provider` | `"anthropic"` | AI provider (currently only `"anthropic"` supported) |

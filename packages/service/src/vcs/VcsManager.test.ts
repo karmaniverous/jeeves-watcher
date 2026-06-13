@@ -24,7 +24,7 @@ const silentLogger = pino({ level: 'silent' });
 function makeConfig(overrides: Partial<VcsConfig> = {}): VcsConfig {
   return {
     enabled: true,
-    commitDebounceMs: 5000,
+    commitThrottleMs: 5000,
     maxBatchSize: 1000,
     staleLockThresholdMs: 60000,
     maxConsecutiveFailures: 5,
@@ -173,32 +173,28 @@ describe('VcsManager instance', () => {
     });
   });
 
-  describe('debounce', () => {
-    it('resets debounce timer on each fileChanged call', async () => {
+  describe('throttle', () => {
+    it('does not reset throttle timer on subsequent fileChanged calls', async () => {
       vi.useFakeTimers();
 
-      const config = makeConfig({ commitDebounceMs: 5000 });
+      const config = makeConfig({ commitThrottleMs: 5000 });
       const manager = new VcsManager(tempDir, config, silentLogger);
       manager.start();
 
       // Mock flush to avoid real git operations with fake timers
       const flushSpy = vi.spyOn(manager, 'flush').mockResolvedValue(undefined);
 
-      const filePath = join(tempDir, 'debounce.txt');
+      const filePath = join(tempDir, 'throttle.txt');
       manager.fileChanged(filePath);
 
       // Advance 3 seconds — flush should not fire yet
       await vi.advanceTimersByTimeAsync(3000);
       expect(flushSpy).not.toHaveBeenCalled();
 
-      // File changed again — resets the timer
+      // File changed again — does NOT reset the timer (throttle, not debounce)
       manager.fileChanged(filePath);
 
-      // Advance 3 more seconds (6 total, but only 3 since last change)
-      await vi.advanceTimersByTimeAsync(3000);
-      expect(flushSpy).not.toHaveBeenCalled();
-
-      // Advance 2 more seconds (5 total since last change) — flush fires
+      // Advance 2 more seconds (5 total since first change) — flush fires
       await vi.advanceTimersByTimeAsync(2000);
       expect(flushSpy).toHaveBeenCalledTimes(1);
 
@@ -210,7 +206,7 @@ describe('VcsManager instance', () => {
     it('flushes immediately when pending exceeds maxBatchSize', async () => {
       const config = makeConfig({
         maxBatchSize: 3,
-        commitDebounceMs: 60000,
+        commitThrottleMs: 60000,
       });
       const manager = new VcsManager(tempDir, config, silentLogger);
       manager.start();
@@ -236,7 +232,7 @@ describe('VcsManager instance', () => {
     it('starts new timer for overflow when batch exceeds maxBatchSize', async () => {
       const config = makeConfig({
         maxBatchSize: 2,
-        commitDebounceMs: 1000,
+        commitThrottleMs: 1000,
       });
       const manager = new VcsManager(tempDir, config, silentLogger);
       manager.start();
@@ -248,7 +244,7 @@ describe('VcsManager instance', () => {
         manager.fileChanged(filePath);
       }
 
-      // Wait for in-flight batch to complete, then wait for debounce on overflow
+      // Wait for in-flight batch to complete, then wait for throttle on overflow
       await manager.flush();
 
       // Should have 2 commits: one from maxBatchSize (2 files), one from flush (1 file)
@@ -585,7 +581,7 @@ describe('VcsManager instance', () => {
       // maxBatchSize=3: each failed batch re-queues at most 3 files
       const config = makeConfig({
         maxBatchSize: 3,
-        commitDebounceMs: 60000,
+        commitThrottleMs: 60000,
         maxConsecutiveFailures: 100,
       });
       const manager = new VcsManager(tempDir, config, logger);

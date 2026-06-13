@@ -338,7 +338,7 @@
             }
           ]
         },
-        "commitDebounceMs": {
+        "commitThrottleMs": {
           "allOf": [
             {
               "$ref": "#/definitions/__schema14"
@@ -458,7 +458,7 @@
     },
     "__schema14": {
       "default": 30000,
-      "description": "Debounce interval in milliseconds for batching commits. Default: 30000.",
+      "description": "Throttle interval in milliseconds for batching commits. Default: 30000.",
       "allOf": [
         {
           "$ref": "#/definitions/__schema15"
@@ -1487,7 +1487,7 @@
         "author": {
           "$ref": "#/definitions/__schema10"
         },
-        "commitDebounceMs": {
+        "commitThrottleMs": {
           "$ref": "#/definitions/__schema14"
         },
         "maxBatchSize": {

@@ -647,7 +647,7 @@ On shutdown, the watcher:
 {
   "vcs": {
     "enabled": true,
-    "commitDebounceMs": 30000,
+    "commitThrottleMs": 30000,
     "maxBatchSize": 1000,
     "commitMessage": {
       "enabled": true,
@@ -670,7 +670,7 @@ On shutdown, the watcher:
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `enabled` | `boolean` | `false` | Enable git-backed content versioning. |
-| `commitDebounceMs` | `number` | `30000` | Debounce window (ms) before committing (min: 1000). |
+| `commitThrottleMs` | `number` | `30000` | Throttle interval (ms) for batching commits (min: 1000). |
 | `maxBatchSize` | `number` | `1000` | Max files per commit batch (min: 1). |
 | `commitMessage.enabled` | `boolean` | `true` | Enable AI-generated commit messages. |
 | `commitMessage.provider` | `string` | `"anthropic"` | LLM provider. |

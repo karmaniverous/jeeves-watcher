@@ -76,7 +76,7 @@ describe('VCS API handlers', () => {
     });
 
     const config = {
-      vcs: { enabled: true, commitDebounceMs: 60000, maxBatchSize: 1000 },
+      vcs: { enabled: true, commitThrottleMs: 60000, maxBatchSize: 1000 },
       watch: { paths: [rootA], ignored: [] },
     } as unknown as JeevesWatcherConfig;
     coordinator = new VcsCoordinator(config, silentLogger);
@@ -125,7 +125,7 @@ describe('VCS API handlers', () => {
 
     it('returns enabled:false when no VCS roots exist', async () => {
       const emptyConfig = {
-        vcs: { enabled: false, commitDebounceMs: 5000, maxBatchSize: 1000 },
+        vcs: { enabled: false, commitThrottleMs: 5000, maxBatchSize: 1000 },
         watch: { paths: [], ignored: [] },
       } as unknown as JeevesWatcherConfig;
       const emptyCoordinator = new VcsCoordinator(emptyConfig, silentLogger);

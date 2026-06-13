@@ -110,14 +110,14 @@ export const vcsConfigSchema = z.object({
     .describe(
       'Git commit author identity. Set per-repo during init. Defaults: name="jeeves-watcher", email="watcher@localhost".',
     ),
-  /** Debounce interval in milliseconds for batching commits. */
-  commitDebounceMs: z
+  /** Throttle interval in milliseconds for batching commits. */
+  commitThrottleMs: z
     .number()
     .int()
     .min(1000)
     .default(30000)
     .describe(
-      'Debounce interval in milliseconds for batching commits. Default: 30000.',
+      'Throttle interval in milliseconds for batching commits. Default: 30000.',
     ),
   /** Maximum number of files per commit batch. */
   maxBatchSize: z

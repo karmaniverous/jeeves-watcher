@@ -18,7 +18,7 @@ describe('vcsConfigSchema', () => {
   it('applies defaults for all fields', () => {
     const result = vcsConfigSchema.parse({});
     expect(result.enabled).toBe(false);
-    expect(result.commitDebounceMs).toBe(30000);
+    expect(result.commitThrottleMs).toBe(30000);
     expect(result.maxBatchSize).toBe(1000);
   });
 
@@ -40,7 +40,7 @@ describe('vcsConfigSchema', () => {
   it('accepts full custom config', () => {
     const result = vcsConfigSchema.safeParse({
       enabled: true,
-      commitDebounceMs: 5000,
+      commitThrottleMs: 5000,
       maxBatchSize: 500,
       commitMessage: {
         enabled: false,
@@ -58,8 +58,8 @@ describe('vcsConfigSchema', () => {
     expect(result.success).toBe(true);
   });
 
-  it('rejects invalid commitDebounceMs', () => {
-    const result = vcsConfigSchema.safeParse({ commitDebounceMs: 500 });
+  it('rejects invalid commitThrottleMs', () => {
+    const result = vcsConfigSchema.safeParse({ commitThrottleMs: 500 });
     expect(result.success).toBe(false);
   });
 
