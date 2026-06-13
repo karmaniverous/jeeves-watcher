@@ -1,10 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import {
-  getEndpoint,
-  WATCHER_ENDPOINTS,
-  type EndpointName,
-} from './endpoints';
+import { type EndpointName, getEndpoint, WATCHER_ENDPOINTS } from './endpoints';
 
 describe('endpoint catalog', () => {
   it('contains at least one endpoint', () => {
@@ -23,7 +19,7 @@ describe('endpoint catalog', () => {
 
   it('getEndpoint returns correct descriptor for each name', () => {
     for (const ep of WATCHER_ENDPOINTS) {
-      const result = getEndpoint(ep.name as EndpointName);
+      const result = getEndpoint(ep.name);
       expect(result).toBe(ep);
     }
   });
