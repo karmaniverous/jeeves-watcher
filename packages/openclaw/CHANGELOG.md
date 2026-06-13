@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 
 ## [unreleased]
 
+### 🚀 Features
+
+- Add shared endpoint catalog in core package (#196)
+
+### 💼 Other
+
+- Updated core
+## [0.15.4] - 2026-06-13
+
 ### 💼 Other
 
 - Updated core
@@ -11,6 +20,10 @@ All notable changes to this project will be documented in this file.
 ### 📚 Documentation
 
 - Update VCS and prune documentation for new features
+
+### ⚙️ Miscellaneous Tasks
+
+- Release @karmaniverous/jeeves-watcher-openclaw v0.15.4
 ## [0.15.3] - 2026-06-12
 
 ### ⚙️ Miscellaneous Tasks
