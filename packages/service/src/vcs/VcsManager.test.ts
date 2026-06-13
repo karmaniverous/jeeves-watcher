@@ -465,7 +465,7 @@ describe('VcsManager instance', () => {
       const logger = pino({ level: 'silent' });
       const errorSpy = vi.spyOn(logger, 'error');
 
-      const config = makeConfig({ maxConsecutiveFailures: 2, staleLockThresholdMs: Number.MAX_SAFE_INTEGER });
+      const config = makeConfig({ maxConsecutiveFailures: 2, staleLockThresholdMs: 600000 });
       const manager = new VcsManager(tempDir, config, logger);
       manager.start();
 
@@ -499,7 +499,7 @@ describe('VcsManager instance', () => {
       const logger = pino({ level: 'silent' });
       const infoSpy = vi.spyOn(logger, 'info');
 
-      const config = makeConfig({ maxConsecutiveFailures: 2, staleLockThresholdMs: Number.MAX_SAFE_INTEGER });
+      const config = makeConfig({ maxConsecutiveFailures: 2, staleLockThresholdMs: 600000 });
       const manager = new VcsManager(tempDir, config, logger);
       manager.start();
 
@@ -529,7 +529,7 @@ describe('VcsManager instance', () => {
     it('resets counter after a successful commit', async () => {
       const logger = pino({ level: 'silent' });
 
-      const config = makeConfig({ maxConsecutiveFailures: 2, staleLockThresholdMs: Number.MAX_SAFE_INTEGER });
+      const config = makeConfig({ maxConsecutiveFailures: 2, staleLockThresholdMs: 600000 });
       const manager = new VcsManager(tempDir, config, logger);
       manager.start();
 
