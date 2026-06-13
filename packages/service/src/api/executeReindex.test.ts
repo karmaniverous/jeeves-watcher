@@ -419,5 +419,80 @@ describe('executeReindex', () => {
       expect(result.plan!.total).toBe(1);
       expect(result.plan!.incomplete).toBe(true);
     }, 60000);
+
+    it('filter-first: detects orphans outside watch scope', async () => {
+      // Watched files: src/a.ts exists on filesystem
+      listFilesFromGlobsMock.mockResolvedValueOnce(['src/a.ts']);
+
+      const deleteFn = vi.fn().mockResolvedValue(undefined);
+      const scrollPageFn = vi.fn().mockResolvedValueOnce({
+        points: [
+          { id: 'p1', payload: { file_path: 'src/a.ts' } },
+          { id: 'p2', payload: { file_path: 'outside/b.ts' } },
+          { id: 'p3', payload: {} },
+        ],
+        nextCursor: undefined,
+      });
+      const { deps } = makeDeps({
+        vectorStore: {
+          scrollPage: scrollPageFn,
+          delete: deleteFn,
+        } as unknown as ExecuteReindexDeps['vectorStore'],
+      });
+
+      const result = await executeReindex(deps, 'prune', undefined, true);
+      expect(result.plan).toBeDefined();
+      expect(result.plan!.total).toBe(3);
+      // p2 (outside scope) and p3 (no file_path) are orphans
+      // p1 may or may not be orphaned depending on fs.access
+      expect(result.plan!.toDelete).toBeGreaterThanOrEqual(2);
+    });
+
+    it('filter-first: detects files deleted from disk as orphans', async () => {
+      // Watched files list includes src/deleted.ts (matches watch scope)
+      // but the file doesn't exist on disk
+      listFilesFromGlobsMock.mockResolvedValueOnce(['src/deleted.ts']);
+
+      const deleteFn = vi.fn().mockResolvedValue(undefined);
+      const scrollPageFn = vi.fn().mockResolvedValueOnce({
+        points: [{ id: 'p1', payload: { file_path: 'src/deleted.ts' } }],
+        nextCursor: undefined,
+      });
+      const { deps } = makeDeps({
+        vectorStore: {
+          scrollPage: scrollPageFn,
+          delete: deleteFn,
+        } as unknown as ExecuteReindexDeps['vectorStore'],
+      });
+
+      const result = await executeReindex(deps, 'prune', undefined, true);
+      expect(result.plan).toBeDefined();
+      // src/deleted.ts is in watch scope but doesn't exist on disk → orphan
+      expect(result.plan!.toDelete).toBe(1);
+    });
+
+    it('filter-first: preserves incomplete safety from Step 5', async () => {
+      listFilesFromGlobsMock.mockResolvedValueOnce(['src/a.ts']);
+
+      const deleteFn = vi.fn().mockResolvedValue(undefined);
+      const scrollPageFn = vi
+        .fn()
+        .mockResolvedValueOnce({
+          points: [{ id: 'p1', payload: { file_path: 'src/a.ts' } }],
+          nextCursor: 'cursor-1',
+        })
+        .mockRejectedValue(new TypeError('fetch failed'));
+      const { deps } = makeDeps({
+        vectorStore: {
+          scrollPage: scrollPageFn,
+          delete: deleteFn,
+        } as unknown as ExecuteReindexDeps['vectorStore'],
+      });
+
+      const result = await executeReindex(deps, 'prune', undefined, false);
+      expect(result.errors).toBe(1);
+      expect(result.plan!.incomplete).toBe(true);
+      expect(deleteFn).not.toHaveBeenCalled();
+    }, 60000);
   });
 });
