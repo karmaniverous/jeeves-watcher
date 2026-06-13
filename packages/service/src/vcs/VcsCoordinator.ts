@@ -9,6 +9,7 @@ import { resolve } from 'node:path';
 import {
   normalizeWatchPaths,
   type VcsConfig,
+  vcsRetentionConfigSchema,
 } from '@karmaniverous/jeeves-watcher-core';
 import type pino from 'pino';
 
@@ -43,10 +44,15 @@ export class VcsCoordinator {
 
       // Deduplicate: skip if another glob already resolved to this root.
       if (this.managers.has(rootKey)) continue;
+      const mergedRetention =
+        entry.vcs?.retention ??
+        config.vcs.retention ??
+        vcsRetentionConfigSchema.parse({});
       const mergedConfig: VcsConfig = {
         ...config.vcs,
         ...entry.vcs,
         enabled: true,
+        retention: mergedRetention,
       };
 
       // Create CommitMessageGenerator if AI commit messages are configured
