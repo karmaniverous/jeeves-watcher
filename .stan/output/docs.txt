@@ -1,6 +1,0 @@
-
-> docs
-> typedoc --emit none
-
-[96m[info][0m Loaded plugin typedoc-plugin-mdn-links
-[96m[info][0m Loaded plugin typedoc-plugin-replace-text

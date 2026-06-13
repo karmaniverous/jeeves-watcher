@@ -1,4 +1,0 @@
-
-> lint:fix
-> eslint --fix .
-

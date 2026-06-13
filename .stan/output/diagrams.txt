@@ -1,4 +1,0 @@
-
-> @karmaniverous/jeeves-watcher@0.18.5 diagrams
-> cd diagrams && plantuml -tpng -o ../assets -r .
-
