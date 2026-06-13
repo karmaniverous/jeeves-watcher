@@ -6,8 +6,35 @@ All notable changes to this project will be documented in this file.
 
 ### 🐛 Bug Fixes
 
+- *(vcs)* Add stale lock detection, circuit breaker, and re-queue cap (#219)
+- *(app)* Thread VCS callbacks through config reload (#218)
+- *(vcs)* Apply retention defaults when retention config is omitted (#216)
+- *(api)* Prune incomplete-result safety and retry improvements (#182)
+- Address PR #220 review — error handling, circuit breaker, case sensitivity, and test determinism
+- Address Copilot review — error handling, circuit breaker reset, Windows case sensitivity, test determinism
+
+### 💼 Other
+
+- Updated core
+- Lint fix
+
+### 📚 Documentation
+
+- Update VCS and prune documentation for new features
+
+### ⚡ Performance
+
+- *(api)* Rewrite computePrunePlan with filter-first approach (#187)
+## [0.18.8] - 2026-06-12
+
+### 🐛 Bug Fixes
+
 - *(vcs)* Eliminate redundant baseline enumeration (#214)
 - *(vcs)* Address review — flush race, JSDoc, LOC decomposition
+
+### ⚙️ Miscellaneous Tasks
+
+- Release @karmaniverous/jeeves-watcher v0.18.8
 ## [0.18.7] - 2026-06-12
 
 ### ⚙️ Miscellaneous Tasks
