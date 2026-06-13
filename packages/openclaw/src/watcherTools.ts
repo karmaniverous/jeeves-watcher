@@ -11,6 +11,7 @@ import {
   postJson,
   type ToolResult,
 } from '@karmaniverous/jeeves';
+import { getEndpoint } from '@karmaniverous/jeeves-watcher-core';
 
 import { PLUGIN_ID } from './constants.js';
 
@@ -107,7 +108,7 @@ export function registerWatcherTools(api: PluginApi, baseUrl: string): void {
           'offset',
           'filter',
         ]);
-        return ['/search', body];
+        return [getEndpoint('search').path, body];
       },
     },
     {
@@ -128,7 +129,7 @@ export function registerWatcherTools(api: PluginApi, baseUrl: string): void {
         },
       },
       buildRequest: (params) => [
-        '/metadata',
+        getEndpoint('metadata').path,
         { path: params.path, metadata: params.metadata },
       ],
     },
@@ -154,7 +155,7 @@ export function registerWatcherTools(api: PluginApi, baseUrl: string): void {
       },
       buildRequest: (params) => {
         const body = pickDefined(params, ['config', 'testPaths']);
-        return ['/config/validate', body];
+        return [getEndpoint('configValidate').path, body];
       },
     },
     {
@@ -185,7 +186,7 @@ export function registerWatcherTools(api: PluginApi, baseUrl: string): void {
         },
       },
       buildRequest: (params) => [
-        '/reindex',
+        getEndpoint('reindex').path,
         {
           scope: params.scope ?? 'rules',
           ...(params.path ? { path: params.path } : {}),
@@ -232,7 +233,7 @@ export function registerWatcherTools(api: PluginApi, baseUrl: string): void {
           'fields',
           'countOnly',
         ]);
-        return ['/scan', body];
+        return [getEndpoint('scan').path, body];
       },
     },
     {
@@ -240,7 +241,7 @@ export function registerWatcherTools(api: PluginApi, baseUrl: string): void {
       description:
         'Get runtime embedding failures. Shows files that failed processing and why.',
       parameters: { type: 'object', properties: {} },
-      buildRequest: () => ['/issues'],
+      buildRequest: () => [getEndpoint('issues').path],
     },
     {
       name: 'watcher_walk',
@@ -258,7 +259,10 @@ export function registerWatcherTools(api: PluginApi, baseUrl: string): void {
           },
         },
       },
-      buildRequest: (params) => ['/walk', { globs: params.globs }],
+      buildRequest: (params) => [
+        getEndpoint('walk').path,
+        { globs: params.globs },
+      ],
     },
 
     // ── VCS tools ──────────────────────────────────────────────────────
@@ -268,7 +272,7 @@ export function registerWatcherTools(api: PluginApi, baseUrl: string): void {
       description:
         'Get version tracking health: enabled state, tracked roots, remote status, last activity',
       parameters: { type: 'object', properties: {} },
-      buildRequest: () => ['/vcs/status'],
+      buildRequest: () => [getEndpoint('vcsStatus').path],
     },
     {
       name: 'watcher_vcs_history',
@@ -297,7 +301,7 @@ export function registerWatcherTools(api: PluginApi, baseUrl: string): void {
         },
       },
       buildRequest: (params) => [
-        `/vcs/history${buildQuery(params, ['glob', 'since', 'until', 'limit'])}`,
+        `${getEndpoint('vcsHistory').path}${buildQuery(params, ['glob', 'since', 'until', 'limit'])}`,
       ],
     },
     {
@@ -318,7 +322,7 @@ export function registerWatcherTools(api: PluginApi, baseUrl: string): void {
         },
       },
       buildRequest: (params) => [
-        `/vcs/show${buildQuery(params, ['path', 'commit'])}`,
+        `${getEndpoint('vcsShow').path}${buildQuery(params, ['path', 'commit'])}`,
       ],
     },
     {
@@ -345,7 +349,7 @@ export function registerWatcherTools(api: PluginApi, baseUrl: string): void {
         },
       },
       buildRequest: (params) => [
-        `/vcs/diff${buildQuery(params, ['glob', 'commit', 'commitEnd'])}`,
+        `${getEndpoint('vcsDiff').path}${buildQuery(params, ['glob', 'commit', 'commitEnd'])}`,
       ],
     },
     {
@@ -372,7 +376,7 @@ export function registerWatcherTools(api: PluginApi, baseUrl: string): void {
       },
       buildRequest: (params) => {
         const body = pickDefined(params, ['glob', 'commit', 'existingOnly']);
-        return ['/vcs/revert', body];
+        return [getEndpoint('vcsRevert').path, body];
       },
     },
     {
@@ -399,7 +403,7 @@ export function registerWatcherTools(api: PluginApi, baseUrl: string): void {
       },
       buildRequest: (params) => {
         const body = pickDefined(params, ['glob', 'root', 'remove']);
-        return ['/vcs/exclude', body];
+        return [getEndpoint('vcsExclude').path, body];
       },
     },
     {
@@ -417,7 +421,7 @@ export function registerWatcherTools(api: PluginApi, baseUrl: string): void {
         },
       },
       buildRequest: (params) => [
-        `/vcs/check-exclusion${buildQuery(params, ['path'])}`,
+        `${getEndpoint('vcsCheckExclusion').path}${buildQuery(params, ['path'])}`,
       ],
     },
   ];
