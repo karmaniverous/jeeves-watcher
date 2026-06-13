@@ -117,6 +117,15 @@ export class VcsManager {
   fileChanged(filePath: string): void {
     if (!this.started) return;
 
+    // Reset circuit breaker on new file change so the system can recover
+    if (this.consecutiveCommitFailures >= this.config.maxConsecutiveFailures) {
+      this.logger.info(
+        { root: this.rootPath },
+        'VCS circuit breaker reset — new file change received, retrying commits',
+      );
+      this.consecutiveCommitFailures = 0;
+    }
+
     this.pending.add(filePath);
 
     if (this.pending.size >= this.config.maxBatchSize) {
@@ -230,8 +239,14 @@ export class VcsManager {
           'Removed stale index.lock',
         );
       }
-    } catch {
-      // Lock file doesn't exist — nothing to do
+    } catch (error) {
+      const code = (error as NodeJS.ErrnoException).code;
+      if (code !== 'ENOENT') {
+        this.logger.warn(
+          { root: this.rootPath, err: normalizeError(error) },
+          'Unable to remove stale index.lock',
+        );
+      }
     }
   }
 

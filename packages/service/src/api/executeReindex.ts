@@ -19,6 +19,7 @@ import { normalizeError } from '../util/normalizeError';
 import { normalizeSlashes } from '../util/normalizeSlashes';
 import { retry } from '../util/retry';
 import type { ValuesManager } from '../values';
+import { normalizePathCase } from '../vcs/gitExec';
 import type { ScrolledPoint, VectorStoreClient } from '../vectorStore';
 import { listFilesFromGlobs, listFilesFromWatchRoots } from './fileScan';
 import { processAllFiles } from './processAllFiles';
@@ -217,7 +218,9 @@ async function computePrunePlan(
     config.watch.ignored,
     isGitignored,
   );
-  const watchedFiles = new Set(watchedFileList.map((f) => normalizeSlashes(f)));
+  const watchedFiles = new Set(
+    watchedFileList.map((f) => normalizePathCase(normalizeSlashes(f))),
+  );
   logger.info(
     { watchedFileCount: watchedFiles.size },
     'Prune: enumerated watched files from filesystem',
@@ -247,7 +250,7 @@ async function computePrunePlan(
           continue;
         }
 
-        const normalized = normalizeSlashes(filePath);
+        const normalized = normalizePathCase(normalizeSlashes(filePath));
 
         if (seenFiles.has(normalized)) {
           if (orphanedFiles.has(normalized)) {
@@ -397,7 +400,7 @@ export async function executeReindex(
     if (plan.incomplete) {
       deps.queue?.resume();
       logger.error(
-        { totalPoints: plan.total, orphanedIds: plan.toDelete },
+        { totalPoints: plan.total, pointsToDelete: plan.toDelete },
         'Aborting live prune — scroll was incomplete; partial deletes are unsafe',
       );
       return { filesProcessed: 0, durationMs: 0, errors: 1, plan };

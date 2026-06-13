@@ -465,7 +465,7 @@ describe('VcsManager instance', () => {
       const logger = pino({ level: 'silent' });
       const errorSpy = vi.spyOn(logger, 'error');
 
-      const config = makeConfig({ maxConsecutiveFailures: 2 });
+      const config = makeConfig({ maxConsecutiveFailures: 2, staleLockThresholdMs: Number.MAX_SAFE_INTEGER });
       const manager = new VcsManager(tempDir, config, logger);
       manager.start();
 
@@ -481,10 +481,8 @@ describe('VcsManager instance', () => {
       // Second failure — re-queues, counter = 2
       await manager.flush();
 
-      // Third attempt — circuit breaker tripped, files discarded
-      const file2 = join(tempDir, 'cb2.txt');
-      await writeFile(file2, 'content', 'utf8');
-      manager.fileChanged(file2);
+      // Third attempt — flush re-queued files without fileChanged()
+      // (fileChanged() would reset the circuit breaker)
       await manager.flush();
 
       expect(errorSpy).toHaveBeenCalledWith(
@@ -497,10 +495,41 @@ describe('VcsManager instance', () => {
       await rm(lockPath, { force: true });
     }, 30000);
 
+    it('resets circuit breaker when fileChanged is called after tripping', async () => {
+      const logger = pino({ level: 'silent' });
+      const infoSpy = vi.spyOn(logger, 'info');
+
+      const config = makeConfig({ maxConsecutiveFailures: 2, staleLockThresholdMs: Number.MAX_SAFE_INTEGER });
+      const manager = new VcsManager(tempDir, config, logger);
+      manager.start();
+
+      const lockPath = join(tempDir, '.git', 'index.lock');
+      await writeFile(lockPath, '', 'utf8');
+
+      // Two failures to trip the breaker
+      const file1 = join(tempDir, 'cbreset1.txt');
+      await writeFile(file1, 'content', 'utf8');
+      manager.fileChanged(file1);
+      await manager.flush();
+      await manager.flush();
+
+      // New file change should reset the circuit breaker
+      const file2 = join(tempDir, 'cbreset2.txt');
+      await writeFile(file2, 'content', 'utf8');
+      manager.fileChanged(file2);
+
+      expect(infoSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ root: tempDir }),
+        expect.stringContaining('circuit breaker reset'),
+      );
+
+      await rm(lockPath, { force: true });
+    }, 30000);
+
     it('resets counter after a successful commit', async () => {
       const logger = pino({ level: 'silent' });
 
-      const config = makeConfig({ maxConsecutiveFailures: 2 });
+      const config = makeConfig({ maxConsecutiveFailures: 2, staleLockThresholdMs: Number.MAX_SAFE_INTEGER });
       const manager = new VcsManager(tempDir, config, logger);
       manager.start();
 
@@ -527,10 +556,8 @@ describe('VcsManager instance', () => {
       await manager.flush(); // fail 1 → counter=1
       await manager.flush(); // fail 2 → counter=2 (= maxConsecutiveFailures)
 
-      // Next call should trip the circuit breaker
+      // Flush re-queued files without fileChanged — should trip the circuit breaker
       const errorSpy = vi.spyOn(logger, 'error');
-      manager.fileChanged(join(tempDir, 'reset3.txt'));
-      await writeFile(join(tempDir, 'reset3.txt'), 'content', 'utf8');
       await manager.flush();
 
       expect(errorSpy).toHaveBeenCalledWith(

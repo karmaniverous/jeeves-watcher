@@ -3,6 +3,18 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { executeReindex, type ExecuteReindexDeps } from './executeReindex';
 
+vi.mock('node:fs/promises', async (importOriginal) => {
+  const original = await importOriginal<object>();
+  return {
+    ...original,
+    access: vi
+      .fn()
+      .mockRejectedValue(
+        Object.assign(new Error('ENOENT'), { code: 'ENOENT' }),
+      ),
+  };
+});
+
 // Mock fileScan module to intercept listFilesFromGlobs and listFilesFromWatchRoots
 vi.mock('./fileScan', async (importOriginal) => {
   const original = await importOriginal<object>();
@@ -440,12 +452,12 @@ describe('executeReindex', () => {
         } as unknown as ExecuteReindexDeps['vectorStore'],
       });
 
+      // fs.access is mocked to reject (ENOENT) by default, so p1 is also orphaned
       const result = await executeReindex(deps, 'prune', undefined, true);
       expect(result.plan).toBeDefined();
       expect(result.plan!.total).toBe(3);
-      // p2 (outside scope) and p3 (no file_path) are orphans
-      // p1 may or may not be orphaned depending on fs.access
-      expect(result.plan!.toDelete).toBeGreaterThanOrEqual(2);
+      // p1 (in scope but not on disk), p2 (outside scope), p3 (no file_path) — all orphans
+      expect(result.plan!.toDelete).toBe(3);
     });
 
     it('filter-first: detects files deleted from disk as orphans', async () => {
