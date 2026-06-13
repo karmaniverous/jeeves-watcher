@@ -88,6 +88,11 @@ export async function rebuildWatcher(
   oldState: WatcherState,
   initialScanTracker?: InitialScanTracker,
   contentHashCache?: ContentHashCache,
+  onVcsFileChange?: (
+    filePath: string,
+    event: 'add' | 'change' | 'unlink',
+  ) => void,
+  onInitialScanComplete?: () => void | Promise<void>,
 ): Promise<WatcherState> {
   try {
     await oldState.watcher.stop();
@@ -102,6 +107,8 @@ export async function rebuildWatcher(
         runtimeOptions,
         initialScanTracker,
         contentHashCache,
+        onVcsFileChange,
+        onInitialScanComplete,
       );
     newWatcher.start();
     logger.info('Filesystem watcher rebuilt successfully');

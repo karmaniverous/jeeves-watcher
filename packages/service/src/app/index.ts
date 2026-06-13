@@ -343,6 +343,9 @@ export class JeevesWatcher {
       contentHashCache: this.contentHashCache,
       valuesManager: this.valuesManager,
       issuesManager: this.issuesManager,
+      onVcsFileChange: (filePath, event) =>
+        this.vcsCoordinator?.onFileChange(filePath, event),
+      onInitialScanComplete: () => this.vcsCoordinator?.onInitialScanComplete(),
     });
 
     this.config = state.config;
