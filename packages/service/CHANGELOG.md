@@ -4,6 +4,19 @@ All notable changes to this project will be documented in this file.
 
 ## [unreleased]
 
+### 🚀 Features
+
+- Add shared endpoint catalog in core package (#196)
+
+### 🐛 Bug Fixes
+
+- Replace VCS commit debounce with throttle (#221)
+
+### 💼 Other
+
+- Updated core
+## [0.18.9] - 2026-06-13
+
 ### 🐛 Bug Fixes
 
 - *(vcs)* Add stale lock detection, circuit breaker, and re-queue cap (#219)
@@ -25,6 +38,10 @@ All notable changes to this project will be documented in this file.
 ### ⚡ Performance
 
 - *(api)* Rewrite computePrunePlan with filter-first approach (#187)
+
+### ⚙️ Miscellaneous Tasks
+
+- Release @karmaniverous/jeeves-watcher v0.18.9
 ## [0.18.8] - 2026-06-12
 
 ### 🐛 Bug Fixes
