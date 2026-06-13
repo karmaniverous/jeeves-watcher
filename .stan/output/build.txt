@@ -1,0 +1,70 @@
+
+> build
+> npm run build --workspace=packages/core && npm run build --workspace=packages/service && npm run build --workspace=packages/openclaw
+
+
+> @karmaniverous/jeeves-watcher-core@0.2.2 prebuild
+> npx rimraf dist
+
+
+> @karmaniverous/jeeves-watcher-core@0.2.2 build
+> cross-env NO_COLOR=1 rollup --config rollup.config.ts --configPlugin @rollup/plugin-typescript
+
+
+src/index.ts → dist...
+created dist in 2.7s
+
+src/index.ts → dist/index.d.ts...
+created dist/index.d.ts in 2.2s
+
+> @karmaniverous/jeeves-watcher@0.18.5 build
+> npm run generate:schema && rimraf dist && cross-env NO_COLOR=1 rollup --config rollup.config.ts --configPlugin @rollup/plugin-typescript
+
+
+> @karmaniverous/jeeves-watcher@0.18.5 generate:schema
+> tsx src/config/generate-schema.ts
+
+Generated: D:\repos\karmaniverous\jeeves-watcher\packages\service\config.schema.json
+loaded rollup.config.ts with warnings
+(!) [plugin typescript] @rollup/plugin-typescript: outputToFilesystem option is defaulting to true.
+
+src/index.ts → dist...
+created dist in 13.1s
+
+src/index.ts → dist/index.d.ts...
+(!) Unresolved dependencies
+https://rollupjs.org/troubleshooting/#warning-treating-module-as-external-dependency
+node:fs (imported by "src/rules/attributes.ts")
+node:child_process (imported by "src/vcs/gitExec.ts")
+created dist/index.d.ts in 4.9s
+
+src/cli/jeeves-watcher/index.ts → dist/cli/jeeves-watcher...
+created dist/cli/jeeves-watcher in 13.4s
+
+> @karmaniverous/jeeves-watcher-openclaw@0.15.2 build
+> npm run build:plugin && npm run build:skills && npm run build:content
+
+
+> @karmaniverous/jeeves-watcher-openclaw@0.15.2 build:plugin
+> rimraf dist && cross-env NO_COLOR=1 rollup --config rollup.config.ts --configPlugin @rollup/plugin-typescript
+
+
+src/index.ts → dist...
+(!) Circular dependency
+../../node_modules/zod/v4/classic/schemas.js -> ../../node_modules/zod/v4/classic/iso.js -> ../../node_modules/zod/v4/classic/schemas.js
+created dist in 8.1s
+
+src/cli.ts → dist/cli.js...
+(!) Circular dependency
+../../node_modules/zod/v4/classic/schemas.js -> ../../node_modules/zod/v4/classic/iso.js -> ../../node_modules/zod/v4/classic/schemas.js
+created dist/cli.js in 6.6s
+
+> @karmaniverous/jeeves-watcher-openclaw@0.15.2 build:skills
+> tsx scripts/build-skills.ts
+
+Copied: dist/skills/jeeves-watcher/SKILL.md
+
+> @karmaniverous/jeeves-watcher-openclaw@0.15.2 build:content
+> node scripts/copy-content.mjs
+
+Copied: @karmaniverous/jeeves content/ → content/

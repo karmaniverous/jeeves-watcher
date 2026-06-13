@@ -1,0 +1,219 @@
+
+> test
+> npm run test --workspace=packages/core && npm run test --workspace=packages/service --no-color
+
+
+> @karmaniverous/jeeves-watcher-core@0.2.2 test
+> vitest run
+
+
+[1m[30m[46m RUN [49m[39m[22m [36mv4.1.7 [39m[90mD:/repos/karmaniverous/jeeves-watcher/packages/core[39m
+
+ [32m✓[39m src/schemas/moveDetection.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 38[2mms[22m[39m
+ [32m✓[39m src/schemas/inference.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 22[2mms[22m[39m
+ [32m✓[39m src/schemas/vcs.test.ts [2m([22m[2m27 tests[22m[2m)[22m[32m 111[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m3 passed[39m[22m[90m (3)[39m
+[2m      Tests [22m [1m[32m40 passed[39m[22m[90m (40)[39m
+[2m   Start at [22m 03:14:00
+[2m   Duration [22m 2.02s[2m (transform 316ms, setup 0ms, import 1.25s, tests 171ms, environment 1ms)[22m
+
+
+> @karmaniverous/jeeves-watcher@0.18.5 test
+> vitest run
+
+
+[1m[30m[46m RUN [49m[39m[22m [36mv4.1.7 [39m[90mD:/repos/karmaniverous/jeeves-watcher/packages/service[39m
+
+ [32m✓[39m src/api/executeReindex.test.ts [2m([22m[2m15 tests[22m[2m)[22m[33m 4963[2mms[22m[39m
+       [33m[2m✓[22m[39m prune scope: retries on scroll failure and resumes [33m 1047[2mms[22m[39m
+       [33m[2m✓[22m[39m prune scope: returns incomplete plan when all retries exhausted [33m 3755[2mms[22m[39m
+ [32m✓[39m src/vcs/gitExec.test.ts [2m([22m[2m17 tests[22m[2m)[22m[33m 7761[2mms[22m[39m
+     [33m[2m✓[22m[39m stages a single file [33m 1941[2mms[22m[39m
+     [33m[2m✓[22m[39m stages multiple files in one call [33m 2038[2mms[22m[39m
+     [33m[2m✓[22m[39m stages deleted files correctly [33m 2271[2mms[22m[39m
+     [33m[2m✓[22m[39m handles files with spaces in paths [33m 1499[2mms[22m[39m
+ [32m✓[39m src/vcs/vcsBootstrap.test.ts [2m([22m[2m10 tests[22m[2m)[22m[33m 4859[2mms[22m[39m
+     [33m[2m✓[22m[39m initializes a git repo in an empty directory [33m 366[2mms[22m[39m
+     [33m[2m✓[22m[39m is idempotent — does not fail on existing repo [33m 414[2mms[22m[39m
+     [33m[2m✓[22m[39m sets local git user.name and user.email [33m 1697[2mms[22m[39m
+     [33m[2m✓[22m[39m overwrites existing local identity [33m 2140[2mms[22m[39m
+ [32m✓[39m src/test/gitignore-integration.test.ts [2m([22m[2m1 test[22m[2m)[22m[33m 1510[2mms[22m[39m
+       [33m[2m✓[22m[39m should only index non-ignored files when filter is applied [33m 834[2mms[22m[39m
+ [32m✓[39m src/api/onRulesChanged.test.ts [2m([22m[2m3 tests[22m[2m)[22m[33m 1116[2mms[22m[39m
+     [33m[2m✓[22m[39m triggers rules reindex with extracted globs after rule registration [33m 806[2mms[22m[39m
+ [32m✓[39m src/rules/rules.test.ts [2m([22m[2m16 tests[22m[2m)[22m[33m 1049[2mms[22m[39m
+ [32m✓[39m src/test/integration.test.ts [2m([22m[2m14 tests[22m[2m)[22m[33m 9679[2mms[22m[39m
+       [33m[2m✓[22m[39m should index a new file with correct payload fields [33m 822[2mms[22m[39m
+       [33m[2m✓[22m[39m should re-embed when content changes [33m 854[2mms[22m[39m
+       [33m[2m✓[22m[39m should skip re-embedding when content is unchanged [33m 416[2mms[22m[39m
+       [33m[2m✓[22m[39m should remove chunks from Qdrant [33m 362[2mms[22m[39m
+       [33m[2m✓[22m[39m POST /rebuild-metadata should write meta files from Qdrant payloads [33m 985[2mms[22m[39m
+       [33m[2m✓[22m[39m POST /reindex with scope:rules should start reindex asynchronously [33m 796[2mms[22m[39m
+       [33m[2m✓[22m[39m should apply inferred metadata from rules [33m 588[2mms[22m[39m
+       [33m[2m✓[22m[39m should handle complete add/update/delete cycle [33m 501[2mms[22m[39m
+       [33m[2m✓[22m[39m should enrich metadata via POST /metadata [33m 622[2mms[22m[39m
+       [33m[2m✓[22m[39m should move points to new path without re-embedding [33m 595[2mms[22m[39m
+       [33m[2m✓[22m[39m should migrate enrichment on move [33m 493[2mms[22m[39m
+       [33m[2m✓[22m[39m should preserve enrichments through full reindex [33m 696[2mms[22m[39m
+       [33m[2m✓[22m[39m should return relevant results from POST /search [33m 700[2mms[22m[39m
+ [32m✓[39m src/enrichment/EnrichmentStore.test.ts [2m([22m[2m12 tests[22m[2m)[22m[33m 432[2mms[22m[39m
+ [32m✓[39m src/rules/virtualRules.test.ts [2m([22m[2m7 tests[22m[2m)[22m[33m 616[2mms[22m[39m
+ [32m✓[39m src/config/loadConfig.test.ts [2m([22m[2m19 tests[22m[2m)[22m[33m 1158[2mms[22m[39m
+     [33m[2m✓[22m[39m resolves string rule references to external JSON files [33m 429[2mms[22m[39m
+[90mstderr[2m | src/extractors/extractors.test.ts[2m > [22m[2mextractText[2m > [22m[2mextracts PDF text content
+[22m[39mWarning: Indexing all PDF objects
+
+ [32m✓[39m src/extractors/extractors.test.ts [2m([22m[2m12 tests[22m[2m)[22m[33m 1383[2mms[22m[39m
+     [33m[2m✓[22m[39m extracts PDF text content [33m 616[2mms[22m[39m
+ [32m✓[39m src/watcher/MoveCorrelator.test.ts [2m([22m[2m9 tests[22m[2m)[22m[33m 557[2mms[22m[39m
+     [33m[2m✓[22m[39m falls back to delete after timeout [33m 338[2mms[22m[39m
+ [32m✓[39m src/api/handlers/metadataValidation.test.ts [2m([22m[2m5 tests[22m[2m)[22m[33m 398[2mms[22m[39m
+ [32m✓[39m src/api/fileScan.test.ts [2m([22m[2m14 tests[22m[2m)[22m[32m 270[2mms[22m[39m
+ [32m✓[39m src/vcs/VcsCoordinator.test.ts [2m([22m[2m7 tests[22m[2m)[22m[33m 24068[2mms[22m[39m
+     [33m[2m✓[22m[39m routes file changes to the correct root manager [33m 5489[2mms[22m[39m
+     [33m[2m✓[22m[39m ignores files that do not match any root [33m 2276[2mms[22m[39m
+     [33m[2m✓[22m[39m does not create managers when VCS is disabled [33m 2448[2mms[22m[39m
+     [33m[2m✓[22m[39m handles unlink events by staging deletions [33m 5053[2mms[22m[39m
+     [33m[2m✓[22m[39m resolves glob watch paths to their static root [33m 2163[2mms[22m[39m
+     [33m[2m✓[22m[39m deduplicates globs that resolve to the same root [33m 2188[2mms[22m[39m
+     [33m[2m✓[22m[39m stop flushes all pending changes [33m 4448[2mms[22m[39m
+ [32m✓[39m src/health/health.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 95[2mms[22m[39m
+ [32m✓[39m src/helpers/loadModule.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 223[2mms[22m[39m
+ [32m✓[39m src/api/handlers/configMatch.test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 293[2mms[22m[39m
+ [32m✓[39m src/templates/templates.test.ts [2m([22m[2m23 tests[22m[2m)[22m[32m 288[2mms[22m[39m
+ [32m✓[39m src/rules/jsonMapLib.test.ts [2m([22m[2m14 tests[22m[2m)[22m[32m 150[2mms[22m[39m
+ [32m✓[39m src/issues/IssuesManager.test.ts [2m([22m[2m11 tests[22m[2m)[22m[32m 173[2mms[22m[39m
+ [32m✓[39m src/values/ValuesManager.test.ts [2m([22m[2m12 tests[22m[2m)[22m[33m 323[2mms[22m[39m
+ [32m✓[39m src/gitignore/gitignore.test.ts [2m([22m[2m10 tests[22m[2m)[22m[32m 108[2mms[22m[39m
+ [32m✓[39m src/api/onRulesChangedRejection.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 64[2mms[22m[39m
+ [32m✓[39m src/processor/buildMetadata.test.ts [2m([22m[2m8 tests[22m[2m)[22m[33m 505[2mms[22m[39m
+ [32m✓[39m src/processor/processor.test.ts [2m([22m[2m11 tests[22m[2m)[22m[32m 187[2mms[22m[39m
+ [32m✓[39m src/api/handlers/rulesRegister.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 141[2mms[22m[39m
+ [32m✓[39m src/templates/renderDoc.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 108[2mms[22m[39m
+ [32m✓[39m src/cli/jeeves-watcher/customCommands.test.ts [2m([22m[2m18 tests[22m[2m)[22m[32m 90[2mms[22m[39m
+ [32m✓[39m src/vcs/resolveCommitMessageApiKey.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 55[2mms[22m[39m
+ [32m✓[39m src/processor/processingPipeline.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 53[2mms[22m[39m
+ [32m✓[39m src/rules/schemaMerge.test.ts [2m([22m[2m27 tests[22m[2m)[22m[32m 97[2mms[22m[39m
+ [32m✓[39m src/vcs/resolveWatchRoot.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 165[2mms[22m[39m
+ [32m✓[39m src/processor/moveFile.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 65[2mms[22m[39m
+ [32m✓[39m src/api/handlers/render.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 29[2mms[22m[39m
+ [32m✓[39m src/config/migrateConfigPath.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 146[2mms[22m[39m
+ [32m✓[39m src/util/JsonFileStore.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 34[2mms[22m[39m
+ [32m✓[39m src/templates/helpers.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 34[2mms[22m[39m
+ [32m✓[39m src/app/initialization.test.ts [2m([22m[2m19 tests[22m[2m)[22m[32m 91[2mms[22m[39m
+ [32m✓[39m src/api/handlers/configValidate.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 34[2mms[22m[39m
+ [32m✓[39m src/watcher/globToDir.test.ts [2m([22m[2m21 tests[22m[2m)[22m[32m 33[2mms[22m[39m
+ [32m✓[39m src/api/handlers/mergeAndValidate.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 30[2mms[22m[39m
+ [32m✓[39m src/api/handlers/configQueryGlobals.test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 52[2mms[22m[39m
+ [32m✓[39m src/api/handlers/walk.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 28[2mms[22m[39m
+ [32m✓[39m src/descriptor.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 26[2mms[22m[39m
+ [32m✓[39m src/api/handlers/configReindex.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 26[2mms[22m[39m
+ [32m✓[39m src/queue/queue.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 26[2mms[22m[39m
+ [32m✓[39m src/vectorStore/scroll.test.ts [2m([22m[2m11 tests[22m[2m)[22m[32m 22[2mms[22m[39m
+ [32m✓[39m src/api/handlers/configQuery.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 51[2mms[22m[39m
+ [32m✓[39m src/api/handlers/facets.test.ts [2m([22m[2m11 tests[22m[2m)[22m[32m 23[2mms[22m[39m
+ [32m✓[39m src/templates/resolveFrontmatterKeys.test.ts [2m([22m[2m10 tests[22m[2m)[22m[32m 26[2mms[22m[39m
+ [32m✓[39m src/util/logError.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 23[2mms[22m[39m
+ [32m✓[39m src/api/mergedDocument.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 23[2mms[22m[39m
+ [32m✓[39m src/api/handlers/wrapHandler.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 21[2mms[22m[39m
+ [32m✓[39m src/vcs/CommitMessageGenerator.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 16[2mms[22m[39m
+ [32m✓[39m src/vectorStore/hybridSearch.test.ts [2m([22m[2m10 tests[22m[2m)[22m[32m 23[2mms[22m[39m
+ [32m✓[39m src/util/logger.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 18[2mms[22m[39m
+ [32m✓[39m src/processor/processorFileDates.test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 19[2mms[22m[39m
+ [32m✓[39m src/util/isPathWatched.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 21[2mms[22m[39m
+ [32m✓[39m src/api/handlers/scan.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 17[2mms[22m[39m
+ [32m✓[39m src/api/handlers/configSchema.test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 65[2mms[22m[39m
+ [32m✓[39m src/logger/errorSerialization.test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 16[2mms[22m[39m
+ [32m✓[39m src/cache/ContentHashCache.test.ts [2m([22m[2m10 tests[22m[2m)[22m[32m 15[2mms[22m[39m
+ [32m✓[39m src/vectorStore/collectionInfo.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 15[2mms[22m[39m
+ [32m✓[39m src/util/normalizeError.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 15[2mms[22m[39m
+ [32m✓[39m src/api/handlers/search.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 15[2mms[22m[39m
+ [32m✓[39m src/processor/lineOffsets.test.ts [2m([22m[2m10 tests[22m[2m)[22m[32m 14[2mms[22m[39m
+ [32m✓[39m src/api/handlers/pointsDelete.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 13[2mms[22m[39m
+ [32m✓[39m src/vectorStore/count.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 14[2mms[22m[39m
+ [32m✓[39m src/app/configReload.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 15[2mms[22m[39m
+ [32m✓[39m src/api/handlers/configMerge.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 12[2mms[22m[39m
+ [32m✓[39m src/api/ReindexTracker.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 13[2mms[22m[39m
+ [32m✓[39m src/vcs/validateStateDirOverlap.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 14[2mms[22m[39m
+ [32m✓[39m src/enrichment/merge.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 13[2mms[22m[39m
+ [32m✓[39m src/vcs/SquashManager.test.ts [2m([22m[2m18 tests[22m[2m)[22m[33m 56118[2mms[22m[39m
+     [33m[2m✓[22m[39m produces correct commit structure (1 baseline + N recent) [33m 12125[2mms[22m[39m
+     [33m[2m✓[22m[39m is a no-op when within retention window [33m 3646[2mms[22m[39m
+     [33m[2m✓[22m[39m force pushes after squash when remote configured [33m 15507[2mms[22m[39m
+     [33m[2m✓[22m[39m aborts on index.lock collision [33m 4627[2mms[22m[39m
+     [33m[2m✓[22m[39m URL-encodes access token in force push URL [33m 17111[2mms[22m[39m
+     [33m[2m✓[22m[39m handles single commit repo (no-op) [33m 3087[2mms[22m[39m
+ [32m✓[39m src/vectorStore/helpers.test.ts [2m([22m[2m11 tests[22m[2m)[22m[32m 13[2mms[22m[39m
+ [32m✓[39m src/templates/rebaseHeadings.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 10[2mms[22m[39m
+ [32m✓[39m src/api/handlers/withCache.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 10[2mms[22m[39m
+ [32m✓[39m src/rules/apply.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 11[2mms[22m[39m
+ [32m✓[39m src/api/handlers/issues.test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 8[2mms[22m[39m
+ [32m✓[39m src/api/extractMatchGlobs.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 11[2mms[22m[39m
+ [32m✓[39m src/app/index.test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 12[2mms[22m[39m
+ [32m✓[39m src/api/handlers/vcs/vcs.test.ts [2m([22m[2m29 tests[22m[2m)[22m[33m 68524[2mms[22m[39m
+       [33m[2m✓[22m[39m returns status with root info [33m 2582[2mms[22m[39m
+       [33m[2m✓[22m[39m returns enabled:false when no VCS roots exist [33m 1421[2mms[22m[39m
+       [33m[2m✓[22m[39m returns commit history for a glob [33m 2344[2mms[22m[39m
+       [33m[2m✓[22m[39m respects limit parameter [33m 4545[2mms[22m[39m
+       [33m[2m✓[22m[39m returns 400 for missing glob [33m 1695[2mms[22m[39m
+       [33m[2m✓[22m[39m returns 404 for glob outside any root [33m 1806[2mms[22m[39m
+       [33m[2m✓[22m[39m filters by date range [33m 2203[2mms[22m[39m
+       [33m[2m✓[22m[39m returns file content at a specific commit [33m 2901[2mms[22m[39m
+       [33m[2m✓[22m[39m returns 404 for nonexistent file at commit [33m 2560[2mms[22m[39m
+       [33m[2m✓[22m[39m returns 400 for missing parameters [33m 1842[2mms[22m[39m
+       [33m[2m✓[22m[39m returns 404 for path outside any root [33m 2389[2mms[22m[39m
+       [33m[2m✓[22m[39m returns diff between commits [33m 4644[2mms[22m[39m
+       [33m[2m✓[22m[39m returns diff between two specific commits [33m 4240[2mms[22m[39m
+       [33m[2m✓[22m[39m returns 400 for missing parameters [33m 2159[2mms[22m[39m
+       [33m[2m✓[22m[39m returns excluded:false for tracked files [33m 2499[2mms[22m[39m
+       [33m[2m✓[22m[39m returns excluded:true for gitignored files [33m 3511[2mms[22m[39m
+       [33m[2m✓[22m[39m returns 400 for missing path [33m 1735[2mms[22m[39m
+       [33m[2m✓[22m[39m returns 404 for path outside any root [33m 2010[2mms[22m[39m
+       [33m[2m✓[22m[39m restores file content from a past commit [33m 4611[2mms[22m[39m
+       [33m[2m✓[22m[39m skips deleted files when existingOnly is true [33m 4480[2mms[22m[39m
+       [33m[2m✓[22m[39m recreates deleted files when existingOnly is false [33m 3584[2mms[22m[39m
+       [33m[2m✓[22m[39m returns 400 for missing parameters [33m 1204[2mms[22m[39m
+       [33m[2m✓[22m[39m returns 404 for glob outside any root [33m 1142[2mms[22m[39m
+       [33m[2m✓[22m[39m adds pattern to .gitignore at correct directory [33m 814[2mms[22m[39m
+       [33m[2m✓[22m[39m removes pattern from .gitignore [33m 1022[2mms[22m[39m
+       [33m[2m✓[22m[39m places .gitignore at deepest common directory (locality) [33m 1150[2mms[22m[39m
+       [33m[2m✓[22m[39m returns 400 for missing glob [33m 1336[2mms[22m[39m
+       [33m[2m✓[22m[39m returns 404 for invalid root [33m 1034[2mms[22m[39m
+       [33m[2m✓[22m[39m does not duplicate existing pattern [33m 1056[2mms[22m[39m
+ [32m✓[39m src/vcs/VcsManager.test.ts [2m([22m[2m29 tests[22m[2m)[22m[33m 96854[2mms[22m[39m
+       [33m[2m✓[22m[39m commits pending files to git [33m 3237[2mms[22m[39m
+       [33m[2m✓[22m[39m is a no-op when pending set is empty [33m 2510[2mms[22m[39m
+       [33m[2m✓[22m[39m handles multiple files in a single commit [33m 2684[2mms[22m[39m
+       [33m[2m✓[22m[39m stages file deletion in pending set [33m 3751[2mms[22m[39m
+       [33m[2m✓[22m[39m resets debounce timer on each fileChanged call [33m 1662[2mms[22m[39m
+       [33m[2m✓[22m[39m flushes immediately when pending exceeds maxBatchSize [33m 3467[2mms[22m[39m
+       [33m[2m✓[22m[39m starts new timer for overflow when batch exceeds maxBatchSize [33m 4417[2mms[22m[39m
+       [33m[2m✓[22m[39m flushes pending changes on stop [33m 3318[2mms[22m[39m
+       [33m[2m✓[22m[39m ignores fileChanged calls after stop [33m 4538[2mms[22m[39m
+       [33m[2m✓[22m[39m retries on index.lock contention [33m 4483[2mms[22m[39m
+       [33m[2m✓[22m[39m gives up after max retries and logs error [33m 7349[2mms[22m[39m
+       [33m[2m✓[22m[39m re-queues files on commit failure so next flush retries [33m 9393[2mms[22m[39m
+       [33m[2m✓[22m[39m generates revert-prefixed commit message when reversion is pending [33m 4730[2mms[22m[39m
+       [33m[2m✓[22m[39m includes other changes count in revert message when mixed [33m 3868[2mms[22m[39m
+       [33m[2m✓[22m[39m clears pending reversions after commit [33m 2689[2mms[22m[39m
+       [33m[2m✓[22m[39m uses AI-generated commit message when generator is provided [33m 2170[2mms[22m[39m
+       [33m[2m✓[22m[39m falls back to template when generator returns null [33m 2280[2mms[22m[39m
+       [33m[2m✓[22m[39m falls back to template when generator throws [33m 2253[2mms[22m[39m
+       [33m[2m✓[22m[39m uses revert prefix with AI description for reversions [33m 2697[2mms[22m[39m
+       [33m[2m✓[22m[39m uses template revert message when AI fails for reversions [33m 2930[2mms[22m[39m
+       [33m[2m✓[22m[39m creates a baseline commit for pre-existing files in an empty repo [33m 1971[2mms[22m[39m
+       [33m[2m✓[22m[39m does not create baseline when repo already has commits [33m 1581[2mms[22m[39m
+       [33m[2m✓[22m[39m uses normal commit messages after baseline is done [33m 2909[2mms[22m[39m
+       [33m[2m✓[22m[39m handles empty repo with no untracked files [33m 1239[2mms[22m[39m
+       [33m[2m✓[22m[39m pushes to remote after successful commit [33m 3361[2mms[22m[39m
+       [33m[2m✓[22m[39m does nothing when no remote is configured [33m 1848[2mms[22m[39m
+       [33m[2m✓[22m[39m records push error on failure without blocking commits [33m 2997[2mms[22m[39m
+       [33m[2m✓[22m[39m URL-encodes the access token in the push URL [33m 3733[2mms[22m[39m
+       [33m[2m✓[22m[39m pushes with token injected into URL [33m 2781[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m84 passed[39m[22m[90m (84)[39m
+[2m      Tests [22m [1m[32m726 passed[39m[22m[90m (726)[39m
+[2m   Start at [22m 03:14:08
+[2m   Duration [22m 100.72s[2m (transform 15.49s, setup 0ms, import 72.45s, tests 285.72s, environment 22ms)[22m
+
