@@ -70,8 +70,26 @@ export function buildGlobMatcher(
 }
 
 /**
+ * Expand a bare directory path (no glob characters) to a recursive glob.
+ * A path like `/opt/jeeves/content` becomes `/opt/jeeves/content/**`.
+ * Paths that already contain glob characters are returned unchanged.
+ *
+ * @param glob - A glob pattern or bare directory path.
+ * @returns The original glob, or the path suffixed with `/**` if bare.
+ */
+export function expandBareDirectoryGlob(glob: string): string {
+  const normalized = normalizeSlashes(glob);
+  if (/[*?{[\]]/.test(normalized)) return glob;
+  return glob.replace(/\/+$/, '') + '/**';
+}
+
+/**
  * Convert an array of glob patterns into chokidar-compatible directory roots
  * and a filter function for post-hoc event filtering.
+ *
+ * Bare directory paths (no glob characters, e.g. `/opt/jeeves/content`) are
+ * automatically expanded to recursive globs (`/opt/jeeves/content/**`) so that
+ * picomatch matches all files underneath them.
  *
  * @param globs - Glob patterns from the watch config.
  * @returns Object with `roots` (directories for chokidar) and `matches` (filter function).
@@ -80,9 +98,10 @@ export function resolveWatchPaths(globs: string[]): {
   roots: string[];
   matches: (filePath: string) => boolean;
 } {
-  const rawRoots = globs.map(globRoot);
+  const expandedGlobs = globs.map(expandBareDirectoryGlob);
+  const rawRoots = expandedGlobs.map(globRoot);
   const roots = deduplicateRoots(rawRoots);
-  const matches = buildGlobMatcher(globs);
+  const matches = buildGlobMatcher(expandedGlobs);
   return { roots, matches };
 }
 

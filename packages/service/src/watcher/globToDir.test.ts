@@ -8,6 +8,7 @@ import { describe, expect, it } from 'vitest';
 import {
   buildGlobMatcher,
   deduplicateRoots,
+  expandBareDirectoryGlob,
   globRoot,
   resolveIgnored,
   resolveWatchPaths,
@@ -93,6 +94,46 @@ describe('buildGlobMatcher', () => {
   });
 });
 
+describe('expandBareDirectoryGlob', () => {
+  it('appends /** to a bare directory path', () => {
+    expect(expandBareDirectoryGlob('j:/domains')).toBe('j:/domains/**');
+  });
+
+  it('appends /** to a deep bare directory path', () => {
+    expect(expandBareDirectoryGlob('/opt/jeeves/content')).toBe(
+      '/opt/jeeves/content/**',
+    );
+  });
+
+  it('strips trailing slash before appending /**', () => {
+    expect(expandBareDirectoryGlob('j:/domains/')).toBe('j:/domains/**');
+  });
+
+  it('does not modify a path that already has glob characters', () => {
+    expect(expandBareDirectoryGlob('j:/domains/**/*.json')).toBe(
+      'j:/domains/**/*.json',
+    );
+  });
+
+  it('does not modify a path with a question-mark glob', () => {
+    expect(expandBareDirectoryGlob('j:/domains/file?.json')).toBe(
+      'j:/domains/file?.json',
+    );
+  });
+
+  it('does not modify a path with a brace glob', () => {
+    expect(expandBareDirectoryGlob('j:/domains/**/*.{json,md}')).toBe(
+      'j:/domains/**/*.{json,md}',
+    );
+  });
+
+  it('does not modify a path with a bracket glob', () => {
+    expect(expandBareDirectoryGlob('j:/domains/[abc].json')).toBe(
+      'j:/domains/[abc].json',
+    );
+  });
+});
+
 describe('resolveWatchPaths', () => {
   it('returns deduplicated roots and a working matcher', () => {
     const { roots, matches } = resolveWatchPaths([
@@ -105,6 +146,41 @@ describe('resolveWatchPaths', () => {
     expect(matches('j:/domains/jira/WEB-1.json')).toBe(true);
     expect(matches('j:/config/watcher.json')).toBe(true);
     expect(matches('j:/domains/file.py')).toBe(false);
+  });
+
+  it('bare directory path matches files recursively under it', () => {
+    const { matches } = resolveWatchPaths(['/opt/jeeves/content']);
+
+    expect(matches('/opt/jeeves/content/legacy/slack/file.json')).toBe(true);
+    expect(matches('/opt/jeeves/content/readme.md')).toBe(true);
+    expect(matches('/opt/jeeves/other/file.json')).toBe(false);
+  });
+
+  it('bare directory path produces the correct chokidar root', () => {
+    const { roots } = resolveWatchPaths(['/opt/jeeves/content']);
+    expect(roots).toEqual(['/opt/jeeves/content']);
+  });
+
+  it('mix of bare paths and glob patterns works correctly', () => {
+    const { roots, matches } = resolveWatchPaths([
+      'j:/domains',
+      'j:/config/**/*.json',
+    ]);
+
+    expect(roots).toEqual(['j:/config', 'j:/domains']);
+    expect(matches('j:/domains/legacy/slack/file.md')).toBe(true);
+    expect(matches('j:/config/watcher.json')).toBe(true);
+    expect(matches('j:/config/readme.md')).toBe(false);
+    expect(matches('/opt/other/file.json')).toBe(false);
+  });
+
+  it('paths with glob characters are not modified (regression guard)', () => {
+    const { matches } = resolveWatchPaths(['j:/domains/**/*.json']);
+
+    // Files matching the original glob still match
+    expect(matches('j:/domains/jira/WEB-1.json')).toBe(true);
+    // Files that would only match if /** were appended (non-json) should not
+    expect(matches('j:/domains/jira/WEB-1.md')).toBe(false);
   });
 });
 
