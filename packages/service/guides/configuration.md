@@ -649,6 +649,7 @@ On shutdown, the watcher:
     "enabled": true,
     "commitThrottleMs": 30000,
     "maxBatchSize": 1000,
+    "branch": "master",
     "commitMessage": {
       "enabled": true,
       "provider": "anthropic",
@@ -672,6 +673,7 @@ On shutdown, the watcher:
 | `enabled` | `boolean` | `false` | Enable git-backed content versioning. |
 | `commitThrottleMs` | `number` | `30000` | Throttle interval (ms) for batching commits (min: 1000). |
 | `maxBatchSize` | `number` | `1000` | Max files per commit batch (min: 1). |
+| `branch` | `string` | `"master"` | Git branch name for VCS operations. Squash retention and startup recovery target this branch. |
 | `commitMessage.enabled` | `boolean` | `true` | Enable AI-generated commit messages. |
 | `commitMessage.provider` | `string` | `"anthropic"` | LLM provider. |
 | `commitMessage.model` | `string` | `"claude-haiku-4-0"` | Model name. |

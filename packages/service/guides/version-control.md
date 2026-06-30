@@ -43,6 +43,7 @@ VCS tracking and watcher embedding are independent concerns. Git can track files
     "enabled": true,
     "commitThrottleMs": 30000,
     "maxBatchSize": 1000,
+    "branch": "master",
     "commitMessage": {
       "enabled": true,
       "provider": "anthropic",
@@ -66,6 +67,7 @@ VCS tracking and watcher embedding are independent concerns. Git can track files
 | `enabled` | `boolean` | `false` | Enable VCS tracking globally. |
 | `commitThrottleMs` | `number` | `30000` | Throttle interval in milliseconds for batching commits (min: 1000). Timer starts on first change and does not reset. |
 | `maxBatchSize` | `number` | `1000` | Max files per commit batch (min: 1). Overflow rolls to next cycle. |
+| `branch` | `string` | `"master"` | Git branch name for VCS operations. Squash retention and startup orphan recovery target this branch instead of dynamically detecting the current branch. |
 | `commitMessage` | `object` | See below | AI commit message generation settings. |
 | `commitMessage.enabled` | `boolean` | `true` | Enable AI-generated commit messages. Falls back to template on failure. |
 | `commitMessage.provider` | `string` | `"anthropic"` | LLM provider for commit messages. |
@@ -498,11 +500,19 @@ The cron expression uses standard 5-field format (`minute hour day-of-month mont
 
 ### Squash Mechanism
 
-1. Parse the commit log and compute the retention boundary
-2. Create an orphan branch at the boundary commit
-3. Use `commit-tree` to create a single squashed baseline commit
-4. Cherry-pick all retained commits on top
-5. Force-update the main branch to the new history
+1. **Pause** the commit pipeline (drain any in-flight commits)
+2. Parse the commit log and compute the retention boundary
+3. Create an orphan branch at the boundary commit
+4. Use `commit-tree` to create a single squashed baseline commit
+5. Cherry-pick all retained commits on top
+6. Force-update the **configured branch** (from `vcs.branch`) to the new history
+7. **Resume** the commit pipeline
+
+All git operations during squash have explicit timeouts (30s standard, 120s for cherry-pick, 60s for push) to prevent permanent pipeline freezes from hung git processes.
+
+### Pause/Resume Coordination
+
+Squash pauses the VcsManager commit pipeline before starting. This drains any pending commits, then blocks new commits from executing during the squash. File changes that arrive during the squash are queued in the pending set and committed after resume. The resume always fires (via a `finally` block), even if the squash fails.
 
 ### Force Push After Squash
 
@@ -511,6 +521,24 @@ If a remote is configured, the squashed history is force-pushed. This is accepta
 ### Lock Contention
 
 If `index.lock` is held by another git operation during squash, the squash aborts cleanly and retries on the next cron cycle. No data is lost.
+
+### Startup Orphan Recovery
+
+If the service starts and a VCS root is on an unexpected branch (e.g., a leftover squash orphan branch from a crash), the VcsManager detects this during startup and recovers:
+
+1. Reads the current branch via `git rev-parse --abbrev-ref HEAD`
+2. If it differs from the configured `branch`, force-updates the configured branch to the current HEAD
+3. Checks out the configured branch
+
+Orphan branches are **not deleted** — they serve as a recovery safety net. If recovery fails, the error is logged and the manager continues with the current state.
+
+### "Nothing to Commit" Handling
+
+When the commit pipeline stages files that haven't actually changed (e.g., a file was touched but content is identical), `git commit` fails with "nothing to commit." This is a no-op, not a failure — the circuit breaker counter is not incremented, and files are not re-queued.
+
+### Retry Timer After Failure
+
+When a commit batch fails and files are re-queued, the throttle timer is restarted so the re-queued files are retried automatically. Without this, re-queued files would sit in the pending set indefinitely until a new `fileChanged()` call arrived.
 
 ---
 
@@ -603,6 +631,22 @@ No manual intervention is needed in most cases. If the circuit breaker trips, in
 **Symptom:** VCS features silently disabled. Log contains `git not found` warning.
 
 **Resolution:** Install git and ensure it is on the system `PATH`. Restart the watcher. On Windows, the installer typically adds git to `PATH` automatically. On Linux, install via your package manager (`apt install git`, `yum install git`, etc.).
+
+### Repo on Wrong Branch After Crash
+
+**Symptom:** Log shows `Repo is on unexpected branch — recovering to configured branch` at startup.
+
+**Cause:** The service crashed or was killed during a squash operation, leaving the repo on a temporary orphan branch.
+
+**Automatic recovery:** The VcsManager detects the wrong branch at startup, force-updates the configured branch to the current HEAD, and checks out the configured branch. No manual intervention needed. The orphan branch is preserved as a safety net.
+
+### Git Operations Timing Out
+
+**Symptom:** Log shows timeout errors for git operations.
+
+**Cause:** A git operation (add, commit, push, cherry-pick) took longer than its timeout.
+
+**Resolution:** Standard operations timeout at 30 seconds, cherry-pick at 120 seconds, push at 60 seconds. If timeouts occur regularly, investigate disk I/O, network connectivity (for push), or repository size (for cherry-pick during squash).
 
 ---
 
