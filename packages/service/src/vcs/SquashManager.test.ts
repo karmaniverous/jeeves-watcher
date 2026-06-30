@@ -542,6 +542,26 @@ describe('SquashManager.runSquash', () => {
     expect(callOrder).toEqual(['pause', 'resume']);
   }, 30000);
 
+  it('calls resume when pause throws (Bug 3 — Copilot review)', async () => {
+    await createCommit(tempDir, 'file1.txt', 'a');
+
+    const pauseFn = vi.fn(() => Promise.reject(new Error('pause failed')));
+    const resumeFn = vi.fn(() => {});
+
+    const manager = new SquashManager(
+      tempDir,
+      makeRetention({ maxAgeDays: 30, maxVersions: 100 }),
+      silentLogger,
+      { pauseCommits: pauseFn, resumeCommits: resumeFn },
+    );
+
+    const result = await manager.runSquash();
+    expect(result.squashed).toBe(false);
+    expect(result.error).toBe('pause failed');
+    // Resume must still be called to avoid leaving the pipeline stuck
+    expect(resumeFn).toHaveBeenCalledTimes(1);
+  });
+
   it('calls resume even when squash fails (Bug 3)', async () => {
     // Empty repo — no commits to squash but pause/resume should still be called
     const pauseFn = vi.fn(() => Promise.resolve());

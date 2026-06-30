@@ -217,6 +217,8 @@ export class SquashManager {
         { root: this.rootPath, err: normalizeError(error) },
         'Failed to pause commit pipeline before squash',
       );
+      // Resume in case pause partially executed (flush succeeded but flag not set)
+      this.resumeCommits?.();
       return { squashed: false, error: normalizeError(error).message };
     }
 
