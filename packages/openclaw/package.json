@@ -8,7 +8,7 @@
   },
   "dependencies": {
     "@karmaniverous/jeeves": "^0.5.12",
-    "@karmaniverous/jeeves-watcher-core": "^0.2.4"
+    "@karmaniverous/jeeves-watcher-core": "^0.2.5"
   },
   "description": "OpenClaw plugin for jeeves-watcher — semantic search and metadata enrichment tools",
   "devDependencies": {
