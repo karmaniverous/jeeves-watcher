@@ -14,6 +14,7 @@ import pino from 'pino';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { CommitMessageGenerator } from './CommitMessageGenerator';
+import * as vcsBootstrap from './vcsBootstrap';
 import { initRepo } from './vcsBootstrap';
 import { VcsManager } from './VcsManager';
 
@@ -1138,6 +1139,37 @@ describe('VcsManager instance', () => {
       );
       expect(stdout).toContain('1 files');
       expect(manager.lastPushTime).not.toBeNull();
+    });
+  });
+
+  describe('start orphan recovery resilience (Bug 6)', () => {
+    it('continues startup when orphan recovery throws', async () => {
+      const logger = pino({ level: 'silent' });
+      const errorSpy = vi.spyOn(logger, 'error');
+
+      // Make detectAndRecoverOrphanBranch throw
+      vi.spyOn(
+        vcsBootstrap,
+        'detectAndRecoverOrphanBranch',
+      ).mockRejectedValueOnce(new Error('git not available'));
+
+      const manager = new VcsManager(tempDir, makeConfig(), logger);
+      await manager.start();
+
+      // Should have logged the error
+      expect(errorSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ root: tempDir }),
+        'Orphan branch recovery failed — continuing with current state',
+      );
+
+      // Manager should still be functional
+      manager.endBaseline();
+      const filePath = join(tempDir, 'after-recovery-fail.txt');
+      await writeFile(filePath, 'content', 'utf8');
+      manager.fileChanged(filePath);
+      await manager.flush();
+
+      expect(await commitCount(tempDir)).toBe(1);
     });
   });
 
