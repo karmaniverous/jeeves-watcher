@@ -30,6 +30,7 @@ export {
   ALWAYS_GITIGNORE_ENTRIES,
   checkGitAvailable,
   configureRepoIdentity,
+  detectAndRecoverOrphanBranch,
   ensureGitignore,
   initRepo,
 } from './vcsBootstrap.js';

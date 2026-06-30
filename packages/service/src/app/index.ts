@@ -206,7 +206,7 @@ export class JeevesWatcher {
 
     this.server = await this.startApiServer();
 
-    vcsCoordinator.start();
+    await vcsCoordinator.start();
     this.watcher.start();
     this.startConfigWatch();
 

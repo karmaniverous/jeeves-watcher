@@ -117,12 +117,12 @@ export class CommitMessageBuilder {
       const { stdout: stat } = await execFileAsync(
         'git',
         ['diff', '--cached', '--stat'],
-        { cwd: this.rootPath },
+        { cwd: this.rootPath, timeout: 30_000 },
       );
       const { stdout: patch } = await execFileAsync(
         'git',
         ['diff', '--cached'],
-        { cwd: this.rootPath },
+        { cwd: this.rootPath, timeout: 30_000 },
       );
       return `${stat}\n${patch}`;
     } catch {

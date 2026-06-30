@@ -3,19 +3,23 @@
  * Tests for bootstrap utilities: checkGitAvailable, initRepo, ensureGitignore.
  */
 
-import { access, mkdtemp, readFile, writeFile } from 'node:fs/promises';
+import { access, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { beforeEach, describe, expect, it } from 'vitest';
+import pino from 'pino';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { execFileAsync } from './gitExec';
 import {
   checkGitAvailable,
   configureRepoIdentity,
+  detectAndRecoverOrphanBranch,
   ensureGitignore,
   initRepo,
 } from './vcsBootstrap';
+
+const silentLogger = pino({ level: 'silent' });
 
 // ─── checkGitAvailable ───
 
@@ -159,5 +163,131 @@ describe('ensureGitignore', () => {
     const content = await readFile(join(tempDir, '.gitignore'), 'utf8');
     expect(content).toContain('*.log');
     expect(content).toContain('tmp/');
+  });
+});
+
+// ─── detectAndRecoverOrphanBranch (Bug 6) ───
+
+describe('detectAndRecoverOrphanBranch', () => {
+  let tempDir: string;
+
+  beforeEach(async () => {
+    tempDir = await mkdtemp(join(tmpdir(), 'vcs-orphan-'));
+    await initRepo(tempDir);
+    await execFileAsync('git', ['config', 'user.email', 'test@test.com'], {
+      cwd: tempDir,
+    });
+    await execFileAsync('git', ['config', 'user.name', 'Test'], {
+      cwd: tempDir,
+    });
+    // Create initial commit on master
+    await writeFile(join(tempDir, 'init.txt'), 'init', 'utf8');
+    await execFileAsync('git', ['add', '.'], { cwd: tempDir });
+    await execFileAsync('git', ['commit', '-m', 'initial'], { cwd: tempDir });
+  });
+
+  afterEach(async () => {
+    await rm(tempDir, { recursive: true, force: true });
+  });
+
+  it('is a no-op when already on the expected branch', async () => {
+    await detectAndRecoverOrphanBranch(tempDir, 'master', silentLogger);
+
+    const { stdout } = await execFileAsync(
+      'git',
+      ['rev-parse', '--abbrev-ref', 'HEAD'],
+      { cwd: tempDir },
+    );
+    expect(stdout.trim()).toBe('master');
+  });
+
+  it('recovers to expected branch when on an orphan', async () => {
+    const logger = pino({ level: 'silent' });
+    const warnSpy = vi.spyOn(logger, 'warn');
+    const infoSpy = vi.spyOn(logger, 'info');
+
+    // Simulate orphan state: create an orphan branch and add a commit
+    await execFileAsync(
+      'git',
+      ['checkout', '--orphan', '__squash_orphan_123'],
+      { cwd: tempDir },
+    );
+    await writeFile(join(tempDir, 'orphan.txt'), 'orphan content', 'utf8');
+    await execFileAsync('git', ['add', '.'], { cwd: tempDir });
+    await execFileAsync('git', ['commit', '-m', 'orphan commit'], {
+      cwd: tempDir,
+    });
+
+    // Get the orphan HEAD hash
+    const { stdout: orphanHead } = await execFileAsync(
+      'git',
+      ['rev-parse', 'HEAD'],
+      { cwd: tempDir },
+    );
+
+    await detectAndRecoverOrphanBranch(tempDir, 'master', logger);
+
+    // Should now be on master
+    const { stdout: branch } = await execFileAsync(
+      'git',
+      ['rev-parse', '--abbrev-ref', 'HEAD'],
+      { cwd: tempDir },
+    );
+    expect(branch.trim()).toBe('master');
+
+    // Master should point to the orphan HEAD (the latest work)
+    const { stdout: masterHead } = await execFileAsync(
+      'git',
+      ['rev-parse', 'HEAD'],
+      { cwd: tempDir },
+    );
+    expect(masterHead.trim()).toBe(orphanHead.trim());
+
+    // Should have logged warning and info
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        currentBranch: '__squash_orphan_123',
+        expectedBranch: 'master',
+      }),
+      expect.stringContaining('unexpected branch'),
+    );
+    expect(infoSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        recoveredFrom: '__squash_orphan_123',
+        expectedBranch: 'master',
+      }),
+      expect.stringContaining('recovery complete'),
+    );
+  });
+
+  it('does NOT delete orphan branches', async () => {
+    // Create orphan branch
+    await execFileAsync(
+      'git',
+      ['checkout', '--orphan', '__squash_orphan_456'],
+      { cwd: tempDir },
+    );
+    await writeFile(join(tempDir, 'orphan2.txt'), 'content', 'utf8');
+    await execFileAsync('git', ['add', '.'], { cwd: tempDir });
+    await execFileAsync('git', ['commit', '-m', 'orphan'], { cwd: tempDir });
+
+    await detectAndRecoverOrphanBranch(tempDir, 'master', silentLogger);
+
+    // Orphan branch should still exist
+    const { stdout: branches } = await execFileAsync(
+      'git',
+      ['branch', '--list'],
+      { cwd: tempDir },
+    );
+    expect(branches).toContain('__squash_orphan_456');
+  });
+
+  it('is a no-op for non-git directories', async () => {
+    const nonGitDir = await mkdtemp(join(tmpdir(), 'vcs-nongit-'));
+    // Should not throw
+    await expect(
+      detectAndRecoverOrphanBranch(nonGitDir, 'master', silentLogger),
+    ).resolves.toBeUndefined();
+    await rm(nonGitDir, { recursive: true, force: true });
   });
 });

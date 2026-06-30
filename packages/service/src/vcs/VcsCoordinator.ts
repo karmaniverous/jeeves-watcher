@@ -99,11 +99,14 @@ export class VcsCoordinator {
 
   /**
    * Start all VcsManager instances.
+   * Runs startup orphan detection/recovery for each root.
    */
-  start(): void {
+  async start(): Promise<void> {
+    const startPromises: Promise<void>[] = [];
     this.managers.forEach((manager) => {
-      manager.start();
+      startPromises.push(manager.start());
     });
+    await Promise.all(startPromises);
     this.logger.info(
       { rootCount: this.managers.size },
       'VcsCoordinator started',

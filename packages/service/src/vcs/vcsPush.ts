@@ -43,6 +43,7 @@ export async function pushToRemote(
     await execFileAsync('git', ['push', pushUrl, 'HEAD'], {
       cwd: rootPath,
       env: { ...process.env, GIT_TERMINAL_PROMPT: '0' },
+      timeout: 60_000,
     });
 
     const timestamp = new Date().toISOString();

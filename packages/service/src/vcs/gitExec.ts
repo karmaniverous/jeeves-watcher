@@ -20,25 +20,42 @@ export const execFileAsync = promisify(execFile);
  *
  * @param files - Absolute paths of files to stage.
  * @param cwd   - Repository root (working directory for git).
+ * @param timeoutMs - Kill the child process after this many milliseconds. Default: 30000.
  */
-export function gitAddViaStdin(files: string[], cwd: string): Promise<void> {
+export function gitAddViaStdin(
+  files: string[],
+  cwd: string,
+  timeoutMs = 30_000,
+): Promise<void> {
   return new Promise((resolve, reject) => {
+    let timedOut = false;
     const child = execFile(
       'git',
       ['add', '--pathspec-from-file=-', '--pathspec-file-nul'],
       { cwd },
       (error: Error | null) => {
+        clearTimeout(timer);
+        if (timedOut) return;
         if (error) reject(error);
         else resolve();
       },
     );
+
+    const timer = setTimeout(() => {
+      timedOut = true;
+      child.kill();
+      reject(new Error(`git add timed out after ${String(timeoutMs)}ms`));
+    }, timeoutMs);
+
     if (!child.stdin) {
+      clearTimeout(timer);
       reject(new Error('Failed to open stdin for git add'));
       return;
     }
     // Suppress EPIPE — expected if git exits before we finish writing
     child.stdin.on('error', (err: NodeJS.ErrnoException) => {
       if (err.code !== 'EPIPE') {
+        clearTimeout(timer);
         reject(err);
       }
     });
