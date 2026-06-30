@@ -4,6 +4,24 @@ All notable changes to this project will be documented in this file.
 
 ## [unreleased]
 
+### 💼 Other
+
+- [230] fix: squashmanager compound defect (#230)
+
+- Bug 1: Use configured branch name instead of dynamic git branch detection
+- Bug 2: Restart throttle timer after commit failure so re-queued files retry
+- Bug 3: Pause/resume coordination between SquashManager and VcsManager
+- Bug 4: Add timeouts to all git operations (30s standard, 120s cherry-pick, 60s push)
+- Bug 5: Exclude "nothing to commit" from circuit breaker failure count
+- Bug 6: Startup orphan branch detection and recovery
+
+Adds branch field to VcsConfig schema (default: "master").
+SquashManager now pauses VcsManager commit pipeline during squash.
+All execFileAsync and gitAddViaStdin calls have explicit timeouts.
+
+Fixes #230
+## [0.2.4] - 2026-06-13
+
 ### 🚀 Features
 
 - Add shared endpoint catalog in core package (#196)
@@ -19,6 +37,10 @@ All notable changes to this project will be documented in this file.
 ### 🧪 Testing
 
 - Add endpoint catalog unit tests
+
+### ⚙️ Miscellaneous Tasks
+
+- Release @karmaniverous/jeeves-watcher-core v0.2.4
 ## [0.2.3] - 2026-06-13
 
 ### 🚀 Features
