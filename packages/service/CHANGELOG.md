@@ -4,6 +4,63 @@ All notable changes to this project will be documented in this file.
 
 ## [unreleased]
 
+### 💼 Other
+
+- [224] fix: append /** to bare directory watch paths (fixes #224)
+- [230] fix: squashmanager compound defect (#230)
+
+- Bug 1: Use configured branch name instead of dynamic git branch detection
+- Bug 2: Restart throttle timer after commit failure so re-queued files retry
+- Bug 3: Pause/resume coordination between SquashManager and VcsManager
+- Bug 4: Add timeouts to all git operations (30s standard, 120s cherry-pick, 60s push)
+- Bug 5: Exclude "nothing to commit" from circuit breaker failure count
+- Bug 6: Startup orphan branch detection and recovery
+
+Adds branch field to VcsConfig schema (default: "master").
+SquashManager now pauses VcsManager commit pipeline during squash.
+All execFileAsync and gitAddViaStdin calls have explicit timeouts.
+
+Fixes #230
+- [230] refactor: SOLID/DRY pass on VCS subsystem (#230)
+
+- Extract GIT_TIMEOUT_STANDARD/CHERRY_PICK/PUSH constants from magic numbers
+- Extract buildAuthenticatedPushUrl() — eliminates duplicate token-URL
+  construction in vcsPush.ts and SquashManager.forcePushIfConfigured()
+- Extract getExecErrorFields() — shared error field extraction replaces
+  duplicate unsafe casts in isIndexLockError() and isNothingToCommitError()
+- Convert SquashManager constructor from 8 positional params to
+  (rootPath, retention, logger, options?) pattern
+- [230] test: close coverage gaps for #230 utilities and error paths
+
+- Unit tests for getExecErrorFields() (ExecFileException fields,
+  plain Error, non-Error values, non-string properties)
+- Unit tests for buildAuthenticatedPushUrl() (no token, undefined token,
+  HTTPS injection, special chars, SSH URLs, file:// URLs)
+- VcsManager.start() error resilience: orphan recovery throws →
+  logs error → manager continues and commits normally
+- [230] docs: sync guides and README with #230 code changes
+
+- Add `branch` field to VCS config tables and JSON examples in
+  configuration.md, version-control.md, and service README
+- Document pause/resume coordination in squash mechanism
+- Document startup orphan branch detection and recovery
+- Document "nothing to commit" handling and retry timer after failure
+- Document git operation timeouts (30s/120s/60s)
+- Add troubleshooting entries: wrong branch after crash, git timeouts
+- [230] fix: call resumeCommits when pauseCommits throws (#230)
+
+If pauseCommits() threw after partially executing (e.g., flush succeeded
+but the flag wasn't set), runSquash() returned early without reaching
+the finally block that calls resumeCommits(). This could leave the
+commit pipeline permanently paused.
+
+Add resumeCommits() call in the pause-failure catch block. Resume is
+safe to call even if the pipeline isn't actually paused.
+
+Addresses Copilot review comment on PR #231.
+- Updated core
+## [0.18.10] - 2026-06-13
+
 ### 🚀 Features
 
 - Add shared endpoint catalog in core package (#196)
@@ -15,6 +72,10 @@ All notable changes to this project will be documented in this file.
 ### 💼 Other
 
 - Updated core
+
+### ⚙️ Miscellaneous Tasks
+
+- Release @karmaniverous/jeeves-watcher v0.18.10
 ## [0.18.9] - 2026-06-13
 
 ### 🐛 Bug Fixes
