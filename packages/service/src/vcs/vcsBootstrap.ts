@@ -8,7 +8,7 @@ import { join } from 'node:path';
 
 import type pino from 'pino';
 
-import { execFileAsync } from './gitExec';
+import { execFileAsync, GIT_TIMEOUT_STANDARD } from './gitExec';
 
 /** Always-on .gitignore entries for VCS-managed watch roots. */
 export const ALWAYS_GITIGNORE_ENTRIES = [
@@ -96,7 +96,7 @@ export async function detectAndRecoverOrphanBranch(
   const { stdout: branchOut } = await execFileAsync(
     'git',
     ['rev-parse', '--abbrev-ref', 'HEAD'],
-    { cwd: rootPath, timeout: 30_000 },
+    { cwd: rootPath, timeout: GIT_TIMEOUT_STANDARD },
   );
   const currentBranch = branchOut.trim();
 
@@ -111,20 +111,20 @@ export async function detectAndRecoverOrphanBranch(
   const { stdout: headOut } = await execFileAsync(
     'git',
     ['rev-parse', 'HEAD'],
-    { cwd: rootPath, timeout: 30_000 },
+    { cwd: rootPath, timeout: GIT_TIMEOUT_STANDARD },
   );
   const headHash = headOut.trim();
 
   // Force-update the expected branch to current HEAD
   await execFileAsync('git', ['branch', '-f', expectedBranch, headHash], {
     cwd: rootPath,
-    timeout: 30_000,
+    timeout: GIT_TIMEOUT_STANDARD,
   });
 
   // Checkout the expected branch
   await execFileAsync('git', ['checkout', expectedBranch], {
     cwd: rootPath,
-    timeout: 30_000,
+    timeout: GIT_TIMEOUT_STANDARD,
   });
 
   logger.info(

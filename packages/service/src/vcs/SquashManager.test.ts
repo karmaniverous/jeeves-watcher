@@ -153,7 +153,6 @@ describe('SquashManager.calculateRetentionBoundary', () => {
       '/tmp/test',
       makeRetention({ maxAgeDays: 7, maxVersions: 100 }),
       silentLogger,
-      'master',
     );
 
     const now = new Date();
@@ -176,7 +175,6 @@ describe('SquashManager.calculateRetentionBoundary', () => {
       '/tmp/test',
       makeRetention({ maxAgeDays: 365, maxVersions: 2 }),
       silentLogger,
-      'master',
     );
 
     const now = new Date();
@@ -199,7 +197,6 @@ describe('SquashManager.calculateRetentionBoundary', () => {
       '/tmp/test',
       makeRetention({ maxAgeDays: 365, maxVersions: 100 }),
       silentLogger,
-      'master',
     );
 
     const now = new Date();
@@ -267,7 +264,6 @@ describe('SquashManager.runSquash', () => {
       tempDir,
       makeRetention({ maxAgeDays: 30, maxVersions: 100 }),
       silentLogger,
-      'master',
     );
 
     const result = await manager.runSquash();
@@ -318,7 +314,6 @@ describe('SquashManager.runSquash', () => {
       tempDir,
       makeRetention({ maxAgeDays: 30, maxVersions: 100 }),
       silentLogger,
-      'master',
     );
 
     const result = await manager.runSquash();
@@ -361,10 +356,7 @@ describe('SquashManager.runSquash', () => {
       tempDir,
       makeRetention({ maxAgeDays: 30, maxVersions: 100 }),
       silentLogger,
-      'master',
-      undefined,
-      undefined,
-      remoteUrl,
+      { remoteUrl },
     );
 
     const result = await manager.runSquash();
@@ -405,7 +397,6 @@ describe('SquashManager.runSquash', () => {
       tempDir,
       makeRetention({ maxAgeDays: 30, maxVersions: 100 }),
       silentLogger,
-      'master',
     );
 
     const result = await manager.runSquash();
@@ -447,11 +438,10 @@ describe('SquashManager.runSquash', () => {
       tempDir,
       makeRetention({ maxAgeDays: 30, maxVersions: 100 }),
       logger,
-      'master',
-      undefined,
-      undefined,
-      'https://github.com/test/repo.git',
-      'tok/en@special',
+      {
+        remoteUrl: 'https://github.com/test/repo.git',
+        accessToken: 'tok/en@special',
+      },
     );
 
     const result = await manager.runSquash();
@@ -470,7 +460,6 @@ describe('SquashManager.runSquash', () => {
       tempDir,
       makeRetention({ maxAgeDays: 1, maxVersions: 1 }),
       silentLogger,
-      'master',
     );
 
     const result = await manager.runSquash();
@@ -500,7 +489,7 @@ describe('SquashManager.runSquash', () => {
       tempDir,
       makeRetention({ maxAgeDays: 30, maxVersions: 100 }),
       silentLogger,
-      'main', // configured branch
+      { branch: 'main' },
     );
 
     const result = await manager.runSquash();
@@ -543,9 +532,7 @@ describe('SquashManager.runSquash', () => {
       tempDir,
       makeRetention({ maxAgeDays: 30, maxVersions: 100 }),
       silentLogger,
-      'master',
-      pauseFn,
-      resumeFn,
+      { pauseCommits: pauseFn, resumeCommits: resumeFn },
     );
 
     const result = await manager.runSquash();
@@ -564,9 +551,7 @@ describe('SquashManager.runSquash', () => {
       tempDir,
       makeRetention({ maxAgeDays: 30, maxVersions: 100 }),
       silentLogger,
-      'master',
-      pauseFn,
-      resumeFn,
+      { pauseCommits: pauseFn, resumeCommits: resumeFn },
     );
 
     const result = await manager.runSquash();

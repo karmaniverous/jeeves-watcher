@@ -7,7 +7,7 @@ import type pino from 'pino';
 
 import { normalizeError } from '../util/normalizeError';
 import type { CommitMessageGenerator } from './CommitMessageGenerator';
-import { execFileAsync } from './gitExec';
+import { execFileAsync, GIT_TIMEOUT_STANDARD } from './gitExec';
 import type { PendingReversion } from './types';
 
 /**
@@ -117,12 +117,12 @@ export class CommitMessageBuilder {
       const { stdout: stat } = await execFileAsync(
         'git',
         ['diff', '--cached', '--stat'],
-        { cwd: this.rootPath, timeout: 30_000 },
+        { cwd: this.rootPath, timeout: GIT_TIMEOUT_STANDARD },
       );
       const { stdout: patch } = await execFileAsync(
         'git',
         ['diff', '--cached'],
-        { cwd: this.rootPath, timeout: 30_000 },
+        { cwd: this.rootPath, timeout: GIT_TIMEOUT_STANDARD },
       );
       return `${stat}\n${patch}`;
     } catch {

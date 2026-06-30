@@ -10,7 +10,13 @@ import type { VcsRetentionConfig } from '@karmaniverous/jeeves-watcher-core';
 import type pino from 'pino';
 
 import { normalizeError } from '../util/normalizeError';
-import { execFileAsync } from './gitExec';
+import {
+  buildAuthenticatedPushUrl,
+  execFileAsync,
+  GIT_TIMEOUT_CHERRY_PICK,
+  GIT_TIMEOUT_PUSH,
+  GIT_TIMEOUT_STANDARD,
+} from './gitExec';
 
 /**
  * Parse a standard 5-field cron expression and check if the current time matches.
@@ -108,6 +114,20 @@ export interface CommitInfo {
  * then cherry-picks retained commits on top. Force-pushes to remote
  * if configured (D13).
  */
+/** Options for SquashManager construction beyond the required params. */
+export interface SquashManagerOptions {
+  /** Git branch name for squash operations. Default: "master". */
+  branch?: string;
+  /** Called before squash to drain and pause the commit pipeline. */
+  pauseCommits?: () => Promise<void>;
+  /** Called after squash to resume the commit pipeline. */
+  resumeCommits?: () => void;
+  /** Remote URL for force-push after squash. */
+  remoteUrl?: string;
+  /** Access token for HTTPS push authentication. */
+  accessToken?: string;
+}
+
 export class SquashManager {
   private readonly rootPath: string;
   private readonly retention: VcsRetentionConfig;
@@ -124,20 +144,16 @@ export class SquashManager {
     rootPath: string,
     retention: VcsRetentionConfig,
     logger: pino.Logger,
-    branch = 'master',
-    pauseCommits?: () => Promise<void>,
-    resumeCommits?: () => void,
-    remoteUrl?: string,
-    accessToken?: string,
+    options: SquashManagerOptions = {},
   ) {
     this.rootPath = rootPath;
     this.retention = retention;
     this.logger = logger;
-    this.branch = branch;
-    this.pauseCommits = pauseCommits;
-    this.resumeCommits = resumeCommits;
-    this.remoteUrl = remoteUrl;
-    this.accessToken = accessToken;
+    this.branch = options.branch ?? 'master';
+    this.pauseCommits = options.pauseCommits;
+    this.resumeCommits = options.resumeCommits;
+    this.remoteUrl = options.remoteUrl;
+    this.accessToken = options.accessToken;
   }
 
   /**
@@ -254,7 +270,7 @@ export class SquashManager {
       const { stdout } = await execFileAsync(
         'git',
         ['log', '--format=%H %aI', '--reverse'],
-        { cwd: this.rootPath, timeout: 30_000 },
+        { cwd: this.rootPath, timeout: GIT_TIMEOUT_STANDARD },
       );
 
       if (!stdout.trim()) return [];
@@ -328,13 +344,13 @@ export class SquashManager {
       // 1. Create orphan branch with the tree state at the baseline commit
       await execFileAsync('git', ['checkout', '--orphan', orphanBranch], {
         cwd: this.rootPath,
-        timeout: 30_000,
+        timeout: GIT_TIMEOUT_STANDARD,
       });
 
       // 2. Reset index to the baseline tree (the last squashed commit's tree)
       await execFileAsync('git', ['reset', '--hard', baselineHash], {
         cwd: this.rootPath,
-        timeout: 30_000,
+        timeout: GIT_TIMEOUT_STANDARD,
       });
 
       // 3. Create the baseline commit with the same tree
@@ -342,21 +358,21 @@ export class SquashManager {
       const { stdout: treeOut } = await execFileAsync(
         'git',
         ['rev-parse', `${baselineHash}^{tree}`],
-        { cwd: this.rootPath, timeout: 30_000 },
+        { cwd: this.rootPath, timeout: GIT_TIMEOUT_STANDARD },
       );
       const treeHash = treeOut.trim();
 
       const { stdout: commitOut } = await execFileAsync(
         'git',
         ['commit-tree', treeHash, '-m', 'historical baseline'],
-        { cwd: this.rootPath, timeout: 30_000 },
+        { cwd: this.rootPath, timeout: GIT_TIMEOUT_STANDARD },
       );
       const baselineCommitHash = commitOut.trim();
 
       // 4. Reset orphan branch to this new baseline commit
       await execFileAsync('git', ['reset', '--hard', baselineCommitHash], {
         cwd: this.rootPath,
-        timeout: 30_000,
+        timeout: GIT_TIMEOUT_STANDARD,
       });
 
       // 5. Cherry-pick boundary..HEAD (the retained commits)
@@ -366,7 +382,7 @@ export class SquashManager {
       if (commitsToCherry.length > 0) {
         await execFileAsync('git', ['cherry-pick', ...commitsToCherry], {
           cwd: this.rootPath,
-          timeout: 120_000,
+          timeout: GIT_TIMEOUT_CHERRY_PICK,
         });
       }
 
@@ -374,36 +390,36 @@ export class SquashManager {
       const { stdout: newHead } = await execFileAsync(
         'git',
         ['rev-parse', 'HEAD'],
-        { cwd: this.rootPath, timeout: 30_000 },
+        { cwd: this.rootPath, timeout: GIT_TIMEOUT_STANDARD },
       );
 
       await execFileAsync(
         'git',
         ['branch', '-f', targetBranch, newHead.trim()],
-        { cwd: this.rootPath, timeout: 30_000 },
+        { cwd: this.rootPath, timeout: GIT_TIMEOUT_STANDARD },
       );
 
       // 7. Switch back to configured branch
       await execFileAsync('git', ['checkout', targetBranch], {
         cwd: this.rootPath,
-        timeout: 30_000,
+        timeout: GIT_TIMEOUT_STANDARD,
       });
 
       // 8. Delete orphan branch
       await execFileAsync('git', ['branch', '-D', orphanBranch], {
         cwd: this.rootPath,
-        timeout: 30_000,
+        timeout: GIT_TIMEOUT_STANDARD,
       });
     } catch (error) {
       // Attempt cleanup: try to get back to configured branch
       try {
         await execFileAsync('git', ['checkout', '-f', targetBranch], {
           cwd: this.rootPath,
-          timeout: 30_000,
+          timeout: GIT_TIMEOUT_STANDARD,
         });
         await execFileAsync('git', ['branch', '-D', orphanBranch], {
           cwd: this.rootPath,
-          timeout: 30_000,
+          timeout: GIT_TIMEOUT_STANDARD,
         });
       } catch {
         // Cleanup failed — log but re-throw original error
@@ -428,17 +444,15 @@ export class SquashManager {
     if (!this.remoteUrl) return;
 
     try {
-      const pushUrl = this.accessToken
-        ? this.remoteUrl.replace(
-            /^https:\/\//,
-            `https://${encodeURIComponent(this.accessToken)}@`,
-          )
-        : this.remoteUrl;
+      const pushUrl = buildAuthenticatedPushUrl(
+        this.remoteUrl,
+        this.accessToken,
+      );
 
       await execFileAsync('git', ['push', '--force', pushUrl, 'HEAD'], {
         cwd: this.rootPath,
         env: { ...process.env, GIT_TERMINAL_PROMPT: '0' },
-        timeout: 60_000,
+        timeout: GIT_TIMEOUT_PUSH,
       });
 
       this.logger.info(

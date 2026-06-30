@@ -13,7 +13,12 @@ import { normalizeError } from '../util/normalizeError';
 import { retry } from '../util/retry';
 import { CommitMessageBuilder } from './CommitMessageBuilder';
 import type { CommitMessageGenerator } from './CommitMessageGenerator';
-import { execFileAsync, gitAddViaStdin } from './gitExec';
+import {
+  execFileAsync,
+  getExecErrorFields,
+  GIT_TIMEOUT_STANDARD,
+  gitAddViaStdin,
+} from './gitExec';
 import { SquashManager } from './SquashManager';
 import type { PendingReversion, PushError } from './types';
 import { detectAndRecoverOrphanBranch } from './vcsBootstrap';
@@ -75,15 +80,17 @@ export class VcsManager {
         rootPath,
         config.retention,
         logger,
-        config.branch,
-        () => {
-          return this.pause();
+        {
+          branch: config.branch,
+          pauseCommits: () => {
+            return this.pause();
+          },
+          resumeCommits: () => {
+            this.resume();
+          },
+          remoteUrl,
+          accessToken,
         },
-        () => {
-          this.resume();
-        },
-        remoteUrl,
-        accessToken,
       );
     }
   }
@@ -303,12 +310,7 @@ export class VcsManager {
    * Git outputs this message to stdout (not stderr) on exit code 1.
    */
   private isNothingToCommitError(error: unknown): boolean {
-    if (!(error instanceof Error)) return false;
-    const message = error.message || '';
-    const stderr =
-      'stderr' in error ? String((error as { stderr: unknown }).stderr) : '';
-    const stdout =
-      'stdout' in error ? String((error as { stdout: unknown }).stdout) : '';
+    const { message, stderr, stdout } = getExecErrorFields(error);
     return (
       message.includes('nothing to commit') ||
       stderr.includes('nothing to commit') ||
@@ -354,7 +356,7 @@ export class VcsManager {
 
       await retry(
         async (attempt) => {
-          await gitAddViaStdin(files, this.rootPath, 30_000);
+          await gitAddViaStdin(files, this.rootPath, GIT_TIMEOUT_STANDARD);
 
           // Build message after staging so getStagedDiff can see the changes.
           // Skip AI for baselines and retries — use template directly.
@@ -374,13 +376,13 @@ export class VcsManager {
           this.pendingReversions.length = 0;
           await execFileAsync('git', ['commit', '-m', message], {
             cwd: this.rootPath,
-            timeout: 30_000,
+            timeout: GIT_TIMEOUT_STANDARD,
           });
 
           const { stdout: hashOut } = await execFileAsync(
             'git',
             ['rev-parse', '--short', 'HEAD'],
-            { cwd: this.rootPath, timeout: 30_000 },
+            { cwd: this.rootPath, timeout: GIT_TIMEOUT_STANDARD },
           );
           const hash = hashOut.trim();
           this.logger.info(
