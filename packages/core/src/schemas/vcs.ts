@@ -159,6 +159,12 @@ export const vcsConfigSchema = z.object({
     .describe(
       'Circuit breaker: stop re-queuing after this many consecutive commit failures. Default: 5.',
     ),
+  /** Git branch name for VCS operations. SquashManager and startup recovery use this instead of dynamic detection. */
+  branch: z
+    .string()
+    .min(1)
+    .default('master')
+    .describe('Git branch name for VCS operations. Default: "master".'),
 });
 
 /** Root-level VCS configuration. */

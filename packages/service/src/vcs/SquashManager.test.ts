@@ -356,7 +356,7 @@ describe('SquashManager.runSquash', () => {
       tempDir,
       makeRetention({ maxAgeDays: 30, maxVersions: 100 }),
       silentLogger,
-      remoteUrl,
+      { remoteUrl },
     );
 
     const result = await manager.runSquash();
@@ -438,8 +438,10 @@ describe('SquashManager.runSquash', () => {
       tempDir,
       makeRetention({ maxAgeDays: 30, maxVersions: 100 }),
       logger,
-      'https://github.com/test/repo.git',
-      'tok/en@special',
+      {
+        remoteUrl: 'https://github.com/test/repo.git',
+        accessToken: 'tok/en@special',
+      },
     );
 
     const result = await manager.runSquash();
@@ -463,5 +465,118 @@ describe('SquashManager.runSquash', () => {
     const result = await manager.runSquash();
     expect(result.squashed).toBe(false);
     expect(await commitCount(tempDir)).toBe(1);
+  });
+
+  it('uses configured branch name instead of dynamic detection (Bug 1)', async () => {
+    const now = new Date();
+    await createCommit(
+      tempDir,
+      'file1.txt',
+      'a',
+      new Date(now.getTime() - 60 * 86400000).toISOString(),
+    );
+    await createCommit(
+      tempDir,
+      'file2.txt',
+      'b',
+      new Date(now.getTime() - 1 * 86400000).toISOString(),
+    );
+
+    // Rename the default branch to 'main' to verify configured name is used
+    await execFileAsync('git', ['branch', '-M', 'main'], { cwd: tempDir });
+
+    const manager = new SquashManager(
+      tempDir,
+      makeRetention({ maxAgeDays: 30, maxVersions: 100 }),
+      silentLogger,
+      { branch: 'main' },
+    );
+
+    const result = await manager.runSquash();
+    expect(result.squashed).toBe(true);
+
+    // Verify we're on the configured branch
+    const { stdout: branchOut } = await execFileAsync(
+      'git',
+      ['rev-parse', '--abbrev-ref', 'HEAD'],
+      { cwd: tempDir },
+    );
+    expect(branchOut.trim()).toBe('main');
+  }, 30000);
+
+  it('calls pause/resume callbacks around squash operations (Bug 3)', async () => {
+    const now = new Date();
+    await createCommit(
+      tempDir,
+      'file1.txt',
+      'a',
+      new Date(now.getTime() - 60 * 86400000).toISOString(),
+    );
+    await createCommit(
+      tempDir,
+      'file2.txt',
+      'b',
+      new Date(now.getTime() - 1 * 86400000).toISOString(),
+    );
+
+    const callOrder: string[] = [];
+    const pauseFn = vi.fn(() => {
+      callOrder.push('pause');
+      return Promise.resolve();
+    });
+    const resumeFn = vi.fn(() => {
+      callOrder.push('resume');
+    });
+
+    const manager = new SquashManager(
+      tempDir,
+      makeRetention({ maxAgeDays: 30, maxVersions: 100 }),
+      silentLogger,
+      { pauseCommits: pauseFn, resumeCommits: resumeFn },
+    );
+
+    const result = await manager.runSquash();
+    expect(result.squashed).toBe(true);
+    expect(pauseFn).toHaveBeenCalledTimes(1);
+    expect(resumeFn).toHaveBeenCalledTimes(1);
+    expect(callOrder).toEqual(['pause', 'resume']);
+  }, 30000);
+
+  it('calls resume when pause throws (Bug 3 — Copilot review)', async () => {
+    await createCommit(tempDir, 'file1.txt', 'a');
+
+    const pauseFn = vi.fn(() => Promise.reject(new Error('pause failed')));
+    const resumeFn = vi.fn(() => {});
+
+    const manager = new SquashManager(
+      tempDir,
+      makeRetention({ maxAgeDays: 30, maxVersions: 100 }),
+      silentLogger,
+      { pauseCommits: pauseFn, resumeCommits: resumeFn },
+    );
+
+    const result = await manager.runSquash();
+    expect(result.squashed).toBe(false);
+    expect(result.error).toBe('pause failed');
+    // Resume must still be called to avoid leaving the pipeline stuck
+    expect(resumeFn).toHaveBeenCalledTimes(1);
+  });
+
+  it('calls resume even when squash fails (Bug 3)', async () => {
+    // Empty repo — no commits to squash but pause/resume should still be called
+    const pauseFn = vi.fn(() => Promise.resolve());
+    const resumeFn = vi.fn(() => {});
+
+    const manager = new SquashManager(
+      tempDir,
+      makeRetention({ maxAgeDays: 30, maxVersions: 100 }),
+      silentLogger,
+      { pauseCommits: pauseFn, resumeCommits: resumeFn },
+    );
+
+    const result = await manager.runSquash();
+    expect(result.squashed).toBe(false);
+    expect(pauseFn).toHaveBeenCalledTimes(1);
+    expect(resumeFn).toHaveBeenCalledTimes(1);
   });
 });

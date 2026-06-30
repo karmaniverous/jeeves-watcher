@@ -31,6 +31,7 @@ Add a `vcs` block to your config:
     "enabled": true,
     "commitThrottleMs": 30000,
     "maxBatchSize": 1000,
+    "branch": "master",
     "commitMessage": {
       "enabled": true,
       "provider": "anthropic",
@@ -52,6 +53,7 @@ Add a `vcs` block to your config:
 | `vcs.enabled` | `false` | Enable git-backed version control globally |
 | `vcs.commitThrottleMs` | `30000` | Throttle interval (ms) for batching file changes into commits. Min: 1000 |
 | `vcs.maxBatchSize` | `1000` | Maximum files per commit batch. Flushes immediately when exceeded. Min: 1 |
+| `vcs.branch` | `"master"` | Git branch name for VCS operations. Squash retention and startup recovery target this branch |
 | `vcs.commitMessage.enabled` | `true` | Enable AI-generated commit messages |
 | `vcs.commitMessage.provider` | `"anthropic"` | AI provider (currently only `"anthropic"` supported) |
 | `vcs.commitMessage.model` | `"claude-haiku-4-0"` | AI model for commit message generation |

@@ -11,7 +11,13 @@ import { promisify } from 'node:util';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { findRootForPath, gitAddViaStdin, isIndexLockError } from './gitExec';
+import {
+  buildAuthenticatedPushUrl,
+  findRootForPath,
+  getExecErrorFields,
+  gitAddViaStdin,
+  isIndexLockError,
+} from './gitExec';
 import { initRepo } from './vcsBootstrap';
 
 const execFileAsync = promisify(execFile);
@@ -147,6 +153,97 @@ describe('gitAddViaStdin', () => {
       { cwd: tempDir },
     );
     expect(stdout.trim()).toBe('file with spaces.txt');
+  });
+});
+
+describe('getExecErrorFields', () => {
+  it('extracts message, stderr, and stdout from an ExecFileException', () => {
+    const err = new Error('Command failed: git commit');
+    (err as unknown as Record<string, unknown>).stderr =
+      'fatal: nothing to commit';
+    (err as unknown as Record<string, unknown>).stdout =
+      'On branch master\nnothing to commit';
+
+    const fields = getExecErrorFields(err);
+    expect(fields.message).toBe('Command failed: git commit');
+    expect(fields.stderr).toBe('fatal: nothing to commit');
+    expect(fields.stdout).toBe('On branch master\nnothing to commit');
+  });
+
+  it('returns empty stderr/stdout when not present on Error', () => {
+    const err = new Error('plain error');
+    const fields = getExecErrorFields(err);
+    expect(fields.message).toBe('plain error');
+    expect(fields.stderr).toBe('');
+    expect(fields.stdout).toBe('');
+  });
+
+  it('handles non-Error values by stringifying', () => {
+    expect(getExecErrorFields('string error')).toEqual({
+      message: 'string error',
+      stderr: '',
+      stdout: '',
+    });
+    expect(getExecErrorFields(42)).toEqual({
+      message: '42',
+      stderr: '',
+      stdout: '',
+    });
+    expect(getExecErrorFields(null)).toEqual({
+      message: 'null',
+      stderr: '',
+      stdout: '',
+    });
+  });
+
+  it('ignores non-string stderr/stdout properties', () => {
+    const err = new Error('typed error');
+    (err as unknown as Record<string, unknown>).stderr = 123;
+    (err as unknown as Record<string, unknown>).stdout = { obj: true };
+
+    const fields = getExecErrorFields(err);
+    expect(fields.stderr).toBe('');
+    expect(fields.stdout).toBe('');
+  });
+});
+
+describe('buildAuthenticatedPushUrl', () => {
+  it('returns URL unchanged when no token provided', () => {
+    const url = 'https://github.com/owner/repo.git';
+    expect(buildAuthenticatedPushUrl(url)).toBe(url);
+  });
+
+  it('returns URL unchanged when token is undefined', () => {
+    const url = 'https://github.com/owner/repo.git';
+    expect(buildAuthenticatedPushUrl(url, undefined)).toBe(url);
+  });
+
+  it('injects token into HTTPS URL', () => {
+    expect(
+      buildAuthenticatedPushUrl(
+        'https://github.com/owner/repo.git',
+        'mytoken123',
+      ),
+    ).toBe('https://mytoken123@github.com/owner/repo.git');
+  });
+
+  it('URL-encodes special characters in token', () => {
+    expect(
+      buildAuthenticatedPushUrl(
+        'https://github.com/owner/repo.git',
+        'tok/en@special',
+      ),
+    ).toBe('https://tok%2Fen%40special@github.com/owner/repo.git');
+  });
+
+  it('does not modify non-HTTPS URLs', () => {
+    const sshUrl = 'git@github.com:owner/repo.git';
+    expect(buildAuthenticatedPushUrl(sshUrl, 'mytoken')).toBe(sshUrl);
+  });
+
+  it('does not modify file:// URLs', () => {
+    const fileUrl = 'file:///tmp/bare-repo';
+    expect(buildAuthenticatedPushUrl(fileUrl, 'mytoken')).toBe(fileUrl);
   });
 });
 

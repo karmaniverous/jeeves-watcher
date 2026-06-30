@@ -6,7 +6,9 @@
 import { access, appendFile, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
-import { execFileAsync } from './gitExec';
+import type pino from 'pino';
+
+import { execFileAsync, GIT_TIMEOUT_STANDARD } from './gitExec';
 
 /** Always-on .gitignore entries for VCS-managed watch roots. */
 export const ALWAYS_GITIGNORE_ENTRIES = [
@@ -65,6 +67,70 @@ export async function configureRepoIdentity(
   await execFileAsync('git', ['config', '--local', 'user.email', email], {
     cwd: rootPath,
   });
+}
+
+/**
+ * Detect and recover from orphan branch state on startup.
+ *
+ * If the repo is on an unexpected branch (e.g. a leftover squash orphan),
+ * force-updates the expected branch to the current HEAD and checks it out.
+ * Orphan branches are NOT deleted — they serve as a recovery safety net.
+ *
+ * @param rootPath - Directory of the git repository.
+ * @param expectedBranch - The configured branch name (e.g. "master").
+ * @param logger - Logger instance for warnings and info.
+ */
+export async function detectAndRecoverOrphanBranch(
+  rootPath: string,
+  expectedBranch: string,
+  logger: pino.Logger,
+): Promise<void> {
+  const gitDir = join(rootPath, '.git');
+  try {
+    await access(gitDir);
+  } catch {
+    // Not a git repo — nothing to detect
+    return;
+  }
+
+  const { stdout: branchOut } = await execFileAsync(
+    'git',
+    ['rev-parse', '--abbrev-ref', 'HEAD'],
+    { cwd: rootPath, timeout: GIT_TIMEOUT_STANDARD },
+  );
+  const currentBranch = branchOut.trim();
+
+  if (currentBranch === expectedBranch) return;
+
+  logger.warn(
+    { root: rootPath, currentBranch, expectedBranch },
+    'Repo is on unexpected branch — recovering to configured branch',
+  );
+
+  // Get current HEAD
+  const { stdout: headOut } = await execFileAsync(
+    'git',
+    ['rev-parse', 'HEAD'],
+    { cwd: rootPath, timeout: GIT_TIMEOUT_STANDARD },
+  );
+  const headHash = headOut.trim();
+
+  // Force-update the expected branch to current HEAD
+  await execFileAsync('git', ['branch', '-f', expectedBranch, headHash], {
+    cwd: rootPath,
+    timeout: GIT_TIMEOUT_STANDARD,
+  });
+
+  // Checkout the expected branch
+  await execFileAsync('git', ['checkout', expectedBranch], {
+    cwd: rootPath,
+    timeout: GIT_TIMEOUT_STANDARD,
+  });
+
+  logger.info(
+    { root: rootPath, recoveredFrom: currentBranch, expectedBranch, headHash },
+    'Orphan branch recovery complete — now on configured branch',
+  );
 }
 
 /**
