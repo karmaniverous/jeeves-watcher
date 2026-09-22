@@ -4,7 +4,7 @@
  */
 
 import type Handlebars from 'handlebars';
-import yaml from 'js-yaml';
+import { dump as yamlDump } from 'js-yaml';
 import { get, title } from 'radash';
 
 import type { RenderBodySection, RenderConfig } from '../config/schemas';
@@ -129,7 +129,7 @@ export function renderDoc(
 
   if (Object.keys(fmObj).length > 0) {
     parts.push('---');
-    parts.push(yaml.dump(fmObj, { skipInvalid: true }).trim());
+    parts.push(yamlDump(fmObj, { skipInvalid: true }).trim());
     parts.push('---');
     parts.push('');
   }

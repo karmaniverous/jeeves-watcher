@@ -7,7 +7,7 @@
 import { readFile } from 'node:fs/promises';
 
 import * as cheerio from 'cheerio';
-import yaml from 'js-yaml';
+import { load as yamlLoad } from 'js-yaml';
 import mammoth from 'mammoth';
 
 /**
@@ -41,7 +41,7 @@ function extractMarkdownFrontmatter(markdown: string): {
   if (!match) return { body: markdown };
 
   const [, rawYaml, body] = match;
-  const parsed = yaml.load(rawYaml);
+  const parsed = yamlLoad(rawYaml);
   const frontmatter =
     parsed && typeof parsed === 'object' && !Array.isArray(parsed)
       ? (parsed as Record<string, unknown>)
