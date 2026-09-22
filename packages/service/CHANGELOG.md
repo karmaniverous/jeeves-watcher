@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [unreleased]
 
+### 🐛 Bug Fixes
+
+- Use named imports for js-yaml (closes #232)
+## [0.18.11] - 2026-06-30
+
 ### 💼 Other
 
 - [224] fix: append /** to bare directory watch paths (fixes #224)
@@ -59,6 +64,10 @@ safe to call even if the pipeline isn't actually paused.
 
 Addresses Copilot review comment on PR #231.
 - Updated core
+
+### ⚙️ Miscellaneous Tasks
+
+- Release @karmaniverous/jeeves-watcher v0.18.11
 ## [0.18.10] - 2026-06-13
 
 ### 🚀 Features
