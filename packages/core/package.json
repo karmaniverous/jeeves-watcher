@@ -18,7 +18,6 @@
     "release-it": "^21.1.0",
     "rollup": "^4.63.5",
     "rollup-plugin-dts": "^6.5.1",
-    "typescript": "^7.0.2",
     "vitest": "^5.0.2"
   },
   "engines": {
