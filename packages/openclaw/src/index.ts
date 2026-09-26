@@ -37,9 +37,12 @@ export default function register(api: PluginApi): void {
   const toolApi = withGuardedTools(api, createLazyCore(api), CONFIG_ROOT_TOOLS);
 
   // 4 standard tools from core factory: watcher_status, watcher_config,
-  // watcher_config_apply, watcher_service.
+  // watcher_config_apply, watcher_service. `apiUrl` is resolved lazily on
+  // every call, so the HTTP tools honour the configured URL (defaultPort is
+  // only core's fallback).
   for (const tool of createPluginToolset(
     createWatcherComponent(PLUGIN_VERSION),
+    { apiUrl: () => getApiUrl(api) },
   )) {
     toolApi.registerTool(tool, { optional: true });
   }

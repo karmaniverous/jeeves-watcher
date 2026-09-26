@@ -44,8 +44,8 @@ export const CONFIG_ROOT_NOT_CONFIGURED = `configRoot not configured — set it 
  *
  * Every other tool is HTTP-only: the 14 domain tools call `{apiUrl}/…` via
  * `fetchJson`/`postJson`; `watcher_status`, `watcher_config` and
- * `watcher_config_apply` (core `createPluginToolset`) call
- * `http://127.0.0.1:{defaultPort}/…`.
+ * `watcher_config_apply` (core `createPluginToolset`) call the same
+ * `{apiUrl}/…`, resolved per call (`defaultPort` is only core's fallback).
  */
 export const CONFIG_ROOT_TOOLS: ReadonlySet<string> = new Set([
   'watcher_service',

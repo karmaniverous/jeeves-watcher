@@ -36,6 +36,14 @@ describe('getApiUrl', () => {
     );
   });
 
+  it('prefers the plugin-scoped config value', () => {
+    const api: PluginApi = {
+      ...withEntryConfig({ apiUrl: 'http://entry:7777' }),
+      pluginConfig: { apiUrl: 'http://scoped:6666' },
+    };
+    expect(getApiUrl(api)).toBe('http://scoped:6666');
+  });
+
   it('prefers plugin config over env var', () => {
     process.env.JEEVES_WATCHER_URL = 'http://env-override:8888';
     expect(

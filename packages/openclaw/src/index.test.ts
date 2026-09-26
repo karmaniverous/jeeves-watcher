@@ -14,6 +14,7 @@ import register from './index.js';
 
 afterEach(() => {
   delete process.env.JEEVES_CONFIG_ROOT;
+  delete process.env.JEEVES_WATCHER_URL;
   vi.unstubAllGlobals();
 });
 
@@ -112,6 +113,34 @@ describe('register', () => {
         'configRoot not configured',
       );
     }
+  });
+
+  const statusUrl = async (overrides: Partial<PluginApi> = {}) => {
+    const fetchMock = stubStatusFetch();
+    const { tools } = harness(overrides);
+    await tools.get('watcher_status')!.execute('1', {});
+    expect(fetchMock).toHaveBeenCalled();
+    return String(fetchMock.mock.calls[0][0]);
+  };
+
+  it('calls the configured apiUrl from watcher_status', async () => {
+    expect(
+      await statusUrl({ pluginConfig: { apiUrl: 'http://custom-host:4321' } }),
+    ).toMatch(/^http:\/\/custom-host:4321\//);
+  });
+
+  it('calls the default port from watcher_status when apiUrl is unset', async () => {
+    expect(await statusUrl()).toMatch(/^http:\/\/127\.0\.0\.1:1936\//);
+  });
+
+  it('resolves apiUrl lazily on each watcher_status call', async () => {
+    const fetchMock = stubStatusFetch();
+    const { tools } = harness();
+    process.env.JEEVES_WATCHER_URL = 'http://late-host:5555';
+    await tools.get('watcher_status')!.execute('1', {});
+    expect(String(fetchMock.mock.calls[0][0])).toMatch(
+      /^http:\/\/late-host:5555\//,
+    );
   });
 
   it('returns a clear error when a configRoot tool runs without it', async () => {

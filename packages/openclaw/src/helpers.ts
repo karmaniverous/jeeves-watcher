@@ -21,8 +21,18 @@ import {
   PLUGIN_ID,
 } from './constants.js';
 
-/** Resolve the watcher API base URL. */
+/**
+ * Resolve the watcher API base URL.
+ *
+ * @remarks
+ * Resolution order: plugin-scoped config (`api.pluginConfig`), then
+ * `plugins.entries.<id>.config`, then `JEEVES_WATCHER_URL`, then
+ * `DEFAULT_API_URL`. Safe to call per tool invocation.
+ */
 export function getApiUrl(api: PluginApi): string {
+  const scoped = api.pluginConfig?.apiUrl;
+  if (typeof scoped === 'string' && scoped.trim() !== '') return scoped;
+
   return resolvePluginSetting(
     api,
     PLUGIN_ID,
