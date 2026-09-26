@@ -32,5 +32,13 @@
   },
   "engines": {
     "node": ">=22"
+  },
+  "overrides": {
+    "@atlaskit/adf-schema": {
+      "linkify-it": "^5.0.2"
+    },
+    "@atlaskit/react-ufo": {
+      "uuid": "^14.0.2"
+    }
   }
 }

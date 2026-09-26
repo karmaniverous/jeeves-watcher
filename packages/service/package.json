@@ -7,7 +7,7 @@
     "url": "https://github.com/karmaniverous/jeeves-watcher/issues"
   },
   "dependencies": {
-    "@commander-js/extra-typings": "^15.0.0",
+    "@commander-js/extra-typings": "^14.0.0",
     "@karmaniverous/jeeves": "^0.5.12",
     "@karmaniverous/jeeves-watcher-core": "^0.2.5",
     "@karmaniverous/jsonmap": "^2.1.1",
@@ -48,7 +48,6 @@
     "@rollup/plugin-typescript": "^12.3.0",
     "@types/better-sqlite3": "^9.6.0",
     "@types/fs-extra": "^11.0.4",
-    "@types/js-yaml": "^4.0.9",
     "@types/node": "^26.6.3",
     "@types/picomatch": "^4.0.3",
     "@vitest/coverage-v8": "^5.0.2",
