@@ -74,19 +74,32 @@ describe('guardTool', () => {
 });
 
 describe('withGuardedTools', () => {
-  it('guards tools registered through the derived API', async () => {
+  function register(gated: ReadonlySet<string>) {
     const registered: ToolDescriptor[] = [];
     const api: PluginApi = {
       registerTool: (tool) => {
         registered.push(tool);
       },
     };
-    withGuardedTools(api, () => undefined).registerTool(makeTool(), {
+    const tool = makeTool();
+    withGuardedTools(api, () => undefined, gated).registerTool(tool, {
       optional: true,
     });
     expect(registered).toHaveLength(1);
-    const result = await registered[0].execute('1', {});
+    return { tool, registered: registered[0] };
+  }
+
+  it('guards tools named in the gated set', async () => {
+    const { tool, registered } = register(new Set(['t']));
+    const result = await registered.execute('1', {});
     expect(result.isError).toBe(true);
+    expect(tool.execute).not.toHaveBeenCalled();
+  });
+
+  it('registers other tools unwrapped so they run without configRoot', async () => {
+    const { tool, registered } = register(new Set(['other']));
+    expect(registered).toBe(tool);
+    expect(await registered.execute('1', {})).toEqual(okResult);
   });
 });
 

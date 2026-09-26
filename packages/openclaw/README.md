@@ -38,7 +38,7 @@ Plugin config lives in `openclaw.json` under `plugins.entries.jeeves-watcher-ope
 - **`apiUrl`**: jeeves-watcher API base URL (default: `http://127.0.0.1:1936`; env fallback `JEEVES_WATCHER_URL`).
 - **`configRoot`**: platform config root path, used by `@karmaniverous/jeeves` core to derive `{configRoot}/jeeves-watcher/`. **No default.** Set it in plugin config or via the `JEEVES_CONFIG_ROOT` env var.
 
-`configRoot` is resolved lazily. The plugin always registers, even before its config is written (`openclaw plugins install` activates a plugin before `jeeves install` writes `plugins.entries.<id>.config`). While `configRoot` is unset the plugin logs one warning at registration, and every `watcher_*` tool returns an error naming both ways to set it. Core is initialized on the first tool call after it resolves.
+`configRoot` is resolved lazily. The plugin always registers, even before its config is written (`openclaw plugins install` activates a plugin before `jeeves install` writes `plugins.entries.<id>.config`). While `configRoot` is unset the plugin logs one warning at registration. Only tools that actually read `configRoot` are gated: `watcher_service` (its `install` action derives the service config path from `configRoot`) returns an error naming both ways to set it. Every other tool only calls the watcher HTTP API and keeps working without `configRoot`. Core is initialized on the first gated tool call after it resolves.
 
 ## Architecture
 

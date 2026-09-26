@@ -95,7 +95,7 @@ You have access to a **semantic archive** of your human's working world. Documen
 
 The plugin is a standard OpenClaw plugin. On a Jeeves box, `jeeves install watcher --config-root <path>` installs it and writes its config; otherwise use `openclaw plugins install npm:@karmaniverous/jeeves-watcher-openclaw@<version> --pin --accept-capabilities` and set `plugins.entries.jeeves-watcher-openclaw.config` yourself. Restart the gateway to load it.
 
-`configRoot` has no default. If a `watcher_*` tool returns "configRoot not configured", set `configRoot` in the plugin config or the `JEEVES_CONFIG_ROOT` env var.
+`configRoot` has no default. Only `watcher_service` needs it; the HTTP API tools work without it. If `watcher_service` returns "configRoot not configured", set `configRoot` in the plugin config or the `JEEVES_CONFIG_ROOT` env var.
 
 ## Quick Start (Existing Deployment)
 

@@ -30,5 +30,26 @@ export const CONFIG_ROOT_ENV_VAR = 'JEEVES_CONFIG_ROOT';
  */
 export const CONFIG_ROOT_NOT_CONFIGURED = `configRoot not configured — set it in plugin config (plugins.entries.${PLUGIN_ID}.config.configRoot) or via ${CONFIG_ROOT_ENV_VAR} env var`;
 
+/**
+ * Tools whose implementation reads `configRoot`; only these are gated.
+ *
+ * @remarks
+ * Uniform Jeeves rule: a tool refuses with {@link CONFIG_ROOT_NOT_CONFIGURED}
+ * only if it actually reads `configRoot`. Tools that only call the service
+ * HTTP API keep working without it.
+ *
+ * - `watcher_service`: `createServiceManager` → `install` resolves the service
+ *   config path via core `getComponentConfigDir()`, which reads `configRoot`
+ *   (throws before core `init()`).
+ *
+ * Every other tool is HTTP-only: the 14 domain tools call `{apiUrl}/…` via
+ * `fetchJson`/`postJson`; `watcher_status`, `watcher_config` and
+ * `watcher_config_apply` (core `createPluginToolset`) call
+ * `http://127.0.0.1:{defaultPort}/…`.
+ */
+export const CONFIG_ROOT_TOOLS: ReadonlySet<string> = new Set([
+  'watcher_service',
+]);
+
 /** Warning logged once at registration when `configRoot` is unset. */
-export const CONFIG_ROOT_UNSET_WARNING = `[${PLUGIN_ID}] configRoot not configured yet — tools will be unavailable until it is set in plugin config or ${CONFIG_ROOT_ENV_VAR}`;
+export const CONFIG_ROOT_UNSET_WARNING = `[${PLUGIN_ID}] configRoot not configured yet — ${[...CONFIG_ROOT_TOOLS].join(', ')} will be unavailable until it is set in plugin config or ${CONFIG_ROOT_ENV_VAR} (HTTP API tools are unaffected)`;

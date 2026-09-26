@@ -5,7 +5,9 @@
  * @remarks
  * Registration must always succeed, even with no plugin config (#235). The
  * config root is resolved on first tool use; core `init()` runs once, only
- * after it resolves. Tools invoked before then return a clear error.
+ * after it resolves. Only tools that read `configRoot` are gated (see
+ * `CONFIG_ROOT_TOOLS`); invoked before then they return a clear error.
+ * HTTP-only tools are registered unwrapped and work without it.
  */
 
 import {
@@ -82,17 +84,22 @@ export function guardTool(
 }
 
 /**
- * Derive a plugin API whose `registerTool` guards every tool with
- * {@link guardTool}. All other members delegate to the original API.
+ * Derive a plugin API whose `registerTool` guards the tools named in
+ * `gatedTools` with {@link guardTool}; all other tools are registered
+ * unchanged. All other members delegate to the original API.
  */
 export function withGuardedTools(
   api: PluginApi,
   ensureCore: EnsureCore,
+  gatedTools: ReadonlySet<string>,
 ): PluginApi {
   return {
     ...api,
     registerTool: (tool: ToolDescriptor, options?: ToolRegistrationOptions) => {
-      api.registerTool(guardTool(tool, ensureCore), options);
+      api.registerTool(
+        gatedTools.has(tool.name) ? guardTool(tool, ensureCore) : tool,
+        options,
+      );
     },
   };
 }
