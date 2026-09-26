@@ -88,12 +88,6 @@ export const watcherDescriptor: JeevesComponentDescriptor = {
     await startFromConfig(configPath, watcherDescriptor);
   },
 
-  // Content — generateToolsContent is wired in the plugin package
-  // (watcherComponent.ts) where it has access to the API URL for menu generation.
-  sectionId: 'Watcher',
-  refreshIntervalSeconds: 71,
-  generateToolsContent: () => '',
-
   // Extension points
   customCliCommands: (program: Command) => {
     registerCustomCommands(program);

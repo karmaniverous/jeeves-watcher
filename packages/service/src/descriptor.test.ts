@@ -20,14 +20,23 @@ describe('watcherDescriptor', () => {
     expect(watcherDescriptor.name).toBe('watcher');
     expect(watcherDescriptor.defaultPort).toBe(1936);
     expect(watcherDescriptor.configFileName).toBe('config.json');
-    expect(watcherDescriptor.sectionId).toBe('Watcher');
-    expect(watcherDescriptor.refreshIntervalSeconds).toBe(71);
     expect(watcherDescriptor.servicePackage).toBe(
       '@karmaniverous/jeeves-watcher',
     );
     expect(watcherDescriptor.pluginPackage).toBe(
       '@karmaniverous/jeeves-watcher-openclaw',
     );
+  });
+
+  it('carries no v0.x workspace-writer fields', () => {
+    for (const key of [
+      'sectionId',
+      'refreshIntervalSeconds',
+      'generateToolsContent',
+      'dependencies',
+    ]) {
+      expect(watcherDescriptor).not.toHaveProperty(key);
+    }
   });
 
   it('initTemplate returns a non-empty config skeleton', () => {
