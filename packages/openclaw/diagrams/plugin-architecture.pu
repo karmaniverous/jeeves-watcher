@@ -8,41 +8,45 @@ skinparam rectangle {
 
 rectangle "OpenClaw Gateway" as gateway #e3f2fd {
   rectangle "Plugin: jeeves-watcher-openclaw" as plugin {
-    rectangle "register()" as reg #e8f5e9
-    rectangle "11 watcher_* tools" as tools #e8f5e9
-    rectangle "JeevesComponent" as component #fff3e0 {
-      card "generateToolsContent()" as gen
-      card "serviceCommands" as svc
-      card "pluginCommands" as plg
+    rectangle "register()\n(never needs configRoot;\nwrites no files, starts no timers)" as reg #e8f5e9
+    rectangle "createWatcherComponent()\n(component descriptor)" as component #fff3e0
+    rectangle "getApiUrl()\npluginConfig → plugins.entries\n→ JEEVES_WATCHER_URL → default" as apiurl #fff3e0
+    rectangle "lazyCore" as lazy #f3e5f5 {
+      card "withGuardedTools()\nguards CONFIG_ROOT_READERS\n(watcher_service install only)" as guard
+      card "createLazyCore()\ninit() once, on first\ngated call" as ensure
+      card "getConfigRoot()\npluginConfig → plugins.entries\n→ JEEVES_CONFIG_ROOT (no default)" as cfgroot
     }
-    rectangle "ComponentWriter" as writer #f3e5f5
+    rectangle "4 standard tools\nwatcher_status, watcher_config,\nwatcher_config_apply, watcher_service" as stdtools #e8f5e9
+    rectangle "14 domain tools\n(search, enrich, scan, vcs, ...)\nnever gated" as domtools #e8f5e9
+    rectangle "registerWatcherPromptContext()\nstatic ## Watcher rules" as prompt #e8f5e9
   }
+  rectangle "before_prompt_build hook\n(declared in package.json\njeeves.conversationHooks)" as hook #e3f2fd
 }
 
 rectangle "@karmaniverous/jeeves core" as core #fce4ec {
+  card "createPluginToolset(\n  component, { apiUrl: () => ... })" as cpt
+  card "registerPromptContext()" as rpc
   card "init()" as init
-  card "createComponentWriter()" as ccw
-  card "createAsyncContentCache()" as cache
-  card "updateManagedSection()" as ums
 }
 
 rectangle "jeeves-watcher service\n(:1936)" as watcher #fff3e0
 
-file "TOOLS.md" as toolsmd
-file "SOUL.md" as soulmd
-file "AGENTS.md" as agentsmd
+reg -down-> component : creates
+reg -down-> cpt : calls with\napiUrl resolver
+component -right-> cpt
+apiurl .up.> cpt : resolved per call
+cpt -down-> stdtools : returns
+reg -down-> guard : registerTool()\nvia guarded API
+guard -down-> stdtools : wraps install
+guard -down-> domtools : unwrapped
+guard -right-> ensure : gated call
+ensure -down-> cfgroot : resolves lazily
+ensure -right-> init : calls once
 
-reg -down-> tools : registers
-reg -down-> init : calls
-init -right-> ccw
-ccw -down-> writer : creates
+reg -down-> prompt : registers
+prompt -down-> rpc
+rpc -up-> hook : registers
 
-gen -down-> cache : uses
-cache -right-> watcher : HTTP\n(async refresh)
-writer -down-> ums : writes sections
-ums -down-> toolsmd
-ums -down-> soulmd
-ums -down-> agentsmd
-
-tools -right-> watcher : HTTP API
+stdtools -right-> watcher : HTTP API
+domtools -right-> watcher : HTTP API
 @enduml
