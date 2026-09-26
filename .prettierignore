@@ -1,0 +1,6 @@
+# Generated files (rewritten by tooling; formatting them causes churn)
+**/CHANGELOG.md
+packages/service/config.schema.json
+
+# stan tool state
+.stan/

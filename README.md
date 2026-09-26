@@ -296,18 +296,18 @@ curl -X POST http://localhost:1936/metadata \
 
 This repo includes an OpenClaw plugin (`packages/openclaw`) that exposes the jeeves-watcher API as native agent tools:
 
-| Tool                   | Description                                    |
-| ---------------------- | ---------------------------------------------- |
-| `watcher_status`       | Service health, uptime, and collection stats   |
-| `watcher_search`       | Semantic search across indexed documents       |
-| `watcher_enrich`       | Set or update document metadata                |
-| `watcher_config`       | Query the effective runtime config via JSONPath |
-| `watcher_walk`         | Walk watched filesystem paths with glob intersection |
-| `watcher_validate`     | Validate a watcher configuration               |
-| `watcher_config_apply` | Apply a new configuration                      |
-| `watcher_reindex`      | Trigger a scoped reindex with blast area plan   |
-| `watcher_scan`         | Filter-only point query with cursor pagination |
-| `watcher_issues`       | List indexing issues and errors                |
+| Tool | Description |
+| --- | --- |
+| `watcher_status` | Service health, uptime, and collection stats |
+| `watcher_search` | Semantic search across indexed documents |
+| `watcher_enrich` | Set or update document metadata |
+| `watcher_config` | Query the effective runtime config via JSONPath |
+| `watcher_walk` | Walk watched filesystem paths with glob intersection |
+| `watcher_validate` | Validate a watcher configuration |
+| `watcher_config_apply` | Apply a new configuration |
+| `watcher_reindex` | Trigger a scoped reindex with blast area plan |
+| `watcher_scan` | Filter-only point query with cursor pagination |
+| `watcher_issues` | List indexing issues and errors |
 
 The plugin is a standard OpenClaw plugin on [`@karmaniverous/jeeves`](https://www.npmjs.com/package/@karmaniverous/jeeves) 0.6 core, installed by `jeeves install`. It writes no workspace files; its always-in-context watcher rules are injected via the `before_prompt_build` hook. See the [OpenClaw Integration Guide](packages/openclaw/guides/openclaw-integration.md) for details.
 
@@ -329,4 +329,3 @@ BSD-3-Clause
 ---
 
 Built for you with ❤️ on Bali by [Jason Williscroft](https://github.com/karmaniverous) & [Jeeves](https://github.com/jgs-jeeves).
-

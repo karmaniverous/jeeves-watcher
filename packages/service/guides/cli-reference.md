@@ -20,8 +20,8 @@ Start the filesystem watcher in foreground mode.
 jeeves-watcher start -c <config-path>
 ```
 
-| Option | Description |
-|--------|-------------|
+| Option                | Description                           |
+| --------------------- | ------------------------------------- |
 | `-c, --config <path>` | Path to configuration file (required) |
 
 **Behavior:** Loads config, connects to Qdrant, performs initial filesystem scan, starts the HTTP API server. Runs until SIGTERM/SIGINT.
@@ -36,9 +36,9 @@ Probe service health and version.
 jeeves-watcher status [-p <port>]
 ```
 
-| Option | Default | Description |
-|--------|---------|-------------|
-| `-p, --port <port>` | `1936` | API port |
+| Option              | Default | Description |
+| ------------------- | ------- | ----------- |
+| `-p, --port <port>` | `1936`  | API port    |
 
 **Output:** JSON response from `GET /status` with `name`, `version`, `uptime`, `status`, and `health` (containing `collection`, `reindex`, `initialScan`).
 
@@ -52,15 +52,16 @@ Query the effective runtime config via JSONPath.
 jeeves-watcher config [jsonpath] [-p <port>]
 ```
 
-| Argument | Description |
-|----------|-------------|
+| Argument     | Description                                    |
+| ------------ | ---------------------------------------------- |
 | `[jsonpath]` | Optional JSONPath expression to filter results |
 
-| Option | Default | Description |
-|--------|---------|-------------|
-| `-p, --port <port>` | `1936` | API port |
+| Option              | Default | Description |
+| ------------------- | ------- | ----------- |
+| `-p, --port <port>` | `1936`  | API port    |
 
 **Examples:**
+
 ```bash
 # Full config
 jeeves-watcher config
@@ -79,8 +80,8 @@ Validate a config file against the Zod schema.
 jeeves-watcher config validate -c <config-path>
 ```
 
-| Option | Description |
-|--------|-------------|
+| Option                | Description                                |
+| --------------------- | ------------------------------------------ |
 | `-c, --config <path>` | Path to config file to validate (required) |
 
 ---
@@ -93,11 +94,11 @@ Apply a config patch to the running service.
 jeeves-watcher config apply [-p <port>] [-f <file>] [--replace]
 ```
 
-| Option | Default | Description |
-|--------|---------|-------------|
-| `-p, --port <port>` | `1936` | API port |
-| `-f, --file <path>` | stdin | Config patch file (JSON) |
-| `--replace` | `false` | Replace entire config instead of merging |
+| Option              | Default | Description                              |
+| ------------------- | ------- | ---------------------------------------- |
+| `-p, --port <port>` | `1936`  | API port                                 |
+| `-f, --file <path>` | stdin   | Config patch file (JSON)                 |
+| `--replace`         | `false` | Replace entire config instead of merging |
 
 ---
 
@@ -109,8 +110,8 @@ Generate a default configuration file.
 jeeves-watcher init [-o <path>]
 ```
 
-| Option | Default | Description |
-|--------|---------|-------------|
+| Option                | Default              | Description      |
+| --------------------- | -------------------- | ---------------- |
 | `-o, --output <path>` | Component config dir | Output directory |
 
 ---
@@ -119,17 +120,16 @@ jeeves-watcher init [-o <path>]
 
 System service management (Windows: NSSM, Linux: systemd).
 
-| Subcommand | Description |
-|------------|-------------|
-| `install` | Install as a system service |
+| Subcommand  | Description                  |
+| ----------- | ---------------------------- |
+| `install`   | Install as a system service  |
 | `uninstall` | Uninstall the system service |
-| `start` | Start the system service |
-| `stop` | Stop the system service |
-| `restart` | Restart the system service |
-| `status` | Query system service state |
+| `start`     | Start the system service     |
+| `stop`      | Stop the system service      |
+| `restart`   | Restart the system service   |
+| `status`    | Query system service state   |
 
-All subcommands accept `-n, --name <name>` (default: `jeeves-watcher`).
-`install` also accepts `-c, --config <path>`.
+All subcommands accept `-n, --name <name>` (default: `jeeves-watcher`). `install` also accepts `-c, --config <path>`.
 
 ---
 
@@ -143,15 +143,15 @@ Search the vector store.
 jeeves-watcher search <query> [-l <limit>] [-p <port>] [-H <host>]
 ```
 
-| Argument | Description |
-|----------|-------------|
+| Argument  | Description                              |
+| --------- | ---------------------------------------- |
 | `<query>` | Natural language search query (required) |
 
-| Option | Default | Description |
-|--------|---------|-------------|
-| `-l, --limit <limit>` | `10` | Maximum results |
-| `-p, --port <port>` | `1936` | API port |
-| `-H, --host <host>` | `127.0.0.1` | API host |
+| Option                | Default     | Description     |
+| --------------------- | ----------- | --------------- |
+| `-l, --limit <limit>` | `10`        | Maximum results |
+| `-p, --port <port>`   | `1936`      | API port        |
+| `-H, --host <host>`   | `127.0.0.1` | API host        |
 
 ---
 
@@ -163,16 +163,16 @@ Enrich document metadata.
 jeeves-watcher enrich <path> [-k <key=value>...] [-j <json>] [-p <port>] [-H <host>]
 ```
 
-| Argument | Description |
-|----------|-------------|
+| Argument | Description                    |
+| -------- | ------------------------------ |
 | `<path>` | File path to enrich (required) |
 
-| Option | Default | Description |
-|--------|---------|-------------|
-| `-k, --key <key=value...>` | `[]` | Key-value pairs (repeatable) |
-| `-j, --json <json>` | — | Metadata as JSON string |
-| `-p, --port <port>` | `1936` | API port |
-| `-H, --host <host>` | `127.0.0.1` | API host |
+| Option                     | Default     | Description                  |
+| -------------------------- | ----------- | ---------------------------- |
+| `-k, --key <key=value...>` | `[]`        | Key-value pairs (repeatable) |
+| `-j, --json <json>`        | —           | Metadata as JSON string      |
+| `-p, --port <port>`        | `1936`      | API port                     |
+| `-H, --host <host>`        | `127.0.0.1` | API host                     |
 
 At least one of `--key` or `--json` is required.
 
@@ -187,7 +187,7 @@ jeeves-watcher scan [-f <filter>] [-l <limit>] [-c <cursor>] [--fields <f1,f2>] 
 ```
 
 | Option | Default | Description |
-|--------|---------|-------------|
+| --- | --- | --- |
 | `-f, --filter <filter>` | `{}` | Qdrant filter (JSON string) |
 | `-l, --limit <limit>` | `100` | Page size (max 1000) |
 | `-c, --cursor <cursor>` | — | Cursor from previous response |
@@ -207,13 +207,14 @@ jeeves-watcher reindex [-s <scope>] [-t <path>...] [-p <port>] [-H <host>]
 ```
 
 | Option | Default | Description |
-|--------|---------|-------------|
+| --- | --- | --- |
 | `-s, --scope <scope>` | `rules` | Scope: `issues`, `rules`, `full`, `path`, `prune` |
 | `-t, --path <paths...>` | — | Target paths (required for `path` scope) |
 | `-p, --port <port>` | `1936` | API port |
 | `-H, --host <host>` | `127.0.0.1` | API host |
 
 **Scopes:**
+
 - `rules` — Re-apply inference rules (no re-embedding)
 - `full` — Re-extract + re-embed everything
 - `issues` — Re-process only files with failures
@@ -254,10 +255,10 @@ jeeves-watcher helpers [-p <port>] [-H <host>]
 
 ## Exit Codes
 
-| Code | Meaning |
-|------|---------|
-| `0` | Success |
-| `1` | Error (invalid config, connection failure, etc.) |
+| Code | Meaning                                          |
+| ---- | ------------------------------------------------ |
+| `0`  | Success                                          |
+| `1`  | Error (invalid config, connection failure, etc.) |
 
 ---
 

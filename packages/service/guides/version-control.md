@@ -63,7 +63,7 @@ VCS tracking and watcher embedding are independent concerns. Git can track files
 ```
 
 | Field | Type | Default | Description |
-|-------|------|---------|-------------|
+| --- | --- | --- | --- |
 | `enabled` | `boolean` | `false` | Enable VCS tracking globally. |
 | `commitThrottleMs` | `number` | `30000` | Throttle interval in milliseconds for batching commits (min: 1000). Timer starts on first change and does not reset. |
 | `maxBatchSize` | `number` | `1000` | Max files per commit batch (min: 1). Overflow rolls to next cycle. |
@@ -112,7 +112,7 @@ Watch paths can override any VCS setting and add root-specific `remote` and `acc
 ```
 
 | Field | Type | Default | Description |
-|-------|------|---------|-------------|
+| --- | --- | --- | --- |
 | `remote` | `string` | `undefined` | Git remote URL for this root. |
 | `accessToken` | `string` | `undefined` | Access token for this root's remote. Overrides `defaultAccessToken`. Supports `${ENV_VAR}` substitution. |
 
@@ -172,7 +172,7 @@ curl http://localhost:1936/vcs/status
 ```
 
 | Field | Type | Description |
-|-------|------|-------------|
+| --- | --- | --- |
 | `enabled` | `boolean` | Whether VCS is enabled globally. |
 | `roots` | `array` | Per-root VCS state. |
 | `roots[].path` | `string` | Watch root path. |
@@ -197,12 +197,12 @@ Commit history for files matching a glob pattern.
 curl "http://localhost:1936/vcs/history?glob=d:/documents/**/*.md&limit=10&since=2026-06-01T00:00:00Z"
 ```
 
-| Param | Type | Default | Description |
-|-------|------|---------|-------------|
-| `glob` | `string` | **Required** | Glob pattern to filter history. |
-| `since` | `string` | `undefined` | ISO-8601 lower bound (inclusive). |
-| `until` | `string` | `undefined` | ISO-8601 upper bound (inclusive). |
-| `limit` | `number` | `20` | Max entries to return. |
+| Param   | Type     | Default      | Description                       |
+| ------- | -------- | ------------ | --------------------------------- |
+| `glob`  | `string` | **Required** | Glob pattern to filter history.   |
+| `since` | `string` | `undefined`  | ISO-8601 lower bound (inclusive). |
+| `until` | `string` | `undefined`  | ISO-8601 upper bound (inclusive). |
+| `limit` | `number` | `20`         | Max entries to return.            |
 
 #### Response
 
@@ -212,7 +212,10 @@ curl "http://localhost:1936/vcs/history?glob=d:/documents/**/*.md&limit=10&since
     "commit": "a1b2c3d",
     "message": "update project notes and readme",
     "timestamp": "2026-06-10T14:30:00Z",
-    "files": ["d:/documents/projects/readme.md", "d:/documents/projects/notes.md"]
+    "files": [
+      "d:/documents/projects/readme.md",
+      "d:/documents/projects/notes.md"
+    ]
   },
   {
     "commit": "e4f5g6h",
@@ -223,12 +226,12 @@ curl "http://localhost:1936/vcs/history?glob=d:/documents/**/*.md&limit=10&since
 ]
 ```
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `commit` | `string` | Short commit hash. |
-| `message` | `string` | Commit message. |
-| `timestamp` | `string` | ISO-8601 commit timestamp. |
-| `files` | `string[]` | Files changed in this commit (filtered by glob). |
+| Field       | Type       | Description                                      |
+| ----------- | ---------- | ------------------------------------------------ |
+| `commit`    | `string`   | Short commit hash.                               |
+| `message`   | `string`   | Commit message.                                  |
+| `timestamp` | `string`   | ISO-8601 commit timestamp.                       |
+| `files`     | `string[]` | Files changed in this commit (filtered by glob). |
 
 ---
 
@@ -242,10 +245,10 @@ Retrieve file content at a specific commit.
 curl "http://localhost:1936/vcs/show?path=d:/documents/readme.md&commit=a1b2c3d"
 ```
 
-| Param | Type | Description |
-|-------|------|-------------|
-| `path` | `string` | **Required.** Absolute file path. |
-| `commit` | `string` | **Required.** Commit hash. |
+| Param    | Type     | Description                       |
+| -------- | -------- | --------------------------------- |
+| `path`   | `string` | **Required.** Absolute file path. |
+| `commit` | `string` | **Required.** Commit hash.        |
 
 #### Response
 
@@ -263,10 +266,10 @@ Unified diff between commits for files matching a glob.
 curl "http://localhost:1936/vcs/diff?glob=d:/documents/**/*.md&commit=a1b2c3d&commitEnd=e4f5g6h"
 ```
 
-| Param | Type | Description |
-|-------|------|-------------|
-| `glob` | `string` | **Required.** Glob pattern to filter files. |
-| `commit` | `string` | **Required.** Start commit hash. |
+| Param       | Type     | Description                                   |
+| ----------- | -------- | --------------------------------------------- |
+| `glob`      | `string` | **Required.** Glob pattern to filter files.   |
+| `commit`    | `string` | **Required.** Start commit hash.              |
 | `commitEnd` | `string` | End commit hash. Defaults to HEAD if omitted. |
 
 #### Response
@@ -314,10 +317,10 @@ curl -X POST http://localhost:1936/vcs/revert \
 }
 ```
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `restored` | `number` | Number of files restored. |
-| `files` | `string[]` | Paths of restored files. |
+| Field      | Type       | Description               |
+| ---------- | ---------- | ------------------------- |
+| `restored` | `number`   | Number of files restored. |
+| `files`    | `string[]` | Paths of restored files.  |
 
 #### Behavior
 
@@ -366,7 +369,7 @@ curl -X POST http://localhost:1936/vcs/exclude \
 ```
 
 | Field | Type | Description |
-|-------|------|-------------|
+| --- | --- | --- |
 | `ok` | `boolean` | Success indicator. |
 | `gitignorePath` | `string` | Path to the `.gitignore` file that was modified. |
 | `action` | `string` | `"added"` or `"removed"`. |
@@ -387,8 +390,8 @@ Check whether a file is excluded by `.gitignore`.
 curl "http://localhost:1936/vcs/check-exclusion?path=d:/documents/temp/scratch.tmp"
 ```
 
-| Param | Type | Description |
-|-------|------|-------------|
+| Param  | Type     | Description                                |
+| ------ | -------- | ------------------------------------------ |
 | `path` | `string` | **Required.** Absolute file path to check. |
 
 #### Response
@@ -401,11 +404,11 @@ curl "http://localhost:1936/vcs/check-exclusion?path=d:/documents/temp/scratch.t
 }
 ```
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `excluded` | `boolean` | Whether the file is ignored by git. |
-| `rule` | `string?` | The matching `.gitignore` pattern (if excluded). |
-| `source` | `string?` | Path to the `.gitignore` file containing the rule. |
+| Field      | Type      | Description                                        |
+| ---------- | --------- | -------------------------------------------------- |
+| `excluded` | `boolean` | Whether the file is ignored by git.                |
+| `rule`     | `string?` | The matching `.gitignore` pattern (if excluded).   |
+| `source`   | `string?` | Path to the `.gitignore` file containing the rule. |
 
 ---
 
@@ -620,6 +623,7 @@ No manual intervention is needed in most cases. If the circuit breaker trips, in
 **Symptom:** `GET /vcs/status` shows entries in `pushErrors`.
 
 **Common causes:**
+
 - Invalid or expired access token
 - Remote URL incorrect or unreachable
 - Network connectivity issues

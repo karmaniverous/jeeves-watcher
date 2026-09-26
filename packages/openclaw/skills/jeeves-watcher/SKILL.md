@@ -1,10 +1,7 @@
 ---
 name: jeeves-watcher
 description: >
-  Semantic search across a structured document archive. Use when you need to
-  recall prior context, find documents, answer questions that require searching
-  across indexed domains, enrich document metadata, manage watcher config, or
-  diagnose indexing issues.
+  Semantic search across a structured document archive. Use when you need to recall prior context, find documents, answer questions that require searching across indexed domains, enrich document metadata, manage watcher config, or diagnose indexing issues.
 ---
 
 # jeeves-watcher — Search, Discovery & Administration
@@ -13,8 +10,7 @@ description: >
 
 The watcher is an HTTP API running as a background service (typically NSSM on Windows, systemd on Linux).
 
-**Default port:** 1936 (configurable via `api.port` in watcher config)
-**Non-default port:** If the watcher runs on a different port, the user must set `plugins.entries.jeeves-watcher-openclaw.config.apiUrl` in `openclaw.json`. The plugin cannot auto-discover a non-default port.
+**Default port:** 1936 (configurable via `api.port` in watcher config) **Non-default port:** If the watcher runs on a different port, the user must set `plugins.entries.jeeves-watcher-openclaw.config.apiUrl` in `openclaw.json`. The plugin cannot auto-discover a non-default port.
 
 **Health check:** `GET /status` returns `name`, `version`, `uptime`, `status` (`healthy`/`degraded`/`unhealthy`), and a `health` object containing `collection` (point count, dimensions), `reindex` status, and `initialScan` progress.
 
@@ -34,8 +30,9 @@ curl http://127.0.0.1:<PORT>/config
 ```
 
 **Key endpoints:**
+
 | Endpoint | Method | Purpose |
-|----------|--------|---------|
+| --- | --- | --- |
 | `/status` | GET | Health check, uptime, collection stats |
 | `/search` | POST | Semantic search (main query interface) |
 | `/config` | GET | Full resolved config; optional `?path=<jsonpath>` filter |
@@ -116,6 +113,7 @@ When the plugin loads and the watcher service is NOT yet set up, drive the entir
 ### Step 1: Check Node.js
 
 Verify Node.js is installed and version ≥ 22:
+
 ```bash
 node --version
 ```
@@ -125,6 +123,7 @@ If missing or too old, guide the user to install Node.js 22+ from https://nodejs
 ### Step 2: Install Qdrant
 
 Check if Qdrant is already running:
+
 ```bash
 curl -s http://localhost:6333/healthz
 ```
@@ -132,6 +131,7 @@ curl -s http://localhost:6333/healthz
 If not running, install it. **Prefer native installation** (especially on cloud instances where Docker may not be available):
 
 **Linux (recommended for servers):**
+
 ```bash
 # Download and install binary
 curl -L https://github.com/qdrant/qdrant/releases/latest/download/qdrant-x86_64-unknown-linux-musl.tar.gz -o /tmp/qdrant.tar.gz
@@ -174,6 +174,7 @@ sudo systemctl enable --now qdrant
 ```
 
 **Windows:**
+
 ```powershell
 # Download from GitHub releases page
 # https://github.com/qdrant/qdrant/releases
@@ -183,11 +184,13 @@ nssm start Qdrant
 ```
 
 **Docker (fallback, if available):**
+
 ```bash
 docker run -d -p 6333:6333 -v qdrant_data:/qdrant/storage qdrant/qdrant
 ```
 
 After installation, verify:
+
 ```bash
 curl -s http://localhost:6333/healthz
 ```
@@ -195,11 +198,13 @@ curl -s http://localhost:6333/healthz
 ### Step 3: Install Watcher Service
 
 Install the watcher CLI globally:
+
 ```bash
 npm install -g @karmaniverous/jeeves-watcher
 ```
 
 Verify:
+
 ```bash
 jeeves-watcher --version
 ```
@@ -209,6 +214,7 @@ jeeves-watcher --version
 The watcher uses Google Gemini for embeddings by default (`gemini-embedding-001`, 3072 dimensions).
 
 Check for an existing API key:
+
 ```bash
 echo $GOOGLE_API_KEY    # Linux/Mac
 echo %GOOGLE_API_KEY%   # Windows cmd
@@ -216,6 +222,7 @@ $env:GOOGLE_API_KEY     # PowerShell
 ```
 
 If not set, guide the user:
+
 1. Go to https://aistudio.google.com/apikey
 2. Create an API key (free tier supports 1,000 embedding requests/minute)
 3. Set it as a persistent environment variable:
@@ -224,6 +231,7 @@ If not set, guide the user:
    - **macOS:** Add to `~/.zshrc` or use `launchctl setenv`
 
 Verify the key works by testing a Gemini API call:
+
 ```bash
 curl -s "https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:embedContent?key=$GOOGLE_API_KEY" \
   -H "Content-Type: application/json" \
@@ -235,6 +243,7 @@ A successful response contains an `embedding.values` array.
 ### Step 5: Author Initial Config
 
 Ask the user these questions:
+
 - **What directories should the watcher index?** (e.g., `~/documents`, `~/projects`, a workspace path)
 - **What types of files matter?** (helps determine file extensions for watch globs)
 - **Are there directories to exclude?** (node_modules, .git, build outputs, etc.)
@@ -246,9 +255,7 @@ Then generate a starter config file. Example minimal config:
   "description": "Personal knowledge base indexing",
   "api": { "port": 1936 },
   "watch": {
-    "paths": [
-      "/home/user/documents/**/*.{md,txt,json,pdf,html,docx}"
-    ],
+    "paths": ["/home/user/documents/**/*.{md,txt,json,pdf,html,docx}"],
     "ignored": ["**/node_modules/**", "**/.git/**", "**/dist/**"]
   },
   "embedding": {
@@ -275,6 +282,7 @@ Then generate a starter config file. Example minimal config:
 ```
 
 Write the config to a sensible location (e.g., `~/.config/jeeves-watcher.config.json` on Linux, or alongside the user's workspace). Validate with:
+
 ```bash
 jeeves-watcher validate -c <config-path>
 ```
@@ -284,6 +292,7 @@ jeeves-watcher validate -c <config-path>
 **The watcher should run as a persistent service, not a foreground process.**
 
 **Linux (systemd):**
+
 ```bash
 sudo tee /etc/systemd/system/jeeves-watcher.service > /dev/null <<EOF
 [Unit]
@@ -305,6 +314,7 @@ sudo systemctl enable --now jeeves-watcher
 ```
 
 **Windows (NSSM):**
+
 ```powershell
 jeeves-watcher service install
 # Or manually:
@@ -314,6 +324,7 @@ nssm start jeeves-watcher
 ```
 
 Verify the service started:
+
 ```bash
 curl -s http://127.0.0.1:1936/status
 ```
@@ -321,6 +332,7 @@ curl -s http://127.0.0.1:1936/status
 ### Step 7: Verify Health
 
 Call `watcher_status` (or `curl http://127.0.0.1:1936/status`). Confirm:
+
 - Service is running
 - Qdrant collection exists with expected dimensions (3072)
 - Point count is increasing (initial indexing in progress)
@@ -348,47 +360,61 @@ On sessions after bootstrap is complete:
 ## Tools
 
 ### `watcher_search`
+
 Semantic search over indexed documents.
+
 - `query` (string, required) — natural language search query
 - `limit` (number, optional) — max results, default 10
 - `offset` (number, optional) — skip N results for pagination
 - `filter` (object, optional) — Qdrant filter for metadata filtering
 
 ### `watcher_enrich`
+
 Set or update metadata on a document.
+
 - `path` (string, required) — file path of the document
 - `metadata` (object, required) — key-value metadata to merge
 
 ### `watcher_status`
+
 Service health check. Returns `name`, `version`, `uptime`, `status`, and `health` object with collection stats, reindex status, and initial scan progress.
 
 After a service restart, the `health.initialScan` field shows scan progress:
+
 - `active: true` — filesystem walk in progress; `filesMatched` and `filesEnqueued` grow until chokidar completes
 - `active: false` with `completedAt`/`durationMs` — scan finished
 
 Use this to determine if the service is still initializing after a restart.
 
 ### `watcher_config`
+
 Query the effective runtime config via JSONPath. Returns the full resolved merged document when no path is provided.
+
 - `path` (string, optional) — JSONPath expression
 
 ### `watcher_validate`
+
 Validate config and optionally test file paths.
+
 - `config` (object, optional) — candidate config (partial or full). Omit to validate current config.
 - `testPaths` (string[], optional) — file paths to test against the config
 
 Partial configs merge with current config by rule name. If `config` is omitted, tests against the running config.
 
 ### `watcher_config_apply`
+
 Apply config changes atomically.
+
 - `config` (object, required) — full or partial config to apply
 
 Validates, writes to disk, and triggers configured reindex behavior. Returns validation errors if invalid. Config changes take full effect without service restart — including new/removed watch paths (filesystem watcher is rebuilt), inference rule changes, move detection settings, and gitignore filter updates.
 
 ### `watcher_reindex`
+
 Trigger a reindex operation. Non-prune scopes return a `plan` object showing blast area before execution begins. Live prune (non-dry-run) returns immediately without a plan.
 
 **Parameters:**
+
 - `scope` (string, optional) — Reindex scope. Default: `"rules"`. One of:
   - `"rules"` — Re-apply inference rules to all watched files. No re-embedding. Lightweight.
   - `"full"` — Re-extract text, re-embed, and re-apply rules for all watched files. Expensive.
@@ -399,29 +425,52 @@ Trigger a reindex operation. Non-prune scopes return a `plan` object showing bla
 - `dryRun` (boolean, optional) — When `true`, compute and return the blast area plan without executing. Returns synchronously.
 
 **Response (normal):**
+
 ```json
-{ "status": "started", "scope": "rules", "plan": { "total": 148000, "toProcess": 148000, "toDelete": 0, "byRoot": { "j:/domains": 95000, "j:/config": 3000 } } }
+{
+  "status": "started",
+  "scope": "rules",
+  "plan": {
+    "total": 148000,
+    "toProcess": 148000,
+    "toDelete": 0,
+    "byRoot": { "j:/domains": 95000, "j:/config": 3000 }
+  }
+}
 ```
 
 **Response (dryRun):**
+
 ```json
-{ "status": "dry_run", "scope": "prune", "plan": { "total": 562000, "toProcess": 0, "toDelete": 2300, "byRoot": { "j:/jeeves/node_modules": 1800, "j:/jeeves/.bridge": 500 } } }
+{
+  "status": "dry_run",
+  "scope": "prune",
+  "plan": {
+    "total": 562000,
+    "toProcess": 0,
+    "toDelete": 2300,
+    "byRoot": { "j:/jeeves/node_modules": 1800, "j:/jeeves/.bridge": 500 }
+  }
+}
 ```
 
 **Plan fields:**
+
 - `total` — Total points (prune) or files (other scopes) examined.
 - `toProcess` — Items to embed/re-apply rules (0 for prune).
 - `toDelete` — Points to delete (prune only, 0 for others).
 - `byRoot` — Counts grouped by watch root prefix. Shows where the impact concentrates.
 
 **Guidance:**
+
 - Use `dryRun: true` before any large-blast operation to preview impact.
 - `prune` is safe — it only deletes orphaned points, never re-embeds. Use after changing watch paths, fixing gitignore, or cleaning up stale data.
 - `prune` is NOT triggered by config-watch auto-reindex (too dangerous for auto-trigger).
 
-
 ### `watcher_scan`
+
 Filter-only point query without vector search. Use for structural queries where the question has no semantic dimension.
+
 - `filter` (object, required) — Qdrant filter object. Required to prevent accidental full-collection scans.
 - `limit` (number, optional) — page size, default 100, max 1000
 - `cursor` (string, optional) — opaque cursor from previous response for pagination
@@ -429,6 +478,7 @@ Filter-only point query without vector search. Use for structural queries where 
 - `countOnly` (boolean, optional) — if true, return `{ count }` instead of points
 
 **Response (normal):**
+
 ```json
 {
   "points": [{ "id": "uuid", "payload": { ... } }],
@@ -437,17 +487,20 @@ Filter-only point query without vector search. Use for structural queries where 
 ```
 
 **Response (countOnly):**
+
 ```json
 { "count": 1234 }
 ```
 
 **Key differences from `watcher_search`:**
+
 - No `query` parameter — does NOT use embeddings
 - No `score` field — results are unranked filter matches
 - Cursor-based pagination (not offset-based)
 - Zero cost per call beyond Qdrant's filtered scroll
 
 **Pagination pattern:**
+
 ```
 let cursor = undefined;
 do {
@@ -458,19 +511,25 @@ do {
 ```
 
 ### `watcher_service`
+
 Manage the watcher background service (install, uninstall, start, stop, restart, check status).
+
 - `action` (string, required) — one of: `install`, `uninstall`, `start`, `stop`, `restart`, `status`
 
 Returns the service manager's response. On Windows uses NSSM, on Linux uses systemd.
 
 ### `watcher_issues`
+
 Get runtime embedding failures. Returns `{ filePath: IssueRecord }` showing files that failed and why.
 
 ### `watcher_walk`
+
 Walk watched filesystem paths with glob intersection. Returns matching file paths from all configured watch roots.
+
 - `globs` (string[], required) — glob patterns to intersect with watch paths
 
 **Response:**
+
 ```json
 {
   "paths": ["j:/domains/foo/.meta/meta.json", "j:/domains/bar/.meta/meta.json"],
@@ -480,11 +539,13 @@ Walk watched filesystem paths with glob intersection. Returns matching file path
 ```
 
 **Use cases:**
+
 - Discover files matching a pattern across all watched directories (e.g., `["**/.meta/meta.json"]`)
 - Enumerate files before rule registration to understand scope
 - Find files that aren't yet indexed (no Qdrant dependency — works even before first embedding)
 
 **Key differences from `watcher_scan`:**
+
 - Walks the actual filesystem, not the Qdrant index
 - No embedding or indexing required — works immediately after service start
 - Returns file paths only (no metadata, no vectors)
@@ -495,7 +556,7 @@ Walk watched filesystem paths with glob intersection. Returns matching file path
 **Decision rule:** If the query has no semantic/natural-language dimension, use `watcher_scan`. If you need meaning-based similarity, use `watcher_search`.
 
 | Use `watcher_scan` | Use `watcher_search` |
-|---------------------|----------------------|
+| --- | --- |
 | "List all files in domain X" | "Find documents about authentication" |
 | "Files modified after timestamp T" | "What discusses rate limiting?" |
 | "Enumerate paths under prefix P" | "Prior conversations about deployment" |
@@ -505,21 +566,25 @@ Walk watched filesystem paths with glob intersection. Returns matching file path
 **Scan-specific filter examples:**
 
 **Domain enumeration:**
+
 ```json
 { "must": [{ "key": "domains", "match": { "value": "email" } }] }
 ```
 
 **Modified after timestamp:**
+
 ```json
 { "must": [{ "key": "modified_at", "range": { "gte": 1772800000 } }] }
 ```
 
 **Path prefix matching:**
+
 ```json
 { "must": [{ "key": "file_path", "match": { "text": "j:/domains/jira" } }] }
 ```
 
 **Count files in a domain (no point data transferred):**
+
 ```
 watcher_scan: filter={"must":[{"key":"domains","match":{"value":"github"}}]}, countOnly=true
 ```
@@ -533,16 +598,19 @@ Filters use Qdrant's native JSON filter format, passed as the `filter` parameter
 ### Basic Patterns
 
 **Match exact value:**
+
 ```json
 { "must": [{ "key": "domain", "match": { "value": "email" } }] }
 ```
 
 **Match text (full-text search within field):**
+
 ```json
 { "must": [{ "key": "chunk_text", "match": { "text": "authentication" } }] }
 ```
 
 **Combine conditions (AND):**
+
 ```json
 {
   "must": [
@@ -553,6 +621,7 @@ Filters use Qdrant's native JSON filter format, passed as the `filter` parameter
 ```
 
 **Exclude (NOT):**
+
 ```json
 {
   "must_not": [{ "key": "domain", "match": { "value": "repos" } }]
@@ -560,6 +629,7 @@ Filters use Qdrant's native JSON filter format, passed as the `filter` parameter
 ```
 
 **Any of (OR):**
+
 ```json
 {
   "should": [
@@ -570,6 +640,7 @@ Filters use Qdrant's native JSON filter format, passed as the `filter` parameter
 ```
 
 **Nested (combine AND + NOT):**
+
 ```json
 {
   "must": [{ "key": "domain", "match": { "value": "jira" } }],
@@ -578,6 +649,7 @@ Filters use Qdrant's native JSON filter format, passed as the `filter` parameter
 ```
 
 ### Key Differences
+
 - `match.value` — exact match (case-sensitive, for keyword fields like `domain`, `status`)
 - `match.text` — full-text match (for text fields like `chunk_text`)
 
@@ -586,7 +658,7 @@ Filters use Qdrant's native JSON filter format, passed as the `filter` parameter
 Each result from `watcher_search` contains:
 
 | Field | Type | Description |
-|-------|------|-------------|
+| --- | --- | --- |
 | `id` | string | Qdrant point ID |
 | `score` | number | Similarity score (0-1, higher = more relevant) |
 | `payload.file_path` | string | Source file path |
@@ -603,6 +675,7 @@ Additional metadata fields depend on the deployment's inference rules (e.g., `do
 Identify relevant rule(s) from the orientation model, then retrieve their schemas:
 
 **Retrieve complete schema for a rule:**
+
 ```
 watcher_config: path="$.inferenceRules[?(@.name=='jira-issue')].schema"
               resolve=["files","globals"]
@@ -611,6 +684,7 @@ watcher_config: path="$.inferenceRules[?(@.name=='jira-issue')].schema"
 Returns the fully merged schema with properties, types, `set` provenance, `uiHint`, `enum`, etc.
 
 **For select/multiselect fields without `enum` in schema:**
+
 ```
 watcher_config: path="$.inferenceRules[?(@.name=='jira-issue')].values.status"
 ```
@@ -626,14 +700,14 @@ Retrieves valid filter values from the runtime values index (distinct values acc
 Use `uiHint` to determine filter construction strategy. **This table is explicit, not intuited:**
 
 | `uiHint` | Qdrant filter | Notes |
-|----------|--------------|-------|
+| --- | --- | --- |
 | `text` | `{ "key": "<field>", "match": { "text": "<value>" } }` | Substring/keyword match |
 | `select` | `{ "key": "<field>", "match": { "value": "<enum_value>" } }` | Exact match; use `enum` values from schema or runtime values index |
 | `multiselect` | `{ "key": "<field>", "match": { "value": "<enum_value>" } }` | Any-element match on array field; use `enum` or runtime values index |
 | `date` | `{ "key": "<field>", "range": { "gte": <unix_ts>, "lt": <unix_ts> } }` | Range filter against integer fields holding Unix timestamps (seconds). Source dates should be normalized in config via `{{toUnix ...}}` in `set` expressions. | for open-ended ranges (e.g., "after January" → `gte` only) |
 | `number` | `{ "key": "<field>", "range": { "gte": <n>, "lte": <n> } }` | Either bound optional for open-ended ranges |
 | `check` | `{ "key": "<field>", "match": { "value": true } }` | Boolean match |
-| *(absent)* | Do not use in filters | Internal bookkeeping field, not intended for search |
+| _(absent)_ | Do not use in filters | Internal bookkeeping field, not intended for search |
 
 **Fallback:** If a `select`/`multiselect` field has neither `enum` in schema nor values in the index, treat it as `text` (substring match instead of exact match).
 
@@ -644,12 +718,13 @@ Use `uiHint` to determine filter construction strategy. **This table is explicit
 Compose individual field conditions into complex queries using three combinators:
 
 | Combinator | Semantics | Use case |
-|-----------|-----------|----------|
+| --- | --- | --- |
 | `must` | AND — all conditions required | Intersecting constraints (domain + date range + assignee) |
 | `should` | OR — at least one must match | Alternative values, fuzzy criteria ("assigned to X or Y") |
 | `must_not` | Exclusion — any match triggers exclude | Filtering out noise (exclude Done, exclude codebase domain) |
 
 **Combinators nest arbitrarily for complex boolean logic:**
+
 ```json
 {
   "must": [
@@ -660,9 +735,7 @@ Compose individual field conditions into complex queries using three combinators
     { "key": "assignee", "match": { "value": "Jane Doe" } },
     { "key": "assignee", "match": { "value": null } }
   ],
-  "must_not": [
-    { "key": "status", "match": { "value": "Done" } }
-  ]
+  "must_not": [{ "key": "status", "match": { "value": "Done" } }]
 }
 ```
 
@@ -675,6 +748,7 @@ A consuming UI will necessarily compose simple single-field filters. The assista
 **Plain semantic search is valid and often sufficient.** Not every query needs metadata filters. When the user's question is broad or exploratory, a natural language query with no filter object is the right starting point. Add filters to narrow, not as a default.
 
 **Result limit guidance:**
+
 - Default: 10 results
 - Broad discovery / exploratory: 20–30, apply score threshold cutoff from config
 - Targeted retrieval with tight filters: 5
@@ -685,22 +759,28 @@ A consuming UI will necessarily compose simple single-field filters. The assista
 ## Post-Processing Guidance
 
 ### Score Interpretation
+
 Use `scoreThresholds` from config (queried during orientation). Values are deployment-specific, constrained to [-1, 1]:
+
 - `strong` — minimum score for a strong match. **Action:** High confidence. Use these results directly.
 - `relevant` — minimum score for relevance. **Action:** Likely useful but verify context before relying on them.
 - `noise` — maximum score below which results are noise. **Action:** Discard. If all results fall below this threshold, broaden your query or try different terms.
 
 ### Chunk Grouping
+
 Multiple results with the same `file_path` are chunks of one document. Read the full file for complete context.
 
 ### Schema Lookup
+
 Use `matched_rules` on results to look up applicable schemas for metadata interpretation:
+
 ```
 watcher_config: path="$.inferenceRules[?(@.name=='jira-issue')].schema"
               resolve=["files","globals"]
 ```
 
 ### Full Context
+
 Search gives you chunks; use `read` with `file_path` for the complete document.
 
 ---
@@ -708,11 +788,13 @@ Search gives you chunks; use `read` with `file_path` for the complete document.
 ## Path Testing
 
 When uncertain whether a file is indexed, use the path test endpoint:
+
 ```
 watcher_config: path="$.inferenceRules[?(@.name=='<rule>')].match"
 ```
 
 Or check if a specific path would match:
+
 - Returns matching rule names and watch scope status
 - Empty `rules` array means no inference rules match
 - `watched: false` means the path falls outside watch paths or is excluded by ignore patterns
@@ -722,7 +804,9 @@ Or check if a specific path would match:
 ## Config Authoring
 
 ### Rule Structure
+
 Each inference rule has:
+
 - `name` (required) — unique identifier
 - `description` (required) — human-readable purpose
 - `match` — JSON Schema with picomatch glob for path matching
@@ -731,6 +815,7 @@ Each inference rule has:
 - `template` (optional) — named Handlebars template
 
 ### Config Workflow
+
 1. Edit config (or build partial config object)
 2. Validate: `watcher_validate` with optional `testPaths` for dry-run preview
 3. Apply: `watcher_config_apply` — validates, writes, triggers reindex
@@ -743,6 +828,7 @@ Reindex operations process files concurrently using `reindex.concurrency` (defau
 Progress is reported via `watcher_status` (`reindex.filesProcessed` / `reindex.totalFiles`).
 
 ### When to Reindex
+
 - **Rules scope** (`"rules"`): Changed rule matching patterns, set expressions, schema mappings. No re-embedding needed.
 - **Full scope** (`"full"`): Changed embedding config, added watch paths, broad schema restructuring. Re-embeds everything.
 - **Issues scope** (`"issues"`): After fixing the root cause of embedding failures (permissions, encoding, file format). Re-processes only failed files.
@@ -754,12 +840,14 @@ Progress is reported via `watcher_status` (`reindex.filesProcessed` / `reindex.t
 ## Diagnostics
 
 ### Escalation Path
+
 1. `watcher_status` — is the service healthy? Is a reindex running? Is the initial scan still active?
 2. `watcher_issues` — what files are failing and why?
 3. `watcher_config` with `$.issues` — same data via JSONPath
 4. Check logs at the configured log path
 
 ### Error Categories
+
 - `type_collision` — metadata field type mismatch during extraction (includes `property`, `rules[]`, `types[]`)
 - `interpolation` / `interpolation_error` — template/set expression failed to resolve (includes `property`, `rule`)
 - `read_failure` — file couldn't be read (permissions, encoding)
@@ -774,6 +862,7 @@ Progress is reported via `watcher_status` (`reindex.filesProcessed` / `reindex.t
 Helpers use namespace prefixing: config key becomes prefix. A helper named `slack` exports `slack_extractParticipants`.
 
 Enumerate loaded helpers:
+
 ```
 $.mapHelpers              — JsonMap helper namespaces with exports
 $.templateHelpers         — Handlebars helper namespaces with exports
@@ -784,9 +873,11 @@ $.templateHelpers         — Handlebars helper namespaces with exports
 The following helpers are available in every JsonMap `lib` context without any helper config:
 
 #### `fetchSiblings(filePath, options?)`
+
 Retrieve extracted text from neighboring files in the same directory. Useful for contextual embedding — e.g., injecting surrounding email messages into a thread member's embedding for better semantic search.
 
 **Parameters:**
+
 - `filePath` (string) — the current file path (typically `$file_path`)
 - `options` (object, optional):
   - `before` (number, default 3) — number of preceding siblings to include
@@ -796,8 +887,14 @@ Retrieve extracted text from neighboring files in the same directory. Useful for
 **Returns:** `string[]` — extracted text from sibling files, in sort order. Files that fail extraction are silently skipped.
 
 **Example** (in a JsonMap `$set` expression):
+
 ```json
-{ "context": { "$fn": "fetchSiblings", "$args": ["$file_path", { "before": 2, "after": 1 }] } }
+{
+  "context": {
+    "$fn": "fetchSiblings",
+    "$args": ["$file_path", { "before": 2, "after": 1 }]
+  }
+}
 ```
 
 ---
@@ -809,6 +906,7 @@ Use `watcher_enrich` to tag documents after analysis (e.g., `reviewed: true`, pr
 **Enrichments are durable.** Stored in a SQLite database (`<stateDir>/enrichments.sqlite`), enrichments survive full reindexes. When the watcher re-processes a file, enrichments are merged with inference rule output using composable semantics: scalar fields overwrite, array fields union+deduplicate.
 
 **Metadata is validated against the file's matched rule schemas.** Validation errors return structured messages:
+
 ```json
 {
   "error": "Validation failed",
@@ -833,7 +931,7 @@ The watcher includes built-in history and undo for your watched files. When enab
 ### Tools
 
 | Tool | Purpose |
-|------|---------|
+| --- | --- |
 | `watcher_vcs_status` | Check version tracking health: enabled state, tracked roots, remote sync status |
 | `watcher_vcs_history` | View change history for a file or folder, with optional date range and limit |
 | `watcher_vcs_show` | Retrieve the content of a file at a specific past version |
@@ -845,31 +943,37 @@ The watcher includes built-in history and undo for your watched files. When enab
 ### Usage Patterns
 
 **View recent changes to a file:**
+
 ```
 watcher_vcs_history: glob="J:/domains/jira/PROJ-123.json", limit=10
 ```
 
 **See what changed between two versions:**
+
 ```
 watcher_vcs_diff: glob="J:/domains/jira/PROJ-123.json", commit="abc1234"
 ```
 
 **Restore a file to a previous version:**
+
 ```
 watcher_vcs_revert: glob="J:/domains/jira/PROJ-123.json", commit="abc1234"
 ```
 
 **View old content without restoring:**
+
 ```
 watcher_vcs_show: path="J:/domains/jira/PROJ-123.json", commit="abc1234"
 ```
 
 **Exclude files that don't need versioning** (e.g., Jira issues that are read-only syncs):
+
 ```
 watcher_vcs_exclude: glob="J:/domains/jira/**/*.json"
 ```
 
 **Check if a file is excluded and why:**
+
 ```
 watcher_vcs_check: path="J:/domains/jira/PROJ-123.json"
 ```
@@ -895,16 +999,19 @@ VCS tools do not use vector search. There are no relevance scores to interpret �
 ## Error Handling
 
 If the watcher is unreachable:
+
 - Inform the user that semantic search is temporarily unavailable
 - Fall back to direct `read` for known file paths
 - Do not retry silently in a loop
 
 If tools are unavailable (plugin not loaded in this session):
+
 - The watcher API is still accessible via direct HTTP calls
 - Use `exec` to call the endpoints listed in Service Architecture
 - Default: `http://127.0.0.1:1936`
 
 **CLI Fallbacks:**
+
 - `jeeves-watcher status` — check if the service is running
 - `jeeves-watcher validate` — validate config from CLI
 - Restart via NSSM (Windows) or systemctl (Linux)
@@ -915,7 +1022,3 @@ If tools are unavailable (plugin not loaded in this session):
 
 - [JSONPath Plus documentation](https://www.npmjs.com/package/jsonpath-plus) for JSONPath syntax
 - [Qdrant filtering documentation](https://qdrant.tech/documentation/concepts/filtering/) for advanced query patterns and search response format
-
-
-
-

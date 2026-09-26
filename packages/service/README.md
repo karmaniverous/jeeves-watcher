@@ -49,7 +49,7 @@ Add a `vcs` block to your config:
 ```
 
 | Property | Default | Description |
-|----------|---------|-------------|
+| --- | --- | --- |
 | `vcs.enabled` | `false` | Enable git-backed version control globally |
 | `vcs.commitThrottleMs` | `30000` | Throttle interval (ms) for batching file changes into commits. Min: 1000 |
 | `vcs.maxBatchSize` | `1000` | Maximum files per commit batch. Flushes immediately when exceeded. Min: 1 |
@@ -137,22 +137,22 @@ To prevent unbounded history growth, the squash retention system periodically co
 
 ### API Endpoints
 
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/vcs/status` | GET | VCS state for all roots |
-| `/vcs/history` | GET | Commit history for a path/glob |
-| `/vcs/show` | GET | File content at a specific commit |
-| `/vcs/diff` | GET | Diff between commits |
-| `/vcs/revert` | POST | Restore files from a past commit |
-| `/vcs/exclude` | POST | Manage gitignore exclusions |
-| `/vcs/check-exclusion` | GET | Check gitignore status of a path |
+| Endpoint               | Method | Description                       |
+| ---------------------- | ------ | --------------------------------- |
+| `/vcs/status`          | GET    | VCS state for all roots           |
+| `/vcs/history`         | GET    | Commit history for a path/glob    |
+| `/vcs/show`            | GET    | File content at a specific commit |
+| `/vcs/diff`            | GET    | Diff between commits              |
+| `/vcs/revert`          | POST   | Restore files from a past commit  |
+| `/vcs/exclude`         | POST   | Manage gitignore exclusions       |
+| `/vcs/check-exclusion` | GET    | Check gitignore status of a path  |
 
 ## JsonMap Built-in Helpers
 
 The following helpers are available in every JsonMap `lib` context:
 
 | Helper | Description |
-|--------|-------------|
+| --- | --- |
 | `split(str, sep)` | Split a string into an array |
 | `slice(arr, start, end?)` | Slice an array |
 | `join(arr, sep)` | Join an array into a string |

@@ -27,7 +27,7 @@ This creates a flexible, declarative metadata pipeline with strong type guarante
 ### Key Changes from v1
 
 | Aspect | v1 (≤ 0.4.x) | v2 (≥ 0.5.0) |
-|--------|-------------|--------------|
+| --- | --- | --- |
 | Metadata definition | `set` object with template strings | `schema` arrays referencing global schemas |
 | Type handling | All values are strings | Type coercion to declared `type` |
 | Rule identity | Anonymous | Requires `name` and `description` |
@@ -46,13 +46,20 @@ Each inference rule has these fields:
 {
   "name": "jira-issue",
   "description": "Jira issue metadata from JSON exports",
-  "match": { /* JSON Schema */ },
+  "match": {/* JSON Schema */},
   "schema": [
     "base",
     "jira-common",
-    { "properties": { "status": { "type": "string", "set": "{{json.current.fields.status.name}}" } } }
+    {
+      "properties": {
+        "status": {
+          "type": "string",
+          "set": "{{json.current.fields.status.name}}"
+        }
+      }
+    }
   ],
-  "map": { /* Optional JsonMap transform */ },
+  "map": {/* Optional JsonMap transform */},
   "template": "jira-issue"
 }
 ```
@@ -96,6 +103,7 @@ Define reusable schemas in the top-level `schemas` config:
 ```
 
 Schema entries can be:
+
 - **Inline objects** - Schema definitions directly in config
 - **File paths** - Relative to config directory (e.g., `"schemas/base.json"`)
 
@@ -134,6 +142,7 @@ The `schema` property accepts an array of schema references, merged left-to-righ
 ```
 
 **Merge semantics:**
+
 - Named references (e.g., `"base"`) are resolved from global `schemas` collection
 - Inline objects are used directly
 - Properties merge left-to-right: later entries override earlier ones
@@ -182,8 +191,8 @@ The `set` keyword within a property schema serves three purposes:
 2. **Type coercion:** After interpolation, the result is coerced to the declared `type`
 3. **Query time:** Provenance metadata — consumers can distinguish static values (`"set": "jira"`) from extracted values (`"set": "{{json.status}}"`)
 
-
 **Template interpolation:**
+
 ```json
 {
   "status": {
@@ -206,7 +215,7 @@ Templates use `{{path.to.field}}` Handlebars syntax to reference the file attrib
 After template interpolation, values are automatically coerced to their declared `type`:
 
 | Type | Coercion Rules | Examples |
-|------|----------------|----------|
+| --- | --- | --- |
 | `string` | No coercion (interpolation already produces strings) | `"42"` → `"42"` |
 | `integer` | Parse as integer; empty/invalid → `undefined` | `"42"` → `42`, `""` → `undefined` |
 | `number` | Parse as float; empty/invalid → `undefined` | `"3.14"` → `3.14`, `""` → `undefined` |
@@ -237,7 +246,7 @@ If `json.current.fields.created` is the string `"1735689600"`, coercion converts
 The `uiHint` keyword tells consuming UIs how to render a property for search filtering:
 
 | Value | Renders as | Use with |
-|-------|-----------|----------|
+| --- | --- | --- |
 | `text` | Free text input | Text fields, substring search |
 | `number` | Numeric input / range slider | Numeric fields with range queries |
 | `date` | Date picker / date range | Integer timestamps (unix seconds) |
@@ -330,15 +339,15 @@ The watcher builds an attributes object for each file:
 ```typescript
 interface FileAttributes {
   file: {
-    path: string;           // Normalized path (forward slashes, lowercase drive)
-    directory: string;      // Directory containing the file
-    filename: string;       // File name with extension
-    extension: string;      // Extension including dot (e.g., ".md")
-    sizeBytes: number;      // File size in bytes
-    modified: string;       // ISO-8601 timestamp of last modification
+    path: string; // Normalized path (forward slashes, lowercase drive)
+    directory: string; // Directory containing the file
+    filename: string; // File name with extension
+    extension: string; // Extension including dot (e.g., ".md")
+    sizeBytes: number; // File size in bytes
+    modified: string; // ISO-8601 timestamp of last modification
   };
-  frontmatter?: Record<string, unknown>;  // YAML frontmatter from .md files
-  json?: Record<string, unknown>;         // Parsed content from .json files
+  frontmatter?: Record<string, unknown>; // YAML frontmatter from .md files
+  json?: Record<string, unknown>; // Parsed content from .json files
 }
 ```
 
@@ -392,6 +401,7 @@ The watcher registers a custom `glob` keyword for path matching using [picomatch
 ```
 
 **Glob syntax:**
+
 - `**` — matches any number of directories
 - `*` — matches any characters within a segment
 - `{md,txt}` — brace expansion for multiple patterns
@@ -428,7 +438,9 @@ When multiple rules match a file, they are processed **in order** with **last-ma
         }
       },
       "schema": [
-        { "properties": { "category": { "type": "string", "set": "important" } } }
+        {
+          "properties": { "category": { "type": "string", "set": "important" } }
+        }
       ]
     }
   ]
@@ -444,6 +456,7 @@ Files under `**/important/**` get `category: "important"` (second rule wins).
 Every embedded point includes a `matched_rules` field: a keyword array of the inference rule names that matched the file.
 
 **Benefits:**
+
 - **Schema lookup:** Consumers can query which rules produced a result's metadata
 - **Impact analysis:** `{ "key": "matched_rules", "match": { "value": "jira-issue" } }` returns all documents processed by that rule
 - **Diagnostics:** Which rules touched this document?
@@ -486,6 +499,7 @@ The watcher maintains a **values index** (`values.json` in `stateDir`) tracking 
 ```
 
 **Update dynamics:**
+
 - **On each embed:** Values are upserted (set-add) for matched rules' properties
 - **Prior to full reindex:** Entire values index is cleared, then rebuilt from scratch
 - **Prior to issues reindex:** Values index is not cleared (only issue files are re-processed)
@@ -535,10 +549,12 @@ A persistent, self-healing ledger of files that failed to embed. Keyed by file p
 ```
 
 **Issue types:**
+
 - `type_collision` — Multiple rules declare the same property with incompatible types
 - `interpolation_error` — `set` template path doesn't resolve (null, undefined, wrong structure)
 
 **Behavior:**
+
 - When a file hits an issue, it is logged to the issues file and **embedding is skipped**
 - When a file is re-processed successfully (config fix, file edit, reindex), its entry is **cleared**
 - The file always represents the **current** set of unresolved problems: a live todo list
@@ -569,7 +585,7 @@ When `configWatch.enabled` is true, the watcher monitors its config file. On con
 ```
 
 | Mode | Behavior |
-|------|----------|
+| --- | --- |
 | `"issues"` (default) | Re-process only files in the issues file (cheap, targeted) |
 | `"rules"` | Re-apply inference rules to all files (no re-embedding) |
 | `"full"` | Full reindex of all watched files (use when broad config changes affect already-embedded files) |
@@ -579,6 +595,7 @@ When `configWatch.enabled` is true, the watcher monitors its config file. On con
 **Issues reindex** is the default because config changes typically fix issues: a type collision is resolved by editing a rule, and re-processing just the affected file is sufficient.
 
 **Full reindex** is needed when:
+
 - Renaming a property across all rules
 - Changing a type on a widely-matched rule
 - Adding a new global schema that should apply to already-indexed files
@@ -641,6 +658,7 @@ Metadata is built in layers with clear precedence:
 ### 1. Inference Rules (Base Layer)
 
 Rules are evaluated **in order**. For each matching rule:
+
 - Schema is merged (left-to-right, property-level)
 - `set` templates are resolved and coerced
 - `map` (JsonMap) transformation runs (if present)
@@ -672,7 +690,11 @@ inferred (from rules) → enrichment (from .meta.json) → final payload
   "schemas": {
     "base": {
       "properties": {
-        "domain": { "type": "string", "description": "Content domain", "uiHint": "select" }
+        "domain": {
+          "type": "string",
+          "description": "Content domain",
+          "uiHint": "select"
+        }
       }
     }
   },
@@ -689,10 +711,7 @@ inferred (from rules) → enrichment (from .meta.json) → final payload
           }
         }
       },
-      "schema": [
-        "base",
-        { "properties": { "domain": { "set": "email" } } }
-      ]
+      "schema": ["base", { "properties": { "domain": { "set": "email" } } }]
     },
     {
       "name": "meetings-domain",
@@ -706,10 +725,7 @@ inferred (from rules) → enrichment (from .meta.json) → final payload
           }
         }
       },
-      "schema": [
-        "base",
-        { "properties": { "domain": { "set": "meetings" } } }
-      ]
+      "schema": ["base", { "properties": { "domain": { "set": "meetings" } } }]
     }
   ]
 }
@@ -921,6 +937,7 @@ curl -X POST http://localhost:1936/config/match \
 ```
 
 **Key migration steps:**
+
 1. Add `name` and `description` to every rule
 2. Define global schemas for shared properties
 3. Replace `set` object with `schema` array
@@ -946,6 +963,7 @@ When a rule includes `template` or `render`, the `renderAs` field declares the o
 ```
 
 **Resolution order** (used by `POST /render`):
+
 1. `renderAs` from the last matching rule that declares it
 2. File extension of the source file (e.g. `.md` → `"md"`)
 3. `"txt"` for extensionless files
@@ -958,14 +976,14 @@ When a rule includes `template` or `render`, the `renderAs` field declares the o
 
 ```typescript
 interface InferenceRule {
-  name: string;                    // Required unique identifier
-  description: string;             // Required human-readable description
-  match: Record<string, unknown>;  // JSON Schema object
-  schema: SchemaReference[];       // Array of named refs and inline objects
+  name: string; // Required unique identifier
+  description: string; // Required human-readable description
+  match: Record<string, unknown>; // JSON Schema object
+  schema: SchemaReference[]; // Array of named refs and inline objects
   map?: Record<string, unknown> | string; // JsonMap definition, named map ref, or file path
-  template?: string;               // Handlebars template (inline, named ref, or file path)
-  render?: RenderConfig;             // Declarative structured renderer (mutually exclusive with template)
-  renderAs?: string;                 // Output file extension override (requires template or render)
+  template?: string; // Handlebars template (inline, named ref, or file path)
+  render?: RenderConfig; // Declarative structured renderer (mutually exclusive with template)
+  renderAs?: string; // Output file extension override (requires template or render)
 }
 
 interface SchemaReference {
@@ -973,11 +991,11 @@ interface SchemaReference {
 }
 
 interface ResolvedProperty {
-  type?: string;                   // JSON Schema type
-  description?: string;            // Human-readable description
-  uiHint?: string;                 // UI rendering hint
-  enum?: unknown[];                // Enum values
-  set?: string | unknown[];         // Interpolation template or array value
+  type?: string; // JSON Schema type
+  description?: string; // Human-readable description
+  uiHint?: string; // UI rendering hint
+  enum?: unknown[]; // Enum values
+  set?: string | unknown[]; // Interpolation template or array value
 }
 ```
 

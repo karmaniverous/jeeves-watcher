@@ -127,12 +127,14 @@ Documents exceeding `embedding.chunkSize` (default: 1000 characters) are split i
 - **All other files** — `RecursiveCharacterTextSplitter` (splits on `\n\n`, then `\n`, then `. `, then characters)
 
 Both splitters use:
+
 - `chunkSize` — max characters per chunk
 - `chunkOverlap` — overlap between consecutive chunks (helps preserve context at boundaries)
 
 **Chunk Points:**
 
 Each chunk becomes a separate Qdrant point with:
+
 - **Unique ID:** `pointId(filePath, chunkIndex)` (deterministic UUID)
 - **Shared payload:** `file_path`, `domain`, metadata (same across all chunks)
 - **Chunk-specific:** `chunk_index`, `total_chunks`, `chunk_text`
@@ -141,11 +143,11 @@ Each chunk becomes a separate Qdrant point with:
 
 File with 3 chunks → 3 Qdrant points:
 
-| Point ID | `chunk_index` | `total_chunks` | `chunk_text` |
-|----------|---------------|----------------|--------------|
-| `uuid-0` | `0` | `3` | "First chunk..." |
-| `uuid-1` | `1` | `3` | "Second chunk..." |
-| `uuid-2` | `2` | `3` | "Third chunk..." |
+| Point ID | `chunk_index` | `total_chunks` | `chunk_text`      |
+| -------- | ------------- | -------------- | ----------------- |
+| `uuid-0` | `0`           | `3`            | "First chunk..."  |
+| `uuid-1` | `1`           | `3`            | "Second chunk..." |
+| `uuid-2` | `2`           | `3`            | "Third chunk..."  |
 
 ---
 
@@ -158,6 +160,7 @@ The v0.5.0 inference rules system uses declarative JSON Schemas with type coerci
 ![Schema Merge Flow](../assets/schema-merge-flow.png)
 
 **Key steps:**
+
 1. **Resolve named references** from global `schemas` collection
 2. **Merge properties** left-to-right (later entries override earlier ones)
 3. **Validate completeness** — every property must have a `type`
@@ -172,6 +175,7 @@ When config files change, the watcher can trigger different reindex modes based 
 ![Config Watch Reindex Flow](../assets/config-watch-reindex.png)
 
 **Modes:**
+
 - **`issues`** (default) — Re-process only files in `issues.json` (cheap, targeted)
 - **`full`** — Re-process all watched files (expensive, comprehensive)
 - **`none`** — No automatic reindex (manual `POST /reindex` required)
@@ -378,7 +382,7 @@ See [Inference Rules Guide](./inference-rules.md) for full details.
 ### Extractors by File Type
 
 | Extension | Extractor | Strategy |
-|-----------|-----------|----------|
+| --- | --- | --- |
 | `.md`, `.markdown` | `markdown` | Strip YAML frontmatter (extract as metadata), return body text |
 | `.txt`, `.text` | `plaintext` | Return as-is |
 | `.json` | `json-content` | Extract string values from known content fields (`content`, `body`, `text`, `subject`) |
@@ -395,7 +399,7 @@ See [Inference Rules Guide](./inference-rules.md) for full details.
 Transient failures (Gemini API, Qdrant) are handled with exponential backoff:
 
 | Failure Type | Retry Policy | Max Retries |
-|-------------|-------------|-------------|
+| --- | --- | --- |
 | Gemini 429 (rate limit) | Backoff from 1s, respect `Retry-After` | 5 |
 | Gemini 500/503 | Backoff from 2s | 3 |
 | Qdrant connection refused | Backoff from 5s | 10 |
@@ -427,8 +431,8 @@ On first startup, if the Qdrant collection doesn't exist, the watcher creates it
 await qdrant.createCollection(collectionName, {
   vectors: {
     size: config.embedding.dimensions,
-    distance: 'Cosine'
-  }
+    distance: 'Cosine',
+  },
 });
 ```
 
@@ -445,7 +449,7 @@ await qdrant.createCollection(collectionName, {
 Structured JSON logging via [pino](https://github.com/pinojs/pino):
 
 | Level | Events |
-|-------|--------|
+| --- | --- |
 | `info` | File indexed, file deleted, reindex started/completed, config reloaded |
 | `warn` | Extraction failed, issues file entry, dimension mismatch |
 | `error` | Embedding API failure (after retries), Qdrant write failure, startup failure |
@@ -458,7 +462,7 @@ Structured JSON logging via [pino](https://github.com/pinojs/pino):
 ## Technology Choices
 
 | Component | Library | Rationale |
-|-----------|---------|-----------|
+| --- | --- | --- |
 | Filesystem watcher | `chokidar` | Cross-platform, glob support, battle-tested |
 | HTTP framework | `fastify` | Lightweight, fast, schema validation |
 | Text splitting | `@langchain/textsplitters` | Markdown-aware + recursive splitting |
@@ -482,7 +486,7 @@ async function extractYaml(filePath: string): Promise<ExtractionResult> {
   return {
     text: JSON.stringify(parsed, null, 2),
     frontmatter: undefined,
-    json: parsed
+    json: parsed,
   };
 }
 ```
@@ -512,7 +516,9 @@ class MyEmbeddingProvider implements EmbeddingProvider {
 2. Register in factory:
 
 ```typescript
-export function createEmbeddingProvider(config: EmbeddingConfig): EmbeddingProvider {
+export function createEmbeddingProvider(
+  config: EmbeddingConfig,
+): EmbeddingProvider {
   if (config.provider === 'my-provider') return new MyEmbeddingProvider(config);
   // ...
 }

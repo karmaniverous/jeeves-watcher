@@ -1,5 +1,9 @@
 {
-  "ignoreDependencies": ["typedoc", "typedoc-plugin-mdn-links", "typedoc-plugin-replace-text"],
+  "ignoreDependencies": [
+    "typedoc",
+    "typedoc-plugin-mdn-links",
+    "typedoc-plugin-replace-text"
+  ],
   "ignoreBinaries": ["typedoc", "plantuml"],
   "ignore": [],
   "ignoreExportsUsedInFile": true,

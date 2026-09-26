@@ -151,15 +151,6 @@ export function getConfigDir(configPath?: string): string {
   return configPath ? dirname(configPath) : '.';
 }
 
-// createWatcher, rebuildWatcher, and watchConfigChanged have been moved to watcherFactory.ts.
-// Re-exported here for backward compatibility.
-export {
-  createWatcher,
-  rebuildWatcher,
-  watchConfigChanged,
-  type WatcherState,
-} from './watcherFactory';
-
 /**
  * Resolve package version from nearest package.json.
  */

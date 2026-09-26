@@ -62,6 +62,7 @@ cd C:\qdrant
 ```
 
 **Default settings:**
+
 - **Port:** 6333
 - **Data:** `./storage/` (relative to binary location)
 - **Dashboard:** `http://localhost:6333/dashboard`
@@ -87,7 +88,7 @@ curl http://localhost:6333/healthz
 Output:
 
 ```json
-{"title":"qdrant - vector search engine","version":"1.x.x"}
+{ "title": "qdrant - vector search engine", "version": "1.x.x" }
 ```
 
 ### Option 2: Linux (Native Binary)
@@ -175,17 +176,18 @@ curl http://localhost:6333/healthz
 
 ```yaml
 service:
-  host: 0.0.0.0         # Bind to all interfaces (default: 127.0.0.1)
-  http_port: 6333       # HTTP API port
-  grpc_port: 6334       # gRPC port
+  host: 0.0.0.0 # Bind to all interfaces (default: 127.0.0.1)
+  http_port: 6333 # HTTP API port
+  grpc_port: 6334 # gRPC port
 
 storage:
-  storage_path: ./storage  # Data directory
+  storage_path: ./storage # Data directory
 
-telemetry_disabled: true   # Disable telemetry
+telemetry_disabled: true # Disable telemetry
 ```
 
 For production, consider:
+
 - **Snapshots:** Enable automatic snapshots for backups
 - **Resource limits:** Set memory limits in `config.yaml`
 - **Authentication:** Enable API key authentication for remote access
@@ -413,7 +415,7 @@ systemctl --user daemon-reload
 ### Memory
 
 | State | Memory Usage |
-|-------|-------------|
+| --- | --- |
 | **Idle** (no events) | ~50–100MB |
 | **Processing single file** | +5–20MB (document text in memory) |
 | **Burst processing** | Bounded by `embedding.concurrency` × avg document size |
@@ -424,21 +426,23 @@ systemctl --user daemon-reload
 
 **I/O-wait dominated** — most time is spent waiting for embedding API responses.
 
-| State | CPU Usage |
-|-------|-----------|
-| **Idle** | ~0% |
-| **File extraction** | Brief spike (PDF/DOCX parsing) |
-| **Embedding API waits** | ~0% (blocking I/O) |
+| State                   | CPU Usage                      |
+| ----------------------- | ------------------------------ |
+| **Idle**                | ~0%                            |
+| **File extraction**     | Brief spike (PDF/DOCX parsing) |
+| **Embedding API waits** | ~0% (blocking I/O)             |
 
 **Recommendation:** 1 CPU core sufficient for most workloads.
 
 ### Disk
 
 **Data:**
+
 - **Metadata store:** ~1KB per enriched file (`.meta.json` sidecars)
 - **Logs:** Depends on `logging.level` and rotation policy
 
 **Qdrant storage:**
+
 - ~100MB per million 768-dim vectors (varies by compression)
 
 **Recommendation:** 10GB minimum for moderate document corpora.
@@ -446,10 +450,12 @@ systemctl --user daemon-reload
 ### Network
 
 **Embedding API traffic:**
+
 - Average: ~1–2KB per embedding request (text payload)
 - Burst: Up to `embedding.concurrency` concurrent requests
 
 **Qdrant traffic:**
+
 - Upsert: ~3KB per point (vector + payload)
 - Search: ~1KB request, ~5KB response (varies by limit)
 
@@ -463,17 +469,18 @@ The watcher is designed to co-locate with other services on a single machine.
 
 ### Typical Stack
 
-| Service | Port | Memory | CPU | Role |
-|---------|------|--------|-----|------|
-| **Qdrant** | 6333 | 200MB–2GB | ~0% | Vector store |
-| **jeeves-watcher** | 1936 | 100MB–1GB | ~5% | Indexing + search API |
-| **jeeves-server** | 1934 | 50MB | ~1% | File browser + web UI |
-| **n8n** | 5678 | 500MB–2GB | 10–50% | Workflow automation |
-| **OpenClaw** | varies | 2–8GB | 50–100% | LLM inference |
+| Service            | Port   | Memory    | CPU     | Role                  |
+| ------------------ | ------ | --------- | ------- | --------------------- |
+| **Qdrant**         | 6333   | 200MB–2GB | ~0%     | Vector store          |
+| **jeeves-watcher** | 1936   | 100MB–1GB | ~5%     | Indexing + search API |
+| **jeeves-server**  | 1934   | 50MB      | ~1%     | File browser + web UI |
+| **n8n**            | 5678   | 500MB–2GB | 10–50%  | Workflow automation   |
+| **OpenClaw**       | varies | 2–8GB     | 50–100% | LLM inference         |
 
 **Total:** ~8–16GB RAM, 4 CPU cores recommended.
 
 **Contention:**
+
 - **Gemini API:** Watcher and OpenClaw use different providers (minimal contention)
 - **Qdrant:** Watcher writes, n8n/jeeves-server read (native concurrent access)
 - **Disk I/O:** All services write logs; stagger heavy operations
@@ -485,7 +492,7 @@ The watcher is designed to co-locate with other services on a single machine.
 ### Estimate Time and Cost
 
 | Corpus Size | Time (5 concurrent, 1000 req/min) | Gemini Cost ($0.15/1M tokens) |
-|------------|----------------------------------|-------------------------------|
+| --- | --- | --- |
 | 1,000 files | ~1 minute | ~$0.03 |
 | 10,000 files | ~10 minutes | ~$0.30 |
 | 100,000 files | ~100 minutes | ~$3.00 |
@@ -553,6 +560,7 @@ Output:
 ### Alerts
 
 **Critical events to alert on:**
+
 - `level: "error"` entries (embedding API failures, Qdrant write failures)
 - `/status` endpoint down for >5 minutes
 - Dead-letter list growth (indicates persistent failures)
@@ -564,15 +572,18 @@ Output:
 ### Backup Strategy
 
 **Qdrant:**
+
 - Use Qdrant's built-in [snapshot feature](https://qdrant.tech/documentation/concepts/snapshots/)
 - Automated snapshots to persistent storage
 - Alternatively: copy `{qdrant_storage_path}` directory while Qdrant is stopped
 
 **Metadata store:**
+
 - Backup `{metadataDir}` directory
 - Simple filesystem copy (no special handling needed)
 
 **Config:**
+
 - Backup `config.json`
 - Store in version control (git)
 
@@ -609,11 +620,13 @@ jeeves-watcher rebuild-metadata --port 1936
 ### Vertical Scaling
 
 **When to scale up:**
+
 - Large corpus (>100K documents)
 - High embedding API throughput
 - Frequent bulk operations
 
 **Recommendations:**
+
 - **CPU:** 2–4 cores (parallel chunk processing)
 - **Memory:** 2–4GB (large document buffering)
 - **Embedding concurrency:** Increase `embedding.concurrency` (bounded by API rate limits)
@@ -633,6 +646,7 @@ jeeves-watcher rebuild-metadata --port 1936
 **Default:** Binds to `127.0.0.1` (localhost only).
 
 **For remote access:**
+
 1. Bind to `0.0.0.0` (all interfaces)
 2. Add reverse proxy with authentication (nginx, Caddy)
 3. Use TLS/HTTPS
@@ -651,6 +665,7 @@ location /watcher/ {
 ### API Keys
 
 **Store securely:**
+
 - Use environment variables (not hardcoded in config)
 - Use secret management (AWS Secrets Manager, HashiCorp Vault, etc.)
 - Rotate keys regularly
@@ -658,6 +673,7 @@ location /watcher/ {
 ### Qdrant
 
 **For production:**
+
 - Enable Qdrant API key authentication
 - Use TLS for Qdrant HTTP/gRPC
 - Restrict network access (firewall rules)
@@ -721,6 +737,7 @@ See the [Version Control (VCS) Guide](./version-control.md) for full details on 
 ### Watcher won't start
 
 **Check:**
+
 1. Is Qdrant running? `curl http://localhost:6333/healthz`
 2. Is config valid? `jeeves-watcher validate --config /path/to/config.json`
 3. Are API keys set? `echo $GOOGLE_API_KEY`
@@ -729,6 +746,7 @@ See the [Version Control (VCS) Guide](./version-control.md) for full details on 
 ### Files not being indexed
 
 **Check:**
+
 1. Are files matched by `watch.paths` globs?
 2. Are files excluded by `watch.ignored` globs?
 3. Is file extraction supported? (Check extractor for file type)
@@ -737,6 +755,7 @@ See the [Version Control (VCS) Guide](./version-control.md) for full details on 
 ### Search returns no results
 
 **Check:**
+
 1. Are files indexed? `jeeves-watcher status`
 2. Is query relevant to corpus content?
 3. Is embedding provider working? (Check logs for embedding errors)
@@ -745,10 +764,12 @@ See the [Version Control (VCS) Guide](./version-control.md) for full details on 
 ### High memory usage
 
 **Possible causes:**
+
 - Large documents buffered during processing
 - High `embedding.concurrency` (multiple documents in memory)
 
 **Solutions:**
+
 - Reduce `embedding.concurrency`
 - Reduce `embedding.chunkSize` (smaller chunks = less memory per document)
 - Add memory limits in service config

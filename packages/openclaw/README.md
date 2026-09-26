@@ -56,7 +56,7 @@ The plugin builds on [`@karmaniverous/jeeves`](https://www.npmjs.com/package/@ka
 ## Tools
 
 | Tool | Description |
-|------|-------------|
+| --- | --- |
 | `watcher_status` | Service health, uptime, and collection stats |
 | `watcher_search` | Semantic search across indexed documents |
 | `watcher_enrich` | Set or update document metadata by file path |

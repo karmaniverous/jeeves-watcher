@@ -207,11 +207,9 @@ export function registerCustomCommands(program: Command): void {
       ]);
 
       const mapData = mapResult.result[0] as
-        | Record<string, HelperEntry>
-        | undefined;
+        Record<string, HelperEntry> | undefined;
       const tplData = tplResult.result[0] as
-        | Record<string, HelperEntry>
-        | undefined;
+        Record<string, HelperEntry> | undefined;
 
       const sections: string[] = [];
       const mapSection = formatHelperSection('JsonMap lib functions', mapData);

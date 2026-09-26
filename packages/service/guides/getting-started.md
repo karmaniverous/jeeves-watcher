@@ -80,16 +80,13 @@ Edit the `watch.paths` array to specify which directories to monitor. Use glob p
       "./notes/**/*.{md,txt}",
       "./projects/**/*.{md,json,pdf}"
     ],
-    "ignored": [
-      "**/node_modules/**",
-      "**/.git/**",
-      "**/temp/**"
-    ]
+    "ignored": ["**/node_modules/**", "**/.git/**", "**/temp/**"]
   }
 }
 ```
 
 **Glob syntax:**
+
 - `**` — matches any number of directories
 - `*` — matches any characters within a filename
 - `{md,txt}` — brace expansion for multiple extensions
@@ -184,6 +181,7 @@ jeeves-watcher start
 ```
 
 The watcher will:
+
 1. Connect to Qdrant and ensure the collection exists
 2. Scan all watched paths for existing files
 3. Index new files or files with changed content

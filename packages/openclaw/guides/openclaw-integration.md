@@ -106,6 +106,7 @@ Filter-only point query without vector search. Returns metadata for points match
 - `cursor` (string) — opaque cursor from previous response for pagination
 - `fields` (string[]) — payload fields to return (projection)
 - `countOnly` (boolean) — if true, return `{ count }` instead of points
+
 ### `watcher_issues`
 
 List current indexing issues — files that failed extraction, embedding errors, etc.

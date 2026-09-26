@@ -3,14 +3,10 @@
  * Re-exports TypeScript types from core. Supports schema-first development.
  */
 export type {
-  ApiConfig,
-  ConfigWatchConfig,
   EmbeddingConfig,
   InferenceRule,
   JeevesWatcherConfig,
-  JeevesWatcherConfigInput,
   LoggingConfig,
-  SchemaEntry,
   VectorStoreConfig,
   WatchConfig,
 } from '@karmaniverous/jeeves-watcher-core';

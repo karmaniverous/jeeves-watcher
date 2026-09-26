@@ -35,25 +35,25 @@ This enables IntelliSense in VSCode and other editors that support JSON Schema.
 
 ```typescript
 interface JeevesWatcherConfig {
-  description?: string;                           // Organizational strategy description (v0.5.0+)
-  schemas?: Record<string, SchemaEntry>;          // Global named schemas (v0.5.0+)
+  description?: string; // Organizational strategy description (v0.5.0+)
+  schemas?: Record<string, SchemaEntry>; // Global named schemas (v0.5.0+)
   watch: WatchConfig;
   configWatch?: ConfigWatchConfig;
   embedding: EmbeddingConfig;
   vectorStore: VectorStoreConfig;
   metadataDir?: string;
-  stateDir?: string;                              // Directory for persistent state files
+  stateDir?: string; // Directory for persistent state files
   api?: ApiConfig;
   extractors?: Record<string, unknown>;
   inferenceRules?: InferenceRule[];
-  maps?: Record<string, unknown>;                 // Named JsonMap definitions
-  templates?: Record<string, unknown>;            // Named template definitions
-  mapHelpers?: Record<string, HelperRef>;         // Named map helper modules
-  templateHelpers?: Record<string, HelperRef>;    // Named template helper modules
-  slots?: Record<string, QdrantFilter>;           // Named Qdrant filter patterns
-  search?: SearchConfig;                          // Search behavior settings (scoreThresholds in v0.5.0+)
-  reindex?: ReindexConfig;                        // Reindex behavior settings
-  vcs?: VcsConfig;                               // Version control settings
+  maps?: Record<string, unknown>; // Named JsonMap definitions
+  templates?: Record<string, unknown>; // Named template definitions
+  mapHelpers?: Record<string, HelperRef>; // Named map helper modules
+  templateHelpers?: Record<string, HelperRef>; // Named template helper modules
+  slots?: Record<string, QdrantFilter>; // Named Qdrant filter patterns
+  search?: SearchConfig; // Search behavior settings (scoreThresholds in v0.5.0+)
+  reindex?: ReindexConfig; // Reindex behavior settings
+  vcs?: VcsConfig; // Version control settings
   logging?: LoggingConfig;
   shutdownTimeoutMs?: number;
   maxRetries?: number;
@@ -74,7 +74,7 @@ interface JeevesWatcherConfig {
 ```
 
 | Field | Type | Default | Description |
-|-------|------|---------|-------------|
+| --- | --- | --- | --- |
 | `description` | `string` | `undefined` | Human-readable description of this deployment's organizational strategy and content domains. Consumed by LLM agents for orientation. |
 
 This field provides organizational context for LLM consumers. Delivered alongside the JSON Schema from `GET /config/schema`.
@@ -111,7 +111,7 @@ Define reusable named schemas referenced by inference rules:
 ```
 
 | Entry Type | Description |
-|------------|-------------|
+| --- | --- |
 | Inline object | JSON Schema object defined directly in config |
 | File path (string) | Relative path to a JSON schema file (resolved from config directory) |
 
@@ -138,7 +138,7 @@ See [Inference Rules Guide](./inference-rules.md) for merge semantics and usage 
 ```
 
 | Field | Type | Default | Description |
-|-------|------|---------|-------------|
+| --- | --- | --- | --- |
 | `paths` | `string[]` | **Required** | Glob patterns for files to watch. Supports picomatch syntax. |
 | `ignored` | `string[]` | `[]` | Glob patterns to exclude from watching. |
 | `debounceMs` | `number` | `300` | Wait this long after last change before processing (prevents re-embedding during rapid edits). |
@@ -152,10 +152,10 @@ See [Inference Rules Guide](./inference-rules.md) for merge semantics and usage 
 ```json
 {
   "paths": [
-    "d:/email/archive/**/*.json",      // All .json files under archive (Windows)
-    "./meetings/**/*.{txt,md}",        // .txt or .md files under meetings
-    "**/*.pdf",                        // All PDFs recursively
-    "/absolute/path/to/docs/**"        // Absolute path (Linux/macOS)
+    "d:/email/archive/**/*.json", // All .json files under archive (Windows)
+    "./meetings/**/*.{txt,md}", // .txt or .md files under meetings
+    "**/*.pdf", // All PDFs recursively
+    "/absolute/path/to/docs/**" // Absolute path (Linux/macOS)
   ]
 }
 ```
@@ -174,12 +174,13 @@ See [Inference Rules Guide](./inference-rules.md) for merge semantics and usage 
 ```
 
 | Field | Type | Default | Description |
-|-------|------|---------|-------------|
+| --- | --- | --- | --- |
 | `enabled` | `boolean` | `true` | Watch config file for changes and trigger scoped reindex. |
 | `debounceMs` | `number` | `1000` | Debounce window for config changes. |
 | `reindex` | `string` | `"issues"` | Reindex scope on config change: `"issues"` (re-process failed files), `"rules"` (re-apply inference rules), or `"full"` (re-embed all files). Note: `"path"` and `"prune"` are NOT valid for auto-trigger. |
 
 When the config file changes:
+
 1. Watcher reloads and validates the new config
 2. Inference rules are recompiled
 3. A reindex is triggered with the configured scope
@@ -204,7 +205,7 @@ When the config file changes:
 ```
 
 | Field | Type | Default | Description |
-|-------|------|---------|-------------|
+| --- | --- | --- | --- |
 | `provider` | `string` | `"gemini"` | Embedding provider: `"gemini"`, `"mock"`. |
 | `model` | `string` | `"gemini-embedding-001"` | Model name (e.g., `"gemini-embedding-001"` for Gemini). |
 | `apiKey` | `string` | `undefined` | API key. Supports `${ENV_VAR}` template syntax. Required for production providers (not mock). |
@@ -230,6 +231,7 @@ When the config file changes:
 ```
 
 **Models:**
+
 - `gemini-embedding-001` - 3072 dimensions (recommended)
 
 #### Mock (Testing)
@@ -260,12 +262,13 @@ Generates deterministic embeddings from content hashes. No API calls, no cost. I
 ```
 
 | Field | Type | Default | Description |
-|-------|------|---------|-------------|
+| --- | --- | --- | --- |
 | `url` | `string` | **Required** | Qdrant server URL. |
 | `collectionName` | `string` | **Required** | Qdrant collection name. Created automatically if it doesn't exist. |
 | `apiKey` | `string` | `undefined` | Qdrant API key (for Qdrant Cloud). |
 
 **On startup**, the watcher:
+
 1. Checks if the collection exists
 2. If not, creates it with the configured vector dimensions and Cosine distance
 3. If it already exists, uses it as-is (dimensions and distance are not validated)
@@ -273,6 +276,7 @@ Generates deterministic embeddings from content hashes. No API calls, no cost. I
 **Warning:** If the collection exists with different dimensions (e.g., manually created with 768 instead of 3072), the service will start but embedding upserts will fail with a dimension mismatch error.
 
 To change embedding settings that affect vector dimensions:
+
 1. Delete the old collection (or rename `collectionName` in config)
 2. Restart the watcher (it will recreate the collection and reindex)
 
@@ -287,7 +291,7 @@ To change embedding settings that affect vector dimensions:
 ```
 
 | Field | Type | Default | Description |
-|-------|------|---------|-------------|
+| --- | --- | --- | --- |
 | `metadataDir` | `string` | `".jeeves-watcher"` | Directory for `.meta.json` sidecar files. Mirrors watched filesystem hierarchy. |
 
 Metadata enrichment (via `POST /metadata`) is persisted here, separate from Qdrant. This ensures enrichment survives Qdrant rebuilds.
@@ -318,7 +322,7 @@ For a file at `D:\projects\my-project\readme.md`, the metadata sidecar is at `.j
 ```
 
 | Field | Type | Default | Description |
-|-------|------|---------|-------------|
+| --- | --- | --- | --- |
 | `host` | `string` | `"127.0.0.1"` | Host to bind to. Use `"0.0.0.0"` to accept external connections. |
 | `port` | `number` | `1936` | Port to listen on. |
 
@@ -387,10 +391,7 @@ If none are found, the entire JSON is stringified for embedding.
           }
         }
       },
-      "schema": [
-        "base",
-        { "properties": { "domain": { "set": "meetings" } } }
-      ]
+      "schema": ["base", { "properties": { "domain": { "set": "meetings" } } }]
     },
     {
       "name": "frontmatter-title",
@@ -423,17 +424,18 @@ If none are found, the entire JSON is stringified for embedding.
 ```
 
 Each rule requires:
+
 - **`name`** (string, required, unique) — Rule identifier
 - **`description`** (string, required) — Human-readable purpose
 - **`match`** (JSON Schema object) — File attributes matcher
 - **`schema`** (array of schema references and/or inline objects) — Metadata schema with `set` templates
 
 Optional fields:
+
 - **`map`** (JsonMap or named reference) — Transformation to derive metadata
 - **`template`** (Handlebars template) — Content transformation for embedding
 
-| `renderAs` | `string?` | Output file extension override (without dot, e.g. `"md"`). Requires `template` or `render`. 1–10 lowercase alphanumeric chars. |
-See [Inference Rules Guide](./inference-rules.md) for full details on schema merge semantics, type coercion, and `uiHint`.
+| `renderAs` | `string?` | Output file extension override (without dot, e.g. `"md"`). Requires `template` or `render`. 1–10 lowercase alphanumeric chars. | See [Inference Rules Guide](./inference-rules.md) for full details on schema merge semantics, type coercion, and `uiHint`.
 
 ---
 
@@ -469,7 +471,10 @@ Maps support an optional description wrapper format:
 ```json
 {
   "mapHelpers": {
-    "dateUtils": { "path": "./helpers/date-utils.js", "description": "Date parsing utilities" },
+    "dateUtils": {
+      "path": "./helpers/date-utils.js",
+      "description": "Date parsing utilities"
+    },
     "pathUtils": { "path": "./helpers/path-utils.js" }
   }
 }
@@ -484,7 +489,10 @@ Named object format (`Record<string, { path, description? }>`). Helper names are
 ```json
 {
   "templateHelpers": {
-    "jira": { "path": "./helpers/jira-helpers.js", "description": "Jira-specific Handlebars helpers" },
+    "jira": {
+      "path": "./helpers/jira-helpers.js",
+      "description": "Jira-specific Handlebars helpers"
+    },
     "formatting": { "path": "./helpers/formatting.js" }
   }
 }
@@ -541,15 +549,15 @@ Each slot is a standard [Qdrant filter object](https://qdrant.tech/documentation
   "search": {
     "scoreThresholds": {
       "strong": 0.85,
-      "relevant": 0.70,
-      "noise": 0.50
+      "relevant": 0.7,
+      "noise": 0.5
     }
   }
 }
 ```
 
 | Field | Type | Default | Description |
-|-------|------|---------|-------------|
+| --- | --- | --- | --- |
 | `scoreThresholds.strong` | `number` | `0.85` | Score above which results are considered strong matches. |
 | `scoreThresholds.relevant` | `number` | `0.70` | Score above which results are considered relevant. |
 | `scoreThresholds.noise` | `number` | `0.50` | Score below which results are considered noise. |
@@ -565,7 +573,7 @@ Each slot is a standard [Qdrant filter object](https://qdrant.tech/documentation
 ```
 
 | Field | Type | Default | Description |
-|-------|------|---------|-------------|
+| --- | --- | --- | --- |
 | `stateDir` | `string` | `".jeeves-watcher/state"` | Directory for persistent state files (reindex tracking, issue records, etc.). |
 
 ---
@@ -581,7 +589,7 @@ Each slot is a standard [Qdrant filter object](https://qdrant.tech/documentation
 ```
 
 | Field | Type | Default | Description |
-|-------|------|---------|-------------|
+| --- | --- | --- | --- |
 | `callbackUrl` | `string` | `undefined` | URL to POST when a reindex completes. Retries with exponential backoff (3 attempts, 1s start). |
 
 ---
@@ -598,7 +606,7 @@ Each slot is a standard [Qdrant filter object](https://qdrant.tech/documentation
 ```
 
 | Field | Type | Default | Description |
-|-------|------|---------|-------------|
+| --- | --- | --- | --- |
 | `level` | `string` | `"info"` | Log level: `"debug"`, `"info"`, `"warn"`, `"error"`, `"silent"`. |
 | `file` | `string` | `undefined` | Log file path. If omitted, logs to stdout. |
 
@@ -615,10 +623,11 @@ Uses structured JSON logging via [pino](https://github.com/pinojs/pino).
 ```
 
 | Field | Type | Default | Description |
-|-------|------|---------|-------------|
+| --- | --- | --- | --- |
 | `shutdownTimeoutMs` | `number` | `10000` | Max time (ms) to wait for in-flight operations on shutdown (SIGTERM/SIGINT). |
 
 On shutdown, the watcher:
+
 1. Stops accepting new file events
 2. Drains current in-flight embeddings/upserts (up to timeout)
 3. Exits cleanly
@@ -635,7 +644,7 @@ On shutdown, the watcher:
 ```
 
 | Field | Type | Default | Description |
-|-------|------|---------|-------------|
+| --- | --- | --- | --- |
 | `maxRetries` | `number` | `Infinity` | Maximum consecutive system-level failures before triggering fatal error. |
 | `maxBackoffMs` | `number` | `60000` | Maximum backoff delay in milliseconds for system errors. |
 
@@ -669,7 +678,7 @@ On shutdown, the watcher:
 ```
 
 | Field | Type | Default | Description |
-|-------|------|---------|-------------|
+| --- | --- | --- | --- |
 | `enabled` | `boolean` | `false` | Enable git-backed content versioning. |
 | `commitThrottleMs` | `number` | `30000` | Throttle interval (ms) for batching commits (min: 1000). |
 | `maxBatchSize` | `number` | `1000` | Max files per commit batch (min: 1). |
@@ -775,17 +784,14 @@ At runtime, these are replaced with actual environment variable values. Set temp
           }
         }
       },
-      "schema": [
-        "base",
-        { "properties": { "domain": { "set": "meetings" } } }
-      ]
+      "schema": ["base", { "properties": { "domain": { "set": "meetings" } } }]
     }
   ],
   "search": {
     "scoreThresholds": {
       "strong": 0.85,
-      "relevant": 0.70,
-      "noise": 0.50
+      "relevant": 0.7,
+      "noise": 0.5
     }
   },
   "logging": {

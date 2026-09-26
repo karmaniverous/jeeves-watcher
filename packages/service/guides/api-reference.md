@@ -45,7 +45,7 @@ curl http://localhost:1936/status
 ```
 
 | Field | Type | Description |
-|-------|------|-------------|
+| --- | --- | --- |
 | `status` | `string` | Always `"ok"` if the server is responding. |
 | `uptime` | `number` | Process uptime in seconds. |
 | `version` | `string` | Service package version (from `package.json`). |
@@ -68,6 +68,7 @@ curl http://localhost:1936/status
 > **v0.5.0 change:** `payloadFields` has been removed from the status response. Use [`POST /config/query`](#post-configquery) or [`GET /config/schema`](#get-configschema) to discover schema and payload field information.
 
 **Status codes:**
+
 - `200 OK` — Service is healthy
 
 ---
@@ -95,8 +96,8 @@ curl -X POST http://localhost:1936/metadata \
 
 ```typescript
 {
-  path: string;                    // File path (must be indexed)
-  metadata: Record<string, unknown>;  // Metadata to merge
+  path: string; // File path (must be indexed)
+  metadata: Record<string, unknown>; // Metadata to merge
 }
 ```
 
@@ -139,6 +140,7 @@ curl -X POST http://localhost:1936/metadata \
 4. Updates all chunk payloads in Qdrant (no re-embedding)
 
 **If the file isn't indexed yet:**
+
 - The metadata is written to the metadata store
 - The file will be processed on the next filesystem event or manual reindex
 
@@ -162,7 +164,7 @@ curl -X POST http://localhost:1936/render \
 
 ```typescript
 {
-  path: string;  // File path (must be within watched scope)
+  path: string; // File path (must be within watched scope)
 }
 ```
 
@@ -186,7 +188,7 @@ curl -X POST http://localhost:1936/render \
 ### Response Schema
 
 | Field | Type | Description |
-|-------|------|-------------|
+| --- | --- | --- |
 | `renderAs` | `string` | Output content type (file extension without dot). Always present. |
 | `content` | `string` | Rendered content (from template/render transform) or extracted text (passthrough). |
 | `rules` | `string[]` | Names of matched inference rules (diagnostic). |
@@ -199,13 +201,13 @@ curl -X POST http://localhost:1936/render \
 
 ### Error Codes
 
-| Code | Condition |
-|------|-----------|
-| `200` | Success |
-| `400` | Missing `path` field |
+| Code  | Condition                     |
+| ----- | ----------------------------- |
+| `200` | Success                       |
+| `400` | Missing `path` field          |
 | `403` | Path is outside watched scope |
-| `404` | File not found |
-| `422` | Render/extraction failed |
+| `404` | File not found                |
+| `422` | Render/extraction failed      |
 
 ### Behavior
 
@@ -215,6 +217,7 @@ curl -X POST http://localhost:1936/render \
 4. Returns rendered or extracted content with matched rules and metadata
 
 **Use cases:**
+
 - Server-side document rendering (jeeves-server consumes this for its document viewer)
 - Content preview without embedding
 - Debugging: see what a file looks like after template/render transforms
@@ -245,7 +248,12 @@ curl http://localhost:1936/search/facets
       "type": "string",
       "uiHint": "dropdown",
       "values": ["email", "jira", "meetings", "slack"],
-      "rules": ["email-archive", "jira-issue", "meetings-transcript", "slack-message"]
+      "rules": [
+        "email-archive",
+        "jira-issue",
+        "meetings-transcript",
+        "slack-message"
+      ]
     },
     {
       "field": "priority",
@@ -260,14 +268,14 @@ curl http://localhost:1936/search/facets
 
 ### Response Schema
 
-| Field | Type | Description |
-|-------|------|-------------|
+| Field    | Type      | Description                 |
+| -------- | --------- | --------------------------- |
 | `facets` | `Facet[]` | Array of facet definitions. |
 
 **Facet:**
 
 | Field | Type | Description |
-|-------|------|-------------|
+| --- | --- | --- |
 | `field` | `string` | Metadata field name. |
 | `type` | `string` | JSON Schema type (e.g. `"string"`, `"number"`, `"boolean"`). |
 | `uiHint` | `string` | UI rendering hint (e.g. `"dropdown"`, `"tags"`, `"date"`). |
@@ -285,6 +293,7 @@ curl http://localhost:1936/search/facets
 **Caching:** The schema structure is computed once and cached until inference rules change. Live values from `ValuesManager` are merged fresh on each request.
 
 **Use cases:**
+
 - Building dynamic search filter UIs
 - LLM agent orientation: discover filterable fields before constructing search queries
 
@@ -371,7 +380,7 @@ The `filter` parameter accepts a native [Qdrant filter object](https://qdrant.te
   {
     "id": "uuid-chunk-1",
     "score": 0.82,
-    "payload": { /* ... */ }
+    "payload": {/* ... */}
   }
 ]
 ```
@@ -389,7 +398,7 @@ The `filter` parameter accepts a native [Qdrant filter object](https://qdrant.te
 Each result is a Qdrant point:
 
 | Field | Type | Description |
-|-------|------|-------------|
+| --- | --- | --- |
 | `id` | `string` | Qdrant point ID (deterministic UUID from file path + chunk index). |
 | `score` | `number` | Cosine similarity score (0–1, higher is better). |
 | `payload` | `object` | Document metadata and chunk info. |
@@ -397,7 +406,7 @@ Each result is a Qdrant point:
 **Payload fields:**
 
 | Field | Type | Description |
-|-------|------|-------------|
+| --- | --- | --- |
 | `file_path` | `string` | Normalized file path (forward slashes). |
 | `chunk_index` | `number` | Chunk index (0-based). |
 | `total_chunks` | `number` | Total chunks for this file. |
@@ -449,8 +458,17 @@ curl -X POST http://localhost:1936/scan \
 ```json
 {
   "points": [
-    { "id": "uuid-chunk-0", "payload": { "file_path": "j:/domains/email/msg.json", "domain": "email" } },
-    { "id": "uuid-chunk-1", "payload": { "file_path": "j:/domains/email/msg2.json", "domain": "email" } }
+    {
+      "id": "uuid-chunk-0",
+      "payload": { "file_path": "j:/domains/email/msg.json", "domain": "email" }
+    },
+    {
+      "id": "uuid-chunk-1",
+      "payload": {
+        "file_path": "j:/domains/email/msg2.json",
+        "domain": "email"
+      }
+    }
   ],
   "cursor": "next-abc123"
 }
@@ -476,18 +494,18 @@ curl -X POST http://localhost:1936/scan \
 ### Response Schema
 
 | Field | Type | Description |
-|-------|------|-------------|
+| --- | --- | --- |
 | `points` | `ScrolledPoint[]` | Matched points with payload. |
 | `cursor` | `string \| number \| null` | Opaque cursor for next page. `null` when no more results. |
 | `count` | `number` | Total matching points (only when `countOnly: true`). |
 
 ### Error Codes
 
-| Code | Condition |
-|------|-----------|
-| `200` | Success |
+| Code  | Condition                                                      |
+| ----- | -------------------------------------------------------------- |
+| `200` | Success                                                        |
 | `400` | Missing or invalid `filter`, or `limit` out of bounds (1–1000) |
-| `500` | Server error |
+| `500` | Server error                                                   |
 
 ### Behavior
 
@@ -498,12 +516,14 @@ curl -X POST http://localhost:1936/scan \
 5. Returns matched points and an opaque cursor for the next page
 
 **Use cases:**
+
 - File enumeration (list all points in a domain)
 - Staleness checks (count points matching a filter)
 - Delta computation (scan for points with specific metadata)
 - Structural queries that don't need semantic similarity
 
 **Difference from POST /search:**
+
 - `/scan` does NOT embed a query or compute similarity scores
 - `/scan` uses cursor-based pagination (efficient for large result sets)
 - `/search` uses offset-based pagination (suitable for small ranked result sets)
@@ -550,6 +570,7 @@ curl -X POST http://localhost:1936/reindex
 3. Processes sequentially to avoid overwhelming the embedding API
 
 **Use cases:**
+
 - Recovering from Qdrant data loss
 - Indexing a large batch of new files
 - After bulk file operations (e.g., git pull)
@@ -595,6 +616,7 @@ curl -X POST http://localhost:1936/rebuild-metadata
 3. Skips internal fields (`chunk_index`, `total_chunks`, `content_hash`, `chunk_text`)
 
 **Use cases:**
+
 - Metadata store corruption or accidental deletion
 - Migrating to a new machine (copy Qdrant snapshot, rebuild metadata store)
 - First-time setup from an existing Qdrant collection
@@ -703,7 +725,7 @@ curl -X POST http://localhost:1936/config-reindex \
 **Plan fields:**
 
 | Field | Type | Description |
-|-------|------|-------------|
+| --- | --- | --- |
 | `total` | `number` | Total points (prune) or files (other scopes) examined. |
 | `toProcess` | `number` | Items to embed/re-apply rules (0 for prune). |
 | `toDelete` | `number` | Points to delete (prune only, 0 for others). |
@@ -714,7 +736,7 @@ The reindex runs **asynchronously** — the API returns immediately with the pla
 **Error codes:**
 
 | Code | Condition |
-|------|-----------|
+| --- | --- |
 | `200` | Success (started or dry_run) |
 | `400` | Invalid scope, missing `path` for path scope, or prune without vectorStore |
 | `500` | Server error |
@@ -753,7 +775,11 @@ While a reindex is running, `GET /status` shows the active reindex state:
 
 ```json
 {
-  "reindex": { "active": true, "scope": "rules", "startedAt": "2026-02-24T08:00:00Z" }
+  "reindex": {
+    "active": true,
+    "scope": "rules",
+    "startedAt": "2026-02-24T08:00:00Z"
+  }
 }
 ```
 
@@ -819,15 +845,15 @@ curl http://localhost:1936/issues
 
 ### Response Schema
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `count` | `number` | Number of files with issues (not total issue count). |
-| `issues` | `object` | Issues keyed by file path. |
+| Field    | Type     | Description                                          |
+| -------- | -------- | ---------------------------------------------------- |
+| `count`  | `number` | Number of files with issues (not total issue count). |
+| `issues` | `object` | Issues keyed by file path.                           |
 
 ### IssueRecord Schema
 
 | Field | Type | Description |
-|-------|------|-------------|
+| --- | --- | --- |
 | `type` | `string` | Error category: `"type_collision"` or `"interpolation_error"`. |
 | `property` | `string?` | Property name where the issue occurred. |
 | `rules` | `string[]?` | Rule names involved in the issue (for type collisions). |
@@ -839,6 +865,7 @@ curl http://localhost:1936/issues
 ### Behavior
 
 The issues file is self-healing:
+
 - Files that hit issues are logged and **embedding is skipped**
 - Successful re-processing (config fix, file edit, reindex) **clears** the entry
 - The response always represents the **current** set of unresolved problems
@@ -918,6 +945,7 @@ curl http://localhost:1936/config/schema
 **Success (200 OK):**
 
 Returns a JSON Schema object describing the merged config document shape, including:
+
 - Top-level config fields (`description`, `search`, `schemas`, `inferenceRules`, etc.)
 - Runtime-injected fields (`inferenceRules[].values`, `issues`, helper introspection)
 
@@ -1001,14 +1029,14 @@ curl -X POST http://localhost:1936/config/match \
 
 ### Response Schema
 
-| Field | Type | Description |
-|-------|------|-------------|
+| Field     | Type          | Description                                     |
+| --------- | ------------- | ----------------------------------------------- |
 | `matches` | `PathMatch[]` | Match results for each input path (same order). |
 
 **PathMatch:**
 
 | Field | Type | Description |
-|-------|------|-------------|
+| --- | --- | --- |
 | `rules` | `string[]` | Ordered list of matching inference rule names. |
 | `watched` | `boolean` | Whether the path is within watch scope (matches `watch.paths` and not in `watch.ignored`). |
 
@@ -1021,6 +1049,7 @@ curl -X POST http://localhost:1936/config/match \
 - `watched: false` means the path falls outside watch scope or is excluded by ignore patterns
 
 **Use cases:**
+
 - Pre-flight path testing before file creation
 - Debugging rule match logic
 - UI path validation in config editors
@@ -1127,7 +1156,7 @@ curl -X POST http://localhost:1936/config/apply \
 
 ```typescript
 {
-  config: Record<string, unknown>;  // Configuration to apply
+  config: Record<string, unknown>; // Configuration to apply
 }
 ```
 
@@ -1225,7 +1254,7 @@ curl -X DELETE http://localhost:1936/rules/unregister \
 
 ```typescript
 {
-  source: string;  // Source identifier to unregister
+  source: string; // Source identifier to unregister
 }
 ```
 
@@ -1285,7 +1314,7 @@ curl -X POST http://localhost:1936/points/delete \
 
 ```typescript
 {
-  filter: Record<string, unknown>;  // Qdrant filter object
+  filter: Record<string, unknown>; // Qdrant filter object
 }
 ```
 
@@ -1336,10 +1365,10 @@ curl -X POST http://localhost:1936/rules/reapply \
 
 ### Response Schema
 
-| Field | Type | Description |
-|-------|------|-------------|
+| Field     | Type     | Description                       |
+| --------- | -------- | --------------------------------- |
 | `matched` | `number` | Files matching the glob patterns. |
-| `updated` | `number` | Files successfully re-processed. |
+| `updated` | `number` | Files successfully re-processed.  |
 
 ### Behavior
 
@@ -1348,6 +1377,7 @@ curl -X POST http://localhost:1936/rules/reapply \
 3. Files that fail re-processing are logged but don't abort the operation
 
 **Use cases:**
+
 - After editing inference rules, selectively re-apply to specific domains
 - More targeted than `POST /config-reindex` (which re-applies to everything)
 
@@ -1394,7 +1424,7 @@ curl http://localhost:1936/vcs/status
 ```
 
 | Field | Type | Description |
-|-------|------|-------------|
+| --- | --- | --- |
 | `enabled` | `boolean` | Whether VCS is enabled globally. |
 | `roots` | `array` | Per-root VCS state. |
 | `roots[].path` | `string` | Watch root path. |
@@ -1418,12 +1448,12 @@ curl "http://localhost:1936/vcs/history?glob=d:/documents/**/*.md&limit=10&since
 
 **Query parameters:**
 
-| Param | Type | Default | Description |
-|-------|------|---------|-------------|
-| `glob` | `string` | **Required** | Glob pattern to filter history. |
-| `since` | `string` | `undefined` | ISO-8601 lower bound (inclusive). |
-| `until` | `string` | `undefined` | ISO-8601 upper bound (inclusive). |
-| `limit` | `number` | `20` | Max entries to return. |
+| Param   | Type     | Default      | Description                       |
+| ------- | -------- | ------------ | --------------------------------- |
+| `glob`  | `string` | **Required** | Glob pattern to filter history.   |
+| `since` | `string` | `undefined`  | ISO-8601 lower bound (inclusive). |
+| `until` | `string` | `undefined`  | ISO-8601 upper bound (inclusive). |
+| `limit` | `number` | `20`         | Max entries to return.            |
 
 #### Response
 
@@ -1435,17 +1465,20 @@ curl "http://localhost:1936/vcs/history?glob=d:/documents/**/*.md&limit=10&since
     "commit": "a1b2c3d",
     "message": "update project notes and readme",
     "timestamp": "2026-06-10T14:30:00Z",
-    "files": ["d:/documents/projects/readme.md", "d:/documents/projects/notes.md"]
+    "files": [
+      "d:/documents/projects/readme.md",
+      "d:/documents/projects/notes.md"
+    ]
   }
 ]
 ```
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `commit` | `string` | Short commit hash. |
-| `message` | `string` | Commit message. |
-| `timestamp` | `string` | ISO-8601 commit timestamp. |
-| `files` | `string[]` | Files changed in this commit (filtered by glob). |
+| Field       | Type       | Description                                      |
+| ----------- | ---------- | ------------------------------------------------ |
+| `commit`    | `string`   | Short commit hash.                               |
+| `message`   | `string`   | Commit message.                                  |
+| `timestamp` | `string`   | ISO-8601 commit timestamp.                       |
+| `files`     | `string[]` | Files changed in this commit (filtered by glob). |
 
 #### Behavior
 
@@ -1465,10 +1498,10 @@ curl "http://localhost:1936/vcs/show?path=d:/documents/readme.md&commit=a1b2c3d"
 
 **Query parameters:**
 
-| Param | Type | Description |
-|-------|------|-------------|
-| `path` | `string` | **Required.** Absolute file path. |
-| `commit` | `string` | **Required.** Commit hash. |
+| Param    | Type     | Description                       |
+| -------- | -------- | --------------------------------- |
+| `path`   | `string` | **Required.** Absolute file path. |
+| `commit` | `string` | **Required.** Commit hash.        |
 
 #### Response
 
@@ -1492,10 +1525,10 @@ curl "http://localhost:1936/vcs/diff?glob=d:/documents/**/*.md&commit=a1b2c3d"
 
 **Query parameters:**
 
-| Param | Type | Description |
-|-------|------|-------------|
-| `glob` | `string` | **Required.** Glob pattern to filter files. |
-| `commit` | `string` | **Required.** Start commit hash. |
+| Param       | Type     | Description                                   |
+| ----------- | -------- | --------------------------------------------- |
+| `glob`      | `string` | **Required.** Glob pattern to filter files.   |
+| `commit`    | `string` | **Required.** Start commit hash.              |
 | `commitEnd` | `string` | End commit hash. Defaults to HEAD if omitted. |
 
 #### Response
@@ -1549,10 +1582,10 @@ curl -X POST http://localhost:1936/vcs/revert \
 }
 ```
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `restored` | `number` | Number of files restored. |
-| `files` | `string[]` | Paths of restored files. |
+| Field      | Type       | Description               |
+| ---------- | ---------- | ------------------------- |
+| `restored` | `number`   | Number of files restored. |
+| `files`    | `string[]` | Paths of restored files.  |
 
 #### Behavior
 
@@ -1601,7 +1634,7 @@ curl -X POST http://localhost:1936/vcs/exclude \
 ```
 
 | Field | Type | Description |
-|-------|------|-------------|
+| --- | --- | --- |
 | `ok` | `boolean` | Success indicator. |
 | `gitignorePath` | `string` | Path to the `.gitignore` file that was modified. |
 | `action` | `string` | `"added"` or `"removed"`. |
@@ -1624,8 +1657,8 @@ curl "http://localhost:1936/vcs/check-exclusion?path=d:/documents/temp/scratch.t
 
 **Query parameters:**
 
-| Param | Type | Description |
-|-------|------|-------------|
+| Param  | Type     | Description                                |
+| ------ | -------- | ------------------------------------------ |
 | `path` | `string` | **Required.** Absolute file path to check. |
 
 #### Response
@@ -1640,11 +1673,11 @@ curl "http://localhost:1936/vcs/check-exclusion?path=d:/documents/temp/scratch.t
 }
 ```
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `excluded` | `boolean` | Whether the file is ignored by git. |
-| `rule` | `string?` | The matching `.gitignore` pattern (if excluded). |
-| `source` | `string?` | Path to the `.gitignore` file containing the rule. |
+| Field      | Type      | Description                                        |
+| ---------- | --------- | -------------------------------------------------- |
+| `excluded` | `boolean` | Whether the file is ignored by git.                |
+| `rule`     | `string?` | The matching `.gitignore` pattern (if excluded).   |
+| `source`   | `string?` | Path to the `.gitignore` file containing the rule. |
 
 #### Behavior
 
@@ -1664,6 +1697,7 @@ All endpoints return JSON errors with this schema:
 ```
 
 **Status codes:**
+
 - `200 OK` — Success
 - `400 Bad Request` — Validation error (invalid scope, missing required field, etc.)
 - `500 Internal Server Error` — Server-side failure (check logs for details)
