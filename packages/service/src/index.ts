@@ -93,6 +93,7 @@ export {
   type PendingReversion,
   type PushError,
   SquashManager,
+  type SquashManagerOptions,
   type SquashResult,
   VcsCoordinator,
   VcsManager,

@@ -8,6 +8,7 @@ export { type ResolvedWatchRoot } from './resolveWatchRoot.js';
 export {
   type CommitInfo,
   SquashManager,
+  type SquashManagerOptions,
   type SquashResult,
 } from './SquashManager.js';
 export { type PendingReversion, type PushError } from './types.js';

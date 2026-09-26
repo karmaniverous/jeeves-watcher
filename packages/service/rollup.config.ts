@@ -80,6 +80,7 @@ export const buildLibrary = (dest: string): RollupOptions => ({
  */
 export const buildTypes = (dest: string): RollupOptions => ({
   input: 'src/index.ts',
+  external: [/^node:/],
   output: [{ file: `${dest}/index.d.ts`, format: 'esm' }],
   plugins: [dtsPlugin()],
 });
