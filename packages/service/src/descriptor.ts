@@ -11,7 +11,6 @@ import type { Command } from '@commander-js/extra-typings';
 import {
   getPackageVersion,
   type JeevesComponentDescriptor,
-  type PluginApi,
   type ToolDescriptor,
 } from '@karmaniverous/jeeves';
 import {
@@ -99,8 +98,5 @@ export const watcherDescriptor: JeevesComponentDescriptor = {
   customCliCommands: (program: Command) => {
     registerCustomCommands(program);
   },
-  customPluginTools: (api: PluginApi): ToolDescriptor[] => {
-    void api;
-    return [];
-  },
+  customPluginTools: (): ToolDescriptor[] => [],
 };
