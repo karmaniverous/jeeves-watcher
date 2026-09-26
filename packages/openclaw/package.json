@@ -1,13 +1,10 @@
 {
   "author": "Jason Williscroft",
-  "bin": {
-    "jeeves-watcher-openclaw": "./dist/cli.js"
-  },
   "bugs": {
     "url": "https://github.com/karmaniverous/jeeves-watcher/issues"
   },
   "dependencies": {
-    "@karmaniverous/jeeves": "^0.5.12",
+    "@karmaniverous/jeeves": "0.6.0-3",
     "@karmaniverous/jeeves-watcher-core": "^0.2.5"
   },
   "description": "OpenClaw plugin for jeeves-watcher — semantic search and metadata enrichment tools",
@@ -37,10 +34,14 @@
   },
   "files": [
     "dist",
-    "content",
     "openclaw.plugin.json"
   ],
   "homepage": "https://github.com/karmaniverous/jeeves-watcher#readme",
+  "jeeves": {
+    "conversationHooks": [
+      "before_prompt_build"
+    ]
+  },
   "keywords": [
     "openclaw",
     "plugin",
@@ -98,8 +99,7 @@
     "url": "git+https://github.com/karmaniverous/jeeves-watcher.git"
   },
   "scripts": {
-    "build": "npm run build:plugin && npm run build:skills && npm run build:content",
-    "build:content": "node scripts/copy-content.mjs",
+    "build": "npm run build:plugin && npm run build:skills",
     "build:plugin": "rimraf dist && cross-env NO_COLOR=1 rollup --config rollup.config.ts --configPlugin @rollup/plugin-typescript",
     "build:skills": "tsx scripts/build-skills.ts",
     "changelog": "git-cliff -o CHANGELOG.md",

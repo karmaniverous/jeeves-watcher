@@ -8,58 +8,37 @@ The `@karmaniverous/jeeves-watcher-openclaw` plugin gives your OpenClaw agent ac
 
 ## Installation
 
-### Standard (OpenClaw CLI)
+The plugin is a standard OpenClaw plugin with no installer of its own. On a Jeeves box, `jeeves install` (from [`@karmaniverous/jeeves`](https://www.npmjs.com/package/@karmaniverous/jeeves) 0.6+) installs it and writes its config:
 
 ```bash
-openclaw plugins install @karmaniverous/jeeves-watcher-openclaw
+jeeves install watcher --config-root /srv/jeeves/config
 ```
 
-### Self-Installer
-
-OpenClaw's `plugins install` command has a known bug on Windows where it fails with `spawn EINVAL` or `spawn npm ENOENT` ([#9224](https://github.com/openclaw/openclaw/issues/9224), [#4557](https://github.com/openclaw/openclaw/issues/4557), [#6086](https://github.com/openclaw/openclaw/issues/6086)). This package includes a self-installer that works around the issue:
+Or install it directly with the OpenClaw CLI and set the config yourself:
 
 ```bash
-npx @karmaniverous/jeeves-watcher-openclaw install
+openclaw plugins install npm:@karmaniverous/jeeves-watcher-openclaw@<version> --pin --accept-capabilities
 ```
 
-The installer:
+The plugin registers an always-in-context rule set through OpenClaw's `before_prompt_build` hook, so it needs `plugins.entries.jeeves-watcher-openclaw.hooks.allowConversationAccess: true`. `jeeves install` / `jeeves update` grant this automatically (the hook is declared in `package.json` under `jeeves.conversationHooks`).
 
-1. Copies the plugin into OpenClaw's extensions directory (`~/.openclaw/extensions/jeeves-watcher-openclaw/`)
-2. Adds the plugin to `plugins.entries` in `openclaw.json`
-3. If `plugins.allow` or `tools.allow` are already populated (explicit allowlists), adds the plugin to those lists
-
-To remove:
-
-```bash
-npx @karmaniverous/jeeves-watcher-openclaw uninstall
-```
-
-#### Non-default installations
-
-If OpenClaw is installed at a non-default location, set one of these environment variables:
-
-| Variable | Description |
-|----------|-------------|
-| `OPENCLAW_CONFIG` | Full path to `openclaw.json` (overrides all other detection) |
-| `OPENCLAW_HOME` | Path to the `.openclaw` directory |
-
-Default location: `~/.openclaw/openclaw.json`
-
-After install or uninstall, restart the OpenClaw gateway to apply changes.
+Restart the OpenClaw gateway to apply changes.
 
 ## Configuration
 
-The plugin needs the URL of a running jeeves-watcher REST API. Set the plugin config in `openclaw.json` under `plugins.entries.jeeves-watcher-openclaw.config`:
+Plugin config lives in `openclaw.json` under `plugins.entries.jeeves-watcher-openclaw.config`:
 
 ```json
 {
   "apiUrl": "http://127.0.0.1:1936",
-  "configRoot": "j:/config"
+  "configRoot": "/srv/jeeves/config"
 }
 ```
 
-- **`apiUrl`** — jeeves-watcher API base URL (default: `http://127.0.0.1:1936`)
-- **`configRoot`** — platform config root path, used by `@karmaniverous/jeeves` core to derive `{configRoot}/jeeves-watcher/` for component config (default: `j:/config`)
+- **`apiUrl`**: jeeves-watcher API base URL (default: `http://127.0.0.1:1936`; env fallback `JEEVES_WATCHER_URL`).
+- **`configRoot`**: platform config root path, used by `@karmaniverous/jeeves` core to derive `{configRoot}/jeeves-watcher/`. **No default.** Set it in plugin config or via the `JEEVES_CONFIG_ROOT` env var.
+
+`configRoot` is resolved lazily. The plugin always registers, even before its config is written (`openclaw plugins install` activates a plugin before `jeeves install` writes `plugins.entries.<id>.config`). While `configRoot` is unset the plugin logs one warning at registration, and every `watcher_*` tool returns an error naming both ways to set it. Core is initialized on the first tool call after it resolves.
 
 ## Available Tools
 
@@ -145,32 +124,12 @@ Manage the watcher background service (install, uninstall, start, stop, restart,
 
 ## Jeeves Platform Integration
 
-The plugin integrates with [`@karmaniverous/jeeves`](https://www.npmjs.com/package/@karmaniverous/jeeves) core to manage workspace content via `ComponentWriter`:
+The plugin builds on [`@karmaniverous/jeeves`](https://www.npmjs.com/package/@karmaniverous/jeeves) 0.6 (the static-content core). It writes **no** workspace files and starts no timers:
 
-### Managed content
-
-On startup, the plugin initializes core (`init({ workspacePath, configRoot })`) and starts a `ComponentWriter` that:
-
-1. **Writes a `## Watcher` section to TOOLS.md** — live menu of indexed content, score thresholds, inference rules, and escalation guidance
-2. **Refreshes every 71 seconds** (prime interval) — only writes to disk if content changed
-3. **Maintains shared platform content** — SOUL.md, AGENTS.md, and a `## Platform` section in TOOLS.md are all managed by core
-
-Content is enclosed in HTML comment markers (`<!-- BEGIN JEEVES PLATFORM TOOLS ... -->` / `<!-- END ... -->`). User content outside the markers is never touched.
-
-### Service & plugin commands
-
-The plugin exposes lifecycle commands via the `JeevesComponent` interface:
-
-| Command | Action |
-|---------|--------|
-| `serviceCommands.stop()` | `jeeves-watcher service stop` |
-| `serviceCommands.uninstall()` | `jeeves-watcher service uninstall` |
-| `serviceCommands.status()` | HTTP probe to watcher API |
-| `pluginCommands.uninstall()` | `npx @karmaniverous/jeeves-watcher-openclaw uninstall` |
-
-### Uninstall cleanup
-
-The CLI uninstall command uses core's `parseManaged()` to locate and remove the Watcher section from TOOLS.md. If no other sections remain, the entire managed block is removed.
+- **Always-in-context rules**: the watcher escalation, scan-first and search-first rules and score guidance are injected on every turn via `before_prompt_build` (`registerPromptContext`). They replace the v0.x TOOLS.md `## Watcher` section.
+- **Live state**: served by tools (`watcher_status`, `watcher_config`) rather than a refreshed file.
+- **Skill**: `jeeves-watcher` ships in the package and is declared in `openclaw.plugin.json` (`skills`).
+- **Static platform content** (SOUL.md / AGENTS.md blocks) is rendered only by `jeeves install`.
 
 ### Version Control (VCS) Tools
 

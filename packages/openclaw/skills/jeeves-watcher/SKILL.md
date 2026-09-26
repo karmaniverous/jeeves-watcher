@@ -14,7 +14,7 @@ description: >
 The watcher is an HTTP API running as a background service (typically NSSM on Windows, systemd on Linux).
 
 **Default port:** 1936 (configurable via `api.port` in watcher config)
-**Non-default port:** If the watcher runs on a different port, the user must set `plugins.entries.jeeves-watcher.config.apiUrl` in `openclaw.json`. The plugin cannot auto-discover a non-default port.
+**Non-default port:** If the watcher runs on a different port, the user must set `plugins.entries.jeeves-watcher-openclaw.config.apiUrl` in `openclaw.json`. The plugin cannot auto-discover a non-default port.
 
 **Health check:** `GET /status` returns `name`, `version`, `uptime`, `status` (`healthy`/`degraded`/`unhealthy`), and a `health` object containing `collection` (point count, dimensions), `reindex` status, and `initialScan` progress.
 
@@ -96,20 +96,9 @@ You have access to a **semantic archive** of your human's working world. Documen
 
 ## Plugin Installation
 
-```
-npx @karmaniverous/jeeves-watcher-openclaw install
-```
+The plugin is a standard OpenClaw plugin. On a Jeeves box, `jeeves install watcher --config-root <path>` installs it and writes its config; otherwise use `openclaw plugins install npm:@karmaniverous/jeeves-watcher-openclaw@<version> --pin --accept-capabilities` and set `plugins.entries.jeeves-watcher-openclaw.config` yourself. Restart the gateway to load it.
 
-This copies the plugin to OpenClaw's extensions directory and patches `openclaw.json` to register it. 
-
-**Important:** Add `"jeeves-watcher-openclaw"` to the `tools.allow` array in `openclaw.json` so the agent can use the plugin's tools.
-
-Restart the gateway to load the plugin.
-
-To remove:
-```
-npx @karmaniverous/jeeves-watcher-openclaw uninstall
-```
+`configRoot` has no default. If a `watcher_*` tool returns "configRoot not configured", set `configRoot` in the plugin config or the `JEEVES_CONFIG_ROOT` env var.
 
 ## Quick Start (Existing Deployment)
 

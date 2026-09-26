@@ -309,9 +309,9 @@ This repo includes an OpenClaw plugin (`packages/openclaw`) that exposes the jee
 | `watcher_scan`         | Filter-only point query with cursor pagination |
 | `watcher_issues`       | List indexing issues and errors                |
 
-The plugin integrates with [`@karmaniverous/jeeves`](https://www.npmjs.com/package/@karmaniverous/jeeves) core to manage workspace content (TOOLS.md, SOUL.md, AGENTS.md) via a `ComponentWriter` that refreshes every 71 seconds. See the [OpenClaw Integration Guide](packages/openclaw/guides/openclaw-integration.md) for details.
+The plugin is a standard OpenClaw plugin on [`@karmaniverous/jeeves`](https://www.npmjs.com/package/@karmaniverous/jeeves) 0.6 core, installed by `jeeves install`. It writes no workspace files; its always-in-context watcher rules are injected via the `before_prompt_build` hook. See the [OpenClaw Integration Guide](packages/openclaw/guides/openclaw-integration.md) for details.
 
-Plugin configuration supports `apiUrl` (defaults to `http://127.0.0.1:1936`) and `configRoot` (defaults to `j:/config`).
+Plugin configuration supports `apiUrl` (defaults to `http://127.0.0.1:1936`) and `configRoot` (no default: set it in plugin config or via `JEEVES_CONFIG_ROOT`; resolved lazily, so the plugin registers before it is set).
 
 ## Supported File Formats
 

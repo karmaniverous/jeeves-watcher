@@ -17,8 +17,7 @@
       },
       "configRoot": {
         "type": "string",
-        "description": "Platform config root path (e.g., j:/config)",
-        "default": "j:/config"
+        "description": "Platform config root path (e.g. /srv/jeeves/config). No default: set it here (jeeves install --config-root) or via the JEEVES_CONFIG_ROOT env var."
       }
     }
   },
@@ -51,7 +50,7 @@
     },
     "configRoot": {
       "label": "Config root",
-      "placeholder": "j:/config"
+      "placeholder": "/path/to/config"
     }
   }
 }

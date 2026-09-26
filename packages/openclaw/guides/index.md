@@ -7,5 +7,5 @@ children:
 
 # OpenClaw Plugin Guides
 
-- [OpenClaw Integration](./openclaw-integration.md) — Plugin installation, tool reference, TOOLS.md injection, skill architecture, and managed content writing.
+- [OpenClaw Integration](./openclaw-integration.md) — Plugin installation, configuration (lazy `configRoot`), tool reference, prompt-context rules, and skill architecture.
 - [Changelog](../CHANGELOG.md) — Release history for `@karmaniverous/jeeves-watcher-openclaw`.
