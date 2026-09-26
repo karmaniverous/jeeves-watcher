@@ -7,8 +7,8 @@
  * A standard OpenClaw plugin on `@karmaniverous/jeeves` core: it writes no
  * workspace files and starts no timers. Registration never requires
  * `configRoot`; it is resolved lazily when a gated tool runs (see
- * `lazyCore`). Only tools that read `configRoot` (`CONFIG_ROOT_TOOLS`) are
- * gated; HTTP-only tools work without it.
+ * `lazyCore`). Only invocations that read `configRoot` (`CONFIG_ROOT_READERS`:
+ * `watcher_service install`) are gated; HTTP-only tools work without it.
  */
 
 import {
@@ -17,7 +17,6 @@ import {
   type PluginApi,
 } from '@karmaniverous/jeeves';
 
-import { CONFIG_ROOT_TOOLS } from './constants.js';
 import { getApiUrl } from './helpers.js';
 import {
   createLazyCore,
@@ -34,7 +33,7 @@ const PLUGIN_VERSION = getPackageVersion(import.meta.url);
 export default function register(api: PluginApi): void {
   warnIfConfigRootUnset(api);
 
-  const toolApi = withGuardedTools(api, createLazyCore(api), CONFIG_ROOT_TOOLS);
+  const toolApi = withGuardedTools(api, createLazyCore(api));
 
   // 4 standard tools from core factory: watcher_status, watcher_config,
   // watcher_config_apply, watcher_service. `apiUrl` is resolved lazily on

@@ -9,8 +9,8 @@ import {
 } from '@karmaniverous/jeeves';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { CONFIG_ROOT_TOOLS } from './constants.js';
 import register from './index.js';
+import { CONFIG_ROOT_READERS } from './toolGating.js';
 
 afterEach(() => {
   delete process.env.JEEVES_CONFIG_ROOT;
@@ -87,7 +87,7 @@ describe('register', () => {
   });
 
   it('gates only watcher_service on configRoot', () => {
-    expect([...CONFIG_ROOT_TOOLS]).toEqual(['watcher_service']);
+    expect(Object.keys(CONFIG_ROOT_READERS)).toEqual(['watcher_service']);
   });
 
   it('runs an HTTP-only tool without configRoot', async () => {
@@ -104,7 +104,7 @@ describe('register', () => {
     stubStatusFetch();
     const { tools } = harness();
     const httpOnly = [...tools.values()].filter(
-      (tool) => !CONFIG_ROOT_TOOLS.has(tool.name),
+      (tool) => !(tool.name in CONFIG_ROOT_READERS),
     );
     expect(httpOnly).toHaveLength(17);
     for (const tool of httpOnly) {
@@ -143,10 +143,16 @@ describe('register', () => {
     );
   });
 
-  it('returns a clear error when a configRoot tool runs without it', async () => {
+  it('warns naming watcher_service install', () => {
+    expect(harness().warn.mock.calls[0][0]).toContain(
+      'watcher_service install',
+    );
+  });
+
+  it('returns a clear error when watcher_service install runs without configRoot', async () => {
     const { tools, warn } = harness();
     const result = await tools.get('watcher_service')!.execute('1', {
-      action: 'status',
+      action: 'install',
     });
     expect(result.isError).toBe(true);
     expect(result.content[0].text).toContain('configRoot not configured');
@@ -159,6 +165,13 @@ describe('register', () => {
   // service manager: reaching the tool proves configRoot resolved.
   const probeService = (tools: Map<string, ToolDescriptor>) =>
     tools.get('watcher_service')!.execute('1', { action: 'bogus' });
+
+  it('passes non-install watcher_service calls through without configRoot', async () => {
+    const { tools } = harness();
+    const result = await probeService(tools);
+    expect(result.content[0].text).toContain('Invalid action');
+    expect(result.content[0].text).not.toContain('configRoot not configured');
+  });
 
   it('runs a configRoot tool with configRoot from plugin config', async () => {
     const { tools, warn } = harness({

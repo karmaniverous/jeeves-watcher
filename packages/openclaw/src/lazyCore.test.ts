@@ -71,10 +71,23 @@ describe('guardTool', () => {
     expect(result).toEqual(okResult);
     expect(tool.execute).toHaveBeenCalledWith('1', { a: 1 });
   });
+
+  it('runs calls the predicate says do not read configRoot', async () => {
+    const tool = makeTool();
+    const guarded = guardTool(
+      tool,
+      () => undefined,
+      (params) => params?.action === 'install',
+    );
+    expect(await guarded.execute('1', { action: 'status' })).toEqual(okResult);
+    const blocked = await guarded.execute('2', { action: 'install' });
+    expect(blocked.isError).toBe(true);
+    expect(tool.execute).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe('withGuardedTools', () => {
-  function register(gated: ReadonlySet<string>) {
+  function register(readers: Record<string, () => boolean>) {
     const registered: ToolDescriptor[] = [];
     const api: PluginApi = {
       registerTool: (tool) => {
@@ -82,22 +95,36 @@ describe('withGuardedTools', () => {
       },
     };
     const tool = makeTool();
-    withGuardedTools(api, () => undefined, gated).registerTool(tool, {
+    withGuardedTools(api, () => undefined, readers).registerTool(tool, {
       optional: true,
     });
     expect(registered).toHaveLength(1);
     return { tool, registered: registered[0] };
   }
 
-  it('guards tools named in the gated set', async () => {
-    const { tool, registered } = register(new Set(['t']));
+  it('guards tools listed in the readers map', async () => {
+    const { tool, registered } = register({ t: () => true });
     const result = await registered.execute('1', {});
     expect(result.isError).toBe(true);
     expect(tool.execute).not.toHaveBeenCalled();
   });
 
+  it('defaults to CONFIG_ROOT_READERS', async () => {
+    const registered: ToolDescriptor[] = [];
+    const api: PluginApi = {
+      registerTool: (t) => {
+        registered.push(t);
+      },
+    };
+    const tool = { ...makeTool(), name: 'watcher_service' };
+    withGuardedTools(api, () => undefined).registerTool(tool);
+    const result = await registered[0].execute('1', { action: 'install' });
+    expect(result.isError).toBe(true);
+    expect(tool.execute).not.toHaveBeenCalled();
+  });
+
   it('registers other tools unwrapped so they run without configRoot', async () => {
-    const { tool, registered } = register(new Set(['other']));
+    const { tool, registered } = register({ other: () => true });
     expect(registered).toBe(tool);
     expect(await registered.execute('1', {})).toEqual(okResult);
   });

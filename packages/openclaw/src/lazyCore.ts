@@ -5,9 +5,9 @@
  * @remarks
  * Registration must always succeed, even with no plugin config (#235). The
  * config root is resolved on first tool use; core `init()` runs once, only
- * after it resolves. Only tools that read `configRoot` are gated (see
- * `CONFIG_ROOT_TOOLS`); invoked before then they return a clear error.
- * HTTP-only tools are registered unwrapped and work without it.
+ * after it resolves. Only invocations that read `configRoot` are gated
+ * (see `CONFIG_ROOT_READERS`); invoked before then they return a clear
+ * error. HTTP-only tools are registered unwrapped and work without it.
  */
 
 import {
@@ -24,6 +24,7 @@ import {
   CONFIG_ROOT_UNSET_WARNING,
 } from './constants.js';
 import { getConfigRoot } from './helpers.js';
+import { CONFIG_ROOT_READERS, type ConfigRootPredicate } from './toolGating.js';
 
 /** Resolves `configRoot` and initializes core on first success. */
 export type EnsureCore = () => string | undefined;
@@ -64,18 +65,25 @@ export function warnIfConfigRootUnset(api: PluginApi): boolean {
   return true;
 }
 
-/** Wrap a tool so it resolves core before executing. */
+/**
+ * Wrap a tool so invocations that read `configRoot` (per `readsConfigRoot`)
+ * resolve core before executing; all other invocations run unguarded.
+ */
 export function guardTool(
   tool: ToolDescriptor,
   ensureCore: EnsureCore,
+  readsConfigRoot: ConfigRootPredicate = () => true,
 ): ToolDescriptor {
   return {
     ...tool,
     execute: async (id, params) => {
-      try {
-        if (ensureCore() === undefined) return fail(CONFIG_ROOT_NOT_CONFIGURED);
-      } catch (error) {
-        return fail(error);
+      if (readsConfigRoot(params)) {
+        try {
+          if (ensureCore() === undefined)
+            return fail(CONFIG_ROOT_NOT_CONFIGURED);
+        } catch (error) {
+          return fail(error);
+        }
       }
 
       return tool.execute(id, params);
@@ -84,20 +92,24 @@ export function guardTool(
 }
 
 /**
- * Derive a plugin API whose `registerTool` guards the tools named in
- * `gatedTools` with {@link guardTool}; all other tools are registered
- * unchanged. All other members delegate to the original API.
+ * Derive a plugin API whose `registerTool` guards the tools listed in
+ * `readers` with {@link guardTool} (per call, using each tool's predicate);
+ * all other tools are registered unchanged. All other members delegate to
+ * the original API.
  */
 export function withGuardedTools(
   api: PluginApi,
   ensureCore: EnsureCore,
-  gatedTools: ReadonlySet<string>,
+  readers: Readonly<
+    Partial<Record<string, ConfigRootPredicate>>
+  > = CONFIG_ROOT_READERS,
 ): PluginApi {
   return {
     ...api,
     registerTool: (tool: ToolDescriptor, options?: ToolRegistrationOptions) => {
+      const reads = readers[tool.name];
       api.registerTool(
-        gatedTools.has(tool.name) ? guardTool(tool, ensureCore) : tool,
+        reads ? guardTool(tool, ensureCore, reads) : tool,
         options,
       );
     },
