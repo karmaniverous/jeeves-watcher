@@ -3,20 +3,21 @@
  *
  * The behavioural tests run real git against a local HTTP server that records
  * the Authorization header and always answers 401, and against a local bare
- * repository. System and global git config are isolated (empty files), so the
- * machine's real git config is never read or touched.
+ * repository. The vitest setup file makes git ignore system and global
+ * config and disables every prompt path (see `test/git`), so the machine's
+ * real git config is never read or touched. Network calls run from outside
+ * the temp dir, with a kill timeout below the suite's test timeout.
  */
 
-import { execFile } from 'node:child_process';
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { createServer, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { promisify } from 'node:util';
 
-import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
+import { execFileAsync } from '../test/git';
 import {
   buildAuthHeader,
   buildAuthHeaderConfig,
@@ -26,8 +27,6 @@ import {
   redactSecret,
   sanitizeGitError,
 } from './gitNetwork';
-
-const execFileAsync = promisify(execFile);
 
 const TOKEN = 'ghp_T0k/en@sp:ec+ial%20&=?#~';
 const TOKEN_FORMS = [
@@ -133,7 +132,12 @@ describe('sanitizeGitError', () => {
   });
 });
 
-describe('token transport against real git', () => {
+/** Kill timeout for git network children; below the suite timeout. */
+const GIT_TIMEOUT_MS = 10_000;
+
+describe('token transport against real git', { timeout: 20_000 }, () => {
+  /** Working directory for git network children (never the temp dir). */
+  const cwd = tmpdir();
   let dir: string;
   let server: Server;
   let httpUrl: string;
@@ -141,10 +145,6 @@ describe('token transport against real git', () => {
 
   beforeAll(async () => {
     dir = await mkdtemp(join(tmpdir(), 'git-auth-'));
-    const empty = join(dir, 'empty-gitconfig');
-    await writeFile(empty, '', 'utf8');
-    vi.stubEnv('GIT_CONFIG_SYSTEM', empty);
-    vi.stubEnv('GIT_CONFIG_GLOBAL', empty);
 
     server = createServer((req, res) => {
       seenAuth.push(req.headers.authorization);
@@ -159,20 +159,24 @@ describe('token transport against real git', () => {
   });
 
   afterAll(async () => {
-    vi.unstubAllEnvs();
     await new Promise<void>((resolve) => {
       server.close(() => {
         resolve();
       });
     });
-    await rm(dir, { recursive: true, force: true });
+    await rm(dir, {
+      recursive: true,
+      force: true,
+      maxRetries: 10,
+      retryDelay: 100,
+    });
   });
 
   it('sends the header, and git never echoes it (even unsanitized)', async () => {
     seenAuth.length = 0;
     const error = (await execGitNetwork(['ls-remote', httpUrl], {
-      cwd: dir,
-      timeout: 10_000,
+      cwd,
+      timeout: GIT_TIMEOUT_MS,
       clearCredentialHelpers: true,
       config: [buildAuthHeaderConfig(httpUrl, TOKEN)],
       // No secret: prove the raw git error is already clean.
@@ -198,8 +202,8 @@ describe('token transport against real git', () => {
     seenAuth.length = 0;
     await expect(
       execGitNetwork(['ls-remote', httpUrl], {
-        cwd: dir,
-        timeout: 10_000,
+        cwd,
+        timeout: GIT_TIMEOUT_MS,
         clearCredentialHelpers: true,
         config: [buildAuthHeaderConfig('https://other.invalid/r.git', TOKEN)],
       }),
@@ -234,7 +238,7 @@ describe('token transport against real git', () => {
     await gitPushNonInteractive({
       cwd: work,
       remoteUrl: bare.replace(/\\/g, '/'),
-      timeout: 30_000,
+      timeout: GIT_TIMEOUT_MS,
     });
 
     const { stdout } = await execFileAsync(

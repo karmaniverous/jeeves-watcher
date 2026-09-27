@@ -3,20 +3,17 @@
  * Tests for SquashManager: retention boundary, squash mechanism, cron matching.
  */
 
-import { execFile } from 'node:child_process';
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { promisify } from 'node:util';
 
 import type { VcsRetentionConfig } from '@karmaniverous/jeeves-watcher-core';
 import pino from 'pino';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { startDroppingRemote } from '../test/droppingRemote';
+import { execFileAsync } from '../test/git';
 import { cronMatchesNow, SquashManager } from './SquashManager';
-
-const execFileAsync = promisify(execFile);
 
 const silentLogger = pino({ level: 'silent' });
 

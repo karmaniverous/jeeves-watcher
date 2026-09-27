@@ -2,9 +2,14 @@
  * Tests for non-interactive git network execution.
  *
  * The behavioural tests run real git against a local HTTP server that always
- * answers 401, with a credential helper configured at system level (via an
- * isolated GIT_CONFIG_SYSTEM file) that records every invocation. No network,
- * and the machine's real git config is never read or touched.
+ * answers 401, with a credential helper configured in an isolated global
+ * config file that records every invocation. No network. The vitest setup
+ * file already makes git ignore the machine's system config (e.g. Git
+ * Credential Manager) and disables every prompt path; see `test/git`.
+ *
+ * Git children run from a directory outside the temp dir, so a stray process
+ * can never hold the temp dir open at cleanup, and their kill timeout is below
+ * the suite's test timeout, so every awaited child has exited before cleanup.
  */
 
 import { existsSync } from 'node:fs';
@@ -74,7 +79,13 @@ describe('buildGitNetworkArgs', () => {
   });
 });
 
-describe('execGitNetwork', () => {
+/** Kill timeout for git children; below {@link TEST_TIMEOUT_MS}. */
+const GIT_TIMEOUT_MS = 10_000;
+const TEST_TIMEOUT_MS = 20_000;
+
+describe('execGitNetwork', { timeout: TEST_TIMEOUT_MS }, () => {
+  /** Working directory for git children (never the temp dir). */
+  const cwd = tmpdir();
   let dir: string;
   let marker: string;
   let server: Server;
@@ -89,15 +100,12 @@ describe('execGitNetwork', () => {
       `require('node:fs').writeFileSync(${JSON.stringify(marker)}, 'x');\n`,
       'utf8',
     );
-    const systemConfig = join(dir, 'gitconfig');
+    const globalConfig = join(dir, 'gitconfig');
     await writeFile(
-      systemConfig,
+      globalConfig,
       `[credential]\n\thelper = !node ${helper.replace(/\\/g, '/')}\n`,
       'utf8',
     );
-    const globalConfig = join(dir, 'global-gitconfig');
-    await writeFile(globalConfig, '', 'utf8');
-    vi.stubEnv('GIT_CONFIG_SYSTEM', systemConfig);
     vi.stubEnv('GIT_CONFIG_GLOBAL', globalConfig);
 
     server = createServer((_req, res) => {
@@ -118,7 +126,12 @@ describe('execGitNetwork', () => {
         resolve();
       });
     });
-    await rm(dir, { recursive: true, force: true });
+    await rm(dir, {
+      recursive: true,
+      force: true,
+      maxRetries: 10,
+      retryDelay: 100,
+    });
   });
 
   it('passes the helper reset args and non-interactive env to git', async () => {
@@ -126,8 +139,8 @@ describe('execGitNetwork', () => {
     spy.mockClear();
     await expect(
       execGitNetwork(['ls-remote', url], {
-        cwd: dir,
-        timeout: 10_000,
+        cwd,
+        timeout: GIT_TIMEOUT_MS,
         clearCredentialHelpers: true,
       }),
     ).rejects.toThrow();
@@ -140,8 +153,8 @@ describe('execGitNetwork', () => {
     ];
     expect(file).toBe('git');
     expect(args).toEqual([...buildGitNetworkArgs(true), 'ls-remote', url]);
-    expect(options.cwd).toBe(dir);
-    expect(options.timeout).toBe(10_000);
+    expect(options.cwd).toBe(cwd);
+    expect(options.timeout).toBe(GIT_TIMEOUT_MS);
     expect(options.env).toMatchObject({
       GIT_TERMINAL_PROMPT: '0',
       GCM_INTERACTIVE: 'never',
@@ -154,8 +167,8 @@ describe('execGitNetwork', () => {
     await rm(marker, { force: true });
     await expect(
       execGitNetwork(['ls-remote', url], {
-        cwd: dir,
-        timeout: 10_000,
+        cwd,
+        timeout: GIT_TIMEOUT_MS,
         clearCredentialHelpers: true,
       }),
     ).rejects.toThrow();
@@ -166,8 +179,8 @@ describe('execGitNetwork', () => {
     await rm(marker, { force: true });
     await expect(
       execGitNetwork(['ls-remote', url], {
-        cwd: dir,
-        timeout: 10_000,
+        cwd,
+        timeout: GIT_TIMEOUT_MS,
         clearCredentialHelpers: false,
       }),
     ).rejects.toThrow();
@@ -178,9 +191,15 @@ describe('execGitNetwork', () => {
     await rm(marker, { force: true });
     await expect(
       execFileAsync('git', ['ls-remote', url], {
-        cwd: dir,
-        env: { ...process.env, GIT_TERMINAL_PROMPT: '0' },
-        timeout: 10_000,
+        cwd,
+        // process.env is hermetic (setup file); prompts stay disabled, but
+        // none of execGitNetwork's helper reset args are passed.
+        env: {
+          ...process.env,
+          GIT_TERMINAL_PROMPT: '0',
+          GCM_INTERACTIVE: 'never',
+        },
+        timeout: GIT_TIMEOUT_MS,
       }),
     ).rejects.toThrow();
     expect(existsSync(marker)).toBe(true);

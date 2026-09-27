@@ -7,12 +7,10 @@
  * once (no network, no credential prompt).
  */
 
-import { execFile } from 'node:child_process';
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { Writable } from 'node:stream';
-import { promisify } from 'node:util';
 
 import pino from 'pino';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -23,14 +21,13 @@ import {
   type DroppingRemote,
   startDroppingRemote,
 } from '../test/droppingRemote';
+import { execFileAsync, TEST_GIT_TIMEOUT_MS } from '../test/git';
 import { normalizeSlashes } from '../util/normalizeSlashes';
 import { gitPushNonInteractive } from './gitNetwork';
 import { SquashManager } from './SquashManager';
 import { initRepo } from './vcsBootstrap';
 import { VcsCoordinator } from './VcsCoordinator';
 import { VcsManager } from './VcsManager';
-
-const execFileAsync = promisify(execFile);
 
 /** A token full of characters that URL encoding and base64 both change. */
 const TOKEN = 'ghp_T0k/en@sp:ec+ial%20&=?#~';
@@ -109,7 +106,12 @@ describe('access token redaction on failed push (#245)', () => {
 
   afterEach(async () => {
     await remote.close();
-    await rm(dir, { recursive: true, force: true });
+    await rm(dir, {
+      recursive: true,
+      force: true,
+      maxRetries: 10,
+      retryDelay: 100,
+    });
   });
 
   it('keeps the token out of the thrown error', async () => {
@@ -118,7 +120,7 @@ describe('access token redaction on failed push (#245)', () => {
       cwd: dir,
       remoteUrl: remote.url(),
       accessToken: TOKEN,
-      timeout: 30_000,
+      timeout: TEST_GIT_TIMEOUT_MS,
     }).then(
       () => undefined,
       (e: unknown) => e,
