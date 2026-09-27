@@ -6,6 +6,34 @@ All notable changes to this project will be documented in this file.
 
 ### 💼 Other
 
+- [234] fix: tests and typecheck read watcher-core from source, not dist
+
+Service and openclaw vitest configs alias @karmaniverous/jeeves-watcher-core
+to packages/core/src, and their tsconfigs map it via paths, so typecheck
+and tests pass on a clean checkout with no dist/. Rollup builds override
+paths ({}) so bundling and typing still use the built core package with
+no TS warnings. Root npm test now also runs the openclaw package tests.
+
+Closes #242
+- [234] chore: update root package-lock in release-it after:bump hooks
+- [234] fix(deps): require watcher-core ^0.2.6-0 (no fallback to 0.2.5)
+- [234] [243] test(service): warm Fastify cold start in hooks, close apps
+
+The first onRulesChanged test paid Fastify's lazy require of ~250 CJS
+modules (ajv-compiler/ajv/fast-json-stringify), light-my-request's lazy
+load on first inject(), and the first ajv rule compile inside its 5s test
+budget, which timed out on a slower Windows machine during release:pre.
+
+Warm the full register path in beforeAll, close every app in afterEach,
+and drop the unneeded 50ms settle sleeps (executeReindex is invoked
+synchronously by the handler). Apply the same warm-up and server close to
+integration.test.ts.
+
+Closes #243
+## [0.19.0-0] - 2026-09-27
+
+### 💼 Other
+
 - [234] chore(deps): ncu --peer across all packages (keep @karmaniverous/jeeves pinned)
 - [234] chore(deps): audit fix, transitive overrides, hold extra-typings@14, drop @types/js-yaml
 
@@ -56,6 +84,7 @@ Drop better-sqlite3 and @types/better-sqlite3 from packages/service and the bett
 
 - engines.node >=22.13 everywhere; docs say 22.13+ (#241)
 - [234] chore(deps): pin @karmaniverous/jeeves 0.6.0-7
+- [234] chore: release @karmaniverous/jeeves-watcher v0.19.0-0
 ## [0.18.12] - 2026-09-22
 
 ### 🐛 Bug Fixes
