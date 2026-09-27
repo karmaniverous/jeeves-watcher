@@ -6,7 +6,14 @@ All notable changes to this project will be documented in this file.
 
 ### 💼 Other
 
+- [234] chore(deps): pin @karmaniverous/jeeves 0.6.0-8
+- [234] updated core
+## [0.16.0-2] - 2026-09-27
+
+### 💼 Other
+
 - [234] fix(deps): require watcher-core ^0.2.6-0 (no fallback to 0.2.5)
+- [234] chore: release @karmaniverous/jeeves-watcher-openclaw v0.16.0-2
 ## [0.16.0-1] - 2026-09-27
 
 ### 💼 Other
