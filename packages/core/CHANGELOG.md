@@ -6,6 +6,36 @@ All notable changes to this project will be documented in this file.
 
 ### 💼 Other
 
+- [234] chore(deps): ncu --peer across all packages (keep @karmaniverous/jeeves pinned)
+- [234] chore: knip and prettier clean-up
+
+- knip 6.38: remove unused barrel re-exports and a stale backward-compat re-export (no public API change)
+
+- prettier 3.9 formatting; add .prettierignore for generated CHANGELOGs, config.schema.json and .stan state
+- [234] feat!: move core and service to @karmaniverous/jeeves 0.6.0-4
+
+Drop the v0.x workspace-writer descriptor fields (sectionId,
+refreshIntervalSeconds, generateToolsContent) removed in core 0.6.
+- [234] chore(core): use root TypeScript 6
+
+Drop core's typescript ^7.0.2 devDependency (added only because ncu --peer
+ran per package); core now uses the root typescript ^6.0.3.
+- [234] chore(deps): pin @karmaniverous/jeeves 0.6.0-6
+- [234] fix(release): use --github.preRelease for release-it 21
+- [234] fix: post-e2e fixes for core 0.6 (#238, #239, #240, #241)
+
+- deps: openclaw/service depend on watcher-core ^0.2.5 || ^0.2.6-0 so the core-0.6 prerelease resolves (#238)
+
+- service: pin @qdrant/js-client-rest ^1.19.0; real-QdrantClient regression test for POST /search (#239)
+
+- service: /config/apply merges into the running config file and deep-merges patches (#240)
+
+- engines.node >=22.13 everywhere; docs say 22.13+ (#241)
+- [234] chore(deps): pin @karmaniverous/jeeves 0.6.0-7
+## [0.2.5] - 2026-06-30
+
+### 💼 Other
+
 - [230] fix: squashmanager compound defect (#230)
 
 - Bug 1: Use configured branch name instead of dynamic git branch detection
@@ -20,6 +50,10 @@ SquashManager now pauses VcsManager commit pipeline during squash.
 All execFileAsync and gitAddViaStdin calls have explicit timeouts.
 
 Fixes #230
+
+### ⚙️ Miscellaneous Tasks
+
+- Release @karmaniverous/jeeves-watcher-core v0.2.5
 ## [0.2.4] - 2026-06-13
 
 ### 🚀 Features
