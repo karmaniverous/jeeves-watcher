@@ -6,6 +6,12 @@ All notable changes to this project will be documented in this file.
 
 ### 💼 Other
 
+- [234] chore: update root package-lock in release-it after:bump hooks
+- [234] chore(deps): pin @karmaniverous/jeeves 0.6.0-8
+## [0.2.6-0] - 2026-09-27
+
+### 💼 Other
+
 - [234] chore(deps): ncu --peer across all packages (keep @karmaniverous/jeeves pinned)
 - [234] chore: knip and prettier clean-up
 
@@ -32,6 +38,7 @@ ran per package); core now uses the root typescript ^6.0.3.
 
 - engines.node >=22.13 everywhere; docs say 22.13+ (#241)
 - [234] chore(deps): pin @karmaniverous/jeeves 0.6.0-7
+- [234] chore: release @karmaniverous/jeeves-watcher-core v0.2.6-0
 ## [0.2.5] - 2026-06-30
 
 ### 💼 Other
