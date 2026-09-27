@@ -4,7 +4,7 @@
     "url": "https://github.com/karmaniverous/jeeves-watcher/issues"
   },
   "dependencies": {
-    "@karmaniverous/jeeves": "0.6.0-7",
+    "@karmaniverous/jeeves": "0.6.0-8",
     "@karmaniverous/jeeves-watcher-core": "^0.2.6-0"
   },
   "description": "OpenClaw plugin for jeeves-watcher — semantic search and metadata enrichment tools",
