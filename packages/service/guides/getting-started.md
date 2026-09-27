@@ -8,7 +8,7 @@ This guide walks you through installing and configuring `jeeves-watcher` from sc
 
 ## Prerequisites
 
-- **Node.js 22+** (Node.js 24+ recommended; enrichment storage uses the built-in `node:sqlite` module, so no native build tools are needed)
+- **Node.js 22.13+** (Node.js 24+ recommended; enrichment storage uses the built-in `node:sqlite` module, so no native build tools are needed)
 - **Qdrant** running locally or accessible via network
   - Installation: See [Deployment Guide](./deployment.md#qdrant-setup)
   - Default URL: `http://localhost:6333`

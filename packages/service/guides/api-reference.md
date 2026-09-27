@@ -1129,7 +1129,7 @@ Validation includes checking that referenced helper files can be loaded.
 
 ## POST /config/apply
 
-Atomically validate, write, and reload configuration.
+Deep-merge a partial config into the running config, validate, write, and reload.
 
 ### Request
 
@@ -1137,7 +1137,7 @@ Atomically validate, write, and reload configuration.
 curl -X POST http://localhost:1936/config/apply \
   -H "Content-Type: application/json" \
   -d '{
-    "config": {
+    "patch": {
       "inferenceRules": [
         {
           "name": "new-rule",
@@ -1156,7 +1156,8 @@ curl -X POST http://localhost:1936/config/apply \
 
 ```typescript
 {
-  config: Record<string, unknown>; // Configuration to apply
+  patch: Record<string, unknown>; // Partial config to merge (`config` is accepted as an alias)
+  replace?: boolean;              // true = replace the whole config instead of merging
 }
 ```
 
@@ -1167,8 +1168,7 @@ curl -X POST http://localhost:1936/config/apply \
 ```json
 {
   "applied": true,
-  "reindexTriggered": true,
-  "scope": "rules"
+  "config": { "...": "the validated merged config" }
 }
 ```
 
@@ -1176,19 +1176,20 @@ curl -X POST http://localhost:1936/config/apply \
 
 ```json
 {
-  "applied": false,
-  "errors": [
-    { "path": "inferenceRules[0].match", "message": "Invalid JSON Schema" }
+  "error": "Config validation failed",
+  "issues": [
+    { "path": ["embedding", "dimensions"], "message": "Invalid input" }
   ]
 }
 ```
 
 ### Behavior
 
-1. Validates the provided config (same as `POST /config/validate`)
-2. Writes the merged config to disk
-3. Reloads the running watcher with new config
-4. Triggers a scoped reindex if rules changed
+1. Reads the config file the service was started with
+2. Deep-merges the patch: objects merge recursively, arrays and scalars replace, `inferenceRules` merge by `name` (so `{ "patch": {} }` or a single key is valid)
+3. Validates the merged config against the schema
+4. Writes it atomically to the same file
+5. Triggers a reindex using `configWatch.reindex` scope (default `issues`)
 
 ---
 

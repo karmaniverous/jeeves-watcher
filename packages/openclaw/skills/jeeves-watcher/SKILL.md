@@ -112,13 +112,13 @@ When the plugin loads and the watcher service is NOT yet set up, drive the entir
 
 ### Step 1: Check Node.js
 
-Verify Node.js is installed and version ≥ 22:
+Verify Node.js is installed and version ≥ 22.13:
 
 ```bash
 node --version
 ```
 
-If missing or too old, guide the user to install Node.js 22+ from https://nodejs.org or via their package manager.
+If missing or too old, guide the user to install Node.js 22.13+ from https://nodejs.org or via their package manager.
 
 ### Step 2: Install Qdrant
 
@@ -407,7 +407,7 @@ Apply config changes atomically.
 
 - `config` (object, required) — full or partial config to apply
 
-Validates, writes to disk, and triggers configured reindex behavior. Returns validation errors if invalid. Config changes take full effect without service restart — including new/removed watch paths (filesystem watcher is rebuilt), inference rule changes, move detection settings, and gitignore filter updates.
+Partial configs are deep-merged into the running config (objects recursively, arrays replaced, `inferenceRules` by rule name), so `{}` or a single key is valid. The merged result is validated, written to disk, and triggers configured reindex behavior. Returns validation errors if invalid. Config changes take full effect without service restart — including new/removed watch paths (filesystem watcher is rebuilt), inference rule changes, move detection settings, and gitignore filter updates.
 
 ### `watcher_reindex`
 

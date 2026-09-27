@@ -72,6 +72,17 @@ describe('watcherDescriptor', () => {
     expect(rules.map((r) => r.name)).toContain('rule-b');
   });
 
+  it('customMerge deep-merges nested objects and replaces arrays', () => {
+    const result = watcherDescriptor.customMerge!(
+      { watch: { paths: ['a'], debounceMs: 1 }, api: { port: 1 } },
+      { watch: { paths: ['b'] } },
+    );
+    expect(result).toEqual({
+      watch: { paths: ['b'], debounceMs: 1 },
+      api: { port: 1 },
+    });
+  });
+
   it('customCliCommands registers domain-specific commands', () => {
     const program = new Command();
     watcherDescriptor.customCliCommands?.(program);
