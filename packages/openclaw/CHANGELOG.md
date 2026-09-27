@@ -6,7 +6,57 @@ All notable changes to this project will be documented in this file.
 
 ### 💼 Other
 
+- [234] feat(openclaw)!: standard OpenClaw plugin on jeeves core 0.6.0 with lazy configRoot
+
+- move @karmaniverous/jeeves to 0.6.0-3 (static-content core, jeeves#109)
+- remove ComponentWriter, createAsyncContentCache TOOLS.md menu, and the
+  createPluginCli install/uninstall CLI (bin, rollup CLI entry, content copy)
+- inject watcher escalation/scan-first/search-first rules via
+  before_prompt_build (registerPromptContext); declare it in
+  package.json jeeves.conversationHooks
+- resolve configRoot lazily (pluginConfig -> plugins.entries -> JEEVES_CONFIG_ROOT);
+  registration always succeeds, warns once when unset, defers core init()
+  to first tool use; tools return a clear error until it is set
+- remove the j:/config default (constants, helpers, manifest); declare
+  configRoot in the manifest configSchema with no default
+
+BREAKING CHANGE: the npx install/uninstall CLI is gone (use jeeves install or
+openclaw plugins install); configRoot has no default and must be set in plugin
+config or JEEVES_CONFIG_ROOT; the plugin no longer writes TOOLS.md.
+
+Closes #234
+Closes #235
+Closes #227
+- [234] chore(deps): ncu --peer across all packages (keep @karmaniverous/jeeves pinned)
+- [234] chore: knip and prettier clean-up
+
+- knip 6.38: remove unused barrel re-exports and a stale backward-compat re-export (no public API change)
+
+- prettier 3.9 formatting; add .prettierignore for generated CHANGELOGs, config.schema.json and .stan state
+- [234] fix(openclaw): gate only tools that read configRoot
+
+Uniform Jeeves rule: only tools whose implementation reads configRoot return the configRoot-not-configured error. watcher_service (install resolves the config path via core getComponentConfigDir) stays gated; the 17 HTTP-only tools (3 core factory tools on defaultPort, 14 domain tools on apiUrl) are registered unwrapped and work without configRoot.
+- [234] feat(openclaw): pass lazy apiUrl to createPluginToolset; pin core 0.6.0-4
+- [234] fix(openclaw): gate watcher_service install only
+- [234] chore(build): zero build and typedoc warnings
+
+- service: drop tsconfig incremental (made the rollup configPlugin warn
+  about outputToFilesystem); mark node: builtins external in the d.ts build.
+- openclaw: drop only bundled-zod INVALID_ANNOTATION / node_modules-only
+  CIRCULAR_DEPENDENCY rollup warnings.
+- service: export SquashManagerOptions (typedoc referenced it).
+- [234] docs(openclaw): update plugin architecture diagram
+- [234] chore(deps): pin @karmaniverous/jeeves 0.6.0-6
+- [234] fix(release): use --github.preRelease for release-it 21
+## [0.15.6] - 2026-06-30
+
+### 💼 Other
+
 - Updated core
+
+### ⚙️ Miscellaneous Tasks
+
+- Release @karmaniverous/jeeves-watcher-openclaw v0.15.6
 ## [0.15.5] - 2026-06-13
 
 ### 🚀 Features
