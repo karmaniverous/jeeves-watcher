@@ -13,6 +13,7 @@ import type { VcsRetentionConfig } from '@karmaniverous/jeeves-watcher-core';
 import pino from 'pino';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { startDroppingRemote } from '../test/droppingRemote';
 import { cronMatchesNow, SquashManager } from './SquashManager';
 
 const execFileAsync = promisify(execFile);
@@ -433,26 +434,24 @@ describe('SquashManager.runSquash', () => {
     const logger = pino({ level: 'silent' });
     const errorSpy = vi.spyOn(logger, 'error');
 
-    // Use a token with special characters and an https remote that will fail
+    // Token with special characters; local https remote that drops at once
+    // (no network, no credential prompt). runSquash awaits git's exit.
+    const remote = await startDroppingRemote();
     const manager = new SquashManager(
       tempDir,
       makeRetention({ maxAgeDays: 30, maxVersions: 100 }),
       logger,
-      {
-        // Loopback discard port: refuses fast, no network, no credential prompt.
-        remoteUrl: 'https://127.0.0.1:9/repo.git',
-        accessToken: 'tok/en@special',
-      },
+      { remoteUrl: remote.url(), accessToken: 'tok/en@special' },
     );
 
-    const result = await manager.runSquash();
+    const result = await manager.runSquash().finally(remote.close);
     expect(result.squashed).toBe(true);
     // Force push will fail (invalid remote) — that's expected
     expect(errorSpy).toHaveBeenCalledWith(
       expect.objectContaining({ root: tempDir }),
       'Squash force push failed',
     );
-  }, 30000);
+  });
 
   it('handles single commit repo (no-op)', async () => {
     await createCommit(tempDir, 'file1.txt', 'a');

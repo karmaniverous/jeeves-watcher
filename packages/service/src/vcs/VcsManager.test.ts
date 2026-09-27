@@ -13,6 +13,10 @@ import type { VcsConfig } from '@karmaniverous/jeeves-watcher-core';
 import pino from 'pino';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import {
+  type DroppingRemote,
+  startDroppingRemote,
+} from '../test/droppingRemote';
 import { CommitMessageGenerator } from './CommitMessageGenerator';
 import * as vcsBootstrap from './vcsBootstrap';
 import { initRepo } from './vcsBootstrap';
@@ -1007,13 +1011,18 @@ describe('VcsManager instance', () => {
 
   describe('remote push', () => {
     let bareRemote: string;
+    // Local https remote that drops connections at once: failing pushes need
+    // no network and can never reach a credential prompt.
+    let droppingRemote: DroppingRemote;
 
     beforeEach(async () => {
       bareRemote = await mkdtemp(join(tmpdir(), 'vcs-bare-'));
       await execFileAsync('git', ['init', '--bare'], { cwd: bareRemote });
+      droppingRemote = await startDroppingRemote();
     });
 
     afterEach(async () => {
+      await droppingRemote.close();
       await rm(bareRemote, { recursive: true, force: true });
     });
 
@@ -1068,7 +1077,7 @@ describe('VcsManager instance', () => {
         makeConfig(),
         logger,
         undefined,
-        'https://127.0.0.1:9/nonexistent/repo.git',
+        droppingRemote.url('/nonexistent/repo.git'),
       );
       await manager.start();
 
@@ -1093,8 +1102,7 @@ describe('VcsManager instance', () => {
         makeConfig(),
         logger,
         undefined,
-        // Loopback discard port: refuses fast, no network, no credential prompt.
-        'https://127.0.0.1:9/repo.git',
+        droppingRemote.url(),
         'tok/en@special',
       );
       await manager.start();
@@ -1110,7 +1118,7 @@ describe('VcsManager instance', () => {
       expect(manager.pushErrors).toHaveLength(1);
       // Commit should still succeed
       expect(await commitCount(tempDir)).toBe(1);
-    }, 30000);
+    });
 
     it('pushes with token injected into URL', async () => {
       const remoteUrl = bareRemote.replace(/\\/g, '/');

@@ -6,8 +6,8 @@
 import type pino from 'pino';
 
 import { normalizeError } from '../util/normalizeError';
-import { buildAuthenticatedPushUrl, GIT_TIMEOUT_PUSH } from './gitExec';
-import { execGitNetwork } from './gitNetwork';
+import { GIT_TIMEOUT_PUSH } from './gitExec';
+import { gitPushNonInteractive } from './gitNetwork';
 import type { PushError } from './types';
 
 /**
@@ -33,10 +33,10 @@ export async function pushToRemote(
   if (!remoteUrl) return undefined;
 
   try {
-    const pushUrl = buildAuthenticatedPushUrl(remoteUrl, accessToken);
-
-    await execGitNetwork(['push', pushUrl, 'HEAD'], {
+    await gitPushNonInteractive({
       cwd: rootPath,
+      remoteUrl,
+      accessToken,
       timeout: GIT_TIMEOUT_PUSH,
     });
 

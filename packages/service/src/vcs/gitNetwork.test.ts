@@ -14,14 +14,23 @@ import type { AddressInfo } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+import {
+  afterAll,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from 'vitest';
 
 import type * as GitExecModule from './gitExec';
 import { execFileAsync } from './gitExec';
 import {
+  buildGitNetworkArgs,
   buildGitNetworkEnv,
   execGitNetwork,
-  GIT_NETWORK_ARGS,
+  gitPushNonInteractive,
 } from './gitNetwork';
 
 vi.mock('./gitExec', async (importOriginal) => {
@@ -35,8 +44,8 @@ describe('buildGitNetworkEnv', () => {
     expect(env).toEqual({
       GIT_TERMINAL_PROMPT: '0',
       GCM_INTERACTIVE: 'never',
-      GIT_ASKPASS: 'echo',
-      SSH_ASKPASS: 'echo',
+      GIT_ASKPASS: '',
+      SSH_ASKPASS: '',
     });
   });
 
@@ -44,8 +53,23 @@ describe('buildGitNetworkEnv', () => {
     const base = { PATH: '/bin', GIT_ASKPASS: '/usr/bin/gui-askpass' };
     const env = buildGitNetworkEnv(base);
     expect(env.PATH).toBe('/bin');
-    expect(env.GIT_ASKPASS).toBe('echo');
+    expect(env.GIT_ASKPASS).toBe('');
     expect(base.GIT_ASKPASS).toBe('/usr/bin/gui-askpass');
+  });
+});
+
+describe('buildGitNetworkArgs', () => {
+  it('always disables core.askPass', () => {
+    expect(buildGitNetworkArgs(false)).toEqual(['-c', 'core.askPass=']);
+  });
+
+  it('also resets the credential helper list when asked', () => {
+    expect(buildGitNetworkArgs(true)).toEqual([
+      '-c',
+      'core.askPass=',
+      '-c',
+      'credential.helper=',
+    ]);
   });
 });
 
@@ -100,7 +124,11 @@ describe('execGitNetwork', () => {
     const spy = vi.mocked(execFileAsync);
     spy.mockClear();
     await expect(
-      execGitNetwork(['ls-remote', url], { cwd: dir, timeout: 10_000 }),
+      execGitNetwork(['ls-remote', url], {
+        cwd: dir,
+        timeout: 10_000,
+        clearCredentialHelpers: true,
+      }),
     ).rejects.toThrow();
 
     expect(spy).toHaveBeenCalledTimes(1);
@@ -110,24 +138,39 @@ describe('execGitNetwork', () => {
       { cwd: string; env: NodeJS.ProcessEnv; timeout: number },
     ];
     expect(file).toBe('git');
-    expect(args).toEqual([...GIT_NETWORK_ARGS, 'ls-remote', url]);
-    expect(GIT_NETWORK_ARGS).toEqual(['-c', 'credential.helper=']);
+    expect(args).toEqual([...buildGitNetworkArgs(true), 'ls-remote', url]);
     expect(options.cwd).toBe(dir);
     expect(options.timeout).toBe(10_000);
     expect(options.env).toMatchObject({
       GIT_TERMINAL_PROMPT: '0',
       GCM_INTERACTIVE: 'never',
-      GIT_ASKPASS: 'echo',
-      SSH_ASKPASS: 'echo',
+      GIT_ASKPASS: '',
+      SSH_ASKPASS: '',
     });
   });
 
   it('never invokes a configured credential helper', async () => {
     await rm(marker, { force: true });
     await expect(
-      execGitNetwork(['ls-remote', url], { cwd: dir, timeout: 10_000 }),
+      execGitNetwork(['ls-remote', url], {
+        cwd: dir,
+        timeout: 10_000,
+        clearCredentialHelpers: true,
+      }),
     ).rejects.toThrow();
     expect(existsSync(marker)).toBe(false);
+  });
+
+  it('keeps configured helpers when not clearing them', async () => {
+    await rm(marker, { force: true });
+    await expect(
+      execGitNetwork(['ls-remote', url], {
+        cwd: dir,
+        timeout: 10_000,
+        clearCredentialHelpers: false,
+      }),
+    ).rejects.toThrow();
+    expect(existsSync(marker)).toBe(true);
   });
 
   it('control: plain git does invoke the configured helper', async () => {
@@ -140,5 +183,69 @@ describe('execGitNetwork', () => {
       }),
     ).rejects.toThrow();
     expect(existsSync(marker)).toBe(true);
+  });
+});
+
+describe('gitPushNonInteractive', () => {
+  const lastArgs = (): string[] =>
+    (
+      vi.mocked(execFileAsync).mock.calls.at(-1) as unknown as [
+        string,
+        string[],
+      ]
+    )[1];
+
+  beforeEach(() => {
+    vi.mocked(execFileAsync).mockClear();
+    vi.mocked(execFileAsync).mockResolvedValueOnce({
+      stdout: '',
+      stderr: '',
+    });
+  });
+
+  it('clears helpers and encodes the token when one is injected', async () => {
+    await gitPushNonInteractive({
+      cwd: '.',
+      remoteUrl: 'https://example.invalid/repo.git',
+      accessToken: 'tok/en@special',
+      force: true,
+      timeout: 1,
+    });
+    expect(lastArgs()).toEqual([
+      ...buildGitNetworkArgs(true),
+      'push',
+      '--force',
+      'https://tok%2Fen%40special@example.invalid/repo.git',
+      'HEAD',
+    ]);
+  });
+
+  it('keeps helpers when there is no token', async () => {
+    await gitPushNonInteractive({
+      cwd: '.',
+      remoteUrl: 'https://example.invalid/repo.git',
+      timeout: 1,
+    });
+    expect(lastArgs()).toEqual([
+      ...buildGitNetworkArgs(false),
+      'push',
+      'https://example.invalid/repo.git',
+      'HEAD',
+    ]);
+  });
+
+  it('keeps helpers for non-https remotes even with a token', async () => {
+    await gitPushNonInteractive({
+      cwd: '.',
+      remoteUrl: 'git@example.invalid:repo.git',
+      accessToken: 'tok',
+      timeout: 1,
+    });
+    expect(lastArgs()).toEqual([
+      ...buildGitNetworkArgs(false),
+      'push',
+      'git@example.invalid:repo.git',
+      'HEAD',
+    ]);
   });
 });
