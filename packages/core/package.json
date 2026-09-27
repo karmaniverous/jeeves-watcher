@@ -50,6 +50,10 @@
       "release": true
     },
     "hooks": {
+      "after:bump": [
+        "npm install --package-lock-only --ignore-scripts",
+        "git add ../../package-lock.json"
+      ],
       "after:init": [
         "npm run lint",
         "npm run typecheck",

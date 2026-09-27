@@ -72,7 +72,9 @@
     "hooks": {
       "after:bump": [
         "node -e \"const f='openclaw.plugin.json';const j=JSON.parse(require('fs').readFileSync(f,'utf8'));j.version='${version}';require('fs').writeFileSync(f,JSON.stringify(j,null,2)+'')\"",
-        "npx prettier --write openclaw.plugin.json"
+        "npx prettier --write openclaw.plugin.json",
+        "npm install --package-lock-only --ignore-scripts",
+        "git add ../../package-lock.json"
       ],
       "after:init": [
         "npm run lint",
