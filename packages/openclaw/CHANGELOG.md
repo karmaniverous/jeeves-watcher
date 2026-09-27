@@ -6,6 +6,32 @@ All notable changes to this project will be documented in this file.
 
 ### 💼 Other
 
+- [234] style(openclaw): prettier-format openclaw.plugin.json
+- [234] fix: post-e2e fixes for core 0.6 (#238, #239, #240, #241)
+
+- deps: openclaw/service depend on watcher-core ^0.2.5 || ^0.2.6-0 so the core-0.6 prerelease resolves (#238)
+
+- service: pin @qdrant/js-client-rest ^1.19.0; real-QdrantClient regression test for POST /search (#239)
+
+- service: /config/apply merges into the running config file and deep-merges patches (#240)
+
+- engines.node >=22.13 everywhere; docs say 22.13+ (#241)
+- [234] chore(release): prettier-format openclaw.plugin.json after bump
+- [234] chore(deps): pin @karmaniverous/jeeves 0.6.0-7
+- [234] fix: tests and typecheck read watcher-core from source, not dist
+
+Service and openclaw vitest configs alias @karmaniverous/jeeves-watcher-core
+to packages/core/src, and their tsconfigs map it via paths, so typecheck
+and tests pass on a clean checkout with no dist/. Rollup builds override
+paths ({}) so bundling and typing still use the built core package with
+no TS warnings. Root npm test now also runs the openclaw package tests.
+
+Closes #242
+- [234] chore: update root package-lock in release-it after:bump hooks
+## [0.16.0-0] - 2026-09-27
+
+### 💼 Other
+
 - [234] feat(openclaw)!: standard OpenClaw plugin on jeeves core 0.6.0 with lazy configRoot
 
 - move @karmaniverous/jeeves to 0.6.0-3 (static-content core, jeeves#109)
@@ -48,6 +74,7 @@ Uniform Jeeves rule: only tools whose implementation reads configRoot return the
 - [234] docs(openclaw): update plugin architecture diagram
 - [234] chore(deps): pin @karmaniverous/jeeves 0.6.0-6
 - [234] fix(release): use --github.preRelease for release-it 21
+- [234] chore: release @karmaniverous/jeeves-watcher-openclaw v0.16.0-0
 ## [0.15.6] - 2026-06-30
 
 ### 💼 Other
