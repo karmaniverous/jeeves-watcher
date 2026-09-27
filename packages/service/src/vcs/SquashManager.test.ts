@@ -439,7 +439,8 @@ describe('SquashManager.runSquash', () => {
       makeRetention({ maxAgeDays: 30, maxVersions: 100 }),
       logger,
       {
-        remoteUrl: 'https://github.com/test/repo.git',
+        // Loopback discard port: refuses fast, no network, no credential prompt.
+        remoteUrl: 'https://127.0.0.1:9/repo.git',
         accessToken: 'tok/en@special',
       },
     );

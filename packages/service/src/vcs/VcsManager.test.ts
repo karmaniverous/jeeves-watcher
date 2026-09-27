@@ -1068,7 +1068,7 @@ describe('VcsManager instance', () => {
         makeConfig(),
         logger,
         undefined,
-        'https://invalid.example.com/nonexistent/repo.git',
+        'https://127.0.0.1:9/nonexistent/repo.git',
       );
       await manager.start();
 
@@ -1093,7 +1093,8 @@ describe('VcsManager instance', () => {
         makeConfig(),
         logger,
         undefined,
-        'https://github.com/test/repo.git',
+        // Loopback discard port: refuses fast, no network, no credential prompt.
+        'https://127.0.0.1:9/repo.git',
         'tok/en@special',
       );
       await manager.start();

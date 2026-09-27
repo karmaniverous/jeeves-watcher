@@ -17,6 +17,7 @@ import {
   GIT_TIMEOUT_PUSH,
   GIT_TIMEOUT_STANDARD,
 } from './gitExec';
+import { execGitNetwork } from './gitNetwork';
 
 /**
  * Parse a standard 5-field cron expression and check if the current time matches.
@@ -451,9 +452,8 @@ export class SquashManager {
         this.accessToken,
       );
 
-      await execFileAsync('git', ['push', '--force', pushUrl, 'HEAD'], {
+      await execGitNetwork(['push', '--force', pushUrl, 'HEAD'], {
         cwd: this.rootPath,
-        env: { ...process.env, GIT_TERMINAL_PROMPT: '0' },
         timeout: GIT_TIMEOUT_PUSH,
       });
 
