@@ -7,7 +7,7 @@
  * error only when its implementation actually reads `configRoot`. Tools
  * that only call the service HTTP API keep working without it.
  *
- * Audit of the core standard toolset (`createPluginToolset`, core 0.6.0-6):
+ * Audit of the core standard toolset (`createPluginToolset`, core 0.6.0-7):
  * - `watcher_status`, `watcher_config`, `watcher_config_apply`: HTTP only
  *   (`{apiUrl}/…`, resolved per call).
  * - `watcher_service`: only `install` reads `configRoot`
