@@ -221,7 +221,7 @@ Chunking settings are configured under `embedding`:
 
 ### Enrichment Store
 
-Enrichment metadata (from `POST /metadata` or `watcher_enrich`) is stored in a SQLite database at `<stateDir>/enrichments.sqlite`. Enrichments survive full reindexes. Composable merge: scalar fields overwrite, array fields union+deduplicate with inference rule output.
+Enrichment metadata (from `POST /metadata` or `watcher_enrich`) is stored in a SQLite database at `<stateDir>/enrichments.sqlite`, using Node's built-in `node:sqlite` module (no native addon). Enrichments survive full reindexes. Composable merge: scalar fields overwrite, array fields union+deduplicate with inference rule output.
 
 ```json
 {

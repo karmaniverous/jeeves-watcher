@@ -16,7 +16,7 @@ If you’re new to the codebase, start with:
 ### Node.js
 
 - **Node.js 24+** is recommended for development.
-  - The package `engines` field currently allows Node 20+, but this repo is developed and tested with modern Node.
+  - The package `engines` field currently allows Node 22+, but this repo is developed and tested with modern Node.
 
 Verify:
 
