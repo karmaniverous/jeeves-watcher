@@ -4,9 +4,67 @@ All notable changes to this project will be documented in this file.
 
 ## [unreleased]
 
+### 💼 Other
+
+- [234] chore(deps): ncu --peer across all packages (keep @karmaniverous/jeeves pinned)
+- [234] chore(deps): audit fix, transitive overrides, hold extra-typings@14, drop @types/js-yaml
+
+- npm audit fix, then overrides for type-only transitive chain of mdast-util-from-adf (linkify-it ^5.0.2, uuid ^14.0.2); lockfile regenerated so overrides apply
+
+- @commander-js/extra-typings held at ^14: peer-coupled to commander 14 used by @karmaniverous/jeeves 0.5.x (held via --reject)
+
+- @types/js-yaml removed: js-yaml 5 ships its own types
+- [234] fix: migrate vector search to Qdrant query API; drop meaningless void operators
+
+- @qdrant/js-client-rest 1.19 removed QdrantClient.search; use client.query (same params, results in .points)
+
+- typescript-eslint 8.70 no-meaningless-void-operator: remove unused params instead of voiding them
+- [234] chore: knip and prettier clean-up
+
+- knip 6.38: remove unused barrel re-exports and a stale backward-compat re-export (no public API change)
+
+- prettier 3.9 formatting; add .prettierignore for generated CHANGELOGs, config.schema.json and .stan state
+- [234] feat!: move core and service to @karmaniverous/jeeves 0.6.0-4
+
+Drop the v0.x workspace-writer descriptor fields (sectionId,
+refreshIntervalSeconds, generateToolsContent) removed in core 0.6.
+- [234] chore(service): update @commander-js/extra-typings to 15
+
+Unblocked by core 0.6.0-4 (commander 15).
+- [234] chore(build): zero build and typedoc warnings
+
+- service: drop tsconfig incremental (made the rollup configPlugin warn
+  about outputToFilesystem); mark node: builtins external in the d.ts build.
+- openclaw: drop only bundled-zod INVALID_ANNOTATION / node_modules-only
+  CIRCULAR_DEPENDENCY rollup warnings.
+- service: export SquashManagerOptions (typedoc referenced it).
+- [234] chore(deps): pin @karmaniverous/jeeves 0.6.0-6
+- [234] fix(release): use --github.preRelease for release-it 21
+- [234] refactor(service): migrate EnrichmentStore to node:sqlite
+
+Replace better-sqlite3 with the built-in node:sqlite DatabaseSync. Behaviour and EnrichmentStoreInterface are unchanged (WAL, busy_timeout 5000, startup wal_checkpoint(TRUNCATE) busy warning, schema, path normalisation, merge-on-set, atomic move). Adds a fixture written by the better-sqlite3 13.0.3 build and a test proving it opens, reads and updates correctly. Externalise node: built-ins in the service rollup library/CLI builds (matches jeeves-runner) so node:sqlite does not warn as unresolved. Refs #237.
+- [234] chore(deps): remove better-sqlite3
+
+Drop better-sqlite3 and @types/better-sqlite3 from packages/service and the better-sqlite3 entry from root allowScripts. Docs: note node:sqlite (no native build) and align stale Node 20+ prerequisites with engines >=22. Closes #237.
+- [234] fix: post-e2e fixes for core 0.6 (#238, #239, #240, #241)
+
+- deps: openclaw/service depend on watcher-core ^0.2.5 || ^0.2.6-0 so the core-0.6 prerelease resolves (#238)
+
+- service: pin @qdrant/js-client-rest ^1.19.0; real-QdrantClient regression test for POST /search (#239)
+
+- service: /config/apply merges into the running config file and deep-merges patches (#240)
+
+- engines.node >=22.13 everywhere; docs say 22.13+ (#241)
+- [234] chore(deps): pin @karmaniverous/jeeves 0.6.0-7
+## [0.18.12] - 2026-09-22
+
 ### 🐛 Bug Fixes
 
 - Use named imports for js-yaml (closes #232)
+
+### ⚙️ Miscellaneous Tasks
+
+- Release @karmaniverous/jeeves-watcher v0.18.12
 ## [0.18.11] - 2026-06-30
 
 ### 💼 Other
