@@ -6,6 +6,11 @@ All notable changes to this project will be documented in this file.
 
 ### 💼 Other
 
+- [234] fix(deps): require watcher-core ^0.2.6-0 (no fallback to 0.2.5)
+## [0.16.0-1] - 2026-09-27
+
+### 💼 Other
+
 - [234] style(openclaw): prettier-format openclaw.plugin.json
 - [234] fix: post-e2e fixes for core 0.6 (#238, #239, #240, #241)
 
@@ -28,6 +33,7 @@ no TS warnings. Root npm test now also runs the openclaw package tests.
 
 Closes #242
 - [234] chore: update root package-lock in release-it after:bump hooks
+- [234] chore: release @karmaniverous/jeeves-watcher-openclaw v0.16.0-1
 ## [0.16.0-0] - 2026-09-27
 
 ### 💼 Other
