@@ -82,7 +82,7 @@
     "lint:fix": "eslint --fix .",
     "prebuild": "npx rimraf dist",
     "release": "dotenvx run -f .env.local -- release-it",
-    "release:pre": "dotenvx run -f .env.local -- release-it --no-git.requireBranch --github.prerelease --preRelease",
+    "release:pre": "dotenvx run -f .env.local -- release-it --no-git.requireBranch --github.preRelease --preRelease",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },
