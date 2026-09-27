@@ -10,7 +10,8 @@
   "workspaces": {
     "packages/core": {},
     "packages/service": {
-      "entry": ["src/cli/jeeves-watcher/index.ts"]
+      "entry": ["src/cli/jeeves-watcher/index.ts"],
+      "ignoreDependencies": ["@rollup/plugin-typescript={paths:{}}"]
     },
     "packages/openclaw": {}
   }

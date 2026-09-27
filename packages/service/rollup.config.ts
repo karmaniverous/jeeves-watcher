@@ -33,6 +33,9 @@ const typescript = typescriptPlugin({
   incremental: false,
   allowJs: false,
   checkJs: false,
+  // Type against the built core package, not the source path mapping
+  // used by typecheck/tests (see tsconfig.json).
+  paths: {},
 });
 
 const commonPlugins = [

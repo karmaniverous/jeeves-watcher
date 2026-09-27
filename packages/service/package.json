@@ -133,7 +133,7 @@
     "url": "git+https://github.com/karmaniverous/jeeves-watcher.git"
   },
   "scripts": {
-    "build": "npm run generate:schema && rimraf dist && cross-env NO_COLOR=1 rollup --config rollup.config.ts --configPlugin @rollup/plugin-typescript",
+    "build": "npm run generate:schema && rimraf dist && cross-env NO_COLOR=1 rollup --config rollup.config.ts --configPlugin \"@rollup/plugin-typescript={paths:{}}\"",
     "changelog": "git-cliff -o CHANGELOG.md",
     "diagrams": "cd diagrams && plantuml -tpng -o ../assets -r .",
     "generate:schema": "tsx src/config/generate-schema.ts",

@@ -3,6 +3,9 @@
   "compilerOptions": {
     "allowJs": true,
     "checkJs": true,
+    "paths": {
+      "@karmaniverous/jeeves-watcher-core": ["../core/src/index.ts"]
+    },
     "types": ["node", "vitest/globals"]
   },
   "include": ["**/*"],

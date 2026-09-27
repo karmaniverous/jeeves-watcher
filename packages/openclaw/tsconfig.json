@@ -1,8 +1,16 @@
 {
   "extends": "../../tsconfig.json",
   "compilerOptions": {
+    "paths": {
+      "@karmaniverous/jeeves-watcher-core": ["../core/src/index.ts"]
+    },
     "types": ["node"]
   },
-  "include": ["src/**/*", "scripts/**/*", "rollup.config.ts"],
+  "include": [
+    "src/**/*",
+    "scripts/**/*",
+    "rollup.config.ts",
+    "vitest.config.ts"
+  ],
   "exclude": ["dist", "node_modules"]
 }
