@@ -6,6 +6,25 @@ All notable changes to this project will be documented in this file.
 
 ### 💼 Other
 
+- [234] [244] fix(service): make git network calls non-interactive
+
+Route push and squash force push through execGitNetwork: -c credential.helper= plus GIT_TERMINAL_PROMPT=0, GCM_INTERACTIVE=never, GIT_ASKPASS/SSH_ASKPASS=echo, so system/global credential helpers (Git Credential Manager) can never block. Tests use loopback 127.0.0.1:9 instead of github.com / invalid.example.com.
+- [234] [244] fix(service): clear credential helpers only for injected tokens; drop-at-once test remote
+
+Adopt findings from the parked w243 attempt: always -c core.askPass= with empty GIT_ASKPASS/SSH_ASKPASS, GIT_TERMINAL_PROMPT=0, GCM_INTERACTIVE=never; reset credential.helper only when a token is injected so stored credentials still work. gitPushNonInteractive centralises push URL + policy (SquashManager 471 -> 468 lines). Tests use a local TCP server that drops connections (~ms) instead of 127.0.0.1:9 (~2 s on Windows).
+- [234] [245] fix(service): keep the access token off the git command line and out of errors
+
+Send the token to git as a URL-scoped http.<remote>.extraHeader (Basic x-access-token) via GIT_CONFIG_COUNT/KEY/VALUE env for that push only, instead of embedding it in the push URL (which Node echoes in exec error messages/cmd, reaching logs and pushErrors / GET /vcs/status). Credential helpers are still cleared when a token is used (#244). Defence in depth: sanitizeGitError redacts raw, URL-encoded and base64 forms from message, stack, cmd, stderr and stdout. Remove buildAuthenticatedPushUrl.
+
+Closes #245
+- [234] chore(deps): pin @karmaniverous/jeeves 0.6.0-8
+- [234] updated core
+- [234] test(vcs): make git tests hermetic (ignore system credential helpers)
+- [234] Merge branch 'feature/234-core-060-lazy-config-root' of https://github.com/karmaniverous/jeeves-watcher into feature/234-core-060-lazy-config-root
+## [0.19.0-1] - 2026-09-27
+
+### 💼 Other
+
 - [234] fix: tests and typecheck read watcher-core from source, not dist
 
 Service and openclaw vitest configs alias @karmaniverous/jeeves-watcher-core
@@ -30,6 +49,7 @@ synchronously by the handler). Apply the same warm-up and server close to
 integration.test.ts.
 
 Closes #243
+- [234] chore: release @karmaniverous/jeeves-watcher v0.19.0-1
 ## [0.19.0-0] - 2026-09-27
 
 ### 💼 Other
