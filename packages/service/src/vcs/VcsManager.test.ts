@@ -3,11 +3,9 @@
  * Tests for VcsManager instance methods.
  */
 
-import { execFile } from 'node:child_process';
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { promisify } from 'node:util';
 
 import type { VcsConfig } from '@karmaniverous/jeeves-watcher-core';
 import pino from 'pino';
@@ -17,12 +15,11 @@ import {
   type DroppingRemote,
   startDroppingRemote,
 } from '../test/droppingRemote';
+import { execFileAsync } from '../test/git';
 import { CommitMessageGenerator } from './CommitMessageGenerator';
 import * as vcsBootstrap from './vcsBootstrap';
 import { initRepo } from './vcsBootstrap';
 import { VcsManager } from './VcsManager';
-
-const execFileAsync = promisify(execFile);
 
 const silentLogger = pino({ level: 'silent' });
 

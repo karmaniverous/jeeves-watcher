@@ -3,16 +3,15 @@
  * Tests for VCS API handlers using real git repos.
  */
 
-import { execFile } from 'node:child_process';
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
-import { promisify } from 'node:util';
 
 import pino from 'pino';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import type { JeevesWatcherConfig } from '../../../config/types';
+import { execFileAsync } from '../../../test/git';
 import { normalizeSlashes } from '../../../util/normalizeSlashes';
 import { initRepo } from '../../../vcs/vcsBootstrap';
 import { VcsCoordinator } from '../../../vcs/VcsCoordinator';
@@ -24,7 +23,6 @@ import { createVcsRevertHandler } from './vcsRevert';
 import { createVcsShowHandler } from './vcsShow';
 import { createVcsStatusHandler } from './vcsStatus';
 
-const execFileAsync = promisify(execFile);
 const silentLogger = pino({ level: 'silent' });
 
 /** Create a mock reply object. */

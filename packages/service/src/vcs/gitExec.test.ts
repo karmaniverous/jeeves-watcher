@@ -3,14 +3,13 @@
  * Unit tests for findRootForPath, isIndexLockError, and gitAddViaStdin.
  */
 
-import { execFile } from 'node:child_process';
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { promisify } from 'node:util';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
+import { execFileAsync } from '../test/git';
 import {
   findRootForPath,
   getExecErrorFields,
@@ -18,8 +17,6 @@ import {
   isIndexLockError,
 } from './gitExec';
 import { initRepo } from './vcsBootstrap';
-
-const execFileAsync = promisify(execFile);
 
 describe('findRootForPath', () => {
   it('returns matching root for path under a single root', () => {

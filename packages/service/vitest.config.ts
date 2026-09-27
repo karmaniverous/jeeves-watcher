@@ -15,6 +15,7 @@ export default defineConfig({
     globals: true,
     environment: 'node',
     globalSetup: ['./src/test/globalSetup.ts'],
+    setupFiles: ['./src/test/setup.ts'],
     exclude: ['**/node_modules/**', '**/dist/**', '**/.rollup.cache/**'],
     coverage: {
       provider: 'v8',
