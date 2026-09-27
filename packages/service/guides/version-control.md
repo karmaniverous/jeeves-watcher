@@ -476,7 +476,8 @@ Each root can push to a remote git repository after every commit.
 
 - **`remote`** — Git remote URL (per-root only).
 - **`accessToken`** — Per-root token. Falls back to `defaultAccessToken` from the root-level `vcs` block.
-- Access tokens are injected into the remote URL for HTTPS authentication.
+- For HTTPS remotes, the token is sent to git as an HTTP `Authorization` header (Basic, user `x-access-token`, which GitHub accepts) scoped to the remote URL, for that one push only. It is passed through the environment, never on the command line or in the URL, and configured credential helpers are bypassed so the push can never block on an interactive prompt. The token is ignored for non-HTTPS remotes.
+- Push error messages (in logs and `pushErrors`) are scrubbed of the token in raw, URL-encoded, and base64 forms.
 
 ### Push Error Handling
 

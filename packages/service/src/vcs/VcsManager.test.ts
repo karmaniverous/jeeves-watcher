@@ -1095,7 +1095,7 @@ describe('VcsManager instance', () => {
       expect(manager.pushErrors[0].message).toBeTruthy();
     });
 
-    it('URL-encodes the access token in the push URL', async () => {
+    it('records a push error for an https remote with a token', async () => {
       const logger = pino({ level: 'silent' });
       const manager = new VcsManager(
         tempDir,
@@ -1113,17 +1113,17 @@ describe('VcsManager instance', () => {
 
       await manager.flush();
 
-      // The push will fail (invalid remote) but we can verify the error log
-      // contains the remote URL (not the token-injected URL)
+      // The push fails (dropping remote); token redaction is covered in
+      // pushTokenRedaction.test.ts
       expect(manager.pushErrors).toHaveLength(1);
       // Commit should still succeed
       expect(await commitCount(tempDir)).toBe(1);
     });
 
-    it('pushes with token injected into URL', async () => {
+    it('pushes to a non-https remote when a token is set', async () => {
       const remoteUrl = bareRemote.replace(/\\/g, '/');
-      // For local bare repos the token injection is a no-op since the URL
-      // isn't https://. The token path is exercised via the URL construction logic.
+      // The token is only sent (as an auth header) to https:// remotes, so a
+      // local bare repo ignores it. See gitNetwork.auth.test.ts.
       const manager = new VcsManager(
         tempDir,
         makeConfig(),

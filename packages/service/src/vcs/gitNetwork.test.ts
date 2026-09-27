@@ -27,6 +27,7 @@ import {
 import type * as GitExecModule from './gitExec';
 import { execFileAsync } from './gitExec';
 import {
+  buildAuthHeader,
   buildGitNetworkArgs,
   buildGitNetworkEnv,
   execGitNetwork,
@@ -187,13 +188,26 @@ describe('execGitNetwork', () => {
 });
 
 describe('gitPushNonInteractive', () => {
-  const lastArgs = (): string[] =>
-    (
-      vi.mocked(execFileAsync).mock.calls.at(-1) as unknown as [
-        string,
-        string[],
-      ]
-    )[1];
+  const lastCall = () =>
+    vi.mocked(execFileAsync).mock.calls.at(-1) as unknown as [
+      string,
+      string[],
+      { env: NodeJS.ProcessEnv },
+    ];
+  const lastArgs = (): string[] => lastCall()[1];
+  /** Config entries passed to git via GIT_CONFIG_* in the last call. */
+  const lastConfig = (): Array<[string, string]> => {
+    const { env } = lastCall()[2];
+    const count = Number(env.GIT_CONFIG_COUNT ?? 0);
+    const entries: Array<[string, string]> = [];
+    for (let i = 0; i < count; i++) {
+      entries.push([
+        env[`GIT_CONFIG_KEY_${String(i)}`] ?? '',
+        env[`GIT_CONFIG_VALUE_${String(i)}`] ?? '',
+      ]);
+    }
+    return entries;
+  };
 
   beforeEach(() => {
     vi.mocked(execFileAsync).mockClear();
@@ -203,10 +217,11 @@ describe('gitPushNonInteractive', () => {
     });
   });
 
-  it('clears helpers and encodes the token when one is injected', async () => {
+  it('clears helpers and sends the token as a header, never in argv', async () => {
+    const remoteUrl = 'https://example.invalid/repo.git';
     await gitPushNonInteractive({
       cwd: '.',
-      remoteUrl: 'https://example.invalid/repo.git',
+      remoteUrl,
       accessToken: 'tok/en@special',
       force: true,
       timeout: 1,
@@ -215,9 +230,14 @@ describe('gitPushNonInteractive', () => {
       ...buildGitNetworkArgs(true),
       'push',
       '--force',
-      'https://tok%2Fen%40special@example.invalid/repo.git',
+      remoteUrl,
       'HEAD',
     ]);
+    expect(lastConfig()).toContainEqual([
+      `http.${remoteUrl}.extraHeader`,
+      buildAuthHeader('tok/en@special'),
+    ]);
+    expect(lastArgs().join(' ')).not.toContain('tok');
   });
 
   it('keeps helpers when there is no token', async () => {
@@ -232,6 +252,7 @@ describe('gitPushNonInteractive', () => {
       'https://example.invalid/repo.git',
       'HEAD',
     ]);
+    expect(lastConfig()).toEqual([]);
   });
 
   it('keeps helpers for non-https remotes even with a token', async () => {
@@ -247,5 +268,6 @@ describe('gitPushNonInteractive', () => {
       'git@example.invalid:repo.git',
       'HEAD',
     ]);
+    expect(lastConfig()).toEqual([]);
   });
 });

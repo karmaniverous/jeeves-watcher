@@ -410,7 +410,7 @@ describe('SquashManager.runSquash', () => {
     await rm(lockPath, { force: true });
   });
 
-  it('URL-encodes access token in force push URL', async () => {
+  it('logs a failed force push with a token without throwing', async () => {
     const now = new Date();
     await createCommit(
       tempDir,
