@@ -76,6 +76,14 @@ The plugin builds on [`@karmaniverous/jeeves`](https://www.npmjs.com/package/@ka
 | `watcher_vcs_exclude` | Exclude or re-include paths from version tracking |
 | `watcher_vcs_check` | Check whether a path is excluded from version tracking and why |
 
+### Direct tools under OpenClaw Tool Search
+
+OpenClaw 2026.9+ **Tool Search** moves optional plugin tools out of the model-visible tool list into a hidden catalog reachable only through `tool_search`. `watcher_search` and `watcher_scan` are registered with `catalogMode: 'direct-only'`, so they stay directly visible to the model.
+
+**Why:** semantic search only pays off if the model reaches for it _before_ falling back to grep or filesystem walks. Hidden behind a catalog lookup, it is rarely discovered and archive recall silently degrades.
+
+**Trade-off:** these two tools always occupy space in the model's tool list, and they do **not** appear in `tool_search` results. All other `watcher_*` tools remain catalog-eligible. On OpenClaw versions without Tool Search the property is ignored.
+
 ## Documentation
 
 Full docs for the jeeves-watcher service and this plugin:

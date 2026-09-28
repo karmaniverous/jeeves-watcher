@@ -68,12 +68,16 @@ export function warnIfConfigRootUnset(api: PluginApi): boolean {
 /**
  * Wrap a tool so invocations that read `configRoot` (per `readsConfigRoot`)
  * resolve core before executing; all other invocations run unguarded.
+ *
+ * @remarks
+ * Every other descriptor property (e.g. OpenClaw `catalogMode`) is carried
+ * through unchanged; only `execute` is replaced.
  */
-export function guardTool(
-  tool: ToolDescriptor,
+export function guardTool<T extends ToolDescriptor>(
+  tool: T,
   ensureCore: EnsureCore,
   readsConfigRoot: ConfigRootPredicate = () => true,
-): ToolDescriptor {
+): T {
   return {
     ...tool,
     execute: async (id, params) => {

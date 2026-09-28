@@ -2,6 +2,7 @@ import type { PluginApi, ToolDescriptor } from '@karmaniverous/jeeves';
 import { getConfigRoot as getCoreConfigRoot } from '@karmaniverous/jeeves';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import type { CatalogToolDescriptor } from './apiTool.js';
 import { CONFIG_ROOT_NOT_CONFIGURED } from './constants.js';
 import {
   createLazyCore,
@@ -83,6 +84,17 @@ describe('guardTool', () => {
     const blocked = await guarded.execute('2', { action: 'install' });
     expect(blocked.isError).toBe(true);
     expect(tool.execute).toHaveBeenCalledTimes(1);
+  });
+
+  it('preserves catalogMode and other descriptor properties', () => {
+    const tool: CatalogToolDescriptor = {
+      ...makeTool(),
+      catalogMode: 'direct-only',
+    };
+    const guarded = guardTool(tool, () => '/cfg');
+    expect(guarded.catalogMode).toBe('direct-only');
+    expect(guarded).toMatchObject({ name: 't', description: 'd' });
+    expect(guarded.execute).not.toBe(tool.execute);
   });
 });
 
