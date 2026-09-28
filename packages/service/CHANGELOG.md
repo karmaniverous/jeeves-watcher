@@ -6,6 +6,12 @@ All notable changes to this project will be documented in this file.
 
 ### 💼 Other
 
+- [234] chore(deps): pin @karmaniverous/jeeves 0.6.0-9
+- [234] updated core
+## [0.19.0-2] - 2026-09-27
+
+### 💼 Other
+
 - [234] [244] fix(service): make git network calls non-interactive
 
 Route push and squash force push through execGitNetwork: -c credential.helper= plus GIT_TERMINAL_PROMPT=0, GCM_INTERACTIVE=never, GIT_ASKPASS/SSH_ASKPASS=echo, so system/global credential helpers (Git Credential Manager) can never block. Tests use loopback 127.0.0.1:9 instead of github.com / invalid.example.com.
@@ -21,6 +27,7 @@ Closes #245
 - [234] updated core
 - [234] test(vcs): make git tests hermetic (ignore system credential helpers)
 - [234] Merge branch 'feature/234-core-060-lazy-config-root' of https://github.com/karmaniverous/jeeves-watcher into feature/234-core-060-lazy-config-root
+- [234] chore: release @karmaniverous/jeeves-watcher v0.19.0-2
 ## [0.19.0-1] - 2026-09-27
 
 ### 💼 Other
