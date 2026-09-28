@@ -3,7 +3,7 @@
     "url": "https://github.com/karmaniverous/jeeves-watcher/issues"
   },
   "dependencies": {
-    "@karmaniverous/jeeves": "0.6.0-8",
+    "@karmaniverous/jeeves": "0.6.0-9",
     "@karmaniverous/jsonmap": "^2.1.1",
     "zod": "^4.6.5"
   },
