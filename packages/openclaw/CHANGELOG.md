@@ -6,8 +6,15 @@ All notable changes to this project will be documented in this file.
 
 ### 💼 Other
 
+- [234] chore(deps): pin @karmaniverous/jeeves 0.6.0-9
+- [234] updated core
+## [0.16.0-3] - 2026-09-27
+
+### 💼 Other
+
 - [234] chore(deps): pin @karmaniverous/jeeves 0.6.0-8
 - [234] updated core
+- [234] chore: release @karmaniverous/jeeves-watcher-openclaw v0.16.0-3
 ## [0.16.0-2] - 2026-09-27
 
 ### 💼 Other
