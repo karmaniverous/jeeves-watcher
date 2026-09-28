@@ -9,7 +9,7 @@
   "dependencies": {
     "@commander-js/extra-typings": "^15.0.0",
     "@karmaniverous/jeeves": "0.6.0-9",
-    "@karmaniverous/jeeves-watcher-core": "^0.2.6-1",
+    "@karmaniverous/jeeves-watcher-core": "^0.2.6-2",
     "@karmaniverous/jsonmap": "^2.1.1",
     "@langchain/textsplitters": "*",
     "@qdrant/js-client-rest": "^1.19.0",
