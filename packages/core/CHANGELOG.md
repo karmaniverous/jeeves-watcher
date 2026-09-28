@@ -6,8 +6,14 @@ All notable changes to this project will be documented in this file.
 
 ### 💼 Other
 
+- [234] chore(deps): pin @karmaniverous/jeeves 0.6.0-9
+## [0.2.6-1] - 2026-09-27
+
+### 💼 Other
+
 - [234] chore: update root package-lock in release-it after:bump hooks
 - [234] chore(deps): pin @karmaniverous/jeeves 0.6.0-8
+- [234] chore: release @karmaniverous/jeeves-watcher-core v0.2.6-1
 ## [0.2.6-0] - 2026-09-27
 
 ### 💼 Other
