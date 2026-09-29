@@ -42,6 +42,12 @@
     },
     "eslint-plugin-tsdoc": {
       "@typescript-eslint/utils": "^8.70.1"
+    },
+    "release-it": {
+      "undici": "^7.30.0"
+    },
+    "@qdrant/js-client-rest": {
+      "undici": "^7.30.0"
     }
   },
   "allowScripts": {
