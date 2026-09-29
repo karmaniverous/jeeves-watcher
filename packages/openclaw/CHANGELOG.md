@@ -6,9 +6,16 @@ All notable changes to this project will be documented in this file.
 
 ### 💼 Other
 
+- [234] updated jeeves
+- Updated core
+## [0.16.0-6] - 2026-09-29
+
+### 💼 Other
+
 - [234] [248] fix: tell models to call watcher_search/watcher_scan directly, not via tool_call
 
 Stopgap for openclaw/openclaw#161022. Closes #248.
+- [234] chore: release @karmaniverous/jeeves-watcher-openclaw v0.16.0-6
 ## [0.16.0-5] - 2026-09-29
 
 ### 💼 Other
