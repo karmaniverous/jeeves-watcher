@@ -6,8 +6,15 @@ All notable changes to this project will be documented in this file.
 
 ### 💼 Other
 
+- [234] updated jeeves
+- Updated core
+## [0.19.0-3] - 2026-09-28
+
+### 💼 Other
+
 - [234] chore(deps): pin @karmaniverous/jeeves 0.6.0-9
 - [234] updated core
+- [234] chore: release @karmaniverous/jeeves-watcher v0.19.0-3
 ## [0.19.0-2] - 2026-09-27
 
 ### 💼 Other
