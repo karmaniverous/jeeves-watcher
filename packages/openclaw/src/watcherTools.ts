@@ -23,7 +23,7 @@ export function registerWatcherTools(api: PluginApi, baseUrl: string): void {
     {
       name: 'watcher_search',
       description:
-        'Semantic search over indexed documents. Supports Qdrant filters.',
+        'Semantic search over indexed documents. Supports Qdrant filters. This is a direct tool: call it directly, never through tool_call.',
       catalogMode: 'direct-only',
       parameters: {
         type: 'object',
@@ -134,7 +134,7 @@ export function registerWatcherTools(api: PluginApi, baseUrl: string): void {
     {
       name: 'watcher_scan',
       description:
-        'Filter-only point query without vector search. Returns metadata for points matching a Qdrant filter. Use for structural queries: file enumeration, staleness checks, delta computation. Use watcher_search for semantic/similarity queries.',
+        'Filter-only point query without vector search. Returns metadata for points matching a Qdrant filter. Use for structural queries: file enumeration, staleness checks, delta computation. Use watcher_search for semantic/similarity queries. This is a direct tool: call it directly, never through tool_call.',
       catalogMode: 'direct-only',
       parameters: {
         type: 'object',

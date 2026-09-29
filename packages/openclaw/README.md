@@ -84,6 +84,8 @@ OpenClaw 2026.9+ **Tool Search** moves optional plugin tools out of the model-vi
 
 **Trade-off:** these two tools always occupy space in the model's tool list, and they do **not** appear in `tool_search` results. All other `watcher_*` tools remain catalog-eligible. On OpenClaw versions without Tool Search the property is ignored.
 
+**Stopgap:** some models route direct tools through `tool_call`, which fails because they are not in the catalog, so both descriptions end with "This is a direct tool: call it directly, never through tool_call." until [openclaw/openclaw#161022](https://github.com/openclaw/openclaw/issues/161022) is fixed.
+
 ## Documentation
 
 Full docs for the jeeves-watcher service and this plugin:

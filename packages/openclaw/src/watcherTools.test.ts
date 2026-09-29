@@ -5,6 +5,10 @@ import { BASE, captureTools, mockFetch, run } from './toolTestHarness.js';
 /** Tools that must stay model-visible under OpenClaw Tool Search. */
 const DIRECT_ONLY = ['watcher_search', 'watcher_scan'];
 
+/** Stopgap for openclaw/openclaw#161022: steer models away from tool_call. */
+const DIRECT_NOTE =
+  'This is a direct tool: call it directly, never through tool_call.';
+
 afterEach(() => {
   vi.unstubAllGlobals();
 });
@@ -41,13 +45,18 @@ describe('registerWatcherTools', () => {
     },
   );
 
-  it('registers every other tool without catalogMode', () => {
+  it.each(DIRECT_ONLY)('tells models to call %s directly', (name) => {
+    expect(captureTools().get(name)?.tool.description).toContain(DIRECT_NOTE);
+  });
+
+  it('registers every other tool without catalogMode or direct note', () => {
     const others = [...captureTools().values()].filter(
       ({ tool }) => !DIRECT_ONLY.includes(tool.name),
     );
     expect(others).toHaveLength(12);
     for (const { tool } of others) {
       expect(tool).not.toHaveProperty('catalogMode');
+      expect(tool.description).not.toContain(DIRECT_NOTE);
     }
   });
 });
