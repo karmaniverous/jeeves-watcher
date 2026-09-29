@@ -6,8 +6,18 @@ All notable changes to this project will be documented in this file.
 
 ### 💼 Other
 
+- [234] [247] feat(openclaw): make watcher_search and watcher_scan direct tools under OpenClaw Tool Search
+
+Register watcher_search and watcher_scan with catalogMode 'direct-only' so OpenClaw 2026.9 Tool Search keeps them model-visible instead of hiding them in the tool_search catalog. guardTool is now generic and preserves descriptor properties. Decompose watcherTools (432 lines) into apiTool/vcsTools modules to honor the 300-line limit.
+
+Closes #247
+## [0.16.0-4] - 2026-09-28
+
+### 💼 Other
+
 - [234] chore(deps): pin @karmaniverous/jeeves 0.6.0-9
 - [234] updated core
+- [234] chore: release @karmaniverous/jeeves-watcher-openclaw v0.16.0-4
 ## [0.16.0-3] - 2026-09-27
 
 ### 💼 Other
