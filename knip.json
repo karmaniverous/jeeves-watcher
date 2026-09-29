@@ -1,12 +1,17 @@
 {
-  "ignoreDependencies": ["typedoc", "typedoc-plugin-mdn-links", "typedoc-plugin-replace-text"],
+  "ignoreDependencies": [
+    "typedoc",
+    "typedoc-plugin-mdn-links",
+    "typedoc-plugin-replace-text"
+  ],
   "ignoreBinaries": ["typedoc", "plantuml"],
   "ignore": [],
   "ignoreExportsUsedInFile": true,
   "workspaces": {
     "packages/core": {},
     "packages/service": {
-      "entry": ["src/cli/jeeves-watcher/index.ts"]
+      "entry": ["src/cli/jeeves-watcher/index.ts"],
+      "ignoreDependencies": ["@rollup/plugin-typescript={paths:{}}"]
     },
     "packages/openclaw": {}
   }

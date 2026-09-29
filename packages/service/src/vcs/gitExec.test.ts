@@ -3,24 +3,20 @@
  * Unit tests for findRootForPath, isIndexLockError, and gitAddViaStdin.
  */
 
-import { execFile } from 'node:child_process';
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { promisify } from 'node:util';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
+import { execFileAsync } from '../test/git';
 import {
-  buildAuthenticatedPushUrl,
   findRootForPath,
   getExecErrorFields,
   gitAddViaStdin,
   isIndexLockError,
 } from './gitExec';
 import { initRepo } from './vcsBootstrap';
-
-const execFileAsync = promisify(execFile);
 
 describe('findRootForPath', () => {
   it('returns matching root for path under a single root', () => {
@@ -204,46 +200,6 @@ describe('getExecErrorFields', () => {
     const fields = getExecErrorFields(err);
     expect(fields.stderr).toBe('');
     expect(fields.stdout).toBe('');
-  });
-});
-
-describe('buildAuthenticatedPushUrl', () => {
-  it('returns URL unchanged when no token provided', () => {
-    const url = 'https://github.com/owner/repo.git';
-    expect(buildAuthenticatedPushUrl(url)).toBe(url);
-  });
-
-  it('returns URL unchanged when token is undefined', () => {
-    const url = 'https://github.com/owner/repo.git';
-    expect(buildAuthenticatedPushUrl(url, undefined)).toBe(url);
-  });
-
-  it('injects token into HTTPS URL', () => {
-    expect(
-      buildAuthenticatedPushUrl(
-        'https://github.com/owner/repo.git',
-        'mytoken123',
-      ),
-    ).toBe('https://mytoken123@github.com/owner/repo.git');
-  });
-
-  it('URL-encodes special characters in token', () => {
-    expect(
-      buildAuthenticatedPushUrl(
-        'https://github.com/owner/repo.git',
-        'tok/en@special',
-      ),
-    ).toBe('https://tok%2Fen%40special@github.com/owner/repo.git');
-  });
-
-  it('does not modify non-HTTPS URLs', () => {
-    const sshUrl = 'git@github.com:owner/repo.git';
-    expect(buildAuthenticatedPushUrl(sshUrl, 'mytoken')).toBe(sshUrl);
-  });
-
-  it('does not modify file:// URLs', () => {
-    const fileUrl = 'file:///tmp/bare-repo';
-    expect(buildAuthenticatedPushUrl(fileUrl, 'mytoken')).toBe(fileUrl);
   });
 });
 

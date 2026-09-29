@@ -4,24 +4,12 @@
  */
 
 export {
-  type ApiConfig,
-  apiConfigSchema,
-  type ConfigWatchConfig,
-  configWatchConfigSchema,
-  type EmbeddingConfig,
-  embeddingConfigSchema,
   type InferenceRule,
   inferenceRuleSchema,
   type JeevesWatcherConfig,
-  type JeevesWatcherConfigInput,
   jeevesWatcherConfigSchema,
-  type LoggingConfig,
-  loggingConfigSchema,
   type RenderBodySection,
   type RenderConfig,
   type SchemaEntry,
-  type VectorStoreConfig,
-  vectorStoreConfigSchema,
   type WatchConfig,
-  watchConfigSchema,
 } from '@karmaniverous/jeeves-watcher-core';

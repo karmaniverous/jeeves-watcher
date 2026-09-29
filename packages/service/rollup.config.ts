@@ -33,6 +33,9 @@ const typescript = typescriptPlugin({
   incremental: false,
   allowJs: false,
   checkJs: false,
+  // Type against the built core package, not the source path mapping
+  // used by typecheck/tests (see tsconfig.json).
+  paths: {},
 });
 
 const commonPlugins = [
@@ -51,6 +54,9 @@ const commonAliases: Alias[] = [];
 const commonInputOptions: InputOptions = {
   input: 'src/index.ts',
   external: [
+    // Node built-ins, including prefix-only modules such as node:sqlite that
+    // @rollup/plugin-node-resolve does not recognise as built-ins.
+    /^node:/,
     ...Object.keys(pkg.dependencies ?? {}),
     ...Object.keys(pkg.peerDependencies ?? {}),
     'tslib',
@@ -80,6 +86,7 @@ export const buildLibrary = (dest: string): RollupOptions => ({
  */
 export const buildTypes = (dest: string): RollupOptions => ({
   input: 'src/index.ts',
+  external: [/^node:/],
   output: [{ file: `${dest}/index.d.ts`, format: 'esm' }],
   plugins: [dtsPlugin()],
 });

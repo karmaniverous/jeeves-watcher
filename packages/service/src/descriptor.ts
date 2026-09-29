@@ -11,7 +11,6 @@ import type { Command } from '@commander-js/extra-typings';
 import {
   getPackageVersion,
   type JeevesComponentDescriptor,
-  type PluginApi,
   type ToolDescriptor,
 } from '@karmaniverous/jeeves';
 import {
@@ -24,7 +23,7 @@ import {
 } from '@karmaniverous/jeeves-watcher-core';
 import { packageDirectorySync } from 'package-directory';
 
-import { mergeInferenceRules } from './api/handlers/configMerge';
+import { deepMergeConfig } from './api/handlers/configMerge';
 import { startFromConfig } from './app/startFromConfig';
 import { registerCustomCommands } from './cli/jeeves-watcher/customCommands';
 
@@ -64,20 +63,8 @@ export const watcherDescriptor: JeevesComponentDescriptor = {
   // onConfigApply is overridden in createApiServer (api/index.ts) via the
   // descriptor passed as a dependency, where it has access to the live
   // reindex tracker and config getter.
-  customMerge: (
-    target: Record<string, unknown>,
-    source: Record<string, unknown>,
-  ): Record<string, unknown> => {
-    const mergedRules = mergeInferenceRules(
-      target['inferenceRules'] as Record<string, unknown>[] | undefined,
-      source['inferenceRules'] as Record<string, unknown>[] | undefined,
-    );
-    return {
-      ...target,
-      ...source,
-      inferenceRules: mergedRules,
-    };
-  },
+  // Deep merge (like core's default) with inferenceRules merged by name.
+  customMerge: deepMergeConfig,
   startCommand: (configPath: string) => [
     'node',
     resolve(packageRoot, 'dist/cli/jeeves-watcher/index.js'),
@@ -89,18 +76,9 @@ export const watcherDescriptor: JeevesComponentDescriptor = {
     await startFromConfig(configPath, watcherDescriptor);
   },
 
-  // Content — generateToolsContent is wired in the plugin package
-  // (watcherComponent.ts) where it has access to the API URL for menu generation.
-  sectionId: 'Watcher',
-  refreshIntervalSeconds: 71,
-  generateToolsContent: () => '',
-
   // Extension points
   customCliCommands: (program: Command) => {
     registerCustomCommands(program);
   },
-  customPluginTools: (api: PluginApi): ToolDescriptor[] => {
-    void api;
-    return [];
-  },
+  customPluginTools: (): ToolDescriptor[] => [],
 };

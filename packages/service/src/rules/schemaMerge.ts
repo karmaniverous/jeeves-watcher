@@ -44,15 +44,13 @@ export interface ResolvedSchema {
  * Schema entry: inline object or file path string.
  */
 export type SchemaEntry =
-  | { type?: 'object'; properties?: Record<string, unknown> }
-  | string;
+  { type?: 'object'; properties?: Record<string, unknown> } | string;
 
 /**
  * Schema reference: named string or inline object.
  */
 export type SchemaReference =
-  | string
-  | { type?: 'object'; properties?: Record<string, unknown> };
+  string | { type?: 'object'; properties?: Record<string, unknown> };
 
 /**
  * Options for schema merging.
@@ -123,8 +121,7 @@ export function mergeSchemas(
     if (schema.properties) {
       for (const [propName, propDef] of Object.entries(schema.properties)) {
         const existing = merged.properties[propName] as
-          | ResolvedProperty
-          | undefined;
+          ResolvedProperty | undefined;
         if (existing) {
           const incoming = propDef as ResolvedProperty;
           // For array-typed properties, concatenate set values instead of replacing
@@ -214,11 +211,7 @@ export function resolveAndCoerce(
 
     // Coerce to declared type - returns undefined on failure
     const coerced = coerceType(rawValue, propDef.type) as
-      | string
-      | number
-      | boolean
-      | object
-      | undefined;
+      string | number | boolean | object | undefined;
 
     // Only include if coercion succeeded
     if (coerced !== undefined) {

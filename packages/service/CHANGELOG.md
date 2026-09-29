@@ -4,9 +4,123 @@ All notable changes to this project will be documented in this file.
 
 ## [unreleased]
 
+### 💼 Other
+
+- [234] chore(deps): pin @karmaniverous/jeeves 0.6.0-9
+- [234] updated core
+## [0.19.0-2] - 2026-09-27
+
+### 💼 Other
+
+- [234] [244] fix(service): make git network calls non-interactive
+
+Route push and squash force push through execGitNetwork: -c credential.helper= plus GIT_TERMINAL_PROMPT=0, GCM_INTERACTIVE=never, GIT_ASKPASS/SSH_ASKPASS=echo, so system/global credential helpers (Git Credential Manager) can never block. Tests use loopback 127.0.0.1:9 instead of github.com / invalid.example.com.
+- [234] [244] fix(service): clear credential helpers only for injected tokens; drop-at-once test remote
+
+Adopt findings from the parked w243 attempt: always -c core.askPass= with empty GIT_ASKPASS/SSH_ASKPASS, GIT_TERMINAL_PROMPT=0, GCM_INTERACTIVE=never; reset credential.helper only when a token is injected so stored credentials still work. gitPushNonInteractive centralises push URL + policy (SquashManager 471 -> 468 lines). Tests use a local TCP server that drops connections (~ms) instead of 127.0.0.1:9 (~2 s on Windows).
+- [234] [245] fix(service): keep the access token off the git command line and out of errors
+
+Send the token to git as a URL-scoped http.<remote>.extraHeader (Basic x-access-token) via GIT_CONFIG_COUNT/KEY/VALUE env for that push only, instead of embedding it in the push URL (which Node echoes in exec error messages/cmd, reaching logs and pushErrors / GET /vcs/status). Credential helpers are still cleared when a token is used (#244). Defence in depth: sanitizeGitError redacts raw, URL-encoded and base64 forms from message, stack, cmd, stderr and stdout. Remove buildAuthenticatedPushUrl.
+
+Closes #245
+- [234] chore(deps): pin @karmaniverous/jeeves 0.6.0-8
+- [234] updated core
+- [234] test(vcs): make git tests hermetic (ignore system credential helpers)
+- [234] Merge branch 'feature/234-core-060-lazy-config-root' of https://github.com/karmaniverous/jeeves-watcher into feature/234-core-060-lazy-config-root
+- [234] chore: release @karmaniverous/jeeves-watcher v0.19.0-2
+## [0.19.0-1] - 2026-09-27
+
+### 💼 Other
+
+- [234] fix: tests and typecheck read watcher-core from source, not dist
+
+Service and openclaw vitest configs alias @karmaniverous/jeeves-watcher-core
+to packages/core/src, and their tsconfigs map it via paths, so typecheck
+and tests pass on a clean checkout with no dist/. Rollup builds override
+paths ({}) so bundling and typing still use the built core package with
+no TS warnings. Root npm test now also runs the openclaw package tests.
+
+Closes #242
+- [234] chore: update root package-lock in release-it after:bump hooks
+- [234] fix(deps): require watcher-core ^0.2.6-0 (no fallback to 0.2.5)
+- [234] [243] test(service): warm Fastify cold start in hooks, close apps
+
+The first onRulesChanged test paid Fastify's lazy require of ~250 CJS
+modules (ajv-compiler/ajv/fast-json-stringify), light-my-request's lazy
+load on first inject(), and the first ajv rule compile inside its 5s test
+budget, which timed out on a slower Windows machine during release:pre.
+
+Warm the full register path in beforeAll, close every app in afterEach,
+and drop the unneeded 50ms settle sleeps (executeReindex is invoked
+synchronously by the handler). Apply the same warm-up and server close to
+integration.test.ts.
+
+Closes #243
+- [234] chore: release @karmaniverous/jeeves-watcher v0.19.0-1
+## [0.19.0-0] - 2026-09-27
+
+### 💼 Other
+
+- [234] chore(deps): ncu --peer across all packages (keep @karmaniverous/jeeves pinned)
+- [234] chore(deps): audit fix, transitive overrides, hold extra-typings@14, drop @types/js-yaml
+
+- npm audit fix, then overrides for type-only transitive chain of mdast-util-from-adf (linkify-it ^5.0.2, uuid ^14.0.2); lockfile regenerated so overrides apply
+
+- @commander-js/extra-typings held at ^14: peer-coupled to commander 14 used by @karmaniverous/jeeves 0.5.x (held via --reject)
+
+- @types/js-yaml removed: js-yaml 5 ships its own types
+- [234] fix: migrate vector search to Qdrant query API; drop meaningless void operators
+
+- @qdrant/js-client-rest 1.19 removed QdrantClient.search; use client.query (same params, results in .points)
+
+- typescript-eslint 8.70 no-meaningless-void-operator: remove unused params instead of voiding them
+- [234] chore: knip and prettier clean-up
+
+- knip 6.38: remove unused barrel re-exports and a stale backward-compat re-export (no public API change)
+
+- prettier 3.9 formatting; add .prettierignore for generated CHANGELOGs, config.schema.json and .stan state
+- [234] feat!: move core and service to @karmaniverous/jeeves 0.6.0-4
+
+Drop the v0.x workspace-writer descriptor fields (sectionId,
+refreshIntervalSeconds, generateToolsContent) removed in core 0.6.
+- [234] chore(service): update @commander-js/extra-typings to 15
+
+Unblocked by core 0.6.0-4 (commander 15).
+- [234] chore(build): zero build and typedoc warnings
+
+- service: drop tsconfig incremental (made the rollup configPlugin warn
+  about outputToFilesystem); mark node: builtins external in the d.ts build.
+- openclaw: drop only bundled-zod INVALID_ANNOTATION / node_modules-only
+  CIRCULAR_DEPENDENCY rollup warnings.
+- service: export SquashManagerOptions (typedoc referenced it).
+- [234] chore(deps): pin @karmaniverous/jeeves 0.6.0-6
+- [234] fix(release): use --github.preRelease for release-it 21
+- [234] refactor(service): migrate EnrichmentStore to node:sqlite
+
+Replace better-sqlite3 with the built-in node:sqlite DatabaseSync. Behaviour and EnrichmentStoreInterface are unchanged (WAL, busy_timeout 5000, startup wal_checkpoint(TRUNCATE) busy warning, schema, path normalisation, merge-on-set, atomic move). Adds a fixture written by the better-sqlite3 13.0.3 build and a test proving it opens, reads and updates correctly. Externalise node: built-ins in the service rollup library/CLI builds (matches jeeves-runner) so node:sqlite does not warn as unresolved. Refs #237.
+- [234] chore(deps): remove better-sqlite3
+
+Drop better-sqlite3 and @types/better-sqlite3 from packages/service and the better-sqlite3 entry from root allowScripts. Docs: note node:sqlite (no native build) and align stale Node 20+ prerequisites with engines >=22. Closes #237.
+- [234] fix: post-e2e fixes for core 0.6 (#238, #239, #240, #241)
+
+- deps: openclaw/service depend on watcher-core ^0.2.5 || ^0.2.6-0 so the core-0.6 prerelease resolves (#238)
+
+- service: pin @qdrant/js-client-rest ^1.19.0; real-QdrantClient regression test for POST /search (#239)
+
+- service: /config/apply merges into the running config file and deep-merges patches (#240)
+
+- engines.node >=22.13 everywhere; docs say 22.13+ (#241)
+- [234] chore(deps): pin @karmaniverous/jeeves 0.6.0-7
+- [234] chore: release @karmaniverous/jeeves-watcher v0.19.0-0
+## [0.18.12] - 2026-09-22
+
 ### 🐛 Bug Fixes
 
 - Use named imports for js-yaml (closes #232)
+
+### ⚙️ Miscellaneous Tasks
+
+- Release @karmaniverous/jeeves-watcher v0.18.12
 ## [0.18.11] - 2026-06-30
 
 ### 💼 Other

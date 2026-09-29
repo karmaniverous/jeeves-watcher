@@ -10,7 +10,7 @@ import { join } from 'node:path';
 import pino from 'pino';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { execFileAsync } from './gitExec';
+import { execFileAsync } from '../test/git';
 import {
   checkGitAvailable,
   configureRepoIdentity,

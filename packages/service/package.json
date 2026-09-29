@@ -7,66 +7,63 @@
     "url": "https://github.com/karmaniverous/jeeves-watcher/issues"
   },
   "dependencies": {
-    "@commander-js/extra-typings": "^14.0.0",
-    "@karmaniverous/jeeves": "^0.5.12",
-    "@karmaniverous/jeeves-watcher-core": "^0.2.5",
+    "@commander-js/extra-typings": "^15.0.0",
+    "@karmaniverous/jeeves": "0.6.0",
+    "@karmaniverous/jeeves-watcher-core": "^0.2.6-2",
     "@karmaniverous/jsonmap": "^2.1.1",
     "@langchain/textsplitters": "*",
-    "@qdrant/js-client-rest": "*",
-    "ajv": "~8.18.0",
+    "@qdrant/js-client-rest": "^1.19.0",
+    "ajv": "~8.20.0",
     "ajv-formats": "*",
-    "better-sqlite3": "^12.10.0",
     "cheerio": "^1.2.0",
     "chokidar": "^5.0.0",
     "cosmiconfig": "*",
-    "dayjs": "^1.11.21",
+    "dayjs": "^1.11.23",
     "fastify": "*",
     "handlebars": "^4.7.9",
     "hast-util-to-mdast": "^10.1.2",
-    "ignore": "^7.0.5",
-    "js-yaml": "^4.1.0",
-    "mammoth": "^1.12.0",
+    "ignore": "^7.0.10",
+    "js-yaml": "^5.4.2",
+    "mammoth": "^1.12.3",
     "mdast-util-from-adf": "^2.2.0",
     "mdast-util-to-markdown": "^2.1.2",
     "package-directory": "^8.2.0",
-    "picomatch": "^4.0.4",
+    "picomatch": "^4.0.7",
     "pino": "*",
     "radash": "^12.1.1",
     "rehype-parse": "^9.0.1",
     "unified": "^11.0.5",
-    "unpdf": "^1.6.2",
+    "unpdf": "^1.8.1",
     "uuid": "*",
-    "zod": "^4.4.3"
+    "zod": "^4.6.5"
   },
   "description": "Filesystem watcher that keeps a Qdrant vector store in sync with document changes",
   "devDependencies": {
-    "@dotenvx/dotenvx": "^1.69.1",
+    "@dotenvx/dotenvx": "^2.30.0",
     "@rollup/plugin-alias": "^6.0.0",
-    "@rollup/plugin-commonjs": "^29.0.2",
+    "@rollup/plugin-commonjs": "^29.0.3",
     "@rollup/plugin-json": "^6.1.0",
     "@rollup/plugin-node-resolve": "^16.0.3",
     "@rollup/plugin-typescript": "^12.3.0",
-    "@types/better-sqlite3": "^7.6.13",
     "@types/fs-extra": "^11.0.4",
-    "@types/js-yaml": "^4.0.0",
-    "@types/node": "^25.9.1",
+    "@types/node": "^26.6.3",
     "@types/picomatch": "^4.0.3",
-    "@vitest/coverage-v8": "^4.1.7",
+    "@vitest/coverage-v8": "^5.0.2",
     "cross-env": "^10.1.0",
-    "fs-extra": "^11.3.5",
-    "happy-dom": "^20.9.0",
-    "knip": "^6.14.2",
-    "release-it": "^20.0.1",
-    "rollup": "^4.60.4",
-    "rollup-plugin-dts": "^6.4.1",
+    "fs-extra": "^11.4.1",
+    "happy-dom": "^20.14.5",
+    "knip": "^6.38.0",
+    "release-it": "^21.1.0",
+    "rollup": "^4.63.5",
+    "rollup-plugin-dts": "^6.5.1",
     "tslib": "^2.8.1",
-    "typedoc": "^0.28.19",
+    "typedoc": "^0.28.20",
     "typedoc-plugin-mdn-links": "^5.1.1",
     "typedoc-plugin-replace-text": "^4.2.0",
-    "vitest": "^4.1.7"
+    "vitest": "^5.0.2"
   },
   "engines": {
-    "node": ">=22"
+    "node": ">=22.13"
   },
   "exports": {
     ".": {
@@ -110,6 +107,10 @@
       "release": true
     },
     "hooks": {
+      "after:bump": [
+        "npm install --package-lock-only --ignore-scripts",
+        "git add ../../package-lock.json"
+      ],
       "after:init": [
         "npm run lint",
         "npm run typecheck",
@@ -136,18 +137,18 @@
     "url": "git+https://github.com/karmaniverous/jeeves-watcher.git"
   },
   "scripts": {
-    "build": "npm run generate:schema && rimraf dist && cross-env NO_COLOR=1 rollup --config rollup.config.ts --configPlugin @rollup/plugin-typescript",
+    "build": "npm run generate:schema && rimraf dist && cross-env NO_COLOR=1 rollup --config rollup.config.ts --configPlugin \"@rollup/plugin-typescript={paths:{}}\"",
     "changelog": "git-cliff -o CHANGELOG.md",
     "diagrams": "cd diagrams && plantuml -tpng -o ../assets -r .",
     "generate:schema": "tsx src/config/generate-schema.ts",
     "lint": "eslint .",
     "lint:fix": "eslint --fix .",
     "release": "dotenvx run -f .env.local -- release-it",
-    "release:pre": "dotenvx run -f .env.local -- release-it --no-git.requireBranch --github.prerelease --preRelease",
+    "release:pre": "dotenvx run -f .env.local -- release-it --no-git.requireBranch --github.preRelease --preRelease",
     "test": "vitest run",
     "typecheck": "tsc"
   },
   "type": "module",
   "types": "dist/index.d.ts",
-  "version": "0.18.12"
+  "version": "0.19.0-3"
 }

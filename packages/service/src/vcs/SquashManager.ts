@@ -11,12 +11,12 @@ import type pino from 'pino';
 
 import { normalizeError } from '../util/normalizeError';
 import {
-  buildAuthenticatedPushUrl,
   execFileAsync,
   GIT_TIMEOUT_CHERRY_PICK,
   GIT_TIMEOUT_PUSH,
   GIT_TIMEOUT_STANDARD,
 } from './gitExec';
+import { gitPushNonInteractive } from './gitNetwork';
 
 /**
  * Parse a standard 5-field cron expression and check if the current time matches.
@@ -446,14 +446,11 @@ export class SquashManager {
     if (!this.remoteUrl) return;
 
     try {
-      const pushUrl = buildAuthenticatedPushUrl(
-        this.remoteUrl,
-        this.accessToken,
-      );
-
-      await execFileAsync('git', ['push', '--force', pushUrl, 'HEAD'], {
+      await gitPushNonInteractive({
         cwd: this.rootPath,
-        env: { ...process.env, GIT_TERMINAL_PROMPT: '0' },
+        remoteUrl: this.remoteUrl,
+        accessToken: this.accessToken,
+        force: true,
         timeout: GIT_TIMEOUT_PUSH,
       });
 

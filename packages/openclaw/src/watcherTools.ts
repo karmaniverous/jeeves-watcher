@@ -3,91 +3,28 @@
  * Domain-specific watcher tool registrations (14 tools) for the OpenClaw plugin.
  */
 
-import {
-  connectionFail,
-  fetchJson,
-  ok,
-  type PluginApi,
-  postJson,
-  type ToolResult,
-} from '@karmaniverous/jeeves';
+import { type PluginApi } from '@karmaniverous/jeeves';
 import { getEndpoint } from '@karmaniverous/jeeves-watcher-core';
 
-import { PLUGIN_ID } from './constants.js';
+import { type ApiToolConfig, pickDefined, registerApiTool } from './apiTool.js';
+import { vcsToolConfigs } from './vcsTools.js';
 
-/** Config for a watcher API tool. */
-interface ApiToolConfig {
-  name: string;
-  description: string;
-  parameters: Record<string, unknown>;
-  /** Build the request: return [endpoint, body?]. No body = GET. */
-  buildRequest: (params: Record<string, unknown>) => [string, unknown?];
-}
-
-/** Register a single API tool with standard try/catch + ok/connectionFail. */
-function registerApiTool(
-  api: PluginApi,
-  baseUrl: string,
-  config: ApiToolConfig,
-): void {
-  api.registerTool(
-    {
-      name: config.name,
-      description: config.description,
-      parameters: config.parameters,
-      execute: async (
-        _id: string,
-        params: Record<string, unknown>,
-      ): Promise<ToolResult> => {
-        try {
-          const [endpoint, body] = config.buildRequest(params);
-          const url = `${baseUrl}${endpoint}`;
-          const data =
-            body !== undefined
-              ? await postJson(url, body)
-              : await fetchJson(url);
-          return ok(data);
-        } catch (error) {
-          return connectionFail(error, baseUrl, PLUGIN_ID);
-        }
-      },
-    },
-    { optional: true },
-  );
-}
-
-/** Build a query string from defined params. */
-function buildQuery(params: Record<string, unknown>, keys: string[]): string {
-  const parts: string[] = [];
-  for (const key of keys) {
-    const val = params[key];
-    if (val !== undefined) {
-      const s = typeof val === 'string' ? val : JSON.stringify(val);
-      parts.push(`${encodeURIComponent(key)}=${encodeURIComponent(s)}`);
-    }
-  }
-  return parts.length > 0 ? `?${parts.join('&')}` : '';
-}
-
-/** Pick defined keys from params into a body object. */
-function pickDefined(
-  params: Record<string, unknown>,
-  keys: string[],
-): Record<string, unknown> {
-  const body: Record<string, unknown> = {};
-  for (const key of keys) {
-    if (params[key] !== undefined) body[key] = params[key];
-  }
-  return body;
-}
-
-/** Register the 14 domain-specific watcher_* tools with the OpenClaw plugin API. */
+/**
+ * Register the 14 domain-specific watcher_* tools with the OpenClaw plugin API.
+ *
+ * @remarks
+ * `watcher_search` and `watcher_scan` are `catalogMode: 'direct-only'` so
+ * OpenClaw Tool Search keeps them model-visible: semantic search must be a
+ * direct tool or the model reaches for grep first. All other tools remain
+ * catalog-eligible.
+ */
 export function registerWatcherTools(api: PluginApi, baseUrl: string): void {
   const tools: ApiToolConfig[] = [
     {
       name: 'watcher_search',
       description:
-        'Semantic search over indexed documents. Supports Qdrant filters.',
+        'Semantic search over indexed documents. Supports Qdrant filters. This is a direct tool: call it directly, never through tool_call.',
+      catalogMode: 'direct-only',
       parameters: {
         type: 'object',
         required: ['query'],
@@ -197,7 +134,8 @@ export function registerWatcherTools(api: PluginApi, baseUrl: string): void {
     {
       name: 'watcher_scan',
       description:
-        'Filter-only point query without vector search. Returns metadata for points matching a Qdrant filter. Use for structural queries: file enumeration, staleness checks, delta computation. Use watcher_search for semantic/similarity queries.',
+        'Filter-only point query without vector search. Returns metadata for points matching a Qdrant filter. Use for structural queries: file enumeration, staleness checks, delta computation. Use watcher_search for semantic/similarity queries. This is a direct tool: call it directly, never through tool_call.',
+      catalogMode: 'direct-only',
       parameters: {
         type: 'object',
         required: ['filter'],
@@ -264,166 +202,7 @@ export function registerWatcherTools(api: PluginApi, baseUrl: string): void {
         { globs: params.globs },
       ],
     },
-
-    // ── VCS tools ──────────────────────────────────────────────────────
-
-    {
-      name: 'watcher_vcs_status',
-      description:
-        'Get version tracking health: enabled state, tracked roots, remote status, last activity',
-      parameters: { type: 'object', properties: {} },
-      buildRequest: () => [getEndpoint('vcsStatus').path],
-    },
-    {
-      name: 'watcher_vcs_history',
-      description:
-        'Query change history by path or glob with optional date range',
-      parameters: {
-        type: 'object',
-        required: ['glob'],
-        properties: {
-          glob: {
-            type: 'string',
-            description: 'Path or glob pattern to query history for.',
-          },
-          since: {
-            type: 'string',
-            description: 'Start date (ISO 8601 or git date string).',
-          },
-          until: {
-            type: 'string',
-            description: 'End date (ISO 8601 or git date string).',
-          },
-          limit: {
-            type: 'number',
-            description: 'Maximum number of history entries to return.',
-          },
-        },
-      },
-      buildRequest: (params) => [
-        `${getEndpoint('vcsHistory').path}${buildQuery(params, ['glob', 'since', 'until', 'limit'])}`,
-      ],
-    },
-    {
-      name: 'watcher_vcs_show',
-      description: 'Retrieve file content at a specific version',
-      parameters: {
-        type: 'object',
-        required: ['path', 'commit'],
-        properties: {
-          path: {
-            type: 'string',
-            description: 'File path to retrieve.',
-          },
-          commit: {
-            type: 'string',
-            description: 'Version identifier.',
-          },
-        },
-      },
-      buildRequest: (params) => [
-        `${getEndpoint('vcsShow').path}${buildQuery(params, ['path', 'commit'])}`,
-      ],
-    },
-    {
-      name: 'watcher_vcs_diff',
-      description:
-        'Show what changed between two versions, or between a version and current',
-      parameters: {
-        type: 'object',
-        required: ['glob', 'commit'],
-        properties: {
-          glob: {
-            type: 'string',
-            description: 'Path or glob pattern to diff.',
-          },
-          commit: {
-            type: 'string',
-            description: 'Start version identifier.',
-          },
-          commitEnd: {
-            type: 'string',
-            description:
-              'End version identifier (defaults to current if omitted).',
-          },
-        },
-      },
-      buildRequest: (params) => [
-        `${getEndpoint('vcsDiff').path}${buildQuery(params, ['glob', 'commit', 'commitEnd'])}`,
-      ],
-    },
-    {
-      name: 'watcher_vcs_revert',
-      description: 'Undo changes by restoring files to a specific version',
-      parameters: {
-        type: 'object',
-        required: ['glob', 'commit'],
-        properties: {
-          glob: {
-            type: 'string',
-            description: 'Path or glob pattern to revert.',
-          },
-          commit: {
-            type: 'string',
-            description: 'Version to restore files to.',
-          },
-          existingOnly: {
-            type: 'boolean',
-            description:
-              'When true, only revert files that currently exist (skip deleted files).',
-          },
-        },
-      },
-      buildRequest: (params) => {
-        const body = pickDefined(params, ['glob', 'commit', 'existingOnly']);
-        return [getEndpoint('vcsRevert').path, body];
-      },
-    },
-    {
-      name: 'watcher_vcs_exclude',
-      description: 'Exclude or re-include paths from version tracking',
-      parameters: {
-        type: 'object',
-        required: ['glob'],
-        properties: {
-          glob: {
-            type: 'string',
-            description: 'Glob pattern to exclude or re-include.',
-          },
-          root: {
-            type: 'string',
-            description: 'Tracked root to target (defaults to auto-detect).',
-          },
-          remove: {
-            type: 'boolean',
-            description:
-              'When true, remove the exclusion rule (re-include the path).',
-          },
-        },
-      },
-      buildRequest: (params) => {
-        const body = pickDefined(params, ['glob', 'root', 'remove']);
-        return [getEndpoint('vcsExclude').path, body];
-      },
-    },
-    {
-      name: 'watcher_vcs_check',
-      description:
-        'Check whether a path is excluded from version tracking and why',
-      parameters: {
-        type: 'object',
-        required: ['path'],
-        properties: {
-          path: {
-            type: 'string',
-            description: 'File path to check exclusion status for.',
-          },
-        },
-      },
-      buildRequest: (params) => [
-        `${getEndpoint('vcsCheckExclusion').path}${buildQuery(params, ['path'])}`,
-      ],
-    },
+    ...vcsToolConfigs,
   ];
 
   for (const tool of tools) {

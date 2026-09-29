@@ -3,8 +3,9 @@
   "compilerOptions": {
     "allowJs": true,
     "checkJs": true,
-    "incremental": true,
-    "tsBuildInfoFile": "./.tsbuildinfo",
+    "paths": {
+      "@karmaniverous/jeeves-watcher-core": ["../core/src/index.ts"]
+    },
     "types": ["node", "vitest/globals"]
   },
   "include": ["**/*"],

@@ -12,7 +12,6 @@ export type {
   JeevesWatcherConfig,
   JeevesWatcherConfigInput,
   LoggingConfig,
-  SchemaEntry,
   VectorStoreConfig,
   WatchConfig,
 } from '@karmaniverous/jeeves-watcher-core';

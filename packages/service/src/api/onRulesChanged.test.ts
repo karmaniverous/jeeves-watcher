@@ -1,4 +1,13 @@
-import { describe, expect, it, vi } from 'vitest';
+import type { FastifyInstance } from 'fastify';
+import {
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from 'vitest';
 
 import { VirtualRuleStore } from '../rules/virtualRules';
 import { createApiServer } from './index';
@@ -26,8 +35,10 @@ import { executeReindex } from './executeReindex';
 const executeReindexMock = vi.mocked(executeReindex);
 
 describe('onRulesChanged auto-reindex (Fix 21)', () => {
+  const apps: FastifyInstance[] = [];
+
   function makeServer(virtualRuleStore: VirtualRuleStore) {
-    return createApiServer({
+    const app = createApiServer({
       descriptor: { name: 'watcher' } as never,
       processor: {
         updateRules: vi.fn(),
@@ -59,14 +70,55 @@ describe('onRulesChanged auto-reindex (Fix 21)', () => {
       configPath: '/tmp/config.json',
       virtualRuleStore,
     });
+    apps.push(app);
+    return app;
   }
+
+  // Pay one-time cold-start costs here, not inside a timed test (#243):
+  // the first Fastify() lazily requires ajv/fast-json-stringify (~250 CJS
+  // modules), the first inject() lazily requires light-my-request, and the
+  // first VirtualRuleStore.register() does the first ajv rule compile.
+  beforeAll(async () => {
+    const app = makeServer(new VirtualRuleStore());
+    await app.ready();
+    await app.inject({
+      method: 'POST',
+      url: '/rules/register',
+      payload: {
+        source: 'warm-up',
+        rules: [
+          {
+            name: 'warm-up',
+            description: 'warm-up',
+            match: {
+              type: 'object',
+              properties: {
+                file: {
+                  type: 'object',
+                  properties: { path: { type: 'string', glob: '**/warm/**' } },
+                },
+              },
+            },
+            schema: [{ type: 'object', properties: {} }],
+          },
+        ],
+      },
+    });
+    await Promise.all(apps.splice(0).map((a) => a.close()));
+  });
+
+  beforeEach(() => {
+    executeReindexMock.mockClear();
+  });
+
+  afterEach(async () => {
+    await Promise.all(apps.splice(0).map((app) => app.close()));
+  });
 
   it('triggers rules reindex with extracted globs after rule registration', async () => {
     const store = new VirtualRuleStore();
     const app = makeServer(store);
     await app.ready();
-
-    executeReindexMock.mockClear();
 
     const rules = [
       {
@@ -100,10 +152,9 @@ describe('onRulesChanged auto-reindex (Fix 21)', () => {
 
     expect(response.statusCode).toBe(200);
 
-    // Allow async operations to settle
-    await new Promise((r) => setTimeout(r, 50));
-
-    // executeReindex should have been called with scope 'rules' and the extracted globs
+    // executeReindex is invoked synchronously by the route handler, so the
+    // call is recorded before inject() resolves — no settle delay needed.
+    // It should have been called with scope 'rules' and the extracted globs.
     const reindexCalls = executeReindexMock.mock.calls.filter(
       (call) => call[1] === 'rules',
     );
@@ -117,8 +168,6 @@ describe('onRulesChanged auto-reindex (Fix 21)', () => {
     const store = new VirtualRuleStore();
     const app = makeServer(store);
     await app.ready();
-
-    executeReindexMock.mockClear();
 
     const rules = [
       {
@@ -142,8 +191,6 @@ describe('onRulesChanged auto-reindex (Fix 21)', () => {
 
     expect(response.statusCode).toBe(200);
 
-    await new Promise((r) => setTimeout(r, 50));
-
     // executeReindex should NOT have been called with scope 'rules'
     const reindexCalls = executeReindexMock.mock.calls.filter(
       (call) => call[1] === 'rules',
@@ -155,8 +202,6 @@ describe('onRulesChanged auto-reindex (Fix 21)', () => {
     const store = new VirtualRuleStore();
     const app = makeServer(store);
     await app.ready();
-
-    executeReindexMock.mockClear();
 
     const rules = [
       {
@@ -206,8 +251,6 @@ describe('onRulesChanged auto-reindex (Fix 21)', () => {
     });
 
     expect(response.statusCode).toBe(200);
-
-    await new Promise((r) => setTimeout(r, 50));
 
     const reindexCalls = executeReindexMock.mock.calls.filter(
       (call) => call[1] === 'rules',

@@ -36,8 +36,7 @@ export function mergeAndValidateConfig(
     const mergedRules = mergeInferenceRules(
       candidateRaw['inferenceRules'] as Record<string, unknown>[] | undefined,
       submittedPartial['inferenceRules'] as
-        | Record<string, unknown>[]
-        | undefined,
+        Record<string, unknown>[] | undefined,
     );
     candidateRaw = {
       ...candidateRaw,

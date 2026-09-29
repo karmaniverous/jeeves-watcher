@@ -3,26 +3,25 @@
     "url": "https://github.com/karmaniverous/jeeves-watcher/issues"
   },
   "dependencies": {
-    "@karmaniverous/jeeves": "^0.5.12",
+    "@karmaniverous/jeeves": "0.6.0",
     "@karmaniverous/jsonmap": "^2.1.1",
-    "zod": "^4.4.3"
+    "zod": "^4.6.5"
   },
   "devDependencies": {
-    "@dotenvx/dotenvx": "^1.69.1",
-    "@rollup/plugin-commonjs": "^29.0.2",
+    "@dotenvx/dotenvx": "^2.30.0",
+    "@rollup/plugin-commonjs": "^29.0.3",
     "@rollup/plugin-json": "^6.1.0",
     "@rollup/plugin-node-resolve": "^16.0.3",
     "@rollup/plugin-typescript": "^12.3.0",
-    "@types/node": "^25.9.1",
+    "@types/node": "^26.6.3",
     "cross-env": "^10.1.0",
-    "release-it": "^20.0.1",
-    "rollup": "^4.60.4",
-    "rollup-plugin-dts": "^6.4.1",
-    "typescript": "^6.0.3",
-    "vitest": "^4.1.7"
+    "release-it": "^21.1.0",
+    "rollup": "^4.63.5",
+    "rollup-plugin-dts": "^6.5.1",
+    "vitest": "^5.0.2"
   },
   "engines": {
-    "node": ">=22"
+    "node": ">=22.13"
   },
   "exports": {
     ".": {
@@ -51,6 +50,10 @@
       "release": true
     },
     "hooks": {
+      "after:bump": [
+        "npm install --package-lock-only --ignore-scripts",
+        "git add ../../package-lock.json"
+      ],
       "after:init": [
         "npm run lint",
         "npm run typecheck",
@@ -83,11 +86,11 @@
     "lint:fix": "eslint --fix .",
     "prebuild": "npx rimraf dist",
     "release": "dotenvx run -f .env.local -- release-it",
-    "release:pre": "dotenvx run -f .env.local -- release-it --no-git.requireBranch --github.prerelease --preRelease",
+    "release:pre": "dotenvx run -f .env.local -- release-it --no-git.requireBranch --github.preRelease --preRelease",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },
   "type": "module",
   "types": "dist/index.d.ts",
-  "version": "0.2.5"
+  "version": "0.2.6-2"
 }

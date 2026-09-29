@@ -1,31 +1,28 @@
 {
   "author": "Jason Williscroft",
-  "bin": {
-    "jeeves-watcher-openclaw": "./dist/cli.js"
-  },
   "bugs": {
     "url": "https://github.com/karmaniverous/jeeves-watcher/issues"
   },
   "dependencies": {
-    "@karmaniverous/jeeves": "^0.5.12",
-    "@karmaniverous/jeeves-watcher-core": "^0.2.5"
+    "@karmaniverous/jeeves": "0.6.0",
+    "@karmaniverous/jeeves-watcher-core": "^0.2.6-2"
   },
   "description": "OpenClaw plugin for jeeves-watcher — semantic search and metadata enrichment tools",
   "devDependencies": {
-    "@dotenvx/dotenvx": "^1.69.1",
-    "@rollup/plugin-commonjs": "^29.0.2",
+    "@dotenvx/dotenvx": "^2.30.0",
+    "@rollup/plugin-commonjs": "^29.0.3",
     "@rollup/plugin-json": "^6.1.0",
     "@rollup/plugin-node-resolve": "^16.0.3",
     "@rollup/plugin-typescript": "^12.3.0",
     "cross-env": "^10.1.0",
-    "knip": "^6.14.2",
-    "release-it": "^20.0.1",
-    "rollup": "^4.60.4",
+    "knip": "^6.38.0",
+    "release-it": "^21.1.0",
+    "rollup": "^4.63.5",
     "tslib": "^2.8.1",
-    "vitest": "^4.1.7"
+    "vitest": "^5.0.2"
   },
   "engines": {
-    "node": ">=22"
+    "node": ">=22.13"
   },
   "exports": {
     ".": {
@@ -37,10 +34,14 @@
   },
   "files": [
     "dist",
-    "content",
     "openclaw.plugin.json"
   ],
   "homepage": "https://github.com/karmaniverous/jeeves-watcher#readme",
+  "jeeves": {
+    "conversationHooks": [
+      "before_prompt_build"
+    ]
+  },
   "keywords": [
     "openclaw",
     "plugin",
@@ -70,7 +71,10 @@
     },
     "hooks": {
       "after:bump": [
-        "node -e \"const f='openclaw.plugin.json';const j=JSON.parse(require('fs').readFileSync(f,'utf8'));j.version='${version}';require('fs').writeFileSync(f,JSON.stringify(j,null,2)+'')\""
+        "node -e \"const f='openclaw.plugin.json';const j=JSON.parse(require('fs').readFileSync(f,'utf8'));j.version='${version}';require('fs').writeFileSync(f,JSON.stringify(j,null,2)+'')\"",
+        "npx prettier --write openclaw.plugin.json",
+        "npm install --package-lock-only --ignore-scripts",
+        "git add ../../package-lock.json"
       ],
       "after:init": [
         "npm run lint",
@@ -98,19 +102,18 @@
     "url": "git+https://github.com/karmaniverous/jeeves-watcher.git"
   },
   "scripts": {
-    "build": "npm run build:plugin && npm run build:skills && npm run build:content",
-    "build:content": "node scripts/copy-content.mjs",
+    "build": "npm run build:plugin && npm run build:skills",
     "build:plugin": "rimraf dist && cross-env NO_COLOR=1 rollup --config rollup.config.ts --configPlugin @rollup/plugin-typescript",
     "build:skills": "tsx scripts/build-skills.ts",
     "changelog": "git-cliff -o CHANGELOG.md",
     "lint": "eslint .",
     "lint:fix": "eslint --fix .",
     "release": "dotenvx run -f .env.local -- release-it",
-    "release:pre": "dotenvx run -f .env.local -- release-it --no-git.requireBranch --github.prerelease --preRelease",
+    "release:pre": "dotenvx run -f .env.local -- release-it --no-git.requireBranch --github.preRelease --preRelease",
     "test": "vitest run",
     "typecheck": "tsc"
   },
   "type": "module",
   "types": "dist/index.d.ts",
-  "version": "0.15.6"
+  "version": "0.16.0-6"
 }

@@ -25,12 +25,10 @@ export interface BuildMergedDocumentOptions {
  */
 function buildHelperSection(
   configHelpers:
-    | Record<string, { path: string; description?: string }>
-    | undefined,
+    Record<string, { path: string; description?: string }> | undefined,
   legacyExports: Record<string, unknown> | undefined,
   introspection:
-    | Record<string, { exports: Record<string, string> }>
-    | undefined,
+    Record<string, { exports: Record<string, string> }> | undefined,
 ): Record<string, unknown> {
   if (!configHelpers) return {};
 

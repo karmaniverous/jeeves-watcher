@@ -21,7 +21,7 @@ For detailed architecture documentation, see [packages/service/guides/architectu
 
 ## Prerequisites
 
-- **Node.js** >=22
+- **Node.js** >=22.13
 - **Qdrant** must be running and reachable before starting jeeves-watcher. The Qdrant collection is created automatically on first startup — no manual collection creation required.
 
 ## Quick Start
@@ -221,7 +221,7 @@ Chunking settings are configured under `embedding`:
 
 ### Enrichment Store
 
-Enrichment metadata (from `POST /metadata` or `watcher_enrich`) is stored in a SQLite database at `<stateDir>/enrichments.sqlite`. Enrichments survive full reindexes. Composable merge: scalar fields overwrite, array fields union+deduplicate with inference rule output.
+Enrichment metadata (from `POST /metadata` or `watcher_enrich`) is stored in a SQLite database at `<stateDir>/enrichments.sqlite`, using Node's built-in `node:sqlite` module (no native addon). Enrichments survive full reindexes. Composable merge: scalar fields overwrite, array fields union+deduplicate with inference rule output.
 
 ```json
 {
@@ -296,22 +296,22 @@ curl -X POST http://localhost:1936/metadata \
 
 This repo includes an OpenClaw plugin (`packages/openclaw`) that exposes the jeeves-watcher API as native agent tools:
 
-| Tool                   | Description                                    |
-| ---------------------- | ---------------------------------------------- |
-| `watcher_status`       | Service health, uptime, and collection stats   |
-| `watcher_search`       | Semantic search across indexed documents       |
-| `watcher_enrich`       | Set or update document metadata                |
-| `watcher_config`       | Query the effective runtime config via JSONPath |
-| `watcher_walk`         | Walk watched filesystem paths with glob intersection |
-| `watcher_validate`     | Validate a watcher configuration               |
-| `watcher_config_apply` | Apply a new configuration                      |
-| `watcher_reindex`      | Trigger a scoped reindex with blast area plan   |
-| `watcher_scan`         | Filter-only point query with cursor pagination |
-| `watcher_issues`       | List indexing issues and errors                |
+| Tool | Description |
+| --- | --- |
+| `watcher_status` | Service health, uptime, and collection stats |
+| `watcher_search` | Semantic search across indexed documents |
+| `watcher_enrich` | Set or update document metadata |
+| `watcher_config` | Query the effective runtime config via JSONPath |
+| `watcher_walk` | Walk watched filesystem paths with glob intersection |
+| `watcher_validate` | Validate a watcher configuration |
+| `watcher_config_apply` | Apply a new configuration |
+| `watcher_reindex` | Trigger a scoped reindex with blast area plan |
+| `watcher_scan` | Filter-only point query with cursor pagination |
+| `watcher_issues` | List indexing issues and errors |
 
-The plugin integrates with [`@karmaniverous/jeeves`](https://www.npmjs.com/package/@karmaniverous/jeeves) core to manage workspace content (TOOLS.md, SOUL.md, AGENTS.md) via a `ComponentWriter` that refreshes every 71 seconds. See the [OpenClaw Integration Guide](packages/openclaw/guides/openclaw-integration.md) for details.
+The plugin is a standard OpenClaw plugin on [`@karmaniverous/jeeves`](https://www.npmjs.com/package/@karmaniverous/jeeves) 0.6 core, installed by `jeeves install`. It writes no workspace files; its always-in-context watcher rules are injected via the `before_prompt_build` hook. See the [OpenClaw Integration Guide](packages/openclaw/guides/openclaw-integration.md) for details.
 
-Plugin configuration supports `apiUrl` (defaults to `http://127.0.0.1:1936`) and `configRoot` (defaults to `j:/config`).
+Plugin configuration supports `apiUrl` (defaults to `http://127.0.0.1:1936`) and `configRoot` (no default: set it in plugin config or via `JEEVES_CONFIG_ROOT`; resolved lazily, so the plugin registers before it is set).
 
 ## Supported File Formats
 
@@ -329,4 +329,3 @@ BSD-3-Clause
 ---
 
 Built for you with ❤️ on Bali by [Jason Williscroft](https://github.com/karmaniverous) & [Jeeves](https://github.com/jgs-jeeves).
-

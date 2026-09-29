@@ -5,8 +5,8 @@
 
 import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
+import { DatabaseSync } from 'node:sqlite';
 
-import Database from 'better-sqlite3';
 import type pino from 'pino';
 
 import { normalizePath } from '../util/normalizePath';
@@ -40,7 +40,7 @@ export interface EnrichmentStoreInterface {
  * SQLite-backed enrichment metadata store.
  */
 export class EnrichmentStore implements EnrichmentStoreInterface {
-  private readonly db: Database.Database;
+  private readonly db: DatabaseSync;
   private readonly logger?: pino.Logger;
 
   /**
@@ -52,20 +52,19 @@ export class EnrichmentStore implements EnrichmentStoreInterface {
     this.logger = logger;
     mkdirSync(stateDir, { recursive: true });
     const dbPath = join(stateDir, 'enrichments.sqlite');
-    this.db = new Database(dbPath);
-    this.db.pragma('journal_mode = WAL');
-    this.db.pragma('busy_timeout = ' + BUSY_TIMEOUT_MS.toString());
+    this.db = new DatabaseSync(dbPath);
+    this.db.exec('PRAGMA journal_mode = WAL;');
+    this.db.exec('PRAGMA busy_timeout = ' + BUSY_TIMEOUT_MS.toString() + ';');
 
-    const [checkpointStatus] = this.db.pragma(
-      'wal_checkpoint(TRUNCATE)',
-    ) as Array<
+    const checkpointStatus = this.db
+      .prepare('PRAGMA wal_checkpoint(TRUNCATE)')
+      .get() as
       | {
           busy: number;
           log: number;
           checkpointed: number;
         }
-      | undefined
-    >;
+      | undefined;
 
     if (checkpointStatus && checkpointStatus.busy > 0) {
       // EnrichmentStore is expected to be single-writer. If we see a busy WAL

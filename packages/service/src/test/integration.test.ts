@@ -1,6 +1,7 @@
 import { writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
+import Fastify from 'fastify';
 import {
   afterAll,
   afterEach,
@@ -9,6 +10,7 @@ import {
   describe,
   expect,
   it,
+  onTestFinished,
 } from 'vitest';
 
 import { createApiServer } from '../api';
@@ -42,6 +44,15 @@ describe.skipIf(skipIntegration)('Integration tests (requires Qdrant)', () => {
   let enrichmentStore: EnrichmentStore;
 
   beforeAll(async () => {
+    // Pay Fastify's one-time cold start in this hook rather than inside the
+    // first timed API case (#243): the first Fastify() lazily requires
+    // ajv/fast-json-stringify and the first inject() lazily requires
+    // light-my-request.
+    const warm = Fastify();
+    warm.get('/', () => 'ok');
+    await warm.inject({ method: 'GET', url: '/' });
+    await warm.close();
+
     vectorStore = new VectorStoreClient(
       config.vectorStore,
       embeddingProvider.dimensions,
@@ -224,6 +235,7 @@ describe.skipIf(skipIntegration)('Integration tests (requires Qdrant)', () => {
         enrichmentStore,
         configPath: '',
       });
+      onTestFinished(() => server.close());
 
       const res = await server.inject({
         method: 'POST',
@@ -250,6 +262,7 @@ describe.skipIf(skipIntegration)('Integration tests (requires Qdrant)', () => {
         valuesManager: new ValuesManager(stateDir, logger),
         configPath: '',
       });
+      onTestFinished(() => server.close());
 
       const res = await server.inject({
         method: 'POST',
@@ -381,6 +394,7 @@ describe.skipIf(skipIntegration)('Integration tests (requires Qdrant)', () => {
         enrichmentStore,
         configPath: '',
       });
+      onTestFinished(() => server.close());
 
       // Enrich via API
       const res = await server.inject({
@@ -535,6 +549,7 @@ describe.skipIf(skipIntegration)('Integration tests (requires Qdrant)', () => {
         valuesManager: new ValuesManager(stateDir, logger),
         configPath: '',
       });
+      onTestFinished(() => server.close());
 
       // Search for "machine learning"
       const res = await server.inject({

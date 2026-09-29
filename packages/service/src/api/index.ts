@@ -6,7 +6,6 @@
 import { dirname } from 'node:path';
 
 import {
-  createConfigApplyHandler as coreCreateConfigApplyHandler,
   createStatusHandler as coreCreateStatusHandler,
   type JeevesComponentDescriptor,
 } from '@karmaniverous/jeeves';
@@ -35,6 +34,7 @@ import {
   executeReindex,
   type ReindexScope,
 } from './executeReindex';
+import { createConfigApplyRouteHandler } from './handlers/configApply';
 import { createConfigMatchHandler } from './handlers/configMatch';
 import { createConfigQueryHandler } from './handlers/configQuery';
 import { createConfigReindexHandler } from './handlers/configReindex';
@@ -337,24 +337,18 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
     }),
   );
 
-  const coreConfigApplyHandler = coreCreateConfigApplyHandler({
-    ...descriptor,
-    onConfigApply: () => {
-      const cfg = getConfig();
-      const reindexScope = cfg.configWatch?.reindex ?? 'issues';
-      triggerReindex(reindexScope);
-      return Promise.resolve();
-    },
-  });
-
-  app.post(getEndpoint('configApply').path, async (request, reply) => {
-    const { patch, replace } = request.body as {
-      patch: Record<string, unknown>;
-      replace?: boolean;
-    };
-    const result = await coreConfigApplyHandler({ patch, replace });
-    return reply.status(result.status).send(result.body);
-  });
+  app.post(
+    getEndpoint('configApply').path,
+    createConfigApplyRouteHandler({
+      descriptor,
+      configPath,
+      onConfigApply: () => {
+        const cfg = getConfig();
+        triggerReindex(cfg.configWatch?.reindex ?? 'issues');
+        return Promise.resolve();
+      },
+    }),
+  );
 
   // Virtual rules and points deletion routes
   if (virtualRuleStore) {

@@ -3,20 +3,18 @@
  * Tests for VcsCoordinator routing and lifecycle.
  */
 
-import { execFile } from 'node:child_process';
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
-import { promisify } from 'node:util';
 
 import pino from 'pino';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import type { JeevesWatcherConfig } from '../config/types';
+import { execFileAsync } from '../test/git';
 import { initRepo } from './vcsBootstrap';
 import { VcsCoordinator } from './VcsCoordinator';
 
-const execFileAsync = promisify(execFile);
 const silentLogger = pino({ level: 'silent' });
 
 /**

@@ -1,7 +1,5 @@
 {
-  "entryPoints": [
-    "./packages/service/src/index.ts"
-  ],
+  "entryPoints": ["./packages/service/src/index.ts"],
   "highlightLanguages": [
     "bash",
     "console",
@@ -27,10 +25,7 @@
     "GitHub": "https://github.com/karmaniverous/jeeves-watcher"
   },
   "out": "./docs/",
-  "plugin": [
-    "typedoc-plugin-mdn-links",
-    "typedoc-plugin-replace-text"
-  ],
+  "plugin": ["typedoc-plugin-mdn-links", "typedoc-plugin-replace-text"],
   "projectDocuments": [
     "./packages/service/guides/index.md",
     "./packages/openclaw/guides/index.md"

@@ -3,22 +3,23 @@
  * Tests for VcsManager instance methods.
  */
 
-import { execFile } from 'node:child_process';
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { promisify } from 'node:util';
 
 import type { VcsConfig } from '@karmaniverous/jeeves-watcher-core';
 import pino from 'pino';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import {
+  type DroppingRemote,
+  startDroppingRemote,
+} from '../test/droppingRemote';
+import { execFileAsync } from '../test/git';
 import { CommitMessageGenerator } from './CommitMessageGenerator';
 import * as vcsBootstrap from './vcsBootstrap';
 import { initRepo } from './vcsBootstrap';
 import { VcsManager } from './VcsManager';
-
-const execFileAsync = promisify(execFile);
 
 const silentLogger = pino({ level: 'silent' });
 
@@ -1007,13 +1008,18 @@ describe('VcsManager instance', () => {
 
   describe('remote push', () => {
     let bareRemote: string;
+    // Local https remote that drops connections at once: failing pushes need
+    // no network and can never reach a credential prompt.
+    let droppingRemote: DroppingRemote;
 
     beforeEach(async () => {
       bareRemote = await mkdtemp(join(tmpdir(), 'vcs-bare-'));
       await execFileAsync('git', ['init', '--bare'], { cwd: bareRemote });
+      droppingRemote = await startDroppingRemote();
     });
 
     afterEach(async () => {
+      await droppingRemote.close();
       await rm(bareRemote, { recursive: true, force: true });
     });
 
@@ -1068,7 +1074,7 @@ describe('VcsManager instance', () => {
         makeConfig(),
         logger,
         undefined,
-        'https://invalid.example.com/nonexistent/repo.git',
+        droppingRemote.url('/nonexistent/repo.git'),
       );
       await manager.start();
 
@@ -1086,14 +1092,14 @@ describe('VcsManager instance', () => {
       expect(manager.pushErrors[0].message).toBeTruthy();
     });
 
-    it('URL-encodes the access token in the push URL', async () => {
+    it('records a push error for an https remote with a token', async () => {
       const logger = pino({ level: 'silent' });
       const manager = new VcsManager(
         tempDir,
         makeConfig(),
         logger,
         undefined,
-        'https://github.com/test/repo.git',
+        droppingRemote.url(),
         'tok/en@special',
       );
       await manager.start();
@@ -1104,17 +1110,17 @@ describe('VcsManager instance', () => {
 
       await manager.flush();
 
-      // The push will fail (invalid remote) but we can verify the error log
-      // contains the remote URL (not the token-injected URL)
+      // The push fails (dropping remote); token redaction is covered in
+      // pushTokenRedaction.test.ts
       expect(manager.pushErrors).toHaveLength(1);
       // Commit should still succeed
       expect(await commitCount(tempDir)).toBe(1);
-    }, 30000);
+    });
 
-    it('pushes with token injected into URL', async () => {
+    it('pushes to a non-https remote when a token is set', async () => {
       const remoteUrl = bareRemote.replace(/\\/g, '/');
-      // For local bare repos the token injection is a no-op since the URL
-      // isn't https://. The token path is exercised via the URL construction logic.
+      // The token is only sent (as an auth header) to https:// remotes, so a
+      // local bare repo ignores it. See gitNetwork.auth.test.ts.
       const manager = new VcsManager(
         tempDir,
         makeConfig(),

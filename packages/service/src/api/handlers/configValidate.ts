@@ -55,8 +55,7 @@ function validateHelperFiles(
   const errors: ValidationError[] = [];
   for (const section of ['mapHelpers', 'templateHelpers']) {
     const helpers = config[section] as
-      | Record<string, { path?: string }>
-      | undefined;
+      Record<string, { path?: string }> | undefined;
     if (!helpers) continue;
     for (const [name, helper] of Object.entries(helpers)) {
       if (!helper.path) continue;

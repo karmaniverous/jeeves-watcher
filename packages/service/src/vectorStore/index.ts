@@ -271,14 +271,14 @@ export class VectorStoreClient implements VectorStore {
     filter?: Record<string, unknown>,
     offset?: number,
   ): Promise<SearchResult[]> {
-    const results = await this.client.search(this.collectionName, {
-      vector,
+    const { points } = await this.client.query(this.collectionName, {
+      query: vector,
       limit,
       with_payload: true,
       ...(filter ? { filter } : {}),
       ...(offset !== undefined ? { offset } : {}),
     });
-    return results.map((r) => ({
+    return points.map((r) => ({
       id: String(r.id),
       score: r.score,
       payload: r.payload as Record<string, unknown>,

@@ -1,10 +1,6 @@
 /**
  * @module plugin/constants
  * Shared constants for the OpenClaw plugin package.
- *
- * @remarks
- * Imported by both the plugin bundle (`index.ts`) and the CLI bundle
- * (`cli.ts`). Rollup inlines these into each output independently.
  */
 
 import { DEFAULT_PORT as _DEFAULT_PORT } from '@karmaniverous/jeeves-watcher-core';
@@ -16,24 +12,23 @@ export {
   SERVICE_PACKAGE,
 } from '@karmaniverous/jeeves-watcher-core';
 
-/** Plugin identifier used in OpenClaw config and extensions directory. */
+/** Plugin identifier used in OpenClaw config (`plugins.entries.<id>`). */
 export const PLUGIN_ID = 'jeeves-watcher-openclaw';
 
 /** Default watcher API base URL. */
 export const DEFAULT_API_URL = `http://127.0.0.1:${String(_DEFAULT_PORT)}`;
 
-/** Default platform config root path. */
-export const DEFAULT_CONFIG_ROOT = 'j:/config';
+/** Environment variable consulted when plugin config has no `configRoot`. */
+export const CONFIG_ROOT_ENV_VAR = 'JEEVES_CONFIG_ROOT';
 
 /**
- * Timeout in milliseconds for menu generation fetch calls.
+ * Tool error returned when `configRoot` cannot be resolved.
  *
  * @remarks
- * Must be generous enough to survive watcher startup (initial scan can
- * take 15+ minutes on large filesystems). If the fetch hangs past this
- * timeout, the `createAsyncContentCache` `refreshing` flag is cleared
- * and the next cycle retries. Too short = unnecessary "unreachable"
- * messages. Too long = `refreshing` deadlock when the server genuinely
- * hangs. 10 seconds balances both concerns.
+ * There is deliberately no default config root: a hard-coded path is only
+ * correct on one installation (see #227).
  */
-export const MENU_FETCH_TIMEOUT_MS = 10_000;
+export const CONFIG_ROOT_NOT_CONFIGURED = `configRoot not configured — set it in plugin config (plugins.entries.${PLUGIN_ID}.config.configRoot) or via ${CONFIG_ROOT_ENV_VAR} env var`;
+
+/** Warning logged once at registration when `configRoot` is unset. */
+export const CONFIG_ROOT_UNSET_WARNING = `[${PLUGIN_ID}] configRoot not configured yet — watcher_service install will be unavailable until it is set in plugin config or ${CONFIG_ROOT_ENV_VAR} (HTTP API tools are unaffected)`;

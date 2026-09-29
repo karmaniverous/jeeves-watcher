@@ -1,66 +1,53 @@
 /**
  * @module plugin
- * OpenClaw plugin entry point. Registers all jeeves-watcher tools and starts
- * the managed content writer via `@karmaniverous/jeeves` core.
+ * OpenClaw plugin entry point. Registers the jeeves-watcher tools and the
+ * always-in-context watcher rules.
+ *
+ * @remarks
+ * A standard OpenClaw plugin on `@karmaniverous/jeeves` core: it writes no
+ * workspace files and starts no timers. Registration never requires
+ * `configRoot`; it is resolved lazily when a gated tool runs (see
+ * `lazyCore`). Only invocations that read `configRoot` (`CONFIG_ROOT_READERS`:
+ * `watcher_service install`) are gated; HTTP-only tools work without it.
  */
 
-import type { PluginApi } from '@karmaniverous/jeeves';
 import {
-  createComponentWriter,
   createPluginToolset,
   getPackageVersion,
-  init,
-  loadWorkspaceConfig,
-  resolveWorkspacePath,
-  WORKSPACE_CONFIG_DEFAULTS,
+  type PluginApi,
 } from '@karmaniverous/jeeves';
 
-import { getApiUrl, getConfigRoot } from './helpers.js';
+import { getApiUrl } from './helpers.js';
+import {
+  createLazyCore,
+  warnIfConfigRootUnset,
+  withGuardedTools,
+} from './lazyCore.js';
+import { registerWatcherPromptContext } from './promptContext.js';
 import { createWatcherComponent } from './watcherComponent.js';
 import { registerWatcherTools } from './watcherTools.js';
 
 const PLUGIN_VERSION = getPackageVersion(import.meta.url);
 
-/** Detect test environments to avoid timers and filesystem writes. */
-function isTestEnv(): boolean {
-  return process.env.NODE_ENV === 'test' || process.env.VITEST !== undefined;
-}
-
 /** Register all jeeves-watcher tools with the OpenClaw plugin API. */
 export default function register(api: PluginApi): void {
-  const apiUrl = getApiUrl(api);
+  warnIfConfigRootUnset(api);
 
-  const component = createWatcherComponent({
-    apiUrl,
-    pluginVersion: PLUGIN_VERSION,
-  });
+  const toolApi = withGuardedTools(api, createLazyCore(api));
 
   // 4 standard tools from core factory: watcher_status, watcher_config,
-  // watcher_config_apply, watcher_service.
-  for (const tool of createPluginToolset(component)) {
-    api.registerTool(tool, { optional: true });
+  // watcher_config_apply, watcher_service. `apiUrl` is resolved lazily on
+  // every call, so the HTTP tools honour the configured URL (defaultPort is
+  // only core's fallback).
+  for (const tool of createPluginToolset(
+    createWatcherComponent(PLUGIN_VERSION),
+    { apiUrl: () => getApiUrl(api) },
+  )) {
+    toolApi.registerTool(tool, { optional: true });
   }
 
-  // 7 domain-specific tools: watcher_search, watcher_enrich,
-  // watcher_validate, watcher_reindex, watcher_scan, watcher_issues,
-  // watcher_walk.
-  registerWatcherTools(api, apiUrl);
+  // 14 domain-specific tools (search, enrich, scan, vcs, ...).
+  registerWatcherTools(toolApi, getApiUrl(api));
 
-  // Avoid timers + filesystem writes in unit tests.
-  if (isTestEnv()) return;
-
-  const workspacePath = resolveWorkspacePath(api);
-
-  // Initialize jeeves-core for managed content writing.
-  init({
-    workspacePath,
-    configRoot: getConfigRoot(api),
-  });
-
-  const gatewayUrl =
-    loadWorkspaceConfig(workspacePath)?.core?.gatewayUrl ??
-    WORKSPACE_CONFIG_DEFAULTS.core.gatewayUrl;
-
-  const writer = createComponentWriter(component, { gatewayUrl });
-  writer.start();
+  registerWatcherPromptContext(api);
 }

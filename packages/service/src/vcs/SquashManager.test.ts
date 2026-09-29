@@ -3,19 +3,17 @@
  * Tests for SquashManager: retention boundary, squash mechanism, cron matching.
  */
 
-import { execFile } from 'node:child_process';
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { promisify } from 'node:util';
 
 import type { VcsRetentionConfig } from '@karmaniverous/jeeves-watcher-core';
 import pino from 'pino';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { startDroppingRemote } from '../test/droppingRemote';
+import { execFileAsync } from '../test/git';
 import { cronMatchesNow, SquashManager } from './SquashManager';
-
-const execFileAsync = promisify(execFile);
 
 const silentLogger = pino({ level: 'silent' });
 
@@ -409,7 +407,7 @@ describe('SquashManager.runSquash', () => {
     await rm(lockPath, { force: true });
   });
 
-  it('URL-encodes access token in force push URL', async () => {
+  it('logs a failed force push with a token without throwing', async () => {
     const now = new Date();
     await createCommit(
       tempDir,
@@ -433,25 +431,24 @@ describe('SquashManager.runSquash', () => {
     const logger = pino({ level: 'silent' });
     const errorSpy = vi.spyOn(logger, 'error');
 
-    // Use a token with special characters and an https remote that will fail
+    // Token with special characters; local https remote that drops at once
+    // (no network, no credential prompt). runSquash awaits git's exit.
+    const remote = await startDroppingRemote();
     const manager = new SquashManager(
       tempDir,
       makeRetention({ maxAgeDays: 30, maxVersions: 100 }),
       logger,
-      {
-        remoteUrl: 'https://github.com/test/repo.git',
-        accessToken: 'tok/en@special',
-      },
+      { remoteUrl: remote.url(), accessToken: 'tok/en@special' },
     );
 
-    const result = await manager.runSquash();
+    const result = await manager.runSquash().finally(remote.close);
     expect(result.squashed).toBe(true);
     // Force push will fail (invalid remote) — that's expected
     expect(errorSpy).toHaveBeenCalledWith(
       expect.objectContaining({ root: tempDir }),
       'Squash force push failed',
     );
-  }, 30000);
+  });
 
   it('handles single commit repo (no-op)', async () => {
     await createCommit(tempDir, 'file1.txt', 'a');

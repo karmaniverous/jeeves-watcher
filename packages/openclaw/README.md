@@ -8,43 +8,37 @@ A running [jeeves-watcher](https://www.npmjs.com/package/@karmaniverous/jeeves-w
 
 ## Installation
 
-### Standard (OpenClaw CLI)
+The plugin is a standard OpenClaw plugin with no installer of its own. On a Jeeves box, `jeeves install` (from [`@karmaniverous/jeeves`](https://www.npmjs.com/package/@karmaniverous/jeeves) 0.6+) installs it and writes its config:
 
 ```bash
-openclaw plugins install @karmaniverous/jeeves-watcher-openclaw
+jeeves install watcher --config-root /srv/jeeves/config
 ```
 
-### Self-Installer (Windows workaround)
-
-OpenClaw's `plugins install` command has a known [`spawn EINVAL`](https://github.com/openclaw/openclaw/issues/9224) bug on Windows. This package includes a self-installer that bypasses the issue:
+Or install it directly with the OpenClaw CLI and set the config yourself:
 
 ```bash
-npx @karmaniverous/jeeves-watcher-openclaw install
+openclaw plugins install npm:@karmaniverous/jeeves-watcher-openclaw@<version> --pin --accept-capabilities
 ```
 
-This copies the plugin into OpenClaw's extensions directory and patches the config. To remove:
+The plugin registers an always-in-context rule set through OpenClaw's `before_prompt_build` hook, so it needs `plugins.entries.jeeves-watcher-openclaw.hooks.allowConversationAccess: true`. `jeeves install` / `jeeves update` grant this automatically (the hook is declared in `package.json` under `jeeves.conversationHooks`).
 
-```bash
-npx @karmaniverous/jeeves-watcher-openclaw uninstall
-```
-
-**Non-default installations:** Set `OPENCLAW_CONFIG` (path to `openclaw.json`) or `OPENCLAW_HOME` (path to `.openclaw` directory) if OpenClaw is not installed at the default location.
-
-After install or uninstall, restart the OpenClaw gateway to apply changes.
+Restart the OpenClaw gateway to apply changes.
 
 ## Configuration
 
-Set the plugin config in `openclaw.json` under `plugins.entries.jeeves-watcher-openclaw.config`:
+Plugin config lives in `openclaw.json` under `plugins.entries.jeeves-watcher-openclaw.config`:
 
 ```json
 {
   "apiUrl": "http://127.0.0.1:1936",
-  "configRoot": "j:/config"
+  "configRoot": "/srv/jeeves/config"
 }
 ```
 
-- **`apiUrl`** — jeeves-watcher API base URL (default: `http://127.0.0.1:1936`)
-- **`configRoot`** — platform config root path, used by `@karmaniverous/jeeves` core to derive `{configRoot}/jeeves-watcher/` for component config (default: `j:/config`)
+- **`apiUrl`**: jeeves-watcher API base URL (default: `http://127.0.0.1:1936`; env fallback `JEEVES_WATCHER_URL`).
+- **`configRoot`**: platform config root path, used by `@karmaniverous/jeeves` core to derive `{configRoot}/jeeves-watcher/`. **No default.** Set it in plugin config or via the `JEEVES_CONFIG_ROOT` env var.
+
+`configRoot` is resolved lazily. The plugin always registers, even before its config is written (`openclaw plugins install` activates a plugin before `jeeves install` writes `plugins.entries.<id>.config`). While `configRoot` is unset the plugin logs one warning at registration. Gating is per call: only invocations that actually read `configRoot` are gated. Today that is exactly `watcher_service` with `action: "install"` (it derives the service config path from `configRoot`); it returns an error naming both ways to set it. Other `watcher_service` actions (`uninstall`, `start`, `stop`, `restart`, `status`) address the OS service by name, and every other tool only calls the watcher HTTP API, so they keep working without `configRoot`. Core is initialized on the first gated call after it resolves.
 
 ## Architecture
 
@@ -52,17 +46,17 @@ Set the plugin config in `openclaw.json` under `plugins.entries.jeeves-watcher-o
 
 ## Jeeves Platform Integration
 
-This plugin integrates with [`@karmaniverous/jeeves`](https://www.npmjs.com/package/@karmaniverous/jeeves) to manage workspace content:
+The plugin builds on [`@karmaniverous/jeeves`](https://www.npmjs.com/package/@karmaniverous/jeeves) 0.6 (the static-content core). It writes **no** workspace files and starts no timers:
 
-- **TOOLS.md** — writes a `## Watcher` section with a live menu of indexed content, score thresholds, and escalation rules (refreshes every 71 seconds)
-- **SOUL.md / AGENTS.md** — maintains shared platform content via managed sections
-- **Service commands** — exposes `stop`, `uninstall`, and `status` for the watcher service
-- **Plugin commands** — exposes `uninstall` for the plugin itself
+- **Always-in-context rules**: the watcher escalation, scan-first and search-first rules and score guidance are injected on every turn via `before_prompt_build` (`registerPromptContext`). They replace the v0.x TOOLS.md `## Watcher` section.
+- **Live state**: served by tools (`watcher_status`, `watcher_config`) rather than a refreshed file.
+- **Skill**: `jeeves-watcher` ships in the package and is declared in `openclaw.plugin.json` (`skills`).
+- **Static platform content** (SOUL.md / AGENTS.md blocks) is rendered only by `jeeves install`.
 
 ## Tools
 
 | Tool | Description |
-|------|-------------|
+| --- | --- |
 | `watcher_status` | Service health, uptime, and collection stats |
 | `watcher_search` | Semantic search across indexed documents |
 | `watcher_enrich` | Set or update document metadata by file path |
@@ -81,6 +75,16 @@ This plugin integrates with [`@karmaniverous/jeeves`](https://www.npmjs.com/pack
 | `watcher_vcs_revert` | Undo changes by restoring files to a specific version |
 | `watcher_vcs_exclude` | Exclude or re-include paths from version tracking |
 | `watcher_vcs_check` | Check whether a path is excluded from version tracking and why |
+
+### Direct tools under OpenClaw Tool Search
+
+OpenClaw 2026.9+ **Tool Search** moves optional plugin tools out of the model-visible tool list into a hidden catalog reachable only through `tool_search`. `watcher_search` and `watcher_scan` are registered with `catalogMode: 'direct-only'`, so they stay directly visible to the model.
+
+**Why:** semantic search only pays off if the model reaches for it _before_ falling back to grep or filesystem walks. Hidden behind a catalog lookup, it is rarely discovered and archive recall silently degrades.
+
+**Trade-off:** these two tools always occupy space in the model's tool list, and they do **not** appear in `tool_search` results. All other `watcher_*` tools remain catalog-eligible. On OpenClaw versions without Tool Search the property is ignored.
+
+**Stopgap:** some models route direct tools through `tool_call`, which fails because they are not in the catalog, so both descriptions end with "This is a direct tool: call it directly, never through tool_call." until [openclaw/openclaw#161022](https://github.com/openclaw/openclaw/issues/161022) is fixed.
 
 ## Documentation
 

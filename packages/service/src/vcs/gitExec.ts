@@ -38,25 +38,6 @@ export function getExecErrorFields(error: unknown): {
 }
 
 /**
- * Build an authenticated push URL by injecting a token into an HTTPS remote.
- * Non-HTTPS URLs are returned as-is.
- *
- * @param remoteUrl - The remote repository URL.
- * @param accessToken - Optional access token to inject.
- * @returns The URL with the token injected if applicable.
- */
-export function buildAuthenticatedPushUrl(
-  remoteUrl: string,
-  accessToken?: string,
-): string {
-  if (!accessToken) return remoteUrl;
-  return remoteUrl.replace(
-    /^https:\/\//,
-    `https://${encodeURIComponent(accessToken)}@`,
-  );
-}
-
-/**
  * Stage files via stdin to avoid ENAMETOOLONG on Windows.
  *
  * Uses `git add --pathspec-from-file=- --pathspec-file-nul` so the file list is piped

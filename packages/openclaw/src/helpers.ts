@@ -9,16 +9,30 @@
  * @module plugin/helpers
  */
 
-import { type PluginApi, resolvePluginSetting } from '@karmaniverous/jeeves';
+import {
+  type PluginApi,
+  resolveOptionalPluginSetting,
+  resolvePluginSetting,
+} from '@karmaniverous/jeeves';
 
 import {
+  CONFIG_ROOT_ENV_VAR,
   DEFAULT_API_URL,
-  DEFAULT_CONFIG_ROOT,
   PLUGIN_ID,
 } from './constants.js';
 
-/** Resolve the watcher API base URL. */
+/**
+ * Resolve the watcher API base URL.
+ *
+ * @remarks
+ * Resolution order: plugin-scoped config (`api.pluginConfig`), then
+ * `plugins.entries.<id>.config`, then `JEEVES_WATCHER_URL`, then
+ * `DEFAULT_API_URL`. Safe to call per tool invocation.
+ */
 export function getApiUrl(api: PluginApi): string {
+  const scoped = api.pluginConfig?.apiUrl;
+  if (typeof scoped === 'string' && scoped.trim() !== '') return scoped;
+
   return resolvePluginSetting(
     api,
     PLUGIN_ID,
@@ -28,13 +42,27 @@ export function getApiUrl(api: PluginApi): string {
   );
 }
 
-/** Resolve the platform config root path. */
-export function getConfigRoot(api: PluginApi): string {
-  return resolvePluginSetting(
+/**
+ * Resolve the platform config root path, if configured.
+ *
+ * @remarks
+ * Resolution order: plugin-scoped config (`api.pluginConfig`), then
+ * `plugins.entries.<id>.config`, then `JEEVES_CONFIG_ROOT`. There is no
+ * default. Call this lazily (at tool invocation), never to gate
+ * registration: `openclaw plugins install` activates the plugin before
+ * `jeeves install` writes its config.
+ *
+ * @returns The config root, or `undefined` when unset.
+ */
+export function getConfigRoot(api: PluginApi): string | undefined {
+  const scoped = api.pluginConfig?.configRoot;
+  if (typeof scoped === 'string' && scoped.trim() !== '') return scoped;
+
+  const resolved = resolveOptionalPluginSetting(
     api,
     PLUGIN_ID,
     'configRoot',
-    'JEEVES_CONFIG_ROOT',
-    DEFAULT_CONFIG_ROOT,
+    CONFIG_ROOT_ENV_VAR,
   );
+  return resolved?.trim() ? resolved : undefined;
 }

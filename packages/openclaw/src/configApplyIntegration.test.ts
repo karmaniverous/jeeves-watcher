@@ -25,7 +25,7 @@ function captureAllTools() {
           'jeeves-watcher-openclaw': {
             config: {
               apiUrl: 'http://localhost:1936',
-              configRoot: 'j:/config',
+              configRoot: '/srv/jeeves/config',
             },
           },
         },
