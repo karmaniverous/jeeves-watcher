@@ -5,9 +5,9 @@
 
 import type pino from 'pino';
 
-import { execFileAsync } from '../../../vcs/gitExec';
+import { execFileAsync, gitArgs } from '../../../vcs/gitExec';
 import type { VcsCoordinator } from '../../../vcs/VcsCoordinator';
-import type { PushError } from '../../../vcs/VcsManager';
+import type { PushError, VcsBreakerState } from '../../../vcs/VcsManager';
 import { wrapHandler } from '../wrapHandler';
 
 export interface VcsStatusRouteDeps {
@@ -28,13 +28,15 @@ interface RootStatus {
   remoteUrl: string | null;
   lastPush: string | null;
   pushErrors: readonly PushError[];
+  /** Per-root commit circuit breaker state (null if no manager). */
+  breaker: VcsBreakerState | null;
 }
 
 async function getLastCommit(cwd: string): Promise<LastCommitInfo | null> {
   try {
     const { stdout } = await execFileAsync(
       'git',
-      ['log', '-1', '--format=%H|%s|%aI'],
+      gitArgs('log', '-1', '--format=%H|%s|%aI'),
       { cwd },
     );
     const trimmed = stdout.trim();
@@ -50,7 +52,7 @@ async function getTrackedCount(cwd: string): Promise<number> {
   try {
     const { stdout } = await execFileAsync(
       'git',
-      ['rev-list', '--count', 'HEAD'],
+      gitArgs('rev-list', '--count', 'HEAD'),
       { cwd },
     );
     return parseInt(stdout.trim(), 10);
@@ -63,7 +65,7 @@ async function getRemoteUrl(cwd: string): Promise<string | null> {
   try {
     const { stdout } = await execFileAsync(
       'git',
-      ['remote', 'get-url', 'origin'],
+      gitArgs('remote', 'get-url', 'origin'),
       { cwd },
     );
     const url = stdout.trim();
@@ -97,6 +99,7 @@ export function createVcsStatusHandler(deps: VcsStatusRouteDeps) {
             remoteUrl: manager?.remoteUrl ?? remoteUrl,
             lastPush: manager?.lastPushTime ?? null,
             pushErrors: manager?.pushErrors ?? [],
+            breaker: manager?.breakerState ?? null,
           };
         }),
       );

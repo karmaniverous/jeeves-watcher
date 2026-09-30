@@ -30,6 +30,7 @@ function makeConfig(overrides: Partial<VcsConfig> = {}): VcsConfig {
     maxBatchSize: 1000,
     staleLockThresholdMs: 60000,
     maxConsecutiveFailures: 5,
+    circuitBreakerCooldownMs: 300000,
     branch: 'master',
     ...overrides,
   };
@@ -460,7 +461,7 @@ describe('VcsManager instance', () => {
   });
 
   describe('circuit breaker', () => {
-    it('trips after N consecutive failures and stops re-queuing', async () => {
+    it('trips after N consecutive failures and retains pending files', async () => {
       const logger = pino({ level: 'silent' });
       const errorSpy = vi.spyOn(logger, 'error');
 
@@ -480,11 +481,7 @@ describe('VcsManager instance', () => {
       manager.fileChanged(file1);
       await manager.flush();
 
-      // Second failure — re-queues, counter = 2
-      await manager.flush();
-
-      // Third attempt — flush re-queued files without fileChanged()
-      // (fileChanged() would reset the circuit breaker)
+      // Second failure — re-queues, counter = 2 → trips
       await manager.flush();
 
       expect(errorSpy).toHaveBeenCalledWith(
@@ -494,10 +491,20 @@ describe('VcsManager instance', () => {
         expect.stringContaining('circuit breaker tripped'),
       );
 
+      // Tripped: a further flush re-queues without attempting a commit, and
+      // the file is retained (never discarded). See #249.
+      await manager.flush();
+      expect(manager.breakerState).toMatchObject({
+        tripped: true,
+        consecutiveFailures: 2,
+        pendingCount: 1,
+      });
+
+      await manager.stop();
       await rm(lockPath, { force: true });
     }, 30000);
 
-    it('resets circuit breaker when fileChanged is called after tripping', async () => {
+    it('does not reset the circuit breaker when fileChanged is called after tripping', async () => {
       const logger = pino({ level: 'silent' });
       const infoSpy = vi.spyOn(logger, 'info');
 
@@ -518,21 +525,25 @@ describe('VcsManager instance', () => {
       await manager.flush();
       await manager.flush();
 
-      // New file change should reset the circuit breaker
+      // A new file change must NOT reset the breaker (recovery is time-based)
       const file2 = join(tempDir, 'cbreset2.txt');
       await writeFile(file2, 'content', 'utf8');
       manager.fileChanged(file2);
 
-      expect(infoSpy).toHaveBeenCalledWith(
-        expect.objectContaining({ root: tempDir }),
+      expect(infoSpy).not.toHaveBeenCalledWith(
+        expect.anything(),
         expect.stringContaining('circuit breaker reset'),
       );
+      expect(manager.breakerState.tripped).toBe(true);
+      expect(manager.breakerState.pendingCount).toBe(2);
 
+      await manager.stop();
       await rm(lockPath, { force: true });
     }, 30000);
 
     it('resets counter after a successful commit', async () => {
       const logger = pino({ level: 'silent' });
+      const errorSpy = vi.spyOn(logger, 'error');
 
       const config = makeConfig({
         maxConsecutiveFailures: 2,
@@ -549,30 +560,32 @@ describe('VcsManager instance', () => {
       await writeFile(file1, 'content', 'utf8');
       manager.fileChanged(file1);
       await manager.flush(); // counter=1
+      expect(manager.breakerState.consecutiveFailures).toBe(1);
 
       // Remove lock and succeed — counter resets to 0
       await rm(lockPath, { force: true });
       await manager.flush();
 
       expect(await commitCount(tempDir)).toBe(1);
+      expect(manager.breakerState.consecutiveFailures).toBe(0);
+      expect(manager.breakerState.lastError).toBeNull();
 
-      // Create lock again and fail — counter should have reset
+      // Create lock again: one failure must NOT trip (counter was reset)
       await writeFile(lockPath, '', 'utf8');
       const file2 = join(tempDir, 'reset2.txt');
       await writeFile(file2, 'content', 'utf8');
       manager.fileChanged(file2);
       await manager.flush(); // fail 1 → counter=1
-      await manager.flush(); // fail 2 → counter=2 (= maxConsecutiveFailures)
+      expect(manager.breakerState.tripped).toBe(false);
 
-      // Flush re-queued files without fileChanged — should trip the circuit breaker
-      const errorSpy = vi.spyOn(logger, 'error');
-      await manager.flush();
-
+      await manager.flush(); // fail 2 → counter=2 → trips
       expect(errorSpy).toHaveBeenCalledWith(
         expect.objectContaining({ root: tempDir }),
         expect.stringContaining('circuit breaker tripped'),
       );
+      expect(manager.breakerState.tripped).toBe(true);
 
+      await manager.stop();
       await rm(lockPath, { force: true });
     }, 60000);
   });
@@ -1237,7 +1250,7 @@ describe('VcsManager instance', () => {
       // Should log info about nothing to commit, not error
       expect(infoSpy).toHaveBeenCalledWith(
         expect.objectContaining({ root: tempDir }),
-        expect.stringContaining('nothing to commit'),
+        expect.stringContaining('nothing staged'),
       );
 
       // Circuit breaker should NOT have been tripped

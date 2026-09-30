@@ -4,10 +4,32 @@
  */
 
 import { execFile } from 'node:child_process';
+import { resolve } from 'node:path';
 import { promisify } from 'node:util';
+
+import { normalizeSlashes } from '../util/normalizeSlashes';
 
 /** Promisified execFile for git commands. */
 export const execFileAsync = promisify(execFile);
+
+/**
+ * Leading git arguments applied to every VCS-owned git invocation.
+ *
+ * `-c core.longpaths=true` lets Windows checkouts handle paths beyond the
+ * legacy MAX_PATH limit (260 chars) without requiring a machine-wide
+ * `core.longpaths` git config or registry change. See #249.
+ */
+export const GIT_BASE_ARGS: readonly string[] = ['-c', 'core.longpaths=true'];
+
+/**
+ * Build a git argv array with {@link GIT_BASE_ARGS} prefixed.
+ *
+ * @param args - The subcommand and its arguments (e.g. `'commit', '-m', msg`).
+ * @returns The full argv array, base args first.
+ */
+export function gitArgs(...args: string[]): string[] {
+  return [...GIT_BASE_ARGS, ...args];
+}
 
 /** Standard timeout (ms) for most git operations. */
 export const GIT_TIMEOUT_STANDARD = 30_000;
@@ -38,46 +60,51 @@ export function getExecErrorFields(error: unknown): {
 }
 
 /**
- * Stage files via stdin to avoid ENAMETOOLONG on Windows.
+ * Run a git subcommand with a NUL-delimited file list piped through stdin,
+ * to avoid ENAMETOOLONG on Windows.
  *
- * Uses `git add --pathspec-from-file=- --pathspec-file-nul` so the file list is piped
- * through stdin (NUL-delimited) instead of passed as command-line
- * arguments.  This sidesteps the Windows CreateProcessW 32 767-char
- * limit that triggers ENAMETOOLONG when batches contain many files
- * with long absolute paths.
+ * This sidesteps the Windows CreateProcessW 32 767-char limit that
+ * triggers ENAMETOOLONG when batches contain many files with long
+ * absolute paths.
  *
- * @param files - Absolute paths of files to stage.
+ * @param argv - Full git argv (base args, subcommand, and flags).
+ * @param files - Absolute paths to pipe through stdin (NUL-delimited).
  * @param cwd   - Repository root (working directory for git).
- * @param timeoutMs - Kill the child process after this many milliseconds. Default: 30000.
+ * @param timeoutMs - Kill the child process after this many milliseconds.
  */
-export function gitAddViaStdin(
+function execGitStdin(
+  argv: string[],
   files: string[],
   cwd: string,
-  timeoutMs = 30_000,
-): Promise<void> {
-  return new Promise((resolve, reject) => {
+  timeoutMs: number,
+): Promise<{ stdout: string }> {
+  return new Promise((resolvePromise, reject) => {
     let timedOut = false;
     const child = execFile(
       'git',
-      ['add', '--pathspec-from-file=-', '--pathspec-file-nul'],
-      { cwd },
-      (error: Error | null) => {
+      argv,
+      { cwd, encoding: 'utf8' },
+      (error: Error | null, stdout: string) => {
         clearTimeout(timer);
         if (timedOut) return;
         if (error) reject(error);
-        else resolve();
+        else resolvePromise({ stdout });
       },
     );
 
     const timer = setTimeout(() => {
       timedOut = true;
       child.kill();
-      reject(new Error(`git add timed out after ${String(timeoutMs)}ms`));
+      reject(
+        new Error(
+          `git ${argv.join(' ')} timed out after ${String(timeoutMs)}ms`,
+        ),
+      );
     }, timeoutMs);
 
     if (!child.stdin) {
       clearTimeout(timer);
-      reject(new Error('Failed to open stdin for git add'));
+      reject(new Error('Failed to open stdin for git command'));
       return;
     }
     // Suppress EPIPE — expected if git exits before we finish writing
@@ -89,6 +116,137 @@ export function gitAddViaStdin(
     });
     child.stdin.end(files.join('\0'));
   });
+}
+
+/**
+ * Stage files via stdin to avoid ENAMETOOLONG on Windows.
+ *
+ * Uses `git add --pathspec-from-file=- --pathspec-file-nul` so the file list is piped
+ * through stdin (NUL-delimited) instead of passed as command-line
+ * arguments.
+ *
+ * @param files - Absolute paths of files to stage.
+ * @param cwd   - Repository root (working directory for git).
+ * @param timeoutMs - Kill the child process after this many milliseconds. Default: 30000.
+ */
+export async function gitAddViaStdin(
+  files: string[],
+  cwd: string,
+  timeoutMs = 30_000,
+): Promise<void> {
+  if (files.length === 0) return;
+  await execGitStdin(
+    gitArgs('add', '--pathspec-from-file=-', '--pathspec-file-nul'),
+    files,
+    cwd,
+    timeoutMs,
+  );
+}
+
+/**
+ * Stage removal (from the index only) of tracked-but-missing files via
+ * stdin, to avoid both ENAMETOOLONG and a single vanished pathspec aborting
+ * the whole invocation. `--ignore-unmatch` means a path that isn't actually
+ * tracked is silently skipped rather than failing the command. See #249.
+ *
+ * @param files - Absolute paths of tracked files to unstage/remove from the index.
+ * @param cwd   - Repository root (working directory for git).
+ * @param timeoutMs - Kill the child process after this many milliseconds. Default: 30000.
+ */
+export async function gitRmCachedViaStdin(
+  files: string[],
+  cwd: string,
+  timeoutMs = 30_000,
+): Promise<void> {
+  if (files.length === 0) return;
+  await execGitStdin(
+    gitArgs(
+      'rm',
+      '--cached',
+      '--ignore-unmatch',
+      '--quiet',
+      '--pathspec-from-file=-',
+      '--pathspec-file-nul',
+    ),
+    files,
+    cwd,
+    timeoutMs,
+  );
+}
+
+/** Max stdout buffered from `git ls-files` (large corpora can list many paths). */
+const LS_FILES_MAX_BUFFER = 256 * 1024 * 1024;
+
+/**
+ * List tracked paths that are missing from the working tree, via a single
+ * `git ls-files --deleted -z` call (never one process per file).
+ *
+ * `git ls-files` has no `--pathspec-from-file`, so rather than passing the
+ * candidate paths (which could exceed the Windows command-line limit) this
+ * asks git for every tracked-but-deleted path in the repository; callers
+ * intersect with their own candidates. The output is bounded by the number
+ * of deleted tracked files, not the repository size. See #249.
+ *
+ * @param cwd - Repository root (working directory for git).
+ * @param timeoutMs - Kill the child process after this many milliseconds. Default: 30000.
+ * @returns Absolute paths (forward slashes) of tracked files missing on disk.
+ */
+export async function listDeletedTrackedPaths(
+  cwd: string,
+  timeoutMs = 30_000,
+): Promise<string[]> {
+  const { stdout } = await execFileAsync(
+    'git',
+    gitArgs('ls-files', '--deleted', '-z'),
+    { cwd, timeout: timeoutMs, maxBuffer: LS_FILES_MAX_BUFFER },
+  );
+  return stdout
+    .split('\0')
+    .filter((rel) => rel.length > 0)
+    .map((rel) => normalizeSlashes(resolve(cwd, rel)));
+}
+
+/**
+ * Build a comparison key for an absolute path: resolved, forward slashes,
+ * and lowercased on Windows.
+ *
+ * @param p - The path.
+ * @param platform - The platform to check against (default: `process.platform`).
+ * @returns The comparison key.
+ */
+export function pathKey(
+  p: string,
+  platform: string = process.platform,
+): string {
+  return normalizePathCase(normalizeSlashes(resolve(p)), platform);
+}
+
+/**
+ * Check whether anything is currently staged (`git diff --cached --quiet`).
+ * Exit code 0 means the staged tree is identical to HEAD (nothing to
+ * commit); exit code 1 means there is a staged diff. Any other outcome is a
+ * real error and is rethrown. See #249.
+ *
+ * @param cwd - Repository root (working directory for git).
+ * @param timeoutMs - Kill the child process after this many milliseconds. Default: 30000.
+ * @returns true if there is a staged diff to commit.
+ */
+export async function hasStagedChanges(
+  cwd: string,
+  timeoutMs = 30_000,
+): Promise<boolean> {
+  try {
+    await execFileAsync('git', gitArgs('diff', '--cached', '--quiet'), {
+      cwd,
+      timeout: timeoutMs,
+    });
+    return false;
+  } catch (error) {
+    // execFile rejects with the child's numeric exit status in `code`.
+    const { code } = error as { code?: unknown };
+    if (code === 1) return true;
+    throw error;
+  }
 }
 
 /**

@@ -3,7 +3,7 @@
  * Tests for SquashManager: retention boundary, squash mechanism, cron matching.
  */
 
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -576,4 +576,124 @@ describe('SquashManager.runSquash', () => {
     expect(pauseFn).toHaveBeenCalledTimes(1);
     expect(resumeFn).toHaveBeenCalledTimes(1);
   });
+
+  // ─── #249 safety guard ───
+
+  async function createSquashableHistory(): Promise<void> {
+    const now = new Date();
+    await createCommit(
+      tempDir,
+      'file1.txt',
+      'a',
+      new Date(now.getTime() - 60 * 86400000).toISOString(),
+    );
+    await createCommit(
+      tempDir,
+      'file2.txt',
+      'b',
+      new Date(now.getTime() - 50 * 86400000).toISOString(),
+    );
+    await createCommit(
+      tempDir,
+      'file3.txt',
+      'c',
+      new Date(now.getTime() - 1 * 86400000).toISOString(),
+    );
+  }
+
+  it.each(['sequencer', 'rebase-merge', 'rebase-apply'])(
+    'refuses to squash with an in-progress operation (.git/%s) and never pauses',
+    async (marker) => {
+      await createSquashableHistory();
+      await mkdir(join(tempDir, '.git', marker));
+
+      const logger = pino({ level: 'silent' });
+      const errorSpy = vi.spyOn(logger, 'error');
+      const pauseFn = vi.fn(() => Promise.resolve());
+      const manager = new SquashManager(
+        tempDir,
+        makeRetention({ maxAgeDays: 30, maxVersions: 100 }),
+        logger,
+        { pauseCommits: pauseFn },
+      );
+
+      const result = await manager.runSquash();
+      expect(result.squashed).toBe(false);
+      expect(result.error).toContain(`.git/${marker}`);
+      expect(pauseFn).not.toHaveBeenCalled();
+      expect(errorSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ root: tempDir, marker }),
+        expect.stringContaining('Squash refused'),
+      );
+      expect(await commitCount(tempDir)).toBe(3);
+    },
+  );
+
+  it('refuses to squash with CHERRY_PICK_HEAD or MERGE_HEAD present', async () => {
+    await createSquashableHistory();
+    for (const marker of ['CHERRY_PICK_HEAD', 'MERGE_HEAD']) {
+      const markerPath = join(tempDir, '.git', marker);
+      await writeFile(markerPath, '0000000000000000000000000000000000000000\n');
+      const manager = new SquashManager(
+        tempDir,
+        makeRetention({ maxAgeDays: 30, maxVersions: 100 }),
+        silentLogger,
+      );
+      const result = await manager.runSquash();
+      expect(result.squashed).toBe(false);
+      expect(result.error).toContain(marker);
+      await rm(markerPath);
+    }
+    expect(await commitCount(tempDir)).toBe(3);
+  });
+
+  it('refuses to squash with a dirty tracked file and leaves its content intact', async () => {
+    await createSquashableHistory();
+    const dirty = join(tempDir, 'file3.txt');
+    await writeFile(dirty, 'uncommitted edit', 'utf8');
+
+    const logger = pino({ level: 'silent' });
+    const warnSpy = vi.spyOn(logger, 'warn');
+    const resumeFn = vi.fn(() => {});
+    const manager = new SquashManager(
+      tempDir,
+      makeRetention({ maxAgeDays: 30, maxVersions: 100 }),
+      logger,
+      { pauseCommits: () => Promise.resolve(), resumeCommits: resumeFn },
+    );
+
+    const result = await manager.runSquash();
+    expect(result.squashed).toBe(false);
+    expect(result.error).toContain('uncommitted changes');
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ root: tempDir }),
+      expect.stringContaining('Squash refused'),
+    );
+    expect(resumeFn).toHaveBeenCalledTimes(1);
+    expect(await readFile(dirty, 'utf8')).toBe('uncommitted edit');
+    expect(await commitCount(tempDir)).toBe(3);
+  });
+
+  it('still squashes a clean tree with untracked files present', async () => {
+    await createSquashableHistory();
+    const untracked = join(tempDir, 'untracked.pdf');
+    await writeFile(untracked, 'not tracked', 'utf8');
+
+    const manager = new SquashManager(
+      tempDir,
+      makeRetention({ maxAgeDays: 30, maxVersions: 100 }),
+      silentLogger,
+    );
+
+    const result = await manager.runSquash();
+    expect(result.squashed).toBe(true);
+    expect(await commitCount(tempDir)).toBe(2);
+    expect(await readFile(untracked, 'utf8')).toBe('not tracked');
+    const { stdout } = await execFileAsync(
+      'git',
+      ['rev-parse', '--abbrev-ref', 'HEAD'],
+      { cwd: tempDir },
+    );
+    expect(stdout.trim()).toBe('master');
+  }, 30000);
 });

@@ -21,6 +21,13 @@ interface RetryOptions {
     delayMs: number;
     error: unknown;
   }) => void;
+  /**
+   * Decide whether a given error is worth retrying. Defaults to retrying
+   * every error (preserves prior behaviour for existing callers). Return
+   * false to fail fast on the first attempt instead of exhausting
+   * `attempts` on a deterministic error.
+   */
+  shouldRetry?: (error: unknown) => boolean;
   /** Optional signal to cancel retry sleep. */
   signal?: AbortSignal;
 }
@@ -50,6 +57,7 @@ export async function retry<T>(
 ): Promise<T> {
   const attempts = Math.max(1, options.attempts);
 
+  const shouldRetry = options.shouldRetry ?? (() => true);
   let lastError: unknown;
   for (let attempt = 1; attempt <= attempts; attempt++) {
     try {
@@ -57,7 +65,7 @@ export async function retry<T>(
     } catch (error) {
       lastError = error;
       const isLast = attempt >= attempts;
-      if (isLast) break;
+      if (isLast || !shouldRetry(error)) break;
 
       const delayMs = computeDelayMs(
         attempt,

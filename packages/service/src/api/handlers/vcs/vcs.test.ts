@@ -108,6 +108,13 @@ describe('VCS API handlers', () => {
           remoteUrl: string | null;
           lastPush: string | null;
           pushErrors: Array<{ timestamp: string; message: string }>;
+          breaker: {
+            consecutiveFailures: number;
+            tripped: boolean;
+            trippedAt: string | null;
+            lastError: string | null;
+            pendingCount: number;
+          } | null;
         }>;
       };
       expect(body.enabled).toBe(true);
@@ -119,6 +126,14 @@ describe('VCS API handlers', () => {
       expect(body.roots[0].remoteUrl).toBeNull();
       expect(body.roots[0].lastPush).toBeNull();
       expect(body.roots[0].pushErrors).toEqual([]);
+      // #249: per-root circuit breaker state is exposed.
+      expect(body.roots[0].breaker).toEqual({
+        consecutiveFailures: 0,
+        tripped: false,
+        trippedAt: null,
+        lastError: null,
+        pendingCount: 0,
+      });
     });
 
     it('returns enabled:false when no VCS roots exist', async () => {

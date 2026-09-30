@@ -8,7 +8,7 @@ import { join } from 'node:path';
 
 import type pino from 'pino';
 
-import { execFileAsync, GIT_TIMEOUT_STANDARD } from './gitExec';
+import { execFileAsync, GIT_TIMEOUT_STANDARD, gitArgs } from './gitExec';
 
 /** Always-on .gitignore entries for VCS-managed watch roots. */
 export const ALWAYS_GITIGNORE_ENTRIES = [
@@ -25,7 +25,7 @@ export const ALWAYS_GITIGNORE_ENTRIES = [
  */
 export async function checkGitAvailable(): Promise<boolean> {
   try {
-    await execFileAsync('git', ['--version']);
+    await execFileAsync('git', gitArgs('--version'));
     return true;
   } catch {
     return false;
@@ -44,7 +44,7 @@ export async function initRepo(rootPath: string): Promise<void> {
     await access(gitDir);
     // .git exists, nothing to do
   } catch {
-    await execFileAsync('git', ['init'], { cwd: rootPath });
+    await execFileAsync('git', gitArgs('init'), { cwd: rootPath });
   }
 }
 
@@ -61,12 +61,16 @@ export async function configureRepoIdentity(
   name: string,
   email: string,
 ): Promise<void> {
-  await execFileAsync('git', ['config', '--local', 'user.name', name], {
+  await execFileAsync('git', gitArgs('config', '--local', 'user.name', name), {
     cwd: rootPath,
   });
-  await execFileAsync('git', ['config', '--local', 'user.email', email], {
-    cwd: rootPath,
-  });
+  await execFileAsync(
+    'git',
+    gitArgs('config', '--local', 'user.email', email),
+    {
+      cwd: rootPath,
+    },
+  );
 }
 
 /**
@@ -95,7 +99,7 @@ export async function detectAndRecoverOrphanBranch(
 
   const { stdout: branchOut } = await execFileAsync(
     'git',
-    ['rev-parse', '--abbrev-ref', 'HEAD'],
+    gitArgs('rev-parse', '--abbrev-ref', 'HEAD'),
     { cwd: rootPath, timeout: GIT_TIMEOUT_STANDARD },
   );
   const currentBranch = branchOut.trim();
@@ -110,19 +114,23 @@ export async function detectAndRecoverOrphanBranch(
   // Get current HEAD
   const { stdout: headOut } = await execFileAsync(
     'git',
-    ['rev-parse', 'HEAD'],
+    gitArgs('rev-parse', 'HEAD'),
     { cwd: rootPath, timeout: GIT_TIMEOUT_STANDARD },
   );
   const headHash = headOut.trim();
 
   // Force-update the expected branch to current HEAD
-  await execFileAsync('git', ['branch', '-f', expectedBranch, headHash], {
-    cwd: rootPath,
-    timeout: GIT_TIMEOUT_STANDARD,
-  });
+  await execFileAsync(
+    'git',
+    gitArgs('branch', '-f', expectedBranch, headHash),
+    {
+      cwd: rootPath,
+      timeout: GIT_TIMEOUT_STANDARD,
+    },
+  );
 
   // Checkout the expected branch
-  await execFileAsync('git', ['checkout', expectedBranch], {
+  await execFileAsync('git', gitArgs('checkout', expectedBranch), {
     cwd: rootPath,
     timeout: GIT_TIMEOUT_STANDARD,
   });

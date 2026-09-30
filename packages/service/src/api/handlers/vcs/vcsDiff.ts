@@ -6,7 +6,7 @@
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import type pino from 'pino';
 
-import { execFileAsync } from '../../../vcs/gitExec';
+import { execFileAsync, gitArgs } from '../../../vcs/gitExec';
 import { resolveWatchRootsForGlob } from '../../../vcs/resolveWatchRoot';
 import type { VcsCoordinator } from '../../../vcs/VcsCoordinator';
 import { wrapHandler } from '../wrapHandler';
@@ -54,7 +54,9 @@ export function createVcsDiffHandler(deps: VcsDiffRouteDeps) {
         const args = ['diff', range, '--', relativePath || '.'];
 
         try {
-          const { stdout } = await execFileAsync('git', args, { cwd: root });
+          const { stdout } = await execFileAsync('git', gitArgs(...args), {
+            cwd: root,
+          });
           if (stdout.trim()) diffs.push(stdout);
         } catch {
           // Invalid commit or path — skip

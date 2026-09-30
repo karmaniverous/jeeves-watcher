@@ -6,7 +6,7 @@
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import type pino from 'pino';
 
-import { execFileAsync } from '../../../vcs/gitExec';
+import { execFileAsync, gitArgs } from '../../../vcs/gitExec';
 import { resolveWatchRoot } from '../../../vcs/resolveWatchRoot';
 import type { VcsCoordinator } from '../../../vcs/VcsCoordinator';
 import { wrapHandler } from '../wrapHandler';
@@ -50,7 +50,7 @@ export function createVcsCheckExclusionHandler(
       try {
         const { stdout } = await execFileAsync(
           'git',
-          ['check-ignore', '-v', resolved.relativePath],
+          gitArgs('check-ignore', '-v', resolved.relativePath),
           { cwd: resolved.root },
         );
 

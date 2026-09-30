@@ -15,16 +15,35 @@ import { CommitMessageBuilder } from './CommitMessageBuilder';
 import type { CommitMessageGenerator } from './CommitMessageGenerator';
 import {
   execFileAsync,
-  getExecErrorFields,
   GIT_TIMEOUT_STANDARD,
   gitAddViaStdin,
+  gitArgs,
+  gitRmCachedViaStdin,
+  hasStagedChanges,
+  isIndexLockError,
+  listDeletedTrackedPaths,
+  pathKey,
 } from './gitExec';
-import { SquashManager } from './SquashManager';
+import { detectStaleGitOperation, SquashManager } from './SquashManager';
 import type { PendingReversion, PushError } from './types';
 import { detectAndRecoverOrphanBranch } from './vcsBootstrap';
 import { pushToRemote } from './vcsPush';
 
 export type { PendingReversion, PushError };
+
+/** Per-root circuit breaker state, exposed via /vcs/status. */
+export interface VcsBreakerState {
+  /** Consecutive commit failures since the last success. */
+  consecutiveFailures: number;
+  /** Whether the breaker is currently tripped (cooling down). */
+  tripped: boolean;
+  /** ISO timestamp of the last trip, or null if never tripped. */
+  trippedAt: string | null;
+  /** Message of the most recent failure, or null. */
+  lastError: string | null;
+  /** Number of files currently pending (queued, not yet committed). */
+  pendingCount: number;
+}
 
 /**
  * Per-root VCS manager for git-backed content versioning.
@@ -50,6 +69,13 @@ export class VcsManager {
   private throttleTimer: ReturnType<typeof setTimeout> | undefined;
   private commitInFlight: Promise<void> = Promise.resolve();
   private consecutiveCommitFailures = 0;
+  // Circuit breaker (Bug: never discard pending files, see #249): once
+  // tripped, batches are re-queued (not dropped) and retried after a
+  // time-based cooldown rather than waiting for a new file event.
+  private breakerTripped = false;
+  private trippedAtMs = 0;
+  private breakerLastError: string | undefined;
+  private breakerRetryTimer: ReturnType<typeof setTimeout> | undefined;
   private started = false;
   private paused = false;
   private isBaseline = true;
@@ -103,6 +129,19 @@ export class VcsManager {
     return this._pushErrors;
   }
 
+  /** Current circuit breaker state, for /vcs/status. */
+  get breakerState(): VcsBreakerState {
+    return {
+      consecutiveFailures: this.consecutiveCommitFailures,
+      tripped: this.breakerTripped,
+      trippedAt: this.breakerTripped
+        ? new Date(this.trippedAtMs).toISOString()
+        : null,
+      lastError: this.breakerLastError ?? null,
+      pendingCount: this.pending.size,
+    };
+  }
+
   /**
    * Begin accepting file changes. Sets the manager to started state and
    * starts the squash manager if configured.
@@ -122,6 +161,16 @@ export class VcsManager {
       this.logger.error(
         { root: this.rootPath, err: normalizeError(error) },
         'Orphan branch recovery failed — continuing with current state',
+      );
+    }
+
+    // #249: report (never auto-clear) an abandoned cherry-pick, rebase, or
+    // merge. Squash refuses to run while one is present.
+    const staleOperation = await detectStaleGitOperation(this.rootPath);
+    if (staleOperation !== undefined) {
+      this.logger.error(
+        { root: this.rootPath, marker: staleOperation },
+        `Stale in-progress git operation detected (.git/${staleOperation}) — squash retention will refuse to run until it is resolved manually (e.g. git cherry-pick --quit / git rebase --abort / git merge --abort)`,
       );
     }
 
@@ -147,15 +196,11 @@ export class VcsManager {
   fileChanged(filePath: string): void {
     if (!this.started) return;
 
-    // Reset circuit breaker on new file change so the system can recover
-    if (this.consecutiveCommitFailures >= this.config.maxConsecutiveFailures) {
-      this.logger.info(
-        { root: this.rootPath },
-        'VCS circuit breaker reset — new file change received, retrying commits',
-      );
-      this.consecutiveCommitFailures = 0;
-    }
-
+    // Note: the circuit breaker is intentionally NOT reset here. Resetting
+    // on every new file change defeated the time-based cooldown (a busy
+    // root would re-trip almost immediately on the same deterministic
+    // error). Recovery is time-based; see commitBatch() and
+    // scheduleBreakerRetry(). See #249.
     this.pending.add(filePath);
 
     if (this.pending.size >= this.config.maxBatchSize) {
@@ -238,8 +283,50 @@ export class VcsManager {
   async stop(): Promise<void> {
     this.started = false;
     this.squashManager?.stop();
+    if (this.breakerRetryTimer !== undefined) {
+      clearTimeout(this.breakerRetryTimer);
+      this.breakerRetryTimer = undefined;
+    }
     await this.flush();
     this.logger.info({ root: this.rootPath }, 'VcsManager stopped');
+  }
+
+  /**
+   * Enumerate tracked-but-deleted paths (`git ls-files --deleted`) and add
+   * the ones in this manager's watch scope to pending, so the next commit
+   * (typically the baseline commit) records deletions that happened while
+   * the process wasn't watching. Called by the coordinator before flush/
+   * endBaseline on startup. See #249.
+   *
+   * @param isInScope - Returns true if the given absolute path routes to
+   *   this manager (the coordinator's normal routing logic).
+   */
+  async reconcileDeletions(
+    isInScope: (absolutePath: string) => boolean,
+  ): Promise<void> {
+    try {
+      const deleted = await listDeletedTrackedPaths(
+        this.rootPath,
+        GIT_TIMEOUT_STANDARD,
+      );
+      let count = 0;
+      for (const abs of deleted) {
+        if (!isInScope(abs)) continue;
+        this.pending.add(abs);
+        count++;
+      }
+      if (count > 0) {
+        this.logger.info(
+          { root: this.rootPath, count },
+          'VCS startup reconciliation — staged tracked deletions',
+        );
+      }
+    } catch (error) {
+      this.logger.warn(
+        { root: this.rootPath, err: normalizeError(error) },
+        'VCS startup deletion reconciliation failed',
+      );
+    }
   }
 
   /**
@@ -306,21 +393,137 @@ export class VcsManager {
   }
 
   /**
-   * Check whether a git error represents a "nothing to commit" state.
-   * Git outputs this message to stdout (not stderr) on exit code 1.
+   * Split a batch into files that exist on disk (stage normally) and files
+   * that are missing but tracked (stage the removal). Missing + untracked
+   * paths are dropped (logged at debug) — a missing path must never fail
+   * the batch. Uses a single `git ls-files --deleted` call, never one
+   * process per file. See #249.
    */
-  private isNothingToCommitError(error: unknown): boolean {
-    const { message, stderr, stdout } = getExecErrorFields(error);
-    return (
-      message.includes('nothing to commit') ||
-      stderr.includes('nothing to commit') ||
-      stdout.includes('nothing to commit')
+  private async partitionMissingPaths(files: string[]): Promise<{
+    existing: string[];
+    missingTracked: string[];
+  }> {
+    const existing: string[] = [];
+    const missing: string[] = [];
+    await Promise.all(
+      files.map(async (f) => {
+        try {
+          await stat(f);
+          existing.push(f);
+        } catch {
+          missing.push(f);
+        }
+      }),
     );
+
+    if (missing.length === 0) {
+      return { existing, missingTracked: [] };
+    }
+
+    const deletedTracked = new Set(
+      (await listDeletedTrackedPaths(this.rootPath, GIT_TIMEOUT_STANDARD)).map(
+        (p) => pathKey(p),
+      ),
+    );
+    const missingTracked: string[] = [];
+    let droppedCount = 0;
+    for (const f of missing) {
+      if (deletedTracked.has(pathKey(f))) {
+        missingTracked.push(f);
+      } else {
+        droppedCount++;
+      }
+    }
+
+    if (droppedCount > 0) {
+      this.logger.debug(
+        { root: this.rootPath, count: droppedCount },
+        'Dropping missing, untracked paths from batch',
+      );
+    }
+
+    return { existing, missingTracked };
+  }
+
+  /**
+   * Stage a batch: add existing files, stage removal of tracked-but-missing
+   * files, and drop missing-untracked files. Never fails on a missing path.
+   */
+  private async stageBatch(files: string[]): Promise<void> {
+    const { existing, missingTracked } =
+      await this.partitionMissingPaths(files);
+    if (existing.length > 0) {
+      await gitAddViaStdin(existing, this.rootPath, GIT_TIMEOUT_STANDARD);
+    }
+    if (missingTracked.length > 0) {
+      await gitRmCachedViaStdin(
+        missingTracked,
+        this.rootPath,
+        GIT_TIMEOUT_STANDARD,
+      );
+    }
+  }
+
+  /** Reset the circuit breaker to its healthy state after a successful commit (or no-op). */
+  private resetBreaker(): void {
+    const wasTripped = this.breakerTripped;
+    this.consecutiveCommitFailures = 0;
+    this.breakerTripped = false;
+    this.trippedAtMs = 0;
+    this.breakerLastError = undefined;
+    if (this.breakerRetryTimer !== undefined) {
+      clearTimeout(this.breakerRetryTimer);
+      this.breakerRetryTimer = undefined;
+    }
+    if (wasTripped) {
+      this.logger.info(
+        { root: this.rootPath },
+        'VCS circuit breaker recovered — resuming normal operation',
+      );
+    }
+  }
+
+  /**
+   * Re-queue files up to the maxBatchSize cap, logging (and dropping) any
+   * overflow beyond the cap. The circuit breaker never silently discards a
+   * whole batch — this is the only place files are dropped, and only when
+   * pending already exceeds the configured cap.
+   */
+  private requeue(files: string[]): void {
+    const cap = this.config.maxBatchSize;
+    const toRequeue = files.slice(0, cap);
+    const overflow = files.length - toRequeue.length;
+
+    for (const f of toRequeue) {
+      this.pending.add(f);
+    }
+
+    if (overflow > 0) {
+      this.logger.warn(
+        { root: this.rootPath, overflow, cap },
+        'Re-queue cap exceeded — discarded overflow files',
+      );
+    }
+  }
+
+  /**
+   * Ensure a timer exists that will retry pending files once the circuit
+   * breaker's cooldown elapses, without needing a new file-change event.
+   */
+  private scheduleBreakerRetry(): void {
+    if (!this.started || this.breakerRetryTimer !== undefined) return;
+    const elapsed = Date.now() - this.trippedAtMs;
+    const wait = Math.max(0, this.config.circuitBreakerCooldownMs - elapsed);
+    this.breakerRetryTimer = setTimeout(() => {
+      this.breakerRetryTimer = undefined;
+      void this.flush();
+    }, wait);
   }
 
   /**
    * Commit a batch of files to the git repo with index.lock retry,
-   * stale lock detection, circuit breaker, pause support, and re-queue cap.
+   * stale lock detection, circuit breaker (re-queue + time-based cooldown),
+   * pause support, and re-queue cap. See #249.
    */
   private async commitBatch(files: string[]): Promise<void> {
     if (files.length === 0) return;
@@ -337,26 +540,42 @@ export class VcsManager {
       return;
     }
 
-    // Circuit breaker: skip if too many consecutive failures
-    if (this.consecutiveCommitFailures >= this.config.maxConsecutiveFailures) {
-      this.logger.error(
-        {
-          root: this.rootPath,
-          consecutiveFailures: this.consecutiveCommitFailures,
-          discardedFiles: files.length,
-        },
-        'VCS circuit breaker tripped — pending files discarded until next successful commit',
+    // Circuit breaker: while cooling down, re-queue (never discard) and
+    // ensure a cooldown timer is running. Once the cooldown elapses, allow
+    // exactly one half-open attempt through.
+    if (this.breakerTripped) {
+      const elapsed = Date.now() - this.trippedAtMs;
+      if (elapsed < this.config.circuitBreakerCooldownMs) {
+        // No cap here: these files were just taken from pending and were never
+        // attempted, so putting them all back cannot grow the set. Capping
+        // would silently discard work while cooling down.
+        for (const f of files) {
+          this.pending.add(f);
+        }
+        this.scheduleBreakerRetry();
+        return;
+      }
+      this.logger.info(
+        { root: this.rootPath },
+        'VCS circuit breaker half-open — attempting recovery commit',
       );
-      return;
     }
 
     try {
       // Check for stale lock before first attempt
       await this.removeStaleLock();
 
-      await retry(
+      const result = await retry(
         async (attempt) => {
-          await gitAddViaStdin(files, this.rootPath, GIT_TIMEOUT_STANDARD);
+          await this.stageBatch(files);
+
+          // Bug 1/5: "nothing staged" is a no-op, not a failure — checked via
+          // `git diff --cached --quiet`, not by parsing porcelain text.
+          const staged = await hasStagedChanges(
+            this.rootPath,
+            GIT_TIMEOUT_STANDARD,
+          );
+          if (!staged) return { committed: false } as const;
 
           // Build message after staging so getStagedDiff can see the changes.
           // Skip AI for baselines and retries — use template directly.
@@ -374,14 +593,14 @@ export class VcsManager {
                 );
 
           this.pendingReversions.length = 0;
-          await execFileAsync('git', ['commit', '-m', message], {
+          await execFileAsync('git', gitArgs('commit', '-m', message), {
             cwd: this.rootPath,
             timeout: GIT_TIMEOUT_STANDARD,
           });
 
           const { stdout: hashOut } = await execFileAsync(
             'git',
-            ['rev-parse', '--short', 'HEAD'],
+            gitArgs('rev-parse', '--short', 'HEAD'),
             { cwd: this.rootPath, timeout: GIT_TIMEOUT_STANDARD },
           );
           const hash = hashOut.trim();
@@ -398,11 +617,17 @@ export class VcsManager {
             this.logger,
           );
           if (pushTime) this._lastPushTime = pushTime;
+          return { committed: true } as const;
         },
         {
           attempts: 4,
           baseDelayMs: 500,
           maxDelayMs: 2000,
+          // Only transient errors (index.lock contention) are retried.
+          // Deterministic errors (bad pathspec, permission denied, etc.) fail
+          // on the first attempt instead of burning 3 more retries under a
+          // misleading "index.lock contention" warning. See #249.
+          shouldRetry: isIndexLockError,
           onRetry: ({ attempt, delayMs }) => {
             this.logger.warn(
               { root: this.rootPath, attempt, delay: delayMs },
@@ -412,38 +637,22 @@ export class VcsManager {
         },
       );
 
-      // Success — reset circuit breaker
-      this.consecutiveCommitFailures = 0;
-    } catch (error) {
-      // Bug 5: "nothing to commit" is a no-op, not a failure
-      if (this.isNothingToCommitError(error)) {
+      if (!result.committed) {
         this.logger.info(
           { root: this.rootPath, fileCount: files.length },
-          'VCS commit skipped — nothing to commit',
+          'VCS commit skipped — nothing staged',
         );
-        return;
       }
 
+      // Success (committed or no-op) — reset circuit breaker
+      this.resetBreaker();
+    } catch (error) {
       this.consecutiveCommitFailures++;
+      this.breakerLastError = normalizeError(error).message;
 
-      // Re-queue cap: only re-queue up to maxBatchSize files
-      const cap = this.config.maxBatchSize;
-      const toRequeue = files.slice(0, cap);
-      const overflow = files.length - toRequeue.length;
-
-      for (const f of toRequeue) {
-        this.pending.add(f);
-      }
-
-      if (overflow > 0) {
-        this.logger.warn(
-          { root: this.rootPath, overflow, cap },
-          'Re-queue cap exceeded — discarded overflow files',
-        );
-      }
-
+      this.requeue(files);
       this.logger.warn(
-        { root: this.rootPath, fileCount: toRequeue.length },
+        { root: this.rootPath, fileCount: files.length },
         'Re-queued files after commit failure',
       );
       this.logger.error(
@@ -451,8 +660,25 @@ export class VcsManager {
         'VCS commit failed',
       );
 
-      // Bug 2: Restart throttle timer so re-queued files get retried
-      this.resetThrottle();
+      if (
+        this.consecutiveCommitFailures >= this.config.maxConsecutiveFailures
+      ) {
+        this.breakerTripped = true;
+        this.trippedAtMs = Date.now();
+        this.logger.error(
+          {
+            root: this.rootPath,
+            consecutiveFailures: this.consecutiveCommitFailures,
+            pendingCount: this.pending.size,
+            cooldownMs: this.config.circuitBreakerCooldownMs,
+          },
+          'VCS circuit breaker tripped — pending files retained, will retry after cooldown',
+        );
+        this.scheduleBreakerRetry();
+      } else {
+        // Bug 2: Restart throttle timer so re-queued files get retried
+        this.resetThrottle();
+      }
     }
   }
 }

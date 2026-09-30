@@ -15,8 +15,45 @@ import {
   GIT_TIMEOUT_CHERRY_PICK,
   GIT_TIMEOUT_PUSH,
   GIT_TIMEOUT_STANDARD,
+  gitArgs,
 } from './gitExec';
 import { gitPushNonInteractive } from './gitNetwork';
+
+/**
+ * Git-internal paths that indicate an in-progress rebase, cherry-pick, or
+ * merge. Squashing (or starting normal commits) on top of one of these is
+ * unsafe: it can silently discard the in-progress operation's state or
+ * leave the repo half-rewritten. See #249.
+ */
+const STALE_OPERATION_MARKERS: readonly string[] = [
+  'sequencer',
+  'rebase-merge',
+  'rebase-apply',
+  'CHERRY_PICK_HEAD',
+  'MERGE_HEAD',
+];
+
+/**
+ * Detect a stale git sequencer/rebase/merge state (an abandoned
+ * cherry-pick, rebase, or merge left in `.git/`). Report-only: never
+ * auto-clears the state. See #249.
+ *
+ * @param rootPath - Directory of the git repository.
+ * @returns The first stale marker found, or undefined if the repo is clean.
+ */
+export async function detectStaleGitOperation(
+  rootPath: string,
+): Promise<string | undefined> {
+  for (const marker of STALE_OPERATION_MARKERS) {
+    try {
+      await access(join(rootPath, '.git', marker));
+      return marker;
+    } catch {
+      // Not present — check the next marker.
+    }
+  }
+  return undefined;
+}
 
 /**
  * Parse a standard 5-field cron expression and check if the current time matches.
@@ -209,6 +246,18 @@ export class SquashManager {
       // No lock — proceed
     }
 
+    // #249 guard (a): never squash on top of an in-progress (or abandoned)
+    // cherry-pick, rebase, or merge. Report only; never auto-clear.
+    const staleOperation = await detectStaleGitOperation(this.rootPath);
+    if (staleOperation !== undefined) {
+      const error = `Squash refused: in-progress git operation detected (.git/${staleOperation})`;
+      this.logger.error(
+        { root: this.rootPath, marker: staleOperation },
+        `${error} — resolve it manually (e.g. git cherry-pick --quit / git rebase --abort / git merge --abort)`,
+      );
+      return { squashed: false, error };
+    }
+
     // Bug 3: Pause the commit pipeline before squash
     try {
       await this.pauseCommits?.();
@@ -223,6 +272,18 @@ export class SquashManager {
     }
 
     try {
+      // #249 guard (b): the squash uses `reset --hard` / `checkout -f`, which
+      // would destroy uncommitted changes to tracked files. After draining
+      // the commit pipeline the tracked tree should be clean; if it isn't,
+      // refuse rather than lose content. Untracked files don't block.
+      const dirty = await this.getDirtyTrackedStatus();
+      if (dirty) {
+        const error =
+          'Squash refused: working tree has uncommitted changes to tracked files';
+        this.logger.warn({ root: this.rootPath }, error);
+        return { squashed: false, error };
+      }
+
       const commits = await this.getCommitLog();
 
       if (commits.length <= 1) {
@@ -265,13 +326,28 @@ export class SquashManager {
   }
 
   /**
+   * Check for uncommitted changes to tracked files (staged or unstaged),
+   * ignoring untracked files.
+   *
+   * @returns true if any tracked file differs from HEAD.
+   */
+  private async getDirtyTrackedStatus(): Promise<boolean> {
+    const { stdout } = await execFileAsync(
+      'git',
+      gitArgs('status', '--porcelain', '-z', '--untracked-files=no'),
+      { cwd: this.rootPath, timeout: GIT_TIMEOUT_STANDARD },
+    );
+    return stdout.length > 0;
+  }
+
+  /**
    * Get all commits in chronological order (oldest first).
    */
   async getCommitLog(): Promise<CommitInfo[]> {
     try {
       const { stdout } = await execFileAsync(
         'git',
-        ['log', '--format=%H %aI', '--reverse'],
+        gitArgs('log', '--format=%H %aI', '--reverse'),
         { cwd: this.rootPath, timeout: GIT_TIMEOUT_STANDARD },
       );
 
@@ -344,13 +420,17 @@ export class SquashManager {
 
     try {
       // 1. Create orphan branch with the tree state at the baseline commit
-      await execFileAsync('git', ['checkout', '--orphan', orphanBranch], {
-        cwd: this.rootPath,
-        timeout: GIT_TIMEOUT_STANDARD,
-      });
+      await execFileAsync(
+        'git',
+        gitArgs('checkout', '--orphan', orphanBranch),
+        {
+          cwd: this.rootPath,
+          timeout: GIT_TIMEOUT_STANDARD,
+        },
+      );
 
       // 2. Reset index to the baseline tree (the last squashed commit's tree)
-      await execFileAsync('git', ['reset', '--hard', baselineHash], {
+      await execFileAsync('git', gitArgs('reset', '--hard', baselineHash), {
         cwd: this.rootPath,
         timeout: GIT_TIMEOUT_STANDARD,
       });
@@ -359,30 +439,34 @@ export class SquashManager {
       // Use commit-tree for a clean orphan commit
       const { stdout: treeOut } = await execFileAsync(
         'git',
-        ['rev-parse', `${baselineHash}^{tree}`],
+        gitArgs('rev-parse', `${baselineHash}^{tree}`),
         { cwd: this.rootPath, timeout: GIT_TIMEOUT_STANDARD },
       );
       const treeHash = treeOut.trim();
 
       const { stdout: commitOut } = await execFileAsync(
         'git',
-        ['commit-tree', treeHash, '-m', 'historical baseline'],
+        gitArgs('commit-tree', treeHash, '-m', 'historical baseline'),
         { cwd: this.rootPath, timeout: GIT_TIMEOUT_STANDARD },
       );
       const baselineCommitHash = commitOut.trim();
 
       // 4. Reset orphan branch to this new baseline commit
-      await execFileAsync('git', ['reset', '--hard', baselineCommitHash], {
-        cwd: this.rootPath,
-        timeout: GIT_TIMEOUT_STANDARD,
-      });
+      await execFileAsync(
+        'git',
+        gitArgs('reset', '--hard', baselineCommitHash),
+        {
+          cwd: this.rootPath,
+          timeout: GIT_TIMEOUT_STANDARD,
+        },
+      );
 
       // 5. Cherry-pick boundary..HEAD (the retained commits)
       // Get the list of commits to cherry-pick (from boundary to the end)
       const commitsToCherry = commits.slice(boundaryIndex).map((c) => c.hash);
 
       if (commitsToCherry.length > 0) {
-        await execFileAsync('git', ['cherry-pick', ...commitsToCherry], {
+        await execFileAsync('git', gitArgs('cherry-pick', ...commitsToCherry), {
           cwd: this.rootPath,
           timeout: GIT_TIMEOUT_CHERRY_PICK,
         });
@@ -391,35 +475,46 @@ export class SquashManager {
       // 6. Force-update the configured branch to the orphan
       const { stdout: newHead } = await execFileAsync(
         'git',
-        ['rev-parse', 'HEAD'],
+        gitArgs('rev-parse', 'HEAD'),
         { cwd: this.rootPath, timeout: GIT_TIMEOUT_STANDARD },
       );
 
       await execFileAsync(
         'git',
-        ['branch', '-f', targetBranch, newHead.trim()],
+        gitArgs('branch', '-f', targetBranch, newHead.trim()),
         { cwd: this.rootPath, timeout: GIT_TIMEOUT_STANDARD },
       );
 
       // 7. Switch back to configured branch
-      await execFileAsync('git', ['checkout', targetBranch], {
+      await execFileAsync('git', gitArgs('checkout', targetBranch), {
         cwd: this.rootPath,
         timeout: GIT_TIMEOUT_STANDARD,
       });
 
       // 8. Delete orphan branch
-      await execFileAsync('git', ['branch', '-D', orphanBranch], {
+      await execFileAsync('git', gitArgs('branch', '-D', orphanBranch), {
         cwd: this.rootPath,
         timeout: GIT_TIMEOUT_STANDARD,
       });
     } catch (error) {
-      // Attempt cleanup: try to get back to configured branch
+      // Abort any half-finished cherry-pick first, so a failed squash never
+      // leaves a sequencer behind (#249). Ignore errors: there may be none.
       try {
-        await execFileAsync('git', ['checkout', '-f', targetBranch], {
+        await execFileAsync('git', gitArgs('cherry-pick', '--abort'), {
           cwd: this.rootPath,
           timeout: GIT_TIMEOUT_STANDARD,
         });
-        await execFileAsync('git', ['branch', '-D', orphanBranch], {
+      } catch {
+        // No cherry-pick in progress — nothing to abort.
+      }
+
+      // Attempt cleanup: try to get back to configured branch
+      try {
+        await execFileAsync('git', gitArgs('checkout', '-f', targetBranch), {
+          cwd: this.rootPath,
+          timeout: GIT_TIMEOUT_STANDARD,
+        });
+        await execFileAsync('git', gitArgs('branch', '-D', orphanBranch), {
           cwd: this.rootPath,
           timeout: GIT_TIMEOUT_STANDARD,
         });
