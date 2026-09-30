@@ -6,8 +6,79 @@ All notable changes to this project will be documented in this file.
 
 ### 💼 Other
 
+- [249] fix(vcs): resilient commit pipeline and squash guard (#249)
+
+- Detect "nothing staged" with `git diff --cached --quiet` instead of
+  parsing git's "nothing to commit" text; empty batches are no-ops.
+- Partition each batch: add existing files, stage removal of
+  tracked-but-missing files (`git rm --cached --ignore-unmatch`), drop
+  missing untracked files. A missing path never fails the batch.
+- Reconcile tracked deletions in the watch scope at the end of the
+  initial scan so the baseline commit records them.
+- Retry only index.lock contention (`shouldRetry` on util/retry).
+- Circuit breaker retains pending files and recovers on a time-based
+  half-open attempt (`vcs.circuitBreakerCooldownMs`, default 5 min);
+  state exposed per root in GET /vcs/status.
+- Pass `-c core.longpaths=true` on every VCS git invocation.
+- Squash refuses on in-progress sequencer/rebase/merge state or dirty
+  tracked files, aborts a failed cherry-pick during cleanup, and stale
+  state is reported at startup.
+- [249] refactor(vcs): address #251 review, SOLID/DRY pass and test hardening
+
+Review fixes:
+- Treat only ENOENT/ENOTDIR as "missing" when partitioning a batch;
+  other stat errors propagate so the batch is retained and retried.
+- Re-queue a failed batch in full (no cap); flush commits the backlog
+  in maxBatchSize chunks, so no chunk exceeds the batch size.
+- breaker.pendingCount includes files taken for an in-flight commit.
+- isIndexLockError requires "index.lock"; a bare EEXIST is not retried.
+- Narrow unknown rejection values via getErrorCode before reading code.
+
+Structure:
+- Extract CommitCircuitBreaker (pure, injectable clock), batchStaging
+  (classify + stage), gitIndex (index ops), gitRepoState (stale ops,
+  dirty tree, index.lock), watchScope (glob + ignored scope), cronMatch,
+  and runGit (single pinned-argv git runner used by VcsManager,
+  SquashManager, vcsBootstrap, CommitMessageBuilder and VCS handlers).
+- Fix /vcs/status lastCommit when the subject contains "|".
+
+Tests:
+- Split resilience tests into VcsManager.staging / VcsManager.breaker,
+  squash guards into SquashManager.guards, coordinator reconciliation
+  into its own file; shared fixtures in test/vcsRepo and test/squashRepo.
+- Replace the mocked cherry-pick failure (and its type cast) with a real
+  merge-commit failure; drop the trivial 52s re-queue-cap test.
+- New unit tests: CommitCircuitBreaker, batchStaging, gitIndex,
+  gitRepoState, retry, watchScope, cronMatch, SquashManager scheduler,
+  vcsStatus.
+- [249] test(vcs): split oversized VcsManager, SquashManager and VCS handler test files
+
+Pure moves along existing describe boundaries; all 80 test names preserved.
+
+- VcsManager.test.ts (1275) -> VcsManager.{commitBasics, lifecycle,
+  lockHandling, circuitBreaker, messages, aiMessages, remotePush}.test.ts
+- SquashManager.test.ts (460) -> SquashManager.{retention, mechanism,
+  pushAndPause}.test.ts
+- api/handlers/vcs/vcs.test.ts (793) -> vcs{Status, History, Show, Diff,
+  CheckExclusion, Revert, Exclude}.handler.test.ts
+- Shared fixtures: test/vcsHandlers.ts (mock reply, repo + coordinator
+  setup); test/vcsRepo.ts gains makeFastVcsConfig.
+- Drop a gitIndex timeout test that raced a 1 ms timer against git and
+  flaked under parallel load.
+- [249] test(vcs): make pathKey test independent of host OS
+
+resolve() follows the host platform, so a Windows drive path is relative on Linux. Test lowercasing with a path absolute on both; run the backslash case on Windows only.
+- Updated core
+## [0.19.0] - 2026-09-29
+
+### 💼 Other
+
 - [234] updated jeeves
 - Updated core
+
+### ⚙️ Miscellaneous Tasks
+
+- Release @karmaniverous/jeeves-watcher v0.19.0
 ## [0.19.0-3] - 2026-09-28
 
 ### 💼 Other
