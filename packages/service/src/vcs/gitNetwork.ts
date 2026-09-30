@@ -18,7 +18,7 @@
  * before it leaves this module.
  */
 
-import { execFileAsync } from './gitExec';
+import { execFileAsync, gitArgs } from './gitExec';
 
 /** Leading git arguments that disable the askpass prompt path. */
 const NO_ASKPASS_ARGS: readonly string[] = ['-c', 'core.askPass='];
@@ -204,7 +204,7 @@ export async function execGitNetwork(
   try {
     return await execFileAsync(
       'git',
-      [...buildGitNetworkArgs(options.clearCredentialHelpers), ...args],
+      gitArgs(...buildGitNetworkArgs(options.clearCredentialHelpers), ...args),
       {
         cwd: options.cwd,
         env: buildGitNetworkEnv(process.env, options.config),

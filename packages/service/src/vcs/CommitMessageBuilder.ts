@@ -7,7 +7,7 @@ import type pino from 'pino';
 
 import { normalizeError } from '../util/normalizeError';
 import type { CommitMessageGenerator } from './CommitMessageGenerator';
-import { execFileAsync, GIT_TIMEOUT_STANDARD } from './gitExec';
+import { runGit } from './runGit';
 import type { PendingReversion } from './types';
 
 /**
@@ -114,16 +114,15 @@ export class CommitMessageBuilder {
    */
   private async getStagedDiff(): Promise<string> {
     try {
-      const { stdout: stat } = await execFileAsync(
-        'git',
-        ['diff', '--cached', '--stat'],
-        { cwd: this.rootPath, timeout: GIT_TIMEOUT_STANDARD },
-      );
-      const { stdout: patch } = await execFileAsync(
-        'git',
-        ['diff', '--cached'],
-        { cwd: this.rootPath, timeout: GIT_TIMEOUT_STANDARD },
-      );
+      const { stdout: stat } = await runGit(this.rootPath, [
+        'diff',
+        '--cached',
+        '--stat',
+      ]);
+      const { stdout: patch } = await runGit(this.rootPath, [
+        'diff',
+        '--cached',
+      ]);
       return `${stat}\n${patch}`;
     } catch {
       return '';

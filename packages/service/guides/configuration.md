@@ -692,7 +692,8 @@ On shutdown, the watcher:
 | `retention.squashCron` | `string` | `"0 0 * * *"` | Cron schedule for squash (5-field format). |
 | `defaultAccessToken` | `string` | `undefined` | Shared access token for remote push (`${ENV_VAR}` supported). |
 | `staleLockThresholdMs` | `number` | `60000` | Age in ms after which an `index.lock` is considered stale and force-removed (min: 5000). |
-| `maxConsecutiveFailures` | `number` | `5` | Circuit breaker: stop re-queuing commits after this many consecutive failures (min: 1). |
+| `maxConsecutiveFailures` | `number` | `5` | Circuit breaker: trip after this many consecutive commit failures (min: 1). Pending files are retained. |
+| `circuitBreakerCooldownMs` | `number` | `300000` | Cooldown in ms before a tripped breaker makes a single recovery attempt (min: 1000). |
 
 Retention defaults (30 days, 100 versions, daily midnight cron) apply automatically when `vcs.enabled` is `true`, even if the `retention` block is omitted.
 

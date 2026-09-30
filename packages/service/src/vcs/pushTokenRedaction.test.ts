@@ -146,6 +146,7 @@ describe('access token redaction on failed push (#245)', () => {
         maxBatchSize: 1000,
         staleLockThresholdMs: 60000,
         maxConsecutiveFailures: 5,
+        circuitBreakerCooldownMs: 300000,
         branch: 'master',
       },
       logger,
@@ -178,7 +179,10 @@ describe('access token redaction on failed push (#245)', () => {
         maxBatchSize: 1000,
         defaultAccessToken: TOKEN,
       },
-      watch: { paths: [{ path: dir, vcs: { remote: remote.url() } }] },
+      watch: {
+        paths: [{ path: dir, vcs: { remote: remote.url() } }],
+        ignored: [],
+      },
     } as unknown as JeevesWatcherConfig;
     const { logger, lines } = capturingLogger();
     const coordinator = new VcsCoordinator(config, logger);

@@ -6,8 +6,8 @@
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import type pino from 'pino';
 
-import { execFileAsync } from '../../../vcs/gitExec';
 import { resolveWatchRoot } from '../../../vcs/resolveWatchRoot';
+import { runGit } from '../../../vcs/runGit';
 import type { VcsCoordinator } from '../../../vcs/VcsCoordinator';
 import { wrapHandler } from '../wrapHandler';
 
@@ -48,11 +48,11 @@ export function createVcsCheckExclusionHandler(
       }
 
       try {
-        const { stdout } = await execFileAsync(
-          'git',
-          ['check-ignore', '-v', resolved.relativePath],
-          { cwd: resolved.root },
-        );
+        const { stdout } = await runGit(resolved.root, [
+          'check-ignore',
+          '-v',
+          resolved.relativePath,
+        ]);
 
         // Output format: <source>:<linenum>:<pattern>\t<pathname>
         const trimmed = stdout.trim();

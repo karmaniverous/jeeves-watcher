@@ -20,6 +20,7 @@ import { CommitMessageGenerator } from './CommitMessageGenerator';
 import { findRootForPath, normalizePathCase } from './gitExec';
 import { resolveCommitMessageApiKey } from './resolveCommitMessageApiKey';
 import { VcsManager } from './VcsManager';
+import { createWatchScope, type WatchScope } from './watchScope';
 
 /**
  * Orchestrates VCS across all VCS-enabled watch roots.
@@ -28,11 +29,16 @@ export class VcsCoordinator {
   private readonly managers: Map<string, VcsManager> = new Map();
   private readonly roots: string[] = [];
   private readonly logger: pino.Logger;
+  private readonly isInWatchScope: WatchScope = () => false;
 
   constructor(config: JeevesWatcherConfig, logger: pino.Logger) {
     this.logger = logger;
 
     if (!config.vcs?.enabled) return;
+
+    // Same watch-scope logic as the filesystem watcher (globs + ignored),
+    // used to filter startup deletion reconciliation. See #249.
+    this.isInWatchScope = createWatchScope(config.watch);
 
     const normalized = normalizeWatchPaths(config.watch.paths);
     for (const entry of normalized) {
@@ -141,6 +147,14 @@ export class VcsCoordinator {
    */
   async onInitialScanComplete(): Promise<void> {
     for (const manager of this.managers.values()) {
+      // Reconcile tracked-but-deleted paths within this manager's watch
+      // scope before flushing, so the baseline commit records deletions
+      // that happened while the process wasn't watching. See #249.
+      await manager.reconcileDeletions(
+        (absPath) =>
+          this.findManagerForPath(absPath) === manager &&
+          this.isInWatchScope(absPath),
+      );
       await manager.flush();
       manager.endBaseline();
     }

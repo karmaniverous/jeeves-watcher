@@ -1,13 +1,36 @@
 /**
  * @module vcs/gitExec
- * Shared git execution utilities.
+ * Shared git execution utilities: the pinned argv prefix, timeouts, error
+ * field extraction and classification, and path comparison helpers.
  */
 
 import { execFile } from 'node:child_process';
+import { resolve } from 'node:path';
 import { promisify } from 'node:util';
+
+import { normalizeSlashes } from '../util/normalizeSlashes';
 
 /** Promisified execFile for git commands. */
 export const execFileAsync = promisify(execFile);
+
+/**
+ * Leading git arguments applied to every VCS-owned git invocation.
+ *
+ * `-c core.longpaths=true` lets Windows checkouts handle paths beyond the
+ * legacy MAX_PATH limit (260 chars) without requiring a machine-wide
+ * `core.longpaths` git config or registry change. See #249.
+ */
+export const GIT_BASE_ARGS: readonly string[] = ['-c', 'core.longpaths=true'];
+
+/**
+ * Build a git argv array with {@link GIT_BASE_ARGS} prefixed.
+ *
+ * @param args - The subcommand and its arguments (e.g. `'commit', '-m', msg`).
+ * @returns The full argv array, base args first.
+ */
+export function gitArgs(...args: string[]): string[] {
+  return [...GIT_BASE_ARGS, ...args];
+}
 
 /** Standard timeout (ms) for most git operations. */
 export const GIT_TIMEOUT_STANDARD = 30_000;
@@ -38,57 +61,37 @@ export function getExecErrorFields(error: unknown): {
 }
 
 /**
- * Stage files via stdin to avoid ENAMETOOLONG on Windows.
+ * Read the `code` property of an unknown rejection value, if present.
+ * execFile rejects with the child's numeric exit status in `code`; fs calls
+ * reject with a string errno code (e.g. `'ENOENT'`).
  *
- * Uses `git add --pathspec-from-file=- --pathspec-file-nul` so the file list is piped
- * through stdin (NUL-delimited) instead of passed as command-line
- * arguments.  This sidesteps the Windows CreateProcessW 32 767-char
- * limit that triggers ENAMETOOLONG when batches contain many files
- * with long absolute paths.
- *
- * @param files - Absolute paths of files to stage.
- * @param cwd   - Repository root (working directory for git).
- * @param timeoutMs - Kill the child process after this many milliseconds. Default: 30000.
+ * @param error - The caught value.
+ * @returns The code, or undefined if the value has none.
  */
-export function gitAddViaStdin(
-  files: string[],
-  cwd: string,
-  timeoutMs = 30_000,
-): Promise<void> {
-  return new Promise((resolve, reject) => {
-    let timedOut = false;
-    const child = execFile(
-      'git',
-      ['add', '--pathspec-from-file=-', '--pathspec-file-nul'],
-      { cwd },
-      (error: Error | null) => {
-        clearTimeout(timer);
-        if (timedOut) return;
-        if (error) reject(error);
-        else resolve();
-      },
-    );
+export function getErrorCode(error: unknown): string | number | undefined {
+  if (typeof error !== 'object' || error === null || !('code' in error)) {
+    return undefined;
+  }
+  const { code } = error;
+  return typeof code === 'string' || typeof code === 'number'
+    ? code
+    : undefined;
+}
 
-    const timer = setTimeout(() => {
-      timedOut = true;
-      child.kill();
-      reject(new Error(`git add timed out after ${String(timeoutMs)}ms`));
-    }, timeoutMs);
-
-    if (!child.stdin) {
-      clearTimeout(timer);
-      reject(new Error('Failed to open stdin for git add'));
-      return;
-    }
-    // Suppress EPIPE — expected if git exits before we finish writing
-    child.stdin.on('error', (err: NodeJS.ErrnoException) => {
-      if (err.code !== 'EPIPE') {
-        clearTimeout(timer);
-        reject(err);
-      }
-    });
-    child.stdin.end(files.join('\0'));
-  });
+/**
+ * Check whether an error is caused by `index.lock` contention.
+ *
+ * Requires the literal `index.lock` in the message or stderr: a bare
+ * `EEXIST` (any file that already exists) is not lock contention and must
+ * not be retried as if it were. Only Error instances qualify.
+ *
+ * @param error - The caught value.
+ * @returns true if the error names `index.lock`.
+ */
+export function isIndexLockError(error: unknown): boolean {
+  if (!(error instanceof Error)) return false;
+  const { message, stderr } = getExecErrorFields(error);
+  return message.includes('index.lock') || stderr.includes('index.lock');
 }
 
 /**
@@ -104,6 +107,21 @@ export function normalizePathCase(
   platform: string = process.platform,
 ): string {
   return platform === 'win32' ? p.toLowerCase() : p;
+}
+
+/**
+ * Build a comparison key for an absolute path: resolved, forward slashes,
+ * and lowercased on Windows.
+ *
+ * @param p - The path.
+ * @param platform - The platform to check against (default: `process.platform`).
+ * @returns The comparison key.
+ */
+export function pathKey(
+  p: string,
+  platform: string = process.platform,
+): string {
+  return normalizePathCase(normalizeSlashes(resolve(p)), platform);
 }
 
 /**
@@ -131,19 +149,4 @@ export function findRootForPath(
     }
   }
   return undefined;
-}
-
-/**
- * Check whether an error is caused by index.lock contention.
- * Only considers Error instances — plain strings/nulls return false.
- */
-export function isIndexLockError(error: unknown): boolean {
-  if (!(error instanceof Error)) return false;
-  const { message, stderr } = getExecErrorFields(error);
-  return (
-    message.includes('index.lock') ||
-    stderr.includes('index.lock') ||
-    message.includes('EEXIST') ||
-    stderr.includes('EEXIST')
-  );
 }

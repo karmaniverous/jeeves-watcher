@@ -1,22 +1,43 @@
 /**
  * @module vcs/gitExec.test
- * Unit tests for findRootForPath, isIndexLockError, and gitAddViaStdin.
+ * Unit tests for the pure gitExec helpers: argv pinning, error field
+ * extraction and classification, and path comparison.
  */
 
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { describe, expect, it } from 'vitest';
 
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-
-import { execFileAsync } from '../test/git';
 import {
   findRootForPath,
+  getErrorCode,
   getExecErrorFields,
-  gitAddViaStdin,
+  GIT_BASE_ARGS,
+  gitArgs,
   isIndexLockError,
+  pathKey,
 } from './gitExec';
-import { initRepo } from './vcsBootstrap';
+
+function execError(message: string, fields: Record<string, unknown>): Error {
+  return Object.assign(new Error(message), fields);
+}
+
+describe('gitArgs', () => {
+  it('prefixes core.longpaths=true ahead of the subcommand', () => {
+    expect(GIT_BASE_ARGS).toEqual(['-c', 'core.longpaths=true']);
+    expect(gitArgs('commit', '-m', 'x')).toEqual([
+      '-c',
+      'core.longpaths=true',
+      'commit',
+      '-m',
+      'x',
+    ]);
+  });
+
+  it('returns a fresh array each call', () => {
+    const first = gitArgs('status');
+    first.push('mutated');
+    expect(gitArgs('status')).toEqual(['-c', 'core.longpaths=true', 'status']);
+  });
+});
 
 describe('findRootForPath', () => {
   it('returns matching root for path under a single root', () => {
@@ -25,12 +46,15 @@ describe('findRootForPath', () => {
 
   it('returns longest matching root when roots are nested', () => {
     // Roots sorted longest-first as required by the function contract
-    const roots = ['/a/b', '/a'];
-    expect(findRootForPath(roots, '/a/b/c')).toBe('/a/b');
+    expect(findRootForPath(['/a/b', '/a'], '/a/b/c')).toBe('/a/b');
   });
 
   it('returns undefined for path outside all roots', () => {
     expect(findRootForPath(['/a', '/b'], '/c/d')).toBeUndefined();
+  });
+
+  it('does not match a sibling that shares a prefix', () => {
+    expect(findRootForPath(['/a/b'], '/a/bc/file')).toBeUndefined();
   });
 
   it('returns root itself when path equals root exactly', () => {
@@ -41,193 +65,147 @@ describe('findRootForPath', () => {
     expect(findRootForPath([], '/a/b/c')).toBeUndefined();
   });
 
-  it('matches case-insensitively on Windows (drive letter mismatch)', () => {
-    const roots = ['j:/domains/projects'];
+  it('matches case-insensitively on Windows in both directions', () => {
     expect(
-      findRootForPath(roots, 'J:/domains/projects/file.txt', 'win32'),
+      findRootForPath(
+        ['j:/domains/projects'],
+        'J:/domains/projects/file.txt',
+        'win32',
+      ),
     ).toBe('j:/domains/projects');
-  });
-
-  it('matches case-insensitively on Windows (root uppercase, path lowercase)', () => {
-    const roots = ['J:/Domains/Projects'];
     expect(
-      findRootForPath(roots, 'j:/domains/projects/file.txt', 'win32'),
+      findRootForPath(
+        ['J:/Domains/Projects'],
+        'j:/domains/projects/file.txt',
+        'win32',
+      ),
     ).toBe('J:/Domains/Projects');
+    expect(findRootForPath(['j:/domains'], 'J:/domains', 'win32')).toBe(
+      'j:/domains',
+    );
   });
 
-  it('matches case-insensitively on Windows (exact path equals root)', () => {
-    const roots = ['j:/domains'];
-    expect(findRootForPath(roots, 'J:/domains', 'win32')).toBe('j:/domains');
+  it('is case-sensitive on other platforms', () => {
+    expect(
+      findRootForPath(['/Data'], '/data/file.txt', 'linux'),
+    ).toBeUndefined();
   });
 });
 
-describe('gitAddViaStdin', () => {
-  let tempDir: string;
-
-  beforeEach(async () => {
-    tempDir = await mkdtemp(join(tmpdir(), 'git-add-stdin-'));
-    await initRepo(tempDir);
-    await execFileAsync('git', ['config', 'user.email', 'test@test.com'], {
-      cwd: tempDir,
-    });
-    await execFileAsync('git', ['config', 'user.name', 'Test'], {
-      cwd: tempDir,
-    });
-  });
-
-  afterEach(async () => {
-    await rm(tempDir, { recursive: true, force: true });
-  });
-
-  it('stages a single file', async () => {
-    const filePath = join(tempDir, 'hello.txt');
-    await writeFile(filePath, 'hello', 'utf8');
-
-    await gitAddViaStdin([filePath], tempDir);
-
-    const { stdout } = await execFileAsync(
-      'git',
-      ['diff', '--cached', '--name-only'],
-      { cwd: tempDir },
+describe('pathKey', () => {
+  it('lowercases for the win32 platform', () => {
+    // resolve() follows the host OS, so use a path that is absolute on both.
+    expect(pathKey('/Repo/Sub/File.TXT', 'win32')).toMatch(
+      /\/repo\/sub\/file\.txt$/,
     );
-    expect(stdout.trim()).toBe('hello.txt');
   });
 
-  it('stages multiple files in one call', async () => {
-    const paths: string[] = [];
-    for (let i = 0; i < 5; i++) {
-      const p = join(tempDir, `file${String(i)}.txt`);
-      await writeFile(p, `content ${String(i)}`, 'utf8');
-      paths.push(p);
-    }
+  it.runIf(process.platform === 'win32')(
+    'converts Windows backslashes to forward slashes',
+    () => {
+      expect(pathKey('C:\\Repo\\Sub\\File.TXT', 'win32')).toBe(
+        'c:/repo/sub/file.txt',
+      );
+    },
+  );
 
-    await gitAddViaStdin(paths, tempDir);
-
-    const { stdout } = await execFileAsync(
-      'git',
-      ['diff', '--cached', '--name-only'],
-      { cwd: tempDir },
-    );
-    const staged = stdout.trim().split('\n').sort();
-    expect(staged).toEqual([
-      'file0.txt',
-      'file1.txt',
-      'file2.txt',
-      'file3.txt',
-      'file4.txt',
-    ]);
+  it('preserves case on other platforms', () => {
+    expect(pathKey('/Repo/File.TXT', 'linux')).toMatch(/Repo\/File\.TXT$/);
   });
 
-  it('stages deleted files correctly', async () => {
-    const filePath = join(tempDir, 'to-delete.txt');
-    await writeFile(filePath, 'content', 'utf8');
-    await execFileAsync('git', ['add', '.'], { cwd: tempDir });
-    await execFileAsync('git', ['commit', '-m', 'add file'], {
-      cwd: tempDir,
-    });
-
-    await rm(filePath);
-    await gitAddViaStdin([filePath], tempDir);
-
-    const { stdout } = await execFileAsync(
-      'git',
-      ['diff', '--cached', '--name-status'],
-      { cwd: tempDir },
+  it('resolves relative segments so equivalent paths compare equal', () => {
+    expect(pathKey('/repo/a/../b.txt', 'linux')).toBe(
+      pathKey('/repo/b.txt', 'linux'),
     );
-    expect(stdout.trim()).toMatch(/^D\s+to-delete\.txt$/);
-  });
-
-  it('handles files with spaces in paths', async () => {
-    const filePath = join(tempDir, 'file with spaces.txt');
-    await writeFile(filePath, 'content', 'utf8');
-
-    await gitAddViaStdin([filePath], tempDir);
-
-    const { stdout } = await execFileAsync(
-      'git',
-      ['diff', '--cached', '--name-only'],
-      { cwd: tempDir },
-    );
-    expect(stdout.trim()).toBe('file with spaces.txt');
   });
 });
 
 describe('getExecErrorFields', () => {
   it('extracts message, stderr, and stdout from an ExecFileException', () => {
-    const err = new Error('Command failed: git commit');
-    (err as unknown as Record<string, unknown>).stderr =
-      'fatal: nothing to commit';
-    (err as unknown as Record<string, unknown>).stdout =
-      'On branch master\nnothing to commit';
-
-    const fields = getExecErrorFields(err);
-    expect(fields.message).toBe('Command failed: git commit');
-    expect(fields.stderr).toBe('fatal: nothing to commit');
-    expect(fields.stdout).toBe('On branch master\nnothing to commit');
-  });
-
-  it('returns empty stderr/stdout when not present on Error', () => {
-    const err = new Error('plain error');
-    const fields = getExecErrorFields(err);
-    expect(fields.message).toBe('plain error');
-    expect(fields.stderr).toBe('');
-    expect(fields.stdout).toBe('');
-  });
-
-  it('handles non-Error values by stringifying', () => {
-    expect(getExecErrorFields('string error')).toEqual({
-      message: 'string error',
-      stderr: '',
-      stdout: '',
-    });
-    expect(getExecErrorFields(42)).toEqual({
-      message: '42',
-      stderr: '',
-      stdout: '',
-    });
-    expect(getExecErrorFields(null)).toEqual({
-      message: 'null',
-      stderr: '',
-      stdout: '',
+    const fields = getExecErrorFields(
+      execError('Command failed: git commit', {
+        stderr: 'fatal: nothing to commit',
+        stdout: 'On branch master\nnothing to commit',
+      }),
+    );
+    expect(fields).toEqual({
+      message: 'Command failed: git commit',
+      stderr: 'fatal: nothing to commit',
+      stdout: 'On branch master\nnothing to commit',
     });
   });
 
-  it('ignores non-string stderr/stdout properties', () => {
-    const err = new Error('typed error');
-    (err as unknown as Record<string, unknown>).stderr = 123;
-    (err as unknown as Record<string, unknown>).stdout = { obj: true };
+  it('returns empty stderr/stdout when absent or not strings', () => {
+    expect(getExecErrorFields(new Error('plain error'))).toEqual({
+      message: 'plain error',
+      stderr: '',
+      stdout: '',
+    });
+    expect(
+      getExecErrorFields(
+        execError('typed error', { stderr: 123, stdout: { obj: true } }),
+      ),
+    ).toEqual({ message: 'typed error', stderr: '', stdout: '' });
+  });
 
-    const fields = getExecErrorFields(err);
-    expect(fields.stderr).toBe('');
-    expect(fields.stdout).toBe('');
+  it('stringifies non-Error values', () => {
+    expect(getExecErrorFields('string error').message).toBe('string error');
+    expect(getExecErrorFields(42).message).toBe('42');
+    expect(getExecErrorFields(null).message).toBe('null');
+  });
+});
+
+describe('getErrorCode', () => {
+  it('returns numeric exit codes and string errno codes', () => {
+    expect(getErrorCode(execError('exit', { code: 1 }))).toBe(1);
+    expect(getErrorCode(execError('fs', { code: 'ENOENT' }))).toBe('ENOENT');
+  });
+
+  it('returns undefined for values without a usable code', () => {
+    expect(getErrorCode(new Error('no code'))).toBeUndefined();
+    expect(getErrorCode(execError('odd', { code: { x: 1 } }))).toBeUndefined();
+    expect(getErrorCode(null)).toBeUndefined();
+    expect(getErrorCode('ENOENT')).toBeUndefined();
+    expect(getErrorCode(1)).toBeUndefined();
+  });
+
+  it('reads code from plain objects, not only Errors', () => {
+    expect(getErrorCode({ code: 128 })).toBe(128);
   });
 });
 
 describe('isIndexLockError', () => {
-  it('returns true for Error with index.lock in message', () => {
+  it('returns true when the message names index.lock', () => {
     expect(isIndexLockError(new Error('unable to create index.lock'))).toBe(
       true,
     );
   });
 
-  it('returns true for Error with index.lock in stderr property', () => {
-    const err = new Error('git failed');
-    (err as unknown as Record<string, unknown>).stderr =
-      'fatal: Unable to create index.lock';
-    expect(isIndexLockError(err)).toBe(true);
+  it('returns true when only stderr names index.lock', () => {
+    expect(
+      isIndexLockError(
+        execError('git failed', {
+          stderr: "fatal: Unable to create '/r/.git/index.lock': File exists.",
+        }),
+      ),
+    ).toBe(true);
   });
 
-  it('returns true for Error with EEXIST in message', () => {
+  it('returns false for a bare EEXIST that does not involve index.lock', () => {
+    // Regression (#251 review): EEXIST on any other file is deterministic
+    // and must not be retried as lock contention.
     expect(isIndexLockError(new Error('EEXIST: file already exists'))).toBe(
-      true,
+      false,
     );
+    expect(
+      isIndexLockError(
+        execError('mkdir failed', { stderr: "EEXIST: '/r/notes'" }),
+      ),
+    ).toBe(false);
   });
 
-  it('returns false for Error with unrelated message', () => {
+  it('returns false for unrelated errors and non-Error values', () => {
     expect(isIndexLockError(new Error('permission denied'))).toBe(false);
-  });
-
-  it('returns false for non-Error values', () => {
     expect(isIndexLockError('index.lock')).toBe(false);
     expect(isIndexLockError(null)).toBe(false);
     expect(isIndexLockError(undefined)).toBe(false);

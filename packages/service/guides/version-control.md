@@ -79,7 +79,8 @@ VCS tracking and watcher embedding are independent concerns. Git can track files
 | `retention.squashCron` | `string` | `"0 0 * * *"` | Cron schedule for squash retention (5-field format). |
 | `defaultAccessToken` | `string` | `undefined` | Shared access token for remote push. Supports `${ENV_VAR}` substitution. |
 | `staleLockThresholdMs` | `number` | `60000` | Age in ms after which an `index.lock` is considered stale and force-removed (min: 5000). |
-| `maxConsecutiveFailures` | `number` | `5` | Circuit breaker: stop re-queuing commits after this many consecutive failures (min: 1). |
+| `maxConsecutiveFailures` | `number` | `5` | Circuit breaker: trip after this many consecutive commit failures (min: 1). Pending files are retained. |
+| `circuitBreakerCooldownMs` | `number` | `300000` | Cooldown in ms before a tripped breaker makes a single recovery attempt (min: 1000). |
 
 ### Per-Root Overrides
 
@@ -165,7 +166,14 @@ curl http://localhost:1936/vcs/status
       },
       "remoteUrl": "https://github.com/org/docs-backup.git",
       "lastPush": "2026-06-10T14:30:05Z",
-      "pushErrors": []
+      "pushErrors": [],
+      "breaker": {
+        "consecutiveFailures": 0,
+        "tripped": false,
+        "trippedAt": null,
+        "lastError": null,
+        "pendingCount": 0
+      }
     }
   ]
 }
@@ -184,6 +192,12 @@ curl http://localhost:1936/vcs/status
 | `roots[].remoteUrl` | `string?` | Configured remote URL (if any). |
 | `roots[].lastPush` | `string?` | ISO-8601 timestamp of last successful push. |
 | `roots[].pushErrors` | `string[]` | Recent push error messages (non-blocking). |
+| `roots[].breaker` | `object?` | Commit circuit breaker state (null if the root has no active manager). |
+| `roots[].breaker.consecutiveFailures` | `number` | Consecutive commit failures since the last success. |
+| `roots[].breaker.tripped` | `boolean` | Whether the breaker is tripped (cooling down). |
+| `roots[].breaker.trippedAt` | `string?` | ISO-8601 timestamp of the current trip, or null. |
+| `roots[].breaker.lastError` | `string?` | Message of the most recent commit failure, or null. |
+| `roots[].breaker.pendingCount` | `number` | Files queued or in flight, not yet committed. |
 
 ---
 
@@ -526,6 +540,14 @@ If a remote is configured, the squashed history is force-pushed. This is accepta
 
 If `index.lock` is held by another git operation during squash, the squash aborts cleanly and retries on the next cron cycle. No data is lost.
 
+### Safety Guards
+
+The squash rewrites history in the working tree (`reset --hard`, `checkout -f`), so it refuses to run when doing so could lose data or wedge the repo. Each refusal is logged and retried on the next cron cycle:
+
+- **In-progress git operation.** If `.git/sequencer`, `.git/rebase-merge`, `.git/rebase-apply`, `.git/CHERRY_PICK_HEAD`, or `.git/MERGE_HEAD` exists, the squash refuses (error log). The watcher never clears this state itself; resolve it manually (e.g. `git cherry-pick --quit`, `git rebase --abort`, `git merge --abort`). The same condition is reported at startup.
+- **Uncommitted tracked changes.** After draining the commit pipeline, if `git status --porcelain --untracked-files=no` reports anything, the squash refuses (warning log) rather than overwrite uncommitted content. Untracked files do not block.
+- **Failed squash cleanup.** If a squash fails midway, `git cherry-pick --abort` runs before returning to the configured branch, so a failure never leaves a half-finished cherry-pick sequence behind.
+
 ### Startup Orphan Recovery
 
 If the service starts and a VCS root is on an unexpected branch (e.g., a leftover squash orphan branch from a crash), the VcsManager detects this during startup and recovers:
@@ -536,13 +558,38 @@ If the service starts and a VCS root is on an unexpected branch (e.g., a leftove
 
 Orphan branches are **not deleted** — they serve as a recovery safety net. If recovery fails, the error is logged and the manager continues with the current state.
 
-### "Nothing to Commit" Handling
+### "Nothing Staged" Handling
 
-When the commit pipeline stages files that haven't actually changed (e.g., a file was touched but content is identical), `git commit` fails with "nothing to commit." This is a no-op, not a failure — the circuit breaker counter is not incremented, and files are not re-queued.
+When a batch stages nothing (e.g., a file was touched but its content is identical), the pipeline detects it with `git diff --cached --quiet` and skips `git commit`. This is a no-op, not a failure: the circuit breaker counter is not incremented, and files are not re-queued. Detection does not parse git's output text, so it is unaffected by untracked files, unstaged changes outside the batch, `status.showUntrackedFiles`, or git's message wording.
 
-### Retry Timer After Failure
+### Missing Paths in a Batch
 
-When a commit batch fails and files are re-queued, the throttle timer is restarted so the re-queued files are retried automatically. Without this, re-queued files would sit in the pending set indefinitely until a new `fileChanged()` call arrived.
+Before staging, each batch is partitioned:
+
+- Files that exist are staged with `git add`.
+- Files that are gone but tracked have their deletion staged with `git rm --cached --ignore-unmatch`.
+- Files that are gone and were never tracked (created and deleted between commits) are dropped.
+
+A missing path never fails the batch.
+
+### Startup Deletion Reconciliation
+
+The initial filesystem scan only reports files that exist, so deletions that happened while the service was stopped (or unlink events that were missed) are never observed as events. When the initial scan completes, each root lists tracked-but-deleted paths (`git ls-files --deleted`), keeps those inside the watch scope (`watch.paths` minus `watch.ignored`), and adds them to the baseline batch so the deletions are committed.
+
+### Retries and the Circuit Breaker
+
+Only transient `index.lock` contention is retried within a commit attempt (4 attempts, exponential backoff). Any other error fails the attempt immediately with its real message.
+
+Each commit covers at most `maxBatchSize` files; a flush with a larger backlog commits it in several chunks. When a batch fails, all of its files are re-queued (the pending set holds each path once, so it cannot grow beyond the distinct changed paths) and the throttle timer restarts so they are retried automatically. After `maxConsecutiveFailures` consecutive failures the per-root circuit breaker trips:
+
+- Pending files are **retained**, never discarded. Batches that arrive while cooling down go straight back into the pending set.
+- After `circuitBreakerCooldownMs` (default 5 minutes) a single half-open commit attempt runs from a timer; no new file event is needed. Success resets the breaker; failure re-arms the cooldown.
+- The breaker is **not** reset by new file events, so a busy root cannot hammer a deterministic failure.
+- Breaker state is exposed per root in `GET /vcs/status` under `breaker`.
+
+### Git Configuration Pinning
+
+Every git invocation made by the VCS subsystem passes `-c core.longpaths=true`, so paths longer than the Windows `MAX_PATH` limit work without any repo-local or machine-wide git configuration.
 
 ---
 
@@ -606,10 +653,18 @@ If a watch root contains child git repositories (nested `.git/` directories), th
 
 1. **Stale lock detection.** Before each commit attempt, the lock file's modification time is checked. If it's older than `staleLockThresholdMs` (default: 60 seconds), the lock is force-removed and the commit proceeds.
 2. **Exponential backoff retries.** If the lock is fresh (held by a live process), the commit is retried with exponential backoff (4 attempts, 500ms-2s delays).
-3. **Re-queue cap.** If all retries fail, pending files are re-queued for the next batch cycle, capped at `maxBatchSize` to prevent unbounded growth.
-4. **Circuit breaker.** After `maxConsecutiveFailures` (default: 5) consecutive commit failures, the VCS subsystem stops re-queuing and logs an error. The circuit breaker resets on the next successful commit.
+3. **Retention.** If all retries fail, the batch's files are re-queued in full for the next batch cycle. Nothing is discarded.
+4. **Circuit breaker.** After `maxConsecutiveFailures` (default: 5) consecutive commit failures, the breaker trips. Pending files are retained, and a single recovery attempt runs every `circuitBreakerCooldownMs` (default: 5 minutes) until one succeeds.
 
-No manual intervention is needed in most cases. If the circuit breaker trips, investigate and resolve the underlying lock issue — once the next commit succeeds, normal operation resumes automatically.
+No manual intervention is needed in most cases. If the circuit breaker trips, check `breaker.lastError` in `GET /vcs/status` and resolve the underlying issue. The next recovery attempt picks up the retained files automatically.
+
+### Squash Refused
+
+**Symptom:** Logs show `Squash refused: in-progress git operation detected` or `Squash refused: working tree has uncommitted changes to tracked files`.
+
+**Cause:** An abandoned cherry-pick, rebase, or merge in `.git/`, or tracked changes that the commit pipeline has not committed.
+
+**Resolution:** For an in-progress operation, inspect the repo and clear it manually (`git cherry-pick --quit`, `git rebase --abort`, or `git merge --abort`). For uncommitted tracked changes, check `GET /vcs/status` for a tripped breaker; once commits succeed, the next squash cycle proceeds.
 
 ### Large Initial Commits
 

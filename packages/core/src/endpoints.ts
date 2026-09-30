@@ -159,7 +159,7 @@ export const WATCHER_ENDPOINTS = [
     method: 'GET',
     path: '/vcs/status',
     description:
-      'VCS state for all roots: enabled state, tracked files, last commit, remote status.',
+      'VCS state for all roots: enabled state, tracked files, last commit, remote status, commit circuit breaker state.',
   },
   {
     name: 'vcsHistory',

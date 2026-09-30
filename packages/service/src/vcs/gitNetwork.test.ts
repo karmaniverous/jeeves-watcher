@@ -30,7 +30,7 @@ import {
 } from 'vitest';
 
 import type * as GitExecModule from './gitExec';
-import { execFileAsync } from './gitExec';
+import { execFileAsync, GIT_BASE_ARGS } from './gitExec';
 import {
   buildAuthHeader,
   buildGitNetworkArgs,
@@ -152,7 +152,12 @@ describe('execGitNetwork', { timeout: TEST_TIMEOUT_MS }, () => {
       { cwd: string; env: NodeJS.ProcessEnv; timeout: number },
     ];
     expect(file).toBe('git');
-    expect(args).toEqual([...buildGitNetworkArgs(true), 'ls-remote', url]);
+    expect(args).toEqual([
+      ...GIT_BASE_ARGS,
+      ...buildGitNetworkArgs(true),
+      'ls-remote',
+      url,
+    ]);
     expect(options.cwd).toBe(cwd);
     expect(options.timeout).toBe(GIT_TIMEOUT_MS);
     expect(options.env).toMatchObject({
@@ -246,6 +251,7 @@ describe('gitPushNonInteractive', () => {
       timeout: 1,
     });
     expect(lastArgs()).toEqual([
+      ...GIT_BASE_ARGS,
       ...buildGitNetworkArgs(true),
       'push',
       '--force',
@@ -266,6 +272,7 @@ describe('gitPushNonInteractive', () => {
       timeout: 1,
     });
     expect(lastArgs()).toEqual([
+      ...GIT_BASE_ARGS,
       ...buildGitNetworkArgs(false),
       'push',
       'https://example.invalid/repo.git',
@@ -282,6 +289,7 @@ describe('gitPushNonInteractive', () => {
       timeout: 1,
     });
     expect(lastArgs()).toEqual([
+      ...GIT_BASE_ARGS,
       ...buildGitNetworkArgs(false),
       'push',
       'git@example.invalid:repo.git',

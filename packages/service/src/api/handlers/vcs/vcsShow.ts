@@ -8,8 +8,8 @@ import { extname } from 'node:path';
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import type pino from 'pino';
 
-import { execFileAsync } from '../../../vcs/gitExec';
 import { resolveWatchRoot } from '../../../vcs/resolveWatchRoot';
+import { runGit } from '../../../vcs/runGit';
 import type { VcsCoordinator } from '../../../vcs/VcsCoordinator';
 import { wrapHandler } from '../wrapHandler';
 
@@ -63,11 +63,10 @@ export function createVcsShowHandler(deps: VcsShowRouteDeps) {
       }
 
       try {
-        const { stdout } = await execFileAsync(
-          'git',
-          ['show', `${commit}:${resolved.relativePath}`],
-          { cwd: resolved.root },
-        );
+        const { stdout } = await runGit(resolved.root, [
+          'show',
+          `${commit}:${resolved.relativePath}`,
+        ]);
 
         const ext = extname(path).toLowerCase();
         const contentType = CONTENT_TYPES[ext] ?? 'application/octet-stream';

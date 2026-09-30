@@ -10,8 +10,8 @@ import type { FastifyReply, FastifyRequest } from 'fastify';
 import type pino from 'pino';
 
 import { normalizeSlashes } from '../../../util/normalizeSlashes';
-import { execFileAsync } from '../../../vcs/gitExec';
 import { resolveWatchRootsForGlob } from '../../../vcs/resolveWatchRoot';
+import { runGit } from '../../../vcs/runGit';
 import type { VcsCoordinator } from '../../../vcs/VcsCoordinator';
 import { wrapHandler } from '../wrapHandler';
 
@@ -64,7 +64,7 @@ export function createVcsRevertHandler(deps: VcsRevertRouteDeps) {
             relativePath === '' || relativePath === '.'
               ? ['ls-tree', '-r', '--name-only', commit]
               : ['ls-tree', '-r', '--name-only', commit, '--', relativePath];
-          const { stdout } = await execFileAsync('git', args, { cwd: root });
+          const { stdout } = await runGit(root, args);
           fileList = stdout
             .trim()
             .split('\n')
@@ -90,11 +90,10 @@ export function createVcsRevertHandler(deps: VcsRevertRouteDeps) {
           // Get file content at the target commit
           let content: string;
           try {
-            const { stdout } = await execFileAsync(
-              'git',
-              ['show', `${commit}:${relFile}`],
-              { cwd: root },
-            );
+            const { stdout } = await runGit(root, [
+              'show',
+              `${commit}:${relFile}`,
+            ]);
             content = stdout;
           } catch {
             continue;

@@ -150,14 +150,28 @@ export const vcsConfigSchema = z.object({
     .describe(
       'Age in ms after which an index.lock is considered stale and force-removed. Default: 60000.',
     ),
-  /** Circuit breaker: stop re-queuing after this many consecutive commit failures. */
+  /** Circuit breaker: trip after this many consecutive commit failures. */
   maxConsecutiveFailures: z
     .number()
     .int()
     .min(1)
     .default(5)
     .describe(
-      'Circuit breaker: stop re-queuing after this many consecutive commit failures. Default: 5.',
+      'Circuit breaker: trip after this many consecutive commit failures. Default: 5.',
+    ),
+  /**
+   * Circuit breaker cooldown in ms. Once tripped, pending files are
+   * retained (re-queued, never discarded) and a single half-open recovery
+   * attempt is allowed once this cooldown elapses — without requiring a
+   * new file-change event.
+   */
+  circuitBreakerCooldownMs: z
+    .number()
+    .int()
+    .min(1000)
+    .default(300000)
+    .describe(
+      'Circuit breaker cooldown in ms before a half-open recovery attempt. Default: 300000 (5 minutes).',
     ),
   /** Git branch name for VCS operations. SquashManager and startup recovery use this instead of dynamic detection. */
   branch: z
