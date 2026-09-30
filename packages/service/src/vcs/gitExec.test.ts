@@ -93,11 +93,21 @@ describe('findRootForPath', () => {
 });
 
 describe('pathKey', () => {
-  it('lowercases and uses forward slashes on Windows', () => {
-    expect(pathKey('C:\\Repo\\Sub\\File.TXT', 'win32')).toBe(
-      'c:/repo/sub/file.txt',
+  it('lowercases for the win32 platform', () => {
+    // resolve() follows the host OS, so use a path that is absolute on both.
+    expect(pathKey('/Repo/Sub/File.TXT', 'win32')).toMatch(
+      /\/repo\/sub\/file\.txt$/,
     );
   });
+
+  it.runIf(process.platform === 'win32')(
+    'converts Windows backslashes to forward slashes',
+    () => {
+      expect(pathKey('C:\\Repo\\Sub\\File.TXT', 'win32')).toBe(
+        'c:/repo/sub/file.txt',
+      );
+    },
+  );
 
   it('preserves case on other platforms', () => {
     expect(pathKey('/Repo/File.TXT', 'linux')).toMatch(/Repo\/File\.TXT$/);
