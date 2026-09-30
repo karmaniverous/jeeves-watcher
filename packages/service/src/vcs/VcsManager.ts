@@ -3,28 +3,30 @@
  * Per-root VCS manager for git-backed content versioning.
  */
 
-import { rm, stat } from 'node:fs/promises';
-import { join } from 'node:path';
-
 import type { VcsConfig } from '@karmaniverous/jeeves-watcher-core';
 import type pino from 'pino';
 
 import { normalizeError } from '../util/normalizeError';
 import { retry } from '../util/retry';
+import { stageBatch } from './batchStaging';
+import {
+  type CircuitBreakerSnapshot,
+  CommitCircuitBreaker,
+} from './CommitCircuitBreaker';
 import { CommitMessageBuilder } from './CommitMessageBuilder';
 import type { CommitMessageGenerator } from './CommitMessageGenerator';
+import { isIndexLockError } from './gitExec';
 import {
-  execFileAsync,
-  GIT_TIMEOUT_STANDARD,
-  gitAddViaStdin,
-  gitArgs,
-  gitRmCachedViaStdin,
+  gitCommit,
   hasStagedChanges,
-  isIndexLockError,
   listDeletedTrackedPaths,
-  pathKey,
-} from './gitExec';
-import { detectStaleGitOperation, SquashManager } from './SquashManager';
+} from './gitIndex';
+import {
+  detectStaleGitOperation,
+  removeStaleIndexLock,
+  STALE_OPERATION_HINT,
+} from './gitRepoState';
+import { SquashManager } from './SquashManager';
 import type { PendingReversion, PushError } from './types';
 import { detectAndRecoverOrphanBranch } from './vcsBootstrap';
 import { pushToRemote } from './vcsPush';
@@ -32,16 +34,8 @@ import { pushToRemote } from './vcsPush';
 export type { PendingReversion, PushError };
 
 /** Per-root circuit breaker state, exposed via /vcs/status. */
-export interface VcsBreakerState {
-  /** Consecutive commit failures since the last success. */
-  consecutiveFailures: number;
-  /** Whether the breaker is currently tripped (cooling down). */
-  tripped: boolean;
-  /** ISO timestamp of the last trip, or null if never tripped. */
-  trippedAt: string | null;
-  /** Message of the most recent failure, or null. */
-  lastError: string | null;
-  /** Number of files currently pending (queued, not yet committed). */
+export interface VcsBreakerState extends CircuitBreakerSnapshot {
+  /** Files queued or in flight, not yet committed. */
   pendingCount: number;
 }
 
@@ -53,7 +47,9 @@ export interface VcsBreakerState {
  * (with optional AI-generated messages), and optionally pushed to a remote.
  *
  * Concurrency: only one commit is in-flight at a time per root. Index.lock
- * contention is handled with exponential backoff retries (D10).
+ * contention is handled with exponential backoff retries (D10). Failed
+ * batches are always retained; a circuit breaker spaces out retries of a
+ * persistently failing root (#249).
  */
 export class VcsManager {
   readonly config: VcsConfig;
@@ -62,20 +58,15 @@ export class VcsManager {
   private readonly accessToken: string | undefined;
   private readonly logger: pino.Logger;
   private readonly commitMessageBuilder: CommitMessageBuilder;
+  private readonly breaker: CommitCircuitBreaker;
   private readonly pending: Set<string> = new Set();
   private readonly pendingReversions: PendingReversion[] = [];
   private readonly _pushErrors: PushError[] = [];
   private readonly squashManager: SquashManager | undefined;
   private throttleTimer: ReturnType<typeof setTimeout> | undefined;
-  private commitInFlight: Promise<void> = Promise.resolve();
-  private consecutiveCommitFailures = 0;
-  // Circuit breaker (Bug: never discard pending files, see #249): once
-  // tripped, batches are re-queued (not dropped) and retried after a
-  // time-based cooldown rather than waiting for a new file event.
-  private breakerTripped = false;
-  private trippedAtMs = 0;
-  private breakerLastError: string | undefined;
   private breakerRetryTimer: ReturnType<typeof setTimeout> | undefined;
+  private commitInFlight: Promise<void> = Promise.resolve();
+  private inFlightFileCount = 0;
   private started = false;
   private paused = false;
   private isBaseline = true;
@@ -100,6 +91,10 @@ export class VcsManager {
       logger,
       commitMessageGenerator,
     );
+    this.breaker = new CommitCircuitBreaker(
+      config.maxConsecutiveFailures,
+      config.circuitBreakerCooldownMs,
+    );
 
     if (config.retention) {
       this.squashManager = new SquashManager(
@@ -108,9 +103,7 @@ export class VcsManager {
         logger,
         {
           branch: config.branch,
-          pauseCommits: () => {
-            return this.pause();
-          },
+          pauseCommits: () => this.pause(),
           resumeCommits: () => {
             this.resume();
           },
@@ -129,16 +122,11 @@ export class VcsManager {
     return this._pushErrors;
   }
 
-  /** Current circuit breaker state, for /vcs/status. */
+  /** Current circuit breaker state and backlog, for /vcs/status. */
   get breakerState(): VcsBreakerState {
     return {
-      consecutiveFailures: this.consecutiveCommitFailures,
-      tripped: this.breakerTripped,
-      trippedAt: this.breakerTripped
-        ? new Date(this.trippedAtMs).toISOString()
-        : null,
-      lastError: this.breakerLastError ?? null,
-      pendingCount: this.pending.size,
+      ...this.breaker.snapshot(),
+      pendingCount: this.pending.size + this.inFlightFileCount,
     };
   }
 
@@ -147,16 +135,20 @@ export class VcsManager {
    * starts the squash manager if configured.
    *
    * Performs startup orphan detection/recovery before starting the squash
-   * manager, ensuring the repo is on the configured branch.
+   * manager, ensuring the repo is on the configured branch, and reports
+   * (never clears) an abandoned cherry-pick, rebase, or merge.
    *
    * Baseline mode (commit prefix `"baseline:"`) remains active until
    * {@link endBaseline} is called by the coordinator after the initial scan.
    */
   async start(): Promise<void> {
     // Bug 6: Detect and recover from orphan branches before normal operations
-    const branch = this.config.branch;
     try {
-      await detectAndRecoverOrphanBranch(this.rootPath, branch, this.logger);
+      await detectAndRecoverOrphanBranch(
+        this.rootPath,
+        this.config.branch,
+        this.logger,
+      );
     } catch (error) {
       this.logger.error(
         { root: this.rootPath, err: normalizeError(error) },
@@ -164,13 +156,11 @@ export class VcsManager {
       );
     }
 
-    // #249: report (never auto-clear) an abandoned cherry-pick, rebase, or
-    // merge. Squash refuses to run while one is present.
-    const staleOperation = await detectStaleGitOperation(this.rootPath);
-    if (staleOperation !== undefined) {
+    const marker = await detectStaleGitOperation(this.rootPath);
+    if (marker !== undefined) {
       this.logger.error(
-        { root: this.rootPath, marker: staleOperation },
-        `Stale in-progress git operation detected (.git/${staleOperation}) — squash retention will refuse to run until it is resolved manually (e.g. git cherry-pick --quit / git rebase --abort / git merge --abort)`,
+        { root: this.rootPath, marker },
+        `Stale in-progress git operation detected (.git/${marker}) — squash retention will refuse to run until you ${STALE_OPERATION_HINT}`,
       );
     }
 
@@ -189,29 +179,21 @@ export class VcsManager {
 
   /**
    * Add a file to the pending set and start the throttle timer.
-   * If the pending set exceeds maxBatchSize, flush immediately.
+   * If the pending set reaches maxBatchSize, commit a batch immediately.
+   *
+   * The circuit breaker is intentionally not reset here: recovery is
+   * time-based, so a busy root cannot hammer a deterministic failure.
    *
    * @param filePath - Absolute path of the changed file.
    */
   fileChanged(filePath: string): void {
     if (!this.started) return;
-
-    // Note: the circuit breaker is intentionally NOT reset here. Resetting
-    // on every new file change defeated the time-based cooldown (a busy
-    // root would re-trip almost immediately on the same deterministic
-    // error). Recovery is time-based; see commitBatch() and
-    // scheduleBreakerRetry(). See #249.
     this.pending.add(filePath);
 
     if (this.pending.size >= this.config.maxBatchSize) {
       this.clearThrottle();
-      const batch = this.takeBatch(this.config.maxBatchSize);
-      this.commitInFlight = this.commitInFlight.then(() =>
-        this.commitBatch(batch),
-      );
-      if (this.pending.size > 0) {
-        this.resetThrottle();
-      }
+      this.enqueueBatch(this.takeBatch());
+      if (this.pending.size > 0) this.resetThrottle();
       return;
     }
 
@@ -228,13 +210,11 @@ export class VcsManager {
   }
 
   /**
-   * Stage a file deletion and add to pending set.
-   * git add handles deleted files when the file is gone from disk.
+   * Queue a deleted file. Staging records the deletion if git tracks it.
    *
    * @param filePath - Absolute path of the deleted file.
    */
   handleUnlink(filePath: string): void {
-    if (!this.started) return;
     this.fileChanged(filePath);
   }
 
@@ -257,22 +237,16 @@ export class VcsManager {
   resume(): void {
     this.paused = false;
     this.logger.debug({ root: this.rootPath }, 'VcsManager resumed');
-    if (this.pending.size > 0) {
-      this.resetThrottle();
-    }
+    if (this.pending.size > 0) this.resetThrottle();
   }
 
   /**
-   * Flush all pending files immediately.
+   * Commit all pending files now, in batches of at most maxBatchSize.
    */
   async flush(): Promise<void> {
     this.clearThrottle();
-    if (this.pending.size > 0) {
-      const batch = [...this.pending];
-      this.pending.clear();
-      this.commitInFlight = this.commitInFlight.then(() =>
-        this.commitBatch(batch),
-      );
+    while (this.pending.size > 0) {
+      this.enqueueBatch(this.takeBatch());
     }
     await this.commitInFlight;
   }
@@ -283,42 +257,32 @@ export class VcsManager {
   async stop(): Promise<void> {
     this.started = false;
     this.squashManager?.stop();
-    if (this.breakerRetryTimer !== undefined) {
-      clearTimeout(this.breakerRetryTimer);
-      this.breakerRetryTimer = undefined;
-    }
+    this.clearBreakerRetry();
     await this.flush();
     this.logger.info({ root: this.rootPath }, 'VcsManager stopped');
   }
 
   /**
-   * Enumerate tracked-but-deleted paths (`git ls-files --deleted`) and add
-   * the ones in this manager's watch scope to pending, so the next commit
-   * (typically the baseline commit) records deletions that happened while
-   * the process wasn't watching. Called by the coordinator before flush/
-   * endBaseline on startup. See #249.
+   * Add tracked-but-deleted paths (`git ls-files --deleted`) in this
+   * manager's watch scope to pending, so the next commit (typically the
+   * baseline) records deletions that happened while nothing was watching.
+   * Called by the coordinator before flush/endBaseline on startup. See #249.
    *
-   * @param isInScope - Returns true if the given absolute path routes to
-   *   this manager (the coordinator's normal routing logic).
+   * @param isInScope - Returns true if the absolute path routes to this
+   *   manager (the coordinator's routing and watch-scope logic).
    */
   async reconcileDeletions(
     isInScope: (absolutePath: string) => boolean,
   ): Promise<void> {
     try {
-      const deleted = await listDeletedTrackedPaths(
-        this.rootPath,
-        GIT_TIMEOUT_STANDARD,
+      const deleted = (await listDeletedTrackedPaths(this.rootPath)).filter(
+        isInScope,
       );
-      let count = 0;
-      for (const abs of deleted) {
-        if (!isInScope(abs)) continue;
-        this.pending.add(abs);
-        count++;
-      }
-      if (count > 0) {
+      for (const path of deleted) this.pending.add(path);
+      if (deleted.length > 0) {
         this.logger.info(
-          { root: this.rootPath, count },
-          'VCS startup reconciliation — staged tracked deletions',
+          { root: this.rootPath, count: deleted.length },
+          'VCS startup reconciliation — queued tracked deletions',
         );
       }
     } catch (error) {
@@ -329,29 +293,34 @@ export class VcsManager {
     }
   }
 
-  /**
-   * Take up to N items from the pending set.
-   */
-  private takeBatch(n: number): string[] {
-    const batch: string[] = [];
-    for (const item of this.pending) {
-      if (batch.length >= n) break;
-      batch.push(item);
-    }
-    for (const item of batch) {
-      this.pending.delete(item);
-    }
+  /** Take up to maxBatchSize files from the pending set. */
+  private takeBatch(): string[] {
+    const batch = [...this.pending].slice(0, this.config.maxBatchSize);
+    for (const item of batch) this.pending.delete(item);
     return batch;
   }
 
-  /**
-   * Clear the throttle timer.
-   */
+  /** Chain a batch behind the in-flight commit, tracking it as backlog. */
+  private enqueueBatch(batch: string[]): void {
+    this.inFlightFileCount += batch.length;
+    this.commitInFlight = this.commitInFlight.then(async () => {
+      try {
+        await this.commitBatch(batch);
+      } finally {
+        this.inFlightFileCount -= batch.length;
+      }
+    });
+  }
+
+  /** Put files back in the pending set. Pending is a set, so this cannot grow it past the distinct paths seen. */
+  private retain(files: string[]): void {
+    for (const f of files) this.pending.add(f);
+  }
+
   private clearThrottle(): void {
-    if (this.throttleTimer !== undefined) {
-      clearTimeout(this.throttleTimer);
-      this.throttleTimer = undefined;
-    }
+    if (this.throttleTimer === undefined) return;
+    clearTimeout(this.throttleTimer);
+    this.throttleTimer = undefined;
   }
 
   /**
@@ -366,173 +335,33 @@ export class VcsManager {
     }, this.config.commitThrottleMs);
   }
 
-  /**
-   * Check for and remove stale index.lock files before retrying.
-   */
-  private async removeStaleLock(): Promise<void> {
-    const lockPath = join(this.rootPath, '.git', 'index.lock');
-    try {
-      const lockStat = await stat(lockPath);
-      const ageMs = Date.now() - lockStat.mtimeMs;
-      if (ageMs > this.config.staleLockThresholdMs) {
-        await rm(lockPath, { force: true });
-        this.logger.warn(
-          { root: this.rootPath, ageMs },
-          'Removed stale index.lock',
-        );
-      }
-    } catch (error) {
-      const code = (error as NodeJS.ErrnoException).code;
-      if (code !== 'ENOENT') {
-        this.logger.warn(
-          { root: this.rootPath, err: normalizeError(error) },
-          'Unable to remove stale index.lock',
-        );
-      }
-    }
+  private clearBreakerRetry(): void {
+    if (this.breakerRetryTimer === undefined) return;
+    clearTimeout(this.breakerRetryTimer);
+    this.breakerRetryTimer = undefined;
   }
 
   /**
-   * Split a batch into files that exist on disk (stage normally) and files
-   * that are missing but tracked (stage the removal). Missing + untracked
-   * paths are dropped (logged at debug) — a missing path must never fail
-   * the batch. Uses a single `git ls-files --deleted` call, never one
-   * process per file. See #249.
-   */
-  private async partitionMissingPaths(files: string[]): Promise<{
-    existing: string[];
-    missingTracked: string[];
-  }> {
-    const existing: string[] = [];
-    const missing: string[] = [];
-    await Promise.all(
-      files.map(async (f) => {
-        try {
-          await stat(f);
-          existing.push(f);
-        } catch {
-          missing.push(f);
-        }
-      }),
-    );
-
-    if (missing.length === 0) {
-      return { existing, missingTracked: [] };
-    }
-
-    const deletedTracked = new Set(
-      (await listDeletedTrackedPaths(this.rootPath, GIT_TIMEOUT_STANDARD)).map(
-        (p) => pathKey(p),
-      ),
-    );
-    const missingTracked: string[] = [];
-    let droppedCount = 0;
-    for (const f of missing) {
-      if (deletedTracked.has(pathKey(f))) {
-        missingTracked.push(f);
-      } else {
-        droppedCount++;
-      }
-    }
-
-    if (droppedCount > 0) {
-      this.logger.debug(
-        { root: this.rootPath, count: droppedCount },
-        'Dropping missing, untracked paths from batch',
-      );
-    }
-
-    return { existing, missingTracked };
-  }
-
-  /**
-   * Stage a batch: add existing files, stage removal of tracked-but-missing
-   * files, and drop missing-untracked files. Never fails on a missing path.
-   */
-  private async stageBatch(files: string[]): Promise<void> {
-    const { existing, missingTracked } =
-      await this.partitionMissingPaths(files);
-    if (existing.length > 0) {
-      await gitAddViaStdin(existing, this.rootPath, GIT_TIMEOUT_STANDARD);
-    }
-    if (missingTracked.length > 0) {
-      await gitRmCachedViaStdin(
-        missingTracked,
-        this.rootPath,
-        GIT_TIMEOUT_STANDARD,
-      );
-    }
-  }
-
-  /** Reset the circuit breaker to its healthy state after a successful commit (or no-op). */
-  private resetBreaker(): void {
-    const wasTripped = this.breakerTripped;
-    this.consecutiveCommitFailures = 0;
-    this.breakerTripped = false;
-    this.trippedAtMs = 0;
-    this.breakerLastError = undefined;
-    if (this.breakerRetryTimer !== undefined) {
-      clearTimeout(this.breakerRetryTimer);
-      this.breakerRetryTimer = undefined;
-    }
-    if (wasTripped) {
-      this.logger.info(
-        { root: this.rootPath },
-        'VCS circuit breaker recovered — resuming normal operation',
-      );
-    }
-  }
-
-  /**
-   * Re-queue files up to the maxBatchSize cap, logging (and dropping) any
-   * overflow beyond the cap. The circuit breaker never silently discards a
-   * whole batch — this is the only place files are dropped, and only when
-   * pending already exceeds the configured cap.
-   */
-  private requeue(files: string[]): void {
-    const cap = this.config.maxBatchSize;
-    const toRequeue = files.slice(0, cap);
-    const overflow = files.length - toRequeue.length;
-
-    for (const f of toRequeue) {
-      this.pending.add(f);
-    }
-
-    if (overflow > 0) {
-      this.logger.warn(
-        { root: this.rootPath, overflow, cap },
-        'Re-queue cap exceeded — discarded overflow files',
-      );
-    }
-  }
-
-  /**
-   * Ensure a timer exists that will retry pending files once the circuit
-   * breaker's cooldown elapses, without needing a new file-change event.
+   * Ensure a timer will flush pending files when the breaker's cooldown
+   * elapses, without needing a new file-change event.
    */
   private scheduleBreakerRetry(): void {
     if (!this.started || this.breakerRetryTimer !== undefined) return;
-    const elapsed = Date.now() - this.trippedAtMs;
-    const wait = Math.max(0, this.config.circuitBreakerCooldownMs - elapsed);
     this.breakerRetryTimer = setTimeout(() => {
       this.breakerRetryTimer = undefined;
       void this.flush();
-    }, wait);
+    }, this.breaker.remainingCooldownMs());
   }
 
   /**
-   * Commit a batch of files to the git repo with index.lock retry,
-   * stale lock detection, circuit breaker (re-queue + time-based cooldown),
-   * pause support, and re-queue cap. See #249.
+   * Commit a batch with index.lock retry, stale lock detection, pause
+   * support, and the circuit breaker. A failed batch is always retained.
    */
   private async commitBatch(files: string[]): Promise<void> {
     if (files.length === 0) return;
 
-    // Pause support: re-queue files without counting as failure
     if (this.paused) {
-      for (const f of files) {
-        this.pending.add(f);
-      }
+      this.retain(files);
       this.logger.debug(
         { root: this.rootPath, fileCount: files.length },
         'VcsManager paused — files re-queued',
@@ -540,18 +369,9 @@ export class VcsManager {
       return;
     }
 
-    // Circuit breaker: while cooling down, re-queue (never discard) and
-    // ensure a cooldown timer is running. Once the cooldown elapses, allow
-    // exactly one half-open attempt through.
-    if (this.breakerTripped) {
-      const elapsed = Date.now() - this.trippedAtMs;
-      if (elapsed < this.config.circuitBreakerCooldownMs) {
-        // No cap here: these files were just taken from pending and were never
-        // attempted, so putting them all back cannot grow the set. Capping
-        // would silently discard work while cooling down.
-        for (const f of files) {
-          this.pending.add(f);
-        }
+    if (this.breaker.isTripped) {
+      if (this.breaker.remainingCooldownMs() > 0) {
+        this.retain(files);
         this.scheduleBreakerRetry();
         return;
       }
@@ -562,71 +382,19 @@ export class VcsManager {
     }
 
     try {
-      // Check for stale lock before first attempt
-      await this.removeStaleLock();
-
-      const result = await retry(
-        async (attempt) => {
-          await this.stageBatch(files);
-
-          // Bug 1/5: "nothing staged" is a no-op, not a failure — checked via
-          // `git diff --cached --quiet`, not by parsing porcelain text.
-          const staged = await hasStagedChanges(
-            this.rootPath,
-            GIT_TIMEOUT_STANDARD,
-          );
-          if (!staged) return { committed: false } as const;
-
-          // Build message after staging so getStagedDiff can see the changes.
-          // Skip AI for baselines and retries — use template directly.
-          const message =
-            this.isBaseline || attempt > 1
-              ? this.commitMessageBuilder.buildTemplateMessage(
-                  files.length,
-                  this.isBaseline,
-                  this.pendingReversions,
-                )
-              : await this.commitMessageBuilder.buildCommitMessage(
-                  files,
-                  this.isBaseline,
-                  this.pendingReversions,
-                );
-
-          this.pendingReversions.length = 0;
-          await execFileAsync('git', gitArgs('commit', '-m', message), {
-            cwd: this.rootPath,
-            timeout: GIT_TIMEOUT_STANDARD,
-          });
-
-          const { stdout: hashOut } = await execFileAsync(
-            'git',
-            gitArgs('rev-parse', '--short', 'HEAD'),
-            { cwd: this.rootPath, timeout: GIT_TIMEOUT_STANDARD },
-          );
-          const hash = hashOut.trim();
-          this.logger.info(
-            { root: this.rootPath, hash, fileCount: files.length },
-            'VCS commit created',
-          );
-
-          const pushTime = await pushToRemote(
-            this.rootPath,
-            this.remoteUrl,
-            this.accessToken,
-            this._pushErrors,
-            this.logger,
-          );
-          if (pushTime) this._lastPushTime = pushTime;
-          return { committed: true } as const;
-        },
+      await removeStaleIndexLock(
+        this.rootPath,
+        this.config.staleLockThresholdMs,
+        this.logger,
+      );
+      const committed = await retry(
+        (attempt) => this.tryCommit(files, attempt),
         {
           attempts: 4,
           baseDelayMs: 500,
           maxDelayMs: 2000,
-          // Only transient errors (index.lock contention) are retried.
-          // Deterministic errors (bad pathspec, permission denied, etc.) fail
-          // on the first attempt instead of burning 3 more retries under a
-          // misleading "index.lock contention" warning. See #249.
+          // Only index.lock contention is transient. Anything else fails on
+          // the first attempt with its real message. See #249.
           shouldRetry: isIndexLockError,
           onRetry: ({ attempt, delayMs }) => {
             this.logger.warn(
@@ -637,48 +405,95 @@ export class VcsManager {
         },
       );
 
-      if (!result.committed) {
+      if (!committed) {
         this.logger.info(
           { root: this.rootPath, fileCount: files.length },
           'VCS commit skipped — nothing staged',
         );
       }
-
-      // Success (committed or no-op) — reset circuit breaker
-      this.resetBreaker();
+      this.onCommitSuccess();
     } catch (error) {
-      this.consecutiveCommitFailures++;
-      this.breakerLastError = normalizeError(error).message;
-
-      this.requeue(files);
-      this.logger.warn(
-        { root: this.rootPath, fileCount: files.length },
-        'Re-queued files after commit failure',
-      );
-      this.logger.error(
-        { root: this.rootPath, err: normalizeError(error) },
-        'VCS commit failed',
-      );
-
-      if (
-        this.consecutiveCommitFailures >= this.config.maxConsecutiveFailures
-      ) {
-        this.breakerTripped = true;
-        this.trippedAtMs = Date.now();
-        this.logger.error(
-          {
-            root: this.rootPath,
-            consecutiveFailures: this.consecutiveCommitFailures,
-            pendingCount: this.pending.size,
-            cooldownMs: this.config.circuitBreakerCooldownMs,
-          },
-          'VCS circuit breaker tripped — pending files retained, will retry after cooldown',
-        );
-        this.scheduleBreakerRetry();
-      } else {
-        // Bug 2: Restart throttle timer so re-queued files get retried
-        this.resetThrottle();
-      }
+      this.onCommitFailure(files, error);
     }
+  }
+
+  /**
+   * One commit attempt: stage, skip if nothing is staged, commit, push.
+   *
+   * @returns true if a commit was created; false for a no-op.
+   */
+  private async tryCommit(files: string[], attempt: number): Promise<boolean> {
+    await stageBatch(files, this.rootPath, this.logger);
+
+    // "Nothing staged" is a no-op, detected without parsing git's text.
+    if (!(await hasStagedChanges(this.rootPath))) return false;
+
+    // Build message after staging so getStagedDiff can see the changes.
+    // Skip AI for baselines and retries — use template directly.
+    const message =
+      this.isBaseline || attempt > 1
+        ? this.commitMessageBuilder.buildTemplateMessage(
+            files.length,
+            this.isBaseline,
+            this.pendingReversions,
+          )
+        : await this.commitMessageBuilder.buildCommitMessage(
+            files,
+            this.isBaseline,
+            this.pendingReversions,
+          );
+    this.pendingReversions.length = 0;
+
+    const hash = await gitCommit(this.rootPath, message);
+    this.logger.info(
+      { root: this.rootPath, hash, fileCount: files.length },
+      'VCS commit created',
+    );
+
+    const pushTime = await pushToRemote(
+      this.rootPath,
+      this.remoteUrl,
+      this.accessToken,
+      this._pushErrors,
+      this.logger,
+    );
+    if (pushTime) this._lastPushTime = pushTime;
+    return true;
+  }
+
+  private onCommitSuccess(): void {
+    if (!this.breaker.recordSuccess()) return;
+    this.clearBreakerRetry();
+    this.logger.info(
+      { root: this.rootPath },
+      'VCS circuit breaker recovered — resuming normal operation',
+    );
+  }
+
+  private onCommitFailure(files: string[], error: unknown): void {
+    const err = normalizeError(error);
+    this.retain(files);
+    this.logger.warn(
+      { root: this.rootPath, fileCount: files.length },
+      'Re-queued files after commit failure',
+    );
+    this.logger.error({ root: this.rootPath, err }, 'VCS commit failed');
+
+    if (!this.breaker.recordFailure(err.message)) {
+      // Bug 2: Restart throttle timer so re-queued files get retried
+      this.resetThrottle();
+      return;
+    }
+
+    this.logger.error(
+      {
+        root: this.rootPath,
+        consecutiveFailures: this.breaker.snapshot().consecutiveFailures,
+        pendingCount: this.pending.size,
+        cooldownMs: this.config.circuitBreakerCooldownMs,
+      },
+      'VCS circuit breaker tripped — pending files retained, will retry after cooldown',
+    );
+    this.scheduleBreakerRetry();
   }
 }

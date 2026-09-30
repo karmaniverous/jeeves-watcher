@@ -4,10 +4,9 @@
  * root's VcsManager instance.
  */
 
-import { dirname, resolve } from 'node:path';
+import { resolve } from 'node:path';
 
 import {
-  extractWatchPathStrings,
   normalizeWatchPaths,
   type VcsConfig,
   vcsRetentionConfigSchema,
@@ -16,15 +15,12 @@ import type pino from 'pino';
 
 import type { JeevesWatcherConfig } from '../config/types';
 import { normalizeSlashes } from '../util/normalizeSlashes';
-import {
-  globRoot,
-  resolveIgnored,
-  resolveWatchPaths,
-} from '../watcher/globToDir.js';
+import { globRoot } from '../watcher/globToDir.js';
 import { CommitMessageGenerator } from './CommitMessageGenerator';
 import { findRootForPath, normalizePathCase } from './gitExec';
 import { resolveCommitMessageApiKey } from './resolveCommitMessageApiKey';
 import { VcsManager } from './VcsManager';
+import { createWatchScope, type WatchScope } from './watchScope';
 
 /**
  * Orchestrates VCS across all VCS-enabled watch roots.
@@ -33,9 +29,7 @@ export class VcsCoordinator {
   private readonly managers: Map<string, VcsManager> = new Map();
   private readonly roots: string[] = [];
   private readonly logger: pino.Logger;
-  private readonly matchesWatchGlobs: (filePath: string) => boolean = () =>
-    false;
-  private readonly ignoredMatchers: ((filePath: string) => boolean)[] = [];
+  private readonly isInWatchScope: WatchScope = () => false;
 
   constructor(config: JeevesWatcherConfig, logger: pino.Logger) {
     this.logger = logger;
@@ -44,14 +38,7 @@ export class VcsCoordinator {
 
     // Same watch-scope logic as the filesystem watcher (globs + ignored),
     // used to filter startup deletion reconciliation. See #249.
-    this.matchesWatchGlobs = resolveWatchPaths(
-      extractWatchPathStrings(config.watch.paths),
-    ).matches;
-    for (const entry of resolveIgnored(config.watch.ignored)) {
-      if (typeof entry === 'function') this.ignoredMatchers.push(entry);
-      else if (entry instanceof RegExp)
-        this.ignoredMatchers.push((p) => entry.test(p));
-    }
+    this.isInWatchScope = createWatchScope(config.watch);
 
     const normalized = normalizeWatchPaths(config.watch.paths);
     for (const entry of normalized) {
@@ -172,27 +159,6 @@ export class VcsCoordinator {
       manager.endBaseline();
     }
     this.logger.debug('VcsCoordinator: initial scan complete, baseline ended');
-  }
-
-  /**
-   * Check whether a path is inside the configured watch scope: it matches a
-   * watch glob and neither it nor any ancestor directory matches a
-   * `watch.ignored` pattern (chokidar applies `ignored` to directories too).
-   *
-   * @param normalizedPath - Normalized absolute path (forward slashes).
-   * @returns true if the watcher would observe this path.
-   */
-  isInWatchScope(normalizedPath: string): boolean {
-    if (!this.matchesWatchGlobs(normalizedPath)) return false;
-    let current = normalizedPath;
-    for (;;) {
-      if (this.ignoredMatchers.some((isIgnored) => isIgnored(current))) {
-        return false;
-      }
-      const parent = normalizeSlashes(dirname(current));
-      if (parent === current) return true;
-      current = parent;
-    }
   }
 
   /**

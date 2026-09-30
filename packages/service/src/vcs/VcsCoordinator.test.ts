@@ -3,7 +3,7 @@
  * Tests for VcsCoordinator routing and lifecycle.
  */
 
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 
@@ -250,52 +250,6 @@ describe('VcsCoordinator', () => {
     });
     expect(stdout).toContain('watcher: batch');
     expect(stdout).not.toContain('baseline');
-  });
-
-  it('onInitialScanComplete commits in-scope deletions made while stopped (#249)', async () => {
-    const root = resolve(rootA);
-    await mkdir(join(root, 'sub', 'ignored'), { recursive: true });
-    const inScope = join(root, 'sub', 'gone.txt');
-    const outOfGlob = join(root, 'gone.md');
-    const ignoredFile = join(root, 'sub', 'ignored', 'gone.txt');
-    const survivor = join(root, 'keep.txt');
-    for (const f of [inScope, outOfGlob, ignoredFile, survivor]) {
-      await writeFile(f, 'x', 'utf8');
-    }
-    await execFileAsync('git', ['add', '-A'], { cwd: root });
-    await execFileAsync('git', ['commit', '-m', 'initial'], { cwd: root });
-
-    // Deleted while the watcher was not running
-    await rm(inScope);
-    await rm(outOfGlob);
-    await rm(ignoredFile);
-
-    const config = {
-      vcs: { enabled: true, commitThrottleMs: 60000, maxBatchSize: 1000 },
-      watch: { paths: [`${root}/**/*.txt`], ignored: ['**/ignored/**'] },
-    } as unknown as JeevesWatcherConfig;
-    const coordinator = new VcsCoordinator(config, silentLogger);
-    await coordinator.start();
-    // Initial scan emitted only `add` for surviving files
-    coordinator.onFileChange(survivor, 'add');
-    await coordinator.onInitialScanComplete();
-    await coordinator.stop();
-
-    expect(await commitCount(root)).toBe(2);
-    const { stdout: subject } = await execFileAsync(
-      'git',
-      ['log', '-1', '--format=%s'],
-      { cwd: root },
-    );
-    expect(subject).toContain('baseline:');
-    const { stdout: tracked } = await execFileAsync('git', ['ls-files'], {
-      cwd: root,
-    });
-    expect(tracked).not.toContain('sub/gone.txt');
-    // Outside the watch glob / ignored: left for the operator
-    expect(tracked).toContain('gone.md');
-    expect(tracked).toContain('sub/ignored/gone.txt');
-    expect(tracked).toContain('keep.txt');
   });
 
   it('stop flushes all pending changes', async () => {

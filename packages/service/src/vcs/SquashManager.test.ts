@@ -1,147 +1,28 @@
 /**
  * @module vcs/SquashManager.test
- * Tests for SquashManager: retention boundary, squash mechanism, cron matching.
+ * Tests for SquashManager: retention boundary and squash mechanism.
+ * Safety guards live in SquashManager.guards.test.ts; cron matching in
+ * cronMatch.test.ts.
  */
 
-import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import type { VcsRetentionConfig } from '@karmaniverous/jeeves-watcher-core';
 import pino from 'pino';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { startDroppingRemote } from '../test/droppingRemote';
 import { execFileAsync } from '../test/git';
-import { cronMatchesNow, SquashManager } from './SquashManager';
+import {
+  commitCount,
+  createCommit,
+  initTestRepo,
+  makeRetention,
+} from '../test/squashRepo';
+import { SquashManager } from './SquashManager';
 
 const silentLogger = pino({ level: 'silent' });
-
-function makeRetention(
-  overrides: Partial<VcsRetentionConfig> = {},
-): VcsRetentionConfig {
-  return {
-    maxAgeDays: 30,
-    maxVersions: 100,
-    squashCron: '0 0 * * *',
-    ...overrides,
-  };
-}
-
-async function commitCount(cwd: string): Promise<number> {
-  try {
-    const { stdout } = await execFileAsync(
-      'git',
-      ['rev-list', '--count', 'HEAD'],
-      { cwd },
-    );
-    return parseInt(stdout.trim(), 10);
-  } catch {
-    return 0;
-  }
-}
-
-async function initTestRepo(tempDir: string): Promise<void> {
-  await execFileAsync('git', ['init'], { cwd: tempDir });
-  await execFileAsync('git', ['config', 'user.email', 'test@test.com'], {
-    cwd: tempDir,
-  });
-  await execFileAsync('git', ['config', 'user.name', 'Test'], {
-    cwd: tempDir,
-  });
-}
-
-async function createCommit(
-  cwd: string,
-  filename: string,
-  content: string,
-  dateIso?: string,
-): Promise<string> {
-  await writeFile(join(cwd, filename), content, 'utf8');
-  await execFileAsync('git', ['add', filename], { cwd });
-
-  const env: Record<string, string> = { ...process.env } as Record<
-    string,
-    string
-  >;
-  if (dateIso) {
-    env['GIT_AUTHOR_DATE'] = dateIso;
-    env['GIT_COMMITTER_DATE'] = dateIso;
-  }
-
-  await execFileAsync('git', ['commit', '-m', `add ${filename}`], {
-    cwd,
-    env,
-  });
-
-  const { stdout } = await execFileAsync('git', ['rev-parse', 'HEAD'], {
-    cwd,
-  });
-  return stdout.trim();
-}
-
-// ─── cronMatchesNow ───
-
-describe('cronMatchesNow', () => {
-  it('matches wildcard expression', () => {
-    expect(cronMatchesNow('* * * * *')).toBe(true);
-  });
-
-  it('matches specific minute and hour', () => {
-    const now = new Date(2024, 5, 15, 14, 30); // June 15, 2024 14:30
-    expect(cronMatchesNow('30 14 * * *', now)).toBe(true);
-    expect(cronMatchesNow('31 14 * * *', now)).toBe(false);
-  });
-
-  it('matches step expression */5', () => {
-    const at0 = new Date(2024, 0, 1, 0, 0);
-    const at5 = new Date(2024, 0, 1, 0, 5);
-    const at3 = new Date(2024, 0, 1, 0, 3);
-    expect(cronMatchesNow('*/5 * * * *', at0)).toBe(true);
-    expect(cronMatchesNow('*/5 * * * *', at5)).toBe(true);
-    expect(cronMatchesNow('*/5 * * * *', at3)).toBe(false);
-  });
-
-  it('matches range expression', () => {
-    const at3 = new Date(2024, 0, 1, 3, 0);
-    const at6 = new Date(2024, 0, 1, 6, 0);
-    expect(cronMatchesNow('0 1-5 * * *', at3)).toBe(true);
-    expect(cronMatchesNow('0 1-5 * * *', at6)).toBe(false);
-  });
-
-  it('matches list expression', () => {
-    const at0 = new Date(2024, 0, 1, 0, 0);
-    const at15 = new Date(2024, 0, 1, 0, 15);
-    const at10 = new Date(2024, 0, 1, 0, 10);
-    expect(cronMatchesNow('0,15,30,45 * * * *', at0)).toBe(true);
-    expect(cronMatchesNow('0,15,30,45 * * * *', at15)).toBe(true);
-    expect(cronMatchesNow('0,15,30,45 * * * *', at10)).toBe(false);
-  });
-
-  it('matches day of week (Sunday=0 or 7)', () => {
-    // June 16, 2024 is a Sunday
-    const sunday = new Date(2024, 5, 16, 0, 0);
-    expect(cronMatchesNow('0 0 * * 0', sunday)).toBe(true);
-    expect(cronMatchesNow('0 0 * * 7', sunday)).toBe(true);
-    expect(cronMatchesNow('0 0 * * 1', sunday)).toBe(false);
-  });
-
-  it('returns false for invalid expression', () => {
-    expect(cronMatchesNow('invalid')).toBe(false);
-  });
-
-  it('matches specific month and day-of-month', () => {
-    // Dec 25 at midnight
-    const christmas = new Date(2024, 11, 25, 0, 0);
-    expect(cronMatchesNow('0 0 25 12 *', christmas)).toBe(true);
-  });
-
-  it('does not match wrong month', () => {
-    // Nov 25 at midnight — month 11 is not December (12)
-    const nov25 = new Date(2024, 10, 25, 0, 0);
-    expect(cronMatchesNow('0 0 25 12 *', nov25)).toBe(false);
-  });
-});
 
 // ─── Retention boundary calculation ───
 
@@ -576,124 +457,4 @@ describe('SquashManager.runSquash', () => {
     expect(pauseFn).toHaveBeenCalledTimes(1);
     expect(resumeFn).toHaveBeenCalledTimes(1);
   });
-
-  // ─── #249 safety guard ───
-
-  async function createSquashableHistory(): Promise<void> {
-    const now = new Date();
-    await createCommit(
-      tempDir,
-      'file1.txt',
-      'a',
-      new Date(now.getTime() - 60 * 86400000).toISOString(),
-    );
-    await createCommit(
-      tempDir,
-      'file2.txt',
-      'b',
-      new Date(now.getTime() - 50 * 86400000).toISOString(),
-    );
-    await createCommit(
-      tempDir,
-      'file3.txt',
-      'c',
-      new Date(now.getTime() - 1 * 86400000).toISOString(),
-    );
-  }
-
-  it.each(['sequencer', 'rebase-merge', 'rebase-apply'])(
-    'refuses to squash with an in-progress operation (.git/%s) and never pauses',
-    async (marker) => {
-      await createSquashableHistory();
-      await mkdir(join(tempDir, '.git', marker));
-
-      const logger = pino({ level: 'silent' });
-      const errorSpy = vi.spyOn(logger, 'error');
-      const pauseFn = vi.fn(() => Promise.resolve());
-      const manager = new SquashManager(
-        tempDir,
-        makeRetention({ maxAgeDays: 30, maxVersions: 100 }),
-        logger,
-        { pauseCommits: pauseFn },
-      );
-
-      const result = await manager.runSquash();
-      expect(result.squashed).toBe(false);
-      expect(result.error).toContain(`.git/${marker}`);
-      expect(pauseFn).not.toHaveBeenCalled();
-      expect(errorSpy).toHaveBeenCalledWith(
-        expect.objectContaining({ root: tempDir, marker }),
-        expect.stringContaining('Squash refused'),
-      );
-      expect(await commitCount(tempDir)).toBe(3);
-    },
-  );
-
-  it('refuses to squash with CHERRY_PICK_HEAD or MERGE_HEAD present', async () => {
-    await createSquashableHistory();
-    for (const marker of ['CHERRY_PICK_HEAD', 'MERGE_HEAD']) {
-      const markerPath = join(tempDir, '.git', marker);
-      await writeFile(markerPath, '0000000000000000000000000000000000000000\n');
-      const manager = new SquashManager(
-        tempDir,
-        makeRetention({ maxAgeDays: 30, maxVersions: 100 }),
-        silentLogger,
-      );
-      const result = await manager.runSquash();
-      expect(result.squashed).toBe(false);
-      expect(result.error).toContain(marker);
-      await rm(markerPath);
-    }
-    expect(await commitCount(tempDir)).toBe(3);
-  });
-
-  it('refuses to squash with a dirty tracked file and leaves its content intact', async () => {
-    await createSquashableHistory();
-    const dirty = join(tempDir, 'file3.txt');
-    await writeFile(dirty, 'uncommitted edit', 'utf8');
-
-    const logger = pino({ level: 'silent' });
-    const warnSpy = vi.spyOn(logger, 'warn');
-    const resumeFn = vi.fn(() => {});
-    const manager = new SquashManager(
-      tempDir,
-      makeRetention({ maxAgeDays: 30, maxVersions: 100 }),
-      logger,
-      { pauseCommits: () => Promise.resolve(), resumeCommits: resumeFn },
-    );
-
-    const result = await manager.runSquash();
-    expect(result.squashed).toBe(false);
-    expect(result.error).toContain('uncommitted changes');
-    expect(warnSpy).toHaveBeenCalledWith(
-      expect.objectContaining({ root: tempDir }),
-      expect.stringContaining('Squash refused'),
-    );
-    expect(resumeFn).toHaveBeenCalledTimes(1);
-    expect(await readFile(dirty, 'utf8')).toBe('uncommitted edit');
-    expect(await commitCount(tempDir)).toBe(3);
-  });
-
-  it('still squashes a clean tree with untracked files present', async () => {
-    await createSquashableHistory();
-    const untracked = join(tempDir, 'untracked.pdf');
-    await writeFile(untracked, 'not tracked', 'utf8');
-
-    const manager = new SquashManager(
-      tempDir,
-      makeRetention({ maxAgeDays: 30, maxVersions: 100 }),
-      silentLogger,
-    );
-
-    const result = await manager.runSquash();
-    expect(result.squashed).toBe(true);
-    expect(await commitCount(tempDir)).toBe(2);
-    expect(await readFile(untracked, 'utf8')).toBe('not tracked');
-    const { stdout } = await execFileAsync(
-      'git',
-      ['rev-parse', '--abbrev-ref', 'HEAD'],
-      { cwd: tempDir },
-    );
-    expect(stdout.trim()).toBe('master');
-  }, 30000);
 });

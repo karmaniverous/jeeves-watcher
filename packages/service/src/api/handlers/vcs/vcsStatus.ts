@@ -5,7 +5,7 @@
 
 import type pino from 'pino';
 
-import { execFileAsync, gitArgs } from '../../../vcs/gitExec';
+import { runGit } from '../../../vcs/runGit';
 import type { VcsCoordinator } from '../../../vcs/VcsCoordinator';
 import type { PushError, VcsBreakerState } from '../../../vcs/VcsManager';
 import { wrapHandler } from '../wrapHandler';
@@ -32,47 +32,34 @@ interface RootStatus {
   breaker: VcsBreakerState | null;
 }
 
+/**
+ * Run a read-only git query; a failure (no commits, no remote, not a repo)
+ * or empty output yields null.
+ */
+async function queryGit(cwd: string, args: string[]): Promise<string | null> {
+  try {
+    const out = (await runGit(cwd, args)).stdout.trim();
+    return out || null;
+  } catch {
+    return null;
+  }
+}
+
 async function getLastCommit(cwd: string): Promise<LastCommitInfo | null> {
-  try {
-    const { stdout } = await execFileAsync(
-      'git',
-      gitArgs('log', '-1', '--format=%H|%s|%aI'),
-      { cwd },
-    );
-    const trimmed = stdout.trim();
-    if (!trimmed) return null;
-    const [hash, message, timestamp] = trimmed.split('|');
-    return { hash, message, timestamp };
-  } catch {
-    return null;
-  }
+  const out = await queryGit(cwd, ['log', '-1', '--format=%H|%s|%aI']);
+  if (out === null) return null;
+  // Hash and timestamp never contain '|'; the subject may.
+  const parts = out.split('|');
+  return {
+    hash: parts[0],
+    message: parts.slice(1, -1).join('|'),
+    timestamp: parts[parts.length - 1],
+  };
 }
 
-async function getTrackedCount(cwd: string): Promise<number> {
-  try {
-    const { stdout } = await execFileAsync(
-      'git',
-      gitArgs('rev-list', '--count', 'HEAD'),
-      { cwd },
-    );
-    return parseInt(stdout.trim(), 10);
-  } catch {
-    return 0;
-  }
-}
-
-async function getRemoteUrl(cwd: string): Promise<string | null> {
-  try {
-    const { stdout } = await execFileAsync(
-      'git',
-      gitArgs('remote', 'get-url', 'origin'),
-      { cwd },
-    );
-    const url = stdout.trim();
-    return url || null;
-  } catch {
-    return null;
-  }
+async function getCommitCount(cwd: string): Promise<number> {
+  const out = await queryGit(cwd, ['rev-list', '--count', 'HEAD']);
+  return out === null ? 0 : parseInt(out, 10);
 }
 
 /**
@@ -88,9 +75,9 @@ export function createVcsStatusHandler(deps: VcsStatusRouteDeps) {
         roots.map(async (root) => {
           const manager = deps.coordinator.getManager(root);
           const [tracked, lastCommit, remoteUrl] = await Promise.all([
-            getTrackedCount(root),
+            getCommitCount(root),
             getLastCommit(root),
-            getRemoteUrl(root),
+            queryGit(root, ['remote', 'get-url', 'origin']),
           ]);
           return {
             path: root,

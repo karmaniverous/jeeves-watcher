@@ -197,7 +197,7 @@ curl http://localhost:1936/vcs/status
 | `roots[].breaker.tripped` | `boolean` | Whether the breaker is tripped (cooling down). |
 | `roots[].breaker.trippedAt` | `string?` | ISO-8601 timestamp of the current trip, or null. |
 | `roots[].breaker.lastError` | `string?` | Message of the most recent commit failure, or null. |
-| `roots[].breaker.pendingCount` | `number` | Files queued and not yet committed. |
+| `roots[].breaker.pendingCount` | `number` | Files queued or in flight, not yet committed. |
 
 ---
 
@@ -580,7 +580,7 @@ The initial filesystem scan only reports files that exist, so deletions that hap
 
 Only transient `index.lock` contention is retried within a commit attempt (4 attempts, exponential backoff). Any other error fails the attempt immediately with its real message.
 
-When a batch fails, its files are re-queued (capped at `maxBatchSize`) and the throttle timer restarts so they are retried automatically. After `maxConsecutiveFailures` consecutive failures the per-root circuit breaker trips:
+Each commit covers at most `maxBatchSize` files; a flush with a larger backlog commits it in several chunks. When a batch fails, all of its files are re-queued (the pending set holds each path once, so it cannot grow beyond the distinct changed paths) and the throttle timer restarts so they are retried automatically. After `maxConsecutiveFailures` consecutive failures the per-root circuit breaker trips:
 
 - Pending files are **retained**, never discarded. Batches that arrive while cooling down go straight back into the pending set.
 - After `circuitBreakerCooldownMs` (default 5 minutes) a single half-open commit attempt runs from a timer; no new file event is needed. Success resets the breaker; failure re-arms the cooldown.
@@ -653,7 +653,7 @@ If a watch root contains child git repositories (nested `.git/` directories), th
 
 1. **Stale lock detection.** Before each commit attempt, the lock file's modification time is checked. If it's older than `staleLockThresholdMs` (default: 60 seconds), the lock is force-removed and the commit proceeds.
 2. **Exponential backoff retries.** If the lock is fresh (held by a live process), the commit is retried with exponential backoff (4 attempts, 500ms-2s delays).
-3. **Re-queue cap.** If all retries fail, pending files are re-queued for the next batch cycle, capped at `maxBatchSize` to prevent unbounded growth.
+3. **Retention.** If all retries fail, the batch's files are re-queued in full for the next batch cycle. Nothing is discarded.
 4. **Circuit breaker.** After `maxConsecutiveFailures` (default: 5) consecutive commit failures, the breaker trips. Pending files are retained, and a single recovery attempt runs every `circuitBreakerCooldownMs` (default: 5 minutes) until one succeeds.
 
 No manual intervention is needed in most cases. If the circuit breaker trips, check `breaker.lastError` in `GET /vcs/status` and resolve the underlying issue. The next recovery attempt picks up the retained files automatically.

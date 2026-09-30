@@ -6,8 +6,8 @@
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import type pino from 'pino';
 
-import { execFileAsync, gitArgs } from '../../../vcs/gitExec';
 import { resolveWatchRootsForGlob } from '../../../vcs/resolveWatchRoot';
+import { runGit } from '../../../vcs/runGit';
 import type { VcsCoordinator } from '../../../vcs/VcsCoordinator';
 import { wrapHandler } from '../wrapHandler';
 
@@ -107,9 +107,7 @@ export function createVcsHistoryHandler(deps: VcsHistoryRouteDeps) {
         args.push('--', relativePath || '.');
 
         try {
-          const { stdout } = await execFileAsync('git', gitArgs(...args), {
-            cwd: root,
-          });
+          const { stdout } = await runGit(root, args);
           allEntries.push(...parseGitLog(stdout));
         } catch {
           // No commits or invalid path — skip

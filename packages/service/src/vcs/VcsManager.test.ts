@@ -590,55 +590,6 @@ describe('VcsManager instance', () => {
     }, 60000);
   });
 
-  describe('re-queue cap', () => {
-    it('does not grow pending unboundedly on repeated failures', async () => {
-      const logger = pino({ level: 'silent' });
-
-      // maxBatchSize=3: each failed batch re-queues at most 3 files
-      const config = makeConfig({
-        maxBatchSize: 3,
-        commitThrottleMs: 60000,
-        maxConsecutiveFailures: 100,
-      });
-      const manager = new VcsManager(tempDir, config, logger);
-      await manager.start();
-
-      const lockPath = join(tempDir, '.git', 'index.lock');
-      await writeFile(lockPath, '', 'utf8');
-
-      // Run several cycles of adding files + flush (each fails).
-      // Without the cap, pending would grow without bound.
-      for (let cycle = 0; cycle < 5; cycle++) {
-        for (let i = 0; i < 3; i++) {
-          const filePath = join(
-            tempDir,
-            `cap-${String(cycle)}-${String(i)}.txt`,
-          );
-          await writeFile(filePath, `content`, 'utf8');
-          manager.fileChanged(filePath);
-        }
-        await manager.flush();
-      }
-
-      // Remove lock and flush to see how many files actually commit
-      await rm(lockPath, { force: true });
-      await manager.flush();
-
-      // With the cap, no single batch can re-queue more than maxBatchSize(3),
-      // so pending stays bounded. We verify a commit happened and the
-      // committed batch size is <= maxBatchSize.
-      const { stdout } = await execFileAsync(
-        'git',
-        ['log', '--oneline', '-1'],
-        { cwd: tempDir },
-      );
-      // The commit message should show at most maxBatchSize files
-      expect(stdout).toMatch(/\d+ files/);
-
-      await rm(lockPath, { force: true });
-    }, 120000);
-  });
-
   describe('pendingReversions', () => {
     it('generates revert-prefixed commit message when reversion is pending', async () => {
       const manager = new VcsManager(tempDir, makeConfig(), silentLogger);
