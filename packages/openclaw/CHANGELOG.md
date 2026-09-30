@@ -6,8 +6,17 @@ All notable changes to this project will be documented in this file.
 
 ### 💼 Other
 
+- Updated core
+## [0.16.0] - 2026-09-29
+
+### 💼 Other
+
 - [234] updated jeeves
 - Updated core
+
+### ⚙️ Miscellaneous Tasks
+
+- Release @karmaniverous/jeeves-watcher-openclaw v0.16.0
 ## [0.16.0-6] - 2026-09-29
 
 ### 💼 Other
