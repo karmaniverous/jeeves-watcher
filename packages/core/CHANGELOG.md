@@ -6,7 +6,32 @@ All notable changes to this project will be documented in this file.
 
 ### 💼 Other
 
+- [249] fix(vcs): resilient commit pipeline and squash guard (#249)
+
+- Detect "nothing staged" with `git diff --cached --quiet` instead of
+  parsing git's "nothing to commit" text; empty batches are no-ops.
+- Partition each batch: add existing files, stage removal of
+  tracked-but-missing files (`git rm --cached --ignore-unmatch`), drop
+  missing untracked files. A missing path never fails the batch.
+- Reconcile tracked deletions in the watch scope at the end of the
+  initial scan so the baseline commit records them.
+- Retry only index.lock contention (`shouldRetry` on util/retry).
+- Circuit breaker retains pending files and recovers on a time-based
+  half-open attempt (`vcs.circuitBreakerCooldownMs`, default 5 min);
+  state exposed per root in GET /vcs/status.
+- Pass `-c core.longpaths=true` on every VCS git invocation.
+- Squash refuses on in-progress sequencer/rebase/merge state or dirty
+  tracked files, aborts a failed cherry-pick during cleanup, and stale
+  state is reported at startup.
+## [0.3.0] - 2026-09-29
+
+### 💼 Other
+
 - [234] updated jeeves
+
+### ⚙️ Miscellaneous Tasks
+
+- Release @karmaniverous/jeeves-watcher-core v0.3.0
 ## [0.2.6-2] - 2026-09-28
 
 ### 💼 Other
