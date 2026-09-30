@@ -28,6 +28,21 @@ export function makeVcsConfig(overrides: Partial<VcsConfig> = {}): VcsConfig {
   };
 }
 
+/**
+ * VcsConfig for the VcsManager.*.test.ts fast-commit-pipeline suite: a
+ * short throttle and stale-lock window keep those tests fast (they mostly
+ * call `flush()` directly rather than waiting on timers).
+ */
+export function makeFastVcsConfig(
+  overrides: Partial<VcsConfig> = {},
+): VcsConfig {
+  return makeVcsConfig({
+    commitThrottleMs: 5000,
+    staleLockThresholdMs: 60000,
+    ...overrides,
+  });
+}
+
 /** Run git in `cwd` and return stdout. */
 export async function git(cwd: string, ...args: string[]): Promise<string> {
   const { stdout } = await execFileAsync('git', args, { cwd });

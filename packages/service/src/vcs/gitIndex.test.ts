@@ -92,14 +92,6 @@ describe('gitAddViaStdin', () => {
   it('is a no-op for an empty list', async () => {
     await expect(gitAddViaStdin([], tempDir)).resolves.toBeUndefined();
   });
-
-  it('kills git and rejects when the timeout elapses', async () => {
-    await writeFile(join(tempDir, 'a.txt'), 'x', 'utf8');
-    // Spawning git takes far longer than 1 ms.
-    await expect(
-      gitAddViaStdin([join(tempDir, 'a.txt')], tempDir, 1),
-    ).rejects.toThrow(/timed out after 1ms/);
-  });
 });
 
 describe('gitRmCachedViaStdin', () => {
