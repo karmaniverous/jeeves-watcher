@@ -13,6 +13,7 @@
       "entry": ["src/cli/jeeves-watcher/index.ts"],
       "ignoreDependencies": ["@rollup/plugin-typescript={paths:{}}"]
     },
-    "packages/openclaw": {}
+    "packages/openclaw": {},
+    "packages/sdk": {}
   }
 }
