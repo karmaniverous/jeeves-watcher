@@ -3,12 +3,14 @@
  * Fastify route handler for POST /metadata. Performs enrichment metadata updates via the document processor.
  */
 
+import { metadataRequestSchema } from '@karmaniverous/jeeves-watcher-core';
 import type { FastifyRequest } from 'fastify';
 import type pino from 'pino';
 
 import type { JeevesWatcherConfig } from '../../config/types';
 import type { DocumentProcessorInterface } from '../../processor';
 import { validateMetadataPayload } from './metadataValidation';
+import { parseBody, rejectUnsupportedSource } from './parseBody';
 import { wrapHandler } from './wrapHandler';
 
 interface MetadataRouteDeps {
@@ -18,9 +20,7 @@ interface MetadataRouteDeps {
   configDir?: string;
 }
 
-type MetadataRequest = FastifyRequest<{
-  Body: { path: string; metadata: Record<string, unknown> };
-}>;
+type MetadataRequest = FastifyRequest<{ Body: unknown }>;
 
 /**
  * Create handler for POST /metadata.
@@ -30,7 +30,13 @@ type MetadataRequest = FastifyRequest<{
 export function createMetadataHandler(deps: MetadataRouteDeps) {
   return wrapHandler(
     async (request: MetadataRequest, reply) => {
-      const { path, metadata } = request.body;
+      const body = parseBody(metadataRequestSchema, request.body, reply);
+      if (!body) return;
+      const { path, metadata } = body;
+      if (path === undefined) {
+        rejectUnsupportedSource(reply, 'POST /metadata');
+        return;
+      }
 
       const validation = validateMetadataPayload(
         deps.getConfig(),

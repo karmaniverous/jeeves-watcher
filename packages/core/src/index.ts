@@ -4,6 +4,7 @@
  * @packageDocumentation
  */
 
+export * from './api/index.js';
 export {
   COMPONENT_NAME,
   CORE_PACKAGE,

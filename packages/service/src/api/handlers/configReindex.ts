@@ -3,6 +3,7 @@
  * Fastify route handler for POST /reindex. Triggers an async reindex job scoped to issues, full, rules, path, or prune processing.
  */
 
+import { reindexRequestSchema } from '@karmaniverous/jeeves-watcher-core';
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import type pino from 'pino';
 
@@ -13,12 +14,9 @@ import type { DocumentProcessorInterface } from '../../processor';
 import type { EventQueue } from '../../queue';
 import type { ValuesManager } from '../../values';
 import type { VectorStoreClient } from '../../vectorStore';
-import {
-  executeReindex,
-  type ReindexScope,
-  VALID_REINDEX_SCOPES,
-} from '../executeReindex';
+import { executeReindex } from '../executeReindex';
 import type { ReindexTracker } from '../ReindexTracker';
+import { parseBody, rejectUnsupportedSource } from './parseBody';
 import { wrapHandler } from './wrapHandler';
 
 /** Dependencies for the reindex route handler. */
@@ -34,9 +32,7 @@ export interface ConfigReindexRouteDeps {
   queue?: EventQueue;
 }
 
-type ConfigReindexRequest = FastifyRequest<{
-  Body: { scope?: string; path?: string | string[]; dryRun?: boolean };
-}>;
+type ConfigReindexRequest = FastifyRequest<{ Body: unknown }>;
 
 /**
  * Create handler for POST /reindex.
@@ -46,29 +42,18 @@ type ConfigReindexRequest = FastifyRequest<{
 export function createConfigReindexHandler(deps: ConfigReindexRouteDeps) {
   return wrapHandler(
     async (request: ConfigReindexRequest, reply: FastifyReply) => {
-      const scope = request.body.scope ?? 'issues';
-      const dryRun = request.body.dryRun ?? false;
+      const body = parseBody(reindexRequestSchema, request.body, reply);
+      if (!body) return;
 
-      if (!VALID_REINDEX_SCOPES.includes(scope as ReindexScope)) {
-        return await reply.status(400).send({
-          error: 'Invalid scope',
-          message: `Scope must be one of: ${VALID_REINDEX_SCOPES.join(', ')}. Got: "${scope}"`,
-        });
+      const scope = body.scope ?? 'issues';
+      const dryRun = body.dryRun ?? false;
+
+      if (body.source !== undefined) {
+        rejectUnsupportedSource(reply, 'POST /reindex');
+        return;
       }
 
-      const validScope = scope as ReindexScope;
-
-      if (validScope === 'path') {
-        const { path } = request.body;
-        if (!path || (Array.isArray(path) && path.length === 0)) {
-          return await reply.status(400).send({
-            error: 'Missing path',
-            message: 'The "path" field is required when scope is "path".',
-          });
-        }
-      }
-
-      if (validScope === 'prune' && !deps.vectorStore) {
+      if (scope === 'prune' && !deps.vectorStore) {
         return await reply.status(400).send({
           error: 'Not available',
           message: 'Prune scope requires vectorStore to be configured.',
@@ -89,15 +74,13 @@ export function createConfigReindexHandler(deps: ConfigReindexRouteDeps) {
 
       // Pass path for 'path' and 'rules' scopes
       const pathParam =
-        validScope === 'path' || validScope === 'rules'
-          ? request.body.path
-          : undefined;
+        scope === 'path' || scope === 'rules' ? body.path : undefined;
 
       if (dryRun) {
         // Dry run: compute plan synchronously and return
         const result = await executeReindex(
           reindexDeps,
-          validScope,
+          scope,
           pathParam,
           true,
         );
@@ -109,7 +92,7 @@ export function createConfigReindexHandler(deps: ConfigReindexRouteDeps) {
       }
 
       // Live prune: fire and forget without pre-computing plan (avoids double-scrolling the collection).
-      if (validScope === 'prune') {
+      if (scope === 'prune') {
         void executeReindex(reindexDeps, 'prune', pathParam, false);
         return await reply
           .status(200)
@@ -119,12 +102,12 @@ export function createConfigReindexHandler(deps: ConfigReindexRouteDeps) {
       // Non-prune scopes: compute plan first then execute async.
       const planResult = await executeReindex(
         reindexDeps,
-        validScope,
+        scope,
         pathParam,
         true,
       );
 
-      void executeReindex(reindexDeps, validScope, pathParam, false);
+      void executeReindex(reindexDeps, scope, pathParam, false);
 
       return await reply
         .status(200)

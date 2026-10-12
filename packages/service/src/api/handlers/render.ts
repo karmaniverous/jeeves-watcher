@@ -3,7 +3,10 @@
  * POST /render route handler. Runs a file through the inference rule engine and returns rendered content.
  */
 
-import { extractWatchPathStrings } from '@karmaniverous/jeeves-watcher-core';
+import {
+  extractWatchPathStrings,
+  renderRequestSchema,
+} from '@karmaniverous/jeeves-watcher-core';
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import type pino from 'pino';
 
@@ -11,6 +14,7 @@ import type { WatchConfig } from '../../config/schemas';
 import type { DocumentProcessorInterface } from '../../processor';
 import { isPathWatched } from '../../util/isPathWatched';
 import { normalizeError } from '../../util/normalizeError';
+import { parseBody, rejectUnsupportedSource } from './parseBody';
 
 /** Dependencies for the render handler. */
 export interface RenderHandlerDeps {
@@ -20,11 +24,6 @@ export interface RenderHandlerDeps {
   getWatch: () => WatchConfig;
   /** Logger instance. */
   logger: pino.Logger;
-}
-
-/** Request body for POST /render. */
-interface RenderRequestBody {
-  path: string;
 }
 
 /**
@@ -37,13 +36,16 @@ export function createRenderHandler(deps: RenderHandlerDeps) {
   const { processor, getWatch, logger } = deps;
 
   return async (
-    request: FastifyRequest<{ Body: RenderRequestBody }>,
+    request: FastifyRequest<{ Body: unknown }>,
     reply: FastifyReply,
   ) => {
-    const { path: filePath } = request.body;
+    const body = parseBody(renderRequestSchema, request.body, reply);
+    if (!body) return reply;
 
-    if (!filePath || typeof filePath !== 'string') {
-      return reply.status(400).send({ error: 'Missing required field: path' });
+    const filePath = body.path;
+    if (filePath === undefined) {
+      rejectUnsupportedSource(reply, 'POST /render');
+      return reply;
     }
 
     // Validate path is within watched scope (live config)

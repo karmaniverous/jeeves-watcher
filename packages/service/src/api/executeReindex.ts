@@ -6,7 +6,11 @@
 import { access, stat } from 'node:fs/promises';
 import { resolve } from 'node:path';
 
-import { extractWatchPathStrings } from '@karmaniverous/jeeves-watcher-core';
+import {
+  extractWatchPathStrings,
+  type ReindexScope,
+  reindexScopeSchema,
+} from '@karmaniverous/jeeves-watcher-core';
 import type pino from 'pino';
 import { parallel } from 'radash';
 
@@ -25,17 +29,11 @@ import { listFilesFromGlobs, listFilesFromWatchRoots } from './fileScan';
 import { processAllFiles } from './processAllFiles';
 import type { ReindexTracker } from './ReindexTracker';
 
-/** Valid reindex scopes. */
-export type ReindexScope = 'issues' | 'full' | 'rules' | 'path' | 'prune';
+export type { ReindexScope };
 
-/** Ordered list of valid reindex scopes for validation. */
-export const VALID_REINDEX_SCOPES: readonly ReindexScope[] = [
-  'issues',
-  'full',
-  'rules',
-  'path',
-  'prune',
-] as const;
+/** Ordered list of valid reindex scopes (from the core request schema). */
+export const VALID_REINDEX_SCOPES: readonly ReindexScope[] =
+  reindexScopeSchema.options;
 
 /**
  * Valid scopes for config-watch auto-trigger.

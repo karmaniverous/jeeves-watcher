@@ -3,10 +3,12 @@
  * Fastify route handler for POST /scan. Filter-only point query without vector search.
  */
 
+import { scanRequestSchema } from '@karmaniverous/jeeves-watcher-core';
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import type pino from 'pino';
 
 import type { VectorStore } from '../../vectorStore';
+import { parseBody } from './parseBody';
 import { wrapHandler } from './wrapHandler';
 
 /** Dependencies for the scan route handler. */
@@ -15,15 +17,7 @@ export interface ScanRouteDeps {
   logger: pino.Logger;
 }
 
-type ScanRequest = FastifyRequest<{
-  Body: {
-    filter?: Record<string, unknown>;
-    limit?: number;
-    cursor?: string | number;
-    fields?: string[];
-    countOnly?: boolean;
-  };
-}>;
+type ScanRequest = FastifyRequest<{ Body: unknown }>;
 
 /**
  * Create handler for POST /scan.
@@ -33,23 +27,12 @@ type ScanRequest = FastifyRequest<{
 export function createScanHandler(deps: ScanRouteDeps) {
   return wrapHandler(
     async (request: ScanRequest, reply: FastifyReply) => {
-      const { filter, limit = 100, cursor, fields, countOnly } = request.body;
-
-      if (!filter || typeof filter !== 'object') {
-        deps.logger.warn('Scan rejected: missing or invalid filter');
-        void reply
-          .status(400)
-          .send({ error: 'Missing required field: filter (object)' });
+      const body = parseBody(scanRequestSchema, request.body, reply);
+      if (!body) {
+        deps.logger.warn('Scan rejected: invalid request body');
         return;
       }
-
-      if (typeof limit !== 'number' || limit < 1 || limit > 1000) {
-        deps.logger.warn({ limit }, 'Scan rejected: limit out of bounds');
-        void reply
-          .status(400)
-          .send({ error: 'limit must be between 1 and 1000' });
-        return;
-      }
+      const { filter, limit = 100, cursor, fields, countOnly } = body;
 
       if (countOnly) {
         const count = await deps.vectorStore.count(filter);
