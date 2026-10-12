@@ -84,6 +84,8 @@ export function createConfigReindexHandler(deps: ConfigReindexRouteDeps) {
         gitignoreFilter: deps.gitignoreFilter,
         vectorStore: deps.vectorStore,
         queue: deps.queue,
+        // Explicit requests cover source documents (Decision 16.11).
+        includeSources: true,
       };
 
       // Pass path for 'path' and 'rules' scopes

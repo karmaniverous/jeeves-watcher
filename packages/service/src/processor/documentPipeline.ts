@@ -42,6 +42,15 @@ export interface PipelineContext {
   valuesManager?: Pick<ValuesManager, 'update'>;
 }
 
+/** Options of {@link indexDocument}. */
+export interface IndexOptions {
+  /**
+   * Re-embed and rewrite even when the content hash is unchanged (source
+   * documents on a `full` reindex).
+   */
+  force?: boolean;
+}
+
 /** Outcome of {@link indexDocument}. */
 export type IndexOutcome =
   | { status: 'indexed'; chunks: number }
@@ -69,15 +78,18 @@ export function updateValues(
 /**
  * Index a resolved document. Unchanged content (same `content_hash` on chunk
  * 0) is skipped without embedding; for documents that opt in, differing
- * metadata is then written with `setPayload` only.
+ * metadata is then written with `setPayload` only. With `force`, the hash
+ * comparison is skipped and the document is always re-embedded.
  *
  * @param ctx - Pipeline dependencies.
  * @param document - The resolved document.
+ * @param options - Indexing options.
  * @returns `indexed` (with chunk count), `unchanged`, or `skipped` (empty text).
  */
 export async function indexDocument(
   ctx: PipelineContext,
   document: ResolvedDocument,
+  options: IndexOptions = {},
 ): Promise<IndexOutcome> {
   const { identity, text } = document;
   const key = documentKey(identity);
@@ -96,7 +108,7 @@ export async function indexDocument(
   const existing = await ctx.vectorStore.getPayload(
     documentPointId(identity, 0),
   );
-  if (existing && existing[FIELD_CONTENT_HASH] === hash) {
+  if (!options.force && existing && existing[FIELD_CONTENT_HASH] === hash) {
     const refreshed = document.refreshMetadataWhenUnchanged
       ? await refreshMetadata(ctx.vectorStore, document, existing)
       : 'same';

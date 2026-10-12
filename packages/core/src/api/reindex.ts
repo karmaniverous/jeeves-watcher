@@ -72,13 +72,13 @@ export type ReindexRequest = z.infer<typeof reindexRequestSchema>;
 
 /** Blast-radius plan for a reindex operation. */
 export const reindexPlanSchema = z.object({
-  /** Total points (prune) or files (other scopes) examined. */
+  /** Total points (prune) or files and source documents (other scopes) examined. */
   total: z.number().int().nonnegative(),
   /** Number of items to process. */
   toProcess: z.number().int().nonnegative(),
   /** Number of points to delete (prune only). */
   toDelete: z.number().int().nonnegative(),
-  /** Counts grouped by watch root. */
+  /** Counts grouped by watch root (files) or source name (source documents). */
   byRoot: z.record(z.string(), z.number()),
   /** True when results are partial. */
   incomplete: z.boolean().optional(),

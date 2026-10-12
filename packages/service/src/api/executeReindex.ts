@@ -1,6 +1,6 @@
 /**
  * @module api/executeReindex
- * Shared reindex execution logic used by both the reindex handler and the triggerReindex lambda: validates the scope, dispatches to the scope modules, tracks progress and fires the callback.
+ * Shared reindex execution logic used by both the reindex handler and the triggerReindex lambda: validates the scope, dispatches to the file, source and prune scope modules, tracks progress and fires the callback.
  */
 
 import {
@@ -14,7 +14,16 @@ import { filePlan, listScopeFiles, runFileScope } from './reindexFileScopes';
 import { collectPathFiles } from './reindexPathFiles';
 import type { ReindexPlan } from './reindexPlan';
 import { executePrune } from './reindexPrune';
-import type { ExecuteReindexDeps, ExecuteReindexResult } from './reindexTypes';
+import {
+  resolveSourceScope,
+  runSourceScope,
+  withSourcePlan,
+} from './reindexSourceScopes';
+import type {
+  ExecuteReindexDeps,
+  ExecuteReindexResult,
+  SourceReindexCounts,
+} from './reindexTypes';
 
 export type { ReindexScope };
 export type { ExecuteReindexDeps } from './reindexTypes';
@@ -34,7 +43,9 @@ export const CONFIG_WATCH_VALID_SCOPES: readonly ReindexScope[] = [
 ] as const;
 
 /**
- * Execute a reindex operation: process files, track progress, and fire callback if configured.
+ * Execute a reindex operation: process files (then, when
+ * `deps.includeSources` is set, source documents), track progress, and fire
+ * callback if configured.
  *
  * @param deps - Dependencies.
  * @param scope - Reindex scope: 'issues', 'full', 'rules', 'path', or 'prune'.
@@ -79,6 +90,10 @@ export async function executeReindex(
     fileList !== undefined ? filePlan(fileList, config) : undefined;
 
   if (dryRun) {
+    plan = withSourcePlan(
+      plan,
+      await resolveSourceScope(deps, scope, pathArray),
+    );
     // For path scope without pre-computed plan, compute it now
     if (plan === undefined && scope === 'path' && pathArray) {
       const pathFiles = await collectPathFiles(
@@ -93,8 +108,14 @@ export async function executeReindex(
 
   reindexTracker?.start(scope);
   const startTime = Date.now();
+  let fileTotal: number | undefined;
 
   try {
+    // Discovered inside the try: a Qdrant failure fails this run, never
+    // escapes as an unhandled rejection of a fire-and-forget reindex.
+    const sources = await resolveSourceScope(deps, scope, pathArray);
+    const sourceTotal = sources?.targets.length ?? 0;
+    plan = withSourcePlan(plan, sources);
     if (scope === 'full' && valuesManager) {
       valuesManager.clearAll();
     }
@@ -105,7 +126,10 @@ export async function executeReindex(
       pathArray,
       fileList,
       {
-        onTotal: (total) => reindexTracker?.setTotal(total),
+        onTotal: (total) => {
+          fileTotal = total;
+          reindexTracker?.setTotal(total + sourceTotal);
+        },
         onProcessed: () => reindexTracker?.incrementProcessed(),
         onPlan: (resolved) => {
           plan = resolved;
@@ -113,9 +137,19 @@ export async function executeReindex(
       },
     );
 
+    let sourceCounts: SourceReindexCounts | undefined;
+    if (sources) {
+      reindexTracker?.setTotal((fileTotal ?? filesProcessed) + sourceTotal);
+      sourceCounts = await runSourceScope(sources, {
+        concurrency: config.reindex?.concurrency ?? 50,
+        logger,
+        onProcessed: () => reindexTracker?.incrementProcessed(),
+      });
+    }
+
     const durationMs = Date.now() - startTime;
     logger.info(
-      { scope, filesProcessed, durationMs },
+      { scope, filesProcessed, sources: sourceCounts, durationMs },
       `Reindex (${scope}) completed`,
     );
 
@@ -123,11 +157,23 @@ export async function executeReindex(
 
     await reportReindexCompletion(
       config,
-      { scope, filesProcessed, durationMs, errors: [] },
+      {
+        scope,
+        filesProcessed,
+        durationMs,
+        errors: [],
+        ...(sourceCounts ? { sources: sourceCounts } : {}),
+      },
       logger,
     );
 
-    return { filesProcessed, durationMs, errors, plan };
+    return {
+      filesProcessed,
+      durationMs,
+      errors: errors + (sourceCounts?.failed ?? 0),
+      plan,
+      ...(sourceCounts ? { sources: sourceCounts } : {}),
+    };
   } catch (error) {
     const durationMs = Date.now() - startTime;
     logger.error({ err: normalizeError(error), scope }, 'Reindex failed');

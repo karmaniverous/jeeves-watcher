@@ -10,6 +10,7 @@ import type { DocumentIdentity } from './documentIdentity';
 import {
   deleteDocumentPoints,
   indexDocument,
+  type IndexOptions,
   type PipelineContext,
 } from './documentPipeline';
 import { reportFailure, withIssueType } from './issueRecording';
@@ -36,12 +37,14 @@ const UNTAGGED_ISSUE = 'extraction_error';
  * @param deps - Pipeline, resolver and enrichment store.
  * @param ref - The exact `<name>://<id>` reference.
  * @param rule - The designated rule name.
+ * @param options - Indexing options (`force` re-embeds unchanged content).
  * @returns The per-document result (`indexed` / `unchanged` / `deleted` / `failed`).
  */
 export async function processSourceDocument(
   deps: SourceProcessingDeps,
   ref: string,
   rule: string,
+  options: IndexOptions = {},
 ): Promise<DocumentResult> {
   const { pipeline } = deps;
   try {
@@ -58,7 +61,7 @@ export async function processSourceDocument(
     }
 
     const matched_rules = outcome.document.matchedRules;
-    const result = await indexDocument(pipeline, outcome.document);
+    const result = await indexDocument(pipeline, outcome.document, options);
     return result.status === 'indexed'
       ? { source: ref, status: 'indexed', chunks: result.chunks, matched_rules }
       : { source: ref, status: 'unchanged', matched_rules };

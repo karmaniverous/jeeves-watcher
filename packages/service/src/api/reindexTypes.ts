@@ -25,6 +25,25 @@ export interface ExecuteReindexDeps {
   gitignoreFilter?: GitignoreFilter;
   vectorStore?: VectorStoreClient;
   queue?: PausableQueue;
+  /**
+   * Cover source documents in scopes `full`, `rules` and `issues`. Set only
+   * by an explicit `POST /reindex`; config-triggered reindexes (reload,
+   * config apply, rule registration) leave it unset and stay file-only
+   * (Decision 16.11).
+   */
+  includeSources?: boolean;
+}
+
+/** Per-status counts of a source-document reindex. */
+export interface SourceReindexCounts {
+  /** Re-embedded, or payload refreshed. */
+  indexed: number;
+  /** Nothing changed. */
+  unchanged: number;
+  /** Callback answered 404; points deleted. */
+  deleted: number;
+  /** Failure recorded as an issue; points untouched. */
+  failed: number;
 }
 
 /** Result of a reindex execution. */
@@ -33,4 +52,6 @@ export interface ExecuteReindexResult {
   durationMs: number;
   errors: number;
   plan?: ReindexPlan;
+  /** Source-document counts, when the run covered sources. */
+  sources?: SourceReindexCounts;
 }

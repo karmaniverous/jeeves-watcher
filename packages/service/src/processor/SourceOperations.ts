@@ -17,7 +17,7 @@ import {
 } from '../sources';
 import { getChunkCount } from './chunkIds';
 import { documentChunkIds, type DocumentIdentity } from './documentIdentity';
-import type { PipelineContext } from './documentPipeline';
+import type { IndexOptions, PipelineContext } from './documentPipeline';
 import { ProcessingFailure } from './issueRecording';
 import { FIELD_SOURCE_RULE } from './payloadFields';
 import { processSourceDocument } from './processSource';
@@ -46,8 +46,12 @@ export type SourceRenderOutcome =
 
 /** Source-document operations used by the API. */
 export interface SourceOperationsInterface {
-  /** Process a reference with its designated rule (see `processSource`). */
-  process(ref: string, rule: string): Promise<DocumentResult>;
+  /** Process a reference with its designated rule (see `processSource`); `force` re-embeds unchanged content. */
+  process(
+    ref: string,
+    rule: string,
+    options?: IndexOptions,
+  ): Promise<DocumentResult>;
   /** Synchronously validate a notification; `undefined` when acceptable. */
   validate(ref: string, rule: string): DocumentError | undefined;
   /** Designated rule stored on the document's chunk-0 point, or `null` if not indexed. */
@@ -94,7 +98,11 @@ export class SourceOperations implements SourceOperationsInterface {
   constructor(private readonly ctx: SourceOperationsContext) {}
 
   /** {@inheritDoc SourceOperationsInterface.process} */
-  process(ref: string, rule: string): Promise<DocumentResult> {
+  process(
+    ref: string,
+    rule: string,
+    options?: IndexOptions,
+  ): Promise<DocumentResult> {
     const { ctx } = this;
     return processSourceDocument(
       {
@@ -104,6 +112,7 @@ export class SourceOperations implements SourceOperationsInterface {
       },
       ref,
       rule,
+      options,
     );
   }
 

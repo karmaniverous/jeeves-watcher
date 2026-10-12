@@ -11,6 +11,7 @@ import { parallel } from 'radash';
 
 import type { JeevesWatcherConfig } from '../config/types';
 import { createIsGitignored } from '../gitignore';
+import { isSourceReference } from '../util/documentKey';
 import { normalizeError } from '../util/normalizeError';
 import { listFilesFromGlobs, listFilesFromWatchRoots } from './fileScan';
 import { processAllFiles } from './processAllFiles';
@@ -41,7 +42,7 @@ export function filePlan(
  * List the files of a non-prune scope before execution. Scope `path` is
  * resolved separately ({@link collectPathFiles}) and yields `undefined`.
  *
- * - `issues`: the keys of the issues store (when present).
+ * - `issues`: the file-path keys of the issues store (when present).
  * - `rules` with paths: watch roots intersected with the caller's globs.
  * - otherwise: every watched file.
  *
@@ -60,7 +61,10 @@ export async function listScopeFiles(
   const watchPaths = extractWatchPathStrings(config.watch.paths);
 
   if (scope === 'issues' && deps.issuesManager) {
-    return Object.keys(deps.issuesManager.getAll());
+    // Source references are issue keys too; they are never files.
+    return Object.keys(deps.issuesManager.getAll()).filter(
+      (key) => !isSourceReference(key),
+    );
   }
   if (scope === 'path' && pathArray) {
     // Path plan computed from collectPathFiles.

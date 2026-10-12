@@ -7,13 +7,13 @@ import { normalizeSlashes } from '../util/normalizeSlashes';
 
 /** Blast area plan showing impact of a reindex operation. */
 export interface ReindexPlan {
-  /** Total points (prune) or files (other scopes) examined. */
+  /** Total points (prune) or files and source documents (other scopes) examined. */
   total: number;
   /** Number of items to process (embed/re-apply rules). */
   toProcess: number;
   /** Number of points to delete (prune only, 0 for others). */
   toDelete: number;
-  /** Counts grouped by watch root path. */
+  /** Counts grouped by watch root path (files) or source name (source documents). */
   byRoot: Record<string, number>;
   /** True when scroll was interrupted and results are partial. */
   incomplete?: boolean;
