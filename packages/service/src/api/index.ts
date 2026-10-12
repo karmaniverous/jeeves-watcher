@@ -5,30 +5,15 @@
 
 import { dirname } from 'node:path';
 
-import {
-  createStatusHandler as coreCreateStatusHandler,
-  type JeevesComponentDescriptor,
-} from '@karmaniverous/jeeves';
+import { createStatusHandler as coreCreateStatusHandler } from '@karmaniverous/jeeves';
 import {
   extractWatchPathStrings,
   getEndpoint,
 } from '@karmaniverous/jeeves-watcher-core';
 import Fastify, { type FastifyInstance } from 'fastify';
-import type pino from 'pino';
 
-import type { JeevesWatcherConfig } from '../config/types';
-import type { EmbeddingProvider } from '../embedding';
-import type { EnrichmentStoreInterface } from '../enrichment';
-import type { GitignoreFilter } from '../gitignore';
-import type { AllHelpersIntrospection } from '../helpers';
-import type { IssuesManager } from '../issues';
-import type { DocumentProcessorInterface } from '../processor';
-import type { VirtualRuleStore } from '../rules/virtualRules';
-import type { ValuesManager } from '../values';
-import type { VcsCoordinator } from '../vcs/VcsCoordinator';
-import type { VectorStoreClient } from '../vectorStore';
-import type { FileSystemWatcher } from '../watcher';
 import { registerApiKeyAuth } from './apiKeyAuth';
+import type { ApiServerOptions } from './apiServerOptions';
 import {
   CONFIG_WATCH_VALID_SCOPES,
   executeReindex,
@@ -56,62 +41,17 @@ import { createScanHandler } from './handlers/scan';
 import { createSearchHandler } from './handlers/search';
 import { createWalkHandler } from './handlers/walk';
 import { withCache } from './handlers/withCache';
-import type { InitialScanTracker } from './InitialScanTracker';
+import { withCacheUnlessSource } from './handlers/withCacheUnlessSource';
 import { createOnRulesChanged } from './onRulesChanged';
-import type { ApiQueueDeps } from './queueDeps';
+import { registerDocumentRoutes } from './registerDocumentRoutes';
 import { registerVcsRoutes } from './registerVcsRoutes';
 import { ReindexTracker } from './ReindexTracker';
 
+export type { ApiServerOptions } from './apiServerOptions';
 export type { InitialScanStatus } from './InitialScanTracker';
 export { InitialScanTracker } from './InitialScanTracker';
 export type { ReindexStatus } from './ReindexTracker';
 export { ReindexTracker } from './ReindexTracker';
-
-/**
- * Options for {@link createApiServer}.
- */
-export interface ApiServerOptions extends ApiQueueDeps {
-  /** The component descriptor (used for config-apply handler). */
-  descriptor: JeevesComponentDescriptor;
-  /** The document processor. */
-  processor: DocumentProcessorInterface;
-  /** The vector store client. */
-  vectorStore: VectorStoreClient;
-  /** The embedding provider. */
-  embeddingProvider: EmbeddingProvider;
-  /** The application configuration (used as initial/fallback value). */
-  config: JeevesWatcherConfig;
-  /** Config getter for live config access after hot-reload. */
-  getConfig?: () => JeevesWatcherConfig;
-  /** The logger instance. */
-  logger: pino.Logger;
-  /** The issues manager. */
-  issuesManager: IssuesManager;
-  /** The values manager. */
-  valuesManager: ValuesManager;
-  /** The reindex tracker (optional, created if not provided). */
-  reindexTracker?: ReindexTracker;
-  /** Path to the config file on disk. */
-  configPath: string;
-  /** Helper introspection for merged document. */
-  helperIntrospection?: AllHelpersIntrospection;
-  /** Virtual rule store for externally registered inference rules. */
-  virtualRuleStore?: VirtualRuleStore;
-  /** Gitignore filter for reindex path validation. */
-  gitignoreFilter?: GitignoreFilter;
-  /** Service version string for /status endpoint. */
-  version?: string;
-  /** Initial scan tracker for /status visibility. */
-  initialScanTracker?: InitialScanTracker;
-  /** Filesystem watcher instance for /walk endpoint (in-memory file list). */
-  fileSystemWatcher?: FileSystemWatcher;
-  /** Getter for live filesystem watcher access after hot-reload rebuilds. */
-  getFileSystemWatcher?: () => FileSystemWatcher | undefined;
-  /** Optional enrichment store for persisted enrichment metadata. */
-  enrichmentStore?: EnrichmentStoreInterface;
-  /** VCS coordinator for git-backed versioning API routes. */
-  vcsCoordinator?: VcsCoordinator;
-}
 
 /**
  * Create the Fastify API server with all routes registered.
@@ -212,9 +152,10 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
     }),
   );
 
+  // Source renders bypass the response cache (Decision 16.11).
   app.post(
     getEndpoint('render').path,
-    withCache(
+    withCacheUnlessSource(
       cacheTtlMs,
       createRenderHandler({
         processor,
@@ -286,8 +227,11 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
       gitignoreFilter,
       vectorStore,
       queue,
+      sourceQueue: options.sourceQueue,
     }),
   );
+
+  registerDocumentRoutes(app, { ...options, processor, vectorStore, logger });
 
   app.get(
     getEndpoint('issues').path,

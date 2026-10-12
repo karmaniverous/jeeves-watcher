@@ -11,12 +11,15 @@ import type { JeevesWatcherConfig } from '../../config/types';
 import type { GitignoreFilter } from '../../gitignore';
 import type { IssuesManager } from '../../issues';
 import type { DocumentProcessorInterface } from '../../processor';
+import { hasSourceOperations } from '../../processor/SourceOperations';
 import type { PausableQueue } from '../../queue';
+import type { SourceNotifyQueue } from '../../queue/SourceNotifyQueue';
 import type { ValuesManager } from '../../values';
 import type { VectorStoreClient } from '../../vectorStore';
 import { executeReindex } from '../executeReindex';
 import type { ReindexTracker } from '../ReindexTracker';
-import { parseBody, rejectUnsupportedSource } from './parseBody';
+import { parseBody } from './parseBody';
+import { reindexSources } from './reindexSources';
 import { wrapHandler } from './wrapHandler';
 
 /** Dependencies for the reindex route handler. */
@@ -30,6 +33,8 @@ export interface ConfigReindexRouteDeps {
   gitignoreFilter?: GitignoreFilter;
   vectorStore?: VectorStoreClient;
   queue?: PausableQueue;
+  /** Notify queue for scope `path` with `source` references. */
+  sourceQueue?: Pick<SourceNotifyQueue, 'enqueue'>;
 }
 
 type ConfigReindexRequest = FastifyRequest<{ Body: unknown }>;
@@ -48,9 +53,18 @@ export function createConfigReindexHandler(deps: ConfigReindexRouteDeps) {
       const scope = body.scope ?? 'issues';
       const dryRun = body.dryRun ?? false;
 
+      // Scope 'path' with source references (exactly one of path | source).
       if (body.source !== undefined) {
-        rejectUnsupportedSource(reply, 'POST /reindex');
-        return;
+        const { processor, sourceQueue: queue } = deps;
+        if (!queue || !hasSourceOperations(processor)) {
+          return await reply.status(400).send({
+            error: 'Not available',
+            message: 'Source documents are not supported by this instance.',
+          });
+        }
+        const ops = processor.sourceOperations();
+        const refs = [body.source].flat();
+        return reindexSources({ ops, queue }, refs, dryRun);
       }
 
       if (scope === 'prune' && !deps.vectorStore) {

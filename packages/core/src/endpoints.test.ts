@@ -36,6 +36,17 @@ describe('endpoint catalog', () => {
     }
   });
 
+  it('catalogs the source-document endpoints', () => {
+    expect(getEndpoint('documents')).toMatchObject({
+      method: 'POST',
+      path: '/documents',
+    });
+    expect(getEndpoint('documentsDelete')).toMatchObject({
+      method: 'POST',
+      path: '/documents/delete',
+    });
+  });
+
   it('every endpoint path starts with /', () => {
     for (const ep of WATCHER_ENDPOINTS) {
       expect(ep.path).toMatch(/^\//);

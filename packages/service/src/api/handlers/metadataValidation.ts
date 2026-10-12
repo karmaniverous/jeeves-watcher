@@ -5,7 +5,7 @@
 
 import type { JeevesWatcherConfig } from '../../config/types';
 import { buildSyntheticAttributes } from '../../rules/attributes';
-import { compileRules } from '../../rules/compile';
+import { type CompiledRule, compileRules } from '../../rules/compile';
 import { mergeSchemas } from '../../rules/schemaMerge';
 
 interface ValidationDetail {
@@ -83,6 +83,41 @@ export function validateMetadataPayload(
   const attrs = buildSyntheticAttributes(path);
 
   const matched = compiled.filter((r) => r.validate(attrs));
+  return validateAgainstRules(config, matched, metadata, configDir);
+}
+
+/**
+ * Validate a metadata payload for a source document against its designated
+ * rule's schema. Only config rules are known here: a designated rule that is
+ * not in config (e.g. a virtual rule) validates nothing and matches nothing.
+ *
+ * @param config - Live config.
+ * @param ruleName - The designated rule (`source_rule`).
+ * @param metadata - Enrichment metadata.
+ * @param configDir - Config directory for schema file references.
+ * @returns The validation outcome.
+ */
+export function validateSourceMetadataPayload(
+  config: JeevesWatcherConfig,
+  ruleName: string,
+  metadata: Record<string, unknown>,
+  configDir?: string,
+): MetadataValidationOutcome {
+  const rules = (config.inferenceRules ?? []).filter(
+    (r) => r.name === ruleName,
+  );
+  return validateAgainstRules(config, compileRules(rules), metadata, configDir);
+}
+
+/**
+ * Validate metadata values against the merged schemas of the given rules.
+ */
+function validateAgainstRules(
+  config: JeevesWatcherConfig,
+  matched: CompiledRule[],
+  metadata: Record<string, unknown>,
+  configDir?: string,
+): MetadataValidationOutcome {
   const matchedNames = matched.map((m) => m.rule.name);
 
   const schemaRefs = matched.flatMap((m) => m.rule.schema ?? []);

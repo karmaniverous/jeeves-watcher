@@ -42,6 +42,50 @@ export const documentsRequestSchema = z.object({
 export type DocumentsRequest = z.infer<typeof documentsRequestSchema>;
 
 /**
+ * Envelope the service parses `POST /documents` with: the shape of
+ * {@link documentsRequestSchema}, but `source` is any non-empty string, so a
+ * malformed reference rejects only its own document (`invalid_reference` in
+ * `rejected`) instead of the whole request. Shape errors (count, missing or
+ * empty `rule`, unknown keys) still fail the request with `400`.
+ */
+export const documentsEnvelopeSchema = z.object({
+  /** Documents to (re)index: 1 to {@link MAX_DOCUMENTS_PER_REQUEST}. */
+  documents: z
+    .array(
+      documentNotificationSchema.extend({
+        /** Reference as submitted; validated per document. */
+        source: z.string().min(1, 'source must be a non-empty string'),
+      }),
+    )
+    .min(1, 'documents must contain at least one entry')
+    .max(
+      MAX_DOCUMENTS_PER_REQUEST,
+      `documents must contain at most ${String(MAX_DOCUMENTS_PER_REQUEST)} entries`,
+    ),
+});
+
+/** Envelope of a `POST /documents` request (references not yet validated). */
+export type DocumentsEnvelope = z.infer<typeof documentsEnvelopeSchema>;
+
+/**
+ * Codes of notifications rejected by synchronous validation:
+ * `invalid_reference` (not `<name>://<id>`), `unknown_source` (name not in
+ * config `sources`), `invalid_id` (empty, `.` or `..` id segment),
+ * `rule_missing` (no rule of that name in the merged rule set) and
+ * `queue_stopped` (the service is shutting down).
+ */
+export const documentRejectionCodeSchema = z.enum([
+  'invalid_reference',
+  'unknown_source',
+  'invalid_id',
+  'rule_missing',
+  'queue_stopped',
+]);
+
+/** Code of a notification rejected by synchronous validation. */
+export type DocumentRejectionCode = z.infer<typeof documentRejectionCodeSchema>;
+
+/**
  * Query string for `POST /documents`. `wait` accepts a boolean or the strings
  * `true`/`false`/`1`/`0`.
  */

@@ -33,11 +33,13 @@ import {
 import type { DocumentProcessorDeps } from './DocumentProcessorDeps';
 import { handleFileErrors, withIssueType } from './issueRecording';
 import type { ProcessorConfig } from './ProcessorConfig';
-import { processSourceDocument } from './processSource';
 import type { RenderResult } from './renderResult';
 import { FileResolver } from './resolvers/FileResolver';
-import { SourceResolver } from './resolvers/SourceResolver';
 import type { RuleContext } from './resolvers/types';
+import {
+  SourceOperations,
+  type SourceOperationsProvider,
+} from './SourceOperations';
 import { withSystemFields } from './systemFields';
 import type {
   DocumentProcessorInterface,
@@ -61,7 +63,10 @@ const fileId = (filePath: string): DocumentIdentity => ({
  * Handles extracting text, computing embeddings, and syncing with the vector store.
  */
 export class DocumentProcessor
-  implements DocumentProcessorInterface, SourceProcessorInterface
+  implements
+    DocumentProcessorInterface,
+    SourceProcessorInterface,
+    SourceOperationsProvider
 {
   private config: ProcessorConfig;
   private readonly embeddingProvider: EmbeddingProvider;
@@ -163,28 +168,19 @@ export class DocumentProcessor
     );
   }
 
-  /**
-   * Retrieve a source document through its callback and index it with its
-   * designated rule (only that rule is applied).
-   *
-   * @param ref - The exact `<name>://<id>` reference.
-   * @param rule - The designated rule name.
-   * @returns The per-document result.
-   */
-  async processSource(ref: string, rule: string): Promise<DocumentResult> {
-    const resolver = new SourceResolver({
-      ...this.ruleContext(),
+  /** {@inheritDoc SourceProcessorInterface.processSource} */
+  processSource(ref: string, rule: string): Promise<DocumentResult> {
+    return this.sourceOperations().process(ref, rule);
+  }
+
+  /** {@inheritDoc SourceOperationsProvider.sourceOperations} */
+  sourceOperations(): SourceOperations {
+    return new SourceOperations({
+      rules: this.ruleContext(),
+      pipeline: this.pipelineContext(),
       retriever: this.sourceRetriever,
+      enrichmentStore: this.enrichmentStore,
     });
-    return processSourceDocument(
-      {
-        pipeline: this.pipelineContext(),
-        resolver,
-        enrichmentStore: this.enrichmentStore,
-      },
-      ref,
-      rule,
-    );
   }
 
   /**

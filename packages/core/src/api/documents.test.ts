@@ -6,9 +6,11 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  documentRejectionCodeSchema,
   documentsAcceptedResponseSchema,
   documentsDeleteRequestSchema,
   documentsDeleteResponseSchema,
+  documentsEnvelopeSchema,
   documentsQuerySchema,
   documentsRequestSchema,
   documentsResultsResponseSchema,
@@ -38,6 +40,34 @@ describe('documentsRequestSchema', () => {
     ['inline push content', { documents: [{ ...doc, text: 'hi' }] }],
   ])('rejects %s', (_label, body) => {
     expect(documentsRequestSchema.safeParse(body).success).toBe(false);
+  });
+});
+
+describe('documentsEnvelopeSchema', () => {
+  it('accepts a malformed reference (validated per document)', () => {
+    const body = { documents: [{ ...doc, source: 'cg:1' }] };
+    expect(documentsEnvelopeSchema.parse(body)).toEqual(body);
+  });
+
+  it.each([
+    ['zero documents', { documents: [] }],
+    ['101 documents', { documents: Array.from({ length: 101 }, () => doc) }],
+    ['an empty source', { documents: [{ ...doc, source: '' }] }],
+    ['a non-string source', { documents: [{ ...doc, source: 1 }] }],
+    ['a missing rule', { documents: [{ source: doc.source }] }],
+    ['inline push content', { documents: [{ ...doc, text: 'hi' }] }],
+  ])('rejects %s', (_label, body) => {
+    expect(documentsEnvelopeSchema.safeParse(body).success).toBe(false);
+  });
+
+  it('lists the rejection codes', () => {
+    expect(documentRejectionCodeSchema.options).toEqual([
+      'invalid_reference',
+      'unknown_source',
+      'invalid_id',
+      'rule_missing',
+      'queue_stopped',
+    ]);
   });
 });
 

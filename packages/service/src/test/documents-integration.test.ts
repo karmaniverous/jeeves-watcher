@@ -1,0 +1,233 @@
+/**
+ * @module test/documents-integration.test
+ * Service integration (requires Qdrant): POST /documents notify (202 and ?wait=true) → /search finds it; /render, /metadata and /reindex with source; /documents/delete never removes file points; wait=true on a callback 404 → deleted.
+ */
+
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+
+import { pointId, sourcePointId } from '../pointId';
+import { qdrantAvailable } from './harness/qdrant';
+import { type ServiceHarness, startServiceHarness } from './harness/service';
+import {
+  startStubSourceServer,
+  type StubSourceServer,
+} from './harness/stubSource';
+
+const RULE = 'cg-chat-thread';
+const A = 'cg://chat/thread/a';
+const B = 'cg://chat/thread/b';
+const GONE = 'cg://chat/thread/gone';
+const FILE = 'j:/docs/readme.md';
+
+const thread = (userId: string, text: string) => ({
+  body: { userId, streaks: [{ msgs: [{ role: 'user', text }] }] },
+});
+
+/** Asymmetric matcher typed as unknown (no unsafe any in literals). */
+const anyString: unknown = expect.any(String);
+
+describe.skipIf(!qdrantAvailable())(
+  'Service integration: source document endpoints (requires Qdrant)',
+  () => {
+    let stub: StubSourceServer;
+    let harness: ServiceHarness;
+    let goneExists = true;
+
+    beforeAll(async () => {
+      stub = await startStubSourceServer({
+        '/threads/chat/thread/a': thread('u1', 'alpha message'),
+        '/threads/chat/thread/b': thread('u2', 'bravo message'),
+        '/threads/chat/thread/gone': () =>
+          goneExists
+            ? thread('u1', 'soon gone')
+            : { status: 404, body: { error: 'gone' } },
+      });
+      harness = await startServiceHarness({
+        label: 'documents',
+        config: {
+          sources: {
+            cg: {
+              url: `${stub.url}/threads/{id}`,
+              timeoutMs: 5000,
+              concurrency: 2,
+            },
+          },
+          inferenceRules: [
+            {
+              name: RULE,
+              description: 'Chat thread',
+              match: { type: 'object', required: ['source', 'json'] },
+              schema: [
+                {
+                  type: 'object',
+                  properties: {
+                    user_id: { type: 'string', set: '{{json.userId}}' },
+                    priority: { type: 'integer' },
+                  },
+                },
+              ],
+              template:
+                '{{#each streaks}}{{#each msgs}}- {{role}}: {{text}}\n{{/each}}{{/each}}',
+            },
+          ],
+        },
+      });
+      // A file point that no /documents/delete request may ever remove.
+      await harness.vectorStore.upsert([
+        {
+          id: pointId(FILE, 0),
+          vector: Array.from({ length: 16 }, () => 0.25),
+          payload: { file_path: FILE, chunk_text: 'file', user_id: 'u1' },
+        },
+      ]);
+    });
+
+    afterAll(async () => {
+      await harness.close();
+      await stub.close();
+    });
+
+    const post = async (url: string, payload: object) => {
+      const res = await harness.app.inject({ method: 'POST', url, payload });
+      return { status: res.statusCode, body: res.json<unknown>() };
+    };
+    const bySource = (ref: string) => ({
+      must: [{ key: 'source', match: { value: ref } }],
+    });
+
+    it('notify (202) → queued → /search finds it', async () => {
+      const { status, body } = await post('/documents', {
+        documents: [
+          { source: A, rule: RULE },
+          { source: 'zz://chat/1', rule: RULE },
+          { source: B, rule: 'no-such-rule' },
+        ],
+      });
+      expect(status).toBe(202);
+      expect(body).toMatchObject({
+        accepted: [A],
+        rejected: [
+          { source: 'zz://chat/1', error: { code: 'unknown_source' } },
+          { source: B, error: { code: 'rule_missing' } },
+        ],
+      });
+      await harness.sourceQueue.drain();
+
+      const search = await post('/search', {
+        query: '- user: alpha message',
+        filter: bySource(A),
+      });
+      expect(search.status).toBe(200);
+      expect(search.body).toMatchObject([
+        {
+          id: sourcePointId(A, 0),
+          payload: { source: A, source_rule: RULE, user_id: 'u1' },
+        },
+      ]);
+    });
+
+    it('?wait=true returns per-document results', async () => {
+      const { status, body } = await post('/documents?wait=true', {
+        documents: [
+          { source: B, rule: RULE },
+          { source: A, rule: RULE },
+          { source: 'cg:bad', rule: RULE },
+        ],
+      });
+      expect(status).toBe(200);
+      expect(body).toEqual({
+        results: [
+          { source: B, status: 'indexed', chunks: 1, matched_rules: [RULE] },
+          { source: A, status: 'unchanged', matched_rules: [RULE] },
+          {
+            source: 'cg:bad',
+            status: 'failed',
+            error: { code: 'invalid_reference', message: anyString },
+          },
+        ],
+      });
+    });
+
+    it('renders, enriches and reindexes by source', async () => {
+      const render = await post('/render', { source: A });
+      expect(render).toMatchObject({
+        status: 200,
+        body: { renderAs: 'md', content: '- user: alpha message\n' },
+      });
+
+      const meta = await post('/metadata', {
+        source: A,
+        metadata: { priority: 3 },
+      });
+      expect(meta).toEqual({
+        status: 200,
+        body: { ok: true, matched_rules: [RULE] },
+      });
+      expect(
+        await harness.vectorStore.getPayload(sourcePointId(A, 0)),
+      ).toMatchObject({ priority: 3, source: A, source_rule: RULE });
+
+      const before = stub.requests.length;
+      const reindex = await post('/reindex', { scope: 'path', source: [A] });
+      expect(reindex.body).toMatchObject({
+        status: 'started',
+        plan: { total: 1, toProcess: 1, byRoot: { cg: 1 } },
+      });
+      await harness.sourceQueue.drain();
+      expect(stub.requests.length).toBe(before + 1);
+    });
+
+    it('delete by filter removes source documents only, never file points', async () => {
+      // The file point carries user_id u1 too: only the source point goes.
+      const byUser = await post('/documents/delete', {
+        filter: { must: [{ key: 'user_id', match: { value: 'u1' } }] },
+      });
+      expect(byUser).toEqual({ status: 200, body: { deleted: 1 } });
+      expect(
+        await harness.vectorStore.getPayload(sourcePointId(A, 0)),
+      ).toBeNull();
+      expect(
+        await harness.vectorStore.getPayload(sourcePointId(B, 0)),
+      ).not.toBeNull();
+
+      const { status, body } = await post('/documents/delete', { filter: {} });
+      expect(status).toBe(200);
+      expect(body).toEqual({ deleted: 1 });
+      expect(
+        await harness.vectorStore.getPayload(sourcePointId(B, 0)),
+      ).toBeNull();
+      expect(
+        await harness.vectorStore.getPayload(pointId(FILE, 0)),
+      ).toMatchObject({ file_path: FILE });
+      expect(harness.enrichmentStore.get(A)).toBeNull();
+    });
+
+    it('delete by sources removes every chunk of the listed documents', async () => {
+      await post('/documents?wait=true', {
+        documents: [{ source: A, rule: RULE }],
+      });
+      const { body } = await post('/documents/delete', { sources: [A, B] });
+      expect(body).toEqual({ deleted: 1 });
+      expect(await harness.vectorStore.count(bySource(A))).toBe(0);
+    });
+
+    it('?wait=true on a callback 404 → deleted', async () => {
+      const first = await post('/documents?wait=true', {
+        documents: [{ source: GONE, rule: RULE }],
+      });
+      expect(first.body).toMatchObject({ results: [{ status: 'indexed' }] });
+
+      goneExists = false;
+      const second = await post('/documents?wait=true', {
+        documents: [{ source: GONE, rule: RULE }],
+      });
+      expect(second.body).toEqual({
+        results: [{ source: GONE, status: 'deleted' }],
+      });
+      expect(await harness.vectorStore.count(bySource(GONE))).toBe(0);
+      expect(
+        await harness.vectorStore.getPayload(pointId(FILE, 0)),
+      ).not.toBeNull();
+    });
+  },
+);

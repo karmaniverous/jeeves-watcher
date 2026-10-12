@@ -39,13 +39,15 @@ export const WATCHER_ENDPOINTS = [
     name: 'metadata',
     method: 'POST',
     path: '/metadata',
-    description: 'Set or update metadata on a document by file path.',
+    description:
+      'Set or update metadata on a document by file path or source reference.',
   },
   {
     name: 'render',
     method: 'POST',
     path: '/render',
-    description: 'Render a document through the template pipeline.',
+    description:
+      'Render a document (file path, or source reference retrieved through its callback) through the template pipeline.',
   },
   {
     name: 'searchFacets',
@@ -84,7 +86,22 @@ export const WATCHER_ENDPOINTS = [
     name: 'reindex',
     method: 'POST',
     path: '/reindex',
-    description: 'Trigger a scoped reindex of watched files.',
+    description:
+      'Trigger a scoped reindex of watched files (scope path also accepts source references).',
+  },
+  {
+    name: 'documents',
+    method: 'POST',
+    path: '/documents',
+    description:
+      'Notify changed source documents ({ source, rule }); queued and coalesced (202), or processed synchronously with ?wait=true.',
+  },
+  {
+    name: 'documentsDelete',
+    method: 'POST',
+    path: '/documents/delete',
+    description:
+      'Delete source documents by reference or by Qdrant filter (constrained to points carrying source).',
   },
   {
     name: 'issues',

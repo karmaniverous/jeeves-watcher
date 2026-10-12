@@ -1,13 +1,13 @@
 /**
  * @module api/handlers/parseBody.test
- * Tests for request-body validation and the unsupported-source rejection.
+ * Tests for request-body validation.
  */
 
 import type { FastifyReply } from 'fastify';
 import { describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 
-import { parseBody, rejectUnsupportedSource } from './parseBody';
+import { parseBody } from './parseBody';
 
 function mockReply() {
   const send = vi.fn();
@@ -47,17 +47,5 @@ describe('parseBody', () => {
     expect(send).toHaveBeenCalledWith(
       expect.objectContaining({ error: 'name is required' }),
     );
-  });
-});
-
-describe('rejectUnsupportedSource', () => {
-  it('sends 400 naming the endpoint', () => {
-    const { reply, status, send } = mockReply();
-    rejectUnsupportedSource(reply, 'POST /render');
-    expect(status).toHaveBeenCalledWith(400);
-    expect(send).toHaveBeenCalledWith({
-      error: 'source is not yet supported',
-      message: 'POST /render does not support source documents yet; use path.',
-    });
   });
 });

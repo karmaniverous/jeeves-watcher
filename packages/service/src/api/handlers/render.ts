@@ -1,6 +1,6 @@
 /**
  * @module api/handlers/render
- * POST /render route handler. Runs a file through the inference rule engine and returns rendered content.
+ * POST /render route handler. Runs a file (path) or a source document (source, retrieved through its callback with its stored designated rule) through the rule engine and returns rendered content.
  */
 
 import {
@@ -14,7 +14,8 @@ import type { WatchConfig } from '../../config/schemas';
 import type { DocumentProcessorInterface } from '../../processor';
 import { isPathWatched } from '../../util/isPathWatched';
 import { normalizeError } from '../../util/normalizeError';
-import { parseBody, rejectUnsupportedSource } from './parseBody';
+import { parseBody } from './parseBody';
+import { renderSource } from './renderSource';
 
 /** Dependencies for the render handler. */
 export interface RenderHandlerDeps {
@@ -27,7 +28,8 @@ export interface RenderHandlerDeps {
 }
 
 /**
- * Create the POST /render route handler.
+ * Create the POST /render route handler. Register it with
+ * `withCacheUnlessSource`: source renders must bypass the response cache.
  *
  * @param deps - Handler dependencies.
  * @returns Fastify route handler.
@@ -42,10 +44,13 @@ export function createRenderHandler(deps: RenderHandlerDeps) {
     const body = parseBody(renderRequestSchema, request.body, reply);
     if (!body) return reply;
 
-    const filePath = body.path;
+    const { path: filePath, source } = body;
+    if (source !== undefined) {
+      return renderSource(processor, source, reply, logger);
+    }
     if (filePath === undefined) {
-      rejectUnsupportedSource(reply, 'POST /render');
-      return reply;
+      // Unreachable: the schema requires exactly one of path or source.
+      return reply.status(400).send({ error: 'path is required' });
     }
 
     // Validate path is within watched scope (live config)

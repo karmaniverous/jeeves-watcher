@@ -18,6 +18,7 @@ import { IssuesManager } from '../../issues';
 import { createLogger } from '../../logger';
 import { DocumentProcessor } from '../../processor';
 import { EventQueue } from '../../queue';
+import { SourceNotifyQueue } from '../../queue/SourceNotifyQueue';
 import { compileRules } from '../../rules';
 import { SourceClient } from '../../sources';
 import { buildTemplateEngine } from '../../templates';
@@ -55,6 +56,12 @@ export interface ServiceHarness {
   vectorStore: VectorStoreClient;
   /** Document processor wired to the collection. */
   processor: DocumentProcessor;
+  /** Started source notify queue behind `POST /documents`. */
+  sourceQueue: SourceNotifyQueue;
+  /** Enrichment store (state dir). */
+  enrichmentStore: EnrichmentStore;
+  /** Issues store (state dir). */
+  issuesManager: IssuesManager;
   /** Private state directory. */
   stateDir: string;
   /** Base URL when started with `listen: true`. */
@@ -131,12 +138,20 @@ export async function startServiceHarness(
     sourceRetriever: new SourceClient(config.sources),
   });
 
+  const sourceQueue = new SourceNotifyQueue(
+    processor,
+    { concurrency: 2 },
+    logger,
+  );
+  sourceQueue.start();
+
   const app = createApiServer({
     descriptor: { name: 'watcher' } as never,
     processor,
     vectorStore,
     embeddingProvider,
     queue: new EventQueue({ debounceMs: 0, concurrency: 1 }),
+    sourceQueue,
     config,
     logger,
     issuesManager,
@@ -158,10 +173,14 @@ export async function startServiceHarness(
     collectionName,
     vectorStore,
     processor,
+    sourceQueue,
+    enrichmentStore,
+    issuesManager,
     stateDir,
     baseUrl,
     close: async () => {
       await app.close();
+      await sourceQueue.stop();
       enrichmentStore.close();
       await dropCollection(collectionName);
       await rm(stateDir, { recursive: true, force: true });

@@ -1,6 +1,6 @@
 /**
  * @module api/handlers/requestValidation.test
- * Fastify inject tests: /search, /scan, /render, /metadata and /reindex return 400 with Zod issue details on invalid bodies, and 400 for source targets.
+ * Fastify inject tests: /search, /scan, /render, /metadata and /reindex return 400 with Zod issue details on invalid bodies; valid source targets reach the source path.
  */
 
 import Fastify, { type FastifyInstance } from 'fastify';
@@ -124,18 +124,18 @@ describe('invalid request bodies return 400 with Zod details', () => {
   });
 });
 
-describe('source targets are rejected until supported', () => {
+describe('valid source targets reach the source path', () => {
+  // This processor double has no sourceOperations(), so each route reports
+  // that source documents are unavailable instead of a validation error.
   it.each([
-    ['/render', { source: 'cg://chat/1' }, 'POST /render'],
-    ['/metadata', { source: 'cg://chat/1', metadata: {} }, 'POST /metadata'],
-    ['/reindex', { scope: 'path', source: ['cg://chat/1'] }, 'POST /reindex'],
-  ])('%s', async (url, payload, endpoint) => {
-    const { status, body } = await post(url, payload);
-    expect(status).toBe(400);
-    expect(body).toEqual({
-      error: 'source is not yet supported',
-      message: `${endpoint} does not support source documents yet; use path.`,
-    });
+    ['/render', { source: 'cg://chat/1' }, 503],
+    ['/metadata', { source: 'cg://chat/1', metadata: {} }, 503],
+    ['/reindex', { scope: 'path', source: ['cg://chat/1'] }, 400],
+  ])('%s', async (url, payload, status) => {
+    const res = await post(url, payload);
+    expect(res.status).toBe(status);
+    expect(res.body).toMatchObject({ error: 'Not available' });
+    expect(res.body.details).toBeUndefined();
   });
 });
 
