@@ -11,7 +11,7 @@ import type { JeevesWatcherConfig } from '../../config/types';
 import type { GitignoreFilter } from '../../gitignore';
 import type { IssuesManager } from '../../issues';
 import type { DocumentProcessorInterface } from '../../processor';
-import type { EventQueue } from '../../queue';
+import type { PausableQueue } from '../../queue';
 import type { ValuesManager } from '../../values';
 import type { VectorStoreClient } from '../../vectorStore';
 import { executeReindex } from '../executeReindex';
@@ -29,7 +29,7 @@ export interface ConfigReindexRouteDeps {
   issuesManager?: IssuesManager;
   gitignoreFilter?: GitignoreFilter;
   vectorStore?: VectorStoreClient;
-  queue?: EventQueue;
+  queue?: PausableQueue;
 }
 
 type ConfigReindexRequest = FastifyRequest<{ Body: unknown }>;

@@ -19,7 +19,8 @@ import type { GitignoreFilter } from '../gitignore';
 import type { AllHelpersIntrospection } from '../helpers';
 import { IssuesManager } from '../issues';
 import type { DocumentProcessorInterface } from '../processor';
-import type { EventQueue } from '../queue';
+import { combinePausableQueues, type EventQueue } from '../queue';
+import type { SourceNotifyQueue } from '../queue/SourceNotifyQueue';
 import { logReservedFieldWarnings } from '../rules/reservedFieldWarnings';
 import { VirtualRuleStore } from '../rules/virtualRules';
 import { ValuesManager } from '../values';
@@ -37,6 +38,8 @@ import {
   introspectHelpers,
   resolveVersion,
 } from './initialization';
+import { drainQueues } from './shutdown';
+import { createNotifyQueue, createSourceRetriever } from './sources';
 import { createWatcher } from './watcherFactory';
 
 type ApiServerOptions = Parameters<
@@ -65,6 +68,7 @@ export class JeevesWatcher {
   private logger: pino.Logger | undefined;
   private watcher: FileSystemWatcher | undefined;
   private queue: EventQueue | undefined;
+  private sourceQueue: SourceNotifyQueue | undefined;
   private server: FastifyInstance | undefined;
   private processor: DocumentProcessorInterface | undefined;
   private configWatcher: ConfigWatcher | undefined;
@@ -171,7 +175,9 @@ export class JeevesWatcher {
       issuesManager: this.issuesManager,
       valuesManager: this.valuesManager,
       contentHashCache: this.contentHashCache,
+      sourceRetriever: createSourceRetriever(this.config),
     });
+    this.sourceQueue = createNotifyQueue(this.processor, this.config, logger);
 
     this.queue = this.factories.createEventQueue({
       debounceMs: this.config.watch.debounceMs ?? 2000,
@@ -209,6 +215,7 @@ export class JeevesWatcher {
 
     await vcsCoordinator.start();
     this.watcher.start();
+    this.sourceQueue?.start();
     this.startConfigWatch();
 
     logger.info('jeeves-watcher started');
@@ -228,24 +235,11 @@ export class JeevesWatcher {
       await this.watcher.stop();
     }
 
-    if (this.queue) {
-      const timeout = this.config.shutdownTimeoutMs ?? 10000;
-      const drained = await Promise.race<boolean>([
-        this.queue.drain().then(() => true),
-        new Promise<boolean>((resolve) => {
-          setTimeout(() => {
-            resolve(false);
-          }, timeout);
-        }),
-      ]);
-
-      if (!drained) {
-        this.logger?.warn(
-          { timeoutMs: timeout },
-          'Queue drain timeout hit, forcing shutdown',
-        );
-      }
-    }
+    await drainQueues(
+      { queue: this.queue, sourceQueue: this.sourceQueue },
+      this.config.shutdownTimeoutMs ?? 10000,
+      this.logger,
+    );
 
     // Flush in-memory state caches before shutdown.
     this.valuesManager?.stopAutoFlush();
@@ -266,7 +260,8 @@ export class JeevesWatcher {
       processor: this.processor!,
       vectorStore: this.vectorStore!,
       embeddingProvider: this.embeddingProvider!,
-      queue: this.queue!,
+      queue: combinePausableQueues(this.queue, this.sourceQueue),
+      sourceQueue: this.sourceQueue,
       config: this.config,
       getConfig: () => this.config,
       logger: this.logger!,

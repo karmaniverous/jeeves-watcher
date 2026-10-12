@@ -17,7 +17,7 @@ import { parallel } from 'radash';
 import type { JeevesWatcherConfig } from '../config/types';
 import { createIsGitignored, type GitignoreFilter } from '../gitignore';
 import type { DocumentProcessorInterface } from '../processor';
-import type { EventQueue } from '../queue';
+import type { PausableQueue } from '../queue';
 import { isPathWatched } from '../util/isPathWatched';
 import { normalizeError } from '../util/normalizeError';
 import { retry } from '../util/retry';
@@ -55,7 +55,7 @@ export interface ExecuteReindexDeps {
   issuesManager?: { getAll: () => Record<string, unknown> };
   gitignoreFilter?: GitignoreFilter;
   vectorStore?: VectorStoreClient;
-  queue?: EventQueue;
+  queue?: PausableQueue;
 }
 
 /** Result of a reindex execution. */

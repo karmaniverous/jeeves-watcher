@@ -3,6 +3,8 @@
  * Debounced, concurrent event queue for file watchers. Manages priority queuing and async callbacks. Embedding request rate is limited by the shared embedding provider wrapper, not here. No direct I/O.
  */
 
+export { combinePausableQueues, type PausableQueue } from './pausable';
+
 /**
  * A watch event.
  */

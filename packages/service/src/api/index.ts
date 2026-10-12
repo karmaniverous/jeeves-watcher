@@ -23,7 +23,6 @@ import type { GitignoreFilter } from '../gitignore';
 import type { AllHelpersIntrospection } from '../helpers';
 import type { IssuesManager } from '../issues';
 import type { DocumentProcessorInterface } from '../processor';
-import type { EventQueue } from '../queue';
 import type { VirtualRuleStore } from '../rules/virtualRules';
 import type { ValuesManager } from '../values';
 import type { VcsCoordinator } from '../vcs/VcsCoordinator';
@@ -59,6 +58,7 @@ import { createWalkHandler } from './handlers/walk';
 import { withCache } from './handlers/withCache';
 import type { InitialScanTracker } from './InitialScanTracker';
 import { createOnRulesChanged } from './onRulesChanged';
+import type { ApiQueueDeps } from './queueDeps';
 import { registerVcsRoutes } from './registerVcsRoutes';
 import { ReindexTracker } from './ReindexTracker';
 
@@ -70,7 +70,7 @@ export { ReindexTracker } from './ReindexTracker';
 /**
  * Options for {@link createApiServer}.
  */
-export interface ApiServerOptions {
+export interface ApiServerOptions extends ApiQueueDeps {
   /** The component descriptor (used for config-apply handler). */
   descriptor: JeevesComponentDescriptor;
   /** The document processor. */
@@ -79,8 +79,6 @@ export interface ApiServerOptions {
   vectorStore: VectorStoreClient;
   /** The embedding provider. */
   embeddingProvider: EmbeddingProvider;
-  /** The event queue. */
-  queue: EventQueue;
   /** The application configuration (used as initial/fallback value). */
   config: JeevesWatcherConfig;
   /** Config getter for live config access after hot-reload. */
