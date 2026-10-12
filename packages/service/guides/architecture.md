@@ -204,16 +204,21 @@ Every processed file gets a content hash (`sha256` of extracted text) stored in 
 
 ## Point ID Generation
 
-Qdrant point IDs are **deterministic UUIDs** derived from file paths:
+Qdrant point IDs are **deterministic UUIDs** derived from the document's identity (see `src/pointId/index.ts`):
 
-```javascript
-import { v5 as uuidv5 } from 'uuid';
+```typescript
+import { v5 as uuidV5 } from 'uuid';
 
-const NAMESPACE = '6a6f686e-6761-6c74-2d6a-656576657321'; // fixed
+const NAMESPACE = '6a6f686e-6761-4c74-ad6a-656576657321'; // fixed
 
+// Files: the path is normalised, so file IDs are case-insensitive.
 function pointId(filePath: string, chunkIndex: number): string {
-  const normalized = filePath.toLowerCase().replace(/\\/g, '/');
-  return uuidv5(`${normalized}:${chunkIndex}`, NAMESPACE);
+  return uuidV5(`${normalizePath(filePath)}#${chunkIndex}`, NAMESPACE);
+}
+
+// Source documents (v0.20.0+): the exact <name>://<id> reference, not normalised.
+function sourcePointId(reference: string, chunkIndex: number): string {
+  return uuidV5(`${reference}#${chunkIndex}`, NAMESPACE);
 }
 ```
 
@@ -233,7 +238,7 @@ function pointId(filePath: string, chunkIndex: number): string {
 
 File events are queued and processed **sequentially** to maintain consistency.
 
-**Concurrency:** Embedding API calls are parallelized (up to `embedding.concurrency`), bounded by a rate limiter (`embedding.rateLimitPerMinute`).
+**Concurrency:** Up to `embedding.concurrency` documents are processed at once. Embedding API requests from every path (watch, source-document notifications, reindex, search) draw from one shared rate limiter (`embedding.rateLimitPerMinute`, counted in requests since v0.20.0).
 
 **Same-path serialization:** Events for the same file path are always processed in order (prevents race conditions).
 

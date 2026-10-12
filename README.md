@@ -12,6 +12,13 @@ Filesystem watcher that keeps a Qdrant vector store in sync with document change
 - **Embeds** content using configurable providers (Google Gemini, mock for testing)
 - **Syncs** to Qdrant for fast semantic search
 - **Enriches** metadata via rules and API endpoints
+- **Indexes source documents** (v0.20.0+): records that live in another system, retrieved by HTTP callback when the owner notifies the watcher (`POST /documents`)
+
+### Source Documents and the SDK
+
+Besides files, the watcher can index records owned by another application (chat threads, tickets, database rows). The application notifies the watcher with a reference such as `app://chat/thread/<id>` and a designated inference rule; the watcher calls back to a URL configured under `sources`, renders the JSON record with the rule, embeds it and keeps its points in sync. The watcher keeps no copy of the record. See the [Source Documents guide](packages/service/guides/source-documents.md).
+
+[`@karmaniverous/jeeves-watcher-sdk`](packages/sdk/README.md) is a typed TypeScript client for the application-facing API (search, scan, render, metadata, reindex, issues, document notify/delete). When the API is exposed beyond localhost, protect it with `api.apiKey` ([Authentication](packages/service/guides/api-reference.md#authentication)).
 
 ### Architecture
 
@@ -237,10 +244,12 @@ The watcher provides a REST API (default port: 1936):
 | --- | --- | --- |
 | `/status` | GET | Health check, uptime, and collection stats |
 | `/search` | POST | Semantic search (`{ query: string, limit?: number, filter?: object }`) |
-| `/render` | POST | Render a file through inference rules (`{ path: string }`) (v0.8.0+) |
+| `/render` | POST | Render a document through inference rules (`{ path }` or `{ source }`) (v0.8.0+) |
 | `/search/facets` | GET | Schema-derived search facet definitions with live values (v0.8.0+) |
-| `/metadata` | POST | Update document metadata with schema validation (`{ path: string, metadata: object }`) |
-| `/reindex` | POST | Scoped reindex with blast area plan (`issues`, `rules`, `full`, `path`, `prune` + `dryRun`). `path` accepts `string \| string[]`. |
+| `/metadata` | POST | Update document metadata with schema validation (`{ path \| source, metadata: object }`) |
+| `/documents` | POST | Notify changed source documents (`{ documents: [{ source, rule }] }`); `202`, or per-document results with `?wait=true` (v0.20.0+) |
+| `/documents/delete` | POST | Delete source documents (`{ sources }` or `{ filter }`; never deletes file points) (v0.20.0+) |
+| `/reindex` | POST | Scoped reindex with blast area plan (`issues`, `rules`, `full`, `path`, `prune` + `dryRun`). `path` accepts `string \| string[]`; scope `path` also accepts `source` references. |
 | `/rebuild-metadata` | POST | Rebuild metadata files from Qdrant |
 | `/config` | GET | Full resolved effective config; optional `?path=<jsonpath>` filter. Rules include `source` attribution. |
 | `/config/schema` | GET | JSON Schema of merged virtual document (v0.5.0+) |

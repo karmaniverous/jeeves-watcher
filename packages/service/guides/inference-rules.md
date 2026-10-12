@@ -376,6 +376,8 @@ interface FileAttributes {
 }
 ```
 
+**Source documents (v0.20.0+)** are matched against different attributes: a `source` object (`ref`, `name`, `id`, `rule`, `retrievedAt`) and `json` (the callback body), with no `file` key. Only the document's designated rule is applied to it. See [Source Documents](./source-documents.md#the-designated-rule).
+
 ---
 
 ## Matching with JSON Schema
@@ -520,7 +522,7 @@ Returns `["To Do", "In Progress", "In Review", "Done"]` when queried through `PO
 
 **Location:** `{stateDir}/issues.json`
 
-A persistent, self-healing ledger of files that failed to embed. Keyed by file path, with one entry per issue per file.
+A persistent, self-healing ledger of documents that failed to process. Keyed by file path (or source reference, for source documents), with one entry per issue per document.
 
 **Structure:**
 
@@ -552,6 +554,8 @@ A persistent, self-healing ledger of files that failed to embed. Keyed by file p
 
 - `type_collision` — Multiple rules declare the same property with incompatible types
 - `interpolation_error` — `set` template path doesn't resolve (null, undefined, wrong structure)
+
+Since v0.20.0 processing failures are recorded too (`extraction_error`, `embedding_error`, `upsert_error`), as are source-document failures (`match_failed`, `rule_missing`, `no_content`, `source_unavailable`, `unsupported_content_type`). See [Issue Codes](./api-reference.md#issue-codes) for the full list.
 
 **Behavior:**
 
@@ -591,6 +595,8 @@ When `configWatch.enabled` is true, the watcher monitors its config file. On con
 | `"full"` | Full reindex of all watched files (use when broad config changes affect already-embedded files) |
 
 > **Note:** `"path"` and `"prune"` are NOT valid for config-watch auto-trigger. They can only be triggered via explicit API calls.
+
+> **Note:** A config-triggered reindex covers **files only**. To re-apply changed rules to [source documents](./source-documents.md), call `POST /reindex` with scope `rules` or `full`.
 
 **Issues reindex** is the default because config changes typically fix issues: a type collision is resolved by editing a rule, and re-processing just the affected file is sufficient.
 

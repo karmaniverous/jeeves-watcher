@@ -648,8 +648,9 @@ jeeves-watcher rebuild-metadata --port 1936
 **For remote access:**
 
 1. Bind to `0.0.0.0` (all interfaces)
-2. Add reverse proxy with authentication (nginx, Caddy)
-3. Use TLS/HTTPS
+2. Set `api.apiKey` (v0.20.0+) so every route except `GET /status` requires `Authorization: Bearer <key>` (see [Authentication](./api-reference.md#authentication)), and/or add a reverse proxy with authentication (nginx, Caddy)
+3. Use TLS/HTTPS (via the reverse proxy)
+4. Restrict network access to the hosts that call the API
 
 **Example nginx config:**
 
@@ -677,6 +678,20 @@ location /watcher/ {
 - Enable Qdrant API key authentication
 - Use TLS for Qdrant HTTP/gRPC
 - Restrict network access (firewall rules)
+
+---
+
+## Source Documents
+
+Operational notes for a watcher that indexes [source documents](./source-documents.md) (v0.20.0+):
+
+- **Check the version first.** Versions before 0.20.0 silently ignore config keys they do not know, so a config using `sources`, `api.apiKey` or `vectorStore.payloadIndexes` would load on an older watcher and run without them (including an open API). Check `jeeves-watcher --version` reports 0.20.0 or later before deploying such a config.
+- **Pin the timezone.** Template and `set` date helpers (`dateFormat`, and `toUnix` on date strings without an offset) use the host's local timezone. Run the service with `TZ=UTC` (systemd: `Environment=TZ=UTC`; NSSM: `AppEnvironmentExtra TZ=UTC`) so rendered text and metadata do not depend on the host.
+- **Startup-only settings.** `api.apiKey`, `sources` and `vectorStore.payloadIndexes` are read at startup. A config reload does not apply them; restart the service.
+- **Secrets.** Provide `api.apiKey` and source callback credentials through environment variables (`${VAR}`). If a referenced variable is unset, the service refuses to start and names the config path.
+- **Callback availability.** Every notification triggers a callback, so the source endpoint must be reachable from the watcher host and fast. Outages do not lose data (points stay untouched and an issue is recorded); watch `GET /issues` for `source_unavailable` and re-run `POST /reindex {"scope": "issues"}` after recovery.
+- **Shutdown.** Pending notifications are held in memory. On shutdown the notify queue is drained for up to `shutdownTimeoutMs`; anything left is dropped. Re-notify or reindex if that matters.
+- **Tenant filters.** If many users share one collection, index the tenant field with `isTenant: true` and add it to every search filter; the watcher does not enforce tenancy.
 
 ---
 

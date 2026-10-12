@@ -9,6 +9,8 @@ The SDK is thin by design. Request and response types come from [`@karmaniverous
 - One error type, `WatcherError`. No retries: the watcher owns rate limiting.
 - Application-facing surface only: `status`, `search`, `scan`, `render`, `metadata`, `reindex`, `issues`, and `documents.notify` / `documents.delete`. Admin endpoints (config, rules, VCS) are not covered.
 
+For the concepts behind source documents (configured `sources`, the callback contract, designated rules, notify and coalescing) and the full HTTP reference, see the service guides: [Source Documents](https://docs.karmanivero.us/jeeves-watcher/documents/Service_Guides.Source_Documents.html) and [API Reference](https://docs.karmanivero.us/jeeves-watcher/documents/Service_Guides.API_Reference.html) (sources in [`packages/service/guides`](https://github.com/karmaniverous/jeeves-watcher/tree/main/packages/service/guides)).
+
 ## Install
 
 ```bash
@@ -21,7 +23,7 @@ npm install @karmaniverous/jeeves-watcher-sdk
 import { createWatcherClient, f } from '@karmaniverous/jeeves-watcher-sdk';
 
 const watcher = createWatcherClient({
-  baseUrl: 'http://10.0.1.20:1936',
+  baseUrl: 'http://watcher.internal.example:1936',
   apiKey: process.env.WATCHER_API_KEY, // watcher config api.apiKey; omit if unset
   timeoutMs: 10_000, // default
 });
@@ -29,21 +31,21 @@ const watcher = createWatcherClient({
 // 1. A chat thread changed: notify the watcher. It queues and coalesces the
 //    reference, then retrieves the current record through your source callback.
 const { accepted, rejected } = await watcher.documents.notify([
-  { source: `cg://chat/thread/${threadId}`, rule: 'cg-chat-thread' },
+  { source: `app://chat/thread/${threadId}`, rule: 'chat-thread' },
 ]);
 
 // 2. Search one user's history. Always carry the tenant filter.
 const hits = await watcher.search({
-  query: 'how do I dispute a late payment?',
+  query: 'how do I reset my password?',
   limit: 8,
-  filter: f.and(f.eq('type', 'chat_history'), f.eq('user_id', userId)),
+  filter: f.and(f.eq('type', 'chat_thread'), f.eq('user_id', userId)),
 });
 for (const hit of hits)
   console.log(hit.score, hit.payload.source, hit.payload.chunk_text);
 
 // 3. Remove documents: by reference, or by filter (the server constrains a
 //    filter to source documents, so it can never delete file points).
-await watcher.documents.delete({ sources: [`cg://chat/thread/${threadId}`] });
+await watcher.documents.delete({ sources: [`app://chat/thread/${threadId}`] });
 await watcher.documents.delete({ filter: f.eq('user_id', userId) });
 ```
 
@@ -63,12 +65,12 @@ A request carries 1 to `MAX_DOCUMENTS_PER_REQUEST` (100) notifications.
 ```ts
 await watcher.status(); // open even when an API key is configured
 await watcher.scan({ filter: f.eq('user_id', userId), limit: 100 }); // filter-only, cursor paging
-await watcher.render({ source: 'cg://chat/thread/123' }); // or { path }
+await watcher.render({ source: 'app://chat/thread/123' }); // or { path }
 await watcher.metadata({
-  source: 'cg://chat/thread/123',
+  source: 'app://chat/thread/123',
   metadata: { priority: 2 },
 });
-await watcher.reindex({ scope: 'path', source: ['cg://chat/thread/123'] });
+await watcher.reindex({ scope: 'path', source: ['app://chat/thread/123'] });
 await watcher.issues();
 ```
 
@@ -116,7 +118,7 @@ The SDK never retries. Retry `timeout`, `network_error` and `503` at your own di
 
 ## Implementing the callback side
 
-The watcher retrieves source documents from you. Each source is declared in watcher config (`sources.<name>.url`, with an `{id}` placeholder and optional headers); callers never send URLs. For a reference `cg://chat/thread/123` the watcher calls:
+The watcher retrieves source documents from you. Each source is declared in watcher config (`sources.<name>.url`, with an `{id}` placeholder and optional headers); callers never send URLs. For a reference `app://chat/thread/123` the watcher calls:
 
 ```
 GET {url with {id} = chat/thread/123}

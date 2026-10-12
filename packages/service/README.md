@@ -14,7 +14,9 @@ Filesystem watcher that keeps a [Qdrant](https://qdrant.tech/) vector store in s
 - **Embedding providers** — Gemini (default) or mock (for testing); extensible via provider registry
 - **Qdrant sync** — automatic upsert/delete keeps the vector store current
 - **Rules engine** — glob-based inference rules for metadata enrichment
-- **REST API** — Fastify server for search, status, config, and management
+- **REST API** — Fastify server for search, status, config, and management, with optional bearer API key (`api.apiKey`)
+- **Source documents** — index records owned by another application, retrieved by HTTP callback on notification (`sources` config, `POST /documents`); see the [Source Documents guide](https://docs.karmanivero.us/jeeves-watcher/documents/Service_Guides.Source_Documents.html)
+- **SDK** — [`@karmaniverous/jeeves-watcher-sdk`](https://www.npmjs.com/package/@karmaniverous/jeeves-watcher-sdk), a typed TypeScript client for the application-facing API
 - **CLI** — `jeeves-watcher init`, `validate`, `start`, and more
 
 ## Version Control (VCS)

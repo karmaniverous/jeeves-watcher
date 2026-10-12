@@ -8,6 +8,12 @@ The watcher exposes a lightweight HTTP API for search, metadata enrichment, and 
 
 **Default address:** `http://127.0.0.1:1936` (configurable via `api.host` and `api.port`)
 
+**Authentication:** none by default. When `api.apiKey` is set, every route except `GET /status` requires `Authorization: Bearer <key>`; see [Authentication](#authentication). The examples below omit the header.
+
+**Request validation:** request bodies are validated against the Zod schemas exported by `@karmaniverous/jeeves-watcher-core`. An invalid body returns `400 { error, details }`, where `error` is the first issue's message and `details` is the full issue list.
+
+**Source documents (v0.20.0+):** besides files, the watcher indexes records retrieved from other systems by callback. See [`POST /documents`](#post-documents), [`POST /documents/delete`](#post-documentsdelete) and the [Source Documents guide](./source-documents.md).
+
 ---
 
 ## GET /status
@@ -71,11 +77,13 @@ curl http://localhost:1936/status
 
 - `200 OK` — Service is healthy
 
+`GET /status` is always open, even when `api.apiKey` is set, so load balancers and uptime checks can use it.
+
 ---
 
 ## POST /metadata
 
-Enrich a document's metadata without re-embedding.
+Enrich a document's metadata without re-embedding. Targets a file (`path`) or, since v0.20.0, a source document (`source`).
 
 ### Request
 
@@ -96,9 +104,11 @@ curl -X POST http://localhost:1936/metadata \
 
 ```typescript
 {
-  path: string; // File path (must be indexed)
+  path?: string;   // File path
+  source?: string; // Source reference <name>://<id> (v0.20.0+)
   metadata: Record<string, unknown>; // Metadata to merge
 }
+// Exactly one of path or source is required.
 ```
 
 ### Response
@@ -107,9 +117,12 @@ curl -X POST http://localhost:1936/metadata \
 
 ```json
 {
-  "ok": true
+  "ok": true,
+  "matched_rules": ["chat-thread"]
 }
 ```
+
+`matched_rules` lists the rules whose schemas validated the metadata.
 
 **Validation error (400 Bad Request):**
 
@@ -144,11 +157,18 @@ curl -X POST http://localhost:1936/metadata \
 - The metadata is written to the metadata store
 - The file will be processed on the next filesystem event or manual reindex
 
+**Source documents (`source`):**
+
+- The document must be indexed: its designated rule is read from the stored `source_rule`. Otherwise the response is `404 { "error": "Source document not indexed" }` and nothing is stored.
+- The metadata is validated against the designated rule's schema (`400` on failure).
+- It is stored in the enrichment store under the exact reference, written to every chunk with `setPayload` (no re-embedding, no callback), and merged again whenever the document is re-processed.
+- System fields (`source`, `source_rule`, `chunk_*`, ...) can never be overwritten.
+
 ---
 
 ## POST /render
 
-Render a file through the inference rule engine without embedding. Returns the transformed (or passthrough) content along with metadata.
+Render a document through the inference rule engine without embedding. Returns the transformed (or passthrough) content along with metadata. Targets a file (`path`) or, since v0.20.0, a source document (`source`).
 
 **v0.8.0+**
 
@@ -164,8 +184,10 @@ curl -X POST http://localhost:1936/render \
 
 ```typescript
 {
-  path: string; // File path (must be within watched scope)
+  path?: string;   // File path (must be within watched scope)
+  source?: string; // Source reference <name>://<id> (v0.20.0+)
 }
+// Exactly one of path or source is required.
 ```
 
 ### Response
@@ -198,16 +220,18 @@ curl -X POST http://localhost:1936/render \
 
 - **Transformed responses** (template or render ran): cached via `withCache` with the configured TTL.
 - **Passthrough responses** (no transform): `Cache-Control: no-cache` header set; bypasses the cache.
+- **Source documents** (`source`): never cached (no cache read, no cache write) and always sent with `Cache-Control: no-cache`, because the record behind the callback can change at any time.
 
 ### Error Codes
 
-| Code  | Condition                     |
-| ----- | ----------------------------- |
-| `200` | Success                       |
-| `400` | Missing `path` field          |
+| Code | Condition |
+| --- | --- |
+| `200` | Success |
+| `400` | Invalid body (neither or both of `path` / `source`, malformed reference) |
 | `403` | Path is outside watched scope |
-| `404` | File not found                |
-| `422` | Render/extraction failed      |
+| `404` | File not found; or `{ "error": "Source document not indexed" }` (no stored point, so no designated rule is known); or `{ "error": "Source document not found" }` (the callback answered `404`; points are left alone) |
+| `422` | Render/extraction failed; for a source document, `{ error, code, details? }` with an [issue code](#issue-codes) such as `match_failed`, `rule_missing`, `no_content` or `unsupported_content_type` |
+| `502` | Source callback failed: `{ error, code: "source_unavailable" }` |
 
 ### Behavior
 
@@ -215,6 +239,8 @@ curl -X POST http://localhost:1936/render \
 2. Runs the file through `buildMergedMetadata` (same pipeline as indexing)
 3. Resolves `renderAs`: rule-declared value → file extension → `"txt"`
 4. Returns rendered or extracted content with matched rules and metadata
+
+For a **source document**, the watcher reads the designated rule from the stored `source_rule`, retrieves the record through its callback, applies that rule and returns the result. `renderAs` is `"md"` when the rule has a `template` or `render`, otherwise `"json"`. Nothing is embedded or written, and failures are returned, never recorded as issues.
 
 **Use cases:**
 
@@ -385,6 +411,17 @@ The `filter` parameter accepts a native [Qdrant filter object](https://qdrant.te
 ]
 ```
 
+**Embedding unavailable (503 Service Unavailable, v0.20.0+):**
+
+```json
+{
+  "error": "EmbeddingUnavailableError",
+  "message": "Embedding provider still rate-limited after 3 attempts: ..."
+}
+```
+
+Returned when the query cannot be embedded within the search budget (3 provider attempts, at most 10 seconds waiting on the shared rate limiter). A `Retry-After` header (seconds) is set when the limiter knows when it will accept requests again. See [Rate Limiting](#rate-limiting).
+
 **Error (500 Internal Server Error):**
 
 ```json
@@ -399,7 +436,7 @@ Each result is a Qdrant point:
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `id` | `string` | Qdrant point ID (deterministic UUID from file path + chunk index). |
+| `id` | `string` | Qdrant point ID (deterministic UUID from file path or source reference + chunk index). |
 | `score` | `number` | Cosine similarity score (0–1, higher is better). |
 | `payload` | `object` | Document metadata and chunk info. |
 
@@ -407,9 +444,11 @@ Each result is a Qdrant point:
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `file_path` | `string` | Normalized file path (forward slashes). |
+| `file_path` | `string` | Normalized file path (forward slashes). File points only. |
+| `source` | `string` | Source reference `<name>://<id>`. Source points only (v0.20.0+). |
+| `source_rule` | `string` | Designated rule of a source document. Source points only (v0.20.0+). |
 | `chunk_index` | `number` | Chunk index (0-based). |
-| `total_chunks` | `number` | Total chunks for this file. |
+| `total_chunks` | `number` | Total chunks for this document. |
 | `content_hash` | `string` | SHA-256 hash of extracted text. |
 | `chunk_text` | `string` | Text content of this chunk. |
 | _Custom fields_ | `any` | Metadata from inference rules and `POST /metadata`. |
@@ -418,7 +457,9 @@ Each result is a Qdrant point:
 
 1. Embeds the query text using the configured embedding provider
 2. Searches Qdrant using cosine similarity
-3. Returns top `limit` results (includes all chunks; caller groups by `file_path` if needed)
+3. Returns top `limit` results (includes all chunks; caller groups by `file_path` or `source` if needed)
+
+The query embedding draws from the same rate limiter as indexing.
 
 ---
 
@@ -530,55 +571,6 @@ curl -X POST http://localhost:1936/scan \
 
 ---
 
-## POST /reindex
-
-Trigger a full reindex of all watched files.
-
-### Request
-
-```bash
-curl -X POST http://localhost:1936/reindex
-```
-
-### Response
-
-**Success (200 OK):**
-
-```json
-{
-  "ok": true,
-  "filesIndexed": 1234
-}
-```
-
-**Error (500 Internal Server Error):**
-
-```json
-{
-  "error": "Internal server error"
-}
-```
-
-### Behavior
-
-1. Scans all `watch.paths` globs
-2. For each file:
-   - Extracts text
-   - Computes content hash
-   - If hash differs from Qdrant (or file not indexed): re-embed and upsert
-   - If hash matches: skip (no re-embedding)
-3. Processes sequentially to avoid overwhelming the embedding API
-
-**Use cases:**
-
-- Recovering from Qdrant data loss
-- Indexing a large batch of new files
-- After bulk file operations (e.g., git pull)
-
-**Note:** This is a blocking operation — the API returns after all files are processed. For very large corpora, expect long response times.
-
----
-
 ## POST /rebuild-metadata
 
 Rebuild the metadata store from Qdrant payloads.
@@ -625,7 +617,7 @@ curl -X POST http://localhost:1936/rebuild-metadata
 
 ---
 
-## POST /config-reindex
+## POST /reindex
 
 Trigger a scoped reindex operation. Non-prune scopes include a `plan` object showing blast area. Live prune (non-dry-run) returns immediately without a plan.
 
@@ -636,41 +628,48 @@ Trigger a scoped reindex operation. Non-prune scopes include a `plan` object sho
 ```typescript
 {
   scope?: "issues" | "full" | "rules" | "path" | "prune";  // Default: "issues"
-  path?: string;       // Required when scope is "path"
-  dryRun?: boolean;    // Compute plan without executing (default: false)
+  path?: string | string[];   // Files/directories/globs for scopes "path" and "rules"
+  source?: string | string[]; // Source references for scope "path" (v0.20.0+)
+  dryRun?: boolean;           // Compute plan without executing (default: false)
 }
+// Scope "path" requires exactly one of path or source; source is only valid with scope "path".
 ```
 
 **Examples:**
 
 ```bash
 # Rules-only reindex (re-apply inference rules, no re-embedding)
-curl -X POST http://localhost:1936/config-reindex \
+curl -X POST http://localhost:1936/reindex \
   -H "Content-Type: application/json" \
   -d '{"scope": "rules"}'
 
-# Full reindex (re-extract, re-embed, re-upsert all files)
-curl -X POST http://localhost:1936/config-reindex \
+# Full reindex (re-extract, re-embed, re-upsert all files and source documents)
+curl -X POST http://localhost:1936/reindex \
   -H "Content-Type: application/json" \
   -d '{"scope": "full"}'
 
-# Re-process only files with embedding failures
-curl -X POST http://localhost:1936/config-reindex \
+# Re-process only documents with issues
+curl -X POST http://localhost:1936/reindex \
   -H "Content-Type: application/json" \
   -d '{"scope": "issues"}'
 
 # Re-embed a specific directory
-curl -X POST http://localhost:1936/config-reindex \
+curl -X POST http://localhost:1936/reindex \
   -H "Content-Type: application/json" \
   -d '{"scope": "path", "path": "j:/domains/projects/jeeves-watcher"}'
 
+# Re-process specific source documents (v0.20.0+)
+curl -X POST http://localhost:1936/reindex \
+  -H "Content-Type: application/json" \
+  -d '{"scope": "path", "source": ["app://chat/thread/6710c3a9"]}'
+
 # Delete orphaned points (files no longer in watch scope)
-curl -X POST http://localhost:1936/config-reindex \
+curl -X POST http://localhost:1936/reindex \
   -H "Content-Type: application/json" \
   -d '{"scope": "prune"}'
 
 # Dry run: preview blast area without executing
-curl -X POST http://localhost:1936/config-reindex \
+curl -X POST http://localhost:1936/reindex \
   -H "Content-Type: application/json" \
   -d '{"scope": "prune", "dryRun": true}'
 ```
@@ -726,10 +725,10 @@ curl -X POST http://localhost:1936/config-reindex \
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `total` | `number` | Total points (prune) or files (other scopes) examined. |
+| `total` | `number` | Total points (prune) or files and source documents (other scopes) examined. |
 | `toProcess` | `number` | Items to embed/re-apply rules (0 for prune). |
 | `toDelete` | `number` | Points to delete (prune only, 0 for others). |
-| `byRoot` | `object` | Counts grouped by watch root prefix. |
+| `byRoot` | `object` | Counts grouped by watch root prefix (files) or source name (source documents). |
 
 The reindex runs **asynchronously** — the API returns immediately with the plan. Use `GET /status` to track progress.
 
@@ -738,32 +737,42 @@ The reindex runs **asynchronously** — the API returns immediately with the pla
 | Code | Condition |
 | --- | --- |
 | `200` | Success (started or dry_run) |
-| `400` | Invalid scope, missing `path` for path scope, or prune without vectorStore |
+| `400` | Invalid body (unknown scope, missing `path`/`source` for scope `path`, `source` outside scope `path`, malformed reference), or prune without vectorStore |
 | `500` | Server error |
 
 ### Scopes
 
 #### `issues` (default)
 
-Re-processes only files that previously failed embedding (from `GET /issues`). Use after fixing the root cause of failures (permissions, encoding, file format).
+Re-processes documents with open issues (from `GET /issues`): files, and source documents whose stored designated rule is known. Use after fixing the root cause of failures (permissions, encoding, file format, a source outage).
 
 #### `rules`
 
-Re-reads file attributes, re-applies current inference rules, updates Qdrant payloads. **No re-embedding.** Use after editing inference rules.
+Re-reads file attributes, re-applies current inference rules, updates Qdrant payloads. **No re-embedding** for files. Use after editing inference rules.
+
+Without `path`, source documents are included: each is retrieved through its callback and its stored rule re-applied. Unchanged content gets a metadata-only `setPayload`; if the rule now renders different text, the document is re-embedded. With `path`, only matching files are covered.
 
 #### `full`
 
-Re-extracts text, re-embeds (new embedding API calls), re-upserts to Qdrant. Use after changing embedding providers, chunk size, or adding watch paths.
+Re-extracts text, re-embeds (new embedding API calls), re-upserts to Qdrant. Source documents are retrieved through their callbacks and **always re-embedded**. Use after changing embedding providers, chunk size, or adding watch paths.
 
 #### `path`
 
-Re-embeds a specific file or all files under a directory. Validates that the target is within watch scope and not gitignored. Requires the `path` parameter. Use for targeted re-embedding without a full reindex.
+With `path`: re-embeds a specific file or all files under a directory. Validates that the target is within watch scope and not gitignored. Use for targeted re-embedding without a full reindex.
+
+With `source` (v0.20.0+): re-processes the listed source references with their stored designated rule, through the notify queue (so they coalesce with concurrent notifications, and failures land in `GET /issues`). References that are not indexed are skipped: they count in `total` but not in `toProcess`.
 
 #### `prune`
 
 Scrolls all Qdrant points, checks each `file_path` against current watch scope and gitignore, batch-deletes orphaned points. **No re-embedding, no file reads** — pure Qdrant scroll + local checks + deletes. Use after changing `watch.paths`, adding gitignore rules, or to clean up stale data (e.g., indexed `node_modules`).
 
+Prune **never** selects points carrying `source`: source documents are removed only by a callback `404` or [`POST /documents/delete`](#post-documentsdelete). The file and notify queues are paused while a prune runs.
+
 **Note:** `prune` is NOT valid for the config-watch auto-trigger (`configWatch.reindex`). It can only be triggered via explicit API calls.
+
+### Source Documents
+
+Explicit `POST /reindex` requests cover source documents as described above; a reindex triggered by a config change (`configWatch.reindex`) covers **files only**. Source documents are discovered from Qdrant (chunk-0 points carrying `source`), retrieved through their callbacks, and processed with their stored `source_rule`. In every scope a callback `404` deletes the document and any other failure records an issue and leaves its points untouched. See the [Source Documents guide](./source-documents.md#reindex-prune-and-deletion).
 
 ### Dry Run
 
@@ -800,9 +809,175 @@ The callback retries with exponential backoff (3 attempts, starting at 1 second)
 
 ---
 
+## POST /documents
+
+Notify the watcher that source documents changed. **v0.20.0+**
+
+The watcher validates each notification, queues it, and later retrieves the current record through the source's configured callback, renders it with the designated rule, and indexes it. See the [Source Documents guide](./source-documents.md) for the model, configuration and callback contract.
+
+### Request
+
+```bash
+curl -X POST http://localhost:1936/documents \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $WATCHER_API_KEY" \
+  -d '{
+    "documents": [
+      { "source": "app://chat/thread/6710c3a9", "rule": "chat-thread" }
+    ]
+  }'
+```
+
+**Body schema:**
+
+```typescript
+{
+  documents: Array<{
+    source: string; // Source reference <name>://<id>; <name> must be configured in `sources`
+    rule: string; // Designated rule name
+  }>; // 1 to 100 entries
+}
+```
+
+**Query string:** `?wait=true` processes synchronously (also accepts `1`; `false`/`0` or omitted = asynchronous).
+
+Notify only: there is no push form. Unknown keys (for example inline `text`) fail the request with `400`.
+
+### Response
+
+**Accepted (202), the default:**
+
+```json
+{
+  "accepted": ["app://chat/thread/6710c3a9"],
+  "rejected": [
+    {
+      "source": "zz://chat/thread/1",
+      "error": {
+        "code": "unknown_source",
+        "message": "Source \"zz\" is not configured"
+      }
+    }
+  ]
+}
+```
+
+Validation is synchronous and per document; accepted references are queued. A rejected document does not fail the others.
+
+| Rejection code | Meaning |
+| --- | --- |
+| `invalid_reference` | `source` is not `<name>://<id>`. |
+| `unknown_source` | `<name>` is not configured in `sources` (or no sources are configured). No request is made. |
+| `invalid_id` | The id has an empty, `.` or `..` segment, or would produce a URL outside the configured origin. |
+| `rule_missing` | No rule of that name exists in the current rule set. |
+| `queue_stopped` | The service is shutting down; notify again later. |
+
+Processing failures after acceptance are not in the response: they are recorded under the reference in [`GET /issues`](#get-issues).
+
+**Synchronous (200) with `?wait=true`:**
+
+```json
+{
+  "results": [
+    {
+      "source": "app://chat/thread/6710c3a9",
+      "status": "indexed",
+      "chunks": 2,
+      "matched_rules": ["chat-thread"]
+    },
+    {
+      "source": "app://chat/thread/6710c3b0",
+      "status": "unchanged",
+      "matched_rules": ["chat-thread"]
+    },
+    { "source": "app://chat/thread/0000", "status": "deleted" },
+    {
+      "source": "app://chat/thread/6710c3b1",
+      "status": "failed",
+      "error": {
+        "code": "match_failed",
+        "message": "Document does not match rule \"chat-thread\": ...",
+        "details": []
+      }
+    }
+  ]
+}
+```
+
+One result per submitted document, in submission order:
+
+| `status` | Meaning |
+| --- | --- |
+| `indexed` | Written: content re-embedded, or (same content, changed metadata) payloads updated without an embedding call. `chunks` is the chunk count. |
+| `unchanged` | Same rendered content and metadata; nothing written, no embedding call. |
+| `deleted` | The callback answered `404`; the document's points were removed. |
+| `failed` | `error.code` is a rejection code above or an [issue code](#issue-codes); existing points are untouched. `details` holds AJV errors for `match_failed`. |
+
+A designated rule whose `match` rejects the record is never an HTTP error: asynchronously it becomes a `match_failed` issue, with `?wait=true` a `failed` result.
+
+**Errors:**
+
+| Code | Condition |
+| --- | --- |
+| `400` | Invalid body: `documents` missing, empty or over 100 entries; missing or empty `source`/`rule`; unknown keys; invalid `wait` |
+| `401` | `api.apiKey` is set and the bearer token is missing or wrong |
+| `503` | The instance's document processor does not support source documents |
+
+### Behavior
+
+- Notifications are queued in memory, keyed by reference. A notification for a pending reference merges with it; one for an in-flight reference triggers exactly one more run after the current one. Every run retrieves the current record, so the latest state always wins. See [coalescing](./source-documents.md#notifications-queuing-and-coalescing).
+- `?wait=true` uses the same queue (concurrency and coalescing apply) and waits for the results. Use it for backfills and tests.
+- Re-notifying an unchanged record costs one callback and no embedding call.
+
+---
+
+## POST /documents/delete
+
+Delete source documents by reference or by Qdrant filter. **v0.20.0+**
+
+### Request
+
+```bash
+# By reference
+curl -X POST http://localhost:1936/documents/delete \
+  -H "Content-Type: application/json" \
+  -d '{"sources": ["app://chat/thread/6710c3a9"]}'
+
+# By filter
+curl -X POST http://localhost:1936/documents/delete \
+  -H "Content-Type: application/json" \
+  -d '{"filter": {"must": [{"key": "user_id", "match": {"value": "u-123"}}]}}'
+```
+
+**Body schema:** exactly one of
+
+```typescript
+{ sources: string[] }                // 1 or more <name>://<id> references
+{ filter: Record<string, unknown> }  // native Qdrant filter
+```
+
+### Response
+
+```json
+{ "deleted": 1 }
+```
+
+`deleted` counts **documents** (distinct references), not points.
+
+### Behavior
+
+- The filter is always constrained to points carrying `source`: the caller's filter is nested inside a condition that requires a non-empty `source`. A filter can never delete a file point, whatever it names. Note that `{ "filter": {} }` therefore deletes **every source document**.
+- Every chunk of each matching document is deleted.
+- Enrichment metadata and issues are removed for the deleted references, and, in the `sources` form, for every listed reference (so a document that only ever failed leaves no issue behind).
+- Deletion does not touch the source system. If the owner notifies the reference again (or a notification for it was still queued), it is retrieved and indexed again.
+
+**Errors:** `400` for an invalid body (both or neither of `sources`/`filter`, an empty `sources` array, a malformed reference).
+
+---
+
 ## GET /issues
 
-Returns the current issues file contents: all files that failed to embed, with error details.
+Returns the current issues file contents: every document (file or source document) whose last processing failed, with error details.
 
 **v0.5.0+**
 
@@ -845,16 +1020,17 @@ curl http://localhost:1936/issues
 
 ### Response Schema
 
-| Field    | Type     | Description                                          |
-| -------- | -------- | ---------------------------------------------------- |
-| `count`  | `number` | Number of files with issues (not total issue count). |
-| `issues` | `object` | Issues keyed by file path.                           |
+| Field | Type | Description |
+| --- | --- | --- |
+| `count` | `number` | Number of documents with issues (not total issue count). |
+| `issues` | `object` | Issues keyed by file path or source reference. |
 
 ### IssueRecord Schema
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `type` | `string` | Error category: `"type_collision"` or `"interpolation_error"`. |
+| `type` | `string` | Issue code; see [Issue Codes](#issue-codes). |
+| `operation` | `string?` | Operation that failed (e.g. `Failed to process source document`). |
 | `property` | `string?` | Property name where the issue occurred. |
 | `rules` | `string[]?` | Rule names involved in the issue (for type collisions). |
 | `rule` | `string?` | Rule name for single-rule issues (backward compat). |
@@ -862,12 +1038,32 @@ curl http://localhost:1936/issues
 | `message` | `string` | Human-readable error message. |
 | `timestamp` | `number \| string` | Unix timestamp (seconds) or ISO string of last occurrence. |
 
+### Issue Codes
+
+Every issue record carries one code from a single canonical list (`ISSUE_TYPES` in `@karmaniverous/jeeves-watcher-core`). The same codes appear as `error.code` in `failed` results of `POST /documents?wait=true`.
+
+| Code | Applies to | Meaning |
+| --- | --- | --- |
+| `type_collision` | files, sources | Matched rules declare the same property with incompatible types. |
+| `interpolation_error` | files, sources | A `set` template could not be rendered. |
+| `extraction_error` | files, sources | Reading or extracting the document, applying rules, or chunking failed. Also the code for any failure no stage tagged. |
+| `embedding_error` | files, sources | The embedding provider failed, including a rate-limit retry budget that ran out. |
+| `upsert_error` | files, sources | Writing to or deleting from the vector store failed. |
+| `match_failed` | sources | The designated rule's `match` rejected the retrieved record. Nothing was written. |
+| `rule_missing` | sources | The designated rule does not exist (any more). Points untouched. |
+| `no_content` | sources | The callback returned an empty JSON object. |
+| `source_unavailable` | sources | The callback failed: any status other than `200`/`404` (redirects included), a timeout, a network error, a body that is not valid JSON, or no sources configured. Points untouched. |
+| `unsupported_content_type` | sources | The callback answered `200` with a content type other than `application/json`, or with JSON that is not an object. Points untouched. |
+
+Issue files written by versions before 0.20.0 contain only `type_collision` and `interpolation_error` and still load unchanged.
+
 ### Behavior
 
 The issues file is self-healing:
 
-- Files that hit issues are logged and **embedding is skipped**
-- Successful re-processing (config fix, file edit, reindex) **clears** the entry
+- Documents that hit issues are logged and **embedding is skipped**; a source document's existing points are left untouched
+- Successful re-processing (config fix, file edit, re-notification, reindex) **clears** the entry
+- A source document that is deleted (callback `404` or `POST /documents/delete`) has its entry cleared
 - The response always represents the **current** set of unresolved problems
 
 **Empty response:**
@@ -1380,7 +1576,7 @@ curl -X POST http://localhost:1936/rules/reapply \
 **Use cases:**
 
 - After editing inference rules, selectively re-apply to specific domains
-- More targeted than `POST /config-reindex` (which re-applies to everything)
+- More targeted than `POST /reindex` with scope `rules` (which re-applies to everything)
 
 ---
 
@@ -1697,27 +1893,65 @@ All endpoints return JSON errors with this schema:
 }
 ```
 
+Validation errors (`400`) also carry `details` with the full list of schema issues. Source-document failures carry a machine-readable `code` (see [Issue Codes](#issue-codes)).
+
 **Status codes:**
 
 - `200 OK` — Success
+- `202 Accepted` — Notifications queued (`POST /documents`)
 - `400 Bad Request` — Validation error (invalid scope, missing required field, etc.)
+- `401 Unauthorized` — `api.apiKey` is set and the bearer token is missing or wrong
+- `404 Not Found` — Document not found or not indexed
+- `422 Unprocessable Entity` — Render failed
+- `502 Bad Gateway` — A source callback failed (`POST /render { source }`)
+- `503 Service Unavailable` — The embedding provider's retry budget ran out (`POST /search`), or a feature is not available on this instance
 - `500 Internal Server Error` — Server-side failure (check logs for details)
 
 ---
 
 ## Authentication
 
-**Current:** None. The API is intended for localhost-only access (default `host: "127.0.0.1"`).
+**v0.20.0+.** Authentication is optional and off by default: without `api.apiKey`, the API is open, and is intended for localhost-only access (default `host: "127.0.0.1"`).
 
-**For production:** Use a reverse proxy (nginx, Caddy) with authentication, or bind to `0.0.0.0` only within a trusted network.
+Set `api.apiKey` (usually through an environment variable) to require a bearer token:
+
+```json
+{
+  "api": {
+    "host": "0.0.0.0",
+    "port": 1936,
+    "apiKey": "${WATCHER_API_KEY}"
+  }
+}
+```
+
+```bash
+curl -X POST http://watcher.internal.example:1936/search \
+  -H "Authorization: Bearer $WATCHER_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"query": "password reset"}'
+```
+
+- Every route requires `Authorization: Bearer <apiKey>` (the `Bearer` scheme name is case-insensitive) — including unknown routes, the config, rules and VCS endpoints — **except `GET /status`** (and `HEAD /status`), which stays open for health checks.
+- A missing, malformed or wrong token gets `401 { "error": "Unauthorized" }`. The presented token is never logged; rejections log only the method and path at `debug` level.
+- The comparison is constant-time.
+- An empty `apiKey` (`""`) fails closed: no token can match, so every route except `GET /status` answers `401`.
+- If `apiKey` still contains an unresolved `${...}` after environment-variable substitution, loading the config fails and the service does not start.
+- The key is read **at startup only**. Rotating it means changing the config (or the environment variable) and restarting the watcher, then updating every client.
+- The `jeeves-watcher` CLI commands that call the API and the OpenClaw plugin do not send a token. With `apiKey` set, use them only for `status`, or call the API with the header directly (the [SDK](./source-documents.md#sdk) sends it from its `apiKey` option).
+- `api` settings never appear in `GET /config`.
+
+For TLS, or for authentication schemes other than a single shared key, put a reverse proxy in front of the watcher.
 
 ---
 
 ## Rate Limiting
 
-**No built-in rate limiting.** The embedding provider's rate limit (`embedding.rateLimitPerMinute`) applies, but the API itself is unbounded.
+The API itself has no request rate limit; add one at a reverse proxy if you need it.
 
-For high-traffic deployments, add rate limiting at the reverse proxy layer.
+The **embedding provider** is rate-limited. Since v0.20.0, one shared limiter wraps the provider and every caller draws from it: file watching, source-document notifications, reindex and search. See [`embedding.rateLimitPerMinute`](./configuration.md#embedding-rate-limiting) for the semantics (and the 0.20.0 behaviour change).
+
+When the provider answers `429`, the limiter pauses **all** embedding requests for the provider's `Retry-After` (capped at `maxBackoffMs`), then retries. Indexing makes up to 5 attempts per embedding request and then records an `embedding_error` issue. Search makes up to 3 attempts and waits at most 10 seconds in total; when that budget runs out, `POST /search` answers `503 { error, message }` with a `Retry-After` header instead of `500`.
 
 ---
 
@@ -1770,4 +2004,5 @@ Output: `86400` (uptime in seconds)
 
 - [CLI Reference](./cli-reference.md) — CLI equivalents for these endpoints
 - [Configuration Reference](./configuration.md) — API server settings
+- [Source Documents](./source-documents.md) — Sources, the callback contract and notify semantics
 - [Architecture Guide](./architecture.md) — How the API fits into the system

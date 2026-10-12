@@ -31,6 +31,8 @@ The `init` command generates a config with a `$schema` pointer for IDE autocompl
 
 This enables IntelliSense in VSCode and other editors that support JSON Schema.
 
+> **Check the version before deploying new keys.** Versions before 0.20.0 silently ignore config keys they do not know. A config that uses `sources`, `api.apiKey` or `vectorStore.payloadIndexes` loads without error on an older watcher, which then runs without those features (for example, with an open API). Confirm `jeeves-watcher --version` reports 0.20.0 or later before deploying such a config.
+
 ## Top-Level Schema
 
 ```typescript
@@ -54,6 +56,7 @@ interface JeevesWatcherConfig {
   search?: SearchConfig; // Search behavior settings (scoreThresholds in v0.5.0+)
   reindex?: ReindexConfig; // Reindex behavior settings
   vcs?: VcsConfig; // Version control settings
+  sources?: Record<string, SourceConfig>; // Named callback sources for source documents (v0.20.0+)
   logging?: LoggingConfig;
   shutdownTimeoutMs?: number;
   maxRetries?: number;
@@ -185,6 +188,8 @@ When the config file changes:
 2. Inference rules are recompiled
 3. A reindex is triggered with the configured scope
 
+The config-triggered reindex covers files only; source documents are re-processed by an explicit `POST /reindex`. Settings read only at startup (`api.apiKey`, `sources`, `vectorStore.payloadIndexes`) do not change on reload: restart the watcher.
+
 ---
 
 ## `embedding` - Embedding Provider
@@ -212,8 +217,26 @@ When the config file changes:
 | `chunkSize` | `number` | `1000` | Maximum characters per chunk for text splitting. |
 | `chunkOverlap` | `number` | `200` | Overlap between consecutive chunks (helps preserve context at boundaries). |
 | `dimensions` | `number` | Provider default | Vector dimensions. Gemini `gemini-embedding-001` = 3072. |
-| `rateLimitPerMinute` | `number` | `300` | Max embedding requests per minute (provider rate limit). |
-| `concurrency` | `number` | `5` | Max concurrent embedding requests. Bounded by rate limiter. |
+| `rateLimitPerMinute` | `number` | `300` | Max embedding API **requests** per minute, shared by every caller. `0` disables the request-rate limit. See [Rate Limiting](#embedding-rate-limiting). |
+| `concurrency` | `number` | `5` | Max documents processed concurrently by the file event queue, and by the source-document notify queue. |
+
+### Embedding Rate Limiting
+
+> **Behaviour change in 0.20.0.** `embedding.rateLimitPerMinute` now limits embedding API **requests**, not file-watch events. Review the value when upgrading.
+
+Before 0.20.0, `rateLimitPerMinute` drove a token bucket inside the file event queue that counted processed watch events, while reindex and search called the provider without any limit.
+
+Since 0.20.0, one token bucket wraps the embedding provider. It is created once at startup and shared by file watching, source-document notifications, reindex and search:
+
+- Each provider request costs one token. A request is a batch of up to 100 chunks of one document, or a single search query, so a large document can cost several tokens.
+- The bucket holds one minute's worth of tokens (`rateLimitPerMinute`, which is also the burst size) and refills continuously.
+- `0` disables the request-rate limit. When the key is omitted, the default of `300` applies.
+- `embedding.concurrency` is unchanged in meaning: it caps how many queued documents are processed at once.
+
+On HTTP `429` the limiter pauses **every** caller for the provider's `Retry-After` (the header, or Google's `retryDelay` in the response body; without either, 1 second doubling per attempt), capped at the root `maxBackoffMs` (default 60 seconds; see Error Resilience below), then retries:
+
+- **Indexing** (watch, notify, reindex): up to 5 attempts per request, then the document gets an `embedding_error` issue.
+- **Search**: up to 3 attempts and at most 10 seconds of waiting, then `POST /search` answers `503 { error, message }` with a `Retry-After` header instead of `500`.
 
 ### Supported Providers
 
@@ -266,12 +289,14 @@ Generates deterministic embeddings from content hashes. No API calls, no cost. I
 | `url` | `string` | **Required** | Qdrant server URL. |
 | `collectionName` | `string` | **Required** | Qdrant collection name. Created automatically if it doesn't exist. |
 | `apiKey` | `string` | `undefined` | Qdrant API key (for Qdrant Cloud). |
+| `payloadIndexes` | `PayloadIndex[]` | `[]` | Qdrant payload indexes to create at startup (v0.20.0+). See [Payload Indexes](#payload-indexes). |
 
 **On startup**, the watcher:
 
 1. Checks if the collection exists
 2. If not, creates it with the configured vector dimensions and Cosine distance
 3. If it already exists, uses it as-is (dimensions and distance are not validated)
+4. Creates any missing payload index (configured, plus the automatic `source` and `source_rule` indexes)
 
 **Warning:** If the collection exists with different dimensions (e.g., manually created with 768 instead of 3072), the service will start but embedding upserts will fail with a dimension mismatch error.
 
@@ -279,6 +304,42 @@ To change embedding settings that affect vector dimensions:
 
 1. Delete the old collection (or rename `collectionName` in config)
 2. Restart the watcher (it will recreate the collection and reindex)
+
+### Payload Indexes
+
+**v0.20.0+**
+
+Qdrant filters on large collections are fast only on indexed fields. Declare the fields you filter on:
+
+```json
+{
+  "vectorStore": {
+    "url": "http://localhost:6333",
+    "collectionName": "app_documents",
+    "payloadIndexes": [
+      { "field": "user_id", "type": "keyword", "isTenant": true },
+      { "field": "type", "type": "keyword" },
+      { "field": "updated_at", "type": "integer", "isPrincipal": true }
+    ]
+  }
+}
+```
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `field` | `string` | Payload field to index. |
+| `type` | `string` | Qdrant index type: `keyword`, `integer`, `float`, `bool`, `datetime`, `uuid` or `text`. |
+| `isTenant` | `boolean?` | Qdrant `is_tenant: true`: optimises storage for per-tenant filtering. Valid only for `keyword` and `uuid`. |
+| `isPrincipal` | `boolean?` | Qdrant `is_principal: true`: optimises storage for range filtering on the main ordering field. Valid only for `integer`, `float` and `datetime`. |
+
+Behaviour:
+
+- Indexes are created **at startup only**, when missing. A config reload does not create them; restart after adding one.
+- Indexes are never dropped or recreated. If a field is already indexed with a different type, the watcher logs a warning and leaves it alone.
+- `source` and `source_rule` always get `keyword` indexes, whether or not they are configured (a configured entry for the same field takes precedence).
+- Failing to create an index stops startup with an error naming the field.
+- The `chunk_text` full-text index is separate: it is managed by `search.hybrid.enabled`, not by `payloadIndexes`.
+- `isTenant` / `isPrincipal` on an unsupported type fails config validation.
 
 ---
 
@@ -325,8 +386,12 @@ For a file at `D:\projects\my-project\readme.md`, the metadata sidecar is at `.j
 | --- | --- | --- | --- |
 | `host` | `string` | `"127.0.0.1"` | Host to bind to. Use `"0.0.0.0"` to accept external connections. |
 | `port` | `number` | `1936` | Port to listen on. |
+| `cacheTtlMs` | `number` | `30000` | TTL in milliseconds for caching read-heavy endpoints. |
+| `apiKey` | `string` | `undefined` | Bearer API key required on every route except `GET /status` (v0.20.0+). Supports `${ENV_VAR}`. Read at startup only. |
 
 The API provides endpoints for search, metadata enrichment, reindexing, and status. See [API Reference](./api-reference.md).
+
+When `apiKey` is set, every request except `GET /status` must send `Authorization: Bearer <apiKey>`, or it gets `401`. An empty string fails closed (every protected route answers `401`), and an unresolved `${...}` stops the service at startup. Changing the key requires a restart. See [Authentication](./api-reference.md#authentication).
 
 ---
 
@@ -701,6 +766,41 @@ Per-root overrides (including `remote` and `accessToken`) are configured via `wa
 
 ---
 
+## `sources` - Source Documents
+
+**v0.20.0+**
+
+Named HTTP callbacks for [source documents](./source-documents.md): records that live in another system and are retrieved by reference (`<name>://<id>`).
+
+```json
+{
+  "sources": {
+    "app": {
+      "url": "https://app.internal.example/watcher/documents/{id}",
+      "headers": { "Authorization": "Bearer ${APP_CALLBACK_TOKEN}" },
+      "timeoutMs": 10000,
+      "concurrency": 8
+    }
+  }
+}
+```
+
+| Field | Type | Default | Description |
+| --- | --- | --- | --- |
+| _key_ | `string` | — | Source name used in references: a lowercase letter, then 1–31 of `[a-z0-9-]`. |
+| `url` | `string` | **Required** | Callback URL template containing `{id}`. Each `/`-segment of the id is URL-encoded; slashes are kept. Absolute `http`/`https` only, with `{id}` outside the scheme, host and port. |
+| `headers` | `Record<string, string>` | `undefined` | Headers sent with every callback. |
+| `timeoutMs` | `number` | `10000` | Callback timeout (ms). |
+| `concurrency` | `number` | `8` | Max concurrent callbacks to this source. |
+
+- `url` and `headers` support `${ENV_VAR}`; an unresolved reference stops the service at startup.
+- Read at startup only: restart to change.
+- Never exposed by `GET /config`.
+
+See the [Source Documents guide](./source-documents.md#the-callback-contract) for the callback contract.
+
+---
+
 ## Environment Variable Substitution
 
 All string fields support `${ENV_VAR}` template syntax:
@@ -716,7 +816,7 @@ All string fields support `${ENV_VAR}` template syntax:
 }
 ```
 
-At runtime, these are replaced with actual environment variable values. Set templates in inference rules use Handlebars `{{...}}` syntax (e.g. `{{frontmatter.title}}`), which is distinct from the `${...}` environment variable syntax used in config values like `embedding.apiKey`.
+At runtime, these are replaced with actual environment variable values. For the secret-bearing values `api.apiKey`, `sources.*.url` and `sources.*.headers.*`, a reference that cannot be resolved stops the service at startup (the error names the config path, never the value). Set templates in inference rules use Handlebars `{{...}}` syntax (e.g. `{{frontmatter.title}}`), which is distinct from the `${...}` environment variable syntax used in config values like `embedding.apiKey`.
 
 ---
 

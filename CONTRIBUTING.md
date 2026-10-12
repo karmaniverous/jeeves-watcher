@@ -131,8 +131,8 @@ npm test
 
 Notes:
 
-- Tests use a dedicated collection named **`jeeves_watcher_test`**.
-- Integration tests delete/recreate this collection to ensure a clean state.
+- Integration tests only ever create, use and drop collections named **`jeeves_watcher_it_*`** (`jeeves_watcher_it_<label>_<worker>_<nonce>`, see `packages/service/src/test/harness/qdrant.ts`). The harness refuses to create or drop any other name, and the global teardown sweeps leftover `jeeves_watcher_it_*` collections. Your own collections on the same Qdrant are never touched.
+- Without a reachable Qdrant (`QDRANT_URL`, default `http://localhost:6333`) the integration tests are skipped, unless `QDRANT_REQUIRED=true` (as in CI), which fails the run instead.
 - Tests create temp directories under your OS temp folder:
   - `.../jeeves-watcher-test/watched`
   - `.../jeeves-watcher-test/metadata`
@@ -258,7 +258,7 @@ The test suite is intentionally integration-heavy.
 - **Temp files**: tests write real files to a temp watched directory.
 - **Real pipeline**: tests call `DocumentProcessor.processFile()` and verify that Qdrant points/payloads exist.
 - **Cleanup**:
-  - the `jeeves_watcher_test` collection is deleted and recreated between tests
+  - each suite works in its own throwaway `jeeves_watcher_it_*` collection, dropped when the suite ends
   - temp dirs are removed after each test and at the end of the suite
 
 Start points:
