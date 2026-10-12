@@ -1,7 +1,8 @@
 /**
  * @module test/globalSetup
  * Vitest global setup: probes Qdrant availability and sets QDRANT_AVAILABLE env var.
- * Integration tests use this flag to skip when Qdrant is not reachable.
+ * Integration tests use this flag to skip when Qdrant is not reachable, unless
+ * QDRANT_REQUIRED=true (CI), in which case an unreachable Qdrant fails the run.
  */
 
 export async function setup(): Promise<void> {
@@ -20,6 +21,11 @@ export async function setup(): Promise<void> {
   }
 
   process.env['QDRANT_AVAILABLE'] = 'false';
+  if (process.env['QDRANT_REQUIRED'] === 'true') {
+    throw new Error(
+      `[globalSetup] QDRANT_REQUIRED is set but Qdrant is not reachable at ${url}.`,
+    );
+  }
   console.warn(
     `[globalSetup] Qdrant not reachable at ${url} — integration tests will be skipped.`,
   );

@@ -7,6 +7,7 @@ import { normalizeError } from '../util/normalizeError';
 import { retry } from '../util/retry';
 import { getCollectionInfo as getCollectionInfoHelper } from './collectionInfo';
 import { countPoints } from './count';
+import { ensureCollection as ensureCollectionHelper } from './ensureCollection';
 import {
   ensureTextIndex as ensureTextIndexHelper,
   hybridSearch as hybridSearchHelper,
@@ -45,6 +46,7 @@ export class VectorStoreClient implements VectorStore {
   private readonly dims: number;
   private readonly log: MinimalLogger;
   private readonly pinoLogger?: pino.Logger;
+  private readonly payloadIndexes: VectorStoreConfig['payloadIndexes'];
 
   /**
    * Create a new VectorStoreClient.
@@ -62,6 +64,7 @@ export class VectorStoreClient implements VectorStore {
     this.client = this.createClient();
     this.writeClient = this.client;
     this.collectionName = config.collectionName;
+    this.payloadIndexes = config.payloadIndexes;
     this.dims = dimensions;
     this.log = getLogger(logger);
     this.pinoLogger = logger;
@@ -93,25 +96,16 @@ export class VectorStoreClient implements VectorStore {
   }
 
   /**
-   * Ensure the collection exists with correct dimensions and Cosine distance.
+   * Ensure the collection exists (Cosine, configured dimensions) and create
+   * any missing payload indexes (configured plus `source`/`source_rule`).
    */
   async ensureCollection(): Promise<void> {
-    try {
-      const collections = await this.client.getCollections();
-      const exists = collections.collections.some(
-        (c) => c.name === this.collectionName,
-      );
-      if (!exists) {
-        await this.client.createCollection(this.collectionName, {
-          vectors: { size: this.dims, distance: 'Cosine' },
-        });
-      }
-    } catch (error) {
-      throw new Error(
-        `Failed to ensure collection "${this.collectionName}": ${String(error)}`,
-        { cause: error },
-      );
-    }
+    await ensureCollectionHelper(this.client, {
+      collectionName: this.collectionName,
+      dimensions: this.dims,
+      payloadIndexes: this.payloadIndexes,
+      logger: this.pinoLogger,
+    });
   }
 
   /**

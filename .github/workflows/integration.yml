@@ -1,0 +1,60 @@
+name: Integration Tests
+
+# Runs the full test suite against a real Qdrant service so the
+# "requires Qdrant" integration suites execute instead of skipping.
+
+on:
+  push:
+    branches:
+      - main
+      - 'feature/**'
+  pull_request:
+    branches:
+      - main
+      - 'feature/**'
+  workflow_dispatch:
+
+jobs:
+  integration:
+    runs-on: ubuntu-latest
+
+    services:
+      qdrant:
+        image: qdrant/qdrant:v1.19.1
+        ports:
+          - 6333:6333
+
+    env:
+      QDRANT_URL: http://localhost:6333
+      # Fail instead of skipping when Qdrant is unreachable (test/globalSetup.ts).
+      QDRANT_REQUIRED: 'true'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Wait for Qdrant
+        run: |
+          for i in $(seq 1 60); do
+            if curl -fsS "$QDRANT_URL/healthz" > /dev/null; then
+              echo "Qdrant is ready"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "Qdrant did not become ready" >&2
+          exit 1
+
+      - name: Build
+        run: npm run build
+
+      - name: Test
+        run: npm test

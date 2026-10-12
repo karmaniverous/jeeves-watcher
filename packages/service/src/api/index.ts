@@ -29,6 +29,7 @@ import type { ValuesManager } from '../values';
 import type { VcsCoordinator } from '../vcs/VcsCoordinator';
 import type { VectorStoreClient } from '../vectorStore';
 import type { FileSystemWatcher } from '../watcher';
+import { registerApiKeyAuth } from './apiKeyAuth';
 import {
   CONFIG_WATCH_VALID_SCOPES,
   executeReindex,
@@ -54,19 +55,11 @@ import {
 } from './handlers/rulesUnregister';
 import { createScanHandler } from './handlers/scan';
 import { createSearchHandler } from './handlers/search';
-import {
-  createVcsCheckExclusionHandler,
-  createVcsDiffHandler,
-  createVcsExcludeHandler,
-  createVcsHistoryHandler,
-  createVcsRevertHandler,
-  createVcsShowHandler,
-  createVcsStatusHandler,
-} from './handlers/vcs';
 import { createWalkHandler } from './handlers/walk';
 import { withCache } from './handlers/withCache';
 import type { InitialScanTracker } from './InitialScanTracker';
 import { createOnRulesChanged } from './onRulesChanged';
+import { registerVcsRoutes } from './registerVcsRoutes';
 import { ReindexTracker } from './ReindexTracker';
 
 export type { InitialScanStatus } from './InitialScanTracker';
@@ -155,6 +148,8 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
 
   const reindexTracker = options.reindexTracker ?? new ReindexTracker();
   const app = Fastify({ logger: false });
+  // api.apiKey is read once from the startup config (restart to change).
+  registerApiKeyAuth(app, config.api?.apiKey, logger);
 
   const triggerReindex = (scope: ReindexScope) => {
     if (!CONFIG_WATCH_VALID_SCOPES.includes(scope)) {
@@ -403,44 +398,9 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
     );
   }
 
-  // VCS routes — only registered when a VcsCoordinator is provided
+  // VCS routes: only registered when a VcsCoordinator is provided
   if (options.vcsCoordinator) {
-    const coordinator = options.vcsCoordinator;
-
-    app.get(
-      getEndpoint('vcsStatus').path,
-      createVcsStatusHandler({ coordinator, logger }),
-    );
-
-    app.get(
-      getEndpoint('vcsHistory').path,
-      createVcsHistoryHandler({ coordinator, logger }),
-    );
-
-    app.get(
-      getEndpoint('vcsShow').path,
-      createVcsShowHandler({ coordinator, logger }),
-    );
-
-    app.get(
-      getEndpoint('vcsDiff').path,
-      createVcsDiffHandler({ coordinator, logger }),
-    );
-
-    app.get(
-      getEndpoint('vcsCheckExclusion').path,
-      createVcsCheckExclusionHandler({ coordinator, logger }),
-    );
-
-    app.post(
-      getEndpoint('vcsRevert').path,
-      createVcsRevertHandler({ coordinator, logger }),
-    );
-
-    app.post(
-      getEndpoint('vcsExclude').path,
-      createVcsExcludeHandler({ coordinator, logger }),
-    );
+    registerVcsRoutes(app, options.vcsCoordinator, logger);
   }
 
   return app;
