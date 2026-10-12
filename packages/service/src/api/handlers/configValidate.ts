@@ -14,6 +14,7 @@ import type { JeevesWatcherConfig } from '../../config/types';
 import { applyRules } from '../../rules/apply';
 import { buildAttributes } from '../../rules/attributes';
 import { compileRules } from '../../rules/compile';
+import { findReservedFieldWarnings } from '../../rules/reservedFieldWarnings';
 import {
   mergeSchemas,
   type SchemaReference,
@@ -177,8 +178,13 @@ export function createConfigValidateHandler(deps: ConfigValidateRouteDeps) {
         }
       }
 
+      const warnings = parsed
+        ? findReservedFieldWarnings(parsed, deps.configDir)
+        : [];
+
       return {
         valid: true,
+        ...(warnings.length > 0 ? { warnings } : {}),
         ...(testResults.length > 0 ? { testResults } : {}),
       };
     },

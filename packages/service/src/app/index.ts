@@ -20,6 +20,7 @@ import type { AllHelpersIntrospection } from '../helpers';
 import { IssuesManager } from '../issues';
 import type { DocumentProcessorInterface } from '../processor';
 import type { EventQueue } from '../queue';
+import { logReservedFieldWarnings } from '../rules/reservedFieldWarnings';
 import { VirtualRuleStore } from '../rules/virtualRules';
 import { ValuesManager } from '../values';
 import { VcsCoordinator } from '../vcs/VcsCoordinator';
@@ -141,6 +142,7 @@ export class JeevesWatcher {
     );
 
     const configDir = getConfigDir(this.configPath);
+    logReservedFieldWarnings(this.config, configDir, logger);
     const { templateEngine, customMapLib } =
       await buildTemplateEngineAndCustomMapLib(this.config, configDir);
 

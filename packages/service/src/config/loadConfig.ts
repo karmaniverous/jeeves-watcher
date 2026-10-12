@@ -6,6 +6,7 @@ import type { JsonMapMap } from '@karmaniverous/jsonmap';
 import { cosmiconfig } from 'cosmiconfig';
 import { ZodError } from 'zod';
 
+import { assertResolvedSecrets } from './assertResolvedSecrets';
 import {
   API_DEFAULTS,
   CONFIG_WATCH_DEFAULTS,
@@ -93,7 +94,9 @@ export async function loadConfig(
     }
 
     const withDefaults = applyDefaults(validated);
-    return substituteEnvVars(withDefaults);
+    const substituted = substituteEnvVars(withDefaults);
+    assertResolvedSecrets(substituted);
+    return substituted;
   } catch (error) {
     if (error instanceof ZodError) {
       const errors = error.issues

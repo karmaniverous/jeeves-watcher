@@ -18,6 +18,7 @@ import {
   schemaEntrySchema,
 } from './inference.js';
 import { embeddingConfigSchema, vectorStoreConfigSchema } from './services.js';
+import { sourcesConfigSchema } from './sources.js';
 import { vcsConfigSchema } from './vcs.js';
 
 /**
@@ -180,6 +181,8 @@ export const jeevesWatcherConfigSchema = z.object({
     .describe(
       'VCS configuration for git-backed version control of watched content.',
     ),
+  /** Named sources for non-file documents (callback retrieval). */
+  sources: sourcesConfigSchema.optional(),
   /** Logging configuration. */
   logging: loggingConfigSchema.optional().describe('Logging configuration.'),
   /** Timeout in milliseconds for graceful shutdown. */

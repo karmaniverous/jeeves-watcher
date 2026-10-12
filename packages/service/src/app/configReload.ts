@@ -13,6 +13,7 @@ import type { GitignoreFilter } from '../gitignore';
 import type { IssuesManager } from '../issues';
 import type { DocumentProcessorInterface } from '../processor';
 import type { EventQueue } from '../queue';
+import { logReservedFieldWarnings } from '../rules/reservedFieldWarnings';
 import { normalizeError } from '../util/normalizeError';
 import type { ValuesManager } from '../values';
 import type { FileSystemWatcher } from '../watcher';
@@ -75,6 +76,7 @@ export async function reloadConfig(
     );
 
     const reloadConfigDir = getConfigDir(configPath);
+    logReservedFieldWarnings(newConfig, reloadConfigDir, logger);
     const { templateEngine: newTemplateEngine, customMapLib: newCustomMapLib } =
       await buildTemplateEngineAndCustomMapLib(newConfig, reloadConfigDir);
 

@@ -137,6 +137,13 @@ export const apiConfigSchema = z.object({
     .describe(
       'TTL in milliseconds for caching read-heavy endpoints (e.g., /status, /config). Default: 30000.',
     ),
+  /** Bearer API key required on every route except GET /status. */
+  apiKey: z
+    .string()
+    .optional()
+    .describe(
+      'Bearer API key required on every route except GET /status (supports ${ENV_VAR} substitution). Unset: no authentication. Read at startup only.',
+    ),
 });
 
 /** API server configuration: host binding and port. */

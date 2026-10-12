@@ -5,6 +5,8 @@
 
 import { z } from 'zod';
 
+import { payloadIndexSchema } from './payloadIndexes.js';
+
 /**
  * Embedding model configuration.
  */
@@ -76,6 +78,13 @@ export const vectorStoreConfigSchema = z.object({
     .optional()
     .describe(
       'Qdrant API key for authentication (supports ${ENV_VAR} substitution).',
+    ),
+  /** Payload indexes created at startup when missing (never dropped). */
+  payloadIndexes: z
+    .array(payloadIndexSchema)
+    .optional()
+    .describe(
+      'Qdrant payload indexes created at startup when missing (never dropped). Default: none.',
     ),
 });
 
