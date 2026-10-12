@@ -34,7 +34,7 @@ describe('createSourceRetriever', () => {
     const retriever = createSourceRetriever({
       ...createTestConfig(),
       sources: {
-        cg: {
+        app: {
           url: 'http://127.0.0.1:1/threads/{id}',
           timeoutMs: 1000,
           concurrency: 2,
@@ -42,7 +42,7 @@ describe('createSourceRetriever', () => {
       },
     });
     expect(retriever).toBeInstanceOf(SourceClient);
-    expect(retriever?.has('cg')).toBe(true);
+    expect(retriever?.has('app')).toBe(true);
   });
 });
 
@@ -59,18 +59,18 @@ describe('createNotifyQueue', () => {
   it('routes runs to processSource', async () => {
     const processSource = vi
       .fn()
-      .mockResolvedValue({ source: 'cg://a', status: 'unchanged' });
+      .mockResolvedValue({ source: 'app://a', status: 'unchanged' });
     const queue = createNotifyQueue(
       { processSource } as unknown as DocumentProcessorInterface,
       createTestConfig(),
       logger,
     );
     queue.start();
-    await expect(queue.processNow('cg://a', 'r')).resolves.toEqual({
-      source: 'cg://a',
+    await expect(queue.processNow('app://a', 'r')).resolves.toEqual({
+      source: 'app://a',
       status: 'unchanged',
     });
-    expect(processSource).toHaveBeenCalledWith('cg://a', 'r');
+    expect(processSource).toHaveBeenCalledWith('app://a', 'r');
   });
 
   it('fails runs with source_unavailable when the processor cannot process sources', async () => {
@@ -80,7 +80,7 @@ describe('createNotifyQueue', () => {
       logger,
     );
     queue.start();
-    const result = await queue.processNow('cg://a', 'r');
+    const result = await queue.processNow('app://a', 'r');
     expect(result.status).toBe('failed');
     expect(result.error?.code).toBe('source_unavailable');
   });

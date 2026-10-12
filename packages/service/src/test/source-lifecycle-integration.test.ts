@@ -17,20 +17,20 @@ import {
   type StubSourceServer,
 } from './harness/stubSource';
 
-const RULE = 'cg-chat-thread';
-const REF = 'cg://chat/thread/life';
+const RULE = 'chat-thread';
+const REF = 'app://chat/thread/life';
 const PATH = '/threads/chat/thread/life';
-const LONG = 'cg://chat/thread/long';
+const LONG = 'app://chat/thread/long';
 const LONG_PATH = '/threads/chat/thread/long';
 
 /** A thread record; `topic` is metadata only (not rendered). */
-const record = (msgs: string[], topic = 'credit') => ({
+const record = (msgs: string[], topic = 'billing') => ({
   body: { userId: 'u1', topic, msgs: msgs.map((text) => ({ text })) },
 });
 
 /** A message long enough that a few of them exceed the 200-char chunk size. */
 const longMsg = (i: number) =>
-  `Message ${String(i)}: ${'credit utilisation and payment history '.repeat(3)}`;
+  `Message ${String(i)}: ${'account settings and billing addresses '.repeat(3)}`;
 
 describe.skipIf(!qdrantAvailable())(
   'Service integration: source document lifecycle (requires Qdrant)',
@@ -55,7 +55,7 @@ describe.skipIf(!qdrantAvailable())(
             rateLimitPerMinute: 100000,
           },
           sources: {
-            cg: {
+            app: {
               url: `${stub.url}/threads/{id}`,
               timeoutMs: 5000,
               concurrency: 2,
@@ -123,7 +123,7 @@ describe.skipIf(!qdrantAvailable())(
         source: REF,
         source_rule: RULE,
         user_id: 'u1',
-        topic: 'credit',
+        topic: 'billing',
         chunk_text: 'hello',
         total_chunks: 1,
       });
@@ -158,7 +158,7 @@ describe.skipIf(!qdrantAvailable())(
 
     it('updates changed metadata without an embedding call', async () => {
       const old = await payloadOf(REF);
-      stub.route(PATH, record(['hello', 'second message'], 'mortgage'));
+      stub.route(PATH, record(['hello', 'second message'], 'shipping'));
       const before = harness.embeddings.calls;
 
       expect(await notifyWait(REF)).toMatchObject({
@@ -166,7 +166,7 @@ describe.skipIf(!qdrantAvailable())(
       });
       expect(harness.embeddings.calls).toBe(before);
       expect(await payloadOf(REF)).toMatchObject({
-        topic: 'mortgage',
+        topic: 'shipping',
         chunk_text: old?.['chunk_text'],
         content_hash: old?.['content_hash'],
         source: REF,

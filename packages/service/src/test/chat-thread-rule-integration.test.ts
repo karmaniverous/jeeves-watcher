@@ -1,16 +1,16 @@
 /**
- * @module test/cg-chat-streak-integration.test
- * Service integration (requires Qdrant): the deployed `cg-chat-streak` rule renders a three-streak thread from the stub callback to the expected Markdown and payload; records missing `userId` or with empty `msgs` fail `match` (match_failed issue async, per-document failed with ?wait=true) and write nothing.
+ * @module test/chat-thread-rule-integration.test
+ * Service integration (requires Qdrant): the deployed `chat-thread` rule renders a three-streak thread from the stub callback to the expected Markdown and payload; records missing `userId` or with empty `msgs` fail `match` (match_failed issue async, per-document failed with ?wait=true) and write nothing.
  */
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { sourcePointId } from '../pointId';
 import {
-  CG_CHAT_STREAK_RULE,
-  CG_SCHEMAS,
+  CHAT_THREAD_RULE,
+  CHAT_THREAD_SCHEMAS,
   threeStreakThread,
-} from './cgChatStreakConfig';
+} from './chatThreadRuleConfig';
 import { qdrantAvailable } from './harness/qdrant';
 import { type ServiceHarness, startServiceHarness } from './harness/service';
 import {
@@ -18,10 +18,10 @@ import {
   type StubSourceServer,
 } from './harness/stubSource';
 
-const RULE = CG_CHAT_STREAK_RULE.name;
-const REF = 'cg://chat/thread/s3';
-const NO_USER = 'cg://chat/thread/nouser';
-const NO_MSGS = 'cg://chat/thread/nomsgs';
+const RULE = CHAT_THREAD_RULE.name;
+const REF = 'app://chat/thread/s3';
+const NO_USER = 'app://chat/thread/nouser';
+const NO_MSGS = 'app://chat/thread/nomsgs';
 const FROM = Date.UTC(2026, 9, 12, 14, 30);
 
 /** `YYYY-MM-DD HH:mm` in host time, as the template's `dateFormat` (spec: TZ=UTC). */
@@ -59,7 +59,7 @@ const EXPECTED_MARKDOWN = [
 ].join('\n');
 
 describe.skipIf(!qdrantAvailable())(
-  'Service integration: cg-chat-streak rule (requires Qdrant)',
+  'Service integration: chat-thread rule (requires Qdrant)',
   () => {
     let stub: StubSourceServer;
     let harness: ServiceHarness;
@@ -83,14 +83,14 @@ describe.skipIf(!qdrantAvailable())(
         config: {
           api: { cacheTtlMs: 0 },
           sources: {
-            cg: {
+            app: {
               url: `${stub.url}/watcher/sources/{id}`,
               timeoutMs: 5000,
               concurrency: 2,
             },
           },
-          schemas: CG_SCHEMAS,
-          inferenceRules: [CG_CHAT_STREAK_RULE],
+          schemas: CHAT_THREAD_SCHEMAS,
+          inferenceRules: [CHAT_THREAD_RULE],
         },
       });
     });

@@ -66,9 +66,9 @@ app.post(
 beforeEach(() => {
   vi.clearAllMocks();
   points.clear();
-  points.set('a0', { source: 'cg://a', user_id: 'u1' });
-  points.set('a1', { source: 'cg://a', user_id: 'u1' });
-  points.set('b0', { source: 'cg://b', user_id: 'u2' });
+  points.set('a0', { source: 'app://a', user_id: 'u1' });
+  points.set('a1', { source: 'app://a', user_id: 'u1' });
+  points.set('b0', { source: 'app://b', user_id: 'u2' });
   points.set('f0', { file_path: 'j:/docs/a.md', user_id: 'u1' });
 });
 
@@ -88,7 +88,7 @@ async function post(payload: unknown) {
 describe('POST /documents/delete', () => {
   it.each([
     ['an empty body', {}],
-    ['both forms', { sources: ['cg://a'], filter: {} }],
+    ['both forms', { sources: ['app://a'], filter: {} }],
     ['empty sources', { sources: [] }],
     ['a malformed reference', { sources: ['a.md'] }],
   ])('returns 400 for %s', async (_label, payload) => {
@@ -98,16 +98,16 @@ describe('POST /documents/delete', () => {
   });
 
   it('deletes all chunks of the listed references and counts documents', async () => {
-    const { status, body } = await post({ sources: ['cg://a', 'cg://zz'] });
+    const { status, body } = await post({ sources: ['app://a', 'app://zz'] });
     expect(status).toBe(200);
     expect(body).toEqual({ deleted: 1 });
     expect([...points.keys()]).toEqual(['b0', 'f0']);
     // Enrichment and issues are cleared for every listed reference.
     expect(enrichmentStore.delete.mock.calls).toEqual([
-      ['cg://a'],
-      ['cg://zz'],
+      ['app://a'],
+      ['app://zz'],
     ]);
-    expect(issuesManager.clear.mock.calls).toEqual([['cg://a'], ['cg://zz']]);
+    expect(issuesManager.clear.mock.calls).toEqual([['app://a'], ['app://zz']]);
   });
 
   it('deletes by filter, constrained to points carrying source', async () => {
@@ -116,7 +116,7 @@ describe('POST /documents/delete', () => {
     });
     expect(body).toEqual({ deleted: 1 });
     expect([...points.keys()]).toEqual(['b0', 'f0']);
-    expect(enrichmentStore.delete).toHaveBeenCalledWith('cg://a');
+    expect(enrichmentStore.delete).toHaveBeenCalledWith('app://a');
   });
 
   it.each([

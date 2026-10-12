@@ -13,7 +13,7 @@ export type FetchLike = (input: string, init: RequestInit) => Promise<Response>;
 
 /** Options for {@link createWatcherClient}. */
 export interface WatcherClientOptions {
-  /** Base URL of the watcher API, e.g. `http://10.0.1.20:1936`. May carry a path prefix. */
+  /** Base URL of the watcher API, e.g. `http://watcher.internal.example:1936`. May carry a path prefix. */
   baseUrl: string;
   /** API key sent as `Authorization: Bearer <apiKey>` (watcher `api.apiKey`). */
   apiKey?: string;

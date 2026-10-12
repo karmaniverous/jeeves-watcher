@@ -15,8 +15,8 @@ describe('reindexRequestSchema', () => {
     ['rules narrowed by path', { scope: 'rules', path: ['a/**'] }],
     ['path with one path', { scope: 'path', path: 'a.md' }],
     ['path with many paths', { scope: 'path', path: ['a.md', 'b.md'] }],
-    ['path with a source', { scope: 'path', source: 'cg://1' }],
-    ['path with sources', { scope: 'path', source: ['cg://1', 'cg://2'] }],
+    ['path with a source', { scope: 'path', source: 'app://1' }],
+    ['path with sources', { scope: 'path', source: ['app://1', 'app://2'] }],
     ['an ignored path on issues', { scope: 'issues', path: 'a.md' }],
   ])('accepts %s', (_label, body) => {
     expect(reindexRequestSchema.parse(body)).toEqual(body);
@@ -26,8 +26,8 @@ describe('reindexRequestSchema', () => {
     ['an unknown scope', { scope: 'everything' }],
     ['path scope without target', { scope: 'path' }],
     ['path scope with empty array', { scope: 'path', path: [] }],
-    ['path scope with both', { scope: 'path', path: 'a', source: 'cg://1' }],
-    ['source outside path scope', { scope: 'full', source: 'cg://1' }],
+    ['path scope with both', { scope: 'path', path: 'a', source: 'app://1' }],
+    ['source outside path scope', { scope: 'full', source: 'app://1' }],
     ['a malformed source', { scope: 'path', source: 'not-a-ref' }],
     ['non-boolean dryRun', { dryRun: 'yes' }],
   ])('rejects %s', (_label, body) => {

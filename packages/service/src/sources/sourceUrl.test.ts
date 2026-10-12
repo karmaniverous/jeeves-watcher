@@ -25,21 +25,21 @@ function rejection(fn: () => unknown): SourceReferenceError {
 
 describe('parseSourceReference', () => {
   it('splits name and id at the first ://', () => {
-    expect(parseSourceReference('cg://chat/thread/a://b')).toEqual({
-      ref: 'cg://chat/thread/a://b',
-      name: 'cg',
+    expect(parseSourceReference('app://chat/thread/a://b')).toEqual({
+      ref: 'app://chat/thread/a://b',
+      name: 'app',
       id: 'chat/thread/a://b',
     });
   });
 
   it.each([
-    'cg:chat',
+    'app:chat',
     'c://x',
-    'CG://x',
-    'cg://',
-    'cg://a b',
+    'APP://x',
+    'app://',
+    'app://a b',
     'j:/path',
-    `cg://${'x'.repeat(513)}`,
+    `app://${'x'.repeat(513)}`,
   ])('rejects %j as invalid_reference', (ref) => {
     expect(rejection(() => parseSourceReference(ref)).code).toBe(
       'invalid_reference',

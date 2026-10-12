@@ -18,7 +18,7 @@ vi.mock('../executeReindex', () => ({
     filesProcessed: 0,
     durationMs: 0,
     errors: 0,
-    plan: { total: 2, toProcess: 2, toDelete: 0, byRoot: { cg: 2 } },
+    plan: { total: 2, toProcess: 2, toDelete: 0, byRoot: { app: 2 } },
   }),
 }));
 
@@ -56,7 +56,7 @@ describe('POST /reindex: source documents', () => {
       }
       expect(reply.send).toHaveBeenCalledWith(
         expect.objectContaining({
-          plan: expect.objectContaining({ byRoot: { cg: 2 } }) as unknown,
+          plan: expect.objectContaining({ byRoot: { app: 2 } }) as unknown,
         }),
       );
     },

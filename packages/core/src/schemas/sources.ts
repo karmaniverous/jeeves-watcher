@@ -20,13 +20,13 @@ export const SOURCE_ID_PLACEHOLDER = '{id}';
 /** HTTP status returned by a source callback when the document no longer exists. */
 export const SOURCE_DOCUMENT_GONE_STATUS = 404;
 
-/** A source name, e.g. `cg`. */
+/** A source name, e.g. `app`. */
 export const sourceNameSchema = z
   .string()
   .regex(SOURCE_NAME_PATTERN, 'Source name must match ^[a-z][a-z0-9-]{1,31}$')
   .describe('Source name: lowercase letter, then 1-31 of [a-z0-9-].');
 
-/** A source reference, e.g. `cg://chat/thread/123`. */
+/** A source reference, e.g. `app://chat/thread/123`. */
 export const sourceReferenceSchema = z
   .string()
   .regex(

@@ -17,11 +17,11 @@ import { registerApiKeyAuth } from '../apiKeyAuth';
 import { createDocumentsHandler } from './documents';
 
 const logger = pino({ level: 'silent' });
-const OK = 'cg://chat/thread/1';
+const OK = 'app://chat/thread/1';
 
 /** validate(): unknown source names and rules prefixed `missing` fail. */
 function validate(ref: string, rule: string): DocumentError | undefined {
-  if (!ref.startsWith('cg://')) {
+  if (!ref.startsWith('app://')) {
     return { code: 'unknown_source', message: 'not configured' };
   }
   if (rule.startsWith('missing')) {
@@ -134,9 +134,9 @@ describe('POST /documents (asynchronous, default)', () => {
     const { status, body } = await post(ctx, {
       documents: [
         doc(OK),
-        doc('cg:bad'),
+        doc('app:bad'),
         doc('zz://chat/1'),
-        doc('cg://chat/2', 'missing-rule'),
+        doc('app://chat/2', 'missing-rule'),
         doc(OK),
       ],
     });
@@ -145,7 +145,7 @@ describe('POST /documents (asynchronous, default)', () => {
       accepted: [OK, OK],
       rejected: [
         {
-          source: 'cg:bad',
+          source: 'app:bad',
           error: { code: 'invalid_reference', message: anyString },
         },
         {
@@ -153,7 +153,7 @@ describe('POST /documents (asynchronous, default)', () => {
           error: { code: 'unknown_source', message: 'not configured' },
         },
         {
-          source: 'cg://chat/2',
+          source: 'app://chat/2',
           error: { code: 'rule_missing', message: 'no such rule' },
         },
       ],
@@ -163,8 +163,8 @@ describe('POST /documents (asynchronous, default)', () => {
       [OK, 'r'],
     ]);
     expect(ctx.queue.processNow).not.toHaveBeenCalled();
-    // The syntax check runs first: the processor never sees 'cg:bad'.
-    expect(ctx.ops.validate).not.toHaveBeenCalledWith('cg:bad', 'r');
+    // The syntax check runs first: the processor never sees 'app:bad'.
+    expect(ctx.ops.validate).not.toHaveBeenCalledWith('app:bad', 'r');
   });
 
   it('rejects with queue_stopped when the queue refuses work', async () => {
@@ -197,9 +197,9 @@ describe('POST /documents?wait=true', () => {
       ctx,
       {
         documents: [
-          doc('cg://chat/gone'),
+          doc('app://chat/gone'),
           doc('zz://x'),
-          doc('cg://chat/bad-shape'),
+          doc('app://chat/bad-shape'),
         ],
       },
       '/documents?wait=true',
@@ -208,14 +208,14 @@ describe('POST /documents?wait=true', () => {
     expect(status).toBe(200);
     expect(body).toEqual({
       results: [
-        { source: 'cg://chat/gone', status: 'deleted' },
+        { source: 'app://chat/gone', status: 'deleted' },
         {
           source: 'zz://x',
           status: 'failed',
           error: { code: 'unknown_source', message: 'not configured' },
         },
         {
-          source: 'cg://chat/bad-shape',
+          source: 'app://chat/bad-shape',
           status: 'failed',
           error: { code: 'match_failed', message: 'no match' },
         },

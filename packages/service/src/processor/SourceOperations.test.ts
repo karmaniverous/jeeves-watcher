@@ -20,7 +20,7 @@ import type { VectorStoreClient } from '../vectorStore';
 import { DocumentProcessor } from './index';
 import { hasSourceOperations } from './SourceOperations';
 
-const REF = 'cg://chat/thread/1';
+const REF = 'app://chat/thread/1';
 
 const rules: InferenceRule[] = [
   {
@@ -70,7 +70,7 @@ function setup(
     },
   );
   const client = new SourceClient({
-    cg: { url: 'http://cb.local/{id}', timeoutMs: 1000, concurrency: 1 },
+    app: { url: 'http://cb.local/{id}', timeoutMs: 1000, concurrency: 1 },
   });
   const retriever =
     options.retriever === null
@@ -129,9 +129,9 @@ describe('hasSourceOperations', () => {
 describe('SourceOperations.validate', () => {
   it.each([
     ['a valid notification', REF, 'chat', undefined],
-    ['a malformed reference', 'cg:1', 'chat', 'invalid_reference'],
+    ['a malformed reference', 'app:1', 'chat', 'invalid_reference'],
     ['an unconfigured source', 'zz://chat/1', 'chat', 'unknown_source'],
-    ['an unsafe id', 'cg://chat/../x', 'chat', 'invalid_id'],
+    ['an unsafe id', 'app://chat/../x', 'chat', 'invalid_id'],
     ['an unknown rule', REF, 'nope', 'rule_missing'],
   ])('%s', (_label, ref, rule, code) => {
     const error = setup().ops.validate(ref, rule);

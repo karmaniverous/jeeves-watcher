@@ -15,7 +15,7 @@ import { f } from './filters';
 import { type CannedResponse, mockFetch } from './test/mockFetch';
 
 const BASE = 'http://watcher.test:1936';
-const DOC = { source: 'cg://chat/thread/1', rule: 'cg-chat-thread' };
+const DOC = { source: 'app://chat/thread/1', rule: 'chat-thread' };
 const ACCEPTED = { accepted: [DOC.source], rejected: [] };
 const RESULTS = {
   results: [{ source: DOC.source, status: 'indexed', chunks: 1 }],

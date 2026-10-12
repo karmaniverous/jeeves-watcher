@@ -17,7 +17,7 @@ import {
   MAX_DOCUMENTS_PER_REQUEST,
 } from './documents';
 
-const doc = { source: 'cg://chat/thread/1', rule: 'cg-thread' };
+const doc = { source: 'app://chat/thread/1', rule: 'app-thread' };
 
 describe('documentsRequestSchema', () => {
   it('accepts 1 and 100 documents', () => {
@@ -34,7 +34,7 @@ describe('documentsRequestSchema', () => {
     ['no documents key', {}],
     ['zero documents', { documents: [] }],
     ['101 documents', { documents: Array.from({ length: 101 }, () => doc) }],
-    ['a malformed reference', { documents: [{ ...doc, source: 'cg:1' }] }],
+    ['a malformed reference', { documents: [{ ...doc, source: 'app:1' }] }],
     ['a missing rule', { documents: [{ source: doc.source }] }],
     ['an empty rule', { documents: [{ ...doc, rule: '' }] }],
     ['inline push content', { documents: [{ ...doc, text: 'hi' }] }],
@@ -45,7 +45,7 @@ describe('documentsRequestSchema', () => {
 
 describe('documentsEnvelopeSchema', () => {
   it('accepts a malformed reference (validated per document)', () => {
-    const body = { documents: [{ ...doc, source: 'cg:1' }] };
+    const body = { documents: [{ ...doc, source: 'app:1' }] };
     expect(documentsEnvelopeSchema.parse(body)).toEqual(body);
   });
 
@@ -115,7 +115,7 @@ describe('documents responses', () => {
             matched_rules: [],
           },
           {
-            source: 'cg://2',
+            source: 'app://2',
             status: 'failed',
             error: { code: 'match_failed', message: 'x', details: [{}] },
           },

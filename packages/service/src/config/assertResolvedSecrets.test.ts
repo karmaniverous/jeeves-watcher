@@ -36,7 +36,7 @@ describe('findUnresolvedSecrets', () => {
     const config = asConfig({
       api: { apiKey: 'k' },
       sources: {
-        cg: { url: 'http://x/{id}', headers: { Authorization: 'Bearer t' } },
+        app: { url: 'http://x/{id}', headers: { Authorization: 'Bearer t' } },
       },
     });
     expect(findUnresolvedSecrets(config)).toEqual([]);
@@ -46,16 +46,16 @@ describe('findUnresolvedSecrets', () => {
     const config = asConfig({
       api: { apiKey: ref('WATCHER_KEY') },
       sources: {
-        cg: {
+        app: {
           url: `${ref('BASE')}/{id}`,
-          headers: { Authorization: `Bearer ${ref('CG_KEY')}`, X: 'ok' },
+          headers: { Authorization: `Bearer ${ref('APP_KEY')}`, X: 'ok' },
         },
       },
     });
     expect(findUnresolvedSecrets(config)).toEqual([
       'api.apiKey',
-      'sources.cg.url',
-      'sources.cg.headers.Authorization',
+      'sources.app.url',
+      'sources.app.headers.Authorization',
     ]);
   });
 });
@@ -104,14 +104,14 @@ describe('loadConfig secret check', () => {
     const cfgPath = await writeConfig({
       ...base,
       sources: {
-        cg: {
+        app: {
           url: 'http://x/{id}',
           headers: { Authorization: `Bearer ${ref(envName)}` },
         },
       },
     });
     await expect(loadConfig(cfgPath)).rejects.toThrow(
-      /sources\.cg\.headers\.Authorization/,
+      /sources\.app\.headers\.Authorization/,
     );
   });
 

@@ -17,7 +17,7 @@ import { clearCache } from './withCache';
 import { targetsSource, withCacheUnlessSource } from './withCacheUnlessSource';
 
 const logger = pino({ level: 'silent' });
-const REF = 'cg://chat/thread/1';
+const REF = 'app://chat/thread/1';
 
 const rendered: SourceRenderOutcome = {
   kind: 'rendered',

@@ -14,8 +14,8 @@ import {
   type StubSourceServer,
 } from './harness/stubSource';
 
-const RULE = 'cg-chat-thread';
-const REF = 'cg://chat/thread/f';
+const RULE = 'chat-thread';
+const REF = 'app://chat/thread/f';
 const PATH = '/threads/chat/thread/f';
 const DOWN = 'down://chat/thread/f';
 
@@ -39,7 +39,7 @@ describe.skipIf(!qdrantAvailable())(
         config: {
           api: { cacheTtlMs: 0 },
           sources: {
-            cg: {
+            app: {
               url: `${stub.url}/threads/{id}`,
               timeoutMs: 500,
               concurrency: 2,

@@ -19,9 +19,9 @@ import {
 } from './harness/stubSource';
 
 const API_KEY = 'sdk-integration-key';
-const RULE = 'cg-chat-thread';
-const A = 'cg://chat/thread/a';
-const B = 'cg://chat/thread/b';
+const RULE = 'chat-thread';
+const A = 'app://chat/thread/a';
+const B = 'app://chat/thread/b';
 
 const thread = (userId: string, text: string) => ({
   body: { userId, streaks: [{ msgs: [{ role: 'user', text }] }] },
@@ -45,7 +45,7 @@ describe.skipIf(!qdrantAvailable())(
         listen: true,
         config: {
           sources: {
-            cg: {
+            app: {
               url: `${stub.url}/threads/{id}`,
               timeoutMs: 5000,
               concurrency: 2,
@@ -158,14 +158,14 @@ describe.skipIf(!qdrantAvailable())(
       ).resolves.toMatchObject({
         status: 'dry_run',
         scope: 'path',
-        plan: { toProcess: 1, byRoot: { cg: 1 } },
+        plan: { toProcess: 1, byRoot: { app: 1 } },
       });
       await expect(watcher.issues()).resolves.toMatchObject({ count: 0 });
     });
 
     it('maps a server 404 error body', async () => {
       const error = await caught(
-        watcher.metadata({ source: 'cg://chat/thread/none', metadata: {} }),
+        watcher.metadata({ source: 'app://chat/thread/none', metadata: {} }),
       );
       expect(error).toMatchObject({
         status: 404,

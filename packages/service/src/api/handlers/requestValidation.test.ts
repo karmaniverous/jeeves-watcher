@@ -101,14 +101,14 @@ describe('invalid request bodies return 400 with Zod details', () => {
     ['/scan', { filter: {}, limit: 0 }, ['limit']],
     ['/scan', { filter: {}, fields: 'file_path' }, ['fields']],
     ['/render', {}, ['path']],
-    ['/render', { path: 'a.md', source: 'cg://1' }, []],
+    ['/render', { path: 'a.md', source: 'app://1' }, []],
     ['/render', { source: 'not a ref' }, ['source']],
     ['/metadata', { path: 'a.md' }, ['metadata']],
     ['/metadata', { metadata: {} }, ['path']],
     ['/reindex', { scope: 'everything' }, ['scope']],
     ['/reindex', { scope: 'path' }, ['path']],
     ['/reindex', { scope: 'path', path: [] }, ['path']],
-    ['/reindex', { scope: 'full', source: 'cg://1' }, ['source']],
+    ['/reindex', { scope: 'full', source: 'app://1' }, ['source']],
     ['/reindex', { dryRun: 'yes' }, ['dryRun']],
   ])('%s %j', async (url, payload, issuePath) => {
     const { status, body } = await post(url, payload);
@@ -128,9 +128,9 @@ describe('valid source targets reach the source path', () => {
   // This processor double has no sourceOperations(), so each route reports
   // that source documents are unavailable instead of a validation error.
   it.each([
-    ['/render', { source: 'cg://chat/1' }, 503],
-    ['/metadata', { source: 'cg://chat/1', metadata: {} }, 503],
-    ['/reindex', { scope: 'path', source: ['cg://chat/1'] }, 400],
+    ['/render', { source: 'app://chat/1' }, 503],
+    ['/metadata', { source: 'app://chat/1', metadata: {} }, 503],
+    ['/reindex', { scope: 'path', source: ['app://chat/1'] }, 400],
   ])('%s', async (url, payload, status) => {
     const res = await post(url, payload);
     expect(res.status).toBe(status);

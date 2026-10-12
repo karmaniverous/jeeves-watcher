@@ -104,7 +104,7 @@ describe('JeevesWatcher startup: source wiring', () => {
     const app = await start(
       config({
         sources: {
-          cg: {
+          app: {
             url: 'http://127.0.0.1:1/threads/{id}',
             timeoutMs: 1000,
             concurrency: 2,
@@ -115,7 +115,7 @@ describe('JeevesWatcher startup: source wiring', () => {
 
     const retriever = captured.processorDeps?.sourceRetriever;
     expect(retriever).toBeInstanceOf(SourceClient);
-    expect(retriever?.has('cg')).toBe(true);
+    expect(retriever?.has('app')).toBe(true);
 
     const sourceQueue = captured.apiOptions?.sourceQueue;
     expect(sourceQueue).toBeInstanceOf(SourceNotifyQueue);
@@ -123,7 +123,7 @@ describe('JeevesWatcher startup: source wiring', () => {
 
     // Started with the watcher: a notify is processed.
     await expect(
-      sourceQueue!.processNow('cg://chat/thread/a', 'r'),
+      sourceQueue!.processNow('app://chat/thread/a', 'r'),
     ).resolves.toMatchObject({ status: 'indexed' });
 
     // The API's prune queue pauses the file queue and the notify queue.
@@ -131,7 +131,7 @@ describe('JeevesWatcher startup: source wiring', () => {
     const pruneQueue = captured.apiOptions!.queue;
     pruneQueue.pause();
     expect(pauseFile).toHaveBeenCalledOnce();
-    sourceQueue!.enqueue('cg://chat/thread/b', 'r');
+    sourceQueue!.enqueue('app://chat/thread/b', 'r');
     await pruneQueue.waitForIdleWorkers();
     expect(processSource).toHaveBeenCalledTimes(1);
     pruneQueue.resume();
@@ -139,7 +139,7 @@ describe('JeevesWatcher startup: source wiring', () => {
     expect(processSource).toHaveBeenCalledTimes(2);
 
     await app.stop();
-    expect(sourceQueue!.enqueue('cg://chat/thread/c', 'r')).toBe(false);
+    expect(sourceQueue!.enqueue('app://chat/thread/c', 'r')).toBe(false);
   });
 
   it('creates no source client without sources, but still provides the queue', async () => {

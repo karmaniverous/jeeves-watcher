@@ -13,9 +13,9 @@ import {
   type StubSourceServer,
 } from './harness/stubSource';
 
-const REF = 'cg://chat/thread/AbC';
-const REF_LOWER = 'cg://chat/thread/abc';
-const RULE = 'cg-chat-streak';
+const REF = 'app://chat/thread/AbC';
+const REF_LOWER = 'app://chat/thread/abc';
+const RULE = 'chat-thread';
 
 const thread = (userId: string, text: string) => ({
   userId,
@@ -37,7 +37,7 @@ describe.skipIf(!qdrantAvailable())(
         label: 'sources',
         config: {
           sources: {
-            cg: {
+            app: {
               url: `${stub.url}/threads/{id}`,
               timeoutMs: 5000,
               concurrency: 2,
@@ -131,7 +131,7 @@ describe.skipIf(!qdrantAvailable())(
 
     it('records match_failed and writes nothing for a non-matching record', async () => {
       stub.route('/threads/chat/thread/bad', { body: { userId: 'u3' } });
-      const ref = 'cg://chat/thread/bad';
+      const ref = 'app://chat/thread/bad';
       const result = await harness.processor.processSource(ref, RULE);
       expect(result.status).toBe('failed');
       expect(result.error?.code).toBe('match_failed');

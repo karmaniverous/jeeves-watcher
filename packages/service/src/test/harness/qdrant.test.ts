@@ -22,7 +22,7 @@ describe('harness collection guard', () => {
     expect(a).not.toBe(b);
   });
 
-  it.each(['jeeves_archive', 'jeeves_watcher_test', 'credit_genius', ''])(
+  it.each(['jeeves_archive', 'jeeves_watcher_test', 'production_docs', ''])(
     'refuses non-test collection %j',
     async (name) => {
       expect(() => {

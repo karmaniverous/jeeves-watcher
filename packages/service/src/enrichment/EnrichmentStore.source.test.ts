@@ -26,23 +26,23 @@ afterEach(() => {
 
 describe('EnrichmentStore with source references', () => {
   it('keys references case-sensitively and without normalisation', () => {
-    store.set('cg://chat/thread/AbC', { a: 1 });
-    store.set('cg://chat/thread/abc', { b: 2 });
+    store.set('app://chat/thread/AbC', { a: 1 });
+    store.set('app://chat/thread/abc', { b: 2 });
 
-    expect(store.get('cg://chat/thread/AbC')).toEqual({ a: 1 });
-    expect(store.get('cg://chat/thread/abc')).toEqual({ b: 2 });
+    expect(store.get('app://chat/thread/AbC')).toEqual({ a: 1 });
+    expect(store.get('app://chat/thread/abc')).toEqual({ b: 2 });
     expect(store.list()).toEqual([
-      'cg://chat/thread/AbC',
-      'cg://chat/thread/abc',
+      'app://chat/thread/AbC',
+      'app://chat/thread/abc',
     ]);
   });
 
   it('deletes only the exact reference', () => {
-    store.set('cg://chat/thread/AbC', { a: 1 });
-    store.delete('cg://chat/thread/abc');
-    expect(store.get('cg://chat/thread/AbC')).toEqual({ a: 1 });
-    store.delete('cg://chat/thread/AbC');
-    expect(store.get('cg://chat/thread/AbC')).toBeNull();
+    store.set('app://chat/thread/AbC', { a: 1 });
+    store.delete('app://chat/thread/abc');
+    expect(store.get('app://chat/thread/AbC')).toEqual({ a: 1 });
+    store.delete('app://chat/thread/AbC');
+    expect(store.get('app://chat/thread/AbC')).toBeNull();
   });
 
   it('still normalises file paths', () => {

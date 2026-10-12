@@ -1,6 +1,6 @@
 /**
  * @module packaging.test
- * Packaging contract of the SDK (CG spec Verification Checklist): ESM only (no CommonJS entry) and a single runtime dependency, jeeves-watcher-core.
+ * Packaging contract of the SDK (0.20.0 release spec Verification Checklist): ESM only (no CommonJS entry) and a single runtime dependency, jeeves-watcher-core.
  */
 
 import { readFileSync } from 'node:fs';

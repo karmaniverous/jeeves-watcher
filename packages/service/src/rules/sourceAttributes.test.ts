@@ -7,8 +7,8 @@ import {
 } from './sourceAttributes';
 
 const attributes = buildSourceAttributes({
-  ref: 'cg://chat/thread/1',
-  name: 'cg',
+  ref: 'app://chat/thread/1',
+  name: 'app',
   id: 'chat/thread/1',
   rule: 'chat',
   body: { userId: 'u1' },
@@ -19,8 +19,8 @@ describe('buildSourceAttributes', () => {
   it('builds schema-valid attributes with no file key', () => {
     expect(sourceAttributesSchema.parse(attributes)).toEqual({
       source: {
-        ref: 'cg://chat/thread/1',
-        name: 'cg',
+        ref: 'app://chat/thread/1',
+        name: 'app',
         id: 'chat/thread/1',
         rule: 'chat',
         retrievedAt: '2026-10-12T00:00:00.000Z',

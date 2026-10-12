@@ -13,9 +13,9 @@ import { z } from 'zod';
 export const sourceAttributesSchema = z.object({
   /** Identity of the source document. */
   source: z.object({
-    /** Full reference, e.g. `cg://chat/thread/6710c3`. */
+    /** Full reference, e.g. `app://chat/thread/6710c3`. */
     ref: z.string(),
-    /** Source name, e.g. `cg`. */
+    /** Source name, e.g. `app`. */
     name: z.string(),
     /** Opaque document id, e.g. `chat/thread/6710c3`. */
     id: z.string(),

@@ -16,8 +16,8 @@ import {
   type StubSourceServer,
 } from './harness/stubSource';
 
-const RULE = 'cg-chat-thread';
-const REF = 'cg://chat/thread/render';
+const RULE = 'chat-thread';
+const REF = 'app://chat/thread/render';
 const PATH = '/threads/chat/thread/render';
 const SECRET_HEADER = 'Bearer render-config-secret';
 
@@ -49,7 +49,7 @@ describe.skipIf(!qdrantAvailable())(
           },
           // `api` left at its defaults: the 30 s response cache is on.
           sources: {
-            cg: {
+            app: {
               url: `${stub.url}/threads/{id}`,
               headers: { Authorization: SECRET_HEADER },
               timeoutMs: 5000,

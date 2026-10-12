@@ -11,7 +11,7 @@ import {
 import { withSystemFields } from './systemFields';
 
 const file = { kind: 'file', filePath: 'J:\\Docs\\A.md' } as const;
-const source = { kind: 'source', ref: 'cg://t/AbC', rule: 'chat' } as const;
+const source = { kind: 'source', ref: 'app://t/AbC', rule: 'chat' } as const;
 
 describe('documentIdentity', () => {
   it('keeps file point IDs unchanged (normalised pointId)', () => {
@@ -23,8 +23,10 @@ describe('documentIdentity', () => {
   });
 
   it('hashes the exact reference for source points', () => {
-    expect(documentPointId(source, 0)).toBe(sourcePointId('cg://t/AbC', 0));
-    expect(documentPointId(source, 0)).not.toBe(sourcePointId('cg://t/abc', 0));
+    expect(documentPointId(source, 0)).toBe(sourcePointId('app://t/AbC', 0));
+    expect(documentPointId(source, 0)).not.toBe(
+      sourcePointId('app://t/abc', 0),
+    );
     expect(documentChunkIds(source, 2)).toEqual([
       sourcePointId(source.ref, 0),
       sourcePointId(source.ref, 1),
@@ -33,13 +35,13 @@ describe('documentIdentity', () => {
 
   it('keys stores by path or verbatim reference', () => {
     expect(documentKey(file)).toBe(file.filePath);
-    expect(documentKey(source)).toBe('cg://t/AbC');
+    expect(documentKey(source)).toBe('app://t/AbC');
   });
 
   it('emits exactly one identity field family', () => {
     expect(identityPayload(file)).toEqual({ file_path: 'J:/Docs/A.md' });
     expect(identityPayload(source)).toEqual({
-      source: 'cg://t/AbC',
+      source: 'app://t/AbC',
       source_rule: 'chat',
     });
   });
@@ -68,7 +70,7 @@ describe('withSystemFields', () => {
     expect(out).toEqual({
       a: 1,
       matched_rules: ['r'],
-      source: 'cg://t/AbC',
+      source: 'app://t/AbC',
       source_rule: 'chat',
     });
   });

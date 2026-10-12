@@ -19,8 +19,8 @@ vi.mock('./fileScan', () => ({
   listFilesFromWatchRoots: vi.fn().mockResolvedValue([]),
 }));
 
-const A = 'cg://chat/thread/a';
-const B = 'cg://chat/thread/b';
+const A = 'app://chat/thread/a';
+const B = 'app://chat/thread/b';
 const FILE = 'outside/orphan.md';
 
 function fixture() {
@@ -106,7 +106,7 @@ describe('executeReindex: source safety', () => {
       expect(f.store.scrollPage).not.toHaveBeenCalled();
       expect(f.retrieve).not.toHaveBeenCalled();
       expect(result.sources).toBeUndefined();
-      expect(result.plan?.byRoot).not.toHaveProperty('cg');
+      expect(result.plan?.byRoot).not.toHaveProperty('app');
     },
   );
 

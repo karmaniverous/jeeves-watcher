@@ -13,7 +13,7 @@ import { createHandlebarsInstance, TemplateEngine } from '../../templates';
 import { ProcessingFailure } from '../issueRecording';
 import { SourceResolver } from './SourceResolver';
 
-const REF = 'cg://chat/thread/AbC';
+const REF = 'app://chat/thread/AbC';
 const NOW = new Date('2026-10-12T00:00:00.000Z');
 
 const rules: InferenceRule[] = [

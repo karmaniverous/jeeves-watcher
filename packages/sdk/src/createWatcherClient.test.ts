@@ -20,7 +20,7 @@ const STATUS = {
   status: 'healthy',
   health: {},
 };
-const HIT = { id: 'p1', score: 0.9, payload: { source: 'cg://a/1' } };
+const HIT = { id: 'p1', score: 0.9, payload: { source: 'app://a/1' } };
 const RENDER = { renderAs: 'md', content: '# x', rules: ['r'], metadata: {} };
 const REINDEX = { status: 'started', scope: 'issues' };
 
@@ -82,7 +82,7 @@ describe('createWatcherClient', () => {
     ).resolves.toEqual({ count: 3 });
   });
 
-  it.each([[{ path: 'j:/docs/a.md' }], [{ source: 'cg://chat/thread/1' }]])(
+  it.each([[{ path: 'j:/docs/a.md' }], [{ source: 'app://chat/thread/1' }]])(
     'render: POST /render with %j',
     async (request) => {
       const { watcher, mock } = client({ body: RENDER });
@@ -97,7 +97,7 @@ describe('createWatcherClient', () => {
   it('metadata: POST /metadata', async () => {
     const response = { ok: true, matched_rules: ['r'] };
     const { watcher, mock } = client({ body: response });
-    const request = { source: 'cg://chat/thread/1', metadata: { p: 1 } };
+    const request = { source: 'app://chat/thread/1', metadata: { p: 1 } };
     await expect(watcher.metadata(request)).resolves.toEqual(response);
     expect(mock.calls[0]).toMatchObject({
       url: `${BASE}/metadata`,
@@ -110,10 +110,10 @@ describe('createWatcherClient', () => {
     await expect(watcher.reindex()).resolves.toEqual(REINDEX);
     expect(mock.calls[0]).toMatchObject({ url: `${BASE}/reindex`, body: {} });
 
-    await watcher.reindex({ scope: 'path', source: ['cg://a/1'] });
+    await watcher.reindex({ scope: 'path', source: ['app://a/1'] });
     expect(mock.calls[1]?.body).toEqual({
       scope: 'path',
-      source: ['cg://a/1'],
+      source: ['app://a/1'],
     });
   });
 
@@ -121,7 +121,7 @@ describe('createWatcherClient', () => {
     const issues = {
       count: 1,
       issues: {
-        'cg://a/1': [
+        'app://a/1': [
           { type: 'source_unavailable', message: 'down', timestamp: 1 },
         ],
       },
@@ -143,13 +143,13 @@ describe('createWatcherClient', () => {
     ['render with neither path nor source', (w: Client) => w.render({})],
     [
       'render with both path and source',
-      (w: Client) => w.render({ path: 'a', source: 'cg://a/1' }),
+      (w: Client) => w.render({ path: 'a', source: 'app://a/1' }),
     ],
     ['search with an empty query', (w: Client) => w.search({ query: '' })],
     ['scan with limit 0', (w: Client) => w.scan({ filter: {}, limit: 0 })],
     [
       'reindex source outside scope path',
-      (w: Client) => w.reindex({ scope: 'full', source: 'cg://a/1' }),
+      (w: Client) => w.reindex({ scope: 'full', source: 'app://a/1' }),
     ],
   ])('rejects %s client-side without sending', async (_, call) => {
     const { watcher, mock } = client({ body: {} });

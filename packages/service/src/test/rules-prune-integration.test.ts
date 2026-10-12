@@ -22,8 +22,8 @@ import {
   type StubSourceServer,
 } from './harness/stubSource';
 
-const RULE = 'cg-chat-thread';
-const REF = 'cg://chat/thread/r';
+const RULE = 'chat-thread';
+const REF = 'app://chat/thread/r';
 const PATH = '/threads/chat/thread/r';
 
 /** Schema properties that try to hijack identity fields. */
@@ -53,7 +53,7 @@ describe.skipIf(!qdrantAvailable())(
     beforeAll(async () => {
       watchDir = await mkdtemp(join(tmpdir(), 'jeeves-watcher-it-watch-'));
       file = join(watchDir, 'notes.txt');
-      await writeFile(file, 'Reference notes on credit utilisation.', 'utf8');
+      await writeFile(file, 'Reference notes on billing addresses.', 'utf8');
       stub = await startStubSourceServer({
         [PATH]: { body: { userId: 'u1', text: 'thread text' } },
       });
@@ -63,7 +63,7 @@ describe.skipIf(!qdrantAvailable())(
           watch: { paths: [join(watchDir, '**/*')], ignored: [] },
           api: { cacheTtlMs: 0 },
           sources: {
-            cg: {
+            app: {
               url: `${stub.url}/threads/{id}`,
               timeoutMs: 5000,
               concurrency: 2,

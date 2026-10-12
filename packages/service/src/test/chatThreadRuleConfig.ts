@@ -1,52 +1,53 @@
 /**
- * @module test/cgChatStreakConfig
- * Fixture: the Credit Genius `cg-chat-streak` designated rule and its named schemas from the CG watcher spec (Deployment §4; match, `set` expressions and template verbatim, descriptions shortened), plus a thread-record builder. No I/O.
+ * @module test/chatThreadRuleConfig
+ * Fixture: a `chat-thread` designated rule for chat-thread source documents (match contract, named schemas with `set` expressions, Markdown template), plus a thread-record builder. No I/O.
  */
 
 import type { InferenceRule, JeevesWatcherConfig } from '../config/types';
 
-/** Named schemas used by the rule (`schemas` in the CG config). */
-export const CG_SCHEMAS: NonNullable<JeevesWatcherConfig['schemas']> = {
-  'cg-base': {
-    type: 'object',
-    properties: {
-      type: {
-        type: 'string',
-        enum: ['reference', 'chat_history'],
-        description: 'Source discriminator. Filter on this in every search.',
-        uiHint: 'select',
-      },
-      title: { type: 'string', description: 'Document title.' },
-    },
-  },
-  'cg-chat-streak': {
-    type: 'object',
-    properties: {
-      type: { type: 'string', set: 'chat_history' },
-      user_id: {
-        type: 'string',
-        set: '{{json.userId}}',
-        description: 'End user. Mandatory filter for chat searches.',
-      },
-      streak_ids: {
-        type: 'array',
-        set: "{{json (pluck json.streaks 'streakId')}}",
-        description: 'Every streak in the thread.',
-      },
-      from_ts: { type: 'integer', set: '{{toUnix json.fromTs}}' },
-      to_ts: { type: 'integer', set: '{{toUnix json.toTs}}' },
-      title: {
-        type: 'string',
-        set: "Chat {{dateFormat json.fromTs 'YYYY-MM-DD HH:mm'}} to {{dateFormat json.toTs 'HH:mm'}}",
+/** Named schemas used by the rule (`schemas` in the deployed config). */
+export const CHAT_THREAD_SCHEMAS: NonNullable<JeevesWatcherConfig['schemas']> =
+  {
+    'chat-base': {
+      type: 'object',
+      properties: {
+        type: {
+          type: 'string',
+          enum: ['reference', 'chat_history'],
+          description: 'Source discriminator. Filter on this in every search.',
+          uiHint: 'select',
+        },
+        title: { type: 'string', description: 'Document title.' },
       },
     },
-  },
-};
+    'chat-thread': {
+      type: 'object',
+      properties: {
+        type: { type: 'string', set: 'chat_history' },
+        user_id: {
+          type: 'string',
+          set: '{{json.userId}}',
+          description: 'End user. Mandatory filter for chat searches.',
+        },
+        streak_ids: {
+          type: 'array',
+          set: "{{json (pluck json.streaks 'streakId')}}",
+          description: 'Every streak in the thread.',
+        },
+        from_ts: { type: 'integer', set: '{{toUnix json.fromTs}}' },
+        to_ts: { type: 'integer', set: '{{toUnix json.toTs}}' },
+        title: {
+          type: 'string',
+          set: "Chat {{dateFormat json.fromTs 'YYYY-MM-DD HH:mm'}} to {{dateFormat json.toTs 'HH:mm'}}",
+        },
+      },
+    },
+  };
 
 /** The designated rule, as deployed. */
-export const CG_CHAT_STREAK_RULE: InferenceRule = {
-  name: 'cg-chat-streak',
-  description: 'One chat thread (Credit Genius).',
+export const CHAT_THREAD_RULE: InferenceRule = {
+  name: 'chat-thread',
+  description: 'One chat thread.',
   match: {
     type: 'object',
     required: ['source', 'json'],
@@ -54,7 +55,7 @@ export const CG_CHAT_STREAK_RULE: InferenceRule = {
       source: {
         type: 'object',
         properties: {
-          name: { enum: ['cg', 'cgtest'] },
+          name: { enum: ['app', 'apptest'] },
           id: { type: 'string', pattern: '^chat/thread/[^/]+$' },
         },
       },
@@ -93,7 +94,7 @@ export const CG_CHAT_STREAK_RULE: InferenceRule = {
       },
     },
   },
-  schema: ['cg-base', 'cg-chat-streak'],
+  schema: ['chat-base', 'chat-thread'],
   template:
     "---\ntype: chat_history\nfrom: {{dateFormat fromTs 'YYYY-MM-DD HH:mm'}} UTC\nto: {{dateFormat toTs 'YYYY-MM-DD HH:mm'}} UTC\n---\n{{#each streaks}}\n\n## {{#if (eq side 'assistant')}}Assistant{{else}}User{{/if}}\n{{#each msgs}}\n\n{{{content}}}\n{{/each}}{{/each}}\n",
 };

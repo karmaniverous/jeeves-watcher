@@ -40,10 +40,10 @@ const config = {
 
 /** Stored designated rules by reference; absent = not indexed. */
 const stored: Record<string, string> = {
-  'cg://chat/1': 'chat',
-  'cg://chat/2': 'chat',
+  'app://chat/1': 'chat',
+  'app://chat/2': 'chat',
   'ops://x/1': 'ops-rule',
-  'cg://virtual/1': 'virtual-rule',
+  'app://virtual/1': 'virtual-rule',
 };
 const ops = {
   storedRule: vi.fn((ref: string) => Promise.resolve(stored[ref] ?? null)),
@@ -109,12 +109,12 @@ async function post(url: string, payload: object) {
 describe('POST /metadata { source }', () => {
   it('enriches an indexed document validated against its designated rule', async () => {
     const { status, body } = await post('/metadata', {
-      source: 'cg://chat/1',
+      source: 'app://chat/1',
       metadata: { priority: 2, note: 'x' },
     });
     expect(status).toBe(200);
     expect(body).toEqual({ ok: true, matched_rules: ['chat'] });
-    expect(ops.updateMetadata).toHaveBeenCalledWith('cg://chat/1', {
+    expect(ops.updateMetadata).toHaveBeenCalledWith('app://chat/1', {
       priority: 2,
       note: 'x',
     });
@@ -122,7 +122,7 @@ describe('POST /metadata { source }', () => {
 
   it('returns 400 when metadata violates the designated rule schema', async () => {
     const { status, body } = await post('/metadata', {
-      source: 'cg://chat/1',
+      source: 'app://chat/1',
       metadata: { priority: 'high' },
     });
     expect(status).toBe(400);
@@ -135,7 +135,7 @@ describe('POST /metadata { source }', () => {
 
   it('skips validation for a designated rule outside config', async () => {
     const { status, body } = await post('/metadata', {
-      source: 'cg://virtual/1',
+      source: 'app://virtual/1',
       metadata: { priority: 'high' },
     });
     expect(status).toBe(200);
@@ -144,7 +144,7 @@ describe('POST /metadata { source }', () => {
 
   it('returns 404 for a document that is not indexed', async () => {
     const { status } = await post('/metadata', {
-      source: 'cg://chat/none',
+      source: 'app://chat/none',
       metadata: {},
     });
     expect(status).toBe(404);
@@ -154,7 +154,7 @@ describe('POST /metadata { source }', () => {
   it('returns 404 when the document disappears before the write', async () => {
     ops.updateMetadata.mockResolvedValueOnce(null);
     const { status } = await post('/metadata', {
-      source: 'cg://chat/1',
+      source: 'app://chat/1',
       metadata: {},
     });
     expect(status).toBe(404);
@@ -162,7 +162,7 @@ describe('POST /metadata { source }', () => {
 
   it('returns 503 when the processor has no source support', async () => {
     const { status } = await post('/metadata-plain', {
-      source: 'cg://chat/1',
+      source: 'app://chat/1',
       metadata: {},
     });
     expect(status).toBe(503);
@@ -173,17 +173,17 @@ describe('POST /reindex { scope: path, source }', () => {
   it('enqueues indexed references with their stored rules', async () => {
     const { status, body } = await post('/reindex', {
       scope: 'path',
-      source: ['cg://chat/1', 'cg://chat/2', 'ops://x/1', 'cg://chat/none'],
+      source: ['app://chat/1', 'app://chat/2', 'ops://x/1', 'app://chat/none'],
     });
     expect(status).toBe(200);
     expect(body).toEqual({
       status: 'started',
       scope: 'path',
-      plan: { total: 4, toProcess: 3, toDelete: 0, byRoot: { cg: 2, ops: 1 } },
+      plan: { total: 4, toProcess: 3, toDelete: 0, byRoot: { app: 2, ops: 1 } },
     });
     expect(queue.enqueue.mock.calls).toEqual([
-      ['cg://chat/1', 'chat'],
-      ['cg://chat/2', 'chat'],
+      ['app://chat/1', 'chat'],
+      ['app://chat/2', 'chat'],
       ['ops://x/1', 'ops-rule'],
     ]);
   });
@@ -191,7 +191,7 @@ describe('POST /reindex { scope: path, source }', () => {
   it('dedupes references and accepts a single string', async () => {
     const { body } = await post('/reindex', {
       scope: 'path',
-      source: 'cg://chat/1',
+      source: 'app://chat/1',
     });
     expect(body).toMatchObject({ plan: { total: 1, toProcess: 1 } });
   });
@@ -199,13 +199,13 @@ describe('POST /reindex { scope: path, source }', () => {
   it('computes the plan without enqueueing on a dry run', async () => {
     const { body } = await post('/reindex', {
       scope: 'path',
-      source: ['cg://chat/1', 'cg://chat/1'],
+      source: ['app://chat/1', 'app://chat/1'],
       dryRun: true,
     });
     expect(body).toEqual({
       status: 'dry_run',
       scope: 'path',
-      plan: { total: 1, toProcess: 1, toDelete: 0, byRoot: { cg: 1 } },
+      plan: { total: 1, toProcess: 1, toDelete: 0, byRoot: { app: 1 } },
     });
     expect(queue.enqueue).not.toHaveBeenCalled();
   });
@@ -213,7 +213,7 @@ describe('POST /reindex { scope: path, source }', () => {
   it('returns 400 without a notify queue', async () => {
     const { status, body } = await post('/reindex-plain', {
       scope: 'path',
-      source: ['cg://chat/1'],
+      source: ['app://chat/1'],
     });
     expect(status).toBe(400);
     expect(body).toMatchObject({ error: 'Not available' });

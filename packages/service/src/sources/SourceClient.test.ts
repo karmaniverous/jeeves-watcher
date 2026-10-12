@@ -21,9 +21,9 @@ let stub: StubSourceServer;
 function client(overrides: Record<string, unknown> = {}): SourceClient {
   return new SourceClient(
     sourcesConfigSchema.parse({
-      cg: {
+      app: {
         url: `${stub.url}/t/{id}`,
-        headers: { authorization: `Bearer ${SECRET}`, 'x-tenant': 'cg' },
+        headers: { authorization: `Bearer ${SECRET}`, 'x-tenant': 'app' },
         timeoutMs: 1000,
         ...overrides,
       },
@@ -65,7 +65,7 @@ describe('SourceClient outcomes', () => {
   it('returns the JSON object body as a document, sending configured headers', async () => {
     stub.route('/t/chat/thread/1', { body: { userId: 'u1', streaks: [] } });
 
-    const result = await client().retrieve('cg://chat/thread/1');
+    const result = await client().retrieve('app://chat/thread/1');
 
     expect(result).toEqual({
       kind: 'document',
@@ -74,14 +74,14 @@ describe('SourceClient outcomes', () => {
     expect(stub.requests).toHaveLength(1);
     expect(stub.requests[0].method).toBe('GET');
     expect(stub.requests[0].headers.authorization).toBe(`Bearer ${SECRET}`);
-    expect(stub.requests[0].headers['x-tenant']).toBe('cg');
+    expect(stub.requests[0].headers['x-tenant']).toBe('app');
   });
 
   it.each(['application/json; charset=utf-8', 'Application/JSON'])(
     'accepts content type %j',
     async (contentType) => {
       stub.route('/t/a', { body: { ok: true }, contentType });
-      expect(await client().retrieve('cg://a')).toEqual({
+      expect(await client().retrieve('app://a')).toEqual({
         kind: 'document',
         body: { ok: true },
       });
@@ -90,7 +90,7 @@ describe('SourceClient outcomes', () => {
 
   it('maps 404 to gone', async () => {
     stub.route('/t/gone', { status: 404, body: { error: 'nope' } });
-    expect(await client().retrieve('cg://gone')).toEqual({ kind: 'gone' });
+    expect(await client().retrieve('app://gone')).toEqual({ kind: 'gone' });
   });
 
   it.each<[string, StubResponse]>([
@@ -105,10 +105,10 @@ describe('SourceClient outcomes', () => {
     async (_label, response) => {
       stub.route('/t/x', response);
       const message = expectError(
-        await client().retrieve('cg://x'),
+        await client().retrieve('app://x'),
         'unsupported_content_type',
       );
-      expect(message).toContain('Source "cg" callback');
+      expect(message).toContain('Source "app" callback');
     },
   );
 
@@ -123,10 +123,10 @@ describe('SourceClient outcomes', () => {
   ])('maps %s to source_unavailable', async (_label, response) => {
     stub.route('/t/x', response);
     const message = expectError(
-      await client().retrieve('cg://x'),
+      await client().retrieve('app://x'),
       'source_unavailable',
     );
-    expect(message).toContain('Source "cg" callback');
+    expect(message).toContain('Source "app" callback');
   });
 
   it('does not follow redirects', async () => {
@@ -134,7 +134,7 @@ describe('SourceClient outcomes', () => {
     stub.route('/elsewhere', { body: { leaked: true } });
 
     const message = expectError(
-      await client().retrieve('cg://x'),
+      await client().retrieve('app://x'),
       'source_unavailable',
     );
 
@@ -145,7 +145,7 @@ describe('SourceClient outcomes', () => {
   it('maps a timeout to source_unavailable', async () => {
     stub.route('/t/slow', { delayMs: 2000, body: {} });
     const message = expectError(
-      await client({ timeoutMs: 100 }).retrieve('cg://slow'),
+      await client({ timeoutMs: 100 }).retrieve('app://slow'),
       'source_unavailable',
     );
     expect(message).toContain('timed out after 100 ms');
@@ -155,7 +155,7 @@ describe('SourceClient outcomes', () => {
     const sources = client();
     await stub.close();
     const message = expectError(
-      await sources.retrieve('cg://x'),
+      await sources.retrieve('app://x'),
       'source_unavailable',
     );
     expect(message).toMatch(/network error/);
@@ -168,7 +168,7 @@ describe('SourceClient URL building', () => {
     const raw = '/t/caf%C3%A9/%F0%9F%98%80/100%25/q%3Fx%3D1/f%23y/%252e%252e';
     stub.route(raw, { body: { ok: 1 } });
 
-    const ref = 'cg://caf\u00e9/\u{1F600}/100%/q?x=1/f#y/%2e%2e';
+    const ref = 'app://caf\u00e9/\u{1F600}/100%/q?x=1/f#y/%2e%2e';
     const result = await client().retrieve(ref);
 
     expect(result).toEqual({ kind: 'document', body: { ok: 1 } });
@@ -187,13 +187,13 @@ describe('SourceClient URL building', () => {
 
   it.each([
     ['nope://x', 'unknown_source'],
-    ['cg://a b', 'invalid_reference'],
-    ['cg:x', 'invalid_reference'],
-    ['cg://../admin', 'invalid_id'],
-    ['cg://a/../../admin', 'invalid_id'],
-    ['cg://a//b', 'invalid_id'],
-    ['cg://a/', 'invalid_id'],
-    ['cg://./a', 'invalid_id'],
+    ['app://a b', 'invalid_reference'],
+    ['app:x', 'invalid_reference'],
+    ['app://../admin', 'invalid_id'],
+    ['app://a/../../admin', 'invalid_id'],
+    ['app://a//b', 'invalid_id'],
+    ['app://a/', 'invalid_id'],
+    ['app://./a', 'invalid_id'],
   ])('rejects %j as %s without a request', async (ref, code) => {
     const sources = client();
     expect((await rejectionOf(sources.retrieve(ref))).code).toBe(code);
@@ -203,16 +203,16 @@ describe('SourceClient URL building', () => {
 
   it('reports configured names', () => {
     const sources = client();
-    expect(sources.has('cg')).toBe(true);
+    expect(sources.has('app')).toBe(true);
     expect(sources.has('nope')).toBe(false);
-    expect(new SourceClient().has('cg')).toBe(false);
+    expect(new SourceClient().has('app')).toBe(false);
   });
 
   it('rejects templates with {id} in the origin or a non-http scheme', () => {
     const make = (url: string) => () =>
-      new SourceClient(sourcesConfigSchema.parse({ cg: { url } }));
-    expect(make('http://{id}.example.com/')).toThrow(/sources\.cg\.url/);
-    expect(make('file:///data/{id}')).toThrow(/sources\.cg\.url/);
+      new SourceClient(sourcesConfigSchema.parse({ app: { url } }));
+    expect(make('http://{id}.example.com/')).toThrow(/sources\.app\.url/);
+    expect(make('file:///data/{id}')).toThrow(/sources\.app\.url/);
   });
 });
 
@@ -222,7 +222,9 @@ describe('SourceClient concurrency', () => {
     stub.route('/o/y', { body: { ok: true } });
     const sources = client({ concurrency: 2 });
 
-    const pending = Array.from({ length: 5 }, () => sources.retrieve('cg://x'));
+    const pending = Array.from({ length: 5 }, () =>
+      sources.retrieve('app://x'),
+    );
     await new Promise((resolve) => setTimeout(resolve, 75));
 
     expect(stub.requests).toHaveLength(2);
@@ -239,7 +241,7 @@ describe('SourceClient concurrency', () => {
     const sources = client();
 
     const pending = Array.from({ length: 10 }, () =>
-      sources.retrieve('cg://x'),
+      sources.retrieve('app://x'),
     );
     await new Promise((resolve) => setTimeout(resolve, 75));
 
@@ -252,7 +254,7 @@ describe('SourceClient concurrency', () => {
     const sources = client({ concurrency: 1, timeoutMs: 400 });
 
     const results = await Promise.all(
-      Array.from({ length: 4 }, () => sources.retrieve('cg://x')),
+      Array.from({ length: 4 }, () => sources.retrieve('app://x')),
     );
 
     expect(results.map((r) => r.kind)).toEqual([

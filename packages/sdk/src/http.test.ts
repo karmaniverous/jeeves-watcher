@@ -46,7 +46,7 @@ describe('client over real HTTP', () => {
           setTimeout(() => res.end('{}'), 500);
         } else {
           res.writeHead(202, { 'content-type': 'application/json' });
-          res.end(JSON.stringify({ accepted: ['cg://a/1'], rejected: [] }));
+          res.end(JSON.stringify({ accepted: ['app://a/1'], rejected: [] }));
         }
       });
     });
@@ -65,14 +65,14 @@ describe('client over real HTTP', () => {
   it('sends method, path, Bearer header and JSON body', async () => {
     const watcher = createWatcherClient({ baseUrl, apiKey: 'k1' });
     await expect(
-      watcher.documents.notify([{ source: 'cg://a/1', rule: 'r' }]),
-    ).resolves.toEqual({ accepted: ['cg://a/1'], rejected: [] });
+      watcher.documents.notify([{ source: 'app://a/1', rule: 'r' }]),
+    ).resolves.toEqual({ accepted: ['app://a/1'], rejected: [] });
     expect(seen).toEqual({
       method: 'POST',
       url: '/documents',
       authorization: 'Bearer k1',
       contentType: 'application/json',
-      body: JSON.stringify({ documents: [{ source: 'cg://a/1', rule: 'r' }] }),
+      body: JSON.stringify({ documents: [{ source: 'app://a/1', rule: 'r' }] }),
     });
   });
 

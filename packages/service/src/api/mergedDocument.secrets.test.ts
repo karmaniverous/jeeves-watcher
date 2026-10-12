@@ -19,7 +19,7 @@ describe('buildMergedDocument secret exclusion', () => {
         vectorStore: { url: 'http://localhost:6333', collectionName: 'c' },
         api: { apiKey: 'top-secret-key' },
         sources: {
-          cg: {
+          app: {
             url: 'http://x/{id}',
             headers: { Authorization: 'Bearer top-secret-token' },
             timeoutMs: 10000,

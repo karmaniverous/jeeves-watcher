@@ -16,8 +16,8 @@ const HAS_SOURCE = { must_not: [{ is_empty: { key: 'source' } }] };
 
 describe('sourcesFilter', () => {
   it('matches any of the references on the source field', () => {
-    expect(sourcesFilter(['cg://a', 'cg://b'])).toEqual({
-      must: [{ key: 'source', match: { any: ['cg://a', 'cg://b'] } }],
+    expect(sourcesFilter(['app://a', 'app://b'])).toEqual({
+      must: [{ key: 'source', match: { any: ['app://a', 'app://b'] } }],
     });
   });
 });
@@ -59,11 +59,11 @@ const point = (id: string, source?: unknown): ScrolledPoint => ({
 describe('deleteSourcePoints', () => {
   it('collects every page, then deletes and counts distinct references', async () => {
     const vs = store([
-      [point('1', 'cg://a'), point('2', 'cg://a')],
-      [point('3', 'cg://b')],
+      [point('1', 'app://a'), point('2', 'app://a')],
+      [point('3', 'app://b')],
     ]);
     const result = await deleteSourcePoints(vs, { must: [] });
-    expect(result).toEqual({ sources: ['cg://a', 'cg://b'], points: 3 });
+    expect(result).toEqual({ sources: ['app://a', 'app://b'], points: 3 });
     expect(vs.scrollPage).toHaveBeenCalledTimes(2);
     expect(vs.scrollPage.mock.calls[0]).toEqual([
       { must: [] },
@@ -89,7 +89,7 @@ describe('deleteSourcePoints', () => {
 
   it('deletes in batches of 256', async () => {
     const many = Array.from({ length: 600 }, (_, i) =>
-      point(String(i), `cg://${String(i % 3)}`),
+      point(String(i), `app://${String(i % 3)}`),
     );
     const vs = store([many]);
     const result = await deleteSourcePoints(vs, {});

@@ -16,7 +16,7 @@ import type { SourceRetrievalResult, SourceRetriever } from '../sources';
 import type { VectorStoreClient } from '../vectorStore';
 import { DocumentProcessor } from './index';
 
-const REF = 'cg://chat/thread/AbC';
+const REF = 'app://chat/thread/AbC';
 const BODY = { userId: 'u1', content: 'hello world' };
 
 const rules: InferenceRule[] = [
@@ -142,7 +142,7 @@ describe('DocumentProcessor.processSource', () => {
   });
 
   it('keys points by the exact reference (case-sensitive, not normalised)', async () => {
-    const lower = 'cg://chat/thread/abc';
+    const lower = 'app://chat/thread/abc';
     expect(sourcePointId(REF, 0)).not.toBe(sourcePointId(lower, 0));
     expect(sourcePointId(REF, 0)).not.toBe(pointId(REF, 0));
 

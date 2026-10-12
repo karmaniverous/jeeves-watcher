@@ -17,9 +17,9 @@ import {
   type StubSourceServer,
 } from './harness/stubSource';
 
-const RULE = 'cg-chat-thread';
-const A = 'cg://chat/thread/a';
-const B = 'cg://chat/thread/b';
+const RULE = 'chat-thread';
+const A = 'app://chat/thread/a';
+const B = 'app://chat/thread/b';
 const PATH_A = '/threads/chat/thread/a';
 const PATH_B = '/threads/chat/thread/b';
 
@@ -61,7 +61,7 @@ describe.skipIf(!qdrantAvailable())(
           watch: { paths: [join(watchDir, '**/*')], ignored: [] },
           api: { cacheTtlMs: 0 },
           sources: {
-            cg: {
+            app: {
               url: `${stub.url}/threads/{id}`,
               timeoutMs: 5000,
               concurrency: 2,
@@ -140,7 +140,7 @@ describe.skipIf(!qdrantAvailable())(
         total: 2,
         toProcess: 2,
         toDelete: 0,
-        byRoot: { cg: 2 },
+        byRoot: { app: 2 },
       });
       expect(await payloadOf(A)).toMatchObject({
         chunk_text: expect.stringContaining('alpha edited') as unknown,

@@ -45,10 +45,10 @@ describe('computePrunePlan prune guard', () => {
 
   it('never selects points carrying source', async () => {
     const { deps } = makeDeps([
-      { id: 's1', payload: { source: 'cg://chat/thread/1' } },
+      { id: 's1', payload: { source: 'app://chat/thread/1' } },
       {
         id: 's2',
-        payload: { source: 'cg://chat/thread/2', file_path: 'outside/x.ts' },
+        payload: { source: 'app://chat/thread/2', file_path: 'outside/x.ts' },
       },
       { id: 'f1', payload: { file_path: 'outside/b.ts' } },
       { id: 'f2', payload: { file_path: 'src/gone.ts' } },
@@ -64,8 +64,8 @@ describe('computePrunePlan prune guard', () => {
 
   it('selects nothing when every point is a source point', async () => {
     const { deps } = makeDeps([
-      { id: 's1', payload: { source: 'cg://a' } },
-      { id: 's2', payload: { source: 'cg://b' } },
+      { id: 's1', payload: { source: 'app://a' } },
+      { id: 's2', payload: { source: 'app://b' } },
     ]);
     const { orphanedIds } = await computePrunePlan(deps);
     expect(orphanedIds).toEqual([]);

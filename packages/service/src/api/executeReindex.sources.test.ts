@@ -21,8 +21,8 @@ vi.mock('./fileScan', () => ({
   listFilesFromWatchRoots: vi.fn().mockResolvedValue([]),
 }));
 
-const A = 'cg://chat/thread/a';
-const B = 'cg://chat/thread/b';
+const A = 'app://chat/thread/a';
+const B = 'app://chat/thread/b';
 const C = 'kb://notes/c';
 
 function fixture() {
@@ -82,7 +82,7 @@ describe('executeReindex: source documents', () => {
       total: 4,
       toProcess: 4,
       toDelete: 0,
-      byRoot: { src: 1, cg: 2, kb: 1 },
+      byRoot: { src: 1, app: 2, kb: 1 },
     });
     expect(f.retrieve).not.toHaveBeenCalled();
     expect(f.embed).not.toHaveBeenCalled();
@@ -146,7 +146,7 @@ describe('executeReindex: source documents', () => {
     const f = fixture();
     await f.index(A, B);
     f.issues.record(A, 'source_unavailable', 'HTTP 503');
-    f.issues.record('cg://chat/thread/never-indexed', 'match_failed', 'x');
+    f.issues.record('app://chat/thread/never-indexed', 'match_failed', 'x');
     f.issues.record('src/broken.md', 'extraction_error', 'y');
 
     const plan = await executeReindex(f.deps, 'issues', undefined, true);
@@ -154,7 +154,7 @@ describe('executeReindex: source documents', () => {
       total: 3,
       toProcess: 2,
       toDelete: 0,
-      byRoot: { src: 1, cg: 1 },
+      byRoot: { src: 1, app: 1 },
     });
 
     const result = await executeReindex(f.deps, 'issues');

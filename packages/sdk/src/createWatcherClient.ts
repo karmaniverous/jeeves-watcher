@@ -84,10 +84,10 @@ export interface WatcherClient {
  * @example
  * ```ts
  * const watcher = createWatcherClient({
- *   baseUrl: 'http://10.0.1.20:1936',
+ *   baseUrl: 'http://watcher.internal.example:1936',
  *   apiKey: process.env.WATCHER_API_KEY,
  * });
- * await watcher.documents.notify([{ source: 'cg://chat/thread/123', rule: 'cg-chat-thread' }]);
+ * await watcher.documents.notify([{ source: 'app://chat/thread/123', rule: 'chat-thread' }]);
  * ```
  *
  * @param options - Base URL, optional API key, timeout (default 10000 ms) and `fetch`.

@@ -13,10 +13,10 @@ import {
   type StubSourceServer,
 } from './harness/stubSource';
 
-const RULE = 'cg-chat-thread';
-const A = 'cg://chat/thread/a';
-const B = 'cg://chat/thread/b';
-const GONE = 'cg://chat/thread/gone';
+const RULE = 'chat-thread';
+const A = 'app://chat/thread/a';
+const B = 'app://chat/thread/b';
+const GONE = 'app://chat/thread/gone';
 const FILE = 'j:/docs/readme.md';
 
 const thread = (userId: string, text: string) => ({
@@ -46,7 +46,7 @@ describe.skipIf(!qdrantAvailable())(
         label: 'documents',
         config: {
           sources: {
-            cg: {
+            app: {
               url: `${stub.url}/threads/{id}`,
               timeoutMs: 5000,
               concurrency: 2,
@@ -131,7 +131,7 @@ describe.skipIf(!qdrantAvailable())(
         documents: [
           { source: B, rule: RULE },
           { source: A, rule: RULE },
-          { source: 'cg:bad', rule: RULE },
+          { source: 'app:bad', rule: RULE },
         ],
       });
       expect(status).toBe(200);
@@ -140,7 +140,7 @@ describe.skipIf(!qdrantAvailable())(
           { source: B, status: 'indexed', chunks: 1, matched_rules: [RULE] },
           { source: A, status: 'unchanged', matched_rules: [RULE] },
           {
-            source: 'cg:bad',
+            source: 'app:bad',
             status: 'failed',
             error: { code: 'invalid_reference', message: anyString },
           },
@@ -171,7 +171,7 @@ describe.skipIf(!qdrantAvailable())(
       const reindex = await post('/reindex', { scope: 'path', source: [A] });
       expect(reindex.body).toMatchObject({
         status: 'started',
-        plan: { total: 1, toProcess: 1, byRoot: { cg: 1 } },
+        plan: { total: 1, toProcess: 1, byRoot: { app: 1 } },
       });
       await harness.sourceQueue.drain();
       expect(stub.requests.length).toBe(before + 1);

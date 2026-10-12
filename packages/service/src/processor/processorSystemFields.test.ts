@@ -24,7 +24,7 @@ import { buildMergedMetadata } from './buildMetadata';
 const HOSTILE = {
   domain: 'docs',
   file_path: 'evil',
-  source: 'cg://evil',
+  source: 'app://evil',
   source_rule: 'evil',
   chunk_text: 'evil',
   total_chunks: 99,

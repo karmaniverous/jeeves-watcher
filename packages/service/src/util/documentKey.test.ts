@@ -4,7 +4,7 @@ import { isSourceReference, normalizeDocumentKey } from './documentKey';
 
 describe('documentKey', () => {
   it.each([
-    ['cg://chat/thread/AbC', true],
+    ['app://chat/thread/AbC', true],
     ['support://ticket/1', true],
     ['j:/docs/a.md', false],
     ['C:\\docs\\a.md', false],
@@ -15,8 +15,8 @@ describe('documentKey', () => {
   });
 
   it('keeps source references verbatim (case-sensitive)', () => {
-    expect(normalizeDocumentKey('cg://chat/thread/AbC')).toBe(
-      'cg://chat/thread/AbC',
+    expect(normalizeDocumentKey('app://chat/thread/AbC')).toBe(
+      'app://chat/thread/AbC',
     );
   });
 

@@ -15,17 +15,17 @@ import {
 describe('renderRequestSchema', () => {
   it.each([
     ['a path', { path: 'j:/domains/a.md' }],
-    ['a source', { source: 'cg://chat/thread/1' }],
+    ['a source', { source: 'app://chat/thread/1' }],
   ])('accepts %s', (_label, body) => {
     expect(renderRequestSchema.parse(body)).toEqual(body);
   });
 
   it.each([
     ['neither', {}],
-    ['both', { path: 'a.md', source: 'cg://1' }],
+    ['both', { path: 'a.md', source: 'app://1' }],
     ['empty path', { path: '' }],
     ['non-string path', { path: 42 }],
-    ['malformed source', { source: 'cg:1' }],
+    ['malformed source', { source: 'app:1' }],
   ])('rejects %s', (_label, body) => {
     expect(renderRequestSchema.safeParse(body).success).toBe(false);
   });
@@ -52,7 +52,7 @@ describe('renderRequestSchema', () => {
 describe('metadataRequestSchema', () => {
   it.each([
     ['a path', { path: 'a.md', metadata: { title: 'x' } }],
-    ['a source', { source: 'cg://1', metadata: {} }],
+    ['a source', { source: 'app://1', metadata: {} }],
   ])('accepts %s', (_label, body) => {
     expect(metadataRequestSchema.parse(body)).toEqual(body);
   });
@@ -61,7 +61,7 @@ describe('metadataRequestSchema', () => {
     ['missing metadata', { path: 'a.md' }],
     ['array metadata', { path: 'a.md', metadata: [] }],
     ['no target', { metadata: {} }],
-    ['both targets', { path: 'a.md', source: 'cg://1', metadata: {} }],
+    ['both targets', { path: 'a.md', source: 'app://1', metadata: {} }],
   ])('rejects %s', (_label, body) => {
     expect(metadataRequestSchema.safeParse(body).success).toBe(false);
   });

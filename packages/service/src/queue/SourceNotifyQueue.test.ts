@@ -62,38 +62,38 @@ describe('SourceNotifyQueue', () => {
   it('holds work until started, then merges pending notifications (latest rule wins)', async () => {
     const fake = createFake();
     const queue = new SourceNotifyQueue(fake.processor);
-    queue.enqueue('cg://a', 'r1');
-    queue.enqueue('cg://a', 'r2');
+    queue.enqueue('app://a', 'r1');
+    queue.enqueue('app://a', 'r2');
     await vi.advanceTimersByTimeAsync(RUN_MS * 3);
     expect(fake.calls).toEqual([]);
 
     queue.start();
     await vi.advanceTimersByTimeAsync(RUN_MS);
     await queue.drain();
-    expect(fake.calls).toEqual([{ ref: 'cg://a', rule: 'r2' }]);
+    expect(fake.calls).toEqual([{ ref: 'app://a', rule: 'r2' }]);
   });
 
   it('processes references in first-notified order; a merge keeps its place', async () => {
     const fake = createFake();
     const queue = new SourceNotifyQueue(fake.processor, { concurrency: 1 });
-    queue.enqueue('cg://a', 'r');
-    queue.enqueue('cg://b', 'r');
-    queue.enqueue('cg://a', 'r');
-    queue.enqueue('cg://c', 'r');
+    queue.enqueue('app://a', 'r');
+    queue.enqueue('app://b', 'r');
+    queue.enqueue('app://a', 'r');
+    queue.enqueue('app://c', 'r');
     queue.start();
     await vi.advanceTimersByTimeAsync(RUN_MS * 5);
     expect(fake.calls.map((c) => c.ref)).toEqual([
-      'cg://a',
-      'cg://b',
-      'cg://c',
+      'app://a',
+      'app://b',
+      'app://c',
     ]);
   });
 
   it('treats references case-sensitively', async () => {
     const fake = createFake();
     const queue = new SourceNotifyQueue(fake.processor);
-    queue.enqueue('cg://AbC', 'r');
-    queue.enqueue('cg://abc', 'r');
+    queue.enqueue('app://AbC', 'r');
+    queue.enqueue('app://abc', 'r');
     queue.start();
     await vi.advanceTimersByTimeAsync(RUN_MS);
     expect(fake.calls).toHaveLength(2);
@@ -103,18 +103,18 @@ describe('SourceNotifyQueue', () => {
     const fake = createFake();
     const queue = new SourceNotifyQueue(fake.processor);
     queue.start();
-    queue.enqueue('cg://a', 'r1');
+    queue.enqueue('app://a', 'r1');
     expect(fake.calls).toHaveLength(1);
-    queue.enqueue('cg://a', 'r2');
-    queue.enqueue('cg://a', 'r3');
-    queue.enqueue('cg://a', 'r4');
+    queue.enqueue('app://a', 'r2');
+    queue.enqueue('app://a', 'r3');
+    queue.enqueue('app://a', 'r4');
     expect(fake.calls).toHaveLength(1);
 
     await vi.advanceTimersByTimeAsync(RUN_MS * 5);
     await queue.drain();
     expect(fake.calls).toEqual([
-      { ref: 'cg://a', rule: 'r1' },
-      { ref: 'cg://a', rule: 'r4' },
+      { ref: 'app://a', rule: 'r1' },
+      { ref: 'app://a', rule: 'r4' },
     ]);
   });
 
@@ -123,14 +123,14 @@ describe('SourceNotifyQueue', () => {
     const queue = new SourceNotifyQueue(fake.processor);
     queue.start();
     for (let i = 1; i <= 20; i++) {
-      fake.content.set('cg://a', `v${String(i)}`);
-      queue.enqueue('cg://a', 'r');
+      fake.content.set('app://a', `v${String(i)}`);
+      queue.enqueue('app://a', 'r');
       await vi.advanceTimersByTimeAsync(RUN_MS / 50);
     }
     await vi.advanceTimersByTimeAsync(RUN_MS * 3);
     await queue.drain();
     expect(fake.calls.length).toBeLessThanOrEqual(2);
-    expect(fake.indexed.get('cg://a')).toBe('v20');
+    expect(fake.indexed.get('app://a')).toBe('v20');
   });
 
   it('caps concurrency and still processes everything', async () => {
@@ -138,7 +138,7 @@ describe('SourceNotifyQueue', () => {
     const queue = new SourceNotifyQueue(fake.processor, { concurrency: 2 });
     queue.start();
     for (const id of ['a', 'b', 'c', 'd', 'e'])
-      queue.enqueue(`cg://${id}`, 'r');
+      queue.enqueue(`app://${id}`, 'r');
     expect(fake.calls).toHaveLength(2);
     await vi.advanceTimersByTimeAsync(RUN_MS * 3);
     await queue.drain();
@@ -157,10 +157,10 @@ describe('SourceNotifyQueue', () => {
     const fake = createFake();
     const queue = new SourceNotifyQueue(fake.processor);
     queue.start();
-    queue.enqueue('cg://a', 'r');
+    queue.enqueue('app://a', 'r');
     queue.pause();
-    queue.enqueue('cg://a', 'r');
-    queue.enqueue('cg://b', 'r');
+    queue.enqueue('app://a', 'r');
+    queue.enqueue('app://b', 'r');
 
     const idle = vi.fn();
     void queue.waitForIdleWorkers().then(idle);
@@ -172,11 +172,11 @@ describe('SourceNotifyQueue', () => {
     queue.resume();
     await vi.advanceTimersByTimeAsync(RUN_MS * 2);
     await queue.drain();
-    // The owed re-run joins the back of the line, behind cg://b.
+    // The owed re-run joins the back of the line, behind app://b.
     expect(fake.calls.map((c) => c.ref)).toEqual([
-      'cg://a',
-      'cg://b',
-      'cg://a',
+      'app://a',
+      'app://b',
+      'app://a',
     ]);
   });
 
@@ -187,25 +187,25 @@ describe('SourceNotifyQueue', () => {
     const both = combinePausableQueues(q1, undefined, q2);
     q1.start();
     q2.start();
-    q1.enqueue('cg://a', 'r');
+    q1.enqueue('app://a', 'r');
     both.pause();
-    q2.enqueue('cg://b', 'r');
+    q2.enqueue('app://b', 'r');
     const idle = both.waitForIdleWorkers();
     await vi.advanceTimersByTimeAsync(RUN_MS);
     await idle;
-    expect(fake.calls.map((c) => c.ref)).toEqual(['cg://a']);
+    expect(fake.calls.map((c) => c.ref)).toEqual(['app://a']);
     both.resume();
     await vi.advanceTimersByTimeAsync(RUN_MS);
-    expect(fake.calls.map((c) => c.ref)).toEqual(['cg://a', 'cg://b']);
+    expect(fake.calls.map((c) => c.ref)).toEqual(['app://a', 'app://b']);
   });
 
   it('stop drops pending and owed work, refuses new work and waits for in-flight runs', async () => {
     const fake = createFake();
     const queue = new SourceNotifyQueue(fake.processor, { concurrency: 1 });
     queue.start();
-    const first = queue.processNow('cg://a', 'r');
-    const owed = queue.processNow('cg://a', 'r');
-    const pending = queue.processNow('cg://b', 'r');
+    const first = queue.processNow('app://a', 'r');
+    const owed = queue.processNow('app://a', 'r');
+    const pending = queue.processNow('app://b', 'r');
 
     const stopped = vi.fn();
     void queue.stop().then(stopped);
@@ -216,27 +216,27 @@ describe('SourceNotifyQueue', () => {
     await vi.advanceTimersByTimeAsync(RUN_MS);
     expect(stopped).toHaveBeenCalledOnce();
     await expect(first).resolves.toMatchObject({ status: 'indexed' });
-    expect(queue.enqueue('cg://c', 'r')).toBe(false);
-    await expect(queue.processNow('cg://c', 'r')).rejects.toBeInstanceOf(
+    expect(queue.enqueue('app://c', 'r')).toBe(false);
+    await expect(queue.processNow('app://c', 'r')).rejects.toBeInstanceOf(
       SourceNotifyQueueStoppedError,
     );
     await queue.drain();
-    expect(fake.calls).toEqual([{ ref: 'cg://a', rule: 'r' }]);
+    expect(fake.calls).toEqual([{ ref: 'app://a', rule: 'r' }]);
   });
 
   it('processNow while in flight waits for the dirty re-run and returns post-call state', async () => {
     const fake = createFake();
     const queue = new SourceNotifyQueue(fake.processor);
     queue.start();
-    fake.content.set('cg://a', 'v1');
-    queue.enqueue('cg://a', 'r');
+    fake.content.set('app://a', 'v1');
+    queue.enqueue('app://a', 'r');
     await vi.advanceTimersByTimeAsync(RUN_MS / 2);
 
-    fake.content.set('cg://a', 'v2');
-    const result = queue.processNow('cg://a', 'r');
+    fake.content.set('app://a', 'v2');
+    const result = queue.processNow('app://a', 'r');
     await vi.advanceTimersByTimeAsync(RUN_MS * 2);
     await expect(result).resolves.toEqual({
-      source: 'cg://a',
+      source: 'app://a',
       status: 'indexed',
       matched_rules: ['r:v2'],
     });
@@ -246,8 +246,8 @@ describe('SourceNotifyQueue', () => {
   it('processNow joins a pending run instead of adding one', async () => {
     const fake = createFake();
     const queue = new SourceNotifyQueue(fake.processor);
-    queue.enqueue('cg://a', 'r1');
-    const result = queue.processNow('cg://a', 'r2');
+    queue.enqueue('app://a', 'r1');
+    const result = queue.processNow('app://a', 'r2');
     queue.start();
     await vi.advanceTimersByTimeAsync(RUN_MS);
     await expect(result).resolves.toMatchObject({ matched_rules: ['r2:none'] });
@@ -255,29 +255,29 @@ describe('SourceNotifyQueue', () => {
   });
 
   it('isolates failures: a rejecting run yields a failed result and the queue keeps going', async () => {
-    const fake = createFake(['cg://bad']);
+    const fake = createFake(['app://bad']);
     const error = vi.fn();
     const logger = { error } as unknown as pino.Logger;
     const queue = new SourceNotifyQueue(fake.processor, {}, logger);
     queue.start();
 
-    const bad = queue.processNow('cg://bad', 'r');
+    const bad = queue.processNow('app://bad', 'r');
     await expect(bad).resolves.toEqual({
-      source: 'cg://bad',
+      source: 'app://bad',
       status: 'failed',
-      error: { code: 'extraction_error', message: 'boom cg://bad' },
+      error: { code: 'extraction_error', message: 'boom app://bad' },
     });
     expect(error).toHaveBeenCalledOnce();
 
-    queue.enqueue('cg://bad', 'r');
-    queue.enqueue('cg://good', 'r');
+    queue.enqueue('app://bad', 'r');
+    queue.enqueue('app://good', 'r');
     await vi.advanceTimersByTimeAsync(RUN_MS);
     await queue.drain();
-    expect(fake.indexed.get('cg://good')).toBe('none');
+    expect(fake.indexed.get('app://good')).toBe('none');
     expect(fake.calls.map((c) => c.ref)).toEqual([
-      'cg://bad',
-      'cg://bad',
-      'cg://good',
+      'app://bad',
+      'app://bad',
+      'app://good',
     ]);
   });
 
@@ -285,8 +285,8 @@ describe('SourceNotifyQueue', () => {
     const fake = createFake();
     const queue = new SourceNotifyQueue(fake.processor);
     queue.start();
-    queue.enqueue('cg://a', 'r');
-    queue.enqueue('cg://a', 'r');
+    queue.enqueue('app://a', 'r');
+    queue.enqueue('app://a', 'r');
     const drained = vi.fn();
     void queue.drain().then(drained);
     await vi.advanceTimersByTimeAsync(RUN_MS);

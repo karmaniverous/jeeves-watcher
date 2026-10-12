@@ -8,7 +8,7 @@ import { describe, expect, it } from 'vitest';
 import { sourcePointId } from '../pointId';
 import { doc, RULE, sourceReindexFixture } from '../test/sourceReindexFixture';
 
-const REF = 'cg://chat/thread/f';
+const REF = 'app://chat/thread/f';
 
 describe('SourceOperations.process force', () => {
   it('skips unchanged content without force', async () => {

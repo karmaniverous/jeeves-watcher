@@ -31,14 +31,14 @@ describe('jeevesWatcherConfigSchema 0.20.0 additions', () => {
         payloadIndexes: [{ field: 'user_id', type: 'keyword', isTenant: true }],
       },
       sources: {
-        cg: {
+        app: {
           url: '${CG_SOURCE_BASE_URL}/watcher/sources/{id}',
           headers: { Authorization: 'Bearer ${CG_SOURCE_KEY}' },
         },
       },
     });
     expect(parsed.api?.apiKey).toBe('${WATCHER_API_KEY}');
-    expect(parsed.sources?.['cg'].concurrency).toBe(8);
+    expect(parsed.sources?.['app'].concurrency).toBe(8);
     expect(parsed.vectorStore.payloadIndexes?.[0].isTenant).toBe(true);
   });
 

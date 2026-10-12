@@ -19,7 +19,7 @@ const target = z
   .superRefine(requireExactlyOneTarget);
 
 describe('requireExactlyOneTarget', () => {
-  it.each([[{ path: 'a.md' }], [{ source: 'cg://1' }]])('accepts %j', (v) => {
+  it.each([[{ path: 'a.md' }], [{ source: 'app://1' }]])('accepts %j', (v) => {
     expect(target.safeParse(v).success).toBe(true);
   });
 
@@ -29,7 +29,7 @@ describe('requireExactlyOneTarget', () => {
   });
 
   it('reports both targets at the root', () => {
-    const result = target.safeParse({ path: 'a', source: 'cg://1' });
+    const result = target.safeParse({ path: 'a', source: 'app://1' });
     expect(result.error?.issues[0]?.path).toEqual([]);
   });
 });

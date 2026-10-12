@@ -15,9 +15,9 @@ import {
   type StubSourceServer,
 } from './harness/stubSource';
 
-const REF = 'cg://chat/thread/burst';
+const REF = 'app://chat/thread/burst';
 const PATH = '/threads/chat/thread/burst';
-const RULE = 'cg-chat-streak';
+const RULE = 'chat-thread';
 const BURST = 20;
 
 const sleep = (ms: number) =>
@@ -50,7 +50,7 @@ describe.skipIf(!qdrantAvailable())(
         label: 'notify',
         config: {
           sources: {
-            cg: {
+            app: {
               url: `${stub.url}/threads/{id}`,
               timeoutMs: 5000,
               concurrency: 2,
