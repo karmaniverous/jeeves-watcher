@@ -86,21 +86,26 @@ function validateHelperFiles(
  * Validate schema completeness for all inference rules.
  *
  * @param parsed - The parsed config with inference rules.
+ * @param configDir - Directory used to resolve relative file-based schema paths.
  * @returns Validation errors, if any.
  */
-function validateInferenceRuleSchemas(parsed: {
-  inferenceRules?: Array<{
-    name: string;
-    schema?: unknown[];
-  }>;
-  schemas?: Record<string, unknown>;
-}): ValidationError[] {
+function validateInferenceRuleSchemas(
+  parsed: {
+    inferenceRules?: Array<{
+      name: string;
+      schema?: unknown[];
+    }>;
+    schemas?: Record<string, unknown>;
+  },
+  configDir: string,
+): ValidationError[] {
   if (!parsed.inferenceRules) return [];
   for (const rule of parsed.inferenceRules) {
     if (!rule.schema || rule.schema.length === 0) continue;
     try {
       const merged = mergeSchemas(rule.schema as SchemaReference[], {
         globalSchemas: parsed.schemas as Record<string, SchemaEntry>,
+        configDir,
       });
       validateSchemaCompleteness(merged, rule.name);
       validateFacetTypes(merged, rule.name);
@@ -140,7 +145,9 @@ export function createConfigValidateHandler(deps: ConfigValidateRouteDeps) {
         return { valid: false, errors: helperErrors };
       }
 
-      const schemaErrors = parsed ? validateInferenceRuleSchemas(parsed) : [];
+      const schemaErrors = parsed
+        ? validateInferenceRuleSchemas(parsed, deps.configDir)
+        : [];
       if (schemaErrors.length > 0) {
         return { valid: false, errors: schemaErrors };
       }

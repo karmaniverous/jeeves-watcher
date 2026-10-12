@@ -2,7 +2,7 @@
  * @module api/handlers/configValidate.test
  */
 
-import { mkdtempSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -174,5 +174,70 @@ describe('createConfigValidateHandler', () => {
     };
 
     expect(result.valid).toBe(true);
+  });
+
+  describe('file-based global schemas (#256)', () => {
+    function schemaConfig() {
+      return {
+        schemas: { base: '../schemas/base.json' },
+        inferenceRules: [
+          {
+            name: 'uses-file-schema',
+            description: 'Rule whose schema is a file-based global schema.',
+            match: { type: 'object' },
+            schema: ['base'],
+          },
+        ],
+      };
+    }
+
+    function writeSchemaTree() {
+      const root = mkdtempSync(join(tmpdir(), 'jw-cv-schema-'));
+      const configDir = join(root, 'jeeves-watcher');
+      mkdirSync(configDir);
+      mkdirSync(join(root, 'schemas'));
+      writeFileSync(
+        join(root, 'schemas', 'base.json'),
+        JSON.stringify({
+          type: 'object',
+          properties: { title: { type: 'string', set: '{{file.filename}}' } },
+        }),
+        'utf8',
+      );
+      return configDir;
+    }
+
+    it('resolves relative schema paths against configDir, not cwd', async () => {
+      const configDir = writeSchemaTree();
+      const deps = { ...createDeps(schemaConfig()), configDir };
+      const handler = createConfigValidateHandler(deps);
+      const reply = mockReply();
+
+      await handler(mockRequest({}), reply);
+
+      const result = (reply.send as ReturnType<typeof vi.fn>).mock
+        .calls[0][0] as { valid: boolean; errors?: unknown[] };
+      expect(result).toEqual({ valid: true });
+    });
+
+    it('reports a missing schema file resolved against configDir', async () => {
+      const configDir = mkdtempSync(join(tmpdir(), 'jw-cv-noschema-'));
+      const deps = { ...createDeps(schemaConfig()), configDir };
+      const handler = createConfigValidateHandler(deps);
+      const reply = mockReply();
+
+      await handler(mockRequest({}), reply);
+
+      const result = (reply.send as ReturnType<typeof vi.fn>).mock
+        .calls[0][0] as {
+        valid: boolean;
+        errors: Array<{ path: string; message: string }>;
+      };
+      expect(result.valid).toBe(false);
+      expect(result.errors[0].path).toBe('inferenceRules[uses-file-schema]');
+      expect(result.errors[0].message).toContain(
+        join(configDir, '..', 'schemas', 'base.json'),
+      );
+    });
   });
 });
