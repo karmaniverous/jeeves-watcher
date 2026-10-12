@@ -1,0 +1,77 @@
+/**
+ * @module processor/processingPipelineIssues.test
+ * Tests that embedAndUpsert tags embedding and vector-store failures with canonical issue codes (#255).
+ */
+
+import { describe, expect, it, vi } from 'vitest';
+
+import { ProcessingFailure } from './issueRecording';
+import { embedAndUpsert } from './processingPipeline';
+
+function makeDeps(overrides: {
+  embed?: ReturnType<typeof vi.fn>;
+  upsert?: ReturnType<typeof vi.fn>;
+  del?: ReturnType<typeof vi.fn>;
+  splitText?: ReturnType<typeof vi.fn>;
+}) {
+  return {
+    embeddingProvider: {
+      embed:
+        overrides.embed ??
+        vi.fn((texts: string[]) => Promise.resolve(texts.map(() => [0]))),
+    },
+    vectorStore: {
+      upsert: overrides.upsert ?? vi.fn().mockResolvedValue(undefined),
+      delete: overrides.del ?? vi.fn().mockResolvedValue(undefined),
+    },
+    splitter: {
+      splitText: overrides.splitText ?? vi.fn().mockResolvedValue(['a', 'b']),
+    },
+    logger: { info: vi.fn() },
+  };
+}
+
+async function run(
+  deps: ReturnType<typeof makeDeps>,
+  existing: Record<string, unknown> | null = null,
+): Promise<unknown> {
+  return embedAndUpsert(deps as never, 'text', 'f.md', {}, existing, {
+    createdAt: 1,
+    modifiedAt: 2,
+  }).catch((e: unknown) => e);
+}
+
+describe('embedAndUpsert issue tagging (#255)', () => {
+  it('tags an embedding failure as embedding_error and skips upsert', async () => {
+    const deps = makeDeps({ embed: vi.fn().mockRejectedValue(new Error('q')) });
+    const err = await run(deps);
+    expect(err).toBeInstanceOf(ProcessingFailure);
+    expect((err as ProcessingFailure).issueType).toBe('embedding_error');
+    expect(deps.vectorStore.upsert).not.toHaveBeenCalled();
+  });
+
+  it('tags an upsert failure as upsert_error', async () => {
+    const deps = makeDeps({
+      upsert: vi.fn().mockRejectedValue(new Error('down')),
+    });
+    const err = await run(deps);
+    expect((err as ProcessingFailure).issueType).toBe('upsert_error');
+    expect((err as ProcessingFailure).message).toBe('down');
+  });
+
+  it('tags an orphan-delete failure as upsert_error', async () => {
+    const deps = makeDeps({ del: vi.fn().mockRejectedValue(new Error('d')) });
+    const err = await run(deps, { total_chunks: 5 });
+    expect((err as ProcessingFailure).issueType).toBe('upsert_error');
+  });
+
+  it('leaves a splitter failure untagged (caller falls back to extraction_error)', async () => {
+    const splitErr = new Error('split');
+    const deps = makeDeps({ splitText: vi.fn().mockRejectedValue(splitErr) });
+    expect(await run(deps)).toBe(splitErr);
+  });
+
+  it('resolves without error on success', async () => {
+    expect(await run(makeDeps({}))).toBeUndefined();
+  });
+});

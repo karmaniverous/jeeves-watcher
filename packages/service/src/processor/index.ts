@@ -7,6 +7,7 @@
 import { stat } from 'node:fs/promises';
 import { extname } from 'node:path';
 
+import type { IssueType } from '@karmaniverous/jeeves-watcher-core';
 import type pino from 'pino';
 
 import type { ContentHashCache } from '../cache';
@@ -17,12 +18,17 @@ import type { IssuesManager } from '../issues';
 import { pointId } from '../pointId';
 import type { CompiledRule } from '../rules';
 import type { TemplateEngine } from '../templates';
-import { logError } from '../util/logError';
 import { normalizeSlashes } from '../util/normalizeSlashes';
 import type { ValuesManager } from '../values';
 import type { VectorStore } from '../vectorStore';
 import { buildMergedMetadata } from './buildMetadata';
 import { chunkIds, getChunkCount } from './chunkIds';
+import type { DocumentProcessorDeps } from './DocumentProcessorDeps';
+import {
+  clearIssuesOnUnchanged,
+  handleFileErrors,
+  withIssueType,
+} from './issueRecording';
 import { FIELD_FILE_PATH } from './payloadFields';
 import { embedAndUpsert } from './processingPipeline';
 import type { ProcessorConfig } from './ProcessorConfig';
@@ -30,37 +36,10 @@ import type { RenderResult } from './renderResult';
 import { createSplitter } from './splitter';
 import type { DocumentProcessorInterface } from './types';
 
+export type { DocumentProcessorDeps } from './DocumentProcessorDeps';
 export type { ProcessorConfig } from './ProcessorConfig';
 export type { RenderResult } from './renderResult';
 export type { DocumentProcessorInterface } from './types';
-
-/**
- * Core document processing pipeline.
- *
- * Handles extracting text, computing embeddings, and syncing with the vector store.
- */
-export interface DocumentProcessorDeps {
-  /** Processor configuration (chunk sizes, directories, maps). */
-  config: ProcessorConfig;
-  /** Provider for generating text embeddings. */
-  embeddingProvider: EmbeddingProvider;
-  /** Vector store for persistence. */
-  vectorStore: VectorStore;
-  /** Pre-compiled inference rules for metadata extraction. */
-  compiledRules: CompiledRule[];
-  /** Pino logger instance. */
-  logger: pino.Logger;
-  /** Optional Handlebars template engine for content templates. */
-  templateEngine?: TemplateEngine;
-  /** Optional enrichment store for persisted enrichment metadata. */
-  enrichmentStore?: EnrichmentStoreInterface;
-  /** Optional issues manager for tracking processing errors. */
-  issuesManager?: IssuesManager;
-  /** Optional values manager for tracking rule-extracted values. */
-  valuesManager?: ValuesManager;
-  /** Optional content hash cache for move detection. */
-  contentHashCache?: ContentHashCache;
-}
 
 /**
  * Core document processing pipeline.
@@ -131,20 +110,19 @@ export class DocumentProcessor implements DocumentProcessorInterface {
   }
 
   /**
-   * Execute an async operation with standardized file error handling.
+   * Run an operation with standard file error handling: log, and record a
+   * typed issue when `issueType` (the code for untagged failures) is given.
    */
-  private async withFileErrorHandling<T>(
+  private withFileErrorHandling<T>(
     filePath: string,
     operation: string,
     fn: () => Promise<T>,
     fallback: T,
+    issueType?: IssueType,
   ): Promise<T> {
-    try {
-      return await fn();
-    } catch (error) {
-      logError(this.logger, error, { filePath }, operation);
-      return fallback;
-    }
+    const { logger, issuesManager } = this;
+    const context = { filePath, operation, issueType };
+    return handleFileErrors({ logger, issuesManager }, context, fn, fallback);
   }
 
   /**
@@ -189,6 +167,7 @@ export class DocumentProcessor implements DocumentProcessorInterface {
         const existingPayload = await this.vectorStore.getPayload(baseId);
         if (existingPayload && existingPayload['content_hash'] === hash) {
           this.logger.debug({ filePath }, 'Content unchanged, skipping');
+          clearIssuesOnUnchanged(this.issuesManager, filePath);
           return;
         }
 
@@ -219,6 +198,7 @@ export class DocumentProcessor implements DocumentProcessorInterface {
         this.issuesManager?.clear(filePath);
       },
       undefined,
+      'extraction_error',
     );
   }
 
@@ -305,9 +285,10 @@ export class DocumentProcessor implements DocumentProcessorInterface {
         const { metadataWithRules, matchedRules, metadata } =
           await this.buildMetadataWithRules(filePath);
 
-        const totalChunks = getChunkCount(existingPayload);
-        const ids = chunkIds(filePath, totalChunks);
-        await this.vectorStore.setPayload(ids, metadataWithRules);
+        const ids = chunkIds(filePath, getChunkCount(existingPayload));
+        await withIssueType('upsert_error', () =>
+          this.vectorStore.setPayload(ids, metadataWithRules),
+        );
 
         this.issuesManager?.clear(filePath);
 
@@ -317,10 +298,11 @@ export class DocumentProcessor implements DocumentProcessorInterface {
           }
         }
 
-        this.logger.info({ filePath, chunks: totalChunks }, 'Rules re-applied');
+        this.logger.info({ filePath, chunks: ids.length }, 'Rules re-applied');
         return metadataWithRules;
       },
       null,
+      'extraction_error',
     );
   }
 
@@ -391,12 +373,15 @@ export class DocumentProcessor implements DocumentProcessorInterface {
           },
         }));
 
-        await this.vectorStore.upsert(newPoints);
-        await this.vectorStore.delete(oldIds);
+        await withIssueType('upsert_error', async () => {
+          await this.vectorStore.upsert(newPoints);
+          await this.vectorStore.delete(oldIds);
+        });
 
         // Migrate enrichment and clear old issues.
         this.enrichmentStore?.move(oldPath, newPath);
         this.issuesManager?.clear(oldPath);
+        this.issuesManager?.clear(newPath);
 
         // Update values index for the new path's matched rules.
         if (this.valuesManager) {
@@ -418,6 +403,7 @@ export class DocumentProcessor implements DocumentProcessorInterface {
         );
       },
       undefined,
+      'extraction_error',
     );
   }
 

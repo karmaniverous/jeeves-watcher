@@ -27,11 +27,7 @@ export class IssuesManager extends JsonFileStore<IssuesFile> {
     filePath: string,
     type: IssueRecord['type'],
     message: string,
-    options?: {
-      property?: string;
-      rules?: string[];
-      types?: string[];
-    },
+    options?: Pick<IssueRecord, 'operation' | 'property' | 'rules' | 'types'>,
   ): void {
     const issues = this.load();
     const newIssue: IssueRecord = {
@@ -66,6 +62,12 @@ export class IssuesManager extends JsonFileStore<IssuesFile> {
     this.cache = {};
     this.save();
     this.logger.debug('All issues cleared');
+  }
+
+  /** Get the current issues for one file path, if any. */
+  get(filePath: string): IssueRecord[] | undefined {
+    const issues = this.load()[filePath];
+    return issues ? [...issues] : undefined;
   }
 
   /** Get all current issues. */

@@ -11,6 +11,7 @@ import { pointId } from '../pointId';
 import { normalizeSlashes } from '../util/normalizeSlashes';
 import type { VectorStore } from '../vectorStore';
 import { chunkIds, getChunkCount } from './chunkIds';
+import { withIssueType } from './issueRecording';
 import { computeLineOffsets } from './lineOffsets';
 import {
   FIELD_CHUNK_INDEX,
@@ -79,13 +80,14 @@ export async function embedAndUpsert(
   const offsets = computeLineOffsets(text, chunks);
 
   // Embed chunks in batches to respect Gemini's 100-doc limit
-  const allVectors: number[][] = [];
-  for (let start = 0; start < chunks.length; start += EMBED_BATCH_SIZE) {
-    const batch = chunks.slice(start, start + EMBED_BATCH_SIZE);
-    const batchVectors = await embeddingProvider.embed(batch);
-    allVectors.push(...batchVectors);
-  }
-  const vectors = allVectors;
+  const vectors = await withIssueType('embedding_error', async () => {
+    const allVectors: number[][] = [];
+    for (let start = 0; start < chunks.length; start += EMBED_BATCH_SIZE) {
+      const batch = chunks.slice(start, start + EMBED_BATCH_SIZE);
+      allVectors.push(...(await embeddingProvider.embed(batch)));
+    }
+    return allVectors;
+  });
 
   // Build all points
   const points = chunks.map((chunk, i) => ({
@@ -105,17 +107,19 @@ export async function embedAndUpsert(
     },
   }));
 
-  // Upsert in batches to avoid OOM on large files (#162)
-  const batchSize = Math.max(1, upsertBatchSize);
-  for (let start = 0; start < points.length; start += batchSize) {
-    await vectorStore.upsert(points.slice(start, start + batchSize));
-  }
+  await withIssueType('upsert_error', async () => {
+    // Upsert in batches to avoid OOM on large files (#162)
+    const batchSize = Math.max(1, upsertBatchSize);
+    for (let start = 0; start < points.length; start += batchSize) {
+      await vectorStore.upsert(points.slice(start, start + batchSize));
+    }
 
-  // Clean up orphaned chunks
-  if (oldTotalChunks > chunks.length) {
-    const orphanIds = chunkIds(filePath, oldTotalChunks).slice(chunks.length);
-    await vectorStore.delete(orphanIds);
-  }
+    // Clean up orphaned chunks
+    if (oldTotalChunks > chunks.length) {
+      const orphanIds = chunkIds(filePath, oldTotalChunks).slice(chunks.length);
+      await vectorStore.delete(orphanIds);
+    }
+  });
 
   logger.info(
     { filePath, chunks: chunks.length },

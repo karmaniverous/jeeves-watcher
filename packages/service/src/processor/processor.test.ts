@@ -227,7 +227,7 @@ describe('DocumentProcessor', () => {
       );
     });
 
-    it('does not record a v2 issue on generic error', async () => {
+    it('records an extraction_error issue on generic error', async () => {
       const { vectorStore, embeddingProvider, issuesManager, config, logger } =
         createMocks();
       mockedBuildMergedMetadata.mockRejectedValue(new Error('read fail'));
@@ -242,7 +242,7 @@ describe('DocumentProcessor', () => {
       });
       await processor.processFile('/test.txt');
 
-      expect(issuesManager.record).not.toHaveBeenCalled();
+      expect(issuesManager.record.mock.calls[0]?.[1]).toBe('extraction_error');
     });
 
     it('cleans up orphan chunks when new count < old', async () => {

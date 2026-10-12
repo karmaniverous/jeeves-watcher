@@ -22,21 +22,41 @@ export const statusResponseSchema = z.object({
 /** Response body for `GET /status`. */
 export type StatusResponse = z.infer<typeof statusResponseSchema>;
 
+/**
+ * Canonical issue codes, in one list (spec Decision 16.4).
+ *
+ * `type_collision` and `interpolation_error` predate 0.20.0; the rest cover
+ * processing failures (#255) and source documents.
+ */
+export const ISSUE_TYPES = [
+  'type_collision',
+  'interpolation_error',
+  'extraction_error',
+  'embedding_error',
+  'upsert_error',
+  'match_failed',
+  'rule_missing',
+  'no_content',
+  'source_unavailable',
+  'unsupported_content_type',
+] as const;
+
+/** Schema for the canonical issue code carried by every issue record. */
+export const issueTypeSchema = z
+  .enum(ISSUE_TYPES)
+  .describe(
+    'Issue code: type_collision (conflicting metadata types), interpolation_error (template rendering failure), extraction_error (reading, rule application or chunking failed), embedding_error (embedding provider failed), upsert_error (vector store write failed), match_failed (designated rule did not match), rule_missing (designated rule not found), no_content (nothing to embed), source_unavailable (source callback failed), unsupported_content_type (callback returned a non-JSON body).',
+  );
+
+/** Canonical issue code. */
+export type IssueType = z.infer<typeof issueTypeSchema>;
+
 /** Schema for a single issue record tracking a processing failure. */
 export const issueRecordSchema = z.object({
-  /** Category of the error: type_collision or interpolation_error. */
-  type: z
-    .union([
-      z
-        .literal('type_collision')
-        .describe('Conflicting metadata types from multiple rules.'),
-      z
-        .literal('interpolation_error')
-        .describe('Template variable resolution failure.'),
-    ])
-    .describe(
-      'Error category: type_collision (conflicting metadata types), interpolation_error (template rendering failure).',
-    ),
+  /** Canonical issue code. */
+  type: issueTypeSchema,
+  /** Operation that failed (e.g. `Failed to process file`). */
+  operation: z.string().optional(),
   /** Property name where the issue occurred. */
   property: z.string().optional(),
   /** Name(s) of the rule(s) involved in the issue. */

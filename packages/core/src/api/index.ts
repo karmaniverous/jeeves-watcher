@@ -45,10 +45,13 @@ export {
   MAX_DOCUMENTS_PER_REQUEST,
 } from './documents.js';
 export {
+  ISSUE_TYPES,
   type IssueRecord,
   issueRecordSchema,
   type IssuesResponse,
   issuesResponseSchema,
+  type IssueType,
+  issueTypeSchema,
   type StatusResponse,
   statusResponseSchema,
 } from './monitoring.js';
