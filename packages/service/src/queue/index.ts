@@ -1,6 +1,6 @@
 /**
  * @module queue
- * Debounced, rate-limited, concurrent event queue for file watchers. Manages priority queuing and async callbacks. No direct I/O; orchestrates processing.
+ * Debounced, concurrent event queue for file watchers. Manages priority queuing and async callbacks. Embedding request rate is limited by the shared embedding provider wrapper, not here. No direct I/O.
  */
 
 /**
@@ -35,17 +35,14 @@ export interface EventQueueOptions {
   debounceMs: number;
   /** Maximum number of concurrent processors. */
   concurrency: number;
-  /** Optional max processed events per minute (token bucket). */
-  rateLimitPerMinute?: number;
 }
 
 /**
- * A debounced, rate-limited, concurrent event queue.
+ * A debounced, concurrent event queue.
  */
 export class EventQueue {
   private readonly debounceMs: number;
   private readonly concurrency: number;
-  private readonly rateLimitPerMinute?: number;
 
   private started = false;
   private paused = false;
@@ -56,9 +53,6 @@ export class EventQueue {
 
   private readonly normalQueue: QueuedItem[] = [];
   private readonly lowQueue: QueuedItem[] = [];
-
-  private tokens: number;
-  private lastRefillMs = Date.now();
 
   private drainWaiters: Array<() => void> = [];
   private idleWorkerWaiters: Array<() => void> = [];
@@ -71,8 +65,6 @@ export class EventQueue {
   public constructor(options: EventQueueOptions) {
     this.debounceMs = options.debounceMs;
     this.concurrency = options.concurrency;
-    this.rateLimitPerMinute = options.rateLimitPerMinute;
-    this.tokens = this.rateLimitPerMinute ?? Number.POSITIVE_INFINITY;
   }
 
   /**
@@ -154,25 +146,6 @@ export class EventQueue {
     else this.normalQueue.push(item);
   }
 
-  private refillTokens(nowMs: number): void {
-    if (this.rateLimitPerMinute === undefined) return;
-
-    const elapsed = Math.max(0, nowMs - this.lastRefillMs);
-    const refillRatePerMs = this.rateLimitPerMinute / 60000;
-    const refill = elapsed * refillRatePerMs;
-
-    this.tokens = Math.min(this.rateLimitPerMinute, this.tokens + refill);
-    this.lastRefillMs = nowMs;
-  }
-
-  private takeToken(): boolean {
-    const now = Date.now();
-    this.refillTokens(now);
-    if (this.tokens < 1) return false;
-    this.tokens -= 1;
-    return true;
-  }
-
   private nextItem(): QueuedItem | undefined {
     return this.normalQueue.shift() ?? this.lowQueue.shift();
   }
@@ -183,16 +156,6 @@ export class EventQueue {
     while (this.active < this.concurrency) {
       const item = this.nextItem();
       if (!item) break;
-
-      if (!this.takeToken()) {
-        // Put it back at the front of its queue and try later.
-        if (item.event.priority === 'low') this.lowQueue.unshift(item);
-        else this.normalQueue.unshift(item);
-        setTimeout(() => {
-          this.pump();
-        }, 250);
-        break;
-      }
 
       this.active += 1;
       void Promise.resolve()

@@ -17,6 +17,7 @@ import { packageDirectorySync } from 'package-directory';
 import type pino from 'pino';
 
 import type { JeevesWatcherConfig } from '../config/types';
+import { RateLimitedEmbeddingProvider } from '../embedding/rateLimitedProvider';
 import { type AllHelpersIntrospection, introspectAllHelpers } from '../helpers';
 import type { ProcessorConfig } from '../processor';
 import { loadCustomMapHelpers } from '../rules/apply';
@@ -53,8 +54,13 @@ export function resolveMapsConfig(
   return resolved;
 }
 
+/** Default cap on a single 429 pause, matching the root `maxBackoffMs` default. */
+const DEFAULT_MAX_BACKOFF_MS = 60_000;
+
 /**
- * Initialize embedding provider and vector store.
+ * Initialize embedding provider and vector store. The provider is wrapped
+ * once in the shared {@link RateLimitedEmbeddingProvider}, so every consumer
+ * (watch queue, reindex, search) draws from the same request budget.
  */
 export async function initEmbeddingAndStore(
   config: JeevesWatcherConfig,
@@ -63,9 +69,13 @@ export async function initEmbeddingAndStore(
 ) {
   let embeddingProvider;
   try {
-    embeddingProvider = factories.createEmbeddingProvider(
-      config.embedding,
-      logger,
+    embeddingProvider = new RateLimitedEmbeddingProvider(
+      factories.createEmbeddingProvider(config.embedding, logger),
+      {
+        rateLimitPerMinute: config.embedding.rateLimitPerMinute,
+        maxBackoffMs: config.maxBackoffMs ?? DEFAULT_MAX_BACKOFF_MS,
+        logger,
+      },
     );
   } catch (error) {
     logger.fatal(

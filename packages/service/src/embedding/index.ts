@@ -9,10 +9,10 @@ import type pino from 'pino';
 import type { EmbeddingConfig } from '../config/types';
 import { createGeminiProvider } from './geminiProvider';
 import { createMockFromConfig } from './mockProvider';
-import type { EmbeddingProvider, ProviderFactory } from './types';
+import type { EmbeddingProvider, EmbedOptions, ProviderFactory } from './types';
 
 // Re-export types for public API
-export type { EmbeddingProvider, ProviderFactory };
+export type { EmbeddingProvider, EmbedOptions, ProviderFactory };
 
 const embeddingProviderRegistry = new Map<string, ProviderFactory>([
   ['mock', createMockFromConfig],

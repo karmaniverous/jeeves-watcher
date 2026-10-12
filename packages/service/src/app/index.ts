@@ -176,7 +176,6 @@ export class JeevesWatcher {
     this.queue = this.factories.createEventQueue({
       debounceMs: this.config.watch.debounceMs ?? 2000,
       concurrency: this.config.embedding.concurrency ?? 5,
-      rateLimitPerMinute: this.config.embedding.rateLimitPerMinute,
     });
 
     this.vcsCoordinator = new VcsCoordinator(this.config, logger);

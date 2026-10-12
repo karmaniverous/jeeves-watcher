@@ -1,13 +1,14 @@
 /**
  * @module api/handlers/search
- * Fastify route handler for POST /search. Embeds a query and performs vector store similarity search.
+ * Fastify route handler for POST /search. Embeds a query through the shared rate limiter (bounded budget; exhaustion → 503) and performs vector store similarity search.
  */
 
 import { searchRequestSchema } from '@karmaniverous/jeeves-watcher-core';
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import type pino from 'pino';
 
-import type { EmbeddingProvider } from '../../embedding';
+import type { EmbeddingProvider, EmbedOptions } from '../../embedding';
+import { EmbeddingUnavailableError } from '../../embedding/rateLimitError';
 import type { VectorStore } from '../../vectorStore';
 import { parseBody } from './parseBody';
 import { wrapHandler } from './wrapHandler';
@@ -28,6 +29,12 @@ export interface SearchRouteDeps {
 type SearchRequest = FastifyRequest<{ Body: unknown }>;
 
 /**
+ * Query-embedding budget: interactive search fails fast with 503 rather
+ * than queueing behind a long rate-limit pause.
+ */
+const SEARCH_EMBED_BUDGET: EmbedOptions = { attempts: 3, maxWaitMs: 10_000 };
+
+/**
  * Create handler for POST /search.
  *
  * @param deps - Route dependencies.
@@ -38,7 +45,27 @@ export function createSearchHandler(deps: SearchRouteDeps) {
       const body = parseBody(searchRequestSchema, request.body, reply);
       if (!body) return;
       const { query, limit = 10, offset, filter } = body;
-      const vectors = await deps.embeddingProvider.embed([query]);
+
+      let vectors: number[][];
+      try {
+        vectors = await deps.embeddingProvider.embed(
+          [query],
+          SEARCH_EMBED_BUDGET,
+        );
+      } catch (error) {
+        if (!(error instanceof EmbeddingUnavailableError)) throw error;
+        deps.logger.warn({ err: error }, 'Search embedding unavailable');
+        if (error.retryAfterMs !== undefined) {
+          void reply.header(
+            'Retry-After',
+            String(Math.max(1, Math.ceil(error.retryAfterMs / 1000))),
+          );
+        }
+        void reply
+          .status(503)
+          .send({ error: error.name, message: error.message });
+        return;
+      }
 
       const hybridConfig = deps.getHybridConfig?.();
       if (hybridConfig?.enabled) {
