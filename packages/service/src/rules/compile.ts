@@ -3,6 +3,8 @@
  * Compiles inference rule definitions into executable AJV validators for efficient rule evaluation.
  */
 
+import type { ErrorObject } from 'ajv';
+
 import type { InferenceRule } from '../config/types';
 import { createRuleAjv } from './ajvSetup';
 
@@ -12,8 +14,13 @@ import { createRuleAjv } from './ajvSetup';
 export interface CompiledRule {
   /** The original rule definition. */
   rule: InferenceRule;
-  /** The compiled AJV validate function. */
-  validate: (data: unknown) => boolean;
+  /**
+   * The compiled AJV validate function. After a failed call, `errors` holds
+   * the AJV errors (used for `match_failed` issues).
+   */
+  validate: ((data: unknown) => boolean) & {
+    errors?: ErrorObject[] | null;
+  };
 }
 
 /**
@@ -57,6 +64,6 @@ export function compileRules(rules: InferenceRule[]): CompiledRule[] {
     validate: ajv.compile({
       $id: rule.name,
       ...rule.match,
-    }) as (data: unknown) => boolean,
+    }),
   }));
 }

@@ -5,19 +5,19 @@
 
 import type Handlebars from 'handlebars';
 
-import type { FileAttributes } from './attributes';
+import type { RuleAttributes } from './attributes';
 
 /**
  * Resolve a Handlebars template expression against file attributes.
  *
  * @param value - The value to resolve (strings are compiled as Handlebars templates).
- * @param attributes - The file attributes for variable lookup.
+ * @param attributes - The file or source attributes for variable lookup.
  * @param hbs - Handlebars instance with registered helpers.
  * @returns The resolved value.
  */
 export function resolveTemplateVars(
   value: unknown,
-  attributes: FileAttributes,
+  attributes: RuleAttributes,
   hbs: typeof Handlebars,
 ): unknown {
   if (typeof value !== 'string') return value;

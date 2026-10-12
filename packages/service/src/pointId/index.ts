@@ -23,3 +23,16 @@ export function pointId(filePath: string, chunkIndex?: number): string {
       : normalizePath(filePath);
   return uuidV5(key, NAMESPACE);
 }
+
+/**
+ * Generate a deterministic UUID v5 point ID for a chunk of a source document.
+ * The reference is used exactly as given (no normalisation), so source IDs are
+ * case-sensitive; the namespace and `#<chunk>` suffix match {@link pointId}.
+ *
+ * @param reference - The exact `<name>://<id>` reference.
+ * @param chunkIndex - Chunk index within the document.
+ * @returns A deterministic UUID v5 string.
+ */
+export function sourcePointId(reference: string, chunkIndex: number): string {
+  return uuidV5(`${reference}#${String(chunkIndex)}`, NAMESPACE);
+}

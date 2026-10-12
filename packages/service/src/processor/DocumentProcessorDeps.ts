@@ -10,6 +10,7 @@ import type { EmbeddingProvider } from '../embedding';
 import type { EnrichmentStoreInterface } from '../enrichment';
 import type { IssuesManager } from '../issues';
 import type { CompiledRule } from '../rules';
+import type { SourceRetriever } from '../sources';
 import type { TemplateEngine } from '../templates';
 import type { ValuesManager } from '../values';
 import type { VectorStore } from '../vectorStore';
@@ -39,4 +40,6 @@ export interface DocumentProcessorDeps {
   valuesManager?: ValuesManager;
   /** Optional content hash cache for move detection. */
   contentHashCache?: ContentHashCache;
+  /** Optional source callback client; without it, source documents fail `source_unavailable`. */
+  sourceRetriever?: SourceRetriever;
 }

@@ -18,7 +18,7 @@ import { loadNamespacedExports } from '../helpers/loadModule';
 import { createHandlebarsInstance, type TemplateEngine } from '../templates';
 import { renderDoc } from '../templates/renderDoc';
 import { normalizeError } from '../util/normalizeError';
-import type { FileAttributes } from './attributes';
+import type { RuleAttributes } from './attributes';
 import type { CompiledRule } from './compile';
 import { createJsonMapLib } from './jsonMapLib';
 import {
@@ -107,13 +107,13 @@ export interface ApplyRulesOptions {
  * and map output overrides set output on conflict.
  *
  * @param compiledRules - The compiled rules to evaluate.
- * @param attributes - The file attributes to match against.
+ * @param attributes - The file or source attributes to match against.
  * @param options - Optional configuration for rule application.
  * @returns The merged metadata and optional rendered content.
  */
 export async function applyRules(
   compiledRules: CompiledRule[],
-  attributes: FileAttributes,
+  attributes: RuleAttributes,
   options: ApplyRulesOptions = {},
 ): Promise<ApplyRulesResult> {
   const {

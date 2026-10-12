@@ -6,6 +6,12 @@
 /** Qdrant payload field: normalized file path. */
 export const FIELD_FILE_PATH = 'file_path';
 
+/** Qdrant payload field: source reference (`<name>://<id>`), source points only. */
+export const FIELD_SOURCE = 'source';
+
+/** Qdrant payload field: designated rule of a source document. */
+export const FIELD_SOURCE_RULE = 'source_rule';
+
 /** Qdrant payload field: zero-based chunk index. */
 export const FIELD_CHUNK_INDEX = 'chunk_index';
 

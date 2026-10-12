@@ -1,52 +1,68 @@
 /**
  * @module processor
  *
- * Core document processing pipeline. Handles extracting text, computing embeddings, syncing with vector store.
+ * Core document processing pipeline. Resolves files and source documents, computes embeddings, syncs with vector store.
  */
 
-import { stat } from 'node:fs/promises';
 import { extname } from 'node:path';
 
-import type { IssueType } from '@karmaniverous/jeeves-watcher-core';
+import type {
+  DocumentResult,
+  IssueType,
+} from '@karmaniverous/jeeves-watcher-core';
 import type pino from 'pino';
 
 import type { ContentHashCache } from '../cache';
 import type { EmbeddingProvider } from '../embedding';
 import type { EnrichmentStoreInterface } from '../enrichment';
-import { contentHash, fileHash } from '../hash';
 import type { IssuesManager } from '../issues';
 import { pointId } from '../pointId';
 import type { CompiledRule } from '../rules';
+import type { SourceRetriever } from '../sources';
 import type { TemplateEngine } from '../templates';
-import { normalizeSlashes } from '../util/normalizeSlashes';
 import type { ValuesManager } from '../values';
 import type { VectorStore } from '../vectorStore';
-import { buildMergedMetadata } from './buildMetadata';
 import { chunkIds, getChunkCount } from './chunkIds';
-import type { DocumentProcessorDeps } from './DocumentProcessorDeps';
+import type { DocumentIdentity } from './documentIdentity';
 import {
-  clearIssuesOnUnchanged,
-  handleFileErrors,
-  withIssueType,
-} from './issueRecording';
-import { FIELD_FILE_PATH } from './payloadFields';
-import { embedAndUpsert } from './processingPipeline';
+  deleteDocumentPoints,
+  indexDocument,
+  type PipelineContext,
+  updateValues,
+} from './documentPipeline';
+import type { DocumentProcessorDeps } from './DocumentProcessorDeps';
+import { handleFileErrors, withIssueType } from './issueRecording';
 import type { ProcessorConfig } from './ProcessorConfig';
+import { processSourceDocument } from './processSource';
 import type { RenderResult } from './renderResult';
-import { createSplitter } from './splitter';
-import type { DocumentProcessorInterface } from './types';
+import { FileResolver } from './resolvers/FileResolver';
+import { SourceResolver } from './resolvers/SourceResolver';
+import type { RuleContext } from './resolvers/types';
+import { withSystemFields } from './systemFields';
+import type {
+  DocumentProcessorInterface,
+  SourceProcessorInterface,
+} from './types';
 
 export type { DocumentProcessorDeps } from './DocumentProcessorDeps';
 export type { ProcessorConfig } from './ProcessorConfig';
 export type { RenderResult } from './renderResult';
 export type { DocumentProcessorInterface } from './types';
 
+/** File identity helper. */
+const fileId = (filePath: string): DocumentIdentity => ({
+  kind: 'file',
+  filePath,
+});
+
 /**
  * Core document processing pipeline.
  *
  * Handles extracting text, computing embeddings, and syncing with the vector store.
  */
-export class DocumentProcessor implements DocumentProcessorInterface {
+export class DocumentProcessor
+  implements DocumentProcessorInterface, SourceProcessorInterface
+{
   private config: ProcessorConfig;
   private readonly embeddingProvider: EmbeddingProvider;
   private readonly vectorStore: VectorStore;
@@ -57,56 +73,58 @@ export class DocumentProcessor implements DocumentProcessorInterface {
   private readonly issuesManager?: IssuesManager;
   private readonly valuesManager?: ValuesManager;
   private readonly contentHashCache?: ContentHashCache;
+  private readonly sourceRetriever?: SourceRetriever;
 
   /**
    * Create a new DocumentProcessor.
    *
    * @param deps - The processor dependencies.
    */
-  constructor({
-    config,
-    embeddingProvider,
-    vectorStore,
-    compiledRules,
-    logger,
-    templateEngine,
-    enrichmentStore,
-    issuesManager,
-    valuesManager,
-    contentHashCache,
-  }: DocumentProcessorDeps) {
-    this.config = config;
-    this.embeddingProvider = embeddingProvider;
-    this.vectorStore = vectorStore;
-    this.compiledRules = compiledRules;
-    this.logger = logger;
-    this.templateEngine = templateEngine;
-    this.enrichmentStore = enrichmentStore;
-    this.issuesManager = issuesManager;
-    this.valuesManager = valuesManager;
-    this.contentHashCache = contentHashCache;
+  constructor(deps: DocumentProcessorDeps) {
+    this.config = deps.config;
+    this.embeddingProvider = deps.embeddingProvider;
+    this.vectorStore = deps.vectorStore;
+    this.compiledRules = deps.compiledRules;
+    this.logger = deps.logger;
+    this.templateEngine = deps.templateEngine;
+    this.enrichmentStore = deps.enrichmentStore;
+    this.issuesManager = deps.issuesManager;
+    this.valuesManager = deps.valuesManager;
+    this.contentHashCache = deps.contentHashCache;
+    this.sourceRetriever = deps.sourceRetriever;
+  }
+
+  /** Rule context reflecting the current rules, templates and config. */
+  private ruleContext(): RuleContext {
+    const { compiledRules, config, logger, templateEngine } = this;
+    const { enrichmentStore } = this;
+    return { compiledRules, config, logger, templateEngine, enrichmentStore };
+  }
+
+  /** Shared pipeline dependencies. */
+  private pipelineContext(): PipelineContext {
+    return {
+      embeddingProvider: this.embeddingProvider,
+      vectorStore: this.vectorStore,
+      logger: this.logger,
+      chunkSize: this.config.chunkSize,
+      chunkOverlap: this.config.chunkOverlap,
+      issuesManager: this.issuesManager,
+      valuesManager: this.valuesManager,
+    };
+  }
+
+  /** File resolver bound to the current rule context. */
+  private fileResolver(): FileResolver {
+    const { contentHashCache } = this;
+    return new FileResolver({ ...this.ruleContext(), contentHashCache });
   }
 
   /**
    * Build merged metadata for a file and add matched_rules.
    */
-  private async buildMetadataWithRules(filePath: string) {
-    const result = await buildMergedMetadata({
-      filePath,
-      compiledRules: this.compiledRules,
-      enrichmentStore: this.enrichmentStore,
-      maps: this.config.maps,
-      logger: this.logger,
-      templateEngine: this.templateEngine,
-      configDir: this.config.configDir,
-      customMapLib: this.config.customMapLib,
-      globalSchemas: this.config.globalSchemas,
-    });
-    const metadataWithRules = {
-      ...result.metadata,
-      matched_rules: result.matchedRules,
-    };
-    return { ...result, metadataWithRules, renderAs: result.renderAs };
+  private buildMetadataWithRules(filePath: string) {
+    return this.fileResolver().buildMetadata(filePath);
   }
 
   /**
@@ -135,70 +153,37 @@ export class DocumentProcessor implements DocumentProcessorInterface {
       filePath,
       'Failed to process file',
       async () => {
-        const ext = extname(filePath);
-        const {
-          metadata,
-          extracted,
-          renderedContent,
-          matchedRules,
-          metadataWithRules,
-        } = await this.buildMetadataWithRules(filePath);
-
-        // Update values index before any skip conditions — values must
-        // reflect current rule matches even when content is unchanged.
-        if (this.valuesManager) {
-          for (const ruleName of matchedRules) {
-            this.valuesManager.update(ruleName, metadata);
-          }
+        const outcome = await this.fileResolver().resolve(filePath);
+        if (outcome.kind === 'document') {
+          await indexDocument(this.pipelineContext(), outcome.document);
         }
-
-        const textToEmbed = renderedContent ?? extracted.text;
-        if (!textToEmbed.trim()) {
-          this.logger.debug({ filePath }, 'Skipping empty file');
-          return;
-        }
-
-        // Compute file-level hash for move correlation cache.
-        const rawHash = await fileHash(filePath);
-        this.contentHashCache?.set(filePath, rawHash);
-
-        const hash = contentHash(textToEmbed);
-        const baseId = pointId(filePath, 0);
-        const existingPayload = await this.vectorStore.getPayload(baseId);
-        if (existingPayload && existingPayload['content_hash'] === hash) {
-          this.logger.debug({ filePath }, 'Content unchanged, skipping');
-          clearIssuesOnUnchanged(this.issuesManager, filePath);
-          return;
-        }
-
-        const chunkSize = this.config.chunkSize ?? 1000;
-        const chunkOverlap = this.config.chunkOverlap ?? 200;
-        const splitter = createSplitter(ext, chunkSize, chunkOverlap);
-
-        const stats = await stat(filePath);
-        const fileDates = {
-          createdAt: Math.floor(stats.birthtimeMs / 1000),
-          modifiedAt: Math.floor(stats.mtimeMs / 1000),
-        };
-
-        await embedAndUpsert(
-          {
-            embeddingProvider: this.embeddingProvider,
-            vectorStore: this.vectorStore,
-            splitter,
-            logger: this.logger,
-          },
-          textToEmbed,
-          filePath,
-          metadataWithRules,
-          existingPayload,
-          fileDates,
-        );
-
-        this.issuesManager?.clear(filePath);
       },
       undefined,
       'extraction_error',
+    );
+  }
+
+  /**
+   * Retrieve a source document through its callback and index it with its
+   * designated rule (only that rule is applied).
+   *
+   * @param ref - The exact `<name>://<id>` reference.
+   * @param rule - The designated rule name.
+   * @returns The per-document result.
+   */
+  async processSource(ref: string, rule: string): Promise<DocumentResult> {
+    const resolver = new SourceResolver({
+      ...this.ruleContext(),
+      retriever: this.sourceRetriever,
+    });
+    return processSourceDocument(
+      {
+        pipeline: this.pipelineContext(),
+        resolver,
+        enrichmentStore: this.enrichmentStore,
+      },
+      ref,
+      rule,
     );
   }
 
@@ -212,12 +197,7 @@ export class DocumentProcessor implements DocumentProcessorInterface {
       filePath,
       'Failed to delete file',
       async () => {
-        const baseId = pointId(filePath, 0);
-        const existingPayload = await this.vectorStore.getPayload(baseId);
-        const totalChunks = getChunkCount(existingPayload);
-
-        const ids = chunkIds(filePath, totalChunks);
-        await this.vectorStore.delete(ids);
+        await deleteDocumentPoints(this.vectorStore, fileId(filePath));
         this.enrichmentStore?.delete(filePath);
         this.contentHashCache?.delete(filePath);
 
@@ -251,7 +231,8 @@ export class DocumentProcessor implements DocumentProcessorInterface {
 
         const totalChunks = getChunkCount(existingPayload);
         const ids = chunkIds(filePath, totalChunks);
-        await this.vectorStore.setPayload(ids, merged);
+        const payload = withSystemFields(merged, fileId(filePath));
+        await this.vectorStore.setPayload(ids, payload);
 
         this.logger.info({ filePath, chunks: totalChunks }, 'Metadata updated');
         return merged;
@@ -263,7 +244,8 @@ export class DocumentProcessor implements DocumentProcessorInterface {
   /**
    * Re-apply inference rules to a file without re-embedding.
    * Reads file attributes, applies current rules, merges with enrichment metadata,
-   * and updates Qdrant payloads.
+   * and updates Qdrant payloads. System fields are re-asserted, so no rule
+   * property can overwrite `file_path`, `source`, `chunk_text`, etc.
    *
    * @param filePath - The file to update.
    * @returns The merged metadata, or `null` if the file is not indexed.
@@ -286,17 +268,13 @@ export class DocumentProcessor implements DocumentProcessorInterface {
           await this.buildMetadataWithRules(filePath);
 
         const ids = chunkIds(filePath, getChunkCount(existingPayload));
+        const payload = withSystemFields(metadataWithRules, fileId(filePath));
         await withIssueType('upsert_error', () =>
-          this.vectorStore.setPayload(ids, metadataWithRules),
+          this.vectorStore.setPayload(ids, payload),
         );
 
         this.issuesManager?.clear(filePath);
-
-        if (this.valuesManager) {
-          for (const ruleName of matchedRules) {
-            this.valuesManager.update(ruleName, metadata);
-          }
-        }
+        updateValues(this.valuesManager, matchedRules, metadata);
 
         this.logger.info({ filePath, chunks: ids.length }, 'Rules re-applied');
         return metadataWithRules;
@@ -362,15 +340,12 @@ export class DocumentProcessor implements DocumentProcessorInterface {
         const { metadataWithRules, matchedRules, metadata } =
           await this.buildMetadataWithRules(newPath);
 
-        // Create new points with updated IDs and file_path payload.
+        // New points: updated IDs, rule metadata, system fields re-asserted.
+        const moved = withSystemFields(metadataWithRules, fileId(newPath));
         const newPoints = oldPoints.map((pt, i) => ({
           id: pointId(newPath, i),
           vector: pt.vector,
-          payload: {
-            ...pt.payload,
-            ...metadataWithRules,
-            [FIELD_FILE_PATH]: normalizeSlashes(newPath),
-          },
+          payload: { ...pt.payload, ...moved },
         }));
 
         await withIssueType('upsert_error', async () => {
@@ -384,11 +359,7 @@ export class DocumentProcessor implements DocumentProcessorInterface {
         this.issuesManager?.clear(newPath);
 
         // Update values index for the new path's matched rules.
-        if (this.valuesManager) {
-          for (const ruleName of matchedRules) {
-            this.valuesManager.update(ruleName, metadata);
-          }
-        }
+        updateValues(this.valuesManager, matchedRules, metadata);
 
         // Update content hash cache.
         const oldHash = this.contentHashCache?.get(oldPath);

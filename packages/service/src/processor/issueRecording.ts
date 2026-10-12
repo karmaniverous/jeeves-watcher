@@ -16,15 +16,19 @@ import { logError } from '../util/logError';
 export class ProcessingFailure extends Error {
   /** Canonical issue code for the failed stage. */
   readonly issueType: IssueType;
+  /** Optional structured details (e.g. AJV errors for `match_failed`). */
+  readonly details?: unknown;
 
   /**
    * @param issueType - Canonical issue code for the failed stage.
-   * @param cause - The original error.
+   * @param cause - The original error (or a message).
+   * @param details - Optional structured details.
    */
-  constructor(issueType: IssueType, cause: unknown) {
+  constructor(issueType: IssueType, cause: unknown, details?: unknown) {
     super(cause instanceof Error ? cause.message : String(cause), { cause });
     this.name = 'ProcessingFailure';
     this.issueType = issueType;
+    this.details = details;
   }
 }
 
@@ -61,7 +65,7 @@ export interface FileErrorDeps {
 
 /** What failed, for logging and issue recording. */
 export interface FileErrorContext {
-  /** Document key (file path) the issue is recorded under. */
+  /** Document key (file path or source reference) the issue is recorded under. */
   filePath: string;
   /** Operation description, used as the log message and issue `operation`. */
   operation: string;
@@ -70,6 +74,43 @@ export interface FileErrorContext {
    * never recorded as issues.
    */
   issueType?: IssueType;
+}
+
+/** A failure after it has been logged and (when typed) recorded. */
+export interface ReportedFailure {
+  /** Issue code, when the failure was typed. */
+  type?: IssueType;
+  /** Error message. */
+  message: string;
+  /** Structured details carried by a {@link ProcessingFailure}. */
+  details?: unknown;
+}
+
+/**
+ * Log a failure and record a typed issue for the document key (replacing any
+ * earlier issues for it). Untagged failures use `context.issueType`.
+ *
+ * @param deps - Logger and optional issues store.
+ * @param context - Document key, operation and fallback issue code.
+ * @param error - The failure.
+ * @returns The issue code, message and details.
+ */
+export function reportFailure(
+  deps: FileErrorDeps,
+  context: FileErrorContext,
+  error: unknown,
+): ReportedFailure {
+  const { filePath, operation, issueType } = context;
+  const tagged = error instanceof ProcessingFailure ? error : undefined;
+  logError(deps.logger, tagged?.cause ?? error, { filePath }, operation);
+
+  const type = tagged?.issueType ?? issueType;
+  const message = error instanceof Error ? error.message : String(error);
+  if (type && deps.issuesManager) {
+    deps.issuesManager.clear(filePath);
+    deps.issuesManager.record(filePath, type, message, { operation });
+  }
+  return { type, message, details: tagged?.details };
 }
 
 /**
@@ -91,16 +132,7 @@ export async function handleFileErrors<T>(
   try {
     return await fn();
   } catch (error) {
-    const { filePath, operation, issueType } = context;
-    const tagged = error instanceof ProcessingFailure ? error : undefined;
-    logError(deps.logger, tagged?.cause ?? error, { filePath }, operation);
-
-    const type = tagged?.issueType ?? issueType;
-    if (type && deps.issuesManager) {
-      const message = error instanceof Error ? error.message : String(error);
-      deps.issuesManager.clear(filePath);
-      deps.issuesManager.record(filePath, type, message, { operation });
-    }
+    reportFailure(deps, context, error);
     return fallback;
   }
 }

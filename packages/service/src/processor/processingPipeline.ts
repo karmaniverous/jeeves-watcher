@@ -1,16 +1,20 @@
 /**
  * @module processor/processingPipeline
- * Extracted embed→chunk→upsert pipeline for DocumentProcessor.
+ * Extracted embed→chunk→upsert pipeline for DocumentProcessor, shared by file and source documents (identity decides point IDs and identity fields).
  */
 
 import type pino from 'pino';
 
 import type { EmbeddingProvider } from '../embedding';
 import { contentHash } from '../hash';
-import { pointId } from '../pointId';
-import { normalizeSlashes } from '../util/normalizeSlashes';
 import type { VectorStore } from '../vectorStore';
-import { chunkIds, getChunkCount } from './chunkIds';
+import { getChunkCount } from './chunkIds';
+import {
+  documentChunkIds,
+  type DocumentIdentity,
+  documentPointId,
+  identityLogFields,
+} from './documentIdentity';
 import { withIssueType } from './issueRecording';
 import { computeLineOffsets } from './lineOffsets';
 import {
@@ -18,13 +22,13 @@ import {
   FIELD_CHUNK_TEXT,
   FIELD_CONTENT_HASH,
   FIELD_CREATED_AT,
-  FIELD_FILE_PATH,
   FIELD_LINE_END,
   FIELD_LINE_START,
   FIELD_MODIFIED_AT,
   FIELD_TOTAL_CHUNKS,
 } from './payloadFields';
 import type { Splitter } from './splitter';
+import { withSystemFields } from './systemFields';
 
 /** Default number of points to upsert per batch (prevents OOM on large files). */
 const DEFAULT_UPSERT_BATCH_SIZE = 50;
@@ -44,24 +48,33 @@ interface PipelineDeps {
   upsertBatchSize?: number;
 }
 
+/** Document creation and modification timestamps (unix seconds). */
+export interface DocumentDates {
+  /** Creation time. */
+  createdAt: number;
+  /** Modification time. */
+  modifiedAt: number;
+}
+
 /**
  * Embed text chunks, upsert to vector store, and clean up orphaned chunks.
  *
  * @param deps - Pipeline dependencies (embedding provider, vector store, splitter, logger).
  * @param text - The text content to embed.
- * @param filePath - The file path (used for point IDs).
- * @param metadata - Metadata to attach to each chunk point.
- * @param existingPayload - Existing payload from the vector store (for orphan cleanup), or null.
- * @param fileDates - File creation and modification timestamps (unix seconds).
+ * @param identity - The document identity (point IDs and identity fields).
+ * @param metadata - Metadata to attach to each chunk point (reserved names are dropped).
+ * @param existingPayload - Existing chunk-0 payload (for orphan cleanup), or null.
+ * @param dates - Creation and modification timestamps (unix seconds).
+ * @returns The number of chunks written.
  */
-export async function embedAndUpsert(
+export async function embedAndUpsertDocument(
   deps: PipelineDeps,
   text: string,
-  filePath: string,
+  identity: DocumentIdentity,
   metadata: Record<string, unknown>,
   existingPayload: Record<string, unknown> | null,
-  fileDates: { createdAt: number; modifiedAt: number },
-): Promise<void> {
+  dates: DocumentDates,
+): Promise<number> {
   const {
     embeddingProvider,
     vectorStore,
@@ -90,18 +103,18 @@ export async function embedAndUpsert(
   });
 
   // Build all points
+  const base = withSystemFields(metadata, identity);
   const points = chunks.map((chunk, i) => ({
-    id: pointId(filePath, i),
+    id: documentPointId(identity, i),
     vector: vectors[i],
     payload: {
-      ...metadata,
-      [FIELD_FILE_PATH]: normalizeSlashes(filePath),
+      ...base,
       [FIELD_CHUNK_INDEX]: i,
       [FIELD_TOTAL_CHUNKS]: chunks.length,
       [FIELD_CONTENT_HASH]: hash,
       [FIELD_CHUNK_TEXT]: chunk,
-      [FIELD_CREATED_AT]: fileDates.createdAt,
-      [FIELD_MODIFIED_AT]: fileDates.modifiedAt,
+      [FIELD_CREATED_AT]: dates.createdAt,
+      [FIELD_MODIFIED_AT]: dates.modifiedAt,
       [FIELD_LINE_START]: offsets[i]?.lineStart ?? 1,
       [FIELD_LINE_END]: offsets[i]?.lineEnd ?? 1,
     },
@@ -116,13 +129,46 @@ export async function embedAndUpsert(
 
     // Clean up orphaned chunks
     if (oldTotalChunks > chunks.length) {
-      const orphanIds = chunkIds(filePath, oldTotalChunks).slice(chunks.length);
+      const orphanIds = documentChunkIds(identity, oldTotalChunks).slice(
+        chunks.length,
+      );
       await vectorStore.delete(orphanIds);
     }
   });
 
   logger.info(
-    { filePath, chunks: chunks.length },
-    'File processed successfully',
+    { ...identityLogFields(identity), chunks: chunks.length },
+    identity.kind === 'file'
+      ? 'File processed successfully'
+      : 'Source document processed successfully',
+  );
+  return chunks.length;
+}
+
+/**
+ * Embed and upsert a file (see {@link embedAndUpsertDocument}).
+ *
+ * @param deps - Pipeline dependencies (embedding provider, vector store, splitter, logger).
+ * @param text - The text content to embed.
+ * @param filePath - The file path (used for point IDs).
+ * @param metadata - Metadata to attach to each chunk point.
+ * @param existingPayload - Existing payload from the vector store (for orphan cleanup), or null.
+ * @param fileDates - File creation and modification timestamps (unix seconds).
+ */
+export async function embedAndUpsert(
+  deps: PipelineDeps,
+  text: string,
+  filePath: string,
+  metadata: Record<string, unknown>,
+  existingPayload: Record<string, unknown> | null,
+  fileDates: DocumentDates,
+): Promise<void> {
+  await embedAndUpsertDocument(
+    deps,
+    text,
+    { kind: 'file', filePath },
+    metadata,
+    existingPayload,
+    fileDates,
   );
 }

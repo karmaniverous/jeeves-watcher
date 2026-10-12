@@ -1,6 +1,6 @@
 /**
  * @module test/harness/service
- * Service integration harness: real Qdrant (throwaway collection, startup ensureCollection incl. payload indexes) + real processor + the real Fastify API, optionally listening on 127.0.0.1.
+ * Service integration harness: real Qdrant (throwaway collection, startup ensureCollection incl. payload indexes) + real processor (rule templates, source client) + the real Fastify API, optionally on 127.0.0.1.
  */
 
 import { mkdtemp, rm } from 'node:fs/promises';
@@ -19,6 +19,8 @@ import { createLogger } from '../../logger';
 import { DocumentProcessor } from '../../processor';
 import { EventQueue } from '../../queue';
 import { compileRules } from '../../rules';
+import { SourceClient } from '../../sources';
+import { buildTemplateEngine } from '../../templates';
 import { ValuesManager } from '../../values';
 import { VectorStoreClient } from '../../vectorStore';
 import { createTestConfig } from '../helpers';
@@ -112,6 +114,7 @@ export async function startServiceHarness(
   const enrichmentStore = new EnrichmentStore(stateDir, logger);
   const issuesManager = new IssuesManager(stateDir, logger);
   const valuesManager = new ValuesManager(stateDir, logger);
+  const inferenceRules = config.inferenceRules ?? [];
   const processor = new DocumentProcessor({
     config: {
       chunkSize: config.embedding.chunkSize,
@@ -119,11 +122,13 @@ export async function startServiceHarness(
     },
     embeddingProvider,
     vectorStore,
-    compiledRules: compileRules(config.inferenceRules ?? []),
+    compiledRules: compileRules(inferenceRules),
     logger,
+    templateEngine: await buildTemplateEngine(inferenceRules),
     enrichmentStore,
     issuesManager,
     valuesManager,
+    sourceRetriever: new SourceClient(config.sources),
   });
 
   const app = createApiServer({
