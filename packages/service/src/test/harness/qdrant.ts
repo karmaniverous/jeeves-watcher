@@ -1,6 +1,7 @@
 /**
  * @module test/harness/qdrant
- * Real-Qdrant helpers for integration tests: availability flag (set by globalSetup), URL, unique throwaway collection names, raw drop and payload-schema reads.
+ * Real-Qdrant helpers for integration tests: availability flag (set by globalSetup), URL, unique throwaway collection names, a prefix guard, raw drop/sweep and payload-schema reads.
+ * Every create/delete goes through {@link assertTestCollection}: only `jeeves_watcher_it_*` collections are ever touched.
  */
 
 /** Qdrant URL used by integration tests (`QDRANT_URL`, default localhost). */
@@ -36,10 +37,49 @@ function headers(): Record<string, string> {
   return apiKey ? { 'api-key': apiKey } : {};
 }
 
-function assertTestCollection(name: string): void {
+/**
+ * Guard: throw unless `name` is a harness collection. Call before creating
+ * or deleting any collection from a test.
+ *
+ * @param name - Collection name.
+ * @throws When `name` does not start with {@link TEST_COLLECTION_PREFIX}.
+ */
+export function assertTestCollection(name: string): void {
   if (!name.startsWith(TEST_COLLECTION_PREFIX)) {
     throw new Error(`Refusing to touch non-test collection "${name}"`);
   }
+}
+
+/**
+ * List the harness collections currently on the Qdrant server.
+ *
+ * @returns Names starting with {@link TEST_COLLECTION_PREFIX}.
+ */
+export async function listTestCollections(): Promise<string[]> {
+  const res = await fetch(`${QDRANT_URL}/collections`, {
+    headers: headers(),
+  });
+  if (!res.ok) {
+    throw new Error(`GET collections failed: ${String(res.status)}`);
+  }
+  const body = (await res.json()) as {
+    result: { collections: { name: string }[] };
+  };
+  return body.result.collections
+    .map((c) => c.name)
+    .filter((name) => name.startsWith(TEST_COLLECTION_PREFIX));
+}
+
+/**
+ * Drop every leftover harness collection (end-of-run sweep). Never touches
+ * a collection without {@link TEST_COLLECTION_PREFIX}.
+ *
+ * @returns The names dropped.
+ */
+export async function dropLeftoverTestCollections(): Promise<string[]> {
+  const names = await listTestCollections();
+  for (const name of names) await dropCollection(name);
+  return names;
 }
 
 /**

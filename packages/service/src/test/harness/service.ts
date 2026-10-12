@@ -1,6 +1,7 @@
 /**
  * @module test/harness/service
- * Service integration harness: real Qdrant (throwaway collection, startup ensureCollection incl. payload indexes) + real processor (rule templates, source client) + the real Fastify API, optionally on 127.0.0.1.
+ * Service integration harness: real Qdrant (throwaway `jeeves_watcher_it_*` collection, startup ensureCollection incl. payload indexes) + real processor (rule templates, global schemas, source client, counted mock embeddings) + the real Fastify API, optionally on 127.0.0.1.
+ * Setup failures roll back: the collection is dropped and state removed before the error propagates.
  */
 
 import { mkdtemp, rm } from 'node:fs/promises';
@@ -11,6 +12,7 @@ import type { PayloadIndexConfig } from '@karmaniverous/jeeves-watcher-core';
 import type { FastifyInstance } from 'fastify';
 
 import { createApiServer } from '../../api';
+import { createProcessorConfig } from '../../app/initialization';
 import type { JeevesWatcherConfig } from '../../config/types';
 import { createEmbeddingProvider } from '../../embedding';
 import { EnrichmentStore } from '../../enrichment';
@@ -25,10 +27,16 @@ import { buildTemplateEngine } from '../../templates';
 import { ValuesManager } from '../../values';
 import { VectorStoreClient } from '../../vectorStore';
 import { createTestConfig } from '../helpers';
-import { dropCollection, QDRANT_URL, uniqueCollectionName } from './qdrant';
+import { countingProvider, type EmbedCounter } from './countingProvider';
+import {
+  assertTestCollection,
+  dropCollection,
+  QDRANT_URL,
+  uniqueCollectionName,
+} from './qdrant';
 
 /** Small vector size keeps harness collections cheap. */
-const HARNESS_DIMENSIONS = 16;
+export const HARNESS_DIMENSIONS = 16;
 
 /** Options for {@link startServiceHarness}. */
 export interface ServiceHarnessOptions {
@@ -62,6 +70,8 @@ export interface ServiceHarness {
   enrichmentStore: EnrichmentStore;
   /** Issues store (state dir). */
   issuesManager: IssuesManager;
+  /** Live embedding counters (processor, reindex and search share one provider). */
+  embeddings: EmbedCounter;
   /** Private state directory. */
   stateDir: string;
   /** Base URL when started with `listen: true`. */
@@ -95,38 +105,80 @@ function buildConfig(
   };
 }
 
+/** Teardown steps registered as setup progresses (run in reverse). */
+type Cleanup = Array<() => Promise<void> | void>;
+
+/** Run every cleanup step in reverse order; the first error is rethrown. */
+async function runCleanup(cleanup: Cleanup): Promise<void> {
+  let first: Error | undefined;
+  for (const step of [...cleanup].reverse()) {
+    try {
+      await step();
+    } catch (error) {
+      first ??= error instanceof Error ? error : new Error(String(error));
+    }
+  }
+  if (first) throw first;
+}
+
 /**
  * Start a service harness against the real Qdrant. Callers must guard with
- * `describe.skipIf(!qdrantAvailable())`.
+ * `describe.skipIf(!qdrantAvailable())`. If any setup step fails, everything
+ * created so far (collection included) is torn down before the error
+ * propagates, so a failing `beforeAll` never leaks a collection.
  *
  * @param options - Harness options.
  * @returns The started harness.
+ * @throws When the effective collection name is not a harness collection.
  */
 export async function startServiceHarness(
   options: ServiceHarnessOptions,
 ): Promise<ServiceHarness> {
-  const collectionName = uniqueCollectionName(options.label);
+  const cleanup: Cleanup = [];
+  try {
+    return await setUp(options, cleanup);
+  } catch (error) {
+    await runCleanup(cleanup).catch(() => undefined);
+    throw error;
+  }
+}
+
+/** Setup body of {@link startServiceHarness}; registers teardown as it goes. */
+async function setUp(
+  options: ServiceHarnessOptions,
+  cleanup: Cleanup,
+): Promise<ServiceHarness> {
   const stateDir = await mkdtemp(join(tmpdir(), 'jeeves-watcher-it-'));
-  const config = buildConfig(options, collectionName, stateDir);
+  cleanup.push(() => rm(stateDir, { recursive: true, force: true }));
+  const config = buildConfig(
+    options,
+    uniqueCollectionName(options.label),
+    stateDir,
+  );
+  const { collectionName } = config.vectorStore;
+  assertTestCollection(collectionName);
   const logger = createLogger({ level: 'silent' });
 
-  const embeddingProvider = createEmbeddingProvider(config.embedding);
+  const { provider: embeddingProvider, counter } = countingProvider(
+    createEmbeddingProvider(config.embedding),
+  );
   const vectorStore = new VectorStoreClient(
     config.vectorStore,
     embeddingProvider.dimensions,
     logger,
   );
+  cleanup.push(() => dropCollection(collectionName));
   await vectorStore.ensureCollection();
 
   const enrichmentStore = new EnrichmentStore(stateDir, logger);
+  cleanup.push(() => {
+    enrichmentStore.close();
+  });
   const issuesManager = new IssuesManager(stateDir, logger);
   const valuesManager = new ValuesManager(stateDir, logger);
   const inferenceRules = config.inferenceRules ?? [];
   const processor = new DocumentProcessor({
-    config: {
-      chunkSize: config.embedding.chunkSize,
-      chunkOverlap: config.embedding.chunkOverlap,
-    },
+    config: createProcessorConfig(config, stateDir, undefined),
     embeddingProvider,
     vectorStore,
     compiledRules: compileRules(inferenceRules),
@@ -144,6 +196,7 @@ export async function startServiceHarness(
     logger,
   );
   sourceQueue.start();
+  cleanup.push(() => sourceQueue.stop());
 
   const app = createApiServer({
     descriptor: { name: 'watcher' } as never,
@@ -159,6 +212,7 @@ export async function startServiceHarness(
     enrichmentStore,
     configPath: join(stateDir, 'jeeves-watcher.config.json'),
   });
+  cleanup.push(() => app.close());
 
   let baseUrl: string | undefined;
   if (options.listen) {
@@ -176,14 +230,9 @@ export async function startServiceHarness(
     sourceQueue,
     enrichmentStore,
     issuesManager,
+    embeddings: counter,
     stateDir,
     baseUrl,
-    close: async () => {
-      await app.close();
-      await sourceQueue.stop();
-      enrichmentStore.close();
-      await dropCollection(collectionName);
-      await rm(stateDir, { recursive: true, force: true });
-    },
+    close: () => runCleanup(cleanup),
   };
 }

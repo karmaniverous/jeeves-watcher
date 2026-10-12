@@ -18,6 +18,7 @@ import { pointId } from '../pointId';
 import { DocumentProcessor } from '../processor';
 import { compileRules } from '../rules';
 import { VectorStoreClient } from '../vectorStore';
+import { uniqueCollectionName } from './harness/qdrant';
 import {
   cleanupWatchedDir,
   createTestConfig,
@@ -31,8 +32,9 @@ describe.skipIf(skipIntegration)(
   'Gitignore integration tests (requires Qdrant)',
   () => {
     const config = createTestConfig();
-    // Use a separate collection to avoid conflicts with parallel test files
-    config.vectorStore.collectionName = 'jeeves_watcher_test_gitignore';
+    // Use a separate, unique `jeeves_watcher_it_` collection: no conflicts
+    // with parallel test files, never a shared Qdrant's data.
+    config.vectorStore.collectionName = uniqueCollectionName('gitignore');
     const embeddingProvider = createEmbeddingProvider(config.embedding);
     const logger = createLogger({ level: 'silent' });
 

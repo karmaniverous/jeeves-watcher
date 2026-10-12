@@ -25,6 +25,12 @@ import { compileRules } from '../rules';
 import { ValuesManager } from '../values';
 import { VectorStoreClient } from '../vectorStore';
 import {
+  assertTestCollection,
+  dropCollection,
+  QDRANT_URL,
+  uniqueCollectionName,
+} from './harness/qdrant';
+import {
   cleanupTestDirs,
   cleanupWatchedDir,
   createTestConfig,
@@ -35,7 +41,17 @@ import {
 const skipIntegration = process.env['QDRANT_AVAILABLE'] !== 'true';
 
 describe.skipIf(skipIntegration)('Integration tests (requires Qdrant)', () => {
-  const config = createTestConfig();
+  const baseConfig = createTestConfig();
+  // Unique `jeeves_watcher_it_` collection: never touches a shared Qdrant's data.
+  const config = {
+    ...baseConfig,
+    vectorStore: {
+      ...baseConfig.vectorStore,
+      url: QDRANT_URL,
+      collectionName: uniqueCollectionName('legacy'),
+    },
+  };
+  assertTestCollection(config.vectorStore.collectionName);
   const embeddingProvider = createEmbeddingProvider(config.embedding);
   const logger = createLogger({ level: 'silent' });
 
@@ -59,13 +75,7 @@ describe.skipIf(skipIntegration)('Integration tests (requires Qdrant)', () => {
     );
 
     // Use raw Qdrant HTTP to ensure clean collection
-    const url = config.vectorStore.url;
-    const collectionName = config.vectorStore.collectionName;
-    try {
-      await fetch(`${url}/collections/${collectionName}`, { method: 'DELETE' });
-    } catch {
-      // ignore
-    }
+    await dropCollection(config.vectorStore.collectionName);
     await vectorStore.ensureCollection();
 
     const compiledRules = compileRules(config.inferenceRules ?? []);
@@ -90,14 +100,9 @@ describe.skipIf(skipIntegration)('Integration tests (requires Qdrant)', () => {
   });
 
   afterAll(async () => {
+    // Drop first: runs even when beforeAll failed before the store opened.
+    await dropCollection(config.vectorStore.collectionName);
     enrichmentStore.close();
-    const url = config.vectorStore.url;
-    const collectionName = config.vectorStore.collectionName;
-    try {
-      await fetch(`${url}/collections/${collectionName}`, { method: 'DELETE' });
-    } catch {
-      // ignore
-    }
     await cleanupTestDirs();
   });
 
@@ -107,13 +112,7 @@ describe.skipIf(skipIntegration)('Integration tests (requires Qdrant)', () => {
 
   afterEach(async () => {
     // Clear all points from collection
-    const url = config.vectorStore.url;
-    const collectionName = config.vectorStore.collectionName;
-    try {
-      await fetch(`${url}/collections/${collectionName}`, { method: 'DELETE' });
-    } catch {
-      // ignore
-    }
+    await dropCollection(config.vectorStore.collectionName);
     await vectorStore.ensureCollection();
     await cleanupWatchedDir();
   });
