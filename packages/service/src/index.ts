@@ -76,6 +76,18 @@ export {
   type RuleLogger,
   VirtualRuleStore,
 } from './rules';
+export {
+  type ParsedSourceReference,
+  parseSourceReference,
+  type ResolvedSourceReference,
+  SourceClient,
+  type SourceErrorCode,
+  SourceReferenceError,
+  type SourceRejectionCode,
+  type SourceRetrievalResult,
+  sourceRetrievalResultSchema,
+  type SourceRetriever,
+} from './sources';
 export type { CompiledTemplate } from './templates';
 export {
   buildTemplateEngine,
