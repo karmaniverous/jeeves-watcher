@@ -1,9 +1,9 @@
 /**
  * @module test/source-notify-integration.test
- * Service integration (requires Qdrant): a burst of notifications on one source reference collapses to at most two callback retrievals and leaves one point set holding the latest stub content.
+ * Service integration (requires Qdrant): a burst of notifications on one source reference, landing while the first retrieval is held in flight, collapses to exactly two callback retrievals and leaves one point set holding the latest stub content.
  */
 
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { createNotifyQueue } from '../app/sources';
 import { createLogger } from '../logger';
@@ -20,24 +20,20 @@ const PATH = '/threads/chat/thread/burst';
 const RULE = 'chat-thread';
 const BURST = 20;
 
-const sleep = (ms: number) =>
-  new Promise<void>((resolve) => {
-    setTimeout(resolve, ms);
-  });
-
 describe.skipIf(!qdrantAvailable())(
   'Service integration: source notify queue (requires Qdrant)',
   () => {
     let stub: StubSourceServer;
     let harness: ServiceHarness;
     let version = 0;
+    /** While set, a retrieval's response is held until it settles. */
+    let hold: Promise<void> | undefined;
 
     beforeAll(async () => {
       stub = await startStubSourceServer({
-        // Each retrieval returns the content current when it arrives; the
-        // delay keeps the first run in flight while the burst lands.
+        // Each retrieval returns the content current when it arrives.
         [PATH]: () => ({
-          delayMs: 300,
+          until: hold,
           body: {
             userId: 'u1',
             streaks: [
@@ -92,17 +88,29 @@ describe.skipIf(!qdrantAvailable())(
         createLogger({ level: 'silent' }),
       );
       queue.start();
+      const retrievals = () => stub.requests.filter((r) => r.path === PATH);
 
-      for (let i = 1; i <= BURST; i++) {
+      // The first run's retrieval (content 1) is held in flight...
+      let release = (): void => undefined;
+      hold = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      version = 1;
+      queue.enqueue(REF, RULE);
+      await vi.waitFor(() => {
+        expect(retrievals()).toHaveLength(1);
+      });
+
+      // ...while the rest of the burst lands; it owes one more run.
+      hold = undefined;
+      for (let i = 2; i <= BURST; i++) {
         version = i;
         queue.enqueue(REF, RULE);
-        await sleep(5);
       }
+      release();
       await queue.drain();
 
-      const retrievals = stub.requests.filter((r) => r.path === PATH);
-      expect(retrievals.length).toBeGreaterThanOrEqual(1);
-      expect(retrievals.length).toBeLessThanOrEqual(2);
+      expect(retrievals()).toHaveLength(2);
 
       const payload = await harness.vectorStore.getPayload(
         sourcePointId(REF, 0),

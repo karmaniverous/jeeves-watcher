@@ -145,45 +145,56 @@ describe.skipIf(!qdrantAvailable())(
     });
 
     it.each([
-      ['missing userId', NO_USER],
-      ['empty msgs', NO_MSGS],
-    ])('a record with %s fails match and writes nothing', async (_l, ref) => {
-      expect(await notify(ref, true)).toMatchObject({
-        results: [
-          {
-            source: ref,
-            status: 'failed',
-            error: {
-              code: 'match_failed',
-              details: expect.anything() as unknown,
+      [
+        'missing userId',
+        NO_USER,
+        { keyword: 'required', params: { missingProperty: 'userId' } },
+      ],
+      ['empty msgs', NO_MSGS, { keyword: 'minItems', params: { limit: 1 } }],
+    ])(
+      'a record with %s fails match and writes nothing',
+      async (_l, ref, ajv) => {
+        expect(await notify(ref, true)).toMatchObject({
+          results: [
+            {
+              source: ref,
+              status: 'failed',
+              error: {
+                code: 'match_failed',
+                details: expect.arrayContaining([
+                  expect.objectContaining(ajv),
+                ]) as unknown,
+              },
             },
-          },
-        ],
-      });
-      expect(
-        await harness.vectorStore.getPayload(sourcePointId(ref, 0)),
-      ).toBeNull();
+          ],
+        });
+        expect(
+          await harness.vectorStore.getPayload(sourcePointId(ref, 0)),
+        ).toBeNull();
 
-      const fresh = `${ref}-async`;
-      const issuesNow = async () =>
-        (await harness.app.inject({ url: '/issues' })).json<{
-          issues: Record<string, Record<string, unknown>[] | undefined>;
-        }>().issues;
-      expect((await issuesNow())[fresh]).toBeUndefined();
-      expect(await notify(fresh, false)).toMatchObject({ accepted: [fresh] });
-      await harness.sourceQueue.drain();
-      expect((await issuesNow())[fresh]).toEqual([
-        expect.objectContaining({
-          type: 'match_failed',
-          rule: RULE,
-          details: expect.arrayContaining([
-            expect.objectContaining({ keyword: expect.any(String) as unknown }),
-          ]) as unknown,
-        }),
-      ]);
-      expect(
-        await harness.vectorStore.getPayload(sourcePointId(fresh, 0)),
-      ).toBeNull();
-    });
+        const fresh = `${ref}-async`;
+        const issuesNow = async () =>
+          (await harness.app.inject({ url: '/issues' })).json<{
+            issues: Record<string, Record<string, unknown>[] | undefined>;
+          }>().issues;
+        expect((await issuesNow())[fresh]).toBeUndefined();
+        expect(await notify(fresh, false)).toMatchObject({ accepted: [fresh] });
+        await harness.sourceQueue.drain();
+        expect((await issuesNow())[fresh]).toEqual([
+          expect.objectContaining({
+            type: 'match_failed',
+            rule: RULE,
+            details: expect.arrayContaining([
+              expect.objectContaining({
+                keyword: expect.any(String) as unknown,
+              }),
+            ]) as unknown,
+          }),
+        ]);
+        expect(
+          await harness.vectorStore.getPayload(sourcePointId(fresh, 0)),
+        ).toBeNull();
+      },
+    );
   },
 );

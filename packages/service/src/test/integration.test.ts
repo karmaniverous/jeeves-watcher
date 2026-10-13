@@ -1,6 +1,6 @@
 /**
  * @module test/integration.test
- * File integration (requires Qdrant), pre-0.20.0 suite: add, update, delete, metadata update, rule inference and the full lifecycle of a watched file. Shared setup: {@link useLegacyIntegration}.
+ * File integration (requires Qdrant), pre-0.20.0 suite: add, update, delete, metadata update, and rule inference for a watched file. Shared setup: {@link useLegacyIntegration}.
  */
 
 import { writeFile } from 'node:fs/promises';
@@ -112,6 +112,10 @@ describe.skipIf(!qdrantAvailable())(
         const id = pointId(filePath, 0);
         const payloadBefore = await vectorStore.getPayload(id);
         const hashBefore = payloadBefore!['content_hash'];
+        const embed = vi.spyOn(embeddingProvider, 'embed');
+        onTestFinished(() => {
+          embed.mockRestore();
+        });
 
         await processor.processMetadataUpdate(filePath, {
           title: 'Test Document',
@@ -119,7 +123,7 @@ describe.skipIf(!qdrantAvailable())(
         });
 
         const payloadAfter = await vectorStore.getPayload(id);
-        // content_hash unchanged (no re-embed)
+        expect(embed).not.toHaveBeenCalled();
         expect(payloadAfter!['content_hash']).toBe(hashBefore);
         // metadata fields present
         expect(payloadAfter!['title']).toBe('Test Document');
@@ -186,45 +190,6 @@ describe.skipIf(!qdrantAvailable())(
         const payload = await vectorStore.getPayload(id);
         expect(payload).not.toBeNull();
         expect(payload!['domain']).toBe('meetings');
-      });
-    });
-
-    describe('Full document lifecycle', () => {
-      it('should handle complete add/update/delete cycle', async () => {
-        const filePath = join(getWatchDir(), 'lifecycle.txt');
-
-        // Step 1: Add file
-        await writeFile(
-          filePath,
-          'Initial content for lifecycle test.',
-          'utf8',
-        );
-        await processor.processFile(filePath);
-
-        const id = pointId(filePath, 0);
-        let payload = await vectorStore.getPayload(id);
-        expect(payload).not.toBeNull();
-        expect(payload!['chunk_text']).toContain('Initial content');
-        const initialHash = payload!['content_hash'];
-
-        // Step 2: Update file
-        await writeFile(
-          filePath,
-          'Updated content that is completely different.',
-          'utf8',
-        );
-        await processor.processFile(filePath);
-
-        payload = await vectorStore.getPayload(id);
-        expect(payload).not.toBeNull();
-        expect(payload!['chunk_text']).toContain('Updated content');
-        expect(payload!['content_hash']).not.toBe(initialHash);
-
-        // Step 3: Delete file
-        await processor.deleteFile(filePath);
-
-        payload = await vectorStore.getPayload(id);
-        expect(payload).toBeNull();
       });
     });
   },

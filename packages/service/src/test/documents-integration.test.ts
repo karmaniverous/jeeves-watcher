@@ -230,14 +230,25 @@ describe.skipIf(!qdrantAvailable())(
       ['{ must: [] }', { must: [] }],
       ['all clauses empty', { must: [], should: [], must_not: [] }],
     ])('delete with a condition-free filter %s → 400', async (_l, filter) => {
+      // A source document of its own, so the check does not lean on what
+      // earlier tests left behind.
+      await post('/documents?wait=true', {
+        documents: [{ source: A, rule: RULE }],
+      });
+      const before = await harness.vectorStore.count();
+      expect(before).toBeGreaterThan(0);
+
       const res = await post('/documents/delete', { filter });
       expect(res).toMatchObject({
         status: 400,
         body: { code: 'invalid_request' },
       });
+      expect(await harness.vectorStore.count()).toBe(before);
       expect(
-        await harness.vectorStore.getPayload(pointId(LEGACY, 0)),
+        await harness.vectorStore.getPayload(sourcePointId(A, 0)),
       ).not.toBeNull();
+      // Leave A unindexed, as the delete-by-filter test left it.
+      await post('/documents/delete', { sources: [A] });
     });
 
     it('delete by sources removes every chunk of the listed documents', async () => {

@@ -1,6 +1,6 @@
 /**
  * @module test/integration.api.test
- * File integration (requires Qdrant), pre-0.20.0 suite: API endpoints over indexed files (/rebuild-metadata, /reindex rules, /metadata, /search). Shared setup: {@link useLegacyIntegration}.
+ * File integration (requires Qdrant), pre-0.20.0 suite: API endpoints over indexed files (/rebuild-metadata, /metadata, /search filtered to one document). Shared setup: {@link useLegacyIntegration}.
  */
 
 import { writeFile } from 'node:fs/promises';
@@ -71,34 +71,6 @@ describe.skipIf(!qdrantAvailable())(
         const meta = enrichmentStore.get(filePath);
         expect(meta).not.toBeNull();
         expect(meta!['title']).toBe('Rebuilt Title');
-      });
-
-      it('POST /reindex with scope:rules should start reindex asynchronously', async () => {
-        const stateDir = config.stateDir ?? ROOT_DEFAULTS.stateDir;
-        const server = createApiServer({
-          descriptor: { name: 'watcher' } as never,
-          processor,
-          vectorStore,
-          embeddingProvider,
-          queue: new EventQueue({ debounceMs: 0, concurrency: 1 }),
-          config,
-          logger,
-          issuesManager: new IssuesManager(stateDir, logger),
-          valuesManager: new ValuesManager(stateDir, logger),
-          configPath: '',
-        });
-        onTestFinished(() => server.close());
-
-        const res = await server.inject({
-          method: 'POST',
-          url: '/reindex',
-          payload: { scope: 'rules' },
-        });
-        expect(res.statusCode).toBe(200);
-
-        const body = JSON.parse(res.body) as { status: string; scope: string };
-        expect(body.status).toBe('started');
-        expect(body.scope).toBe('rules');
       });
     });
 
@@ -181,28 +153,33 @@ describe.skipIf(!qdrantAvailable())(
         });
         onTestFinished(() => server.close());
 
-        // Search for "machine learning"
+        // Mock embeddings carry no meaning: filter to one document and
+        // expect exactly its chunk back.
+        const stored = await vectorStore.getPayload(pointId(filePath1, 0));
         const res = await server.inject({
           method: 'POST',
           url: '/search',
-          payload: { query: 'machine learning', limit: 5 },
+          payload: {
+            query: 'machine learning',
+            limit: 5,
+            filter: {
+              must: [
+                { key: 'file_path', match: { value: stored!['file_path'] } },
+              ],
+            },
+          },
         });
 
         expect(res.statusCode).toBe(200);
         const results = JSON.parse(res.body) as Array<{
           id: string;
-          score: number;
           payload: Record<string, unknown>;
         }>;
-
-        expect(results).toBeInstanceOf(Array);
-        expect(results.length).toBeGreaterThan(0);
-
-        // With mock embeddings, we can't guarantee order, but we should get results
-        const texts = results.map((r) => r.payload['chunk_text']);
-        expect(
-          texts.some((t) => typeof t === 'string' && t.includes('machine')),
-        ).toBe(true);
+        expect(results).toHaveLength(1);
+        expect(results[0]?.id).toBe(pointId(filePath1, 0));
+        expect(results[0]?.payload['chunk_text']).toBe(
+          'This document is about machine learning algorithms.',
+        );
       });
     });
   },

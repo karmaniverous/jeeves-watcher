@@ -129,9 +129,23 @@ describe.skipIf(!qdrantAvailable())(
       await harness.close();
     });
 
-    it('keeps every route open when no key is configured', async () => {
-      const res = await harness.app.inject({ method: 'GET', url: '/issues' });
-      expect(res.statusCode).toBe(200);
-    });
+    it.each([
+      { method: 'GET' as const, url: '/issues' },
+      { method: 'GET' as const, url: '/config' },
+      {
+        method: 'POST' as const,
+        url: '/scan',
+        payload: {
+          filter: { must: [{ key: 'source', match: { value: 'app://x' } }] },
+          limit: 1,
+        },
+      },
+    ])(
+      'keeps $method $url (protected under a key) open when no key is configured',
+      async (request) => {
+        const res = await harness.app.inject(request);
+        expect(res.statusCode).toBe(200);
+      },
+    );
   },
 );

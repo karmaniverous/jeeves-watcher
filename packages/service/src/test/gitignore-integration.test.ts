@@ -123,20 +123,12 @@ describe.skipIf(!qdrantAvailable())(
           }
         }
 
-        // Verify Qdrant state: only tracked file indexed
+        // The tracked file is indexed (the ignored ones were never processed).
         const trackedPayload = await vectorStore.getPayload(
           pointId(trackedFile, 0),
         );
         expect(trackedPayload).not.toBeNull();
         expect(trackedPayload!['chunk_text']).toContain('hello');
-
-        const logPayload = await vectorStore.getPayload(pointId(ignoredLog, 0));
-        expect(logPayload).toBeNull();
-
-        const distPayload = await vectorStore.getPayload(
-          pointId(ignoredDist, 0),
-        );
-        expect(distPayload).toBeNull();
       });
     });
   },

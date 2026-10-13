@@ -1,10 +1,13 @@
 /**
  * @module test/harness/service.test
- * Tests for the service harness lifecycle: it refuses a non-test collection before touching Qdrant, and a setup failure after the collection exists still drops it.
+ * Tests for the service harness lifecycle: it refuses a non-test collection before touching Qdrant, a setup failure after the collection exists still drops it, and close() drops the collection, removes the state dir and stops the source queue.
  */
 
-import { describe, expect, it } from 'vitest';
+import { existsSync } from 'node:fs';
 
+import { afterEach, describe, expect, it, vi } from 'vitest';
+
+import { VectorStoreClient } from '../../vectorStore';
 import {
   listTestCollections,
   qdrantAvailable,
@@ -45,7 +48,12 @@ describe('service harness guard', () => {
 describe.skipIf(!qdrantAvailable())(
   'service harness rollback (requires Qdrant)',
   () => {
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
     it('drops the collection when setup fails after creating it', async () => {
+      const ensure = vi.spyOn(VectorStoreClient.prototype, 'ensureCollection');
       const label = 'rollback';
       const mine = async () =>
         (await listTestCollections()).filter((n) =>
@@ -66,8 +74,19 @@ describe.skipIf(!qdrantAvailable())(
             ],
           },
         }),
-      ).rejects.toThrow();
+      ).rejects.toThrow(/schema is invalid/);
+      expect(ensure).toHaveBeenCalledOnce();
       expect(await mine()).toEqual([]);
+    });
+
+    it('close() drops the collection, removes the state dir and stops the source queue', async () => {
+      const harness = await startServiceHarness({ label: 'close' });
+      expect(await listTestCollections()).toContain(harness.collectionName);
+
+      await harness.close();
+      expect(await listTestCollections()).not.toContain(harness.collectionName);
+      expect(existsSync(harness.stateDir)).toBe(false);
+      expect(harness.sourceQueue.enqueue('app://t/1', 'r')).toBe(false);
     });
   },
 );

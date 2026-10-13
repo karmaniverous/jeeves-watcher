@@ -168,6 +168,12 @@ describe.skipIf(!qdrantAvailable())(
     });
 
     it('recovery clears the issue and leaves the content unchanged', async () => {
+      // Its own issue: not one an earlier test happened to leave.
+      harness.issuesManager.clear(REF);
+      harness.issuesManager.record(REF, 'source_unavailable', 'seeded', {
+        rule: RULE,
+      });
+      expect((await issues())[REF]).toHaveLength(1);
       stub.route(PATH, ok);
       expect(await notify(REF, true)).toMatchObject({
         results: [{ source: REF, status: 'unchanged' }],

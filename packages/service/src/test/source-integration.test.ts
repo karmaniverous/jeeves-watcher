@@ -127,12 +127,14 @@ describe.skipIf(!qdrantAvailable())(
       const before = await harness.vectorStore.getPayload(
         sourcePointId(REF, 0),
       );
+      const calls = harness.embeddings.calls;
       const result = await harness.processor
         .sourceOperations()
         .process(REF, RULE);
       expect(result.status).toBe('unchanged');
+      expect(harness.embeddings.calls).toBe(calls);
       const after = await harness.vectorStore.getPayload(sourcePointId(REF, 0));
-      expect(after?.['modified_at']).toBe(before?.['modified_at']);
+      expect(after).toEqual(before);
     });
 
     it('deletes a stored key the rule no longer projects, without re-embedding', async () => {
@@ -163,6 +165,9 @@ describe.skipIf(!qdrantAvailable())(
       expect(
         await harness.vectorStore.getPayload(sourcePointId(ref, 0)),
       ).toBeNull();
+      expect(harness.issuesManager.get(ref)).toEqual([
+        expect.objectContaining({ type: 'match_failed', rule: RULE }),
+      ]);
     });
 
     it('deletes the document points when the callback returns 404', async () => {

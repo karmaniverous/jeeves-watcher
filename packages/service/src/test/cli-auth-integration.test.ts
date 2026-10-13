@@ -9,6 +9,7 @@ import {
   afterAll,
   afterEach,
   beforeAll,
+  beforeEach,
   describe,
   expect,
   it,
@@ -51,6 +52,11 @@ describe.skipIf(!qdrantAvailable())(
       await harness.close();
     });
 
+    beforeEach(() => {
+      // A key in the developer's environment must not leak into the runs.
+      vi.stubEnv(API_KEY_ENV_VAR, undefined);
+    });
+
     afterEach(() => {
       vi.restoreAllMocks();
       vi.unstubAllEnvs();
@@ -82,7 +88,7 @@ describe.skipIf(!qdrantAvailable())(
       const run = await runCli(['issues', '--api-key', API_KEY]);
       expect(run.exitCode).toBeUndefined();
       expect(run.stderr).toBe('');
-      expect(JSON.parse(run.stdout)).toBeTypeOf('object');
+      expect(JSON.parse(run.stdout)).toEqual({ count: 0, issues: {} });
     });
 
     it('succeeds with JEEVES_WATCHER_API_KEY on a POST route', async () => {
