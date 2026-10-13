@@ -1,6 +1,6 @@
 /**
  * @module api/handlers/metadata.test
- * POST /metadata through a real Fastify route: file paths validate against matched rules; source references need a stored point (404 source_not_indexed), validate against the designated rule resolved by the processor's own lookup (config or virtual rule); 503 without source support.
+ * POST /metadata through a real Fastify route: file paths validate against matched rules; source references need a stored point (404 source_not_indexed; a failed read is 500, not 404), validate against the designated rule resolved by the processor's own lookup (config or virtual rule); 503 without source support.
  */
 
 import Fastify, { type FastifyInstance } from 'fastify';
@@ -99,6 +99,15 @@ describe('POST /metadata', () => {
     const res = await post({ source: REF, metadata: { priority: 1 } });
     expect(res.status).toBe(404);
     expect(res.body).toMatchObject({ code: 'source_not_indexed' });
+    expect(ops.updateMetadata).not.toHaveBeenCalled();
+  });
+
+  it('answers 500, not 404, when the stored-point read fails', async () => {
+    const { ops } = build({ storedRule: 'docs' });
+    ops.storedRule.mockRejectedValueOnce(new Error('qdrant down'));
+    const res = await post({ source: REF, metadata: { priority: 1 } });
+    expect(res.status).toBe(500);
+    expect(res.body).toMatchObject({ code: 'internal_error' });
     expect(ops.updateMetadata).not.toHaveBeenCalled();
   });
 

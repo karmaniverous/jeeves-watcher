@@ -17,24 +17,22 @@ export type PayloadClient = Pick<
  * @param client - Qdrant client.
  * @param collectionName - Collection.
  * @param id - The point ID.
- * @returns The payload, or `null` when the point doesn't exist or the read fails.
+ * @returns The payload, or `null` when the point doesn't exist.
+ * @throws When the read fails (a failed read is never reported as "not
+ * indexed"; callers tag and record it).
  */
 export async function getPointPayload(
   client: PayloadClient,
   collectionName: string,
   id: string,
 ): Promise<Record<string, unknown> | null> {
-  try {
-    const results = await client.retrieve(collectionName, {
-      ids: [id],
-      with_payload: true,
-      with_vector: false,
-    });
-    if (results.length === 0) return null;
-    return results[0].payload as Record<string, unknown>;
-  } catch {
-    return null;
-  }
+  const results = await client.retrieve(collectionName, {
+    ids: [id],
+    with_payload: true,
+    with_vector: false,
+  });
+  if (results.length === 0) return null;
+  return results[0].payload as Record<string, unknown>;
 }
 
 /**

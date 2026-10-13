@@ -1,6 +1,6 @@
 /**
  * @module processor/processSource.failures.test
- * Source failures that must not index: a document that renders no text is a `no_content` failure (not `unchanged`), and a designated rule whose schema `set` or template fails is an `interpolation_error` with the rule errors as details; no points are written either way.
+ * Source failures that must not index: a document that renders no text is a `no_content` failure (not `unchanged`), and a designated rule whose schema `set` or template fails is an `interpolation_error` with the rule errors as details; no points are written either way. A failed chunk-0 read is a failure, never "not indexed" (no re-embed, `created_at` kept).
  */
 
 import pino from 'pino';
@@ -72,6 +72,26 @@ describe('processSource failures', () => {
     expect(f.store.upsert).not.toHaveBeenCalled();
     expect(f.issues.get(REF)).toEqual([
       expect.objectContaining({ type: 'no_content', rule: RULE }),
+    ]);
+  });
+
+  it('fails (no re-embed) when the chunk-0 read fails on an indexed document', async () => {
+    const f = sourceReindexFixture({ [REF]: doc('u1', 'hello') });
+    await f.index(REF);
+    f.retrieve.mockImplementation(() => Promise.resolve(doc('u1', 'changed')));
+    f.store.getPayload.mockRejectedValueOnce(new Error('qdrant down'));
+    f.store.upsert.mockClear();
+
+    const result = await f.processor.processSource(REF, RULE);
+
+    expect(result).toMatchObject({
+      status: 'failed',
+      error: { code: 'extraction_error', message: 'qdrant down' },
+    });
+    expect(f.embed).not.toHaveBeenCalled();
+    expect(f.store.upsert).not.toHaveBeenCalled();
+    expect(f.issues.get(REF)).toEqual([
+      expect.objectContaining({ type: 'extraction_error', rule: RULE }),
     ]);
   });
 

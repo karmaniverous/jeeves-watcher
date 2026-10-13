@@ -41,6 +41,9 @@ describe.skipIf(!qdrantAvailable())(
         await processor.processMetadataUpdate(filePath, {
           title: 'Rebuilt Title',
         });
+        // Lose the local enrichment: only Qdrant can restore it.
+        enrichmentStore.delete(filePath);
+        expect(enrichmentStore.get(filePath)).toBeNull();
 
         const stateDir = config.stateDir ?? '.jeeves-metadata';
         const server = createApiServer({

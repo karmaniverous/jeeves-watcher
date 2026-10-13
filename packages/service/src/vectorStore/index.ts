@@ -231,6 +231,7 @@ export class VectorStoreClient implements VectorStore {
    *
    * @param id - The point ID.
    * @returns The payload, or `null` if the point doesn't exist.
+   * @throws When the read fails (never reported as a missing point).
    */
   async getPayload(id: string): Promise<Record<string, unknown> | null> {
     return getPointPayload(this.client, this.collectionName, id);
@@ -328,25 +329,22 @@ export class VectorStoreClient implements VectorStore {
    *
    * @param ids - The point IDs to retrieve.
    * @returns Points with vectors and payloads; missing IDs are omitted.
+   * @throws When the read fails (never reported as missing points).
    */
   async getPointsWithVectors(ids: string[]): Promise<VectorPoint[]> {
     if (ids.length === 0) return [];
-    try {
-      const results = await this.client.retrieve(this.collectionName, {
-        ids,
-        with_payload: true,
-        with_vector: true,
-      });
-      return results
-        .filter((r) => r.vector != null)
-        .map((r) => ({
-          id: String(r.id),
-          vector: r.vector as number[],
-          payload: r.payload as Record<string, unknown>,
-        }));
-    } catch {
-      return [];
-    }
+    const results = await this.client.retrieve(this.collectionName, {
+      ids,
+      with_payload: true,
+      with_vector: true,
+    });
+    return results
+      .filter((r) => r.vector != null)
+      .map((r) => ({
+        id: String(r.id),
+        vector: r.vector as number[],
+        payload: r.payload as Record<string, unknown>,
+      }));
   }
 
   /**

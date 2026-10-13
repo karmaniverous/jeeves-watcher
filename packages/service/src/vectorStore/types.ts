@@ -117,6 +117,7 @@ export interface VectorStore {
    *
    * @param id - The point ID.
    * @returns The payload, or `null` if the point doesn't exist.
+   * @throws When the read fails (never reported as a missing point).
    */
   getPayload(id: string): Promise<Record<string, unknown> | null>;
 

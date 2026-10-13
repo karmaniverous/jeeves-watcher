@@ -1,6 +1,6 @@
 /**
  * @module processor/documentPipeline.test
- * indexDocument: the values index is fed by files only (sources never touch it, unchanged or not); a metadata-only refresh keeps an `upsert_error` issue like the unchanged path; empty text is `skipped`.
+ * indexDocument: the values index is fed by files only (sources never touch it, unchanged or not); a metadata-only refresh keeps an `upsert_error` issue like the unchanged path; empty text is `skipped`; a failed chunk-0 read is an error, never "not indexed".
  */
 
 import pino from 'pino';
@@ -10,7 +10,11 @@ import { contentHash } from '../hash';
 import type { IssueRecord } from '../issues/types';
 import type { VectorStore } from '../vectorStore';
 import type { DocumentIdentity } from './documentIdentity';
-import { indexDocument, type PipelineContext } from './documentPipeline';
+import {
+  deleteDocumentPoints,
+  indexDocument,
+  type PipelineContext,
+} from './documentPipeline';
 import type { ResolvedDocument } from './resolvers/types';
 
 const TEXT = 'hello world';
@@ -49,19 +53,17 @@ function setup(existing: Record<string, unknown> | null = null) {
     }),
     get: (key: string) => issues[key],
   };
+  const embed = vi.fn((texts: string[]) =>
+    Promise.resolve(texts.map(() => [0.1])),
+  );
   const ctx: PipelineContext = {
-    embeddingProvider: {
-      dimensions: 1,
-      embed: vi.fn((texts: string[]) =>
-        Promise.resolve(texts.map(() => [0.1])),
-      ),
-    },
+    embeddingProvider: { dimensions: 1, embed },
     vectorStore: store as unknown as VectorStore,
     logger: pino({ level: 'silent' }),
     issuesManager,
     valuesManager,
   };
-  return { ctx, store, valuesManager, issues };
+  return { ctx, store, valuesManager, issues, embed };
 }
 
 const source: DocumentIdentity = {
@@ -124,11 +126,42 @@ describe('indexDocument unchanged content', () => {
     expect(issues['app://t/1']).toBeUndefined();
   });
 
+  it('rejects on a failed chunk-0 read instead of re-embedding as new', async () => {
+    const { ctx, store, embed } = setup();
+    store.getPayload.mockRejectedValue(new Error('qdrant down'));
+    await expect(indexDocument(ctx, document(source))).rejects.toThrow(
+      'qdrant down',
+    );
+    expect(embed).not.toHaveBeenCalled();
+    expect(store.upsert).not.toHaveBeenCalled();
+  });
+
   it('skips empty text', async () => {
     const { ctx, store } = setup();
     expect(await indexDocument(ctx, document(source, {}, '  '))).toEqual({
       status: 'skipped',
     });
     expect(store.upsert).not.toHaveBeenCalled();
+  });
+});
+
+describe('deleteDocumentPoints', () => {
+  it('deletes every chunk counted on chunk 0', async () => {
+    const { store } = setup({ total_chunks: 3 });
+    const deleted = await deleteDocumentPoints(
+      store as unknown as VectorStore,
+      source,
+    );
+    expect(deleted).toBe(3);
+    expect(store.delete.mock.calls[0][0]).toHaveLength(3);
+  });
+
+  it('rejects on a failed chunk-0 read instead of deleting only chunk 0', async () => {
+    const { store } = setup();
+    store.getPayload.mockRejectedValue(new Error('qdrant down'));
+    await expect(
+      deleteDocumentPoints(store as unknown as VectorStore, source),
+    ).rejects.toThrow('qdrant down');
+    expect(store.delete).not.toHaveBeenCalled();
   });
 });

@@ -1,6 +1,6 @@
 /**
  * @module test/reindex-sources-integration.test
- * Service integration (requires Qdrant): POST /reindex full re-retrieves every source document through the stub callback and updates changed ones; a 500 records an issue and leaves the points; prune keeps source points.
+ * Service integration (requires Qdrant): POST /reindex full re-retrieves every source document through the stub callback and updates changed ones; a 500 records an issue and leaves the points; a live prune deletes an orphaned file point and keeps every source point.
  */
 
 import { mkdtemp, rm } from 'node:fs/promises';
@@ -9,9 +9,14 @@ import { join } from 'node:path';
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { sourcePointId } from '../pointId';
+import { pointId, sourcePointId } from '../pointId';
+import { normalizeSlashes } from '../util/normalizeSlashes';
 import { qdrantAvailable } from './harness/qdrant';
-import { type ServiceHarness, startServiceHarness } from './harness/service';
+import {
+  HARNESS_DIMENSIONS,
+  type ServiceHarness,
+  startServiceHarness,
+} from './harness/service';
 import {
   startStubSourceServer,
   type StubSourceServer,
@@ -167,22 +172,40 @@ describe.skipIf(!qdrantAvailable())(
     });
 
     it('prune never selects source points', async () => {
+      // An orphaned file point: the live prune must delete it, so waiting for
+      // its deletion proves the run happened before source points are checked.
+      const orphan = join(watchDir, 'deleted.txt');
+      const orphanId = pointId(orphan, 0);
+      await harness.vectorStore.upsert([
+        {
+          id: orphanId,
+          vector: Array.from({ length: HARNESS_DIMENSIONS }, () => 0.5),
+          payload: {
+            file_path: normalizeSlashes(orphan),
+            chunk_index: 0,
+            total_chunks: 1,
+          },
+        },
+      ]);
+
       const res = await harness.app.inject({
         method: 'POST',
         url: '/reindex',
         payload: { scope: 'prune', dryRun: true },
       });
       expect(res.json()).toMatchObject({
-        plan: { toDelete: 0 },
+        plan: { toDelete: 1 },
       });
 
-      // A live run, too: no source point is deleted.
       const live = await harness.app.inject({
         method: 'POST',
         url: '/reindex',
         payload: { scope: 'prune' },
       });
       expect(live.json()).toMatchObject({ status: 'started' });
+      await waitFor(
+        async () => (await harness.vectorStore.getPayload(orphanId)) === null,
+      );
       await waitFor(async () => {
         const status = await harness.app.inject({ url: '/status' });
         return !status.json<{ health: { reindex: { active: boolean } } }>()

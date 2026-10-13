@@ -6,7 +6,7 @@
 import { writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
-import { beforeAll, describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it, onTestFinished, vi } from 'vitest';
 
 import { pointId } from '../pointId';
 import { DocumentProcessor } from '../processor';
@@ -75,12 +75,17 @@ describe.skipIf(!qdrantAvailable())(
 
         const id = pointId(filePath, 0);
         const payload1 = await vectorStore.getPayload(id);
+        const embed = vi.spyOn(embeddingProvider, 'embed');
+        onTestFinished(() => {
+          embed.mockRestore();
+        });
 
         // Process again — should skip (content hash matches)
         await processor.processFile(filePath);
 
+        expect(embed).not.toHaveBeenCalled();
         const payload2 = await vectorStore.getPayload(id);
-        expect(payload2!['content_hash']).toBe(payload1!['content_hash']);
+        expect(payload2).toEqual(payload1);
       });
     });
 
