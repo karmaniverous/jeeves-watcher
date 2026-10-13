@@ -26,9 +26,11 @@ Every point carries exactly one identity field:
 | Point ID | UUIDv5 of the **normalised** path + chunk index (case-insensitive) | UUIDv5 of the **exact** reference + chunk index (case-sensitive) |
 | Extra system fields | none | `source_rule` (the designated rule) |
 
-File points are unchanged by source support: same point IDs, same payload fields, no reindex on upgrade. A file point never carries `source`, and a source point never carries `file_path`. Consumers that need "the document key" can read `file_path ?? source`.
+File points are unchanged by source support: same point IDs, same payload fields, no reindex on upgrade. A source point never carries `file_path`, and the watcher never writes `source` onto a file point. Consumers that need "the document key" can read `file_path ?? source`.
 
-`source` and `source_rule` are reserved payload fields, alongside `file_path`, `chunk_index`, `chunk_text`, `total_chunks`, `content_hash`, `matched_rules`, `line_start`, `line_end`, `created_at` and `modified_at`. Rule and enrichment metadata can never overwrite them, and config validation warns when a rule schema declares a property with a reserved name.
+The watcher treats a point as a **source point** only when it carries a non-empty string `source` **and no `file_path`**. A legacy file point whose rule wrote a `source` metadata value (before `source` became reserved) still carries `file_path`, so it is a file point: prune may delete it, and it is never discovered by a source reindex or deleted by `POST /documents/delete`.
+
+`source` and `source_rule` are reserved payload fields, alongside `file_path`, `chunk_index`, `chunk_text`, `total_chunks`, `content_hash`, `matched_rules`, `line_start`, `line_end`, `created_at` and `modified_at`. Rule and enrichment metadata can never overwrite them (reserved names are dropped from metadata before every write), and a rule schema that declares a property with a reserved name produces a warning: on the console at startup, in the log on config reload, and under `warnings` from `POST /config/validate`.
 
 ### References
 
@@ -77,7 +79,7 @@ Rules for `sources`:
 - A `url` that is not an absolute http(s) URL, or that places `{id}` in the scheme, host or port, also stops the service at startup.
 - `sources` is read **at startup only**. Changing it requires a restart.
 - An unknown key under `sources.<name>` (for example `timeout` instead of `timeoutMs`) is ignored with a warning, logged at startup and on config reload and returned by `POST /config/validate` under `warnings`.
-- `sources` never appears in `GET /config` (with or without a JSONPath `path`), and neither does the `api` block, so URLs, header values and the API key cannot leak through the API.
+- `sources` never appears in `GET /config` (with or without a JSONPath `path`) or in the config echoed by `POST /config/apply`, and neither does the `api` block, so URLs, header values and the API key cannot leak through the API.
 - A notification naming a source that is not configured is rejected (`unknown_source`) and no request is made. The watcher only ever requests URLs built from this config, and never follows a URL to another origin.
 
 ---
@@ -121,7 +123,7 @@ Every notification names a **designated rule**: `{ "source": "app://chat/thread/
 - Only the designated rule is applied to the document. Other rules are not evaluated, even if their `match` would accept it.
 - The rule must exist in the watcher's current rule set; otherwise the notification is rejected (`rule_missing`). If the rule disappears later (for example after a config change), processing records a `rule_missing` issue and leaves the points alone.
 - The rule's name is stored on every point as `source_rule` and reused by reindex, `POST /render`, `POST /metadata` and `POST /reindex { scope: "path", source }`. Re-notifying a reference with a different rule switches it.
-- The rule's `match` is evaluated and acts as the **input contract**: if the retrieved record does not match, nothing is written and a `match_failed` failure is reported with the AJV errors in `details`. A failed match is never an HTTP error on `POST /documents`: asynchronously it becomes a `match_failed` issue, and with `?wait=true` a `failed` result.
+- The rule's `match` is evaluated and acts as the **input contract**: if the retrieved record does not match, nothing is written and a `match_failed` failure is reported with the AJV errors in `details`. The designated rule is applied alone, with no file reader: a `map` that calls `fetchSiblings` gets an empty list, since a source document has no directory and a rule must not read server files. A failed match is never an HTTP error on `POST /documents`: asynchronously it becomes a `match_failed` issue, and with `?wait=true` a `failed` result.
 - Every issue recorded for a source document carries the designated rule (`rule`), plus `details` where there is structured context. This is how `POST /reindex { "scope": "issues" }` can retry a reference whose very first notification failed (it has no points, so no stored rule).
 
 ### Attributes
@@ -209,10 +211,10 @@ A designated rule for it:
 
 The embedded text is chosen like this:
 
-- **The rule has a `template` or `render`:** its output is embedded and split with the Markdown splitter. The template context holds the JSON record's top-level fields, plus `source` (the identity object above), `json` (the whole record) and the rule's metadata. A record field named `source` is shadowed by the identity object; read it as `json.source`.
-- **Neither:** the JSON is extracted and split exactly as a `.json` file would be.
+- **The rule has a `template` or `render`:** its output is embedded and split with the Markdown splitter. The template context holds the JSON record's top-level fields, plus `source` (the identity object above), `json` (the whole record) and the rule's metadata, in that order of precedence (later wins). A record field named `source` or `json`, or one with the same name as a metadata property, is shadowed; read it as `json.<field>`.
+- **Neither, or the output is empty:** the JSON is extracted and split exactly as a `.json` file would be (an empty template or `render` output is logged and falls back to this).
 
-A designated rule that renders **no text** (an empty template output, or JSON that extracts to nothing) fails with `no_content`; nothing is written. If a `set` expression, `template` or `render` fails, the document fails with `interpolation_error` (one `details` entry per failed step) and nothing is written. (A file in the same situation is still indexed without the failed values, with an `interpolation_error` issue.)
+A document with **no text** to embed (JSON that extracts to nothing) fails with `no_content`; nothing is written. If a `set` expression, `template` or `render` fails, the document fails with `interpolation_error` (one `details` entry per failed step) and nothing is written. (A file in the same situation is still indexed without the failed values, with an `interpolation_error` issue.)
 
 Chunking follows the instance-wide `embedding.chunkSize` and `embedding.chunkOverlap`. A long record becomes several points, all carrying the same `source`; when it shrinks, the surplus chunks are removed.
 
@@ -229,31 +231,31 @@ Each run retrieves the current record and ends in one of four outcomes (the `sta
 | Status | When | Effect |
 | --- | --- | --- |
 | `indexed` | Content changed (or the document is new); or the content is unchanged but the projected metadata differs. | Content change: re-chunk, re-embed, upsert, remove surplus chunks. Metadata-only change: `setPayload` on every chunk (and `delete-payload` for keys no longer projected), **no embedding call**. |
-| `unchanged` | Same rendered-text hash (`content_hash`) and same metadata. | Nothing written, no embedding call. Clears open issues for the reference, except an `upsert_error` (a partial upsert can leave the new hash on chunk 0, so a matching hash does not prove success). |
+| `unchanged` | Same rendered-text hash (`content_hash`) and same metadata. | Nothing written, no embedding call. Clears the reference's open issues, unless one of them is an `upsert_error` (then all are kept: a partial upsert can leave the new hash on chunk 0, so a matching hash does not prove success). |
 | `deleted` | The callback answered `404`. | Points, enrichment metadata and issues for the reference are removed. |
-| `failed` | Any failure (see [Issue codes](./api-reference.md#issue-codes)). | Nothing written; points untouched. An issue is recorded under the reference. |
+| `failed` | Any failure (see [Issue codes](./api-reference.md#issue-codes)). | Nothing written; points untouched. An issue is recorded under the reference. A failed Qdrant read (of the stored chunk 0) is a failure too, never treated as "not indexed": the document is not re-embedded on the strength of a read error. |
 
 Details:
 
 - A metadata-only change that drops a previously projected property removes it from every chunk with Qdrant's delete-payload; the document is not re-embedded. A failed write records an `upsert_error` issue.
 - `matched_rules` on a source point is always the designated rule; rule or enrichment metadata cannot override it.
 - Source documents never feed the values index behind [`GET /search/facets`](./api-reference.md#get-searchfacets) and the `values` of `GET /config`: those list values seen in files only.
-- `created_at` is kept from the existing chunk 0 when present, otherwise set to the processing time; `modified_at` is the processing time. Business dates belong in rule metadata (as `updated_at` in the example).
-- Enrichment metadata set with `POST /metadata { source }` is stored under the exact reference and merged on every later run, as for files.
+- `created_at` is kept from the existing chunk 0 when present, otherwise set to the processing time; `modified_at` is the time of the last write (a content or metadata change; an `unchanged` run leaves it alone). Business dates belong in rule metadata (as `updated_at` in the example).
+- Enrichment metadata set with `POST /metadata { source }` is validated against the stored designated rule's schema (`400 invalid_request` on a type mismatch), stored under the exact reference and merged on every later run, as for files. A reference with no stored point is `404 source_not_indexed` and nothing is stored; if Qdrant cannot be read the request fails with `500 internal_error` (never `404`).
 - Issues are keyed by the exact reference in `GET /issues`. A later successful run clears them.
 
 ---
 
 ## Notifications, Queuing and Coalescing
 
-`POST /documents` validates each notification synchronously and, by default, answers `202` after queuing the accepted references. Processing happens on an in-memory notify queue keyed by reference:
+`POST /documents` validates each notification synchronously and, by default, answers `202` with `accepted` and `rejected` after queuing the accepted references. A request with 0 or more than 100 documents, a missing or empty `rule`, or an unknown key fails as a whole with `400 invalid_request`; a bad reference, unconfigured source, unsafe id or unknown rule rejects only its own document (`invalid_reference`, `unknown_source`, `invalid_id`, `rule_missing`). Processing happens on an in-memory notify queue keyed by reference:
 
 - A notification for a reference that is already **pending** is merged into it (the latest rule wins; the reference keeps its place in line).
-- A notification for a reference that is **in flight** marks it dirty: when the current run ends, the reference is processed exactly once more, however many notifications arrived meanwhile.
+- A notification for a reference that is **in flight** marks it dirty: when the current run ends, the reference is queued (at the back) and processed exactly once more, however many notifications arrived meanwhile.
 - Runs for the same reference never overlap, and every run retrieves current state, so a burst of notifications for one reference costs at most two retrievals and the final state always wins.
 - Up to `embedding.concurrency` references (default `5`) are processed at once.
 - The queue is paused during a prune, like the file event queue.
-- The queue is not persisted. On shutdown the API server closes first (no new notifications), the file watchers stop, and the queue is drained, then stopped, each step bounded by `shutdownTimeoutMs`; anything still pending after that is dropped, and a request still being handled when the queue stops gets `queue_stopped` for its documents. The stores (enrichment, issues) are closed only after the queue has stopped; if draining timed out they are left open so a run still in flight can finish its writes. Re-notify, or run a reindex, after a restart if that matters.
+- The queue is not persisted. On shutdown the config watcher stops, then the API server closes (no new notifications), then VCS and the filesystem watcher stop. Then the file event queue is drained and stopped, and after it the notify queue is drained and stopped; each of these steps is bounded by `shutdownTimeoutMs`. Stopping drops whatever is still pending (including owed re-runs) and waits for in-flight runs; a request still being handled when the queue stops gets `queue_stopped` for its documents. The enrichment store is closed only when both stops finished; if a stop timed out (a run still in flight) it is left open so that run can finish its writes. Re-notify, or run a reindex, after a restart if that matters.
 - An unexpected error inside a run (not a reported failure) records an `extraction_error` issue under the reference, with the designated rule, so it is never lost silently.
 
 With `?wait=true`, the same queue processes the notifications (so concurrency and coalescing still apply) and the response carries one result per document. Use it for backfills and tests; the asynchronous path is the normal one, and its failures surface in `GET /issues`.
@@ -264,7 +266,7 @@ There is no push mode: the watcher always retrieves content through the callback
 
 ## Reindex, Prune and Deletion
 
-Reindex discovers source documents from Qdrant (chunk-0 points carrying `source` and `source_rule`). A document that was never notified is never found: notifications are the only entry point, as filesystem events are for files.
+Reindex discovers source documents from Qdrant: chunk-0 source points (non-empty `source`, no `file_path`). A document whose chunk 0 has no `source_rule` is counted but skipped. A document that was never notified is never found: notifications are the only entry point, as filesystem events are for files.
 
 | `POST /reindex` scope | Source documents |
 | --- | --- |
@@ -272,16 +274,16 @@ Reindex discovers source documents from Qdrant (chunk-0 points carrying `source`
 | `rules` (no `path`) | Every indexed source document is retrieved and its stored rule re-applied. Unchanged content: metadata is updated with `setPayload`, no embedding call. If the rule now renders different text, the document is re-embedded. |
 | `rules` with `path` | Files only. |
 | `issues` | Source references with open issues: indexed documents with their stored rule; references that were never indexed (their first notification failed) with the `rule` recorded on their issue. |
-| `path` with `source` | The listed references (at most 1000 per request), re-processed with their stored rule. References that are not indexed are skipped. |
-| `prune` | Never selects source points. Prune only deletes file points. |
+| `path` with `source` | The listed references (at most 1000 per request), re-processed with their stored rule. References that are not indexed are skipped (counted in `total`, not in `toProcess`). The references are enqueued on the notify queue like notifications: the request answers at once, and the work is not a tracked reindex run (no `GET /status` progress, no completion callback). |
+| `prune` | Never selects source points. Prune only deletes file points (including legacy file points that carry a rule-written `source`). |
 
-Retrieval outcomes are the same in every scope: `404` deletes the document; any other failure records an issue and leaves its points untouched. Source documents are retrieved with up to `reindex.concurrency` documents in flight, each source still capped by its own `concurrency`.
+Retrieval outcomes are the same in every scope: `404` deletes the document; any other failure records an issue and leaves its points untouched. In `full`, `rules` and `issues`, source documents run after the files. Up to `reindex.concurrency` (default `50`) documents are submitted to the notify queue at once; the queue's own concurrency (`embedding.concurrency`) and each source's `concurrency` still cap the runs and callbacks. A failing document never stops the run. The completion callback (`reindex.callbackUrl`) then carries `sources` (counts of `indexed`, `unchanged`, `deleted`, `failed`) and an `errors` list naming the failed file paths first, then the failed source references.
 
 Every source run of a reindex goes through the notify queue: a reindex and a notification of the same reference never run in parallel, and when they meet they coalesce into one run (forced re-embedding if either asked for it) that retrieves the latest record.
 
 A **config-triggered** reindex (`configWatch.reindex`) covers files only. To re-apply changed rules to source documents, call `POST /reindex` explicitly (`rules` or `full`).
 
-To remove source documents, use `POST /documents/delete` with explicit references or a Qdrant filter. The filter is always constrained to points carrying `source` and no `file_path`, so it can never delete a file point. A filter without any condition (`{}`, `{ "must": [] }`, ...) is rejected with `400` rather than deleting every source document. See the [API Reference](./api-reference.md#post-documentsdelete).
+To remove source documents, use `POST /documents/delete` with exactly one of `sources` (1 to 1000 references; more is `400 invalid_request`) or `filter` (a Qdrant filter); other keys are rejected. The filter is always constrained to source points (non-empty `source`, no `file_path`), so it can never delete a file point, including a legacy file point carrying a rule-written `source`. A filter without any condition (`{}`, `{ "must": [] }`, ...) is rejected with `400 invalid_request` rather than deleting every source document, as is a filter Qdrant rejects. The response is `{ "deleted": <documents removed> }`. Enrichment metadata and issues are removed for the deleted references and, in the `sources` form, for every listed reference. A notification still queued for a deleted reference re-indexes it when it runs. See the [API Reference](./api-reference.md#post-documentsdelete).
 
 ---
 
@@ -339,7 +341,7 @@ const hits = await watcher.search({
 
 ## Next Steps
 
-- [API Reference](./api-reference.md) — `POST /documents`, `POST /documents/delete` and the source forms of `/render`, `/metadata` and `/reindex`
-- [Configuration Reference](./configuration.md) — `sources`, `api.apiKey`, `vectorStore.payloadIndexes` and rate limiting
-- [Inference Rules](./inference-rules.md) — schemas, `set`, `map`, templates
-- [Deployment](./deployment.md#source-documents) — operating a watcher that serves source documents
+- [API Reference](./api-reference.md): `POST /documents`, `POST /documents/delete` and the source forms of `/render`, `/metadata` and `/reindex`
+- [Configuration Reference](./configuration.md): `sources`, `api.apiKey`, `vectorStore.payloadIndexes` and rate limiting
+- [Inference Rules](./inference-rules.md): schemas, `set`, `map`, templates
+- [Deployment](./deployment.md#source-documents): operating a watcher that serves source documents
