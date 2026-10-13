@@ -14,4 +14,4 @@ permissions:
 
 jobs:
   docs:
-    uses: karmaniverous/gha-workflows/.github/workflows/docs.yml@ci/node24-pinned-runner
+    uses: karmaniverous/gha-workflows/.github/workflows/docs.yml@main
