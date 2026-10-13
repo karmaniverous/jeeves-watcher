@@ -213,4 +213,16 @@ describe('scan command', () => {
     const body = JSON.parse(getFirstRequestBody()) as Record<string, unknown>;
     expect(body.fields).toEqual(['file_path', 'domain']);
   });
+
+  it('reports a --filter that is not JSON without sending a request', async () => {
+    const cli = makeCli();
+    mockJsonResponse({ points: [] });
+
+    await cli.parseAsync(['node', 'test', 'scan', '--filter', '{nope']);
+
+    expect(mockFetch).not.toHaveBeenCalled();
+    expect(consoleErrorSpy).toHaveBeenCalledWith(expect.stringMatching(/JSON/));
+    expect(process.exitCode).toBe(1);
+    process.exitCode = undefined;
+  });
 });

@@ -6,13 +6,16 @@
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { Readable } from 'node:stream';
 
+import { Command } from '@commander-js/extra-typings';
 import { createServiceCli } from '@karmaniverous/jeeves';
 import { API_KEY_ENV_VAR } from '@karmaniverous/jeeves-watcher-core';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { watcherDescriptor } from '../../descriptor';
 import { cliUnauthorizedMessage } from './apiClient';
+import { authenticateConfigCommands } from './configCommands';
 
 const KEY = 'config-cmd-secret';
 const BASE = 'http://127.0.0.1:1936';
@@ -86,6 +89,33 @@ describe('config (query)', () => {
 });
 
 describe('config apply', () => {
+  const stdin = Object.getOwnPropertyDescriptor(process, 'stdin');
+
+  /** Replace process.stdin with a stream of `text` for one test. */
+  function feedStdin(text: string): void {
+    Object.defineProperty(process, 'stdin', {
+      configurable: true,
+      value: Readable.from(text ? [Buffer.from(text)] : []),
+    });
+  }
+
+  afterEach(() => {
+    if (stdin) Object.defineProperty(process, 'stdin', stdin);
+  });
+
+  it.each([
+    ['a JSON patch', '{"a":1}', { a: 1 }],
+    ['empty input', '', {}],
+    ['whitespace only', ' \n', {}],
+  ])('reads %s from stdin without --file', async (_label, text, patch) => {
+    feedStdin(text);
+    respond(200, { applied: true });
+    await runCli(['config', 'apply']);
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe(`${BASE}/config/apply`);
+    expect(JSON.parse(init?.body as string)).toEqual({ patch });
+  });
+
   it('posts the file patch with the env key', async () => {
     vi.stubEnv(API_KEY_ENV_VAR, KEY);
     const file = join(dir, 'patch.json');
@@ -154,4 +184,22 @@ describe('config apply', () => {
       expect(process.exitCode).toBe(1);
     },
   );
+});
+
+describe('authenticateConfigCommands guards', () => {
+  it('leaves a program without a config command untouched', () => {
+    const program = new Command();
+    expect(() => {
+      authenticateConfigCommands(program);
+    }).not.toThrow();
+    expect(program.commands).toHaveLength(0);
+  });
+
+  it('re-wires config even when it has no apply subcommand', () => {
+    const program = new Command();
+    const config = program.command('config');
+    authenticateConfigCommands(program);
+    expect(config.options.map((o) => o.long)).toEqual(['--api-key']);
+    expect(config.commands).toHaveLength(0);
+  });
 });

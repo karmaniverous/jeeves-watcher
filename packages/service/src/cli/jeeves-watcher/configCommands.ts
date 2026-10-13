@@ -16,6 +16,7 @@ import {
   API_DEFAULTS,
   API_KEY_ENV_VAR,
   getEndpoint,
+  isPlainObject,
 } from '@karmaniverous/jeeves-watcher-core';
 import { z } from 'zod';
 
@@ -89,10 +90,8 @@ async function readPatch(file?: string): Promise<Record<string, unknown>> {
       { cause: err },
     );
   }
-  if (typeof patch !== 'object' || patch === null || Array.isArray(patch)) {
-    throw new Error('patch must be a JSON object');
-  }
-  return patch as Record<string, unknown>;
+  if (!isPlainObject(patch)) throw new Error('patch must be a JSON object');
+  return patch;
 }
 
 /**

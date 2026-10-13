@@ -64,6 +64,10 @@ describe('getApiKey', () => {
     expect(getApiKey({ registerTool: vi.fn() })).toBe('env-key');
   });
 
+  it('treats a blank entry-config key as unset', () => {
+    expect(getApiKey(withEntryConfig({ apiKey: '  ' }))).toBeUndefined();
+  });
+
   it('returns undefined when unset or blank', () => {
     expect(getApiKey({ registerTool: vi.fn() })).toBeUndefined();
     process.env.JEEVES_WATCHER_API_KEY = ' ';

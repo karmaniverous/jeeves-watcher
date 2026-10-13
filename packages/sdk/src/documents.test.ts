@@ -56,15 +56,22 @@ describe('documents.notify', () => {
     expect(mock.calls[0]?.url).toBe(`${BASE}/documents?wait=true`);
   });
 
-  it('a runtime boolean yields the union type', async () => {
-    const { watcher } = client({ body: RESULTS });
-    const wait = Math.random() >= 0;
-    const res = await watcher.documents.notify([DOC], { wait });
-    expectTypeOf(res).toEqualTypeOf<
-      DocumentsAcceptedResponse | DocumentsResultsResponse
-    >();
-    expect(res).toEqual(RESULTS);
-  });
+  it.each([
+    [true, 200, RESULTS, `${BASE}/documents?wait=true`],
+    [false, 202, ACCEPTED, `${BASE}/documents`],
+  ] as const)(
+    'a runtime boolean (%s) yields the union type and the matching body',
+    async (flag, status, body, url) => {
+      const { watcher, mock } = client({ status, body });
+      const wait: boolean = flag;
+      const res = await watcher.documents.notify([DOC], { wait });
+      expectTypeOf(res).toEqualTypeOf<
+        DocumentsAcceptedResponse | DocumentsResultsResponse
+      >();
+      expect(res).toEqual(body);
+      expect(mock.calls[0]?.url).toBe(url);
+    },
+  );
 
   it('rejects a 202 shape when wait=true expected results', async () => {
     const { watcher } = client({ status: 202, body: ACCEPTED });

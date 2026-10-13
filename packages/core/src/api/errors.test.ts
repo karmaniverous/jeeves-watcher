@@ -32,10 +32,26 @@ describe('apiErrorCodeSchema', () => {
     ]);
   });
 
-  it.each(API_ERROR_CODES)('%s is snake_case with a 4xx/5xx status', (c) => {
+  it.each(API_ERROR_CODES)('%s is snake_case', (c) => {
     expect(c).toMatch(/^[a-z]+(_[a-z]+)*$/);
-    expect(API_ERROR_STATUS[c]).toBeGreaterThanOrEqual(400);
-    expect(API_ERROR_STATUS[c]).toBeLessThan(600);
+  });
+
+  it('assigns each code its documented status', () => {
+    expect(API_ERROR_STATUS).toEqual({
+      invalid_request: 400,
+      unauthorized: 401,
+      path_not_watched: 403,
+      not_found: 404,
+      source_not_indexed: 404,
+      source_not_found: 404,
+      unsupported_content_type: 422,
+      pipeline_error: 422,
+      source_unavailable: 502,
+      not_available: 503,
+      scan_in_progress: 503,
+      embedding_unavailable: 503,
+      internal_error: 500,
+    });
   });
 
   it('rejects human text', () => {

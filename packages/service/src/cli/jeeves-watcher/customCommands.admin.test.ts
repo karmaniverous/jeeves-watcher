@@ -185,6 +185,15 @@ describe('helpers command', () => {
     expect(output).toContain('slack_format');
   });
 
+  it('prints the no-helpers message for an empty query result', async () => {
+    mockJsonResponse({ result: [], count: 0 });
+
+    const cli = makeCli();
+    await cli.parseAsync(['node', 'test', 'helpers']);
+
+    expect(consoleLogSpy).toHaveBeenCalledWith('No helpers configured.');
+  });
+
   it('prints message when no helpers are configured', async () => {
     mockFetch.mockResolvedValue({
       ok: true,
