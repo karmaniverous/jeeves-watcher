@@ -45,7 +45,9 @@ export interface SourceScope extends SourceDiscovery {
  *   re-embedding then is the only way to keep vectors consistent.
  * - `issues`: source references present in the issues store, with their
  *   stored rule, or the rule recorded on the issue when the document has no
- *   points (its first notification failed).
+ *   points (its first notification failed). A reference whose stored-rule
+ *   lookup fails (e.g. a processor adapted by `withoutSourceSupport`) is
+ *   `unresolved`: the run counts and lists it as failed and continues.
  * - `rules` with a path filter, `path`, `prune`: none (file globs only;
  *   `path` with `source` goes through the notify queue).
  *
@@ -73,6 +75,12 @@ export async function resolveSourceScope(
       issues,
       ops,
       reindexConcurrency(deps.config),
+      (ref, error) => {
+        deps.logger.warn(
+          { source: ref, err: normalizeError(error) },
+          'Failed to look up the stored rule of a source document',
+        );
+      },
     );
     return { ...found, queue, force: false };
   }
@@ -134,7 +142,8 @@ export interface SourceScopeOutcome {
  * designated rule, through the notify queue. A 404 deletes the document's
  * points; any other failure is recorded as an issue and leaves its points
  * untouched, so a source outage can never empty the index. A stopped queue
- * (shutdown) counts the remaining documents as failed.
+ * (shutdown) counts the remaining documents as failed, as are the scope's
+ * `unresolved` references (not processed).
  *
  * @param scope - The scope's source documents.
  * @param options - Concurrency, logger and progress hook.
@@ -150,7 +159,8 @@ export async function runSourceScope(
     deleted: 0,
     failed: 0,
   };
-  const failed: string[] = [];
+  const failed: string[] = [...(scope.unresolved ?? [])];
+  counts.failed = failed.length;
   const { queue, force } = scope;
   await parallel(options.concurrency, scope.targets, async ({ ref, rule }) => {
     try {

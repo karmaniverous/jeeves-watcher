@@ -1,6 +1,6 @@
 /**
  * @module api/sourceDiscovery.test
- * discoverIssueSources: references take their stored rule when indexed, otherwise the latest rule recorded on their issue (first notification failed, no points); references with neither are counted but not targeted; file keys are ignored. discoverIndexedSources pages through chunk-0 source points (projection source/source_rule), dedupes and skips points without a rule. countBySourceName groups by name.
+ * discoverIssueSources: references take their stored rule when indexed, otherwise the latest rule recorded on their issue (first notification failed, no points); references with neither are counted but not targeted; file keys are ignored; a failed lookup is unresolved (reported, not thrown). discoverIndexedSources pages through chunk-0 source points (projection source/source_rule), dedupes and skips points without a rule. countBySourceName groups by name.
  */
 
 import { describe, expect, it, vi } from 'vitest';
@@ -46,6 +46,34 @@ describe('discoverIssueSources', () => {
     );
     expect(found.targets).toHaveLength(2);
     expect(ops.storedRule).not.toHaveBeenCalledWith('/docs/a.md');
+    expect(found.unresolved).toEqual([]);
+  });
+
+  it('reports a failed lookup as unresolved and resolves the rest', async () => {
+    const boom = new Error('not available');
+    const ops = {
+      storedRule: vi.fn((ref: string) =>
+        ref === 'app://broken' ? Promise.reject(boom) : Promise.resolve('r'),
+      ),
+    };
+    const onLookupError = vi.fn();
+
+    const found = await discoverIssueSources(
+      {
+        'app://broken': [issue('recorded-rule')],
+        'app://fine': [issue()],
+      },
+      ops,
+      2,
+      onLookupError,
+    );
+
+    expect(found).toEqual({
+      total: 2,
+      targets: [{ ref: 'app://fine', rule: 'r' }],
+      unresolved: ['app://broken'],
+    });
+    expect(onLookupError).toHaveBeenCalledExactlyOnceWith('app://broken', boom);
   });
 });
 

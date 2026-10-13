@@ -839,7 +839,7 @@ The plan is computed once per request, before the response: the files listed and
 
 #### `issues` (default)
 
-Re-processes documents with open issues (from `GET /issues`): files, and source references. An indexed source document is re-processed with its stored designated rule; a reference that was never indexed (its first notification failed, so it has no points) is retried with the `rule` recorded on its issue. A reference with neither is counted in `total` but skipped. Use after fixing the root cause of failures (permissions, encoding, file format, a source outage).
+Re-processes documents with open issues (from `GET /issues`): files, and source references. An indexed source document is re-processed with its stored designated rule; a reference that was never indexed (its first notification failed, so it has no points) is retried with the `rule` recorded on its issue. A reference with neither is counted in `total` but skipped. A reference whose stored rule cannot be looked up (a Qdrant read error, or a processor without source support) does not fail the run: it is counted in `total`, not processed, and reported as failed (callback `errors` and `sources.failed`). Use after fixing the root cause of failures (permissions, encoding, file format, a source outage).
 
 #### `rules`
 

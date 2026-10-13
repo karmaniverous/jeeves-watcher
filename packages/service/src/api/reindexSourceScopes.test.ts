@@ -1,6 +1,6 @@
 /**
  * @module api/reindexSourceScopes.test
- * runSourceScope goes through the notify queue: a reindex and a concurrent notification of the same reference never run in parallel and the final state is the latest; `force` reaches process; a stopped queue counts as failed and lists the reference; failed results and rejections are counted and listed with progress after each. resolveSourceScope needs the queue, the vector store and (scope issues) the issues store.
+ * runSourceScope goes through the notify queue: a reindex and a concurrent notification of the same reference never run in parallel and the final state is the latest; `force` reaches process; a stopped queue counts as failed and lists the reference; failed results and rejections are counted and listed with progress after each; unresolved references are counted and listed as failed without processing. resolveSourceScope needs the queue, the vector store and (scope issues) the issues store.
  */
 
 import type { DocumentResult } from '@karmaniverous/jeeves-watcher-core';
@@ -133,6 +133,34 @@ describe('runSourceScope outcomes', () => {
       'app://rejects',
     ]);
     expect(onProcessed).toHaveBeenCalledTimes(3);
+  });
+
+  it('counts and lists unresolved references as failed without processing them', async () => {
+    const processNow = vi.fn((ref: string) =>
+      Promise.resolve({ source: ref, status: 'indexed' } as DocumentResult),
+    );
+
+    const outcome = await runSourceScope(
+      {
+        total: 2,
+        targets: [{ ref: 'app://ok', rule: 'r' }],
+        unresolved: ['app://lookup-failed'],
+        queue: { processNow },
+        force: false,
+      },
+      { concurrency: 1, logger, onProcessed: vi.fn() },
+    );
+
+    expect(outcome.counts).toEqual({
+      indexed: 1,
+      unchanged: 0,
+      deleted: 0,
+      failed: 1,
+    });
+    expect(outcome.failed).toEqual(['app://lookup-failed']);
+    expect(processNow).toHaveBeenCalledExactlyOnceWith('app://ok', 'r', {
+      force: false,
+    });
   });
 });
 

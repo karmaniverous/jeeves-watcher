@@ -273,7 +273,7 @@ Reindex discovers source documents from Qdrant: chunk-0 source points (non-empty
 | `full` | Every indexed source document is retrieved and **re-embedded**, even when its content is unchanged. |
 | `rules` (no `path`) | Every indexed source document is retrieved and its stored rule re-applied. Unchanged content: metadata is updated with `setPayload`, no embedding call. If the rule now renders different text, the document is re-embedded. |
 | `rules` with `path` | Files only. |
-| `issues` | Source references with open issues: indexed documents with their stored rule; references that were never indexed (their first notification failed) with the `rule` recorded on their issue. |
+| `issues` | Source references with open issues: indexed documents with their stored rule; references that were never indexed (their first notification failed) with the `rule` recorded on their issue. A reference whose stored-rule lookup fails is reported as failed (callback `errors`, `sources.failed`) and the run continues. |
 | `path` with `source` | The listed references (at most 1000 per request), re-processed with their stored rule. References that are not indexed are skipped (counted in `total`, not in `toProcess`). The references are enqueued on the notify queue like notifications: the request answers at once, and the work is not a tracked reindex run (no `GET /status` progress, no completion callback). |
 | `prune` | Never selects source points. Prune only deletes file points (including legacy file points that carry a rule-written `source`). |
 

@@ -38,6 +38,11 @@ export interface SourceDiscovery {
   total: number;
   /** Documents with a known designated rule: the ones to process. */
   targets: SourceTarget[];
+  /**
+   * Issue references whose stored-rule lookup failed (scope `issues`): not
+   * processed, counted and listed as failed by the run.
+   */
+  unresolved?: string[];
 }
 
 /**
@@ -96,8 +101,9 @@ function recordedRule(
 
 /**
  * Look up the rule stored on each reference's chunk-0 point (Qdrant reads,
- * bounded concurrency). Shared by issue discovery and
- * `POST /reindex { scope: 'path', source }`.
+ * bounded concurrency) for `POST /reindex { scope: 'path', source }`. A
+ * failed lookup rejects (the request fails); issue discovery tolerates
+ * failures instead (see {@link discoverIssueSources}).
  *
  * @param ops - Source operations (stored rule lookup).
  * @param refs - Source references.
@@ -124,24 +130,42 @@ export async function resolveStoredRules(
  * reference with neither is counted in `total` only (it recovers through
  * its next notification).
  *
+ * A failed lookup (a Qdrant read error, or a processor without source
+ * support) never fails the run: the reference is reported in `unresolved`
+ * and `onLookupError` is called with the error.
+ *
  * @param issues - The issues store contents (file paths and references).
  * @param ops - Source operations (stored rule lookup).
  * @param concurrency - Stored-rule lookups in flight (`reindex.concurrency`).
+ * @param onLookupError - Called for each failed lookup.
  * @returns The source issue documents and their rules.
  */
 export async function discoverIssueSources(
   issues: Partial<Record<string, readonly IssueRecord[]>>,
   ops: Pick<SourceOperationsInterface, 'storedRule'>,
   concurrency: number,
+  onLookupError?: (ref: string, error: unknown) => void,
 ): Promise<SourceDiscovery> {
   const refs = Object.keys(issues).filter(isSourceReference);
-  const stored = await resolveStoredRules(ops, refs, concurrency);
+  const stored = await parallel(Math.max(1, concurrency), refs, async (ref) => {
+    try {
+      return { ref, ok: true as const, rule: await ops.storedRule(ref) };
+    } catch (error) {
+      onLookupError?.(ref, error);
+      return { ref, ok: false as const };
+    }
+  });
   const targets: SourceTarget[] = [];
-  for (const { ref, rule } of stored) {
-    const resolved = rule ?? recordedRule(issues[ref]);
-    if (resolved !== null) targets.push({ ref, rule: resolved });
+  const unresolved: string[] = [];
+  for (const entry of stored) {
+    if (!entry.ok) {
+      unresolved.push(entry.ref);
+      continue;
+    }
+    const resolved = entry.rule ?? recordedRule(issues[entry.ref]);
+    if (resolved !== null) targets.push({ ref: entry.ref, rule: resolved });
   }
-  return { total: refs.length, targets };
+  return { total: refs.length, targets, unresolved };
 }
 
 /**
