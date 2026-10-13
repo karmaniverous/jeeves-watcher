@@ -120,7 +120,7 @@ export async function drainQueues(
 export interface ShutdownComponents extends ShutdownQueues {
   /** The API server: closed first, so no new notification is accepted. */
   server?: { close: () => Promise<unknown> };
-  /** Producers stopped after the server, in order (config watch, VCS, watcher). */
+  /** Producers stopped after the server, in order (VCS, filesystem watcher; the caller stops the config watcher before shutdown). */
   producers?: Array<{ stop: () => Promise<unknown> } | undefined>;
   /** Values index (always flushed: an in-memory snapshot write). */
   valuesManager?: { stopAutoFlush: () => void; flush: () => void };
