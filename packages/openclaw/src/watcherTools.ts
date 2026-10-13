@@ -190,7 +190,7 @@ export function registerWatcherTools(
     {
       name: 'watcher_issues',
       description:
-        'Get runtime embedding failures. Shows files that failed processing and why.',
+        'Get runtime processing failures. Shows the documents (file path or source reference) that failed processing and why.',
       parameters: { type: 'object', properties: {} },
       buildRequest: () => [getEndpoint('issues').path],
     },

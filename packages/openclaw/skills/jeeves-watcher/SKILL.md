@@ -12,11 +12,13 @@ The watcher is an HTTP API running as a background service (typically NSSM on Wi
 
 **Default port:** 1936 (configurable via `api.port` in watcher config) **Non-default port:** If the watcher runs on a different port, the user must set `plugins.entries.jeeves-watcher-openclaw.config.apiUrl` in `openclaw.json`. The plugin cannot auto-discover a non-default port.
 
-**API key:** If the watcher sets `api.apiKey`, every route except `GET /status` needs `Authorization: Bearer <key>`. The tools send it from `plugins.entries.jeeves-watcher-openclaw.config.apiKey` (or the `JEEVES_WATCHER_API_KEY` env var); a `401` tool error means it is missing or wrong. When calling the API directly, add the header yourself. Never echo the key.
+**API key:** If the watcher sets `api.apiKey`, every route except `GET /status` needs `Authorization: Bearer <key>`. The tools send it from `plugins.entries.jeeves-watcher-openclaw.config.apiKey` (or the `JEEVES_WATCHER_API_KEY` env var). A missing or wrong key comes back as `HTTP 401 unauthorized: the watcher API requires an API key. Provide it via plugins.entries.jeeves-watcher-openclaw.config.apiKey or the JEEVES_WATCHER_API_KEY env var.` (or, when a key was sent, `... rejected the API key. Check ... against the service's api.apiKey.`). When calling the API directly, add the header yourself. Never echo the key.
 
-**Health check:** `GET /status` returns `name`, `version`, `uptime`, `status` (`healthy`/`degraded`/`unhealthy`), and a `health` object containing `collection` (point count, dimensions), `reindex` status, and `initialScan` progress.
+**Tool errors:** Tool error text is prefixed `Error: `. Any other non-2xx response reads `HTTP <status> <code>: <message>`, where `<code>` is the server's machine-readable error code (e.g. `HTTP 400 invalid_request: Validation failed`, `HTTP 503 scan_in_progress: Scan in progress: ...`). Branch on the code, not the message. Structured `details` (Zod issues, per-property validation failures) are in the HTTP response body only; call the API directly when you need them. An unreachable service reads `Service not reachable at <url>.` with a hint to set `apiUrl`. (`watcher_status` and `watcher_service` come from the shared Jeeves core toolset and word their own errors.)
 
-**Mental model:** The `watcher_*` tools are thin HTTP wrappers. Each tool call translates to an HTTP request to the watcher API. When tools are available, use them. When they're not (e.g., different session, plugin not loaded), you can hit the API directly. Replace `<PORT>` below with the configured port (default 1936; check `plugins.entries.jeeves-watcher.config.apiUrl` in `openclaw.json` if overridden):
+**Health check:** `GET /status` returns `name`, `version`, `uptime`, `status` (`healthy`/`degraded`/`unhealthy`), and a `health` object containing `collection` (`name`, `pointCount`, `dimensions`), `reindex` progress, and `initialScan` progress.
+
+**Mental model:** The `watcher_*` tools are thin HTTP wrappers. Each tool call translates to an HTTP request to the watcher API. When tools are available, use them. When they're not (e.g., different session, plugin not loaded), you can hit the API directly. Replace `<PORT>` below with the configured port (default 1936; check `plugins.entries.jeeves-watcher-openclaw.config.apiUrl` in `openclaw.json` if overridden), and add `-H "Authorization: Bearer <key>"` when the service sets `api.apiKey`:
 
 ```
 # Health check
@@ -37,24 +39,27 @@ curl http://127.0.0.1:<PORT>/config
 | --- | --- | --- |
 | `/status` | GET | Health check, uptime, collection stats |
 | `/search` | POST | Semantic search (main query interface) |
-| `/config` | GET | Full resolved config; optional `?path=<jsonpath>` filter |
+| `/config` | GET | Public resolved config (allow-listed keys plus `issues`); optional `?path=<jsonpath>` filter |
 | `/config/validate` | POST | Validate candidate config |
 | `/config/apply` | POST | Apply config changes |
 | `/reindex` | POST | Trigger reindex |
-| `/metadata` | POST | Enrich document metadata |
+| `/metadata` | POST | Enrich document metadata (file path or source reference) |
 | `/scan` | POST | Filter-only point query (no embeddings) |
-| `/walk` | POST | Filesystem walk with glob intersection |
-| `/issues` | GET | Runtime embedding failures |
+| `/walk` | POST | Watched-file listing with glob intersection |
+| `/issues` | GET | Runtime processing failures (file paths and source references) |
+| `/documents` | POST | Notify changed source documents (`{ source, rule }`) |
+| `/documents/delete` | POST | Delete source documents by reference or filter |
 | `/rules/register` | POST | Register virtual inference rules (auto-triggers rules reindex) |
-| `/rules/unregister` | DELETE | Remove virtual rules by source |
+| `/rules/unregister` | DELETE | Remove virtual rules by source (`{ source }` body) |
 | `/rules/unregister/:source` | DELETE | Remove virtual rules by source (parameterized) |
-| `/rules/reapply` | POST | Re-apply rules to points |
+| `/rules/reapply` | POST | Re-apply rules to indexed files matching `globs` |
 | `/points/delete` | POST | Delete points matching a Qdrant filter |
-| `/render` | POST | Render a template for a document |
+| `/render` | POST | Render a document (file path or source reference) through its rule |
 | `/search/facets` | GET | Get search facet values |
-| `/rebuild-metadata` | POST | Rebuild enrichment metadata from Qdrant |
+| `/rebuild-metadata` | POST | Rebuild the enrichment store from Qdrant file point payloads |
 | `/config/schema` | GET | Get config JSON schema |
-| `/config/match` | POST | Match config paths against rules |
+| `/config/match` | POST | Test file paths against inference rules and watch scope |
+| `/vcs/*` | GET/POST | Version tracking (`status`, `history`, `show`, `diff`, `check-exclusion`, `revert`, `exclude`) |
 
 **If the watcher is unreachable:** Check the service status (`nssm status jeeves-watcher` on Windows), check the configured port in the watcher config file, and check logs for startup errors.
 
@@ -86,7 +91,7 @@ You have access to a **semantic archive** of your human's working world. Documen
 
 - **Renaming, moving, or reorganizing watched directories.** The watcher has **move detection** enabled by default (`watch.moveDetection.enabled: true`). When a file is moved, chokidar emits unlink + add events; the `MoveCorrelator` buffers the unlink, matches it with the add via content hash, and processes it as a zero-embedding move (point ID remap, metadata re-inference, enrichment migration). **No re-embedding cost for moves.** However, if a rename is blocked (e.g., by a file lock from the watcher or another service), **do NOT work around it by creating new directories and copying/moving files**. That creates duplicate embeddings at the new paths while the old paths still exist. Instead: stop the blocking service, perform the rename, restart.
 - **Changing `watch.paths` to add large directory trees.** Adding a new watch root triggers initial indexing of every matching file under it.
-- **Running `scope: "full"` reindex.** This re-embeds the entire index. Use `scope: "rules"` for inference rule changes (zero embedding cost — only metadata reapplication).
+- **Running `scope: "full"` reindex.** Every watched file is re-extracted (a file whose text to embed changed, or that was never indexed, is re-embedded) and every indexed source document is retrieved through its callback and always re-embedded. Use `scope: "rules"` for inference rule changes (no file re-embedding; only metadata reapplication).
 - **Any bulk file operation** (mass copy, mass move, template-based file generation) under watched paths.
 
 **The right instinct when blocked:** If a filesystem operation fails because a service has a lock, the correct response is to stop the service, do the operation, and restart — NOT to find a creative workaround. Creative workarounds in the presence of a live watcher are how you accidentally trigger re-embedding of tens of thousands of files.
@@ -104,7 +109,7 @@ The plugin is a standard OpenClaw plugin. On a Jeeves box, `jeeves install watch
 If the watcher service is already running and healthy:
 
 1. **Search** — use `watcher_search` with a natural language query and optional metadata filters
-2. **Read source** — use `read` (standard file read) with `file_path` from search results for full document content
+2. **Read source** — use `read` (standard file read) with `file_path` from search results for full document content. Source documents (points carrying `source`, such as `app://chat/thread/42`, and no `file_path`) are not files: their content comes from the source's callback (`POST /render` with `{ "source": "<ref>" }`).
 
 ## Bootstrap (First-Time Setup)
 
@@ -283,10 +288,10 @@ Then generate a starter config file. Example minimal config:
 }
 ```
 
-Write the config to a sensible location (e.g., `~/.config/jeeves-watcher.config.json` on Linux, or alongside the user's workspace). Validate with:
+Write the config to a sensible location (e.g., `~/.config/jeeves-watcher.config.json` on Linux, or alongside the user's workspace). Validate it against the config schema (offline; no running service needed) with:
 
 ```bash
-jeeves-watcher validate -c <config-path>
+jeeves-watcher config validate -c <config-path>
 ```
 
 ### Step 6: Register and Start as a Service
@@ -318,9 +323,9 @@ sudo systemctl enable --now jeeves-watcher
 **Windows (NSSM):**
 
 ```powershell
-jeeves-watcher service install
+jeeves-watcher service install -c <config-path>
 # Or manually:
-nssm install jeeves-watcher "$(which jeeves-watcher)" start -c <config-path>
+nssm install jeeves-watcher (Get-Command jeeves-watcher).Source start -c <config-path>
 nssm set jeeves-watcher AppEnvironmentExtra GOOGLE_API_KEY=<key>
 nssm start jeeves-watcher
 ```
@@ -339,7 +344,7 @@ Call `watcher_status` (or `curl http://127.0.0.1:1936/status`). Confirm:
 - Qdrant collection exists with expected dimensions (3072)
 - Point count is increasing (initial indexing in progress)
 
-If the point count is 0 after a minute, check `watcher_issues` for embedding failures.
+If the point count is 0 after a minute, check `watcher_issues` for processing failures.
 
 ### Step 8: Orientation
 
@@ -361,25 +366,31 @@ On sessions after bootstrap is complete:
 
 ## Tools
 
+The plugin registers 18 tools: `watcher_status`, `watcher_config`, `watcher_config_apply`, `watcher_service`, `watcher_search`, `watcher_enrich`, `watcher_validate`, `watcher_reindex`, `watcher_scan`, `watcher_issues`, `watcher_walk`, and the seven `watcher_vcs_*` tools (see [Version Tracking](#version-tracking)).
+
 ### `watcher_search`
 
-Semantic search over indexed documents.
+Semantic search over indexed documents (`POST /search`).
 
-- `query` (string, required) — natural language search query
-- `limit` (number, optional) — max results, default 10
-- `offset` (number, optional) — skip N results for pagination
+- `query` (string, required) — natural language search query (non-empty)
+- `limit` (number, optional) — max results (positive integer), default 10
+- `offset` (number, optional) — skip N results for pagination (non-negative integer)
 - `filter` (object, optional) — Qdrant filter for metadata filtering
+
+Returns an array of `{ id, score, payload }` ordered by score (see [Search Result Shape](#search-result-shape)). A filter Qdrant rejects is `400 invalid_request`; an exhausted embedding budget is `503 embedding_unavailable`.
 
 ### `watcher_enrich`
 
-Set or update metadata on a document.
+Set or update metadata on a document (`POST /metadata`).
 
-- `path` (string, required) — file path of the document
+- `path` (string, required) — file path of the document (absolute or watched path)
 - `metadata` (object, required) — key-value metadata to merge
+
+Returns `{ ok: true, matched_rules }`. The tool addresses files only; to enrich a source document, call `POST /metadata` directly with `{ "source": "<name>://<id>", "metadata": { ... } }` (exactly one of `path` or `source`).
 
 ### `watcher_status`
 
-Service health check. Returns `name`, `version`, `uptime`, `status`, and `health` object with collection stats, reindex status, and initial scan progress.
+Service health check (`GET /status`, never needs the API key). Returns `name`, `version`, `uptime`, `status`, and a `health` object: `collection` (`name`, `pointCount`, `dimensions`), `reindex` (`active`; while active also `scope`, `startedAt`, `filesProcessed`, `totalFiles`), and `initialScan`.
 
 After a service restart, the `health.initialScan` field shows scan progress:
 
@@ -390,41 +401,47 @@ Use this to determine if the service is still initializing after a restart.
 
 ### `watcher_config`
 
-Query the effective runtime config via JSONPath. Returns the full resolved merged document when no path is provided.
+Query the effective runtime config via JSONPath (`GET /config`). Returns the full resolved merged document when no path is provided.
 
 - `path` (string, optional) — JSONPath expression
 
+The document holds only the allow-listed keys `description`, `watch`, `configWatch`, `search`, `schemas`, `inferenceRules`, `mapHelpers`, `templateHelpers`, `maps`, `templates`, plus `issues` (the current issues). `api`, `sources`, `embedding`, `vectorStore` (and their keys) are never included. Each rule carries `source` (`config`, or the registering source of a virtual rule) and `values` (the runtime values index). File references (`map`, `maps`, `templates`) and named schema references are always resolved. An invalid JSONPath is `400 invalid_request`.
+
 ### `watcher_validate`
 
-Validate config and optionally test file paths.
+Validate config and optionally test file paths (`POST /config/validate`).
 
 - `config` (object, optional) — candidate config (partial or full). Omit to validate current config.
 - `testPaths` (string[], optional) — file paths to test against the config
 
-Partial configs merge with current config by rule name. If `config` is omitted, tests against the running config.
+Partial configs are merged into the running config shallowly: each top-level key replaces the running value, except `inferenceRules`, which merge by rule name. This differs from `watcher_config_apply` (deep merge), so pass a whole top-level object (e.g. all of `watch`) when validating a change inside it. Returns `{ valid: false, errors: [{ path, message }] }`, or `{ valid: true, warnings?, testResults? }`, where each test result is `{ path, matchedRules, metadata, error? }` (`error: "File not found"` when the path cannot be read). Validation problems come back in a `200` body, so this is the place to see them in full.
 
 ### `watcher_config_apply`
 
-Apply config changes atomically.
+Apply config changes (`POST /config/apply`, sent as `{ patch: config }`).
 
 - `config` (object, required) — full or partial config to apply
 
-Partial configs are deep-merged into the running config (objects recursively, arrays replaced, `inferenceRules` by rule name), so `{}` or a single key is valid. The merged result is validated, written to disk, and triggers configured reindex behavior. Returns validation errors if invalid. Config changes take full effect without service restart — including new/removed watch paths (filesystem watcher is rebuilt), inference rule changes, move detection settings, and gitignore filter updates.
+Partial configs are deep-merged into the config file the service runs from (objects recursively, arrays replaced, `inferenceRules` by rule name), so `{}` or a single key is valid. The merged result is validated and written to disk, then the `configWatch.reindex` scope (default `issues`) runs; that reindex covers files only. With `configWatch.enabled` (default `true`) the service picks up the written file without a restart, including new/removed watch paths (the filesystem watcher is rebuilt), inference rule changes, move detection settings, and gitignore filter updates.
+
+Returns `{ applied: true, config }`. `config` is redacted through the same allow-list as `GET /config`: `api`, `sources` and provider keys are never echoed. When the file was written but the post-write apply step failed, the body also carries `warning` (a string describing the failure). An invalid merged config is a tool error reading `HTTP 400 invalid_request: Config validation failed` (the Zod `issues` are only in the HTTP body), so run `watcher_validate` first. A config file the service cannot read or write is a generic `HTTP 500 internal_error`, with the cause in the service log.
 
 ### `watcher_reindex`
 
-Trigger a reindex operation. Non-prune scopes return a `plan` object showing blast area before execution begins. Live prune (non-dry-run) returns immediately without a plan.
+Trigger a reindex operation (`POST /reindex`). Non-prune scopes return a `plan` object showing the blast area; the live run reuses the same targets. A live prune (non-dry-run) returns immediately without a plan.
 
 **Parameters:**
 
-- `scope` (string, optional) — Reindex scope. Default: `"rules"`. One of:
-  - `"rules"` — Re-apply inference rules to all watched files. No re-embedding. Lightweight.
-  - `"full"` — Re-extract text, re-embed, and re-apply rules for all watched files. Expensive.
-  - `"issues"` — Re-process only files that previously failed embedding (from `watcher_issues`).
-  - `"path"` — Re-embed a specific file or all files under a directory. Requires `path` parameter.
-  - `"prune"` — Delete Qdrant points for files no longer in watch scope (removed paths, gitignored files, stale data). No re-embedding. Pure cleanup.
-- `path` (string, required when scope is `"path"`) — Target file or directory path.
-- `dryRun` (boolean, optional) — When `true`, compute and return the blast area plan without executing. Returns synchronously.
+- `scope` (string, optional) — Reindex scope. The tool sends `"rules"` when omitted (the HTTP API's own default is `"issues"`). One of:
+  - `"rules"` — Re-apply inference rules to every watched file (no re-embedding; changed values written, keys the rules no longer project removed). With `path`, only files matching those globs. Without `path`, every indexed source document is also retrieved through its callback and its stored rule re-applied: unchanged content gets a metadata-only update, and a document is re-embedded only if its rendered text changed.
+  - `"full"` — Re-extract and re-process every watched file (a file is re-embedded when the text to embed changed or it was never indexed), and retrieve and always re-embed every indexed source document. Clears the runtime values index first.
+  - `"issues"` — Re-process the documents in `watcher_issues`: failed files, and failed source references (with their stored rule, or the `rule` recorded on the issue when the document was never indexed).
+  - `"path"` — Re-process a specific file or all files under a directory. Requires `path`. Each target must be watched and not gitignored (`403 path_not_watched`) and must exist (`404 not_found`). Files only.
+  - `"prune"` — Delete Qdrant points for files no longer in watch scope (removed paths, gitignored files, deleted files). No re-embedding. Pure cleanup. Never selects source points (`source` set, no `file_path`).
+- `path` (string | string[], optional) — Target file(s) or directories for `"path"` (required there), or globs narrowing `"rules"`. Ignored by other scopes.
+- `dryRun` (boolean, optional) — When `true`, compute and return the plan without executing.
+
+The tool has no `source` parameter. To re-process specific source references, call `POST /reindex` directly with `{ "scope": "path", "source": ["<name>://<id>", ...] }` (at most 1000): they are enqueued on the notify queue, are not tracked by `GET /status`, and send no completion callback. A reindex triggered by a config change (`watcher_config_apply`, config-file reload, rule registration) covers files only.
 
 **Response (normal):**
 
@@ -458,23 +475,26 @@ Trigger a reindex operation. Non-prune scopes return a `plan` object showing bla
 
 **Plan fields:**
 
-- `total` — Total points (prune) or files (other scopes) examined.
-- `toProcess` — Items to embed/re-apply rules (0 for prune).
+- `total` — Points scrolled (prune), or files plus source documents covered (other scopes).
+- `toProcess` — Files plus source documents to process (0 for prune).
 - `toDelete` — Points to delete (prune only, 0 for others).
-- `byRoot` — Counts grouped by watch root prefix. Shows where the impact concentrates.
+- `byRoot` — Files grouped by watch root (for prune: orphaned files), plus one entry per source name for source documents. Shows where the impact concentrates.
+- `incomplete` — `true` when the prune scroll failed part-way and the plan is partial.
+
+**Progress:** a live run (every scope except `path` with `source`) is tracked in `watcher_status` under `health.reindex` (`filesProcessed` / `totalFiles`, counting files plus source documents). A failing file or source document is logged and recorded; the rest of the run continues.
 
 **Guidance:**
 
 - Use `dryRun: true` before any large-blast operation to preview impact.
-- `prune` is safe — it only deletes orphaned points, never re-embeds. Use after changing watch paths, fixing gitignore, or cleaning up stale data.
+- `prune` is safe — it only deletes orphaned file points, never re-embeds. Use after changing watch paths, fixing gitignore, or cleaning up stale data.
 - `prune` is NOT triggered by config-watch auto-reindex (too dangerous for auto-trigger).
 
 ### `watcher_scan`
 
-Filter-only point query without vector search. Use for structural queries where the question has no semantic dimension.
+Filter-only point query without vector search (`POST /scan`). Use for structural queries where the question has no semantic dimension.
 
 - `filter` (object, required) — Qdrant filter object. Required to prevent accidental full-collection scans.
-- `limit` (number, optional) — page size, default 100, max 1000
+- `limit` (number, optional) — page size (integer 1 to 1000), default 100
 - `cursor` (string, optional) — opaque cursor from previous response for pagination
 - `fields` (string[], optional) — payload fields to return (projection)
 - `countOnly` (boolean, optional) — if true, return `{ count }` instead of points
@@ -483,7 +503,12 @@ Filter-only point query without vector search. Use for structural queries where 
 
 ```json
 {
-  "points": [{ "id": "uuid", "payload": { ... } }],
+  "points": [
+    {
+      "id": "uuid",
+      "payload": { "file_path": "j:/domains/jira/PROJ-123.json" }
+    }
+  ],
   "cursor": "opaque-string-or-null"
 }
 ```
@@ -498,7 +523,7 @@ Filter-only point query without vector search. Use for structural queries where 
 
 - No `query` parameter — does NOT use embeddings
 - No `score` field — results are unranked filter matches
-- Cursor-based pagination (not offset-based)
+- Cursor-based pagination (not offset-based); `cursor` is `null` on the last page
 - Zero cost per call beyond Qdrant's filtered scroll
 
 **Pagination pattern:**
@@ -514,21 +539,21 @@ do {
 
 ### `watcher_service`
 
-Manage the watcher background service (install, uninstall, start, stop, restart, check status).
+Manage the watcher background service (install, uninstall, start, stop, restart, check status). No HTTP call.
 
 - `action` (string, required) — one of: `install`, `uninstall`, `start`, `stop`, `restart`, `status`
 
-Returns the service manager's response. On Windows uses NSSM, on Linux uses systemd.
+Returns the service manager's response. On Windows uses NSSM, on Linux systemd, on macOS launchd. Only `install` needs `configRoot` (see [Plugin Installation](#plugin-installation)).
 
 ### `watcher_issues`
 
-Get runtime embedding failures. Returns `{ filePath: IssueRecord }` showing files that failed and why.
+Get runtime processing failures (`GET /issues`). Returns `{ count, issues: { [key]: IssueRecord[] } }`: `count` is the number of documents with issues, and each key is a file path or a source reference (`<name>://<id>`). Each `IssueRecord` has `type` (one of the [issue codes](#error-categories)), `message`, `timestamp`, and optionally `operation`, `property`, `rule`, `rules`, `types`, `details`.
 
 ### `watcher_walk`
 
-Walk watched filesystem paths with glob intersection. Returns matching file paths from all configured watch roots.
+List watched files matching globs (`POST /walk`). Returns matching file paths from the watcher's in-memory list of watched files across all configured watch roots.
 
-- `globs` (string[], required) — glob patterns to intersect with watch paths
+- `globs` (string[], required) — glob patterns to intersect with watch paths (non-empty; matched case-insensitively, dotfiles included)
 
 **Response:**
 
@@ -544,12 +569,12 @@ Walk watched filesystem paths with glob intersection. Returns matching file path
 
 - Discover files matching a pattern across all watched directories (e.g., `["**/.meta/meta.json"]`)
 - Enumerate files before rule registration to understand scope
-- Find files that aren't yet indexed (no Qdrant dependency — works even before first embedding)
+- Find files that aren't yet indexed (no Qdrant dependency)
 
 **Key differences from `watcher_scan`:**
 
-- Walks the actual filesystem, not the Qdrant index
-- No embedding or indexing required — works immediately after service start
+- Lists the files the filesystem watcher tracks, not the Qdrant index
+- No embedding or indexing required, but the initial filesystem scan must be complete: until then the tool returns `HTTP 503 scan_in_progress` (check `health.initialScan` in `watcher_status`)
 - Returns file paths only (no metadata, no vectors)
 - Applies `watch.ignored` and gitignore filtering automatically
 
@@ -662,15 +687,21 @@ Each result from `watcher_search` contains:
 | Field | Type | Description |
 | --- | --- | --- |
 | `id` | string | Qdrant point ID |
-| `score` | number | Similarity score (0-1, higher = more relevant) |
-| `payload.file_path` | string | Source file path |
+| `score` | number | Similarity (or hybrid fused) score; higher = more relevant |
+| `payload.file_path` | string | Normalized file path (file points only) |
+| `payload.source` | string | Source reference `<name>://<id>` (source points only) |
+| `payload.source_rule` | string | Designated rule of a source document (source points only) |
 | `payload.chunk_text` | string | The matched text chunk |
-| `payload.chunk_index` | number | Chunk position within the file |
-| `payload.total_chunks` | number | Total chunks for this file |
-| `payload.content_hash` | string | Hash of the full document content |
+| `payload.chunk_index` | number | Zero-based chunk position within the document |
+| `payload.total_chunks` | number | Total chunks for this document |
+| `payload.line_start` | number | 1-indexed line where the chunk starts |
+| `payload.line_end` | number | 1-indexed line where the chunk ends |
+| `payload.created_at` | number | Creation timestamp (unix seconds) |
+| `payload.modified_at` | number | Modification timestamp (unix seconds) |
+| `payload.content_hash` | string | SHA-256 hash of the embedded text |
 | `payload.matched_rules` | string[] | Names of inference rules that matched |
 
-Additional metadata fields depend on the deployment's inference rules (e.g., `domain`, `status`, `author`). Use `watcher_config` to discover available fields.
+`file_path` is not always present: a source point (a document indexed through a source callback) carries a non-empty `source` and no `file_path`. A file point may also carry a `source` written by its own rules; it is still a file point. Additional metadata fields depend on the deployment's inference rules (e.g., `domain`, `status`, `author`). Use `watcher_config` to discover available fields.
 
 ## Query Planning (Per Search Task)
 
@@ -680,10 +711,9 @@ Identify relevant rule(s) from the orientation model, then retrieve their schema
 
 ```
 watcher_config: path="$.inferenceRules[?(@.name=='jira-issue')].schema"
-              resolve=["files","globals"]
 ```
 
-Returns the fully merged schema with properties, types, `set` provenance, `uiHint`, `enum`, etc.
+Returns the rule's schema array with named schema references and file references already resolved: properties, types, `set` expressions, `uiHint`, `enum`, etc.
 
 **For select/multiselect fields without `enum` in schema:**
 
@@ -706,7 +736,7 @@ Use `uiHint` to determine filter construction strategy. **This table is explicit
 | `text` | `{ "key": "<field>", "match": { "text": "<value>" } }` | Substring/keyword match |
 | `select` | `{ "key": "<field>", "match": { "value": "<enum_value>" } }` | Exact match; use `enum` values from schema or runtime values index |
 | `multiselect` | `{ "key": "<field>", "match": { "value": "<enum_value>" } }` | Any-element match on array field; use `enum` or runtime values index |
-| `date` | `{ "key": "<field>", "range": { "gte": <unix_ts>, "lt": <unix_ts> } }` | Range filter against integer fields holding Unix timestamps (seconds). Source dates should be normalized in config via `{{toUnix ...}}` in `set` expressions. | for open-ended ranges (e.g., "after January" → `gte` only) |
+| `date` | `{ "key": "<field>", "range": { "gte": <unix_ts>, "lt": <unix_ts> } }` | Range filter against integer fields holding Unix timestamps (seconds). Source dates should be normalized in config via `{{toUnix ...}}` in `set` expressions. Either bound optional for open-ended ranges (e.g., "after January" → `gte` only) |
 | `number` | `{ "key": "<field>", "range": { "gte": <n>, "lte": <n> } }` | Either bound optional for open-ended ranges |
 | `check` | `{ "key": "<field>", "match": { "value": true } }` | Boolean match |
 | _(absent)_ | Do not use in filters | Internal bookkeeping field, not intended for search |
@@ -770,7 +800,7 @@ Use `scoreThresholds` from config (queried during orientation). Values are deplo
 
 ### Chunk Grouping
 
-Multiple results with the same `file_path` are chunks of one document. Read the full file for complete context.
+Multiple results with the same `file_path` (or, for source documents, the same `source`) are chunks of one document. Read the full file for complete context.
 
 ### Schema Lookup
 
@@ -778,27 +808,25 @@ Use `matched_rules` on results to look up applicable schemas for metadata interp
 
 ```
 watcher_config: path="$.inferenceRules[?(@.name=='jira-issue')].schema"
-              resolve=["files","globals"]
 ```
 
 ### Full Context
 
-Search gives you chunks; use `read` with `file_path` for the complete document.
+Search gives you chunks; use `read` with `file_path` for the complete document. A source document has no file: render it with `POST /render` and `{ "source": "<ref>" }`, which retrieves it through its callback.
 
 ---
 
 ## Path Testing
 
-When uncertain whether a file is indexed, use the path test endpoint:
+When uncertain whether a file would be indexed, test it against the rules. `watcher_validate` with `testPaths` (and no `config`) runs the current rules against each path and returns `{ path, matchedRules, metadata }` per path (`error: "File not found"` when the file cannot be read):
 
 ```
-watcher_config: path="$.inferenceRules[?(@.name=='<rule>')].match"
+watcher_validate: testPaths=["j:/domains/jira/PROJ-123.json"]
 ```
 
-Or check if a specific path would match:
+Or call `POST /config/match` directly with `{ "paths": [...] }`. It returns `{ matches: [{ rules, watched }] }`, one entry per path, without reading the files:
 
-- Returns matching rule names and watch scope status
-- Empty `rules` array means no inference rules match
+- `rules` lists the matching rule names; an empty array means no inference rules match
 - `watched: false` means the path falls outside watch paths or is excluded by ignore patterns
 
 ---
@@ -811,31 +839,33 @@ Each inference rule has:
 
 - `name` (required) — unique identifier
 - `description` (required) — human-readable purpose
-- `match` — JSON Schema with picomatch glob for path matching
-- `schema` — array of named schema references and/or inline schema objects with `set` templates
-- `map` (optional) — named JsonMap transform
-- `template` (optional) — named Handlebars template
+- `match` (required) — JSON Schema matched against file attributes (e.g. a picomatch `glob` on `file.path`)
+- `schema` (optional) — array of named schema references and/or inline schema objects with `set` templates
+- `map` (optional) — JsonMap transform (inline, named map, or `.json` file path)
+- `template` (optional) — Handlebars template (inline, named template, or `.hbs`/`.handlebars` file path)
+- `render` (optional) — declarative frontmatter + Markdown renderer (mutually exclusive with `template`)
+- `renderAs` (optional) — output extension (1-10 lowercase alphanumerics); requires `template` or `render`
 
 ### Config Workflow
 
 1. Edit config (or build partial config object)
 2. Validate: `watcher_validate` with optional `testPaths` for dry-run preview
-3. Apply: `watcher_config_apply` — validates, writes, triggers reindex
-4. Monitor: `watcher_issues` for runtime embedding failures
+3. Apply: `watcher_config_apply` — validates, writes, triggers the `configWatch.reindex` reindex
+4. Monitor: `watcher_issues` for runtime processing failures
 
 ### Reindex Concurrency
 
-Reindex operations process files concurrently using `reindex.concurrency` (default 50). This applies to full reindex, rules reindex, issues reindex, and the `POST /reindex` endpoint. The watcher's incremental file processing (chokidar) uses a separate `embedding.concurrency` setting.
+Reindex operations process files and source documents concurrently using `reindex.concurrency` (default 50). This applies to every scope, to issue-source discovery, and to the stored-rule lookups of `POST /reindex` with `source`. The watcher's incremental processing (file events and source notifications) uses a separate `embedding.concurrency` setting.
 
-Progress is reported via `watcher_status` (`reindex.filesProcessed` / `reindex.totalFiles`).
+Progress is reported via `watcher_status` (`health.reindex.filesProcessed` / `health.reindex.totalFiles`, counting files plus source documents).
 
 ### When to Reindex
 
-- **Rules scope** (`"rules"`): Changed rule matching patterns, set expressions, schema mappings. No re-embedding needed.
-- **Full scope** (`"full"`): Changed embedding config, added watch paths, broad schema restructuring. Re-embeds everything.
-- **Issues scope** (`"issues"`): After fixing the root cause of embedding failures (permissions, encoding, file format). Re-processes only failed files.
-- **Path scope** (`"path"`): Edited files in a specific directory and want to force re-embedding without a full reindex. Or a single file's embedding looks wrong.
-- **Prune scope** (`"prune"`): After changing `watch.paths`, adding gitignore rules, or discovering stale/orphaned points (e.g., indexed `node_modules`). Deletes points for out-of-scope files. Always `dryRun: true` first to preview.
+- **Rules scope** (`"rules"`): Changed rule matching patterns, set expressions, schema mappings. No file re-embedding needed.
+- **Full scope** (`"full"`): Added watch paths, broad schema restructuring, or source documents whose vectors must be rebuilt. Re-extracts every file (re-embedding the ones whose text to embed changed) and re-embeds every source document.
+- **Issues scope** (`"issues"`): After fixing the root cause of processing failures (permissions, encoding, file format, a source outage). Re-processes only the failed files and source documents.
+- **Path scope** (`"path"`): Edited files in a specific directory, or a single file looks stale, and you want them re-processed without a full reindex. A file whose text to embed is unchanged is not re-embedded.
+- **Prune scope** (`"prune"`): After changing `watch.paths`, adding gitignore rules, or discovering stale/orphaned points (e.g., indexed `node_modules`). Deletes points for out-of-scope or deleted files. Always `dryRun: true` first to preview.
 
 ---
 
@@ -844,16 +874,26 @@ Progress is reported via `watcher_status` (`reindex.filesProcessed` / `reindex.t
 ### Escalation Path
 
 1. `watcher_status` — is the service healthy? Is a reindex running? Is the initial scan still active?
-2. `watcher_issues` — what files are failing and why?
-3. `watcher_config` with `$.issues` — same data via JSONPath
+2. `watcher_issues` — which documents are failing and why?
+3. `watcher_config` with `$.issues` — the same issue records via JSONPath
 4. Check logs at the configured log path
 
 ### Error Categories
 
-- `type_collision` — metadata field type mismatch during extraction (includes `property`, `rules[]`, `types[]`)
-- `interpolation` / `interpolation_error` — template/set expression failed to resolve (includes `property`, `rule`)
-- `read_failure` — file couldn't be read (permissions, encoding)
-- `embedding` — embedding API error
+Every issue record's `type` is one of these codes:
+
+- `type_collision` — conflicting metadata types across rules (includes `property`, `rules[]`, `types[]`)
+- `interpolation_error` — template or `set` expression rendering failed (includes `property`, `rule`; `details` holds per-step failures)
+- `extraction_error` — reading, rule application or chunking failed
+- `embedding_error` — the embedding provider failed
+- `upsert_error` — the vector store write failed
+- `match_failed` — a source document's designated rule did not match (`details` holds the AJV errors)
+- `rule_missing` — a source document's designated rule was not found
+- `no_content` — nothing to embed
+- `source_unavailable` — the source callback failed
+- `unsupported_content_type` — the source callback returned a non-JSON body
+
+Source-document issues always carry `rule` (the designated rule of the failed run).
 
 **Issues are self-healing:** resolved on successful re-process. The issues file always represents the current set of unresolved problems: a live todo list.
 
@@ -876,25 +916,24 @@ The following helpers are available in every JsonMap `lib` context without any h
 
 #### `fetchSiblings(filePath, options?)`
 
-Retrieve extracted text from neighboring files in the same directory. Useful for contextual embedding — e.g., injecting surrounding email messages into a thread member's embedding for better semantic search.
+Retrieve extracted text from neighboring files in the same directory with the same extension. Useful for contextual embedding — e.g., injecting surrounding email messages into a thread member's embedding for better semantic search.
 
 **Parameters:**
 
-- `filePath` (string) — the current file path (typically `$file_path`)
-- `options` (object, optional):
+- `filePath` (string) — the current file path (in a rule's `map`, `$.input.file.path`)
+- `options` (object, optional; JsonMap `params` are path strings, so a call from a config `map` uses the defaults):
   - `before` (number, default 3) — number of preceding siblings to include
   - `after` (number, default 1) — number of following siblings to include
   - `sort` (`"name"` | `"mtime"`, default `"name"`) — sort order for determining neighbor position
 
-**Returns:** `string[]` — extracted text from sibling files, in sort order. Files that fail extraction are silently skipped.
+**Returns:** `string[]` — extracted text from sibling files, in sort order. Files that fail extraction are silently skipped. For a source document (a source rule's `map`) there is no file reader, so it returns `[]`.
 
-**Example** (in a JsonMap `$set` expression):
+**Example** (in a rule's `map`):
 
 ```json
 {
   "context": {
-    "$fn": "fetchSiblings",
-    "$args": ["$file_path", { "before": 2, "after": 1 }]
+    "$": { "method": "$.lib.fetchSiblings", "params": "$.input.file.path" }
   }
 }
 ```
@@ -905,9 +944,9 @@ Retrieve extracted text from neighboring files in the same directory. Useful for
 
 Use `watcher_enrich` to tag documents after analysis (e.g., `reviewed: true`, project labels).
 
-**Enrichments are durable.** Stored in a SQLite database (`<stateDir>/enrichments.sqlite`), enrichments survive full reindexes. When the watcher re-processes a file, enrichments are merged with inference rule output using composable semantics: scalar fields overwrite, array fields union+deduplicate.
+**Enrichments are durable.** Stored in a SQLite database (`<stateDir>/enrichments.sqlite`, default `stateDir` `.jeeves-metadata`), enrichments survive full reindexes. Enriching a file that is not indexed yet stores the enrichment, which applies once the file is indexed. When the watcher re-processes a file, enrichments are merged with inference rule output using composable semantics: scalar fields overwrite, array fields union+deduplicate.
 
-**Metadata is validated against the file's matched rule schemas.** Validation errors return structured messages:
+**Metadata is validated against the file's matched rule schemas** (for a source document, its designated rule's schema). Only declared property types are checked; unknown properties and `null` values pass. The tool reports a failure as `HTTP 400 invalid_request: Validation failed`; the structured `details` are in the HTTP response body:
 
 ```json
 {
@@ -1015,8 +1054,8 @@ If tools are unavailable (plugin not loaded in this session):
 
 **CLI Fallbacks:**
 
-- `jeeves-watcher status` — check if the service is running
-- `jeeves-watcher validate` — validate config from CLI
+- `jeeves-watcher status [-p <port>]` — check if the service is running (`GET /status`)
+- `jeeves-watcher config validate -c <path>` — validate a config file against the schema (offline)
 - Restart via NSSM (Windows) or systemctl (Linux)
 
 ---

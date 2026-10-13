@@ -37,7 +37,7 @@ Plugin config lives in `openclaw.json` under `plugins.entries.jeeves-watcher-ope
 ```
 
 - **`apiUrl`**: jeeves-watcher API base URL (default: `http://127.0.0.1:1936`; env fallback `JEEVES_WATCHER_URL`).
-- **`apiKey`** (optional): bearer key sent as `Authorization: Bearer <key>` on every watcher API request; it must match the service's `api.apiKey`. Env fallback `JEEVES_WATCHER_API_KEY`. Resolved on every call and never logged. Unset (the default): no header is sent, exactly as before. If the service requires a key and it is missing or wrong, tools return a `401` error naming both ways to set it. Only `watcher_status` (`GET /status` is always open) and `watcher_service` (no HTTP) do not use it.
+- **`apiKey`** (optional): bearer key sent as `Authorization: Bearer <key>` on every watcher API request; it must match the service's `api.apiKey`. Env fallback `JEEVES_WATCHER_API_KEY`. Resolved on every call and never logged. Unset (the default): no header is sent, exactly as before. If the service requires a key and it is missing or wrong, tools return an `HTTP 401 unauthorized` error naming both ways to set it. Every other API error reads `HTTP <status> <code>: <message>`, with the server's error code. Only `watcher_status` (`GET /status` is always open) and `watcher_service` (no HTTP) do not use it.
 - **`configRoot`**: platform config root path, used by `@karmaniverous/jeeves` core to derive `{configRoot}/jeeves-watcher/`. **No default.** Set it in plugin config or via the `JEEVES_CONFIG_ROOT` env var.
 
 `configRoot` is resolved lazily. The plugin always registers, even before its config is written (`openclaw plugins install` activates a plugin before `jeeves install` writes `plugins.entries.<id>.config`). While `configRoot` is unset the plugin logs one warning at registration. Gating is per call: only invocations that actually read `configRoot` are gated. Today that is exactly `watcher_service` with `action: "install"` (it derives the service config path from `configRoot`); it returns an error naming both ways to set it. Other `watcher_service` actions (`uninstall`, `start`, `stop`, `restart`, `status`) address the OS service by name, and every other tool only calls the watcher HTTP API, so they keep working without `configRoot`. Core is initialized on the first gated call after it resolves.
@@ -63,12 +63,12 @@ The plugin builds on [`@karmaniverous/jeeves`](https://www.npmjs.com/package/@ka
 | `watcher_search` | Semantic search across indexed documents |
 | `watcher_enrich` | Set or update document metadata by file path |
 | `watcher_config` | Query the effective runtime config via JSONPath |
-| `watcher_walk` | Walk watched filesystem paths with glob intersection |
-| `watcher_validate` | Validate a watcher configuration |
-| `watcher_config_apply` | Apply a new configuration |
+| `watcher_walk` | List watched files matching globs |
+| `watcher_validate` | Validate a candidate config, optionally testing file paths |
+| `watcher_config_apply` | Apply a config patch (response config redacted) |
 | `watcher_reindex` | Trigger a scoped reindex with blast area plan |
 | `watcher_scan` | Filter-only point query with cursor pagination |
-| `watcher_issues` | List indexing issues and errors |
+| `watcher_issues` | List processing issues (file paths and source references) |
 | `watcher_service` | Manage watcher background service (install/uninstall/start/stop/restart/status) |
 | `watcher_vcs_status` | Version tracking health: enabled state, tracked roots, remote status |
 | `watcher_vcs_history` | Query change history by path or glob with optional date range |
