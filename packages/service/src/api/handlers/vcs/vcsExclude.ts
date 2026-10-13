@@ -78,7 +78,6 @@ export function createVcsExcludeHandler(deps: VcsExcludeRouteDeps) {
       if (!glob) {
         sendError(
           reply,
-          400,
           'invalid_request',
           'Missing required body parameter: glob',
         );
@@ -91,12 +90,7 @@ export function createVcsExcludeHandler(deps: VcsExcludeRouteDeps) {
         const normalizedRoot = normalizeSlashes(requestedRoot);
         const manager = deps.coordinator.getManager(normalizedRoot);
         if (!manager) {
-          sendError(
-            reply,
-            404,
-            'not_found',
-            'Root is not a VCS-enabled watch root',
-          );
+          sendError(reply, 'not_found', 'Root is not a VCS-enabled watch root');
           return;
         }
         root = normalizedRoot;
@@ -111,7 +105,6 @@ export function createVcsExcludeHandler(deps: VcsExcludeRouteDeps) {
         if (!matchedRoot) {
           sendError(
             reply,
-            404,
             'not_found',
             'Glob does not match any VCS-enabled watch root',
           );
@@ -145,7 +138,6 @@ export function createVcsExcludeHandler(deps: VcsExcludeRouteDeps) {
         } catch {
           sendError(
             reply,
-            404,
             'not_found',
             'No .gitignore found at the expected location',
           );
@@ -156,7 +148,7 @@ export function createVcsExcludeHandler(deps: VcsExcludeRouteDeps) {
         const filtered = lines.filter((line) => line.trim() !== pattern);
 
         if (filtered.length === lines.length) {
-          sendError(reply, 404, 'not_found', 'Pattern not found in .gitignore');
+          sendError(reply, 'not_found', 'Pattern not found in .gitignore');
           return;
         }
 

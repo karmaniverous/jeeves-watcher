@@ -73,7 +73,7 @@ export function createSearchHandler(deps: SearchRouteDeps) {
             String(Math.max(1, Math.ceil(error.retryAfterMs / 1000))),
           );
         }
-        sendError(reply, 503, 'embedding_unavailable', error.name, {
+        sendError(reply, 'embedding_unavailable', error.name, {
           message: error.message,
         });
         return;

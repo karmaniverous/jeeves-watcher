@@ -86,7 +86,6 @@ export function createVcsHistoryHandler(deps: VcsHistoryRouteDeps) {
       if (!glob) {
         sendError(
           reply,
-          400,
           'invalid_request',
           'Missing required query parameter: glob',
         );
@@ -99,7 +98,6 @@ export function createVcsHistoryHandler(deps: VcsHistoryRouteDeps) {
       if (resolved.length === 0) {
         sendError(
           reply,
-          404,
           'not_found',
           'No VCS-enabled watch root matches the given glob',
         );

@@ -5,13 +5,9 @@
 
 import type { Command } from '@commander-js/extra-typings';
 import { DEFAULT_PORTS } from '@karmaniverous/jeeves';
+import { API_KEY_ENV_VAR } from '@karmaniverous/jeeves-watcher-core';
 
-import {
-  API_KEY_ENV_VAR,
-  type ApiClient,
-  createApiClient,
-  resolveApiKey,
-} from './apiClient';
+import { type ApiClient, createApiClient, resolveApiKey } from './apiClient';
 
 const DEFAULT_PORT = String(DEFAULT_PORTS.watcher);
 const DEFAULT_HOST = '127.0.0.1';

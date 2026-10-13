@@ -1,18 +1,22 @@
 /**
  * @module api/requestError
- * Client-input errors thrown by route handlers (`RequestError`, sent by `wrapHandler` with its own status and code) and the mapping of Qdrant request rejections (bad filters) to `400 invalid_request`. Pure.
+ * Client-input errors thrown by route handlers (`RequestError`, sent by `wrapHandler` with its code and the code's status) and the mapping of Qdrant request rejections (bad filters) to `400 invalid_request`. Pure.
  */
 
-import type { ApiErrorCode } from '@karmaniverous/jeeves-watcher-core';
+import {
+  API_ERROR_STATUS,
+  type ApiErrorCode,
+} from '@karmaniverous/jeeves-watcher-core';
 
 import type { ApiErrorExtras } from './sendError';
 
 /**
  * An error caused by the request, not by the service: `wrapHandler` sends it
- * as `{ code, error: message, ...extras }` with its `status` (never `500`).
+ * as `{ code, error: message, ...extras }` with the status core assigns to
+ * its code (`API_ERROR_STATUS`).
  */
 export class RequestError extends Error {
-  /** HTTP status to send (4xx). */
+  /** HTTP status to send (from the code). */
   readonly status: number;
   /** Machine-readable code. */
   readonly code: ApiErrorCode;
@@ -20,20 +24,18 @@ export class RequestError extends Error {
   readonly extras: ApiErrorExtras;
 
   /**
-   * @param status - HTTP status (4xx).
-   * @param code - Machine-readable code.
+   * @param code - Machine-readable code (decides the status).
    * @param message - Human-readable text, sent as `error`.
    * @param extras - Optional `message` and `details`.
    */
   constructor(
-    status: number,
     code: ApiErrorCode,
     message: string,
     extras: ApiErrorExtras = {},
   ) {
     super(message);
     this.name = 'RequestError';
-    this.status = status;
+    this.status = API_ERROR_STATUS[code];
     this.code = code;
     this.extras = extras;
   }
@@ -50,7 +52,7 @@ export function invalidRequest(
   message: string,
   extras?: ApiErrorExtras,
 ): RequestError {
-  return new RequestError(400, 'invalid_request', message, extras);
+  return new RequestError('invalid_request', message, extras);
 }
 
 /** Statuses with which Qdrant rejects a malformed request (e.g. a bad filter). */

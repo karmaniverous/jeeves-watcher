@@ -1,11 +1,11 @@
 /**
  * @module api/sendError.test
- * Unit tests for the error body builder, sendError, the sources-not-available shortcut, status-to-code mapping and core result passthrough.
+ * Unit tests for the error body builder, sendError (status from the code), sendErrorWithStatus, the sources-not-available shortcut, status-to-code mapping and core result passthrough.
  */
 
 import {
   API_ERROR_CODES,
-  apiErrorBodySchema,
+  API_ERROR_STATUS,
 } from '@karmaniverous/jeeves-watcher-core';
 import { describe, expect, it } from 'vitest';
 
@@ -15,6 +15,7 @@ import {
   codeForStatus,
   INTERNAL_ERROR_MESSAGE,
   sendError,
+  sendErrorWithStatus,
   sendInternalError,
   sendResult,
   sendSourcesNotAvailable,
@@ -49,18 +50,12 @@ describe('apiErrorBody', () => {
       issueType: 'match_failed',
     });
   });
-
-  it.each(API_ERROR_CODES)('%s builds a body valid under core', (code) => {
-    expect(
-      apiErrorBodySchema.safeParse(apiErrorBody(code, 'text')).success,
-    ).toBe(true);
-  });
 });
 
 describe('sendError', () => {
   it('sends status and body and returns the reply', () => {
     const reply = mockReply();
-    const returned = sendError(reply, 404, 'not_found', 'gone', {
+    const returned = sendError(reply, 'not_found', 'gone', {
       message: 'm',
     });
     expect(returned).toBe(reply);
@@ -70,6 +65,18 @@ describe('sendError', () => {
       error: 'gone',
       message: 'm',
     });
+  });
+
+  it.each(API_ERROR_CODES)('%s is sent with its core status', (code) => {
+    expect(sendError(mockReply(), code, 'x').statusCode).toBe(
+      API_ERROR_STATUS[code],
+    );
+  });
+
+  it('sendErrorWithStatus sends the explicit status', () => {
+    const reply = sendErrorWithStatus(mockReply(), 400, 'not_available', 'n');
+    expect(reply.statusCode).toBe(400);
+    expect(reply.body).toEqual({ code: 'not_available', error: 'n' });
   });
 
   it('sendSourcesNotAvailable sends 503 not_available', () => {

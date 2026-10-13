@@ -1,38 +1,37 @@
 /**
  * @module plugin/http
- * The plugin's single HTTP helper for watcher API calls: JSON GET/POST via `fetch` with an optional `Authorization: Bearer` header and actionable 401 errors. Never logs the key.
+ * The plugin's single HTTP helper for watcher API calls: JSON GET/POST via `fetch` with the core bearer header and the core error mapping (errors carry the server `code`; 401 adds key guidance). Never logs the key.
  */
 
-import { API_KEY_ENV_VAR, PLUGIN_ID } from './constants.js';
+import {
+  API_KEY_ENV_VAR,
+  bearerHeaders,
+  formatHttpError,
+  httpError,
+  unauthorizedMessage,
+} from '@karmaniverous/jeeves-watcher-core';
 
-/**
- * Error message for a `401` response. Never contains the key. Pure.
- *
- * @param keySent - Whether the request carried a bearer key.
- * @returns Guidance on supplying (or checking) the key.
- */
-export function unauthorizedMessage(keySent: boolean): string {
-  const where = `plugins.entries.${PLUGIN_ID}.config.apiKey or the ${API_KEY_ENV_VAR} env var`;
-  return keySent
-    ? `HTTP 401: the watcher API rejected the configured API key. Check ${where} against the service's api.apiKey.`
-    : `HTTP 401: the watcher API requires an API key. Set ${where}.`;
-}
+import { PLUGIN_ID } from './constants.js';
+
+/** Where the plugin reads its API key from (named in 401 guidance). */
+export const PLUGIN_KEY_SOURCES = `plugins.entries.${PLUGIN_ID}.config.apiKey or the ${API_KEY_ENV_VAR} env var`;
 
 /**
  * Build the `fetch` init for a request. With no key and no body this is
  * `undefined`, exactly as an unauthenticated GET has always been sent.
+ *
+ * @param body - JSON body; `undefined` for a GET.
+ * @param apiKey - Bearer key, if any.
+ * @returns The request init.
  */
 function buildInit(
   body: unknown,
   apiKey: string | undefined,
 ): RequestInit | undefined {
-  const auth: Record<string, string> =
-    apiKey === undefined ? {} : { Authorization: `Bearer ${apiKey}` };
-
+  const auth = bearerHeaders(apiKey);
   if (body === undefined) {
     return apiKey === undefined ? undefined : { headers: auth };
   }
-
   return {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...auth },
@@ -47,8 +46,10 @@ function buildInit(
  * @param body - JSON body; `undefined` sends a GET, anything else a POST.
  * @param apiKey - Bearer key; `undefined` sends no `Authorization` header.
  * @returns Parsed JSON response body.
- * @throws On `401` with {@link unauthorizedMessage}; on any other non-OK
- *   status with `HTTP <status>: <body>`; network errors propagate unchanged.
+ * @throws On `401` with core `unauthorizedMessage` (naming
+ *   {@link PLUGIN_KEY_SOURCES}); on any other non-OK status with
+ *   `HTTP <status> <code>: <message>` (core `httpError`); network errors
+ *   propagate unchanged.
  */
 export async function requestJson(
   url: string,
@@ -57,10 +58,13 @@ export async function requestJson(
 ): Promise<unknown> {
   const res = await fetch(url, buildInit(body, apiKey));
   if (res.status === 401) {
-    throw new Error(unauthorizedMessage(apiKey !== undefined));
+    throw new Error(
+      unauthorizedMessage(apiKey !== undefined, PLUGIN_KEY_SOURCES),
+    );
   }
   if (!res.ok) {
-    throw new Error(`HTTP ${String(res.status)}: ${await res.text()}`);
+    const info = httpError(res.status, res.statusText, await res.text());
+    throw new Error(formatHttpError(info));
   }
   return res.json();
 }

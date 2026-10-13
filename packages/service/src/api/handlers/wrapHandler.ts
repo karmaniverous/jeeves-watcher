@@ -1,6 +1,6 @@
 /**
  * @module api/handlers/wrapHandler
- * Generic error-handling wrapper for Fastify route handlers: a thrown `RequestError` is sent with its own status and code; anything else is logged and answered with a generic `500 internal_error`.
+ * Generic error-handling wrapper for Fastify route handlers: a thrown `RequestError` is sent with its code (and the code's status); anything else is logged and answered with a generic `500 internal_error`.
  */
 
 import type {
@@ -17,8 +17,8 @@ import { sendError, sendInternalError } from '../sendError';
 /**
  * Wrap a Fastify route handler with standardised error handling.
  *
- * - A {@link RequestError} (bad client input) is sent with its status, code
- *   and text, and logged at `debug`.
+ * - A {@link RequestError} (bad client input) is sent with its code (status
+ *   from core `API_ERROR_STATUS`) and text, and logged at `debug`.
  * - Any other error is logged at `error` and answered with
  *   `500 internal_error` and generic text: the error itself is never sent.
  *
@@ -45,13 +45,7 @@ export function wrapHandler<T extends RouteGenericInterface, R = unknown>(
       if (error instanceof RequestError) {
         logger.debug({ err: error }, `${label} rejected`);
         if (!reply.sent) {
-          sendError(
-            reply,
-            error.status,
-            error.code,
-            error.message,
-            error.extras,
-          );
+          sendError(reply, error.code, error.message, error.extras);
         }
         return;
       }

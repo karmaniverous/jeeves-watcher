@@ -90,7 +90,7 @@ async function getPathFileList(
 
 /** A `403 path_not_watched` error. */
 const notWatched = (message: string): RequestError =>
-  new RequestError(403, 'path_not_watched', message);
+  new RequestError('path_not_watched', message);
 
 /**
  * Stat a reindex target; a missing one is `404 not_found`.
@@ -104,7 +104,7 @@ async function statTarget(targetPath: string): Promise<Stats> {
   } catch (error) {
     const { code } = error as { code?: unknown };
     if (code === 'ENOENT' || code === 'ENOTDIR') {
-      throw new RequestError(404, 'not_found', `Path not found: ${targetPath}`);
+      throw new RequestError('not_found', `Path not found: ${targetPath}`);
     }
     throw error;
   }

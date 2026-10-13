@@ -8,10 +8,11 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { createServiceCli } from '@karmaniverous/jeeves';
+import { API_KEY_ENV_VAR } from '@karmaniverous/jeeves-watcher-core';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { watcherDescriptor } from '../../descriptor';
-import { API_KEY_ENV_VAR, unauthorizedMessage } from './apiClient';
+import { cliUnauthorizedMessage } from './apiClient';
 
 const KEY = 'config-cmd-secret';
 const BASE = 'http://127.0.0.1:1936';
@@ -79,7 +80,7 @@ describe('config (query)', () => {
   it('reports 401 with guidance and exit code 1', async () => {
     respond(401, { error: 'Unauthorized' });
     const { err } = await runCli(['config']);
-    expect(err).toBe(`Config query failed: ${unauthorizedMessage(false)}`);
+    expect(err).toBe(`Config query failed: ${cliUnauthorizedMessage(false)}`);
     expect(process.exitCode).toBe(1);
   });
 });
@@ -121,7 +122,7 @@ describe('config apply', () => {
       '--api-key',
       KEY,
     ]);
-    expect(err).toBe(`Config apply failed: ${unauthorizedMessage(true)}`);
+    expect(err).toBe(`Config apply failed: ${cliUnauthorizedMessage(true)}`);
     expect(`${out}${err}`).not.toContain(KEY);
     expect(process.exitCode).toBe(1);
   });

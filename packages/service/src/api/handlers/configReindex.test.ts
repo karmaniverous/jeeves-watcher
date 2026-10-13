@@ -139,14 +139,10 @@ describe('createConfigReindexHandler', () => {
 
   it.each([
     [
-      new RequestError(
-        403,
-        'path_not_watched',
-        'Path is outside watch scope: x',
-      ),
+      new RequestError('path_not_watched', 'Path is outside watch scope: x'),
       403,
     ],
-    [new RequestError(404, 'not_found', 'Path not found: x'), 404],
+    [new RequestError('not_found', 'Path not found: x'), 404],
   ])('answers an invalid path target with its 4xx', async (error, status) => {
     mockedPrepare.mockRejectedValue(error);
     const { reply, sent } = await run(createDeps(), {

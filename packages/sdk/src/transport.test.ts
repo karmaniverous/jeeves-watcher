@@ -59,6 +59,12 @@ describe('transport error mapping', () => {
       'Bad Gateway',
       { code: 'http_502', details: 'Bad Gateway' },
     ],
+    [
+      'canonical 0.20.0+ body: code and error (+ message)',
+      404,
+      { code: 'source_not_found', error: 'Not found', message: 'gone' },
+      { code: 'source_not_found', message: 'Not found: gone' },
+    ],
   ])('%s', async (_, status, body, expected) => {
     const error = await call(mockFetch({ status, body }).fetch);
     expect(error).toBeInstanceOf(WatcherError);

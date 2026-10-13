@@ -54,7 +54,6 @@ export function createVcsShowHandler(deps: VcsShowRouteDeps) {
       if (!path || !commit) {
         sendError(
           reply,
-          400,
           'invalid_request',
           'Missing required query parameters: path, commit',
         );
@@ -65,7 +64,6 @@ export function createVcsShowHandler(deps: VcsShowRouteDeps) {
       if (!resolved) {
         sendError(
           reply,
-          404,
           'not_found',
           'Path does not match any VCS-enabled watch root',
         );
@@ -82,12 +80,7 @@ export function createVcsShowHandler(deps: VcsShowRouteDeps) {
         const contentType = CONTENT_TYPES[ext] ?? 'application/octet-stream';
         void reply.header('content-type', contentType).send(stdout);
       } catch {
-        sendError(
-          reply,
-          404,
-          'not_found',
-          'File not found at the specified commit',
-        );
+        sendError(reply, 'not_found', 'File not found at the specified commit');
       }
     },
     deps.logger,

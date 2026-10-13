@@ -43,7 +43,6 @@ export function createVcsRevertHandler(deps: VcsRevertRouteDeps) {
       if (!glob || !commit) {
         sendError(
           reply,
-          400,
           'invalid_request',
           'Missing required body parameters: glob, commit',
         );
@@ -54,7 +53,6 @@ export function createVcsRevertHandler(deps: VcsRevertRouteDeps) {
       if (resolved.length === 0) {
         sendError(
           reply,
-          404,
           'not_found',
           'Glob does not match any VCS-enabled watch root',
         );

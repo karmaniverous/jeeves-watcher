@@ -12,9 +12,9 @@
 import { readFileSync } from 'node:fs';
 
 import type { Command, CommandUnknownOpts } from '@commander-js/extra-typings';
+import { API_KEY_ENV_VAR } from '@karmaniverous/jeeves-watcher-core';
 import { z } from 'zod';
 
-import { API_KEY_ENV_VAR } from './apiClient';
 import { apiClient, printJson } from './apiOptions';
 
 /** Host core's config commands always address. */

@@ -51,7 +51,7 @@ export function createRenderHandler(deps: RenderHandlerDeps) {
     }
     if (filePath === undefined) {
       // Unreachable: the schema requires exactly one of path or source.
-      return sendError(reply, 400, 'invalid_request', 'path is required');
+      return sendError(reply, 'invalid_request', 'path is required');
     }
 
     // Validate path is within watched scope (live config)
@@ -65,7 +65,6 @@ export function createRenderHandler(deps: RenderHandlerDeps) {
     ) {
       return sendError(
         reply,
-        403,
         'path_not_watched',
         'Path is outside watched scope',
       );
@@ -89,11 +88,11 @@ export function createRenderHandler(deps: RenderHandlerDeps) {
       const { message: msg } = normalizeError(error);
 
       if (msg.includes('ENOENT') || msg.includes('no such file')) {
-        return sendError(reply, 404, 'not_found', 'File not found');
+        return sendError(reply, 'not_found', 'File not found');
       }
 
       logger.error({ filePath, err: normalizeError(error) }, 'Render failed');
-      return sendError(reply, 422, 'pipeline_error', msg);
+      return sendError(reply, 'pipeline_error', msg);
     }
   };
 }

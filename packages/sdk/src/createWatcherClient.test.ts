@@ -52,7 +52,7 @@ describe('createWatcherClient', () => {
       fetch: mock.fetch,
     });
     await watcher.issues().catch(() => undefined);
-    expect(mock.calls[0]?.headers.authorization).toBe('Bearer sekret');
+    expect(mock.calls[0]?.headers.Authorization).toBe('Bearer sekret');
   });
 
   it('search: POST /search with the validated body', async () => {

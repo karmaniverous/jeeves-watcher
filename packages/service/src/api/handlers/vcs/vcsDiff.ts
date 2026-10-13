@@ -39,7 +39,6 @@ export function createVcsDiffHandler(deps: VcsDiffRouteDeps) {
       if (!glob || !commit) {
         sendError(
           reply,
-          400,
           'invalid_request',
           'Missing required query parameters: glob, commit',
         );
@@ -50,7 +49,6 @@ export function createVcsDiffHandler(deps: VcsDiffRouteDeps) {
       if (resolved.length === 0) {
         sendError(
           reply,
-          404,
           'not_found',
           'No VCS-enabled watch root matches the given glob',
         );

@@ -21,23 +21,19 @@ import {
 } from '../sendError';
 
 /**
- * Map a pipeline failure to its API code and status. Pure.
+ * Map a pipeline failure to its API code (the status follows from the code).
+ * Pure.
  *
  * @param issueType - The failure's issue type.
- * @returns `source_unavailable` (502), `unsupported_content_type` (422) or
- *   `pipeline_error` (422).
+ * @returns `source_unavailable`, `unsupported_content_type` or
+ *   `pipeline_error`.
  */
-function renderFailureCode(issueType: string): {
-  code: ApiErrorCode;
-  status: number;
-} {
-  if (issueType === 'source_unavailable') {
-    return { code: 'source_unavailable', status: 502 };
-  }
+function renderFailureCode(issueType: string): ApiErrorCode {
+  if (issueType === 'source_unavailable') return 'source_unavailable';
   if (issueType === 'unsupported_content_type') {
-    return { code: 'unsupported_content_type', status: 422 };
+    return 'unsupported_content_type';
   }
-  return { code: 'pipeline_error', status: 422 };
+  return 'pipeline_error';
 }
 
 /**
@@ -52,9 +48,11 @@ function sendRenderFailure(
   failure: DocumentFailure,
 ): FastifyReply {
   const { code: issue, message, details } = failure;
-  const { code, status } = renderFailureCode(issue);
   const issueType = issueTypeSchema.safeParse(issue).data;
-  return sendError(reply, status, code, message, { details, issueType });
+  return sendError(reply, renderFailureCode(issue), message, {
+    details,
+    issueType,
+  });
 }
 
 /**
@@ -94,7 +92,6 @@ export async function renderSource(
     if (rule === null) {
       return await sendError(
         reply,
-        404,
         'source_not_indexed',
         'Source document not indexed',
       );
@@ -103,7 +100,6 @@ export async function renderSource(
     if (outcome.kind === 'gone') {
       return await sendError(
         reply,
-        404,
         'source_not_found',
         'Source document not found',
       );

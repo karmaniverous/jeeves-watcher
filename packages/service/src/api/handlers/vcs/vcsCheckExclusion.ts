@@ -39,7 +39,6 @@ export function createVcsCheckExclusionHandler(
       if (!path) {
         sendError(
           reply,
-          400,
           'invalid_request',
           'Missing required query parameter: path',
         );
@@ -50,7 +49,6 @@ export function createVcsCheckExclusionHandler(
       if (!resolved) {
         sendError(
           reply,
-          404,
           'not_found',
           'Path does not match any VCS-enabled watch root',
         );

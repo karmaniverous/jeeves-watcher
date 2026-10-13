@@ -1,11 +1,12 @@
 /**
  * @module api/sendError
- * The one way the API sends a non-2xx response: `sendError` builds `{ code, error, message?, details?, issueType? }` (core `apiErrorBodySchema`) and sends it. Also maps statuses and core handler results to codes.
+ * The one way the API sends a non-2xx response: `sendError` builds `{ code, error, message?, details?, issueType? }` (core `apiErrorBodySchema`) and sends it with the code's status (core `API_ERROR_STATUS`). Also maps framework statuses and core handler results to codes.
  */
 
-import type {
-  ApiErrorBody,
-  ApiErrorCode,
+import {
+  API_ERROR_STATUS,
+  type ApiErrorBody,
+  type ApiErrorCode,
 } from '@karmaniverous/jeeves-watcher-core';
 
 /** Optional fields of an error body beyond `code` and `error`. */
@@ -48,16 +49,46 @@ export function apiErrorBody(
 }
 
 /**
- * Send a non-2xx response with a machine-readable code.
+ * Send a non-2xx response with a machine-readable code and the status core
+ * assigns to that code (`API_ERROR_STATUS`), so a status can never disagree
+ * with its code.
  *
  * @param reply - Fastify reply.
- * @param status - HTTP status (unchanged from earlier versions).
- * @param code - Machine-readable code.
+ * @param code - Machine-readable code (decides the status).
  * @param error - Human-readable text (unchanged from earlier versions).
  * @param extras - Optional `message`, `details` and `issueType`.
  * @returns The reply, so handlers can `return sendError(...)`.
  */
 export function sendError<R extends ErrorReply>(
+  reply: R,
+  code: ApiErrorCode,
+  error: string,
+  extras?: ApiErrorExtras,
+): R {
+  return sendErrorWithStatus(
+    reply,
+    API_ERROR_STATUS[code],
+    code,
+    error,
+    extras,
+  );
+}
+
+/**
+ * Send an error body with an explicit status. Only for the statuses core's
+ * table cannot decide: framework and uncaught errors (their own 4xx/5xx
+ * status, see `apiHooks`) and the one documented exception, a prune
+ * reindex without a vector store (`400 not_available`, unchanged from
+ * 0.19). Every other caller uses {@link sendError}.
+ *
+ * @param reply - Fastify reply.
+ * @param status - HTTP status.
+ * @param code - Machine-readable code.
+ * @param error - Human-readable text.
+ * @param extras - Optional `message`, `details` and `issueType`.
+ * @returns The reply.
+ */
+export function sendErrorWithStatus<R extends ErrorReply>(
   reply: R,
   status: number,
   code: ApiErrorCode,
@@ -76,7 +107,7 @@ export function sendError<R extends ErrorReply>(
  * @returns The reply.
  */
 export function sendInternalError<R extends ErrorReply>(reply: R): R {
-  return sendError(reply, 500, 'internal_error', 'Internal Server Error', {
+  return sendError(reply, 'internal_error', 'Internal Server Error', {
     message: INTERNAL_ERROR_MESSAGE,
   });
 }
@@ -88,7 +119,7 @@ export function sendInternalError<R extends ErrorReply>(reply: R): R {
  * @returns The reply.
  */
 export function sendSourcesNotAvailable<R extends ErrorReply>(reply: R): R {
-  return sendError(reply, 503, 'not_available', NOT_AVAILABLE, {
+  return sendError(reply, 'not_available', NOT_AVAILABLE, {
     message: SOURCES_NOT_SUPPORTED,
   });
 }

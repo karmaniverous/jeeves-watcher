@@ -4,11 +4,13 @@
  */
 
 import {
+  bearerHeaders,
   type EndpointName,
   getEndpoint,
+  httpError,
+  tryParseJson,
 } from '@karmaniverous/jeeves-watcher-core';
 
-import { httpError, tryParseJson } from './httpError.js';
 import type { ResolvedClientOptions } from './options.js';
 import { WatcherError } from './WatcherError.js';
 
@@ -112,11 +114,11 @@ export function createTransport(options: ResolvedClientOptions): Transport {
     const query = new URLSearchParams(spec.query).toString();
     const url = `${options.baseUrl}${path}${query ? `?${query}` : ''}`;
 
-    const headers: Record<string, string> = { accept: 'application/json' };
-    if (hasBody) headers['content-type'] = 'application/json';
-    if (options.apiKey !== undefined) {
-      headers.authorization = `Bearer ${options.apiKey}`;
-    }
+    const headers: Record<string, string> = {
+      accept: 'application/json',
+      ...(hasBody ? { 'content-type': 'application/json' } : {}),
+      ...bearerHeaders(options.apiKey),
+    };
 
     const controller = new AbortController();
     const timer = setTimeout(() => {
@@ -130,7 +132,9 @@ export function createTransport(options: ResolvedClientOptions): Transport {
         signal: controller.signal,
       });
       const text = await res.text();
-      if (!res.ok) throw httpError(res.status, res.statusText, text);
+      if (!res.ok) {
+        throw new WatcherError(httpError(res.status, res.statusText, text));
+      }
       return parseResponse(spec, res.status, text);
     } catch (err) {
       if (err instanceof WatcherError) throw err;

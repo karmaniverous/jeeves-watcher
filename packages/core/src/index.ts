@@ -31,6 +31,15 @@ export {
   WATCHER_ENDPOINTS,
 } from './endpoints.js';
 export {
+  API_KEY_ENV_VAR,
+  bearerHeaders,
+  formatHttpError,
+  httpError,
+  type HttpErrorInfo,
+  tryParseJson,
+  unauthorizedMessage,
+} from './httpContract.js';
+export {
   findReservedPropertyNames,
   isReservedPayloadField,
   PAYLOAD_FIELD,

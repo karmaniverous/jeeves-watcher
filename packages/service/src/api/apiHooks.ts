@@ -9,7 +9,12 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import type pino from 'pino';
 
 import { registerApiKeyAuth } from './apiKeyAuth';
-import { codeForStatus, INTERNAL_ERROR_MESSAGE, sendError } from './sendError';
+import {
+  codeForStatus,
+  INTERNAL_ERROR_MESSAGE,
+  sendError,
+  sendErrorWithStatus,
+} from './sendError';
 
 /**
  * The HTTP status a thrown error asks for: its `statusCode` when that is a
@@ -45,7 +50,7 @@ export function registerErrorHandlers(
   logger?: pino.Logger,
 ): void {
   app.setNotFoundHandler((request: FastifyRequest, reply: FastifyReply) =>
-    sendError(reply, 404, 'not_found', 'Not Found', {
+    sendError(reply, 'not_found', 'Not Found', {
       message: `Route ${request.method}:${request.url} not found`,
     }),
   );
@@ -59,12 +64,12 @@ export function registerErrorHandlers(
           { err: error, method: request.method, path: request.url },
           'Unhandled API error',
         );
-        return sendError(reply, status, 'internal_error', title, {
+        return sendErrorWithStatus(reply, status, 'internal_error', title, {
           message: INTERNAL_ERROR_MESSAGE,
         });
       }
       const message = error instanceof Error ? error.message : undefined;
-      return sendError(reply, status, codeForStatus(status), title, {
+      return sendErrorWithStatus(reply, status, codeForStatus(status), title, {
         message,
       });
     },

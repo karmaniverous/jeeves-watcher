@@ -1,17 +1,25 @@
 /**
  * @module cli/jeeves-watcher/apiClient
- * Shared HTTP client for every CLI command that calls the watcher API: JSON GET/POST via `fetch`, optional `Authorization: Bearer` header, actionable 401 errors. Never prints the key.
+ * Shared HTTP client for every CLI command that calls the watcher API: JSON GET/POST via `fetch` with the core bearer header and core error mapping (errors carry the server `code`; 401 adds key guidance). Never prints the key.
  *
  * @remarks
  * Key resolution ({@link resolveApiKey}): the `--api-key` flag, then the
- * `JEEVES_WATCHER_API_KEY` environment variable. The API commands do not load
- * the watcher config file, so `api.apiKey` from config is not consulted.
+ * `JEEVES_WATCHER_API_KEY` environment variable (core `API_KEY_ENV_VAR`). The
+ * API commands do not load the watcher config file, so `api.apiKey` from
+ * config is not consulted.
  */
 
+import {
+  API_KEY_ENV_VAR,
+  bearerHeaders,
+  formatHttpError,
+  httpError,
+  unauthorizedMessage,
+} from '@karmaniverous/jeeves-watcher-core';
 import { z } from 'zod';
 
-/** Environment variable holding the API bearer key for CLI commands. */
-export const API_KEY_ENV_VAR = 'JEEVES_WATCHER_API_KEY';
+/** Where the CLI reads its API key from (named in 401 guidance). */
+export const CLI_KEY_SOURCES = `--api-key or the ${API_KEY_ENV_VAR} env var`;
 
 /** Options for {@link createApiClient}; the Zod schema is the source of truth. */
 const apiClientOptionsSchema = z.object({
@@ -41,7 +49,7 @@ function nonBlank(value: string | undefined): string | undefined {
  * Resolve the API key for a CLI invocation. Pure.
  *
  * @param flag - Value of the `--api-key` option, if given.
- * @param env - Environment to read {@link API_KEY_ENV_VAR} from.
+ * @param env - Environment to read `API_KEY_ENV_VAR` from.
  * @returns The first non-blank of `flag` and the env var, or `undefined`.
  */
 export function resolveApiKey(
@@ -52,27 +60,39 @@ export function resolveApiKey(
 }
 
 /**
- * Error message for a `401` response. Never contains the key. Pure.
+ * Error text for a `401` CLI response (core `unauthorizedMessage` naming
+ * {@link CLI_KEY_SOURCES}). Never contains the key. Pure.
  *
  * @param keySent - Whether the request carried a bearer key.
  * @returns Guidance on supplying (or checking) the key.
  */
-export function unauthorizedMessage(keySent: boolean): string {
-  return keySent
-    ? `HTTP 401: the watcher API rejected the API key. Check --api-key or ${API_KEY_ENV_VAR} against the service's api.apiKey.`
-    : `HTTP 401: the watcher API requires an API key. Pass --api-key <key> or set the ${API_KEY_ENV_VAR} environment variable.`;
+export function cliUnauthorizedMessage(keySent: boolean): string {
+  return unauthorizedMessage(keySent, CLI_KEY_SOURCES);
 }
 
-/** Send one request; map 401 and other non-OK statuses to errors. */
+/**
+ * Send one request; map 401 and other non-OK statuses to errors.
+ *
+ * @param url - Full request URL.
+ * @param init - Request init.
+ * @param keySent - Whether the request carries a bearer key.
+ * @returns The parsed JSON body.
+ * @throws On `401` with {@link cliUnauthorizedMessage}; on any other non-OK
+ *   status with
+ *   `HTTP <status> <code>: <message>`.
+ */
 async function send(
   url: string,
   init: RequestInit | undefined,
   keySent: boolean,
 ): Promise<unknown> {
   const res = await fetch(url, init);
-  if (res.status === 401) throw new Error(unauthorizedMessage(keySent));
+  if (res.status === 401) {
+    throw new Error(cliUnauthorizedMessage(keySent));
+  }
   if (!res.ok) {
-    throw new Error(`HTTP ${String(res.status)}: ${await res.text()}`);
+    const info = httpError(res.status, res.statusText, await res.text());
+    throw new Error(formatHttpError(info));
   }
   return res.json();
 }
@@ -87,9 +107,7 @@ async function send(
 export function createApiClient(options: ApiClientOptions): ApiClient {
   const { baseUrl, apiKey } = apiClientOptionsSchema.parse(options);
   const keySent = apiKey !== undefined;
-  const auth: Record<string, string> = keySent
-    ? { Authorization: `Bearer ${apiKey}` }
-    : {};
+  const auth = bearerHeaders(apiKey);
 
   return {
     get: (path) =>

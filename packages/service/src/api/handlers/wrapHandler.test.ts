@@ -94,7 +94,7 @@ describe('wrapHandler', () => {
     ],
     [
       'not_found',
-      new RequestError(404, 'not_found', 'Path not found: x'),
+      new RequestError('not_found', 'Path not found: x'),
       404,
       { code: 'not_found', error: 'Path not found: x' },
     ],

@@ -8,10 +8,10 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { Command } from '@commander-js/extra-typings';
+import { API_KEY_ENV_VAR } from '@karmaniverous/jeeves-watcher-core';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { loadConfig } from '../../config/loadConfig';
-import { API_KEY_ENV_VAR } from './apiClient';
 import { registerCustomCommands } from './customCommands';
 
 vi.mock('../../config/loadConfig', async (importOriginal) => {

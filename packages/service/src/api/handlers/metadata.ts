@@ -39,14 +39,14 @@ type MetadataRequest = FastifyRequest<{ Body: unknown }>;
 
 /** Send `404 source_not_indexed`. */
 const sendNotIndexed = (reply: FastifyReply) =>
-  sendError(reply, 404, 'source_not_indexed', 'Source document not indexed');
+  sendError(reply, 'source_not_indexed', 'Source document not indexed');
 
 /** Send `400 invalid_request` for failed metadata validation. */
 const sendInvalid = (
   reply: FastifyReply,
   validation: { error: string; details?: unknown },
 ) =>
-  sendError(reply, 400, 'invalid_request', validation.error, {
+  sendError(reply, 'invalid_request', validation.error, {
     details: validation.details,
   });
 

@@ -62,7 +62,6 @@ export function createConfigMatchHandler(options: ConfigMatchHandlerOptions) {
     if (!Array.isArray(body.paths)) {
       sendError(
         res,
-        400,
         'invalid_request',
         'Request body must include "paths" array',
       );

@@ -20,7 +20,7 @@ const qdrantError = (status: number, data: unknown = {}) =>
 
 describe('RequestError', () => {
   it('carries status, code, text and extras', () => {
-    const err = new RequestError(404, 'not_found', 'gone', { message: 'm' });
+    const err = new RequestError('not_found', 'gone', { message: 'm' });
     expect(err).toBeInstanceOf(Error);
     expect(err).toMatchObject({
       status: 404,

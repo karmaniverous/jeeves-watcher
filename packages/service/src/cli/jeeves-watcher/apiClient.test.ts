@@ -4,13 +4,13 @@
  */
 
 import { Command } from '@commander-js/extra-typings';
+import { API_KEY_ENV_VAR } from '@karmaniverous/jeeves-watcher-core';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
-  API_KEY_ENV_VAR,
+  cliUnauthorizedMessage,
   createApiClient,
   resolveApiKey,
-  unauthorizedMessage,
 } from './apiClient';
 import { registerCustomCommands } from './customCommands';
 
@@ -90,10 +90,10 @@ describe('createApiClient', () => {
   it('explains how to supply the key on 401 without one', async () => {
     respond(401, { error: 'Unauthorized' });
     await expect(createApiClient({ baseUrl: BASE }).get('/x')).rejects.toThrow(
-      unauthorizedMessage(false),
+      cliUnauthorizedMessage(false),
     );
-    expect(unauthorizedMessage(false)).toContain('--api-key');
-    expect(unauthorizedMessage(false)).toContain(API_KEY_ENV_VAR);
+    expect(cliUnauthorizedMessage(false)).toContain('--api-key');
+    expect(cliUnauthorizedMessage(false)).toContain(API_KEY_ENV_VAR);
   });
 
   it('reports a rejected key on 401 without echoing it', async () => {
@@ -101,16 +101,26 @@ describe('createApiClient', () => {
     const error = await createApiClient({ baseUrl: BASE, apiKey: KEY })
       .get('/x')
       .catch((err: unknown) => err as Error);
-    expect((error as Error).message).toBe(unauthorizedMessage(true));
+    expect((error as Error).message).toBe(cliUnauthorizedMessage(true));
     expect((error as Error).message).not.toContain(KEY);
   });
 
-  it('maps other non-OK statuses to HTTP <status>: <body>', async () => {
-    respond(500, { error: 'boom' });
-    await expect(createApiClient({ baseUrl: BASE }).get('/x')).rejects.toThrow(
-      'HTTP 500: {"error":"boom"}',
-    );
-  });
+  it.each([
+    [
+      404,
+      { code: 'not_found', error: 'Not Found', message: 'no such file' },
+      'HTTP 404 not_found: Not Found: no such file',
+    ],
+    [500, { error: 'boom' }, 'HTTP 500 boom: boom'],
+  ])(
+    'maps a %i to HTTP <status> <code>: <message>',
+    async (status, body, text) => {
+      respond(status, body);
+      await expect(
+        createApiClient({ baseUrl: BASE }).get('/x'),
+      ).rejects.toThrow(text);
+    },
+  );
 });
 
 describe('CLI commands', () => {
@@ -149,7 +159,7 @@ describe('CLI commands', () => {
   it('prints 401 guidance, sets exit code 1 and never prints the key', async () => {
     respond(401, { error: 'Unauthorized' });
     const output = await runCli(['scan', '--api-key', KEY]);
-    expect(output).toContain(unauthorizedMessage(true));
+    expect(output).toContain(cliUnauthorizedMessage(true));
     expect(output).not.toContain(KEY);
     expect(process.exitCode).toBe(1);
   });

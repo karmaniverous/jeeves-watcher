@@ -4,9 +4,10 @@
  */
 
 import type { PluginApi, ToolDescriptor } from '@karmaniverous/jeeves';
+import { unauthorizedMessage } from '@karmaniverous/jeeves-watcher-core';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { unauthorizedMessage } from './http.js';
+import { PLUGIN_KEY_SOURCES } from './http.js';
 import register from './index.js';
 
 const KEY = 'plugin-auth-secret';
@@ -113,7 +114,9 @@ describe('plugin bearer key', () => {
     const { tools, logger } = setUp({ pluginConfig: { apiKey: KEY } });
     const result = await tools.get('watcher_config')!.execute('1', {});
     expect(result.isError).toBe(true);
-    expect(result.content[0].text).toContain(unauthorizedMessage(true));
+    expect(result.content[0].text).toContain(
+      unauthorizedMessage(true, PLUGIN_KEY_SOURCES),
+    );
 
     const logged = JSON.stringify([
       ...spies.map((spy) => spy.mock.calls),

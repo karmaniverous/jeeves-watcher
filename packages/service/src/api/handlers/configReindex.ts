@@ -20,7 +20,7 @@ import { executeReindex, prepareReindex } from '../executeReindex';
 import type { ReindexTracker } from '../ReindexTracker';
 import {
   NOT_AVAILABLE,
-  sendError,
+  sendErrorWithStatus,
   sendSourcesNotAvailable,
 } from '../sendError';
 import { parseBody } from './parseBody';
@@ -89,8 +89,10 @@ export function createConfigReindexHandler(deps: ConfigReindexRouteDeps) {
         return reindexSources({ ops, queue, concurrency }, refs, dryRun);
       }
 
+      // The one documented status exception (core API_ERROR_STATUS): a prune
+      // without a vector store keeps its 0.19 status 400.
       if (scope === 'prune' && !deps.vectorStore) {
-        return sendError(reply, 400, 'not_available', NOT_AVAILABLE, {
+        return sendErrorWithStatus(reply, 400, 'not_available', NOT_AVAILABLE, {
           message: 'Prune scope requires vectorStore to be configured.',
         });
       }

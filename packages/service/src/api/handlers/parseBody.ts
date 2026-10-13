@@ -31,7 +31,6 @@ export function parseBody<S extends z.ZodType>(
 
   sendError(
     reply,
-    400,
     'invalid_request',
     result.error.issues[0]?.message ?? 'Invalid request body',
     { details: result.error.issues },

@@ -4,6 +4,7 @@
  */
 
 import { createServiceCli } from '@karmaniverous/jeeves';
+import { API_KEY_ENV_VAR } from '@karmaniverous/jeeves-watcher-core';
 import {
   afterAll,
   afterEach,
@@ -14,10 +15,7 @@ import {
   vi,
 } from 'vitest';
 
-import {
-  API_KEY_ENV_VAR,
-  unauthorizedMessage,
-} from '../cli/jeeves-watcher/apiClient';
+import { cliUnauthorizedMessage } from '../cli/jeeves-watcher/apiClient';
 import { watcherDescriptor } from '../descriptor';
 import { qdrantAvailable } from './harness/qdrant';
 import { type ServiceHarness, startServiceHarness } from './harness/service';
@@ -106,7 +104,7 @@ describe.skipIf(!qdrantAvailable())(
       const denied = await runCli(['config'], target);
       expect(denied.exitCode).toBe(1);
       expect(denied.stderr).toBe(
-        `Config query failed: ${unauthorizedMessage(false)}`,
+        `Config query failed: ${cliUnauthorizedMessage(false)}`,
       );
     });
 
@@ -114,13 +112,13 @@ describe.skipIf(!qdrantAvailable())(
       const run = await runCli(['issues']);
       expect(run.exitCode).toBe(1);
       expect(run.stdout).toBe('');
-      expect(run.stderr).toBe(unauthorizedMessage(false));
+      expect(run.stderr).toBe(cliUnauthorizedMessage(false));
     });
 
     it('gets 401 for a wrong key and never prints it', async () => {
       const run = await runCli(['issues', '--api-key', 'wrong-key']);
       expect(run.exitCode).toBe(1);
-      expect(run.stderr).toBe(unauthorizedMessage(true));
+      expect(run.stderr).toBe(cliUnauthorizedMessage(true));
       expect(`${run.stdout}${run.stderr}`).not.toContain('wrong-key');
     });
   },

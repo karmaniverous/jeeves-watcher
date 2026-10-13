@@ -85,7 +85,7 @@ export function registerApiKeyAuth(
         'Rejected API request without a valid bearer token',
       );
       const { code, error } = UNAUTHORIZED_BODY;
-      return sendError(reply, 401, code, error);
+      return sendError(reply, code, error);
     },
   );
 }

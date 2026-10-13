@@ -65,7 +65,6 @@ export function createConfigQueryHandler(deps: ConfigQueryRouteDeps) {
       deps.logger.error({ err }, 'Config query failed');
       return await sendError(
         reply,
-        400,
         'invalid_request',
         err.message || 'Query failed',
       );
