@@ -3,17 +3,8 @@
  * Main application orchestrator. Wires components, manages lifecycle (start/stop/reload).
  */
 
-import {
-  DEFAULT_PORTS,
-  getBindAddress,
-  type JeevesComponentDescriptor,
-} from '@karmaniverous/jeeves';
-import {
-  CONFIG_WATCH_DEFAULTS,
-  EMBEDDING_DEFAULTS,
-  ROOT_DEFAULTS,
-  WATCH_DEFAULTS,
-} from '@karmaniverous/jeeves-watcher-core';
+import type { JeevesComponentDescriptor } from '@karmaniverous/jeeves';
+import { ROOT_DEFAULTS } from '@karmaniverous/jeeves-watcher-core';
 import type { FastifyInstance } from 'fastify';
 import type pino from 'pino';
 
@@ -27,14 +18,19 @@ import { IssuesManager } from '../issues';
 import type { DocumentProcessorInterface } from '../processor';
 import { combinePausableQueues, type EventQueue } from '../queue';
 import type { SourceNotifyQueue } from '../queue/SourceNotifyQueue';
-import { logReservedFieldWarnings } from '../rules/reservedFieldWarnings';
 import { VirtualRuleStore } from '../rules/virtualRules';
 import { ValuesManager } from '../values';
 import { VcsCoordinator } from '../vcs/VcsCoordinator';
 import type { FileSystemWatcher } from '../watcher';
+import { type ApiServerOptions, startApiServer } from './apiServer';
 import { reloadConfig } from './configReload';
-import { ConfigWatcher } from './configWatcher';
-import { defaultFactories, type JeevesWatcherFactories } from './factories';
+import type { ConfigWatcher } from './configWatcher';
+import { startConfigWatch } from './configWatchWiring';
+import {
+  defaultFactories,
+  type JeevesWatcherFactories,
+  type JeevesWatcherRuntimeOptions,
+} from './factories';
 import {
   buildTemplateEngineAndCustomMapLib,
   createProcessorConfig,
@@ -44,22 +40,16 @@ import {
   introspectHelpers,
   resolveVersion,
 } from './initialization';
+import { createQueues } from './queues';
 import { shutdownComponents } from './shutdown';
-import { createNotifyQueue, createSourceRetriever } from './sources';
+import { createSourceRetriever } from './sources';
 import { createWatcher } from './watcherFactory';
 
-type ApiServerOptions = Parameters<
-  JeevesWatcherFactories['createApiServer']
->[0];
-
-export type { JeevesWatcherFactories } from './factories';
+export type {
+  JeevesWatcherFactories,
+  JeevesWatcherRuntimeOptions,
+} from './factories';
 export { startFromConfig } from './startFromConfig';
-
-/** Runtime options for {@link JeevesWatcher} that aren't serializable in config. */
-export interface JeevesWatcherRuntimeOptions {
-  /** Callback invoked on unrecoverable system error. If not set, throws. */
-  onFatalError?: (error: unknown) => void;
-}
 
 /**
  * Main application class that wires together all components.
@@ -81,15 +71,15 @@ export class JeevesWatcher {
   private issuesManager: IssuesManager | undefined;
   private valuesManager: ValuesManager | undefined;
   private helperIntrospection: AllHelpersIntrospection | undefined;
-  private virtualRuleStore: VirtualRuleStore;
+  private readonly virtualRuleStore = new VirtualRuleStore();
   private vectorStore: ApiServerOptions['vectorStore'] | undefined;
   private embeddingProvider: ApiServerOptions['embeddingProvider'] | undefined;
   private gitignoreFilter: GitignoreFilter | undefined;
   private enrichmentStore: EnrichmentStore | undefined;
   private contentHashCache: ContentHashCache | undefined;
   private vcsCoordinator: VcsCoordinator | undefined;
-  private readonly initialScanTracker: InitialScanTracker;
-  private readonly version: string;
+  private readonly initialScanTracker = new InitialScanTracker();
+  private readonly version = resolveVersion(import.meta.url);
 
   /** Create a new JeevesWatcher instance. */
   constructor(
@@ -109,14 +99,9 @@ export class JeevesWatcher {
     this.descriptor = descriptor;
     this.factories = { ...defaultFactories, ...factories };
     this.runtimeOptions = runtimeOptions;
-    this.virtualRuleStore = new VirtualRuleStore();
-    this.initialScanTracker = new InitialScanTracker();
-    this.version = resolveVersion(import.meta.url);
   }
 
-  /**
-   * Start the watcher, API server, and all components.
-   */
+  /** Start the watcher, API server, and all components. */
   async start(): Promise<void> {
     await this.initInfrastructure();
     await this.initPipeline();
@@ -152,12 +137,9 @@ export class JeevesWatcher {
     );
 
     const configDir = getConfigDir(this.configPath);
-    logReservedFieldWarnings(this.config, configDir, logger);
     const { templateEngine, customMapLib } =
       await buildTemplateEngineAndCustomMapLib(this.config, configDir);
-
     this.helperIntrospection = await introspectHelpers(this.config, configDir);
-
     const processorConfig = createProcessorConfig(
       this.config,
       configDir,
@@ -183,20 +165,12 @@ export class JeevesWatcher {
       contentHashCache: this.contentHashCache,
       sourceRetriever: createSourceRetriever(this.config),
     });
-    // One embedding concurrency for the file and source queues.
-    const concurrency =
-      this.config.embedding.concurrency ?? EMBEDDING_DEFAULTS.concurrency;
-    this.sourceQueue = createNotifyQueue(
+    ({ queue: this.queue, sourceQueue: this.sourceQueue } = createQueues(
+      this.config,
+      this.factories,
       this.processor,
-      concurrency,
-      logger,
-      this.issuesManager,
-    );
-
-    this.queue = this.factories.createEventQueue({
-      debounceMs: this.config.watch.debounceMs ?? WATCH_DEFAULTS.debounceMs,
-      concurrency,
-    });
+      { logger, issues: this.issuesManager },
+    ));
 
     this.vcsCoordinator = new VcsCoordinator(this.config, logger);
   }
@@ -218,19 +192,26 @@ export class JeevesWatcher {
       (filePath, event) => {
         vcsCoordinator.onFileChange(filePath, event);
       },
-      () => {
-        void vcsCoordinator.onInitialScanComplete();
-      },
+      () => void vcsCoordinator.onInitialScanComplete(),
     );
     this.watcher = watcher;
     this.gitignoreFilter = gitignoreFilter;
 
-    this.server = await this.startApiServer();
+    this.server = await startApiServer(
+      this.factories.createApiServer,
+      this.apiServerOptions(),
+      this.config,
+    );
 
     await vcsCoordinator.start();
     this.watcher.start();
     this.sourceQueue?.start();
-    this.startConfigWatch();
+    this.configWatcher = startConfigWatch(
+      this.config,
+      this.configPath,
+      logger,
+      () => this.reloadConfig(),
+    );
 
     logger.info('jeeves-watcher started');
   }
@@ -241,7 +222,8 @@ export class JeevesWatcher {
    * shutdownComponents).
    */
   async stop(): Promise<void> {
-    await this.stopConfigWatch();
+    await this.configWatcher?.stop();
+    this.configWatcher = undefined;
     await shutdownComponents(
       {
         server: this.server,
@@ -257,8 +239,8 @@ export class JeevesWatcher {
     this.logger?.info('jeeves-watcher stopped');
   }
 
-  private async startApiServer() {
-    const server = this.factories.createApiServer({
+  private apiServerOptions(): ApiServerOptions {
+    return {
       descriptor: this.descriptor,
       processor: this.processor!,
       vectorStore: this.vectorStore!,
@@ -280,46 +262,7 @@ export class JeevesWatcher {
       getFileSystemWatcher: () => this.watcher,
       enrichmentStore: this.enrichmentStore,
       vcsCoordinator: this.vcsCoordinator,
-    });
-
-    await server.listen({
-      host: this.config.api?.host ?? getBindAddress('watcher'),
-      port: this.config.api?.port ?? DEFAULT_PORTS.watcher,
-    });
-
-    return server;
-  }
-
-  private startConfigWatch(): void {
-    const logger = this.logger;
-    if (!logger) return;
-
-    const enabled =
-      this.config.configWatch?.enabled ?? CONFIG_WATCH_DEFAULTS.enabled;
-    if (!enabled || !this.configPath) {
-      if (!this.configPath) {
-        logger.debug('Config watch enabled, but no config path was provided');
-      }
-      return;
-    }
-
-    this.configWatcher = new ConfigWatcher({
-      configPath: this.configPath,
-      enabled,
-      debounceMs:
-        this.config.configWatch?.debounceMs ?? CONFIG_WATCH_DEFAULTS.debounceMs,
-      logger,
-      onChange: async () => this.reloadConfig(),
-    });
-
-    this.configWatcher.start();
-  }
-
-  private async stopConfigWatch(): Promise<void> {
-    if (this.configWatcher) {
-      await this.configWatcher.stop();
-      this.configWatcher = undefined;
-    }
+    };
   }
 
   private async reloadConfig(): Promise<void> {

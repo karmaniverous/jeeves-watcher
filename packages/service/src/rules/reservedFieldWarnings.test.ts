@@ -7,13 +7,9 @@ import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import type pino from 'pino';
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
-import {
-  findReservedFieldWarnings,
-  logReservedFieldWarnings,
-} from './reservedFieldWarnings';
+import { findReservedFieldWarnings } from './reservedFieldWarnings';
 
 describe('findReservedFieldWarnings', () => {
   it('returns nothing when no rule uses a reserved name', () => {
@@ -82,28 +78,5 @@ describe('findReservedFieldWarnings', () => {
         ],
       }),
     ).toEqual([]);
-  });
-});
-
-describe('logReservedFieldWarnings', () => {
-  it('logs each warning at warn level', () => {
-    const warn = vi.fn();
-    logReservedFieldWarnings(
-      {
-        inferenceRules: [
-          {
-            name: 'r',
-            schema: [{ properties: { source: {}, matched_rules: {} } }],
-          },
-        ],
-      },
-      undefined,
-      { warn } as unknown as pino.Logger,
-    );
-    expect(warn).toHaveBeenCalledTimes(2);
-    expect(warn).toHaveBeenCalledWith(
-      { path: 'inferenceRules[r].schema.source' },
-      expect.stringContaining('reserved'),
-    );
   });
 });

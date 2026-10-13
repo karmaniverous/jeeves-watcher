@@ -174,4 +174,42 @@ describe('reloadConfig', () => {
     expect(state.watcher).toBe(oldWatcher);
     expect(state.config).toBe(newConfig);
   });
+
+  it('logs each load warning once, as loadConfig reports it', async () => {
+    const config = {
+      ...makeConfig(),
+      inferenceRules: [
+        { name: 'r', schema: [{ properties: { file_path: {} } }] },
+      ],
+    } as unknown as JeevesWatcherConfig;
+    const { processor, factories } = makeDeps(config);
+    const warning = {
+      path: 'inferenceRules[r].schema.file_path',
+      message: 'm',
+    };
+    vi.mocked(factories.loadConfig).mockImplementation((_path, options) => {
+      options?.onWarning?.(warning);
+      return Promise.resolve(config);
+    });
+    const warn = vi.fn();
+    const logger = { info: vi.fn(), warn, error: vi.fn(), debug: vi.fn() };
+
+    await reloadConfig(
+      { config, watcher: undefined, gitignoreFilter: undefined },
+      {
+        configPath: '/path/to/config.json',
+        factories,
+        queue: {} as never,
+        processor,
+        logger: logger as unknown as pino.Logger,
+        runtimeOptions: {},
+        initialScanTracker: {} as never,
+      },
+    );
+
+    expect(warn).toHaveBeenCalledExactlyOnceWith(
+      { path: warning.path },
+      warning.message,
+    );
+  });
 });

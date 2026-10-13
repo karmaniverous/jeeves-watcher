@@ -8,7 +8,7 @@ import {
   sourceConfigSchema,
 } from '@karmaniverous/jeeves-watcher-core';
 
-import type { ConfigWarning } from '../rules/reservedFieldWarnings';
+import type { ConfigWarning } from './warnings';
 
 /** Keys a source entry may carry. */
 const KNOWN_SOURCE_KEYS = new Set(Object.keys(sourceConfigSchema.shape));

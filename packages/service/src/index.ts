@@ -36,6 +36,7 @@ export {
   vectorStoreConfigSchema,
   watchConfigSchema,
 } from './config';
+export type { ConfigWarning } from './config/warnings';
 export { watcherDescriptor } from './descriptor';
 export type {
   EmbeddingProvider,
@@ -105,7 +106,6 @@ export {
   sourceAttributesSchema,
   VirtualRuleStore,
 } from './rules';
-export type { ConfigWarning } from './rules/reservedFieldWarnings';
 export {
   type ParsedSourceReference,
   parsedSourceReferenceSchema,

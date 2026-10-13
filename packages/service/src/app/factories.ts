@@ -19,6 +19,12 @@ import { compileRules } from '../rules';
 import { VectorStoreClient } from '../vectorStore';
 import { FileSystemWatcher, type FileSystemWatcherOptions } from '../watcher';
 
+/** Runtime options for {@link JeevesWatcher} that aren't serializable in config. */
+export interface JeevesWatcherRuntimeOptions {
+  /** Callback invoked on unrecoverable system error. If not set, throws. */
+  onFatalError?: (error: unknown) => void;
+}
+
 /**
  * Component factories for {@link JeevesWatcher}. Override in tests to inject mocks.
  */

@@ -1,6 +1,6 @@
 /**
  * @module config/loadConfig
- * Loads the watcher config via cosmiconfig: schema validation, rule/map file resolution, defaults, env substitution and secret checks; reports non-fatal warnings (unknown source keys). Reads files.
+ * Loads the watcher config via cosmiconfig: schema validation, rule/map file resolution, defaults, env substitution and secret checks; reports non-fatal warnings (unknown source keys, reserved rule field names) through onWarning. Reads files.
  */
 
 import { readFileSync } from 'node:fs';
@@ -11,7 +11,7 @@ import type { JsonMapMap } from '@karmaniverous/jsonmap';
 import { cosmiconfig } from 'cosmiconfig';
 import { ZodError } from 'zod';
 
-import type { ConfigWarning } from '../rules/reservedFieldWarnings';
+import { findReservedFieldWarnings } from '../rules/reservedFieldWarnings';
 import { assertResolvedSecrets } from './assertResolvedSecrets';
 import {
   API_DEFAULTS,
@@ -24,6 +24,7 @@ import {
 import type { InferenceRule } from './schemas';
 import { type JeevesWatcherConfig, jeevesWatcherConfigSchema } from './schemas';
 import { findUnknownSourceKeys } from './sourceKeyWarnings';
+import type { ConfigWarning } from './warnings';
 
 const MODULE_NAME = 'jeeves-watcher';
 
@@ -48,8 +49,9 @@ function applyDefaults(raw: JeevesWatcherConfig): JeevesWatcherConfig {
 /** Options of {@link loadConfig}. */
 export interface LoadConfigOptions {
   /**
-   * Receives non-fatal warnings (e.g. unknown keys under `sources.<name>`,
-   * which validation drops) once the config has loaded successfully.
+   * Receives non-fatal warnings once the config has loaded successfully:
+   * unknown keys under `sources.<name>` (which validation drops), then rule
+   * schema properties named like reserved system fields.
    */
   onWarning?: (warning: ConfigWarning) => void;
 }
@@ -114,9 +116,11 @@ export async function loadConfig(
     const withDefaults = applyDefaults(validated);
     const substituted = substituteEnvVars(withDefaults);
     assertResolvedSecrets(substituted);
-    for (const warning of findUnknownSourceKeys(result.config)) {
-      options.onWarning?.(warning);
-    }
+    const warnings = [
+      ...findUnknownSourceKeys(result.config),
+      ...findReservedFieldWarnings(substituted, configDir),
+    ];
+    for (const warning of warnings) options.onWarning?.(warning);
     return substituted;
   } catch (error) {
     if (error instanceof ZodError) {

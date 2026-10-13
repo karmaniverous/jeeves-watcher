@@ -1,6 +1,6 @@
 /**
  * @module config/assertResolvedSecrets.test
- * Tests for the startup secret checks (unresolved env references in api.apiKey and sources, empty api.apiKey) and unknown source-key warnings, unit and through loadConfig.
+ * Tests for the startup secret checks (unresolved env references in api.apiKey and sources, empty api.apiKey) and the load-time warnings (unknown source keys, reserved rule field names), unit and through loadConfig.
  */
 
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
@@ -160,5 +160,25 @@ describe('loadConfig secret check', () => {
       expect.objectContaining({ path: 'sources.app.batchUrl' }),
     );
     expect(config.sources?.['app']).not.toHaveProperty('batchUrl');
+  });
+
+  it('reports reserved rule field names through onWarning (after source keys)', async () => {
+    const cfgPath = await writeConfig({
+      ...base,
+      sources: { app: { url: 'http://x/{id}', batchUrl: 'http://x/b' } },
+      inferenceRules: [
+        {
+          name: 'r',
+          description: 'r',
+          match: { type: 'object' },
+          schema: [{ type: 'object', properties: { file_path: {} } }],
+        },
+      ],
+    });
+    const onWarning = vi.fn();
+    await loadConfig(cfgPath, { onWarning });
+    expect(
+      onWarning.mock.calls.map(([w]) => (w as { path: string }).path),
+    ).toEqual(['sources.app.batchUrl', 'inferenceRules[r].schema.file_path']);
   });
 });
