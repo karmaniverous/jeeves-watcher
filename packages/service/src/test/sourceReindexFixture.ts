@@ -1,10 +1,10 @@
 /**
  * @module test/sourceReindexFixture
- * Unit-test fixture for source reindex: an in-memory vector store (point map, chunk-0/source filter on scroll), in-memory issues, a scripted source retriever, a real DocumentProcessor and a started notify queue over it. No I/O.
+ * Unit-test fixture for source reindex: an in-memory vector store (point map; scroll honours only the chunk-0 source-discovery filter, other filters return every point: real Qdrant filtering is covered by reindex-sources-integration.test.ts), in-memory issues, a scripted source retriever, a real DocumentProcessor and a notify queue over it, stopped when the test finishes. Call inside a test. No I/O.
  */
 
 import pino from 'pino';
-import { vi } from 'vitest';
+import { onTestFinished, vi } from 'vitest';
 
 import type { ExecuteReindexDeps } from '../api/executeReindex';
 import { createNotifyQueue } from '../app/sources';
@@ -169,6 +169,8 @@ export function sourceReindexFixture(responses: Responses) {
     pino({ level: 'silent' }),
   );
   sourceQueue.start();
+  // Never leave a started queue behind the test that built it.
+  onTestFinished(() => sourceQueue.stop());
   const deps: ExecuteReindexDeps = {
     config: {
       watch: { paths: ['src/**'], ignored: [] },

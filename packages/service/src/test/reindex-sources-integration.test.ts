@@ -1,9 +1,9 @@
 /**
  * @module test/reindex-sources-integration.test
- * Service integration (requires Qdrant): POST /reindex full re-retrieves every source document through the stub callback and updates changed ones; a 500 records an issue and leaves the points; a live prune deletes an orphaned file point and keeps every source point.
+ * Service integration (requires Qdrant): POST /reindex full re-retrieves every source document through the stub callback and updates changed ones, counting a watched file under its own root; a 500 records an issue and leaves the points; a live prune deletes an orphaned file point and keeps every source point.
  */
 
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -137,16 +137,22 @@ describe.skipIf(!qdrantAvailable())(
     };
 
     it('full re-retrieves both documents and updates the changed one', async () => {
+      // A watched file alongside: real Qdrant must keep it out of the
+      // source root (the unit fixture's scroll does not filter).
+      const kept = join(watchDir, 'kept.txt');
+      await writeFile(kept, 'a watched file', 'utf8');
+      await harness.processor.processFile(kept);
       stub.route(PATH_A, thread('u1', 'alpha edited'));
 
       const { plan } = await reindex({ scope: 'full' });
 
-      expect(plan).toEqual({
-        total: 2,
-        toProcess: 2,
-        toDelete: 0,
-        byRoot: { app: 2 },
-      });
+      expect(plan).toMatchObject({ total: 3, toProcess: 3, toDelete: 0 });
+      const { byRoot } = plan as { byRoot: Record<string, number> };
+      expect(byRoot['app']).toBe(2);
+      expect(Object.keys(byRoot)).toHaveLength(2);
+      expect(
+        await harness.vectorStore.getPayload(pointId(kept, 0)),
+      ).toMatchObject({ file_path: normalizeSlashes(kept) });
       expect(await payloadOf(A)).toMatchObject({
         chunk_text: expect.stringContaining('alpha edited') as unknown,
         source: A,
