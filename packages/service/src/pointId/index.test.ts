@@ -1,6 +1,6 @@
 /**
  * @module pointId/index.test
- * Golden values pin the point ID scheme: `sourcePointId` is UUIDv5 over the exact `<reference>#<chunk>` in the jeeves-watcher namespace (no normalisation), so stored source points keep their IDs across releases.
+ * Golden values pin the point ID scheme: `sourcePointId` is UUIDv5 over the exact `<reference>#<chunk>` in the jeeves-watcher namespace (no normalisation), so stored source points keep their IDs across releases; file and source IDs differ because their keys do (a reference contains `://`, a normalised file path never does).
  */
 
 import { describe, expect, it } from 'vitest';
@@ -18,12 +18,23 @@ describe('sourcePointId', () => {
     expect(sourcePointId(reference, chunk)).toBe(expected);
   });
 
-  it('is case-sensitive and distinct from the file scheme', () => {
+  it('gives distinct keys distinct IDs: a source reference never equals a normalised file path', () => {
+    // Case-sensitive: these are two different references.
     expect(sourcePointId('app://chat/thread/1', 0)).not.toBe(
       sourcePointId('app://chat/Thread/1', 0),
     );
-    expect(sourcePointId('app://chat/Thread/1', 0)).not.toBe(
-      pointId('app://chat/Thread/1', 0),
-    );
+    // A file key is a normalised path, which never contains '://'; the
+    // nearest file keys to a lower-case reference still hash differently.
+    const lower = 'app://chat/thread/1';
+    for (const file of [
+      'app/chat/thread/1',
+      '/app/chat/thread/1',
+      'c:/app/chat/thread/1',
+      'app:/chat/thread/1',
+    ]) {
+      expect(pointId(file, 0)).not.toBe(sourcePointId(lower, 0));
+    }
+    // Separation rests on the keys, not on the function: one key, one ID.
+    expect(pointId(lower, 0)).toBe(sourcePointId(lower, 0));
   });
 });

@@ -144,7 +144,8 @@ describe('DocumentProcessor source processing', () => {
   it('keys points by the exact reference (case-sensitive, not normalised)', async () => {
     const lower = 'app://chat/thread/abc';
     expect(sourcePointId(REF, 0)).not.toBe(sourcePointId(lower, 0));
-    expect(sourcePointId(REF, 0)).not.toBe(pointId(REF, 0));
+    // Normalising would have produced the lower-case reference's ID.
+    expect(pointId(REF, 0)).toBe(sourcePointId(lower, 0));
 
     const { processor, mocks } = setup();
     await run(processor);
