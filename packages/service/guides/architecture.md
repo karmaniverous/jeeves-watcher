@@ -10,9 +10,9 @@ High-level architectural overview of `jeeves-watcher` for contributors and advan
 
 1. **Files are just files** — Processes write to the filesystem normally. The watcher discovers changes passively.
 2. **Config-driven, no domain logic** — The watcher doesn't know what an "email" or "meeting" is. Domain semantics live in config (inference rules).
-3. **Embedding is swappable** — Change embedding providers by changing one config line. No code changes.
+3. **Embedding is swappable** — Embedding providers are selected by `embedding.provider`; adding a provider is a small, self-contained code change (see [Add a New Embedding Provider](#add-a-new-embedding-provider)).
 4. **Metadata enrichment is optional** — The watcher works without it, but callers can enrich documents for better search quality.
-5. **Three sources of truth** — Filesystem owns content, metadata store owns enrichment, Qdrant is a derived index (fully rebuildable).
+5. **Three sources of truth** — Filesystem owns content, the enrichment store owns enrichment, Qdrant is a derived index (fully rebuildable).
 
 ---
 
@@ -23,10 +23,11 @@ High-level architectural overview of `jeeves-watcher` for contributors and advan
 The watcher consists of several layered components:
 
 - **Configuration Layer** — Zod-validated config with environment variable substitution
-- **Watch Layer** — Chokidar filesystem watcher + event queue
-- **Processing Layer** — Document processor with extractors, chunking, and inference rules engine
-- **External Services** — Configurable embedding provider + Qdrant vector store
-- **API Layer** — Fastify HTTP server for enrichment and search
+- **Watch Layer** — Chokidar filesystem watcher feeding the file event queue; source-document notifications feed a separate notify queue
+- **Processing Layer** — Document processor: resolvers (file and source), extractors, inference rules engine, and one shared chunk/embed/upsert pipeline
+- **State** — Enrichment store, issues file and values index under `stateDir` (default `.jeeves-metadata`)
+- **External Services** — Configurable embedding provider (behind one shared rate limiter) + Qdrant vector store
+- **API Layer** — Fastify HTTP server for search, enrichment, reindex, source notifications and administration
 - **CLI Layer** — Command-line interface for operations
 
 ---
@@ -38,26 +39,26 @@ The watcher consists of several layered components:
 The system maintains three distinct stores:
 
 - **Filesystem** (watched directories) — Primary source of document content
-- **Metadata Store** (`.meta.json` sidecars) — Enrichment metadata added via API
+- **Enrichment store** (`<stateDir>/enrichments.sqlite`, `node:sqlite`) — Enrichment metadata added via API
 - **Qdrant** (vector database) — Derived index, fully rebuildable
 
 ### Rebuild Flows
 
-**Qdrant lost → Rebuild from filesystem + metadata store:**
+**Qdrant lost → Rebuild from filesystem + enrichment store:**
 
 ```bash
-jeeves-watcher reindex
+jeeves-watcher reindex --scope full
 ```
 
-Reads files from disk, reads `.meta.json` sidecars, re-embeds content, upserts to Qdrant.
+Re-extracts every watched file, merges its enrichment from the enrichment store, re-embeds the content and upserts to Qdrant. (The CLI's default scope is `rules`, which only re-applies rules to points that already exist.)
 
-**Metadata store lost → Rebuild from Qdrant:**
+**Enrichment store lost → Rebuild from Qdrant:**
 
 ```bash
 jeeves-watcher rebuild-metadata
 ```
 
-Scrolls Qdrant points, extracts enrichment metadata from payloads, writes `.meta.json` files.
+Scrolls Qdrant and, for every file point, writes its payload minus the reserved system fields (identity, chunk, hash, date, line and `matched_rules` fields) to the enrichment store. Rule-derived fields are therefore written too; source documents are not rebuilt.
 
 ---
 
@@ -67,33 +68,33 @@ Scrolls Qdrant points, extracts enrichment metadata from payloads, writes `.meta
 
 ![File Change Event](../assets/file-change-event.png)
 
-**Debounce:** Wait `watch.debounceMs` after the last change event (prevents re-embedding during rapid edits).
+**Debounce:** Events for the same path are collapsed until `watch.debounceMs` (default: 300 ms) has passed since the last one (prevents re-embedding during rapid edits).
 
-**Stability Check:** File size must be unchanged for `watch.stabilityThresholdMs` (prevents embedding partial writes).
+**Stability Check:** Chokidar's `awaitWriteFinish` holds an event until the file size has been unchanged for `watch.stabilityThresholdMs` (default: 500 ms; prevents embedding partial writes).
 
 ### 2. Document Processing Pipeline
 
 ![Document Processing Pipeline](../assets/document-processing-pipeline.png)
 
-The core processing flow transforms file changes into searchable vectors:
+The core processing flow transforms file changes into searchable vectors. The file resolver (steps 1–4) produces a document; the shared pipeline (steps 5–12) indexes it. Source documents use the source resolver and the same pipeline.
 
 1. **Extract Text** — Format-specific extraction (PDF, DOCX, Markdown, etc.)
-2. **Content Hash** — SHA-256 hash of extracted text for change detection
-3. **Hash Check** — Skip re-embedding if content unchanged
-4. **Build Attributes** — Collect file metadata (path, size, modified, frontmatter, JSON)
-5. **Apply Inference Rules** — Match → Schema Merge → Type Coercion → Map → Merge (see [Inference Rules](inference-rules.md))
+2. **Build Attributes** — Collect file attributes (path, size, modified, frontmatter, JSON)
+3. **Apply Inference Rules** — Match → Schema Merge → Type Coercion → Map → Merge (see [Inference Rules](inference-rules.md))
    - Match rules against file attributes (JSON Schema validation)
    - Merge schema references (global schemas + inline) left-to-right
-   - Resolve `set` templates and coerce to declared types (v0.5.0+)
+   - Resolve `set` templates and coerce to declared types
    - Apply JsonMap transformations (if present)
-   - Track matched rule names in `matched_rules` array (v0.5.0+)
-6. **Read Enrichment Metadata** — Load `.meta.json` sidecar if exists
-7. **Merge Metadata** — Combine inference rules + enrichment (enrichment wins)
-8. **Chunk Text** — Split large documents with overlap
-9. **Embed Chunks** — Generate vectors via embedding provider
-10. **Upsert to Qdrant** — Store vectors + payloads (including `matched_rules`)
-11. **Update Values Index** — Track distinct values per property per rule (v0.5.0+)
-12. **Cleanup Orphaned Chunks** — Remove old chunks if document shrunk
+   - Track matched rule names in `matched_rules`
+4. **Merge Enrichment** — Read the document's entry from the enrichment store and merge it over the rule metadata (scalars: enrichment wins; arrays: union, deduplicated)
+5. **Update Values Index** — Record distinct values per property per matched rule (runs even when the content turns out unchanged)
+6. **Empty Check** — Whitespace-only text is skipped (logged at `debug` as `Skipping empty document`)
+7. **Content Hash** — SHA-256 of the text to embed (a matching rule's rendered template output, otherwise the extracted text)
+8. **Hash Check** — If chunk 0 already carries the same `content_hash`, the file is skipped: nothing is embedded or written
+9. **Chunk Text** — Split large documents with overlap
+10. **Embed Chunks** — Generate vectors via the embedding provider (up to 100 chunks per request)
+11. **Upsert to Qdrant** — Store vectors + payloads (including `matched_rules`), 50 points per request
+12. **Cleanup Orphaned Chunks** — Remove old chunks if the document shrank
 
 ### 3. Metadata Enrichment (API)
 
@@ -101,11 +102,9 @@ The core processing flow transforms file changes into searchable vectors:
 
 The enrichment API allows external callers to add metadata without re-embedding:
 
-1. **POST /metadata** with file path and metadata
-2. **Read existing** `.meta.json` sidecar (if exists)
-3. **Merge metadata** — new metadata overrides existing (deep merge)
-4. **Write `.meta.json`** — atomic write via temp file + rename
-5. **Update Qdrant payloads** — modify all chunk payloads for the file
+1. **POST /metadata** with a file `path` (or a source reference `source`) and `metadata`; values that do not match the matching rules' declared property types are rejected with `400 invalid_request`
+2. **Store** — The metadata is merged into the document's entry in the enrichment store (top-level keys replace existing ones). For a file, the entry is stored even when the file is not indexed yet, so it applies once it is
+3. **Update Qdrant payloads** — If the document is indexed, the stored enrichment is written to the payload of every chunk (reserved system fields are dropped; the stored identity and `matched_rules` are kept)
 
 **Key principle:** Enrichment updates metadata only. No text extraction, no re-embedding, no hash check. Fast metadata updates without changing vectors.
 
@@ -113,7 +112,7 @@ The enrichment API allows external callers to add metadata without re-embedding:
 
 ![Search Flow](../assets/search-flow.png)
 
-**Chunk deduplication:** Search returns individual chunks. Callers group by `file_path` to get unique documents.
+**Chunk deduplication:** Search returns individual chunks. Callers group by `file_path` (or `source`) to get unique documents.
 
 ---
 
@@ -124,20 +123,20 @@ Documents exceeding `embedding.chunkSize` (default: 1000 characters) are split i
 **Splitters:**
 
 - **Markdown files** (`.md`, `.markdown`) — `MarkdownTextSplitter` (splits on heading boundaries, preserves structure)
-- **All other files** — `RecursiveCharacterTextSplitter` (splits on `\n\n`, then `\n`, then `. `, then characters)
+- **All other files** — `RecursiveCharacterTextSplitter` (splits on `\n\n`, then `\n`, then spaces, then characters)
 
 Both splitters use:
 
 - `chunkSize` — max characters per chunk
-- `chunkOverlap` — overlap between consecutive chunks (helps preserve context at boundaries)
+- `chunkOverlap` — overlap between consecutive chunks (default: 200; helps preserve context at boundaries)
 
 **Chunk Points:**
 
 Each chunk becomes a separate Qdrant point with:
 
 - **Unique ID:** `pointId(filePath, chunkIndex)` (deterministic UUID)
-- **Shared payload:** `file_path`, `domain`, metadata (same across all chunks)
-- **Chunk-specific:** `chunk_index`, `total_chunks`, `chunk_text`
+- **Shared payload:** `file_path`, `matched_rules`, rule and enrichment metadata, `content_hash`, `created_at`, `modified_at` (same across all chunks)
+- **Chunk-specific:** `chunk_index`, `total_chunks`, `chunk_text`, `line_start`, `line_end`
 
 **Example:**
 
@@ -170,35 +169,39 @@ The v0.5.0 inference rules system uses declarative JSON Schemas with type coerci
 
 ### Config Watch Reindex Flow
 
-When config files change, the watcher can trigger different reindex modes based on `configWatch.reindex`:
+When the config file changes, the watcher triggers a reindex whose scope is set by `configWatch.reindex`:
 
 ![Config Watch Reindex Flow](../assets/config-watch-reindex.png)
 
-**Modes:**
+**Scopes:**
 
-- **`issues`** (default) — Re-process only files in `issues.json` (cheap, targeted)
-- **`full`** — Re-process all watched files (expensive, comprehensive)
-- **`none`** — No automatic reindex (manual `POST /reindex` required)
+- **`issues`** (default) — Re-process only the files and source references listed in the issues file (cheap, targeted)
+- **`rules`** — Re-apply the rules to indexed files without re-embedding
+- **`full`** — Re-process all watched files and indexed source documents (expensive, comprehensive)
+
+To turn automatic reloads off, set `configWatch.enabled` to `false` (then use `POST /reindex` manually).
 
 ---
 
 ## Content Hashing
 
-Every processed file gets a content hash (`sha256` of extracted text) stored in the Qdrant payload.
+Every processed document gets a content hash (`sha256` of the text to embed) stored in the Qdrant payload.
 
-**On file modify events:**
+**Whenever a file is processed** (initial scan, create, modify, `issues`/`path`/`full` reindex):
 
-1. Extract text
+1. Extract text and apply rules
 2. Compute hash
-3. Query Qdrant for existing point
-4. If `content_hash` matches → **skip** (no re-embed, no API call)
-5. If hash differs → re-embed and upsert
+3. Read the existing chunk-0 point from Qdrant
+4. If `content_hash` matches → **skip** (no embedding API call, no write)
+5. If the hash differs or the point is missing → re-embed and upsert
 
 **Benefits:**
 
-- Saves embedding API calls on cosmetic changes (whitespace, metadata-only edits)
+- Saves embedding API calls when the embedded text is unchanged (e.g. a file touched or rewritten with the same content)
 - Prevents unnecessary Qdrant writes
 - Speeds up reindex (only changed files are re-embedded)
+
+**Note:** A skipped file is not rewritten at all, so an edit that leaves the embedded text unchanged (such as a Markdown frontmatter-only edit) does not refresh rule metadata on its points. Run a `rules` reindex to re-apply rules without re-embedding.
 
 ---
 
@@ -226,92 +229,83 @@ function sourcePointId(reference: string, chunkIndex: number): string {
 
 - Same file always produces the same ID
 - No need to store ID anywhere — it's computable from the path
-- Renames are a delete + insert (old ID removed, new ID created)
+- A move gets new IDs: the old points are re-written under the new path's IDs (vectors reused, no re-embed) and then deleted
 
-**Trade-off:** Renaming/moving files changes their identity in the index. Acceptable — the watcher handles it transparently.
+**Trade-off:** Renaming/moving files changes their identity in the index. Acceptable — the watcher handles it transparently (with `watch.moveDetection`, an unlink followed by an add of the same content is treated as a move).
 
 ---
 
 ## Event Processing
 
-### Event Queue
+### File Event Queue
 
-File events are queued and processed **sequentially** to maintain consistency.
+Filesystem events go through one debounced, concurrent queue.
 
-**Concurrency:** Up to `embedding.concurrency` documents are processed at once. Embedding API requests from every path (watch, source-document notifications, reindex, search) draw from one shared rate limiter (`embedding.rateLimitPerMinute`, counted in requests since v0.20.0).
+**Debounce:** Events for one path (and priority) are collapsed: only the last event within `watch.debounceMs` (default: 300 ms) is processed.
 
-**Same-path serialization:** Events for the same file path are always processed in order (prevents race conditions).
+**Concurrency:** Up to `embedding.concurrency` (default: 5) documents are processed at once; normal-priority events run before low-priority ones. Embedding API requests from every path (watch, source-document notifications, reindex, search) draw from one shared rate limiter (`embedding.rateLimitPerMinute`, counted in requests since v0.20.0).
+
+**Failures:** A failing document is logged and recorded in the issues file; it does not stop the queue.
+
+### Source Notify Queue
+
+Source-document notifications (v0.20.0+) go through a separate in-memory queue keyed by reference, with the same `embedding.concurrency`. Pending notifications for one reference merge; a notification for a reference that is already running marks it for exactly one re-run.
+
+### Resolvers
+
+Both queues end in the document processor. A **file resolver** stats and extracts the file and applies every matching rule; a **source resolver** retrieves the `<name>://<id>` reference through its callback and applies only the designated rule. Each produces a resolved document for the same chunk/embed/upsert pipeline. Source rules get no file reader: a map's `fetchSiblings` returns nothing for a source document.
 
 ### Startup Behavior
 
 On service start:
 
-1. Scan all `watch.paths` globs
-2. Compare filesystem state against Qdrant (by point ID)
-3. Index new files (in filesystem but not Qdrant)
-4. Remove stale entries (in Qdrant but file no longer exists)
-5. Re-embed modified files (content hash mismatch)
+1. Load and validate the config; reserved-field warnings are printed to the console
+2. Create the Qdrant collection if missing and ensure its payload indexes
+3. Open the enrichment store, issues file and values index under `stateDir`
+4. Start the API server, then the filesystem watcher and the source notify queue
+5. Initial scan: every file matching `watch.paths` (and not ignored or gitignored) is queued as a create event
+6. Each queued file runs through the pipeline: unchanged files are skipped by content hash, new and modified files are embedded
 
-This ensures consistency after service downtime or crashes.
+Points of files deleted while the service was down are **not** removed at startup; run a `prune` reindex (`jeeves-watcher reindex --scope prune`) to delete them.
 
 ### Config Change Handling
 
-When `configWatch.enabled` is `true`, the watcher monitors its own config file.
+When `configWatch.enabled` is `true` (the default) and the service was started with a config path, the watcher monitors its own config file.
 
 **On config change:**
 
-1. Debounce for `configWatch.debounceMs` (default: 1000ms)
-2. Reload and validate config
-3. Recompile inference rules
-4. Queue a **scoped metadata reindex** (only files matching changed rules)
+1. Debounce for `configWatch.debounceMs` (default: 1000 ms)
+2. Reload and validate the config; reserved-field warnings are logged as warnings
+3. Recompile inference rules and rebuild the template engine
+4. Rebuild the filesystem watcher if the `watch` config changed
+5. Run a reindex with scope `configWatch.reindex` (default: `issues`)
 
-**Scoped reindex:**
-
-- If a rule targeting `d:/meetings/**` changes, only files under `d:/meetings/` are re-evaluated
-- No re-embedding — just metadata updates to Qdrant payloads
+A reload that fails is logged (`Failed to reload config`) and the previous config stays in effect. `api.apiKey`, `sources` and `vectorStore.payloadIndexes` are read at startup only.
 
 ---
 
-## Metadata Store Design
+## Enrichment Store Design
 
-### Path Derivation
+### Storage
 
-Metadata sidecars mirror the watched filesystem hierarchy:
+Enrichment lives in a SQLite database at `<stateDir>/enrichments.sqlite`, opened with Node's built-in `node:sqlite` (WAL journal, 5 s busy timeout). One table holds one row per document:
 
-```
-File:     D:\projects\readme.md
-Sidecar:  {metadataDir}/d/projects/readme.md.meta.json
-```
+| Column       | Content                                          |
+| ------------ | ------------------------------------------------ |
+| `path`       | Document key (primary key)                       |
+| `metadata`   | Enrichment metadata as JSON (no content/vectors) |
+| `created_at` | ISO timestamp of the first write                 |
+| `updated_at` | ISO timestamp of the last write                  |
 
-**Algorithm:**
+**Keys:** File paths are normalised (lowercase, forward slashes), so lookups are case-insensitive; source references (`<name>://<id>`) are stored verbatim.
 
-```javascript
-function metadataPath(filePath: string, metadataDir: string): string {
-  const normalized = filePath.replace(/^([A-Z]):/i, (_, d) => d.toLowerCase());
-  return path.join(metadataDir, normalized + '.meta.json');
-}
-```
-
-**Lookup:** O(1) — `fs.existsSync(metadataPath)`. No index required.
-
-### File Format
-
-Each `.meta.json` contains **only enrichment metadata** (not content or embeddings):
-
-```json
-{
-  "title": "Project Overview",
-  "labels": ["documentation", "important"],
-  "author": "jeeves",
-  "enriched_at": "2026-02-20T08:00:00Z"
-}
-```
+**Merge on write:** A new write merges into the existing entry; top-level keys of the new metadata replace existing ones.
 
 ### Write Policy
 
-The metadata store is **watcher-owned**. Only the watcher process writes to it, only via the `POST /metadata` API.
+The enrichment store is **watcher-owned**. Only the watcher process writes to it: `POST /metadata`, `POST /rebuild-metadata`, file moves (the entry follows the file) and file deletes (the entry is removed).
 
-**Enforcement:** Architectural policy (no filesystem permissions, cross-platform consistency).
+**Enforcement:** Architectural policy (single writer; no filesystem permissions).
 
 ---
 
@@ -329,7 +323,7 @@ Rules are **JSON Schema `match` + `schema` arrays**, evaluated in order against 
     "filename": "transcript.md",
     "extension": ".md",
     "sizeBytes": 4523,
-    "modified": "2026-02-20T08:15:00Z"
+    "modified": "2026-02-20T08:15:00.000Z"
   },
   "frontmatter": { "title": "Meeting Notes", "author": "jeeves" },
   "json": { "participants": ["Jason", "Devin"] }
@@ -355,7 +349,7 @@ Rules are **JSON Schema `match` + `schema` arrays**, evaluated in order against 
     "base",
     {
       "properties": {
-        "domain": { "set": "meetings" },
+        "domain": { "type": "string", "set": "meetings" },
         "title": { "type": "string", "set": "{{frontmatter.title}}" }
       }
     }
@@ -372,11 +366,11 @@ Rules are **JSON Schema `match` + `schema` arrays**, evaluated in order against 
 4. **`map`** — JsonMap transformation (inline or named reference)
 5. **Merge** — `map` output overrides `set` output on field conflict
 
-**Custom `glob` format:** Picomatch glob matching registered as an ajv custom keyword. This is the only custom format — everything else is pure JSON Schema.
+**Custom `glob` keyword:** Picomatch glob matching registered as an ajv custom keyword. Everything else is standard JSON Schema (with the standard `ajv-formats` formats).
 
 **JsonMap transformations (`map`):**
 
-Rules can reference named maps from the top-level `maps` config, or include inline JsonMap definitions. The watcher provides lib functions for path manipulation: `split`, `slice`, `join`, `toLowerCase`, `replace`, `get`.
+Rules can reference named maps from the top-level `maps` config, or include inline JsonMap definitions. The watcher provides lib functions for path manipulation and lookups: `split`, `slice`, `join`, `toLowerCase`, `replace`, `get`, `lookupJson`, `mapLookup`, `fetchSiblings`; custom functions can be added via `mapHelpers`.
 
 See [Inference Rules Guide](./inference-rules.md) for full details.
 
@@ -386,31 +380,31 @@ See [Inference Rules Guide](./inference-rules.md) for full details.
 
 ### Extractors by File Type
 
-| Extension | Extractor | Strategy |
-| --- | --- | --- |
-| `.md`, `.markdown` | `markdown` | Strip YAML frontmatter (extract as metadata), return body text |
-| `.txt`, `.text` | `plaintext` | Return as-is |
-| `.json` | `json-content` | Extract string values from known content fields (`content`, `body`, `text`, `subject`) |
-| `.pdf` | `pdf-parse` | Extract text via `unpdf` library |
-| `.docx` | `docx-extract` | Extract text via `mammoth` library |
-| `.html`, `.htm` | `html-to-text` | Strip tags via `cheerio` library |
+| Extension | Strategy |
+| --- | --- |
+| `.md`, `.markdown` | Parse YAML frontmatter (exposed as `frontmatter` attributes), return the body text |
+| `.txt`, `.text` | Return as-is (BOM stripped) |
+| `.json` | Return the first non-empty string among `content`, `body`, `text`, `snippet`, `subject`, `description`, `summary`, `transcript`; otherwise the serialized JSON. A JSON object is also exposed as `json` attributes |
+| `.pdf` | Extract text via the `unpdf` library (pages joined) |
+| `.docx` | Extract raw text via the `mammoth` library |
+| `.html`, `.htm` | Drop `script`/`style`, take the body text via the `cheerio` library |
 
-**Binary files without extractors** (e.g., `.png`, `.svg`) are **skipped** — no embedding, no Qdrant entry.
+**Any other extension** is read as plain text. Use `watch.paths` globs (or `watch.ignored`) to keep binary files such as `.png` out of the index. A file whose extracted text is empty or whitespace-only is skipped.
 
 ---
 
 ## Error Handling & Retry
 
-Transient failures (Gemini API, Qdrant) are handled with exponential backoff:
+Transient failures are retried; anything that still fails is recorded as an issue:
 
-| Failure Type | Retry Policy | Max Retries |
-| --- | --- | --- |
-| Gemini 429 (rate limit) | Backoff from 1s, respect `Retry-After` | 5 |
-| Gemini 500/503 | Backoff from 2s | 3 |
-| Qdrant connection refused | Backoff from 5s | 10 |
-| Text extraction error | No retry (log and skip) | 0 |
+| Failure | Retry Policy |
+| --- | --- |
+| Embedding provider 429 (rate limit) | Every caller pauses on the shared limiter. A `Retry-After` up to `maxBackoffMs` (default 60 s) is honoured; a longer one fails fast. Without `Retry-After`: backoff from 1 s, doubling, capped at `maxBackoffMs`. Up to 5 provider calls per embed (3 for a search query) |
+| Embedding provider network error or other non-2xx | 5 attempts, exponential backoff from 500 ms capped at 10 s (+ up to 20% jitter); each retry draws from the shared limiter |
+| Qdrant write (upsert, delete, set-payload, delete-payload) | 5 attempts, same backoff, each retry on a fresh Qdrant client |
+| Text extraction error | No retry (logged and recorded as an `extraction_error` issue) |
 
-**Issues file:** Files that fail all retries are recorded in the issues file (persisted to `{stateDir}/issues.json`). Surfaced via `GET /issues` and retried on next config reload or reindex.
+**Issues file:** Documents that fail are recorded in the issues file (persisted to `{stateDir}/issues.json`) with a canonical issue code (`embedding_error`, `upsert_error`, `extraction_error`, ...). Surfaced via `GET /issues`; re-processed by an `issues` reindex (the default on config reload).
 
 ---
 
@@ -418,25 +412,26 @@ Transient failures (Gemini API, Qdrant) are handled with exponential backoff:
 
 On SIGTERM/SIGINT (v0.20.0+ order):
 
-1. Close the API server, so no new request (notification, reindex, ...) is accepted
-2. Stop the producers: config watch, VCS, filesystem watcher
-3. Drain the file event queue, then drain and stop the source notify queue (each step bounded by `shutdownTimeoutMs`)
-4. Flush the values index
-5. Close the enrichment and issues stores, unless a queue step timed out (runs may still be in flight; the stores are then left open and a warning is logged)
-6. Exit
+1. Stop the config watcher
+2. Close the API server, so no new request (notification, reindex, ...) is accepted
+3. Stop the remaining producers: VCS, then the filesystem watcher
+4. Drain and stop the file event queue, then drain and stop the source notify queue (each drain and each stop bounded by `shutdownTimeoutMs`, default 10 s); stopping drops work the drain did not reach and waits for in-flight runs
+5. Flush the values index
+6. Close the enrichment store, unless a queue step timed out (runs may still be in flight; the store is then left open and a warning is logged)
+7. Exit
 
-Partially processed files are safe — startup behavior re-processes them by comparing filesystem state against Qdrant.
+Partially processed files are safe — on the next start the initial scan re-processes every file, and content hashing skips the ones already indexed.
 
 ---
 
 ## Collection Bootstrap
 
-On first startup, if the Qdrant collection doesn't exist, the watcher creates it:
+On startup, if the Qdrant collection doesn't exist, the watcher creates it, then creates any missing payload indexes (configured `vectorStore.payloadIndexes` plus the system `source`/`source_rule` indexes):
 
 ```javascript
 await qdrant.createCollection(collectionName, {
   vectors: {
-    size: config.embedding.dimensions,
+    size: dimensions, // embedding.dimensions (Gemini default: 3072)
     distance: 'Cosine',
   },
 });
@@ -452,16 +447,16 @@ await qdrant.createCollection(collectionName, {
 
 ## Logging
 
-Structured JSON logging via [pino](https://github.com/pinojs/pino):
+Structured JSON logging via [pino](https://github.com/pinojs/pino), at `logging.level` (default `info`):
 
-| Level | Events |
+| Level | Events (log message) |
 | --- | --- |
-| `info` | File indexed, file deleted, reindex started/completed, config reloaded |
-| `warn` | Extraction failed, issues file entry, dimension mismatch |
-| `error` | Embedding API failure (after retries), Qdrant write failure, startup failure |
-| `debug` | Hash match (skip), debounce, queue depth, chunk processing |
+| `info` | `File processed successfully`, `File deleted from index`, `File moved in index`, `Metadata updated`, `Config reloaded`, `Initial scan complete`, `Reindex (<scope>) completed`, `jeeves-watcher started` / `stopped` |
+| `warn` | `Embedding call failed; will retry`, `Qdrant <operation> failed; will retry`, shutdown step timeouts, reserved-field warnings on reload |
+| `error` | `Failed to process file` (after retries; issue recorded), `Failed to reload config`, `Reindex failed`, `Watcher error` |
+| `debug` | `Content unchanged, skipping`, `Skipping empty document`, `File added` / `File changed` / `File removed`, `Skipping gitignored file` |
 
-**Log format:** JSON lines (parseable by standard log aggregators).
+**Log format:** JSON lines on stdout, or to `logging.file` when set (parseable by standard log aggregators).
 
 ---
 
@@ -469,12 +464,14 @@ Structured JSON logging via [pino](https://github.com/pinojs/pino):
 
 | Component | Library | Rationale |
 | --- | --- | --- |
-| Filesystem watcher | `chokidar` | Cross-platform, glob support, battle-tested |
-| HTTP framework | `fastify` | Lightweight, fast, schema validation |
+| Filesystem watcher | `chokidar` | Cross-platform, battle-tested (globs are matched with `picomatch`) |
+| HTTP framework | `fastify` | Lightweight, fast |
+| Request validation | `zod` | Shared request/response schemas in the core package |
 | Text splitting | `@langchain/textsplitters` | Markdown-aware + recursive splitting |
-| JSON Schema validation | `ajv` | Fast, extensible (custom `glob` format) |
-| Embedding client | Direct HTTP (Gemini REST API) | No SDK bloat |
+| JSON Schema validation | `ajv` | Fast, extensible (custom `glob` keyword) |
+| Embedding client | Direct HTTPS (`node:https`, Gemini REST API) | No SDK bloat |
 | Qdrant client | `@qdrant/js-client-rest` | Official client, typed |
+| Enrichment store | `node:sqlite` | Built into Node.js, no native build |
 | Logging | `pino` | Structured JSON, low overhead |
 
 ---
@@ -483,51 +480,45 @@ Structured JSON logging via [pino](https://github.com/pinojs/pino):
 
 ### Add a New Extractor
 
-1. Implement extractor function in `src/extractors/index.ts`:
+Extractors are registered in code, not in config. Implement an extractor and add it to `extractorRegistry` in `src/extractors/index.ts`:
 
 ```typescript
-async function extractYaml(filePath: string): Promise<ExtractionResult> {
-  const content = await fs.readFile(filePath, 'utf8');
-  const parsed = YAML.parse(content);
+async function extractYaml(filePath: string): Promise<ExtractedText> {
+  const content = await readFile(filePath, 'utf8');
+  const parsed = yamlLoad(content) as Record<string, unknown>;
   return {
     text: JSON.stringify(parsed, null, 2),
-    frontmatter: undefined,
     json: parsed,
   };
 }
-```
 
-2. Register in config:
-
-```json
-{
-  "extractors": {
-    ".yaml": "yaml-content"
-  }
-}
+const extractorRegistry = new Map<string, Extractor>([
+  // ...existing entries
+  ['.yaml', extractYaml],
+]);
 ```
 
 ### Add a New Embedding Provider
 
-1. Implement provider in `src/embedding/index.ts`:
+1. Implement a provider factory (see `src/embedding/types.ts`):
 
 ```typescript
-class MyEmbeddingProvider implements EmbeddingProvider {
+const createMyProvider: ProviderFactory = (config, logger) => ({
+  dimensions: config.dimensions ?? 1024,
   async embed(texts: string[]): Promise<number[][]> {
-    // Call your provider's API
-  }
-}
+    // Call your provider's API (one request per call)
+  },
+});
 ```
 
-2. Register in factory:
+2. Register it in `embeddingProviderRegistry` in `src/embedding/index.ts`:
 
 ```typescript
-export function createEmbeddingProvider(
-  config: EmbeddingConfig,
-): EmbeddingProvider {
-  if (config.provider === 'my-provider') return new MyEmbeddingProvider(config);
-  // ...
-}
+const embeddingProviderRegistry = new Map<string, ProviderFactory>([
+  ['mock', createMockFromConfig],
+  ['gemini', createGeminiProvider],
+  ['my-provider', createMyProvider],
+]);
 ```
 
 3. Use in config:
@@ -564,14 +555,14 @@ The VCS subsystem runs alongside the embedding pipeline as an independent data f
 - **D3:** VCS and watcher indexing are independent — git can track files the watcher cannot embed and vice versa
 - **D4:** Child repos tracked uniformly; child `.git/` directories excluded
 - **D5:** Debounced batch commits prevent per-file commit noise
-- **D6:** AI commit messages via Anthropic API with OpenClaw gateway fallback
+- **D6:** AI commit messages via the Anthropic API (key from `vcs.commitMessage.apiKey`, else from the local OpenClaw config); template message fallback
 - **D7:** Squash retention with `maxAgeDays` / `maxVersions` (tighter wins)
 - **D8:** Forward-only reversion — `git show` + write, HEAD never moves backward
 - **D9:** Optional remote push per root with access token auth
 - **D12:** Per-root config overrides via `watch.paths` object entries
 - **D13:** Force push after squash — acceptable because remote is a backup mirror
 - **D14:** Git is a soft dependency — graceful degradation if not installed
-- **D15:** `stateDir` must not overlap watch paths — validated at startup
+- **D15:** `stateDir` must not overlap watch paths — validated at startup when VCS is enabled
 
 ### Concurrency
 
