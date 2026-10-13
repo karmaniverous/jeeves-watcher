@@ -32,10 +32,10 @@ npm install --save-dev @karmaniverous/jeeves-watcher
 Create a new configuration file:
 
 ```bash
-jeeves-watcher init
+jeeves-watcher init -o ./jeeves-watcher
 ```
 
-This generates `jeeves-watcher.config.json` with sensible defaults and a `$schema` pointer for IDE autocomplete:
+This creates the directory if needed and writes `./jeeves-watcher/config.json` (an existing file is left untouched). The file has sensible defaults and a `$schema` pointer for IDE autocomplete:
 
 ```json
 {
@@ -51,22 +51,27 @@ This generates `jeeves-watcher.config.json` with sensible defaults and a `$schem
   "embedding": {
     "provider": "gemini",
     "model": "gemini-embedding-001",
-    "dimensions": 3072
+    "dimensions": 768
   },
   "vectorStore": {
     "url": "http://127.0.0.1:6333",
     "collectionName": "jeeves-watcher"
   },
-  "metadataDir": ".jeeves-watcher",
+  "stateDir": ".jeeves-metadata",
   "api": {
     "host": "127.0.0.1",
-    "port": 1936
+    "port": 1936,
+    "cacheTtlMs": 30000
   },
   "logging": {
     "level": "info"
   }
 }
 ```
+
+`stateDir` holds the watcher's persistent state: the issues file, the values index and the enrichment store (`enrichments.sqlite`). Relative `stateDir` and watch globs resolve against the watcher's working directory. Watch globs match dot-directories too, and the template's `watch.ignored` does not cover the default `stateDir`: when the watch globs reach the working directory, add `"**/.jeeves-metadata/**"` to `watch.ignored` (or move `stateDir` outside the watched paths) so state files such as `issues.json` are not indexed. `embedding.dimensions` must match the existing Qdrant collection, if there is one.
+
+> **Set `dimensions` to `3072` for Gemini.** The template's `768` does not match `gemini-embedding-001`, which returns 3072-dimensional vectors (the watcher does not request a smaller output size), so with the template value every embedding fails with `Gemini embedding returned invalid dimensions`. Change it before the first start, so the collection is created with the right size.
 
 ## Configure Watch Paths
 
@@ -105,7 +110,7 @@ $env:GOOGLE_API_KEY = "your-api-key-here"
 export GOOGLE_API_KEY="your-api-key-here"
 ```
 
-The config references it via template syntax:
+The Gemini provider requires `embedding.apiKey`. Add it to the config as an environment variable reference:
 
 ```json
 {
@@ -142,62 +147,47 @@ For testing without API costs, use the mock provider:
 }
 ```
 
-The mock provider generates deterministic embeddings from content hashes.
+The mock provider generates deterministic embeddings from content hashes, of any size. Keep `dimensions` equal to the collection's vector size.
 
-## Configuration Discovery
+## Config File Location
 
-If you don't specify `--config`, the watcher uses [cosmiconfig](https://github.com/cosmiconfig/cosmiconfig) to search for configuration (from current directory upward):
+The CLI always takes the config path explicitly: `start`, `config validate` and `service install` all use `-c <path>`. The file may be JSON, YAML or JavaScript when loaded by `start`; `config validate` reads JSON only.
 
-- `jeeves-watcher` property in `package.json`
-- `.jeeves-watcherrc` (JSON or YAML)
-- `.jeeves-watcherrc.json`, `.jeeves-watcherrc.yaml`, `.jeeves-watcherrc.yml`
-- `.jeeves-watcherrc.js`, `.jeeves-watcherrc.ts`, `.jeeves-watcherrc.cjs`
-- `jeeves-watcher.config.js`, `jeeves-watcher.config.ts`, `jeeves-watcher.config.cjs`
+Only programmatic use without a path (`startFromConfig()` or `loadConfig()` with no argument) searches for a config: it first moves a legacy `jeeves-watcher.config.json` in the working directory to `jeeves-watcher/config.json` and loads that, otherwise [cosmiconfig](https://github.com/cosmiconfig/cosmiconfig) searches the working directory (not its parents) for a `jeeves-watcher` property in `package.json`, `.jeeves-watcherrc` (JSON or YAML), `.jeeves-watcherrc.{json,yaml,yml,js,ts,cjs,mjs}`, the same files without the leading dot under `.config/` (for example `.config/jeeves-watcherrc.json`), or `jeeves-watcher.config.{js,ts,cjs,mjs}`.
 
 ## Validate Configuration
 
-Check that your configuration is valid:
+Check that your configuration file matches the schema:
 
 ```bash
-jeeves-watcher validate
+jeeves-watcher config validate -c ./jeeves-watcher/config.json
 ```
 
 Output:
 
 ```
-Config valid
-  Watch paths: ./docs/**/*.md, ./notes/**/*.{md,txt}
-  Embedding: gemini/gemini-embedding-001
-  Vector store: http://127.0.0.1:6333 (jeeves-watcher)
-  API: 127.0.0.1:1936
+Config is valid.
 ```
+
+On failure it prints `Validation failed: <message>` and exits with code `1`. This is a schema check only: `${ENV_VAR}` references are not substituted and rule schemas are not merged. Once the watcher is running, [`POST /config/validate`](./api-reference.md#post-configvalidate) runs the full checks.
 
 ## Start the Watcher
 
 Run in foreground (for development):
 
 ```bash
-jeeves-watcher start
+jeeves-watcher start -c ./jeeves-watcher/config.json
 ```
 
 The watcher will:
 
-1. Connect to Qdrant and ensure the collection exists
-2. Scan all watched paths for existing files
-3. Index new files or files with changed content
-4. Start monitoring for filesystem changes
-5. Start the HTTP API server
+1. Load and validate the config (warnings, such as a rule property named like a reserved system field, are printed as `[jeeves-watcher] <path>: <message>`)
+2. Connect to Qdrant and create the collection if it does not exist
+3. Start the HTTP API server
+4. Start the filesystem watcher, whose initial scan indexes new files and files with changed content
+5. Keep monitoring for filesystem changes (and, with `configWatch.enabled`, for config file changes)
 
-You should see output like:
-
-```
-[info] Qdrant collection ready: jeeves-watcher
-[info] Initial scan: 42 files to process
-[info] File processed successfully: ./docs/readme.md (chunks: 2)
-[info] File processed successfully: ./notes/meeting-2026-02-20.md (chunks: 1)
-...
-[info] API server listening on http://127.0.0.1:1936
-```
+Logs are JSON lines (pino) on stdout, or in `logging.file` when set. Look for messages such as `jeeves-watcher started`, `File processed successfully` (with `filePath` and `chunks`) and `Initial scan complete`.
 
 ## First Search
 
@@ -219,19 +209,12 @@ curl -X POST http://127.0.0.1:1936/search \
 
 For production deployment, install as a system service. See [Deployment Guide](./deployment.md) for detailed instructions.
 
-**Windows (NSSM):**
-
 ```bash
-jeeves-watcher service install
+jeeves-watcher service install -c /path/to/jeeves-watcher/config.json
+jeeves-watcher service start
 ```
 
-**Linux (systemd):**
-
-```bash
-jeeves-watcher service install
-```
-
-Both commands print installation instructions — follow them to set up the service.
+`install` registers a service named `jeeves-watcher` (change it with `-n`) that runs `start -c <path>`: an NSSM service on Windows (`nssm` must be on `PATH`), a systemd user unit on Linux, a launchd agent on macOS. Pass an absolute config path. See the `jeeves-watcher service` section of the [CLI Reference](./cli-reference.md#standard-commands-from-core) for every subcommand.
 
 ## Enable Version Tracking
 
@@ -245,7 +228,7 @@ To track file history with git-backed versioning, add the `vcs` block to your co
 }
 ```
 
-The watcher will initialize a git repository in each watch root and automatically commit file changes in debounced batches. No additional setup is required — git must be installed and on `PATH`.
+The watcher will initialize a git repository in each watch root and automatically commit file changes in throttled batches. No other setup is required, but git must be installed and on `PATH`.
 
 See the [Version Control (VCS) Guide](./version-control.md) for full details on configuration, remote push, squash retention, and reversion.
 
