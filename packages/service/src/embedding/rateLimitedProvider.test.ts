@@ -219,16 +219,21 @@ describe('RateLimitedEmbeddingProvider', () => {
 
   it('gives up after the retry cap with EmbeddingUnavailableError', async () => {
     const { inner, embed } = makeInner();
-    embed.mockRejectedValue(new EmbeddingRateLimitError('quota', 1_000));
+    const quota = new EmbeddingRateLimitError('quota', 1_000);
+    embed.mockRejectedValue(quota);
     const limited = new RateLimitedEmbeddingProvider(inner, {
       maxBackoffMs: 60_000,
       attempts: 3,
     });
 
     const call = track(limited.embed(['a']));
-    await vi.advanceTimersByTimeAsync(10_000);
+    await vi.advanceTimersByTimeAsync(2_000);
     expect(call.error).toBeInstanceOf(EmbeddingUnavailableError);
-    expect((call.error as Error).message).toContain('quota');
+    const error = call.error as EmbeddingUnavailableError;
+    expect(error.message).toContain('quota');
+    expect(error.cause).toBe(quota);
+    // The last 429's pause is still running when the budget runs out.
+    expect(error.retryAfterMs).toBe(1_000);
     expect(embed).toHaveBeenCalledTimes(3);
   });
 

@@ -98,7 +98,11 @@ describe('SourceNotifyQueue unexpected rejection', () => {
       'app://a',
       'extraction_error',
       'kaboom',
-      expect.objectContaining({ rule: 'chat' }),
+      { operation: 'Source notify run failed unexpectedly', rule: 'chat' },
+    );
+    // Stale issues are cleared before the new one is recorded.
+    expect(issues.clear.mock.invocationCallOrder[0]).toBeLessThan(
+      issues.record.mock.invocationCallOrder[0],
     );
   });
 

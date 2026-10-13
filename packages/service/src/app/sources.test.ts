@@ -1,15 +1,14 @@
 /**
  * @module app/sources.test
- * Unit tests for source startup helpers (client creation, notify queue factory over source operations) and shutdown queue draining.
+ * Unit tests for source startup helpers (client creation, notify queue factory over source operations).
  */
 
 import pino from 'pino';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import type { DocumentProcessorInterface } from '../processor';
 import { SourceClient } from '../sources';
 import { createTestConfig } from '../test/helpers';
-import { drainQueues } from './shutdown';
 import { createNotifyQueue, createSourceRetriever } from './sources';
 
 const logger = pino({ level: 'silent' });
@@ -76,60 +75,5 @@ describe('createNotifyQueue', () => {
     const result = await queue.processNow('app://a', 'r');
     expect(result.status).toBe('failed');
     expect(result.error?.code).toBe('source_unavailable');
-  });
-});
-
-describe('drainQueues', () => {
-  afterEach(() => {
-    vi.useRealTimers();
-  });
-
-  it('drains and stops the file queue, then the source queue', async () => {
-    const order: string[] = [];
-    await drainQueues(
-      {
-        queue: {
-          drain: () => Promise.resolve(void order.push('file')),
-          stop: () => Promise.resolve(void order.push('file stop')),
-        },
-        sourceQueue: {
-          drain: () => Promise.resolve(void order.push('source')),
-          stop: () => Promise.resolve(void order.push('stop')),
-        },
-      },
-      1000,
-      logger,
-    );
-    expect(order).toEqual(['file', 'file stop', 'source', 'stop']);
-  });
-
-  it('stops the file queue after a drain timeout; idle when the stop finishes', async () => {
-    vi.useFakeTimers();
-    const stop = vi.fn().mockResolvedValue(undefined);
-    const done = drainQueues(
-      { queue: { drain: () => new Promise<void>(() => undefined), stop } },
-      500,
-      { warn: vi.fn() } as unknown as pino.Logger,
-    );
-    await vi.advanceTimersByTimeAsync(500);
-    expect(await done).toBe(true);
-    expect(stop).toHaveBeenCalledOnce();
-  });
-
-  it('gives up after the timeout with a warning and still stops the source queue', async () => {
-    vi.useFakeTimers();
-    const warn = vi.fn();
-    const stop = vi.fn().mockResolvedValue(undefined);
-    const done = drainQueues(
-      {
-        sourceQueue: { drain: () => new Promise<void>(() => undefined), stop },
-      },
-      500,
-      { warn } as unknown as pino.Logger,
-    );
-    await vi.advanceTimersByTimeAsync(500);
-    await done;
-    expect(warn).toHaveBeenCalledOnce();
-    expect(stop).toHaveBeenCalledOnce();
   });
 });

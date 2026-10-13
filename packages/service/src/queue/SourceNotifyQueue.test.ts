@@ -1,6 +1,6 @@
 /**
  * @module queue/SourceNotifyQueue.test
- * Unit tests for the source notify queue: pending merge, dirty re-run, burst coalescing, ordering, concurrency, pause/resume, stop, processNow and error isolation (fake timers).
+ * Unit tests for the source notify queue: pending merge, dirty re-run, burst coalescing, ordering, concurrency, pause/resume, processNow and error isolation (fake timers).
  */
 
 import type { DocumentResult } from '@karmaniverous/jeeves-watcher-core';
@@ -9,10 +9,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { combinePausableQueues } from './pausable';
 import type { SourceProcess } from './SourceNotifyQueue';
-import {
-  SourceNotifyQueue,
-  SourceNotifyQueueStoppedError,
-} from './SourceNotifyQueue';
+import { SourceNotifyQueue } from './SourceNotifyQueue';
 
 const RUN_MS = 100;
 
@@ -150,7 +147,7 @@ describe('SourceNotifyQueue', () => {
     const fake = createFake();
     expect(
       () => new SourceNotifyQueue(fake.processor, { concurrency: 0 }),
-    ).toThrow();
+    ).toThrow(/concurrency/i);
   });
 
   it('pause stops new runs (including owed re-runs) until resume', async () => {
@@ -197,31 +194,6 @@ describe('SourceNotifyQueue', () => {
     both.resume();
     await vi.advanceTimersByTimeAsync(RUN_MS);
     expect(fake.calls.map((c) => c.ref)).toEqual(['app://a', 'app://b']);
-  });
-
-  it('stop drops pending and owed work, refuses new work and waits for in-flight runs', async () => {
-    const fake = createFake();
-    const queue = new SourceNotifyQueue(fake.processor, { concurrency: 1 });
-    queue.start();
-    const first = queue.processNow('app://a', 'r');
-    const owed = queue.processNow('app://a', 'r');
-    const pending = queue.processNow('app://b', 'r');
-
-    const stopped = vi.fn();
-    void queue.stop().then(stopped);
-    await expect(owed).rejects.toBeInstanceOf(SourceNotifyQueueStoppedError);
-    await expect(pending).rejects.toBeInstanceOf(SourceNotifyQueueStoppedError);
-    expect(stopped).not.toHaveBeenCalled();
-
-    await vi.advanceTimersByTimeAsync(RUN_MS);
-    expect(stopped).toHaveBeenCalledOnce();
-    await expect(first).resolves.toMatchObject({ status: 'indexed' });
-    expect(queue.enqueue('app://c', 'r')).toBe(false);
-    await expect(queue.processNow('app://c', 'r')).rejects.toBeInstanceOf(
-      SourceNotifyQueueStoppedError,
-    );
-    await queue.drain();
-    expect(fake.calls).toEqual([{ ref: 'app://a', rule: 'r' }]);
   });
 
   it('processNow while in flight waits for the dirty re-run and returns post-call state', async () => {

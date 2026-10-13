@@ -135,6 +135,23 @@ describe.skipIf(!qdrantAvailable())(
       expect(after?.['modified_at']).toBe(before?.['modified_at']);
     });
 
+    it('deletes a stored key the rule no longer projects, without re-embedding', async () => {
+      const id = sourcePointId(REF, 0);
+      await harness.vectorStore.setPayload([id], { stale: 'x' });
+      expect(await harness.vectorStore.getPayload(id)).toHaveProperty('stale');
+      const calls = harness.embeddings.calls;
+
+      const result = await harness.processor
+        .sourceOperations()
+        .process(REF, RULE);
+      // Same content: the metadata refresh is reported as indexed, not re-embedded.
+      expect(result).toMatchObject({ status: 'indexed', chunks: 1 });
+      const payload = await harness.vectorStore.getPayload(id);
+      expect(payload).not.toHaveProperty('stale');
+      expect(payload).toMatchObject({ user_id: 'u1', source: REF });
+      expect(harness.embeddings.calls).toBe(calls);
+    });
+
     it('records match_failed and writes nothing for a non-matching record', async () => {
       stub.route('/threads/chat/thread/bad', { body: { userId: 'u3' } });
       const ref = 'app://chat/thread/bad';
