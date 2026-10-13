@@ -21,14 +21,6 @@ const hostile = {
 };
 
 describe('withSystemFields', () => {
-  it('drops reserved names and re-asserts the source identity', () => {
-    expect(withSystemFields(hostile, source)).toEqual({
-      a: 1,
-      source: 'app://t/AbC',
-      source_rule: 'chat',
-    });
-  });
-
   it('re-asserts the normalised file identity, never source fields', () => {
     expect(withSystemFields(hostile, file)).toEqual({
       a: 1,
@@ -36,7 +28,7 @@ describe('withSystemFields', () => {
     });
   });
 
-  it('writes matched_rules from the pipeline list, never from metadata', () => {
+  it('drops reserved names, re-asserts the source identity and writes matched_rules only from the pipeline list', () => {
     expect(withSystemFields(hostile, source, ['chat'])).toEqual({
       a: 1,
       matched_rules: ['chat'],

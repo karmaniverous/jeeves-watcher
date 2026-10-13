@@ -75,6 +75,10 @@ describe('assertResolvedSecrets', () => {
     expect(() => {
       assertResolvedSecrets(config);
     }).not.toThrow(/pre-/);
+    // Not even the referenced variable's name.
+    expect(() => {
+      assertResolvedSecrets(config);
+    }).not.toThrow(/SECRET_X/);
   });
 });
 

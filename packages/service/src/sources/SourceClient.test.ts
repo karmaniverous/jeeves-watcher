@@ -1,10 +1,10 @@
 /**
  * @module sources/SourceClient.test
- * Tests SourceClient against the stub source server: every outcome, segment encoding, rejections without requests, headers, secrets, timeout, concurrency.
+ * Tests SourceClient against the stub source server: every outcome, segment encoding, rejections without requests, headers, secrets, timeout, concurrency (held responses released by hand, no sleeps).
  */
 
 import { sourcesConfigSchema } from '@karmaniverous/jeeves-watcher-core';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   startStubSourceServer,
@@ -218,36 +218,63 @@ describe('SourceClient URL building', () => {
 });
 
 describe('SourceClient concurrency', () => {
+  /** A response held until `release()` is called. */
+  function held(body: unknown) {
+    let release = (): void => undefined;
+    const until = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    return {
+      response: { until, body },
+      release: () => {
+        release();
+      },
+    };
+  }
+
+  const xRequests = () => stub.requests.filter((r) => r.path === '/t/x');
+
   it('caps parallel callbacks per source', async () => {
-    stub.route('/t/x', { delayMs: 150, body: { ok: true } });
+    const { response, release } = held({ ok: true });
+    stub.route('/t/x', response);
     stub.route('/o/y', { body: { ok: true } });
     const sources = client({ concurrency: 2 });
 
     const pending = Array.from({ length: 5 }, () =>
       sources.retrieve('app://x'),
     );
-    await new Promise((resolve) => setTimeout(resolve, 75));
-
-    expect(stub.requests).toHaveLength(2);
-    // Another source has its own limit and is not blocked.
+    await vi.waitFor(() => {
+      expect(xRequests()).toHaveLength(2);
+    });
+    // Another source has its own limit and is not blocked; after its round
+    // trip, still no third request to the held source.
     expect((await sources.retrieve('other://y')).kind).toBe('document');
+    expect(xRequests()).toHaveLength(2);
 
+    release();
     const results = await Promise.all(pending);
     expect(results.every((r) => r.kind === 'document')).toBe(true);
-    expect(stub.requests.filter((r) => r.path === '/t/x')).toHaveLength(5);
+    expect(xRequests()).toHaveLength(5);
   });
 
   it('defaults to 8 parallel callbacks', async () => {
-    stub.route('/t/x', { delayMs: 150, body: {} });
+    const { response, release } = held({});
+    stub.route('/t/x', response);
+    stub.route('/o/y', { body: {} });
     const sources = client();
 
     const pending = Array.from({ length: 10 }, () =>
       sources.retrieve('app://x'),
     );
-    await new Promise((resolve) => setTimeout(resolve, 75));
+    await vi.waitFor(() => {
+      expect(xRequests()).toHaveLength(8);
+    });
+    await sources.retrieve('other://y');
+    expect(xRequests()).toHaveLength(8);
 
-    expect(stub.requests).toHaveLength(8);
+    release();
     await Promise.all(pending);
+    expect(xRequests()).toHaveLength(10);
   });
 
   it('starts the timeout when a request leaves the queue', async () => {

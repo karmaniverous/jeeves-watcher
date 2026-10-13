@@ -56,6 +56,20 @@ describe('updateDocumentMetadata', () => {
     );
   });
 
+  it('writes the metadata itself when there is no enrichment store', async () => {
+    const { ctx, vectorStore } = setup({ source: REF, source_rule: 'chat' });
+    const merged = await updateDocumentMetadata(
+      { ...ctx, enrichmentStore: undefined },
+      { kind: 'source', ref: REF },
+      { priority: 2 },
+    );
+    expect(merged).toEqual({ priority: 2 });
+    expect(vectorStore.setPayload).toHaveBeenCalledWith(
+      [sourcePointId(REF, 0)],
+      { priority: 2, source: REF, source_rule: 'chat' },
+    );
+  });
+
   it('stores nothing for an unindexed source', async () => {
     const { ctx, enrichmentStore } = setup(null);
     expect(

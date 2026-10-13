@@ -72,7 +72,8 @@ describe('embedding.rateLimitPerMinute defaults', () => {
     expect(embed).toHaveBeenCalledTimes(301);
   });
 
-  it('keeps an explicit 0 (rate limiting disabled)', async () => {
+  // That 0 disables limiting: rateLimitedProvider.test.ts.
+  it('keeps an explicit rateLimitPerMinute of 0 instead of the default', async () => {
     const config = await load({
       provider: 'mock',
       model: 'm',

@@ -117,4 +117,12 @@ describe('buildSourceUrl', () => {
       rejection(() => buildSourceUrl(template, 'http://other', 'a')).code,
     ).toBe('invalid_id');
   });
+
+  it('rejects a template that does not build a URL (defensive: config validates templates)', () => {
+    const error = rejection(() =>
+      buildSourceUrl('http://[bad/{id}', 'http://h', 'a'),
+    );
+    expect(error.code).toBe('invalid_id');
+    expect(error.message).toBe('Source id yields an invalid URL');
+  });
 });

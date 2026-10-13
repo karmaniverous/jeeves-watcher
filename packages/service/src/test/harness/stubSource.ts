@@ -1,6 +1,6 @@
 /**
  * @module test/harness/stubSource
- * Tiny stub HTTP source server for integration tests: serves canned responses by path (status, content type, body, headers, delay) on 127.0.0.1 and records requests.
+ * Tiny stub HTTP source server for integration tests: serves canned responses by path (status, content type, body, headers, delay or manual release) on 127.0.0.1 and records requests.
  */
 
 import {
@@ -23,6 +23,8 @@ export interface StubResponse {
   headers?: Record<string, string>;
   /** Delay before responding, in milliseconds. */
   delayMs?: number;
+  /** Hold the response until this promise settles (manual release). */
+  until?: Promise<unknown>;
 }
 
 /** A request received by the stub. */
@@ -109,6 +111,13 @@ export async function startStubSourceServer(
       requests.push(request);
       const route = table.get(request.path) ?? STUB_NOT_FOUND;
       const response = typeof route === 'function' ? route(request) : route;
+      if (response.until) {
+        const respond = () => {
+          send(res, response);
+        };
+        void response.until.then(respond, respond);
+        return;
+      }
       if (!response.delayMs) {
         send(res, response);
         return;

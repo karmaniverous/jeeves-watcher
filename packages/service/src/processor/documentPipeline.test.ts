@@ -90,6 +90,22 @@ describe('indexDocument onResolved hook', () => {
     },
   );
 
+  it('runs the hook for an unchanged source document (metadata refresh path)', async () => {
+    const { ctx, store } = setup({
+      content_hash: contentHash(TEXT),
+      total_chunks: 1,
+      source: 'app://t/1',
+      source_rule: 'r',
+      matched_rules: ['r'],
+      user_id: 'u1',
+    });
+    const onResolved = vi.fn();
+    const doc = { ...document(source), onResolved };
+    expect(await indexDocument(ctx, doc)).toEqual({ status: 'unchanged' });
+    expect(onResolved).toHaveBeenCalledOnce();
+    expect(store.setPayload).not.toHaveBeenCalled();
+  });
+
   it('prepares a non-empty document before reading its stored hash', async () => {
     const { ctx, store } = setup();
     const prepare = vi.fn(() => Promise.resolve());

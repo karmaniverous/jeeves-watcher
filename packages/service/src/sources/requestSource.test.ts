@@ -1,6 +1,6 @@
 /**
  * @module sources/requestSource.test
- * requestSource response size cap: a declared or streamed body over MAX_SOURCE_RESPONSE_BYTES is `source_unavailable` ("response too large") and the stream is cancelled; bodies within the cap parse normally. Stubs global fetch.
+ * requestSource response size cap: a declared or streamed body over MAX_SOURCE_RESPONSE_BYTES is `source_unavailable` ("response too large") and the stream is cancelled; bodies within the cap parse normally. An empty 200 body is invalid JSON; network errors surface only their system code; a timeout while the body streams is a timeout. Stubs global fetch.
  */
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -65,6 +65,7 @@ describe('requestSource response size cap', () => {
     expect(result).toMatchObject({
       kind: 'error',
       code: 'source_unavailable',
+      message: expect.stringContaining('response too large') as unknown,
     });
     expect(wasCancelled()).toBe(true);
   });
@@ -77,6 +78,62 @@ describe('requestSource response size cap', () => {
     expect(await requestSource(request)).toEqual({
       kind: 'document',
       body: { userId: 'u1' },
+    });
+  });
+});
+
+describe('requestSource failures', () => {
+  it('treats an empty 200 body as invalid JSON', async () => {
+    const response = new Response(null, {
+      status: 200,
+      headers: { 'content-type': 'application/json' },
+    });
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(response));
+    expect(await requestSource(request)).toEqual({
+      kind: 'error',
+      code: 'source_unavailable',
+      message: 'Source "app" callback returned invalid JSON',
+    });
+  });
+
+  it.each([
+    [{ code: 'ECONNREFUSED' }, 'network error (ECONNREFUSED)'],
+    // Free text is never surfaced: it could echo the URL.
+    [{ code: 'connect to http://secret.example failed' }, 'network error'],
+    [undefined, 'network error'],
+  ])('reports a network failure with cause %j as %s', async (cause, text) => {
+    const failure = new TypeError('fetch failed', { cause });
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(failure));
+    expect(await requestSource(request)).toEqual({
+      kind: 'error',
+      code: 'source_unavailable',
+      message: `Source "app" callback failed: ${text}`,
+    });
+  });
+
+  it('times out while the body is still streaming', async () => {
+    // Headers arrive at once; the body never finishes until the abort.
+    const fetchStub = vi.fn((_url: string, init: RequestInit) => {
+      const body = new ReadableStream<Uint8Array>({
+        start(controller) {
+          controller.enqueue(new TextEncoder().encode('{"userId":'));
+          init.signal?.addEventListener('abort', () => {
+            controller.error(new Error('aborted'));
+          });
+        },
+      });
+      return Promise.resolve(
+        new Response(body, {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        }),
+      );
+    });
+    vi.stubGlobal('fetch', fetchStub);
+    expect(await requestSource({ ...request, timeoutMs: 50 })).toEqual({
+      kind: 'error',
+      code: 'source_unavailable',
+      message: 'Source "app" callback timed out after 50 ms',
     });
   });
 });

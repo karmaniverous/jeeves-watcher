@@ -145,6 +145,7 @@ describe('handleFailures', () => {
   });
 
   it('logs without recording when there is no issues store', async () => {
+    const error = vi.spyOn(logger, 'error');
     await expect(
       handleFailures(
         { logger },
@@ -153,6 +154,9 @@ describe('handleFailures', () => {
         { fallback: null },
       ),
     ).resolves.toBeNull();
+    expect(error).toHaveBeenCalledOnce();
+    expect(error.mock.calls[0]?.[1]).toBe(context.operation);
+    error.mockRestore();
   });
 });
 

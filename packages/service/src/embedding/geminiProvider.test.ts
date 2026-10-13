@@ -116,9 +116,11 @@ describe('createGeminiProvider', () => {
     responses.push({ status: 503, body: 'unavailable' });
     responses.push({ status: 500, body: 'error' });
     responses.push({ status: 200, body: okBody });
+    // Requests sent when each retry asked for its token (asserted after the
+    // call: an expect thrown in here would be swallowed by the retry loop).
+    const sentBefore: number[] = [];
     const beforeRetry = vi.fn(() => {
-      // The token is taken before the request is sent.
-      expect(request).toHaveBeenCalledTimes(beforeRetry.mock.calls.length);
+      sentBefore.push(request.mock.calls.length);
       return Promise.resolve();
     });
     const provider = createGeminiProvider(config, pino({ level: 'silent' }));
@@ -127,7 +129,25 @@ describe('createGeminiProvider', () => {
     await vi.advanceTimersByTimeAsync(5_000);
     await expect(result).resolves.toEqual([[0.1, 0.2]]);
     expect(request).toHaveBeenCalledTimes(3);
-    expect(beforeRetry).toHaveBeenCalledTimes(2);
+    expect(sentBefore).toEqual([1, 2]);
+  });
+
+  it('stops retrying on a 429 after a 5xx and carries the body retryDelay', async () => {
+    vi.useFakeTimers();
+    responses.push({ status: 503, body: 'unavailable' });
+    responses.push({
+      status: 429,
+      body: '{"error":{"details":[{"retryDelay":"17s"}]}}',
+    });
+    responses.push({ status: 200, body: okBody });
+    const provider = createGeminiProvider(config, pino({ level: 'silent' }));
+
+    const result = provider.embed(['a']).catch((e: unknown) => e);
+    await vi.advanceTimersByTimeAsync(5_000);
+    const error = await result;
+    expect(error).toBeInstanceOf(EmbeddingRateLimitError);
+    expect((error as EmbeddingRateLimitError).retryAfterMs).toBe(17_000);
+    expect(request).toHaveBeenCalledTimes(2);
   });
 
   it('stops retrying when beforeRetry rejects with EmbeddingUnavailableError', async () => {

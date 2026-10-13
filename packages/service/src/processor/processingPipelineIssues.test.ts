@@ -77,7 +77,16 @@ describe('embedAndUpsertDocument issue tagging (#255)', () => {
     expect(await run(deps)).toBe(splitErr);
   });
 
-  it('resolves with the chunk count on success', async () => {
-    expect(await run(makeDeps({}))).toBe(2);
+  it('upserts every chunk and deletes nothing for a new document', async () => {
+    const deps = makeDeps({});
+    expect(await run(deps)).toBe(2);
+    expect(deps.vectorStore.upsert).toHaveBeenCalledOnce();
+    const points = (
+      deps.vectorStore.upsert.mock.calls[0] as unknown as [
+        Array<{ payload: Record<string, unknown> }>,
+      ]
+    )[0];
+    expect(points.map((p) => p.payload['chunk_text'])).toEqual(['a', 'b']);
+    expect(deps.vectorStore.delete).not.toHaveBeenCalled();
   });
 });

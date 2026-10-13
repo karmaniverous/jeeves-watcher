@@ -1,6 +1,6 @@
 /**
  * @module processor/processor.test
- * Unit tests for DocumentProcessor.processFile with mocked stores: empty files, unchanged content hashes, values and issues bookkeeping, extraction errors and orphan-chunk cleanup.
+ * Unit tests for DocumentProcessor.processFile with mocked stores: empty files, unchanged content hashes, values and issues bookkeeping and orphan-chunk cleanup (issue recording: processorIssues.test.ts).
  */
 
 import { beforeEach, describe, expect, it, type Mock, vi } from 'vitest';
@@ -140,24 +140,6 @@ describe('DocumentProcessor', () => {
         'rule1',
         expect.objectContaining({ domain: 'test' }),
       );
-    });
-
-    it('records an extraction_error issue on generic error', async () => {
-      const { vectorStore, embeddingProvider, issuesManager, config, logger } =
-        createMocks();
-      mockedBuildMergedMetadata.mockRejectedValue(new Error('read fail'));
-
-      const processor = new DocumentProcessor({
-        config,
-        embeddingProvider,
-        vectorStore: vectorStore as unknown as VectorStoreClient,
-        compiledRules: [],
-        logger,
-        issuesManager: issuesManager as unknown as IssuesManager,
-      });
-      await processor.processFile('/test.txt');
-
-      expect(issuesManager.record.mock.calls[0]?.[1]).toBe('extraction_error');
     });
 
     it('cleans up orphan chunks when new count < old', async () => {

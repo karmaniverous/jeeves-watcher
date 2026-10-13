@@ -260,10 +260,13 @@ describe('SourceResolver', () => {
       logger: pino({ level: 'silent' }),
       retriever,
     });
-    await expect(
+    // A root-level error has no instance path: reported as '/'.
+    const failure = await expectFailure(
       resolver.resolve({ ref: REF, rule: 'files' }),
-    ).rejects.toMatchObject({
-      issueType: 'match_failed',
-    });
+      'match_failed',
+    );
+    expect(failure.message).toBe(
+      `Document does not match rule "files": / must have required property 'file'`,
+    );
   });
 });

@@ -1,6 +1,6 @@
 /**
  * @module processor/SourceOperations.test
- * DocumentProcessor.sourceOperations(): notify validation codes, stored designated rule, render outcomes (no writes, no issues), metadata enrichment with system fields re-asserted, processing delegation.
+ * DocumentProcessor.sourceOperations(): notify validation codes, stored designated rule, render outcomes (no writes, no issues; unexpected errors rethrown), metadata enrichment with system fields re-asserted. Processing: processSource*.test.ts and SourceOperations.force.test.ts.
  */
 
 import pino from 'pino';
@@ -221,6 +221,14 @@ describe('SourceOperations.render', () => {
     expect(issues.record).not.toHaveBeenCalled();
   });
 
+  it('rethrows an unexpected (untagged) error instead of returning it', async () => {
+    const { ops, enrichmentStore } = setup();
+    enrichmentStore.get.mockImplementation(() => {
+      throw new Error('store closed');
+    });
+    await expect(ops.render(REF, 'chat')).rejects.toThrow('store closed');
+  });
+
   it('tags a rejected retrieval as source_unavailable', async () => {
     const { ops, retrieve } = setup();
     retrieve.mockRejectedValue(new Error('socket'));
@@ -254,18 +262,5 @@ describe('SourceOperations.updateMetadata', () => {
     await expect(ops.updateMetadata(REF, { a: 1 })).resolves.toBeNull();
     expect(enrichmentStore.set).not.toHaveBeenCalled();
     expect(vectorStore.setPayload).not.toHaveBeenCalled();
-  });
-});
-
-describe('SourceOperations.process', () => {
-  it('indexes through the shared pipeline (the notify queue runs this)', async () => {
-    const { processor, vectorStore } = setup();
-    await expect(
-      processor.sourceOperations().process(REF, 'chat'),
-    ).resolves.toMatchObject({
-      source: REF,
-      status: 'indexed',
-    });
-    expect(vectorStore.upsert).toHaveBeenCalled();
   });
 });

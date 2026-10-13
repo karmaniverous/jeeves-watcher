@@ -82,6 +82,18 @@ describe('planPayloadIndexes', () => {
     expect(plan).toEqual({ create: [], mismatches: [], flagMismatches: [] });
   });
 
+  it('reports an existing index without a data_type as a mismatch, never recreated', () => {
+    const plan = planPayloadIndexes([{ field: 'user_id', type: 'keyword' }], {
+      source: { data_type: 'keyword' },
+      source_rule: { data_type: 'keyword' },
+      user_id: {},
+    });
+    expect(plan.create).toEqual([]);
+    expect(plan.mismatches).toEqual([
+      { field: 'user_id', expected: 'keyword', actual: 'unknown' },
+    ]);
+  });
+
   it('reports an is_tenant / is_principal mismatch on a same-type index', () => {
     const plan = planPayloadIndexes(
       [
@@ -127,6 +139,10 @@ describe('toQdrantFieldSchema', () => {
     [{ field: 'f', type: 'bool' as const }, 'bool'],
     [{ field: 'f', type: 'text' as const }, 'text'],
     [{ field: 'f', type: 'keyword' as const, isTenant: false }, 'keyword'],
+    // Flags on types that cannot carry them (core validation rejects these;
+    // an unvalidated config gets the plain type, never an invalid schema).
+    [{ field: 'f', type: 'bool' as const, isTenant: true }, 'bool'],
+    [{ field: 'f', type: 'keyword' as const, isPrincipal: true }, 'keyword'],
   ])('%o → %o', (index, expected) => {
     expect(toQdrantFieldSchema(index)).toEqual(expected);
   });

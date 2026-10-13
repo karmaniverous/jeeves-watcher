@@ -47,12 +47,36 @@ describe('ensureCollection', () => {
     expect(mocks.createPayloadIndex).toHaveBeenCalledTimes(3);
   });
 
-  it('wraps failures with the collection name', async () => {
-    const { client, mocks } = makeClient([]);
-    mocks.getCollections.mockRejectedValueOnce(new Error('down'));
+  it.each([
+    ['listing collections', 'getCollections', 'Error: down'],
+    ['creating the collection', 'createCollection', 'Error: down'],
+    ['reading the index schema', 'getCollection', 'Error: down'],
+    [
+      'creating a payload index',
+      'createPayloadIndex',
+      'Error: Failed to create payload index on "source": Error: down',
+    ],
+  ] as const)(
+    'wraps a failure %s with the collection name and cause',
+    async (_label, step, detail) => {
+      const { client, mocks } = makeClient([]);
+      const cause = new Error('down');
+      mocks[step].mockRejectedValueOnce(cause);
 
-    await expect(
-      ensureCollection(client, { collectionName: 'c', dimensions: 3 }),
-    ).rejects.toThrow('Failed to ensure collection "c"');
-  });
+      const error: unknown = await ensureCollection(client, {
+        collectionName: 'c',
+        dimensions: 3,
+      }).catch((e: unknown) => e);
+      expect(error).toBeInstanceOf(Error);
+      expect((error as Error).message).toBe(
+        `Failed to ensure collection "c": ${detail}`,
+      );
+      // The original failure is the root of the cause chain.
+      let root: unknown = error;
+      while (root instanceof Error && root.cause !== undefined) {
+        root = root.cause;
+      }
+      expect(root).toBe(cause);
+    },
+  );
 });

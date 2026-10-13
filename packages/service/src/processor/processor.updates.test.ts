@@ -1,11 +1,13 @@
 /**
  * @module processor/processor.updates.test
- * Unit tests for DocumentProcessor.processRulesUpdate, processMetadataUpdate and deleteFile with mocked stores.
+ * Unit tests for DocumentProcessor.processRulesUpdate, processMetadataUpdate (stored identity fallback, enrichment kept for a file not indexed yet) and deleteFile (points, enrichment, hash cache) with mocked stores.
  */
 
 import { beforeEach, describe, expect, it, type Mock, vi } from 'vitest';
 
+import type { ContentHashCache } from '../cache';
 import type { IssuesManager } from '../issues';
+import { pointId } from '../pointId';
 import type { ValuesManager } from '../values';
 import type { VectorStoreClient } from '../vectorStore';
 import { DocumentProcessor } from './index';
@@ -81,7 +83,9 @@ describe('DocumentProcessor', () => {
 
       expect(result).toEqual(expect.objectContaining({ domain: 'test' }));
       expect(issuesManager.clear).toHaveBeenCalledWith('/test.txt');
-      expect(valuesManager.update).toHaveBeenCalled();
+      expect(valuesManager.update).toHaveBeenCalledWith('rule1', {
+        domain: 'test',
+      });
       expect(vectorStore.setPayload).toHaveBeenCalledOnce();
     });
   });
@@ -110,9 +114,19 @@ describe('DocumentProcessor', () => {
       expect(enrichmentStore.set).toHaveBeenCalledWith('/test.txt', {
         newKey: 'val',
       });
-      expect(enrichmentStore.get).toHaveBeenCalledWith('/test.txt');
-      expect(vectorStore.setPayload).toHaveBeenCalledOnce();
       expect(result).toEqual({ existing: 'old', newKey: 'val' });
+      // The stored enrichment goes to every chunk; a stored point without
+      // file_path falls back to the requested path.
+      const [ids, payload] = vectorStore.setPayload.mock.calls[0] as [
+        string[],
+        Record<string, unknown>,
+      ];
+      expect(ids).toEqual([pointId('/test.txt', 0), pointId('/test.txt', 1)]);
+      expect(payload).toEqual({
+        existing: 'old',
+        newKey: 'val',
+        file_path: '/test.txt',
+      });
     });
 
     it('returns null when file is not indexed', async () => {
@@ -133,13 +147,19 @@ describe('DocumentProcessor', () => {
       });
 
       expect(result).toBeNull();
+      // Kept for a file not indexed yet, so it applies once it is.
+      expect(enrichmentStore.set).toHaveBeenCalledWith('/test.txt', {
+        key: 'val',
+      });
+      expect(vectorStore.setPayload).not.toHaveBeenCalled();
     });
   });
 
   describe('deleteFile', () => {
-    it('removes chunks and enrichment', async () => {
+    it('removes chunks, enrichment and the content hash cache entry', async () => {
       const { vectorStore, embeddingProvider, config, logger } = createMocks();
       const enrichmentStore = createMockEnrichmentStore(null);
+      const contentHashCache = { delete: vi.fn() };
       vectorStore.getPayload.mockResolvedValue({ total_chunks: 3 });
 
       const processor = new DocumentProcessor({
@@ -149,8 +169,10 @@ describe('DocumentProcessor', () => {
         compiledRules: [],
         logger,
         enrichmentStore: enrichmentStore,
+        contentHashCache: contentHashCache as unknown as ContentHashCache,
       });
       await processor.deleteFile('/test.txt');
+      expect(contentHashCache.delete).toHaveBeenCalledWith('/test.txt');
 
       expect(vectorStore.delete).toHaveBeenCalledOnce();
       const deletedIds = vectorStore.delete.mock.calls[0][0] as string[];
