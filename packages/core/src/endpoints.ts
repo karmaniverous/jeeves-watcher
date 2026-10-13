@@ -77,7 +77,8 @@ export const WATCHER_ENDPOINTS = [
     name: 'rebuildMetadata',
     method: 'POST',
     path: '/rebuild-metadata',
-    description: 'Rebuild metadata from enrichment store into vector points.',
+    description:
+      'Rebuild the enrichment store from vector point payloads (file points only).',
   },
   {
     name: 'reindex',

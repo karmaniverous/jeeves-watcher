@@ -11,7 +11,7 @@ export const statusResponseSchema = z.object({
   name: z.string(),
   /** Service version. */
   version: z.string(),
-  /** Seconds since process start. */
+  /** Whole seconds since the API server (its status handler) was created. */
   uptime: z.number(),
   /** Overall status. */
   status: z.enum(['healthy', 'degraded', 'unhealthy']),
