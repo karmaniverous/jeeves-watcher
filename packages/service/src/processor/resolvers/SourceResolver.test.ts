@@ -102,7 +102,10 @@ describe('SourceResolver', () => {
       ref: REF,
       matched_rules: ['streak'],
     });
-    expect(doc.refreshMetadataWhenUnchanged).toBe(true);
+    expect(doc.onUnchanged).toBe('refresh');
+    expect(doc.logLabel).toBe('Source document');
+    // Source documents never feed the values index.
+    expect(doc.onResolved).toBeUndefined();
   });
 
   it('embeds JSON as a JSON file would be when the rule has no template', async () => {

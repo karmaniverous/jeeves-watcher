@@ -1,6 +1,6 @@
 /**
  * @module processor/resolvers/FileResolver.test
- * FileResolver wraps the existing file path: file identity, extension-selected splitter, stat dates, move-cache hash.
+ * FileResolver wraps the existing file path: file identity, extension-selected splitter, stat dates, move-cache hash, skip-when-unchanged, values index fed on resolve.
  */
 
 import pino from 'pino';
@@ -29,11 +29,13 @@ describe('FileResolver', () => {
       renderAs: null,
     });
     const set = vi.fn();
+    const valuesManager = { update: vi.fn() };
     const resolver = new FileResolver({
       compiledRules: [],
       config: {},
       logger: pino({ level: 'silent' }),
       contentHashCache: { set } as unknown as ContentHashCache,
+      valuesManager,
     });
 
     const outcome = await resolver.resolve('/docs/A.md');
@@ -47,7 +49,11 @@ describe('FileResolver', () => {
       domain: 'docs',
       matched_rules: ['r'],
     });
-    expect(doc.refreshMetadataWhenUnchanged).toBe(false);
+    expect(doc.onUnchanged).toBe('skip');
+    expect(doc.logLabel).toBe('File');
+    expect(valuesManager.update).not.toHaveBeenCalled();
+    doc.onResolved?.();
+    expect(valuesManager.update).toHaveBeenCalledWith('r', { domain: 'docs' });
     await expect(doc.dates(null)).resolves.toEqual({
       createdAt: 1,
       modifiedAt: 2,

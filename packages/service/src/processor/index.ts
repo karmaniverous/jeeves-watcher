@@ -113,22 +113,28 @@ export class DocumentProcessor
       chunkSize: this.config.chunkSize,
       chunkOverlap: this.config.chunkOverlap,
       issuesManager: this.issuesManager,
-      valuesManager: this.valuesManager,
     };
   }
 
   /** File resolver bound to the current rule context. */
   private fileResolver(): FileResolver {
-    const { contentHashCache } = this;
-    return new FileResolver({ ...this.ruleContext(), contentHashCache });
+    const { contentHashCache, valuesManager } = this;
+    const rules = this.ruleContext();
+    return new FileResolver({ ...rules, contentHashCache, valuesManager });
   }
 
   /** Dependencies of the payload-only file operations. */
   private fileOperations(): FileOperationsContext {
-    const { enrichmentStore, contentHashCache } = this;
+    const { enrichmentStore, contentHashCache, valuesManager } = this;
     const resolver = this.fileResolver();
     const pipeline = this.pipelineContext();
-    return { ...pipeline, resolver, enrichmentStore, contentHashCache };
+    return {
+      ...pipeline,
+      resolver,
+      enrichmentStore,
+      contentHashCache,
+      valuesManager,
+    };
   }
 
   /**

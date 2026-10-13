@@ -142,7 +142,8 @@ export class SourceResolver implements DocumentResolver<SourceTarget> {
       metadata,
       metadataWithRules: metadataWithRules(metadata, applied.matchedRules),
       matchedRules: applied.matchedRules,
-      refreshMetadataWhenUnchanged: true,
+      onUnchanged: 'refresh',
+      logLabel: 'Source document',
       dates: (existing) => {
         const created = existing?.[FIELD_CREATED_AT];
         return Promise.resolve({

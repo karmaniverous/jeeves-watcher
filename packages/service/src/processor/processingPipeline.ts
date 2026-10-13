@@ -1,12 +1,11 @@
 /**
  * @module processor/processingPipeline
- * Extracted embed→chunk→upsert pipeline for DocumentProcessor, shared by file and source documents (identity decides point IDs and identity fields).
+ * Chunk, embed and upsert pipeline, shared by file and source documents (identity decides point IDs and identity fields).
  */
 
 import type pino from 'pino';
 
 import type { EmbeddingProvider } from '../embedding';
-import { contentHash } from '../hash';
 import type { VectorStore } from '../vectorStore';
 import { getChunkCount } from './chunkIds';
 import {
@@ -56,26 +55,43 @@ export interface DocumentDates {
   modifiedAt: number;
 }
 
+/** The document fields the embed-and-upsert pipeline writes. */
+export interface EmbeddableDocument {
+  /** The document identity (point IDs and identity fields). */
+  identity: DocumentIdentity;
+  /** The text to chunk and embed. */
+  text: string;
+  /** Metadata attached to every chunk point (reserved names are dropped). */
+  metadata: Record<string, unknown>;
+  /** Rules the pipeline applied (written as `matched_rules`). */
+  matchedRules?: readonly string[];
+  /** Log label naming the document kind (e.g. `File`, `Source document`). */
+  logLabel: string;
+}
+
+/** Per-write inputs of {@link embedAndUpsertDocument}. */
+export interface EmbedWriteOptions {
+  /** Existing chunk-0 payload (for orphan cleanup), or null. */
+  existing: Record<string, unknown> | null;
+  /** Creation and modification timestamps (unix seconds). */
+  dates: DocumentDates;
+  /** Content hash of `document.text` (computed once by the caller). */
+  hash: string;
+}
+
 /**
  * Embed text chunks, upsert to vector store, and clean up orphaned chunks.
  *
  * @param deps - Pipeline dependencies (embedding provider, vector store, splitter, logger).
- * @param text - The text content to embed.
- * @param identity - The document identity (point IDs and identity fields).
- * @param metadata - Metadata to attach to each chunk point (reserved names are dropped).
- * @param existingPayload - Existing chunk-0 payload (for orphan cleanup), or null.
- * @param dates - Creation and modification timestamps (unix seconds).
- * @param matchedRules - Rules the pipeline applied (written as matched_rules).
+ * @param document - The document to write.
+ * @param options - Existing chunk-0 payload, dates and content hash.
  * @returns The number of chunks written.
+ * @throws ProcessingFailure `embedding_error` (nothing upserted) or `upsert_error`.
  */
 export async function embedAndUpsertDocument(
   deps: PipelineDeps,
-  text: string,
-  identity: DocumentIdentity,
-  metadata: Record<string, unknown>,
-  existingPayload: Record<string, unknown> | null,
-  dates: DocumentDates,
-  matchedRules?: readonly string[],
+  document: EmbeddableDocument,
+  options: EmbedWriteOptions,
 ): Promise<number> {
   const {
     embeddingProvider,
@@ -84,9 +100,10 @@ export async function embedAndUpsertDocument(
     logger,
     upsertBatchSize = DEFAULT_UPSERT_BATCH_SIZE,
   } = deps;
+  const { identity, text, metadata, matchedRules } = document;
+  const { existing, dates, hash } = options;
 
-  const oldTotalChunks = getChunkCount(existingPayload);
-  const hash = contentHash(text);
+  const oldTotalChunks = getChunkCount(existing);
 
   // Chunk text
   const chunks = await splitter.splitText(text);
@@ -140,37 +157,7 @@ export async function embedAndUpsertDocument(
 
   logger.info(
     { ...identityLogFields(identity), chunks: chunks.length },
-    identity.kind === 'file'
-      ? 'File processed successfully'
-      : 'Source document processed successfully',
+    `${document.logLabel} processed successfully`,
   );
   return chunks.length;
-}
-
-/**
- * Embed and upsert a file (see {@link embedAndUpsertDocument}).
- *
- * @param deps - Pipeline dependencies (embedding provider, vector store, splitter, logger).
- * @param text - The text content to embed.
- * @param filePath - The file path (used for point IDs).
- * @param metadata - Metadata to attach to each chunk point.
- * @param existingPayload - Existing payload from the vector store (for orphan cleanup), or null.
- * @param fileDates - File creation and modification timestamps (unix seconds).
- */
-export async function embedAndUpsert(
-  deps: PipelineDeps,
-  text: string,
-  filePath: string,
-  metadata: Record<string, unknown>,
-  existingPayload: Record<string, unknown> | null,
-  fileDates: DocumentDates,
-): Promise<void> {
-  await embedAndUpsertDocument(
-    deps,
-    text,
-    { kind: 'file', filePath },
-    metadata,
-    existingPayload,
-    fileDates,
-  );
 }

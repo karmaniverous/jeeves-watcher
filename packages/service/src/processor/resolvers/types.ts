@@ -47,10 +47,19 @@ export interface ResolvedDocument {
    */
   ruleErrors?: RuleApplicationError[];
   /**
-   * When the content hash is unchanged but projected metadata differs, update
-   * payloads with `setPayload` (sources) instead of skipping (files).
+   * What to do when the content hash is unchanged: `skip` (files), or
+   * `refresh` differing projected metadata with set-payload /
+   * delete-payload (sources).
    */
-  refreshMetadataWhenUnchanged: boolean;
+  onUnchanged: 'skip' | 'refresh';
+  /** Log label naming the document kind (`File`, `Source document`). */
+  logLabel: string;
+  /**
+   * Side effects run as soon as the document is resolved, before the empty
+   * check and whether or not content changed (files feed the values index;
+   * source documents never do).
+   */
+  onResolved?: () => void;
   /** Side effects run once the document is known to be non-empty. */
   prepare?: () => Promise<void>;
   /**

@@ -45,7 +45,8 @@ describe('processSource failures', () => {
       metadata: {},
       metadataWithRules: { matched_rules: [RULE] },
       matchedRules: [RULE],
-      refreshMetadataWhenUnchanged: true,
+      onUnchanged: 'refresh',
+      logLabel: 'Source document',
       dates: () => Promise.resolve({ createdAt: 1, modifiedAt: 1 }),
     };
     const resolver = {

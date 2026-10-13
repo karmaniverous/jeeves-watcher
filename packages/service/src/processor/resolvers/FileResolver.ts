@@ -8,8 +8,10 @@ import { extname } from 'node:path';
 
 import type { ContentHashCache } from '../../cache';
 import { fileHash } from '../../hash';
+import type { ValuesManager } from '../../values';
 import { buildMergedMetadata } from '../buildMetadata';
 import { syncExtractText } from '../syncExtractText';
+import { updateValues } from '../valuesIndex';
 import { applyRuleOptions, metadataWithRules } from './ruleOptions';
 import type {
   DocumentResolver,
@@ -22,6 +24,8 @@ import type {
 export interface FileResolverContext extends RuleContext {
   /** Content hash cache for move correlation. */
   contentHashCache?: ContentHashCache;
+  /** Values index, fed with the rule metadata on every resolve. */
+  valuesManager?: Pick<ValuesManager, 'update'>;
 }
 
 /** Resolves a file path into a document (behaviour identical to pre-0.20). */
@@ -72,7 +76,16 @@ export class FileResolver implements DocumentResolver<string> {
       metadataWithRules: built.metadataWithRules,
       matchedRules: built.matchedRules,
       ruleErrors: built.ruleErrors,
-      refreshMetadataWhenUnchanged: false,
+      onUnchanged: 'skip',
+      logLabel: 'File',
+      // Values must reflect current rule matches even when content is unchanged.
+      onResolved: () => {
+        updateValues(
+          this.ctx.valuesManager,
+          built.matchedRules,
+          built.metadata,
+        );
+      },
       prepare: async () => {
         // File-level hash for the move correlation cache.
         const rawHash = await fileHash(filePath);

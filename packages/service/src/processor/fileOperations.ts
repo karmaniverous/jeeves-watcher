@@ -19,11 +19,8 @@ import {
   documentPointId,
   storedIdentity,
 } from './documentIdentity';
-import {
-  deleteDocumentPoints,
-  updateDocumentMetadata,
-  updateValues,
-} from './documentPipeline';
+import { updateDocumentMetadata } from './documentMetadata';
+import { deleteDocumentPoints } from './documentPipeline';
 import {
   type ProcessorIssues,
   recordRuleErrors,
@@ -33,6 +30,7 @@ import { diffMetadata, writeProjectedMetadata } from './metadataRefresh';
 import type { RenderResult } from './renderResult';
 import type { FileResolver } from './resolvers/FileResolver';
 import { withSystemFields } from './systemFields';
+import { updateValues } from './valuesIndex';
 
 /** Dependencies of the file operations (a snapshot of the processor). */
 export interface FileOperationsContext {

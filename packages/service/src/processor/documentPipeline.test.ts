@@ -1,6 +1,6 @@
 /**
  * @module processor/documentPipeline.test
- * indexDocument: the values index is fed by files only (sources never touch it, unchanged or not); a metadata-only refresh keeps an `upsert_error` issue like the unchanged path; empty text is `skipped`; a failed chunk-0 read is an error, never "not indexed".
+ * indexDocument: the document's onResolved hook runs whatever the outcome (indexed, unchanged, empty); a metadata-only refresh keeps an `upsert_error` issue like the unchanged path; empty text is `skipped`; a failed chunk-0 read is an error, never "not indexed".
  */
 
 import pino from 'pino';
@@ -31,7 +31,8 @@ function document(
     metadata,
     metadataWithRules: { ...metadata, matched_rules: ['r'] },
     matchedRules: ['r'],
-    refreshMetadataWhenUnchanged: identity.kind === 'source',
+    onUnchanged: identity.kind === 'source' ? 'refresh' : 'skip',
+    logLabel: identity.kind === 'source' ? 'Source document' : 'File',
     dates: () => Promise.resolve({ createdAt: 1, modifiedAt: 2 }),
   };
 }
@@ -45,7 +46,6 @@ function setup(existing: Record<string, unknown> | null = null) {
     setPayload: vi.fn().mockResolvedValue(undefined),
     deletePayload: vi.fn().mockResolvedValue(undefined),
   };
-  const valuesManager = { update: vi.fn() };
   const issuesManager = {
     record: vi.fn(),
     clear: vi.fn((key: string) => {
@@ -61,9 +61,8 @@ function setup(existing: Record<string, unknown> | null = null) {
     vectorStore: store as unknown as VectorStore,
     logger: pino({ level: 'silent' }),
     issuesManager,
-    valuesManager,
   };
-  return { ctx, store, valuesManager, issues, embed };
+  return { ctx, store, issues, embed };
 }
 
 const source: DocumentIdentity = {
@@ -73,22 +72,28 @@ const source: DocumentIdentity = {
 };
 const file: DocumentIdentity = { kind: 'file', filePath: '/docs/a.md' };
 
-describe('indexDocument values index', () => {
-  it('never updates the values index for a source document', async () => {
-    const { ctx, valuesManager, store } = setup();
-    expect(await indexDocument(ctx, document(source))).toMatchObject({
-      status: 'indexed',
-    });
-    expect(store.upsert).toHaveBeenCalledOnce();
-    expect(valuesManager.update).not.toHaveBeenCalled();
-  });
+describe('indexDocument onResolved hook', () => {
+  it.each([
+    ['indexed', null, TEXT],
+    ['unchanged', { content_hash: contentHash(TEXT) }, TEXT],
+    ['skipped', null, '  '],
+  ] as const)(
+    'runs the hook when the outcome is %s',
+    async (status, existing, text) => {
+      const { ctx } = setup(existing);
+      const onResolved = vi.fn();
+      const doc = { ...document(file, { user_id: 'u1' }, text), onResolved };
+      expect(await indexDocument(ctx, doc)).toMatchObject({ status });
+      expect(onResolved).toHaveBeenCalledOnce();
+    },
+  );
 
-  it('still updates the values index for files (unchanged content too)', async () => {
-    const { ctx, valuesManager } = setup({ content_hash: contentHash(TEXT) });
+  it('skips a file with unchanged content without refreshing metadata', async () => {
+    const { ctx, store } = setup({ content_hash: contentHash(TEXT) });
     expect(await indexDocument(ctx, document(file))).toEqual({
       status: 'unchanged',
     });
-    expect(valuesManager.update).toHaveBeenCalledWith('r', { user_id: 'u1' });
+    expect(store.setPayload).not.toHaveBeenCalled();
   });
 });
 

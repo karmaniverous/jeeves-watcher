@@ -1,12 +1,12 @@
 /**
  * @module processor/processingPipelineIssues.test
- * Tests that embedAndUpsert tags embedding and vector-store failures with canonical issue codes (#255).
+ * Tests that embedAndUpsertDocument tags embedding and vector-store failures with canonical issue codes (#255).
  */
 
 import { describe, expect, it, vi } from 'vitest';
 
 import { ProcessingFailure } from './issueRecording';
-import { embedAndUpsert } from './processingPipeline';
+import { embedAndUpsertDocument } from './processingPipeline';
 
 function makeDeps(overrides: {
   embed?: ReturnType<typeof vi.fn>;
@@ -35,13 +35,19 @@ async function run(
   deps: ReturnType<typeof makeDeps>,
   existing: Record<string, unknown> | null = null,
 ): Promise<unknown> {
-  return embedAndUpsert(deps as never, 'text', 'f.md', {}, existing, {
-    createdAt: 1,
-    modifiedAt: 2,
-  }).catch((e: unknown) => e);
+  return embedAndUpsertDocument(
+    deps as never,
+    {
+      identity: { kind: 'file', filePath: 'f.md' },
+      text: 'text',
+      metadata: {},
+      logLabel: 'File',
+    },
+    { existing, dates: { createdAt: 1, modifiedAt: 2 }, hash: 'h' },
+  ).catch((e: unknown) => e);
 }
 
-describe('embedAndUpsert issue tagging (#255)', () => {
+describe('embedAndUpsertDocument issue tagging (#255)', () => {
   it('tags an embedding failure as embedding_error and skips upsert', async () => {
     const deps = makeDeps({ embed: vi.fn().mockRejectedValue(new Error('q')) });
     const err = await run(deps);
@@ -71,7 +77,7 @@ describe('embedAndUpsert issue tagging (#255)', () => {
     expect(await run(deps)).toBe(splitErr);
   });
 
-  it('resolves without error on success', async () => {
-    expect(await run(makeDeps({}))).toBeUndefined();
+  it('resolves with the chunk count on success', async () => {
+    expect(await run(makeDeps({}))).toBe(2);
   });
 });

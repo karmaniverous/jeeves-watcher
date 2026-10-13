@@ -1,5 +1,5 @@
 /**
- * @module processor/documentPipeline.metadata.test
+ * @module processor/documentMetadata.test
  * updateDocumentMetadata: one enrichment write path for files and sources: stored identity re-asserted, nothing stored for an unindexed source (files opt in), a failed payload write is an `upsert_error`.
  */
 
@@ -8,7 +8,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { sourcePointId } from '../pointId';
 import type { VectorStore } from '../vectorStore';
-import { updateDocumentMetadata } from './documentPipeline';
+import { updateDocumentMetadata } from './documentMetadata';
 import { ProcessingFailure } from './issueRecording';
 
 const REF = 'app://chat/1';

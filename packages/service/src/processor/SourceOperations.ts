@@ -17,11 +17,8 @@ import {
   type SourceRetriever,
 } from '../sources';
 import { documentPointId } from './documentIdentity';
-import {
-  type IndexOptions,
-  type PipelineContext,
-  updateDocumentMetadata,
-} from './documentPipeline';
+import { updateDocumentMetadata } from './documentMetadata';
+import type { IndexOptions, PipelineContext } from './documentPipeline';
 import { ProcessingFailure } from './issueRecording';
 import { FIELD_SOURCE_RULE } from './payloadFields';
 import { processSourceDocument } from './processSource';
