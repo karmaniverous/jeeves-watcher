@@ -1,6 +1,6 @@
 /**
  * @module processor/documentPipeline
- * The shared indexing pipeline for resolved documents (file or source): values → empty check → hash compare → chunk → embed → upsert → orphan cleanup; plus point deletion.
+ * The shared indexing pipeline for resolved documents (file or source): values (files only) → empty check → hash compare → chunk → embed → upsert → orphan cleanup; plus point deletion.
  */
 
 import type pino from 'pino';
@@ -81,8 +81,15 @@ export function updateValues(
 /**
  * Index a resolved document. Unchanged content (same `content_hash` on chunk
  * 0) is skipped without embedding; for documents that opt in, differing
- * metadata is then written with `setPayload` only. With `force`, the hash
- * comparison is skipped and the document is always re-embedded.
+ * metadata is then written with set-payload / delete-payload only. With
+ * `force`, the hash comparison is skipped and the document is always
+ * re-embedded.
+ *
+ * The values index (facet values) is fed by files only: source documents
+ * never update it, so notifications cost no values-index work.
+ *
+ * An `upsert_error` issue survives an unchanged-content run (a partial
+ * upsert can leave the new hash on chunk 0); only a full rewrite clears it.
  *
  * @param ctx - Pipeline dependencies.
  * @param document - The resolved document.
@@ -99,7 +106,9 @@ export async function indexDocument(
   const logFields = identityLogFields(identity);
 
   // Values must reflect current rule matches even when content is unchanged.
-  updateValues(ctx.valuesManager, document.matchedRules, document.metadata);
+  if (identity.kind === 'file') {
+    updateValues(ctx.valuesManager, document.matchedRules, document.metadata);
+  }
 
   if (!text.trim()) {
     ctx.logger.debug(logFields, 'Skipping empty file');
@@ -115,17 +124,13 @@ export async function indexDocument(
     const refreshed = document.refreshMetadataWhenUnchanged
       ? await refreshMetadata(ctx.vectorStore, document, existing)
       : 'same';
+    clearIssuesOnUnchanged(ctx.issuesManager, key);
     if (refreshed === 'same') {
       ctx.logger.debug(logFields, 'Content unchanged, skipping');
-      clearIssuesOnUnchanged(ctx.issuesManager, key);
       return { status: 'unchanged' };
     }
-    if (refreshed === 'updated') {
-      ctx.logger.info(logFields, 'Content unchanged; metadata updated');
-      ctx.issuesManager?.clear(key);
-      return { status: 'indexed', chunks: getChunkCount(existing) };
-    }
-    // keysRemoved: fall through to a full rewrite.
+    ctx.logger.info(logFields, 'Content unchanged; metadata updated');
+    return { status: 'indexed', chunks: getChunkCount(existing) };
   }
 
   const splitter = createSplitter(
@@ -138,9 +143,10 @@ export async function indexDocument(
     { ...ctx, splitter },
     text,
     identity,
-    document.metadataWithRules,
+    document.metadata,
     existing,
     dates,
+    document.matchedRules,
   );
 
   ctx.issuesManager?.clear(key);

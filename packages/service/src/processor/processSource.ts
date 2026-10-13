@@ -13,7 +13,11 @@ import {
   type IndexOptions,
   type PipelineContext,
 } from './documentPipeline';
-import { reportFailure, withIssueType } from './issueRecording';
+import {
+  ProcessingFailure,
+  reportFailure,
+  withIssueType,
+} from './issueRecording';
 import type { SourceResolver } from './resolvers/SourceResolver';
 
 /** Dependencies of {@link processSourceDocument}. */
@@ -31,7 +35,8 @@ const UNTAGGED_ISSUE = 'extraction_error';
 
 /**
  * Retrieve a source document through its callback and index it with its
- * designated rule. 404 deletes the document's points; other failures record
+ * designated rule. 404 deletes the document's points; other failures
+ * (including a document that renders no text: `no_content`) record
  * an issue (with the designated `rule` and any structured `details`) under
  * the exact reference and leave points untouched.
  *
@@ -63,6 +68,13 @@ export async function processSourceDocument(
 
     const matched_rules = outcome.document.matchedRules;
     const result = await indexDocument(pipeline, outcome.document, options);
+    if (result.status === 'skipped') {
+      // Nothing to embed: a failure, not `unchanged` (points untouched).
+      throw new ProcessingFailure(
+        'no_content',
+        'Source document rendered no text to embed',
+      );
+    }
     return result.status === 'indexed'
       ? { source: ref, status: 'indexed', chunks: result.chunks, matched_rules }
       : { source: ref, status: 'unchanged', matched_rules };

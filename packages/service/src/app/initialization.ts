@@ -10,6 +10,7 @@ import { fileURLToPath } from 'node:url';
 import {
   extractWatchPathStrings,
   normalizeWatchPaths,
+  ROOT_DEFAULTS,
   vcsAuthorConfigSchema,
 } from '@karmaniverous/jeeves-watcher-core';
 import type { JsonMapMap } from '@karmaniverous/jsonmap';
@@ -54,9 +55,6 @@ export function resolveMapsConfig(
   return resolved;
 }
 
-/** Default cap on a single 429 pause, matching the root `maxBackoffMs` default. */
-const DEFAULT_MAX_BACKOFF_MS = 60_000;
-
 /**
  * Initialize embedding provider and vector store. The provider is wrapped
  * once in the shared {@link RateLimitedEmbeddingProvider}, so every consumer
@@ -73,7 +71,7 @@ export async function initEmbeddingAndStore(
       factories.createEmbeddingProvider(config.embedding, logger),
       {
         rateLimitPerMinute: config.embedding.rateLimitPerMinute,
-        maxBackoffMs: config.maxBackoffMs ?? DEFAULT_MAX_BACKOFF_MS,
+        maxBackoffMs: config.maxBackoffMs ?? ROOT_DEFAULTS.maxBackoffMs,
         logger,
       },
     );
@@ -200,7 +198,7 @@ export async function initVcs(
     return false;
   }
 
-  const stateDir = config.stateDir ?? '.jeeves-metadata';
+  const stateDir = config.stateDir ?? ROOT_DEFAULTS.stateDir;
   const pathStrings = extractWatchPathStrings(config.watch.paths);
   const staticPaths = pathStrings.map((p) => globRoot(p));
   validateStateDirOverlap(stateDir, staticPaths);

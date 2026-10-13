@@ -8,6 +8,10 @@ import {
   getBindAddress,
   type JeevesComponentDescriptor,
 } from '@karmaniverous/jeeves';
+import {
+  EMBEDDING_DEFAULTS,
+  ROOT_DEFAULTS,
+} from '@karmaniverous/jeeves-watcher-core';
 import type { FastifyInstance } from 'fastify';
 import type pino from 'pino';
 
@@ -38,7 +42,7 @@ import {
   introspectHelpers,
   resolveVersion,
 } from './initialization';
-import { drainQueues } from './shutdown';
+import { shutdownComponents } from './shutdown';
 import { createNotifyQueue, createSourceRetriever } from './sources';
 import { createWatcher } from './watcherFactory';
 
@@ -158,7 +162,7 @@ export class JeevesWatcher {
       customMapLib,
     );
 
-    const stateDir = this.config.stateDir ?? '.jeeves-metadata';
+    const stateDir = this.config.stateDir ?? ROOT_DEFAULTS.stateDir;
     this.issuesManager = new IssuesManager(stateDir, logger);
     this.valuesManager = new ValuesManager(stateDir, logger);
     this.enrichmentStore = new EnrichmentStore(stateDir, logger);
@@ -177,11 +181,17 @@ export class JeevesWatcher {
       contentHashCache: this.contentHashCache,
       sourceRetriever: createSourceRetriever(this.config),
     });
-    this.sourceQueue = createNotifyQueue(this.processor, this.config, logger);
+    this.sourceQueue = createNotifyQueue(
+      this.processor,
+      this.config,
+      logger,
+      this.issuesManager,
+    );
 
     this.queue = this.factories.createEventQueue({
       debounceMs: this.config.watch.debounceMs ?? 2000,
-      concurrency: this.config.embedding.concurrency ?? 5,
+      concurrency:
+        this.config.embedding.concurrency ?? EMBEDDING_DEFAULTS.concurrency,
     });
 
     this.vcsCoordinator = new VcsCoordinator(this.config, logger);
@@ -222,35 +232,24 @@ export class JeevesWatcher {
   }
 
   /**
-   * Gracefully stop all components.
+   * Gracefully stop all components: the API server closes first (no new
+   * notifications), then producers stop and queues drain (see
+   * shutdownComponents).
    */
   async stop(): Promise<void> {
     await this.stopConfigWatch();
-
-    if (this.vcsCoordinator) {
-      await this.vcsCoordinator.stop();
-    }
-
-    if (this.watcher) {
-      await this.watcher.stop();
-    }
-
-    await drainQueues(
-      { queue: this.queue, sourceQueue: this.sourceQueue },
-      this.config.shutdownTimeoutMs ?? 10000,
+    await shutdownComponents(
+      {
+        server: this.server,
+        producers: [this.vcsCoordinator, this.watcher],
+        queue: this.queue,
+        sourceQueue: this.sourceQueue,
+        valuesManager: this.valuesManager,
+        stores: [this.enrichmentStore],
+      },
+      this.config.shutdownTimeoutMs ?? ROOT_DEFAULTS.shutdownTimeoutMs,
       this.logger,
     );
-
-    // Flush in-memory state caches before shutdown.
-    this.valuesManager?.stopAutoFlush();
-    this.valuesManager?.flush();
-
-    this.enrichmentStore?.close();
-
-    if (this.server) {
-      await this.server.close();
-    }
-
     this.logger?.info('jeeves-watcher stopped');
   }
 

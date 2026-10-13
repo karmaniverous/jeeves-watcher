@@ -13,6 +13,7 @@ import type {
 import {
   DEFAULT_SOURCE_NOTIFY_CONCURRENCY,
   SourceNotifyQueue,
+  type SourceQueueIssues,
 } from '../queue/SourceNotifyQueue';
 import { SourceClient, type SourceRetriever } from '../sources';
 
@@ -68,12 +69,14 @@ const unsupportedProcessor: SourceProcessorInterface = {
  * @param processor - The document processor.
  * @param config - The startup configuration.
  * @param logger - Logger for unexpected run failures.
+ * @param issues - Issues store for unexpected run failures.
  * @returns The (unstarted) queue.
  */
 export function createNotifyQueue(
   processor: DocumentProcessorInterface,
   config: JeevesWatcherConfig,
   logger: pino.Logger,
+  issues?: SourceQueueIssues,
 ): SourceNotifyQueue {
   return new SourceNotifyQueue(
     isSourceProcessor(processor) ? processor : unsupportedProcessor,
@@ -82,5 +85,6 @@ export function createNotifyQueue(
         config.embedding.concurrency ?? DEFAULT_SOURCE_NOTIFY_CONCURRENCY,
     },
     logger,
+    issues,
   );
 }

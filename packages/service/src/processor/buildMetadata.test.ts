@@ -25,6 +25,7 @@ vi.mock('../rules', () => ({
     renderedContent: null,
     matchedRules: ['rule-1'],
     renderAs: null,
+    errors: [],
   }),
 }));
 
@@ -136,6 +137,7 @@ describe('buildMergedMetadata', () => {
       renderedContent: null,
       matchedRules: ['rule-md'],
       renderAs: 'md',
+      errors: [],
     });
 
     const result = await buildMergedMetadata({
@@ -152,6 +154,7 @@ describe('buildMergedMetadata', () => {
       renderedContent: null,
       matchedRules: ['rule-md', 'rule-html'],
       renderAs: 'html',
+      errors: [],
     });
 
     const result = await buildMergedMetadata({

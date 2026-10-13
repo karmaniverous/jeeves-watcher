@@ -7,7 +7,11 @@ import type { ErrorObject } from 'ajv';
 
 import { mergeEnrichment } from '../../enrichment';
 import { extractJsonText } from '../../extractors';
-import { applyRules, buildSourceAttributes } from '../../rules';
+import {
+  applyRules,
+  buildSourceAttributes,
+  formatRuleErrors,
+} from '../../rules';
 import {
   parseSourceReference,
   type SourceRetrievalResult,
@@ -65,9 +69,11 @@ export class SourceResolver implements DocumentResolver<SourceTarget> {
    * @returns The document, or `gone` when the callback answered 404.
    * @throws ProcessingFailure `rule_missing` (rule not in the merged rule
    *   set; nothing retrieved), `source_unavailable` /
-   *   `unsupported_content_type` (callback error), `no_content` (empty body)
-   *   or `match_failed` (designated rule's `match` rejects the attributes;
-   *   `details` holds the AJV errors).
+   *   `unsupported_content_type` (callback error), `no_content` (empty body),
+   *   `match_failed` (designated rule's `match` rejects the attributes;
+   *   `details` holds the AJV errors) or `interpolation_error` (the rule's
+   *   schema `set`, `render` or `template` failed; `details` holds the
+   *   rule errors; nothing is indexed).
    */
   async resolve({ ref, rule }: SourceTarget): Promise<ResolveOutcome> {
     const { ctx } = this;
@@ -117,6 +123,14 @@ export class SourceResolver implements DocumentResolver<SourceTarget> {
       globalSchemas: ctx.config.globalSchemas,
       extractText: syncExtractText,
     });
+    if (applied.errors.length > 0) {
+      // Indexing without the rule's output would drop its metadata.
+      throw new ProcessingFailure(
+        'interpolation_error',
+        formatRuleErrors(applied.errors),
+        applied.errors,
+      );
+    }
     const enrichment = ctx.enrichmentStore?.get(ref) ?? null;
     const metadata = enrichment
       ? mergeEnrichment(applied.metadata, enrichment)

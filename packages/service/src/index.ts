@@ -82,10 +82,12 @@ export type {
 export { EventQueue } from './queue';
 export {
   DEFAULT_SOURCE_NOTIFY_CONCURRENCY,
+  type ProcessNowOptions,
   SourceNotifyQueue,
   type SourceNotifyQueueOptions,
   sourceNotifyQueueOptionsSchema,
   SourceNotifyQueueStoppedError,
+  type SourceQueueIssues,
 } from './queue/SourceNotifyQueue';
 export type {
   ApplyRulesOptions,

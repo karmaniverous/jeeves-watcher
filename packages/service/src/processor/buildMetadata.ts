@@ -13,7 +13,7 @@ import type { SchemaEntry } from '../config/schemas';
 import type { EnrichmentStoreInterface } from '../enrichment';
 import { mergeEnrichment } from '../enrichment';
 import { type ExtractedText, extractText } from '../extractors';
-import type { CompiledRule } from '../rules';
+import type { CompiledRule, RuleApplicationError } from '../rules';
 import { applyRules, buildAttributes } from '../rules';
 import type { TemplateEngine } from '../templates';
 import { syncExtractText } from './syncExtractText';
@@ -38,6 +38,8 @@ interface MergedMetadata {
   matchedRules: string[];
   /** The renderAs value from the highest-priority matched rule, or null. */
   renderAs: string | null;
+  /** Interpolation failures of matched rules (recorded as an issue). */
+  ruleErrors: RuleApplicationError[];
 }
 
 /**
@@ -102,6 +104,7 @@ export async function buildMergedMetadata(
     renderedContent,
     matchedRules,
     renderAs,
+    errors: ruleErrors,
   } = await applyRules(compiledRules, attributes, {
     namedMaps: maps,
     logger,
@@ -127,5 +130,6 @@ export async function buildMergedMetadata(
     renderedContent,
     matchedRules,
     renderAs,
+    ruleErrors,
   };
 }

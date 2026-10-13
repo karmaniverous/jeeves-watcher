@@ -7,6 +7,7 @@ import type { DocumentResult } from '@karmaniverous/jeeves-watcher-core';
 
 import type { CompiledRule } from '../rules';
 import type { TemplateEngine } from '../templates';
+import type { IndexOptions } from './documentPipeline';
 import type { RenderResult } from './renderResult';
 
 /**
@@ -51,7 +52,12 @@ export interface DocumentProcessorInterface {
 export interface SourceProcessorInterface {
   /**
    * Retrieve a source document through its callback and index it with its
-   * designated rule; returns the per-document result.
+   * designated rule; returns the per-document result. `force` re-embeds
+   * unchanged content (reindex scope `full`).
    */
-  processSource(ref: string, rule: string): Promise<DocumentResult>;
+  processSource(
+    ref: string,
+    rule: string,
+    options?: IndexOptions,
+  ): Promise<DocumentResult>;
 }

@@ -51,7 +51,10 @@ const ops = {
     Promise.resolve<Record<string, unknown> | null>(m),
   ),
 };
-const queue = { enqueue: vi.fn().mockReturnValue(true) };
+const queue = {
+  enqueue: vi.fn().mockReturnValue(true),
+  processNow: vi.fn(),
+};
 const withOps = {
   processMetadataUpdate: vi.fn(),
   sourceOperations: () => ops as unknown as SourceOperationsInterface,

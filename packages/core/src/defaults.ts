@@ -8,10 +8,12 @@ import { DEFAULT_PORTS } from '@karmaniverous/jeeves';
 import type { JeevesWatcherConfig } from './types.js';
 
 /** Default root-level config values. */
-export const ROOT_DEFAULTS: Partial<JeevesWatcherConfig> = {
+export const ROOT_DEFAULTS = {
   stateDir: '.jeeves-metadata',
   shutdownTimeoutMs: 10000,
-};
+  /** Cap on system-error backoff and on any single embedding 429 pause. */
+  maxBackoffMs: 60000,
+} satisfies Partial<JeevesWatcherConfig>;
 
 /** Default configWatch values. */
 export const CONFIG_WATCH_DEFAULTS = {

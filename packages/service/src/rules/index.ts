@@ -15,6 +15,7 @@ export {
   type RuleAttributes,
 } from './attributes';
 export { type CompiledRule, compileRules } from './compile';
+export { formatRuleErrors, type RuleApplicationError } from './ruleErrors';
 export {
   buildSourceAttributes,
   type SourceAttributes,

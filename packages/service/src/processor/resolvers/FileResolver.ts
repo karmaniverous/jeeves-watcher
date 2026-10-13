@@ -72,6 +72,7 @@ export class FileResolver implements DocumentResolver<string> {
       metadata: built.metadata,
       metadataWithRules: built.metadataWithRules,
       matchedRules: built.matchedRules,
+      ruleErrors: built.ruleErrors,
       refreshMetadataWhenUnchanged: false,
       prepare: async () => {
         // File-level hash for the move correlation cache.

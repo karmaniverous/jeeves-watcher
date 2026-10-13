@@ -194,6 +194,7 @@ async function setUp(
     processor,
     { concurrency: 2 },
     logger,
+    issuesManager,
   );
   sourceQueue.start();
   cleanup.push(() => sourceQueue.stop());

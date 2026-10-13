@@ -43,6 +43,7 @@ interface Mocks {
   upsert: Mock;
   delete: Mock;
   setPayload: Mock;
+  deletePayload: Mock;
   embed: Mock;
   record: Mock;
   clear: Mock;
@@ -58,6 +59,7 @@ function setup(
     upsert: vi.fn().mockResolvedValue(undefined),
     delete: vi.fn().mockResolvedValue(undefined),
     setPayload: vi.fn().mockResolvedValue(undefined),
+    deletePayload: vi.fn().mockResolvedValue(undefined),
     embed: vi.fn((texts: string[]) => Promise.resolve(texts.map(() => [0.1]))),
     record: vi.fn(),
     clear: vi.fn(),
@@ -97,7 +99,7 @@ function setup(
   return { processor, mocks, enrichmentStore };
 }
 
-/** The chunk-0 payload a previous indexing of BODY would have stored. */
+/** Chunk-0 payload a previous indexing of BODY stored. */
 function storedPayload(overrides: Record<string, unknown> = {}) {
   return {
     user_id: 'u1',
@@ -117,7 +119,6 @@ function storedPayload(overrides: Record<string, unknown> = {}) {
 }
 
 type UpsertedPoint = { id: string; payload: Record<string, unknown> };
-
 describe('DocumentProcessor.processSource', () => {
   it('indexes a source document with source identity and no file_path', async () => {
     const { processor, mocks } = setup();
@@ -207,14 +208,13 @@ describe('DocumentProcessor.processSource', () => {
     expect(payload).not.toHaveProperty('chunk_text');
   });
 
-  it('rewrites fully when a stored metadata key is no longer projected', async () => {
-    const { processor, mocks } = setup(
-      undefined,
-      storedPayload({ stale: true }),
-    );
+  it('deletes a stored key no longer projected without re-embedding', async () => {
+    const { processor, mocks } = setup(undefined, storedPayload({ stale: 1 }));
     await processor.processSource(REF, 'chat');
-    expect(mocks.setPayload).not.toHaveBeenCalled();
-    expect(mocks.upsert).toHaveBeenCalledOnce();
+    expect(mocks.deletePayload).toHaveBeenCalledWith(expect.any(Array), [
+      'stale',
+    ]);
+    expect(mocks.upsert).not.toHaveBeenCalled();
   });
 
   it('deletes the document points and enrichment on 404', async () => {

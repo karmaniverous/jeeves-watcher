@@ -12,6 +12,11 @@ import {
   ensureTextIndex as ensureTextIndexHelper,
   hybridSearch as hybridSearchHelper,
 } from './hybridSearch';
+import {
+  deletePointsPayload,
+  getPointPayload,
+  setPointsPayload,
+} from './payload';
 import { scrollCollection, scrollPage as scrollPageHelper } from './scroll';
 import type {
   CollectionInfo,
@@ -213,12 +218,12 @@ export class VectorStoreClient implements VectorStore {
     ids: string[],
     payload: Record<string, unknown>,
   ): Promise<void> {
-    if (ids.length === 0) return;
-    await this.client.setPayload(this.collectionName, {
-      wait: true,
-      points: ids,
-      payload,
-    });
+    await setPointsPayload(this.client, this.collectionName, ids, payload);
+  }
+
+  /** {@inheritDoc VectorStore.deletePayload} */
+  async deletePayload(ids: string[], keys: string[]): Promise<void> {
+    await deletePointsPayload(this.client, this.collectionName, ids, keys);
   }
 
   /**
@@ -228,17 +233,7 @@ export class VectorStoreClient implements VectorStore {
    * @returns The payload, or `null` if the point doesn't exist.
    */
   async getPayload(id: string): Promise<Record<string, unknown> | null> {
-    try {
-      const results = await this.client.retrieve(this.collectionName, {
-        ids: [id],
-        with_payload: true,
-        with_vector: false,
-      });
-      if (results.length === 0) return null;
-      return results[0].payload as Record<string, unknown>;
-    } catch {
-      return null;
-    }
+    return getPointPayload(this.client, this.collectionName, id);
   }
 
   /**

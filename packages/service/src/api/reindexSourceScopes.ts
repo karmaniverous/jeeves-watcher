@@ -1,15 +1,13 @@
 /**
  * @module api/reindexSourceScopes
- * Source side of reindex scopes `full`, `rules` and `issues`: discovers the scope's source documents, adds them to the plan per source name, and re-retrieves each through its callback. Qdrant and callback I/O.
+ * Source side of reindex scopes `full`, `rules` and `issues`: discovers the scope's source documents, adds them to the plan per source name, and re-retrieves each through the notify queue (serialised and coalesced per reference). Qdrant and callback I/O.
  */
 
 import type { ReindexScope } from '@karmaniverous/jeeves-watcher-core';
 import { parallel } from 'radash';
 
-import {
-  hasSourceOperations,
-  type SourceOperationsInterface,
-} from '../processor/SourceOperations';
+import { hasSourceOperations } from '../processor/SourceOperations';
+import type { SourceNotifyQueue } from '../queue/SourceNotifyQueue';
 import { normalizeError } from '../util/normalizeError';
 import type { ReindexPlan } from './reindexPlan';
 import type { ExecuteReindexDeps, SourceReindexCounts } from './reindexTypes';
@@ -20,10 +18,14 @@ import {
   type SourceDiscovery,
 } from './sourceDiscovery';
 
-/** Source documents of one reindex run, bound to the operations that process them. */
+/** Source documents of one reindex run, bound to the queue that processes them. */
 export interface SourceScope extends SourceDiscovery {
-  /** Source operations snapshot (current rules) used for processing. */
-  ops: Pick<SourceOperationsInterface, 'process'>;
+  /**
+   * The notify queue: each document is processed with `processNow`, so it
+   * never runs in parallel with a notification of the same reference and a
+   * pending notification coalesces with it (the latest state wins).
+   */
+  queue: Pick<SourceNotifyQueue, 'processNow'>;
   /** Re-embed even when content is unchanged (scope `full`). */
   force: boolean;
 }
@@ -32,7 +34,7 @@ export interface SourceScope extends SourceDiscovery {
  * Resolve the source documents covered by a scope. Sources are covered only
  * when `deps.includeSources` is set (explicit `POST /reindex`; a
  * config-triggered reindex stays file-only, Decision 16.11) and the
- * processor and vector store support them.
+ * processor, vector store and notify queue support them.
  *
  * - `full`: every indexed source document, forced re-embed.
  * - `rules` (no path filter): every indexed source document. Each is
@@ -41,7 +43,9 @@ export interface SourceScope extends SourceDiscovery {
  *   document is re-embedded only if its content changed. Re-applying a rule
  *   that changes the rendered text necessarily changes the embedded text, so
  *   re-embedding then is the only way to keep vectors consistent.
- * - `issues`: source references present in the issues store.
+ * - `issues`: source references present in the issues store, with their
+ *   stored rule, or the rule recorded on the issue when the document has no
+ *   points (its first notification failed).
  * - `rules` with a path filter, `path`, `prune`: none (file globs only;
  *   `path` with `source` goes through the notify queue).
  *
@@ -55,19 +59,19 @@ export async function resolveSourceScope(
   scope: ReindexScope,
   pathArray: string[] | undefined,
 ): Promise<SourceScope | undefined> {
-  const { processor, vectorStore } = deps;
-  if (!deps.includeSources || !vectorStore) return undefined;
+  const { processor, vectorStore, sourceQueue: queue } = deps;
+  if (!deps.includeSources || !vectorStore || !queue) return undefined;
   if (!hasSourceOperations(processor)) return undefined;
-  const ops = processor.sourceOperations();
 
   if (scope === 'full' || (scope === 'rules' && !pathArray?.length)) {
     const found = await discoverIndexedSources(vectorStore);
-    return { ...found, ops, force: scope === 'full' };
+    return { ...found, queue, force: scope === 'full' };
   }
   if (scope === 'issues' && deps.issuesManager) {
-    const keys = Object.keys(deps.issuesManager.getAll());
-    const found = await discoverIssueSources(keys, ops);
-    return { ...found, ops, force: false };
+    const issues = deps.issuesManager.getAll();
+    const ops = processor.sourceOperations();
+    const found = await discoverIssueSources(issues, ops);
+    return { ...found, queue, force: false };
   }
   return undefined;
 }
@@ -102,7 +106,11 @@ export function withSourcePlan(
 
 /** Options of {@link runSourceScope}. */
 export interface RunSourceScopeOptions {
-  /** Parallel documents (`reindex.concurrency`); each source's own `concurrency` still caps its callbacks. */
+  /**
+   * Documents submitted at once (`reindex.concurrency`); the notify queue's
+   * concurrency and each source's own `concurrency` still cap the runs and
+   * callbacks.
+   */
   concurrency: number;
   /** Logger for unexpected failures. */
   logger: ExecuteReindexDeps['logger'];
@@ -111,10 +119,11 @@ export interface RunSourceScopeOptions {
 }
 
 /**
- * Re-retrieve and index every source document of a scope with its stored
- * designated rule. A 404 deletes the document's points; any other failure
- * is recorded as an issue and leaves its points untouched, so a source
- * outage can never empty the index.
+ * Re-retrieve and index every source document of a scope with its
+ * designated rule, through the notify queue. A 404 deletes the document's
+ * points; any other failure is recorded as an issue and leaves its points
+ * untouched, so a source outage can never empty the index. A stopped queue
+ * (shutdown) counts the remaining documents as failed.
  *
  * @param scope - The scope's source documents.
  * @param options - Concurrency, logger and progress hook.
@@ -130,13 +139,13 @@ export async function runSourceScope(
     deleted: 0,
     failed: 0,
   };
-  const { ops, force } = scope;
+  const { queue, force } = scope;
   await parallel(options.concurrency, scope.targets, async ({ ref, rule }) => {
     try {
-      const result = await ops.process(ref, rule, { force });
+      const result = await queue.processNow(ref, rule, { force });
       counts[result.status]++;
     } catch (error) {
-      // processSource reports its own failures; this guards the contract.
+      // processSource reports its own failures; a stopped queue rejects.
       counts.failed++;
       options.logger.warn(
         { source: ref, err: normalizeError(error) },

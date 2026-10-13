@@ -1,6 +1,6 @@
 /**
  * @module test/sourceReindexFixture
- * Unit-test fixture for source reindex: an in-memory vector store (point map, chunk-0/source filter on scroll), in-memory issues, a scripted source retriever, and a real DocumentProcessor. No I/O.
+ * Unit-test fixture for source reindex: an in-memory vector store (point map, chunk-0/source filter on scroll), in-memory issues, a scripted source retriever, a real DocumentProcessor and a started notify queue over it. No I/O.
  */
 
 import pino from 'pino';
@@ -12,6 +12,7 @@ import type { IssuesManager } from '../issues';
 import type { IssueRecord } from '../issues/types';
 import { pointId } from '../pointId';
 import { DocumentProcessor } from '../processor';
+import { SourceNotifyQueue } from '../queue/SourceNotifyQueue';
 import { compileRules } from '../rules';
 import type { SourceRetrievalResult, SourceRetriever } from '../sources';
 import type { VectorStoreClient } from '../vectorStore';
@@ -79,6 +80,13 @@ function memoryVectorStore() {
       }
       return Promise.resolve();
     }),
+    deletePayload: vi.fn((ids: string[], keys: string[]) => {
+      for (const id of ids) {
+        const p = points.get(id);
+        for (const key of keys) if (p) Reflect.deleteProperty(p.payload, key);
+      }
+      return Promise.resolve();
+    }),
     scrollPage: vi.fn((filter?: unknown) => {
       const all = [...points.values()];
       const selected = isSourceDiscovery(filter)
@@ -93,9 +101,16 @@ function memoryVectorStore() {
 function memoryIssues() {
   const issues: Record<string, IssueRecord[]> = {};
   return {
-    record: vi.fn((key: string, type: IssueRecord['type'], message: string) => {
-      issues[key] = [{ type, message, timestamp: 0 }];
-    }),
+    record: vi.fn(
+      (
+        key: string,
+        type: IssueRecord['type'],
+        message: string,
+        options: Partial<IssueRecord> = {},
+      ) => {
+        issues[key] = [{ ...options, type, message, timestamp: 0 }];
+      },
+    ),
     clear: vi.fn((key: string) => {
       Reflect.deleteProperty(issues, key);
     }),
@@ -149,6 +164,8 @@ export function sourceReindexFixture(responses: Responses) {
     issuesManager: issues as unknown as IssuesManager,
     sourceRetriever: retriever,
   });
+  const sourceQueue = new SourceNotifyQueue(processor, { concurrency: 2 });
+  sourceQueue.start();
   const deps: ExecuteReindexDeps = {
     config: {
       watch: { paths: ['src/**'], ignored: [] },
@@ -159,6 +176,7 @@ export function sourceReindexFixture(responses: Responses) {
     logger,
     issuesManager: issues,
     vectorStore: store as unknown as VectorStoreClient,
+    sourceQueue,
     includeSources: true,
   };
   /** Index references through the processor (as notify would). */
@@ -169,7 +187,16 @@ export function sourceReindexFixture(responses: Responses) {
     store.delete.mockClear();
     store.setPayload.mockClear();
   };
-  return { deps, store, issues, retrieve, embed, processor, index };
+  return {
+    deps,
+    store,
+    issues,
+    retrieve,
+    embed,
+    processor,
+    index,
+    sourceQueue,
+  };
 }
 
 /**

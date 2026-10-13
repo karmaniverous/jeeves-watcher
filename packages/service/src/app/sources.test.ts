@@ -70,7 +70,9 @@ describe('createNotifyQueue', () => {
       source: 'app://a',
       status: 'unchanged',
     });
-    expect(processSource).toHaveBeenCalledWith('app://a', 'r');
+    expect(processSource).toHaveBeenCalledWith('app://a', 'r', {
+      force: false,
+    });
   });
 
   it('fails runs with source_unavailable when the processor cannot process sources', async () => {

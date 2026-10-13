@@ -1,10 +1,11 @@
 /**
  * @module api/sourceDiscovery
- * Finds the source documents a reindex covers: scrolls Qdrant for chunk-0 points carrying `source` (projection: source, source_rule), or resolves issue keys to stored rules. Qdrant reads only.
+ * Finds the source documents a reindex covers: scrolls Qdrant for chunk-0 points carrying `source` (projection: source, source_rule), or resolves issue references to their stored or recorded rules. Qdrant reads only.
  */
 
 import { parallel } from 'radash';
 
+import type { IssueRecord } from '../issues/types';
 import type { SourceTarget } from '../processor/resolvers/SourceResolver';
 import type { SourceOperationsInterface } from '../processor/SourceOperations';
 import { parseSourceReference } from '../sources';
@@ -71,22 +72,41 @@ export async function discoverIndexedSources(
 }
 
 /**
- * Resolve the source references among issue keys to their stored designated
- * rules. References that are not indexed have no known rule and are counted
- * in `total` only (they recover through the next notification).
+ * Designated rule recorded on a reference's issues (the latest one that
+ * carries a rule), or `null`.
  *
- * @param issueKeys - Keys of the issues store (file paths and references).
+ * @param issues - The reference's issue records.
+ * @returns The recorded rule, or `null`.
+ */
+function recordedRule(
+  issues: readonly IssueRecord[] | undefined,
+): string | null {
+  const withRule = (issues ?? []).filter(
+    (issue) => typeof issue.rule === 'string' && issue.rule.length > 0,
+  );
+  return withRule.at(-1)?.rule ?? null;
+}
+
+/**
+ * Resolve the source references among the issues to their designated rules:
+ * the rule stored on the document's chunk-0 point when it is indexed,
+ * otherwise the rule recorded on its issue. A document whose first
+ * notification failed therefore has no points but is still retried. A
+ * reference with neither is counted in `total` only (it recovers through
+ * its next notification).
+ *
+ * @param issues - The issues store contents (file paths and references).
  * @param ops - Source operations (stored rule lookup).
  * @returns The source issue documents and their rules.
  */
 export async function discoverIssueSources(
-  issueKeys: string[],
+  issues: Partial<Record<string, readonly IssueRecord[]>>,
   ops: Pick<SourceOperationsInterface, 'storedRule'>,
 ): Promise<SourceDiscovery> {
-  const refs = issueKeys.filter(isSourceReference);
+  const refs = Object.keys(issues).filter(isSourceReference);
   const found = await parallel(RULE_LOOKUP_CONCURRENCY, refs, async (ref) => ({
     ref,
-    rule: await ops.storedRule(ref),
+    rule: (await ops.storedRule(ref)) ?? recordedRule(issues[ref]),
   }));
   const targets: SourceTarget[] = [];
   for (const { ref, rule } of found) {

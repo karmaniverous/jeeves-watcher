@@ -119,6 +119,10 @@ describe('executeReindex: source documents', () => {
     });
     // B: content changed → re-embedded once (A never embedded).
     expect(f.embed).toHaveBeenCalledTimes(1);
+    expect(JSON.stringify(f.embed.mock.calls[0])).toContain('bravo edited');
+    expect(
+      f.store.points.get(sourcePointId(B, 0))?.payload['chunk_text'],
+    ).toContain('bravo edited');
     expect(f.store.setPayload).toHaveBeenCalledTimes(1);
     expect(result.sources).toMatchObject({ indexed: 2, failed: 0 });
   });
@@ -165,5 +169,22 @@ describe('executeReindex: source documents', () => {
     expect(f.embed).not.toHaveBeenCalled();
     expect(f.issues.get(A)).toBeUndefined();
     expect(result.sources).toMatchObject({ unchanged: 1 });
+  });
+
+  it('issues retries a never-indexed document with its recorded rule', async () => {
+    const f = fixture();
+    const never = 'app://chat/thread/never-indexed';
+    f.issues.record(never, 'source_unavailable', 'HTTP 503', { rule: RULE });
+    f.responses[never] = doc('u9', 'recovered');
+
+    const result = await executeReindex(f.deps, 'issues');
+
+    expect(f.retrieve.mock.calls.map(([ref]) => ref)).toEqual([never]);
+    expect(f.store.points.get(sourcePointId(never, 0))?.payload).toMatchObject({
+      source: never,
+      source_rule: RULE,
+    });
+    expect(f.issues.get(never)).toBeUndefined();
+    expect(result.sources).toMatchObject({ indexed: 1, failed: 0 });
   });
 });

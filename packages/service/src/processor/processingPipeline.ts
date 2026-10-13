@@ -65,6 +65,7 @@ export interface DocumentDates {
  * @param metadata - Metadata to attach to each chunk point (reserved names are dropped).
  * @param existingPayload - Existing chunk-0 payload (for orphan cleanup), or null.
  * @param dates - Creation and modification timestamps (unix seconds).
+ * @param matchedRules - Rules the pipeline applied (written as matched_rules).
  * @returns The number of chunks written.
  */
 export async function embedAndUpsertDocument(
@@ -74,6 +75,7 @@ export async function embedAndUpsertDocument(
   metadata: Record<string, unknown>,
   existingPayload: Record<string, unknown> | null,
   dates: DocumentDates,
+  matchedRules?: readonly string[],
 ): Promise<number> {
   const {
     embeddingProvider,
@@ -103,7 +105,7 @@ export async function embedAndUpsertDocument(
   });
 
   // Build all points
-  const base = withSystemFields(metadata, identity);
+  const base = withSystemFields(metadata, identity, matchedRules);
   const points = chunks.map((chunk, i) => ({
     id: documentPointId(identity, i),
     vector: vectors[i],

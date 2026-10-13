@@ -105,6 +105,14 @@ export interface VectorStore {
   setPayload(ids: string[], payload: Record<string, unknown>): Promise<void>;
 
   /**
+   * Remove payload keys from the specified point IDs (other keys kept).
+   *
+   * @param ids - Point IDs to update.
+   * @param keys - Payload keys to remove.
+   */
+  deletePayload(ids: string[], keys: string[]): Promise<void>;
+
+  /**
    * Get the payload of a point by ID.
    *
    * @param id - The point ID.

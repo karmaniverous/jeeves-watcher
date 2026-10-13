@@ -1,65 +1,40 @@
 /**
  * @module queue/SourceNotifyQueue
- * In-memory notify queue for source documents, keyed by reference: pending notifications merge, in-flight ones mark the reference dirty for exactly one re-run. Calls processSource; no direct I/O.
+ * In-memory notify queue for source documents, keyed by reference: pending notifications merge, in-flight ones mark the reference dirty for exactly one re-run. Calls processSource; records an issue when it rejects unexpectedly.
  */
 
 import type { DocumentResult } from '@karmaniverous/jeeves-watcher-core';
 import type pino from 'pino';
-import { z } from 'zod';
 
 import type { SourceProcessorInterface } from '../processor/types';
 import { normalizeError } from '../util/normalizeError';
 import type { PausableQueue } from './pausable';
+import {
+  type InFlight,
+  type Job,
+  type ProcessNowOptions,
+  rejectAll,
+  type SourceNotifyQueueOptions,
+  sourceNotifyQueueOptionsSchema,
+  SourceNotifyQueueStoppedError,
+  type SourceQueueIssues,
+  type Waiter,
+} from './sourceNotifyTypes';
 
-/**
- * Default number of references processed at once. Matches the
- * `embedding.concurrency` default, which the service passes in.
- */
-export const DEFAULT_SOURCE_NOTIFY_CONCURRENCY = 5;
+export {
+  DEFAULT_SOURCE_NOTIFY_CONCURRENCY,
+  type ProcessNowOptions,
+  type SourceNotifyQueueOptions,
+  sourceNotifyQueueOptionsSchema,
+  SourceNotifyQueueStoppedError,
+  type SourceQueueIssues,
+} from './sourceNotifyTypes';
 
 /** Issue code reported when `processSource` rejects unexpectedly. */
 const UNEXPECTED_ERROR_CODE = 'extraction_error';
 
-/** Options for {@link SourceNotifyQueue}. */
-export const sourceNotifyQueueOptionsSchema = z.object({
-  /** Maximum number of references processed concurrently. */
-  concurrency: z
-    .number()
-    .int()
-    .positive()
-    .default(DEFAULT_SOURCE_NOTIFY_CONCURRENCY),
-});
-
-/** Options for {@link SourceNotifyQueue} (input form; defaults applied). */
-export type SourceNotifyQueueOptions = z.input<
-  typeof sourceNotifyQueueOptionsSchema
->;
-
-/** Rejection for {@link SourceNotifyQueue.processNow} after {@link SourceNotifyQueue.stop}. */
-export class SourceNotifyQueueStoppedError extends Error {
-  /** Create the error. */
-  constructor() {
-    super('Source notify queue is stopped');
-    this.name = 'SourceNotifyQueueStoppedError';
-  }
-}
-
-interface Waiter {
-  resolve: (result: DocumentResult) => void;
-  reject: (error: Error) => void;
-}
-
-/** One scheduled run of a reference: the latest rule and its waiters. */
-interface Job {
-  ref: string;
-  rule: string;
-  waiters: Waiter[];
-}
-
-/** An in-flight reference; `dirty` is the single run owed after it. */
-interface InFlight {
-  dirty?: Job;
-}
+/** Operation recorded on the issue of an unexpected rejection. */
+const UNEXPECTED_OPERATION = 'Source notify run failed unexpectedly';
 
 /**
  * Coalescing queue for source-document notifications (Decision 12).
@@ -77,7 +52,10 @@ interface InFlight {
  * The queue holds work until {@link start}; {@link pause} (prune) stops new
  * runs without rejecting enqueues. Failures never escape: `processSource`
  * records issues itself, and an unexpected rejection becomes a `failed`
- * result.
+ * result and an `extraction_error` issue (with the designated rule).
+ *
+ * Reindex runs go through {@link processNow} as well, so a notification and
+ * a reindex of one reference never run in parallel and the latest state wins.
  */
 export class SourceNotifyQueue implements PausableQueue {
   private readonly concurrency: number;
@@ -95,11 +73,13 @@ export class SourceNotifyQueue implements PausableQueue {
    * @param processor - Processes one reference with its designated rule.
    * @param options - Queue options (validated).
    * @param logger - Logger for unexpected processing rejections.
+   * @param issues - Issues store for unexpected processing rejections.
    */
   constructor(
     private readonly processor: SourceProcessorInterface,
     options: SourceNotifyQueueOptions = {},
     private readonly logger?: pino.Logger,
+    private readonly issues?: SourceQueueIssues,
   ) {
     this.concurrency =
       sourceNotifyQueueOptionsSchema.parse(options).concurrency;
@@ -114,7 +94,7 @@ export class SourceNotifyQueue implements PausableQueue {
    */
   enqueue(ref: string, rule: string): boolean {
     if (this.stopped) return false;
-    this.schedule(ref, rule);
+    this.schedule(ref, rule, false);
     this.pump();
     return true;
   }
@@ -128,16 +108,22 @@ export class SourceNotifyQueue implements PausableQueue {
    *
    * @param ref - The exact `<name>://<id>` reference.
    * @param rule - The designated rule name.
+   * @param options - `force` re-embeds unchanged content.
    * @returns The per-document result.
    * @throws {@link SourceNotifyQueueStoppedError} (as a rejection) when the
    *   queue is stopped before the run starts.
    */
-  processNow(ref: string, rule: string): Promise<DocumentResult> {
+  processNow(
+    ref: string,
+    rule: string,
+    options: ProcessNowOptions = {},
+  ): Promise<DocumentResult> {
     if (this.stopped) {
       return Promise.reject(new SourceNotifyQueueStoppedError());
     }
+    const force = options.force ?? false;
     const result = new Promise<DocumentResult>((resolve, reject) => {
-      this.schedule(ref, rule, { resolve, reject });
+      this.schedule(ref, rule, force, { resolve, reject });
     });
     this.pump();
     return result;
@@ -194,17 +180,24 @@ export class SourceNotifyQueue implements PausableQueue {
     await this.waitForIdleWorkers();
   }
 
-  private schedule(ref: string, rule: string, waiter?: Waiter): void {
+  private schedule(
+    ref: string,
+    rule: string,
+    force: boolean,
+    waiter?: Waiter,
+  ): void {
+    const waiters = waiter ? [waiter] : [];
     const running = this.inFlight.get(ref);
     const job = running
-      ? (running.dirty ??= { ref, rule, waiters: [] })
+      ? (running.dirty ??= { ref, rule, force, waiters: [] })
       : this.pending.get(ref);
-    if (job) {
-      job.rule = rule;
-      if (waiter) job.waiters.push(waiter);
+    if (!job) {
+      this.pending.set(ref, { ref, rule, force, waiters });
       return;
     }
-    this.pending.set(ref, { ref, rule, waiters: waiter ? [waiter] : [] });
+    job.rule = rule;
+    job.force ||= force;
+    job.waiters.push(...waiters);
   }
 
   private pump(): void {
@@ -231,14 +224,17 @@ export class SourceNotifyQueue implements PausableQueue {
   }
 
   private async execute(job: Job): Promise<DocumentResult> {
+    const { ref, rule, force } = job;
     try {
-      return await this.processor.processSource(job.ref, job.rule);
+      return await this.processor.processSource(ref, rule, { force });
     } catch (error) {
       const err = normalizeError(error);
-      this.logger?.error(
-        { err, source: job.ref },
-        'Source notify run failed unexpectedly',
-      );
+      this.logger?.error({ err, source: ref }, UNEXPECTED_OPERATION);
+      this.issues?.clear(ref);
+      this.issues?.record(ref, UNEXPECTED_ERROR_CODE, err.message, {
+        operation: UNEXPECTED_OPERATION,
+        rule,
+      });
       return {
         source: job.ref,
         status: 'failed',
@@ -263,9 +259,4 @@ export class SourceNotifyQueue implements PausableQueue {
       for (const resolve of drained) resolve();
     }
   }
-}
-
-function rejectAll(job: Job, error: Error): void {
-  for (const waiter of job.waiters) waiter.reject(error);
-  job.waiters = [];
 }

@@ -38,8 +38,11 @@ export interface ConfigReindexRouteDeps {
   gitignoreFilter?: GitignoreFilter;
   vectorStore?: VectorStoreClient;
   queue?: PausableQueue;
-  /** Notify queue for scope `path` with `source` references. */
-  sourceQueue?: Pick<SourceNotifyQueue, 'enqueue'>;
+  /**
+   * Notify queue: scope `path` with `source` references enqueues; scopes
+   * `full` / `rules` / `issues` process source documents through it.
+   */
+  sourceQueue?: Pick<SourceNotifyQueue, 'enqueue' | 'processNow'>;
 }
 
 type ConfigReindexRequest = FastifyRequest<{ Body: unknown }>;
@@ -85,6 +88,7 @@ export function createConfigReindexHandler(deps: ConfigReindexRouteDeps) {
         gitignoreFilter: deps.gitignoreFilter,
         vectorStore: deps.vectorStore,
         queue: deps.queue,
+        sourceQueue: deps.sourceQueue,
         // Explicit requests cover source documents (Decision 16.11).
         includeSources: true,
       };

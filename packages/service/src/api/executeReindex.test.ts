@@ -34,6 +34,9 @@ import { listFilesFromGlobs, listFilesFromWatchRoots } from './fileScan';
 
 const listFilesFromGlobsMock = vi.mocked(listFilesFromGlobs);
 const listFilesFromWatchRootsMock = vi.mocked(listFilesFromWatchRoots);
+const ISSUE = [
+  { type: 'extraction_error' as const, message: 'x', timestamp: 0 },
+];
 
 interface MockRefs {
   trackerStart: ReturnType<typeof vi.fn>;
@@ -107,7 +110,9 @@ describe('executeReindex', () => {
   it('does not clear valuesManager on issues scope', async () => {
     const { deps, mocks } = makeDeps({
       issuesManager: {
-        getAll: () => ({ 'file.txt': { type: 'error' } }),
+        getAll: () => ({
+          'file.txt': ISSUE,
+        }),
       },
     });
     await executeReindex(deps, 'issues');
@@ -118,8 +123,8 @@ describe('executeReindex', () => {
     const { deps, mocks } = makeDeps({
       issuesManager: {
         getAll: () => ({
-          'a.txt': { type: 'err' },
-          'b.txt': { type: 'err' },
+          'a.txt': ISSUE,
+          'b.txt': ISSUE,
         }),
       },
     });
@@ -141,7 +146,7 @@ describe('executeReindex', () => {
         updateRules: vi.fn(),
         renderFile: vi.fn(),
       },
-      issuesManager: { getAll: () => ({ 'a.txt': {} }) },
+      issuesManager: { getAll: () => ({ 'a.txt': [] }) },
     });
     const result = await executeReindex(deps, 'issues');
     expect(result.errors).toBe(1);
@@ -202,8 +207,8 @@ describe('executeReindex', () => {
       const { deps, mocks } = makeDeps({
         issuesManager: {
           getAll: () => ({
-            'a.txt': { type: 'err' },
-            'b.txt': { type: 'err' },
+            'a.txt': ISSUE,
+            'b.txt': ISSUE,
           }),
         },
       });

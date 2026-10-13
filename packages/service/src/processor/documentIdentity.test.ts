@@ -8,7 +8,6 @@ import {
   documentPointId,
   identityPayload,
 } from './documentIdentity';
-import { withSystemFields } from './systemFields';
 
 const file = { kind: 'file', filePath: 'J:\\Docs\\A.md' } as const;
 const source = { kind: 'source', ref: 'app://t/AbC', rule: 'chat' } as const;
@@ -51,27 +50,5 @@ describe('documentIdentity', () => {
     expect(
       documentIdentitySchema.safeParse({ ...source, ref: 'j:/x' }).success,
     ).toBe(false);
-  });
-});
-
-describe('withSystemFields', () => {
-  it('drops reserved names, keeps matched_rules, re-asserts identity', () => {
-    const out = withSystemFields(
-      {
-        a: 1,
-        matched_rules: ['r'],
-        file_path: 'evil',
-        source: 'evil',
-        chunk_index: 9,
-        content_hash: 'x',
-      },
-      source,
-    );
-    expect(out).toEqual({
-      a: 1,
-      matched_rules: ['r'],
-      source: 'app://t/AbC',
-      source_rule: 'chat',
-    });
   });
 });

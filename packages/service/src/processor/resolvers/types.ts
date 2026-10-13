@@ -6,7 +6,7 @@
 import type pino from 'pino';
 
 import type { EnrichmentStoreInterface } from '../../enrichment';
-import type { CompiledRule } from '../../rules';
+import type { CompiledRule, RuleApplicationError } from '../../rules';
 import type { TemplateEngine } from '../../templates';
 import type { DocumentIdentity } from '../documentIdentity';
 import type { DocumentDates } from '../processingPipeline';
@@ -40,6 +40,12 @@ export interface ResolvedDocument {
   metadataWithRules: Record<string, unknown>;
   /** Names of the rules applied. */
   matchedRules: string[];
+  /**
+   * Rule interpolation failures of a file (recorded as an
+   * `interpolation_error` issue after indexing). Source resolvers fail the
+   * document instead, so this is empty or absent for sources.
+   */
+  ruleErrors?: RuleApplicationError[];
   /**
    * When the content hash is unchanged but projected metadata differs, update
    * payloads with `setPayload` (sources) instead of skipping (files).

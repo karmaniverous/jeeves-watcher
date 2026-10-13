@@ -7,6 +7,10 @@ import type { IssueType } from '@karmaniverous/jeeves-watcher-core';
 import type pino from 'pino';
 
 import type { IssuesManager } from '../issues';
+import {
+  formatRuleErrors,
+  type RuleApplicationError,
+} from '../rules/ruleErrors';
 import { logError } from '../util/logError';
 
 /**
@@ -144,6 +148,38 @@ export async function handleFileErrors<T>(
     reportFailure(deps, context, error);
     return fallback;
   }
+}
+
+/** Operation recorded on interpolation issues of files. */
+const RULE_INTERPOLATION_OPERATION = 'Rule interpolation';
+
+/**
+ * Record a file's rule interpolation failures (schema `set`, `render`,
+ * `template`) as one `interpolation_error` issue, after processing finished
+ * (the file is still indexed, as before). Other issues for the file are
+ * kept; an identical interpolation issue is not recorded twice.
+ *
+ * @param issuesManager - Issues store, if any.
+ * @param filePath - Document key (file path).
+ * @param errors - The rule errors (nothing is recorded when empty).
+ */
+export function recordRuleErrors(
+  issuesManager: ProcessorIssues | undefined,
+  filePath: string,
+  errors: readonly RuleApplicationError[] | undefined,
+): void {
+  if (!issuesManager || !errors?.length) return;
+  const message = formatRuleErrors(errors);
+  const existing = issuesManager.get(filePath) ?? [];
+  const duplicate = existing.some(
+    (i) => i.type === 'interpolation_error' && i.message === message,
+  );
+  if (duplicate) return;
+  issuesManager.record(filePath, 'interpolation_error', message, {
+    operation: RULE_INTERPOLATION_OPERATION,
+    rules: [...new Set(errors.map((e) => e.rule))],
+    details: errors,
+  });
 }
 
 /**
