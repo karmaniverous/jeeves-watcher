@@ -45,6 +45,8 @@ for (const hit of hits)
 
 // 3. Remove documents: by reference, or by filter (the server constrains a
 //    filter to source documents, so it can never delete file points).
+//    A filter without any condition ({}, { must: [] }, ...) is refused
+//    client-side (invalid_request, nothing sent) and by the server (400).
 await watcher.documents.delete({ sources: [`app://chat/thread/${threadId}`] });
 await watcher.documents.delete({ filter: f.eq('user_id', userId) });
 ```
@@ -70,7 +72,7 @@ await watcher.metadata({
   source: 'app://chat/thread/123',
   metadata: { priority: 2 },
 });
-await watcher.reindex({ scope: 'path', source: ['app://chat/thread/123'] });
+await watcher.reindex({ scope: 'path', source: ['app://chat/thread/123'] }); // at most 1000 references
 await watcher.issues();
 ```
 
@@ -101,7 +103,7 @@ Every failure is a `WatcherError` with `code`, optional `status` and optional `d
 | `invalid_options` | `createWatcherClient` options are invalid. | — |
 | server code | A non-2xx response: an `ApiErrorCode` (below) from a 0.20.0+ service; from older services `body.code`, else `body.error`, else `http_<status>`. `details` is `body.details` or the body. | 4xx / 5xx |
 
-A 0.20.0+ service answers every non-2xx with `{ code, error, message?, details? }`. `code` is one of `API_ERROR_CODES` (exported, with the `ApiErrorCode` type): `invalid_request`, `unauthorized`, `path_not_watched`, `not_found`, `source_not_indexed`, `source_not_found`, `unsupported_content_type`, `pipeline_error`, `source_unavailable`, `not_available`, `scan_in_progress`, `embedding_unavailable`, `internal_error`. The SDK copies it to `err.code`; `err.message` is the body's `error` text, with `message` appended when present. Branch on `code`, never on the message. The server's `invalid_request` (a `400`, `status` set) shares its name with the SDK's client-side `invalid_request` (nothing sent, no `status`). See the service API reference for what each code means.
+A 0.20.0+ service answers every non-2xx with `{ code, error, message?, details? }`. `code` is one of `API_ERROR_CODES` (exported, with the `ApiErrorCode` type): `invalid_request`, `unauthorized`, `path_not_watched`, `not_found`, `source_not_indexed`, `source_not_found`, `unsupported_content_type`, `pipeline_error`, `source_unavailable`, `not_available`, `scan_in_progress`, `embedding_unavailable`, `internal_error`. The SDK copies it to `err.code`; `err.message` is the body's `error` text, with `message` appended when present. Branch on `code`, never on the message. A filter the server's Qdrant rejects comes back as `invalid_request` with `error` `Invalid filter` (Qdrant's reason in `message`); a `5xx` body never carries the server's internal error, only generic text, so check the service log. Per-document `error.code` values of `documents.notify` results are typed by core's `documentFailureCodeSchema` (rejection codes plus issue types). The server's `invalid_request` (a `400`, `status` set) shares its name with the SDK's client-side `invalid_request` (nothing sent, no `status`). See the service API reference for what each code means.
 
 ```ts
 import { isWatcherError } from '@karmaniverous/jeeves-watcher-sdk';

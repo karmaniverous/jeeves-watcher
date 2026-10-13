@@ -416,13 +416,14 @@ Transient failures (Gemini API, Qdrant) are handled with exponential backoff:
 
 ## Graceful Shutdown
 
-On SIGTERM/SIGINT:
+On SIGTERM/SIGINT (v0.20.0+ order):
 
-1. Stop accepting new filesystem events
-2. Drain current in-flight operations (wait up to `shutdownTimeoutMs`)
-3. Flush pending Qdrant writes
-4. Persist issues file
-5. Exit cleanly
+1. Close the API server, so no new request (notification, reindex, ...) is accepted
+2. Stop the producers: config watch, VCS, filesystem watcher
+3. Drain the file event queue, then drain and stop the source notify queue (each step bounded by `shutdownTimeoutMs`)
+4. Flush the values index
+5. Close the enrichment and issues stores, unless a queue step timed out (runs may still be in flight; the stores are then left open and a warning is logged)
+6. Exit
 
 Partially processed files are safe — startup behavior re-processes them by comparing filesystem state against Qdrant.
 

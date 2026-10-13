@@ -514,7 +514,7 @@ The watcher maintains a **values index** (`values.json` in `stateDir`) tracking 
 $.inferenceRules[?(@.name=='jira-issue')].values.status
 ```
 
-Returns `["To Do", "In Progress", "In Review", "Done"]` when queried through `POST /config/query`.
+Returns `["To Do", "In Progress", "In Review", "Done"]` when queried through `GET /config` (for example `?path=$.inferenceRules[...]`).
 
 ---
 
@@ -553,7 +553,7 @@ A persistent, self-healing ledger of documents that failed to process. Keyed by 
 **Issue types:**
 
 - `type_collision` — Multiple rules declare the same property with incompatible types
-- `interpolation_error` — `set` template path doesn't resolve (null, undefined, wrong structure)
+- `interpolation_error` - a `set` template path doesn't resolve (null, undefined, wrong structure), or a `template` / `render` fails. A file is still indexed without the failed values; a source document fails with this code and nothing is written (v0.20.0+). `details` lists each failed step.
 
 Since v0.20.0 processing failures are recorded too (`extraction_error`, `embedding_error`, `upsert_error`), as are source-document failures (`match_failed`, `rule_missing`, `no_content`, `source_unavailable`, `unsupported_content_type`). See [Issue Codes](./api-reference.md#issue-codes) for the full list.
 

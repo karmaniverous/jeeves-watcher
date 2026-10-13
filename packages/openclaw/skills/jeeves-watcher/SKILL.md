@@ -911,6 +911,7 @@ Use `watcher_enrich` to tag documents after analysis (e.g., `reviewed: true`, pr
 
 ```json
 {
+  "code": "invalid_request",
   "error": "Validation failed",
   "details": [
     {

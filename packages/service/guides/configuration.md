@@ -233,10 +233,22 @@ Since 0.20.0, one token bucket wraps the embedding provider. It is created once 
 - `0` disables the request-rate limit. When the key is omitted, the default of `300` applies.
 - `embedding.concurrency` is unchanged in meaning: it caps how many queued documents are processed at once.
 
-On HTTP `429` the limiter pauses **every** caller for the provider's `Retry-After` (the header, or Google's `retryDelay` in the response body; without either, 1 second doubling per attempt), capped at the root `maxBackoffMs` (default 60 seconds; see Error Resilience below), then retries:
+On HTTP `429` the limiter pauses **every** caller for the provider's `Retry-After` (the header, or Google's `retryDelay` in the response body; without either, 1 second doubling per attempt, capped at the root `maxBackoffMs`, default 60 seconds; see Error Resilience below), then retries:
 
+- A requested pause of up to `maxBackoffMs` is waited **in full** (never shortened, so the retry is not throttled again).
+- A requested pause **longer** than `maxBackoffMs` fails the request at once, and every other caller fails fast until the pause has passed.
 - **Indexing** (watch, notify, reindex): up to 5 attempts per request, then the document gets an `embedding_error` issue.
-- **Search**: up to 3 attempts and at most 10 seconds of waiting, then `POST /search` answers `503 { error, message }` with a `Retry-After` header instead of `500`.
+- **Search**: up to 3 attempts and at most 10 seconds of waiting (or at once on a pause longer than `maxBackoffMs`), then `POST /search` answers `503` with a `Retry-After` header instead of `500`:
+
+```json
+{
+  "code": "embedding_unavailable",
+  "error": "EmbeddingUnavailableError",
+  "message": "Embedding provider still rate-limited after 3 attempts: ..."
+}
+```
+
+- Retries the Gemini client makes on its own after other failures also take a token, so every HTTP request to the provider counts against `rateLimitPerMinute`.
 
 ### Supported Providers
 
@@ -335,8 +347,9 @@ Qdrant filters on large collections are fast only on indexed fields. Declare the
 Behaviour:
 
 - Indexes are created **at startup only**, when missing. A config reload does not create them; restart after adding one.
-- Indexes are never dropped or recreated. If a field is already indexed with a different type, the watcher logs a warning and leaves it alone.
-- `source` and `source_rule` always get `keyword` indexes, whether or not they are configured (a configured entry for the same field takes precedence).
+- Indexes are never dropped or recreated. If a field is already indexed with a different type, or with the same type but different `isTenant` / `isPrincipal` flags, the watcher logs a warning and leaves it alone (drop the index in Qdrant and restart to apply the configured one).
+- `source` and `source_rule` always get `keyword` indexes and may not be listed here: an entry for either fails config validation.
+- Each field may be listed once: a repeated `field` fails config validation.
 - Failing to create an index stops startup with an error naming the field.
 - The `chunk_text` full-text index is separate: it is managed by `search.hybrid.enabled`, not by `payloadIndexes`.
 - `isTenant` / `isPrincipal` on an unsupported type fails config validation.
@@ -391,7 +404,7 @@ For a file at `D:\projects\my-project\readme.md`, the metadata sidecar is at `.j
 
 The API provides endpoints for search, metadata enrichment, reindexing, and status. See [API Reference](./api-reference.md).
 
-When `apiKey` is set, every request except `GET /status` must send `Authorization: Bearer <apiKey>`, or it gets `401`. An empty string fails closed (every protected route answers `401`), and an unresolved `${...}` stops the service at startup. Changing the key requires a restart. The CLI API commands read the key from `--api-key` or `JEEVES_WATCHER_API_KEY`, and the OpenClaw plugin from its `apiKey` setting or the same variable; setting `apiKey` here does not configure them. See [Authentication](./api-reference.md#authentication).
+When `apiKey` is set, every request except `GET /status` must send `Authorization: Bearer <apiKey>`, or it gets `401`. It must be non-empty: `""`, or a `${...}` that substitutes to an empty string, fails config validation, and an unresolved `${...}` stops the service at startup. Omit the key to run without authentication. The whole `api` block is left out of `GET /config`. Changing the key requires a restart. The CLI API commands read the key from `--api-key` or `JEEVES_WATCHER_API_KEY`, and the OpenClaw plugin from its `apiKey` setting or the same variable; setting `apiKey` here does not configure them. See [Authentication](./api-reference.md#authentication).
 
 ---
 
@@ -691,11 +704,14 @@ Uses structured JSON logging via [pino](https://github.com/pinojs/pino).
 | --- | --- | --- | --- |
 | `shutdownTimeoutMs` | `number` | `10000` | Max time (ms) to wait for in-flight operations on shutdown (SIGTERM/SIGINT). |
 
-On shutdown, the watcher:
+On shutdown, the watcher (v0.20.0+ order):
 
-1. Stops accepting new file events
-2. Drains current in-flight embeddings/upserts (up to timeout)
-3. Exits cleanly
+1. Closes the API server, so no new request (notification, reindex, ...) is accepted
+2. Stops the producers: config watch, VCS, filesystem watcher
+3. Drains the file event queue, then drains and stops the source notify queue (each step bounded by `shutdownTimeoutMs`; work still pending after that is dropped)
+4. Flushes the values index
+5. Closes the enrichment and issues stores, unless a queue step timed out: runs may then still be in flight, so the stores are left open (and a warning is logged) rather than closed under them
+6. Exits
 
 ---
 
@@ -796,6 +812,8 @@ Named HTTP callbacks for [source documents](./source-documents.md): records that
 - `url` and `headers` support `${ENV_VAR}`; an unresolved reference stops the service at startup.
 - Read at startup only: restart to change.
 - Never exposed by `GET /config`.
+- Unknown keys under a source (for example `timeout`) are ignored with a warning: logged at startup and on config reload, and returned by `POST /config/validate` as `warnings`.
+- Callback responses larger than 10 MiB fail with `source_unavailable` (`response too large`).
 
 See the [Source Documents guide](./source-documents.md#the-callback-contract) for the callback contract.
 

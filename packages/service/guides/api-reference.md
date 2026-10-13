@@ -32,52 +32,51 @@ curl http://localhost:1936/status
 
 ```json
 {
-  "status": "ok",
+  "name": "watcher",
+  "version": "0.20.0",
   "uptime": 86400,
-  "version": "0.9.9",
-  "collection": {
-    "name": "jeeves_archive",
-    "pointCount": 10498,
-    "dimensions": 3072
-  },
-  "reindex": {
-    "active": false
-  },
-  "initialScan": {
-    "active": true,
-    "filesMatched": 156576,
-    "filesEnqueued": 156576,
-    "startedAt": "2026-03-15T01:22:00.000Z"
+  "status": "healthy",
+  "health": {
+    "collection": {
+      "name": "jeeves_archive",
+      "pointCount": 10498,
+      "dimensions": 3072
+    },
+    "reindex": {
+      "active": true,
+      "scope": "rules",
+      "startedAt": "2026-03-15T02:00:00.000Z",
+      "filesProcessed": 1200,
+      "totalFiles": 4800
+    },
+    "initialScan": {
+      "active": false,
+      "filesMatched": 156576,
+      "filesEnqueued": 156576,
+      "completedAt": "2026-03-15T01:31:12.000Z",
+      "durationMs": 552000
+    }
   }
 }
 ```
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `status` | `string` | Always `"ok"` if the server is responding. |
-| `uptime` | `number` | Process uptime in seconds. |
-| `version` | `string` | Service package version (from `package.json`). |
-| `collection` | `object` | Qdrant collection stats. |
-| `collection.name` | `string` | Collection name. |
-| `collection.pointCount` | `number` | Total indexed points (chunks). |
-| `collection.dimensions` | `number` | Embedding vector dimensions. |
-| `reindex` | `object` | Active reindex status. |
-| `reindex.active` | `boolean` | Whether a reindex is currently running. |
-| `reindex.scope` | `string?` | Reindex scope if active: `"rules"`, `"full"`, `"issues"`, `"path"`, or `"prune"`. |
-| `initialScan` | `object` | Initial filesystem scan state after service start. |
-| `initialScan.active` | `boolean` | Whether the initial scan is still in progress. |
-| `initialScan.filesMatched` | `number?` | Files matched by watch globs so far. |
-| `initialScan.filesEnqueued` | `number?` | Files enqueued for processing so far. |
-| `initialScan.startedAt` | `string?` | ISO-8601 timestamp when the scan started. |
-| `initialScan.completedAt` | `string?` | ISO-8601 timestamp when the scan completed (when `active` is false). |
-| `initialScan.durationMs` | `number?` | Total scan duration in milliseconds (when `active` is false). |
-| `reindex.startedAt` | `string?` | ISO-8601 timestamp when reindex started, if active. |
+| `name` | `string` | Always `"watcher"`. |
+| `version` | `string` | Service package version. |
+| `uptime` | `number` | Seconds since the API server was created. |
+| `status` | `string` | `"healthy"`, or `"degraded"` when the health probe failed (for example Qdrant is unreachable); `health` then holds only `{ "error": "..." }`. |
+| `health.collection` | `object` | Qdrant collection stats: `name`, `pointCount` (total points/chunks), `dimensions`. |
+| `health.reindex` | `object` | Reindex progress. `active`; while active also `scope`, `startedAt`, `filesProcessed` and `totalFiles` (files plus source documents in the run). |
+| `health.initialScan` | `object?` | Initial filesystem scan after start (absent when there is no filesystem watcher). `active`, `filesMatched`, `filesEnqueued`; `startedAt` while active; `completedAt` and `durationMs` once finished. |
 
-> **v0.5.0 change:** `payloadFields` has been removed from the status response. Use [`POST /config/query`](#post-configquery) or [`GET /config/schema`](#get-configschema) to discover schema and payload field information.
+> **v0.5.0 change:** `payloadFields` has been removed from the status response. Use [`GET /config`](#get-config) or [`GET /config/schema`](#get-configschema) to discover schema and payload field information.
 
 **Status codes:**
 
-- `200 OK` — Service is healthy
+- `200 OK` - always, also when `status` is `"degraded"`; check the `status` field, not the HTTP status.
+
+The response is cached for `api.cacheTtlMs` (default 30 seconds), so progress counters can lag by that much.
 
 `GET /status` is always open, even when `api.apiKey` is set, so load balancers and uptime checks can use it.
 
@@ -131,20 +130,28 @@ curl -X POST http://localhost:1936/metadata \
 ```json
 {
   "code": "invalid_request",
-  "error": "Metadata validation failed",
+  "error": "Validation failed",
   "details": [
-    { "field": "priority", "message": "must be one of: low, medium, high" }
+    {
+      "property": "priority",
+      "expected": "integer",
+      "received": "string",
+      "rule": "project-docs",
+      "message": "Property 'priority' is declared as integer in project-docs schema, received string"
+    }
   ]
 }
 ```
 
 > **v0.5.0:** Metadata is validated against the schema defined by matched inference rules. If the file matches a rule with a `schema` block, provided metadata must conform to it.
 
-**Error (500 Internal Server Error):**
+**Error (500 Internal Server Error):** the cause is logged, never returned. Every 5xx the API produces for an unexpected failure has this body:
 
 ```json
 {
-  "error": "Internal server error"
+  "code": "internal_error",
+  "error": "Internal Server Error",
+  "message": "Internal server error"
 }
 ```
 
@@ -163,7 +170,8 @@ curl -X POST http://localhost:1936/metadata \
 **Source documents (`source`):**
 
 - The document must be indexed: its designated rule is read from the stored `source_rule`. Otherwise the response is `404 { "code": "source_not_indexed", "error": "Source document not indexed" }` and nothing is stored.
-- The metadata is validated against the designated rule's schema (`400` on failure).
+- The metadata is validated against the designated rule's schema (`400` on failure). The rule is looked up by name among the config rules, then the [virtual rules](#post-rulesregister) registered by plugins, so a document whose designated rule is virtual is validated too. A designated rule that no longer exists validates nothing (`matched_rules: []`).
+- Without source support on the instance, a `source` request is `503 not_available`.
 - It is stored in the enrichment store under the exact reference, written to every chunk with `setPayload` (no re-embedding, no callback), and merged again whenever the document is re-processed.
 - System fields (`source`, `source_rule`, `chunk_*`, ...) can never be overwritten.
 
@@ -236,6 +244,7 @@ curl -X POST http://localhost:1936/render \
 | `422` | `pipeline_error`: render/extraction failed; for a source document `issueType` holds the [issue code](#issue-codes) (`match_failed`, `rule_missing`, `no_content`, ...) and `details` any AJV errors. `unsupported_content_type` when the callback returned a non-JSON body |
 | `502` | `source_unavailable`: the source callback failed (`issueType: "source_unavailable"`) |
 | `503` | `not_available`: source render on an instance without source-document support |
+| `500` | `internal_error`: unexpected failure (generic body; the cause is only logged) |
 
 ### Behavior
 
@@ -355,6 +364,8 @@ curl -X POST http://localhost:1936/search \
 }
 ```
 
+Unknown keys are rejected (v0.20.0+): an unsupported option such as `collapse` is a `400 invalid_request` instead of being silently ignored.
+
 **Filtered search example:**
 
 ```bash
@@ -381,7 +392,7 @@ curl -X POST http://localhost:1936/search \
   }'
 ```
 
-The `filter` parameter accepts a native [Qdrant filter object](https://qdrant.tech/documentation/concepts/filtering/). Use [`POST /config/query`](#post-configquery) or [`GET /config/schema`](#get-configschema) to discover available payload fields and their types, then construct filters accordingly. Common patterns:
+The `filter` parameter accepts a native [Qdrant filter object](https://qdrant.tech/documentation/concepts/filtering/). A filter Qdrant rejects (malformed condition, unknown match variant) is a `400 invalid_request` with `error: "Invalid filter"` and Qdrant's explanation as `message` (v0.20.0+). Use [`GET /config`](#get-config) or [`GET /config/schema`](#get-configschema) to discover available payload fields and their types, then construct filters accordingly. Common patterns:
 
 - **Exact match:** `{ "must": [{ "key": "domain", "match": { "value": "email" } }] }`
 - **Negation:** `{ "must_not": [{ "key": "domain", "match": { "value": "codebase" } }] }`
@@ -425,15 +436,19 @@ The `filter` parameter accepts a native [Qdrant filter object](https://qdrant.te
 }
 ```
 
-Returned when the query cannot be embedded within the search budget (3 provider attempts, at most 10 seconds waiting on the shared rate limiter). A `Retry-After` header (seconds) is set when the limiter knows when it will accept requests again. See [Rate Limiting](#rate-limiting).
+Returned when the query cannot be embedded within the search budget (3 provider attempts, at most 10 seconds waiting on the shared rate limiter), or at once when the provider has asked for a pause longer than the root `maxBackoffMs`. A `Retry-After` header (seconds) is set when the limiter knows when it will accept requests again. See [Rate Limiting](#rate-limiting).
 
-**Error (500 Internal Server Error):**
+**Invalid filter (400 Bad Request, v0.20.0+):**
 
 ```json
 {
-  "error": "Internal server error"
+  "code": "invalid_request",
+  "error": "Invalid filter",
+  "message": "Format error in JSON body: ..."
 }
 ```
+
+**Error (500 Internal Server Error):** generic body (`internal_error`), see [Error Handling](#error-handling).
 
 ### Response Schema
 
@@ -547,11 +562,11 @@ curl -X POST http://localhost:1936/scan \
 
 ### Error Codes
 
-| Code  | Condition                                                      |
-| ----- | -------------------------------------------------------------- |
-| `200` | Success                                                        |
-| `400` | Missing or invalid `filter`, or `limit` out of bounds (1–1000) |
-| `500` | Server error                                                   |
+| Code | Condition |
+| --- | --- |
+| `200` | Success |
+| `400` | `invalid_request`: missing or invalid `filter`, `limit` out of bounds (1–1000), or a filter Qdrant rejects (`error: "Invalid filter"`, Qdrant's reason as `message`) |
+| `500` | `internal_error`: unexpected failure (generic body) |
 
 ### Behavior
 
@@ -596,13 +611,7 @@ curl -X POST http://localhost:1936/rebuild-metadata
 }
 ```
 
-**Error (500 Internal Server Error):**
-
-```json
-{
-  "error": "Internal server error"
-}
-```
+**Error (500 Internal Server Error):** generic body (`internal_error`), see [Error Handling](#error-handling).
 
 ### Behavior
 
@@ -634,11 +643,13 @@ Trigger a scoped reindex operation. Non-prune scopes include a `plan` object sho
 {
   scope?: "issues" | "full" | "rules" | "path" | "prune";  // Default: "issues"
   path?: string | string[];   // Files/directories/globs for scopes "path" and "rules"
-  source?: string | string[]; // Source references for scope "path" (v0.20.0+)
+  source?: string | string[]; // Source references for scope "path" (v0.20.0+), at most 1000
   dryRun?: boolean;           // Compute plan without executing (default: false)
 }
 // Scope "path" requires exactly one of path or source; source is only valid with scope "path".
 ```
+
+`source` accepts at most 1000 references per request (`MAX_REINDEX_SOURCES_PER_REQUEST` in `@karmaniverous/jeeves-watcher-core`); split larger sets into several requests.
 
 **Examples:**
 
@@ -737,19 +748,24 @@ curl -X POST http://localhost:1936/reindex \
 
 The reindex runs **asynchronously** — the API returns immediately with the plan. Use `GET /status` to track progress.
 
+The plan is computed once per request: the files listed and the source documents discovered for it are the ones the run then processes (no second listing or Qdrant scroll). A failure while the run itself resolves or processes its targets is reported to the [completion callback](#completion-callback), never as an HTTP error.
+
 **Error codes:**
 
 | Code | Condition |
 | --- | --- |
 | `200` | Success (started or dry_run) |
-| `400` | `invalid_request`: invalid body (unknown scope, missing `path`/`source` for scope `path`, `source` outside scope `path`, malformed reference). `not_available`: prune without vectorStore, or `source` on an instance without source-document support |
-| `500` | Server error |
+| `400` | `invalid_request`: invalid body (unknown scope, missing `path`/`source` for scope `path`, `source` outside scope `path`, malformed reference, more than 1000 references), or a `path` target that is neither a file nor a directory. `not_available`: prune without a vector store (status `400` kept from 0.19) |
+| `403` | `path_not_watched`: a `path` target is outside the watch scope or gitignored (v0.20.0+; was `500`) |
+| `404` | `not_found`: a `path` target does not exist (v0.20.0+; was `500`) |
+| `503` | `not_available`: `source` on an instance without source-document support (v0.20.0+) |
+| `500` | `internal_error`: unexpected failure (generic body) |
 
 ### Scopes
 
 #### `issues` (default)
 
-Re-processes documents with open issues (from `GET /issues`): files, and source documents whose stored designated rule is known. Use after fixing the root cause of failures (permissions, encoding, file format, a source outage).
+Re-processes documents with open issues (from `GET /issues`): files, and source references. An indexed source document is re-processed with its stored designated rule; a reference that was never indexed (its first notification failed, so it has no points) is retried with the `rule` recorded on its issue. A reference with neither is counted in `total` but skipped. Use after fixing the root cause of failures (permissions, encoding, file format, a source outage).
 
 #### `rules`
 
@@ -763,9 +779,9 @@ Re-extracts text, re-embeds (new embedding API calls), re-upserts to Qdrant. Sou
 
 #### `path`
 
-With `path`: re-embeds a specific file or all files under a directory. Validates that the target is within watch scope and not gitignored. Use for targeted re-embedding without a full reindex.
+With `path`: re-embeds a specific file or all files under a directory. Each target must be within watch scope and not gitignored (`403 path_not_watched`) and must exist (`404 not_found`). A file named directly and found again by expanding its directory is processed once. Use for targeted re-embedding without a full reindex.
 
-With `source` (v0.20.0+): re-processes the listed source references with their stored designated rule, through the notify queue (so they coalesce with concurrent notifications, and failures land in `GET /issues`). References that are not indexed are skipped: they count in `total` but not in `toProcess`.
+With `source` (v0.20.0+): re-processes the listed source references with their stored designated rule, through the notify queue (so they coalesce with concurrent notifications, and failures land in `GET /issues`). References that are not indexed are skipped: they count in `total` but not in `toProcess`. The stored-rule lookups run with up to `reindex.concurrency` in flight.
 
 #### `prune`
 
@@ -777,7 +793,9 @@ Prune **never** selects points carrying `source`: source documents are removed o
 
 ### Source Documents
 
-Explicit `POST /reindex` requests cover source documents as described above; a reindex triggered by a config change (`configWatch.reindex`) covers **files only**. Source documents are discovered from Qdrant (chunk-0 points carrying `source`), retrieved through their callbacks, and processed with their stored `source_rule`. In every scope a callback `404` deletes the document and any other failure records an issue and leaves its points untouched. See the [Source Documents guide](./source-documents.md#reindex-prune-and-deletion).
+Explicit `POST /reindex` requests cover source documents as described above; a reindex triggered by a config change (`configWatch.reindex`) covers **files only**. Source documents are discovered from Qdrant (chunk-0 points carrying `source`), retrieved through their callbacks, and processed with their stored `source_rule`. In every scope a callback `404` deletes the document and any other failure records an issue and leaves its points untouched.
+
+Every source run goes through the notify queue, like a notification: a reindex and a notification of the same reference never run in parallel, they coalesce (a pending `full` run stays forced if a notification merges into it), and the latest record wins. See the [Source Documents guide](./source-documents.md#reindex-prune-and-deletion).
 
 ### Dry Run
 
@@ -785,14 +803,18 @@ When `dryRun: true`, the plan is computed and returned synchronously without sta
 
 ### Reindex Tracking
 
-While a reindex is running, `GET /status` shows the active reindex state:
+While a reindex is running, `GET /status` shows the active reindex state under `health`:
 
 ```json
 {
-  "reindex": {
-    "active": true,
-    "scope": "rules",
-    "startedAt": "2026-02-24T08:00:00Z"
+  "health": {
+    "reindex": {
+      "active": true,
+      "scope": "rules",
+      "startedAt": "2026-02-24T08:00:00Z",
+      "filesProcessed": 1200,
+      "totalFiles": 4800
+    }
   }
 }
 ```
@@ -806,9 +828,12 @@ If `reindex.callbackUrl` is configured, the watcher sends a POST request to that
   "scope": "rules",
   "filesProcessed": 1234,
   "durationMs": 45000,
-  "status": "completed"
+  "errors": [],
+  "sources": { "indexed": 12, "unchanged": 300, "deleted": 1, "failed": 2 }
 }
 ```
+
+`errors` holds the run's failure message when the run itself failed (`filesProcessed` is then `0`). `sources` (v0.20.0+) counts the source documents by outcome and is present only when the run covered source documents; failed documents are also recorded in `GET /issues`. A prune reports `pointsDeleted` instead.
 
 The callback retries with exponential backoff (3 attempts, starting at 1 second).
 
@@ -916,7 +941,7 @@ One result per submitted document, in submission order:
 | `indexed` | Written: content re-embedded, or (same content, changed metadata) payloads updated without an embedding call. `chunks` is the chunk count. |
 | `unchanged` | Same rendered content and metadata; nothing written, no embedding call. |
 | `deleted` | The callback answered `404`; the document's points were removed. |
-| `failed` | `error.code` is a rejection code above or an [issue code](#issue-codes); existing points are untouched. `details` holds AJV errors for `match_failed`. |
+| `failed` | `error.code` is a rejection code above or an [issue code](#issue-codes); existing points are untouched. `details` holds AJV errors for `match_failed` and the per-rule errors for `interpolation_error`. |
 
 A designated rule whose `match` rejects the record is never an HTTP error: asynchronously it becomes a `match_failed` issue, with `?wait=true` a `failed` result.
 
@@ -927,11 +952,14 @@ A designated rule whose `match` rejects the record is never an HTTP error: async
 | `400` | Invalid body: `documents` missing, empty or over 100 entries; missing or empty `source`/`rule`; unknown keys; invalid `wait` |
 | `401` | `unauthorized`: `api.apiKey` is set and the bearer token is missing or wrong |
 | `503` | `not_available`: the instance's document processor does not support source documents |
+| `500` | `internal_error`: unexpected failure, including an unexpected processing error with `?wait=true` (a stopping queue is reported per document as `queue_stopped` instead) |
 
 ### Behavior
 
 - Notifications are queued in memory, keyed by reference. A notification for a pending reference merges with it; one for an in-flight reference triggers exactly one more run after the current one. Every run retrieves the current record, so the latest state always wins. See [coalescing](./source-documents.md#notifications-queuing-and-coalescing).
 - `?wait=true` uses the same queue (concurrency and coalescing apply) and waits for the results. Use it for backfills and tests.
+- Up to `embedding.concurrency` references are processed at once (default `5`).
+- The `error.code` values are typed in `@karmaniverous/jeeves-watcher-core`: rejection codes (`documentRejectionCodeSchema`) plus issue types (`documentFailureCodeSchema` covers both).
 - Re-notifying an unchanged record costs one callback and no embedding call.
 
 ---
@@ -971,12 +999,14 @@ curl -X POST http://localhost:1936/documents/delete \
 
 ### Behavior
 
-- The filter is always constrained to points carrying `source`: the caller's filter is nested inside a condition that requires a non-empty `source`. A filter can never delete a file point, whatever it names. Note that `{ "filter": {} }` therefore deletes **every source document**.
+- The filter is always constrained to source points: the caller's filter is nested inside a condition that requires a non-empty `source` **and** an empty `file_path`. A filter can never delete a file point, whatever it names (even a legacy file point whose rule wrote a `source` field). The `sources` form carries the same `file_path` guard.
+- A filter without any condition is rejected with `400 invalid_request` (v0.20.0+): `{}`, `{ "must": [] }` and filters whose clauses are all empty, at any depth. To remove every source document, name a condition explicitly (for example `{ "must": [{ "key": "source_rule", "match": { "any": [...] } }] }`). The SDK refuses such filters before sending them.
+- A filter Qdrant rejects is `400 invalid_request` (`error: "Invalid filter"`); nothing is deleted.
 - Every chunk of each matching document is deleted.
 - Enrichment metadata and issues are removed for the deleted references, and, in the `sources` form, for every listed reference (so a document that only ever failed leaves no issue behind).
 - Deletion does not touch the source system. If the owner notifies the reference again (or a notification for it was still queued), it is retrieved and indexed again.
 
-**Errors:** `400` for an invalid body (both or neither of `sources`/`filter`, an empty `sources` array, a malformed reference).
+**Errors:** `400 invalid_request` for an invalid body (both or neither of `sources`/`filter`, an empty `sources` array, a malformed reference, a condition-free filter) or a filter Qdrant rejects; `500 internal_error` (generic body) for an unexpected failure.
 
 ---
 
@@ -1051,17 +1081,19 @@ Every issue record carries one code from a single canonical list (`ISSUE_TYPES` 
 | Code | Applies to | Meaning |
 | --- | --- | --- |
 | `type_collision` | files, sources | Matched rules declare the same property with incompatible types. |
-| `interpolation_error` | files, sources | A `set` template could not be rendered. |
+| `interpolation_error` | files, sources | A `set` expression, `template` or `render` could not be resolved. A **file** is still indexed (without the failed values) and the issue records the failures; a **source document** fails and nothing is written. `details` holds one entry per failed rule step. |
 | `extraction_error` | files, sources | Reading or extracting the document, applying rules, or chunking failed. Also the code for any failure no stage tagged. |
 | `embedding_error` | files, sources | The embedding provider failed, including a rate-limit retry budget that ran out. |
 | `upsert_error` | files, sources | Writing to or deleting from the vector store failed. |
 | `match_failed` | sources | The designated rule's `match` rejected the retrieved record. Nothing was written. |
 | `rule_missing` | sources | The designated rule does not exist (any more). Points untouched. |
-| `no_content` | sources | The callback returned an empty JSON object. |
-| `source_unavailable` | sources | The callback failed: any status other than `200`/`404` (redirects included), a timeout, a network error, a body that is not valid JSON, or no sources configured. Points untouched. |
+| `no_content` | sources | The callback returned an empty JSON object, or the designated rule rendered no text. Nothing was written. |
+| `source_unavailable` | sources | The callback failed: any status other than `200`/`404` (redirects included), a timeout, a network error, a body that is not valid JSON, a body over 10 MiB (`response too large`), or no sources configured. Points untouched. |
 | `unsupported_content_type` | sources | The callback answered `200` with a content type other than `application/json`, or with JSON that is not an object. Points untouched. |
 
 Issue files written by versions before 0.20.0 contain only `type_collision` and `interpolation_error` and still load unchanged.
+
+Source-document issues (v0.20.0+) always carry `rule` (the designated rule of the failed run). `POST /reindex { "scope": "issues" }` uses it to retry a reference that was never indexed. `details` carries structured context where there is any: the AJV errors of `match_failed`, the per-step failures of `interpolation_error`.
 
 ### Behavior
 
@@ -1083,48 +1115,46 @@ The issues file is self-healing:
 
 ---
 
-## POST /config/query
+## GET /config
 
-Query the merged virtual configuration document using JSONPath expressions.
+Return the merged virtual configuration document, optionally filtered with a JSONPath expression. (Earlier guides described this as `POST /config/query`; that route does not exist.)
 
 ### Request
 
 ```bash
-curl -X POST http://localhost:1936/config/query \
-  -H "Content-Type: application/json" \
-  -d '{
-    "path": "$.inferenceRules[*].name",
-    "resolve": ["files", "globals"]
-  }'
+# Whole document
+curl http://localhost:1936/config
+
+# JSONPath filter (URL-encoded)
+curl "http://localhost:1936/config?path=%24.inferenceRules%5B*%5D.name"
 ```
 
-**Body schema:**
-
-```typescript
-{
-  path: string;                    // JSONPath expression
-  resolve?: string[];              // Resolution scopes: "files", "globals" (default: all)
-}
-```
+**Query string:** `path` — optional JSONPath expression.
 
 ### Response
 
-**Success (200 OK):**
+**Success (200 OK):** the whole document, or `{ "result": [...], "count": n }` for a `path` query.
 
 ```json
 {
-  "result": ["email-classifier", "meeting-tagger", "project-labeler"]
+  "result": ["email-classifier", "meeting-tagger", "project-labeler"],
+  "count": 3
 }
 ```
+
+An invalid JSONPath expression is `400 invalid_request`.
 
 ### Merged Document Shape
 
 The query runs against a virtual document that merges:
 
 - **config** — current configuration (rules, watch paths, etc.)
-- **values** — discovered payload field names and types (replaces old `payloadFields` from status)
+- **values** — discovered payload field names and types (replaces old `payloadFields` from status). Collected from files only: source documents never feed the values index (v0.20.0+).
 - **helpers** — loaded map helpers and template helpers
 - **issues** — current runtime issues
+- **virtual rules** — rules registered by plugins
+
+The `sources` block (callback URLs and headers) and the whole `api` block (including `api.apiKey`) are never included, with or without a `path`.
 
 See [Inference Rules Guide](./inference-rules.md) for rule structure details.
 
@@ -1151,7 +1181,7 @@ Returns a JSON Schema object describing the merged config document shape, includ
 - Top-level config fields (`description`, `search`, `schemas`, `inferenceRules`, etc.)
 - Runtime-injected fields (`inferenceRules[].values`, `issues`, helper introspection)
 
-The schema is generated from Zod using `z.toJSONSchema()` and describes the queryable surface exposed by `POST /config/query`.
+The schema is generated from Zod using `z.toJSONSchema()` and describes the queryable surface exposed by [`GET /config`](#get-config).
 
 **Example response (excerpt):**
 
@@ -1314,18 +1344,39 @@ When `config` is partial, rules are merged by `name`: provided rules replace exi
 }
 ```
 
-**Invalid (400 Bad Request):**
+**Invalid (also 200 OK):** an invalid config is a successful validation with a negative result, not an HTTP error. Only a malformed request body is `400`.
 
 ```json
 {
   "valid": false,
   "errors": [
-    { "path": "inferenceRules[0].match", "message": "Invalid JSON Schema" }
+    {
+      "path": "api.apiKey",
+      "message": "api.apiKey must be a non-empty string (remove it to disable authentication)"
+    }
   ]
 }
 ```
 
-Validation includes checking that referenced helper files can be loaded.
+`errors[].path` is the dotted config path (for schema failures) or names the rule (`inferenceRules[<name>]`) or helper whose check failed. Validation stops at the first failing stage (schema, helper files, rule schemas), and an invalid result carries no `warnings`.
+
+**Valid with warnings (200 OK, v0.20.0+):**
+
+```json
+{
+  "valid": true,
+  "warnings": [
+    {
+      "path": "sources.app.timeout",
+      "message": "Unknown source setting \"timeout\" is ignored (supported: url, headers, timeoutMs, concurrency)."
+    }
+  ]
+}
+```
+
+Validation includes checking that referenced helper files can be loaded. Warnings (never failures) report unknown keys under `sources.<name>` and rule schema properties that use a [reserved payload field](./source-documents.md#files-and-source-documents) name; the same warnings are logged at startup and on config reload.
+
+Schema checks added in v0.20.0 make these configs **invalid**: an empty `api.apiKey` (also after `${ENV_VAR}` substitution), and a `vectorStore.payloadIndexes` entry repeating a field or naming the system-indexed `source` / `source_rule`.
 
 ---
 
@@ -1386,6 +1437,8 @@ curl -X POST http://localhost:1936/config/apply \
 }
 ```
 
+**Server failure (500, v0.20.0+):** when the config file cannot be read or written, the cause (which names the file) is logged and the response is the generic `internal_error` body.
+
 ### Behavior
 
 1. Reads the config file the service was started with
@@ -1435,10 +1488,15 @@ curl -X POST http://localhost:1936/rules/register \
 
 ```json
 {
-  "ok": true,
-  "registered": 1
+  "source": "my-external-system",
+  "registered": 1,
+  "totalVirtualRules": 4
 }
 ```
+
+Registering replaces the source's previous rules, rebuilds the processor's rule set and, when the virtual rules match on `file.path` globs, starts a `rules` reindex of the files under those globs.
+
+**Errors (v0.20.0+; these were `500` before):** `400 invalid_request` when `source` is missing, `rules` is not an array, a rule has no `name`, two rules share a name, or a rule's `match` schema does not compile (the compiler's explanation is in `message`). Nothing is registered then.
 
 ---
 
@@ -1468,10 +1526,12 @@ curl -X DELETE http://localhost:1936/rules/unregister \
 
 ```json
 {
-  "ok": true,
-  "removed": 1
+  "source": "my-external-system",
+  "removed": true
 }
 ```
+
+`removed` is `false` when the source had no rules. A missing `source` is `400 invalid_request` (v0.20.0+; was `500`).
 
 ---
 
@@ -1491,8 +1551,8 @@ curl -X DELETE http://localhost:1936/rules/unregister/my-external-system
 
 ```json
 {
-  "ok": true,
-  "removed": 1
+  "source": "my-external-system",
+  "removed": true
 }
 ```
 
@@ -1528,9 +1588,13 @@ curl -X POST http://localhost:1936/points/delete \
 
 ```json
 {
-  "ok": true
+  "deleted": 42
 }
 ```
+
+`deleted` counts points. Unlike [`POST /documents/delete`](#post-documentsdelete), this route applies the filter as given, to file and source points alike.
+
+**Errors (v0.20.0+; these were `500` before):** `400 invalid_request` when `filter` is missing or not an object, or when Qdrant rejects it (`error: "Invalid filter"`). Nothing is deleted then.
 
 ---
 
@@ -1555,6 +1619,8 @@ curl -X POST http://localhost:1936/rules/reapply \
   globs: string[];  // Non-empty array of glob patterns
 }
 ```
+
+Missing, empty or non-string `globs` are `400 invalid_request` (v0.20.0+; was `500`).
 
 ### Response
 
@@ -1907,23 +1973,24 @@ Since v0.20.0 every non-2xx response has this body (`apiErrorBodySchema` in `@ka
 - `message` (optional) adds detail; `details` (optional) holds structured data such as the Zod issues of a `400`.
 - `issueType` (optional) names the [issue code](#issue-codes) behind a failed source render.
 - Some endpoints add fields of their own (`issues` on `POST /config/apply`).
-- HTTP statuses did not change in v0.20.0.
+- A 5xx body never carries the underlying error (file paths, Qdrant or provider messages): the cause is logged and the body is the generic `internal_error` text below.
+- HTTP status changes in v0.20.0, all from `500` for what are client mistakes: invalid bodies of the rules routes and `POST /points/delete`, filters Qdrant rejects (`400`), and invalid `POST /reindex` path targets (`403` / `404` / `400`). Successful responses and every other status are unchanged.
 
 | `code` | Status | Meaning |
 | --- | --- | --- |
-| `invalid_request` | `400` | The body, query or parameters failed validation, or the request was rejected before reaching a route (malformed JSON, unsupported media type: the framework's status is kept, e.g. `415`). |
+| `invalid_request` | `400` | The body, query or parameters failed validation, a filter was rejected by Qdrant (`error: "Invalid filter"`) or has no condition (`POST /documents/delete`), or the request was rejected before reaching a route (malformed JSON, unsupported media type: the framework's status is kept, e.g. `415`). |
 | `unauthorized` | `401` | `api.apiKey` is set and the bearer token is missing or wrong. |
-| `path_not_watched` | `403` | The file path is outside the watched scope (`POST /render`). |
-| `not_found` | `404` | No such route, file, VCS watch root, file at a commit, `.gitignore` or `.gitignore` pattern. |
+| `path_not_watched` | `403` | The file path is outside the watched scope (`POST /render`), or a `POST /reindex` path target is outside it or gitignored. |
+| `not_found` | `404` | No such route, file (including a `POST /reindex` path target), VCS watch root, file at a commit, `.gitignore` or `.gitignore` pattern. |
 | `source_not_indexed` | `404` | No stored point for the source reference, so no designated rule is known (`POST /render`, `POST /metadata`). |
 | `source_not_found` | `404` | The source callback answered `404` (`POST /render`). |
 | `unsupported_content_type` | `422` | The source callback returned a non-JSON body (`POST /render`). |
 | `pipeline_error` | `422` | Rendering or extraction failed; for a source document `issueType` names the failure. |
 | `source_unavailable` | `502` | The source callback failed (`POST /render`). |
-| `not_available` | `503` (`400` on `POST /reindex`) | The feature is not available on this instance: no source-document support, no vector store for prune, or no filesystem watcher (`POST /walk`). |
+| `not_available` | `503` | The feature is not available on this instance: no source-document support (every source route, including `POST /reindex { source }`), or no filesystem watcher (`POST /walk`). A prune without a vector store keeps its 0.19 status `400`. |
 | `scan_in_progress` | `503` | The initial filesystem scan is still running (`POST /walk`); retry later. |
 | `embedding_unavailable` | `503` | The embedding provider's retry budget ran out (`POST /search`); honour `Retry-After`. |
-| `internal_error` | `500` | Unexpected server-side failure (check the service log). Errors not caught by a route answer `{ "code": "internal_error", "error": "Internal Server Error", "message": "Internal server error" }` and never include the underlying error. |
+| `internal_error` | `500` | Unexpected server-side failure (check the service log). Always `{ "code": "internal_error", "error": "Internal Server Error", "message": "Internal server error" }`, never the underlying error. |
 
 Per-document outcomes are not HTTP errors and use their own codes: `rejected[].error.code` of `POST /documents` (rejection codes) and `error.code` of `failed` results ([issue codes](#issue-codes)).
 
@@ -1961,7 +2028,7 @@ curl -X POST http://watcher.internal.example:1936/search \
 - Every route requires `Authorization: Bearer <apiKey>` (the `Bearer` scheme name is case-insensitive) — including unknown routes, the config, rules and VCS endpoints — **except `GET /status`** (and `HEAD /status`), which stays open for health checks.
 - A missing, malformed or wrong token gets `401 { "code": "unauthorized", "error": "Unauthorized" }`. The presented token is never logged; rejections log only the method and path at `debug` level.
 - The comparison is constant-time.
-- An empty `apiKey` (`""`) fails closed: no token can match, so every route except `GET /status` answers `401`.
+- `apiKey` must be non-empty: `""` (or a variable that substitutes to `""`) is a config validation error, so the service does not start. Omit the key to run without authentication. (Should an empty key ever reach the server, it still fails closed: no token matches.)
 - If `apiKey` still contains an unresolved `${...}` after environment-variable substitution, loading the config fails and the service does not start.
 - The key is read **at startup only**. Rotating it means changing the config (or the environment variable) and restarting the watcher, then updating every client.
 - Clients send the key as follows:
@@ -1981,7 +2048,13 @@ The API itself has no request rate limit; add one at a reverse proxy if you need
 
 The **embedding provider** is rate-limited. Since v0.20.0, one shared limiter wraps the provider and every caller draws from it: file watching, source-document notifications, reindex and search. See [`embedding.rateLimitPerMinute`](./configuration.md#embedding-rate-limiting) for the semantics (and the 0.20.0 behaviour change).
 
-When the provider answers `429`, the limiter pauses **all** embedding requests for the provider's `Retry-After` (capped at `maxBackoffMs`), then retries. Indexing makes up to 5 attempts per embedding request and then records an `embedding_error` issue. Search makes up to 3 attempts and waits at most 10 seconds in total; when that budget runs out, `POST /search` answers `503 { code: "embedding_unavailable", error, message }` with a `Retry-After` header instead of `500`.
+When the provider answers `429`, the limiter pauses **all** embedding requests:
+
+- A pause the provider asks for (`Retry-After`, or Google's `retryDelay` when there is no header) of up to the root `maxBackoffMs` is waited in full, then the request is retried. Without either, the limiter backs off exponentially, capped at `maxBackoffMs`.
+- A requested pause **longer** than `maxBackoffMs` is not shortened: the request fails at once, and every other caller fails fast until the pause has passed, instead of retrying early and being throttled again.
+- Indexing makes up to 5 attempts per embedding request and then records an `embedding_error` issue (the document is retried on its next change, notification or reindex).
+- Search makes up to 3 attempts and waits at most 10 seconds in total; when that budget runs out, or the provider's pause is too long, `POST /search` answers `503 { code: "embedding_unavailable", error, message }` with a `Retry-After` header instead of `500`.
+- Retries the Gemini client makes on its own (non-`429` failures) also take a limiter token, so every HTTP request to the provider counts against `rateLimitPerMinute`.
 
 ---
 

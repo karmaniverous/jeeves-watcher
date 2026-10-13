@@ -102,6 +102,8 @@ jeeves-watcher config apply [-p <port>] [-f <file>] [--replace]
 | `--replace` | `false` | Replace entire config instead of merging |
 | `--api-key <key>` | env | API bearer key (see [Authentication](#authentication)) |
 
+The patch must be a JSON object; empty input means `{}`. An unreadable file, invalid JSON or a non-object patch prints a one-line `Config apply failed: ...` (for example `cannot read patch file patch.json (ENOENT)`, `patch is not valid JSON (...)`, `patch must be a JSON object`) and exits with code `1`; nothing is sent to the service.
+
 ---
 
 ### `jeeves-watcher init`
@@ -239,7 +241,7 @@ jeeves-watcher reindex [-s <scope>] [-t <path>...] [-p <port>] [-H <host>]
 
 - `rules` — Re-apply inference rules (no re-embedding)
 - `full` — Re-extract + re-embed everything
-- `issues` — Re-process only files with failures
+- `issues` — Re-process only documents with failures (files, and source references with open issues)
 - `path` — Re-embed specific file(s) or directory
 - `prune` — Delete orphaned points
 

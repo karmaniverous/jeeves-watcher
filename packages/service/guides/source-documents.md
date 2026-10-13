@@ -76,7 +76,8 @@ Rules for `sources`:
 - `url` and `headers` support `${ENV_VAR}` substitution. If any of them still contains an unresolved `${...}` after substitution, loading the config fails and the service does not start. The error names the config path, never the value.
 - A `url` that is not an absolute http(s) URL, or that places `{id}` in the scheme, host or port, also stops the service at startup.
 - `sources` is read **at startup only**. Changing it requires a restart.
-- `sources` never appears in `GET /config` or the merged document queried by `POST /config/query`, so URLs and header values cannot leak through the API.
+- An unknown key under `sources.<name>` (for example `timeout` instead of `timeoutMs`) is ignored with a warning, logged at startup and on config reload and returned by `POST /config/validate` under `warnings`.
+- `sources` never appears in `GET /config` (with or without a JSONPath `path`), and neither does the `api` block, so URLs, header values and the API key cannot leak through the API.
 - A notification naming a source that is not configured is rejected (`unknown_source`) and no request is made. The watcher only ever requests URLs built from this config, and never follows a URL to another origin.
 
 ---
@@ -96,6 +97,7 @@ GET <url with {id} replaced>
 | `200` with a JSON object that has no keys (`{}`) | Failure `no_content`; points untouched. |
 | `200` with any other content type, or JSON that is not an object (an array, a string, ...) | Failure `unsupported_content_type`; points untouched. |
 | `200` with a body that is not valid JSON | Failure `source_unavailable`; points untouched. |
+| A body larger than 10 MiB (by `Content-Length` or while streaming) | Failure `source_unavailable` (`response too large`); points untouched. |
 | `404` | The document no longer exists. Its points, enrichment metadata and issues are removed (`deleted`). |
 | Anything else: `3xx`, `401`, `403`, other `4xx`, `5xx`, timeout, network error | Failure `source_unavailable`; points untouched. |
 
@@ -120,6 +122,7 @@ Every notification names a **designated rule**: `{ "source": "app://chat/thread/
 - The rule must exist in the watcher's current rule set; otherwise the notification is rejected (`rule_missing`). If the rule disappears later (for example after a config change), processing records a `rule_missing` issue and leaves the points alone.
 - The rule's name is stored on every point as `source_rule` and reused by reindex, `POST /render`, `POST /metadata` and `POST /reindex { scope: "path", source }`. Re-notifying a reference with a different rule switches it.
 - The rule's `match` is evaluated and acts as the **input contract**: if the retrieved record does not match, nothing is written and a `match_failed` failure is reported with the AJV errors in `details`. A failed match is never an HTTP error on `POST /documents`: asynchronously it becomes a `match_failed` issue, and with `?wait=true` a `failed` result.
+- Every issue recorded for a source document carries the designated rule (`rule`), plus `details` where there is structured context. This is how `POST /reindex { "scope": "issues" }` can retry a reference whose very first notification failed (it has no points, so no stored rule).
 
 ### Attributes
 
@@ -209,6 +212,8 @@ The embedded text is chosen like this:
 - **The rule has a `template` or `render`:** its output is embedded and split with the Markdown splitter. The template context holds the JSON record's top-level fields, plus `source` (the identity object above), `json` (the whole record) and the rule's metadata. A record field named `source` is shadowed by the identity object; read it as `json.source`.
 - **Neither:** the JSON is extracted and split exactly as a `.json` file would be.
 
+A designated rule that renders **no text** (an empty template output, or JSON that extracts to nothing) fails with `no_content`; nothing is written. If a `set` expression, `template` or `render` fails, the document fails with `interpolation_error` (one `details` entry per failed step) and nothing is written. (A file in the same situation is still indexed without the failed values, with an `interpolation_error` issue.)
+
 Chunking follows the instance-wide `embedding.chunkSize` and `embedding.chunkOverlap`. A long record becomes several points, all carrying the same `source`; when it shrinks, the surplus chunks are removed.
 
 `POST /render { "source": "..." }` shows the result without writing anything (see the [API Reference](./api-reference.md#post-render)).
@@ -223,14 +228,16 @@ Each run retrieves the current record and ends in one of four outcomes (the `sta
 
 | Status | When | Effect |
 | --- | --- | --- |
-| `indexed` | Content changed (or the document is new); or the content is unchanged but the projected metadata differs. | Content change: re-chunk, re-embed, upsert, remove surplus chunks. Metadata-only change: `setPayload` on every chunk, **no embedding call**. |
+| `indexed` | Content changed (or the document is new); or the content is unchanged but the projected metadata differs. | Content change: re-chunk, re-embed, upsert, remove surplus chunks. Metadata-only change: `setPayload` on every chunk (and `delete-payload` for keys no longer projected), **no embedding call**. |
 | `unchanged` | Same rendered-text hash (`content_hash`) and same metadata. | Nothing written, no embedding call. Clears open issues for the reference, except an `upsert_error` (a partial upsert can leave the new hash on chunk 0, so a matching hash does not prove success). |
 | `deleted` | The callback answered `404`. | Points, enrichment metadata and issues for the reference are removed. |
 | `failed` | Any failure (see [Issue codes](./api-reference.md#issue-codes)). | Nothing written; points untouched. An issue is recorded under the reference. |
 
 Details:
 
-- A metadata-only change that drops a previously projected property cannot be expressed with `setPayload`, so the document is rewritten in full (re-embedded).
+- A metadata-only change that drops a previously projected property removes it from every chunk with Qdrant's delete-payload; the document is not re-embedded. A failed write records an `upsert_error` issue.
+- `matched_rules` on a source point is always the designated rule; rule or enrichment metadata cannot override it.
+- Source documents never feed the values index behind [`GET /search/facets`](./api-reference.md#get-searchfacets) and the `values` of `GET /config`: those list values seen in files only.
 - `created_at` is kept from the existing chunk 0 when present, otherwise set to the processing time; `modified_at` is the processing time. Business dates belong in rule metadata (as `updated_at` in the example).
 - Enrichment metadata set with `POST /metadata { source }` is stored under the exact reference and merged on every later run, as for files.
 - Issues are keyed by the exact reference in `GET /issues`. A later successful run clears them.
@@ -246,7 +253,8 @@ Details:
 - Runs for the same reference never overlap, and every run retrieves current state, so a burst of notifications for one reference costs at most two retrievals and the final state always wins.
 - Up to `embedding.concurrency` references (default `5`) are processed at once.
 - The queue is paused during a prune, like the file event queue.
-- The queue is not persisted. On shutdown it is drained for up to `shutdownTimeoutMs`; anything still pending after that is dropped, and new notifications are rejected with `queue_stopped`. Re-notify, or run a reindex, after a restart if that matters.
+- The queue is not persisted. On shutdown the API server closes first (no new notifications), the file watchers stop, and the queue is drained, then stopped, each step bounded by `shutdownTimeoutMs`; anything still pending after that is dropped, and a request still being handled when the queue stops gets `queue_stopped` for its documents. The stores (enrichment, issues) are closed only after the queue has stopped; if draining timed out they are left open so a run still in flight can finish its writes. Re-notify, or run a reindex, after a restart if that matters.
+- An unexpected error inside a run (not a reported failure) records an `extraction_error` issue under the reference, with the designated rule, so it is never lost silently.
 
 With `?wait=true`, the same queue processes the notifications (so concurrency and coalescing still apply) and the response carries one result per document. Use it for backfills and tests; the asynchronous path is the normal one, and its failures surface in `GET /issues`.
 
@@ -263,15 +271,17 @@ Reindex discovers source documents from Qdrant (chunk-0 points carrying `source`
 | `full` | Every indexed source document is retrieved and **re-embedded**, even when its content is unchanged. |
 | `rules` (no `path`) | Every indexed source document is retrieved and its stored rule re-applied. Unchanged content: metadata is updated with `setPayload`, no embedding call. If the rule now renders different text, the document is re-embedded. |
 | `rules` with `path` | Files only. |
-| `issues` | Source references with open issues whose documents are indexed (their stored rule is known). |
-| `path` with `source` | The listed references, re-processed with their stored rule through the notify queue. References that are not indexed are skipped. |
+| `issues` | Source references with open issues: indexed documents with their stored rule; references that were never indexed (their first notification failed) with the `rule` recorded on their issue. |
+| `path` with `source` | The listed references (at most 1000 per request), re-processed with their stored rule. References that are not indexed are skipped. |
 | `prune` | Never selects source points. Prune only deletes file points. |
 
 Retrieval outcomes are the same in every scope: `404` deletes the document; any other failure records an issue and leaves its points untouched. Source documents are retrieved with up to `reindex.concurrency` documents in flight, each source still capped by its own `concurrency`.
 
+Every source run of a reindex goes through the notify queue: a reindex and a notification of the same reference never run in parallel, and when they meet they coalesce into one run (forced re-embedding if either asked for it) that retrieves the latest record.
+
 A **config-triggered** reindex (`configWatch.reindex`) covers files only. To re-apply changed rules to source documents, call `POST /reindex` explicitly (`rules` or `full`).
 
-To remove source documents, use `POST /documents/delete` with explicit references or a Qdrant filter. The filter is always constrained to points carrying `source`, so it can never delete a file point. See the [API Reference](./api-reference.md#post-documentsdelete).
+To remove source documents, use `POST /documents/delete` with explicit references or a Qdrant filter. The filter is always constrained to points carrying `source` and no `file_path`, so it can never delete a file point. A filter without any condition (`{}`, `{ "must": [] }`, ...) is rejected with `400` rather than deleting every source document. See the [API Reference](./api-reference.md#post-documentsdelete).
 
 ---
 
@@ -292,7 +302,7 @@ The watcher always creates `keyword` payload indexes on `source` and `source_rul
 }
 ```
 
-See [`vectorStore.payloadIndexes`](./configuration.md#payload-indexes). The watcher does not know who the end user is: the calling application is responsible for adding the tenant filter to every search.
+See [`vectorStore.payloadIndexes`](./configuration.md#payload-indexes). A field may be listed once; `source` and `source_rule` are indexed by the watcher and may not be listed. If an index already exists with the same type but different `isTenant` / `isPrincipal` flags, the watcher logs a warning and leaves it as it is (it never recreates an index); drop it in Qdrant to apply the new flags. The watcher does not know who the end user is: the calling application is responsible for adding the tenant filter to every search.
 
 ---
 

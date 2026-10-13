@@ -65,7 +65,7 @@ Set or update metadata on a document by file path.
 
 ### `watcher_config`
 
-Query the effective runtime config via JSONPath. Returns the full resolved merged document when no path is provided. Useful for discovering available inference rules, schemas, and runtime values.
+Query the effective runtime config via JSONPath (`GET /config`). Returns the full resolved merged document when no path is provided. Useful for discovering available inference rules, schemas, and runtime values. `sources` and the whole `api` block are never included. Implemented by the plugin (not the core toolset) so the request carries the API key.
 
 **Parameters:**
 
@@ -77,7 +77,7 @@ Validate a jeeves-watcher configuration object. Returns validation errors if any
 
 ### `watcher_config_apply`
 
-Apply a new configuration to the running watcher service. Triggers re-evaluation of watched paths and rules.
+Apply a new configuration to the running watcher service. Triggers re-evaluation of watched paths and rules. Implemented by the plugin so the request carries the API key; a server-side failure (config file unreadable or unwritable) comes back as a generic `internal_error`, with the cause in the service log.
 
 ### `watcher_reindex`
 

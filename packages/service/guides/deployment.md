@@ -690,7 +690,9 @@ Operational notes for a watcher that indexes [source documents](./source-documen
 - **Startup-only settings.** `api.apiKey`, `sources` and `vectorStore.payloadIndexes` are read at startup. A config reload does not apply them; restart the service.
 - **Secrets.** Provide `api.apiKey` and source callback credentials through environment variables (`${VAR}`). If a referenced variable is unset, the service refuses to start and names the config path.
 - **Callback availability.** Every notification triggers a callback, so the source endpoint must be reachable from the watcher host and fast. Outages do not lose data (points stay untouched and an issue is recorded); watch `GET /issues` for `source_unavailable` and re-run `POST /reindex {"scope": "issues"}` after recovery.
-- **Shutdown.** Pending notifications are held in memory. On shutdown the notify queue is drained for up to `shutdownTimeoutMs`; anything left is dropped. Re-notify or reindex if that matters.
+- **Shutdown.** Pending notifications are held in memory. On shutdown the API server closes first, then the notify queue is drained and stopped, each step bounded by `shutdownTimeoutMs`; anything left is dropped, and the stores are closed only if no run is still in flight. Re-notify or reindex (`issues` scope retries failed references, even ones never indexed) if that matters.
+- **Embedding rate limits.** A provider pause (`Retry-After`) longer than the root `maxBackoffMs` fails embedding requests fast (indexing records `embedding_error`, search answers `503`) instead of retrying early; raise `maxBackoffMs` if your provider asks for long pauses and you prefer to wait.
+- **Callback size.** Callback responses over 10 MiB fail with `source_unavailable`; keep records small or split them into several references.
 - **Tenant filters.** If many users share one collection, index the tenant field with `isTenant: true` and add it to every search filter; the watcher does not enforce tenancy.
 
 ---
