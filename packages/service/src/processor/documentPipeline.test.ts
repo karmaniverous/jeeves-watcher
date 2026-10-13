@@ -90,6 +90,24 @@ describe('indexDocument onResolved hook', () => {
     },
   );
 
+  it('prepares a non-empty document before reading its stored hash', async () => {
+    const { ctx, store } = setup();
+    const prepare = vi.fn(() => Promise.resolve());
+    await indexDocument(ctx, { ...document(file), prepare });
+    expect(prepare).toHaveBeenCalledOnce();
+    expect(prepare.mock.invocationCallOrder[0]).toBeLessThan(
+      store.getPayload.mock.invocationCallOrder[0],
+    );
+  });
+
+  it('does not prepare a document with empty text', async () => {
+    const { ctx, store } = setup();
+    const prepare = vi.fn(() => Promise.resolve());
+    await indexDocument(ctx, { ...document(file, {}, '  '), prepare });
+    expect(prepare).not.toHaveBeenCalled();
+    expect(store.getPayload).not.toHaveBeenCalled();
+  });
+
   it('skips a file with unchanged content without refreshing metadata', async () => {
     const { ctx, store } = setup({ content_hash: contentHash(TEXT) });
     expect(await indexDocument(ctx, document(file))).toEqual({

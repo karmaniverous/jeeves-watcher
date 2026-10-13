@@ -7,6 +7,7 @@ import pino from 'pino';
 import { beforeEach, describe, expect, it, type Mock, vi } from 'vitest';
 
 import type { EmbeddingProvider } from '../embedding';
+import { contentHash } from '../hash';
 import type { IssuesManager } from '../issues';
 import type { IssueRecord } from '../issues/types';
 import type { RuleApplicationError } from '../rules';
@@ -223,10 +224,39 @@ describe('file operations', () => {
     const { processor, vectorStore, issues } = setup();
     vectorStore.getPayload.mockResolvedValue(null);
     await processor.processFile('/docs/a.md');
+    expect(vectorStore.upsert).toHaveBeenCalledOnce();
+
+    // Unchanged re-runs keep an upsert_error (issues are not cleared), so
+    // only the dedupe stops a second interpolation issue.
+    const upsertError = { type: 'upsert_error' as const, message: 'partial' };
+    issues['/docs/a.md'].push({ ...upsertError, timestamp: 0 });
+    vectorStore.getPayload.mockResolvedValue({
+      content_hash: contentHash('hello world'),
+      total_chunks: 1,
+    });
     await processor.processFile('/docs/a.md');
-    expect(vectorStore.upsert).toHaveBeenCalled();
+    await processor.processFile('/docs/a.md');
+
+    expect(vectorStore.upsert).toHaveBeenCalledOnce();
     expect(issues['/docs/a.md']).toEqual([
       expect.objectContaining({ type: 'interpolation_error', rules: ['r'] }),
+      expect.objectContaining(upsertError),
+    ]);
+  });
+
+  it('records a move interpolation failure under the new path', async () => {
+    mockBuilt([templateError]);
+    const { processor, issues } = setup();
+    issues['/old.md'] = [
+      { type: 'extraction_error', message: 'old', timestamp: 0 },
+    ];
+    await processor.moveFile('/old.md', '/new.md');
+    expect(issues['/old.md']).toBeUndefined();
+    expect(issues['/new.md']).toEqual([
+      expect.objectContaining({
+        type: 'interpolation_error',
+        details: [templateError],
+      }),
     ]);
   });
 

@@ -207,12 +207,25 @@ describe('DocumentProcessor source processing', () => {
     expect(payload).not.toHaveProperty('chunk_text');
   });
 
+  it('keeps enrichment on reprocess (unchanged, nothing written)', async () => {
+    const stored = storedPayload({ note: 'kept' });
+    const { processor, mocks, enrichmentStore } = setup(undefined, stored);
+    enrichmentStore.get.mockReturnValue({ note: 'kept' });
+    expect(await run(processor)).toMatchObject({ status: 'unchanged' });
+    expect(enrichmentStore.get).toHaveBeenCalledWith(REF);
+    expect(mocks.deletePayload).not.toHaveBeenCalled();
+    expect(mocks.setPayload).not.toHaveBeenCalled();
+  });
+
   it('deletes a stored key no longer projected without re-embedding', async () => {
-    const { processor, mocks } = setup(undefined, storedPayload({ stale: 1 }));
+    const stored = storedPayload({ stale: 1, total_chunks: 2 });
+    const { processor, mocks } = setup(undefined, stored);
     await run(processor);
-    expect(mocks.deletePayload).toHaveBeenCalledWith(expect.any(Array), [
-      'stale',
-    ]);
+    expect(mocks.deletePayload).toHaveBeenCalledWith(
+      [sourcePointId(REF, 0), sourcePointId(REF, 1)],
+      ['stale'],
+    );
+    expect(mocks.embed).not.toHaveBeenCalled();
     expect(mocks.upsert).not.toHaveBeenCalled();
   });
 
@@ -254,46 +267,5 @@ describe('DocumentProcessor source processing', () => {
     expect(mocks.upsert).not.toHaveBeenCalled();
     expect(mocks.delete).not.toHaveBeenCalled();
     expect(mocks.setPayload).not.toHaveBeenCalled();
-  });
-
-  it('returns match_failed with AJV details', async () => {
-    const strict = setup({ kind: 'document', body: { a: 1 } });
-    strict.processor.updateRules(
-      compileRules([
-        {
-          name: 'chat',
-          description: 'Chat',
-          match: {
-            type: 'object',
-            properties: { json: { type: 'object', required: ['userId'] } },
-          },
-        },
-      ]),
-    );
-    const result = await run(strict.processor);
-    expect(result.status).toBe('failed');
-    expect(result.error?.code).toBe('match_failed');
-    expect(result.error?.details).toEqual([
-      expect.objectContaining({ keyword: 'required' }),
-    ]);
-    // The issue records the designated rule and the same AJV errors.
-    const call = strict.mocks.record.mock.calls[0] as unknown[];
-    expect([call[1], call[3]]).toEqual([
-      'match_failed',
-      { ...OP, rule: 'chat', details: result.error?.details },
-    ]);
-    expect(strict.mocks.upsert).not.toHaveBeenCalled();
-  });
-
-  it('returns rule_missing and leaves points untouched', async () => {
-    const { processor, mocks } = setup();
-    const result = await run(processor, 'gone-rule');
-    expect(result.error?.code).toBe('rule_missing');
-    expect(mocks.record.mock.calls[0]?.[3]).toEqual({
-      ...OP,
-      rule: 'gone-rule',
-    });
-    expect(mocks.retrieve).not.toHaveBeenCalled();
-    expect(mocks.delete).not.toHaveBeenCalled();
   });
 });

@@ -7,6 +7,7 @@ import pino from 'pino';
 import { describe, expect, it, vi } from 'vitest';
 
 import type { InferenceRule } from '../../config/types';
+import type { EnrichmentStoreInterface } from '../../enrichment';
 import { compileRules } from '../../rules';
 import type { SourceRetrievalResult, SourceRetriever } from '../../sources';
 import { createHandlebarsInstance, TemplateEngine } from '../../templates';
@@ -56,7 +57,10 @@ function makeRetriever(result: SourceRetrievalResult | Error) {
   return { retriever, retrieve };
 }
 
-function makeResolver(retriever?: SourceRetriever) {
+function makeResolver(
+  retriever?: SourceRetriever,
+  enrichmentStore?: EnrichmentStoreInterface,
+) {
   const templateEngine = new TemplateEngine(createHandlebarsInstance());
   templateEngine.compile('streak', '# Thread {{userId}}\n\n{{text}}');
   return new SourceResolver({
@@ -64,6 +68,7 @@ function makeResolver(retriever?: SourceRetriever) {
     config: {},
     logger: pino({ level: 'silent' }),
     templateEngine,
+    enrichmentStore,
     retriever,
     now: () => NOW,
   });
@@ -107,6 +112,32 @@ describe('SourceResolver', () => {
     expect(doc.logLabel).toBe('Source document');
     // Source documents never feed the values index.
     expect(doc.onResolved).toBeUndefined();
+  });
+
+  it('merges the stored enrichment for the reference over the rule metadata', async () => {
+    const { retriever } = makeRetriever({
+      kind: 'document',
+      body: { userId: 'u1', text: 'hello' },
+    });
+    const get = vi.fn(() => ({ note: 'kept', user_id: 'override' }));
+    const enrichmentStore = { get } as unknown as EnrichmentStoreInterface;
+    const outcome = await makeResolver(retriever, enrichmentStore).resolve({
+      ref: REF,
+      rule: 'streak',
+    });
+    if (outcome.kind !== 'document') throw new Error('expected document');
+
+    expect(get).toHaveBeenCalledWith(REF);
+    // Composable merge: enrichment adds keys and overwrites scalars.
+    expect(outcome.document.metadata).toEqual({
+      user_id: 'override',
+      ref: REF,
+      note: 'kept',
+    });
+    expect(outcome.document.metadataWithRules).toMatchObject({
+      note: 'kept',
+      matched_rules: ['streak'],
+    });
   });
 
   it('embeds JSON as a JSON file would be when the rule has no template', async () => {

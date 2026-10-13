@@ -12,6 +12,7 @@ import {
   handleFailures,
   ProcessingFailure,
   type ProcessorIssues,
+  recordRuleErrors,
   reportFailure,
   withIssueType,
 } from './issueRecording';
@@ -152,6 +153,60 @@ describe('handleFailures', () => {
         { fallback: null },
       ),
     ).resolves.toBeNull();
+  });
+});
+
+describe('recordRuleErrors', () => {
+  const errors = [
+    { rule: 'r', stage: 'template' as const, message: 'boom' },
+    { rule: 'r', stage: 'render' as const, message: 'bang' },
+  ];
+  const message =
+    'Rule "r" template failed: boom; Rule "r" render failed: bang';
+  const upsert: IssueRecord = {
+    type: 'upsert_error',
+    message: 'partial',
+    timestamp: 1,
+  };
+
+  it('records one interpolation_error without clearing other issues', () => {
+    const issues = makeIssues([upsert]);
+    recordRuleErrors(asIssues(issues), 'a.md', errors);
+    expect(issues.clear).not.toHaveBeenCalled();
+    expect(issues.record).toHaveBeenCalledWith(
+      'a.md',
+      'interpolation_error',
+      message,
+      { operation: 'Rule interpolation', rules: ['r'], details: errors },
+    );
+  });
+
+  it('does not record an identical interpolation issue twice', () => {
+    const issues = makeIssues([
+      upsert,
+      { type: 'interpolation_error', message, timestamp: 1 },
+    ]);
+    recordRuleErrors(asIssues(issues), 'a.md', errors);
+    expect(issues.record).not.toHaveBeenCalled();
+  });
+
+  it('records an interpolation issue whose message changed', () => {
+    const issues = makeIssues([
+      { type: 'interpolation_error', message: 'older', timestamp: 1 },
+    ]);
+    recordRuleErrors(asIssues(issues), 'a.md', errors);
+    expect(issues.record).toHaveBeenCalledOnce();
+  });
+
+  it('records nothing without errors or without a store', () => {
+    const issues = makeIssues();
+    recordRuleErrors(asIssues(issues), 'a.md', []);
+    recordRuleErrors(asIssues(issues), 'a.md', undefined);
+    expect(issues.get).not.toHaveBeenCalled();
+    expect(issues.record).not.toHaveBeenCalled();
+    expect(() => {
+      recordRuleErrors(undefined, 'a.md', errors);
+    }).not.toThrow();
   });
 });
 
