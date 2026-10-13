@@ -7,10 +7,14 @@ export { SourceClient, type SourceRetriever } from './SourceClient';
 export { parseSourceReference } from './sourceUrl';
 export {
   type ParsedSourceReference,
+  parsedSourceReferenceSchema,
   type ResolvedSourceReference,
+  resolvedSourceReferenceSchema,
   type SourceErrorCode,
+  sourceErrorCodeSchema,
   SourceReferenceError,
   type SourceRejectionCode,
+  sourceRejectionCodeSchema,
   type SourceRetrievalResult,
   sourceRetrievalResultSchema,
 } from './types';

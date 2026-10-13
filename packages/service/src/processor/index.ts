@@ -38,6 +38,7 @@ import { FileResolver } from './resolvers/FileResolver';
 import type { RuleContext } from './resolvers/types';
 import {
   SourceOperations,
+  type SourceOperationsInterface,
   type SourceOperationsProvider,
 } from './SourceOperations';
 import { withSystemFields } from './systemFields';
@@ -125,9 +126,7 @@ export class DocumentProcessor
     return new FileResolver({ ...this.ruleContext(), contentHashCache });
   }
 
-  /**
-   * Build merged metadata for a file and add matched_rules.
-   */
+  /** Build merged metadata for a file and add matched_rules. */
   private buildMetadataWithRules(filePath: string) {
     return this.fileResolver().buildMetadata(filePath);
   }
@@ -174,7 +173,7 @@ export class DocumentProcessor
   }
 
   /** {@inheritDoc SourceOperationsProvider.sourceOperations} */
-  sourceOperations(): SourceOperations {
+  sourceOperations(): SourceOperationsInterface {
     return new SourceOperations({
       rules: this.ruleContext(),
       pipeline: this.pipelineContext(),

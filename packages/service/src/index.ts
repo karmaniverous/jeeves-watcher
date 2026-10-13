@@ -36,7 +36,11 @@ export {
   watchConfigSchema,
 } from './config';
 export { watcherDescriptor } from './descriptor';
-export type { EmbeddingProvider, ProviderFactory } from './embedding';
+export type {
+  EmbeddingProvider,
+  EmbedOptions,
+  ProviderFactory,
+} from './embedding';
 export { createEmbeddingProvider } from './embedding';
 export type { EnrichmentStoreInterface } from './enrichment';
 export { EnrichmentStore, mergeEnrichment } from './enrichment';
@@ -61,29 +65,55 @@ export type {
   RenderResult,
 } from './processor';
 export { DocumentProcessor } from './processor';
-export type { EventQueueOptions, ProcessFn, WatchEvent } from './queue';
+export type { IndexOptions } from './processor/documentPipeline';
+export type {
+  SourceOperationsInterface,
+  SourceOperationsProvider,
+  SourceRenderOutcome,
+} from './processor/SourceOperations';
+export type { SourceProcessorInterface } from './processor/types';
+export type {
+  EventQueueOptions,
+  PausableQueue,
+  ProcessFn,
+  WatchEvent,
+} from './queue';
 export { EventQueue } from './queue';
+export {
+  DEFAULT_SOURCE_NOTIFY_CONCURRENCY,
+  SourceNotifyQueue,
+  type SourceNotifyQueueOptions,
+  sourceNotifyQueueOptionsSchema,
+  SourceNotifyQueueStoppedError,
+} from './queue/SourceNotifyQueue';
 export type {
   ApplyRulesOptions,
   ApplyRulesResult,
   CompiledRule,
   FileAttributes,
+  RuleAttributes,
+  SourceAttributes,
 } from './rules';
 export {
   applyRules,
   buildAttributes,
   compileRules,
   type RuleLogger,
+  sourceAttributesSchema,
   VirtualRuleStore,
 } from './rules';
 export {
   type ParsedSourceReference,
+  parsedSourceReferenceSchema,
   parseSourceReference,
   type ResolvedSourceReference,
+  resolvedSourceReferenceSchema,
   SourceClient,
   type SourceErrorCode,
+  sourceErrorCodeSchema,
   SourceReferenceError,
   type SourceRejectionCode,
+  sourceRejectionCodeSchema,
   type SourceRetrievalResult,
   sourceRetrievalResultSchema,
   type SourceRetriever,
@@ -98,7 +128,11 @@ export {
   TemplateEngine,
 } from './templates';
 export { type ValuesIndex, ValuesManager } from './values';
-export type { ResolvedWatchRoot } from './vcs';
+export type {
+  CircuitBreakerSnapshot,
+  ResolvedWatchRoot,
+  VcsBreakerState,
+} from './vcs';
 export {
   type CommitInfo,
   CommitMessageGenerator,

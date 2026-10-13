@@ -42,7 +42,10 @@ export interface PipelineContext {
   valuesManager?: Pick<ValuesManager, 'update'>;
 }
 
-/** Options of {@link indexDocument}. */
+/**
+ * Options for indexing one document (see
+ * {@link SourceOperationsInterface.process}).
+ */
 export interface IndexOptions {
   /**
    * Re-embed and rewrite even when the content hash is unchanged (source

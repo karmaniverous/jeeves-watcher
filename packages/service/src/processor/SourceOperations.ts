@@ -65,7 +65,7 @@ export interface SourceOperationsInterface {
   ): Promise<Record<string, unknown> | null>;
 }
 
-/** A processor exposing source operations (see {@link hasSourceOperations}). */
+/** A processor exposing source operations (`DocumentProcessor` implements it). */
 export interface SourceOperationsProvider {
   /** Source operations bound to the processor's current rules and stores. */
   sourceOperations(): SourceOperationsInterface;

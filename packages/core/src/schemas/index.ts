@@ -21,8 +21,11 @@ export {
   type InferenceRule,
   inferenceRuleSchema,
   type RenderBodySection,
+  renderBodySectionSchema,
   type RenderConfig,
+  renderConfigSchema,
   type SchemaEntry,
+  schemaEntrySchema,
 } from './inference.js';
 
 // Payload index schemas
