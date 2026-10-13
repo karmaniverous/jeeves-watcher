@@ -66,6 +66,28 @@ describe('waitForQdrantReady', () => {
     expect(String(await caught)).toMatch(/not ready after 1000 ms/);
   });
 
+  it('abandons a hung probe after probeTimeoutMs and probes again', async () => {
+    // AbortSignal.timeout runs on real timers.
+    vi.useRealTimers();
+    let calls = 0;
+    const fetchImpl = ((_url: string, init?: RequestInit) => {
+      calls += 1;
+      if (calls > 1) return Promise.resolve(new Response('ok'));
+      return new Promise<Response>((_resolve, reject) => {
+        init?.signal?.addEventListener('abort', () => {
+          reject(new Error('probe aborted'));
+        });
+      });
+    }) as typeof fetch;
+    await waitForQdrantReady('http://h', {
+      fetchImpl,
+      intervalMs: 10,
+      probeTimeoutMs: 50,
+      timeoutMs: 5_000,
+    });
+    expect(calls).toBe(2);
+  });
+
   it('aborts early with the reported reason', async () => {
     const fetchImpl = flakyFetch(Number.POSITIVE_INFINITY);
     let exited = false;

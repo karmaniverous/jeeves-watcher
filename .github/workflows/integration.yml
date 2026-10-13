@@ -87,4 +87,9 @@ jobs:
 
       - name: Provisioning smoke test (throwaway Qdrant)
         working-directory: packages/service
-        run: npx vitest run src/test/harness src/test/auth-indexes-integration.test.ts
+        # The release binary is the preferred strategy: fail if the run fell
+        # back to Docker, which would hide a broken download or verification.
+        run: |
+          set -o pipefail
+          npx vitest run src/test/harness src/test/auth-indexes-integration.test.ts 2>&1 | tee provisioning.log
+          grep -F "throwaway Qdrant (binary)" provisioning.log

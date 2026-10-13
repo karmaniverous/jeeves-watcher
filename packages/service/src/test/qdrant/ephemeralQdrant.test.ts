@@ -55,4 +55,16 @@ describe('provisionEphemeralQdrant', () => {
       'docker: docker not found',
     ]);
   });
+
+  it('records a strategy rejecting with a non-Error value as text', async () => {
+    const result = await provisionEphemeralQdrant([
+      {
+        name: 'docker',
+        start: vi
+          .fn<Strategy['start']>()
+          .mockRejectedValue('daemon not running'),
+      },
+    ]);
+    expect(result.failures).toEqual(['docker: daemon not running']);
+  });
 });

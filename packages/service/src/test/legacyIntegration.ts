@@ -88,11 +88,14 @@ export function useLegacyIntegration(): LegacyIntegration {
   });
 
   afterAll(async () => {
-    // Drop first: runs even when beforeAll failed before the store opened.
-    await dropCollection(config.vectorStore.collectionName);
-    // Undefined when beforeAll failed before the store opened.
-    (fixture.enrichmentStore as EnrichmentStore | undefined)?.close();
-    await cleanupTestDirs();
+    try {
+      // Drop first: runs even when beforeAll failed before the store opened.
+      await dropCollection(config.vectorStore.collectionName);
+    } finally {
+      // Undefined when beforeAll failed before the store opened.
+      (fixture.enrichmentStore as EnrichmentStore | undefined)?.close();
+      await cleanupTestDirs();
+    }
   });
 
   beforeEach(async () => {

@@ -27,7 +27,6 @@ describe('sharedInstanceError', () => {
   it.each([
     [[], undefined],
     [['jeeves_watcher_it_x'], undefined],
-    [['jeeves_watcher_it_x'], 'true'],
   ])('allows %j (QDRANT_ALLOW_SHARED=%s)', (names, allow) => {
     expect(sharedInstanceError('http://q', names, allow)).toBeUndefined();
   });
@@ -89,6 +88,12 @@ describe('assertNotSharedQdrant', () => {
     ).resolves.toBeUndefined();
     expect(fetchMock.mock.calls[0]?.[0]).toBe('http://q/collections');
     expect(fetchMock.mock.calls[0]?.[1]?.headers).toEqual({ 'api-key': 'k' });
+  });
+
+  it('sends no api-key header without QDRANT_API_KEY', async () => {
+    const fetchMock = stubCollections([]);
+    await assertNotSharedQdrant('http://q', {});
+    expect(fetchMock.mock.calls[0]?.[1]?.headers).toEqual({});
   });
 
   it('refuses an instance with foreign collections', async () => {

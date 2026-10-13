@@ -1,7 +1,9 @@
 /**
  * @module test/qdrant/assets.test
- * Tests for release-asset selection per platform and download URLs.
+ * Tests for release-asset selection per platform and download URLs; the pinned version matches the CI workflow's Qdrant service image.
  */
+
+import { readFileSync } from 'node:fs';
 
 import { describe, expect, it } from 'vitest';
 
@@ -41,7 +43,15 @@ describe('qdrantAssetUrl', () => {
     );
   });
 
-  it('pins the CI image version', () => {
-    expect(QDRANT_VERSION).toBe('1.19.1');
+  it('pins the version of the CI Qdrant service image', () => {
+    const workflow = readFileSync(
+      new URL(
+        '../../../../../.github/workflows/integration.yml',
+        import.meta.url,
+      ),
+      'utf8',
+    );
+    const image = /image:\s*qdrant\/qdrant:v(\S+)/.exec(workflow);
+    expect(image?.[1]).toBe(QDRANT_VERSION);
   });
 });

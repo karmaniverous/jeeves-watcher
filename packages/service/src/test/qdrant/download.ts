@@ -2,6 +2,7 @@
  * @module test/qdrant/download
  * Download, verify (SHA-256), extract and cache the official Qdrant release binary for this platform; network + fs + `tar` child process.
  * Cache: `QDRANT_CACHE_DIR` or `<cwd>/node_modules/.cache/qdrant/<version>`; populated atomically (stage dir, then rename). The cached executable is re-hashed against its pinned digest on every use.
+ * Network and child-process I/O go through {@link DownloadDeps}, so tests inject fakes.
  */
 
 import { execFile } from 'node:child_process';
@@ -26,6 +27,32 @@ import {
 } from './assets';
 
 const execFileAsync = promisify(execFile);
+
+/** Run an executable and collect its stdout (a promisified `execFile`). */
+type ExecFile = (
+  file: string,
+  args: string[],
+  options: { timeout: number },
+) => Promise<{ stdout: string }>;
+
+/** I/O seams of {@link ensureQdrantBinary}. */
+export interface DownloadDeps {
+  /** HTTP client for the release download. */
+  fetch: typeof fetch;
+  /** Runs `tar` and `<binary> --version`. */
+  execFile: ExecFile;
+  /** The release asset for this platform (`undefined`: unsupported). */
+  asset: QdrantAsset | undefined;
+}
+
+/** The real I/O for this platform. */
+function defaultDeps(): DownloadDeps {
+  return {
+    fetch,
+    execFile: execFileAsync,
+    asset: selectQdrantAsset(process.platform, process.arch),
+  };
+}
 
 /**
  * Default cache directory for the pinned Qdrant version.
@@ -91,10 +118,14 @@ function tarCommand(): string {
  * Run `<binary> --version` and check it reports the pinned version.
  *
  * @param binaryPath - Path to the Qdrant executable.
+ * @param run - Process runner (default: `execFile`).
  * @throws When it does not run or reports another version.
  */
-export async function verifyQdrantBinary(binaryPath: string): Promise<void> {
-  const { stdout } = await execFileAsync(binaryPath, ['--version'], {
+export async function verifyQdrantBinary(
+  binaryPath: string,
+  run: ExecFile = execFileAsync,
+): Promise<void> {
+  const { stdout } = await run(binaryPath, ['--version'], {
     timeout: 30_000,
   });
   if (!stdout.includes(QDRANT_VERSION)) {
@@ -108,9 +139,10 @@ export async function verifyQdrantBinary(binaryPath: string): Promise<void> {
 async function populateCache(
   asset: QdrantAsset,
   cacheDir: string,
+  deps: DownloadDeps,
 ): Promise<void> {
   const url = qdrantAssetUrl(asset);
-  const res = await fetch(url, { signal: AbortSignal.timeout(300_000) });
+  const res = await deps.fetch(url, { signal: AbortSignal.timeout(300_000) });
   if (!res.ok) {
     throw new Error(`GET ${url} failed: ${String(res.status)}`);
   }
@@ -123,7 +155,7 @@ async function populateCache(
   try {
     const archive = join(stage, asset.name);
     await writeFile(archive, data);
-    await execFileAsync(tarCommand(), ['-xf', archive, '-C', stage], {
+    await deps.execFile(tarCommand(), ['-xf', archive, '-C', stage], {
       timeout: 120_000,
     });
     await rm(archive, { force: true });
@@ -133,7 +165,7 @@ async function populateCache(
     }
     if (process.platform !== 'win32') await chmod(binary, 0o755);
     await verifyBinaryDigest(binary, asset.binarySha256);
-    await verifyQdrantBinary(binary);
+    await verifyQdrantBinary(binary, deps.execFile);
     await rm(cacheDir, { recursive: true, force: true });
     await rename(stage, cacheDir);
   } finally {
@@ -147,13 +179,15 @@ async function populateCache(
  * SHA-256 or fails to run.
  *
  * @param cacheDir - Versioned cache directory (default {@link qdrantCacheDir}).
+ * @param deps - Network, process and asset seams (default: the real ones).
  * @returns Absolute path of the executable.
  * @throws When the platform is unsupported or download/extraction fails.
  */
 export async function ensureQdrantBinary(
   cacheDir: string = qdrantCacheDir(),
+  deps: DownloadDeps = defaultDeps(),
 ): Promise<string> {
-  const asset = selectQdrantAsset(process.platform, process.arch);
+  const { asset } = deps;
   if (!asset) {
     throw new Error(
       `No Qdrant ${QDRANT_VERSION} release binary for ${process.platform}-${process.arch}`,
@@ -163,12 +197,12 @@ export async function ensureQdrantBinary(
   if (existsSync(binary)) {
     try {
       await verifyBinaryDigest(binary, asset.binarySha256);
-      await verifyQdrantBinary(binary);
+      await verifyQdrantBinary(binary, deps.execFile);
       return binary;
     } catch {
       // Tampered, corrupt or foreign cache entry: fetch a fresh copy below.
     }
   }
-  await populateCache(asset, cacheDir);
+  await populateCache(asset, cacheDir, deps);
   return binary;
 }

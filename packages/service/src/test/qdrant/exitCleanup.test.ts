@@ -18,12 +18,12 @@ function fakeProcess() {
 }
 
 describe('registerExitCleanup', () => {
-  it('runs cleanup once on exit', () => {
+  it('runs cleanup once across a signal and the exit that follows', () => {
     const { proc, emitter } = fakeProcess();
     const cleanup = vi.fn();
     registerExitCleanup(cleanup, proc);
-    emitter.emit('exit', 0);
-    emitter.emit('exit', 0);
+    emitter.emit('SIGTERM');
+    emitter.emit('exit', 143);
     expect(cleanup).toHaveBeenCalledTimes(1);
   });
 
