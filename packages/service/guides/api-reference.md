@@ -197,7 +197,7 @@ Render a document through the inference rule engine without embedding. Returns t
 ```bash
 curl -X POST http://localhost:1936/render \
   -H "Content-Type: application/json" \
-  -d '{"path": "j:/domains/slack/C0ABC/1234567.json"}'
+  -d '{"path": "/data/chat/general/1234567.json"}'
 ```
 
 **Body schema:**
@@ -543,12 +543,12 @@ Schema: `scanRequestSchema` in `@karmaniverous/jeeves-watcher-core`; the default
   "points": [
     {
       "id": "uuid-chunk-0",
-      "payload": { "file_path": "j:/domains/email/msg.json", "domain": "email" }
+      "payload": { "file_path": "/data/email/msg.json", "domain": "email" }
     },
     {
       "id": "uuid-chunk-1",
       "payload": {
-        "file_path": "j:/domains/email/msg2.json",
+        "file_path": "/data/email/msg2.json",
         "domain": "email"
       }
     }
@@ -621,7 +621,7 @@ List watched files whose paths match globs, from the filesystem watcher's in-mem
 ```bash
 curl -X POST http://localhost:1936/walk \
   -H "Content-Type: application/json" \
-  -d '{"globs": ["/data/domains/email/**/*.json"]}'
+  -d '{"globs": ["/data/email/**/*.json"]}'
 ```
 
 **Body schema:**
@@ -638,7 +638,7 @@ curl -X POST http://localhost:1936/walk \
 
 ```json
 {
-  "paths": ["/data/domains/email/archive/msg-456.json"],
+  "paths": ["/data/email/archive/msg-456.json"],
   "matchedCount": 1,
   "scannedRoots": ["/data/domains"]
 }
@@ -745,7 +745,7 @@ curl -X POST http://localhost:1936/reindex \
 # Re-process a specific directory
 curl -X POST http://localhost:1936/reindex \
   -H "Content-Type: application/json" \
-  -d '{"scope": "path", "path": "j:/domains/projects/jeeves-watcher"}'
+  -d '{"scope": "path", "path": "/data/projects/example-app"}'
 
 # Re-process specific source documents (v0.20.0+)
 curl -X POST http://localhost:1936/reindex \
@@ -776,8 +776,8 @@ curl -X POST http://localhost:1936/reindex \
     "toProcess": 148000,
     "toDelete": 0,
     "byRoot": {
-      "j:/domains": 95000,
-      "j:/config": 3000
+      "/data": 95000,
+      "/srv/config": 3000
     }
   }
 }
@@ -803,8 +803,8 @@ curl -X POST http://localhost:1936/reindex \
     "toProcess": 0,
     "toDelete": 2300,
     "byRoot": {
-      "j:/jeeves/node_modules": 1800,
-      "j:/jeeves/.bridge": 500
+      "/srv/app/node_modules": 1800,
+      "/srv/app/.cache": 500
     }
   }
 }
@@ -1115,7 +1115,7 @@ curl http://localhost:1936/issues
 {
   "count": 2,
   "issues": {
-    "j:/domains/jira/VCN/issue/WEB-123.json": [
+    "/data/tickets/PROJ-123.json": [
       {
         "type": "type_collision",
         "property": "created",
@@ -1125,7 +1125,7 @@ curl http://localhost:1936/issues
         "timestamp": 1771865063
       }
     ],
-    "j:/domains/email/archive/msg-456.json": [
+    "/data/email/archive/msg-456.json": [
       {
         "type": "interpolation_error",
         "property": "author_email",
@@ -1319,9 +1319,9 @@ curl -X POST http://localhost:1936/config/match \
   -H "Content-Type: application/json" \
   -d '{
     "paths": [
-      "j:/domains/jira/VCN/issue/WEB-123.json",
-      "j:/domains/slack/C0ABC/1234567.json",
-      "j:/domains/unknown/file.txt"
+      "/data/tickets/PROJ-123.json",
+      "/data/chat/general/1234567.json",
+      "/data/unknown/file.txt"
     ]
   }'
 ```
@@ -1517,7 +1517,7 @@ The body has no core schema; other keys are ignored. A `patch` that is not an ob
 {
   "applied": true,
   "config": {
-    "watch": { "paths": ["j:/domains/**"], "ignored": [] },
+    "watch": { "paths": ["/data/**"], "ignored": [] },
     "inferenceRules": [
       {
         "name": "new-rule",
@@ -1738,7 +1738,7 @@ Re-apply current inference rules to indexed files matching glob patterns, withou
 curl -X POST http://localhost:1936/rules/reapply \
   -H "Content-Type: application/json" \
   -d '{
-    "globs": ["j:/domains/email/**"]
+    "globs": ["/data/email/**"]
   }'
 ```
 

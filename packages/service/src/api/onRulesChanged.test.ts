@@ -47,14 +47,14 @@ describe('onRulesChanged auto-reindex (Fix 21)', () => {
       embeddingProvider: {} as never,
       queue: {} as never,
       config: {
-        watch: { paths: ['j:/domains/**/*.md'], ignored: [] },
+        watch: { paths: ['c:/data/**/*.md'], ignored: [] },
         api: {},
         vectorStore: { collectionName: 'test' },
         inferenceRules: [],
       } as never,
       getConfig: () =>
         ({
-          watch: { paths: ['j:/domains/**/*.md'], ignored: [] },
+          watch: { paths: ['c:/data/**/*.md'], ignored: [] },
           api: {},
           vectorStore: { collectionName: 'test' },
           inferenceRules: [],

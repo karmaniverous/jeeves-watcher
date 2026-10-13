@@ -11,7 +11,7 @@ describe('documentKey', () => {
   it.each([
     ['app://chat/thread/AbC', true],
     ['support://ticket/1', true],
-    ['j:/docs/a.md', false],
+    ['c:/docs/a.md', false],
     ['C:\\docs\\a.md', false],
     ['c://docs/a.md', false],
     ['/var/data/a.md', false],
@@ -26,6 +26,6 @@ describe('documentKey', () => {
   });
 
   it('normalises file paths', () => {
-    expect(normalizeDocumentKey('J:\\Docs\\A.md')).toBe('j:/docs/a.md');
+    expect(normalizeDocumentKey('C:\\Docs\\A.md')).toBe('c:/docs/a.md');
   });
 });

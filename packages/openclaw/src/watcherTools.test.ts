@@ -159,9 +159,9 @@ describe('tool execution', () => {
 
   it('watcher_walk POSTs globs', async () => {
     const fetchMock = mockFetch({
-      paths: ['j:/domains/foo/bar.md'],
+      paths: ['c:/data/foo/bar.md'],
       matchedCount: 1,
-      scannedRoots: ['j:/domains'],
+      scannedRoots: ['c:/data'],
     });
     vi.stubGlobal('fetch', fetchMock);
     await run(captureTools(), 'watcher_walk', {

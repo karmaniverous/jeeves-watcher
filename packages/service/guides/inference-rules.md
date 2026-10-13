@@ -390,20 +390,20 @@ interface FileAttributes {
 }
 ```
 
-**Example** (for `j:/domains/jira/VCN/issue/WEB-123.json`):
+**Example** (for `/data/tickets/PROJ-123.json`):
 
 ```json
 {
   "file": {
-    "path": "j:/domains/jira/VCN/issue/WEB-123.json",
-    "directory": "j:/domains/jira/VCN/issue",
-    "filename": "WEB-123.json",
+    "path": "/data/tickets/PROJ-123.json",
+    "directory": "/data/tickets",
+    "filename": "PROJ-123.json",
     "extension": ".json",
     "sizeBytes": 8452,
     "modified": "2026-02-24T08:15:00.000Z"
   },
   "json": {
-    "entityKey": "WEB-123",
+    "entityKey": "PROJ-123",
     "current": {
       "fields": {
         "summary": "Fix login bug",
@@ -433,7 +433,7 @@ The watcher registers a custom `glob` keyword for path matching using [picomatch
     "properties": {
       "file": {
         "properties": {
-          "path": { "type": "string", "glob": "j:/domains/jira/**/*.json" }
+          "path": { "type": "string", "glob": "/data/tickets/**/*.json" }
         }
       }
     }
@@ -508,7 +508,7 @@ Every embedded point includes a `matched_rules` field: an array of the names of 
 
 ```json
 {
-  "file_path": "j:/domains/jira/VCN/issue/WEB-123.json",
+  "file_path": "/data/tickets/PROJ-123.json",
   "chunk_index": 0,
   "matched_rules": ["jira-issue", "json-subject"],
   "domain": "jira",
@@ -532,11 +532,11 @@ The watcher maintains a **values index** (`values.v8` in `stateDir`, a V8-serial
   "jira-issue": {
     "status": ["Done", "In Progress", "In Review", "To Do"],
     "priority": ["High", "Highest", "Low", "Lowest", "Medium"],
-    "assignee": ["Devin Becker", "Jason Williscroft"]
+    "assignee": ["Alice Example", "Bob Example"]
   },
   "slack-message": {
     "channel_name": ["general", "project-jeeves-watcher"],
-    "userName": ["Jason Williscroft", "Jeeves"]
+    "userName": ["Alice Example", "Jeeves"]
   }
 }
 ```
@@ -571,7 +571,7 @@ A persistent, self-healing ledger of documents that failed to process. Keyed by 
 
 ```json
 {
-  "j:/domains/email/archive/msg-456.json": [
+  "/data/email/archive/msg-456.json": [
     {
       "type": "interpolation_error",
       "message": "Rule \"email-archive\" schema failed: Property \"author_email\" in rule \"email-archive\" has no declared type. Every property must have a type.",
@@ -777,7 +777,7 @@ inferred (from rules) → enrichment (from enrichments.sqlite) → system fields
         "properties": {
           "file": {
             "properties": {
-              "path": { "glob": "j:/domains/email/archive/**" }
+              "path": { "glob": "/data/email/archive/**" }
             }
           }
         }
@@ -791,7 +791,7 @@ inferred (from rules) → enrichment (from enrichments.sqlite) → system fields
         "properties": {
           "file": {
             "properties": {
-              "path": { "glob": "j:/domains/meetings/**" }
+              "path": { "glob": "/data/meetings/**" }
             }
           }
         }
@@ -891,7 +891,7 @@ This rule uses the `base` schema from example 1.
     "properties": {
       "file": {
         "properties": {
-          "path": { "glob": "j:/domains/projects/**" },
+          "path": { "glob": "/data/projects/**" },
           "extension": { "const": ".md" }
         },
         "required": ["path", "extension"]
@@ -943,7 +943,7 @@ This is a schema check only. To also check merged rule schemas, helper files and
 ```bash
 curl -X POST http://localhost:1936/config/validate \
   -H "Content-Type: application/json" \
-  -d '{"testPaths": ["j:/domains/jira/VCN/issue/WEB-123.json"]}'
+  -d '{"testPaths": ["/data/tickets/PROJ-123.json"]}'
 ```
 
 For runtime testing, check logs:
@@ -965,7 +965,7 @@ Use `POST /config/match` to test paths against rules without indexing (matching 
 ```bash
 curl -X POST http://localhost:1936/config/match \
   -H "Content-Type: application/json" \
-  -d '{"paths": ["j:/domains/jira/VCN/issue/WEB-123.json"]}'
+  -d '{"paths": ["/data/tickets/PROJ-123.json"]}'
 ```
 
 ---

@@ -25,10 +25,10 @@ export function idKey0191(filePath: string, chunk: number): string {
 export const GOLDEN_IDS_0191: ReadonlyArray<
   readonly [string, number | undefined, string]
 > = [
-  ['J:\\Docs\\A.md', 0, 'a5ebc023-6e3b-55a3-8403-a58e69dd7d16'],
-  ['j:/docs/a.md', 1, 'd213a69e-0e0f-5164-8bc8-e7f18251a424'],
-  ['J:/Docs/A.md', undefined, '7dc9f1e3-a0b6-5fff-92ef-7d4d12b55314'],
-  ['/home/jeeves/notes/readme.md', 0, '2ff3c683-0b72-5336-8747-8a09a94696ca'],
+  ['C:\\Docs\\A.md', 0, 'e8769851-9954-511d-8ef7-03878dae29fd'],
+  ['c:/docs/a.md', 1, '524e829d-c402-592b-9618-10ede66d87fd'],
+  ['C:/Docs/A.md', undefined, '04bf0dc1-9708-5f13-94ec-932cb0f1f6e7'],
+  ['/home/user/notes/readme.md', 0, 'a8888d96-6b25-5e78-9b54-e6be93a8a7ee'],
   ['C:\\Users\\X\\My File.txt', 3, '72b32538-4b69-5ec4-b566-4eafcde9e1e3'],
 ];
 

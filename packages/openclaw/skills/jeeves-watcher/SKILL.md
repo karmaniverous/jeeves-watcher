@@ -453,7 +453,7 @@ The tool has no `source` parameter. To re-process specific source references, ca
     "total": 148000,
     "toProcess": 148000,
     "toDelete": 0,
-    "byRoot": { "j:/domains": 95000, "j:/config": 3000 }
+    "byRoot": { "/data": 95000, "/srv/config": 3000 }
   }
 }
 ```
@@ -468,7 +468,7 @@ The tool has no `source` parameter. To re-process specific source references, ca
     "total": 562000,
     "toProcess": 0,
     "toDelete": 2300,
-    "byRoot": { "j:/jeeves/node_modules": 1800, "j:/jeeves/.bridge": 500 }
+    "byRoot": { "/srv/app/node_modules": 1800, "/srv/app/.cache": 500 }
   }
 }
 ```
@@ -506,7 +506,7 @@ Filter-only point query without vector search (`POST /scan`). Use for structural
   "points": [
     {
       "id": "uuid",
-      "payload": { "file_path": "j:/domains/jira/PROJ-123.json" }
+      "payload": { "file_path": "/data/tickets/PROJ-123.json" }
     }
   ],
   "cursor": "opaque-string-or-null"
@@ -559,9 +559,9 @@ List watched files matching globs (`POST /walk`). Returns matching file paths fr
 
 ```json
 {
-  "paths": ["j:/domains/foo/.meta/meta.json", "j:/domains/bar/.meta/meta.json"],
+  "paths": ["/data/foo/.meta/meta.json", "/data/bar/.meta/meta.json"],
   "matchedCount": 2,
-  "scannedRoots": ["j:/domains", "j:/config"]
+  "scannedRoots": ["/data", "/srv/config"]
 }
 ```
 
@@ -607,7 +607,7 @@ List watched files matching globs (`POST /walk`). Returns matching file paths fr
 **Path prefix matching:**
 
 ```json
-{ "must": [{ "key": "file_path", "match": { "text": "j:/domains/jira" } }] }
+{ "must": [{ "key": "file_path", "match": { "text": "/data/tickets" } }] }
 ```
 
 **Count files in a domain (no point data transferred):**
@@ -821,7 +821,7 @@ Search gives you chunks; use `read` with `file_path` for the complete document. 
 When uncertain whether a file would be indexed, test it against the rules. `watcher_validate` with `testPaths` (and no `config`) runs the current rules against each path and returns `{ path, matchedRules, metadata }` per path (`error: "File not found"` when the file cannot be read):
 
 ```
-watcher_validate: testPaths=["j:/domains/jira/PROJ-123.json"]
+watcher_validate: testPaths=["/data/tickets/PROJ-123.json"]
 ```
 
 Or call `POST /config/match` directly with `{ "paths": [...] }`. It returns `{ matches: [{ rules, watched }] }`, one entry per path, without reading the files:
@@ -987,37 +987,37 @@ The watcher includes built-in history and undo for your watched files. When enab
 **View recent changes to a file:**
 
 ```
-watcher_vcs_history: glob="J:/domains/jira/PROJ-123.json", limit=10
+watcher_vcs_history: glob="/data/tickets/PROJ-123.json", limit=10
 ```
 
 **See what changed between two versions:**
 
 ```
-watcher_vcs_diff: glob="J:/domains/jira/PROJ-123.json", commit="abc1234"
+watcher_vcs_diff: glob="/data/tickets/PROJ-123.json", commit="abc1234"
 ```
 
 **Restore a file to a previous version:**
 
 ```
-watcher_vcs_revert: glob="J:/domains/jira/PROJ-123.json", commit="abc1234"
+watcher_vcs_revert: glob="/data/tickets/PROJ-123.json", commit="abc1234"
 ```
 
 **View old content without restoring:**
 
 ```
-watcher_vcs_show: path="J:/domains/jira/PROJ-123.json", commit="abc1234"
+watcher_vcs_show: path="/data/tickets/PROJ-123.json", commit="abc1234"
 ```
 
 **Exclude files that don't need versioning** (e.g., Jira issues that are read-only syncs):
 
 ```
-watcher_vcs_exclude: glob="J:/domains/jira/**/*.json"
+watcher_vcs_exclude: glob="/data/tickets/**/*.json"
 ```
 
 **Check if a file is excluded and why:**
 
 ```
-watcher_vcs_check: path="J:/domains/jira/PROJ-123.json"
+watcher_vcs_check: path="/data/tickets/PROJ-123.json"
 ```
 
 ### Enabling Version Tracking
@@ -1030,7 +1030,7 @@ Squash retention activates by default when VCS is enabled, even without explicit
 
 Not all watched files need version history. For example, if Jira issues are synced read-only, there's nothing to "undo." Use `watcher_vcs_exclude` to stop tracking specific paths.
 
-Exclusions are placed as close to the target as possible: if you exclude `J:/domains/jira/**/*.json`, the exclusion rule is written inside the `J:/domains/jira/` directory, not at the root. This keeps exclusions local and easy to reason about. Re-include a path by calling `watcher_vcs_exclude` with `remove: true`.
+Exclusions are placed as close to the target as possible: if you exclude `/data/tickets/**/*.json`, the exclusion rule is written inside the `/data/tickets/` directory, not at the root. This keeps exclusions local and easy to reason about. Re-include a path by calling `watcher_vcs_exclude` with `remove: true`.
 
 ### Score Interpretation
 

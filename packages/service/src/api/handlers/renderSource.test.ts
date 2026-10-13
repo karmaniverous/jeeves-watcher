@@ -112,8 +112,8 @@ describe('POST /render { source }', () => {
   });
 
   it('keeps caching path renders', async () => {
-    await render({ path: 'j:/docs/a.md' });
-    await render({ path: 'j:/docs/a.md' });
+    await render({ path: 'c:/docs/a.md' });
+    await render({ path: 'c:/docs/a.md' });
     expect(renderFile).toHaveBeenCalledTimes(1);
   });
 

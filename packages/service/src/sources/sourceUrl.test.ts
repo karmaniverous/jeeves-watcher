@@ -38,7 +38,7 @@ describe('parseSourceReference', () => {
     'APP://x',
     'app://',
     'app://a b',
-    'j:/path',
+    'c:/path',
     `app://${'x'.repeat(513)}`,
   ])('rejects %j as invalid_reference', (ref) => {
     expect(rejection(() => parseSourceReference(ref)).code).toBe(

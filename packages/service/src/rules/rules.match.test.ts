@@ -79,7 +79,7 @@ describe('rules engine: matching', () => {
           properties: {
             file: {
               properties: {
-                path: { glob: 'J:/docs/**/*.md' },
+                path: { glob: 'C:/docs/**/*.md' },
               },
             },
           },
@@ -90,8 +90,8 @@ describe('rules engine: matching', () => {
     const compiled = compileRules(rules);
     const attrs = makeAttributes({
       file: {
-        path: 'j:/docs/readme.md',
-        directory: 'j:/docs',
+        path: 'c:/docs/readme.md',
+        directory: 'c:/docs',
         filename: 'readme.md',
         extension: '.md',
         sizeBytes: 1024,
@@ -111,7 +111,7 @@ describe('rules engine: matching', () => {
           properties: {
             file: {
               properties: {
-                path: { glob: 'j:/config/**' },
+                path: { glob: 'c:/config/**' },
               },
             },
           },
@@ -122,8 +122,8 @@ describe('rules engine: matching', () => {
     const compiled = compileRules(rules);
     const attrs = makeAttributes({
       file: {
-        path: 'j:/config/.hidden/test.json',
-        directory: 'j:/config/.hidden',
+        path: 'c:/config/.hidden/test.json',
+        directory: 'c:/config/.hidden',
         filename: 'test.json',
         extension: '.json',
         sizeBytes: 512,

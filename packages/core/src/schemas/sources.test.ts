@@ -100,7 +100,7 @@ describe('sourceReferenceSchema', () => {
   it.each([
     'app:abc',
     'c://abc',
-    'j://abc',
+    'x://abc',
     'app://',
     'app://has space',
     'APP://abc',

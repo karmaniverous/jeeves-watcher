@@ -15,7 +15,7 @@ describe('createWalkHandler', () => {
   });
 
   const makeDeps = (): WalkRouteDeps => ({
-    getWatchPaths: () => ['j:/domains/**/*.md', 'j:/config/**/*.json'],
+    getWatchPaths: () => ['c:/data/**/*.md', 'c:/config/**/*.json'],
     getFileSystemWatcher: () => mockWatcher as never,
     logger: { warn: vi.fn(), error: vi.fn(), info: vi.fn() } as never,
   });
@@ -25,9 +25,9 @@ describe('createWalkHandler', () => {
     const handler = createWalkHandler(deps);
 
     mockWatcher.getWatchedFiles.mockReturnValue([
-      'j:/domains/foo/.meta/meta.json',
-      'j:/domains/bar/readme.md',
-      'j:/domains/baz/.meta/meta.json',
+      'c:/data/foo/.meta/meta.json',
+      'c:/data/bar/readme.md',
+      'c:/data/baz/.meta/meta.json',
     ]);
 
     const request = {
@@ -44,8 +44,8 @@ describe('createWalkHandler', () => {
       scannedRoots: string[];
     };
     expect(callArg.paths).toEqual([
-      'j:/domains/foo/.meta/meta.json',
-      'j:/domains/baz/.meta/meta.json',
+      'c:/data/foo/.meta/meta.json',
+      'c:/data/baz/.meta/meta.json',
     ]);
     expect(callArg.matchedCount).toBe(2);
     expect(Array.isArray(callArg.scannedRoots)).toBe(true);
@@ -60,8 +60,8 @@ describe('createWalkHandler', () => {
       getWatchedFiles: vi
         .fn()
         .mockReturnValue([
-          'j:/domains/foo/.meta/meta.json',
-          'j:/domains/baz/.meta/meta.json',
+          'c:/data/foo/.meta/meta.json',
+          'c:/data/baz/.meta/meta.json',
         ]),
       isReady: true,
     };
@@ -149,7 +149,7 @@ describe('createWalkHandler', () => {
 
   it('returns 503 when watcher is not available', async () => {
     const deps: WalkRouteDeps = {
-      getWatchPaths: () => ['j:/domains/**/*.md'],
+      getWatchPaths: () => ['c:/data/**/*.md'],
       logger: { warn: vi.fn(), error: vi.fn(), info: vi.fn() } as never,
     };
     const handler = createWalkHandler(deps);

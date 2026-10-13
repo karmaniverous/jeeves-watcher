@@ -145,7 +145,7 @@ describe('SquashManager guards (#249)', () => {
   it('aborts a failed cherry-pick so no sequencer is left behind', async () => {
     // A retained merge commit makes `git cherry-pick <list>` fail for real
     // ("is a merge but no -m option was given") after it has started a
-    // sequence, which is the state that wedged J:\veterancrowd.
+    // sequence, which is the state that wedged a production repository.
     await createCommit(tempDir, 'old1.txt', 'a', daysAgo(60));
     await createCommit(tempDir, 'old2.txt', 'b', daysAgo(50));
     await createCommit(tempDir, 'recent.txt', 'c', daysAgo(2));

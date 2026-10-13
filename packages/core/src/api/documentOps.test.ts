@@ -14,7 +14,7 @@ import {
 
 describe('renderRequestSchema', () => {
   it.each([
-    ['a path', { path: 'j:/domains/a.md' }],
+    ['a path', { path: 'c:/data/a.md' }],
     ['a source', { source: 'app://chat/thread/1' }],
   ])('accepts %s', (_label, body) => {
     expect(renderRequestSchema.parse(body)).toEqual(body);

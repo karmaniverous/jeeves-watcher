@@ -326,7 +326,7 @@ Rules are **JSON Schema `match` + `schema` arrays**, evaluated in order against 
     "modified": "2026-02-20T08:15:00.000Z"
   },
   "frontmatter": { "title": "Meeting Notes", "author": "jeeves" },
-  "json": { "participants": ["Jason", "Devin"] }
+  "json": { "participants": ["Alice", "Bob"] }
 }
 ```
 

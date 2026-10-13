@@ -24,8 +24,8 @@ vi.mock('node:fs/promises', async (importOriginal) => ({
 
 import { buildMergedMetadata } from './buildMetadata';
 
-const STORED_PATH = 'J:/Docs/Report.md';
-const REQUESTED = 'j:\\docs\\report.md';
+const STORED_PATH = 'C:/Docs/Report.md';
+const REQUESTED = 'c:\\docs\\report.md';
 
 const templateError: RuleApplicationError = {
   rule: 'r',

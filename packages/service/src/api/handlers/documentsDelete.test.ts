@@ -69,7 +69,7 @@ beforeEach(() => {
   points.set('a0', { source: 'app://a', user_id: 'u1' });
   points.set('a1', { source: 'app://a', user_id: 'u1' });
   points.set('b0', { source: 'app://b', user_id: 'u2' });
-  points.set('f0', { file_path: 'j:/docs/a.md', user_id: 'u1' });
+  points.set('f0', { file_path: 'c:/docs/a.md', user_id: 'u1' });
 });
 
 afterAll(async () => {
@@ -126,7 +126,7 @@ describe('POST /documents/delete', () => {
   it('can never delete file points (a file_path filter)', async () => {
     await post({
       filter: {
-        must: [{ key: 'file_path', match: { value: 'j:/docs/a.md' } }],
+        must: [{ key: 'file_path', match: { value: 'c:/docs/a.md' } }],
       },
     });
     expect(points.has('f0')).toBe(true);
@@ -149,7 +149,7 @@ describe('POST /documents/delete', () => {
     'never deletes a legacy file point carrying a rule-written source (%s)',
     async (_label, payload) => {
       points.set('l0', {
-        file_path: 'j:/docs/legacy.md',
+        file_path: 'c:/docs/legacy.md',
         source: 'app://a',
         user_id: 'u1',
       });

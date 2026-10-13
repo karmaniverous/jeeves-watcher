@@ -8,7 +8,7 @@ import { describe, expect, it } from 'vitest';
 import { withSystemFields } from './systemFields';
 
 const source = { kind: 'source', ref: 'app://t/AbC', rule: 'chat' } as const;
-const file = { kind: 'file', filePath: 'J:\\Docs\\A.md' } as const;
+const file = { kind: 'file', filePath: 'C:\\Docs\\A.md' } as const;
 
 const hostile = {
   a: 1,
@@ -24,7 +24,7 @@ describe('withSystemFields', () => {
   it('re-asserts the normalised file identity, never source fields', () => {
     expect(withSystemFields(hostile, file)).toEqual({
       a: 1,
-      file_path: 'J:/Docs/A.md',
+      file_path: 'C:/Docs/A.md',
     });
   });
 

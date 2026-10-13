@@ -18,8 +18,8 @@ const A = 'app://chat/thread/a';
 const B = 'app://chat/thread/b';
 const GONE = 'app://chat/thread/gone';
 const LONG = 'app://chat/thread/long';
-const FILE = 'j:/docs/readme.md';
-const LEGACY = 'j:/docs/legacy.md';
+const FILE = 'c:/docs/readme.md';
+const LEGACY = 'c:/docs/legacy.md';
 
 const thread = (userId: string, text: string) => ({
   body: { userId, streaks: [{ msgs: [{ role: 'user', text }] }] },

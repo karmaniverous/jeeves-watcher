@@ -88,7 +88,7 @@ describe('deleteSourcePoints', () => {
   it('never deletes a point without a source reference, or a file point', async () => {
     const legacy: ScrolledPoint = {
       id: 'l',
-      payload: { source: 'app://a', file_path: 'j:/docs/a.md' },
+      payload: { source: 'app://a', file_path: 'c:/docs/a.md' },
     };
     const vs = store([
       [point('f', undefined), point('e', ''), point('s', 7), legacy],

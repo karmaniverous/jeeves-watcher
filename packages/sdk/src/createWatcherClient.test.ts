@@ -82,7 +82,7 @@ describe('createWatcherClient', () => {
     ).resolves.toEqual({ count: 3 });
   });
 
-  it.each([[{ path: 'j:/docs/a.md' }], [{ source: 'app://chat/thread/1' }]])(
+  it.each([[{ path: 'c:/docs/a.md' }], [{ source: 'app://chat/thread/1' }]])(
     'render: POST /render with %j',
     async (request) => {
       const { watcher, mock } = client({ body: RENDER });

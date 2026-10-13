@@ -46,7 +46,7 @@ describe('EnrichmentStore with source references', () => {
   });
 
   it('still normalises file paths', () => {
-    store.set('J:\\Docs\\A.md', { a: 1 });
-    expect(store.list()).toEqual(['j:/docs/a.md']);
+    store.set('C:\\Docs\\A.md', { a: 1 });
+    expect(store.list()).toEqual(['c:/docs/a.md']);
   });
 });

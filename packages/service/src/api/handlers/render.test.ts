@@ -40,7 +40,7 @@ function mockRequest(body: Record<string, unknown>) {
 }
 
 const watchConfig = {
-  paths: ['j:/domains/**/*.json', 'j:/domains/**/*.md'],
+  paths: ['c:/data/**/*.json', 'c:/data/**/*.md'],
   ignored: ['**/node_modules/**'],
 };
 
@@ -90,7 +90,7 @@ describe('POST /render handler', () => {
     const reply = mockReply();
 
     await handler(
-      mockRequest({ path: 'j:/domains/slack/msg.json' }),
+      mockRequest({ path: 'c:/data/chat/msg.json' }),
       reply as never,
     );
 
@@ -112,7 +112,7 @@ describe('POST /render handler', () => {
     const reply = mockReply();
 
     await handler(
-      mockRequest({ path: 'j:/domains/docs/readme.md' }),
+      mockRequest({ path: 'c:/data/docs/readme.md' }),
       reply as never,
     );
 
@@ -134,7 +134,7 @@ describe('POST /render handler', () => {
     const reply = mockReply();
 
     await handler(
-      mockRequest({ path: 'j:/domains/docs/readme.md' }),
+      mockRequest({ path: 'c:/data/docs/readme.md' }),
       reply as never,
     );
 
@@ -147,7 +147,7 @@ describe('POST /render handler', () => {
     const reply = mockReply();
 
     await handler(
-      mockRequest({ path: 'j:/domains/slack/msg.json' }),
+      mockRequest({ path: 'c:/data/chat/msg.json' }),
       reply as never,
     );
 
@@ -180,7 +180,7 @@ describe('POST /render handler', () => {
     const reply = mockReply();
 
     await handler(
-      mockRequest({ path: 'j:/domains/slack/missing.json' }),
+      mockRequest({ path: 'c:/data/chat/missing.json' }),
       reply as never,
     );
 
@@ -207,7 +207,7 @@ describe('POST /render handler', () => {
     const reply = mockReply();
 
     await handler(
-      mockRequest({ path: 'j:/domains/slack/bad.json' }),
+      mockRequest({ path: 'c:/data/chat/bad.json' }),
       reply as never,
     );
 
@@ -225,7 +225,7 @@ describe('POST /render handler', () => {
     const reply = mockReply();
 
     await handler(
-      mockRequest({ path: 'j:/domains/slack/msg.json' }),
+      mockRequest({ path: 'c:/data/chat/msg.json' }),
       reply as never,
     );
 
