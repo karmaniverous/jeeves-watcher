@@ -1,12 +1,12 @@
 /**
- * @module cli/jeeves-watcher/customCommandsTestHarness
- * Shared fetch mock and helpers for the custom CLI command suites (customCommands*.test.ts): a CLI with the commands registered, canned JSON responses and first-request inspection. No I/O.
+ * @module test/cliCommands
+ * Shared fetch mock and helpers for the custom CLI command suites (cli/jeeves-watcher/customCommands*.test.ts): a CLI with the commands registered, canned JSON responses and first-request inspection. No I/O.
  */
 
 import { Command } from '@commander-js/extra-typings';
 import { vi } from 'vitest';
 
-import { registerCustomCommands } from './customCommands';
+import { registerCustomCommands } from '../cli/jeeves-watcher/customCommands';
 
 /** The fetch mock the suites install as `global.fetch`. */
 export const mockFetch = vi.fn();

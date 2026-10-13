@@ -7,6 +7,7 @@ import { dirname } from 'node:path';
 
 import { createStatusHandler as coreCreateStatusHandler } from '@karmaniverous/jeeves';
 import {
+  API_DEFAULTS,
   extractWatchPathStrings,
   getEndpoint,
 } from '@karmaniverous/jeeves-watcher-core';
@@ -68,7 +69,7 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
   // Auth + error handlers; api.apiKey is read once (restart to change).
   registerApiHooks(app, config.api?.apiKey, logger);
 
-  const cacheTtlMs = config.api?.cacheTtlMs ?? 30000;
+  const cacheTtlMs = config.api?.cacheTtlMs ?? API_DEFAULTS.cacheTtlMs;
   const configDir = dirname(configPath);
 
   const coreStatusHandler = coreCreateStatusHandler({
@@ -164,7 +165,7 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
     }),
   );
 
-  registerDocumentRoutes(app, { ...options, processor, vectorStore, logger });
+  registerDocumentRoutes(app, options);
 
   app.get(
     getEndpoint('issues').path,
@@ -184,7 +185,7 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
 
   // VCS routes: only registered when a VcsCoordinator is provided
   if (options.vcsCoordinator) {
-    registerVcsRoutes(app, options.vcsCoordinator, logger);
+    registerVcsRoutes(app, options, { coordinator: options.vcsCoordinator });
   }
 
   return app;

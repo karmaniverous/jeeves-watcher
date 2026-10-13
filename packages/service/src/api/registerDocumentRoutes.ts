@@ -25,13 +25,13 @@ export type DocumentRouteDeps = Pick<
  * Register POST /documents and POST /documents/delete.
  *
  * @param app - The Fastify instance.
- * @param deps - Processor, notify queue, stores and logger.
+ * @param options - Server options (processor, notify queue, stores, logger).
  */
 export function registerDocumentRoutes(
   app: FastifyInstance,
-  deps: DocumentRouteDeps,
+  options: DocumentRouteDeps,
 ): void {
-  const { processor, sourceQueue, logger } = deps;
+  const { processor, sourceQueue, logger } = options;
   app.post(
     getEndpoint('documents').path,
     createDocumentsHandler({ processor, sourceQueue, logger }),
@@ -39,9 +39,9 @@ export function registerDocumentRoutes(
   app.post(
     getEndpoint('documentsDelete').path,
     createDocumentsDeleteHandler({
-      vectorStore: deps.vectorStore,
-      enrichmentStore: deps.enrichmentStore,
-      issuesManager: deps.issuesManager,
+      vectorStore: options.vectorStore,
+      enrichmentStore: options.enrichmentStore,
+      issuesManager: options.issuesManager,
       logger,
     }),
   );

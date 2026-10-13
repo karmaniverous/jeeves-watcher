@@ -5,8 +5,8 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { makeDeps } from '../test/reindexDeps';
 import { executeReindex, type ExecuteReindexDeps } from './executeReindex';
-import { makeDeps } from './executeReindexTestDeps';
 
 vi.mock('./fileScan', async (importOriginal) => ({
   ...(await importOriginal<object>()),

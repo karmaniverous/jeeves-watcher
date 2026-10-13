@@ -5,14 +5,22 @@
 
 import { z } from 'zod';
 
+/**
+ * Body of a source name pattern (shared by the name and reference
+ * patterns): a lowercase letter, then 1-31 of `[a-z0-9-]`.
+ */
+const SOURCE_NAME_BODY = '[a-z][a-z0-9-]{1,31}';
+
 /** Pattern every source name must match (≥ 2 chars, so never a drive letter). */
-export const SOURCE_NAME_PATTERN = /^[a-z][a-z0-9-]{1,31}$/;
+export const SOURCE_NAME_PATTERN = new RegExp(`^${SOURCE_NAME_BODY}$`);
 
 /**
  * Pattern of a source reference: `<name>://<id>`, where `<id>` is 1–512
  * non-whitespace characters (`/`-separated segments allowed).
  */
-export const SOURCE_REFERENCE_PATTERN = /^[a-z][a-z0-9-]{1,31}:\/\/\S{1,512}$/;
+export const SOURCE_REFERENCE_PATTERN = new RegExp(
+  `^${SOURCE_NAME_BODY}://\\S{1,512}$`,
+);
 
 /** Placeholder in a source `url` template that is replaced with the document id. */
 export const SOURCE_ID_PLACEHOLDER = '{id}';
@@ -23,7 +31,10 @@ export const SOURCE_DOCUMENT_GONE_STATUS = 404;
 /** A source name, e.g. `app`. */
 export const sourceNameSchema = z
   .string()
-  .regex(SOURCE_NAME_PATTERN, 'Source name must match ^[a-z][a-z0-9-]{1,31}$')
+  .regex(
+    SOURCE_NAME_PATTERN,
+    `Source name must match ${SOURCE_NAME_PATTERN.source}`,
+  )
   .describe('Source name: lowercase letter, then 1-31 of [a-z0-9-].');
 
 /** A source reference, e.g. `app://chat/thread/123`. */
@@ -31,7 +42,7 @@ export const sourceReferenceSchema = z
   .string()
   .regex(
     SOURCE_REFERENCE_PATTERN,
-    'Source reference must match <name>://<id> (name ^[a-z][a-z0-9-]{1,31}$, id 1-512 non-whitespace characters)',
+    `Source reference must match <name>://<id> (name ${SOURCE_NAME_PATTERN.source}, id 1-512 non-whitespace characters)`,
   )
   .describe('Source document reference: <name>://<id>.');
 

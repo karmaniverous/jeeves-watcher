@@ -5,8 +5,8 @@
 
 import { describe, expect, it, vi } from 'vitest';
 
+import { makeDeps } from '../test/reindexDeps';
 import { executeReindex, type ExecuteReindexDeps } from './executeReindex';
-import { makeDeps } from './executeReindexTestDeps';
 
 vi.mock('node:fs/promises', async (importOriginal) => {
   const original = await importOriginal<object>();

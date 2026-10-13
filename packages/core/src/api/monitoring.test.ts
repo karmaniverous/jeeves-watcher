@@ -26,6 +26,21 @@ describe('statusResponseSchema', () => {
     ).toBe(true);
   });
 
+  it.each(['healthy', 'degraded', 'unhealthy'])(
+    'accepts status %s',
+    (status) => {
+      expect(
+        statusResponseSchema.safeParse({
+          name: 'watcher',
+          version: '1',
+          uptime: 1,
+          status,
+          health: {},
+        }).success,
+      ).toBe(true);
+    },
+  );
+
   it('rejects an unknown status', () => {
     expect(
       statusResponseSchema.safeParse({

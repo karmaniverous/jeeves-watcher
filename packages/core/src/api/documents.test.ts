@@ -14,6 +14,7 @@ import {
   documentsQuerySchema,
   documentsRequestSchema,
   documentsResultsResponseSchema,
+  MAX_DELETE_SOURCES_PER_REQUEST,
   MAX_DOCUMENTS_PER_REQUEST,
 } from './documents';
 
@@ -227,6 +228,23 @@ describe('documentsDeleteRequestSchema', () => {
     ['only unknown keys', { filter: { foo: [{ key: 'a' }] } }],
   ])('rejects %s', (_label, body) => {
     expect(documentsDeleteRequestSchema.safeParse(body).success).toBe(false);
+  });
+
+  it('caps sources at MAX_DELETE_SOURCES_PER_REQUEST', () => {
+    const refs = (n: number) =>
+      Array.from({ length: n }, (_, i) => `app://d/${String(i)}`);
+    expect(
+      documentsDeleteRequestSchema.safeParse({
+        sources: refs(MAX_DELETE_SOURCES_PER_REQUEST),
+      }).success,
+    ).toBe(true);
+    const over = documentsDeleteRequestSchema.safeParse({
+      sources: refs(MAX_DELETE_SOURCES_PER_REQUEST + 1),
+    });
+    expect(over.success).toBe(false);
+    expect(JSON.stringify(over.error?.issues)).toContain(
+      `at most ${String(MAX_DELETE_SOURCES_PER_REQUEST)} references`,
+    );
   });
 
   it('validates the response', () => {

@@ -87,12 +87,15 @@ describe('sourcesConfigSchema', () => {
 });
 
 describe('sourceReferenceSchema', () => {
-  it.each(['app://chat/thread/abc123', 'apptest://sample-1', 'app://A'])(
-    'accepts %s',
-    (ref) => {
-      expect(sourceReferenceSchema.safeParse(ref).success).toBe(true);
-    },
-  );
+  it.each([
+    'app://chat/thread/abc123',
+    'apptest://sample-1',
+    'app://A',
+    `app://${'x'.repeat(512)}`,
+    `a${'b'.repeat(31)}://x`,
+  ])('accepts %s', (ref) => {
+    expect(sourceReferenceSchema.safeParse(ref).success).toBe(true);
+  });
 
   it.each([
     'app:abc',
@@ -102,6 +105,7 @@ describe('sourceReferenceSchema', () => {
     'app://has space',
     'APP://abc',
     `app://${'x'.repeat(513)}`,
+    `a${'b'.repeat(32)}://x`,
   ])('rejects %s', (ref) => {
     expect(sourceReferenceSchema.safeParse(ref).success).toBe(false);
   });

@@ -7,10 +7,29 @@ import { z } from 'zod';
 
 import { sourceReferenceSchema } from '../schemas/sources.js';
 
+/**
+ * A native Qdrant filter object schema (passed through to Qdrant
+ * unchanged), optionally with the message reported for a missing or
+ * non-object value.
+ *
+ * @param error - Message for a missing or non-object filter.
+ * @returns The filter schema.
+ */
+export const qdrantFilter = (error?: string) =>
+  z
+    .record(
+      z.string(),
+      z.unknown(),
+      error === undefined ? undefined : { error },
+    )
+    .describe('Native Qdrant filter object.');
+
 /** A native Qdrant filter object (passed through to Qdrant unchanged). */
-export const qdrantFilterSchema = z
-  .record(z.string(), z.unknown())
-  .describe('Native Qdrant filter object.');
+export const qdrantFilterSchema = qdrantFilter();
+
+/** Message for a missing or non-object required `filter` (scan, points delete). */
+export const FILTER_REQUIRED_MESSAGE =
+  'Missing required field: filter (object)';
 
 /** A Qdrant filter object. */
 export type QdrantFilter = z.infer<typeof qdrantFilterSchema>;

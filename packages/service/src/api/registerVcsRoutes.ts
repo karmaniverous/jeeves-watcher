@@ -5,9 +5,9 @@
 
 import { getEndpoint } from '@karmaniverous/jeeves-watcher-core';
 import type { FastifyInstance } from 'fastify';
-import type pino from 'pino';
 
 import type { VcsCoordinator } from '../vcs/VcsCoordinator';
+import type { ApiServerOptions } from './apiServerOptions';
 import {
   createVcsCheckExclusionHandler,
   createVcsDiffHandler,
@@ -22,15 +22,15 @@ import {
  * Register all VCS routes.
  *
  * @param app - Fastify instance.
- * @param coordinator - VCS coordinator backing the handlers.
- * @param logger - Logger instance.
+ * @param options - Server options (logger).
+ * @param context - The VCS coordinator backing the handlers.
  */
 export function registerVcsRoutes(
   app: FastifyInstance,
-  coordinator: VcsCoordinator,
-  logger: pino.Logger,
+  options: Pick<ApiServerOptions, 'logger'>,
+  context: { coordinator: VcsCoordinator },
 ): void {
-  const deps = { coordinator, logger };
+  const deps = { coordinator: context.coordinator, logger: options.logger };
 
   app.get(getEndpoint('vcsStatus').path, createVcsStatusHandler(deps));
   app.get(getEndpoint('vcsHistory').path, createVcsHistoryHandler(deps));

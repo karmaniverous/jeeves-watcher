@@ -3,7 +3,10 @@
  * Fastify route handler for POST /search. Embeds a query through the shared rate limiter (bounded budget; exhaustion → 503) and performs vector store similarity search.
  */
 
-import { searchRequestSchema } from '@karmaniverous/jeeves-watcher-core';
+import {
+  SEARCH_DEFAULT_LIMIT,
+  searchRequestSchema,
+} from '@karmaniverous/jeeves-watcher-core';
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import type pino from 'pino';
 
@@ -55,7 +58,7 @@ export function createSearchHandler(deps: SearchRouteDeps) {
   return wrapHandler(
     async (request: SearchRequest, reply: FastifyReply) => {
       const body = parseBody(searchRequestSchema, request.body);
-      const { query, limit = 10, offset, filter } = body;
+      const { query, limit = SEARCH_DEFAULT_LIMIT, offset, filter } = body;
 
       let vectors: number[][];
       try {

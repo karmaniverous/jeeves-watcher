@@ -36,7 +36,7 @@ export interface DocumentsApi {
    * through its source callback. Resolves with the `202` body: accepted
    * references and synchronously rejected notifications.
    *
-   * @param documents - 1 to 100 `{ source, rule }` notifications.
+   * @param documents - 1 to {@link MAX_DOCUMENTS_PER_REQUEST} `{ source, rule }` notifications.
    * @param options - Omit, or `{ wait: false }`.
    */
   notify(
@@ -47,7 +47,7 @@ export interface DocumentsApi {
    * Notify and process synchronously (`POST /documents?wait=true`). Resolves
    * with one result per document (`indexed`, `unchanged`, `deleted`, `failed`).
    *
-   * @param documents - 1 to 100 `{ source, rule }` notifications.
+   * @param documents - 1 to {@link MAX_DOCUMENTS_PER_REQUEST} `{ source, rule }` notifications.
    * @param options - `{ wait: true }`.
    */
   notify(
@@ -57,7 +57,7 @@ export interface DocumentsApi {
   /**
    * Notify with a `wait` flag known only at runtime.
    *
-   * @param documents - 1 to 100 `{ source, rule }` notifications.
+   * @param documents - 1 to {@link MAX_DOCUMENTS_PER_REQUEST} `{ source, rule }` notifications.
    * @param options - Notify options.
    */
   notify(

@@ -66,6 +66,18 @@ describe('metadataRequestSchema', () => {
     expect(metadataRequestSchema.safeParse(body).success).toBe(false);
   });
 
+  it.each([[{ path: 'a.md' }], [{ path: 'a.md', metadata: 'x' }]])(
+    'reports a missing or non-object metadata with its own message (%j)',
+    (body) => {
+      expect(metadataRequestSchema.safeParse(body).error?.issues).toEqual([
+        expect.objectContaining({
+          path: ['metadata'],
+          message: 'Missing required field: metadata (object)',
+        }),
+      ]);
+    },
+  );
+
   it('validates a response', () => {
     expect(
       metadataResponseSchema.safeParse({ ok: true, matched_rules: ['r'] })

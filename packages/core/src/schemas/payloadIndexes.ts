@@ -15,15 +15,49 @@ export const payloadIndexTypeSchema = z
 /** A Qdrant payload index type. */
 export type PayloadIndexType = z.infer<typeof payloadIndexTypeSchema>;
 
+/** An index type that may carry `isTenant: true`. */
+export type TenantIndexType = Extract<PayloadIndexType, 'keyword' | 'uuid'>;
+
+/** An index type that may carry `isPrincipal: true`. */
+export type PrincipalIndexType = Extract<
+  PayloadIndexType,
+  'integer' | 'float' | 'datetime'
+>;
+
 /** Index types that may carry `isTenant: true` (Qdrant `is_tenant`). */
-const TENANT_INDEX_TYPES: readonly PayloadIndexType[] = ['keyword', 'uuid'];
+const TENANT_INDEX_TYPES: readonly TenantIndexType[] = ['keyword', 'uuid'];
 
 /** Index types that may carry `isPrincipal: true` (Qdrant `is_principal`). */
-const PRINCIPAL_INDEX_TYPES: readonly PayloadIndexType[] = [
+const PRINCIPAL_INDEX_TYPES: readonly PrincipalIndexType[] = [
   'integer',
   'float',
   'datetime',
 ];
+
+/**
+ * Whether an index type may carry `isTenant: true` (Qdrant `is_tenant`).
+ *
+ * @param type - Payload index type.
+ * @returns `true` for `keyword` and `uuid`.
+ */
+export function isTenantIndexType(
+  type: PayloadIndexType,
+): type is TenantIndexType {
+  return (TENANT_INDEX_TYPES as readonly string[]).includes(type);
+}
+
+/**
+ * Whether an index type may carry `isPrincipal: true` (Qdrant
+ * `is_principal`).
+ *
+ * @param type - Payload index type.
+ * @returns `true` for `integer`, `float` and `datetime`.
+ */
+export function isPrincipalIndexType(
+  type: PayloadIndexType,
+): type is PrincipalIndexType {
+  return (PRINCIPAL_INDEX_TYPES as readonly string[]).includes(type);
+}
 
 /**
  * A single configured payload index.
@@ -53,14 +87,14 @@ export const payloadIndexSchema = z
       ),
   })
   .superRefine((val, ctx) => {
-    if (val.isTenant && !TENANT_INDEX_TYPES.includes(val.type)) {
+    if (val.isTenant && !isTenantIndexType(val.type)) {
       ctx.addIssue({
         code: 'custom',
         path: ['isTenant'],
         message: `isTenant is only valid for ${TENANT_INDEX_TYPES.join('/')} indexes (got "${val.type}")`,
       });
     }
-    if (val.isPrincipal && !PRINCIPAL_INDEX_TYPES.includes(val.type)) {
+    if (val.isPrincipal && !isPrincipalIndexType(val.type)) {
       ctx.addIssue({
         code: 'custom',
         path: ['isPrincipal'],

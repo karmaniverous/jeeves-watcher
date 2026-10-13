@@ -5,12 +5,12 @@
 
 import { z } from 'zod';
 
+import { FILTER_REQUIRED_MESSAGE, qdrantFilter } from './common.js';
+
 /** POST /points/delete request body. */
 export const pointsDeleteRequestSchema = z.object({
   /** Native Qdrant filter selecting the points to delete. */
-  filter: z.record(z.string(), z.unknown(), {
-    error: 'Missing required field: filter (object)',
-  }),
+  filter: qdrantFilter(FILTER_REQUIRED_MESSAGE),
 });
 
 /** POST /points/delete request body. */

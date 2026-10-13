@@ -30,11 +30,15 @@ export {
 
 // Payload index schemas
 export {
+  isPrincipalIndexType,
+  isTenantIndexType,
   type PayloadIndexConfig,
   payloadIndexesSchema,
   payloadIndexSchema,
   type PayloadIndexType,
   payloadIndexTypeSchema,
+  type PrincipalIndexType,
+  type TenantIndexType,
 } from './payloadIndexes.js';
 
 // Root schema

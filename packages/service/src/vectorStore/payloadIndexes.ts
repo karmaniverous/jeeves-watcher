@@ -4,6 +4,8 @@
  */
 
 import {
+  isPrincipalIndexType,
+  isTenantIndexType,
   type PayloadIndexConfig,
   SYSTEM_PAYLOAD_INDEX_FIELDS,
 } from '@karmaniverous/jeeves-watcher-core';
@@ -150,15 +152,10 @@ export function planPayloadIndexes(
 export function toQdrantFieldSchema(
   index: PayloadIndexConfig,
 ): Schemas['PayloadFieldSchema'] {
-  if (index.isTenant && (index.type === 'keyword' || index.type === 'uuid')) {
+  if (index.isTenant && isTenantIndexType(index.type)) {
     return { type: index.type, is_tenant: true };
   }
-  if (
-    index.isPrincipal &&
-    (index.type === 'integer' ||
-      index.type === 'float' ||
-      index.type === 'datetime')
-  ) {
+  if (index.isPrincipal && isPrincipalIndexType(index.type)) {
     return { type: index.type, is_principal: true };
   }
   return index.type;

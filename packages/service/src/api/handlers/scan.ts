@@ -3,7 +3,10 @@
  * Fastify route handler for POST /scan. Filter-only point query without vector search.
  */
 
-import { scanRequestSchema } from '@karmaniverous/jeeves-watcher-core';
+import {
+  SCAN_DEFAULT_LIMIT,
+  scanRequestSchema,
+} from '@karmaniverous/jeeves-watcher-core';
 import type { FastifyRequest } from 'fastify';
 import type pino from 'pino';
 
@@ -33,7 +36,13 @@ export function createScanHandler(deps: ScanRouteDeps) {
   return wrapHandler(
     async (request: ScanRequest) => {
       const body = parseBody(scanRequestSchema, request.body);
-      const { filter, limit = 100, cursor, fields, countOnly } = body;
+      const {
+        filter,
+        limit = SCAN_DEFAULT_LIMIT,
+        cursor,
+        fields,
+        countOnly,
+      } = body;
 
       if (countOnly) {
         const count = await withFilterErrors(deps.vectorStore.count(filter));

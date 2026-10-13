@@ -13,6 +13,7 @@ import { readFileSync } from 'node:fs';
 
 import type { Command, CommandUnknownOpts } from '@commander-js/extra-typings';
 import {
+  API_DEFAULTS,
   API_KEY_ENV_VAR,
   getEndpoint,
 } from '@karmaniverous/jeeves-watcher-core';
@@ -21,7 +22,7 @@ import { z } from 'zod';
 import { apiClient, printJson } from './apiOptions';
 
 /** Host core's config commands always address. */
-const CONFIG_HOST = '127.0.0.1';
+const CONFIG_HOST = API_DEFAULTS.host;
 
 /** Parsed options of the re-wired commands; Zod is the source of truth. */
 const configOptsSchema = z.object({

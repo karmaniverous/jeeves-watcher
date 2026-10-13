@@ -5,7 +5,12 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { payloadIndexSchema } from './payloadIndexes';
+import {
+  isPrincipalIndexType,
+  isTenantIndexType,
+  payloadIndexSchema,
+  payloadIndexTypeSchema,
+} from './payloadIndexes';
 import { vectorStoreConfigSchema } from './services';
 
 describe('payloadIndexSchema', () => {
@@ -149,4 +154,16 @@ describe('vectorStoreConfigSchema.payloadIndexes', () => {
       });
     },
   );
+});
+
+describe('isTenantIndexType / isPrincipalIndexType', () => {
+  it('partition the index types exactly', () => {
+    const types = payloadIndexTypeSchema.options;
+    expect(types.filter(isTenantIndexType)).toEqual(['keyword', 'uuid']);
+    expect(types.filter(isPrincipalIndexType)).toEqual([
+      'integer',
+      'float',
+      'datetime',
+    ]);
+  });
 });

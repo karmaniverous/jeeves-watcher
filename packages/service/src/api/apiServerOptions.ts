@@ -1,6 +1,6 @@
 /**
  * @module api/apiServerOptions
- * Options accepted by createApiServer: processor, stores, config access, trackers and optional collaborators (virtual rules, VCS, source queue). Types only.
+ * Options accepted by createApiServer: processor, stores, queues, config access, trackers and optional collaborators (virtual rules, VCS, source queue). Types only.
  */
 
 import type { JeevesComponentDescriptor } from '@karmaniverous/jeeves';
@@ -13,19 +13,28 @@ import type { GitignoreFilter } from '../gitignore';
 import type { AllHelpersIntrospection } from '../helpers';
 import type { IssuesManager } from '../issues';
 import type { DocumentProcessorInterface } from '../processor';
+import type { PausableQueue } from '../queue';
+import type { SourceNotifyQueue } from '../queue/SourceNotifyQueue';
 import type { VirtualRuleStore } from '../rules/virtualRules';
 import type { ValuesManager } from '../values';
 import type { VcsCoordinator } from '../vcs/VcsCoordinator';
 import type { VectorStoreClient } from '../vectorStore';
 import type { FileSystemWatcher } from '../watcher';
 import type { InitialScanTracker } from './InitialScanTracker';
-import type { ApiQueueDeps } from './queueDeps';
 import type { ReindexTracker } from './ReindexTracker';
 
 /**
  * Options for `createApiServer`.
  */
-export interface ApiServerOptions extends ApiQueueDeps {
+export interface ApiServerOptions {
+  /**
+   * Queues paused while a prune deletes points. The service passes
+   * `combinePausableQueues(fileQueue, sourceQueue)` (`app/index.ts`), so a
+   * prune quiesces both the file event queue and the source notify queue.
+   */
+  queue: PausableQueue;
+  /** Source notify queue (`POST /documents`); absent in file-only setups. */
+  sourceQueue?: SourceNotifyQueue;
   /** The component descriptor (used for config-apply handler). */
   descriptor: JeevesComponentDescriptor;
   /** The document processor (source routes need `sourceOperations()`). */

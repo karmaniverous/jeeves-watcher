@@ -67,6 +67,7 @@ export {
   documentsRequestSchema,
   type DocumentsResultsResponse,
   documentsResultsResponseSchema,
+  MAX_DELETE_SOURCES_PER_REQUEST,
   MAX_DOCUMENTS_PER_REQUEST,
 } from './documents.js';
 export {
@@ -89,12 +90,15 @@ export {
   statusResponseSchema,
 } from './monitoring.js';
 export {
+  SCAN_DEFAULT_LIMIT,
+  SCAN_MAX_LIMIT,
   type ScanPoint,
   scanPointSchema,
   type ScanRequest,
   scanRequestSchema,
   type ScanResponse,
   scanResponseSchema,
+  SEARCH_DEFAULT_LIMIT,
   type SearchRequest,
   searchRequestSchema,
   type SearchResponse,

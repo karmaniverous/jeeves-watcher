@@ -25,6 +25,8 @@ export interface ReindexSourcesDeps {
  * indexed have no known rule and are skipped (counted in `total`, not in
  * `toProcess`). Work goes through the notify queue, so it is coalesced with
  * concurrent notifications and failures land in `/issues`, as for notify.
+ * Like notify, the work is not a tracked reindex run: `GET /status` reindex
+ * progress does not cover it and no `reindex.callbackUrl` is sent.
  * The request schema caps the list (`MAX_REINDEX_SOURCES_PER_REQUEST`); the
  * lookups run with bounded concurrency.
  *

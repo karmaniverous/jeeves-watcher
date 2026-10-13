@@ -52,6 +52,11 @@ type ConfigReindexRequest = FastifyRequest<{ Body: unknown }>;
  * (`path_not_watched`, `not_found`, `invalid_request`); `source` on an
  * instance without source support is `503 not_available`.
  *
+ * Scope `path` with `source` references only enqueues them on the notify
+ * queue (`reindexSources`): it is not tracked by `GET /status` and sends no
+ * completion callback, as for `POST /documents`. Every other run is tracked
+ * and reports to the callback.
+ *
  * @param deps - Route dependencies.
  * @returns Fastify route handler.
  */

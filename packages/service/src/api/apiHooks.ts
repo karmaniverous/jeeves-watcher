@@ -45,7 +45,7 @@ export function statusOfError(error: unknown): number {
  * @param app - Fastify instance.
  * @param logger - Optional logger for uncaught errors.
  */
-export function registerErrorHandlers(
+function registerErrorHandlers(
   app: FastifyInstance,
   logger?: pino.Logger,
 ): void {

@@ -12,6 +12,25 @@ import { issueTypeSchema } from './monitoring.js';
 /** Maximum number of documents in one `POST /documents` request. */
 export const MAX_DOCUMENTS_PER_REQUEST = 100;
 
+/** Maximum number of references in one `POST /documents/delete` request. */
+export const MAX_DELETE_SOURCES_PER_REQUEST = 1000;
+
+/**
+ * The `documents` array of a notify request: 1 to
+ * {@link MAX_DOCUMENTS_PER_REQUEST} items of the given schema.
+ *
+ * @param item - Schema of one document.
+ * @returns The bounded array schema.
+ */
+const documentsArray = <T extends z.ZodType>(item: T) =>
+  z
+    .array(item)
+    .min(1, 'documents must contain at least one entry')
+    .max(
+      MAX_DOCUMENTS_PER_REQUEST,
+      `documents must contain at most ${String(MAX_DOCUMENTS_PER_REQUEST)} entries`,
+    );
+
 /**
  * A document notification: the reference of a changed source document and
  * the rule that indexes it. Notify only: content is always retrieved through
@@ -30,13 +49,7 @@ export type DocumentNotification = z.infer<typeof documentNotificationSchema>;
 /** Request body for `POST /documents`. */
 export const documentsRequestSchema = z.object({
   /** Documents to (re)index: 1 to {@link MAX_DOCUMENTS_PER_REQUEST}. */
-  documents: z
-    .array(documentNotificationSchema)
-    .min(1, 'documents must contain at least one entry')
-    .max(
-      MAX_DOCUMENTS_PER_REQUEST,
-      `documents must contain at most ${String(MAX_DOCUMENTS_PER_REQUEST)} entries`,
-    ),
+  documents: documentsArray(documentNotificationSchema),
 });
 
 /** Request body for `POST /documents`. */
@@ -51,18 +64,12 @@ export type DocumentsRequest = z.infer<typeof documentsRequestSchema>;
  */
 export const documentsEnvelopeSchema = z.object({
   /** Documents to (re)index: 1 to {@link MAX_DOCUMENTS_PER_REQUEST}. */
-  documents: z
-    .array(
-      documentNotificationSchema.extend({
-        /** Reference as submitted; validated per document. */
-        source: z.string().min(1, 'source must be a non-empty string'),
-      }),
-    )
-    .min(1, 'documents must contain at least one entry')
-    .max(
-      MAX_DOCUMENTS_PER_REQUEST,
-      `documents must contain at most ${String(MAX_DOCUMENTS_PER_REQUEST)} entries`,
-    ),
+  documents: documentsArray(
+    documentNotificationSchema.extend({
+      /** Reference as submitted; validated per document. */
+      source: z.string().min(1, 'source must be a non-empty string'),
+    }),
+  ),
 });
 
 /** Envelope of a `POST /documents` request (references not yet validated). */
@@ -209,10 +216,14 @@ export type DocumentsResultsResponse = z.infer<
  */
 export const documentsDeleteRequestSchema = z.union([
   z.strictObject({
-    /** References of the documents to delete. */
+    /** References of the documents to delete: 1 to {@link MAX_DELETE_SOURCES_PER_REQUEST}. */
     sources: z
       .array(sourceReferenceSchema)
-      .min(1, 'sources must contain at least one reference'),
+      .min(1, 'sources must contain at least one reference')
+      .max(
+        MAX_DELETE_SOURCES_PER_REQUEST,
+        `sources must contain at most ${String(MAX_DELETE_SOURCES_PER_REQUEST)} references`,
+      ),
   }),
   z.strictObject({
     /** Qdrant filter selecting the documents to delete (at least one condition). */

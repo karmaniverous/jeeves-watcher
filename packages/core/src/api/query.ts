@@ -5,7 +5,20 @@
 
 import { z } from 'zod';
 
-import { qdrantFilterSchema } from './common.js';
+import {
+  FILTER_REQUIRED_MESSAGE,
+  qdrantFilter,
+  qdrantFilterSchema,
+} from './common.js';
+
+/** Results `POST /search` returns when `limit` is omitted. */
+export const SEARCH_DEFAULT_LIMIT = 10;
+
+/** Page size of `POST /scan` when `limit` is omitted. */
+export const SCAN_DEFAULT_LIMIT = 100;
+
+/** Largest `POST /scan` page size. */
+export const SCAN_MAX_LIMIT = 1000;
 
 /**
  * Request body for `POST /search`. Unknown keys are rejected, so an
@@ -15,7 +28,7 @@ import { qdrantFilterSchema } from './common.js';
 export const searchRequestSchema = z.strictObject({
   /** Natural-language query text to embed. */
   query: z.string().min(1, 'query must be a non-empty string'),
-  /** Maximum results to return. Default: 10. */
+  /** Maximum results to return. Default: {@link SEARCH_DEFAULT_LIMIT}. */
   limit: z.number().int().positive().optional(),
   /** Number of results to skip (pagination). */
   offset: z.number().int().nonnegative().optional(),
@@ -45,20 +58,18 @@ export const searchResponseSchema = z.array(searchResultSchema);
 /** Response body for `POST /search`. */
 export type SearchResponse = z.infer<typeof searchResponseSchema>;
 
-const SCAN_LIMIT_MESSAGE = 'limit must be between 1 and 1000';
+const SCAN_LIMIT_MESSAGE = `limit must be between 1 and ${String(SCAN_MAX_LIMIT)}`;
 
 /** Request body for `POST /scan`. */
 export const scanRequestSchema = z.object({
   /** Qdrant filter (required). */
-  filter: z.record(z.string(), z.unknown(), {
-    error: 'Missing required field: filter (object)',
-  }),
-  /** Page size (1-1000). Default: 100. */
+  filter: qdrantFilter(FILTER_REQUIRED_MESSAGE),
+  /** Page size (1 to {@link SCAN_MAX_LIMIT}). Default: {@link SCAN_DEFAULT_LIMIT}. */
   limit: z
     .number({ error: SCAN_LIMIT_MESSAGE })
     .int('limit must be an integer')
     .min(1, SCAN_LIMIT_MESSAGE)
-    .max(1000, SCAN_LIMIT_MESSAGE)
+    .max(SCAN_MAX_LIMIT, SCAN_LIMIT_MESSAGE)
     .optional(),
   /** Opaque cursor from a previous page. */
   cursor: z.union([z.string(), z.number()]).optional(),

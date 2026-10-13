@@ -19,7 +19,7 @@ import {
   makeCli,
   mockFetch,
   mockJsonResponse,
-} from './customCommandsTestHarness';
+} from '../../test/cliCommands';
 
 let consoleLogSpy: MockInstance;
 let consoleErrorSpy: MockInstance;

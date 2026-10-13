@@ -3,7 +3,10 @@
  * Performs one source callback GET (headers, timeout, no redirects) and maps the HTTP outcome to a SourceRetrievalResult. Network I/O via global fetch.
  */
 
-import { SOURCE_DOCUMENT_GONE_STATUS } from '@karmaniverous/jeeves-watcher-core';
+import {
+  isPlainObject,
+  SOURCE_DOCUMENT_GONE_STATUS,
+} from '@karmaniverous/jeeves-watcher-core';
 
 import type {
   SourceErrorCode,
@@ -80,10 +83,6 @@ function networkCause(err: unknown): string {
     : 'network error';
 }
 
-function isJsonObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
-
 async function classify(
   name: string,
   response: Response,
@@ -121,7 +120,7 @@ async function classify(
   } catch {
     return error('source_unavailable', `${prefix} returned invalid JSON`);
   }
-  if (!isJsonObject(body)) {
+  if (!isPlainObject(body)) {
     return error(
       'unsupported_content_type',
       `${prefix} returned JSON that is not an object`,

@@ -87,6 +87,9 @@ describe('hasFilterCondition', () => {
     [{ should: [{ must: [{ has_id: [1] }] }] }],
     [{ must: { key: 'a', match: { value: 1 } } }],
     [{ min_should: { conditions: [{ key: 'a', match: { value: 1 } }] } }],
+    // A malformed (non-object) condition counts: Qdrant rejects it, so the
+    // filter can never silently match everything.
+    [{ must: [5] }],
   ])('%j has a condition', (filter) => {
     expect(hasFilterCondition(filter)).toBe(true);
     expect(nonEmptyQdrantFilterSchema.safeParse(filter).success).toBe(true);
