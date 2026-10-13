@@ -185,4 +185,18 @@ describe('loadConfig secret check', () => {
       onWarning.mock.calls.map(([w]) => (w as { path: string }).path),
     ).toEqual(['sources.app.batchUrl', 'inferenceRules[r].schema.file_path']);
   });
+
+  it('reports no warnings for a config that fails validation', async () => {
+    const cfgPath = await writeConfig({
+      ...base,
+      // Dropped by JSON.stringify: the required vectorStore is missing.
+      vectorStore: undefined,
+      sources: { app: { url: 'http://x/{id}', batchUrl: 'http://x/b' } },
+    });
+    const onWarning = vi.fn();
+    await expect(loadConfig(cfgPath, { onWarning })).rejects.toThrow(
+      /Invalid jeeves-watcher configuration/,
+    );
+    expect(onWarning).not.toHaveBeenCalled();
+  });
 });

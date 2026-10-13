@@ -64,6 +64,10 @@ describe('reloadConfig: source documents', () => {
     const [deps, options] = mocked.mock.calls[0];
     expect(options).toEqual({ scope: 'rules' });
     expect(deps.config).toBe(config);
-    expect(deps.includeSources).toBeFalsy();
+    // A files-only reindex: nothing that would reach source documents.
+    expect(deps).not.toHaveProperty('includeSources');
+    expect(deps.vectorStore).toBeUndefined();
+    expect(deps.sourceQueue).toBeUndefined();
+    expect(deps.queue).toBeUndefined();
   });
 });

@@ -1,14 +1,35 @@
-import { mkdtemp, writeFile } from 'node:fs/promises';
+/**
+ * @module extractors/extractors.test
+ * extractText per format (markdown with frontmatter and BOM, text, JSON, HTML, DOCX, PDF) on temp files; the PDF parser emits no warning for a valid xref table.
+ */
+
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { extractText } from './index';
 
+const dirs: string[] = [];
+
+/** A temp dir removed after the test. */
+async function tempDir(): Promise<string> {
+  const dir = await mkdtemp(join(tmpdir(), 'jeeves-watcher-'));
+  dirs.push(dir);
+  return dir;
+}
+
+afterEach(async () => {
+  await Promise.all(
+    dirs.splice(0).map((dir) => rm(dir, { recursive: true, force: true })),
+  );
+  vi.restoreAllMocks();
+});
+
 describe('extractText', () => {
   it('extracts markdown body and frontmatter', async () => {
-    const dir = await mkdtemp(join(tmpdir(), 'jeeves-watcher-'));
+    const dir = await tempDir();
     const file = join(dir, 'doc.md');
     await writeFile(
       file,
@@ -23,7 +44,7 @@ describe('extractText', () => {
   });
 
   it('handles markdown with horizontal rules without YAML errors', async () => {
-    const dir = await mkdtemp(join(tmpdir(), 'jeeves-watcher-'));
+    const dir = await tempDir();
     const file = join(dir, 'doc.md');
     await writeFile(
       file,
@@ -38,7 +59,7 @@ describe('extractText', () => {
   });
 
   it('extracts markdown without frontmatter', async () => {
-    const dir = await mkdtemp(join(tmpdir(), 'jeeves-watcher-'));
+    const dir = await tempDir();
     const file = join(dir, 'doc.md');
     await writeFile(file, '# Heading\n\nBody', 'utf8');
 
@@ -48,7 +69,7 @@ describe('extractText', () => {
   });
 
   it('extracts plaintext as-is', async () => {
-    const dir = await mkdtemp(join(tmpdir(), 'jeeves-watcher-'));
+    const dir = await tempDir();
     const file = join(dir, 'doc.txt');
     await writeFile(file, 'hello world', 'utf8');
 
@@ -57,7 +78,7 @@ describe('extractText', () => {
   });
 
   it('extracts JSON content fields when present', async () => {
-    const dir = await mkdtemp(join(tmpdir(), 'jeeves-watcher-'));
+    const dir = await tempDir();
     const file = join(dir, 'doc.json');
     await writeFile(
       file,
@@ -71,7 +92,7 @@ describe('extractText', () => {
   });
 
   it('extracts HTML content without tags', async () => {
-    const dir = await mkdtemp(join(tmpdir(), 'jeeves-watcher-'));
+    const dir = await tempDir();
     const file = join(dir, 'doc.html');
     await writeFile(
       file,
@@ -93,7 +114,7 @@ describe('extractText', () => {
   });
 
   it('strips BOM from plaintext', async () => {
-    const dir = await mkdtemp(join(tmpdir(), 'jeeves-watcher-'));
+    const dir = await tempDir();
     const file = join(dir, 'bom.txt');
     await writeFile(file, '\uFEFFhello world', 'utf8');
 
@@ -102,7 +123,7 @@ describe('extractText', () => {
   });
 
   it('strips BOM from JSON', async () => {
-    const dir = await mkdtemp(join(tmpdir(), 'jeeves-watcher-'));
+    const dir = await tempDir();
     const file = join(dir, 'bom.json');
     await writeFile(file, '\uFEFF{"content": "test"}', 'utf8');
 
@@ -112,7 +133,7 @@ describe('extractText', () => {
   });
 
   it('strips BOM from HTML', async () => {
-    const dir = await mkdtemp(join(tmpdir(), 'jeeves-watcher-'));
+    const dir = await tempDir();
     const file = join(dir, 'bom.html');
     await writeFile(
       file,
@@ -125,7 +146,7 @@ describe('extractText', () => {
   });
 
   it('strips BOM from markdown', async () => {
-    const dir = await mkdtemp(join(tmpdir(), 'jeeves-watcher-'));
+    const dir = await tempDir();
     const file = join(dir, 'bom.md');
     await writeFile(file, '\uFEFF---\ntitle: BOM\n---\n\nContent', 'utf8');
 
@@ -135,7 +156,7 @@ describe('extractText', () => {
   });
 
   it('extracts PDF text content', async () => {
-    const dir = await mkdtemp(join(tmpdir(), 'jeeves-watcher-'));
+    const dir = await tempDir();
     const file = join(dir, 'test.pdf');
 
     // Minimal valid PDF with text. The xref offsets are computed so the
@@ -162,7 +183,12 @@ describe('extractText', () => {
       `trailer\n<< /Size ${size} /Root 1 0 R >>\nstartxref\n${String(xref)}\n%%EOF\n`;
     await writeFile(file, pdfContent, 'utf8');
 
+    const warn = vi.spyOn(console, 'warn');
+    const log = vi.spyOn(console, 'log');
     const result = await extractText(file, '.pdf');
     expect(result.text).toContain('Hello PDF World');
+    // Correct xref offsets: the parser does not warn about re-indexing.
+    expect(warn).not.toHaveBeenCalled();
+    expect(log).not.toHaveBeenCalled();
   });
 });
