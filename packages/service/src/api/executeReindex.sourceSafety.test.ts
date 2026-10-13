@@ -37,7 +37,7 @@ describe('executeReindex: source safety', () => {
     await f.index(A, B);
     Reflect.deleteProperty(f.responses, A);
 
-    const result = await executeReindex(f.deps, 'full');
+    const result = await executeReindex(f.deps, { scope: 'full' });
 
     expect(f.store.points.has(sourcePointId(A, 0))).toBe(false);
     expect(f.store.points.has(sourcePointId(B, 0))).toBe(true);
@@ -63,7 +63,7 @@ describe('executeReindex: source safety', () => {
         message: 'HTTP 500',
       };
 
-      const result = await executeReindex(f.deps, scope);
+      const result = await executeReindex(f.deps, { scope: scope });
 
       expect(f.store.delete).not.toHaveBeenCalled();
       expect(f.store.setPayload).not.toHaveBeenCalled();
@@ -84,7 +84,7 @@ describe('executeReindex: source safety', () => {
     await f.index(A);
     f.store.scrollPage.mockRejectedValueOnce(new Error('qdrant down'));
 
-    const result = await executeReindex(f.deps, 'full');
+    const result = await executeReindex(f.deps, { scope: 'full' });
 
     expect(result.errors).toBe(1);
     expect(f.retrieve).not.toHaveBeenCalled();
@@ -100,7 +100,7 @@ describe('executeReindex: source safety', () => {
 
       const result = await executeReindex(
         { ...f.deps, includeSources: false },
-        scope,
+        { scope: scope },
       );
 
       expect(f.store.scrollPage).not.toHaveBeenCalled();
@@ -117,7 +117,10 @@ describe('executeReindex: source safety', () => {
       .mockResolvedValue(undefined);
     f.issues.record(A, 'source_unavailable', 'HTTP 503');
 
-    await executeReindex({ ...f.deps, includeSources: false }, 'issues');
+    await executeReindex(
+      { ...f.deps, includeSources: false },
+      { scope: 'issues' },
+    );
 
     expect(processFile).not.toHaveBeenCalled();
     expect(f.issues.get(A)).toBeDefined();
@@ -127,13 +130,13 @@ describe('executeReindex: source safety', () => {
     const f = fixture();
     await f.index(A, B);
     seedFile(f.store, FILE);
-    await executeReindex(f.deps, 'full');
+    await executeReindex(f.deps, { scope: 'full' });
     f.store.delete.mockClear();
 
-    const dry = await executeReindex(f.deps, 'prune', undefined, true);
+    const dry = await executeReindex(f.deps, { scope: 'prune', dryRun: true });
     expect(dry.plan).toMatchObject({ total: 3, toDelete: 1 });
 
-    await executeReindex(f.deps, 'prune');
+    await executeReindex(f.deps, { scope: 'prune' });
 
     const deleted = f.store.delete.mock.calls.flat(2);
     expect(deleted).toEqual([pointId(FILE, 0)]);

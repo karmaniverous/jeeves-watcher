@@ -5,8 +5,11 @@
  */
 
 import type { Command } from '@commander-js/extra-typings';
+import {
+  getEndpoint,
+  reindexScopeSchema,
+} from '@karmaniverous/jeeves-watcher-core';
 
-import { VALID_REINDEX_SCOPES } from '../../api/executeReindex';
 import {
   apiClient,
   handleErrors,
@@ -39,7 +42,7 @@ export function registerCustomCommands(program: Command): void {
       .option('-l, --limit <limit>', 'Max results', '10'),
   ).action(async (query, opts) => {
     await handleErrors(async () => {
-      const result = await apiClient(opts).post('/search', {
+      const result = await apiClient(opts).post(getEndpoint('search').path, {
         query,
         limit: Number(opts.limit),
       });
@@ -67,7 +70,7 @@ export function registerCustomCommands(program: Command): void {
       const metadata = parseMetadataArgs(opts.json, opts.key);
       if (!metadata) return;
 
-      const result = await apiClient(opts).post('/metadata', {
+      const result = await apiClient(opts).post(getEndpoint('metadata').path, {
         path,
         metadata,
       });
@@ -88,7 +91,7 @@ export function registerCustomCommands(program: Command): void {
   ).action(async (opts) => {
     await handleErrors(async () => {
       const filterObj = JSON.parse(opts.filter) as Record<string, unknown>;
-      const result = await apiClient(opts).post('/scan', {
+      const result = await apiClient(opts).post(getEndpoint('scan').path, {
         filter: filterObj,
         limit: Number(opts.limit),
         cursor: opts.cursor,
@@ -117,13 +120,9 @@ export function registerCustomCommands(program: Command): void {
       ),
   ).action(async (opts) => {
     await handleErrors(async () => {
-      if (
-        !VALID_REINDEX_SCOPES.includes(
-          opts.scope as (typeof VALID_REINDEX_SCOPES)[number],
-        )
-      ) {
+      if (!reindexScopeSchema.safeParse(opts.scope).success) {
         console.error(
-          `Invalid scope "${opts.scope}". Must be one of: ${VALID_REINDEX_SCOPES.join(', ')}`,
+          `Invalid scope "${opts.scope}". Must be one of: ${reindexScopeSchema.options.join(', ')}`,
         );
         process.exitCode = 1;
         return;
@@ -134,7 +133,10 @@ export function registerCustomCommands(program: Command): void {
         body.path = opts.path.length === 1 ? opts.path[0] : opts.path;
       }
 
-      const result = await apiClient(opts).post('/reindex', body);
+      const result = await apiClient(opts).post(
+        getEndpoint('reindex').path,
+        body,
+      );
       printJson(result);
     })();
   });
@@ -148,7 +150,10 @@ export function registerCustomCommands(program: Command): void {
       ),
   ).action(async (opts) => {
     await handleErrors(async () => {
-      const result = await apiClient(opts).post('/rebuild-metadata', {});
+      const result = await apiClient(opts).post(
+        getEndpoint('rebuildMetadata').path,
+        {},
+      );
       printJson(result);
     })();
   });
@@ -160,7 +165,7 @@ export function registerCustomCommands(program: Command): void {
       .description('List current processing issues (GET /issues)'),
   ).action(async (opts) => {
     await handleErrors(async () => {
-      const result = await apiClient(opts).get('/issues');
+      const result = await apiClient(opts).get(getEndpoint('issues').path);
       printJson(result);
     })();
   });
@@ -171,12 +176,14 @@ export function registerCustomCommands(program: Command): void {
   ).action(async (opts) => {
     await handleErrors(async () => {
       const client = apiClient(opts);
-      const mapPath = encodeURIComponent('$.mapHelpers');
-      const tplPath = encodeURIComponent('$.templateHelpers');
+      const query = (path: string) =>
+        client.get(
+          `${getEndpoint('config').path}?path=${encodeURIComponent(path)}`,
+        ) as Promise<QueryResult>;
 
       const [mapResult, tplResult] = await Promise.all([
-        client.get(`/config?path=${mapPath}`) as Promise<QueryResult>,
-        client.get(`/config?path=${tplPath}`) as Promise<QueryResult>,
+        query('$.mapHelpers'),
+        query('$.templateHelpers'),
       ]);
 
       const mapData = mapResult.result[0] as

@@ -9,8 +9,10 @@ import { z } from 'zod';
 import {
   apiErrorResponseSchema,
   documentErrorSchema,
+  documentTarget,
   documentTargetShape,
   hasFilterCondition,
+  isPlainObject,
   nonEmptyQdrantFilterSchema,
   qdrantFilterSchema,
   requireExactlyOneTarget,
@@ -88,5 +90,30 @@ describe('hasFilterCondition', () => {
   ])('%j has a condition', (filter) => {
     expect(hasFilterCondition(filter)).toBe(true);
     expect(nonEmptyQdrantFilterSchema.safeParse(filter).success).toBe(true);
+  });
+});
+
+describe('documentTarget', () => {
+  it('narrows a body to its path or source target', () => {
+    expect(documentTarget({ path: 'a.md' })).toEqual({
+      kind: 'path',
+      path: 'a.md',
+    });
+    expect(documentTarget({ source: 'app://1' })).toEqual({
+      kind: 'source',
+      source: 'app://1',
+    });
+    expect(() => documentTarget({})).toThrow(/Exactly one/);
+  });
+});
+
+describe('isPlainObject', () => {
+  it.each([
+    [{}, true],
+    [[], false],
+    [null, false],
+    ['x', false],
+  ])('%j → %s', (value, expected) => {
+    expect(isPlainObject(value)).toBe(expected);
   });
 });

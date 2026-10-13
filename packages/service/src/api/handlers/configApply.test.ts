@@ -15,6 +15,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import Fastify, { type FastifyInstance } from 'fastify';
+import pino from 'pino';
 import {
   afterEach,
   beforeEach,
@@ -68,6 +69,7 @@ describe('POST /config/apply', () => {
         descriptor: watcherDescriptor,
         configPath,
         onConfigApply,
+        logger: pino({ level: 'silent' }),
       }),
     );
   });

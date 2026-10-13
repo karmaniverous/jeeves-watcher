@@ -105,9 +105,6 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
       getConfig,
       logger,
       configDir,
-      getVirtualRules: virtualRuleStore
-        ? () => Object.values(virtualRuleStore.getAll()).flat()
-        : undefined,
     }),
   );
 

@@ -27,7 +27,7 @@ describe('reindexSources', () => {
     const queue = { enqueue: vi.fn(() => true) };
 
     const result = await reindexSources(
-      { ops, queue },
+      { ops, queue, concurrency: 16 },
       ['app://1', 'app://1', 'other://2', 'app://missing'],
       false,
     );
@@ -52,7 +52,11 @@ describe('reindexSources', () => {
   it('plans without enqueueing on a dry run', async () => {
     const ops = makeOps({ 'app://1': 'r1' });
     const queue = { enqueue: vi.fn(() => true) };
-    const result = await reindexSources({ ops, queue }, ['app://1'], true);
+    const result = await reindexSources(
+      { ops, queue, concurrency: 16 },
+      ['app://1'],
+      true,
+    );
     expect(result.status).toBe('dry_run');
     expect(result.plan?.toProcess).toBe(1);
     expect(queue.enqueue).not.toHaveBeenCalled();
@@ -67,6 +71,6 @@ describe('reindexSources', () => {
       true,
     );
     expect(ops.storedRule).toHaveBeenCalledTimes(20);
-    expect(ops.max()).toBeLessThanOrEqual(3);
+    expect(ops.max()).toBe(3);
   });
 });

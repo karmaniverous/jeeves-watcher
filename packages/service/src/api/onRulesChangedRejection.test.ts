@@ -17,8 +17,8 @@ vi.mock('../app/initialization', () => ({
 
 // Mock executeReindex so auto-reindex does not run
 vi.mock('./executeReindex', () => ({
-  CONFIG_WATCH_VALID_SCOPES: [],
   executeReindex: vi.fn().mockResolvedValue({}),
+  reindexDepsFrom: vi.fn(),
 }));
 
 import { buildTemplateEngineAndCustomMapLib } from '../app/initialization';
@@ -55,7 +55,7 @@ describe('onRulesChanged rejection handling (#161)', () => {
       configPath: '/tmp/config.json',
       getConfig: makeConfig,
       gitignoreFilter: undefined,
-      issuesManager: issuesManager as never,
+      issuesManager: issuesManager,
       logger: logger as never,
       processor: processor as never,
       reindexTracker: reindexTracker as never,
@@ -107,7 +107,7 @@ describe('onRulesChanged rejection handling (#161)', () => {
       configPath: '/tmp/config.json',
       getConfig: makeConfig,
       gitignoreFilter: undefined,
-      issuesManager: { getAll: vi.fn().mockReturnValue({}) } as never,
+      issuesManager: { getAll: vi.fn().mockReturnValue({}) },
       logger: logger as never,
       processor: processor as never,
       reindexTracker: reindexTracker as never,

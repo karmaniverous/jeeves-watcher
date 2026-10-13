@@ -12,7 +12,10 @@
 import { readFileSync } from 'node:fs';
 
 import type { Command, CommandUnknownOpts } from '@commander-js/extra-typings';
-import { API_KEY_ENV_VAR } from '@karmaniverous/jeeves-watcher-core';
+import {
+  API_KEY_ENV_VAR,
+  getEndpoint,
+} from '@karmaniverous/jeeves-watcher-core';
 import { z } from 'zod';
 
 import { apiClient, printJson } from './apiOptions';
@@ -107,7 +110,7 @@ export function authenticateConfigCommands(program: Command): void {
     const qs = jsonpath ? `?path=${encodeURIComponent(jsonpath)}` : '';
     try {
       const client = apiClient({ ...opts, host: CONFIG_HOST });
-      printJson(await client.get(`/config${qs}`));
+      printJson(await client.get(`${getEndpoint('config').path}${qs}`));
     } catch (err) {
       reportFailure('Config query failed', err);
     }
@@ -124,7 +127,7 @@ export function authenticateConfigCommands(program: Command): void {
       const body: Record<string, unknown> = { patch };
       if (opts.replace) body.replace = true;
       const client = apiClient({ ...opts, host: CONFIG_HOST });
-      printJson(await client.post('/config/apply', body));
+      printJson(await client.post(getEndpoint('configApply').path, body));
     } catch (err) {
       reportFailure('Config apply failed', err);
     }

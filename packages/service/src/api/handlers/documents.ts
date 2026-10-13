@@ -115,10 +115,8 @@ export function createDocumentsHandler(deps: DocumentsHandlerDeps) {
       request: FastifyRequest<{ Body: unknown; Querystring: unknown }>,
       reply: FastifyReply,
     ) => {
-      const query = parseBody(documentsQuerySchema, request.query, reply);
-      if (!query) return;
-      const body = parseBody(documentsEnvelopeSchema, request.body, reply);
-      if (!body) return;
+      const query = parseBody(documentsQuerySchema, request.query);
+      const body = parseBody(documentsEnvelopeSchema, request.body);
 
       const { processor, sourceQueue } = deps;
       if (!sourceQueue || !hasSourceOperations(processor)) {

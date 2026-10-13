@@ -11,28 +11,32 @@ import { createPointsDeleteHandler } from './pointsDelete';
 
 const logger = pino({ level: 'silent' });
 
-/** An async generator over the given points. */
-async function* points(list: { id: string }[]) {
-  await Promise.resolve();
-  for (const p of list) yield { ...p, payload: {} };
-}
+type ScrollPage = (filter: unknown) => Promise<{
+  points: { id: string; payload: object }[];
+  nextCursor?: string;
+}>;
 
-/** An async iterable failing like a Qdrant 400 on the first page. */
-function rejected(): AsyncIterable<{ id: string }> {
-  const error = Object.assign(new Error('Bad Request'), {
-    status: 400,
-    data: { status: { error: 'Format error in JSON body' } },
-  });
-  return {
-    [Symbol.asyncIterator]: () => ({ next: () => Promise.reject(error) }),
-  };
-}
+/** A one-page scroll over the given point ids. */
+const page =
+  (ids: string[]): ScrollPage =>
+  () =>
+    Promise.resolve({ points: ids.map((id) => ({ id, payload: {} })) });
 
-/** Invoke the handler; return status (if set), body and the delete mock. */
-async function invoke(scroll: () => AsyncIterable<unknown>, body: unknown) {
+/** A scroll failing like a Qdrant 400 on the first page. */
+const rejected: ScrollPage = () =>
+  Promise.reject(
+    Object.assign(new Error('Bad Request'), {
+      status: 400,
+      data: { status: { error: 'Format error in JSON body' } },
+    }),
+  );
+
+/** Invoke the handler; return status (if set), body and the mocks. */
+async function invoke(scrollPage: ScrollPage, body: unknown) {
   const deleteMock = vi.fn();
+  const scrollMock = vi.fn(scrollPage);
   const deps: PointsDeleteDeps = {
-    vectorStore: { scroll: vi.fn(scroll), delete: deleteMock } as never,
+    vectorStore: { scrollPage: scrollMock, delete: deleteMock } as never,
     logger,
   };
   const status = vi.fn().mockReturnThis();
@@ -45,22 +49,22 @@ async function invoke(scroll: () => AsyncIterable<unknown>, body: unknown) {
     status: status.mock.calls[0]?.[0] as number | undefined,
     body: send.mock.calls[0]?.[0] as Record<string, unknown>,
     deleteMock,
+    scrollMock,
   };
 }
 
 const FILTER = { must: [{ key: 'domain', match: { value: 'memory' } }] };
 
 describe('createPointsDeleteHandler', () => {
-  it('deletes matching points', async () => {
-    const res = await invoke(() => points([{ id: 'p1' }, { id: 'p2' }]), {
-      filter: FILTER,
-    });
+  it('deletes matching points, scrolling with the given filter', async () => {
+    const res = await invoke(page(['p1', 'p2']), { filter: FILTER });
+    expect(res.scrollMock.mock.calls[0][0]).toEqual(FILTER);
     expect(res.deleteMock).toHaveBeenCalledWith(['p1', 'p2']);
     expect(res.body).toEqual({ deleted: 2 });
   });
 
   it('handles no matching points', async () => {
-    const res = await invoke(() => points([]), { filter: { must: [] } });
+    const res = await invoke(page([]), { filter: { must: [] } });
     expect(res.deleteMock).not.toHaveBeenCalled();
     expect(res.body).toEqual({ deleted: 0 });
   });
@@ -71,9 +75,12 @@ describe('createPointsDeleteHandler', () => {
     ['a non-object filter', { filter: 'x' }],
     ['an array filter', { filter: [] }],
   ])('rejects %s with 400 invalid_request', async (_label, body) => {
-    const res = await invoke(() => points([{ id: 'p1' }]), body);
+    const res = await invoke(page(['p1']), body);
     expect(res.status).toBe(400);
-    expect(res.body).toMatchObject({ code: 'invalid_request' });
+    expect(res.body).toMatchObject({
+      code: 'invalid_request',
+      error: 'Missing required field: filter (object)',
+    });
     expect(res.deleteMock).not.toHaveBeenCalled();
   });
 

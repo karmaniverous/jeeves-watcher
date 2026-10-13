@@ -9,11 +9,13 @@ import {
   createConfigApplyHandler,
   type JeevesComponentDescriptor,
 } from '@karmaniverous/jeeves';
+import { isPlainObject } from '@karmaniverous/jeeves-watcher-core';
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import type pino from 'pino';
 
 import { publicConfig } from '../publicConfig';
 import { sendInternalError, sendResult } from '../sendError';
+import { wrapHandler } from './wrapHandler';
 
 /** Dependencies for the config apply route handler. */
 export interface ConfigApplyRouteDeps {
@@ -26,8 +28,8 @@ export interface ConfigApplyRouteDeps {
   configPath: string;
   /** Called with the validated config after it has been written. */
   onConfigApply: (config: unknown) => Promise<void>;
-  /** Logger for 5xx results (their text is logged, never sent). */
-  logger?: pino.Logger;
+  /** Logger for 5xx results and unexpected errors (logged, never sent). */
+  logger: pino.Logger;
 }
 
 type ConfigApplyRequest = FastifyRequest<{
@@ -40,16 +42,6 @@ type ConfigApplyRequest = FastifyRequest<{
       }
     | undefined;
 }>;
-
-/**
- * Check whether a value is a plain object (not null, not an array).
- *
- * @param value - Value to check.
- * @returns True for plain objects.
- */
-function isPlainObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
 
 /**
  * Replace the echoed `config` of a core apply result with its public
@@ -82,8 +74,8 @@ function redactConfig(result: { status: number; body: unknown }): {
  * written but the apply callback (reload) failed, the body also carries
  * `warning: string` describing the failure. 4xx results get a `code` from
  * their status (`invalid_request`); a 5xx result (config file unreadable or
- * unwritable) is logged and answered with a generic `500 internal_error`,
- * so file paths never leak.
+ * unwritable), or any unexpected error (`wrapHandler`), is logged and
+ * answered with a generic `500 internal_error`, so file paths never leak.
  *
  * @param deps - Route dependencies.
  */
@@ -93,23 +85,27 @@ export function createConfigApplyRouteHandler(deps: ConfigApplyRouteDeps) {
     deps.configPath || undefined,
   );
 
-  return async (request: ConfigApplyRequest, reply: FastifyReply) => {
-    const body = request.body ?? {};
-    const patch = body.patch ?? body.config ?? {};
-    if (!isPlainObject(patch)) {
-      return sendResult(reply, {
-        status: 400,
-        body: {
-          error: 'Config validation failed',
-          issues: [{ path: ['patch'], message: 'patch must be an object' }],
-        },
-      });
-    }
-    const result = await apply({ patch, replace: body.replace === true });
-    if (result.status >= 500) {
-      deps.logger?.error({ result: result.body }, 'Config apply failed');
-      return sendInternalError(reply);
-    }
-    return sendResult(reply, redactConfig(result));
-  };
+  return wrapHandler(
+    async (request: ConfigApplyRequest, reply: FastifyReply) => {
+      const body = request.body ?? {};
+      const patch = body.patch ?? body.config ?? {};
+      if (!isPlainObject(patch)) {
+        return sendResult(reply, {
+          status: 400,
+          body: {
+            error: 'Config validation failed',
+            issues: [{ path: ['patch'], message: 'patch must be an object' }],
+          },
+        });
+      }
+      const result = await apply({ patch, replace: body.replace === true });
+      if (result.status >= 500) {
+        deps.logger.error({ result: result.body }, 'Config apply failed');
+        return sendInternalError(reply);
+      }
+      return sendResult(reply, redactConfig(result));
+    },
+    deps.logger,
+    'Config apply',
+  );
 }

@@ -3,7 +3,9 @@
  * Validates metadata enrichment payload against resolved schemas for matched inference rules.
  */
 
-import type { InferenceRule, JeevesWatcherConfig } from '../../config/types';
+import { isPlainObject } from '@karmaniverous/jeeves-watcher-core';
+
+import type { JeevesWatcherConfig } from '../../config/types';
 import { buildSyntheticAttributes } from '../../rules/attributes';
 import { type CompiledRule, compileRules } from '../../rules/compile';
 import { mergeSchemas } from '../../rules/schemaMerge';
@@ -30,10 +32,6 @@ interface MetadataValidationError {
 
 type MetadataValidationOutcome =
   MetadataValidationResult | MetadataValidationError;
-
-function isPlainObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
 
 function isValueValidForType(value: unknown, expectedType: string): boolean {
   switch (expectedType) {
@@ -88,30 +86,24 @@ export function validateMetadataPayload(
 
 /**
  * Validate a metadata payload for a source document against its designated
- * rule's schema. The rule is looked up as the processor does: the first rule
- * of that name among the config rules, then the registered virtual rules. A
- * designated rule that no longer exists in either validates nothing and
- * matches nothing.
+ * rule's schema. The caller resolves the rule with the processor's own
+ * lookup (`SourceOperations.compiledRule`), so validation and processing
+ * can never disagree about which rule applies. A designated rule that no
+ * longer exists validates nothing and matches nothing.
  *
- * @param config - Live config.
- * @param ruleName - The designated rule (`source_rule`).
+ * @param config - Live config (global schemas).
+ * @param rule - The designated rule, compiled; `undefined` when it no longer exists.
  * @param metadata - Enrichment metadata.
  * @param configDir - Config directory for schema file references.
- * @param virtualRules - Registered virtual rules (after the config rules).
  * @returns The validation outcome.
  */
 export function validateSourceMetadataPayload(
   config: JeevesWatcherConfig,
-  ruleName: string,
+  rule: CompiledRule | undefined,
   metadata: Record<string, unknown>,
   configDir?: string,
-  virtualRules: readonly InferenceRule[] = [],
 ): MetadataValidationOutcome {
-  const rule = [...(config.inferenceRules ?? []), ...virtualRules].find(
-    (r) => r.name === ruleName,
-  );
-  const compiled = rule ? compileRules([rule]) : [];
-  return validateAgainstRules(config, compiled, metadata, configDir);
+  return validateAgainstRules(config, rule ? [rule] : [], metadata, configDir);
 }
 
 /**

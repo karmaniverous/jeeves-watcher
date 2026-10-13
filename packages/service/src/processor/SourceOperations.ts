@@ -11,6 +11,7 @@ import type {
 
 import type { EnrichmentStoreInterface } from '../enrichment';
 import { sourcePointId } from '../pointId';
+import type { CompiledRule } from '../rules/compile';
 import {
   parseSourceReference,
   SourceReferenceError,
@@ -57,6 +58,12 @@ export interface SourceOperationsInterface {
   validate(ref: string, rule: string): DocumentRejectionError | undefined;
   /** Designated rule stored on the document's chunk-0 point, or `null` if not indexed. */
   storedRule(ref: string): Promise<string | null>;
+  /**
+   * The compiled rule a designated rule name resolves to in the merged rule
+   * set (config rules, then virtual rules: first of that name), or
+   * `undefined` when no such rule exists.
+   */
+  compiledRule(name: string): CompiledRule | undefined;
   /** Retrieve and render a document without embedding or writing anything. */
   render(ref: string, rule: string): Promise<SourceRenderOutcome>;
   /** Merge enrichment metadata into an indexed document's points; `null` if not indexed. */
@@ -143,13 +150,18 @@ export class SourceOperations implements SourceOperationsInterface {
       }
       throw error;
     }
-    if (!this.ctx.rules.compiledRules.some((c) => c.rule.name === rule)) {
+    if (this.compiledRule(rule) === undefined) {
       return {
         code: 'rule_missing',
         message: `Rule "${rule}" does not exist`,
       };
     }
     return undefined;
+  }
+
+  /** {@inheritDoc SourceOperationsInterface.compiledRule} */
+  compiledRule(name: string): CompiledRule | undefined {
+    return this.ctx.rules.compiledRules.find((c) => c.rule.name === name);
   }
 
   /** {@inheritDoc SourceOperationsInterface.storedRule} */

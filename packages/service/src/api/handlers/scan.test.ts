@@ -9,7 +9,7 @@ describe('createScanHandler', () => {
 
   const mockDeps = {
     vectorStore: { scrollPage: scrollPageMock, count: countMock },
-    logger: { warn: vi.fn(), error: vi.fn() },
+    logger: { warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
   } as unknown as ScanRouteDeps;
 
   it('returns points and cursor on normal scan', async () => {

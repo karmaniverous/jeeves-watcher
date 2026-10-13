@@ -4,14 +4,10 @@
  */
 
 import type { ReindexResponse } from '@karmaniverous/jeeves-watcher-core';
-import { parallel } from 'radash';
 
 import type { SourceOperationsInterface } from '../../processor/SourceOperations';
 import type { SourceNotifyQueue } from '../../queue/SourceNotifyQueue';
-import { parseSourceReference } from '../../sources';
-
-/** Stored-rule lookups run at once when `concurrency` is not given. */
-const DEFAULT_LOOKUP_CONCURRENCY = 16;
+import { countBySourceName, resolveStoredRules } from '../sourceDiscovery';
 
 /** Dependencies of {@link reindexSources}. */
 export interface ReindexSourcesDeps {
@@ -19,11 +15,8 @@ export interface ReindexSourcesDeps {
   ops: Pick<SourceOperationsInterface, 'storedRule'>;
   /** Notify queue the references are enqueued on. */
   queue: Pick<SourceNotifyQueue, 'enqueue'>;
-  /**
-   * Maximum stored-rule lookups (Qdrant reads) in flight
-   * (`reindex.concurrency`; default 16).
-   */
-  concurrency?: number;
+  /** Maximum stored-rule lookups (Qdrant reads) in flight (`reindex.concurrency`). */
+  concurrency: number;
 }
 
 /**
@@ -49,26 +42,15 @@ export async function reindexSources(
   dryRun: boolean,
 ): Promise<ReindexResponse> {
   const refs = [...new Set(sources)];
-  const concurrency = Math.max(
-    1,
-    deps.concurrency ?? DEFAULT_LOOKUP_CONCURRENCY,
+  const stored = await resolveStoredRules(deps.ops, refs, deps.concurrency);
+  const targets = stored.flatMap(({ ref, rule }) =>
+    rule === null ? [] : [{ ref, rule }],
   );
-  const found = await parallel(concurrency, refs, async (ref) => ({
-    ref,
-    rule: await deps.ops.storedRule(ref),
-  }));
-  const rules = new Map(found.map(({ ref, rule }) => [ref, rule]));
-
-  const byRoot: Record<string, number> = {};
-  let toProcess = 0;
-  for (const ref of refs) {
-    const rule = rules.get(ref);
-    if (rule === null || rule === undefined) continue;
-    toProcess++;
-    const { name } = parseSourceReference(ref);
-    byRoot[name] = (byRoot[name] ?? 0) + 1;
-    if (!dryRun) deps.queue.enqueue(ref, rule);
+  if (!dryRun) {
+    for (const { ref, rule } of targets) deps.queue.enqueue(ref, rule);
   }
+  const toProcess = targets.length;
+  const byRoot = countBySourceName(targets);
 
   return {
     status: dryRun ? 'dry_run' : 'started',

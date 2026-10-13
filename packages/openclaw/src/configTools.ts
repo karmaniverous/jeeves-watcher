@@ -8,6 +8,8 @@
  * `watcher_status` stays with core: `GET /status` is always open.
  */
 
+import { getEndpoint } from '@karmaniverous/jeeves-watcher-core';
+
 import type { ApiToolConfig } from './apiTool.js';
 
 /** Core toolset tools that this module replaces. */
@@ -33,7 +35,8 @@ export const configToolConfigs: ApiToolConfig[] = [
     },
     buildRequest: (params) => {
       const path = params.path as string | undefined;
-      return [path ? `/config?path=${encodeURIComponent(path)}` : '/config'];
+      const base = getEndpoint('config').path;
+      return [path ? `${base}?path=${encodeURIComponent(path)}` : base];
     },
   },
   {
@@ -52,7 +55,7 @@ export const configToolConfigs: ApiToolConfig[] = [
     buildRequest: (params) => {
       const config = params.config as Record<string, unknown> | undefined;
       if (!config) throw new Error('Missing required parameter: config');
-      return ['/config/apply', { patch: config }];
+      return [getEndpoint('configApply').path, { patch: config }];
     },
   },
 ];

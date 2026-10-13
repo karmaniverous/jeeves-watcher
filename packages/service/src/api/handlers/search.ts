@@ -54,8 +54,7 @@ const SEARCH_EMBED_BUDGET: EmbedOptions = { attempts: 3, maxWaitMs: 10_000 };
 export function createSearchHandler(deps: SearchRouteDeps) {
   return wrapHandler(
     async (request: SearchRequest, reply: FastifyReply) => {
-      const body = parseBody(searchRequestSchema, request.body, reply);
-      if (!body) return;
+      const body = parseBody(searchRequestSchema, request.body);
       const { query, limit = 10, offset, filter } = body;
 
       let vectors: number[][];

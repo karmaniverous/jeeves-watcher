@@ -11,6 +11,7 @@ import type { SourceNotifyQueue } from '../queue/SourceNotifyQueue';
 import { normalizeError } from '../util/normalizeError';
 import type { ReindexPlan } from './reindexPlan';
 import type { ExecuteReindexDeps, SourceReindexCounts } from './reindexTypes';
+import { reindexConcurrency } from './reindexWork';
 import {
   countBySourceName,
   discoverIndexedSources,
@@ -70,7 +71,11 @@ export async function resolveSourceScope(
   if (scope === 'issues' && deps.issuesManager) {
     const issues = deps.issuesManager.getAll();
     const ops = processor.sourceOperations();
-    const found = await discoverIssueSources(issues, ops);
+    const found = await discoverIssueSources(
+      issues,
+      ops,
+      reindexConcurrency(deps.config),
+    );
     return { ...found, queue, force: false };
   }
   return undefined;
@@ -118,6 +123,14 @@ export interface RunSourceScopeOptions {
   onProcessed: () => void;
 }
 
+/** Outcome of {@link runSourceScope}. */
+export interface SourceScopeOutcome {
+  /** Per-status counts. */
+  counts: SourceReindexCounts;
+  /** References that failed (status `failed`, or the queue rejected). */
+  failed: string[];
+}
+
 /**
  * Re-retrieve and index every source document of a scope with its
  * designated rule, through the notify queue. A 404 deletes the document's
@@ -127,26 +140,29 @@ export interface RunSourceScopeOptions {
  *
  * @param scope - The scope's source documents.
  * @param options - Concurrency, logger and progress hook.
- * @returns Per-status counts.
+ * @returns Per-status counts and the failed references.
  */
 export async function runSourceScope(
   scope: SourceScope,
   options: RunSourceScopeOptions,
-): Promise<SourceReindexCounts> {
+): Promise<SourceScopeOutcome> {
   const counts: SourceReindexCounts = {
     indexed: 0,
     unchanged: 0,
     deleted: 0,
     failed: 0,
   };
+  const failed: string[] = [];
   const { queue, force } = scope;
   await parallel(options.concurrency, scope.targets, async ({ ref, rule }) => {
     try {
       const result = await queue.processNow(ref, rule, { force });
       counts[result.status]++;
+      if (result.status === 'failed') failed.push(ref);
     } catch (error) {
       // processSource reports its own failures; a stopped queue rejects.
       counts.failed++;
+      failed.push(ref);
       options.logger.warn(
         { source: ref, err: normalizeError(error) },
         'Failed to reindex source document',
@@ -154,5 +170,5 @@ export async function runSourceScope(
     }
     options.onProcessed();
   });
-  return counts;
+  return { counts, failed };
 }

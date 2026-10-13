@@ -1,39 +1,30 @@
 /**
  * @module api/handlers/parseBody
- * Validates Fastify request bodies against core Zod schemas; on failure sends 400 `invalid_request` with error and Zod issue details.
+ * Validates Fastify request bodies against core Zod schemas; on failure throws a RequestError (400 `invalid_request` with the first issue and the Zod issue details), sent by wrapHandler.
  */
 
-import type { FastifyReply } from 'fastify';
 import type { z } from 'zod';
 
-import { sendError } from '../sendError';
+import { invalidRequest } from '../requestError';
 
 /**
- * Parse a request body with a Zod schema.
+ * Parse a request body (or query) with a Zod schema. Every route parses its
+ * input this way, inside `wrapHandler`.
  *
- * On failure, sends `400 { code: 'invalid_request', error, details }`
- * where `error` is the first
- * issue's message and `details` is the full Zod issue list, and returns
- * `undefined`. The caller must return immediately in that case.
- *
- * @param schema - Request body schema.
- * @param body - Raw request body.
- * @param reply - Fastify reply used to send the 400.
- * @returns The parsed body, or `undefined` if a 400 was sent.
+ * @param schema - Request schema.
+ * @param body - Raw request body (or query).
+ * @returns The parsed value.
+ * @throws RequestError `400 invalid_request` whose `error` is the first
+ *   issue's message and whose `details` is the full Zod issue list.
  */
 export function parseBody<S extends z.ZodType>(
   schema: S,
   body: unknown,
-  reply: FastifyReply,
-): z.output<S> | undefined {
+): z.output<S> {
   const result = schema.safeParse(body);
   if (result.success) return result.data;
-
-  sendError(
-    reply,
-    'invalid_request',
+  throw invalidRequest(
     result.error.issues[0]?.message ?? 'Invalid request body',
     { details: result.error.issues },
   );
-  return undefined;
 }

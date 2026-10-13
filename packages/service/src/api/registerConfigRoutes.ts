@@ -5,16 +5,15 @@
 
 import { dirname } from 'node:path';
 
-import { getEndpoint } from '@karmaniverous/jeeves-watcher-core';
+import {
+  type ConfigWatchReindexScope,
+  getEndpoint,
+} from '@karmaniverous/jeeves-watcher-core';
 import type { FastifyInstance } from 'fastify';
 
 import type { JeevesWatcherConfig } from '../config/types';
 import type { ApiServerOptions } from './apiServerOptions';
-import {
-  CONFIG_WATCH_VALID_SCOPES,
-  executeReindex,
-  type ReindexScope,
-} from './executeReindex';
+import { executeReindex, reindexDepsFrom } from './executeReindex';
 import { createConfigApplyRouteHandler } from './handlers/configApply';
 import { createConfigMatchHandler } from './handlers/configMatch';
 import { createConfigQueryHandler } from './handlers/configQuery';
@@ -50,48 +49,20 @@ export function registerConfigRoutes(
   options: ApiServerOptions,
   context: ConfigRouteContext,
 ): void {
-  const { processor, logger, issuesManager, valuesManager } = options;
+  const { logger, issuesManager, valuesManager } = options;
   const { getConfig, reindexTracker, cacheTtlMs } = context;
   const configDir = dirname(options.configPath);
 
-  const triggerReindex = (scope: ReindexScope) => {
-    if (!CONFIG_WATCH_VALID_SCOPES.includes(scope)) {
-      logger.warn(
-        { scope },
-        `Scope "${scope}" is not valid for config-watch auto-trigger; ignoring.`,
-      );
-      return;
-    }
+  const triggerReindex = (scope: ConfigWatchReindexScope) => {
     void executeReindex(
-      {
-        config: getConfig(),
-        processor,
-        logger,
-        reindexTracker,
-        valuesManager,
-        issuesManager,
-        gitignoreFilter: options.gitignoreFilter,
-        vectorStore: options.vectorStore,
-        queue: options.queue,
-      },
-      scope,
+      reindexDepsFrom({ ...options, getConfig, reindexTracker }),
+      { scope },
     );
   };
 
   app.post(
     getEndpoint('reindex').path,
-    createConfigReindexHandler({
-      getConfig,
-      processor,
-      logger,
-      reindexTracker,
-      valuesManager,
-      issuesManager,
-      gitignoreFilter: options.gitignoreFilter,
-      vectorStore: options.vectorStore,
-      queue: options.queue,
-      sourceQueue: options.sourceQueue,
-    }),
+    createConfigReindexHandler({ ...options, getConfig, reindexTracker }),
   );
 
   app.get(

@@ -5,7 +5,7 @@
 
 import type pino from 'pino';
 
-import { executeReindex } from '../api/executeReindex';
+import { executeReindex, reindexDepsFrom } from '../api/executeReindex';
 import type { InitialScanTracker } from '../api/InitialScanTracker';
 import type { ContentHashCache } from '../cache';
 import type { JeevesWatcherConfig } from '../config/types';
@@ -116,15 +116,15 @@ export async function reloadConfig(
     );
 
     await executeReindex(
-      {
-        config: newConfig,
+      reindexDepsFrom({
+        getConfig: () => newConfig,
         processor,
         logger,
         valuesManager: deps.valuesManager,
         issuesManager: deps.issuesManager,
         gitignoreFilter: state.gitignoreFilter,
-      },
-      reindexScope,
+      }),
+      { scope: reindexScope },
     );
   } catch (error) {
     logger.error({ err: normalizeError(error) }, 'Failed to reload config');

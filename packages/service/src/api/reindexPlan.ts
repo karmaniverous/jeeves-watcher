@@ -1,24 +1,12 @@
 /**
  * @module api/reindexPlan
- * Reindex blast-area plan type and the per-watch-root grouping helper shared by prune and file-scope plans. Pure, no I/O.
+ * Reindex blast-area plan type (core `ReindexPlan`, re-exported) and the per-watch-root grouping helper shared by prune and file-scope plans. Pure, no I/O.
  */
 
 import { isPathWithin } from '../util/isPathWithin';
 import { normalizeSlashes } from '../util/normalizeSlashes';
 
-/** Blast area plan showing impact of a reindex operation. */
-export interface ReindexPlan {
-  /** Total points (prune) or files and source documents (other scopes) examined. */
-  total: number;
-  /** Number of items to process (embed/re-apply rules). */
-  toProcess: number;
-  /** Number of points to delete (prune only, 0 for others). */
-  toDelete: number;
-  /** Counts grouped by watch root path (files) or source name (source documents). */
-  byRoot: Record<string, number>;
-  /** True when scroll was interrupted and results are partial. */
-  incomplete?: boolean;
-}
+export type { ReindexPlan } from '@karmaniverous/jeeves-watcher-core';
 
 /**
  * Group file paths by their watch root prefix.

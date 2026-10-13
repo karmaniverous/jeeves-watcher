@@ -80,6 +80,7 @@ function build(sources: boolean): FastifyInstance {
       descriptor: { configSchema: z.object({}) } as never,
       configPath: '',
       onConfigApply: () => Promise.resolve(),
+      logger: pino({ level: 'silent' }),
     }),
   );
   app.get(

@@ -7,18 +7,14 @@ import {
   type ApiErrorCode,
   type DocumentFailure,
   issueTypeSchema,
+  type RenderResponse,
 } from '@karmaniverous/jeeves-watcher-core';
 import type { FastifyReply } from 'fastify';
-import type pino from 'pino';
 
 import type { DocumentProcessorInterface } from '../../processor';
 import { hasSourceOperations } from '../../processor/SourceOperations';
-import { normalizeError } from '../../util/normalizeError';
-import {
-  sendError,
-  sendInternalError,
-  sendSourcesNotAvailable,
-} from '../sendError';
+import { RequestError } from '../requestError';
+import { sendError, sendSourcesNotAvailable } from '../sendError';
 
 /**
  * Map a pipeline failure to its API code (the status follows from the code).
@@ -56,7 +52,7 @@ function sendRenderFailure(
 }
 
 /**
- * Render a source document and send the response.
+ * Render a source document (inside the render route's `wrapHandler`).
  *
  * - `404 source_not_indexed`: no stored point, so no designated rule is
  *   known.
@@ -65,53 +61,38 @@ function sendRenderFailure(
  * - `502 source_unavailable`; `422 unsupported_content_type`;
  *   `422 pipeline_error` for other pipeline failures. `issueType` names the
  *   failure (`rule_missing`, `match_failed`, ...).
- * - `503 not_available` without source support; `500 internal_error` with
- *   generic text on an unexpected error (logged, never sent).
- * - `200 { renderAs, content, rules, metadata }`, with
- *   `Cache-Control: no-cache`.
+ * - `503 not_available` without source support. An unexpected error
+ *   propagates to `wrapHandler` (logged, generic `500 internal_error`).
+ * - `200 { renderAs, content, rules, metadata }`.
+ *
+ * Every response carries `Cache-Control: no-cache`.
  *
  * @param processor - The document processor.
  * @param ref - The exact `<name>://<id>` reference.
  * @param reply - Fastify reply.
- * @param logger - Logger.
- * @returns The sent reply.
+ * @returns The response body, or the reply when an error was sent.
  */
 export async function renderSource(
   processor: DocumentProcessorInterface,
   ref: string,
   reply: FastifyReply,
-  logger: pino.Logger,
-): Promise<FastifyReply> {
+): Promise<FastifyReply | RenderResponse> {
   void reply.header('Cache-Control', 'no-cache');
   if (!hasSourceOperations(processor)) {
     return sendSourcesNotAvailable(reply);
   }
-  try {
-    const ops = processor.sourceOperations();
-    const rule = await ops.storedRule(ref);
-    if (rule === null) {
-      return await sendError(
-        reply,
-        'source_not_indexed',
-        'Source document not indexed',
-      );
-    }
-    const outcome = await ops.render(ref, rule);
-    if (outcome.kind === 'gone') {
-      return await sendError(
-        reply,
-        'source_not_found',
-        'Source document not found',
-      );
-    }
-    if (outcome.kind === 'failed') {
-      return await sendRenderFailure(reply, outcome.error);
-    }
-    const { renderAs, content, rules, metadata } = outcome.result;
-    return await reply.send({ renderAs, content, rules, metadata });
-  } catch (error) {
-    const err = normalizeError(error);
-    logger.error({ source: ref, err }, 'Source render failed');
-    return sendInternalError(reply);
+  const ops = processor.sourceOperations();
+  const rule = await ops.storedRule(ref);
+  if (rule === null) {
+    throw new RequestError('source_not_indexed', 'Source document not indexed');
   }
+  const outcome = await ops.render(ref, rule);
+  if (outcome.kind === 'gone') {
+    throw new RequestError('source_not_found', 'Source document not found');
+  }
+  if (outcome.kind === 'failed') {
+    return sendRenderFailure(reply, outcome.error);
+  }
+  const { renderAs, content, rules, metadata } = outcome.result;
+  return { renderAs, content, rules, metadata };
 }

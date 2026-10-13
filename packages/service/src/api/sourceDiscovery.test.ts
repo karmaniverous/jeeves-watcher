@@ -34,6 +34,7 @@ describe('discoverIssueSources', () => {
         '/docs/a.md': [issue('file-rule')],
       },
       ops,
+      4,
     );
 
     expect(found.total).toBe(3);

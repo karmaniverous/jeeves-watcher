@@ -19,8 +19,8 @@
  *   service manager by service name.
  *
  * The 14 domain tools (7 in `watcherTools.ts`, 7 VCS tools in
- * `vcsTools.ts`) call `{apiUrl}/…` via `fetchJson`/`postJson` and are never
- * gated.
+ * `vcsTools.ts`) call the service API via `registerApiTool` →
+ * `requestJson` and are never gated.
  */
 
 /** Decides, per call, whether a tool invocation reads `configRoot`. */

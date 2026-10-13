@@ -12,12 +12,7 @@ import {
   SOURCE_POINT_CONDITIONS,
 } from '../processor/payloadFields';
 import type { VectorStore } from '../vectorStore';
-
-/** Scroll page size while collecting points to delete. */
-const SCROLL_PAGE_SIZE = 256;
-
-/** Maximum point IDs per delete request. */
-const DELETE_BATCH_SIZE = 256;
+import { deletePointsByFilter } from './pointDeletion';
 
 /**
  * Filter selecting every chunk of the given references.
@@ -64,9 +59,10 @@ export interface SourceDeletion {
 }
 
 /**
- * Delete every point matching a (source-constrained) filter. Matching points
- * are collected first (projection: `source` only) and then deleted in
- * batches, so the scroll cursor is never invalidated by its own deletes.
+ * Delete every point matching a (source-constrained) filter, through
+ * {@link deletePointsByFilter} (projection: `source`, `file_path`).
+ * Defence in depth: only source points ({@link isSourcePoint}) are ever
+ * deleted, whatever the filter.
  *
  * @param vectorStore - The vector store.
  * @param filter - A filter from {@link sourcesFilter} or {@link constrainToSources}.
@@ -76,27 +72,12 @@ export async function deleteSourcePoints(
   vectorStore: Pick<VectorStore, 'scrollPage' | 'delete'>,
   filter: QdrantFilter,
 ): Promise<SourceDeletion> {
-  const ids: string[] = [];
-  const sources = new Set<string>();
-  let cursor: string | number | undefined;
-  do {
-    const page = await vectorStore.scrollPage(
-      filter,
-      SCROLL_PAGE_SIZE,
-      cursor,
-      [FIELD_SOURCE, FIELD_FILE_PATH],
-    );
-    for (const point of page.points) {
-      // Defence in depth: only source points are ever deleted.
-      if (!isSourcePoint(point.payload)) continue;
-      ids.push(point.id);
-      sources.add(String(point.payload[FIELD_SOURCE]));
-    }
-    cursor = page.nextCursor;
-  } while (cursor !== undefined);
-
-  for (let i = 0; i < ids.length; i += DELETE_BATCH_SIZE) {
-    await vectorStore.delete(ids.slice(i, i + DELETE_BATCH_SIZE));
-  }
-  return { sources: [...sources], points: ids.length };
+  const deleted = await deletePointsByFilter(vectorStore, filter, {
+    fields: [FIELD_SOURCE, FIELD_FILE_PATH],
+    select: isSourcePoint,
+  });
+  const sources = new Set(
+    deleted.map((payload) => String(payload[FIELD_SOURCE])),
+  );
+  return { sources: [...sources], points: deleted.length };
 }

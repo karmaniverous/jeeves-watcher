@@ -843,22 +843,11 @@
       "type": "number"
     },
     "__schema60": {
-      "anyOf": [
-        {
-          "type": "string",
-          "const": "issues",
-          "description": "Re-process only files with recorded issues."
-        },
-        {
-          "type": "string",
-          "const": "full",
-          "description": "Full reindex of all watched files."
-        },
-        {
-          "type": "string",
-          "const": "rules",
-          "description": "Re-apply inference rules to existing points without re-embedding."
-        }
+      "type": "string",
+      "enum": [
+        "issues",
+        "full",
+        "rules"
       ]
     },
     "__schema61": {

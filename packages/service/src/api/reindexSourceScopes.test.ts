@@ -1,6 +1,6 @@
 /**
  * @module api/reindexSourceScopes.test
- * runSourceScope goes through the notify queue: a reindex and a concurrent notification of the same reference never run in parallel and the final state is the latest; `force` reaches processSource; a stopped queue counts as failed. resolveSourceScope needs the queue.
+ * runSourceScope goes through the notify queue: a reindex and a concurrent notification of the same reference never run in parallel and the final state is the latest; `force` reaches processSource; a stopped queue counts as failed and lists the reference. resolveSourceScope needs the queue.
  */
 
 import type { DocumentResult } from '@karmaniverous/jeeves-watcher-core';
@@ -69,10 +69,8 @@ describe('runSourceScope through the notify queue', () => {
     await vi.advanceTimersByTimeAsync(3 * RUN_MS);
 
     expect(await run).toEqual({
-      indexed: 1,
-      unchanged: 0,
-      deleted: 0,
-      failed: 0,
+      counts: { indexed: 1, unchanged: 0, deleted: 0, failed: 0 },
+      failed: [],
     });
     expect(fake.maxActive()).toBe(1);
     expect(fake.indexed.get(ref)).toBe('v2');
@@ -85,7 +83,7 @@ describe('runSourceScope through the notify queue', () => {
     queue.start();
     await queue.stop();
 
-    const counts = await runSourceScope(
+    const outcome = await runSourceScope(
       {
         total: 1,
         targets: [{ ref: 'app://t/1', rule: 'r' }],
@@ -95,7 +93,10 @@ describe('runSourceScope through the notify queue', () => {
       options,
     );
 
-    expect(counts.failed).toBe(1);
+    expect(outcome).toMatchObject({
+      counts: { failed: 1 },
+      failed: ['app://t/1'],
+    });
   });
 });
 

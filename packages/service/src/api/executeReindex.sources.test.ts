@@ -45,7 +45,7 @@ describe('executeReindex: source documents', () => {
     const f = fixture();
     await f.index(A, B);
 
-    const result = await executeReindex(f.deps, 'full');
+    const result = await executeReindex(f.deps, { scope: 'full' });
 
     expect(f.retrieve.mock.calls.map(([ref]) => ref).sort()).toEqual([A, B]);
     expect(f.embed).toHaveBeenCalledTimes(2);
@@ -63,7 +63,10 @@ describe('executeReindex: source documents', () => {
     const f = fixture();
     await f.index(A, B, C);
 
-    const { plan } = await executeReindex(f.deps, 'full', undefined, true);
+    const { plan } = await executeReindex(f.deps, {
+      scope: 'full',
+      dryRun: true,
+    });
 
     expect(plan).toEqual({
       total: 4,
@@ -82,7 +85,10 @@ describe('executeReindex: source documents', () => {
     const setTotal = vi.spyOn(tracker, 'setTotal');
     const increment = vi.spyOn(tracker, 'incrementProcessed');
 
-    await executeReindex({ ...f.deps, reindexTracker: tracker }, 'rules');
+    await executeReindex(
+      { ...f.deps, reindexTracker: tracker },
+      { scope: 'rules' },
+    );
 
     expect(setTotal).toHaveBeenLastCalledWith(3);
     expect(increment).toHaveBeenCalledTimes(3);
@@ -96,7 +102,7 @@ describe('executeReindex: source documents', () => {
     );
     f.responses[B] = doc('u2', 'bravo edited');
 
-    const result = await executeReindex(f.deps, 'rules');
+    const result = await executeReindex(f.deps, { scope: 'rules' });
 
     // A: same content, new metadata → setPayload, no embedding.
     expect(f.store.points.get(sourcePointId(A, 0))?.payload).toMatchObject({
@@ -117,7 +123,7 @@ describe('executeReindex: source documents', () => {
   it('rules leaves unchanged documents alone', async () => {
     const f = fixture();
     await f.index(A);
-    const result = await executeReindex(f.deps, 'rules');
+    const result = await executeReindex(f.deps, { scope: 'rules' });
     expect(f.retrieve).toHaveBeenCalledOnce();
     expect(f.embed).not.toHaveBeenCalled();
     expect(f.store.setPayload).not.toHaveBeenCalled();
@@ -127,7 +133,10 @@ describe('executeReindex: source documents', () => {
   it('rules with a path filter stays file-only', async () => {
     const f = fixture();
     await f.index(A);
-    const result = await executeReindex(f.deps, 'rules', ['**/*.md']);
+    const result = await executeReindex(f.deps, {
+      scope: 'rules',
+      path: ['**/*.md'],
+    });
     expect(f.store.scrollPage).not.toHaveBeenCalled();
     expect(f.retrieve).not.toHaveBeenCalled();
     expect(result.sources).toBeUndefined();
@@ -140,7 +149,10 @@ describe('executeReindex: source documents', () => {
     f.issues.record('app://chat/thread/never-indexed', 'match_failed', 'x');
     f.issues.record('src/broken.md', 'extraction_error', 'y');
 
-    const plan = await executeReindex(f.deps, 'issues', undefined, true);
+    const plan = await executeReindex(f.deps, {
+      scope: 'issues',
+      dryRun: true,
+    });
     expect(plan.plan).toEqual({
       total: 3,
       toProcess: 2,
@@ -148,7 +160,7 @@ describe('executeReindex: source documents', () => {
       byRoot: { src: 1, app: 1 },
     });
 
-    const result = await executeReindex(f.deps, 'issues');
+    const result = await executeReindex(f.deps, { scope: 'issues' });
 
     expect(f.retrieve.mock.calls.map(([ref]) => ref)).toEqual([A]);
     expect(f.processFile).toHaveBeenCalledTimes(1);
@@ -164,7 +176,7 @@ describe('executeReindex: source documents', () => {
     f.issues.record(never, 'source_unavailable', 'HTTP 503', { rule: RULE });
     f.responses[never] = doc('u9', 'recovered');
 
-    const result = await executeReindex(f.deps, 'issues');
+    const result = await executeReindex(f.deps, { scope: 'issues' });
 
     expect(f.retrieve.mock.calls.map(([ref]) => ref)).toEqual([never]);
     expect(f.store.points.get(sourcePointId(never, 0))?.payload).toMatchObject({

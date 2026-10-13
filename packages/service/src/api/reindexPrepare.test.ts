@@ -69,13 +69,7 @@ describe('executeReindex with prepared targets', () => {
   it('reuses them: one listing and one source scroll per request', async () => {
     const { deps, store, retrieve } = await indexed();
     const prepared = await prepareReindex(deps, 'full');
-    const result = await executeReindex(
-      deps,
-      'full',
-      undefined,
-      false,
-      prepared,
-    );
+    const result = await executeReindex(deps, { scope: 'full', prepared });
     expect(result.sources).toMatchObject({ unchanged: 0, failed: 0 });
     expect(retrieve).toHaveBeenCalledTimes(1);
     expect(retrieve.mock.calls[0][0]).toBe(A);
@@ -86,7 +80,7 @@ describe('executeReindex with prepared targets', () => {
   it('resolves unprepared targets inside the run (failure fails the run)', async () => {
     const { deps } = await indexed();
     vi.mocked(listFilesFromGlobs).mockRejectedValue(new Error('EACCES'));
-    const result = await executeReindex(deps, 'full');
+    const result = await executeReindex(deps, { scope: 'full' });
     expect(result).toMatchObject({ filesProcessed: 0, errors: 1 });
   });
 });

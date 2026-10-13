@@ -30,11 +30,6 @@ vi.mock('./fileScan', async (importOriginal) => {
   };
 });
 
-// Mock processAllFiles
-vi.mock('./processAllFiles', () => ({
-  processAllFiles: vi.fn().mockResolvedValue(0),
-}));
-
 import { listFilesFromGlobs, listFilesFromWatchRoots } from './fileScan';
 
 const listFilesFromGlobsMock = vi.mocked(listFilesFromGlobs);
@@ -46,14 +41,14 @@ const ISSUE = [
 describe('executeReindex', () => {
   it('calls reindexTracker.start and complete on full scope', async () => {
     const { deps, mocks } = makeDeps();
-    await executeReindex(deps, 'full');
+    await executeReindex(deps, { scope: 'full' });
     expect(mocks.trackerStart).toHaveBeenCalledWith('full');
     expect(mocks.trackerComplete).toHaveBeenCalled();
   });
 
   it('clears valuesManager on full scope', async () => {
     const { deps, mocks } = makeDeps();
-    await executeReindex(deps, 'full');
+    await executeReindex(deps, { scope: 'full' });
     expect(mocks.clearAll).toHaveBeenCalled();
   });
 
@@ -65,7 +60,7 @@ describe('executeReindex', () => {
         }),
       },
     });
-    await executeReindex(deps, 'issues');
+    await executeReindex(deps, { scope: 'issues' });
     expect(mocks.clearAll).not.toHaveBeenCalled();
   });
 
@@ -78,7 +73,7 @@ describe('executeReindex', () => {
         }),
       },
     });
-    const result = await executeReindex(deps, 'issues');
+    const result = await executeReindex(deps, { scope: 'issues' });
     expect(mocks.processFile).toHaveBeenCalledTimes(2);
     expect(result.filesProcessed).toBe(2);
     expect(result.errors).toBe(0);
@@ -98,7 +93,7 @@ describe('executeReindex', () => {
       },
       issuesManager: { getAll: () => ({ 'a.txt': [] }) },
     });
-    const result = await executeReindex(deps, 'issues');
+    const result = await executeReindex(deps, { scope: 'issues' });
     expect(result.errors).toBe(1);
     expect(result.filesProcessed).toBe(0);
   });
@@ -116,7 +111,7 @@ describe('executeReindex', () => {
       } as unknown as ExecuteReindexDeps['config'],
       issuesManager: { getAll: () => ({}) },
     });
-    await executeReindex(deps, 'issues');
+    await executeReindex(deps, { scope: 'issues' });
     expect(fetchSpy).toHaveBeenCalledWith(
       'http://example.com/cb',
       expect.objectContaining({ method: 'POST' }),
@@ -128,7 +123,7 @@ describe('executeReindex', () => {
     const { deps } = makeDeps({
       issuesManager: { getAll: () => ({}) },
     });
-    const result = await executeReindex(deps, 'issues');
+    const result = await executeReindex(deps, { scope: 'issues' });
     expect(result.durationMs).toBeGreaterThanOrEqual(0);
   });
 
@@ -141,7 +136,7 @@ describe('executeReindex', () => {
     listFilesFromWatchRootsMock.mockResolvedValue(['file1.ts', 'file2.ts']);
 
     const { deps } = makeDeps();
-    await executeReindex(deps, 'rules', ['**/.meta/**']);
+    await executeReindex(deps, { scope: 'rules', path: ['**/.meta/**'] });
 
     expect(listFilesFromWatchRootsMock).toHaveBeenCalledWith(
       deps.config.watch.paths,
@@ -162,7 +157,10 @@ describe('executeReindex', () => {
           }),
         },
       });
-      const result = await executeReindex(deps, 'issues', undefined, true);
+      const result = await executeReindex(deps, {
+        scope: 'issues',
+        dryRun: true,
+      });
       expect(result.filesProcessed).toBe(0);
       expect(result.durationMs).toBe(0);
       expect(result.plan).toBeDefined();
@@ -174,7 +172,10 @@ describe('executeReindex', () => {
 
     it('full scope: returns plan without clearing valuesManager', async () => {
       const { deps, mocks } = makeDeps();
-      const result = await executeReindex(deps, 'full', undefined, true);
+      const result = await executeReindex(deps, {
+        scope: 'full',
+        dryRun: true,
+      });
       expect(result.filesProcessed).toBe(0);
       expect(result.durationMs).toBe(0);
       expect(result.plan).toBeDefined();
@@ -197,7 +198,10 @@ describe('executeReindex', () => {
           renderFile: vi.fn(),
         },
       });
-      const result = await executeReindex(deps, 'rules', undefined, true);
+      const result = await executeReindex(deps, {
+        scope: 'rules',
+        dryRun: true,
+      });
       expect(result.filesProcessed).toBe(0);
       expect(result.durationMs).toBe(0);
       expect(result.plan).toBeDefined();
@@ -220,7 +224,10 @@ describe('executeReindex', () => {
           delete: deleteFn,
         } as unknown as ExecuteReindexDeps['vectorStore'],
       });
-      const result = await executeReindex(deps, 'prune', undefined, true);
+      const result = await executeReindex(deps, {
+        scope: 'prune',
+        dryRun: true,
+      });
       expect(result.filesProcessed).toBe(0);
       expect(result.durationMs).toBe(0);
       expect(result.plan).toBeDefined();

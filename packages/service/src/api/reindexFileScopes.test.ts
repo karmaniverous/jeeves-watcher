@@ -1,13 +1,12 @@
 /**
  * @module api/reindexFileScopes.test
- * listScopeFiles per scope (issue file keys only, path targets, rules globs, every watched file), filePlan, and runFileScope dispatch: issues counts per-file errors, path reports progress, rules/full go through processAllFiles with the listed files.
+ * listScopeFiles per scope (issue file keys only, path targets, rules globs, every watched file), filePlan, and runFileScope: one error policy for every scope (failures collected, the run continues, progress after every file), rules re-applies rules and every other scope re-processes files.
  */
 
 import pino from 'pino';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { listFilesFromGlobs, listFilesFromWatchRoots } from './fileScan';
-import { processAllFiles } from './processAllFiles';
 import { filePlan, listScopeFiles, runFileScope } from './reindexFileScopes';
 import { collectPathFiles } from './reindexPathFiles';
 import type { ExecuteReindexDeps } from './reindexTypes';
@@ -17,16 +16,16 @@ vi.mock('./fileScan', () => ({
   listFilesFromWatchRoots: vi.fn(),
 }));
 vi.mock('./reindexPathFiles', () => ({ collectPathFiles: vi.fn() }));
-vi.mock('./processAllFiles', () => ({ processAllFiles: vi.fn() }));
 
 const processFile = vi.fn<(path: string) => Promise<void>>();
+const processRulesUpdate = vi.fn<(path: string) => Promise<null>>();
 
 const deps = {
   config: {
     watch: { paths: ['/w/docs/**'], ignored: ['**/tmp/**'] },
     reindex: { concurrency: 2 },
   },
-  processor: { processFile },
+  processor: { processFile, processRulesUpdate },
   logger: pino({ level: 'silent' }),
   issuesManager: {
     getAll: () => ({
@@ -44,7 +43,7 @@ beforeEach(() => {
     .mockReset()
     .mockResolvedValue(['/w/docs/r.md']);
   vi.mocked(collectPathFiles).mockReset().mockResolvedValue(['/w/docs/p.md']);
-  vi.mocked(processAllFiles).mockReset().mockResolvedValue(7);
+  processRulesUpdate.mockReset().mockResolvedValue(null);
   processFile.mockReset().mockResolvedValue(undefined);
 });
 
@@ -95,40 +94,45 @@ describe('filePlan', () => {
 });
 
 describe('runFileScope', () => {
-  const progress = () => ({ onTotal: vi.fn(), onProcessed: vi.fn() });
-
-  it('issues: processes each file and counts failures', async () => {
-    processFile.mockRejectedValueOnce(new Error('boom'));
-    const result = await runFileScope(
-      deps,
-      'issues',
-      ['/a.md', '/b.md'],
-      progress(),
-    );
-    expect(result).toEqual({ filesProcessed: 1, errors: 1 });
-    expect(processFile).toHaveBeenCalledTimes(2);
-  });
-
-  it('path: processes the files and reports progress', async () => {
-    const hooks = progress();
-    const result = await runFileScope(deps, 'path', ['/a.md', '/b.md'], hooks);
-    expect(result).toEqual({ filesProcessed: 2, errors: 0 });
-    expect(hooks.onTotal).toHaveBeenCalledWith(2);
-    expect(hooks.onProcessed).toHaveBeenCalledTimes(2);
-  });
-
-  it.each([
-    ['rules', 'processRulesUpdate'],
-    ['full', 'processFile'],
-  ] as const)(
-    '%s: processAllFiles with %s over the listed files',
-    async (scope, method) => {
-      const result = await runFileScope(deps, scope, ['/a.md'], progress());
-      expect(result).toEqual({ filesProcessed: 7, errors: 0 });
-      const call = vi.mocked(processAllFiles).mock.calls[0];
-      expect(call[3]).toBe(method);
-      expect(call[4]).toBe(2);
-      expect(call[7]).toEqual(['/a.md']);
+  it.each(['issues', 'path', 'full'] as const)(
+    '%s: re-processes each file, collects failures and keeps going',
+    async (scope) => {
+      processFile.mockImplementation((path) =>
+        path === '/a.md'
+          ? Promise.reject(new Error('boom'))
+          : Promise.resolve(),
+      );
+      const onProcessed = vi.fn();
+      const result = await runFileScope(
+        deps,
+        scope,
+        ['/a.md', '/b.md', '/c.md'],
+        onProcessed,
+      );
+      expect(result).toEqual({ filesProcessed: 2, failed: ['/a.md'] });
+      expect(processFile).toHaveBeenCalledTimes(3);
+      expect(processRulesUpdate).not.toHaveBeenCalled();
+      expect(onProcessed).toHaveBeenCalledTimes(3);
     },
   );
+
+  it('rules: re-applies rules to each file with the same policy', async () => {
+    processRulesUpdate.mockImplementation((path) =>
+      path === '/a.md'
+        ? Promise.reject(new Error('boom'))
+        : Promise.resolve(null),
+    );
+    const result = await runFileScope(
+      deps,
+      'rules',
+      ['/a.md', '/b.md'],
+      vi.fn(),
+    );
+    expect(result).toEqual({ filesProcessed: 1, failed: ['/a.md'] });
+    expect(processRulesUpdate.mock.calls.map(([f]) => f).sort()).toEqual([
+      '/a.md',
+      '/b.md',
+    ]);
+    expect(processFile).not.toHaveBeenCalled();
+  });
 });

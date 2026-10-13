@@ -28,6 +28,12 @@ export const API_DEFAULTS = {
   cacheTtlMs: 30000,
 };
 
+/** Default reindex values. */
+export const REINDEX_DEFAULTS = {
+  /** Files (and source documents, and stored-rule lookups) in flight at once. */
+  concurrency: 50,
+};
+
 /** Default logging values. */
 export const LOGGING_DEFAULTS = {
   level: 'info' as const,

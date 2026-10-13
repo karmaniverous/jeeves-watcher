@@ -1,23 +1,21 @@
 /**
  * @module api/reindexFileScopes
- * File side of reindex scopes `issues`, `full`, `rules` and `path`: lists the scope's files, builds the per-root plan, and processes them with bounded concurrency. fs I/O plus processor calls.
+ * File side of reindex scopes `issues`, `full`, `rules` and `path`: lists the scope's files, builds the per-root plan, and processes them with bounded concurrency (one error policy: failures are collected, never stop the run). fs I/O plus processor calls.
  */
 
 import {
   extractWatchPathStrings,
   type ReindexScope,
 } from '@karmaniverous/jeeves-watcher-core';
-import { parallel } from 'radash';
 
 import type { JeevesWatcherConfig } from '../config/types';
 import { createIsGitignored } from '../gitignore';
 import { isSourceReference } from '../util/documentKey';
-import { normalizeError } from '../util/normalizeError';
 import { listFilesFromGlobs, listFilesFromWatchRoots } from './fileScan';
-import { processAllFiles } from './processAllFiles';
 import { collectPathFiles } from './reindexPathFiles';
 import { groupByRoot, type ReindexPlan } from './reindexPlan';
 import type { ExecuteReindexDeps } from './reindexTypes';
+import { processEach, reindexConcurrency } from './reindexWork';
 
 /**
  * Build the plan for a list of files (nothing to delete).
@@ -84,97 +82,37 @@ export async function listScopeFiles(
 
 /** Outcome of {@link runFileScope}. */
 export interface FileScopeOutcome {
-  /** Files processed. */
+  /** Files processed successfully. */
   filesProcessed: number;
-  /** Files whose processing threw (scope `issues` only). */
-  errors: number;
-}
-
-/** Progress hooks for {@link runFileScope}. */
-export interface FileScopeProgress {
-  /** Called once with the number of files about to be processed. */
-  onTotal: (total: number) => void;
-  /** Called after each processed file. */
-  onProcessed: () => void;
+  /** Files whose processing threw (logged; the run continued). */
+  failed: string[];
 }
 
 /**
- * Process the files of a non-prune scope.
+ * Process the files of a non-prune scope with `reindex.concurrency`: scope
+ * `rules` re-applies rules (`processRulesUpdate`), every other scope
+ * re-processes the file (`processFile`). Every scope follows the same error
+ * policy ({@link processEach}): a failing file is logged and collected and
+ * the remaining files still run; progress is reported after every file.
  *
  * @param deps - Reindex dependencies.
  * @param scope - Reindex scope (not `prune`).
  * @param fileList - Files from {@link listScopeFiles}.
- * @param progress - Progress hooks.
- * @returns Files processed and errors.
+ * @param onProcessed - Called after each file.
+ * @returns Files processed and the files that failed.
  */
 export async function runFileScope(
   deps: ExecuteReindexDeps,
   scope: ReindexScope,
   fileList: string[],
-  progress: FileScopeProgress,
+  onProcessed: () => void,
 ): Promise<FileScopeOutcome> {
   const { config, processor, logger } = deps;
-  const isGitignored = createIsGitignored(deps.gitignoreFilter);
-  const watchPaths = extractWatchPathStrings(config.watch.paths);
-  const concurrency = config.reindex?.concurrency ?? 50;
-  const callbacks = {
-    onTotal: progress.onTotal,
-    onFileProcessed: progress.onProcessed,
-  };
-
-  if (scope === 'issues') {
-    let filesProcessed = 0;
-    let errors = 0;
-    await parallel(concurrency, fileList, async (filePath) => {
-      try {
-        await processor.processFile(filePath);
-        filesProcessed++;
-      } catch (error) {
-        errors++;
-        logger.warn(
-          { filePath, err: normalizeError(error) },
-          'Failed to reprocess issue file',
-        );
-      }
-    });
-    return { filesProcessed, errors };
-  }
-
-  if (scope === 'path') {
-    progress.onTotal(fileList.length);
-    let filesProcessed = 0;
-    await parallel(concurrency, fileList, async (filePath) => {
-      await processor.processFile(filePath);
-      progress.onProcessed();
-      filesProcessed++;
-    });
-    return { filesProcessed, errors: 0 };
-  }
-
-  if (scope === 'rules') {
-    const filesProcessed = await processAllFiles(
-      watchPaths,
-      config.watch.ignored,
-      processor,
-      'processRulesUpdate',
-      concurrency,
-      callbacks,
-      isGitignored,
-      fileList,
-    );
-    return { filesProcessed, errors: 0 };
-  }
-
-  // Full reindex
-  const filesProcessed = await processAllFiles(
-    watchPaths,
-    config.watch.ignored,
-    processor,
-    'processFile',
-    concurrency,
-    callbacks,
-    isGitignored,
+  const method = scope === 'rules' ? 'processRulesUpdate' : 'processFile';
+  const { processed, failed } = await processEach(
     fileList,
+    (file) => processor[method](file),
+    { concurrency: reindexConcurrency(config), logger, onProcessed },
   );
-  return { filesProcessed, errors: 0 };
+  return { filesProcessed: processed, failed };
 }

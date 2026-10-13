@@ -18,6 +18,21 @@ export const reindexScopeSchema = z
 /** A reindex scope. */
 export type ReindexScope = z.infer<typeof reindexScopeSchema>;
 
+/**
+ * Scopes `configWatch.reindex` may trigger on a config change: `issues`,
+ * `full` and `rules` (`path` needs targets; auto-pruning is never
+ * allowed).
+ */
+export const configWatchReindexScopeSchema = reindexScopeSchema.extract(
+  ['issues', 'full', 'rules'],
+  { error: 'configWatch.reindex must be one of: issues, full, rules' },
+);
+
+/** A scope `configWatch.reindex` may trigger. */
+export type ConfigWatchReindexScope = z.infer<
+  typeof configWatchReindexScopeSchema
+>;
+
 /** One or more file paths (a non-empty array or a single path). */
 const pathTargetsSchema = z.union([
   filePathSchema,

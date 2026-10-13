@@ -3,11 +3,12 @@
  * Fastify route handler for DELETE /rules/unregister.
  */
 
+import { rulesUnregisterRequestSchema } from '@karmaniverous/jeeves-watcher-core';
 import type { FastifyRequest } from 'fastify';
 import type pino from 'pino';
 
 import type { VirtualRuleStore } from '../../rules/virtualRules';
-import { invalidRequest } from '../requestError';
+import { parseBody } from './parseBody';
 import { wrapHandler } from './wrapHandler';
 
 interface RulesUnregisterDeps {
@@ -19,9 +20,7 @@ interface RulesUnregisterDeps {
   onRulesChanged: () => void;
 }
 
-type UnregisterBodyRequest = FastifyRequest<{
-  Body: { source?: unknown } | undefined;
-}>;
+type UnregisterBodyRequest = FastifyRequest<{ Body: unknown }>;
 
 type UnregisterParamRequest = FastifyRequest<{
   Params: { source: string };
@@ -31,10 +30,8 @@ type UnregisterParamRequest = FastifyRequest<{
  * Core unregister logic shared by body and param handlers. A missing or
  * non-string `source` is `400 invalid_request`.
  */
-function unregisterSource(deps: RulesUnregisterDeps, source: unknown) {
-  if (!source || typeof source !== 'string') {
-    throw invalidRequest('Missing required field: source');
-  }
+function unregisterSource(deps: RulesUnregisterDeps, body: unknown) {
+  const { source } = parseBody(rulesUnregisterRequestSchema, body ?? {});
 
   const removed = deps.virtualRuleStore.unregister(source);
   if (removed) deps.onRulesChanged();
@@ -50,7 +47,7 @@ function unregisterSource(deps: RulesUnregisterDeps, source: unknown) {
 export function createRulesUnregisterHandler(deps: RulesUnregisterDeps) {
   return wrapHandler(
     (request: UnregisterBodyRequest) => {
-      return unregisterSource(deps, request.body?.source);
+      return unregisterSource(deps, request.body);
     },
     deps.logger,
     'RulesUnregister',
@@ -63,7 +60,7 @@ export function createRulesUnregisterHandler(deps: RulesUnregisterDeps) {
 export function createRulesUnregisterParamHandler(deps: RulesUnregisterDeps) {
   return wrapHandler(
     (request: UnregisterParamRequest) => {
-      return unregisterSource(deps, request.params.source);
+      return unregisterSource(deps, { source: request.params.source });
     },
     deps.logger,
     'RulesUnregister',

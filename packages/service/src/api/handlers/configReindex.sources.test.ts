@@ -19,7 +19,8 @@ const PREPARED = {
   sources: undefined,
 };
 
-vi.mock('../executeReindex', () => ({
+vi.mock('../executeReindex', async (importOriginal) => ({
+  ...(await importOriginal<object>()),
   executeReindex: vi.fn(),
   prepareReindex: vi.fn(),
 }));
@@ -62,7 +63,7 @@ describe('POST /reindex: source documents', () => {
       expect(prepare.mock.calls[0][0].includeSources).toBe(true);
       expect(execute).toHaveBeenCalledTimes(1);
       expect(execute.mock.calls[0][0].includeSources).toBe(true);
-      expect(execute.mock.calls[0][4]).toBe(PREPARED);
+      expect(execute.mock.calls[0][1].prepared).toBe(PREPARED);
       expect(reply.send).toHaveBeenCalledWith(
         expect.objectContaining({ plan: PREPARED.plan }),
       );

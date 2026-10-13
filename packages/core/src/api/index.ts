@@ -4,11 +4,24 @@
  */
 
 export {
+  type PointsDeleteRequest,
+  pointsDeleteRequestSchema,
+  type RulesReapplyRequest,
+  rulesReapplyRequestSchema,
+  type RulesRegisterRequest,
+  rulesRegisterRequestSchema,
+  type RulesUnregisterRequest,
+  rulesUnregisterRequestSchema,
+} from './admin.js';
+export {
   type ApiErrorResponse,
   apiErrorResponseSchema,
   type DocumentError,
   documentErrorSchema,
+  type DocumentTarget,
+  documentTarget,
   hasFilterCondition,
+  isPlainObject,
   nonEmptyQdrantFilterSchema,
   type QdrantFilter,
   qdrantFilterSchema,
@@ -90,6 +103,8 @@ export {
   searchResultSchema,
 } from './query.js';
 export {
+  type ConfigWatchReindexScope,
+  configWatchReindexScopeSchema,
   MAX_REINDEX_SOURCES_PER_REQUEST,
   type ReindexPlan,
   reindexPlanSchema,

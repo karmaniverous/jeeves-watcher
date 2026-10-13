@@ -1,6 +1,6 @@
 /**
  * @module api/handlers/metadata.test
- * POST /metadata through a real Fastify route: file paths validate against matched rules; source references need a stored point (404 source_not_indexed), validate against the designated rule from config or, when virtual, from the registered virtual rules; 503 without source support.
+ * POST /metadata through a real Fastify route: file paths validate against matched rules; source references need a stored point (404 source_not_indexed), validate against the designated rule resolved by the processor's own lookup (config or virtual rule); 503 without source support.
  */
 
 import Fastify, { type FastifyInstance } from 'fastify';
@@ -9,6 +9,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import type { InferenceRule, JeevesWatcherConfig } from '../../config/types';
 import type { DocumentProcessorInterface } from '../../processor';
+import { compileRules } from '../../rules/compile';
 import { createMetadataHandler } from './metadata';
 
 const REF = 'app://chat/1';
@@ -39,8 +40,14 @@ function build(options: {
   sources?: boolean;
   virtual?: InferenceRule[];
 }) {
+  // The processor's own lookup over the merged rule set (config, then virtual).
+  const compiled = compileRules([
+    ...(config.inferenceRules ?? []),
+    ...(options.virtual ?? []),
+  ]);
   const ops = {
     storedRule: vi.fn(() => Promise.resolve(options.storedRule ?? null)),
+    compiledRule: (name: string) => compiled.find((c) => c.rule.name === name),
     updateMetadata: vi.fn(() => Promise.resolve({})),
   };
   const processMetadataUpdate = vi.fn(() => Promise.resolve(null));
@@ -48,7 +55,6 @@ function build(options: {
     processMetadataUpdate,
     ...(options.sources === false ? {} : { sourceOperations: () => ops }),
   } as unknown as DocumentProcessorInterface;
-  const { virtual } = options;
   const server = Fastify();
   app = server;
   server.post(
@@ -57,7 +63,6 @@ function build(options: {
       processor,
       getConfig: () => config,
       logger: pino({ level: 'silent' }),
-      getVirtualRules: virtual ? () => virtual : undefined,
     }),
   );
   return { processMetadataUpdate, ops };

@@ -18,6 +18,7 @@ import {
 import type { JeevesWatcherConfig } from '../../config/types';
 import type { DocumentProcessorInterface } from '../../processor';
 import type { SourceOperationsInterface } from '../../processor/SourceOperations';
+import { compileRules } from '../../rules';
 import { ReindexTracker } from '../ReindexTracker';
 import { createConfigReindexHandler } from './configReindex';
 import { createMetadataHandler } from './metadata';
@@ -45,7 +46,12 @@ const stored: Record<string, string> = {
   'ops://x/1': 'ops-rule',
   'app://virtual/1': 'virtual-rule',
 };
+/** The processor's merged rule set (here: the config rules). */
+const compiled = compileRules(config.inferenceRules ?? []);
 const ops = {
+  compiledRule: vi.fn((name: string) =>
+    compiled.find((c) => c.rule.name === name),
+  ),
   storedRule: vi.fn((ref: string) => Promise.resolve(stored[ref] ?? null)),
   updateMetadata: vi.fn((_ref: string, m: Record<string, unknown>) =>
     Promise.resolve<Record<string, unknown> | null>(m),
@@ -136,7 +142,7 @@ describe('POST /metadata { source }', () => {
     expect(ops.updateMetadata).not.toHaveBeenCalled();
   });
 
-  it('skips validation for a designated rule outside config', async () => {
+  it('skips validation for a designated rule the processor no longer has', async () => {
     const { status, body } = await post('/metadata', {
       source: 'app://virtual/1',
       metadata: { priority: 'high' },

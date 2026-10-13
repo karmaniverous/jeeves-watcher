@@ -10,33 +10,22 @@
 
 import { dirname } from 'node:path';
 
-import type pino from 'pino';
-
 import { buildTemplateEngineAndCustomMapLib } from '../app/initialization';
-import type { JeevesWatcherConfig } from '../config/types';
-import type { GitignoreFilter } from '../gitignore';
-import type { IssuesManager } from '../issues';
-import type { DocumentProcessorInterface } from '../processor';
 import { compileRules } from '../rules';
 import type { VirtualRuleStore } from '../rules/virtualRules';
-import type { ValuesManager } from '../values';
-import type { VectorStoreClient } from '../vectorStore';
-import { executeReindex } from './executeReindex';
-import type { ReindexTracker } from './ReindexTracker';
+import {
+  executeReindex,
+  reindexDepsFrom,
+  type ReindexDepsSource,
+} from './executeReindex';
 
 /** Dependencies for {@link createOnRulesChanged}. */
-interface OnRulesChangedDeps {
-  getConfig: () => JeevesWatcherConfig;
+type OnRulesChangedDeps = ReindexDepsSource & {
+  /** Config file path (template helpers resolve against its directory). */
   configPath: string;
-  processor: DocumentProcessorInterface;
-  logger: pino.Logger;
+  /** Registered virtual rules. */
   virtualRuleStore: VirtualRuleStore;
-  reindexTracker: ReindexTracker;
-  valuesManager: ValuesManager;
-  issuesManager: IssuesManager;
-  gitignoreFilter?: GitignoreFilter;
-  vectorStore: VectorStoreClient;
-}
+};
 
 /**
  * Extract match globs from virtual rules.
@@ -72,18 +61,7 @@ export function extractMatchGlobs(
  * @returns A zero-argument callback suitable for passing to rule registration handlers.
  */
 export function createOnRulesChanged(deps: OnRulesChangedDeps): () => void {
-  const {
-    getConfig,
-    configPath,
-    processor,
-    logger,
-    virtualRuleStore,
-    reindexTracker,
-    valuesManager,
-    issuesManager,
-    gitignoreFilter,
-    vectorStore,
-  } = deps;
+  const { getConfig, configPath, processor, logger, virtualRuleStore } = deps;
 
   return () => {
     const config = getConfig();
@@ -117,20 +95,10 @@ export function createOnRulesChanged(deps: OnRulesChangedDeps): () => void {
     const matchGlobs = extractMatchGlobs(allVirtualRules);
 
     if (matchGlobs.length > 0) {
-      void executeReindex(
-        {
-          config,
-          processor,
-          logger,
-          reindexTracker,
-          valuesManager,
-          issuesManager,
-          gitignoreFilter,
-          vectorStore,
-        },
-        'rules',
-        matchGlobs,
-      );
+      void executeReindex(reindexDepsFrom(deps), {
+        scope: 'rules',
+        path: matchGlobs,
+      });
     }
   };
 }

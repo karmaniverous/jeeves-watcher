@@ -4,7 +4,7 @@
  */
 
 import { scanRequestSchema } from '@karmaniverous/jeeves-watcher-core';
-import type { FastifyReply, FastifyRequest } from 'fastify';
+import type { FastifyRequest } from 'fastify';
 import type pino from 'pino';
 
 import type { VectorStore } from '../../vectorStore';
@@ -31,12 +31,8 @@ type ScanRequest = FastifyRequest<{ Body: unknown }>;
  */
 export function createScanHandler(deps: ScanRouteDeps) {
   return wrapHandler(
-    async (request: ScanRequest, reply: FastifyReply) => {
-      const body = parseBody(scanRequestSchema, request.body, reply);
-      if (!body) {
-        deps.logger.warn('Scan rejected: invalid request body');
-        return;
-      }
+    async (request: ScanRequest) => {
+      const body = parseBody(scanRequestSchema, request.body);
       const { filter, limit = 100, cursor, fields, countOnly } = body;
 
       if (countOnly) {

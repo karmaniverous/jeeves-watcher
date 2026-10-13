@@ -5,6 +5,7 @@
 
 import { z } from 'zod';
 
+import { configWatchReindexScopeSchema } from '../api/reindex.js';
 import { watchPathEntrySchema } from './vcs.js';
 
 /**
@@ -100,18 +101,7 @@ export const configWatchConfigSchema = z.object({
       'Debounce delay in milliseconds for config file change detection.',
     ),
   /** Reindex scope triggered on config change. */
-  reindex: z
-    .union([
-      z
-        .literal('issues')
-        .describe('Re-process only files with recorded issues.'),
-      z.literal('full').describe('Full reindex of all watched files.'),
-      z
-        .literal('rules')
-        .describe(
-          'Re-apply inference rules to existing points without re-embedding.',
-        ),
-    ])
+  reindex: configWatchReindexScopeSchema
     .optional()
     .describe('Reindex scope triggered on config change. Default: issues.'),
 });

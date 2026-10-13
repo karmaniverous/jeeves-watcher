@@ -4,7 +4,7 @@
  */
 
 import { documentsDeleteRequestSchema } from '@karmaniverous/jeeves-watcher-core';
-import type { FastifyReply, FastifyRequest } from 'fastify';
+import type { FastifyRequest } from 'fastify';
 import type pino from 'pino';
 
 import type { EnrichmentStoreInterface } from '../../enrichment';
@@ -47,9 +47,8 @@ export interface DocumentsDeleteHandlerDeps {
  */
 export function createDocumentsDeleteHandler(deps: DocumentsDeleteHandlerDeps) {
   return wrapHandler(
-    async (request: FastifyRequest<{ Body: unknown }>, reply: FastifyReply) => {
-      const body = parseBody(documentsDeleteRequestSchema, request.body, reply);
-      if (!body) return;
+    async (request: FastifyRequest<{ Body: unknown }>) => {
+      const body = parseBody(documentsDeleteRequestSchema, request.body);
 
       const filter =
         'sources' in body

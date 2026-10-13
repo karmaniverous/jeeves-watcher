@@ -21,7 +21,16 @@ const FILTER_CLAUSES = ['must', 'should', 'must_not'] as const;
 /** Every key a Qdrant filter object may carry (clauses plus `min_should`). */
 const FILTER_KEYS = new Set<string>([...FILTER_CLAUSES, 'min_should']);
 
-const isPlainObject = (value: unknown): value is Record<string, unknown> =>
+/**
+ * Whether a value is a plain object (not `null`, not an array). The one
+ * definition shared by core and the service.
+ *
+ * @param value - Any value.
+ * @returns `true` for a non-null, non-array object.
+ */
+export const isPlainObject = (
+  value: unknown,
+): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
 
 /**
@@ -137,4 +146,24 @@ export function requireExactlyOneTarget(
       message: 'Exactly one of path or source is required',
     });
   }
+}
+
+/** A parsed single-document target: exactly one of a file path or a source reference. */
+export type DocumentTarget =
+  { kind: 'path'; path: string } | { kind: 'source'; source: string };
+
+/**
+ * Narrow a body validated with `requireExactlyOneTarget` to its target.
+ *
+ * @param body - A parsed body carrying exactly one of `path` or `source`.
+ * @returns The target, discriminated by `kind`.
+ * @throws When neither is set (the refinement makes this unreachable).
+ */
+export function documentTarget(body: {
+  path?: string;
+  source?: string;
+}): DocumentTarget {
+  if (body.source !== undefined) return { kind: 'source', source: body.source };
+  if (body.path !== undefined) return { kind: 'path', path: body.path };
+  throw new Error('Exactly one of path or source is required');
 }

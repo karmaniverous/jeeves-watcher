@@ -51,6 +51,19 @@ export interface ExecuteReindexDeps {
   includeSources?: boolean;
 }
 
+/**
+ * Long-lived reindex dependencies: {@link ExecuteReindexDeps} with a live
+ * config getter in place of the per-run snapshot. Route and trigger deps
+ * extend this; `reindexDepsFrom` snapshots it for one run.
+ */
+export type ReindexDepsSource = Omit<
+  ExecuteReindexDeps,
+  'config' | 'includeSources'
+> & {
+  /** Live config getter, read once per run. */
+  getConfig: () => JeevesWatcherConfig;
+};
+
 /** Per-status counts of a source-document reindex. */
 export interface SourceReindexCounts {
   /** Re-embedded, or payload refreshed. */

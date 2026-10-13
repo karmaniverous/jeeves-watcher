@@ -51,7 +51,7 @@ describe('executeReindex completion callback', () => {
   it('posts scope, filesProcessed and errors', async () => {
     fetchMock.mockResolvedValue({ ok: true, status: 200 });
     const { deps } = callbackDeps();
-    await executeReindex(deps, 'issues');
+    await executeReindex(deps, { scope: 'issues' });
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(body(0)).toMatchObject({
       scope: 'issues',
@@ -63,7 +63,7 @@ describe('executeReindex completion callback', () => {
   it('a failing callback is tried three times and the run still resolves', async () => {
     fetchMock.mockResolvedValue({ ok: false, status: 500 });
     const { deps } = callbackDeps();
-    const run = executeReindex(deps, 'issues');
+    const run = executeReindex(deps, { scope: 'issues' });
     await vi.runAllTimersAsync();
     const result = await run;
     expect(result).toMatchObject({ filesProcessed: 2, errors: 0 });
@@ -82,7 +82,7 @@ describe('executeReindex completion callback', () => {
       delete: vi.fn(),
     } as unknown as ExecuteReindexDeps['vectorStore'];
     const { deps } = callbackDeps({ vectorStore });
-    const run = executeReindex(deps, 'prune');
+    const run = executeReindex(deps, { scope: 'prune' });
     await vi.runAllTimersAsync();
     const result = await run;
     expect(result).toMatchObject({ filesProcessed: 0, errors: 0 });

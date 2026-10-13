@@ -6,6 +6,7 @@
 import { jsonMapMapSchema } from '@karmaniverous/jsonmap';
 import { z } from 'zod';
 
+import { REINDEX_DEFAULTS } from '../defaults.js';
 import {
   apiConfigSchema,
   configWatchConfigSchema,
@@ -140,9 +141,9 @@ export const jeevesWatcherConfigSchema = z.object({
         .number()
         .int()
         .min(1)
-        .default(50)
+        .default(REINDEX_DEFAULTS.concurrency)
         .describe(
-          'Maximum concurrent file operations during reindex (default 50).',
+          `Maximum concurrent file operations during reindex (default ${String(REINDEX_DEFAULTS.concurrency)}).`,
         ),
     })
     .optional()

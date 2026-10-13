@@ -56,6 +56,8 @@ export function makeDeps(overrides: Partial<ExecuteReindexDeps> = {}): {
       start: trackerStart,
       complete: trackerComplete,
       getStatus: vi.fn(),
+      setTotal: vi.fn(),
+      incrementProcessed: vi.fn(),
     } as unknown as ExecuteReindexDeps['reindexTracker'],
     valuesManager: {
       clearAll,

@@ -3,11 +3,14 @@
  * Fastify route handler for POST /metadata. Performs enrichment metadata updates via the document processor, for a file path or a source reference.
  */
 
-import { metadataRequestSchema } from '@karmaniverous/jeeves-watcher-core';
+import {
+  documentTarget,
+  metadataRequestSchema,
+} from '@karmaniverous/jeeves-watcher-core';
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import type pino from 'pino';
 
-import type { InferenceRule, JeevesWatcherConfig } from '../../config/types';
+import type { JeevesWatcherConfig } from '../../config/types';
 import type { DocumentProcessorInterface } from '../../processor';
 import { hasSourceOperations } from '../../processor/SourceOperations';
 import { sendError, sendSourcesNotAvailable } from '../sendError';
@@ -28,11 +31,6 @@ export interface MetadataRouteDeps {
   logger: pino.Logger;
   /** Config directory (schema file references). */
   configDir?: string;
-  /**
-   * Registered virtual rules, so a source document whose designated rule is
-   * virtual is validated against that rule's schema.
-   */
-  getVirtualRules?: () => InferenceRule[];
 }
 
 type MetadataRequest = FastifyRequest<{ Body: unknown }>;
@@ -53,7 +51,8 @@ const sendInvalid = (
 /**
  * Enrich a source document. The designated rule comes from the stored
  * chunk-0 point (`404` when not indexed; nothing is stored then) and the
- * metadata is validated against that rule's schema (config or virtual rule).
+ * metadata is validated against that rule's schema, resolved by the
+ * processor's own lookup (config or virtual rule).
  *
  * @param deps - Route dependencies.
  * @param ref - The exact `<name>://<id>` reference.
@@ -75,10 +74,9 @@ async function updateSourceMetadata(
   if (rule === null) return sendNotIndexed(reply);
   const validation = validateSourceMetadataPayload(
     deps.getConfig(),
-    rule,
+    ops.compiledRule(rule),
     metadata,
     deps.configDir,
-    deps.getVirtualRules?.() ?? [],
   );
   if (!validation.ok) return sendInvalid(reply, validation);
   if ((await ops.updateMetadata(ref, metadata)) === null) {
@@ -98,13 +96,13 @@ async function updateSourceMetadata(
 export function createMetadataHandler(deps: MetadataRouteDeps) {
   return wrapHandler(
     async (request: MetadataRequest, reply) => {
-      const body = parseBody(metadataRequestSchema, request.body, reply);
-      if (!body) return;
-      const { path, source, metadata } = body;
-      if (source !== undefined) {
-        return updateSourceMetadata(deps, source, metadata, reply);
+      const body = parseBody(metadataRequestSchema, request.body);
+      const { metadata } = body;
+      const target = documentTarget(body);
+      if (target.kind === 'source') {
+        return updateSourceMetadata(deps, target.source, metadata, reply);
       }
-      if (path === undefined) return; // unreachable: exactly one is required
+      const { path } = target;
 
       const validation = validateMetadataPayload(
         deps.getConfig(),

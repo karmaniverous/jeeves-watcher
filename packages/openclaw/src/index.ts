@@ -40,7 +40,8 @@ export default function register(api: PluginApi): void {
   // 4 standard tools: watcher_status and watcher_service from the core
   // factory; watcher_config and watcher_config_apply re-implemented here so
   // they send the bearer key (core cannot attach headers). `apiUrl` is
-  // resolved lazily on every call (defaultPort is only core's fallback).
+  // resolved lazily on every call by every tool (defaultPort is only core's
+  // fallback).
   for (const tool of createPluginToolset(
     createWatcherComponent(PLUGIN_VERSION),
     { apiUrl: () => getApiUrl(api) },
@@ -54,7 +55,7 @@ export default function register(api: PluginApi): void {
   }
 
   // 14 domain-specific tools (search, enrich, scan, vcs, ...).
-  registerWatcherTools(toolApi, getApiUrl(api));
+  registerWatcherTools(toolApi, () => getApiUrl(api));
 
   registerWatcherPromptContext(api);
 }

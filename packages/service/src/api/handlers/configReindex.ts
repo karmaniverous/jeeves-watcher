@@ -5,19 +5,17 @@
 
 import { reindexRequestSchema } from '@karmaniverous/jeeves-watcher-core';
 import type { FastifyReply, FastifyRequest } from 'fastify';
-import type pino from 'pino';
 
-import type { JeevesWatcherConfig } from '../../config/types';
-import type { GitignoreFilter } from '../../gitignore';
-import type { IssuesManager } from '../../issues';
-import type { DocumentProcessorInterface } from '../../processor';
 import { hasSourceOperations } from '../../processor/SourceOperations';
-import type { PausableQueue } from '../../queue';
 import type { SourceNotifyQueue } from '../../queue/SourceNotifyQueue';
-import type { ValuesManager } from '../../values';
-import type { VectorStoreClient } from '../../vectorStore';
-import { executeReindex, prepareReindex } from '../executeReindex';
+import {
+  executeReindex,
+  prepareReindex,
+  reindexDepsFrom,
+  type ReindexDepsSource,
+} from '../executeReindex';
 import type { ReindexTracker } from '../ReindexTracker';
+import { reindexConcurrency } from '../reindexWork';
 import {
   NOT_AVAILABLE,
   sendErrorWithStatus,
@@ -27,32 +25,21 @@ import { parseBody } from './parseBody';
 import { reindexSources } from './reindexSources';
 import { wrapHandler } from './wrapHandler';
 
-/** Dependencies for the reindex route handler. */
-export interface ConfigReindexRouteDeps {
-  /** Live config getter. */
-  getConfig: () => JeevesWatcherConfig;
-  /** Document processor. */
-  processor: DocumentProcessorInterface;
-  /** Logger. */
-  logger: pino.Logger;
+/**
+ * Dependencies for the reindex route handler: the long-lived reindex deps
+ * ({@link ReindexDepsSource}) with a required tracker and a notify queue that
+ * can also enqueue (scope `path` with `source` references enqueues; scopes
+ * `full` / `rules` / `issues` process source documents through it).
+ */
+export type ConfigReindexRouteDeps = Omit<
+  ReindexDepsSource,
+  'reindexTracker' | 'sourceQueue'
+> & {
   /** Reindex progress tracker (`GET /status`). */
   reindexTracker: ReindexTracker;
-  /** Values index (cleared by scope `full`). */
-  valuesManager?: ValuesManager;
-  /** Issues store (scope `issues`). */
-  issuesManager?: IssuesManager;
-  /** Gitignore filter for path targets. */
-  gitignoreFilter?: GitignoreFilter;
-  /** Vector store (prune; source discovery). */
-  vectorStore?: VectorStoreClient;
-  /** File queue (paused during prune). */
-  queue?: PausableQueue;
-  /**
-   * Notify queue: scope `path` with `source` references enqueues; scopes
-   * `full` / `rules` / `issues` process source documents through it.
-   */
+  /** Notify queue. */
   sourceQueue?: Pick<SourceNotifyQueue, 'enqueue' | 'processNow'>;
-}
+};
 
 type ConfigReindexRequest = FastifyRequest<{ Body: unknown }>;
 
@@ -71,8 +58,7 @@ type ConfigReindexRequest = FastifyRequest<{ Body: unknown }>;
 export function createConfigReindexHandler(deps: ConfigReindexRouteDeps) {
   return wrapHandler(
     async (request: ConfigReindexRequest, reply: FastifyReply) => {
-      const body = parseBody(reindexRequestSchema, request.body, reply);
-      if (!body) return;
+      const body = parseBody(reindexRequestSchema, request.body);
 
       const scope = body.scope ?? 'issues';
       const dryRun = body.dryRun ?? false;
@@ -85,7 +71,7 @@ export function createConfigReindexHandler(deps: ConfigReindexRouteDeps) {
         }
         const ops = processor.sourceOperations();
         const refs = [body.source].flat();
-        const concurrency = deps.getConfig().reindex?.concurrency;
+        const concurrency = reindexConcurrency(deps.getConfig());
         return reindexSources({ ops, queue, concurrency }, refs, dryRun);
       }
 
@@ -97,20 +83,8 @@ export function createConfigReindexHandler(deps: ConfigReindexRouteDeps) {
         });
       }
 
-      const reindexDeps = {
-        config: deps.getConfig(),
-        processor: deps.processor,
-        logger: deps.logger,
-        reindexTracker: deps.reindexTracker,
-        valuesManager: deps.valuesManager,
-        issuesManager: deps.issuesManager,
-        gitignoreFilter: deps.gitignoreFilter,
-        vectorStore: deps.vectorStore,
-        queue: deps.queue,
-        sourceQueue: deps.sourceQueue,
-        // Explicit requests cover source documents (Decision 16.11).
-        includeSources: true,
-      };
+      // Explicit requests cover source documents (Decision 16.11).
+      const reindexDeps = reindexDepsFrom(deps, true);
 
       // Pass path for 'path' and 'rules' scopes
       const pathParam =
@@ -118,18 +92,17 @@ export function createConfigReindexHandler(deps: ConfigReindexRouteDeps) {
 
       if (scope === 'prune') {
         if (dryRun) {
-          const result = await executeReindex(
-            reindexDeps,
-            'prune',
-            pathParam,
-            true,
-          );
+          const result = await executeReindex(reindexDeps, {
+            scope: 'prune',
+            path: pathParam,
+            dryRun: true,
+          });
           return await reply
             .status(200)
             .send({ status: 'dry_run', scope, plan: result.plan });
         }
         // Live prune: fire and forget without pre-computing plan (avoids double-scrolling the collection).
-        void executeReindex(reindexDeps, 'prune', pathParam, false);
+        void executeReindex(reindexDeps, { scope: 'prune', path: pathParam });
         return await reply
           .status(200)
           .send({ status: 'started', scope: 'prune' });
@@ -143,7 +116,7 @@ export function createConfigReindexHandler(deps: ConfigReindexRouteDeps) {
           .send({ status: 'dry_run', scope, plan: prepared.plan });
       }
 
-      void executeReindex(reindexDeps, scope, pathParam, false, prepared);
+      void executeReindex(reindexDeps, { scope, path: pathParam, prepared });
 
       return await reply
         .status(200)

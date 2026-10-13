@@ -23,9 +23,6 @@ import type { VectorStore } from '../vectorStore';
 /** Scroll page size for source discovery. */
 const DISCOVERY_PAGE_SIZE = 256;
 
-/** Parallel stored-rule lookups for issue references. */
-const RULE_LOOKUP_CONCURRENCY = 16;
-
 /** Chunk-0 source points (see {@link isSourcePoint}): one per source document. */
 const INDEXED_SOURCES_FILTER = {
   must: [
@@ -98,6 +95,28 @@ function recordedRule(
 }
 
 /**
+ * Look up the rule stored on each reference's chunk-0 point (Qdrant reads,
+ * bounded concurrency). Shared by issue discovery and
+ * `POST /reindex { scope: 'path', source }`.
+ *
+ * @param ops - Source operations (stored rule lookup).
+ * @param refs - Source references.
+ * @param concurrency - Lookups in flight (at least 1).
+ * @returns Each reference with its stored rule (`null` when not indexed),
+ *   in input order.
+ */
+export async function resolveStoredRules(
+  ops: Pick<SourceOperationsInterface, 'storedRule'>,
+  refs: readonly string[],
+  concurrency: number,
+): Promise<Array<{ ref: string; rule: string | null }>> {
+  return parallel(Math.max(1, concurrency), [...refs], async (ref) => ({
+    ref,
+    rule: await ops.storedRule(ref),
+  }));
+}
+
+/**
  * Resolve the source references among the issues to their designated rules:
  * the rule stored on the document's chunk-0 point when it is indexed,
  * otherwise the rule recorded on its issue. A document whose first
@@ -107,20 +126,20 @@ function recordedRule(
  *
  * @param issues - The issues store contents (file paths and references).
  * @param ops - Source operations (stored rule lookup).
+ * @param concurrency - Stored-rule lookups in flight (`reindex.concurrency`).
  * @returns The source issue documents and their rules.
  */
 export async function discoverIssueSources(
   issues: Partial<Record<string, readonly IssueRecord[]>>,
   ops: Pick<SourceOperationsInterface, 'storedRule'>,
+  concurrency: number,
 ): Promise<SourceDiscovery> {
   const refs = Object.keys(issues).filter(isSourceReference);
-  const found = await parallel(RULE_LOOKUP_CONCURRENCY, refs, async (ref) => ({
-    ref,
-    rule: (await ops.storedRule(ref)) ?? recordedRule(issues[ref]),
-  }));
+  const stored = await resolveStoredRules(ops, refs, concurrency);
   const targets: SourceTarget[] = [];
-  for (const { ref, rule } of found) {
-    if (rule !== null) targets.push({ ref, rule });
+  for (const { ref, rule } of stored) {
+    const resolved = rule ?? recordedRule(issues[ref]);
+    if (resolved !== null) targets.push({ ref, rule: resolved });
   }
   return { total: refs.length, targets };
 }

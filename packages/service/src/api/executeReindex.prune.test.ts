@@ -30,10 +30,6 @@ vi.mock('./fileScan', async (importOriginal) => {
   };
 });
 
-vi.mock('./processAllFiles', () => ({
-  processAllFiles: vi.fn().mockResolvedValue(0),
-}));
-
 import { listFilesFromGlobs } from './fileScan';
 
 const listFilesFromGlobsMock = vi.mocked(listFilesFromGlobs);
@@ -55,7 +51,7 @@ describe('executeReindex', () => {
           delete: deleteFn,
         } as unknown as ExecuteReindexDeps['vectorStore'],
       });
-      const result = await executeReindex(deps, 'prune', undefined, false);
+      const result = await executeReindex(deps, { scope: 'prune' });
       expect(result.plan).toBeDefined();
       expect(deleteFn).toHaveBeenCalled();
     });
@@ -79,7 +75,10 @@ describe('executeReindex', () => {
           delete: deleteFn,
         } as unknown as ExecuteReindexDeps['vectorStore'],
       });
-      const result = await executeReindex(deps, 'prune', undefined, true);
+      const result = await executeReindex(deps, {
+        scope: 'prune',
+        dryRun: true,
+      });
       expect(result.plan).toBeDefined();
       expect(result.plan!.total).toBe(2);
       expect(result.plan!.incomplete).toBeUndefined();
@@ -106,7 +105,10 @@ describe('executeReindex', () => {
           delete: deleteFn,
         } as unknown as ExecuteReindexDeps['vectorStore'],
       });
-      const dryResult = await executeReindex(dryDeps, 'prune', undefined, true);
+      const dryResult = await executeReindex(dryDeps, {
+        scope: 'prune',
+        dryRun: true,
+      });
 
       const scrollLive = makeScrollFn();
       const { deps: liveDeps } = makeDeps({
@@ -115,12 +117,7 @@ describe('executeReindex', () => {
           delete: deleteFn,
         } as unknown as ExecuteReindexDeps['vectorStore'],
       });
-      const liveResult = await executeReindex(
-        liveDeps,
-        'prune',
-        undefined,
-        false,
-      );
+      const liveResult = await executeReindex(liveDeps, { scope: 'prune' });
 
       // Plans should match
       expect(dryResult.plan!.total).toBe(liveResult.plan!.total);
@@ -143,7 +140,7 @@ describe('executeReindex', () => {
           delete: deleteFn,
         } as unknown as ExecuteReindexDeps['vectorStore'],
       });
-      const result = await executeReindex(deps, 'prune', undefined, false);
+      const result = await executeReindex(deps, { scope: 'prune' });
 
       // Should abort with error and NOT call delete
       expect(result.errors).toBe(1);
@@ -172,7 +169,10 @@ describe('executeReindex', () => {
           delete: vi.fn(),
         } as unknown as ExecuteReindexDeps['vectorStore'],
       });
-      const result = await executeReindex(deps, 'prune', undefined, true);
+      const result = await executeReindex(deps, {
+        scope: 'prune',
+        dryRun: true,
+      });
       expect(result.plan).toBeDefined();
       expect(result.plan!.total).toBe(2);
       expect(result.plan!.incomplete).toBeUndefined();
@@ -192,7 +192,10 @@ describe('executeReindex', () => {
           delete: vi.fn(),
         } as unknown as ExecuteReindexDeps['vectorStore'],
       });
-      const result = await executeReindex(deps, 'prune', undefined, true);
+      const result = await executeReindex(deps, {
+        scope: 'prune',
+        dryRun: true,
+      });
       expect(result.plan).toBeDefined();
       expect(result.plan!.total).toBe(1);
       expect(result.plan!.incomplete).toBe(true);
@@ -219,7 +222,10 @@ describe('executeReindex', () => {
       });
 
       // fs.access is mocked to reject (ENOENT) by default, so p1 is also orphaned
-      const result = await executeReindex(deps, 'prune', undefined, true);
+      const result = await executeReindex(deps, {
+        scope: 'prune',
+        dryRun: true,
+      });
       expect(result.plan).toBeDefined();
       expect(result.plan!.total).toBe(3);
       // p1 (in scope but not on disk), p2 (outside scope), p3 (no file_path) — all orphans
@@ -243,7 +249,10 @@ describe('executeReindex', () => {
         } as unknown as ExecuteReindexDeps['vectorStore'],
       });
 
-      const result = await executeReindex(deps, 'prune', undefined, true);
+      const result = await executeReindex(deps, {
+        scope: 'prune',
+        dryRun: true,
+      });
       expect(result.plan).toBeDefined();
       // src/deleted.ts is in watch scope but doesn't exist on disk → orphan
       expect(result.plan!.toDelete).toBe(1);
@@ -267,7 +276,7 @@ describe('executeReindex', () => {
         } as unknown as ExecuteReindexDeps['vectorStore'],
       });
 
-      const result = await executeReindex(deps, 'prune', undefined, false);
+      const result = await executeReindex(deps, { scope: 'prune' });
       expect(result.errors).toBe(1);
       expect(result.plan!.incomplete).toBe(true);
       expect(deleteFn).not.toHaveBeenCalled();

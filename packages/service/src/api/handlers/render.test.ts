@@ -14,12 +14,14 @@ function mockReply() {
     statusCode: 200,
     headers: {} as Record<string, string>,
     body: undefined as unknown,
+    sent: false,
     status(code: number) {
       reply.statusCode = code;
       return reply;
     },
     send(data: unknown) {
       reply.body = data;
+      reply.sent = true;
       return Promise.resolve(reply);
     },
     header(key: string, value: string) {
@@ -75,6 +77,7 @@ function makeDeps(
       error: vi.fn(),
       warn: vi.fn(),
       info: vi.fn(),
+      debug: vi.fn(),
     } as unknown as RenderHandlerDeps['logger'],
     ...overrides,
   } as RenderHandlerDeps;
@@ -195,7 +198,7 @@ describe('POST /render handler', () => {
     expect(reply.statusCode).toBe(400);
   });
 
-  it('returns 422 for other errors', async () => {
+  it('returns 422 pipeline_error tagged extraction_error for other render errors', async () => {
     const deps = makeDeps();
     (
       deps.processor.renderFile as unknown as ReturnType<typeof vi.fn>
@@ -212,6 +215,7 @@ describe('POST /render handler', () => {
     expect(reply.body).toEqual({
       code: 'pipeline_error',
       error: 'Extraction failed',
+      issueType: 'extraction_error',
     });
   });
 

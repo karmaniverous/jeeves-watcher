@@ -21,7 +21,8 @@ const PLAN = { total: 5, toProcess: 5, toDelete: 0, byRoot: {} };
 const PREPARED = { plan: PLAN, fileList: ['a.md'], sources: undefined };
 
 // Mock the reindex execution to avoid actual file processing.
-vi.mock('../executeReindex', () => ({
+vi.mock('../executeReindex', async (importOriginal) => ({
+  ...(await importOriginal<object>()),
   executeReindex: vi.fn(),
   prepareReindex: vi.fn(),
 }));
@@ -101,10 +102,7 @@ describe('createConfigReindexHandler', () => {
     expect(mockedExecute).toHaveBeenCalledTimes(1);
     expect(mockedExecute).toHaveBeenCalledWith(
       expect.objectContaining({ config: deps.getConfig() }),
-      'full',
-      undefined,
-      false,
-      PREPARED,
+      { scope: 'full', path: undefined, prepared: PREPARED },
     );
   });
 
@@ -116,10 +114,7 @@ describe('createConfigReindexHandler', () => {
         valuesManager: deps.valuesManager,
         issuesManager: deps.issuesManager,
       }),
-      'full',
-      undefined,
-      false,
-      PREPARED,
+      { scope: 'full', path: undefined, prepared: PREPARED },
     );
   });
 
@@ -165,12 +160,10 @@ describe('createConfigReindexHandler', () => {
     expect(sent).toEqual({ status: 'started', scope: 'prune' });
     expect(mockedPrepare).not.toHaveBeenCalled();
     expect(mockedExecute).toHaveBeenCalledTimes(1);
-    expect(mockedExecute).toHaveBeenCalledWith(
-      expect.anything(),
-      'prune',
-      undefined,
-      false,
-    );
+    expect(mockedExecute).toHaveBeenCalledWith(expect.anything(), {
+      scope: 'prune',
+      path: undefined,
+    });
   });
 
   it('dry-run prune returns full plan', async () => {
@@ -182,11 +175,10 @@ describe('createConfigReindexHandler', () => {
 
     expect(sent).toEqual({ status: 'dry_run', scope: 'prune', plan: PLAN });
     expect(mockedExecute).toHaveBeenCalledTimes(1);
-    expect(mockedExecute).toHaveBeenCalledWith(
-      expect.anything(),
-      'prune',
-      undefined,
-      true,
-    );
+    expect(mockedExecute).toHaveBeenCalledWith(expect.anything(), {
+      scope: 'prune',
+      path: undefined,
+      dryRun: true,
+    });
   });
 });

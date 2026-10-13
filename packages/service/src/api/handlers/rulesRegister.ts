@@ -3,6 +3,7 @@
  * Fastify route handler for POST /rules/register.
  */
 
+import { rulesRegisterRequestSchema } from '@karmaniverous/jeeves-watcher-core';
 import type { FastifyRequest } from 'fastify';
 import type pino from 'pino';
 
@@ -10,6 +11,7 @@ import type { InferenceRule } from '../../config/types';
 import type { VirtualRuleStore } from '../../rules/virtualRules';
 import { normalizeError } from '../../util/normalizeError';
 import { invalidRequest } from '../requestError';
+import { parseBody } from './parseBody';
 import { wrapHandler } from './wrapHandler';
 
 /** Dependencies of the POST /rules/register handler. */
@@ -22,19 +24,7 @@ export interface RulesRegisterDeps {
   onRulesChanged: () => void;
 }
 
-type RegisterRequest = FastifyRequest<{
-  Body: { source?: unknown; rules?: unknown } | undefined;
-}>;
-
-/** Whether every entry is an object with a non-empty string `name`. */
-const allNamed = (rules: unknown[]): rules is InferenceRule[] =>
-  rules.every(
-    (rule) =>
-      typeof rule === 'object' &&
-      rule !== null &&
-      typeof (rule as { name?: unknown }).name === 'string' &&
-      (rule as { name: string }).name.length > 0,
-  );
+type RegisterRequest = FastifyRequest<{ Body: unknown }>;
 
 /**
  * Create handler for POST /rules/register. A missing `source`, a non-array
@@ -47,17 +37,10 @@ const allNamed = (rules: unknown[]): rules is InferenceRule[] =>
 export function createRulesRegisterHandler(deps: RulesRegisterDeps) {
   return wrapHandler(
     (request: RegisterRequest) => {
-      const { source, rules } = request.body ?? {};
-
-      if (!source || typeof source !== 'string') {
-        throw invalidRequest('Missing required field: source');
-      }
-      if (!Array.isArray(rules)) {
-        throw invalidRequest('Missing required field: rules (array)');
-      }
-      if (!allNamed(rules)) {
-        throw invalidRequest('Every rule must be an object with a name');
-      }
+      const body = parseBody(rulesRegisterRequestSchema, request.body ?? {});
+      const { source } = body;
+      // Named rules; the store validates the rest (match compiles, unique names).
+      const rules = body.rules as InferenceRule[];
 
       try {
         deps.virtualRuleStore.register(source, rules);

@@ -24,7 +24,8 @@ vi.mock('./initialization', async () => {
   };
 });
 
-vi.mock('../api/executeReindex', () => ({
+vi.mock('../api/executeReindex', async (importOriginal) => ({
+  ...(await importOriginal<object>()),
   executeReindex: vi.fn().mockResolvedValue(undefined),
 }));
 
@@ -60,8 +61,9 @@ describe('reloadConfig: source documents', () => {
 
     const mocked = vi.mocked(executeReindex);
     expect(mocked).toHaveBeenCalledOnce();
-    const [deps, scope] = mocked.mock.calls[0];
-    expect(scope).toBe('rules');
+    const [deps, options] = mocked.mock.calls[0];
+    expect(options).toEqual({ scope: 'rules' });
+    expect(deps.config).toBe(config);
     expect(deps.includeSources).toBeFalsy();
   });
 });
