@@ -1,3 +1,8 @@
+/**
+ * @module util/documentKey.test
+ * documentKey: source references kept verbatim (case-sensitive), file paths normalised.
+ */
+
 import { describe, expect, it } from 'vitest';
 
 import { isSourceReference, normalizeDocumentKey } from './documentKey';

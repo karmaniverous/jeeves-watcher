@@ -1,3 +1,8 @@
+/**
+ * @module embedding/rateLimitError.test
+ * parseRetryAfterMs: first value of a repeated Retry-After header, Google RetryInfo.retryDelay in the body as fallback, header preferred, undefined when absent or unparseable.
+ */
+
 import { describe, expect, it } from 'vitest';
 
 import { parseRetryAfterMs } from './rateLimitError';

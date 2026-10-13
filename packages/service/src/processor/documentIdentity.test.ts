@@ -1,3 +1,8 @@
+/**
+ * @module processor/documentIdentity.test
+ * Document identity: file point IDs unchanged (normalised pointId), source IDs from the exact reference, store keys, exactly one identity field family per point, Zod validation.
+ */
+
 import { describe, expect, it } from 'vitest';
 
 import { pointId, sourcePointId } from '../pointId';

@@ -1,3 +1,8 @@
+/**
+ * @module embedding/rateLimitedProvider.test
+ * RateLimitedEmbeddingProvider: one shared request budget across callers, 429 Retry-After pauses every caller, fail-fast beyond maxBackoffMs, a token per internal retry, exponential backoff, retry cap and per-call wait budget.
+ */
+
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { RateLimitedEmbeddingProvider } from './rateLimitedProvider';

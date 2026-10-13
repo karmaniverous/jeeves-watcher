@@ -1,3 +1,8 @@
+/**
+ * @module app/initEmbeddingAndStore.test
+ * initEmbeddingAndStore wraps the configured embedding provider once in the shared RateLimitedEmbeddingProvider, with rate and backoff taken from config.
+ */
+
 import pino from 'pino';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 

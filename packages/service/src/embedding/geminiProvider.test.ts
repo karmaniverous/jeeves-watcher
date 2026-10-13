@@ -1,3 +1,8 @@
+/**
+ * @module embedding/geminiProvider.test
+ * Gemini embedding provider: vectors on success, 429 with Retry-After surfaced as EmbeddingRateLimitError without retrying, non-429 retries with backoff, beforeRetry awaited before every retry and honoured when it rejects.
+ */
+
 import { EventEmitter } from 'node:events';
 
 import pino from 'pino';

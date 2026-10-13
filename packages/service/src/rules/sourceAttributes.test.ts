@@ -1,3 +1,8 @@
+/**
+ * @module rules/sourceAttributes.test
+ * buildSourceAttributes: schema-valid attributes with no file key, so source rules match and file rules never do.
+ */
+
 import { describe, expect, it } from 'vitest';
 
 import { compileRules } from './compile';
