@@ -40,7 +40,6 @@
   "description": "Filesystem watcher that keeps a Qdrant vector store in sync with document changes",
   "devDependencies": {
     "@dotenvx/dotenvx": "^2.30.0",
-    "@karmaniverous/jeeves-watcher-sdk": "^0.1.0",
     "@rollup/plugin-alias": "^6.0.0",
     "@rollup/plugin-commonjs": "^29.0.3",
     "@rollup/plugin-json": "^6.1.0",

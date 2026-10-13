@@ -9,7 +9,9 @@ export default defineConfig({
       '@karmaniverous/jeeves-watcher-core': fileURLToPath(
         new URL('../core/src/index.ts', import.meta.url),
       ),
-      // SDK end-to-end tests drive the real API through the SDK source.
+      // SDK end-to-end tests drive the real API through the SDK source. The
+      // service deliberately declares no dependency on the SDK package; this
+      // alias (and the tsconfig path mapping) is the only coupling.
       '@karmaniverous/jeeves-watcher-sdk': fileURLToPath(
         new URL('../sdk/src/index.ts', import.meta.url),
       ),
