@@ -102,6 +102,16 @@ describe('RateLimitedEmbeddingProvider', () => {
     expect(embed).toHaveBeenCalledTimes(50);
   });
 
+  it('does not limit request rate when rateLimitPerMinute is 0', async () => {
+    const { inner, embed } = makeInner();
+    const limited = new RateLimitedEmbeddingProvider(inner, {
+      rateLimitPerMinute: 0,
+      maxBackoffMs: 60_000,
+    });
+    await Promise.all(Array.from({ length: 50 }, () => limited.embed(['a'])));
+    expect(embed).toHaveBeenCalledTimes(50);
+  });
+
   it('pauses ALL callers for Retry-After after a 429, then retries', async () => {
     const { inner, embed } = makeInner();
     embed.mockRejectedValueOnce(new EmbeddingRateLimitError('429', 5_000));
