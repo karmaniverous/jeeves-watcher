@@ -1,7 +1,7 @@
 /**
  * @module test/qdrant/binary
  * Start a Qdrant release binary as a child process on free 127.0.0.1 ports with storage, snapshots and temp files in a fresh temp dir; stop kills it and deletes the dir.
- * Configuration is passed only through `QDRANT__*` environment variables, so no config file or shared state is read.
+ * Configuration is passed only through `QDRANT__*` environment variables (any inherited ones are stripped first), so no config file or shared state is read.
  */
 
 import { type ChildProcess, spawn } from 'node:child_process';
@@ -27,21 +27,42 @@ function storagePath(dir: string, leaf: string): string {
 }
 
 /**
+ * Copy of an environment without any `QDRANT__*` variable, so settings
+ * from the developer's shell (e.g. another storage path or an API key) can
+ * never reach the throwaway Qdrant. Pure.
+ *
+ * @param env - Source environment.
+ * @returns The filtered copy.
+ */
+export function withoutQdrantSettings(
+  env: NodeJS.ProcessEnv,
+): NodeJS.ProcessEnv {
+  return Object.fromEntries(
+    Object.entries(env).filter(
+      ([key]) => !key.toUpperCase().startsWith('QDRANT__'),
+    ),
+  );
+}
+
+/**
  * Environment for the Qdrant child: loopback only, given ports, all state
- * under `dir` (long-path safe on Windows), telemetry off.
+ * under `dir` (long-path safe on Windows), telemetry off. Inherited
+ * `QDRANT__*` variables are dropped.
  *
  * @param dir - Fresh temp directory.
  * @param httpPort - REST port.
  * @param grpcPort - gRPC port.
- * @returns `QDRANT__*` variables merged over the current environment.
+ * @param env - Environment to start from (default `process.env`).
+ * @returns `QDRANT__*` variables merged over the filtered environment.
  */
 export function qdrantChildEnv(
   dir: string,
   httpPort: number,
   grpcPort: number,
+  env: NodeJS.ProcessEnv = process.env,
 ): NodeJS.ProcessEnv {
   return {
-    ...process.env,
+    ...withoutQdrantSettings(env),
     QDRANT__SERVICE__HOST: '127.0.0.1',
     QDRANT__SERVICE__HTTP_PORT: String(httpPort),
     QDRANT__SERVICE__GRPC_PORT: String(grpcPort),

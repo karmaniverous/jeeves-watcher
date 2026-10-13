@@ -1,3 +1,8 @@
+/**
+ * @module test/gitignore-integration.test
+ * File integration (requires Qdrant): with a GitignoreFilter applied, only non-ignored files of a fake repo are indexed. Uses a guarded harness collection on the run's Qdrant.
+ */
+
 import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
@@ -18,7 +23,12 @@ import { pointId } from '../pointId';
 import { DocumentProcessor } from '../processor';
 import { compileRules } from '../rules';
 import { VectorStoreClient } from '../vectorStore';
-import { uniqueCollectionName } from './harness/qdrant';
+import {
+  assertTestVectorStore,
+  dropCollection,
+  qdrantAvailable,
+  uniqueCollectionName,
+} from './harness/qdrant';
 import {
   cleanupWatchedDir,
   createTestConfig,
@@ -26,9 +36,7 @@ import {
   setupTestDirs,
 } from './helpers';
 
-const skipIntegration = process.env['QDRANT_AVAILABLE'] !== 'true';
-
-describe.skipIf(skipIntegration)(
+describe.skipIf(!qdrantAvailable())(
   'Gitignore integration tests (requires Qdrant)',
   () => {
     const config = createTestConfig();
@@ -42,20 +50,11 @@ describe.skipIf(skipIntegration)(
     let processor: DocumentProcessor;
 
     beforeAll(async () => {
+      assertTestVectorStore(config.vectorStore);
       vectorStore = new VectorStoreClient(
         config.vectorStore,
         embeddingProvider.dimensions,
       );
-
-      const url = config.vectorStore.url;
-      const collectionName = config.vectorStore.collectionName;
-      try {
-        await fetch(`${url}/collections/${collectionName}`, {
-          method: 'DELETE',
-        });
-      } catch {
-        // ignore
-      }
       await vectorStore.ensureCollection();
 
       const compiledRules = compileRules(config.inferenceRules ?? []);
@@ -75,15 +74,7 @@ describe.skipIf(skipIntegration)(
     });
 
     afterAll(async () => {
-      const url = config.vectorStore.url;
-      const collectionName = config.vectorStore.collectionName;
-      try {
-        await fetch(`${url}/collections/${collectionName}`, {
-          method: 'DELETE',
-        });
-      } catch {
-        // ignore
-      }
+      await dropCollection(config.vectorStore.collectionName);
     });
 
     beforeEach(async () => {
@@ -91,15 +82,7 @@ describe.skipIf(skipIntegration)(
     });
 
     afterEach(async () => {
-      const url = config.vectorStore.url;
-      const collectionName = config.vectorStore.collectionName;
-      try {
-        await fetch(`${url}/collections/${collectionName}`, {
-          method: 'DELETE',
-        });
-      } catch {
-        // ignore
-      }
+      await dropCollection(config.vectorStore.collectionName);
       await vectorStore.ensureCollection();
       await cleanupWatchedDir();
     });

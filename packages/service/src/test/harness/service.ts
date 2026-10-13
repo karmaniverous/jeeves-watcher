@@ -32,7 +32,7 @@ import { VectorStoreClient } from '../../vectorStore';
 import { createTestConfig } from '../helpers';
 import { countingProvider, type EmbedCounter } from './countingProvider';
 import {
-  assertTestCollection,
+  assertTestVectorStore,
   dropCollection,
   QDRANT_URL,
   uniqueCollectionName,
@@ -137,7 +137,8 @@ async function runCleanup(cleanup: Cleanup): Promise<void> {
  *
  * @param options - Harness options.
  * @returns The started harness.
- * @throws When the effective collection name is not a harness collection.
+ * @throws When the effective collection name is not a harness collection,
+ * or the effective Qdrant URL is not this run's guarded instance.
  */
 export async function startServiceHarness(
   options: ServiceHarnessOptions,
@@ -164,7 +165,8 @@ async function setUp(
     stateDir,
   );
   const { collectionName } = config.vectorStore;
-  assertTestCollection(collectionName);
+  // Harness collection name, on this run's guarded Qdrant only.
+  assertTestVectorStore(config.vectorStore);
   const logger = createLogger({ level: 'silent' });
 
   const { provider: counted, counter } = countingProvider(

@@ -19,6 +19,8 @@ describe('selectQdrantAsset', () => {
     expect(asset?.name).toBe(name);
     expect(asset?.binaryName).toBe(binaryName);
     expect(asset?.sha256).toMatch(/^[0-9a-f]{64}$/);
+    expect(asset?.binarySha256).toMatch(/^[0-9a-f]{64}$/);
+    expect(asset?.binarySha256).not.toBe(asset?.sha256);
   });
 
   it.each([

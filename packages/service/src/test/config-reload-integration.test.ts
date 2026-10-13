@@ -14,6 +14,7 @@ import { JeevesWatcher } from '../app';
 import { loadConfig } from '../config';
 import { watcherDescriptor } from '../descriptor';
 import {
+  assertTestVectorStore,
   dropCollection,
   getPayloadSchema,
   qdrantAvailable,
@@ -102,6 +103,7 @@ describe.skipIf(!qdrantAvailable())(
       });
 
     beforeAll(async () => {
+      assertTestVectorStore({ url: qdrantUrl(), collectionName });
       root = await mkdtemp(join(tmpdir(), 'jeeves-watcher-it-reload-'));
       await mkdir(join(root, 'watched'), { recursive: true });
       startup = await startStubSourceServer({

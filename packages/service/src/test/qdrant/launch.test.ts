@@ -8,7 +8,12 @@ import { join, resolve, toNamespacedPath } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import { qdrantChildEnv } from './binary';
-import { dockerRunArgs, QDRANT_IMAGE } from './docker';
+import {
+  dockerRunArgs,
+  OWNER_LABEL,
+  QDRANT_IMAGE,
+  staleContainers,
+} from './docker';
 
 describe('qdrantChildEnv', () => {
   const dir = join('tmp', 'q');
@@ -28,6 +33,21 @@ describe('qdrantChildEnv', () => {
     expect(env['QDRANT__TELEMETRY_DISABLED']).toBe('true');
   });
 
+  it('drops inherited QDRANT__* settings but keeps the rest', () => {
+    const inherited = qdrantChildEnv(dir, 51000, 51001, {
+      PATH: '/bin',
+      QDRANT__SERVICE__API_KEY: 'from-shell',
+      qdrant__storage__wal__wal_capacity_mb: '1',
+      QDRANT__STORAGE__STORAGE_PATH: '/var/lib/qdrant',
+    });
+    expect(inherited['PATH']).toBe('/bin');
+    expect(inherited['QDRANT__SERVICE__API_KEY']).toBeUndefined();
+    expect(inherited['qdrant__storage__wal__wal_capacity_mb']).toBeUndefined();
+    expect(inherited['QDRANT__STORAGE__STORAGE_PATH']).toBe(
+      toNamespacedPath(join(dir, 'storage')),
+    );
+  });
+
   it.runIf(process.platform === 'win32')(
     'uses long-path-safe (namespaced) storage paths on Windows',
     () => {
@@ -45,5 +65,32 @@ describe('dockerRunArgs', () => {
     expect(args.slice(0, 3)).toEqual(['run', '--rm', '-d']);
     expect(args).toContain('127.0.0.1::6333');
     expect(args.at(-1)).toBe(QDRANT_IMAGE);
+  });
+
+  it('labels the container with its owner', () => {
+    const args = dockerRunArgs(QDRANT_IMAGE, 'host-a:123');
+    expect(args).toContain(`${OWNER_LABEL}=host-a:123`);
+    expect(args[args.indexOf(`${OWNER_LABEL}=host-a:123`) - 1]).toBe('--label');
+  });
+});
+
+describe('staleContainers', () => {
+  const listing = [
+    'dead1\thost-a:100',
+    'live1\thost-a:200',
+    'other\thost-b:100',
+    'nolabel\t',
+    'weird\thost-a:x',
+    '',
+  ].join('\n');
+
+  it('sweeps only containers of dead processes on this host', () => {
+    expect(staleContainers(listing, 'host-a', (pid) => pid === 200)).toEqual([
+      'dead1',
+    ]);
+  });
+
+  it('keeps everything when every owner is alive', () => {
+    expect(staleContainers(listing, 'host-a', () => true)).toEqual([]);
   });
 });

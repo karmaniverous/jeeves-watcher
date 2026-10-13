@@ -1,7 +1,8 @@
 name: Integration Tests
 
 # Runs the full test suite against a real Qdrant service so the
-# "requires Qdrant" integration suites execute instead of skipping.
+# "requires Qdrant" integration suites execute instead of skipping, and
+# smoke-tests the throwaway-Qdrant provisioning used by local runs.
 
 on:
   push:
@@ -61,3 +62,29 @@ jobs:
 
       - name: Test
         run: npm test
+
+  # The job above uses a service container, so it never exercises the path
+  # local runs take: no QDRANT_URL, test global setup downloads, verifies and
+  # starts a throwaway Qdrant. Run that path once; QDRANT_REQUIRED makes a
+  # provisioning failure fail the job instead of skipping the suites.
+  provisioning:
+    runs-on: ubuntu-24.04
+
+    env:
+      QDRANT_REQUIRED: 'true'
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Provisioning smoke test (throwaway Qdrant)
+        working-directory: packages/service
+        run: npx vitest run src/test/harness src/test/auth-indexes-integration.test.ts

@@ -25,7 +25,7 @@ import { compileRules } from '../rules';
 import { ValuesManager } from '../values';
 import { VectorStoreClient } from '../vectorStore';
 import {
-  assertTestCollection,
+  assertTestVectorStore,
   dropCollection,
   QDRANT_URL,
   uniqueCollectionName,
@@ -51,7 +51,6 @@ describe.skipIf(skipIntegration)('Integration tests (requires Qdrant)', () => {
       collectionName: uniqueCollectionName('legacy'),
     },
   };
-  assertTestCollection(config.vectorStore.collectionName);
   const embeddingProvider = createEmbeddingProvider(config.embedding);
   const logger = createLogger({ level: 'silent' });
 
@@ -69,6 +68,7 @@ describe.skipIf(skipIntegration)('Integration tests (requires Qdrant)', () => {
     await warm.inject({ method: 'GET', url: '/' });
     await warm.close();
 
+    assertTestVectorStore(config.vectorStore);
     vectorStore = new VectorStoreClient(
       config.vectorStore,
       embeddingProvider.dimensions,

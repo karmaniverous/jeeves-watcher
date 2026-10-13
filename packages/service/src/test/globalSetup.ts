@@ -1,10 +1,16 @@
 /**
  * @module test/globalSetup
  * Vitest global setup: without `QDRANT_URL`, start a throwaway Qdrant (release binary, else Docker) and export its URL; with it, probe and guard that instance. Sets QDRANT_AVAILABLE.
- * Unavailable Qdrant skips integration suites unless QDRANT_REQUIRED=true. Teardown sweeps `jeeves_watcher_it_*` collections and stops the throwaway instance.
+ * Either is checked by the shared-instance guard and exported as the run's guarded URL. Unavailable Qdrant skips integration suites unless QDRANT_REQUIRED=true.
+ * Teardown sweeps this run's `jeeves_watcher_it_*` collections (never another run's) and stops the throwaway instance.
  */
 
-import { dropLeftoverTestCollections } from './harness/qdrant';
+import {
+  dropLeftoverTestCollections,
+  GUARDED_URL_ENV,
+  newRunId,
+  RUN_ID_ENV,
+} from './harness/qdrant';
 import {
   type EphemeralQdrant,
   provisionEphemeralQdrant,
@@ -43,6 +49,7 @@ async function useConfigured(url: string): Promise<void> {
     return;
   }
   await assertNotSharedQdrant(url);
+  process.env[GUARDED_URL_ENV] = url;
   process.env['QDRANT_AVAILABLE'] = 'true';
 }
 
@@ -55,8 +62,16 @@ async function useEphemeral(): Promise<void> {
     );
     return;
   }
+  try {
+    // A fresh instance holds nothing; guard anyway (e.g. a reused port).
+    await assertNotSharedQdrant(qdrant.url);
+  } catch (error) {
+    await qdrant.stop();
+    throw error;
+  }
   ephemeral = qdrant;
   process.env['QDRANT_URL'] = qdrant.url;
+  process.env[GUARDED_URL_ENV] = qdrant.url;
   process.env['QDRANT_AVAILABLE'] = 'true';
   console.info(
     `[globalSetup] throwaway Qdrant (${qdrant.kind}) at ${qdrant.url} (${qdrant.detail})`,
@@ -65,15 +80,17 @@ async function useEphemeral(): Promise<void> {
 
 /** Vitest global setup hook. */
 export async function setup(): Promise<void> {
+  process.env[RUN_ID_ENV] = newRunId();
   const configured = process.env['QDRANT_URL'];
   if (configured) await useConfigured(configured);
   else await useEphemeral();
 }
 
 /**
- * End-of-run sweep: drop any harness collection (`jeeves_watcher_it_*`) a
- * suite failed to clean up (collections without the prefix are never listed
- * for deletion), then stop the throwaway Qdrant and delete its state.
+ * End-of-run sweep: drop any harness collection this run created that a
+ * suite failed to clean up (another run's collections, and collections
+ * without the prefix, are never listed for deletion), then stop the
+ * throwaway Qdrant and delete its state.
  */
 export async function teardown(): Promise<void> {
   if (process.env['QDRANT_AVAILABLE'] === 'true') {
@@ -92,6 +109,7 @@ export async function teardown(): Promise<void> {
     const instance = ephemeral;
     ephemeral = undefined;
     delete process.env['QDRANT_URL'];
+    Reflect.deleteProperty(process.env, GUARDED_URL_ENV);
     await instance.stop();
   }
 }

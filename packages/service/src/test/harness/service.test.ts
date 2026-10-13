@@ -5,7 +5,11 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { listTestCollections, qdrantAvailable } from './qdrant';
+import {
+  listTestCollections,
+  qdrantAvailable,
+  uniqueCollectionName,
+} from './qdrant';
 import { startServiceHarness } from './service';
 
 describe('service harness guard', () => {
@@ -21,6 +25,20 @@ describe('service harness guard', () => {
         },
       }),
     ).rejects.toThrow(/Refusing to touch non-test collection "jeeves_archive"/);
+  });
+
+  it('refuses a config override naming another Qdrant', async () => {
+    await expect(
+      startServiceHarness({
+        label: 'guard',
+        config: {
+          vectorStore: {
+            url: 'http://127.0.0.1:9',
+            collectionName: uniqueCollectionName('guard'),
+          },
+        },
+      }),
+    ).rejects.toThrow(/Refusing to use the Qdrant at http:\/\/127\.0\.0\.1:9/);
   });
 });
 

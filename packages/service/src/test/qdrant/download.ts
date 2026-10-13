@@ -1,13 +1,20 @@
 /**
  * @module test/qdrant/download
  * Download, verify (SHA-256), extract and cache the official Qdrant release binary for this platform; network + fs + `tar` child process.
- * Cache: `QDRANT_CACHE_DIR` or `<cwd>/node_modules/.cache/qdrant/<version>`; populated atomically (stage dir, then rename).
+ * Cache: `QDRANT_CACHE_DIR` or `<cwd>/node_modules/.cache/qdrant/<version>`; populated atomically (stage dir, then rename). The cached executable is re-hashed against its pinned digest on every use.
  */
 
 import { execFile } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { existsSync } from 'node:fs';
-import { chmod, mkdir, rename, rm, writeFile } from 'node:fs/promises';
+import {
+  chmod,
+  mkdir,
+  readFile,
+  rename,
+  rm,
+  writeFile,
+} from 'node:fs/promises';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
 
@@ -40,13 +47,31 @@ export function qdrantCacheDir(env: NodeJS.ProcessEnv = process.env): string {
  * @param expected - Expected lower-case hex digest.
  * @throws On mismatch.
  */
-export function verifyDigest(data: Uint8Array, expected: string): void {
+export function verifyDigest(
+  data: Uint8Array,
+  expected: string,
+  what = 'Qdrant archive',
+): void {
   const actual = createHash('sha256').update(data).digest('hex');
   if (actual !== expected) {
     throw new Error(
-      `Qdrant archive SHA-256 mismatch: expected ${expected}, got ${actual}`,
+      `${what} SHA-256 mismatch: expected ${expected}, got ${actual}`,
     );
   }
+}
+
+/**
+ * Throw unless the executable at `binaryPath` has the pinned SHA-256.
+ *
+ * @param binaryPath - Path to the Qdrant executable.
+ * @param expected - Expected lower-case hex digest.
+ * @throws On mismatch or when the file cannot be read.
+ */
+export async function verifyBinaryDigest(
+  binaryPath: string,
+  expected: string,
+): Promise<void> {
+  verifyDigest(await readFile(binaryPath), expected, 'Qdrant executable');
 }
 
 /**
@@ -107,6 +132,7 @@ async function populateCache(
       throw new Error(`${asset.name} has no ${asset.binaryName}`);
     }
     if (process.platform !== 'win32') await chmod(binary, 0o755);
+    await verifyBinaryDigest(binary, asset.binarySha256);
     await verifyQdrantBinary(binary);
     await rm(cacheDir, { recursive: true, force: true });
     await rename(stage, cacheDir);
@@ -117,7 +143,8 @@ async function populateCache(
 
 /**
  * Return a verified Qdrant executable for this platform, downloading it into
- * the cache on first use (or when the cached copy fails to run).
+ * the cache on first use, or when the cached copy no longer has the pinned
+ * SHA-256 or fails to run.
  *
  * @param cacheDir - Versioned cache directory (default {@link qdrantCacheDir}).
  * @returns Absolute path of the executable.
@@ -135,10 +162,11 @@ export async function ensureQdrantBinary(
   const binary = join(cacheDir, asset.binaryName);
   if (existsSync(binary)) {
     try {
+      await verifyBinaryDigest(binary, asset.binarySha256);
       await verifyQdrantBinary(binary);
       return binary;
     } catch {
-      // Corrupt or foreign cache entry: fetch a fresh copy below.
+      // Tampered, corrupt or foreign cache entry: fetch a fresh copy below.
     }
   }
   await populateCache(asset, cacheDir);

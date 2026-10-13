@@ -29,11 +29,11 @@ npm --version
 
 You do **not** need to run Qdrant to run the test suite. Unless you set `QDRANT_URL`, the Vitest global setup (`packages/service/src/test/globalSetup.ts`) starts a **throwaway Qdrant 1.19.1** for the run and removes it afterwards:
 
-1. **Release binary (preferred):** the official Qdrant release archive for your platform (Windows x86_64, Linux x86_64/aarch64 musl, macOS x86_64/aarch64) is downloaded once from GitHub, checked against a pinned SHA-256, extracted with `tar` and cached in `packages/service/node_modules/.cache/qdrant/1.19.1` (override the cache root with `QDRANT_CACHE_DIR`). Each run starts it on free random `127.0.0.1` ports, with storage, snapshots and temp files in a fresh OS temp directory.
-2. **Docker (fallback):** if the binary cannot be downloaded or started (offline, unsupported platform), `docker run --rm -d -p 127.0.0.1::6333 qdrant/qdrant:v1.19.1` is used instead.
+1. **Release binary (preferred):** the official Qdrant release archive for your platform (Windows x86_64, Linux x86_64/aarch64 musl, macOS x86_64/aarch64) is downloaded once from GitHub, checked against a pinned SHA-256, extracted with `tar` and cached in `packages/service/node_modules/.cache/qdrant/1.19.1` (override the cache root with `QDRANT_CACHE_DIR`). The cached executable is re-checked against its own pinned SHA-256 on every run (and re-downloaded on a mismatch). Each run starts it on free random `127.0.0.1` ports, with storage, snapshots and temp files in a fresh OS temp directory; `QDRANT__*` variables from your shell are not passed to it.
+2. **Docker (fallback):** if the binary cannot be downloaded or started (offline, unsupported platform), `docker run --rm -d -p 127.0.0.1::6333 qdrant/qdrant:v1.19.1` is used instead. The container is labelled with its owner (host and process id); the next start removes containers whose owner process has died.
 3. **Neither:** the Qdrant integration suites are skipped with a warning, unless `QDRANT_REQUIRED=true`, which fails the run.
 
-Teardown kills the process (or removes the container) and deletes the temp directory; an interrupted run (Ctrl+C, SIGTERM) cleans up on a best-effort basis. A Qdrant you already run on `localhost:6333` is never contacted unless you point `QDRANT_URL` at it.
+The throwaway instance passes the same shared-instance guard as a `QDRANT_URL` instance. Teardown kills the process (or removes the container) and deletes the temp directory; an interrupted run (Ctrl+C, SIGTERM) cleans up on a best-effort basis. A Qdrant you already run on `localhost:6333` is never contacted unless you point `QDRANT_URL` at it.
 
 To run Qdrant yourself (for the service, not the tests), see the [Qdrant installation guide](https://qdrant.tech/documentation/guides/installation/) or use Docker:
 
@@ -98,7 +98,7 @@ Environment variables:
 
 Notes:
 
-- Integration tests only ever create, use and drop collections named **`jeeves_watcher_it_*`** (`jeeves_watcher_it_<label>_<worker>_<nonce>`, see `packages/service/src/test/harness/qdrant.ts`). The harness refuses to create or drop any other name, and the global teardown sweeps leftover `jeeves_watcher_it_*` collections: defence in depth should `QDRANT_URL` ever point at an instance with other data.
+- Integration tests only ever create, use and drop collections named **`jeeves_watcher_it_*`** (`jeeves_watcher_it_<label>_<run>_<worker>_<nonce>`, see `packages/service/src/test/harness/qdrant.ts`), and only on the Qdrant the global setup provisioned or guarded for this run. The harness refuses any other name or URL, and the global teardown sweeps leftover collections of **this run only** (never a concurrent run's): defence in depth should `QDRANT_URL` ever point at an instance with other data.
 - Tests create temp directories under your OS temp folder:
   - `.../jeeves-watcher-test/watched`
   - `.../jeeves-watcher-test/metadata`

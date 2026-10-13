@@ -1,15 +1,17 @@
 /**
  * @module test/qdrant/download.test
- * Tests for the pure parts of binary provisioning: cache location and archive digest verification.
+ * Tests for binary provisioning: cache location, archive digest verification, and re-verifying a cached executable against its pinned digest (temp files).
  */
 
 import { createHash } from 'node:crypto';
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { QDRANT_VERSION } from './assets';
-import { qdrantCacheDir, verifyDigest } from './download';
+import { qdrantCacheDir, verifyBinaryDigest, verifyDigest } from './download';
 
 describe('qdrantCacheDir', () => {
   it('defaults to node_modules/.cache/qdrant/<version> under cwd', () => {
@@ -39,5 +41,33 @@ describe('verifyDigest', () => {
     expect(() => {
       verifyDigest(new TextEncoder().encode('qdrant!'), digest);
     }).toThrow(/SHA-256 mismatch/);
+  });
+});
+
+describe('verifyBinaryDigest', () => {
+  let dir: string;
+  const bytes = new TextEncoder().encode('pretend executable');
+  const digest = createHash('sha256').update(bytes).digest('hex');
+
+  beforeAll(async () => {
+    dir = await mkdtemp(join(tmpdir(), 'jeeves-watcher-digest-'));
+  });
+
+  afterAll(async () => {
+    await rm(dir, { recursive: true, force: true });
+  });
+
+  it('accepts a cached executable with the pinned digest', async () => {
+    const file = join(dir, 'ok');
+    await writeFile(file, bytes);
+    await expect(verifyBinaryDigest(file, digest)).resolves.toBeUndefined();
+  });
+
+  it('rejects a modified cached executable', async () => {
+    const file = join(dir, 'tampered');
+    await writeFile(file, new TextEncoder().encode('pretend executable!'));
+    await expect(verifyBinaryDigest(file, digest)).rejects.toThrow(
+      /Qdrant executable SHA-256 mismatch/,
+    );
   });
 });

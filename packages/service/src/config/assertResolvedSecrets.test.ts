@@ -3,7 +3,7 @@
  * Tests for the startup secret checks (unresolved env references in api.apiKey and sources, empty api.apiKey) and unknown source-key warnings, unit and through loadConfig.
  */
 
-import { mkdtemp, writeFile } from 'node:fs/promises';
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -81,12 +81,18 @@ describe('assertResolvedSecrets', () => {
 describe('loadConfig secret check', () => {
   const envName = 'JW_TEST_SECRET_CHECK_KEY';
 
-  afterEach(() => {
+  const dirs: string[] = [];
+
+  afterEach(async () => {
     vi.unstubAllEnvs();
+    await Promise.all(
+      dirs.splice(0).map((dir) => rm(dir, { recursive: true, force: true })),
+    );
   });
 
   const writeConfig = async (config: Record<string, unknown>) => {
     const dir = await mkdtemp(join(tmpdir(), 'jw-secret-'));
+    dirs.push(dir);
     const cfgPath = join(dir, 'jeeves-watcher.config.json');
     await writeFile(cfgPath, JSON.stringify(config), 'utf8');
     return cfgPath;

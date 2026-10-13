@@ -1,9 +1,14 @@
+/**
+ * @module test/helpers
+ * Shared config and temp-directory helpers for the file-based integration suites: a test config on the run's guarded Qdrant with a fresh harness collection, and per-worker watched/state dirs (fs I/O).
+ */
+
 import { mkdir, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import type { JeevesWatcherConfig } from '../config/types';
-import { qdrantUrl } from './harness/qdrant';
+import { qdrantUrl, uniqueCollectionName } from './harness/qdrant';
 
 const TEST_BASE = join(
   tmpdir(),
@@ -12,7 +17,8 @@ const TEST_BASE = join(
 );
 
 /**
- * Create a test configuration pointing at temp dirs and test Qdrant collection.
+ * Create a test configuration pointing at temp dirs and a fresh, run-scoped
+ * harness collection (`jeeves_watcher_it_default_*`) on the run's Qdrant.
  *
  * @returns A JeevesWatcherConfig for testing.
  */
@@ -39,7 +45,8 @@ export function createTestConfig(): JeevesWatcherConfig {
     vectorStore: {
       // The run's throwaway (or explicitly configured) Qdrant, never a default.
       url: qdrantUrl(),
-      collectionName: 'jeeves_watcher_test',
+      // Never a fixed name: a harness collection unique to this call.
+      collectionName: uniqueCollectionName('default'),
     },
     stateDir,
     api: {
