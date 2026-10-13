@@ -4,7 +4,7 @@
  */
 
 import { pino } from 'pino';
-import { vi } from 'vitest';
+import { type Mock, vi } from 'vitest';
 
 import type { ExecuteReindexDeps } from '../api/executeReindex';
 import { ReindexTracker } from '../api/ReindexTracker';
@@ -22,7 +22,7 @@ interface MockRefs {
   /** Values manager `clearAll` mock. */
   clearAll: ReturnType<typeof vi.fn>;
   /** Processor `processFile` mock. */
-  processFile: ReturnType<typeof vi.fn>;
+  processFile: Mock<(filePath: string) => Promise<void>>;
 }
 
 /**
@@ -42,7 +42,9 @@ export function makeDeps(overrides: Partial<ExecuteReindexDeps> = {}): {
   const trackerSetTotal = vi.spyOn(tracker, 'setTotal');
   const trackerIncrement = vi.spyOn(tracker, 'incrementProcessed');
   const clearAll = vi.fn();
-  const processFile = vi.fn().mockResolvedValue(undefined);
+  const processFile = vi
+    .fn<(filePath: string) => Promise<void>>()
+    .mockResolvedValue(undefined);
 
   const deps: ExecuteReindexDeps = {
     config: {

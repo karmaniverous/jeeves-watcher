@@ -2,7 +2,8 @@
  * @module api/handlers/vcs/vcsDiff.handler.test
  * GET /vcs/diff handler behavior: returns a diff between a commit and the
  * working tree, a diff between two specific commits, and 400s for
- * missing parameters.
+ * missing parameters, 404 not_found for a glob outside every VCS root, and
+ * an empty diff for an unknown commit.
  */
 
 import { rm, writeFile } from 'node:fs/promises';
@@ -116,5 +117,37 @@ describe('GET /vcs/diff', () => {
     await handler(request, reply as never);
 
     expect(reply.statusCode).toBe(400);
+  });
+
+  it('returns 404 not_found for a glob outside every VCS root', async () => {
+    const handler = createVcsDiffHandler({
+      coordinator,
+      logger: silentLogger,
+    });
+
+    const request = {
+      query: { glob: '/nonexistent/**', commit: 'HEAD' },
+    } as never;
+    const reply = mockReply();
+    await handler(request, reply as never);
+
+    expect(reply.statusCode).toBe(404);
+    expect(reply.body).toMatchObject({ code: 'not_found' });
+  });
+
+  it('skips a root whose commit is unknown and answers an empty diff', async () => {
+    const handler = createVcsDiffHandler({
+      coordinator,
+      logger: silentLogger,
+    });
+
+    const request = {
+      query: { glob: rootA + '/hello.txt', commit: 'no-such-commit' },
+    } as never;
+    const reply = mockReply();
+    await handler(request, reply as never);
+
+    expect(reply.statusCode).toBe(200);
+    expect(reply.body).toBe('');
   });
 });

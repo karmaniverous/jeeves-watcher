@@ -1,6 +1,6 @@
 /**
  * @module api/executeReindex.sourceSafety.test
- * executeReindex source safety: callback 404 deletes the document's points, an outage records issues and deletes nothing, config-triggered (no includeSources) runs stay file-only, prune never selects source points.
+ * executeReindex source safety: callback 404 deletes the document's points, an outage records issues and deletes nothing, the completion callback lists failed files then failed source references, config-triggered (no includeSources) runs stay file-only, prune never selects source points.
  */
 
 import { describe, expect, it, vi } from 'vitest';
@@ -13,11 +13,14 @@ import {
   sourceReindexFixture,
 } from '../test/sourceReindexFixture';
 import { executeReindex } from './executeReindex';
+import { listFilesFromGlobs } from './fileScan';
 
 vi.mock('./fileScan', () => ({
   listFilesFromGlobs: vi.fn().mockResolvedValue([]),
   listFilesFromWatchRoots: vi.fn().mockResolvedValue([]),
 }));
+
+const listFilesFromGlobsMock = vi.mocked(listFilesFromGlobs);
 
 const A = 'app://chat/thread/a';
 const B = 'app://chat/thread/b';
@@ -78,6 +81,43 @@ describe('executeReindex: source safety', () => {
       expect(result.errors).toBe(2);
     },
   );
+
+  it('the callback body lists failed files, then failed source references', async () => {
+    const fetchMock = vi
+      .fn<(url: string, init?: RequestInit) => Promise<unknown>>()
+      .mockResolvedValue({ ok: true, status: 200 });
+    vi.stubGlobal('fetch', fetchMock);
+    try {
+      const f = fixture();
+      await f.index(A, B);
+      f.responses[A] = {
+        kind: 'error',
+        code: 'source_unavailable',
+        message: 'HTTP 500',
+      };
+      listFilesFromGlobsMock.mockResolvedValueOnce(['src/a.md']);
+      vi.spyOn(f.processor, 'processFile').mockRejectedValue(
+        new Error('unreadable'),
+      );
+      const deps = {
+        ...f.deps,
+        config: {
+          ...f.deps.config,
+          reindex: { concurrency: 4, callbackUrl: 'http://127.0.0.1:9/cb' },
+        },
+      };
+
+      const result = await executeReindex(deps, { scope: 'full' });
+
+      expect(result.errors).toBe(2);
+      const sent = JSON.parse(fetchMock.mock.calls[0][1]?.body as string) as {
+        errors: string[];
+      };
+      expect(sent.errors).toEqual(['src/a.md', A]);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
 
   it('a discovery failure fails the run without rejecting or deleting', async () => {
     const f = fixture();

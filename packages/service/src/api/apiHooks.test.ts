@@ -1,6 +1,6 @@
 /**
  * @module api/apiHooks.test
- * Fastify inject tests for the server-wide hooks: 401 unauthorized, 404 not_found for unknown routes, framework 4xx as invalid_request and uncaught errors as 500 internal_error without leaking the message.
+ * Fastify inject tests for the server-wide hooks (the 401 itself is covered by apiKeyAuth.test and routeAuth.test): authorized requests pass through, 404 not_found for unknown routes, framework 4xx as invalid_request and uncaught errors as 500 internal_error without leaking the message.
  */
 
 import Fastify, { type FastifyInstance } from 'fastify';
@@ -57,12 +57,6 @@ describe('registerApiHooks', () => {
       error: 'Not Found',
       message: 'Route GET:/nope?x=1 not found',
     });
-  });
-
-  it('answers a missing bearer token with 401 unauthorized', async () => {
-    const res = await build(KEY).inject({ method: 'GET', url: '/nope' });
-    expect(res.statusCode).toBe(401);
-    expect(res.json()).toEqual({ code: 'unauthorized', error: 'Unauthorized' });
   });
 
   it('passes authorized requests through to the not-found handler', async () => {

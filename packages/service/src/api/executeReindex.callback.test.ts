@@ -1,6 +1,6 @@
 /**
  * @module api/executeReindex.callback.test
- * Completion callback through executeReindex: the body carries scope, filesProcessed and errors; a callback that always fails is tried exactly three times, the run still resolves with its own result and is never re-reported with a failure payload (file scope and live prune). Fake timers, stubbed fetch.
+ * Completion callback through executeReindex: the body carries scope, filesProcessed and errors (the failed file paths); a callback that always fails is tried exactly three times, the run still resolves with its own result and is never re-reported with a failure payload (file scope and live prune). Fake timers, stubbed fetch.
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -58,6 +58,17 @@ describe('executeReindex completion callback', () => {
       filesProcessed: 2,
       errors: [],
     });
+  });
+
+  it('lists the failed files in the body errors', async () => {
+    fetchMock.mockResolvedValue({ ok: true, status: 200 });
+    const { deps, mocks } = callbackDeps();
+    mocks.processFile.mockImplementation((file: string) =>
+      file === 'b.txt' ? Promise.reject(new Error('bad')) : Promise.resolve(),
+    );
+    const result = await executeReindex(deps, { scope: 'issues' });
+    expect(result).toMatchObject({ filesProcessed: 1, errors: 1 });
+    expect(body(0)).toMatchObject({ filesProcessed: 1, errors: ['b.txt'] });
   });
 
   it('a failing callback is tried three times and the run still resolves', async () => {

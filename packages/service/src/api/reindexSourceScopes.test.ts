@@ -1,6 +1,6 @@
 /**
  * @module api/reindexSourceScopes.test
- * runSourceScope goes through the notify queue: a reindex and a concurrent notification of the same reference never run in parallel and the final state is the latest; `force` reaches processSource; a stopped queue counts as failed and lists the reference. resolveSourceScope needs the queue.
+ * runSourceScope goes through the notify queue: a reindex and a concurrent notification of the same reference never run in parallel and the final state is the latest; `force` reaches processSource; a stopped queue counts as failed and lists the reference; failed results and rejections are counted and listed with progress after each. resolveSourceScope needs the queue, the vector store, source operations and (scope issues) the issues store.
  */
 
 import type { DocumentResult } from '@karmaniverous/jeeves-watcher-core';
@@ -100,6 +100,42 @@ describe('runSourceScope through the notify queue', () => {
   });
 });
 
+describe('runSourceScope outcomes', () => {
+  it('counts and lists failed results and rejections, reporting progress after each', async () => {
+    const processNow = vi.fn((ref: string) => {
+      if (ref === 'app://rejects') return Promise.reject(new Error('stopped'));
+      const status = ref === 'app://fails' ? 'failed' : 'indexed';
+      return Promise.resolve({ source: ref, status } as DocumentResult);
+    });
+    const onProcessed = vi.fn();
+
+    const outcome = await runSourceScope(
+      {
+        total: 3,
+        targets: ['app://ok', 'app://fails', 'app://rejects'].map((ref) => ({
+          ref,
+          rule: 'r',
+        })),
+        queue: { processNow },
+        force: false,
+      },
+      { concurrency: 1, logger, onProcessed },
+    );
+
+    expect(outcome.counts).toEqual({
+      indexed: 1,
+      unchanged: 0,
+      deleted: 0,
+      failed: 2,
+    });
+    expect([...outcome.failed].sort()).toEqual([
+      'app://fails',
+      'app://rejects',
+    ]);
+    expect(onProcessed).toHaveBeenCalledTimes(3);
+  });
+});
+
 describe('resolveSourceScope', () => {
   it('covers no sources without a notify queue', async () => {
     const { deps } = sourceReindexFixture({});
@@ -112,4 +148,20 @@ describe('resolveSourceScope', () => {
       force: true,
     });
   });
+
+  it.each([
+    ['a vector store', 'full', { vectorStore: undefined }],
+    ['source operations on the processor', 'full', { processor: {} }],
+    ['an issues store (issues scope)', 'issues', { issuesManager: undefined }],
+  ] as const)(
+    'covers no sources without %s',
+    async (_label, scope, override) => {
+      const { deps, store } = sourceReindexFixture({});
+      const without = { ...deps, ...override } as typeof deps;
+      expect(
+        await resolveSourceScope(without, scope, undefined),
+      ).toBeUndefined();
+      expect(store.scrollPage).not.toHaveBeenCalled();
+    },
+  );
 });

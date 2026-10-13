@@ -1,9 +1,9 @@
 /**
  * @module api/executeReindex.test
- * Unit tests for executeReindex over mocks: tracker and values bookkeeping per scope, issues reprocessing, callbacks, path arrays, and dry-run plans for the issues, full, rules and prune scopes.
+ * Unit tests for executeReindex over mocks: the three programming-error guards, tracker and values bookkeeping per scope, issues reprocessing, the measured duration, and dry-run plans for the issues, full, rules and prune scopes (with files listed, so "nothing processed" is meaningful).
  */
 
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { makeDeps } from '../test/reindexDeps';
 import { executeReindex, type ExecuteReindexDeps } from './executeReindex';
@@ -30,13 +30,47 @@ vi.mock('./fileScan', async (importOriginal) => {
   };
 });
 
-import { listFilesFromGlobs, listFilesFromWatchRoots } from './fileScan';
+import { listFilesFromGlobs } from './fileScan';
 
 const listFilesFromGlobsMock = vi.mocked(listFilesFromGlobs);
-const listFilesFromWatchRootsMock = vi.mocked(listFilesFromWatchRoots);
 const ISSUE = [
   { type: 'extraction_error' as const, message: 'x', timestamp: 0 },
 ];
+
+afterEach(() => {
+  vi.useRealTimers();
+});
+
+describe('executeReindex guards', () => {
+  it.each([
+    [
+      'an invalid scope',
+      { scope: 'bogus' as never },
+      'Invalid reindex scope: "bogus"',
+    ],
+    [
+      'path scope without a path',
+      { scope: 'path' as const },
+      'The "path" parameter is required when scope is "path".',
+    ],
+    [
+      'path scope with an empty path list',
+      { scope: 'path' as const, path: [] },
+      'The "path" parameter is required when scope is "path".',
+    ],
+    [
+      'prune without a vector store',
+      { scope: 'prune' as const },
+      'vectorStore is required for prune scope.',
+    ],
+  ])('throws for %s, before any work', async (_label, options, message) => {
+    listFilesFromGlobsMock.mockClear();
+    const { deps, mocks } = makeDeps();
+    await expect(executeReindex(deps, options)).rejects.toThrow(message);
+    expect(mocks.trackerStart).not.toHaveBeenCalled();
+    expect(listFilesFromGlobsMock).not.toHaveBeenCalled();
+  });
+});
 
 describe('executeReindex', () => {
   it('calls reindexTracker.start and complete on full scope', async () => {
@@ -79,72 +113,17 @@ describe('executeReindex', () => {
     expect(result.errors).toBe(0);
   });
 
-  it('counts errors when issue file processing fails', async () => {
-    const failingProcessFile = vi.fn().mockRejectedValue(new Error('fail'));
-    const { deps } = makeDeps({
-      processor: {
-        processFile: failingProcessFile,
-        deleteFile: vi.fn(),
-        processMetadataUpdate: vi.fn(),
-        processRulesUpdate: vi.fn(),
-        moveFile: vi.fn(),
-        updateRules: vi.fn(),
-        renderFile: vi.fn(),
-      },
-      issuesManager: { getAll: () => ({ 'a.txt': [] }) },
+  it('reports the measured run duration', async () => {
+    vi.useFakeTimers();
+    const { deps, mocks } = makeDeps({
+      issuesManager: { getAll: () => ({ 'a.txt': ISSUE }) },
+    });
+    mocks.processFile.mockImplementation(() => {
+      vi.advanceTimersByTime(1500);
+      return Promise.resolve();
     });
     const result = await executeReindex(deps, { scope: 'issues' });
-    expect(result.errors).toBe(1);
-    expect(result.filesProcessed).toBe(0);
-  });
-
-  it('fires callback when configured', async () => {
-    const fetchSpy = vi
-      .spyOn(globalThis, 'fetch')
-      .mockResolvedValue(new Response('ok', { status: 200 }));
-    const { deps } = makeDeps({
-      config: {
-        watch: { paths: [], ignored: [] },
-        vectorStore: { url: '', collectionName: '', apiKey: '' },
-        stateDir: '.meta',
-        reindex: { callbackUrl: 'http://example.com/cb' },
-      } as unknown as ExecuteReindexDeps['config'],
-      issuesManager: { getAll: () => ({}) },
-    });
-    await executeReindex(deps, { scope: 'issues' });
-    expect(fetchSpy).toHaveBeenCalledWith(
-      'http://example.com/cb',
-      expect.objectContaining({ method: 'POST' }),
-    );
-    fetchSpy.mockRestore();
-  });
-
-  it('returns result with durationMs', async () => {
-    const { deps } = makeDeps({
-      issuesManager: { getAll: () => ({}) },
-    });
-    const result = await executeReindex(deps, { scope: 'issues' });
-    expect(result.durationMs).toBeGreaterThanOrEqual(0);
-  });
-
-  it('scope rules with path array calls listFilesFromWatchRoots', async () => {
-    listFilesFromWatchRootsMock.mockResolvedValue(['file1.ts', 'file2.ts']);
-    listFilesFromGlobsMock.mockClear();
-    listFilesFromWatchRootsMock.mockClear();
-
-    // Re-mock to return files for this test
-    listFilesFromWatchRootsMock.mockResolvedValue(['file1.ts', 'file2.ts']);
-
-    const { deps } = makeDeps();
-    await executeReindex(deps, { scope: 'rules', path: ['**/.meta/**'] });
-
-    expect(listFilesFromWatchRootsMock).toHaveBeenCalledWith(
-      deps.config.watch.paths,
-      deps.config.watch.ignored,
-      ['**/.meta/**'],
-      undefined,
-    );
-    expect(listFilesFromGlobsMock).not.toHaveBeenCalled();
+    expect(result.durationMs).toBe(1500);
   });
 
   describe('dryRun', () => {
@@ -152,8 +131,8 @@ describe('executeReindex', () => {
       const { deps, mocks } = makeDeps({
         issuesManager: {
           getAll: () => ({
-            'a.txt': ISSUE,
-            'b.txt': ISSUE,
+            'src/a.txt': ISSUE,
+            'src/b.txt': ISSUE,
           }),
         },
       });
@@ -161,16 +140,17 @@ describe('executeReindex', () => {
         scope: 'issues',
         dryRun: true,
       });
-      expect(result.filesProcessed).toBe(0);
-      expect(result.durationMs).toBe(0);
-      expect(result.plan).toBeDefined();
-      expect(result.plan!.total).toBe(2);
-      expect(result.plan!.toProcess).toBe(2);
-      expect(result.plan!.toDelete).toBe(0);
+      expect(result).toEqual({
+        filesProcessed: 0,
+        durationMs: 0,
+        errors: 0,
+        plan: { total: 2, toProcess: 2, toDelete: 0, byRoot: { src: 2 } },
+      });
       expect(mocks.processFile).not.toHaveBeenCalled();
     });
 
-    it('full scope: returns plan without clearing valuesManager', async () => {
+    it('full scope: plans the listed files without processing or clearing', async () => {
+      listFilesFromGlobsMock.mockResolvedValueOnce(['src/a.ts', 'src/b.ts']);
       const { deps, mocks } = makeDeps();
       const result = await executeReindex(deps, {
         scope: 'full',
@@ -178,33 +158,27 @@ describe('executeReindex', () => {
       });
       expect(result.filesProcessed).toBe(0);
       expect(result.durationMs).toBe(0);
-      expect(result.plan).toBeDefined();
-      expect(result.plan!.toDelete).toBe(0);
+      expect(result.plan).toMatchObject({
+        total: 2,
+        toProcess: 2,
+        toDelete: 0,
+      });
       expect(mocks.clearAll).not.toHaveBeenCalled();
       expect(mocks.processFile).not.toHaveBeenCalled();
       expect(mocks.trackerStart).not.toHaveBeenCalled();
     });
 
-    it('rules scope: returns plan without calling processRulesUpdate', async () => {
-      const processRulesUpdate = vi.fn();
-      const { deps } = makeDeps({
-        processor: {
-          processFile: vi.fn(),
-          deleteFile: vi.fn(),
-          processMetadataUpdate: vi.fn(),
-          processRulesUpdate,
-          moveFile: vi.fn(),
-          updateRules: vi.fn(),
-          renderFile: vi.fn(),
-        },
-      });
+    it('rules scope: plans the listed files without calling processRulesUpdate', async () => {
+      listFilesFromGlobsMock.mockResolvedValueOnce(['src/a.ts']);
+      const { deps } = makeDeps();
+      const processRulesUpdate = vi.spyOn(deps.processor, 'processRulesUpdate');
       const result = await executeReindex(deps, {
         scope: 'rules',
         dryRun: true,
       });
       expect(result.filesProcessed).toBe(0);
       expect(result.durationMs).toBe(0);
-      expect(result.plan).toBeDefined();
+      expect(result.plan).toMatchObject({ total: 1, toProcess: 1 });
       expect(processRulesUpdate).not.toHaveBeenCalled();
     });
 
@@ -230,9 +204,12 @@ describe('executeReindex', () => {
       });
       expect(result.filesProcessed).toBe(0);
       expect(result.durationMs).toBe(0);
-      expect(result.plan).toBeDefined();
-      expect(result.plan!.toDelete).toBeGreaterThan(0);
-      expect(result.plan!.toProcess).toBe(0);
+      // Nothing is watched (empty listing), so every point is orphaned.
+      expect(result.plan).toMatchObject({
+        total: 3,
+        toProcess: 0,
+        toDelete: 3,
+      });
       expect(deleteFn).not.toHaveBeenCalled();
     });
   });

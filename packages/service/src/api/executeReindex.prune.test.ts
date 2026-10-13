@@ -1,9 +1,11 @@
 /**
  * @module api/executeReindex.prune.test
- * Unit tests for executeReindex prune scope over mocks: dry-run vs live plans, scroll retries, incomplete-plan safety and filter-first orphan detection.
+ * executeReindex prune scope over mocks (fake timers for scroll retries): a live prune deletes exactly the orphaned ids and keeps a watched file present on disk; dry-run and live plans are identical; a failed page is retried from the same cursor; an exhausted scroll leaves an incomplete plan and the live prune deletes nothing; filter-first orphan detection.
  */
 
-import { describe, expect, it, vi } from 'vitest';
+import { access } from 'node:fs/promises';
+
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { makeDeps } from '../test/reindexDeps';
 import { executeReindex, type ExecuteReindexDeps } from './executeReindex';
@@ -33,253 +35,151 @@ vi.mock('./fileScan', async (importOriginal) => {
 import { listFilesFromGlobs } from './fileScan';
 
 const listFilesFromGlobsMock = vi.mocked(listFilesFromGlobs);
+const accessMock = vi.mocked(access);
+const fetchFailed = () => new TypeError('fetch failed');
 
-describe('executeReindex', () => {
-  describe('dryRun', () => {
-    it('prune scope: executes deletions when dryRun is false', async () => {
-      const deleteFn = vi.fn().mockResolvedValue(undefined);
-      const scrollPageFn = vi.fn().mockResolvedValueOnce({
-        points: [
-          { id: 'p1', payload: { file_path: 'src/a.ts' } },
-          { id: 'p2', payload: { file_path: 'outside/b.ts' } },
-        ],
+/** Deps over a vector store with the given scroll and delete mocks. */
+function pruneDeps(
+  scrollPage: ReturnType<typeof vi.fn>,
+  del: ReturnType<typeof vi.fn> = vi.fn().mockResolvedValue(undefined),
+) {
+  return makeDeps({
+    vectorStore: {
+      scrollPage,
+      delete: del,
+    } as unknown as ExecuteReindexDeps['vectorStore'],
+  }).deps;
+}
+
+/** Run a reindex to completion, flushing retry back-off timers. */
+async function run(
+  deps: ExecuteReindexDeps,
+  dryRun: boolean,
+): ReturnType<typeof executeReindex> {
+  const pending = executeReindex(deps, { scope: 'prune', dryRun });
+  await vi.runAllTimersAsync();
+  return pending;
+}
+
+beforeEach(() => {
+  vi.useFakeTimers();
+});
+
+afterEach(() => {
+  vi.useRealTimers();
+});
+
+describe('executeReindex prune (live)', () => {
+  it('deletes exactly the orphaned ids and keeps a watched file on disk', async () => {
+    listFilesFromGlobsMock.mockResolvedValueOnce(['src/a.ts']);
+    accessMock.mockResolvedValueOnce(undefined);
+    const deleteFn = vi.fn().mockResolvedValue(undefined);
+    const scrollPageFn = vi.fn().mockResolvedValueOnce({
+      points: [
+        { id: 'p1', payload: { file_path: 'src/a.ts' } },
+        { id: 'p2', payload: { file_path: 'outside/b.ts' } },
+      ],
+      nextCursor: undefined,
+    });
+
+    const result = await run(pruneDeps(scrollPageFn, deleteFn), false);
+
+    expect(result.errors).toBe(0);
+    expect(result.plan).toMatchObject({ total: 2, toDelete: 1 });
+    expect(deleteFn.mock.calls).toEqual([[['p2']]]);
+  });
+
+  it('plans identically to a dry run', async () => {
+    const page = {
+      points: [
+        { id: 'p1', payload: { file_path: 'src/a.ts' } },
+        { id: 'p2', payload: { file_path: 'outside/b.ts' } },
+        { id: 'p3', payload: { file_path: 'outside/c.ts' } },
+      ],
+      nextCursor: undefined,
+    };
+    const dry = await run(pruneDeps(vi.fn().mockResolvedValueOnce(page)), true);
+    const live = await run(
+      pruneDeps(vi.fn().mockResolvedValueOnce(page)),
+      false,
+    );
+    expect(dry.plan).toEqual({
+      total: 3,
+      toProcess: 0,
+      toDelete: 3,
+      byRoot: { src: 1, '(unmatched)': 2 },
+    });
+    expect(live.plan).toEqual(dry.plan);
+  });
+
+  it('deletes nothing when the scroll is exhausted (incomplete plan)', async () => {
+    const deleteFn = vi.fn().mockResolvedValue(undefined);
+    const scrollPageFn = vi
+      .fn()
+      .mockResolvedValueOnce({
+        points: [{ id: 'p1', payload: { file_path: 'outside/b.ts' } }],
+        nextCursor: 'cursor-1',
+      })
+      .mockRejectedValue(fetchFailed());
+
+    const result = await run(pruneDeps(scrollPageFn, deleteFn), false);
+
+    expect(result.errors).toBe(1);
+    expect(result.plan).toMatchObject({ total: 1, incomplete: true });
+    // One good page, then five attempts at the failing page.
+    expect(scrollPageFn).toHaveBeenCalledTimes(6);
+    expect(deleteFn).not.toHaveBeenCalled();
+  });
+});
+
+describe('executeReindex prune scroll retry', () => {
+  it('retries a failed page from the same cursor and completes the plan', async () => {
+    const scrollPageFn = vi
+      .fn()
+      .mockResolvedValueOnce({
+        points: [{ id: 'p1', payload: { file_path: 'src/a.ts' } }],
+        nextCursor: 'cursor-1',
+      })
+      .mockRejectedValueOnce(fetchFailed())
+      .mockRejectedValueOnce(fetchFailed())
+      .mockRejectedValueOnce(fetchFailed())
+      .mockRejectedValueOnce(fetchFailed())
+      .mockResolvedValueOnce({
+        points: [{ id: 'p2', payload: { file_path: 'outside/b.ts' } }],
         nextCursor: undefined,
       });
-      const { deps } = makeDeps({
-        vectorStore: {
-          scrollPage: scrollPageFn,
-          delete: deleteFn,
-        } as unknown as ExecuteReindexDeps['vectorStore'],
-      });
-      const result = await executeReindex(deps, { scope: 'prune' });
-      expect(result.plan).toBeDefined();
-      expect(deleteFn).toHaveBeenCalled();
+
+    const result = await run(pruneDeps(scrollPageFn), true);
+
+    expect(result.plan).toMatchObject({ total: 2, toDelete: 2 });
+    expect(result.plan?.incomplete).toBeUndefined();
+    expect(scrollPageFn).toHaveBeenCalledTimes(6);
+    expect(scrollPageFn.mock.calls.map((call) => call[2] as unknown)).toEqual([
+      undefined,
+      'cursor-1',
+      'cursor-1',
+      'cursor-1',
+      'cursor-1',
+      'cursor-1',
+    ]);
+  });
+});
+
+describe('executeReindex prune filter-first', () => {
+  it('orphans points outside the watch scope, missing from disk, or without file_path', async () => {
+    listFilesFromGlobsMock.mockResolvedValueOnce(['src/a.ts']);
+    const scrollPageFn = vi.fn().mockResolvedValueOnce({
+      points: [
+        { id: 'p1', payload: { file_path: 'src/a.ts' } },
+        { id: 'p2', payload: { file_path: 'outside/b.ts' } },
+        { id: 'p3', payload: {} },
+      ],
+      nextCursor: undefined,
     });
 
-    it('prune scope: retries on scroll failure and resumes', async () => {
-      const deleteFn = vi.fn().mockResolvedValue(undefined);
-      const scrollPageFn = vi
-        .fn()
-        .mockResolvedValueOnce({
-          points: [{ id: 'p1', payload: { file_path: 'src/a.ts' } }],
-          nextCursor: 'cursor-1',
-        })
-        .mockRejectedValueOnce(new TypeError('fetch failed'))
-        .mockResolvedValueOnce({
-          points: [{ id: 'p2', payload: { file_path: 'outside/b.ts' } }],
-          nextCursor: undefined,
-        });
-      const { deps } = makeDeps({
-        vectorStore: {
-          scrollPage: scrollPageFn,
-          delete: deleteFn,
-        } as unknown as ExecuteReindexDeps['vectorStore'],
-      });
-      const result = await executeReindex(deps, {
-        scope: 'prune',
-        dryRun: true,
-      });
-      expect(result.plan).toBeDefined();
-      expect(result.plan!.total).toBe(2);
-      expect(result.plan!.incomplete).toBeUndefined();
-      // scrollPage called 3 times: page 1 ok, page 2 fail, page 2 retry ok
-      expect(scrollPageFn).toHaveBeenCalledTimes(3);
-    });
+    // fs.access rejects (ENOENT) by default, so p1 is orphaned too.
+    const result = await run(pruneDeps(scrollPageFn), true);
 
-    it('prune scope: dry-run and live prune produce identical plans', async () => {
-      const deleteFn = vi.fn().mockResolvedValue(undefined);
-      const makeScrollFn = () =>
-        vi.fn().mockResolvedValueOnce({
-          points: [
-            { id: 'p1', payload: { file_path: 'src/a.ts' } },
-            { id: 'p2', payload: { file_path: 'outside/b.ts' } },
-            { id: 'p3', payload: { file_path: 'outside/c.ts' } },
-          ],
-          nextCursor: undefined,
-        });
-
-      const scrollDry = makeScrollFn();
-      const { deps: dryDeps } = makeDeps({
-        vectorStore: {
-          scrollPage: scrollDry,
-          delete: deleteFn,
-        } as unknown as ExecuteReindexDeps['vectorStore'],
-      });
-      const dryResult = await executeReindex(dryDeps, {
-        scope: 'prune',
-        dryRun: true,
-      });
-
-      const scrollLive = makeScrollFn();
-      const { deps: liveDeps } = makeDeps({
-        vectorStore: {
-          scrollPage: scrollLive,
-          delete: deleteFn,
-        } as unknown as ExecuteReindexDeps['vectorStore'],
-      });
-      const liveResult = await executeReindex(liveDeps, { scope: 'prune' });
-
-      // Plans should match
-      expect(dryResult.plan!.total).toBe(liveResult.plan!.total);
-      expect(dryResult.plan!.toDelete).toBe(liveResult.plan!.toDelete);
-      expect(dryResult.plan!.toProcess).toBe(liveResult.plan!.toProcess);
-    });
-
-    it('prune scope: live prune aborts when plan is incomplete', async () => {
-      const deleteFn = vi.fn().mockResolvedValue(undefined);
-      const scrollPageFn = vi
-        .fn()
-        .mockResolvedValueOnce({
-          points: [{ id: 'p1', payload: { file_path: 'outside/b.ts' } }],
-          nextCursor: 'cursor-1',
-        })
-        .mockRejectedValue(new TypeError('fetch failed'));
-      const { deps } = makeDeps({
-        vectorStore: {
-          scrollPage: scrollPageFn,
-          delete: deleteFn,
-        } as unknown as ExecuteReindexDeps['vectorStore'],
-      });
-      const result = await executeReindex(deps, { scope: 'prune' });
-
-      // Should abort with error and NOT call delete
-      expect(result.errors).toBe(1);
-      expect(result.plan!.incomplete).toBe(true);
-      expect(deleteFn).not.toHaveBeenCalled();
-    }, 60000);
-
-    it('prune scope: increased retries recover from transient failures', async () => {
-      const scrollPageFn = vi
-        .fn()
-        .mockResolvedValueOnce({
-          points: [{ id: 'p1', payload: { file_path: 'src/a.ts' } }],
-          nextCursor: 'cursor-1',
-        })
-        .mockRejectedValueOnce(new TypeError('fetch failed'))
-        .mockRejectedValueOnce(new TypeError('fetch failed'))
-        .mockRejectedValueOnce(new TypeError('fetch failed'))
-        .mockRejectedValueOnce(new TypeError('fetch failed'))
-        .mockResolvedValueOnce({
-          points: [{ id: 'p2', payload: { file_path: 'outside/b.ts' } }],
-          nextCursor: undefined,
-        });
-      const { deps } = makeDeps({
-        vectorStore: {
-          scrollPage: scrollPageFn,
-          delete: vi.fn(),
-        } as unknown as ExecuteReindexDeps['vectorStore'],
-      });
-      const result = await executeReindex(deps, {
-        scope: 'prune',
-        dryRun: true,
-      });
-      expect(result.plan).toBeDefined();
-      expect(result.plan!.total).toBe(2);
-      expect(result.plan!.incomplete).toBeUndefined();
-    }, 30000);
-
-    it('prune scope: returns incomplete plan when all retries exhausted', async () => {
-      const scrollPageFn = vi
-        .fn()
-        .mockResolvedValueOnce({
-          points: [{ id: 'p1', payload: { file_path: 'src/a.ts' } }],
-          nextCursor: 'cursor-1',
-        })
-        .mockRejectedValue(new TypeError('fetch failed'));
-      const { deps } = makeDeps({
-        vectorStore: {
-          scrollPage: scrollPageFn,
-          delete: vi.fn(),
-        } as unknown as ExecuteReindexDeps['vectorStore'],
-      });
-      const result = await executeReindex(deps, {
-        scope: 'prune',
-        dryRun: true,
-      });
-      expect(result.plan).toBeDefined();
-      expect(result.plan!.total).toBe(1);
-      expect(result.plan!.incomplete).toBe(true);
-    }, 60000);
-
-    it('filter-first: detects orphans outside watch scope', async () => {
-      // Watched files: src/a.ts exists on filesystem
-      listFilesFromGlobsMock.mockResolvedValueOnce(['src/a.ts']);
-
-      const deleteFn = vi.fn().mockResolvedValue(undefined);
-      const scrollPageFn = vi.fn().mockResolvedValueOnce({
-        points: [
-          { id: 'p1', payload: { file_path: 'src/a.ts' } },
-          { id: 'p2', payload: { file_path: 'outside/b.ts' } },
-          { id: 'p3', payload: {} },
-        ],
-        nextCursor: undefined,
-      });
-      const { deps } = makeDeps({
-        vectorStore: {
-          scrollPage: scrollPageFn,
-          delete: deleteFn,
-        } as unknown as ExecuteReindexDeps['vectorStore'],
-      });
-
-      // fs.access is mocked to reject (ENOENT) by default, so p1 is also orphaned
-      const result = await executeReindex(deps, {
-        scope: 'prune',
-        dryRun: true,
-      });
-      expect(result.plan).toBeDefined();
-      expect(result.plan!.total).toBe(3);
-      // p1 (in scope but not on disk), p2 (outside scope), p3 (no file_path) — all orphans
-      expect(result.plan!.toDelete).toBe(3);
-    });
-
-    it('filter-first: detects files deleted from disk as orphans', async () => {
-      // Watched files list includes src/deleted.ts (matches watch scope)
-      // but the file doesn't exist on disk
-      listFilesFromGlobsMock.mockResolvedValueOnce(['src/deleted.ts']);
-
-      const deleteFn = vi.fn().mockResolvedValue(undefined);
-      const scrollPageFn = vi.fn().mockResolvedValueOnce({
-        points: [{ id: 'p1', payload: { file_path: 'src/deleted.ts' } }],
-        nextCursor: undefined,
-      });
-      const { deps } = makeDeps({
-        vectorStore: {
-          scrollPage: scrollPageFn,
-          delete: deleteFn,
-        } as unknown as ExecuteReindexDeps['vectorStore'],
-      });
-
-      const result = await executeReindex(deps, {
-        scope: 'prune',
-        dryRun: true,
-      });
-      expect(result.plan).toBeDefined();
-      // src/deleted.ts is in watch scope but doesn't exist on disk → orphan
-      expect(result.plan!.toDelete).toBe(1);
-    });
-
-    it('filter-first: preserves incomplete safety from Step 5', async () => {
-      listFilesFromGlobsMock.mockResolvedValueOnce(['src/a.ts']);
-
-      const deleteFn = vi.fn().mockResolvedValue(undefined);
-      const scrollPageFn = vi
-        .fn()
-        .mockResolvedValueOnce({
-          points: [{ id: 'p1', payload: { file_path: 'src/a.ts' } }],
-          nextCursor: 'cursor-1',
-        })
-        .mockRejectedValue(new TypeError('fetch failed'));
-      const { deps } = makeDeps({
-        vectorStore: {
-          scrollPage: scrollPageFn,
-          delete: deleteFn,
-        } as unknown as ExecuteReindexDeps['vectorStore'],
-      });
-
-      const result = await executeReindex(deps, { scope: 'prune' });
-      expect(result.errors).toBe(1);
-      expect(result.plan!.incomplete).toBe(true);
-      expect(deleteFn).not.toHaveBeenCalled();
-    }, 60000);
+    expect(result.plan).toMatchObject({ total: 3, toDelete: 3 });
   });
 });
