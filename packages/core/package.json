@@ -1,4 +1,5 @@
 {
+  "author": "Jason Williscroft",
   "bugs": {
     "url": "https://github.com/karmaniverous/jeeves-watcher/issues"
   },
@@ -7,6 +8,7 @@
     "@karmaniverous/jsonmap": "^2.1.1",
     "zod": "^4.6.5"
   },
+  "description": "Shared Zod schemas, types, defaults and constants for jeeves-watcher, its SDK and its OpenClaw plugin",
   "devDependencies": {
     "@dotenvx/dotenvx": "^2.30.0",
     "@rollup/plugin-commonjs": "^29.0.3",
@@ -35,6 +37,7 @@
     "dist"
   ],
   "homepage": "https://github.com/karmaniverous/jeeves-watcher#readme",
+  "license": "BSD-3-Clause",
   "name": "@karmaniverous/jeeves-watcher-core",
   "publishConfig": {
     "access": "public"
