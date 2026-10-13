@@ -125,4 +125,32 @@ describe('config apply', () => {
     expect(`${out}${err}`).not.toContain(KEY);
     expect(process.exitCode).toBe(1);
   });
+
+  it.each([
+    [
+      'a missing file',
+      undefined,
+      /^Config apply failed: cannot read patch file .+ \(ENOENT\)$/,
+    ],
+    [
+      'invalid JSON',
+      '{nope',
+      /^Config apply failed: patch is not valid JSON \(.+\)$/,
+    ],
+    [
+      'a non-object',
+      '[1]',
+      /^Config apply failed: patch must be a JSON object$/,
+    ],
+  ])(
+    'reports %s cleanly with exit code 1',
+    async (_label, content, message) => {
+      const file = join(dir, 'patch.json');
+      if (content !== undefined) writeFileSync(file, content);
+      const { err } = await runCli(['config', 'apply', '--file', file]);
+      expect(err).toMatch(message);
+      expect(fetchMock).not.toHaveBeenCalled();
+      expect(process.exitCode).toBe(1);
+    },
+  );
 });

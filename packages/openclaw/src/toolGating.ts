@@ -7,16 +7,20 @@
  * error only when its implementation actually reads `configRoot`. Tools
  * that only call the service HTTP API keep working without it.
  *
- * Audit of the core standard toolset (`createPluginToolset`, core 0.6.0-7):
- * - `watcher_status`, `watcher_config`, `watcher_config_apply`: HTTP only
- *   (`{apiUrl}/…`, resolved per call).
- * - `watcher_service`: only `install` reads `configRoot`
- *   (`createServiceManager` → `resolveConfigFilePath` →
+ * Audit of the tools the plugin registers:
+ * - `watcher_status` (core standard toolset, `createPluginToolset`): HTTP
+ *   only (`{apiUrl}/status`, resolved per call).
+ * - `watcher_config`, `watcher_config_apply`: implemented by the plugin
+ *   (`configTools.ts`, replacing the core ones so the request carries the
+ *   `Authorization: Bearer` key); HTTP only.
+ * - `watcher_service` (core standard toolset): only `install` reads
+ *   `configRoot` (`createServiceManager` → `resolveConfigFilePath` →
  *   `getComponentConfigDir`); the other actions query or drive the OS
  *   service manager by service name.
  *
- * The 14 domain tools call `{apiUrl}/…` via `fetchJson`/`postJson` and are
- * never gated.
+ * The 14 domain tools (7 in `watcherTools.ts`, 7 VCS tools in
+ * `vcsTools.ts`) call `{apiUrl}/…` via `fetchJson`/`postJson` and are never
+ * gated.
  */
 
 /** Decides, per call, whether a tool invocation reads `configRoot`. */

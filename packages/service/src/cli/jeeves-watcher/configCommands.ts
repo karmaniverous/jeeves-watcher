@@ -52,15 +52,43 @@ function reportFailure(prefix: string, err: unknown): void {
   process.exitCode = 1;
 }
 
-/** Read a config patch from `file`, else from stdin (empty input = `{}`). */
+/**
+ * Read a config patch from `file`, else from stdin (empty input = `{}`).
+ *
+ * @throws With a one-line message when the file cannot be read, the input
+ *   is not JSON, or it is not a JSON object.
+ */
 async function readPatch(file?: string): Promise<Record<string, unknown>> {
+  let input: string;
   if (file) {
-    return JSON.parse(readFileSync(file, 'utf-8')) as Record<string, unknown>;
+    try {
+      input = readFileSync(file, 'utf-8');
+    } catch (err) {
+      const { code } = err as { code?: unknown };
+      throw new Error(
+        `cannot read patch file ${file}${typeof code === 'string' ? ` (${code})` : ''}`,
+        { cause: err },
+      );
+    }
+  } else {
+    const chunks: Buffer[] = [];
+    for await (const chunk of process.stdin) chunks.push(chunk as Buffer);
+    input = Buffer.concat(chunks).toString('utf-8');
   }
-  const chunks: Buffer[] = [];
-  for await (const chunk of process.stdin) chunks.push(chunk as Buffer);
-  const input = Buffer.concat(chunks).toString('utf-8').trim();
-  return input ? (JSON.parse(input) as Record<string, unknown>) : {};
+  if (!input.trim()) return {};
+  let patch: unknown;
+  try {
+    patch = JSON.parse(input);
+  } catch (err) {
+    throw new Error(
+      `patch is not valid JSON (${err instanceof Error ? err.message : String(err)})`,
+      { cause: err },
+    );
+  }
+  if (typeof patch !== 'object' || patch === null || Array.isArray(patch)) {
+    throw new Error('patch must be a JSON object');
+  }
+  return patch as Record<string, unknown>;
 }
 
 /**
@@ -91,10 +119,10 @@ export function authenticateConfigCommands(program: Command): void {
   addApiKeyOption(applyCmd);
   applyCmd.action(async () => {
     const opts = configOptsSchema.parse(applyCmd.opts());
-    const patch = await readPatch(opts.file);
-    const body: Record<string, unknown> = { patch };
-    if (opts.replace) body.replace = true;
     try {
+      const patch = await readPatch(opts.file);
+      const body: Record<string, unknown> = { patch };
+      if (opts.replace) body.replace = true;
       const client = apiClient({ ...opts, host: CONFIG_HOST });
       printJson(await client.post('/config/apply', body));
     } catch (err) {
