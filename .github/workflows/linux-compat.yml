@@ -11,6 +11,6 @@ on:
 
 jobs:
   linux-compat:
-    uses: karmaniverous/gha-workflows/.github/workflows/linux-compat.yml@main
+    uses: karmaniverous/gha-workflows/.github/workflows/linux-compat.yml@ci/node24-pinned-runner
     with:
       node-versions: '[22, 24]'

@@ -8,4 +8,4 @@ on:
 
 jobs:
   pack-check:
-    uses: karmaniverous/gha-workflows/.github/workflows/npm-pack-check.yml@main
+    uses: karmaniverous/gha-workflows/.github/workflows/npm-pack-check.yml@ci/node24-pinned-runner
