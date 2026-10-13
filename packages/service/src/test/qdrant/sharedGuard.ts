@@ -5,6 +5,7 @@
  */
 
 import { TEST_COLLECTION_PREFIX } from '../harness/qdrant';
+import { fetchCollectionNames } from './http';
 
 /**
  * Collections that the test harness did not create.
@@ -54,20 +55,11 @@ export async function assertNotSharedQdrant(
   url: string,
   env: NodeJS.ProcessEnv = process.env,
 ): Promise<void> {
-  const apiKey = env['QDRANT_API_KEY'];
-  const res = await fetch(`${url}/collections`, {
-    headers: apiKey ? { 'api-key': apiKey } : {},
-    signal: AbortSignal.timeout(5_000),
+  const names = await fetchCollectionNames(url, {
+    env,
+    timeoutMs: 5_000,
+    errorPrefix: '[globalSetup] ',
   });
-  if (!res.ok) {
-    throw new Error(
-      `[globalSetup] GET ${url}/collections failed: ${String(res.status)}`,
-    );
-  }
-  const body = (await res.json()) as {
-    result: { collections: { name: string }[] };
-  };
-  const names = body.result.collections.map((c) => c.name);
   const error = sharedInstanceError(url, names, env['QDRANT_ALLOW_SHARED']);
   if (error) throw error;
 }

@@ -1,3 +1,6 @@
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+
 import { describe, expect, it, vi } from 'vitest';
 
 import type { InferenceRule } from '../config/types';
@@ -342,10 +345,31 @@ describe('rules engine', () => {
 
     expect(result.metadata).toEqual({ fallback: 'value' });
     expect(consoleWarnSpy).toHaveBeenCalledWith(
-      'Map reference "nonexistent" not found in named maps. Skipping map transformation.',
+      'Map reference "nonexistent" not found in named maps. Skipping the rule\'s map, render and template.',
     );
 
     consoleWarnSpy.mockRestore();
+  });
+
+  it('says the rest of the rule is skipped when a map file cannot be loaded', async () => {
+    const warn = vi.fn();
+    const compiled = compileRules([
+      {
+        name: 'missing-map-file',
+        description: 'Missing map file',
+        match: { type: 'object' },
+        map: 'missing-map.json',
+      },
+    ]);
+    await applyRules(compiled, makeAttributes(), {
+      configDir: join(tmpdir(), 'no-such-config-dir'),
+      logger: { warn },
+    });
+    expect(warn).toHaveBeenCalledWith(
+      expect.stringMatching(
+        /^Failed to load map file "missing-map\.json": .+\. Skipping the rule's map, render and template\.$/,
+      ),
+    );
   });
 
   it('applies multiple matching rules in order (all applied, later overrides)', async () => {

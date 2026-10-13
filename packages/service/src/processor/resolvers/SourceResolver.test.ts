@@ -50,7 +50,6 @@ function makeRetriever(result: SourceRetrievalResult | Error) {
     result instanceof Error ? Promise.reject(result) : Promise.resolve(result),
   );
   const retriever: SourceRetriever = {
-    has: () => true,
     resolve: vi.fn(),
     retrieve,
   };
@@ -95,6 +94,8 @@ describe('SourceResolver', () => {
     expect(doc.identity).toEqual({ kind: 'source', ref: REF, rule: 'streak' });
     expect(doc.text).toBe('# Thread u1\n\nhello');
     expect(doc.splitterExt).toBe('.md');
+    expect(doc.renderAs).toBe('md');
+    expect(doc.transformed).toBe(true);
     expect(doc.matchedRules).toEqual(['streak']);
     expect(doc.metadata).toEqual({ user_id: 'u1', ref: REF });
     expect(doc.metadataWithRules).toEqual({
@@ -118,6 +119,8 @@ describe('SourceResolver', () => {
     if (outcome.kind !== 'document') throw new Error('expected document');
     expect(outcome.document.text).toBe(JSON.stringify(body));
     expect(outcome.document.splitterExt).toBe('.json');
+    expect(outcome.document.renderAs).toBe('json');
+    expect(outcome.document.transformed).toBe(false);
   });
 
   it('keeps created_at from chunk 0 and stamps modified_at now', async () => {

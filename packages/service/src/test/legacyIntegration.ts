@@ -6,6 +6,7 @@
 import Fastify from 'fastify';
 import { afterAll, afterEach, beforeAll, beforeEach } from 'vitest';
 
+import { createProcessorConfig } from '../app/initialization';
 import { ROOT_DEFAULTS } from '../config/defaults';
 import type { JeevesWatcherConfig } from '../config/types';
 import { createEmbeddingProvider, type EmbeddingProvider } from '../embedding';
@@ -14,12 +15,7 @@ import { createLogger } from '../logger';
 import { DocumentProcessor } from '../processor';
 import { compileRules } from '../rules';
 import { VectorStoreClient } from '../vectorStore';
-import {
-  assertTestVectorStore,
-  dropCollection,
-  QDRANT_URL,
-  uniqueCollectionName,
-} from './harness/qdrant';
+import { assertTestVectorStore, dropCollection } from './harness/qdrant';
 import {
   cleanupTestDirs,
   cleanupWatchedDir,
@@ -50,16 +46,8 @@ export interface LegacyIntegration {
  * @returns The (lazily populated) components.
  */
 export function useLegacyIntegration(): LegacyIntegration {
-  const baseConfig = createTestConfig();
-  // Unique `jeeves_watcher_it_` collection: never touches a shared Qdrant's data.
-  const config = {
-    ...baseConfig,
-    vectorStore: {
-      ...baseConfig.vectorStore,
-      url: QDRANT_URL,
-      collectionName: uniqueCollectionName('legacy'),
-    },
-  };
+  // Unique `jeeves_watcher_it_legacy_*` collection on the run's Qdrant.
+  const config = createTestConfig({ label: 'legacy' });
   const fixture = {
     config,
     embeddingProvider: createEmbeddingProvider(config.embedding),
@@ -90,11 +78,7 @@ export function useLegacyIntegration(): LegacyIntegration {
     fixture.enrichmentStore = new EnrichmentStore(stateDir);
 
     fixture.processor = new DocumentProcessor({
-      config: {
-        chunkSize: config.embedding.chunkSize,
-        chunkOverlap: config.embedding.chunkOverlap,
-        maps: config.maps,
-      },
+      config: createProcessorConfig(config, stateDir, undefined),
       embeddingProvider: fixture.embeddingProvider,
       vectorStore: fixture.vectorStore,
       compiledRules: compileRules(config.inferenceRules ?? []),
@@ -106,7 +90,8 @@ export function useLegacyIntegration(): LegacyIntegration {
   afterAll(async () => {
     // Drop first: runs even when beforeAll failed before the store opened.
     await dropCollection(config.vectorStore.collectionName);
-    fixture.enrichmentStore.close();
+    // Undefined when beforeAll failed before the store opened.
+    (fixture.enrichmentStore as EnrichmentStore | undefined)?.close();
     await cleanupTestDirs();
   });
 

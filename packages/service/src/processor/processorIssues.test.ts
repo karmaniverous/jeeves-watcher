@@ -41,6 +41,7 @@ const FILE = '/docs/a.md';
 
 function merged(text = 'hello world') {
   return {
+    dates: { createdAt: 1700000000, modifiedAt: 1700100000 },
     metadata: { domain: 'test' },
     extracted: { text, frontmatter: null, json: null },
     renderedContent: null,

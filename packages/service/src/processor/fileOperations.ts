@@ -3,8 +3,6 @@
  * File operations of the processor besides indexing: delete, render, enrichment metadata update, rules re-apply and move (no re-embed). Re-asserts the stored file identity. Qdrant and file I/O; errors propagate to the caller's handler.
  */
 
-import { extname } from 'node:path';
-
 import type pino from 'pino';
 import { omit } from 'radash';
 
@@ -27,7 +25,7 @@ import {
   withIssueType,
 } from './issueRecording';
 import { diffMetadata, writeProjectedMetadata } from './metadataRefresh';
-import type { RenderResult } from './renderResult';
+import { type RenderResult, toRenderResult } from './renderResult';
 import type { FileResolver } from './resolvers/FileResolver';
 import { withSystemFields } from './systemFields';
 import { updateValues } from './valuesIndex';
@@ -77,15 +75,11 @@ export async function renderFileDocument(
   resolver: FileResolver,
   filePath: string,
 ): Promise<RenderResult> {
-  const built = await resolver.buildMetadata(filePath);
-  const { renderedContent, extracted, renderAs } = built;
-  return {
-    renderAs: renderAs ?? (extname(filePath).slice(1) || 'txt'),
-    content: renderedContent ?? extracted.text,
-    rules: built.matchedRules,
-    metadata: built.metadataWithRules,
-    transformed: renderedContent !== null,
-  };
+  const outcome = await resolver.resolve(filePath);
+  if (outcome.kind === 'gone') {
+    throw new Error(`File resolver reported ${filePath} gone`);
+  }
+  return toRenderResult(outcome.document);
 }
 
 /**

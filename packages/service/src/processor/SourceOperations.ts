@@ -21,7 +21,7 @@ import { updateDocumentMetadata } from './documentMetadata';
 import type { IndexOptions, PipelineContext } from './documentPipeline';
 import { ProcessingFailure } from './issueRecording';
 import { processSourceDocument } from './processSource';
-import type { RenderResult } from './renderResult';
+import { type RenderResult, toRenderResult } from './renderResult';
 import { SourceResolver } from './resolvers/SourceResolver';
 import type { RuleContext } from './resolvers/types';
 
@@ -184,18 +184,7 @@ export class SourceOperations implements SourceOperationsInterface {
     try {
       const outcome = await this.resolver().resolve({ ref, rule });
       if (outcome.kind === 'gone') return { kind: 'gone' };
-      const { document } = outcome;
-      const transformed = document.splitterExt === '.md';
-      return {
-        kind: 'rendered',
-        result: {
-          renderAs: transformed ? 'md' : 'json',
-          content: document.text,
-          rules: document.matchedRules,
-          metadata: document.metadataWithRules,
-          transformed,
-        },
-      };
+      return { kind: 'rendered', result: toRenderResult(outcome.document) };
     } catch (error) {
       if (!(error instanceof ProcessingFailure)) throw error;
       const { issueType: code, message, details } = error;

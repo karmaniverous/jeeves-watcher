@@ -107,6 +107,7 @@ function mockBuilt(ruleErrors: RuleApplicationError[] = []) {
     renderAs: null,
     ruleErrors,
     metadataWithRules: { domain: 'docs', matched_rules: ['r'] },
+    dates: { createdAt: 1, modifiedAt: 2 },
   });
 }
 

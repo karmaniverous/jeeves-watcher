@@ -201,11 +201,12 @@ describe('SourceClient URL building', () => {
     expect(stub.requests).toHaveLength(0);
   });
 
-  it('reports configured names', () => {
-    const sources = client();
-    expect(sources.has('app')).toBe(true);
-    expect(sources.has('nope')).toBe(false);
-    expect(new SourceClient().has('app')).toBe(false);
+  it('resolves only configured names', () => {
+    expect(client().resolve('app://x').name).toBe('app');
+    expect(() => client().resolve('nope://x')).toThrow(SourceReferenceError);
+    expect(() => new SourceClient().resolve('app://x')).toThrow(
+      SourceReferenceError,
+    );
   });
 
   it('rejects templates with {id} in the origin or a non-http scheme', () => {

@@ -4,6 +4,8 @@
  * Every create/delete goes through {@link assertTestCollection} (only `jeeves_watcher_it_*` collections) and {@link assertTestQdrantUrl} (only the run's own, guarded Qdrant).
  */
 
+import { fetchCollectionNames, qdrantHeaders } from '../qdrant/http';
+
 /** Env var: this test run's id, set by globalSetup and inherited by workers. */
 export const RUN_ID_ENV = 'JEEVES_WATCHER_IT_RUN';
 
@@ -28,12 +30,6 @@ const UNPROVISIONED_QDRANT_URL = 'http://127.0.0.1:9';
 export function qdrantUrl(): string {
   return process.env['QDRANT_URL'] ?? UNPROVISIONED_QDRANT_URL;
 }
-
-/**
- * Qdrant URL used by integration tests, fixed when a worker loads this
- * module (after global setup has exported `QDRANT_URL`).
- */
-export const QDRANT_URL = qdrantUrl();
 
 /** Prefix of every collection created by the harness; nothing else is touched. */
 export const TEST_COLLECTION_PREFIX = 'jeeves_watcher_it_';
@@ -129,11 +125,6 @@ export function assertTestVectorStore(target: {
   assertTestQdrantUrl(target.url);
 }
 
-function headers(): Record<string, string> {
-  const apiKey = process.env['QDRANT_API_KEY'];
-  return apiKey ? { 'api-key': apiKey } : {};
-}
-
 /**
  * Guard: throw unless `name` is a harness collection. Call before creating
  * or deleting any collection from a test.
@@ -153,18 +144,9 @@ export function assertTestCollection(name: string): void {
  * @returns Names starting with {@link TEST_COLLECTION_PREFIX}.
  */
 export async function listTestCollections(): Promise<string[]> {
-  const res = await fetch(`${qdrantUrl()}/collections`, {
-    headers: headers(),
-  });
-  if (!res.ok) {
-    throw new Error(`GET collections failed: ${String(res.status)}`);
-  }
-  const body = (await res.json()) as {
-    result: { collections: { name: string }[] };
-  };
-  return body.result.collections
-    .map((c) => c.name)
-    .filter((name) => name.startsWith(TEST_COLLECTION_PREFIX));
+  return (await fetchCollectionNames(qdrantUrl())).filter((name) =>
+    name.startsWith(TEST_COLLECTION_PREFIX),
+  );
 }
 
 /**
@@ -196,7 +178,7 @@ export async function dropCollection(name: string): Promise<void> {
   assertTestQdrantUrl(qdrantUrl());
   await fetch(`${qdrantUrl()}/collections/${name}`, {
     method: 'DELETE',
-    headers: headers(),
+    headers: qdrantHeaders(),
   });
 }
 
@@ -219,7 +201,7 @@ export async function getPayloadSchema(
   name: string,
 ): Promise<Record<string, PayloadSchemaEntry>> {
   const res = await fetch(`${qdrantUrl()}/collections/${name}`, {
-    headers: headers(),
+    headers: qdrantHeaders(),
   });
   if (!res.ok) {
     throw new Error(`GET collection ${name} failed: ${String(res.status)}`);

@@ -147,7 +147,6 @@ export function sourceReindexFixture(responses: Responses) {
     Promise.resolve(responses[ref] ?? { kind: 'gone' as const }),
   );
   const retriever: SourceRetriever = {
-    has: () => true,
     resolve: vi.fn(),
     retrieve,
   };

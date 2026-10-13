@@ -41,6 +41,14 @@ export interface ResolvedDocument {
   /** Names of the rules applied. */
   matchedRules: string[];
   /**
+   * Content type of {@link ResolvedDocument.text} for render responses (file
+   * extension without dot): the rule's `renderAs`, else the file extension
+   * (`txt` when none); `md` for a rendered source document, else `json`.
+   */
+  renderAs: string;
+  /** Whether a template or render transform produced the text. */
+  transformed: boolean;
+  /**
    * Rule interpolation failures of a file (recorded as an
    * `interpolation_error` issue after indexing). Source resolvers fail the
    * document instead, so this is empty or absent for sources.

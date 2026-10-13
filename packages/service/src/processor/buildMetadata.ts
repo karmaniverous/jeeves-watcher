@@ -11,6 +11,7 @@ import { type ExtractedText, extractText } from '../extractors';
 import type { CompiledRule, RuleApplicationError } from '../rules';
 import { applyRules, buildAttributes } from '../rules';
 import type { ApplyRulesOptions } from '../rules/apply';
+import type { DocumentDates } from './processingPipeline';
 import { withEnrichment } from './resolvers/ruleOptions';
 
 /**
@@ -33,6 +34,8 @@ interface MergedMetadata {
   renderAs: string | null;
   /** Interpolation failures of matched rules (recorded as an issue). */
   ruleErrors: RuleApplicationError[];
+  /** Creation and modification times from the same `stat` (unix seconds). */
+  dates: DocumentDates;
 }
 
 /**
@@ -92,5 +95,9 @@ export async function buildMergedMetadata(
     matchedRules,
     renderAs,
     ruleErrors,
+    dates: {
+      createdAt: Math.floor(stats.birthtimeMs / 1000),
+      modifiedAt: Math.floor(stats.mtimeMs / 1000),
+    },
   };
 }

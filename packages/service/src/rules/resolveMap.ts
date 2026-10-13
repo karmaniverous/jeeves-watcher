@@ -11,6 +11,9 @@ import type { JsonMapMap } from '@karmaniverous/jsonmap';
 import type { InferenceRule } from '../config/types';
 import { normalizeError } from '../util/normalizeError';
 
+/** What applyRules skips when a rule's map cannot be resolved. */
+const SKIPPED = "Skipping the rule's map, render and template.";
+
 /** Logger for map resolution warnings. */
 interface MapLogger {
   /** Log a warning. */
@@ -40,16 +43,14 @@ export function resolveMapDefinition(
       return JSON.parse(raw) as JsonMapMap;
     } catch (error) {
       log.warn(
-        `Failed to load map file "${map}": ${normalizeError(error).message}`,
+        `Failed to load map file "${map}": ${normalizeError(error).message}. ${SKIPPED}`,
       );
       return undefined;
     }
   }
   const named = namedMaps?.[map];
   if (!named) {
-    log.warn(
-      `Map reference "${map}" not found in named maps. Skipping map transformation.`,
-    );
+    log.warn(`Map reference "${map}" not found in named maps. ${SKIPPED}`);
   }
   return named;
 }

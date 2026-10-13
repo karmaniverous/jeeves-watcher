@@ -4,6 +4,7 @@
  */
 
 import {
+  documentRejectionCodeSchema,
   issueTypeSchema,
   sourceDocumentSchema,
 } from '@karmaniverous/jeeves-watcher-core';
@@ -55,9 +56,10 @@ export type SourceRetrievalResult = z.infer<typeof sourceRetrievalResultSchema>;
  * Why a reference was rejected before any request was made:
  * `invalid_reference` (not `<name>://<id>`), `unknown_source` (name not in
  * config `sources`), `invalid_id` (empty, `.` or `..` segment, or the built
- * URL would leave the configured origin).
+ * URL would leave the configured origin). The reference-level subset of
+ * core `documentRejectionCodeSchema`.
  */
-export const sourceRejectionCodeSchema = z.enum([
+export const sourceRejectionCodeSchema = documentRejectionCodeSchema.extract([
   'invalid_reference',
   'unknown_source',
   'invalid_id',

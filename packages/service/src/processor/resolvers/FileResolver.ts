@@ -3,7 +3,6 @@
  * File resolver: today's stat/extract/buildAttributes/applyRules path behind the resolver interface. I/O: reads and stats the file, hashes it for move detection.
  */
 
-import { stat } from 'node:fs/promises';
 import { extname } from 'node:path';
 
 import type { ContentHashCache } from '../../cache';
@@ -75,6 +74,8 @@ export class FileResolver implements DocumentResolver<string> {
       metadata: built.metadata,
       metadataWithRules: built.metadataWithRules,
       matchedRules: built.matchedRules,
+      renderAs: built.renderAs ?? (extname(filePath).slice(1) || 'txt'),
+      transformed: built.renderedContent !== null,
       ruleErrors: built.ruleErrors,
       onUnchanged: 'skip',
       logLabel: 'File',
@@ -91,13 +92,8 @@ export class FileResolver implements DocumentResolver<string> {
         const rawHash = await fileHash(filePath);
         this.ctx.contentHashCache?.set(filePath, rawHash);
       },
-      dates: async () => {
-        const stats = await stat(filePath);
-        return {
-          createdAt: Math.floor(stats.birthtimeMs / 1000),
-          modifiedAt: Math.floor(stats.mtimeMs / 1000),
-        };
-      },
+      // Dates from the stat taken while building metadata (no second stat).
+      dates: () => Promise.resolve(built.dates),
     };
     return { kind: 'document', document };
   }

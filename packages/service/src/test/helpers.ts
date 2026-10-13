@@ -18,11 +18,14 @@ const TEST_BASE = join(
 
 /**
  * Create a test configuration pointing at temp dirs and a fresh, run-scoped
- * harness collection (`jeeves_watcher_it_default_*`) on the run's Qdrant.
+ * harness collection (`jeeves_watcher_it_<label>_*`) on the run's Qdrant.
  *
+ * @param options - `label`: collection name label (default `default`).
  * @returns A JeevesWatcherConfig for testing.
  */
-export function createTestConfig(): JeevesWatcherConfig {
+export function createTestConfig(
+  options: { label?: string } = {},
+): JeevesWatcherConfig {
   const watchDir = join(TEST_BASE, 'watched');
   const stateDir = join(TEST_BASE, 'state');
 
@@ -46,7 +49,7 @@ export function createTestConfig(): JeevesWatcherConfig {
       // The run's throwaway (or explicitly configured) Qdrant, never a default.
       url: qdrantUrl(),
       // Never a fixed name: a harness collection unique to this call.
-      collectionName: uniqueCollectionName('default'),
+      collectionName: uniqueCollectionName(options.label ?? 'default'),
     },
     stateDir,
     api: {

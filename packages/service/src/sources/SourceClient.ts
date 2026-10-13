@@ -23,8 +23,6 @@ import {
  * stages (resolver, notify queue, reindex) so tests can substitute it.
  */
 export interface SourceRetriever {
-  /** Whether a source name is configured. */
-  has(name: string): boolean;
   /**
    * Validate a reference and build its URL without making a request.
    *
@@ -77,11 +75,6 @@ export class SourceClient implements SourceRetriever {
         semaphore: new Semaphore(config.concurrency),
       });
     }
-  }
-
-  /** {@inheritDoc SourceRetriever.has} */
-  has(name: string): boolean {
-    return this.entries.has(name);
   }
 
   /** {@inheritDoc SourceRetriever.resolve} */

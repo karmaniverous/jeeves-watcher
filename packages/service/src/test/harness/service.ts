@@ -1,6 +1,6 @@
 /**
  * @module test/harness/service
- * Service integration harness: real Qdrant (throwaway `jeeves_watcher_it_*` collection, startup ensureCollection incl. payload indexes) + real processor (rule templates, global schemas, source client, counted mock embeddings) + the real Fastify API, optionally on 127.0.0.1.
+ * Service integration harness: real Qdrant (throwaway `jeeves_watcher_it_*` collection, startup ensureCollection incl. payload indexes) + real processor (rule templates, global schemas, production source retriever and queue wiring, counted mock embeddings) + the real Fastify API, optionally on 127.0.0.1.
  * Setup failures roll back: the collection is dropped and state removed before the error propagates.
  */
 
@@ -13,7 +13,8 @@ import type { FastifyInstance } from 'fastify';
 
 import { createApiServer } from '../../api';
 import { createProcessorConfig } from '../../app/initialization';
-import { createNotifyQueue } from '../../app/sources';
+import { createQueues } from '../../app/queues';
+import { createSourceRetriever } from '../../app/sources';
 import type { JeevesWatcherConfig } from '../../config/types';
 import {
   createEmbeddingProvider,
@@ -26,18 +27,12 @@ import { DocumentProcessor } from '../../processor';
 import { EventQueue } from '../../queue';
 import type { SourceNotifyQueue } from '../../queue/SourceNotifyQueue';
 import { compileRules } from '../../rules';
-import { SourceClient } from '../../sources';
 import { buildTemplateEngine } from '../../templates';
 import { ValuesManager } from '../../values';
 import { VectorStoreClient } from '../../vectorStore';
 import { createTestConfig } from '../helpers';
 import { countingProvider, type EmbedCounter } from './countingProvider';
-import {
-  assertTestVectorStore,
-  dropCollection,
-  QDRANT_URL,
-  uniqueCollectionName,
-} from './qdrant';
+import { assertTestVectorStore, dropCollection } from './qdrant';
 
 /** Small vector size keeps harness collections cheap. */
 export const HARNESS_DIMENSIONS = 16;
@@ -90,22 +85,20 @@ export interface ServiceHarness {
 }
 
 /**
- * Build the harness config: test defaults, a unique collection on the
- * harness Qdrant, a private state dir, then the caller's overrides.
+ * Build the harness config: test defaults (a unique collection on the run's
+ * Qdrant), a private state dir, then the caller's overrides.
  */
 function buildConfig(
   options: ServiceHarnessOptions,
-  collectionName: string,
   stateDir: string,
 ): JeevesWatcherConfig {
-  const base = createTestConfig();
+  const base = createTestConfig({ label: options.label });
   return {
     ...base,
     stateDir,
     embedding: { ...base.embedding, dimensions: HARNESS_DIMENSIONS },
     vectorStore: {
-      url: QDRANT_URL,
-      collectionName,
+      ...base.vectorStore,
       apiKey: process.env['QDRANT_API_KEY'],
       payloadIndexes: options.payloadIndexes,
     },
@@ -160,11 +153,7 @@ async function setUp(
 ): Promise<ServiceHarness> {
   const stateDir = await mkdtemp(join(tmpdir(), 'jeeves-watcher-it-'));
   cleanup.push(() => rm(stateDir, { recursive: true, force: true }));
-  const config = buildConfig(
-    options,
-    uniqueCollectionName(options.label),
-    stateDir,
-  );
+  const config = buildConfig(options, stateDir);
   const { collectionName } = config.vectorStore;
   // Harness collection name, on this run's guarded Qdrant only.
   assertTestVectorStore(config.vectorStore);
@@ -199,10 +188,16 @@ async function setUp(
     enrichmentStore,
     issuesManager,
     valuesManager,
-    sourceRetriever: new SourceClient(config.sources),
+    sourceRetriever: createSourceRetriever(config),
   });
 
-  const sourceQueue = createNotifyQueue(processor, 2, logger, issuesManager);
+  // Production wiring: both queues share the resolved embedding concurrency.
+  const { queue, sourceQueue } = createQueues(
+    config,
+    { createEventQueue: (queueOptions) => new EventQueue(queueOptions) },
+    processor,
+    { logger, issues: issuesManager },
+  );
   sourceQueue.start();
   cleanup.push(() => sourceQueue.stop());
 
@@ -211,7 +206,7 @@ async function setUp(
     processor,
     vectorStore,
     embeddingProvider,
-    queue: new EventQueue({ debounceMs: 0, concurrency: 1 }),
+    queue,
     sourceQueue,
     config,
     logger,

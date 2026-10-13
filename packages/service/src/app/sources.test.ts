@@ -38,7 +38,7 @@ describe('createSourceRetriever', () => {
       },
     });
     expect(retriever).toBeInstanceOf(SourceClient);
-    expect(retriever?.has('app')).toBe(true);
+    expect(retriever?.resolve('app://t').name).toBe('app');
   });
 });
 

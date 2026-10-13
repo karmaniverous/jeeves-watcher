@@ -60,7 +60,6 @@ function setup(
     retrieve: vi.fn().mockResolvedValue(result),
   };
   const retriever: SourceRetriever = {
-    has: () => true,
     resolve: vi.fn(),
     retrieve: mocks.retrieve,
   };

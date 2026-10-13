@@ -76,7 +76,6 @@ function setup(
     options.retriever === null
       ? undefined
       : (options.retriever ?? {
-          has: (name: string) => client.has(name),
           resolve: (ref: string) => client.resolve(ref),
           retrieve,
         });
@@ -147,7 +146,6 @@ describe('SourceOperations.validate', () => {
 
   it('rethrows unexpected errors', () => {
     const retriever: SourceRetriever = {
-      has: () => true,
       resolve: () => {
         throw new Error('boom');
       },

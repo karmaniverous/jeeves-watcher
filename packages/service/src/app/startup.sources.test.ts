@@ -115,7 +115,7 @@ describe('JeevesWatcher startup: source wiring', () => {
 
     const retriever = captured.processorDeps?.sourceRetriever;
     expect(retriever).toBeInstanceOf(SourceClient);
-    expect(retriever?.has('app')).toBe(true);
+    expect(retriever?.resolve('app://t').name).toBe('app');
 
     const sourceQueue = captured.apiOptions?.sourceQueue;
     expect(sourceQueue).toBeInstanceOf(SourceNotifyQueue);

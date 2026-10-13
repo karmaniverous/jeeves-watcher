@@ -74,6 +74,7 @@ describe('system fields are re-asserted for files', () => {
       renderedContent: null,
       matchedRules: ['r'],
       renderAs: null,
+      dates: { createdAt: 1, modifiedAt: 2 },
     });
   });
 

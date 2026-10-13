@@ -15,6 +15,7 @@ import {
   type EphemeralQdrant,
   provisionEphemeralQdrant,
 } from './qdrant/ephemeralQdrant';
+import { probeQdrant } from './qdrant/readiness';
 import { assertNotSharedQdrant } from './qdrant/sharedGuard';
 
 let ephemeral: EphemeralQdrant | undefined;
@@ -30,21 +31,9 @@ function unavailable(reason: string): void {
   );
 }
 
-/** Probe an explicitly configured Qdrant. */
-async function healthy(url: string): Promise<boolean> {
-  try {
-    const res = await fetch(`${url}/healthz`, {
-      signal: AbortSignal.timeout(2000),
-    });
-    return res.ok;
-  } catch {
-    return false;
-  }
-}
-
 /** Use the Qdrant named by `QDRANT_URL` (CI service container or opt-in). */
 async function useConfigured(url: string): Promise<void> {
-  if (!(await healthy(url))) {
+  if (!(await probeQdrant(`${url}/healthz`))) {
     unavailable(`Qdrant is not reachable at ${url}`);
     return;
   }

@@ -116,5 +116,7 @@ export function defaultMergedMetadata(overrides: Record<string, unknown> = {}) {
     inferred: { domain: 'test' },
     enrichment: null,
     attributes: {},
+    // Matches the stat mocks of the processor tests.
+    dates: { createdAt: 1700000000, modifiedAt: 1700100000 },
   };
 }

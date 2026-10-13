@@ -1,6 +1,6 @@
 /**
  * @module test/qdrant/readiness
- * Poll a Qdrant HTTP endpoint until it answers 2xx or a deadline passes. Network I/O via an injectable `fetch`; timing via `setTimeout` (fake-timer friendly).
+ * Probe a Qdrant HTTP endpoint once, or poll it until it answers 2xx or a deadline passes. Network I/O via an injectable `fetch`; timing via `setTimeout` (fake-timer friendly).
  * Used to wait for a freshly started throwaway Qdrant before tests run.
  */
 
@@ -24,14 +24,17 @@ export interface ReadinessOptions {
 }
 
 /**
- * Probe once.
+ * Probe a Qdrant endpoint once (any failure counts as not ready).
  *
+ * @param url - Full endpoint URL, e.g. `http://127.0.0.1:6333/healthz`.
+ * @param fetchImpl - `fetch` implementation (default global `fetch`).
+ * @param timeoutMs - Request timeout in milliseconds (default 2 000).
  * @returns `true` when the endpoint answered 2xx.
  */
-async function probe(
+export async function probeQdrant(
   url: string,
-  fetchImpl: typeof fetch,
-  timeoutMs: number,
+  fetchImpl: typeof fetch = fetch,
+  timeoutMs = 2_000,
 ): Promise<boolean> {
   try {
     const res = await fetchImpl(url, {
@@ -68,7 +71,7 @@ export async function waitForQdrantReady(
   for (;;) {
     const reason = abortReason?.();
     if (reason) throw new Error(`Qdrant at ${baseUrl} not ready: ${reason}`);
-    if (await probe(url, fetchImpl, probeTimeoutMs)) return;
+    if (await probeQdrant(url, fetchImpl, probeTimeoutMs)) return;
     if (Date.now() >= deadline) {
       throw new Error(
         `Qdrant at ${baseUrl} not ready after ${String(timeoutMs)} ms`,

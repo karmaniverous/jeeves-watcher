@@ -31,6 +31,8 @@ function document(
     metadata,
     metadataWithRules: { ...metadata, matched_rules: ['r'] },
     matchedRules: ['r'],
+    renderAs: 'txt',
+    transformed: false,
     onUnchanged: identity.kind === 'source' ? 'refresh' : 'skip',
     logLabel: identity.kind === 'source' ? 'Source document' : 'File',
     dates: () => Promise.resolve({ createdAt: 1, modifiedAt: 2 }),

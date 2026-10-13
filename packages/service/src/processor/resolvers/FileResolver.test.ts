@@ -1,6 +1,6 @@
 /**
  * @module processor/resolvers/FileResolver.test
- * FileResolver wraps the existing file path: file identity, extension-selected splitter, stat dates, move-cache hash, skip-when-unchanged, values index fed on resolve.
+ * FileResolver wraps the existing file path: file identity, extension-selected splitter, dates from the metadata build (no second stat), move-cache hash, skip-when-unchanged, values index fed on resolve.
  */
 
 import pino from 'pino';
@@ -17,6 +17,8 @@ vi.mock('node:fs/promises', async (importOriginal) => ({
   readFile: vi.fn().mockResolvedValue(Buffer.from('raw')),
 }));
 
+import { stat } from 'node:fs/promises';
+
 import { buildMergedMetadata } from '../buildMetadata';
 
 describe('FileResolver', () => {
@@ -27,6 +29,7 @@ describe('FileResolver', () => {
       renderedContent: null,
       matchedRules: ['r'],
       renderAs: null,
+      dates: { createdAt: 1, modifiedAt: 2 },
     });
     const set = vi.fn();
     const valuesManager = { update: vi.fn() };
@@ -50,6 +53,9 @@ describe('FileResolver', () => {
       matched_rules: ['r'],
     });
     expect(doc.onUnchanged).toBe('skip');
+    // No rule renderAs: the extension; extracted text is not transformed.
+    expect(doc.renderAs).toBe('md');
+    expect(doc.transformed).toBe(false);
     expect(doc.logLabel).toBe('File');
     expect(valuesManager.update).not.toHaveBeenCalled();
     doc.onResolved?.();
@@ -58,6 +64,7 @@ describe('FileResolver', () => {
       createdAt: 1,
       modifiedAt: 2,
     });
+    expect(stat).not.toHaveBeenCalled();
     await doc.prepare?.();
     expect(set).toHaveBeenCalledWith('/docs/A.md', expect.any(String));
   });
@@ -79,5 +86,7 @@ describe('FileResolver', () => {
     if (outcome.kind !== 'document') throw new Error('expected document');
     expect(outcome.document.text).toBe('# rendered');
     expect(outcome.document.splitterExt).toBe('.json');
+    expect(outcome.document.renderAs).toBe('md');
+    expect(outcome.document.transformed).toBe(true);
   });
 });

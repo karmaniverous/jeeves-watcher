@@ -17,6 +17,13 @@ export type ApiServerOptions = Parameters<
 /**
  * Create the API server and start listening.
  *
+ * Without `api.host` the server binds to the platform's
+ * `getBindAddress('watcher')`, not core `API_DEFAULTS.host`, so the
+ * platform-wide overrides apply (component `bindAddress`, core `bindAddress`,
+ * `JEEVES_BIND_ADDRESS`, then `0.0.0.0`) as for every Jeeves service; the
+ * core default only documents the schema. The port
+ * falls back to the shared Jeeves port map (`DEFAULT_PORTS.watcher`).
+ *
  * @param createApiServer - The API server factory.
  * @param options - Server options (components and stores).
  * @param config - The startup config (`api.host`, `api.port`).

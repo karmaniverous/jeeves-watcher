@@ -18,7 +18,6 @@ import {
 } from '../../sources';
 import { ProcessingFailure } from '../issueRecording';
 import { FIELD_CREATED_AT } from '../payloadFields';
-import { syncExtractText } from '../syncExtractText';
 import {
   applyRuleOptions,
   metadataWithRules,
@@ -118,10 +117,12 @@ export class SourceResolver implements DocumentResolver<SourceTarget> {
       );
     }
 
+    // No file reader for source rules: a map's fetchSiblings returns [] (a
+    // source document has no directory, and a rule must not read server files).
     const applied = await applyRules(
       [compiled],
       attributes,
-      applyRuleOptions(ctx, { extractText: syncExtractText }),
+      applyRuleOptions(ctx, { extractText: undefined }),
     );
     if (applied.errors.length > 0) {
       // Indexing without the rule's output would drop its metadata.
@@ -142,6 +143,8 @@ export class SourceResolver implements DocumentResolver<SourceTarget> {
       metadata,
       metadataWithRules: metadataWithRules(metadata, applied.matchedRules),
       matchedRules: applied.matchedRules,
+      renderAs: rendered !== null ? 'md' : 'json',
+      transformed: rendered !== null,
       onUnchanged: 'refresh',
       logLabel: 'Source document',
       dates: (existing) => {
