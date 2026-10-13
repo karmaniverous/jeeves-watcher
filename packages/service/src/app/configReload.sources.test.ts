@@ -8,7 +8,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { executeReindex } from '../api/executeReindex';
 import type { JeevesWatcherConfig } from '../config/types';
-import type { DocumentProcessorInterface } from '../processor';
+import type { WatcherProcessor } from '../processor';
 import { reloadConfig } from './configReload';
 import type { JeevesWatcherFactories } from './factories';
 
@@ -44,7 +44,7 @@ describe('reloadConfig: source documents', () => {
     } as unknown as JeevesWatcherFactories;
     const processor = {
       updateRules: vi.fn(),
-    } as unknown as DocumentProcessorInterface;
+    } as unknown as WatcherProcessor;
 
     await reloadConfig(
       { config, watcher: { start: vi.fn(), stop: vi.fn() } as never },

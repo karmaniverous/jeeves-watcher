@@ -6,6 +6,7 @@
 import type { CompiledRule } from '../rules';
 import type { TemplateEngine } from '../templates';
 import type { RenderResult } from './renderResult';
+import type { SourceOperationsProvider } from './SourceOperations';
 
 /**
  * Abstraction for document processing operations.
@@ -41,3 +42,12 @@ export interface DocumentProcessorInterface {
     customMapLib?: Record<string, (...args: unknown[]) => unknown>,
   ): void;
 }
+
+/**
+ * The processor the service runs on: file operations plus source operations.
+ * `createDocumentProcessor` returns it; the API server and the notify queue
+ * depend on it (`DocumentProcessor` implements it). Adapt a custom file-only
+ * processor with `withoutSourceSupport`, whose source operations fail.
+ */
+export type WatcherProcessor = DocumentProcessorInterface &
+  SourceOperationsProvider;

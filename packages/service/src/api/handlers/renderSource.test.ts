@@ -8,7 +8,11 @@ import Fastify, { type FastifyInstance } from 'fastify';
 import pino from 'pino';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type { DocumentProcessorInterface } from '../../processor';
+import { withoutSourceSupport } from '../../app/sources';
+import type {
+  DocumentProcessorInterface,
+  WatcherProcessor,
+} from '../../processor';
 import type {
   SourceOperationsInterface,
   SourceRenderOutcome,
@@ -44,14 +48,14 @@ const renderFile = vi.fn().mockResolvedValue({
 });
 
 function build(withOps = true): FastifyInstance {
-  const processor = {
-    renderFile,
-    ...(withOps
-      ? {
-          sourceOperations: () => ops as unknown as SourceOperationsInterface,
-        }
-      : {}),
-  } as unknown as DocumentProcessorInterface;
+  const processor = withOps
+    ? ({
+        renderFile,
+        sourceOperations: () => ops as unknown as SourceOperationsInterface,
+      } as unknown as WatcherProcessor)
+    : withoutSourceSupport({
+        renderFile,
+      } as unknown as DocumentProcessorInterface);
   const app = Fastify({ logger: false });
   app.post(
     '/render',

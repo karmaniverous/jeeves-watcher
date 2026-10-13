@@ -11,10 +11,9 @@ import {
 } from '@karmaniverous/jeeves-watcher-core';
 import type { FastifyReply } from 'fastify';
 
-import type { DocumentProcessorInterface } from '../../processor';
-import { hasSourceOperations } from '../../processor/SourceOperations';
+import type { SourceOperationsProvider } from '../../processor/SourceOperations';
 import { RequestError } from '../requestError';
-import { sendError, sendSourcesNotAvailable } from '../sendError';
+import { sendError } from '../sendError';
 
 /**
  * Map a pipeline failure to its API code (the status follows from the code).
@@ -61,8 +60,10 @@ function sendRenderFailure(
  * - `502 source_unavailable`; `422 unsupported_content_type`;
  *   `422 pipeline_error` for other pipeline failures. `issueType` names the
  *   failure (`rule_missing`, `match_failed`, ...).
- * - `503 not_available` without source support. An unexpected error
- *   propagates to `wrapHandler` (logged, generic `500 internal_error`).
+ * - `503 not_available` without source support (thrown by the source
+ *   operations of a processor adapted by `withoutSourceSupport`). An
+ *   unexpected error propagates to `wrapHandler` (logged, generic
+ *   `500 internal_error`).
  * - `200 { renderAs, content, rules, metadata }`.
  *
  * Every response carries `Cache-Control: no-cache`.
@@ -73,14 +74,11 @@ function sendRenderFailure(
  * @returns The response body, or the reply when an error was sent.
  */
 export async function renderSource(
-  processor: DocumentProcessorInterface,
+  processor: SourceOperationsProvider,
   ref: string,
   reply: FastifyReply,
 ): Promise<FastifyReply | RenderResponse> {
   void reply.header('Cache-Control', 'no-cache');
-  if (!hasSourceOperations(processor)) {
-    return sendSourcesNotAvailable(reply);
-  }
   const ops = processor.sourceOperations();
   const rule = await ops.storedRule(ref);
   if (rule === null) {

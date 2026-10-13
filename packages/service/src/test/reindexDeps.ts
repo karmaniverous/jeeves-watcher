@@ -8,6 +8,7 @@ import { type Mock, vi } from 'vitest';
 
 import type { ExecuteReindexDeps } from '../api/executeReindex';
 import { ReindexTracker } from '../api/ReindexTracker';
+import { withoutSourceSupport } from '../app/sources';
 
 /** Mocks and spies returned by {@link makeDeps}. */
 interface MockRefs {
@@ -57,7 +58,7 @@ export function makeDeps(overrides: Partial<ExecuteReindexDeps> = {}): {
       stateDir: '.meta',
       ...((overrides.config ?? {}) as Record<string, unknown>),
     } as unknown as ExecuteReindexDeps['config'],
-    processor: {
+    processor: withoutSourceSupport({
       processFile,
       deleteFile: vi.fn().mockResolvedValue(undefined),
       processMetadataUpdate: vi.fn().mockResolvedValue(null),
@@ -65,7 +66,7 @@ export function makeDeps(overrides: Partial<ExecuteReindexDeps> = {}): {
       moveFile: vi.fn().mockResolvedValue(undefined),
       updateRules: vi.fn(),
       renderFile: vi.fn(),
-    },
+    }),
     logger: pino({ level: 'silent' }),
     reindexTracker: tracker,
     valuesManager: {

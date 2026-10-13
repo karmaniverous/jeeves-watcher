@@ -15,7 +15,7 @@ import { EnrichmentStore } from '../enrichment';
 import type { GitignoreFilter } from '../gitignore';
 import type { AllHelpersIntrospection } from '../helpers';
 import { IssuesManager } from '../issues';
-import type { DocumentProcessorInterface } from '../processor';
+import type { WatcherProcessor } from '../processor';
 import { combinePausableQueues, type EventQueue } from '../queue';
 import type { SourceNotifyQueue } from '../queue/SourceNotifyQueue';
 import { VirtualRuleStore } from '../rules/virtualRules';
@@ -49,6 +49,7 @@ export type {
   JeevesWatcherFactories,
   JeevesWatcherRuntimeOptions,
 } from './factories';
+export { withoutSourceSupport } from './sources';
 export { startFromConfig } from './startFromConfig';
 
 /**
@@ -66,7 +67,7 @@ export class JeevesWatcher {
   private queue: EventQueue | undefined;
   private sourceQueue: SourceNotifyQueue | undefined;
   private server: FastifyInstance | undefined;
-  private processor: DocumentProcessorInterface | undefined;
+  private processor: WatcherProcessor | undefined;
   private configWatcher: ConfigWatcher | undefined;
   private issuesManager: IssuesManager | undefined;
   private valuesManager: ValuesManager | undefined;

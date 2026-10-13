@@ -77,21 +77,6 @@ export interface SourceOperationsProvider {
 }
 
 /**
- * Whether a processor (possibly a test double) exposes source operations.
- *
- * @param processor - The processor.
- * @returns `true` when it implements {@link SourceOperationsProvider}.
- */
-export function hasSourceOperations(
-  processor: object,
-): processor is SourceOperationsProvider {
-  return (
-    typeof (processor as Partial<SourceOperationsProvider>).sourceOperations ===
-    'function'
-  );
-}
-
-/**
  * Source-document operations over a snapshot of the processor's state. Build
  * one per request (`DocumentProcessor.sourceOperations()`), so rule changes
  * apply to the next request.

@@ -8,8 +8,12 @@ import pino from 'pino';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 
+import { withoutSourceSupport } from '../../app/sources';
 import type { JeevesWatcherConfig } from '../../config/types';
-import type { DocumentProcessorInterface } from '../../processor';
+import type {
+  DocumentProcessorInterface,
+  WatcherProcessor,
+} from '../../processor';
 import type { VcsCoordinator } from '../../vcs/VcsCoordinator';
 import { registerApiHooks } from '../apiHooks';
 import { ReindexTracker } from '../ReindexTracker';
@@ -34,9 +38,11 @@ const render = vi.fn();
 let app: FastifyInstance;
 
 function build(sources: boolean): FastifyInstance {
-  const processor = (sources
-    ? { sourceOperations: () => ({ storedRule, render }) }
-    : {}) as unknown as DocumentProcessorInterface;
+  const processor = sources
+    ? ({
+        sourceOperations: () => ({ storedRule, render }),
+      } as unknown as WatcherProcessor)
+    : withoutSourceSupport({} as unknown as DocumentProcessorInterface);
   app = Fastify({ logger: false });
   registerApiHooks(app, undefined, logger);
   app.post(

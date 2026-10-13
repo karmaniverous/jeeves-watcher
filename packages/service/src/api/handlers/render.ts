@@ -12,7 +12,7 @@ import type { FastifyReply, FastifyRequest } from 'fastify';
 import type pino from 'pino';
 
 import type { WatchConfig } from '../../config/schemas';
-import type { DocumentProcessorInterface } from '../../processor';
+import type { WatcherProcessor } from '../../processor';
 import { ProcessingFailure } from '../../processor/issueRecording';
 import { isPathWatched } from '../../util/isPathWatched';
 import { RequestError } from '../requestError';
@@ -24,7 +24,7 @@ import { wrapHandler } from './wrapHandler';
 /** Dependencies for the render handler. */
 export interface RenderHandlerDeps {
   /** The document processor. */
-  processor: DocumentProcessorInterface;
+  processor: WatcherProcessor;
   /** Getter for live watch config. */
   getWatch: () => WatchConfig;
   /** Logger instance. */

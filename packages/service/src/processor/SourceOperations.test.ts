@@ -18,7 +18,6 @@ import {
 import { buildTemplateEngine } from '../templates';
 import type { VectorStoreClient } from '../vectorStore';
 import { DocumentProcessor } from './index';
-import { hasSourceOperations } from './SourceOperations';
 
 const REF = 'app://chat/thread/1';
 
@@ -117,13 +116,6 @@ function setup(
 
 /** Asymmetric matcher typed as unknown (no unsafe any in literals). */
 const anyArray: unknown = expect.any(Array);
-
-describe('hasSourceOperations', () => {
-  it('detects processors exposing sourceOperations()', () => {
-    expect(hasSourceOperations(setup().processor)).toBe(true);
-    expect(hasSourceOperations({})).toBe(false);
-  });
-});
 
 describe('SourceOperations.validate', () => {
   it.each([

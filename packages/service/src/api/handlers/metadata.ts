@@ -11,9 +11,8 @@ import type { FastifyReply, FastifyRequest } from 'fastify';
 import type pino from 'pino';
 
 import type { JeevesWatcherConfig } from '../../config/types';
-import type { DocumentProcessorInterface } from '../../processor';
-import { hasSourceOperations } from '../../processor/SourceOperations';
-import { sendError, sendSourcesNotAvailable } from '../sendError';
+import type { WatcherProcessor } from '../../processor';
+import { sendError } from '../sendError';
 import {
   validateMetadataPayload,
   validateSourceMetadataPayload,
@@ -24,7 +23,7 @@ import { wrapHandler } from './wrapHandler';
 /** Dependencies of the POST /metadata handler. */
 export interface MetadataRouteDeps {
   /** Document processor. */
-  processor: DocumentProcessorInterface;
+  processor: WatcherProcessor;
   /** Live config getter. */
   getConfig: () => JeevesWatcherConfig;
   /** Logger. */
@@ -66,9 +65,6 @@ async function updateSourceMetadata(
   metadata: Record<string, unknown>,
   reply: FastifyReply,
 ) {
-  if (!hasSourceOperations(deps.processor)) {
-    return sendSourcesNotAvailable(reply);
-  }
   const ops = deps.processor.sourceOperations();
   const rule = await ops.storedRule(ref);
   if (rule === null) return sendNotIndexed(reply);

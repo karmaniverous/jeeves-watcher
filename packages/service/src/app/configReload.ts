@@ -11,7 +11,7 @@ import type { ContentHashCache } from '../cache';
 import type { JeevesWatcherConfig } from '../config/types';
 import type { GitignoreFilter } from '../gitignore';
 import type { IssuesManager } from '../issues';
-import type { DocumentProcessorInterface } from '../processor';
+import type { WatcherProcessor } from '../processor';
 import type { EventQueue } from '../queue';
 import { normalizeError } from '../util/normalizeError';
 import type { ValuesManager } from '../values';
@@ -35,7 +35,7 @@ interface ReloadDeps {
   configPath: string;
   factories: JeevesWatcherFactories;
   queue: EventQueue;
-  processor: DocumentProcessorInterface;
+  processor: WatcherProcessor;
   logger: pino.Logger;
   runtimeOptions: {
     maxRetries?: number;

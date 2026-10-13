@@ -8,7 +8,7 @@ import type pino from 'pino';
 import type { JeevesWatcherConfig } from '../config/types';
 import type { GitignoreFilter } from '../gitignore';
 import type { IssuesFile } from '../issues/types';
-import type { DocumentProcessorInterface } from '../processor';
+import type { WatcherProcessor } from '../processor';
 import type { PausableQueue } from '../queue';
 import type { SourceNotifyQueue } from '../queue/SourceNotifyQueue';
 import type { ValuesManager } from '../values';
@@ -21,7 +21,7 @@ export interface ExecuteReindexDeps {
   /** Config snapshot for this run (watch paths, reindex settings). */
   config: JeevesWatcherConfig;
   /** Document processor the files (and source documents) go through. */
-  processor: DocumentProcessorInterface;
+  processor: WatcherProcessor;
   /** Logger. */
   logger: pino.Logger;
   /** Progress tracker reported by `GET /status`. */

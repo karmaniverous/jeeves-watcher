@@ -1,6 +1,6 @@
 /**
  * @module api/reindexSourceScopes.test
- * runSourceScope goes through the notify queue: a reindex and a concurrent notification of the same reference never run in parallel and the final state is the latest; `force` reaches process; a stopped queue counts as failed and lists the reference; failed results and rejections are counted and listed with progress after each. resolveSourceScope needs the queue, the vector store, source operations and (scope issues) the issues store.
+ * runSourceScope goes through the notify queue: a reindex and a concurrent notification of the same reference never run in parallel and the final state is the latest; `force` reaches process; a stopped queue counts as failed and lists the reference; failed results and rejections are counted and listed with progress after each. resolveSourceScope needs the queue, the vector store and (scope issues) the issues store.
  */
 
 import type { DocumentResult } from '@karmaniverous/jeeves-watcher-core';
@@ -151,7 +151,6 @@ describe('resolveSourceScope', () => {
 
   it.each([
     ['a vector store', 'full', { vectorStore: undefined }],
-    ['source operations on the processor', 'full', { processor: {} }],
     ['an issues store (issues scope)', 'issues', { issuesManager: undefined }],
   ] as const)(
     'covers no sources without %s',

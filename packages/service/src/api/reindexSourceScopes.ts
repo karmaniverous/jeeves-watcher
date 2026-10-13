@@ -6,7 +6,6 @@
 import type { ReindexScope } from '@karmaniverous/jeeves-watcher-core';
 import { parallel } from 'radash';
 
-import { hasSourceOperations } from '../processor/SourceOperations';
 import type { SourceNotifyQueue } from '../queue/SourceNotifyQueue';
 import { normalizeError } from '../util/normalizeError';
 import type { ReindexPlan } from './reindexPlan';
@@ -62,7 +61,6 @@ export async function resolveSourceScope(
 ): Promise<SourceScope | undefined> {
   const { processor, vectorStore, sourceQueue: queue } = deps;
   if (!deps.includeSources || !vectorStore || !queue) return undefined;
-  if (!hasSourceOperations(processor)) return undefined;
 
   if (scope === 'full' || (scope === 'rules' && !pathArray?.length)) {
     const found = await discoverIndexedSources(vectorStore);

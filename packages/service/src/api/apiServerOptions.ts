@@ -12,7 +12,7 @@ import type { EnrichmentStoreInterface } from '../enrichment';
 import type { GitignoreFilter } from '../gitignore';
 import type { AllHelpersIntrospection } from '../helpers';
 import type { IssuesManager } from '../issues';
-import type { DocumentProcessorInterface } from '../processor';
+import type { WatcherProcessor } from '../processor';
 import type { PausableQueue } from '../queue';
 import type { SourceNotifyQueue } from '../queue/SourceNotifyQueue';
 import type { VirtualRuleStore } from '../rules/virtualRules';
@@ -37,8 +37,8 @@ export interface ApiServerOptions {
   sourceQueue?: SourceNotifyQueue;
   /** The component descriptor (used for config-apply handler). */
   descriptor: JeevesComponentDescriptor;
-  /** The document processor (source routes need `sourceOperations()`). */
-  processor: DocumentProcessorInterface;
+  /** The document processor: file and source operations. */
+  processor: WatcherProcessor;
   /** The vector store client. */
   vectorStore: VectorStoreClient;
   /** The embedding provider. */

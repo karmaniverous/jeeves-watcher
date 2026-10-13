@@ -7,8 +7,12 @@ import Fastify, { type FastifyInstance } from 'fastify';
 import pino from 'pino';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import { withoutSourceSupport } from '../../app/sources';
 import type { InferenceRule, JeevesWatcherConfig } from '../../config/types';
-import type { DocumentProcessorInterface } from '../../processor';
+import type {
+  DocumentProcessorInterface,
+  WatcherProcessor,
+} from '../../processor';
 import { compileRules } from '../../rules/compile';
 import { createMetadataHandler } from './metadata';
 
@@ -51,10 +55,15 @@ function build(options: {
     updateMetadata: vi.fn(() => Promise.resolve({})),
   };
   const processMetadataUpdate = vi.fn(() => Promise.resolve(null));
-  const processor = {
-    processMetadataUpdate,
-    ...(options.sources === false ? {} : { sourceOperations: () => ops }),
-  } as unknown as DocumentProcessorInterface;
+  const processor =
+    options.sources === false
+      ? withoutSourceSupport({
+          processMetadataUpdate,
+        } as unknown as DocumentProcessorInterface)
+      : ({
+          processMetadataUpdate,
+          sourceOperations: () => ops,
+        } as unknown as WatcherProcessor);
   const server = Fastify();
   app = server;
   server.post(

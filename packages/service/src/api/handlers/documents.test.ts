@@ -11,6 +11,7 @@ import Fastify, { type FastifyInstance } from 'fastify';
 import pino from 'pino';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import { withoutSourceSupport } from '../../app/sources';
 import type { DocumentProcessorInterface } from '../../processor';
 import type { SourceOperationsInterface } from '../../processor/SourceOperations';
 import { SourceNotifyQueueStoppedError } from '../../queue/SourceNotifyQueue';
@@ -44,13 +45,10 @@ function setup(
   } = {},
 ) {
   const ops = { validate: vi.fn(validate) };
-  const processor = (
+  const processor =
     options.ops === false
-      ? {}
-      : {
-          sourceOperations: () => ops as unknown as SourceOperationsInterface,
-        }
-  ) as DocumentProcessorInterface;
+      ? withoutSourceSupport({} as unknown as DocumentProcessorInterface)
+      : { sourceOperations: () => ops as unknown as SourceOperationsInterface };
   const queue = {
     enqueue: vi.fn().mockReturnValue(options.enqueue ?? true),
     processNow: vi.fn(
@@ -277,10 +275,11 @@ describe('POST /documents?wait=true', () => {
 describe('POST /documents: availability and auth', () => {
   it.each([
     ['no notify queue', { queue: false }],
-    ['a processor without source support', { ops: false }],
-  ])('returns 503 with %s', async (_label, options) => {
-    const { status } = await post(setup(options), { documents: [doc(OK)] });
-    expect(status).toBe(503);
+    ['a file-only processor (adapted)', { ops: false }],
+  ])('returns 503 not_available with %s', async (_label, options) => {
+    const res = await post(setup(options), { documents: [doc(OK)] });
+    expect(res.status).toBe(503);
+    expect(res.body).toMatchObject({ code: 'not_available' });
   });
 
   it('requires the API key when one is configured', async () => {

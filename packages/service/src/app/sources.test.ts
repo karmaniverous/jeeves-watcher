@@ -1,21 +1,41 @@
 /**
  * @module app/sources.test
- * Unit tests for source startup helpers (client creation, notify queue factory over source operations).
+ * Unit tests for source startup helpers: client creation, the notify queue over source operations, the `withoutSourceSupport` adapter (file operations forwarded, source operations failing) and the `WatcherProcessor` type contract.
  */
 
 import pino from 'pino';
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, expectTypeOf, it, vi } from 'vitest';
 
-import type { DocumentProcessorInterface } from '../processor';
+import type { ApiServerOptions } from '../api';
+import { RequestError } from '../api/requestError';
+import type {
+  DocumentProcessor,
+  DocumentProcessorInterface,
+  WatcherProcessor,
+} from '../processor';
 import { SourceClient } from '../sources';
 import { createTestConfig } from '../test/helpers';
-import { createNotifyQueue, createSourceRetriever } from './sources';
+import type { JeevesWatcherFactories } from './factories';
+import {
+  createNotifyQueue,
+  createSourceRetriever,
+  withoutSourceSupport,
+} from './sources';
 
 const logger = pino({ level: 'silent' });
 
-const fileOnlyProcessor = {
-  processFile: vi.fn(),
-} as unknown as DocumentProcessorInterface;
+/** A file-only processor whose every method is a mock. */
+function fileOnly() {
+  return {
+    processFile: vi.fn().mockResolvedValue(undefined),
+    deleteFile: vi.fn().mockResolvedValue(undefined),
+    processMetadataUpdate: vi.fn().mockResolvedValue({ a: 1 }),
+    processRulesUpdate: vi.fn().mockResolvedValue({ b: 2 }),
+    renderFile: vi.fn().mockResolvedValue({ renderAs: 'md' }),
+    moveFile: vi.fn().mockResolvedValue(undefined),
+    updateRules: vi.fn(),
+  };
+}
 
 describe('createSourceRetriever', () => {
   it('returns undefined when no sources are configured', () => {
@@ -48,7 +68,7 @@ describe('createNotifyQueue', () => {
       .mockResolvedValue({ source: 'app://a', status: 'unchanged' });
     const sourceOperations = vi.fn(() => ({ process }));
     const queue = createNotifyQueue(
-      { sourceOperations } as unknown as DocumentProcessorInterface,
+      { sourceOperations } as unknown as WatcherProcessor,
       2,
       logger,
     );
@@ -62,18 +82,89 @@ describe('createNotifyQueue', () => {
     expect(sourceOperations).toHaveBeenCalledOnce();
   });
 
-  it.each([
-    ['a file-only processor', fileOnlyProcessor],
-    // The legacy capability no longer counts: the queue and the API agree.
-    [
-      'a processor with processSource but no source operations',
-      { processSource: vi.fn() } as unknown as DocumentProcessorInterface,
-    ],
-  ])('fails runs with source_unavailable for %s', async (_label, processor) => {
-    const queue = createNotifyQueue(processor, 2, logger);
+  it('fails runs with source_unavailable for an adapted file-only processor', async () => {
+    const queue = createNotifyQueue(
+      withoutSourceSupport(fileOnly()),
+      2,
+      logger,
+    );
     queue.start();
     const result = await queue.processNow('app://a', 'r');
-    expect(result.status).toBe('failed');
-    expect(result.error?.code).toBe('source_unavailable');
+    expect(result).toMatchObject({
+      source: 'app://a',
+      status: 'failed',
+      error: { code: 'source_unavailable' },
+    });
   });
 });
+
+describe('withoutSourceSupport', () => {
+  it('forwards every file operation to the wrapped processor', async () => {
+    const inner = fileOnly();
+    const adapted = withoutSourceSupport(inner);
+    const rules: Parameters<DocumentProcessorInterface['updateRules']>[0] = [];
+
+    await adapted.processFile('a.md');
+    await adapted.deleteFile('b.md');
+    await expect(
+      adapted.processMetadataUpdate('c.md', { x: 1 }),
+    ).resolves.toEqual({ a: 1 });
+    await expect(adapted.processRulesUpdate('d.md')).resolves.toEqual({ b: 2 });
+    await expect(adapted.renderFile('e.md')).resolves.toEqual({
+      renderAs: 'md',
+    });
+    await adapted.moveFile('f.md', 'g.md');
+    adapted.updateRules(rules);
+
+    expect(inner.processFile).toHaveBeenCalledWith('a.md');
+    expect(inner.deleteFile).toHaveBeenCalledWith('b.md');
+    expect(inner.processMetadataUpdate).toHaveBeenCalledWith('c.md', { x: 1 });
+    expect(inner.processRulesUpdate).toHaveBeenCalledWith('d.md');
+    expect(inner.renderFile).toHaveBeenCalledWith('e.md');
+    expect(inner.moveFile).toHaveBeenCalledWith('f.md', 'g.md');
+    expect(inner.updateRules).toHaveBeenCalledWith(rules, undefined, undefined);
+  });
+
+  it('fails every other source operation with 503 not_available', async () => {
+    const ops = withoutSourceSupport(fileOnly()).sourceOperations();
+    const notAvailable = {
+      code: 'not_available',
+      status: 503,
+      message: 'Not available',
+      extras: {
+        message: 'Source documents are not supported by this instance.',
+      },
+    };
+    const sync = [
+      () => ops.validate('app://a', 'r'),
+      () => ops.compiledRule('r'),
+    ];
+    for (const call of sync) {
+      let thrown: unknown;
+      try {
+        call();
+      } catch (error) {
+        thrown = error;
+      }
+      expect(thrown).toBeInstanceOf(RequestError);
+      expect(thrown).toMatchObject(notAvailable);
+    }
+    for (const pending of [
+      ops.storedRule('app://a'),
+      ops.render('app://a', 'r'),
+      ops.updateMetadata('app://a', {}),
+    ]) {
+      await expect(pending).rejects.toMatchObject(notAvailable);
+    }
+  });
+});
+
+// WatcherProcessor contract, checked by `npm run typecheck` (no-ops at run
+// time): the processor factory returns it, the API server requires it,
+// DocumentProcessor implements it and a file-only processor is not one.
+expectTypeOf<DocumentProcessor>().toExtend<WatcherProcessor>();
+expectTypeOf<
+  ReturnType<JeevesWatcherFactories['createDocumentProcessor']>
+>().toEqualTypeOf<WatcherProcessor>();
+expectTypeOf<ApiServerOptions['processor']>().toEqualTypeOf<WatcherProcessor>();
+expectTypeOf<DocumentProcessorInterface>().not.toExtend<WatcherProcessor>();

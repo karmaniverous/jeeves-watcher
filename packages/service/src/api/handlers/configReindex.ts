@@ -6,7 +6,6 @@
 import { reindexRequestSchema } from '@karmaniverous/jeeves-watcher-core';
 import type { FastifyReply, FastifyRequest } from 'fastify';
 
-import { hasSourceOperations } from '../../processor/SourceOperations';
 import type { SourceNotifyQueue } from '../../queue/SourceNotifyQueue';
 import {
   executeReindex,
@@ -50,7 +49,8 @@ type ConfigReindexRequest = FastifyRequest<{ Body: unknown }>;
  * resulting plan is returned (`dry_run`, or `started` with the plan) and the
  * live run reuses the same targets. An invalid path target is a 4xx
  * (`path_not_watched`, `not_found`, `invalid_request`); `source` on an
- * instance without source support is `503 not_available`.
+ * instance without source support (no notify queue, or a processor adapted
+ * by `withoutSourceSupport`) is `503 not_available`.
  *
  * Scope `path` with `source` references only enqueues them on the notify
  * queue (`reindexSources`): it is not tracked by `GET /status` and sends no
@@ -71,7 +71,7 @@ export function createConfigReindexHandler(deps: ConfigReindexRouteDeps) {
       // Scope 'path' with source references (exactly one of path | source).
       if (body.source !== undefined) {
         const { processor, sourceQueue: queue } = deps;
-        if (!queue || !hasSourceOperations(processor)) {
+        if (!queue) {
           return sendSourcesNotAvailable(reply);
         }
         const ops = processor.sourceOperations();

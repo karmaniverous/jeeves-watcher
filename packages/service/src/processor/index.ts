@@ -38,23 +38,20 @@ import type { RuleContext } from './resolvers/types';
 import {
   SourceOperations,
   type SourceOperationsInterface,
-  type SourceOperationsProvider,
 } from './SourceOperations';
-import type { DocumentProcessorInterface } from './types';
+import type { WatcherProcessor } from './types';
 
 export type { DocumentProcessorDeps } from './DocumentProcessorDeps';
 export type { ProcessorConfig } from './ProcessorConfig';
 export type { RenderResult } from './renderResult';
-export type { DocumentProcessorInterface } from './types';
+export type { DocumentProcessorInterface, WatcherProcessor } from './types';
 
 /**
  * Core document processing pipeline.
  *
  * Handles extracting text, computing embeddings, and syncing with the vector store.
  */
-export class DocumentProcessor
-  implements DocumentProcessorInterface, SourceOperationsProvider
-{
+export class DocumentProcessor implements WatcherProcessor {
   private config: ProcessorConfig;
   private readonly embeddingProvider: EmbeddingProvider;
   private readonly vectorStore: VectorStore;

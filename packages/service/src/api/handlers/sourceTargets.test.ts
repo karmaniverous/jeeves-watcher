@@ -15,8 +15,12 @@ import {
   vi,
 } from 'vitest';
 
+import { withoutSourceSupport } from '../../app/sources';
 import type { JeevesWatcherConfig } from '../../config/types';
-import type { DocumentProcessorInterface } from '../../processor';
+import type {
+  DocumentProcessorInterface,
+  WatcherProcessor,
+} from '../../processor';
 import type { SourceOperationsInterface } from '../../processor/SourceOperations';
 import { compileRules } from '../../rules';
 import { ReindexTracker } from '../ReindexTracker';
@@ -64,10 +68,10 @@ const queue = {
 const withOps = {
   processMetadataUpdate: vi.fn(),
   sourceOperations: () => ops as unknown as SourceOperationsInterface,
-} as unknown as DocumentProcessorInterface;
-const withoutOps = {
+} as unknown as WatcherProcessor;
+const withoutOps = withoutSourceSupport({
   processMetadataUpdate: vi.fn(),
-} as unknown as DocumentProcessorInterface;
+} as unknown as DocumentProcessorInterface);
 
 let app: FastifyInstance;
 

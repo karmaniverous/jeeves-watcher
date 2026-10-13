@@ -7,7 +7,7 @@ import pino from 'pino';
 import { describe, expect, it, vi } from 'vitest';
 
 import type { JeevesWatcherConfig } from '../config/types';
-import type { DocumentProcessorInterface } from '../processor';
+import type { WatcherProcessor } from '../processor';
 import { reloadConfig } from './configReload';
 import type { JeevesWatcherFactories } from './factories';
 
@@ -31,7 +31,7 @@ function makeDeps(
   const logger = pino({ level: 'silent' });
   const processor = {
     updateRules: vi.fn(),
-  } as unknown as DocumentProcessorInterface;
+  } as unknown as WatcherProcessor;
 
   const factories = {
     loadConfig: vi.fn().mockResolvedValue(loadedConfig),

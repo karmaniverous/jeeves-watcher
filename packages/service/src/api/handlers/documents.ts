@@ -14,10 +14,9 @@ import {
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import type pino from 'pino';
 
-import type { DocumentProcessorInterface } from '../../processor';
-import {
-  hasSourceOperations,
-  type SourceOperationsInterface,
+import type {
+  SourceOperationsInterface,
+  SourceOperationsProvider,
 } from '../../processor/SourceOperations';
 import {
   type SourceNotifyQueue,
@@ -29,8 +28,8 @@ import { wrapHandler } from './wrapHandler';
 
 /** Dependencies of the POST /documents handler. */
 export interface DocumentsHandlerDeps {
-  /** Document processor (must expose `sourceOperations()`). */
-  processor: DocumentProcessorInterface;
+  /** Document processor (its source operations). */
+  processor: SourceOperationsProvider;
   /** Source notify queue; without it the route answers 503. */
   sourceQueue?: Pick<SourceNotifyQueue, 'enqueue' | 'processNow'>;
   /** Logger. */
@@ -119,7 +118,7 @@ export function createDocumentsHandler(deps: DocumentsHandlerDeps) {
       const body = parseBody(documentsEnvelopeSchema, request.body);
 
       const { processor, sourceQueue } = deps;
-      if (!sourceQueue || !hasSourceOperations(processor)) {
+      if (!sourceQueue) {
         return sendSourcesNotAvailable(reply);
       }
       const ops = processor.sourceOperations();

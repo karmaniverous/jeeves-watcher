@@ -11,6 +11,7 @@ export {
   type JeevesWatcherFactories,
   type JeevesWatcherRuntimeOptions,
   startFromConfig,
+  withoutSourceSupport,
 } from './app';
 export { ContentHashCache } from './cache';
 export type {
@@ -65,6 +66,7 @@ export type {
   DocumentProcessorInterface,
   ProcessorConfig,
   RenderResult,
+  WatcherProcessor,
 } from './processor';
 export { DocumentProcessor } from './processor';
 export type { IndexOptions } from './processor/documentPipeline';

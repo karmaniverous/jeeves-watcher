@@ -10,7 +10,7 @@ import {
 import type pino from 'pino';
 
 import type { JeevesWatcherConfig } from '../config/types';
-import type { DocumentProcessorInterface } from '../processor';
+import type { SourceOperationsProvider } from '../processor/SourceOperations';
 import type { EventQueue } from '../queue';
 import type {
   SourceNotifyQueue,
@@ -39,7 +39,7 @@ export interface WatcherQueues {
 export function createQueues(
   config: JeevesWatcherConfig,
   factories: Pick<JeevesWatcherFactories, 'createEventQueue'>,
-  processor: DocumentProcessorInterface,
+  processor: SourceOperationsProvider,
   sinks: { logger: pino.Logger; issues?: SourceQueueIssues },
 ): WatcherQueues {
   const concurrency =

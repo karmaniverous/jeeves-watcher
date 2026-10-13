@@ -7,6 +7,7 @@ import Fastify, { type FastifyInstance } from 'fastify';
 import pino from 'pino';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
+import { withoutSourceSupport } from '../../app/sources';
 import type { JeevesWatcherConfig } from '../../config/types';
 import type { EmbeddingProvider } from '../../embedding';
 import type { DocumentProcessorInterface } from '../../processor';
@@ -25,10 +26,10 @@ const vectorStore = {
   scrollPage: vi.fn(),
   count: vi.fn(),
 } as unknown as VectorStore;
-const processor = {
+const processor = withoutSourceSupport({
   renderFile: vi.fn(),
   processMetadataUpdate: vi.fn(),
-} as unknown as DocumentProcessorInterface;
+} as unknown as DocumentProcessorInterface);
 const getConfig = () =>
   ({
     watch: { paths: ['**/*.md'] },
@@ -125,8 +126,9 @@ describe('invalid request bodies return 400 with Zod details', () => {
 });
 
 describe('valid source targets reach the source path', () => {
-  // This processor double has no sourceOperations(), so each route reports
-  // that source documents are unavailable instead of a validation error.
+  // This processor double is file-only (adapted by withoutSourceSupport), so
+  // each route reports that source documents are unavailable instead of a
+  // validation error.
   it.each([
     ['/render', { source: 'app://chat/1' }, 503],
     ['/metadata', { source: 'app://chat/1', metadata: {} }, 503],

@@ -13,6 +13,7 @@ import { createLogger } from '../logger';
 import {
   DocumentProcessor,
   type DocumentProcessorInterface,
+  type WatcherProcessor,
 } from '../processor';
 import { EventQueue } from '../queue';
 import { compileRules } from '../rules';
@@ -49,7 +50,7 @@ export interface JeevesWatcherFactories {
   /** Create a document processor for file ingestion. */
   createDocumentProcessor: (
     deps: ConstructorParameters<typeof DocumentProcessor>[0],
-  ) => DocumentProcessorInterface;
+  ) => WatcherProcessor;
   /** Create an event queue for batching file-system events. */
   createEventQueue: (
     options: ConstructorParameters<typeof EventQueue>[0],
