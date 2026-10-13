@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import type { JeevesWatcherConfig } from '../config/types';
+import { qdrantUrl } from './harness/qdrant';
 
 const TEST_BASE = join(
   tmpdir(),
@@ -36,7 +37,8 @@ export function createTestConfig(): JeevesWatcherConfig {
       rateLimitPerMinute: 1000,
     },
     vectorStore: {
-      url: 'http://localhost:6333',
+      // The run's throwaway (or explicitly configured) Qdrant, never a default.
+      url: qdrantUrl(),
       collectionName: 'jeeves_watcher_test',
     },
     stateDir,

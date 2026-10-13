@@ -25,6 +25,9 @@ jobs:
           - 6333:6333
 
     env:
+      # Use the service container above. Setting QDRANT_URL stops the test
+      # global setup from downloading and starting a throwaway Qdrant; the
+      # container must stay empty of non-test collections (shared-instance guard).
       QDRANT_URL: http://localhost:6333
       # Fail instead of skipping when Qdrant is unreachable (test/globalSetup.ts).
       QDRANT_REQUIRED: 'true'

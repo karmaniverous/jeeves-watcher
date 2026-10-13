@@ -4,8 +4,27 @@
  * Every create/delete goes through {@link assertTestCollection}: only `jeeves_watcher_it_*` collections are ever touched.
  */
 
-/** Qdrant URL used by integration tests (`QDRANT_URL`, default localhost). */
-export const QDRANT_URL = process.env['QDRANT_URL'] ?? 'http://localhost:6333';
+/**
+ * Fallback when no Qdrant was provisioned: a refused loopback port, so a
+ * stray call fails fast and never reaches a real (possibly production) Qdrant.
+ */
+const UNPROVISIONED_QDRANT_URL = 'http://127.0.0.1:9';
+
+/**
+ * Current harness Qdrant URL. Read lazily: global setup exports the
+ * throwaway instance's URL as `QDRANT_URL` after this module loads.
+ *
+ * @returns `QDRANT_URL`, or a refused loopback URL when unset.
+ */
+export function qdrantUrl(): string {
+  return process.env['QDRANT_URL'] ?? UNPROVISIONED_QDRANT_URL;
+}
+
+/**
+ * Qdrant URL used by integration tests, fixed when a worker loads this
+ * module (after global setup has exported `QDRANT_URL`).
+ */
+export const QDRANT_URL = qdrantUrl();
 
 /** Prefix of every collection created by the harness; nothing else is touched. */
 export const TEST_COLLECTION_PREFIX = 'jeeves_watcher_it_';
@@ -56,7 +75,7 @@ export function assertTestCollection(name: string): void {
  * @returns Names starting with {@link TEST_COLLECTION_PREFIX}.
  */
 export async function listTestCollections(): Promise<string[]> {
-  const res = await fetch(`${QDRANT_URL}/collections`, {
+  const res = await fetch(`${qdrantUrl()}/collections`, {
     headers: headers(),
   });
   if (!res.ok) {
@@ -89,7 +108,7 @@ export async function dropLeftoverTestCollections(): Promise<string[]> {
  */
 export async function dropCollection(name: string): Promise<void> {
   assertTestCollection(name);
-  await fetch(`${QDRANT_URL}/collections/${name}`, {
+  await fetch(`${qdrantUrl()}/collections/${name}`, {
     method: 'DELETE',
     headers: headers(),
   });
@@ -113,7 +132,7 @@ export interface PayloadSchemaEntry {
 export async function getPayloadSchema(
   name: string,
 ): Promise<Record<string, PayloadSchemaEntry>> {
-  const res = await fetch(`${QDRANT_URL}/collections/${name}`, {
+  const res = await fetch(`${qdrantUrl()}/collections/${name}`, {
     headers: headers(),
   });
   if (!res.ok) {

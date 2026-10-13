@@ -25,54 +25,20 @@ node --version
 npm --version
 ```
 
-### Qdrant (required for tests)
+### Qdrant (no setup needed for tests)
 
-Tests use a **real Qdrant instance** on `http://localhost:6333`.
+You do **not** need to run Qdrant to run the test suite. Unless you set `QDRANT_URL`, the Vitest global setup (`packages/service/src/test/globalSetup.ts`) starts a **throwaway Qdrant 1.19.1** for the run and removes it afterwards:
 
-#### Option A: Docker (recommended)
+1. **Release binary (preferred):** the official Qdrant release archive for your platform (Windows x86_64, Linux x86_64/aarch64 musl, macOS x86_64/aarch64) is downloaded once from GitHub, checked against a pinned SHA-256, extracted with `tar` and cached in `packages/service/node_modules/.cache/qdrant/1.19.1` (override the cache root with `QDRANT_CACHE_DIR`). Each run starts it on free random `127.0.0.1` ports, with storage, snapshots and temp files in a fresh OS temp directory.
+2. **Docker (fallback):** if the binary cannot be downloaded or started (offline, unsupported platform), `docker run --rm -d -p 127.0.0.1::6333 qdrant/qdrant:v1.19.1` is used instead.
+3. **Neither:** the Qdrant integration suites are skipped with a warning, unless `QDRANT_REQUIRED=true`, which fails the run.
 
-```bash
-docker run -d \
-  --name qdrant \
-  -p 6333:6333 \
-  -p 6334:6334 \
-  -v qdrant_storage:/qdrant/storage \
-  qdrant/qdrant
-```
+Teardown kills the process (or removes the container) and deletes the temp directory; an interrupted run (Ctrl+C, SIGTERM) cleans up on a best-effort basis. A Qdrant you already run on `localhost:6333` is never contacted unless you point `QDRANT_URL` at it.
 
-Verify:
+To run Qdrant yourself (for the service, not the tests), see the [Qdrant installation guide](https://qdrant.tech/documentation/guides/installation/) or use Docker:
 
 ```bash
-curl http://localhost:6333/healthz
-```
-
-#### Option B: Windows (native binary)
-
-1. Download the latest Windows release from https://github.com/qdrant/qdrant/releases
-2. Extract to e.g. `C:\qdrant\`
-3. Run:
-
-```powershell
-cd C:\qdrant
-.\qdrant.exe
-```
-
-Verify:
-
-```bash
-curl http://localhost:6333/healthz
-```
-
-#### Option C: Linux (native binary)
-
-Follow Qdrant’s install docs, or download a release binary from:
-
-https://github.com/qdrant/qdrant/releases
-
-Run `qdrant`, then verify the health endpoint:
-
-```bash
-curl http://localhost:6333/healthz
+docker run -d --name qdrant -p 6333:6333 -v qdrant_storage:/qdrant/storage qdrant/qdrant
 ```
 
 ---
@@ -115,27 +81,28 @@ Configuration reference:
 
 ## Running Tests
 
-### Start Qdrant
-
-Qdrant must be running locally on `6333`:
-
-```bash
-curl http://localhost:6333/healthz
-```
-
 ### Run tests
 
 ```bash
 npm test
 ```
 
+No running Qdrant is needed: see [Qdrant](#qdrant-no-setup-needed-for-tests) above.
+
+Environment variables:
+
+- `QDRANT_URL`: use this existing Qdrant instead of starting a throwaway one (CI does this with a service container). The instance must hold **no collections other than `jeeves_watcher_it_*`**: the global setup refuses to run against anything that looks shared or production, unless `QDRANT_ALLOW_SHARED=true`. `QDRANT_API_KEY` is sent when set.
+- `QDRANT_REQUIRED=true`: fail instead of skipping when no Qdrant is available (set in CI).
+- `QDRANT_ALLOW_SHARED=true`: accept a `QDRANT_URL` instance that already holds other collections (not recommended).
+- `QDRANT_CACHE_DIR`: cache root for the downloaded Qdrant binary.
+
 Notes:
 
-- Integration tests only ever create, use and drop collections named **`jeeves_watcher_it_*`** (`jeeves_watcher_it_<label>_<worker>_<nonce>`, see `packages/service/src/test/harness/qdrant.ts`). The harness refuses to create or drop any other name, and the global teardown sweeps leftover `jeeves_watcher_it_*` collections. Your own collections on the same Qdrant are never touched.
-- Without a reachable Qdrant (`QDRANT_URL`, default `http://localhost:6333`) the integration tests are skipped, unless `QDRANT_REQUIRED=true` (as in CI), which fails the run instead.
+- Integration tests only ever create, use and drop collections named **`jeeves_watcher_it_*`** (`jeeves_watcher_it_<label>_<worker>_<nonce>`, see `packages/service/src/test/harness/qdrant.ts`). The harness refuses to create or drop any other name, and the global teardown sweeps leftover `jeeves_watcher_it_*` collections: defence in depth should `QDRANT_URL` ever point at an instance with other data.
 - Tests create temp directories under your OS temp folder:
   - `.../jeeves-watcher-test/watched`
   - `.../jeeves-watcher-test/metadata`
+  - `.../jeeves-watcher-qdrant-*` (throwaway Qdrant state, removed at teardown)
 
 ---
 
@@ -254,7 +221,7 @@ feat: add openai embedding provider
 
 The test suite is intentionally integration-heavy.
 
-- **Real Qdrant**: `VectorStoreClient` uses `@qdrant/js-client-rest` against a local Qdrant instance.
+- **Real Qdrant**: `VectorStoreClient` uses `@qdrant/js-client-rest` against the throwaway Qdrant started by the global setup (or the instance named by `QDRANT_URL`).
 - **Temp files**: tests write real files to a temp watched directory.
 - **Real pipeline**: tests call `DocumentProcessor.processFile()` and verify that Qdrant points/payloads exist.
 - **Cleanup**:
