@@ -31,11 +31,13 @@ Plugin config lives in `openclaw.json` under `plugins.entries.jeeves-watcher-ope
 ```json
 {
   "apiUrl": "http://127.0.0.1:1936",
+  "apiKey": "<the service api.apiKey>",
   "configRoot": "/srv/jeeves/config"
 }
 ```
 
 - **`apiUrl`**: jeeves-watcher API base URL (default: `http://127.0.0.1:1936`; env fallback `JEEVES_WATCHER_URL`).
+- **`apiKey`** (optional): bearer key sent as `Authorization: Bearer <key>` on every watcher API request; it must match the service's `api.apiKey`. Env fallback `JEEVES_WATCHER_API_KEY`. Resolved on every call and never logged. Unset (the default): no header is sent, exactly as before. If the service requires a key and it is missing or wrong, tools return a `401` error naming both ways to set it. Only `watcher_status` (`GET /status` is always open) and `watcher_service` (no HTTP) do not use it.
 - **`configRoot`**: platform config root path, used by `@karmaniverous/jeeves` core to derive `{configRoot}/jeeves-watcher/`. **No default.** Set it in plugin config or via the `JEEVES_CONFIG_ROOT` env var.
 
 `configRoot` is resolved lazily. The plugin always registers, even before its config is written (`openclaw plugins install` activates a plugin before `jeeves install` writes `plugins.entries.<id>.config`). While `configRoot` is unset the plugin logs one warning at registration. Gating is per call: only invocations that actually read `configRoot` are gated. Today that is exactly `watcher_service` with `action: "install"` (it derives the service config path from `configRoot`); it returns an error naming both ways to set it. Other `watcher_service` actions (`uninstall`, `start`, `stop`, `restart`, `status`) address the OS service by name, and every other tool only calls the watcher HTTP API, so they keep working without `configRoot`. Core is initialized on the first gated call after it resolves.

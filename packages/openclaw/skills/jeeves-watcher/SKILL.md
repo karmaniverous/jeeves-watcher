@@ -12,6 +12,8 @@ The watcher is an HTTP API running as a background service (typically NSSM on Wi
 
 **Default port:** 1936 (configurable via `api.port` in watcher config) **Non-default port:** If the watcher runs on a different port, the user must set `plugins.entries.jeeves-watcher-openclaw.config.apiUrl` in `openclaw.json`. The plugin cannot auto-discover a non-default port.
 
+**API key:** If the watcher sets `api.apiKey`, every route except `GET /status` needs `Authorization: Bearer <key>`. The tools send it from `plugins.entries.jeeves-watcher-openclaw.config.apiKey` (or the `JEEVES_WATCHER_API_KEY` env var); a `401` tool error means it is missing or wrong. When calling the API directly, add the header yourself. Never echo the key.
+
 **Health check:** `GET /status` returns `name`, `version`, `uptime`, `status` (`healthy`/`degraded`/`unhealthy`), and a `health` object containing `collection` (point count, dimensions), `reindex` status, and `initialScan` progress.
 
 **Mental model:** The `watcher_*` tools are thin HTTP wrappers. Each tool call translates to an HTTP request to the watcher API. When tools are available, use them. When they're not (e.g., different session, plugin not loaded), you can hit the API directly. Replace `<PORT>` below with the configured port (default 1936; check `plugins.entries.jeeves-watcher.config.apiUrl` in `openclaw.json` if overridden):

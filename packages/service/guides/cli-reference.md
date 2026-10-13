@@ -56,9 +56,10 @@ jeeves-watcher config [jsonpath] [-p <port>]
 | ------------ | ---------------------------------------------- |
 | `[jsonpath]` | Optional JSONPath expression to filter results |
 
-| Option              | Default | Description |
-| ------------------- | ------- | ----------- |
-| `-p, --port <port>` | `1936`  | API port    |
+| Option | Default | Description |
+| --- | --- | --- |
+| `-p, --port <port>` | `1936` | API port |
+| `--api-key <key>` | env | API bearer key (see [Authentication](#authentication)) |
 
 **Examples:**
 
@@ -94,11 +95,12 @@ Apply a config patch to the running service.
 jeeves-watcher config apply [-p <port>] [-f <file>] [--replace]
 ```
 
-| Option              | Default | Description                              |
-| ------------------- | ------- | ---------------------------------------- |
-| `-p, --port <port>` | `1936`  | API port                                 |
-| `-f, --file <path>` | stdin   | Config patch file (JSON)                 |
-| `--replace`         | `false` | Replace entire config instead of merging |
+| Option | Default | Description |
+| --- | --- | --- |
+| `-p, --port <port>` | `1936` | API port |
+| `-f, --file <path>` | stdin | Config patch file (JSON) |
+| `--replace` | `false` | Replace entire config instead of merging |
+| `--api-key <key>` | env | API bearer key (see [Authentication](#authentication)) |
 
 ---
 
@@ -133,7 +135,27 @@ All subcommands accept `-n, --name <name>` (default: `jeeves-watcher`). `install
 
 ---
 
+## Authentication
+
+When the service sets `api.apiKey`, every API route except `GET /status` needs `Authorization: Bearer <key>` (see [Authentication](./api-reference.md#authentication)). Every command that calls a protected route (`config`, `config apply` and every domain-specific command below) sends it, resolving the key in this order:
+
+1. `--api-key <key>`
+2. the `JEEVES_WATCHER_API_KEY` environment variable
+
+With neither set, no `Authorization` header is sent (the right choice when the service has no key). These commands do not read the watcher config file, so `api.apiKey` there is not used. Prefer the environment variable: a `--api-key` value is visible in the process list and shell history. The key is never printed. A `401` exits with code `1` and a message saying how to supply (or check) the key.
+
+`status` needs no key and takes no `--api-key` option. `config validate`, `init` and `service` make no API calls.
+
+```bash
+export JEEVES_WATCHER_API_KEY=...
+jeeves-watcher search "password reset"
+```
+
+---
+
 ## Domain-Specific Commands
+
+All commands in this section accept `--api-key <key>` (see [Authentication](#authentication)) in addition to the options listed.
 
 ### `jeeves-watcher search`
 

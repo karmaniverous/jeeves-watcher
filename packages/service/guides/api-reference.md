@@ -1938,7 +1938,11 @@ curl -X POST http://watcher.internal.example:1936/search \
 - An empty `apiKey` (`""`) fails closed: no token can match, so every route except `GET /status` answers `401`.
 - If `apiKey` still contains an unresolved `${...}` after environment-variable substitution, loading the config fails and the service does not start.
 - The key is read **at startup only**. Rotating it means changing the config (or the environment variable) and restarting the watcher, then updating every client.
-- The `jeeves-watcher` CLI commands that call the API and the OpenClaw plugin do not send a token. With `apiKey` set, use them only for `status`, or call the API with the header directly (the [SDK](./source-documents.md#sdk) sends it from its `apiKey` option).
+- Clients send the key as follows:
+  - **CLI** (`config`, `config apply`, `search`, `enrich`, `scan`, `reindex`, `rebuild-metadata`, `issues`, `helpers`): the `--api-key <key>` flag, else the `JEEVES_WATCHER_API_KEY` environment variable. These commands do not read the config file. Prefer the environment variable: a flag value is visible in the process list. See [CLI Reference](./cli-reference.md#authentication).
+  - **OpenClaw plugin**: `plugins.entries.jeeves-watcher-openclaw.config.apiKey`, else `JEEVES_WATCHER_API_KEY`; sent on every tool request.
+  - **SDK**: the [`apiKey` option](./source-documents.md#sdk).
+  - On `401`, the CLI and the plugin say how to supply the key and never print it.
 - `api` settings never appear in `GET /config`.
 
 For TLS, or for authentication schemes other than a single shared key, put a reverse proxy in front of the watcher.

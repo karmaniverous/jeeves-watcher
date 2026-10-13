@@ -18,6 +18,9 @@ export const PLUGIN_ID = 'jeeves-watcher-openclaw';
 /** Default watcher API base URL. */
 export const DEFAULT_API_URL = `http://127.0.0.1:${String(_DEFAULT_PORT)}`;
 
+/** Environment variable consulted when plugin config has no `apiKey`. */
+export const API_KEY_ENV_VAR = 'JEEVES_WATCHER_API_KEY';
+
 /** Environment variable consulted when plugin config has no `configRoot`. */
 export const CONFIG_ROOT_ENV_VAR = 'JEEVES_CONFIG_ROOT';
 

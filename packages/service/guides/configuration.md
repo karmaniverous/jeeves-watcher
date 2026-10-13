@@ -391,7 +391,7 @@ For a file at `D:\projects\my-project\readme.md`, the metadata sidecar is at `.j
 
 The API provides endpoints for search, metadata enrichment, reindexing, and status. See [API Reference](./api-reference.md).
 
-When `apiKey` is set, every request except `GET /status` must send `Authorization: Bearer <apiKey>`, or it gets `401`. An empty string fails closed (every protected route answers `401`), and an unresolved `${...}` stops the service at startup. Changing the key requires a restart. See [Authentication](./api-reference.md#authentication).
+When `apiKey` is set, every request except `GET /status` must send `Authorization: Bearer <apiKey>`, or it gets `401`. An empty string fails closed (every protected route answers `401`), and an unresolved `${...}` stops the service at startup. Changing the key requires a restart. The CLI API commands read the key from `--api-key` or `JEEVES_WATCHER_API_KEY`, and the OpenClaw plugin from its `apiKey` setting or the same variable; setting `apiKey` here does not configure them. See [Authentication](./api-reference.md#authentication).
 
 ---
 

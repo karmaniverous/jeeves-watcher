@@ -21,7 +21,7 @@ interface Manifest {
     required?: string[];
     properties: Record<string, { type: string; default?: unknown }>;
   };
-  uiHints: Record<string, { placeholder?: string }>;
+  uiHints: Record<string, { placeholder?: string; sensitive?: boolean }>;
 }
 
 const manifest = readJson('../openclaw.plugin.json') as unknown as Manifest;
@@ -38,6 +38,13 @@ describe('openclaw.plugin.json', () => {
   it('declares apiUrl and rejects unknown keys', () => {
     expect(properties.apiUrl.type).toBe('string');
     expect(manifest.configSchema.additionalProperties).toBe(false);
+  });
+
+  it('declares an optional, sensitive apiKey with no default', () => {
+    expect(properties.apiKey.type).toBe('string');
+    expect(properties.apiKey).not.toHaveProperty('default');
+    expect(manifest.configSchema.required ?? []).not.toContain('apiKey');
+    expect(manifest.uiHints.apiKey.sensitive).toBe(true);
   });
 
   it('carries no Windows drive-letter paths', () => {
