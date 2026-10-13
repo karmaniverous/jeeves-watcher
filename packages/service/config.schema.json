@@ -120,7 +120,7 @@
       ]
     },
     "stateDir": {
-      "description": "Directory for persistent state files (issues.json, values.json, enrichments.sqlite). Defaults to .jeeves-metadata.",
+      "description": "Directory for persistent state files (issues.json, values.v8, enrichments.sqlite). Defaults to .jeeves-metadata.",
       "allOf": [
         {
           "$ref": "#/definitions/__schema95"
