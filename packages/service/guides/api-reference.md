@@ -10,7 +10,7 @@ The watcher exposes a lightweight HTTP API for search, metadata enrichment, and 
 
 **Authentication:** none by default. When `api.apiKey` is set, every route except `GET /status` requires `Authorization: Bearer <key>`; see [Authentication](#authentication). The examples below omit the header.
 
-**Request validation:** request bodies are validated against the Zod schemas exported by `@karmaniverous/jeeves-watcher-core`. An invalid body returns `400 { code: "invalid_request", error, details }`, where `error` is the first issue's message and `details` is the full issue list.
+**Request validation:** the bodies of `POST /metadata`, `/render`, `/search`, `/scan`, `/reindex`, `/documents`, `/documents/delete`, `/rules/register`, `/rules/reapply`, `/points/delete` and `DELETE /rules/unregister` (and the `POST /documents` query string) are validated against the Zod schemas exported by `@karmaniverous/jeeves-watcher-core`. An invalid body returns `400 { code: "invalid_request", error, details }`, where `error` is the first issue's message and `details` is the full Zod issue list. Unless a section says the schema is strict, unknown keys are dropped silently. The other routes (`POST /walk`, the `/config/*` routes, the VCS routes) check their required fields themselves; their `400` bodies carry no `details`.
 
 **Errors (v0.20.0+):** every non-2xx response carries a machine-readable `code`; see [Error Handling](#error-handling).
 
@@ -64,11 +64,11 @@ curl http://localhost:1936/status
 | --- | --- | --- |
 | `name` | `string` | Always `"watcher"`. |
 | `version` | `string` | Service package version. |
-| `uptime` | `number` | Seconds since the API server was created. |
+| `uptime` | `number` | Whole seconds since the API server was created. |
 | `status` | `string` | `"healthy"`, or `"degraded"` when the health probe failed (for example Qdrant is unreachable); `health` then holds only `{ "error": "..." }`. |
 | `health.collection` | `object` | Qdrant collection stats: `name`, `pointCount` (total points/chunks), `dimensions`. |
-| `health.reindex` | `object` | Reindex progress. `active`; while active also `scope`, `startedAt`, `filesProcessed` and `totalFiles` (files plus source documents in the run). |
-| `health.initialScan` | `object?` | Initial filesystem scan after start (absent when there is no filesystem watcher). `active`, `filesMatched`, `filesEnqueued`; `startedAt` while active; `completedAt` and `durationMs` once finished. |
+| `health.reindex` | `object` | Reindex progress. `active`; while active also `scope`, `startedAt`, `filesProcessed` and `totalFiles` (files plus source documents in the run; both stay `0` during a prune). `POST /reindex { scope: "path", source }` and `POST /documents` are not tracked here. |
+| `health.initialScan` | `object?` | Initial filesystem scan after start (absent when there is no filesystem watcher). Only `{ "active": false }` before the scan starts; then `active`, `filesMatched`, `filesEnqueued`; `startedAt` while active; `completedAt` and `durationMs` once finished. |
 
 > **v0.5.0 change:** `payloadFields` has been removed from the status response. Use [`GET /config`](#get-config) or [`GET /config/schema`](#get-configschema) to discover schema and payload field information.
 
@@ -105,12 +105,14 @@ curl -X POST http://localhost:1936/metadata \
 
 ```typescript
 {
-  path?: string;   // File path
+  path?: string;   // File path (non-empty)
   source?: string; // Source reference <name>://<id> (v0.20.0+)
-  metadata: Record<string, unknown>; // Metadata to merge
+  metadata: Record<string, unknown>; // Metadata to merge (required object)
 }
 // Exactly one of path or source is required.
 ```
+
+Schema: `metadataRequestSchema` in `@karmaniverous/jeeves-watcher-core`. Neither or both of `path` / `source`, a malformed reference, or a missing or non-object `metadata` (`error: "Missing required field: metadata (object)"`) is `400 invalid_request`.
 
 ### Response
 
@@ -123,7 +125,7 @@ curl -X POST http://localhost:1936/metadata \
 }
 ```
 
-`matched_rules` lists the rules whose schemas validated the metadata.
+`matched_rules` lists the rules the metadata was validated against. For a file these are the config `inferenceRules` (virtual rules are not consulted) whose `match` accepts the path alone: they are tested against synthetic attributes built from the path (no file is read, so rules that match on content or JSON fields do not apply). For a source document it is the designated rule.
 
 **Validation error (400 Bad Request):**
 
@@ -143,7 +145,11 @@ curl -X POST http://localhost:1936/metadata \
 }
 ```
 
-> **v0.5.0:** Metadata is validated against the schema defined by matched inference rules. If the file matches a rule with a `schema` block, provided metadata must conform to it.
+> **v0.5.0:** Metadata is validated against the merged schema of the matched rules. Only the declared `type` of each property is checked; properties the schema does not declare, and `null` values, are accepted.
+
+**Source not indexed (404, v0.20.0+):** `{ "code": "source_not_indexed", "error": "Source document not indexed" }`.
+
+**Not available (503, v0.20.0+):** `not_available` for a `source` request on an instance without source-document support.
 
 **Error (500 Internal Server Error):** the cause is logged, never returned. Every 5xx the API produces for an unexpected failure has this body:
 
@@ -157,23 +163,26 @@ curl -X POST http://localhost:1936/metadata \
 
 ### Behavior
 
-1. Reads existing enrichment metadata from the metadata store
-2. Merges provided metadata (new values override existing)
-3. Writes merged metadata to `.meta.json` sidecar file
-4. Updates all chunk payloads in Qdrant (no re-embedding)
+Enrichment metadata lives in the enrichment store, a SQLite database at `<stateDir>/enrichments.sqlite` (default `stateDir`: `.jeeves-metadata`), keyed by file path or source reference. Writing to it merges shallowly: new keys are added and existing keys are overwritten.
 
-**If the file isn't indexed yet:**
+**Files (`path`):**
 
-- The metadata is written to the metadata store
-- The file will be processed on the next filesystem event or manual reindex
+1. Validates the metadata (see above).
+2. Merges it into the file's enrichment-store entry, **before** checking whether the file is indexed.
+3. Reads the file's chunk-0 point. When the file is indexed, writes the merged enrichment to every chunk with `setPayload` (no re-embedding). The stored `file_path` (casing included) and `matched_rules` are kept.
+4. When the file is not indexed yet, nothing is written to Qdrant, but the stored enrichment is kept and merged into the payload when the file is indexed (its next filesystem event or a reindex). The response is still `200`.
+
+A failure reading or writing Qdrant does not fail the request: it is logged (a failed payload write also records an `upsert_error` issue for the file), the response is `200`, and the enrichment stays stored.
 
 **Source documents (`source`):**
 
-- The document must be indexed: its designated rule is read from the stored `source_rule`. Otherwise the response is `404 { "code": "source_not_indexed", "error": "Source document not indexed" }` and nothing is stored.
+- The document must be indexed: its designated rule is read from the stored `source_rule`. Otherwise the response is `404 source_not_indexed` and nothing is stored.
+- When Qdrant cannot be read, the response is `500 internal_error` (v0.20.0+), never `404`: a failed read is not taken to mean "not indexed". A failed payload write is also `500`.
 - The metadata is validated against the designated rule's schema (`400` on failure). The rule is looked up by name among the config rules, then the [virtual rules](#post-rulesregister) registered by plugins, so a document whose designated rule is virtual is validated too. A designated rule that no longer exists validates nothing (`matched_rules: []`).
 - Without source support on the instance, a `source` request is `503 not_available`.
 - It is stored in the enrichment store under the exact reference, written to every chunk with `setPayload` (no re-embedding, no callback), and merged again whenever the document is re-processed.
-- System fields (`source`, `source_rule`, `chunk_*`, ...) can never be overwritten.
+
+For both kinds, reserved system fields (`file_path`, `source`, `source_rule`, `chunk_*`, `total_chunks`, `content_hash`, `matched_rules`, `line_start`, `line_end`, `created_at`, `modified_at`) are dropped before any payload write, so metadata can never overwrite them. When a document is (re)indexed, its enrichment is merged over the rule metadata: scalars replace the rule value, arrays are unioned without duplicates.
 
 ---
 
@@ -201,6 +210,8 @@ curl -X POST http://localhost:1936/render \
 // Exactly one of path or source is required.
 ```
 
+Schema: `renderRequestSchema` in `@karmaniverous/jeeves-watcher-core`.
+
 ### Response
 
 **Success (200 OK):**
@@ -225,7 +236,7 @@ curl -X POST http://localhost:1936/render \
 | `renderAs` | `string` | Output content type (file extension without dot). Always present. |
 | `content` | `string` | Rendered content (from template/render transform) or extracted text (passthrough). |
 | `rules` | `string[]` | Names of matched inference rules (diagnostic). |
-| `metadata` | `object` | Composed embedding properties from matched rules. |
+| `metadata` | `object` | Composed embedding properties from matched rules, with the document's stored enrichment merged in and `matched_rules` added. |
 
 ### Caching
 
@@ -238,13 +249,13 @@ curl -X POST http://localhost:1936/render \
 | Code | Condition |
 | --- | --- |
 | `200` | Success |
-| `400` | Invalid body (neither or both of `path` / `source`, malformed reference) |
-| `403` | `path_not_watched`: path is outside watched scope |
-| `404` | `not_found`: file not found; or `source_not_indexed` (no stored point, so no designated rule is known); or `source_not_found` (the callback answered `404`; points are left alone) |
-| `422` | `pipeline_error`: render/extraction failed; for a source document `issueType` holds the [issue code](#issue-codes) (`match_failed`, `rule_missing`, `no_content`, ...) and `details` any AJV errors. `unsupported_content_type` when the callback returned a non-JSON body |
+| `400` | `invalid_request`: invalid body (neither or both of `path` / `source`, empty `path`, malformed reference) |
+| `403` | `path_not_watched` (`error: "Path is outside watched scope"`): the path does not match `watch.paths` or matches `watch.ignored` |
+| `404` | `not_found` (`error: "File not found"`); or `source_not_indexed` (`"Source document not indexed"`: no stored point, so no designated rule is known); or `source_not_found` (`"Source document not found"`: the callback answered `404`; points are left alone) |
+| `422` | `pipeline_error`: rendering or extraction failed. `error` is the failure message and `issueType` the [issue code](#issue-codes): for a file `extraction_error` unless a pipeline stage tagged the failure with another code; for a source document `match_failed`, `rule_missing`, `no_content`, ... with `details` holding any AJV errors. `unsupported_content_type` (`issueType` of the same name) when the callback returned a non-JSON body |
 | `502` | `source_unavailable`: the source callback failed (`issueType: "source_unavailable"`) |
 | `503` | `not_available`: source render on an instance without source-document support |
-| `500` | `internal_error`: unexpected failure (generic body; the cause is only logged) |
+| `500` | `internal_error`: unexpected failure, including a Qdrant read failure while looking up a source document's designated rule (generic body; the cause is only logged) |
 
 ### Behavior
 
@@ -317,17 +328,19 @@ curl http://localhost:1936/search/facets
 | --- | --- | --- |
 | `field` | `string` | Metadata field name. |
 | `type` | `string` | JSON Schema type (e.g. `"string"`, `"number"`, `"boolean"`). |
-| `uiHint` | `string` | UI rendering hint (e.g. `"dropdown"`, `"tags"`, `"date"`). |
-| `values` | `unknown[]` | Known values. Uses `enum` values if declared; otherwise live values from the index. |
+| `uiHint` | `string` | UI rendering hint (e.g. `"dropdown"`, `"tags"`, `"date"`); `"dropdown"` when only `enum` is declared. |
+| `values` | `unknown[]` | Known values: the `enum` values if declared; otherwise, for the enumerated hints `dropdown`, `tags`, `select` and `multiselect`, the sorted live values from the values index; otherwise `[]`. |
 | `rules` | `string[]` | Which inference rules define this field. |
 
 ### Behavior
 
-1. Resolves schemas for all inference rules via `mergeSchemas`
-2. Extracts properties that declare `uiHint` or `enum`
-3. Deduplicates fields across rules (later rules override `uiHint`)
+1. Resolves the schemas of the config `inferenceRules` via `mergeSchemas` (virtual rules registered by plugins are not included)
+2. Extracts properties that declare `uiHint` or `enum` (`object` properties never become facets; a property without `type` is reported as `"string"`)
+3. Deduplicates fields across rules (later rules override `uiHint` and `enum`)
 4. Enriches with live distinct values from the values index
 5. Schema structure is cached internally; rebuilt when rules change
+
+If the rule schemas cannot be resolved, the error is logged and the response is `{ "facets": [] }`.
 
 **Caching:** The schema structure is computed once and cached until inference rules change. Live values from `ValuesManager` are merged fresh on each request.
 
@@ -357,14 +370,14 @@ curl -X POST http://localhost:1936/search \
 
 ```typescript
 {
-  query: string;                    // Natural language search query
-  limit?: number;                   // Max results (default: 10)
-  offset?: number;                  // Skip N results for pagination (default: 0)
+  query: string;                    // Natural language search query (non-empty)
+  limit?: number;                   // Max results, positive integer (default: 10)
+  offset?: number;                  // Skip N results for pagination, integer >= 0 (default: 0)
   filter?: Record<string, unknown>; // Qdrant filter object (optional)
 }
 ```
 
-Unknown keys are rejected (v0.20.0+): an unsupported option such as `collapse` is a `400 invalid_request` instead of being silently ignored.
+Schema: `searchRequestSchema` in `@karmaniverous/jeeves-watcher-core`; the default limit is `SEARCH_DEFAULT_LIMIT` (10). The schema is strict (v0.20.0+): an unknown key such as `collapse` is a `400 invalid_request` instead of being silently ignored.
 
 **Filtered search example:**
 
@@ -412,7 +425,7 @@ The `filter` parameter accepts a native [Qdrant filter object](https://qdrant.te
       "file_path": "d:/projects/ml/readme.md",
       "chunk_index": 0,
       "total_chunks": 3,
-      "content_hash": "sha256:abc123...",
+      "content_hash": "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08",
       "chunk_text": "Machine learning is...",
       "domain": "projects",
       "title": "ML Overview"
@@ -421,7 +434,11 @@ The `filter` parameter accepts a native [Qdrant filter object](https://qdrant.te
   {
     "id": "uuid-chunk-1",
     "score": 0.82,
-    "payload": {/* ... */}
+    "payload": {
+      "file_path": "d:/projects/ml/readme.md",
+      "chunk_index": 1,
+      "total_chunks": 3
+    }
   }
 ]
 ```
@@ -457,7 +474,7 @@ Each result is a Qdrant point:
 | Field | Type | Description |
 | --- | --- | --- |
 | `id` | `string` | Qdrant point ID (deterministic UUID from file path or source reference + chunk index). |
-| `score` | `number` | Cosine similarity score (0–1, higher is better). |
+| `score` | `number` | Cosine similarity score (higher is better), or the fused rank score when `search.hybrid.enabled` is set. |
 | `payload` | `object` | Document metadata and chunk info. |
 
 **Payload fields:**
@@ -469,14 +486,17 @@ Each result is a Qdrant point:
 | `source_rule` | `string` | Designated rule of a source document. Source points only (v0.20.0+). |
 | `chunk_index` | `number` | Chunk index (0-based). |
 | `total_chunks` | `number` | Total chunks for this document. |
-| `content_hash` | `string` | SHA-256 hash of extracted text. |
+| `content_hash` | `string` | SHA-256 hex digest of the document text that was chunked and embedded (extracted or rendered). |
 | `chunk_text` | `string` | Text content of this chunk. |
+| `matched_rules` | `string[]` | Names of the rules applied to the document. |
+| `line_start`, `line_end` | `number` | 1-based lines of the document text where the chunk starts and ends. |
+| `created_at`, `modified_at` | `number` | Document timestamps (Unix seconds). |
 | _Custom fields_ | `any` | Metadata from inference rules and `POST /metadata`. |
 
 ### Behavior
 
 1. Embeds the query text using the configured embedding provider
-2. Searches Qdrant using cosine similarity
+2. Searches Qdrant using cosine similarity; with `search.hybrid.enabled`, fuses the vector results with full-text matches on `chunk_text` (reciprocal rank fusion, text weighted by `search.hybrid.textWeight`, default `0.3`)
 3. Returns top `limit` results (includes all chunks; caller groups by `file_path` or `source` if needed)
 
 The query embedding draws from the same rate limiter as indexing.
@@ -505,12 +525,14 @@ curl -X POST http://localhost:1936/scan \
 ```typescript
 {
   filter: Record<string, unknown>;   // Qdrant filter object (required)
-  limit?: number;                    // Page size (default: 100, max: 1000)
+  limit?: number;                    // Page size, integer 1-1000 (default: 100)
   cursor?: string | number;          // Opaque cursor from previous response
   fields?: string[];                 // Payload field projection
   countOnly?: boolean;               // If true, return { count } instead of points
 }
 ```
+
+Schema: `scanRequestSchema` in `@karmaniverous/jeeves-watcher-core`; the default page size is `SCAN_DEFAULT_LIMIT` (100) and the maximum `SCAN_MAX_LIMIT` (1000).
 
 ### Response
 
@@ -531,7 +553,7 @@ curl -X POST http://localhost:1936/scan \
       }
     }
   ],
-  "cursor": "next-abc123"
+  "cursor": "5f0c3e2a-8b1d-5c4e-9a7f-2d6b8e1c0a93"
 }
 ```
 
@@ -565,16 +587,15 @@ curl -X POST http://localhost:1936/scan \
 | Code | Condition |
 | --- | --- |
 | `200` | Success |
-| `400` | `invalid_request`: missing or invalid `filter`, `limit` out of bounds (1–1000), or a filter Qdrant rejects (`error: "Invalid filter"`, Qdrant's reason as `message`) |
+| `400` | `invalid_request`: missing or non-object `filter` (`error: "Missing required field: filter (object)"`), a `limit` outside 1 to 1000 (`"limit must be between 1 and 1000"`) or not an integer (`"limit must be an integer"`), or a filter Qdrant rejects (`error: "Invalid filter"`, Qdrant's reason as `message`) |
 | `500` | `internal_error`: unexpected failure (generic body) |
 
 ### Behavior
 
-1. Validates that `filter` is a non-null object
-2. Clamps `limit` to 1–1000 range (rejects out-of-bounds with 400)
-3. If `countOnly`: calls Qdrant `count()` with exact mode and returns `{ count }`
-4. Otherwise: calls Qdrant `scroll()` with the filter, limit, cursor, and optional field projection
-5. Returns matched points and an opaque cursor for the next page
+1. Validates the body (`filter` must be an object; `limit` out of range is rejected, never clamped)
+2. If `countOnly`: calls Qdrant `count()` with exact mode and returns `{ count }`
+3. Otherwise: calls Qdrant `scroll()` with the filter, limit, cursor, and optional field projection
+4. Returns matched points and an opaque cursor for the next page
 
 **Use cases:**
 
@@ -591,9 +612,59 @@ curl -X POST http://localhost:1936/scan \
 
 ---
 
+## POST /walk
+
+List watched files whose paths match globs, from the filesystem watcher's in-memory file list (no filesystem reads, no Qdrant).
+
+### Request
+
+```bash
+curl -X POST http://localhost:1936/walk \
+  -H "Content-Type: application/json" \
+  -d '{"globs": ["/data/domains/email/**/*.json"]}'
+```
+
+**Body schema:**
+
+```typescript
+{
+  globs: string[]; // Non-empty array of glob patterns
+}
+```
+
+### Response
+
+**Success (200 OK):**
+
+```json
+{
+  "paths": ["/data/domains/email/archive/msg-456.json"],
+  "matchedCount": 1,
+  "scannedRoots": ["/data/domains"]
+}
+```
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `paths` | `string[]` | Entries of the watcher's list matching any of the globs. |
+| `matchedCount` | `number` | Length of `paths`. |
+| `scannedRoots` | `string[]` | Resolved base directories of the configured `watch.paths`. |
+
+Globs are matched against slash-normalised paths, case-insensitively, dotfiles included. `paths` and `scannedRoots` are returned in the platform's native form (backslashes on Windows).
+
+### Error Codes
+
+| Code | Condition |
+| --- | --- |
+| `400` | `invalid_request` (`error: "Missing globs"`, `message: "The \"globs\" field is required and must be a non-empty string array."`): `globs` is missing, not an array, or empty (the entries' types are not checked) |
+| `503` | `not_available` (`"Watcher unavailable"`): the instance has no filesystem watcher; `scan_in_progress` (`"Scan in progress"`): the initial filesystem scan is still running, retry later |
+| `500` | `internal_error`: unexpected failure, including a request without a JSON body (generic body) |
+
+---
+
 ## POST /rebuild-metadata
 
-Rebuild the metadata store from Qdrant payloads.
+Rebuild the enrichment store from Qdrant file point payloads.
 
 ### Request
 
@@ -613,18 +684,20 @@ curl -X POST http://localhost:1936/rebuild-metadata
 
 **Error (500 Internal Server Error):** generic body (`internal_error`), see [Error Handling](#error-handling).
 
+No request body is needed.
+
 ### Behavior
 
 1. Scrolls all Qdrant points in the collection
-2. For each point:
-   - Extracts `file_path` and enrichment metadata from payload
-   - Writes a `.meta.json` sidecar file to the metadata store
-3. Skips internal fields (`chunk_index`, `total_chunks`, `content_hash`, `chunk_text`)
+2. Skips every point without a non-empty `file_path`: source documents are never touched
+3. For each file point, drops every reserved system field (`isReservedPayloadField` in `@karmaniverous/jeeves-watcher-core`: `file_path`, `source`, `source_rule`, `chunk_index`, `chunk_text`, `total_chunks`, `content_hash`, `matched_rules`, `line_start`, `line_end`, `created_at`, `modified_at`) and merges the remaining payload fields into the file's entry in the enrichment store (`<stateDir>/enrichments.sqlite`)
+
+Qdrant payloads do not distinguish enrichment from rule metadata, so every remaining field, rule-inferred ones included, becomes stored enrichment for the file.
 
 **Use cases:**
 
-- Metadata store corruption or accidental deletion
-- Migrating to a new machine (copy Qdrant snapshot, rebuild metadata store)
+- Enrichment store corruption or accidental deletion
+- Migrating to a new machine (copy Qdrant snapshot, rebuild the enrichment store)
 - First-time setup from an existing Qdrant collection
 
 **Cost:** No embedding API calls — pure data extraction.
@@ -642,14 +715,14 @@ Trigger a scoped reindex operation. Non-prune scopes include a `plan` object sho
 ```typescript
 {
   scope?: "issues" | "full" | "rules" | "path" | "prune";  // Default: "issues"
-  path?: string | string[];   // Files/directories/globs for scopes "path" and "rules"
+  path?: string | string[];   // Scope "path": files or directories; scope "rules": globs
   source?: string | string[]; // Source references for scope "path" (v0.20.0+), at most 1000
   dryRun?: boolean;           // Compute plan without executing (default: false)
 }
 // Scope "path" requires exactly one of path or source; source is only valid with scope "path".
 ```
 
-`source` accepts at most 1000 references per request (`MAX_REINDEX_SOURCES_PER_REQUEST` in `@karmaniverous/jeeves-watcher-core`); split larger sets into several requests.
+Schema: `reindexRequestSchema` in `@karmaniverous/jeeves-watcher-core`. Paths must be non-empty strings and an array must not be empty. `source` accepts at most 1000 references per request (`MAX_REINDEX_SOURCES_PER_REQUEST`); split larger sets into several requests. `path` is ignored by the scopes `issues`, `full` and `prune`.
 
 **Examples:**
 
@@ -659,7 +732,7 @@ curl -X POST http://localhost:1936/reindex \
   -H "Content-Type: application/json" \
   -d '{"scope": "rules"}'
 
-# Full reindex (re-extract, re-embed, re-upsert all files and source documents)
+# Full reindex (re-process every watched file; re-embed every source document)
 curl -X POST http://localhost:1936/reindex \
   -H "Content-Type: application/json" \
   -d '{"scope": "full"}'
@@ -669,7 +742,7 @@ curl -X POST http://localhost:1936/reindex \
   -H "Content-Type: application/json" \
   -d '{"scope": "issues"}'
 
-# Re-embed a specific directory
+# Re-process a specific directory
 curl -X POST http://localhost:1936/reindex \
   -H "Content-Type: application/json" \
   -d '{"scope": "path", "path": "j:/domains/projects/jeeves-watcher"}'
@@ -744,22 +817,23 @@ curl -X POST http://localhost:1936/reindex \
 | `total` | `number` | Total points (prune) or files and source documents (other scopes) examined. |
 | `toProcess` | `number` | Items to embed/re-apply rules (0 for prune). |
 | `toDelete` | `number` | Points to delete (prune only, 0 for others). |
-| `byRoot` | `object` | Counts grouped by watch root prefix (files) or source name (source documents). |
+| `byRoot` | `object` | Files to process grouped by watch root prefix, plus source documents to process grouped by source name. For a prune: orphaned **files** (not points) grouped by watch root. Files outside every root count under `"(unmatched)"`. Root containment is separator-aware (`/docs` does not contain `/docs2`). |
+| `incomplete` | `boolean?` | Prune only: `true` when the Qdrant scroll failed part-way (after 5 attempts per page), so the counts are partial. A live prune with an incomplete plan deletes nothing. |
 
-The reindex runs **asynchronously** — the API returns immediately with the plan. Use `GET /status` to track progress.
+The reindex runs **asynchronously**: the API returns immediately with the plan. Use `GET /status` to track progress.
 
-The plan is computed once per request: the files listed and the source documents discovered for it are the ones the run then processes (no second listing or Qdrant scroll). A failure while the run itself resolves or processes its targets is reported to the [completion callback](#completion-callback), never as an HTTP error.
+The plan is computed once per request, before the response: the files listed and the source documents discovered for it are the ones the run then processes (no second listing or Qdrant scroll). An invalid `path` target is therefore an HTTP error (see below), and so is a failure while planning (for example Qdrant unreachable during source discovery: `500 internal_error`). Once the run has started, failures are logged and reported to the [completion callback](#completion-callback), never as an HTTP error.
 
 **Error codes:**
 
 | Code | Condition |
 | --- | --- |
 | `200` | Success (started or dry_run) |
-| `400` | `invalid_request`: invalid body (unknown scope, missing `path`/`source` for scope `path`, `source` outside scope `path`, malformed reference, more than 1000 references), or a `path` target that is neither a file nor a directory. `not_available`: prune without a vector store (status `400` kept from 0.19) |
-| `403` | `path_not_watched`: a `path` target is outside the watch scope or gitignored (v0.20.0+; was `500`) |
-| `404` | `not_found`: a `path` target does not exist (v0.20.0+; was `500`) |
+| `400` | `invalid_request`: invalid body (unknown scope, missing `path`/`source` for scope `path`, both given, `source` outside scope `path`, empty path or array, malformed reference, more than 1000 references), or a scope-`path` target that is neither a file nor a directory (`"Path is neither a file nor a directory: <path>"`). `not_available` (`message: "Prune scope requires vectorStore to be configured."`): prune without a vector store, the one code whose status does not follow the [code table](#error-handling) (`400` kept from 0.19) |
+| `403` | `path_not_watched`: a scope-`path` target is outside the watch scope (`error: "Path is outside watch scope: <path>"`) or gitignored (`"Path is gitignored: <path>"`) (v0.20.0+; was `500`) |
+| `404` | `not_found`: a scope-`path` target does not exist (`"Path not found: <path>"`) (v0.20.0+; was `500`) |
 | `503` | `not_available`: `source` on an instance without source-document support (v0.20.0+) |
-| `500` | `internal_error`: unexpected failure (generic body) |
+| `500` | `internal_error`: unexpected failure, including a planning failure (generic body) |
 
 ### Scopes
 
@@ -769,31 +843,31 @@ Re-processes documents with open issues (from `GET /issues`): files, and source 
 
 #### `rules`
 
-Re-reads file attributes, re-applies current inference rules, updates Qdrant payloads. **No re-embedding** for files. Use after editing inference rules.
+Re-reads file attributes, re-applies current inference rules, updates Qdrant payloads of indexed files (changed values are written, keys the rules no longer project are removed; files that are not indexed are skipped). **No re-embedding** for files. Use after editing inference rules.
 
-Without `path`, source documents are included: each is retrieved through its callback and its stored rule re-applied. Unchanged content gets a metadata-only `setPayload`; if the rule now renders different text, the document is re-embedded. With `path`, only matching files are covered.
+With `path`, the entries are globs matched (case-insensitively) against the watched files, and only matching files are covered. Without `path`, every watched file is covered and so are the source documents: each is retrieved through its callback and its stored rule re-applied. Unchanged content gets a metadata-only `setPayload`; if the rule now renders different text, the document is re-embedded.
 
 #### `full`
 
-Re-extracts text, re-embeds (new embedding API calls), re-upserts to Qdrant. Source documents are retrieved through their callbacks and **always re-embedded**. Use after changing embedding providers, chunk size, or adding watch paths.
+Re-processes every watched file through the full pipeline (extract, apply rules, render) and clears the values index first. A file is re-embedded and re-upserted only when its rendered text changed: a file whose text hashes to the `content_hash` stored on its chunk 0 is skipped without an embedding call and its payload is not rewritten. Source documents are retrieved through their callbacks and **always re-embedded** (forced). Use after adding watch paths or changing rules that alter rendered text. Unchanged files are not re-embedded after an embedding provider or chunk size change; delete their points (for example with [`POST /points/delete`](#post-pointsdelete)) or re-create the collection first.
 
 #### `path`
 
-With `path`: re-embeds a specific file or all files under a directory. Each target must be within watch scope and not gitignored (`403 path_not_watched`) and must exist (`404 not_found`). A file named directly and found again by expanding its directory is processed once. Use for targeted re-embedding without a full reindex.
+With `path`: re-processes a specific file or all watched files under a directory (globs are not expanded here), with the same unchanged-content skip as `full`. Each target must match `watch.paths` and not `watch.ignored` (a directory target must itself match, e.g. with a `/**` watch glob) and must not be gitignored (`403 path_not_watched`); it must exist (`404 not_found`). Directory containment is separator-aware: `/docs` covers `/docs/a.md`, never `/docs2/a.md`. A file named directly and found again by expanding its directory is processed once. Use for targeted re-embedding without a full reindex.
 
-With `source` (v0.20.0+): re-processes the listed source references with their stored designated rule, through the notify queue (so they coalesce with concurrent notifications, and failures land in `GET /issues`). References that are not indexed are skipped: they count in `total` but not in `toProcess`. The stored-rule lookups run with up to `reindex.concurrency` in flight.
+With `source` (v0.20.0+): looks up each distinct reference's stored designated rule (up to `reindex.concurrency` lookups in flight, default `50`) and **enqueues** the indexed ones on the notify queue, exactly as `POST /documents` does: they coalesce with concurrent notifications and failures land in `GET /issues`. References that are not indexed are skipped: they count in `total` but not in `toProcess`. This form is not a tracked run: `GET /status` does not show it and no completion callback is sent. `plan.byRoot` counts the enqueued references by source name.
 
 #### `prune`
 
-Scrolls all Qdrant points, checks each `file_path` against current watch scope and gitignore, batch-deletes orphaned points. **No re-embedding, no file reads** — pure Qdrant scroll + local checks + deletes. Use after changing `watch.paths`, adding gitignore rules, or to clean up stale data (e.g., indexed `node_modules`).
+Lists the watched files, scrolls all Qdrant points, and batch-deletes orphaned file points: those whose `file_path` is not a watched file (outside the watch scope, ignored or gitignored), whose file no longer exists on disk, or that have no `file_path` at all. **No re-embedding, no file content reads**: a file listing, a Qdrant scroll, existence checks and deletes. Use after changing `watch.paths`, adding gitignore rules, or to clean up stale data (e.g., indexed `node_modules`).
 
-Prune **never** selects points carrying `source`: source documents are removed only by a callback `404` or [`POST /documents/delete`](#post-documentsdelete). The file and notify queues are paused while a prune runs.
+Prune **never** selects source points (a non-empty `source` and no `file_path`): source documents are removed only by a callback `404` or [`POST /documents/delete`](#post-documentsdelete). A legacy file point that carries a rule-written `source` field is still a file point and is pruned like any other. The file and notify queues are paused (and in-flight work drained) while a prune plans and runs.
 
 **Note:** `prune` is NOT valid for the config-watch auto-trigger (`configWatch.reindex`). It can only be triggered via explicit API calls.
 
 ### Source Documents
 
-Explicit `POST /reindex` requests cover source documents as described above; a reindex triggered by a config change (`configWatch.reindex`) covers **files only**. Source documents are discovered from Qdrant (chunk-0 points carrying `source`), retrieved through their callbacks, and processed with their stored `source_rule`. In every scope a callback `404` deletes the document and any other failure records an issue and leaves its points untouched.
+Explicit `POST /reindex` requests cover source documents as described above; a reindex triggered by a config change (`configWatch.reindex`, `POST /config/apply`) or by rule registration covers **files only**. Source documents are discovered from Qdrant (chunk-0 source points: a non-empty `source` and no `file_path`), retrieved through their callbacks, and processed with their stored `source_rule`; one without a stored `source_rule` counts in `total` but is skipped. Up to `reindex.concurrency` (default `50`) documents are submitted at once; the notify queue's own concurrency still applies. In every scope a callback `404` deletes the document and any other failure records an issue and leaves its points untouched.
 
 Every source run goes through the notify queue, like a notification: a reindex and a notification of the same reference never run in parallel, they coalesce (a pending `full` run stays forced if a notification merges into it), and the latest record wins. See the [Source Documents guide](./source-documents.md#reindex-prune-and-deletion).
 
@@ -821,7 +895,7 @@ While a reindex is running, `GET /status` shows the active reindex state under `
 
 ### Completion Callback
 
-If `reindex.callbackUrl` is configured, the watcher sends a POST request to that URL when the reindex completes:
+If `reindex.callbackUrl` is configured, the watcher sends a POST request (JSON body) to that URL when a tracked reindex completes (every run except `POST /reindex { scope: "path", source }`, which only enqueues):
 
 ```json
 {
@@ -833,9 +907,18 @@ If `reindex.callbackUrl` is configured, the watcher sends a POST request to that
 }
 ```
 
-`errors` holds the run's failure message when the run itself failed (`filesProcessed` is then `0`). `sources` (v0.20.0+) counts the source documents by outcome and is present only when the run covered source documents; failed documents are also recorded in `GET /issues`. A prune reports `pointsDeleted` instead.
+| Field | Description |
+| --- | --- |
+| `scope` | The run's scope. |
+| `filesProcessed` | Files whose processing completed (`0` for a prune or a failed run). |
+| `durationMs` | Run duration. |
+| `errors` | The failed file paths, then the failed source references. A failure inside the pipeline (extraction, embedding, upsert) is recorded as an issue and does not count here; only a file whose processing threw is listed. When the run fails as a whole (including a live prune whose planning fails), `errors` holds the failure message and `filesProcessed` is `0`. |
+| `sources` | v0.20.0+, only when the run covered source documents: counts by outcome (`indexed`, `unchanged`, `deleted`, `failed`). Failed documents are also recorded in `GET /issues`. |
+| `pointsDeleted` | Prune only: points deleted. |
 
-The callback retries with exponential backoff (3 attempts, starting at 1 second).
+A failing file or source document never stops the run: it is logged and collected, and the rest still run. A live prune whose plan is incomplete is aborted without deleting anything and sends no callback.
+
+Delivery is attempted up to 3 times, with exponential backoff (1 second, then 2 seconds); a non-2xx response counts as a failure. When every attempt fails the failure is logged (`Reindex callback delivery failed; giving up`) and the run's result is unaffected: callback delivery never throws, and a reindex started fire-and-forget never rejects.
 
 ---
 
@@ -871,7 +954,7 @@ curl -X POST http://localhost:1936/documents \
 
 **Query string:** `?wait=true` processes synchronously (also accepts `1`; `false`/`0` or omitted = asynchronous).
 
-Notify only: there is no push form. Unknown keys (for example inline `text`) fail the request with `400`.
+Schema: `documentsEnvelopeSchema` (the request shape of `documentsRequestSchema` with `source` validated per document) and `documentsQuerySchema` in `@karmaniverous/jeeves-watcher-core`; at most `MAX_DOCUMENTS_PER_REQUEST` (100) documents. Notify only: there is no push form. Document entries are strict: unknown keys (for example inline `text`) fail the request with `400`. A malformed reference rejects only its own document (`invalid_reference`).
 
 ### Response
 
@@ -949,7 +1032,7 @@ A designated rule whose `match` rejects the record is never an HTTP error: async
 
 | Code | Condition |
 | --- | --- |
-| `400` | Invalid body: `documents` missing, empty or over 100 entries; missing or empty `source`/`rule`; unknown keys; invalid `wait` |
+| `400` | `invalid_request`: `documents` missing, empty or over 100 entries; missing or empty `source`/`rule`; unknown keys in a document; invalid `wait` (the query and body are validated before source support is checked) |
 | `401` | `unauthorized`: `api.apiKey` is set and the bearer token is missing or wrong |
 | `503` | `not_available`: the instance's document processor does not support source documents |
 | `500` | `internal_error`: unexpected failure, including an unexpected processing error with `?wait=true` (a stopping queue is reported per document as `queue_stopped` instead) |
@@ -985,9 +1068,11 @@ curl -X POST http://localhost:1936/documents/delete \
 **Body schema:** exactly one of
 
 ```typescript
-{ sources: string[] }                // 1 or more <name>://<id> references
-{ filter: Record<string, unknown> }  // native Qdrant filter
+{ sources: string[] }                // 1 to 1000 <name>://<id> references
+{ filter: Record<string, unknown> }  // native Qdrant filter with at least one condition
 ```
+
+Schema: `documentsDeleteRequestSchema` in `@karmaniverous/jeeves-watcher-core`. Both forms are strict (no other keys). `sources` accepts at most `MAX_DELETE_SOURCES_PER_REQUEST` (1000) references (v0.20.0+); split larger sets into several requests.
 
 ### Response
 
@@ -1006,7 +1091,7 @@ curl -X POST http://localhost:1936/documents/delete \
 - Enrichment metadata and issues are removed for the deleted references, and, in the `sources` form, for every listed reference (so a document that only ever failed leaves no issue behind).
 - Deletion does not touch the source system. If the owner notifies the reference again (or a notification for it was still queued), it is retrieved and indexed again.
 
-**Errors:** `400 invalid_request` for an invalid body (both or neither of `sources`/`filter`, an empty `sources` array, a malformed reference, a condition-free filter) or a filter Qdrant rejects; `500 internal_error` (generic body) for an unexpected failure.
+**Errors:** `400 invalid_request` for an invalid body (both or neither of `sources`/`filter`, an empty `sources` array or one over 1000 references, a malformed reference, a condition-free filter, an unknown key) or a filter Qdrant rejects; `500 internal_error` (generic body) for an unexpected failure. This route does not depend on source-document support: it never answers `503`.
 
 ---
 
@@ -1099,10 +1184,10 @@ Source-document issues (v0.20.0+) always carry `rule` (the designated rule of th
 
 The issues file is self-healing:
 
-- Documents that hit issues are logged and **embedding is skipped**; a source document's existing points are left untouched
+- A document whose processing failed is logged and **not written**; a source document's existing points are left untouched. (A file whose only problem is an `interpolation_error` is still indexed, without the failed values.)
 - Successful re-processing (config fix, file edit, re-notification, reindex) **clears** the entry
 - A source document that is deleted (callback `404` or `POST /documents/delete`) has its entry cleared
-- The response always represents the **current** set of unresolved problems
+- The response represents the current set of unresolved problems, cached for `api.cacheTtlMs` (default 30 seconds)
 
 **Empty response:**
 
@@ -1129,7 +1214,7 @@ curl http://localhost:1936/config
 curl "http://localhost:1936/config?path=%24.inferenceRules%5B*%5D.name"
 ```
 
-**Query string:** `path` — optional JSONPath expression.
+**Query string:** `path`: optional JSONPath expression (evaluated with `jsonpath-plus`).
 
 ### Response
 
@@ -1142,19 +1227,18 @@ curl "http://localhost:1936/config?path=%24.inferenceRules%5B*%5D.name"
 }
 ```
 
-An invalid JSONPath expression is `400 invalid_request`.
+An invalid JSONPath expression is `400 { "code": "invalid_request", "error": "<parser message>" }`. A failure building the document is logged and answered with the generic `500 internal_error` body. Responses are cached for `api.cacheTtlMs` (default 30 seconds).
 
 ### Merged Document Shape
 
-The query runs against a virtual document that merges:
+The query runs against a virtual document with exactly these top-level keys (the allow-list `PUBLIC_CONFIG_KEYS`, plus `issues`):
 
-- **config** — current configuration (rules, watch paths, etc.)
-- **values** — discovered payload field names and types (replaces old `payloadFields` from status). Collected from files only: source documents never feed the values index (v0.20.0+).
-- **helpers** — loaded map helpers and template helpers
-- **issues** — current runtime issues
-- **virtual rules** — rules registered by plugins
+- `description` (`""` when unset), `watch`, `configWatch`, `search`, `schemas`, `maps`, `templates`: from the running configuration (`maps`, `templates` and `.json` rule `map` file references are resolved to their contents; named schema references in a rule's `schema` are expanded).
+- `inferenceRules`: the config rules (`source: "config"`) followed by the [virtual rules](#post-rulesregister) registered by plugins (`source`: the registering source). Each rule carries `values`: the distinct values seen per property (replaces the old `payloadFields` of `/status`). Values are collected from files only: source documents never feed the values index (v0.20.0+).
+- `mapHelpers`, `templateHelpers`: the configured helper modules, with their introspected `exports` when available.
+- `issues`: the current runtime issues (as in `GET /issues`).
 
-The `sources` block (callback URLs and headers) and the whole `api` block (including `api.apiKey`) are never included, with or without a `path`.
+Everything else (`api` including `api.apiKey`, `sources` with callback URLs and headers, `embedding` and `vectorStore` with provider keys, `stateDir`, `logging`, `vcs`, ...) is never included, with or without a `path`.
 
 See [Inference Rules Guide](./inference-rules.md) for rule structure details.
 
@@ -1178,8 +1262,8 @@ curl http://localhost:1936/config/schema
 
 Returns a JSON Schema object describing the merged config document shape, including:
 
-- Top-level config fields (`description`, `search`, `schemas`, `inferenceRules`, etc.)
-- Runtime-injected fields (`inferenceRules[].values`, `issues`, helper introspection)
+- Top-level fields `description`, `search` (`scoreThresholds`), `schemas`, `inferenceRules`, `maps`, `templates`, `templateHelpers`, `mapHelpers` (and a legacy `slots` entry, which is not a config key)
+- Runtime-injected fields (`inferenceRules[].values`, `issues`)
 
 The schema is generated from Zod using `z.toJSONSchema()` and describes the queryable surface exposed by [`GET /config`](#get-config).
 
@@ -1245,6 +1329,8 @@ curl -X POST http://localhost:1936/config/match \
 }
 ```
 
+A body whose `paths` is not an array is `400 { "code": "invalid_request", "error": "Request body must include \"paths\" array" }`; a request without a JSON body fails with the generic `500`.
+
 ### Response
 
 **Success (200 OK):**
@@ -1274,9 +1360,9 @@ curl -X POST http://localhost:1936/config/match \
 
 ### Behavior
 
-- Each path is normalized and tested against all compiled inference rules
+- Each path is normalized and tested against the config `inferenceRules` (virtual rules are not included), using synthetic attributes built from the path alone: no file is read, so rules that match on content or JSON fields do not match here
 - Rules are returned in definition order (same order as `inferenceRules` array)
-- `watched` tests against watch path matchers and ignore patterns
+- `watched` tests against the `watch.paths` and `watch.ignored` globs (case-sensitive; gitignore rules are not consulted)
 - Empty `rules` array means no inference rules match (but file may still be watched)
 - `watched: false` means the path falls outside watch scope or is excluded by ignore patterns
 
@@ -1325,7 +1411,9 @@ curl -X POST http://localhost:1936/config/validate \
 
 ### Merge Semantics
 
-When `config` is partial, rules are merged by `name`: provided rules replace existing rules with the same name; unmatched existing rules are preserved.
+`config` is merged into the **running** configuration (as loaded, after `${ENV_VAR}` substitution) one level deep: each top-level key it contains replaces the running value as a whole (unlike [`POST /config/apply`](#post-configapply), nested objects are not merged), except `inferenceRules`, which merge by `name`: provided rules replace existing rules with the same name, new ones are appended, and unmatched existing rules are preserved. Without `config`, the running configuration itself is validated.
+
+`testPaths` are matched against the candidate rules using each file's path and stat attributes (its content is not read). A path that cannot be stat'ed gets `{ "matchedRules": [], "metadata": {}, "error": "File not found" }`; `testResults` is omitted when there are none.
 
 ### Response
 
@@ -1344,7 +1432,7 @@ When `config` is partial, rules are merged by `name`: provided rules replace exi
 }
 ```
 
-**Invalid (also 200 OK):** an invalid config is a successful validation with a negative result, not an HTTP error. Only a malformed request body is `400`.
+**Invalid (also 200 OK):** an invalid config is a successful validation with a negative result, not an HTTP error. The route has no `400` of its own: only malformed JSON is rejected (by the framework, `400 invalid_request`). A request without a JSON body fails with the generic `500`.
 
 ```json
 {
@@ -1382,7 +1470,7 @@ Schema checks added in v0.20.0 make these configs **invalid**: an empty `api.api
 
 ## POST /config/apply
 
-Deep-merge a partial config into the running config, validate, write, and reload.
+Deep-merge a partial config into the config file the service runs from, validate it, write it, and trigger a reindex.
 
 ### Request
 
@@ -1409,10 +1497,12 @@ curl -X POST http://localhost:1936/config/apply \
 
 ```typescript
 {
-  patch: Record<string, unknown>; // Partial config to merge (`config` is accepted as an alias)
-  replace?: boolean;              // true = replace the whole config instead of merging
+  patch?: Record<string, unknown>; // Partial config to merge (`config` is accepted as an alias; default {})
+  replace?: boolean;               // true = the patch replaces the whole config instead of merging
 }
 ```
+
+The body has no core schema; other keys are ignored. A `patch` that is not an object is `400` with `issues: [{ "path": ["patch"], "message": "patch must be an object" }]`.
 
 ### Response
 
@@ -1421,31 +1511,56 @@ curl -X POST http://localhost:1936/config/apply \
 ```json
 {
   "applied": true,
-  "config": { "...": "the validated merged config" }
+  "config": {
+    "watch": { "paths": ["j:/domains/**"], "ignored": [] },
+    "inferenceRules": [
+      {
+        "name": "new-rule",
+        "description": "Test rule",
+        "match": { "type": "object" },
+        "schema": [
+          { "properties": { "domain": { "type": "string", "set": "test" } } }
+        ]
+      }
+    ]
+  }
 }
 ```
 
-**Validation failure (400 Bad Request):**
+| Field | Type | Description |
+| --- | --- | --- |
+| `applied` | `true` | The file was written. |
+| `config` | `object` | The validated config, reduced to the same allow-list as [`GET /config`](#get-config) (`PUBLIC_CONFIG_KEYS`: `description`, `watch`, `configWatch`, `search`, `schemas`, `inferenceRules`, `mapHelpers`, `templateHelpers`, `maps`, `templates`; only the keys present). `api`, `sources`, `embedding`, `vectorStore` and every other key, so every secret, is never echoed (v0.20.0+). |
+| `warning` | `string?` | Present when the file was written but the post-write step that triggers the reindex failed: `"Config written but callback failed: <message>"`. The status is still `200`. |
+
+**Validation failure (400 Bad Request):** `issues` holds the Zod issues of the merged config (there is no `details`):
 
 ```json
 {
   "code": "invalid_request",
   "error": "Config validation failed",
   "issues": [
-    { "path": ["embedding", "dimensions"], "message": "Invalid input" }
+    {
+      "expected": "number",
+      "code": "invalid_type",
+      "path": ["embedding", "dimensions"],
+      "message": "Invalid input: expected number, received string"
+    }
   ]
 }
 ```
 
-**Server failure (500, v0.20.0+):** when the config file cannot be read or written, the cause (which names the file) is logged and the response is the generic `internal_error` body.
+**Server failure (500, v0.20.0+):** when the config file cannot be read (or does not hold a JSON object) or cannot be written, the cause (which names the file) is logged and the response is the generic `internal_error` body. An unreadable file is left untouched.
 
 ### Behavior
 
-1. Reads the config file the service was started with
-2. Deep-merges the patch: objects merge recursively, arrays and scalars replace, `inferenceRules` merge by `name` (so `{ "patch": {} }` or a single key is valid)
-3. Validates the merged config against the schema
-4. Writes it atomically to the same file
-5. Triggers a reindex using `configWatch.reindex` scope (default `issues`)
+1. Reads the raw config file the service was started with (not the running, environment-substituted config)
+2. Deep-merges the patch: objects merge recursively, arrays and scalars replace, `inferenceRules` merge by `name` (so `{ "patch": {} }` or a single key is valid). With `replace: true` the patch is the new config
+3. Validates the merged config against the config schema
+4. Writes the merged raw object (not the schema's parsed output: unknown keys are kept, defaults are not added) atomically to the same file, keeping its permission bits
+5. Triggers a **file-only** reindex with the running config's `configWatch.reindex` scope (default `issues`)
+
+The new settings take effect when the config watcher reloads the file (`configWatch.enabled`, default `true`); that reload triggers the configured `configWatch.reindex` scope again. With config watching off, restart the service to load the file.
 
 ---
 
@@ -1477,10 +1592,12 @@ curl -X POST http://localhost:1936/rules/register \
 
 ```typescript
 {
-  source: string;           // Identifier for the rule source
-  rules: InferenceRule[];   // Array of inference rules to register
+  source: string;           // Identifier for the rule source (non-empty)
+  rules: InferenceRule[];   // Array of inference rules to register (each with a non-empty name)
 }
 ```
+
+Schema: `rulesRegisterRequestSchema` in `@karmaniverous/jeeves-watcher-core` (v0.20.0+). It checks `source` and that every rule is an object with a `name`; the rest of each rule is validated when it is compiled.
 
 ### Response
 
@@ -1494,9 +1611,13 @@ curl -X POST http://localhost:1936/rules/register \
 }
 ```
 
-Registering replaces the source's previous rules, rebuilds the processor's rule set and, when the virtual rules match on `file.path` globs, starts a `rules` reindex of the files under those globs.
+`totalVirtualRules` is the number of virtual rules registered across all sources after this registration.
 
-**Errors (v0.20.0+; these were `500` before):** `400 invalid_request` when `source` is missing, `rules` is not an array, a rule has no `name`, two rules share a name, or a rule's `match` schema does not compile (the compiler's explanation is in `message`). Nothing is registered then.
+Registering replaces the source's previous rules, rebuilds the processor's rule set (config rules plus all virtual rules) and, when any virtual rule matches on a `file.path` glob (`match.properties.file.properties.path.glob`), starts a **file-only** `rules` reindex of the watched files under the globs of all virtual rules. That reindex is tracked in `GET /status` and reported to the completion callback.
+
+Virtual rules live in memory: a restart loses them and they must be registered again. A config reload rebuilds the processor's rule set from the config rules alone: registered virtual rules stay in the store (and in `GET /config`) but stop applying to processing until the next register or unregister call.
+
+**Errors (v0.20.0+; these were `500` before):** `400 invalid_request` when `source` is missing or empty (`error: "Missing required field: source"`), `rules` is not an array (`"Missing required field: rules (array)"`), a rule is not an object with a `name` (`"Every rule must be an object with a name"`), or the rules do not compile, for example two rules share a name or a `match` schema is invalid (`error: "Invalid rules"`, the compiler's explanation in `message`). Nothing is registered then.
 
 ---
 
@@ -1531,7 +1652,7 @@ curl -X DELETE http://localhost:1936/rules/unregister \
 }
 ```
 
-`removed` is `false` when the source had no rules. A missing `source` is `400 invalid_request` (v0.20.0+; was `500`).
+`removed` is `false` when the source had no rules. When rules were removed, the processor's rule set is rebuilt and, if the remaining virtual rules match on `file.path` globs, a file-only `rules` reindex runs as for registration. A missing or empty `source` is `400 invalid_request` (`error: "Missing required field: source"`; schema `rulesUnregisterRequestSchema`; v0.20.0+, was `500`).
 
 ---
 
@@ -1544,6 +1665,8 @@ Remove all virtual rules from a named source (path parameter variant).
 ```bash
 curl -X DELETE http://localhost:1936/rules/unregister/my-external-system
 ```
+
+Same behaviour as the body variant; the `:source` path segment is the source.
 
 ### Response
 
@@ -1582,6 +1705,8 @@ curl -X POST http://localhost:1936/points/delete \
 }
 ```
 
+Schema: `pointsDeleteRequestSchema` in `@karmaniverous/jeeves-watcher-core` (v0.20.0+).
+
 ### Response
 
 **Success (200 OK):**
@@ -1592,9 +1717,9 @@ curl -X POST http://localhost:1936/points/delete \
 }
 ```
 
-`deleted` counts points. Unlike [`POST /documents/delete`](#post-documentsdelete), this route applies the filter as given, to file and source points alike.
+`deleted` counts points. Unlike [`POST /documents/delete`](#post-documentsdelete), this route applies the filter as given, to file and source points alike, and does not refuse a condition-free filter: `{ "filter": {} }` deletes every point. Matching points are collected first, then deleted in batches.
 
-**Errors (v0.20.0+; these were `500` before):** `400 invalid_request` when `filter` is missing or not an object, or when Qdrant rejects it (`error: "Invalid filter"`). Nothing is deleted then.
+**Errors (v0.20.0+; these were `500` before):** `400 invalid_request` when `filter` is missing or not an object (`error: "Missing required field: filter (object)"`), or when Qdrant rejects it (`error: "Invalid filter"`). Nothing is deleted then.
 
 ---
 
@@ -1620,7 +1745,7 @@ curl -X POST http://localhost:1936/rules/reapply \
 }
 ```
 
-Missing, empty or non-string `globs` are `400 invalid_request` (v0.20.0+; was `500`).
+Missing or empty `globs`, or an empty or non-string entry, is `400 invalid_request` (`error: "Missing required field: globs (non-empty string array)"`; schema `rulesReapplyRequestSchema`; v0.20.0+, was `500`).
 
 ### Response
 
@@ -1635,15 +1760,15 @@ Missing, empty or non-string `globs` are `400 invalid_request` (v0.20.0+; was `5
 
 ### Response Schema
 
-| Field     | Type     | Description                       |
-| --------- | -------- | --------------------------------- |
-| `matched` | `number` | Files matching the glob patterns. |
-| `updated` | `number` | Files successfully re-processed.  |
+| Field     | Type     | Description                                        |
+| --------- | -------- | -------------------------------------------------- |
+| `matched` | `number` | Distinct indexed files matching the glob patterns. |
+| `updated` | `number` | Files whose points were updated.                   |
 
 ### Behavior
 
-1. Scrolls all indexed points to find files matching the provided globs
-2. For each matching file, re-applies current inference rules (metadata update only)
+1. Scrolls all points (`file_path` only) to find the indexed files matching the globs (slashes normalised, case-insensitive, dotfiles included); source documents never match
+2. For each matching file, re-applies current inference rules (metadata update only): changed values are written and payload keys the rules no longer project are removed
 3. Files that fail re-processing are logged but don't abort the operation
 
 **Use cases:**
@@ -1655,7 +1780,7 @@ Missing, empty or non-string `globs` are `400 invalid_request` (v0.20.0+; was `5
 
 ## VCS Endpoints
 
-Version control endpoints for git-backed content history. Requires `vcs.enabled: true` in config. See the [Version Control (VCS) Guide](./version-control.md) for architectural context, configuration, and operational details.
+Version control endpoints for git-backed content history. Requires `vcs.enabled: true` in config: without it there are no VCS roots, so `GET /vcs/status` answers `{ "enabled": false, "roots": [] }` and the other VCS routes answer `404 not_found` (no matching watch root). See the [Version Control (VCS) Guide](./version-control.md) for architectural context, configuration, and operational details.
 
 ---
 
@@ -1681,13 +1806,20 @@ curl http://localhost:1936/vcs/status
       "path": "d:/documents",
       "tracked": 1523,
       "lastCommit": {
-        "hash": "a1b2c3d",
+        "hash": "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678",
         "message": "update project notes and readme",
-        "timestamp": "2026-06-10T14:30:00Z"
+        "timestamp": "2026-06-10T14:30:00+00:00"
       },
       "remoteUrl": "https://github.com/org/docs-backup.git",
-      "lastPush": "2026-06-10T14:30:05Z",
-      "pushErrors": []
+      "lastPush": "2026-06-10T14:30:05.000Z",
+      "pushErrors": [],
+      "breaker": {
+        "consecutiveFailures": 0,
+        "tripped": false,
+        "trippedAt": null,
+        "lastError": null,
+        "pendingCount": 0
+      }
     }
   ]
 }
@@ -1695,14 +1827,15 @@ curl http://localhost:1936/vcs/status
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `enabled` | `boolean` | Whether VCS is enabled globally. |
+| `enabled` | `boolean` | Whether any watch root has VCS enabled. |
 | `roots` | `array` | Per-root VCS state. |
 | `roots[].path` | `string` | Watch root path. |
-| `roots[].tracked` | `number` | Number of tracked files in this root. |
-| `roots[].lastCommit` | `object?` | Most recent commit (null if no commits yet). |
-| `roots[].remoteUrl` | `string?` | Configured remote URL (if any). |
-| `roots[].lastPush` | `string?` | ISO-8601 timestamp of last successful push. |
-| `roots[].pushErrors` | `string[]` | Recent push error messages. |
+| `roots[].tracked` | `number` | Number of commits on `HEAD` in this root's repository (`git rev-list --count HEAD`; `0` without commits). |
+| `roots[].lastCommit` | `object \| null` | Most recent commit: full `hash`, subject `message`, author `timestamp` (ISO 8601); `null` if no commits yet. |
+| `roots[].remoteUrl` | `string \| null` | Configured remote URL, else the repository's `origin` URL, else `null`. |
+| `roots[].lastPush` | `string \| null` | ISO 8601 timestamp of the last successful push since start. |
+| `roots[].pushErrors` | `{ timestamp, message }[]` | Recent push errors. |
+| `roots[].breaker` | `object \| null` | Commit circuit breaker: `consecutiveFailures`, `tripped`, `trippedAt`, `lastError`, and `pendingCount` (files queued or in flight, not yet committed). |
 
 ---
 
@@ -1732,27 +1865,28 @@ curl "http://localhost:1936/vcs/history?glob=d:/documents/**/*.md&limit=10&since
 ```json
 [
   {
-    "commit": "a1b2c3d",
+    "commit": "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678",
     "message": "update project notes and readme",
-    "timestamp": "2026-06-10T14:30:00Z",
-    "files": [
-      "d:/documents/projects/readme.md",
-      "d:/documents/projects/notes.md"
-    ]
+    "timestamp": "2026-06-10T14:30:00+00:00",
+    "files": ["projects/readme.md", "projects/notes.md"]
   }
 ]
 ```
 
-| Field       | Type       | Description                                      |
-| ----------- | ---------- | ------------------------------------------------ |
-| `commit`    | `string`   | Short commit hash.                               |
-| `message`   | `string`   | Commit message.                                  |
-| `timestamp` | `string`   | ISO-8601 commit timestamp.                       |
-| `files`     | `string[]` | Files changed in this commit (filtered by glob). |
+| Field | Type | Description |
+| --- | --- | --- |
+| `commit` | `string` | Full commit hash. |
+| `message` | `string` | Commit subject line. |
+| `timestamp` | `string` | ISO 8601 author timestamp. |
+| `files` | `string[]` | Files changed in this commit that match the glob, relative to the watch root. |
 
 #### Behavior
 
-Parses the git log for all roots matching the glob. Results are sorted by timestamp descending.
+Runs `git log` (with `--since` / `--until` when given) in every VCS root the glob falls under, or that falls under the glob's base path, with the root-relative glob as pathspec. Entries from all roots are merged, sorted by timestamp descending and cut to `limit`. A root whose log fails (for example no commits yet) is skipped.
+
+#### Errors
+
+`400 invalid_request` without `glob` (`error: "Missing required query parameter: glob"`); `404 not_found` when no VCS root matches (`"No VCS-enabled watch root matches the given glob"`).
 
 ---
 
@@ -1775,11 +1909,15 @@ curl "http://localhost:1936/vcs/show?path=d:/documents/readme.md&commit=a1b2c3d"
 
 #### Response
 
-Returns the raw file content with an appropriate `Content-Type` header based on file extension.
+Returns the raw file content with a `Content-Type` header based on the file extension: `text/plain` (`.txt`, `.ts`), `text/markdown` (`.md`), `application/json`, `application/xml`, `text/html`, `text/css`, `application/javascript`, `text/yaml` (`.yaml`, `.yml`), `text/csv`; otherwise `application/octet-stream`.
 
 #### Behavior
 
 Resolves the watch root for the path, computes the relative path, and runs `git show {commit}:{relativePath}`.
+
+#### Errors
+
+`400 invalid_request` when `path` or `commit` is missing (`"Missing required query parameters: path, commit"`); `404 not_found` when no VCS root contains the path (`"Path does not match any VCS-enabled watch root"`) or `git show` fails, for example an unknown commit or a file absent at that commit (`"File not found at the specified commit"`).
 
 ---
 
@@ -1807,7 +1945,11 @@ Returns unified diff text (`Content-Type: text/plain`).
 
 #### Behavior
 
-Resolves matching watch roots and runs `git diff {commit}..{commitEnd}` (or `..HEAD`) filtered to matching paths.
+Resolves matching watch roots and runs `git diff {commit}..{commitEnd}` (or `..HEAD`) in each, with the root-relative glob as pathspec, and joins the outputs with newlines. A root where the diff fails (for example an unknown commit) contributes nothing, so the response can be `200` with an empty body.
+
+#### Errors
+
+`400 invalid_request` when `glob` or `commit` is missing (`"Missing required query parameters: glob, commit"`); `404 not_found` when no VCS root matches (`"No VCS-enabled watch root matches the given glob"`).
 
 ---
 
@@ -1852,17 +1994,23 @@ curl -X POST http://localhost:1936/vcs/revert \
 }
 ```
 
-| Field      | Type       | Description               |
-| ---------- | ---------- | ------------------------- |
-| `restored` | `number`   | Number of files restored. |
-| `files`    | `string[]` | Paths of restored files.  |
+| Field | Type | Description |
+| --- | --- | --- |
+| `restored` | `number` | Number of files restored. |
+| `files` | `string[]` | Absolute paths (forward slashes) of restored files. |
 
 #### Behavior
 
-1. Lists files at the specified commit matching the glob
-2. Retrieves content via `git show` and writes to disk
-3. Records reversion metadata — the resulting commit is prefixed with `revert: {glob} to {shortCommit}`
-4. Triggers watcher file events for re-embedding
+1. Lists the files at the specified commit with `git ls-tree -r --name-only {commit} -- {root-relative glob}` (the whole tree when the glob is a root itself)
+2. Retrieves each file's content via `git show` and writes it to disk (skipping files absent on disk when `existingOnly` is set, and files `git show` cannot read)
+3. Records reversion metadata: the resulting commit message is `revert: {glob} to {shortCommit} — restored {n} files`
+4. The written files then flow through the normal watcher events and are re-indexed
+
+A root whose listing fails (for example an unknown commit) restores nothing, so the response can be `{ "restored": 0, "files": [] }`.
+
+#### Errors
+
+`400 invalid_request` when `glob` or `commit` is missing (`"Missing required body parameters: glob, commit"`); `404 not_found` when no VCS root matches (`"Glob does not match any VCS-enabled watch root"`).
 
 ---
 
@@ -1906,12 +2054,16 @@ curl -X POST http://localhost:1936/vcs/exclude \
 | Field | Type | Description |
 | --- | --- | --- |
 | `ok` | `boolean` | Success indicator. |
-| `gitignorePath` | `string` | Path to the `.gitignore` file that was modified. |
+| `gitignorePath` | `string` | Path (forward slashes) of the `.gitignore` file that was modified. |
 | `action` | `string` | `"added"` or `"removed"`. |
 
 #### Behavior
 
-Splits the glob into a directory prefix and pattern suffix, then places the entry in a `.gitignore` at the deepest appropriate directory (locality principle).
+Splits the root-relative glob at its first segment containing a wildcard into a directory prefix and pattern suffix (a literal path goes to its parent directory's `.gitignore`), then places the entry in a `.gitignore` at that directory (locality principle), creating the directory and file if needed. Adding a pattern that is already present changes nothing and still answers `"added"`. Removing deletes the lines equal to the pattern.
+
+#### Errors
+
+`400 invalid_request` without `glob` (`"Missing required body parameter: glob"`). `404 not_found` when `root` is not a VCS root (`"Root is not a VCS-enabled watch root"`), when no VCS root contains the glob (`"Glob does not match any VCS-enabled watch root"`), or, for `remove`, when the `.gitignore` does not exist (`"No .gitignore found at the expected location"`) or does not contain the pattern (`"Pattern not found in .gitignore"`).
 
 ---
 
@@ -1939,19 +2091,23 @@ curl "http://localhost:1936/vcs/check-exclusion?path=d:/documents/temp/scratch.t
 {
   "excluded": true,
   "rule": "**/*.tmp",
-  "source": "d:/documents/temp/.gitignore"
+  "source": "temp/.gitignore"
 }
 ```
 
-| Field      | Type      | Description                                        |
-| ---------- | --------- | -------------------------------------------------- |
-| `excluded` | `boolean` | Whether the file is ignored by git.                |
-| `rule`     | `string?` | The matching `.gitignore` pattern (if excluded).   |
-| `source`   | `string?` | Path to the `.gitignore` file containing the rule. |
+| Field | Type | Description |
+| --- | --- | --- |
+| `excluded` | `boolean` | Whether the file is ignored by git. |
+| `rule` | `string?` | The matching `.gitignore` pattern (if excluded). |
+| `source` | `string?` | The file containing the rule, as `git check-ignore -v` reports it (relative to the watch root for a `.gitignore` in the tree). |
 
 #### Behavior
 
-Uses `git check-ignore -v` to determine exclusion status and the specific rule/source responsible.
+Runs `git check-ignore -v` in the watch root to determine exclusion status and the specific rule/source responsible. If git's output cannot be parsed, the response is `{ "excluded": true }` without `rule` and `source`. Any non-zero git exit (not only "not ignored") answers `{ "excluded": false }`.
+
+#### Errors
+
+`400 invalid_request` without `path` (`"Missing required query parameter: path"`); `404 not_found` when no VCS root contains the path (`"Path does not match any VCS-enabled watch root"`).
 
 ---
 
@@ -1971,26 +2127,28 @@ Since v0.20.0 every non-2xx response has this body (`apiErrorBodySchema` in `@ka
 - `code` is machine-readable and stable: branch on it. The list is `API_ERROR_CODES` in core (type `ApiErrorCode`); codes may be added, never repurposed.
 - `error` is the human-readable text earlier versions sent, unchanged, so older clients keep working. Do not parse it.
 - `message` (optional) adds detail; `details` (optional) holds structured data such as the Zod issues of a `400`.
-- `issueType` (optional) names the [issue code](#issue-codes) behind a failed source render.
+- `issueType` (optional) names the [issue code](#issue-codes) behind a failed render.
 - Some endpoints add fields of their own (`issues` on `POST /config/apply`).
+- A route's status is derived from its `code` through `API_ERROR_STATUS` in core (the table below), so the same code always has the same status. The single exception is `not_available` from a prune without a vector store, which keeps its 0.19 status `400`. Requests rejected by the framework before reaching a route keep the framework's status: `401` maps to `unauthorized`, `404` to `not_found` (unknown route: `{ "code": "not_found", "error": "Not Found", "message": "Route POST:/nope not found" }`), any other 4xx to `invalid_request` (with the HTTP status text as `error` and the framework's explanation as `message`), and any 5xx to the generic `internal_error` body.
+- The CLI and the plugin report an error as one line, `HTTP <status> <code>: <message>`, where `<message>` is `error` plus `: <message>` when the body has a different `message` (`formatHttpError` in core).
 - A 5xx body never carries the underlying error (file paths, Qdrant or provider messages): the cause is logged and the body is the generic `internal_error` text below.
 - HTTP status changes in v0.20.0, all from `500` for what are client mistakes: invalid bodies of the rules routes and `POST /points/delete`, filters Qdrant rejects (`400`), and invalid `POST /reindex` path targets (`403` / `404` / `400`). Successful responses and every other status are unchanged.
 
 | `code` | Status | Meaning |
 | --- | --- | --- |
-| `invalid_request` | `400` | The body, query or parameters failed validation, a filter was rejected by Qdrant (`error: "Invalid filter"`) or has no condition (`POST /documents/delete`), or the request was rejected before reaching a route (malformed JSON, unsupported media type: the framework's status is kept, e.g. `415`). |
+| `invalid_request` | `400` | The body, query or parameters failed validation, a filter was rejected by Qdrant (`error: "Invalid filter"`) or has no condition (`POST /documents/delete`), an invalid JSONPath (`GET /config`), a `POST /reindex` path target that is neither file nor directory, or the request was rejected before reaching a route (malformed JSON, unsupported media type: the framework's status is kept, e.g. `415`). |
 | `unauthorized` | `401` | `api.apiKey` is set and the bearer token is missing or wrong. |
 | `path_not_watched` | `403` | The file path is outside the watched scope (`POST /render`), or a `POST /reindex` path target is outside it or gitignored. |
 | `not_found` | `404` | No such route, file (including a `POST /reindex` path target), VCS watch root, file at a commit, `.gitignore` or `.gitignore` pattern. |
 | `source_not_indexed` | `404` | No stored point for the source reference, so no designated rule is known (`POST /render`, `POST /metadata`). |
 | `source_not_found` | `404` | The source callback answered `404` (`POST /render`). |
 | `unsupported_content_type` | `422` | The source callback returned a non-JSON body (`POST /render`). |
-| `pipeline_error` | `422` | Rendering or extraction failed; for a source document `issueType` names the failure. |
+| `pipeline_error` | `422` | Rendering or extraction failed (`POST /render`); `issueType` names the failure. |
 | `source_unavailable` | `502` | The source callback failed (`POST /render`). |
-| `not_available` | `503` | The feature is not available on this instance: no source-document support (every source route, including `POST /reindex { source }`), or no filesystem watcher (`POST /walk`). A prune without a vector store keeps its 0.19 status `400`. |
+| `not_available` | `503` | The feature is not available on this instance: no source-document support (`POST /documents`, and `POST /render`, `POST /metadata` and `POST /reindex` with `source`; `POST /documents/delete` works without it), or no filesystem watcher (`POST /walk`). A prune without a vector store keeps its 0.19 status `400`. |
 | `scan_in_progress` | `503` | The initial filesystem scan is still running (`POST /walk`); retry later. |
 | `embedding_unavailable` | `503` | The embedding provider's retry budget ran out (`POST /search`); honour `Retry-After`. |
-| `internal_error` | `500` | Unexpected server-side failure (check the service log). Always `{ "code": "internal_error", "error": "Internal Server Error", "message": "Internal server error" }`, never the underlying error. |
+| `internal_error` | `500` | Unexpected server-side failure (check the service log), including a Qdrant read failure on `POST /metadata` or `POST /render` with `source`. Always `{ "code": "internal_error", "error": "Internal Server Error", "message": "Internal server error" }`, never the underlying error. |
 
 Per-document outcomes are not HTTP errors and use their own codes: `rejected[].error.code` of `POST /documents` (rejection codes) and `error.code` of `failed` results ([issue codes](#issue-codes)).
 
@@ -2035,7 +2193,7 @@ curl -X POST http://watcher.internal.example:1936/search \
   - **CLI** (`config`, `config apply`, `search`, `enrich`, `scan`, `reindex`, `rebuild-metadata`, `issues`, `helpers`): the `--api-key <key>` flag, else the `JEEVES_WATCHER_API_KEY` environment variable. These commands do not read the config file. Prefer the environment variable: a flag value is visible in the process list. See [CLI Reference](./cli-reference.md#authentication).
   - **OpenClaw plugin**: `plugins.entries.jeeves-watcher-openclaw.config.apiKey`, else `JEEVES_WATCHER_API_KEY`; sent on every tool request.
   - **SDK**: the [`apiKey` option](./source-documents.md#sdk).
-  - On `401`, the CLI and the plugin say how to supply the key and never print it.
+  - On `401`, the CLI and the plugin say how to supply the key (or, when one was sent, that it was rejected) and never print it. The environment variable name is `API_KEY_ENV_VAR` in core.
 - `api` settings never appear in `GET /config`.
 
 For TLS, or for authentication schemes other than a single shared key, put a reverse proxy in front of the watcher.
@@ -2077,7 +2235,7 @@ curl -X POST http://localhost:1936/search \
 
 Output:
 
-```json
+```text
 { "score": 0.91, "path": "d:/projects/billing/spec.md", "title": "Billing API Spec" }
 { "score": 0.87, "path": "d:/meetings/2026-02-15/notes.md", "title": "Billing Discussion" }
 ...
