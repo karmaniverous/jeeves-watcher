@@ -9,7 +9,8 @@ import type { EmbeddingConfig } from '../config/types';
 
 /**
  * Per-call budget for the shared rate limiter. Providers that do not
- * rate-limit ignore it.
+ * rate-limit ignore the budget; providers that retry internally await
+ * `beforeRetry` before each retry.
  */
 export interface EmbedOptions {
   /** Maximum provider attempts for this call (429 retries included). */
@@ -19,6 +20,14 @@ export interface EmbedOptions {
    * pause), in ms. When a wait would exceed it, the call fails fast.
    */
   maxWaitMs?: number;
+  /**
+   * Awaited by a provider before each retry it makes internally (any HTTP
+   * request after the first of an `embed()` call), so every request draws
+   * from the shared limiter. Supplied by the rate-limited wrapper; it may
+   * reject (e.g. `EmbeddingUnavailableError`), which the provider must
+   * propagate without retrying.
+   */
+  beforeRetry?: () => Promise<void>;
 }
 
 /**

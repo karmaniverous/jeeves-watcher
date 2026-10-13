@@ -4,7 +4,9 @@
  * Uses node:https with a keep-alive agent for reliable performance in
  * long-running processes (avoids undici/fetch event-loop contention).
  * HTTP 429 is not retried here: it surfaces as an EmbeddingRateLimitError
- * carrying `Retry-After`, for the shared limiter to handle.
+ * carrying `Retry-After`, for the shared limiter to handle. Other failures
+ * are retried, each retry first awaiting the limiter's `beforeRetry` (one
+ * token per HTTP request).
  */
 
 import type { IncomingHttpHeaders } from 'node:http';
@@ -16,8 +18,12 @@ import type { EmbeddingConfig } from '../config/types';
 import { getLogger } from '../util/logger';
 import { normalizeError } from '../util/normalizeError';
 import { retry } from '../util/retry';
-import { EmbeddingRateLimitError, parseRetryAfterMs } from './rateLimitError';
-import type { EmbeddingProvider } from './types';
+import {
+  EmbeddingRateLimitError,
+  EmbeddingUnavailableError,
+  parseRetryAfterMs,
+} from './rateLimitError';
+import type { EmbeddingProvider, EmbedOptions } from './types';
 
 /** Shape of a single embedding request within a batch. */
 interface EmbedRequest {
@@ -102,10 +108,15 @@ export function createGeminiProvider(
 
   return {
     dimensions,
-    async embed(texts: string[]): Promise<number[][]> {
+    async embed(
+      texts: string[],
+      options: EmbedOptions = {},
+    ): Promise<number[][]> {
       const vectors = await retry(
         async (attempt) => {
           if (attempt > 1) {
+            // Each retry is another request: draw from the shared limiter.
+            await options.beforeRetry?.();
             log.warn(
               { attempt, provider: 'gemini', model },
               'Retrying embedding request',
@@ -140,7 +151,9 @@ export function createGeminiProvider(
           baseDelayMs: 500,
           maxDelayMs: 10_000,
           jitter: 0.2,
-          shouldRetry: (error) => !(error instanceof EmbeddingRateLimitError),
+          shouldRetry: (error) =>
+            !(error instanceof EmbeddingRateLimitError) &&
+            !(error instanceof EmbeddingUnavailableError),
           onRetry: ({ attempt, delayMs, error }) => {
             log.warn(
               {

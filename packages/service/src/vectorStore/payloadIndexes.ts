@@ -1,6 +1,6 @@
 /**
  * @module vectorStore/payloadIndexes
- * Plans and creates missing Qdrant payload indexes (configured `vectorStore.payloadIndexes` plus system `source`/`source_rule` keyword indexes). Never drops; warns on type mismatch.
+ * Plans and creates missing Qdrant payload indexes (configured `vectorStore.payloadIndexes` plus system `source`/`source_rule` keyword indexes). Never drops; warns on type or `is_tenant`/`is_principal` mismatch.
  */
 
 import {
@@ -30,12 +30,69 @@ export interface PayloadIndexMismatch {
   actual: string;
 }
 
+/** An existing index whose `is_tenant` / `is_principal` flag differs from the desired one. */
+export interface PayloadIndexFlagMismatch {
+  /** Payload field name. */
+  field: string;
+  /** The Qdrant flag. */
+  flag: 'is_tenant' | 'is_principal';
+  /** Desired value (from configuration). */
+  expected: boolean;
+  /** Value currently reported by Qdrant. */
+  actual: boolean;
+}
+
 /** Result of {@link planPayloadIndexes}. */
 export interface PayloadIndexPlan {
   /** Indexes to create, in desired order. */
   create: PayloadIndexConfig[];
   /** Existing indexes with a different type; left untouched. */
   mismatches: PayloadIndexMismatch[];
+  /** Existing same-type indexes with a different tenant/principal flag; left untouched. */
+  flagMismatches: PayloadIndexFlagMismatch[];
+}
+
+/** An existing index as reported in Qdrant's `payload_schema`. */
+export interface ExistingPayloadIndex {
+  /** Index type. */
+  data_type?: string;
+  /** Index parameters (`is_tenant`, `is_principal`, ...), when any. */
+  params?: unknown;
+}
+
+/**
+ * Read a boolean flag from an index's `params`. Pure.
+ *
+ * @param params - Qdrant index params.
+ * @param flag - Flag name.
+ * @returns The flag, `false` when absent.
+ */
+function paramFlag(params: unknown, flag: string): boolean {
+  return (
+    typeof params === 'object' &&
+    params !== null &&
+    (params as Record<string, unknown>)[flag] === true
+  );
+}
+
+/**
+ * Compare the tenant/principal flags of an existing same-type index with
+ * the desired ones (as {@link toQdrantFieldSchema} would write them). Pure.
+ */
+function flagMismatches(
+  index: PayloadIndexConfig,
+  current: ExistingPayloadIndex,
+): PayloadIndexFlagMismatch[] {
+  const desired = toQdrantFieldSchema(index);
+  const mismatches: PayloadIndexFlagMismatch[] = [];
+  for (const flag of ['is_tenant', 'is_principal'] as const) {
+    const expected = paramFlag(desired, flag);
+    const actual = paramFlag(current.params, flag);
+    if (expected !== actual) {
+      mismatches.push({ field: index.field, flag, expected, actual });
+    }
+  }
+  return mismatches;
 }
 
 /**
@@ -43,8 +100,10 @@ export interface PayloadIndexPlan {
  *
  * System indexes come first; configured entries override a system entry for
  * the same field, and a later configured entry overrides an earlier one.
- * Fields already indexed with the same type are skipped; fields indexed with
- * a different type are reported as mismatches and never recreated.
+ * Fields already indexed with the same type are skipped (a differing
+ * `is_tenant` / `is_principal` flag is reported in `flagMismatches`); fields
+ * indexed with a different type are reported as mismatches. Nothing is ever
+ * recreated.
  *
  * @param configured - Configured `vectorStore.payloadIndexes` (may be undefined).
  * @param existing - Qdrant `payload_schema`: field name to its index info.
@@ -52,14 +111,18 @@ export interface PayloadIndexPlan {
  */
 export function planPayloadIndexes(
   configured: readonly PayloadIndexConfig[] | undefined,
-  existing: Record<string, { data_type?: string } | undefined>,
+  existing: Record<string, ExistingPayloadIndex | undefined>,
 ): PayloadIndexPlan {
   const desired = new Map<string, PayloadIndexConfig>();
   for (const index of [...SYSTEM_PAYLOAD_INDEXES, ...(configured ?? [])]) {
     desired.set(index.field, index);
   }
 
-  const plan: PayloadIndexPlan = { create: [], mismatches: [] };
+  const plan: PayloadIndexPlan = {
+    create: [],
+    mismatches: [],
+    flagMismatches: [],
+  };
   for (const index of desired.values()) {
     const current = existing[index.field];
     if (!current) {
@@ -70,6 +133,8 @@ export function planPayloadIndexes(
         expected: index.type,
         actual: current.data_type ?? 'unknown',
       });
+    } else {
+      plan.flagMismatches.push(...flagMismatches(index, current));
     }
   }
   return plan;
@@ -128,6 +193,12 @@ export async function ensurePayloadIndexes(
     getLogger(logger).warn(
       { collectionName, ...mismatch },
       'Existing payload index type differs from configuration; leaving it unchanged',
+    );
+  }
+  for (const mismatch of plan.flagMismatches) {
+    getLogger(logger).warn(
+      { collectionName, ...mismatch },
+      `Existing payload index ${mismatch.flag} differs from configuration; leaving it unchanged (drop the index to recreate it)`,
     );
   }
 

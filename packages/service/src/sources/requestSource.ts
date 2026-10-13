@@ -17,6 +17,44 @@ const JSON_CONTENT_TYPE = 'application/json';
 /** Status of a successful callback. */
 const OK_STATUS = 200;
 
+/** Largest callback response body accepted (10 MiB). */
+export const MAX_SOURCE_RESPONSE_BYTES = 10 * 1024 * 1024;
+
+/**
+ * Read a response body as UTF-8, giving up once it exceeds `maxBytes`
+ * (checked against `Content-Length` first, then while streaming).
+ *
+ * @param response - The response.
+ * @param maxBytes - Size cap in bytes.
+ * @returns The text, or `undefined` when the body is too large.
+ */
+async function readCapped(
+  response: Response,
+  maxBytes: number,
+): Promise<string | undefined> {
+  const declared = Number(response.headers.get('content-length') ?? NaN);
+  if (declared > maxBytes || !response.body) {
+    await response.body?.cancel();
+    return declared > maxBytes ? undefined : '';
+  }
+  const reader: ReadableStreamDefaultReader<Uint8Array> =
+    response.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  for (;;) {
+    const result = await reader.read();
+    if (result.done) break;
+    const value: Uint8Array = result.value;
+    size += value.byteLength;
+    if (size > maxBytes) {
+      await reader.cancel();
+      return undefined;
+    }
+    chunks.push(value);
+  }
+  return Buffer.concat(chunks).toString('utf8');
+}
+
 function error(code: SourceErrorCode, message: string): SourceRetrievalResult {
   return { kind: 'error', code, message };
 }
@@ -70,7 +108,13 @@ async function classify(
       `${prefix} returned content type "${type || '(none)'}"; only ${JSON_CONTENT_TYPE} is supported`,
     );
   }
-  const text = await response.text();
+  const text = await readCapped(response, MAX_SOURCE_RESPONSE_BYTES);
+  if (text === undefined) {
+    return error(
+      'source_unavailable',
+      `${prefix} response too large (over ${String(MAX_SOURCE_RESPONSE_BYTES)} bytes)`,
+    );
+  }
   let body: unknown;
   try {
     body = JSON.parse(text);
@@ -92,7 +136,8 @@ async function classify(
  * Mapping: `200` + `application/json` (parameters such as `charset`
  * allowed) + JSON object → `document`; `404` → `gone`; `200` with another
  * content type or non-object JSON → `unsupported_content_type`; anything
- * else (timeout, network error, invalid JSON, `3xx` — redirects are not
+ * else (timeout, network error, invalid JSON, a body over
+ * {@link MAX_SOURCE_RESPONSE_BYTES} ("response too large"), `3xx` — redirects are not
  * followed — and every other status, including `4xx` such as `401`/`403`)
  * → `source_unavailable`, so a misconfigured or failing source can never
  * cause points to be deleted. Messages carry the source name and status

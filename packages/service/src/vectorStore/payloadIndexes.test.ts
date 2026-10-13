@@ -1,6 +1,6 @@
 /**
  * @module vectorStore/payloadIndexes.test
- * Unit tests for the payload index planner, Qdrant field-schema mapping and ensurePayloadIndexes (create missing, never drop, warn on type mismatch).
+ * Unit tests for the payload index planner, Qdrant field-schema mapping and ensurePayloadIndexes (create missing, never drop, warn on type and tenant/principal flag mismatch).
  */
 
 import type pino from 'pino';
@@ -73,7 +73,29 @@ describe('planPayloadIndexes', () => {
       source: { data_type: 'keyword' },
       source_rule: { data_type: 'keyword' },
     });
-    expect(plan).toEqual({ create: [], mismatches: [] });
+    expect(plan).toEqual({ create: [], mismatches: [], flagMismatches: [] });
+  });
+
+  it('reports an is_tenant / is_principal mismatch on a same-type index', () => {
+    const plan = planPayloadIndexes(
+      [
+        { field: 'user_id', type: 'keyword', isTenant: true },
+        { field: 'ts', type: 'integer' },
+        { field: 'ok', type: 'keyword', isTenant: true },
+      ],
+      {
+        source: { data_type: 'keyword' },
+        source_rule: { data_type: 'keyword' },
+        user_id: { data_type: 'keyword' },
+        ts: { data_type: 'integer', params: { is_principal: true } },
+        ok: { data_type: 'keyword', params: { is_tenant: true } },
+      },
+    );
+    expect(plan.create).toEqual([]);
+    expect(plan.flagMismatches).toEqual([
+      { field: 'user_id', flag: 'is_tenant', expected: true, actual: false },
+      { field: 'ts', flag: 'is_principal', expected: false, actual: true },
+    ]);
   });
 });
 
@@ -172,6 +194,33 @@ describe('ensurePayloadIndexes', () => {
         actual: 'integer',
       }),
       expect.stringContaining('differs'),
+    );
+  });
+
+  it('warns on an is_tenant mismatch and leaves the index alone', async () => {
+    const { client, createPayloadIndex } = makeClient({
+      source: { data_type: 'keyword' },
+      source_rule: { data_type: 'keyword' },
+      user_id: { data_type: 'keyword' },
+    });
+    const logger = makeLogger();
+
+    await ensurePayloadIndexes(
+      client,
+      'col',
+      [{ field: 'user_id', type: 'keyword', isTenant: true }],
+      logger as unknown as pino.Logger,
+    );
+
+    expect(createPayloadIndex).not.toHaveBeenCalled();
+    expect(logger.warn).toHaveBeenCalledWith(
+      expect.objectContaining({
+        field: 'user_id',
+        flag: 'is_tenant',
+        expected: true,
+        actual: false,
+      }),
+      expect.stringContaining('is_tenant differs'),
     );
   });
 

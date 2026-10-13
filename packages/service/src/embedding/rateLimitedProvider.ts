@@ -1,6 +1,14 @@
 /**
  * @module embedding/rateLimitedProvider
- * Shared token-bucket limiter wrapping an EmbeddingProvider: one token per embed() request (batch), 429 Retry-After pauses all callers, bounded retries. Sleeps via timers; no other I/O.
+ * Shared token-bucket limiter wrapping an EmbeddingProvider: one token per HTTP request (internal provider retries included), 429 Retry-After pauses all callers (fail fast beyond maxBackoffMs), bounded retries. Sleeps via timers; no other I/O.
+ *
+ * 429 handling: a `Retry-After` within `maxBackoffMs` is honoured in full and
+ * pauses every caller. A longer `Retry-After` is not waited for: the call
+ * fails at once with `EmbeddingUnavailableError` (carrying `retryAfterMs`)
+ * instead of retrying early and burning attempts, and every other call fails
+ * the same way until the provider's pause has passed. Without `Retry-After`,
+ * the pause backs off exponentially from `baseBackoffMs`, capped at
+ * `maxBackoffMs`.
  */
 
 import type pino from 'pino';
@@ -26,7 +34,10 @@ export interface RateLimitedEmbeddingProviderOptions {
    * Unset means no request-rate limit (429 pauses still apply).
    */
   rateLimitPerMinute?: number;
-  /** Cap on any single 429 pause, in ms (`Retry-After` included). */
+  /**
+   * Longest 429 pause waited for, in ms. A longer `Retry-After` fails the
+   * call fast with `EmbeddingUnavailableError`; computed backoff is capped.
+   */
   maxBackoffMs: number;
   /** Default provider attempts per call. Default: 5. */
   attempts?: number;
@@ -97,10 +108,12 @@ export class RateLimitedEmbeddingProvider implements EmbeddingProvider {
         : Date.now() + options.maxWaitMs;
 
     let lastError: EmbeddingRateLimitError | undefined;
+    // Each internal provider retry is a request too: it takes a token.
+    const beforeRetry = () => this.acquire(deadlineMs, lastError);
     for (let attempt = 1; attempt <= attempts; attempt++) {
       await this.acquire(deadlineMs, lastError);
       try {
-        return await this.inner.embed(texts);
+        return await this.inner.embed(texts, { beforeRetry });
       } catch (error) {
         if (!(error instanceof EmbeddingRateLimitError)) throw error;
         lastError = error;
@@ -114,15 +127,21 @@ export class RateLimitedEmbeddingProvider implements EmbeddingProvider {
     );
   }
 
-  /** Pause every caller after a 429, honouring `Retry-After` up to the cap. */
+  /**
+   * Pause every caller after a 429: `Retry-After` in full, or exponential
+   * backoff capped at `maxBackoffMs`.
+   *
+   * @throws EmbeddingUnavailableError when `Retry-After` exceeds `maxBackoffMs`.
+   */
   private pauseFor(
     error: EmbeddingRateLimitError,
     attempt: number,
     attempts: number,
   ): void {
-    const requested =
-      error.retryAfterMs ?? this.baseBackoffMs * 2 ** (attempt - 1);
-    const pauseMs = Math.min(requested, this.maxBackoffMs);
+    const { retryAfterMs } = error;
+    const pauseMs =
+      retryAfterMs ??
+      Math.min(this.baseBackoffMs * 2 ** (attempt - 1), this.maxBackoffMs);
     const now = Date.now();
     this.pausedUntilMs = Math.max(this.pausedUntilMs, now + pauseMs);
 
@@ -135,6 +154,18 @@ export class RateLimitedEmbeddingProvider implements EmbeddingProvider {
         err: normalizeError(error),
       },
       'Embedding provider rate-limited; pausing all embedding requests',
+    );
+    if (pauseMs > this.maxBackoffMs) throw this.pauseTooLong(pauseMs, error);
+  }
+
+  /** The fail-fast error for a provider pause longer than `maxBackoffMs`. */
+  private pauseTooLong(
+    waitMs: number,
+    cause: EmbeddingRateLimitError | undefined,
+  ): EmbeddingUnavailableError {
+    return new EmbeddingUnavailableError(
+      `Embedding provider asked to wait ${String(waitMs)} ms, more than maxBackoffMs (${String(this.maxBackoffMs)} ms)`,
+      { cause, retryAfterMs: waitMs },
     );
   }
 
@@ -171,7 +202,9 @@ export class RateLimitedEmbeddingProvider implements EmbeddingProvider {
     for (;;) {
       const now = Date.now();
       this.refill(now);
-      const waitMs = Math.max(this.pauseRemainingMs(now), this.tokenWaitMs());
+      const pauseMs = this.pauseRemainingMs(now);
+      if (pauseMs > this.maxBackoffMs) throw this.pauseTooLong(pauseMs, cause);
+      const waitMs = Math.max(pauseMs, this.tokenWaitMs());
 
       if (waitMs === 0) {
         this.tokens -= 1;
