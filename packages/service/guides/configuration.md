@@ -8,21 +8,23 @@ Complete reference for all `jeeves-watcher` configuration options.
 
 ## Configuration File
 
-The configuration file is auto-discovered via [cosmiconfig](https://github.com/cosmiconfig/cosmiconfig) in this order:
+The CLI always takes the config path explicitly: `jeeves-watcher start -c <path>` (and `service install -c <path>`, `config validate -c <path>`). `start` loads the file with [cosmiconfig](https://github.com/cosmiconfig/cosmiconfig), so it may be JSON, YAML or JavaScript/TypeScript; `jeeves-watcher init -o <dir>` writes `<dir>/config.json`.
 
-1. `--config <path>` CLI flag (explicit path)
-2. Cosmiconfig search (current directory upward):
-   - `jeeves-watcher` property in `package.json`
-   - `.jeeves-watcherrc` (JSON or YAML)
-   - `.jeeves-watcherrc.json`, `.jeeves-watcherrc.yaml`, `.jeeves-watcherrc.yml`
-   - `.jeeves-watcherrc.js`, `.jeeves-watcherrc.ts`, `.jeeves-watcherrc.cjs`
-   - `jeeves-watcher.config.js`, `jeeves-watcher.config.ts`, `jeeves-watcher.config.cjs`
+Only programmatic use without a path (`startFromConfig()` or `loadConfig()` with no argument) searches for a config: a legacy `jeeves-watcher.config.json` in the working directory is first moved to `jeeves-watcher/config.json` and that file is loaded; otherwise cosmiconfig searches the working directory (not its parents) for:
+
+- a `jeeves-watcher` property in `package.json`
+- `.jeeves-watcherrc` (JSON or YAML)
+- `.jeeves-watcherrc.json`, `.yaml`, `.yml`, `.js`, `.ts`, `.cjs`, `.mjs`
+- the same `jeeves-watcherrc` files under `.config/` (for example `.config/jeeves-watcherrc.json`)
+- `jeeves-watcher.config.js`, `.ts`, `.cjs`, `.mjs`
+
+When the config is loaded, string `inferenceRules` entries and string `maps` values (JSON file paths) are read relative to the config file's directory, defaults are applied and `${ENV_VAR}` references are substituted (see [Environment Variable Substitution](#environment-variable-substitution)).
 
 ### Schema Validation
 
 The `init` command generates a config with a `$schema` pointer for IDE autocomplete and validation:
 
-```json
+```jsonc
 {
   "$schema": "node_modules/@karmaniverous/jeeves-watcher/config.schema.json",
   "watch": { ... }
@@ -30,6 +32,10 @@ The `init` command generates a config with a `$schema` pointer for IDE autocompl
 ```
 
 This enables IntelliSense in VSCode and other editors that support JSON Schema.
+
+`jeeves-watcher config validate -c <path>` checks a JSON config file against the same schema (without substituting `${ENV_VAR}` references or loading rule files). A running service validates a candidate config more deeply with [`POST /config/validate`](./api-reference.md#post-configvalidate).
+
+Top-level keys the schema does not define are dropped without an error or warning. In particular `metadataDir`, `extractors` and `slots`, documented by older versions, are not config keys: enrichment lives in the SQLite enrichment store under [`stateDir`](#-persistent-state), and extractors are built in (see [Text Extraction](./architecture.md#text-extraction)).
 
 > **Check the version before deploying new keys.** Versions before 0.20.0 silently ignore config keys they do not know. A config that uses `sources`, `api.apiKey` or `vectorStore.payloadIndexes` loads without error on an older watcher, which then runs without those features (for example, with an open API). Confirm `jeeves-watcher --version` reports 0.20.0 or later before deploying such a config.
 
@@ -43,18 +49,15 @@ interface JeevesWatcherConfig {
   configWatch?: ConfigWatchConfig;
   embedding: EmbeddingConfig;
   vectorStore: VectorStoreConfig;
-  metadataDir?: string;
-  stateDir?: string; // Directory for persistent state files
+  stateDir?: string; // Persistent state directory (default ".jeeves-metadata")
   api?: ApiConfig;
-  extractors?: Record<string, unknown>;
-  inferenceRules?: InferenceRule[];
+  inferenceRules?: (InferenceRule | string)[]; // Inline rules or JSON rule file paths
   maps?: Record<string, unknown>; // Named JsonMap definitions
   templates?: Record<string, unknown>; // Named template definitions
   mapHelpers?: Record<string, HelperRef>; // Named map helper modules
   templateHelpers?: Record<string, HelperRef>; // Named template helper modules
-  slots?: Record<string, QdrantFilter>; // Named Qdrant filter patterns
-  search?: SearchConfig; // Search behavior settings (scoreThresholds in v0.5.0+)
-  reindex?: ReindexConfig; // Reindex behavior settings
+  search?: SearchConfig; // Score thresholds and hybrid search
+  reindex?: ReindexConfig; // Completion callback and concurrency
   vcs?: VcsConfig; // Version control settings
   sources?: Record<string, SourceConfig>; // Named callback sources for source documents (v0.20.0+)
   logging?: LoggingConfig;
@@ -142,24 +145,28 @@ See [Inference Rules Guide](./inference-rules.md) for merge semantics and usage 
 
 | Field | Type | Default | Description |
 | --- | --- | --- | --- |
-| `paths` | `string[]` | **Required** | Glob patterns for files to watch. Supports picomatch syntax. |
-| `ignored` | `string[]` | `[]` | Glob patterns to exclude from watching. |
-| `debounceMs` | `number` | `300` | Wait this long after last change before processing (prevents re-embedding during rapid edits). |
+| `paths` | `(string \| { path, vcs? })[]` | **Required** | Glob patterns for files to watch (at least one). Supports picomatch syntax. An entry may be an object with a `path` glob and per-root `vcs` overrides (see [Version Control](./version-control.md#per-root-overrides)). |
+| `ignored` | `string[]` | `["**/node_modules/**"]` | Glob patterns to exclude from watching. Setting the key replaces the default, so list `**/node_modules/**` again if you need it. |
+| `debounceMs` | `number` | `300` | Events for the same file are collapsed until this long has passed since the last one (prevents re-embedding during rapid edits). |
 | `stabilityThresholdMs` | `number` | `500` | File must be stable (no size changes) for this long before processing. |
 | `pollIntervalMs` | `number` | `1000` | Polling interval if `usePolling` is enabled. |
 | `usePolling` | `boolean` | `false` | Use polling instead of native filesystem events. Enable for network drives or Docker volumes. |
 | `respectGitignore` | `boolean` | `true` | Skip files ignored by `.gitignore` in git repositories. Nested `.gitignore` files are respected within their subtree. Only applies to repos with a `.git` directory. |
+| `moveDetection.enabled` | `boolean` | `true` | Treat an unlink followed by an add of the same content as a move: the points are re-keyed to the new path without re-embedding. |
+| `moveDetection.bufferMs` | `integer` | `2000` | How long (ms, min 100) an unlink is held while waiting for a matching add before it is treated as a delete. |
+
+A config reload that changes `paths`, `ignored`, `moveDetection` or `respectGitignore` rebuilds the filesystem watcher with the new `watch` settings; a change to the other keys alone does not. `debounceMs` belongs to the file event queue and is read at startup only.
 
 **Glob examples:**
 
-```json
+```jsonc
 {
   "paths": [
     "d:/email/archive/**/*.json", // All .json files under archive (Windows)
     "./meetings/**/*.{txt,md}", // .txt or .md files under meetings
     "**/*.pdf", // All PDFs recursively
-    "/absolute/path/to/docs/**" // Absolute path (Linux/macOS)
-  ]
+    "/absolute/path/to/docs/**", // Absolute path (Linux/macOS)
+  ],
 }
 ```
 
@@ -180,13 +187,16 @@ See [Inference Rules Guide](./inference-rules.md) for merge semantics and usage 
 | --- | --- | --- | --- |
 | `enabled` | `boolean` | `true` | Watch config file for changes and trigger scoped reindex. |
 | `debounceMs` | `number` | `1000` | Debounce window for config changes. |
-| `reindex` | `string` | `"issues"` | Reindex scope on config change: `"issues"` (re-process failed files), `"rules"` (re-apply inference rules), or `"full"` (re-embed all files). Note: `"path"` and `"prune"` are NOT valid for auto-trigger. |
+| `reindex` | `string` | `"issues"` | Reindex scope on config change: `"issues"` (re-process files with open issues), `"rules"` (re-apply inference rules without re-embedding), or `"full"` (clear the values index and re-process every watched file; files whose embedded text is unchanged are still skipped by content hash). `"path"` and `"prune"` fail config validation here. |
 
 When the config file changes:
 
-1. Watcher reloads and validates the new config
-2. Inference rules are recompiled
-3. A reindex is triggered with the configured scope
+1. Watcher reloads and validates the new config (non-fatal warnings, such as a rule property named like a reserved system field, are logged)
+2. Inference rules are recompiled and templates and helpers rebuilt
+3. The filesystem watcher is rebuilt if the `watch` settings changed
+4. A reindex is triggered with the configured scope
+
+A reload that fails (invalid config, unreadable rule file) is logged as `Failed to reload config` and the previous config stays in effect. `POST /config/apply` triggers the same `configWatch.reindex` scope after it writes the file.
 
 The config-triggered reindex covers files only; source documents are re-processed by an explicit `POST /reindex`. Settings read only at startup (`api.apiKey`, `sources`, `vectorStore.payloadIndexes`) do not change on reload: restart the watcher.
 
@@ -211,12 +221,12 @@ The config-triggered reindex covers files only; source documents are re-processe
 
 | Field | Type | Default | Description |
 | --- | --- | --- | --- |
-| `provider` | `string` | `"gemini"` | Embedding provider: `"gemini"`, `"mock"`. |
+| `provider` | `string` | `"gemini"` | Embedding provider: `"gemini"`, `"mock"`. Any other name stops the service at startup (`Unsupported embedding provider`). |
 | `model` | `string` | `"gemini-embedding-001"` | Model name (e.g., `"gemini-embedding-001"` for Gemini). |
-| `apiKey` | `string` | `undefined` | API key. Supports `${ENV_VAR}` template syntax. Required for production providers (not mock). |
+| `apiKey` | `string` | `undefined` | API key. Supports `${ENV_VAR}` template syntax. Required by the Gemini provider (startup fails without it); ignored by mock. |
 | `chunkSize` | `number` | `1000` | Maximum characters per chunk for text splitting. |
 | `chunkOverlap` | `number` | `200` | Overlap between consecutive chunks (helps preserve context at boundaries). |
-| `dimensions` | `number` | Provider default | Vector dimensions. Gemini `gemini-embedding-001` = 3072. |
+| `dimensions` | `number` | `3072` | Vector dimensions: the size of a new collection, and the length every Gemini vector must have. Must match an existing collection. |
 | `rateLimitPerMinute` | `number` | `300` | Max embedding API **requests** per minute, shared by every caller. `0` disables the request-rate limit. See [Rate Limiting](#embedding-rate-limiting). |
 | `concurrency` | `number` | `5` | Max documents processed concurrently by the file event queue, and by the source-document notify queue. |
 
@@ -268,6 +278,8 @@ On HTTP `429` the limiter pauses **every** caller for the provider's `Retry-Afte
 **Models:**
 
 - `gemini-embedding-001` - 3072 dimensions (recommended)
+
+The provider calls the Gemini `batchEmbedContents` REST endpoint without requesting a reduced output size, so `dimensions` must equal the model's native size (3072 for `gemini-embedding-001`); otherwise every embedding fails with `Gemini embedding returned invalid dimensions`. The `init` template sets `dimensions` to `768`: change it to `3072` when using Gemini.
 
 #### Mock (Testing)
 
@@ -356,34 +368,6 @@ Behaviour:
 
 ---
 
-## `metadataDir` - Metadata Storage
-
-```json
-{
-  "metadataDir": ".jeeves-watcher"
-}
-```
-
-| Field | Type | Default | Description |
-| --- | --- | --- | --- |
-| `metadataDir` | `string` | `".jeeves-watcher"` | Directory for `.meta.json` sidecar files. Mirrors watched filesystem hierarchy. |
-
-Metadata enrichment (via `POST /metadata`) is persisted here, separate from Qdrant. This ensures enrichment survives Qdrant rebuilds.
-
-**Directory structure:**
-
-```
-.jeeves-watcher/
-  d/
-    projects/
-      my-project/
-        readme.md.meta.json
-```
-
-For a file at `D:\projects\my-project\readme.md`, the metadata sidecar is at `.jeeves-watcher/d/projects/my-project/readme.md.meta.json`.
-
----
-
 ## `api` - HTTP API Server
 
 ```json
@@ -405,40 +389,6 @@ For a file at `D:\projects\my-project\readme.md`, the metadata sidecar is at `.j
 The API provides endpoints for search, metadata enrichment, reindexing, and status. See [API Reference](./api-reference.md).
 
 When `apiKey` is set, every request except `GET /status` must send `Authorization: Bearer <apiKey>`, or it gets `401`. It must be non-empty: `""`, or a `${...}` that substitutes to an empty string, fails config validation, and an unresolved `${...}` stops the service at startup. Omit the key to run without authentication. The whole `api` block is left out of `GET /config`. Changing the key requires a restart. The CLI API commands read the key from `--api-key` or `JEEVES_WATCHER_API_KEY`, and the OpenClaw plugin from its `apiKey` setting or the same variable; setting `apiKey` here does not configure them. See [Authentication](./api-reference.md#authentication).
-
----
-
-## `extractors` - Text Extraction (Advanced)
-
-```json
-{
-  "extractors": {
-    ".md": "markdown",
-    ".txt": "plaintext",
-    ".json": "json-content",
-    ".pdf": "pdf-parse",
-    ".docx": "docx-extract",
-    ".html": "html-to-text"
-  }
-}
-```
-
-Maps file extensions to extraction strategies. **Usually not needed** - defaults cover common formats.
-
-### JSON Content Extraction
-
-For `.json` files, the extractor looks for text content in these fields (in order):
-
-1. `content`
-2. `body`
-3. `text`
-4. `snippet`
-5. `subject`
-6. `description`
-7. `summary`
-8. `transcript`
-
-If none are found, the entire JSON is stringified for embedding.
 
 ---
 
@@ -503,17 +453,21 @@ If none are found, the entire JSON is stringified for embedding.
 
 Each rule requires:
 
-- **`name`** (string, required, unique) — Rule identifier
-- **`description`** (string, required) — Human-readable purpose
-- **`match`** (JSON Schema object) — File attributes matcher
-- **`schema`** (array of schema references and/or inline objects) — Metadata schema with `set` templates
+- **`name`** (non-empty string, unique): rule identifier
+- **`description`** (non-empty string): human-readable purpose
+- **`match`** (JSON Schema object): attributes matcher
 
 Optional fields:
 
-- **`map`** (JsonMap or named reference) — Transformation to derive metadata
-- **`template`** (Handlebars template) — Content transformation for embedding
+- **`schema`** (array of named schema references and/or inline objects): metadata schema with `set` templates
+- **`map`** (inline JsonMap, named map reference, or `.json` file path): transformation to derive metadata
+- **`template`** (inline Handlebars string, named template, or `.hbs`/`.handlebars` file path): content transformation for embedding
+- **`render`** (declarative `frontmatter` + `body` sections): structured Markdown output; mutually exclusive with `template`
+- **`renderAs`** (1–10 lowercase alphanumeric characters, e.g. `"md"`): output file extension override; requires `template` or `render`
 
-| `renderAs` | `string?` | Output file extension override (without dot, e.g. `"md"`). Requires `template` or `render`. 1–10 lowercase alphanumeric chars. | See [Inference Rules Guide](./inference-rules.md) for full details on schema merge semantics, type coercion, and `uiHint`.
+An `inferenceRules` entry may also be a string: the path of a JSON file holding one rule, resolved relative to the config file's directory.
+
+See the [Inference Rules Guide](./inference-rules.md) for full details on schema merge semantics, type coercion, `uiHint` and reserved field names.
 
 ---
 
@@ -523,21 +477,24 @@ Optional fields:
 
 Rules can reference these by name via `inferenceRules[*].map: "mapName"`.
 
-Maps support an optional description wrapper format:
+Each value is an inline JsonMap, a `.json` file path (resolved relative to the config directory when the config loads), or a wrapper object `{ "map": <JsonMap or file path>, "description": "..." }`:
 
 ```json
 {
   "maps": {
     "extractProject": {
       "description": "Extract project name from first path segment",
-      "project": {
-        "$": [
-          { "method": "$.lib.split", "params": ["$.input.file.path", "/"] },
-          { "method": "$.lib.slice", "params": ["$[0]", 0, 1] },
-          { "method": "$.lib.join", "params": ["$[0]", ""] }
-        ]
+      "map": {
+        "project": {
+          "$": [
+            { "method": "$.lib.split", "params": ["$.input.file.path", "/"] },
+            { "method": "$.lib.slice", "params": ["$[0]", 0, 1] },
+            { "method": "$.lib.join", "params": ["$[0]", ""] }
+          ]
+        }
       }
-    }
+    },
+    "fromFile": "maps/from-file.json"
   }
 }
 ```
@@ -558,7 +515,7 @@ Maps support an optional description wrapper format:
 }
 ```
 
-Named object format (`Record<string, { path, description? }>`). Helper names are namespace-prefixed when loaded (e.g., `dateUtils.parseDate`).
+Named object format (`Record<string, { path, description? }>`), paths relative to the config directory. Every exported function of the module (or of its default-export object) is added to the JsonMap `$.lib` as `<namespace>_<export>` (e.g., `$.lib.dateUtils_parseDate`).
 
 ---
 
@@ -576,7 +533,7 @@ Named object format (`Record<string, { path, description? }>`). Helper names are
 }
 ```
 
-Named object format (`Record<string, { path, description? }>`). Helper names are namespace-prefixed when registered with Handlebars (e.g., `jira.ticketUrl`).
+Named object format (`Record<string, { path, description? }>`), paths relative to the config directory. The module's default export is called as `register(handlebars, namespace)`; every helper it registers is renamed to `<namespace>_<name>` (e.g., `{{jira_ticketUrl key}}`).
 
 ---
 
@@ -594,29 +551,7 @@ Named object format (`Record<string, { path, description? }>`). Helper names are
 }
 ```
 
-Templates support an optional description wrapper format alongside direct string values.
-
----
-
-## `slots` - Named Qdrant Filter Patterns
-
-Reusable filter patterns referenced by name in search operations.
-
-```json
-{
-  "slots": {
-    "meetings-only": {
-      "must": [{ "key": "domain", "match": { "value": "meetings" } }]
-    },
-    "recent-projects": {
-      "must": [{ "key": "domain", "match": { "value": "projects" } }],
-      "must_not": [{ "key": "labels", "match": { "value": "archived" } }]
-    }
-  }
-}
-```
-
-Each slot is a standard [Qdrant filter object](https://qdrant.tech/documentation/concepts/filtering/).
+Each value is a template string or a wrapper object `{ "template": "...", "description": "..." }`. A string ending in `.hbs` or `.handlebars` is a file path (relative to the config directory); any other string is the template source.
 
 ---
 
@@ -629,6 +564,10 @@ Each slot is a standard [Qdrant filter object](https://qdrant.tech/documentation
       "strong": 0.85,
       "relevant": 0.7,
       "noise": 0.5
+    },
+    "hybrid": {
+      "enabled": true,
+      "textWeight": 0.3
     }
   }
 }
@@ -636,9 +575,15 @@ Each slot is a standard [Qdrant filter object](https://qdrant.tech/documentation
 
 | Field | Type | Default | Description |
 | --- | --- | --- | --- |
-| `scoreThresholds.strong` | `number` | `0.85` | Score above which results are considered strong matches. |
-| `scoreThresholds.relevant` | `number` | `0.70` | Score above which results are considered relevant. |
-| `scoreThresholds.noise` | `number` | `0.50` | Score below which results are considered noise. |
+| `scoreThresholds.strong` | `number` | none | Minimum score for a strong match (-1 to 1). |
+| `scoreThresholds.relevant` | `number` | none | Minimum score for a relevant match (-1 to 1). |
+| `scoreThresholds.noise` | `number` | none | Score below which results are noise (-1 to 1). |
+| `hybrid.enabled` | `boolean` | `false` | Combine vector search with full-text (BM25) search on `chunk_text`, fused with RRF. |
+| `hybrid.textWeight` | `number` | `0.3` | Weight of the text results in the fusion (0 to 1). |
+
+`scoreThresholds` has no defaults: the block is optional, but when present all three values are required. The service does not use them itself: they are published in `GET /config` for clients that grade results (the OpenClaw plugin, for example, tells agents to read them there).
+
+With `hybrid.enabled`, the watcher creates a full-text index on `chunk_text` at startup if it is missing. Searches read the `hybrid` settings on every request, so a reload switches modes; after enabling hybrid search, restart once so the index exists.
 
 ---
 
@@ -646,13 +591,21 @@ Each slot is a standard [Qdrant filter object](https://qdrant.tech/documentation
 
 ```json
 {
-  "stateDir": ".jeeves-watcher/state"
+  "stateDir": "/var/lib/jeeves-watcher"
 }
 ```
 
 | Field | Type | Default | Description |
 | --- | --- | --- | --- |
-| `stateDir` | `string` | `".jeeves-watcher/state"` | Directory for persistent state files (reindex tracking, issue records, etc.). |
+| `stateDir` | `string` | `".jeeves-metadata"` | Directory for the watcher's persistent state. Created if missing; a relative path resolves against the working directory. |
+
+Contents:
+
+- `enrichments.sqlite`: the enrichment store (metadata written by `POST /metadata` and `POST /rebuild-metadata`), a SQLite database opened with Node's built-in `node:sqlite` (WAL mode, so `-wal` and `-shm` files sit next to it)
+- `issues.json`: open processing issues, as returned by `GET /issues`
+- `values.v8`: the values index behind `GET /search/facets` and the rule `values` in `GET /config`
+
+The enrichment store is the only file that cannot be regenerated: back it up (see [Deployment](./deployment.md)). With VCS enabled, `stateDir` must not be equal to, inside, or a parent of any watch root; startup fails otherwise. Keep it out of the watched paths in any case (or add it to `watch.ignored`) so its files are not indexed.
 
 ---
 
@@ -661,14 +614,18 @@ Each slot is a standard [Qdrant filter object](https://qdrant.tech/documentation
 ```json
 {
   "reindex": {
-    "callbackUrl": "http://localhost:8080/webhook/reindex-complete"
+    "callbackUrl": "http://localhost:8080/webhook/reindex-complete",
+    "concurrency": 50
   }
 }
 ```
 
 | Field | Type | Default | Description |
 | --- | --- | --- | --- |
-| `callbackUrl` | `string` | `undefined` | URL to POST when a reindex completes. Retries with exponential backoff (3 attempts, 1s start). |
+| `callbackUrl` | `string` (URL) | `undefined` | URL to `POST` a JSON summary to when a reindex run completes. |
+| `concurrency` | `integer` (≥ 1) | `50` | Items a reindex works on at once: files, source documents submitted to the notify queue, and stored-rule lookups (issue-source discovery, `POST /reindex` with `source`). |
+
+The callback body is `{ scope, filesProcessed, durationMs, errors, sources? }`: `errors` lists the failed file paths, then the failed source references (or the run's error message when the run failed as a whole), and `sources` counts the source outcomes (`indexed`, `unchanged`, `deleted`, `failed`) when the run covered source documents. Delivery is attempted up to 3 times (exponential backoff from 1 s, capped at 4 s); a non-2xx answer counts as a failure. If every attempt fails, `Reindex callback delivery failed; giving up` is logged: the run's result is unaffected and the callback is not re-sent. Dry runs and `path` reindexes of source references send no callback. A failing file never stops a run: it is logged and listed in `errors`, and the remaining files are still processed.
 
 ---
 
@@ -685,7 +642,7 @@ Each slot is a standard [Qdrant filter object](https://qdrant.tech/documentation
 
 | Field | Type | Default | Description |
 | --- | --- | --- | --- |
-| `level` | `string` | `"info"` | Log level: `"debug"`, `"info"`, `"warn"`, `"error"`, `"silent"`. |
+| `level` | `string` | `"info"` | pino log level: `"trace"`, `"debug"`, `"info"`, `"warn"`, `"error"`, `"fatal"`, or `"silent"` to turn logging off. Any other value stops the service at startup. |
 | `file` | `string` | `undefined` | Log file path. If omitted, logs to stdout. |
 
 Uses structured JSON logging via [pino](https://github.com/pinojs/pino).
@@ -706,12 +663,13 @@ Uses structured JSON logging via [pino](https://github.com/pinojs/pino).
 
 On shutdown, the watcher (v0.20.0+ order):
 
-1. Closes the API server, so no new request (notification, reindex, ...) is accepted
-2. Stops the producers: config watch, VCS, filesystem watcher
-3. Drains the file event queue, then drains and stops the source notify queue (each step bounded by `shutdownTimeoutMs`; work still pending after that is dropped)
-4. Flushes the values index
-5. Closes the enrichment and issues stores, unless a queue step timed out: runs may then still be in flight, so the stores are left open (and a warning is logged) rather than closed under them
-6. Exits
+1. Stops the config watcher
+2. Closes the API server, so no new request (notification, reindex, ...) is accepted
+3. Stops the remaining producers: VCS (each root commits its pending files), then the filesystem watcher
+4. Drains and stops the file event queue, then drains and stops the source notify queue (each drain and each stop bounded by `shutdownTimeoutMs`); stopping drops work the drain did not reach and waits for in-flight runs
+5. Flushes the values index
+6. Closes the enrichment store, unless a queue step timed out: runs may then still be in flight, so the store is left open (and a warning is logged) rather than closed under them
+7. Exits
 
 ---
 
@@ -753,7 +711,8 @@ On shutdown, the watcher (v0.20.0+ order):
     },
     "defaultAccessToken": "${GIT_ACCESS_TOKEN}",
     "staleLockThresholdMs": 60000,
-    "maxConsecutiveFailures": 5
+    "maxConsecutiveFailures": 5,
+    "circuitBreakerCooldownMs": 300000
   }
 }
 ```
@@ -764,10 +723,12 @@ On shutdown, the watcher (v0.20.0+ order):
 | `commitThrottleMs` | `number` | `30000` | Throttle interval (ms) for batching commits (min: 1000). |
 | `maxBatchSize` | `number` | `1000` | Max files per commit batch (min: 1). |
 | `branch` | `string` | `"master"` | Git branch name for VCS operations. Squash retention and startup recovery target this branch. |
+| `author.name` | `string` | `"jeeves-watcher"` | Git commit author name, written to each repository's local git config at startup. |
+| `author.email` | `string` | `"watcher@localhost"` | Git commit author email. |
 | `commitMessage.enabled` | `boolean` | `true` | Enable AI-generated commit messages. |
 | `commitMessage.provider` | `string` | `"anthropic"` | LLM provider. |
 | `commitMessage.model` | `string` | `"claude-haiku-4-0"` | Model name. |
-| `commitMessage.apiKey` | `string` | `undefined` | API key (`${ENV_VAR}` supported). Falls back to OpenClaw gateway. |
+| `commitMessage.apiKey` | `string` | `undefined` | API key (`${ENV_VAR}` supported). Falls back to the provider key in the local OpenClaw config; without either, commits use a template message. |
 | `retention.maxAgeDays` | `number` | `30` | Squash commits older than this (min: 1). |
 | `retention.maxVersions` | `number` | `100` | Keep at most this many commits (min: 1). |
 | `retention.squashCron` | `string` | `"0 0 * * *"` | Cron schedule for squash (5-field format). |
@@ -778,7 +739,7 @@ On shutdown, the watcher (v0.20.0+ order):
 
 Retention defaults (30 days, 100 versions, daily midnight cron) apply automatically when `vcs.enabled` is `true`, even if the `retention` block is omitted.
 
-Per-root overrides (including `remote` and `accessToken`) are configured via `watch.paths` object entries. See [Version Control (VCS) Guide](./version-control.md) for full details on configuration, API endpoints, squash retention, and remote push.
+Per-root overrides (including `remote` and `accessToken`) are configured via `watch.paths` object entries. A per-root `vcs` block takes the schema defaults for omitted keys (notably `enabled: false`), not the root-level values; see [Per-Root Overrides](./version-control.md#per-root-overrides). The root-level `vcs` block is never returned by `GET /config`. See [Version Control (VCS) Guide](./version-control.md) for full details on configuration, API endpoints, squash retention, and remote push.
 
 ---
 
@@ -829,12 +790,14 @@ All string fields support `${ENV_VAR}` template syntax:
     "apiKey": "${GOOGLE_API_KEY}"
   },
   "vectorStore": {
+    "url": "https://qdrant.example.com:6333",
+    "collectionName": "jeeves_archive",
     "apiKey": "${QDRANT_API_KEY}"
   }
 }
 ```
 
-At runtime, these are replaced with actual environment variable values. For the secret-bearing values `api.apiKey`, `sources.*.url` and `sources.*.headers.*`, a reference that cannot be resolved stops the service at startup (the error names the config path, never the value). Set templates in inference rules use Handlebars `{{...}}` syntax (e.g. `{{frontmatter.title}}`), which is distinct from the `${...}` environment variable syntax used in config values like `embedding.apiKey`.
+When the config is loaded (at startup and on every reload), these are replaced with the environment variable values. A reference to a variable that is not set is left as the literal `${...}` text, except for the secret-bearing values `api.apiKey`, `sources.*.url` and `sources.*.headers.*`: there a reference that cannot be resolved stops the service at startup (the error names the config path, never the value). Set templates in inference rules use Handlebars `{{...}}` syntax (e.g. `{{frontmatter.title}}`), which is distinct from the `${...}` environment variable syntax used in config values like `embedding.apiKey`.
 
 ---
 
@@ -884,8 +847,7 @@ At runtime, these are replaced with actual environment variable values. For the 
     "url": "http://localhost:6333",
     "collectionName": "jeeves_archive"
   },
-  "metadataDir": ".jeeves-watcher",
-  "stateDir": ".jeeves-watcher/state",
+  "stateDir": "d:/jeeves-watcher/state",
   "api": {
     "host": "127.0.0.1",
     "port": 1936
