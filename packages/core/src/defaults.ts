@@ -85,7 +85,8 @@ export const INIT_CONFIG_TEMPLATE = {
   embedding: {
     provider: 'gemini' as const,
     model: 'gemini-embedding-001',
-    dimensions: 768,
+    /** The model's native size (the service requests exactly this size). */
+    dimensions: EMBEDDING_DEFAULTS.dimensions,
   },
   vectorStore: {
     url: 'http://127.0.0.1:6333',

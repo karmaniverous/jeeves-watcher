@@ -1,6 +1,6 @@
 /**
  * @module embedding/geminiProvider.test
- * Gemini embedding provider: vectors on success, 429 with Retry-After surfaced as EmbeddingRateLimitError without retrying, non-429 retries with backoff, beforeRetry awaited before every retry and honoured when it rejects.
+ * Gemini embedding provider: vectors on success, every request asks for the configured dimensions (outputDimensionality), 429 with Retry-After surfaced as EmbeddingRateLimitError without retrying, non-429 retries with backoff, beforeRetry awaited before every retry and honoured when it rejects.
  */
 
 import { EventEmitter } from 'node:events';
@@ -21,10 +21,11 @@ interface FakeResponse {
   headers?: Record<string, string>;
 }
 
-const { responses, request } = vi.hoisted(() => {
+const { responses, request, bodies } = vi.hoisted(() => {
   const responses: FakeResponse[] = [];
   const request = vi.fn();
-  return { responses, request };
+  const bodies: string[] = [];
+  return { responses, request, bodies };
 });
 
 vi.mock('node:https', () => ({
@@ -38,10 +39,12 @@ function installFakeRequest() {
   request.mockImplementation(
     (_options: unknown, onResponse: (res: EventEmitter) => void) => {
       const req = new EventEmitter() as EventEmitter & {
-        write: () => void;
+        write: (body: string) => void;
         end: () => void;
       };
-      req.write = () => undefined;
+      req.write = (body) => {
+        bodies.push(body);
+      };
       req.end = () => {
         const next = responses.shift() ?? { status: 500, body: 'no response' };
         const res = Object.assign(new EventEmitter(), {
@@ -71,6 +74,7 @@ const okBody = JSON.stringify({
 describe('createGeminiProvider', () => {
   beforeEach(() => {
     responses.length = 0;
+    bodies.length = 0;
     request.mockReset();
     installFakeRequest();
   });
@@ -83,6 +87,26 @@ describe('createGeminiProvider', () => {
     responses.push({ status: 200, body: okBody });
     const provider = createGeminiProvider(config);
     await expect(provider.embed(['a'])).resolves.toEqual([[0.1, 0.2]]);
+  });
+
+  it('requests the configured dimensions for every text (outputDimensionality)', async () => {
+    responses.push({
+      status: 200,
+      body: JSON.stringify({
+        embeddings: [{ values: [0.1, 0.2] }, { values: [0.3, 0.4] }],
+      }),
+    });
+    const provider = createGeminiProvider(config);
+
+    await provider.embed(['a', 'b']);
+
+    expect(JSON.parse(bodies[0])).toEqual({
+      requests: ['a', 'b'].map((text) => ({
+        model: 'models/gemini-embedding-001',
+        content: { parts: [{ text }] },
+        outputDimensionality: 2,
+      })),
+    });
   });
 
   it('surfaces 429 with Retry-After as EmbeddingRateLimitError, without retrying', async () => {

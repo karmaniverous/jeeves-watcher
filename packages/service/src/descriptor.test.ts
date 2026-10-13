@@ -45,6 +45,15 @@ describe('watcherDescriptor', () => {
     expect(typeof template).toBe('object');
   });
 
+  it('initTemplate sizes Gemini vectors at the default dimensions (gemini-embedding-001 native 3072)', () => {
+    const template = watcherDescriptor.initTemplate();
+    expect(template['embedding']).toMatchObject({
+      provider: 'gemini',
+      model: 'gemini-embedding-001',
+      dimensions: 3072,
+    });
+  });
+
   it('startCommand produces a valid node invocation', () => {
     const args = watcherDescriptor.startCommand('/path/to/config.json');
     expect(args[0]).toBe('node');

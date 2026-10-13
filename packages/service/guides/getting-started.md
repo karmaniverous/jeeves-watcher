@@ -51,7 +51,7 @@ This creates the directory if needed and writes `./jeeves-watcher/config.json` (
   "embedding": {
     "provider": "gemini",
     "model": "gemini-embedding-001",
-    "dimensions": 768
+    "dimensions": 3072
   },
   "vectorStore": {
     "url": "http://127.0.0.1:6333",
@@ -71,7 +71,7 @@ This creates the directory if needed and writes `./jeeves-watcher/config.json` (
 
 `stateDir` holds the watcher's persistent state: the issues file, the values index and the enrichment store (`enrichments.sqlite`). Relative `stateDir` and watch globs resolve against the watcher's working directory. Watch globs match dot-directories too, and the template's `watch.ignored` does not cover the default `stateDir`: when the watch globs reach the working directory, add `"**/.jeeves-metadata/**"` to `watch.ignored` (or move `stateDir` outside the watched paths) so state files such as `issues.json` are not indexed. `embedding.dimensions` must match the existing Qdrant collection, if there is one.
 
-> **Set `dimensions` to `3072` for Gemini.** The template's `768` does not match `gemini-embedding-001`, which returns 3072-dimensional vectors (the watcher does not request a smaller output size), so with the template value every embedding fails with `Gemini embedding returned invalid dimensions`. Change it before the first start, so the collection is created with the right size.
+> **Choose `dimensions` before the first start.** The template uses `3072`, the native size of `gemini-embedding-001`. The watcher asks Gemini for vectors of exactly the configured size, so a smaller supported size (such as `768`) also works and stores smaller vectors. The collection is created with this size on the first start; changing it later needs a new collection and a full reindex.
 
 ## Configure Watch Paths
 

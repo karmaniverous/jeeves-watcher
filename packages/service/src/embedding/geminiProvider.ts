@@ -26,10 +26,12 @@ import {
 } from './rateLimitError';
 import type { EmbeddingProvider, EmbedOptions } from './types';
 
-/** Shape of a single embedding request within a batch. */
+/** Shape of a single embedding request within a batch (`EmbedContentRequest`). */
 interface EmbedRequest {
   model: string;
   content: { parts: Array<{ text: string }> };
+  /** Requested vector size (the configured `dimensions`). */
+  outputDimensionality: number;
 }
 
 /** Shape of the batchEmbedContents API response. */
@@ -84,6 +86,10 @@ function httpsPost(
 
 /**
  * Create a Gemini embedding provider using the Google Generative AI REST API.
+ * Every request asks for vectors of the configured `dimensions`
+ * (`outputDimensionality`), so a size below the model's native one (e.g.
+ * 768 for `gemini-embedding-001`, native 3072) is honoured; a response of
+ * any other size fails.
  *
  * @param config - The embedding configuration.
  * @param logger - Optional pino logger for retry warnings.
@@ -127,6 +133,7 @@ export function createGeminiProvider(
           const requests: EmbedRequest[] = texts.map((text) => ({
             model: `models/${model}`,
             content: { parts: [{ text }] },
+            outputDimensionality: dimensions,
           }));
 
           const response = await httpsPost(url, JSON.stringify({ requests }));

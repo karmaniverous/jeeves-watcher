@@ -226,7 +226,7 @@ The config-triggered reindex covers files only; source documents are re-processe
 | `apiKey` | `string` | `undefined` | API key. Supports `${ENV_VAR}` template syntax. Required by the Gemini provider (startup fails without it); ignored by mock. |
 | `chunkSize` | `number` | `1000` | Maximum characters per chunk for text splitting. |
 | `chunkOverlap` | `number` | `200` | Overlap between consecutive chunks (helps preserve context at boundaries). |
-| `dimensions` | `number` | `3072` | Vector dimensions: the size of a new collection, and the length every Gemini vector must have. Must match an existing collection. |
+| `dimensions` | `number` | `3072` | Vector dimensions: the size of a new collection, and the vector size requested from Gemini (`outputDimensionality`). Must match an existing collection. |
 | `rateLimitPerMinute` | `number` | `300` | Max embedding API **requests** per minute, shared by every caller. `0` disables the request-rate limit. See [Rate Limiting](#embedding-rate-limiting). |
 | `concurrency` | `number` | `5` | Max documents processed concurrently by the file event queue, and by the source-document notify queue. |
 
@@ -279,7 +279,7 @@ On HTTP `429` the limiter pauses **every** caller for the provider's `Retry-Afte
 
 - `gemini-embedding-001` - 3072 dimensions (recommended)
 
-The provider calls the Gemini `batchEmbedContents` REST endpoint without requesting a reduced output size, so `dimensions` must equal the model's native size (3072 for `gemini-embedding-001`); otherwise every embedding fails with `Gemini embedding returned invalid dimensions`. The `init` template sets `dimensions` to `768`: change it to `3072` when using Gemini.
+The provider calls the Gemini `batchEmbedContents` REST endpoint and requests vectors of the configured `dimensions` (`outputDimensionality`), so any size the model supports works: `3072` (native, the default and the `init` template value) or a smaller one such as `768` or `1536`. A response of any other length fails with `Gemini embedding returned invalid dimensions`. Reduced-size Gemini vectors are not normalised; the collection's Cosine distance makes that irrelevant for search. `dimensions` must still match an existing collection.
 
 #### Mock (Testing)
 
