@@ -11,7 +11,6 @@ import type {
   SourceProcessorInterface,
 } from '../processor/types';
 import {
-  DEFAULT_SOURCE_NOTIFY_CONCURRENCY,
   SourceNotifyQueue,
   type SourceQueueIssues,
 } from '../queue/SourceNotifyQueue';
@@ -62,28 +61,25 @@ const unsupportedProcessor: SourceProcessorInterface = {
 
 /**
  * Create the source notify queue (always, so the API can depend on it; it
- * is idle when nothing is notified). Concurrency follows
- * `embedding.concurrency`, like the file event queue. The queue is not
- * started: call `start()` alongside the filesystem watcher.
+ * is idle when nothing is notified). The caller passes the resolved
+ * `embedding.concurrency`, shared with the file event queue. The queue is
+ * not started: call `start()` alongside the filesystem watcher.
  *
  * @param processor - The document processor.
- * @param config - The startup configuration.
+ * @param concurrency - Runs in flight at once (resolved embedding concurrency).
  * @param logger - Logger for unexpected run failures.
  * @param issues - Issues store for unexpected run failures.
  * @returns The (unstarted) queue.
  */
 export function createNotifyQueue(
   processor: DocumentProcessorInterface,
-  config: JeevesWatcherConfig,
+  concurrency: number,
   logger: pino.Logger,
   issues?: SourceQueueIssues,
 ): SourceNotifyQueue {
   return new SourceNotifyQueue(
     isSourceProcessor(processor) ? processor : unsupportedProcessor,
-    {
-      concurrency:
-        config.embedding.concurrency ?? DEFAULT_SOURCE_NOTIFY_CONCURRENCY,
-    },
+    { concurrency },
     logger,
     issues,
   );

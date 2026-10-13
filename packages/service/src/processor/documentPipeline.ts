@@ -5,7 +5,9 @@
 
 import type pino from 'pino';
 
+import { EMBEDDING_DEFAULTS } from '../config/defaults';
 import type { EmbeddingProvider } from '../embedding';
+import type { EnrichmentStoreInterface } from '../enrichment';
 import { contentHash } from '../hash';
 import type { ValuesManager } from '../values';
 import type { VectorStore } from '../vectorStore';
@@ -15,14 +17,21 @@ import {
   type DocumentIdentity,
   documentKey,
   documentPointId,
+  type DocumentTarget,
   identityLogFields,
+  storedIdentity,
 } from './documentIdentity';
-import { clearIssuesOnUnchanged, type ProcessorIssues } from './issueRecording';
+import {
+  clearIssuesOnUnchanged,
+  type ProcessorIssues,
+  withIssueType,
+} from './issueRecording';
 import { refreshMetadata } from './metadataRefresh';
 import { FIELD_CONTENT_HASH } from './payloadFields';
 import { embedAndUpsertDocument } from './processingPipeline';
 import type { ResolvedDocument } from './resolvers/types';
 import { createSplitter } from './splitter';
+import { withSystemFields } from './systemFields';
 
 /** Dependencies of the shared pipeline. */
 export interface PipelineContext {
@@ -32,9 +41,9 @@ export interface PipelineContext {
   vectorStore: VectorStore;
   /** Logger. */
   logger: pino.Logger;
-  /** Maximum chunk size in characters (default 1000). */
+  /** Maximum chunk size in characters (default `EMBEDDING_DEFAULTS.chunkSize`). */
   chunkSize?: number;
-  /** Chunk overlap in characters (default 200). */
+  /** Chunk overlap in characters (default `EMBEDDING_DEFAULTS.chunkOverlap`). */
   chunkOverlap?: number;
   /** Issues store. */
   issuesManager?: ProcessorIssues;
@@ -135,8 +144,8 @@ export async function indexDocument(
 
   const splitter = createSplitter(
     document.splitterExt,
-    ctx.chunkSize ?? 1000,
-    ctx.chunkOverlap ?? 200,
+    ctx.chunkSize ?? EMBEDDING_DEFAULTS.chunkSize,
+    ctx.chunkOverlap ?? EMBEDDING_DEFAULTS.chunkOverlap,
   );
   const dates = await document.dates(existing);
   const chunks = await embedAndUpsertDocument(
@@ -151,6 +160,68 @@ export async function indexDocument(
 
   ctx.issuesManager?.clear(key);
   return { status: 'indexed', chunks };
+}
+
+/** Dependencies of {@link updateDocumentMetadata}. */
+export interface MetadataUpdateContext {
+  /** Vector store. */
+  vectorStore: VectorStore;
+  /** Logger. */
+  logger: pino.Logger;
+  /** Enrichment store, keyed by {@link documentKey}. */
+  enrichmentStore?: EnrichmentStoreInterface;
+}
+
+/** Options of {@link updateDocumentMetadata}. */
+export interface MetadataUpdateOptions {
+  /**
+   * Store the enrichment even when the document is not indexed, so it
+   * applies once the document is indexed (files: `POST /metadata { path }`
+   * accepts metadata for a file not yet indexed). Otherwise nothing is
+   * stored for a document that is not indexed (sources).
+   */
+  storeWhenNotIndexed?: boolean;
+}
+
+/**
+ * Merge enrichment metadata into an indexed document's points (no re-embed).
+ * The identity is re-asserted from the stored chunk-0 point (stored
+ * `file_path` casing; stored designated rule) and system fields such as
+ * `matched_rules` are never overwritten.
+ *
+ * @param ctx - Vector store, logger and enrichment store.
+ * @param target - The document as requested.
+ * @param metadata - Enrichment metadata.
+ * @param options - See {@link MetadataUpdateOptions}.
+ * @returns The merged enrichment, or `null` when the document is not indexed.
+ * @throws ProcessingFailure `upsert_error` when the payload write fails; a
+ *   failed chunk-0 read propagates untagged.
+ */
+export async function updateDocumentMetadata(
+  ctx: MetadataUpdateContext,
+  target: DocumentTarget,
+  metadata: Record<string, unknown>,
+  options: MetadataUpdateOptions = {},
+): Promise<Record<string, unknown> | null> {
+  const key = documentKey(target);
+  if (options.storeWhenNotIndexed) ctx.enrichmentStore?.set(key, metadata);
+
+  const existing = await ctx.vectorStore.getPayload(documentPointId(target, 0));
+  const identity = existing ? storedIdentity(target, existing) : null;
+  if (!existing || !identity) return null;
+
+  if (!options.storeWhenNotIndexed) ctx.enrichmentStore?.set(key, metadata);
+  const merged = ctx.enrichmentStore?.get(key) ?? metadata;
+  const ids = documentChunkIds(identity, getChunkCount(existing));
+  await withIssueType('upsert_error', () =>
+    ctx.vectorStore.setPayload(ids, withSystemFields(merged, identity)),
+  );
+
+  ctx.logger.info(
+    { ...identityLogFields(identity), chunks: ids.length },
+    'Metadata updated',
+  );
+  return merged;
 }
 
 /**

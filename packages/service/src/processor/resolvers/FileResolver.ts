@@ -9,6 +9,8 @@ import { extname } from 'node:path';
 import type { ContentHashCache } from '../../cache';
 import { fileHash } from '../../hash';
 import { buildMergedMetadata } from '../buildMetadata';
+import { syncExtractText } from '../syncExtractText';
+import { applyRuleOptions, metadataWithRules } from './ruleOptions';
 import type {
   DocumentResolver,
   ResolvedDocument,
@@ -42,18 +44,15 @@ export class FileResolver implements DocumentResolver<string> {
       filePath,
       compiledRules: ctx.compiledRules,
       enrichmentStore: ctx.enrichmentStore,
-      maps: ctx.config.maps,
-      logger: ctx.logger,
-      templateEngine: ctx.templateEngine,
-      configDir: ctx.config.configDir,
-      customMapLib: ctx.config.customMapLib,
-      globalSchemas: ctx.config.globalSchemas,
+      ruleOptions: applyRuleOptions(ctx, { extractText: syncExtractText }),
     });
-    const metadataWithRules = {
-      ...result.metadata,
-      matched_rules: result.matchedRules,
+    return {
+      ...result,
+      metadataWithRules: metadataWithRules(
+        result.metadata,
+        result.matchedRules,
+      ),
     };
-    return { ...result, metadataWithRules, renderAs: result.renderAs };
   }
 
   /**

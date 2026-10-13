@@ -4,10 +4,7 @@
  * Core document processing pipeline. Resolves files and source documents, computes embeddings, syncs with vector store.
  */
 
-import type {
-  DocumentResult,
-  IssueType,
-} from '@karmaniverous/jeeves-watcher-core';
+import type { DocumentResult } from '@karmaniverous/jeeves-watcher-core';
 import type pino from 'pino';
 
 import type { ContentHashCache } from '../cache';
@@ -33,7 +30,12 @@ import {
   renderFileDocument,
   updateFileMetadata,
 } from './fileOperations';
-import { handleFileErrors, recordRuleErrors } from './issueRecording';
+import {
+  type FailureContext,
+  handleFailures,
+  recordRuleErrors,
+  UNTAGGED_ISSUE_TYPE,
+} from './issueRecording';
 import type { ProcessorConfig } from './ProcessorConfig';
 import type { RenderResult } from './renderResult';
 import { FileResolver } from './resolvers/FileResolver';
@@ -130,19 +132,17 @@ export class DocumentProcessor
   }
 
   /**
-   * Run an operation with standard file error handling: log, and record a
-   * typed issue when `issueType` (the code for untagged failures) is given.
+   * Run a file operation with standard failure handling: log, and record a
+   * typed issue when `context.issueType` (the code for untagged failures)
+   * is given; return `fallback` on failure.
    */
-  private withFileErrorHandling<T>(
-    filePath: string,
-    operation: string,
+  private withFailureHandling<T>(
+    context: FailureContext,
     fn: () => Promise<T>,
     fallback: T,
-    issueType?: IssueType,
   ): Promise<T> {
     const { logger, issuesManager } = this;
-    const context = { filePath, operation, issueType };
-    return handleFileErrors({ logger, issuesManager }, context, fn, fallback);
+    return handleFailures({ logger, issuesManager }, context, fn, { fallback });
   }
 
   /**
@@ -151,9 +151,12 @@ export class DocumentProcessor
    * @param filePath - The file to process.
    */
   async processFile(filePath: string): Promise<void> {
-    await this.withFileErrorHandling(
-      filePath,
-      'Failed to process file',
+    await this.withFailureHandling(
+      {
+        key: filePath,
+        operation: 'Failed to process file',
+        issueType: UNTAGGED_ISSUE_TYPE,
+      },
       async () => {
         const outcome = await this.fileResolver().resolve(filePath);
         if (outcome.kind === 'document') {
@@ -164,7 +167,6 @@ export class DocumentProcessor
         }
       },
       undefined,
-      'extraction_error',
     );
   }
 
@@ -193,9 +195,8 @@ export class DocumentProcessor
    * @param filePath - The file to delete.
    */
   async deleteFile(filePath: string): Promise<void> {
-    await this.withFileErrorHandling(
-      filePath,
-      'Failed to delete file',
+    await this.withFailureHandling(
+      { key: filePath, operation: 'Failed to delete file' },
       () => deleteFilePoints(this.fileOperations(), filePath),
       undefined,
     );
@@ -214,9 +215,8 @@ export class DocumentProcessor
     filePath: string,
     metadata: Record<string, unknown>,
   ): Promise<Record<string, unknown> | null> {
-    return this.withFileErrorHandling(
-      filePath,
-      'Failed to update metadata',
+    return this.withFailureHandling(
+      { key: filePath, operation: 'Failed to update metadata' },
       () => updateFileMetadata(this.fileOperations(), filePath, metadata),
       null,
     );
@@ -233,12 +233,14 @@ export class DocumentProcessor
   async processRulesUpdate(
     filePath: string,
   ): Promise<Record<string, unknown> | null> {
-    return this.withFileErrorHandling(
-      filePath,
-      'Failed to re-apply rules',
+    return this.withFailureHandling(
+      {
+        key: filePath,
+        operation: 'Failed to re-apply rules',
+        issueType: UNTAGGED_ISSUE_TYPE,
+      },
       () => reapplyFileRules(this.fileOperations(), filePath),
       null,
-      'extraction_error',
     );
   }
 
@@ -261,12 +263,14 @@ export class DocumentProcessor
    * @param newPath - The new file path.
    */
   async moveFile(oldPath: string, newPath: string): Promise<void> {
-    await this.withFileErrorHandling(
-      newPath,
-      'Failed to move file',
+    await this.withFailureHandling(
+      {
+        key: newPath,
+        operation: 'Failed to move file',
+        issueType: UNTAGGED_ISSUE_TYPE,
+      },
       () => moveFilePoints(this.fileOperations(), oldPath, newPath),
       undefined,
-      'extraction_error',
     );
   }
 

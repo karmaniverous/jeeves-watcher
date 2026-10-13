@@ -14,8 +14,10 @@ import {
   type PipelineContext,
 } from './documentPipeline';
 import {
+  failedSourceResult,
   ProcessingFailure,
   reportFailure,
+  UNTAGGED_ISSUE_TYPE,
   withIssueType,
 } from './issueRecording';
 import type { SourceResolver } from './resolvers/SourceResolver';
@@ -29,9 +31,6 @@ export interface SourceProcessingDeps {
   /** Enrichment store (entry removed when the document is gone). */
   enrichmentStore?: EnrichmentStoreInterface;
 }
-
-/** Issue code for failures no stage tagged (as for files). */
-const UNTAGGED_ISSUE = 'extraction_error';
 
 /**
  * Retrieve a source document through its callback and index it with its
@@ -82,18 +81,13 @@ export async function processSourceDocument(
     const failure = reportFailure(
       pipeline,
       {
-        filePath: ref,
+        key: ref,
         operation: 'Failed to process source document',
-        issueType: UNTAGGED_ISSUE,
+        issueType: UNTAGGED_ISSUE_TYPE,
         rule,
       },
       error,
     );
-    const { type = UNTAGGED_ISSUE, message, details } = failure;
-    return {
-      source: ref,
-      status: 'failed',
-      error: { code: type, message, ...(details ? { details } : {}) },
-    };
+    return failedSourceResult(ref, failure);
   }
 }

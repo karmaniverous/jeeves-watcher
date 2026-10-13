@@ -10,23 +10,24 @@ import type {
 } from '@karmaniverous/jeeves-watcher-core';
 
 import type { EnrichmentStoreInterface } from '../enrichment';
-import { sourcePointId } from '../pointId';
 import type { CompiledRule } from '../rules/compile';
 import {
   parseSourceReference,
   SourceReferenceError,
   type SourceRetriever,
 } from '../sources';
-import { getChunkCount } from './chunkIds';
-import { documentChunkIds, type DocumentIdentity } from './documentIdentity';
-import type { IndexOptions, PipelineContext } from './documentPipeline';
+import { documentPointId } from './documentIdentity';
+import {
+  type IndexOptions,
+  type PipelineContext,
+  updateDocumentMetadata,
+} from './documentPipeline';
 import { ProcessingFailure } from './issueRecording';
 import { FIELD_SOURCE_RULE } from './payloadFields';
 import { processSourceDocument } from './processSource';
 import type { RenderResult } from './renderResult';
 import { SourceResolver } from './resolvers/SourceResolver';
 import type { RuleContext } from './resolvers/types';
-import { withSystemFields } from './systemFields';
 
 /** Context of {@link SourceOperations}: a snapshot of the processor's state. */
 export interface SourceOperationsContext {
@@ -207,41 +208,30 @@ export class SourceOperations implements SourceOperationsInterface {
   }
 
   /**
-   * Merge enrichment metadata into an indexed document's points. Nothing is
-   * stored for a document that is not indexed. System fields
-   * (`source`, `source_rule`, ...) are re-asserted, so metadata can never
-   * overwrite them.
+   * Merge enrichment metadata into an indexed document's points (see
+   * `updateDocumentMetadata`). Nothing is stored for a document that is not
+   * indexed. System fields (`source`, `source_rule`, ...) are re-asserted,
+   * so metadata can never overwrite them.
    *
    * @param ref - The exact `<name>://<id>` reference.
    * @param metadata - Enrichment metadata.
    * @returns The merged enrichment, or `null` when not indexed.
    */
-  async updateMetadata(
+  updateMetadata(
     ref: string,
     metadata: Record<string, unknown>,
   ): Promise<Record<string, unknown> | null> {
     const { pipeline, enrichmentStore } = this.ctx;
-    const payload = await this.chunkZero(ref);
-    const rule = payload?.[FIELD_SOURCE_RULE];
-    if (!payload || typeof rule !== 'string') return null;
-
-    enrichmentStore?.set(ref, metadata);
-    const merged = enrichmentStore?.get(ref) ?? metadata;
-    const identity: DocumentIdentity = { kind: 'source', ref, rule };
-    const ids = documentChunkIds(identity, getChunkCount(payload));
-    await pipeline.vectorStore.setPayload(
-      ids,
-      withSystemFields(merged, identity),
+    return updateDocumentMetadata(
+      { ...pipeline, enrichmentStore },
+      { kind: 'source', ref },
+      metadata,
     );
-    pipeline.logger.info(
-      { source: ref, chunks: ids.length },
-      'Source metadata updated',
-    );
-    return merged;
   }
 
   private chunkZero(ref: string): Promise<Record<string, unknown> | null> {
-    return this.ctx.pipeline.vectorStore.getPayload(sourcePointId(ref, 0));
+    const target = { kind: 'source', ref } as const;
+    return this.ctx.pipeline.vectorStore.getPayload(documentPointId(target, 0));
   }
 
   private resolver(): SourceResolver {

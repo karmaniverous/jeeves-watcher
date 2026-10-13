@@ -9,6 +9,7 @@ import { join } from 'node:path';
 import { beforeAll, describe, expect, it, onTestFinished } from 'vitest';
 
 import { createApiServer } from '../api';
+import { ROOT_DEFAULTS } from '../config/defaults';
 import type { EnrichmentStore } from '../enrichment';
 import { IssuesManager } from '../issues';
 import { pointId } from '../pointId';
@@ -45,7 +46,7 @@ describe.skipIf(!qdrantAvailable())(
         enrichmentStore.delete(filePath);
         expect(enrichmentStore.get(filePath)).toBeNull();
 
-        const stateDir = config.stateDir ?? '.jeeves-metadata';
+        const stateDir = config.stateDir ?? ROOT_DEFAULTS.stateDir;
         const server = createApiServer({
           descriptor: { name: 'watcher' } as never,
           processor,
@@ -73,7 +74,7 @@ describe.skipIf(!qdrantAvailable())(
       });
 
       it('POST /reindex with scope:rules should start reindex asynchronously', async () => {
-        const stateDir = config.stateDir ?? '.jeeves-metadata';
+        const stateDir = config.stateDir ?? ROOT_DEFAULTS.stateDir;
         const server = createApiServer({
           descriptor: { name: 'watcher' } as never,
           processor,
@@ -107,7 +108,7 @@ describe.skipIf(!qdrantAvailable())(
         await writeFile(filePath, 'Content for API enrichment test.', 'utf8');
         await processor.processFile(filePath);
 
-        const stateDir = config.stateDir ?? '.jeeves-metadata';
+        const stateDir = config.stateDir ?? ROOT_DEFAULTS.stateDir;
         const server = createApiServer({
           descriptor: { name: 'watcher' } as never,
           processor,
@@ -165,7 +166,7 @@ describe.skipIf(!qdrantAvailable())(
         await processor.processFile(filePath1);
         await processor.processFile(filePath2);
 
-        const stateDir = config.stateDir ?? '.jeeves-metadata';
+        const stateDir = config.stateDir ?? ROOT_DEFAULTS.stateDir;
         const server = createApiServer({
           descriptor: { name: 'watcher' } as never,
           processor,

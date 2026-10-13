@@ -9,8 +9,10 @@ import {
   type JeevesComponentDescriptor,
 } from '@karmaniverous/jeeves';
 import {
+  CONFIG_WATCH_DEFAULTS,
   EMBEDDING_DEFAULTS,
   ROOT_DEFAULTS,
+  WATCH_DEFAULTS,
 } from '@karmaniverous/jeeves-watcher-core';
 import type { FastifyInstance } from 'fastify';
 import type pino from 'pino';
@@ -181,17 +183,19 @@ export class JeevesWatcher {
       contentHashCache: this.contentHashCache,
       sourceRetriever: createSourceRetriever(this.config),
     });
+    // One embedding concurrency for the file and source queues.
+    const concurrency =
+      this.config.embedding.concurrency ?? EMBEDDING_DEFAULTS.concurrency;
     this.sourceQueue = createNotifyQueue(
       this.processor,
-      this.config,
+      concurrency,
       logger,
       this.issuesManager,
     );
 
     this.queue = this.factories.createEventQueue({
-      debounceMs: this.config.watch.debounceMs ?? 2000,
-      concurrency:
-        this.config.embedding.concurrency ?? EMBEDDING_DEFAULTS.concurrency,
+      debounceMs: this.config.watch.debounceMs ?? WATCH_DEFAULTS.debounceMs,
+      concurrency,
     });
 
     this.vcsCoordinator = new VcsCoordinator(this.config, logger);
@@ -290,7 +294,8 @@ export class JeevesWatcher {
     const logger = this.logger;
     if (!logger) return;
 
-    const enabled = this.config.configWatch?.enabled ?? true;
+    const enabled =
+      this.config.configWatch?.enabled ?? CONFIG_WATCH_DEFAULTS.enabled;
     if (!enabled || !this.configPath) {
       if (!this.configPath) {
         logger.debug('Config watch enabled, but no config path was provided');
@@ -301,7 +306,8 @@ export class JeevesWatcher {
     this.configWatcher = new ConfigWatcher({
       configPath: this.configPath,
       enabled,
-      debounceMs: this.config.configWatch?.debounceMs ?? 10000,
+      debounceMs:
+        this.config.configWatch?.debounceMs ?? CONFIG_WATCH_DEFAULTS.debounceMs,
       logger,
       onChange: async () => this.reloadConfig(),
     });

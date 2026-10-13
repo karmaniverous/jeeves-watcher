@@ -1,25 +1,9 @@
 /**
  * @module processor/chunkIds
- * Generates chunk point IDs from file paths and chunk indices. Extracts chunk counts from Qdrant payloads. Pure functions, no I/O.
+ * Extracts chunk counts from Qdrant payloads (chunk point IDs come from `documentChunkIds`). Pure, no I/O.
  */
 
-import { pointId } from '../pointId';
 import { FIELD_TOTAL_CHUNKS } from './payloadFields';
-
-/**
- * Generate an array of chunk IDs for a file.
- *
- * @param filePath - The file path.
- * @param totalChunks - The total number of chunks.
- * @returns An array of point IDs for each chunk.
- */
-export function chunkIds(filePath: string, totalChunks: number): string[] {
-  const ids: string[] = [];
-  for (let i = 0; i < totalChunks; i++) {
-    ids.push(pointId(filePath, i));
-  }
-  return ids;
-}
 
 /**
  * Extract the total chunk count from a payload, with a fallback.

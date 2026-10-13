@@ -14,6 +14,7 @@ import https from 'node:https';
 
 import type pino from 'pino';
 
+import { EMBEDDING_DEFAULTS } from '../config/defaults';
 import type { EmbeddingConfig } from '../config/types';
 import { getLogger } from '../util/logger';
 import { normalizeError } from '../util/normalizeError';
@@ -99,7 +100,7 @@ export function createGeminiProvider(
     );
   }
 
-  const dimensions = config.dimensions ?? 3072;
+  const dimensions = config.dimensions ?? EMBEDDING_DEFAULTS.dimensions;
   const model = config.model;
   const apiKey = config.apiKey;
   const log = getLogger(logger);

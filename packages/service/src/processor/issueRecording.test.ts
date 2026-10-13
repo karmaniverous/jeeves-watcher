@@ -9,7 +9,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { IssueRecord } from '../issues';
 import {
   clearIssuesOnUnchanged,
-  handleFileErrors,
+  handleFailures,
   ProcessingFailure,
   type ProcessorIssues,
   reportFailure,
@@ -60,20 +60,20 @@ describe('withIssueType', () => {
   });
 });
 
-describe('handleFileErrors', () => {
+describe('handleFailures', () => {
   const context = {
-    filePath: 'a.md',
+    key: 'a.md',
     operation: 'Failed to process file',
     issueType: 'extraction_error' as const,
   };
 
   it('returns the result and records nothing on success', async () => {
     const issues = makeIssues();
-    const result = await handleFileErrors(
+    const result = await handleFailures(
       { logger, issuesManager: asIssues(issues) },
       context,
       () => Promise.resolve('ok'),
-      'fallback',
+      { fallback: 'fallback' },
     );
     expect(result).toBe('ok');
     expect(issues.record).not.toHaveBeenCalled();
@@ -81,11 +81,11 @@ describe('handleFileErrors', () => {
 
   it('records the fallback code for an untagged failure, replacing old issues', async () => {
     const issues = makeIssues();
-    const result = await handleFileErrors(
+    const result = await handleFailures(
       { logger, issuesManager: asIssues(issues) },
       context,
       () => Promise.reject(new Error('read fail')),
-      'fallback',
+      { fallback: 'fallback' },
     );
     expect(result).toBe('fallback');
     expect(issues.clear).toHaveBeenCalledWith('a.md');
@@ -99,11 +99,11 @@ describe('handleFileErrors', () => {
 
   it('records the tagged code in preference to the fallback', async () => {
     const issues = makeIssues();
-    await handleFileErrors(
+    await handleFailures(
       { logger, issuesManager: asIssues(issues) },
       context,
       () => Promise.reject(new ProcessingFailure('upsert_error', 'down')),
-      undefined,
+      { fallback: undefined },
     );
     expect(issues.record.mock.calls[0]?.[1]).toBe('upsert_error');
   });
@@ -113,7 +113,7 @@ describe('handleFileErrors', () => {
     const details = [{ keyword: 'required', instancePath: '/json' }];
     const reported = reportFailure(
       { logger, issuesManager: asIssues(issues) },
-      { filePath: 'app://x', operation: 'op', rule: 'chat' },
+      { key: 'app://x', operation: 'op', rule: 'chat' },
       new ProcessingFailure('match_failed', 'no match', details),
     );
     expect(reported).toEqual({
@@ -132,11 +132,11 @@ describe('handleFileErrors', () => {
   it('only logs when no fallback code is given and the failure is untagged', async () => {
     const issues = makeIssues();
     const error = vi.spyOn(logger, 'error');
-    await handleFileErrors(
+    await handleFailures(
       { logger, issuesManager: asIssues(issues) },
-      { filePath: 'a.md', operation: 'Failed to delete file' },
+      { key: 'a.md', operation: 'Failed to delete file' },
       () => Promise.reject(new Error('gone')),
-      undefined,
+      { fallback: undefined },
     );
     expect(issues.record).not.toHaveBeenCalled();
     expect(error).toHaveBeenCalledOnce();
@@ -145,11 +145,11 @@ describe('handleFileErrors', () => {
 
   it('logs without recording when there is no issues store', async () => {
     await expect(
-      handleFileErrors(
+      handleFailures(
         { logger },
         context,
         () => Promise.reject(new Error('x')),
-        null,
+        { fallback: null },
       ),
     ).resolves.toBeNull();
   });

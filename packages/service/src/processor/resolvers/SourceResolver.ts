@@ -5,7 +5,6 @@
 
 import type { ErrorObject } from 'ajv';
 
-import { mergeEnrichment } from '../../enrichment';
 import { extractJsonText } from '../../extractors';
 import {
   applyRules,
@@ -20,6 +19,11 @@ import {
 import { ProcessingFailure } from '../issueRecording';
 import { FIELD_CREATED_AT } from '../payloadFields';
 import { syncExtractText } from '../syncExtractText';
+import {
+  applyRuleOptions,
+  metadataWithRules,
+  withEnrichment,
+} from './ruleOptions';
 import type {
   DocumentResolver,
   ResolvedDocument,
@@ -114,15 +118,11 @@ export class SourceResolver implements DocumentResolver<SourceTarget> {
       );
     }
 
-    const applied = await applyRules([compiled], attributes, {
-      namedMaps: ctx.config.maps,
-      logger: ctx.logger,
-      templateEngine: ctx.templateEngine,
-      configDir: ctx.config.configDir,
-      customMapLib: ctx.config.customMapLib,
-      globalSchemas: ctx.config.globalSchemas,
-      extractText: syncExtractText,
-    });
+    const applied = await applyRules(
+      [compiled],
+      attributes,
+      applyRuleOptions(ctx, { extractText: syncExtractText }),
+    );
     if (applied.errors.length > 0) {
       // Indexing without the rule's output would drop its metadata.
       throw new ProcessingFailure(
@@ -131,10 +131,7 @@ export class SourceResolver implements DocumentResolver<SourceTarget> {
         applied.errors,
       );
     }
-    const enrichment = ctx.enrichmentStore?.get(ref) ?? null;
-    const metadata = enrichment
-      ? mergeEnrichment(applied.metadata, enrichment)
-      : { ...applied.metadata };
+    const metadata = withEnrichment(ctx.enrichmentStore, ref, applied.metadata);
 
     const rendered = applied.renderedContent;
     const nowSeconds = Math.floor(now.getTime() / 1000);
@@ -143,7 +140,7 @@ export class SourceResolver implements DocumentResolver<SourceTarget> {
       text: rendered ?? extractJsonText(body),
       splitterExt: rendered !== null ? '.md' : '.json',
       metadata,
-      metadataWithRules: { ...metadata, matched_rules: applied.matchedRules },
+      metadataWithRules: metadataWithRules(metadata, applied.matchedRules),
       matchedRules: applied.matchedRules,
       refreshMetadataWhenUnchanged: true,
       dates: (existing) => {

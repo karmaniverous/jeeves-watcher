@@ -70,12 +70,3 @@ export const SOURCE_POINT_CONDITIONS = {
   must: [{ is_empty: { key: FIELD_FILE_PATH } }],
   must_not: [{ is_empty: { key: FIELD_SOURCE } }],
 };
-
-/** Keys managed by the indexing pipeline (not user enrichment). */
-export const SYSTEM_METADATA_KEYS: readonly string[] = [
-  FIELD_FILE_PATH,
-  FIELD_CHUNK_INDEX,
-  FIELD_TOTAL_CHUNKS,
-  FIELD_CONTENT_HASH,
-  FIELD_CHUNK_TEXT,
-] as const;

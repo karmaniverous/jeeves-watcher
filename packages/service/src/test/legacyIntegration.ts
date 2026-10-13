@@ -6,6 +6,7 @@
 import Fastify from 'fastify';
 import { afterAll, afterEach, beforeAll, beforeEach } from 'vitest';
 
+import { ROOT_DEFAULTS } from '../config/defaults';
 import type { JeevesWatcherConfig } from '../config/types';
 import { createEmbeddingProvider, type EmbeddingProvider } from '../embedding';
 import { EnrichmentStore } from '../enrichment';
@@ -85,7 +86,7 @@ export function useLegacyIntegration(): LegacyIntegration {
     await dropCollection(config.vectorStore.collectionName);
     await fixture.vectorStore.ensureCollection();
 
-    const stateDir = config.stateDir ?? '.jeeves-metadata';
+    const stateDir = config.stateDir ?? ROOT_DEFAULTS.stateDir;
     fixture.enrichmentStore = new EnrichmentStore(stateDir);
 
     fixture.processor = new DocumentProcessor({

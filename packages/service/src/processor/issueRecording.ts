@@ -3,7 +3,10 @@
  * Typed processing-failure handling (#255): tags pipeline errors with a canonical issue code, logs them, and records or clears issues via the injected IssuesManager. No other I/O.
  */
 
-import type { IssueType } from '@karmaniverous/jeeves-watcher-core';
+import type {
+  DocumentResult,
+  IssueType,
+} from '@karmaniverous/jeeves-watcher-core';
 import type pino from 'pino';
 
 import type { IssuesManager } from '../issues';
@@ -11,6 +14,7 @@ import {
   formatRuleErrors,
   type RuleApplicationError,
 } from '../rules/ruleErrors';
+import { isSourceReference } from '../util/documentKey';
 import { logError } from '../util/logError';
 
 /**
@@ -59,18 +63,24 @@ export async function withIssueType<T>(
 /** Issues-store operations the processor needs. */
 export type ProcessorIssues = Pick<IssuesManager, 'record' | 'clear' | 'get'>;
 
-/** Dependencies for {@link handleFileErrors}. */
-export interface FileErrorDeps {
-  /** Logger for the failure. */
-  logger: pino.Logger;
+/**
+ * Issue code for failures no stage tagged (files, source documents and
+ * unexpected source notify rejections alike).
+ */
+export const UNTAGGED_ISSUE_TYPE = 'extraction_error' satisfies IssueType;
+
+/** Dependencies for {@link reportFailure} and {@link handleFailures}. */
+export interface FailureDeps {
+  /** Logger for the failure; when absent, nothing is logged. */
+  logger?: pino.Logger;
   /** Issues store; when absent, failures are only logged. */
-  issuesManager?: ProcessorIssues;
+  issuesManager?: Pick<IssuesManager, 'record' | 'clear'>;
 }
 
 /** What failed, for logging and issue recording. */
-export interface FileErrorContext {
+export interface FailureContext {
   /** Document key (file path or source reference) the issue is recorded under. */
-  filePath: string;
+  key: string;
   /** Operation description, used as the log message and issue `operation`. */
   operation: string;
   /**
@@ -96,28 +106,31 @@ export interface ReportedFailure {
  * Log a failure and record a typed issue for the document key (replacing any
  * earlier issues for it). Untagged failures use `context.issueType`. The
  * issue carries `context.rule` and the failure's structured `details` when
- * present.
+ * present; a tagged failure's `cause` is what gets logged.
  *
- * @param deps - Logger and optional issues store.
+ * @param deps - Optional logger and issues store.
  * @param context - Document key, operation and fallback issue code.
  * @param error - The failure.
  * @returns The issue code, message and details.
  */
 export function reportFailure(
-  deps: FileErrorDeps,
-  context: FileErrorContext,
+  deps: FailureDeps,
+  context: FailureContext,
   error: unknown,
 ): ReportedFailure {
-  const { filePath, operation, issueType, rule } = context;
+  const { key, operation, issueType, rule } = context;
   const tagged = error instanceof ProcessingFailure ? error : undefined;
-  logError(deps.logger, tagged?.cause ?? error, { filePath }, operation);
+  if (deps.logger) {
+    const fields = isSourceReference(key) ? { source: key } : { filePath: key };
+    logError(deps.logger, tagged?.cause ?? error, fields, operation);
+  }
 
   const type = tagged?.issueType ?? issueType;
   const message = error instanceof Error ? error.message : String(error);
   const details = tagged?.details;
   if (type && deps.issuesManager) {
-    deps.issuesManager.clear(filePath);
-    deps.issuesManager.record(filePath, type, message, {
+    deps.issuesManager.clear(key);
+    deps.issuesManager.record(key, type, message, {
       operation,
       ...(rule === undefined ? {} : { rule }),
       ...(details === undefined ? {} : { details }),
@@ -127,26 +140,52 @@ export function reportFailure(
 }
 
 /**
- * Run a file operation; on failure log it, record a typed issue (replacing
- * any earlier issues for the file) and return `fallback`.
+ * The per-document `failed` result of a source document for a reported
+ * failure (an untyped failure reports {@link UNTAGGED_ISSUE_TYPE}).
+ *
+ * @param ref - The exact `<name>://<id>` reference.
+ * @param failure - The reported failure.
+ * @returns The `failed` result.
+ */
+export function failedSourceResult(
+  ref: string,
+  failure: ReportedFailure,
+): DocumentResult {
+  const { type = UNTAGGED_ISSUE_TYPE, message, details } = failure;
+  return {
+    source: ref,
+    status: 'failed',
+    error: { code: type, message, ...(details ? { details } : {}) },
+  };
+}
+
+/** Options of {@link handleFailures}. */
+export interface HandleFailuresOptions<T> {
+  /** Value returned when the operation fails. */
+  fallback: T;
+}
+
+/**
+ * Run a document operation; on failure report it (see
+ * {@link reportFailure}) and return `fallback`.
  *
  * @param deps - Logger and optional issues store.
- * @param context - File path, operation and fallback issue code.
+ * @param context - Document key, operation and fallback issue code.
  * @param fn - The operation.
- * @param fallback - Value returned when the operation fails.
+ * @param options - The fallback value.
  * @returns The operation's result, or `fallback` on failure.
  */
-export async function handleFileErrors<T>(
-  deps: FileErrorDeps,
-  context: FileErrorContext,
+export async function handleFailures<T>(
+  deps: FailureDeps,
+  context: FailureContext,
   fn: () => Promise<T>,
-  fallback: T,
+  options: HandleFailuresOptions<T>,
 ): Promise<T> {
   try {
     return await fn();
   } catch (error) {
     reportFailure(deps, context, error);
-    return fallback;
+    return options.fallback;
   }
 }
 
@@ -160,22 +199,22 @@ const RULE_INTERPOLATION_OPERATION = 'Rule interpolation';
  * kept; an identical interpolation issue is not recorded twice.
  *
  * @param issuesManager - Issues store, if any.
- * @param filePath - Document key (file path).
+ * @param key - Document key (file path or source reference).
  * @param errors - The rule errors (nothing is recorded when empty).
  */
 export function recordRuleErrors(
   issuesManager: ProcessorIssues | undefined,
-  filePath: string,
+  key: string,
   errors: readonly RuleApplicationError[] | undefined,
 ): void {
   if (!issuesManager || !errors?.length) return;
   const message = formatRuleErrors(errors);
-  const existing = issuesManager.get(filePath) ?? [];
+  const existing = issuesManager.get(key) ?? [];
   const duplicate = existing.some(
     (i) => i.type === 'interpolation_error' && i.message === message,
   );
   if (duplicate) return;
-  issuesManager.record(filePath, 'interpolation_error', message, {
+  issuesManager.record(key, 'interpolation_error', message, {
     operation: RULE_INTERPOLATION_OPERATION,
     rules: [...new Set(errors.map((e) => e.rule))],
     details: errors,
@@ -183,18 +222,18 @@ export function recordRuleErrors(
 }
 
 /**
- * Clear a file's issues when processing skipped re-embedding because the
+ * Clear a document's issues when processing skipped re-embedding because the
  * content hash is unchanged. An `upsert_error` is kept: a partial upsert can
  * leave the new hash on chunk 0, so a hash match does not prove success.
  *
  * @param issuesManager - Issues store, if any.
- * @param filePath - Document key (file path).
+ * @param key - Document key (file path or source reference).
  */
 export function clearIssuesOnUnchanged(
   issuesManager: ProcessorIssues | undefined,
-  filePath: string,
+  key: string,
 ): void {
-  const issues = issuesManager?.get(filePath);
+  const issues = issuesManager?.get(key);
   if (!issues || issues.some((issue) => issue.type === 'upsert_error')) return;
-  issuesManager?.clear(filePath);
+  issuesManager?.clear(key);
 }

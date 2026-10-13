@@ -1,6 +1,6 @@
 /**
  * @module processor/fileOperations.test
- * Payload-only file operations through the processor: metadata and rules updates keep the stored `file_path` casing; enrichment cannot override `matched_rules`; rule interpolation failures of files are indexed as before and recorded as an `interpolation_error` issue.
+ * Payload-only file operations through the processor: metadata and rules updates keep the stored `file_path` casing; rules re-apply and move drop keys the rules no longer project (enrichment kept); file enrichment is stored before indexing; enrichment cannot override `matched_rules`; rule interpolation failures of files are indexed as before and recorded as an `interpolation_error` issue.
  */
 
 import pino from 'pino';
@@ -59,6 +59,28 @@ function setup() {
     upsert: vi.fn().mockResolvedValue(undefined),
     delete: vi.fn().mockResolvedValue(undefined),
     setPayload: vi.fn().mockResolvedValue(undefined),
+    deletePayload: vi.fn().mockResolvedValue(undefined),
+    getPointsWithVectors: vi.fn().mockResolvedValue([
+      {
+        id: 'old-0',
+        vector: [0.1],
+        payload: {
+          file_path: '/old.md',
+          chunk_index: 0,
+          total_chunks: 1,
+          domain: 'old',
+          stale: 'gone from the rules',
+        },
+      },
+    ]),
+  };
+  const enrichmentStore = {
+    get: vi.fn().mockReturnValue(null),
+    set: vi.fn(),
+    delete: vi.fn(),
+    move: vi.fn(),
+    list: vi.fn(),
+    close: vi.fn(),
   };
   const embeddingProvider: EmbeddingProvider = {
     dimensions: 1,
@@ -71,8 +93,9 @@ function setup() {
     compiledRules: [],
     logger: pino({ level: 'silent' }),
     issuesManager: issuesManager as unknown as IssuesManager,
+    enrichmentStore,
   });
-  return { processor, vectorStore, issues };
+  return { processor, vectorStore, issues, enrichmentStore };
 }
 
 function mockBuilt(ruleErrors: RuleApplicationError[] = []) {
@@ -116,6 +139,68 @@ describe('file operations', () => {
       matched_rules: ['r'],
       domain: 'docs',
     });
+  });
+
+  it('rules update removes keys the rules no longer project', async () => {
+    const { processor, vectorStore } = setup();
+    vectorStore.getPayload.mockResolvedValue({
+      total_chunks: 2,
+      file_path: STORED_PATH,
+      matched_rules: ['r'],
+      domain: 'docs',
+      stale: 'x',
+    });
+    await processor.processRulesUpdate(REQUESTED);
+    expect(vectorStore.deletePayload).toHaveBeenCalledWith(
+      [expect.any(String), expect.any(String)],
+      ['stale'],
+    );
+  });
+
+  it('rules update writes nothing when the projection is unchanged', async () => {
+    const { processor, vectorStore } = setup();
+    vectorStore.getPayload.mockResolvedValue({
+      total_chunks: 1,
+      file_path: STORED_PATH,
+      matched_rules: ['r'],
+      domain: 'docs',
+    });
+    expect(await processor.processRulesUpdate(REQUESTED)).toEqual({
+      domain: 'docs',
+      matched_rules: ['r'],
+    });
+    expect(vectorStore.setPayload).not.toHaveBeenCalled();
+    expect(vectorStore.deletePayload).not.toHaveBeenCalled();
+  });
+
+  it('move drops keys the rules no longer project, after moving enrichment', async () => {
+    const { processor, vectorStore, enrichmentStore } = setup();
+    await processor.moveFile('/old.md', '/new.md');
+    const [points] = vectorStore.upsert.mock.calls[0] as [
+      { payload: Record<string, unknown> }[],
+    ];
+    expect(points[0].payload).toMatchObject({
+      file_path: '/new.md',
+      domain: 'docs',
+      chunk_index: 0,
+    });
+    expect(points[0].payload).not.toHaveProperty('stale');
+    // Enrichment moves first, so the new path's metadata merges it.
+    expect(enrichmentStore.move.mock.invocationCallOrder[0]).toBeLessThan(
+      (buildMergedMetadata as Mock).mock.invocationCallOrder[0],
+    );
+  });
+
+  it('metadata update stores enrichment for a file not yet indexed', async () => {
+    const { processor, vectorStore, enrichmentStore } = setup();
+    vectorStore.getPayload.mockResolvedValue(null);
+    expect(
+      await processor.processMetadataUpdate('/docs/new.md', { title: 't' }),
+    ).toBeNull();
+    expect(enrichmentStore.set).toHaveBeenCalledWith('/docs/new.md', {
+      title: 't',
+    });
+    expect(vectorStore.setPayload).not.toHaveBeenCalled();
   });
 
   it('records a rules-update interpolation failure as an issue', async () => {

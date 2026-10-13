@@ -1,11 +1,12 @@
 /**
  * @module queue/SourceNotifyQueue.force.test
- * Source notify queue: `force` reaches processSource and merges as OR into a pending or dirty run; an unexpected processSource rejection records an `extraction_error` issue carrying the designated rule (fake timers).
+ * Source notify queue: `force` reaches processSource and merges as OR into a pending or dirty run; an unexpected processSource rejection records an `extraction_error` issue carrying the designated rule, a tagged one keeps its code and details (fake timers).
  */
 
 import type { DocumentResult } from '@karmaniverous/jeeves-watcher-core';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { ProcessingFailure } from '../processor/issueRecording';
 import type { SourceProcessorInterface } from '../processor/types';
 import { SourceNotifyQueue } from './SourceNotifyQueue';
 
@@ -98,6 +99,37 @@ describe('SourceNotifyQueue unexpected rejection', () => {
       'extraction_error',
       'kaboom',
       expect.objectContaining({ rule: 'chat' }),
+    );
+  });
+
+  it('keeps the code and details of a tagged rejection (same recording as processSource)', async () => {
+    const details = [{ stage: 'schema' }];
+    const processor: SourceProcessorInterface = {
+      processSource: () =>
+        Promise.reject(
+          new ProcessingFailure('upsert_error', new Error('down'), details),
+        ),
+    };
+    const issues = { record: vi.fn(), clear: vi.fn() };
+    const queue = new SourceNotifyQueue(processor, {}, undefined, issues);
+    queue.start();
+
+    const result = await queue.processNow('app://a', 'chat');
+
+    expect(result).toEqual({
+      source: 'app://a',
+      status: 'failed',
+      error: { code: 'upsert_error', message: 'down', details },
+    });
+    expect(issues.record).toHaveBeenCalledWith(
+      'app://a',
+      'upsert_error',
+      'down',
+      {
+        operation: 'Source notify run failed unexpectedly',
+        rule: 'chat',
+        details,
+      },
     );
   });
 });

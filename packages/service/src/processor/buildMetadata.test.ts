@@ -88,7 +88,7 @@ describe('buildMergedMetadata', () => {
       category: 'override',
       extra: 'yes',
     });
-    expect(result.enrichment).toEqual({ category: 'override', extra: 'yes' });
+    expect(result.inferred).toEqual({ category: 'doc' });
   });
 
   it('handles null enrichment gracefully', async () => {
@@ -100,26 +100,20 @@ describe('buildMergedMetadata', () => {
       enrichmentStore,
     });
 
-    expect(result.enrichment).toBeNull();
     expect(result.metadata).toEqual({ category: 'doc' });
+    expect(result.metadata).not.toBe(result.inferred);
   });
 
   it('passes options through to applyRules', async () => {
-    const logger = { info: vi.fn() } as unknown as Parameters<
-      typeof buildMergedMetadata
-    >[0]['logger'];
+    const ruleOptions = { configDir: '/cfg' };
 
     await buildMergedMetadata({
       filePath: testFile,
       compiledRules: [],
-      logger,
+      ruleOptions,
     });
 
-    expect(applyRules).toHaveBeenCalledWith(
-      [],
-      expect.anything(),
-      expect.objectContaining({ logger }),
-    );
+    expect(applyRules).toHaveBeenCalledWith([], expect.anything(), ruleOptions);
   });
 
   it('returns renderAs: null when no rule declares renderAs', async () => {

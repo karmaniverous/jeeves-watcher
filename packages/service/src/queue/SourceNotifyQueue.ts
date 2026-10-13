@@ -6,8 +6,12 @@
 import type { DocumentResult } from '@karmaniverous/jeeves-watcher-core';
 import type pino from 'pino';
 
+import {
+  failedSourceResult,
+  reportFailure,
+  UNTAGGED_ISSUE_TYPE,
+} from '../processor/issueRecording';
 import type { SourceProcessorInterface } from '../processor/types';
-import { normalizeError } from '../util/normalizeError';
 import type { PausableQueue } from './pausable';
 import {
   type InFlight,
@@ -29,9 +33,6 @@ export {
   SourceNotifyQueueStoppedError,
   type SourceQueueIssues,
 } from './sourceNotifyTypes';
-
-/** Issue code reported when `processSource` rejects unexpectedly. */
-const UNEXPECTED_ERROR_CODE = 'extraction_error';
 
 /** Operation recorded on the issue of an unexpected rejection. */
 const UNEXPECTED_OPERATION = 'Source notify run failed unexpectedly';
@@ -228,18 +229,17 @@ export class SourceNotifyQueue implements PausableQueue {
     try {
       return await this.processor.processSource(ref, rule, { force });
     } catch (error) {
-      const err = normalizeError(error);
-      this.logger?.error({ err, source: ref }, UNEXPECTED_OPERATION);
-      this.issues?.clear(ref);
-      this.issues?.record(ref, UNEXPECTED_ERROR_CODE, err.message, {
-        operation: UNEXPECTED_OPERATION,
-        rule,
-      });
-      return {
-        source: job.ref,
-        status: 'failed',
-        error: { code: UNEXPECTED_ERROR_CODE, message: err.message },
-      };
+      const failure = reportFailure(
+        { logger: this.logger, issuesManager: this.issues },
+        {
+          key: ref,
+          operation: UNEXPECTED_OPERATION,
+          issueType: UNTAGGED_ISSUE_TYPE,
+          rule,
+        },
+        error,
+      );
+      return failedSourceResult(ref, failure);
     }
   }
 

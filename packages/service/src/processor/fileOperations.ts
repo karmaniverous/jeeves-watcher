@@ -6,21 +6,30 @@
 import { extname } from 'node:path';
 
 import type pino from 'pino';
+import { omit } from 'radash';
 
 import type { ContentHashCache } from '../cache';
 import type { EnrichmentStoreInterface } from '../enrichment';
-import { pointId } from '../pointId';
 import type { ValuesManager } from '../values';
 import type { VectorStore } from '../vectorStore';
-import { chunkIds, getChunkCount } from './chunkIds';
-import type { DocumentIdentity } from './documentIdentity';
-import { deleteDocumentPoints, updateValues } from './documentPipeline';
+import { getChunkCount } from './chunkIds';
+import {
+  documentChunkIds,
+  type DocumentIdentity,
+  documentPointId,
+  storedIdentity,
+} from './documentIdentity';
+import {
+  deleteDocumentPoints,
+  updateDocumentMetadata,
+  updateValues,
+} from './documentPipeline';
 import {
   type ProcessorIssues,
   recordRuleErrors,
   withIssueType,
 } from './issueRecording';
-import { FIELD_FILE_PATH } from './payloadFields';
+import { diffMetadata, writeProjectedMetadata } from './metadataRefresh';
 import type { RenderResult } from './renderResult';
 import type { FileResolver } from './resolvers/FileResolver';
 import { withSystemFields } from './systemFields';
@@ -41,29 +50,6 @@ export interface FileOperationsContext {
   valuesManager?: Pick<ValuesManager, 'update'>;
   /** Content hash cache (move correlation). */
   contentHashCache?: ContentHashCache;
-}
-
-/**
- * Identity of an indexed file, using the `file_path` stored on its chunk-0
- * point when present. Point IDs are case-insensitive, so a request with
- * different casing must not rewrite the stored path.
- *
- * @param filePath - The path as requested.
- * @param stored - Stored chunk-0 payload.
- * @returns The file identity to re-assert.
- */
-function storedFileIdentity(
-  filePath: string,
-  stored: Record<string, unknown>,
-): DocumentIdentity {
-  const storedPath = stored[FIELD_FILE_PATH];
-  return {
-    kind: 'file',
-    filePath:
-      typeof storedPath === 'string' && storedPath.length > 0
-        ? storedPath
-        : filePath,
-  };
 }
 
 /**
@@ -105,37 +91,30 @@ export async function renderFileDocument(
 }
 
 /**
- * Merge enrichment metadata into a file's points (no re-embed). Stored
- * `file_path` and `matched_rules` are kept.
+ * Merge enrichment metadata into a file's points (no re-embed; see
+ * `updateDocumentMetadata`). The enrichment is stored even when the file is
+ * not indexed yet, so it applies once the file is indexed.
  *
  * @param ctx - File operation dependencies.
  * @param filePath - The file.
  * @param metadata - Enrichment metadata.
  * @returns The merged enrichment, or `null` when the file is not indexed.
  */
-export async function updateFileMetadata(
+export function updateFileMetadata(
   ctx: FileOperationsContext,
   filePath: string,
   metadata: Record<string, unknown>,
 ): Promise<Record<string, unknown> | null> {
-  ctx.enrichmentStore?.set(filePath, metadata);
-  const merged = ctx.enrichmentStore?.get(filePath) ?? metadata;
-
-  const existing = await ctx.vectorStore.getPayload(pointId(filePath, 0));
-  if (!existing) return null;
-
-  const totalChunks = getChunkCount(existing);
-  const ids = chunkIds(filePath, totalChunks);
-  const identity = storedFileIdentity(filePath, existing);
-  await ctx.vectorStore.setPayload(ids, withSystemFields(merged, identity));
-
-  ctx.logger.info({ filePath, chunks: totalChunks }, 'Metadata updated');
-  return merged;
+  return updateDocumentMetadata(ctx, { kind: 'file', filePath }, metadata, {
+    storeWhenNotIndexed: true,
+  });
 }
 
 /**
  * Re-apply the current rules to an indexed file and update its payloads (no
- * re-embed). System fields and the stored `file_path` are re-asserted.
+ * re-embed; see `writeProjectedMetadata`): changed values are written, keys
+ * the rules no longer project are removed, and system fields and the stored
+ * `file_path` are re-asserted.
  *
  * @param ctx - File operation dependencies.
  * @param filePath - The file.
@@ -145,32 +124,33 @@ export async function reapplyFileRules(
   ctx: FileOperationsContext,
   filePath: string,
 ): Promise<Record<string, unknown> | null> {
-  const existing = await ctx.vectorStore.getPayload(pointId(filePath, 0));
-  if (!existing) {
+  const target = { kind: 'file', filePath } as const;
+  const existing = await ctx.vectorStore.getPayload(documentPointId(target, 0));
+  const identity = existing ? storedIdentity(target, existing) : null;
+  if (!existing || !identity) {
     ctx.logger.debug({ filePath }, 'File not indexed, skipping');
     return null;
   }
 
   const built = await ctx.resolver.buildMetadata(filePath);
   const { matchedRules, metadata } = built;
-  const ids = chunkIds(filePath, getChunkCount(existing));
-  const identity = storedFileIdentity(filePath, existing);
-  const payload = withSystemFields(metadata, identity, matchedRules);
-  await withIssueType('upsert_error', () =>
-    ctx.vectorStore.setPayload(ids, payload),
-  );
+  const next = withSystemFields(metadata, identity, matchedRules);
+  await writeProjectedMetadata(ctx.vectorStore, identity, next, existing);
 
   ctx.issuesManager?.clear(filePath);
   recordRuleErrors(ctx.issuesManager, filePath, built.ruleErrors);
   updateValues(ctx.valuesManager, matchedRules, metadata);
 
-  ctx.logger.info({ filePath, chunks: ids.length }, 'Rules re-applied');
+  const chunks = getChunkCount(existing);
+  ctx.logger.info({ filePath, chunks }, 'Rules re-applied');
   return built.metadataWithRules;
 }
 
 /**
  * Move a file's points to a new path without re-embedding, re-applying the
- * rules against the new path; migrates enrichment, issues and the hash cache.
+ * rules against the new path (keys the rules no longer project are dropped;
+ * the enrichment moves first, so it is kept); migrates enrichment, issues
+ * and the hash cache.
  *
  * @param ctx - File operation dependencies.
  * @param oldPath - The original path.
@@ -182,23 +162,31 @@ export async function moveFilePoints(
   newPath: string,
 ): Promise<void> {
   const { vectorStore, logger } = ctx;
-  const existing = await vectorStore.getPayload(pointId(oldPath, 0));
-  const oldIds = chunkIds(oldPath, getChunkCount(existing));
+  const oldFile: DocumentIdentity = { kind: 'file', filePath: oldPath };
+  const existing = await vectorStore.getPayload(documentPointId(oldFile, 0));
+  const oldIds = documentChunkIds(oldFile, getChunkCount(existing));
   const oldPoints = await vectorStore.getPointsWithVectors(oldIds);
   if (oldPoints.length === 0) {
     logger.warn({ oldPath, newPath }, 'No points found for move');
     return;
   }
 
-  // New points: rule metadata for the new path, system fields re-asserted.
+  // Enrichment follows the file, so the new path's rules merge it.
+  ctx.enrichmentStore?.move(oldPath, newPath);
+
+  // New points: rule metadata for the new path, system fields re-asserted,
+  // keys the rules no longer project dropped.
   const built = await ctx.resolver.buildMetadata(newPath);
   const { matchedRules, metadata } = built;
   const identity: DocumentIdentity = { kind: 'file', filePath: newPath };
   const moved = withSystemFields(metadata, identity, matchedRules);
   const newPoints = oldPoints.map((pt, i) => ({
-    id: pointId(newPath, i),
+    id: documentPointId(identity, i),
     vector: pt.vector,
-    payload: { ...pt.payload, ...moved },
+    payload: {
+      ...omit(pt.payload, diffMetadata(pt.payload, moved).removed),
+      ...moved,
+    },
   }));
 
   await withIssueType('upsert_error', async () => {
@@ -206,7 +194,6 @@ export async function moveFilePoints(
     await vectorStore.delete(oldIds);
   });
 
-  ctx.enrichmentStore?.move(oldPath, newPath);
   ctx.issuesManager?.clear(oldPath);
   ctx.issuesManager?.clear(newPath);
   recordRuleErrors(ctx.issuesManager, newPath, built.ruleErrors);

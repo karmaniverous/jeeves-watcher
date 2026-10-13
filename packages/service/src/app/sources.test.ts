@@ -62,7 +62,7 @@ describe('createNotifyQueue', () => {
       .mockResolvedValue({ source: 'app://a', status: 'unchanged' });
     const queue = createNotifyQueue(
       { processSource } as unknown as DocumentProcessorInterface,
-      createTestConfig(),
+      2,
       logger,
     );
     queue.start();
@@ -76,11 +76,7 @@ describe('createNotifyQueue', () => {
   });
 
   it('fails runs with source_unavailable when the processor cannot process sources', async () => {
-    const queue = createNotifyQueue(
-      fileOnlyProcessor,
-      createTestConfig(),
-      logger,
-    );
+    const queue = createNotifyQueue(fileOnlyProcessor, 2, logger);
     queue.start();
     const result = await queue.processNow('app://a', 'r');
     expect(result.status).toBe('failed');
