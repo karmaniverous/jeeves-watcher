@@ -3,6 +3,7 @@
  * Reindex blast-area plan type and the per-watch-root grouping helper shared by prune and file-scope plans. Pure, no I/O.
  */
 
+import { isPathWithin } from '../util/isPathWithin';
 import { normalizeSlashes } from '../util/normalizeSlashes';
 
 /** Blast area plan showing impact of a reindex operation. */
@@ -21,7 +22,8 @@ export interface ReindexPlan {
 
 /**
  * Group file paths by their watch root prefix.
- * Each file is matched against `watchPaths` and grouped under the first matching root.
+ * Each file is grouped under the first watch root (glob up to `**`) that
+ * contains it, separator-aware: root `/w/docs` never claims `/w/docs2/a.md`.
  * Files that don't match any root are grouped under `'(unmatched)'`.
  *
  * @param filePaths - File paths to group.
@@ -38,7 +40,7 @@ export function groupByRoot(
     let matched = false;
     for (const root of watchPaths) {
       const rootNorm = normalizeSlashes(root).replace(/\/?\*\*.*$/, '');
-      if (normalised.startsWith(rootNorm)) {
+      if (isPathWithin(normalised, rootNorm)) {
         byRoot[rootNorm] = (byRoot[rootNorm] ?? 0) + 1;
         matched = true;
         break;

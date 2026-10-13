@@ -1,6 +1,6 @@
 /**
  * @module api/mergedDocument.secrets.test
- * Tests that GET /config's merged document never exposes `sources` or `api` (API key).
+ * Tests that GET /config's merged document holds exactly the public allow-list (PUBLIC_CONFIG_KEYS plus issues) and never exposes `sources` or `api` (API key).
  */
 
 import { describe, expect, it, vi } from 'vitest';
@@ -9,6 +9,7 @@ import type { JeevesWatcherConfig } from '../config/types';
 import type { IssuesManager } from '../issues';
 import type { ValuesManager } from '../values';
 import { buildMergedDocument } from './mergedDocument';
+import { PUBLIC_CONFIG_KEYS } from './publicConfig';
 
 describe('buildMergedDocument secret exclusion', () => {
   it('omits sources and api from the merged document', () => {
@@ -35,6 +36,9 @@ describe('buildMergedDocument secret exclusion', () => {
       } as unknown as IssuesManager,
     });
 
+    expect(Object.keys(doc).sort()).toEqual(
+      [...PUBLIC_CONFIG_KEYS, 'issues'].sort(),
+    );
     expect(doc).not.toHaveProperty('sources');
     expect(doc).not.toHaveProperty('api');
     const serialized = JSON.stringify(doc);

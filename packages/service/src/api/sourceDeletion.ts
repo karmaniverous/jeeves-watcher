@@ -5,17 +5,13 @@
 
 import type { QdrantFilter } from '@karmaniverous/jeeves-watcher-core';
 
-import { FIELD_FILE_PATH, FIELD_SOURCE } from '../processor/payloadFields';
+import {
+  FIELD_FILE_PATH,
+  FIELD_SOURCE,
+  isSourcePoint,
+  SOURCE_POINT_CONDITIONS,
+} from '../processor/payloadFields';
 import type { VectorStore } from '../vectorStore';
-
-/**
- * Condition excluding file points: a legacy file point whose rule wrote a
- * `source` metadata value still carries `file_path`, so it never matches.
- */
-const NO_FILE_PATH = { is_empty: { key: FIELD_FILE_PATH } };
-
-/** Condition matching a missing source reference (excluded via must_not). */
-const SOURCE_EMPTY = { is_empty: { key: FIELD_SOURCE } };
 
 /** Scroll page size while collecting points to delete. */
 const SCROLL_PAGE_SIZE = 256;
@@ -31,7 +27,10 @@ const DELETE_BATCH_SIZE = 256;
  */
 export function sourcesFilter(sources: string[]): QdrantFilter {
   return {
-    must: [{ key: FIELD_SOURCE, match: { any: sources } }, NO_FILE_PATH],
+    must: [
+      { key: FIELD_SOURCE, match: { any: sources } },
+      ...SOURCE_POINT_CONDITIONS.must,
+    ],
   };
 }
 
@@ -48,8 +47,11 @@ export function sourcesFilter(sources: string[]): QdrantFilter {
  */
 export function constrainToSources(filter: QdrantFilter): QdrantFilter {
   return {
-    must: [...(Object.keys(filter).length > 0 ? [filter] : []), NO_FILE_PATH],
-    must_not: [SOURCE_EMPTY],
+    must: [
+      ...(Object.keys(filter).length > 0 ? [filter] : []),
+      ...SOURCE_POINT_CONDITIONS.must,
+    ],
+    must_not: SOURCE_POINT_CONDITIONS.must_not,
   };
 }
 
@@ -85,13 +87,10 @@ export async function deleteSourcePoints(
       [FIELD_SOURCE, FIELD_FILE_PATH],
     );
     for (const point of page.points) {
-      const ref = point.payload[FIELD_SOURCE];
-      // Defence in depth: never delete a point without a source reference,
-      // or a file point (one carrying file_path).
-      if (typeof ref !== 'string' || ref.length === 0) continue;
-      if (point.payload[FIELD_FILE_PATH] !== undefined) continue;
+      // Defence in depth: only source points are ever deleted.
+      if (!isSourcePoint(point.payload)) continue;
       ids.push(point.id);
-      sources.add(ref);
+      sources.add(String(point.payload[FIELD_SOURCE]));
     }
     cursor = page.nextCursor;
   } while (cursor !== undefined);

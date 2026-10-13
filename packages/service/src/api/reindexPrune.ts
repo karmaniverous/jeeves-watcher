@@ -16,6 +16,10 @@ const PRUNE_DELETE_BATCH_SIZE = 500;
  * operation and always resumed. A live prune whose scroll was incomplete is
  * aborted: partial deletes are never performed.
  *
+ * A dry run rethrows a planning failure (the request answers it). A live
+ * prune runs fire-and-forget, so it never rejects: a planning failure is
+ * logged, reported to the callback and returned as `errors: 1`.
+ *
  * @param deps - Reindex dependencies (`vectorStore` required).
  * @param dryRun - Compute and return the plan without deleting.
  * @returns The reindex result including the plan.
@@ -34,7 +38,19 @@ export async function executePrune(
     pruneResult = await computePrunePlan(deps);
   } catch (err) {
     deps.queue?.resume();
-    throw err;
+    if (dryRun) throw err;
+    logger.error({ err: normalizeError(err), scope }, 'Prune planning failed');
+    await reportReindexCompletion(
+      config,
+      {
+        scope,
+        filesProcessed: 0,
+        durationMs: 0,
+        errors: [normalizeError(err).message],
+      },
+      logger,
+    );
+    return { filesProcessed: 0, durationMs: 0, errors: 1 };
   }
   const { plan } = pruneResult;
 

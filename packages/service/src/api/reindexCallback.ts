@@ -1,6 +1,6 @@
 /**
  * @module api/reindexCallback
- * Fires the optional `reindex.callbackUrl` completion webhook (POST JSON) with exponential-backoff retry. Network I/O via fetch.
+ * Fires the optional `reindex.callbackUrl` completion webhook (POST JSON) with exponential-backoff retry; delivery failures are logged, never thrown. Network I/O via fetch.
  */
 
 import type pino from 'pino';
@@ -41,18 +41,28 @@ async function fireCallback(
 }
 
 /**
- * Report a finished reindex to `reindex.callbackUrl`, when configured.
+ * Report a finished reindex to `reindex.callbackUrl`, when configured. Never
+ * rejects: when every attempt fails the failure is logged and the run's
+ * result is unaffected (the callback is not re-sent with a failure payload,
+ * since delivery itself is what failed).
  *
  * @param config - Service config (reads `reindex.callbackUrl`).
  * @param payload - Callback body.
- * @param logger - Logger for retry warnings.
+ * @param logger - Logger for retry warnings and the final delivery failure.
  */
 export async function reportReindexCompletion(
   config: JeevesWatcherConfig,
   payload: Record<string, unknown>,
   logger: pino.Logger,
 ): Promise<void> {
-  if (config.reindex?.callbackUrl) {
-    await fireCallback(config.reindex.callbackUrl, payload, logger);
+  const url = config.reindex?.callbackUrl;
+  if (!url) return;
+  try {
+    await fireCallback(url, payload, logger);
+  } catch (error) {
+    logger.error(
+      { err: normalizeError(error), url, scope: payload['scope'] },
+      'Reindex callback delivery failed; giving up',
+    );
   }
 }

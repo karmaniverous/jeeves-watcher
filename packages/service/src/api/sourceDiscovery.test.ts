@@ -49,7 +49,7 @@ describe('discoverIssueSources', () => {
 });
 
 describe('discoverIndexedSources', () => {
-  it('pages through chunk-0 source points, deduped, rule required', async () => {
+  it('pages through chunk-0 source points, deduped, rule required, file points skipped', async () => {
     const page = (payloads: Record<string, unknown>[], next?: number) => ({
       points: payloads.map((payload, i) => ({ id: String(i), payload })),
       nextCursor: next,
@@ -62,6 +62,7 @@ describe('discoverIndexedSources', () => {
             { source: 'app://1', source_rule: 'r' },
             { source: 'app://2' },
             { source: '' },
+            { source: 'legacy://4', source_rule: 'r', file_path: 'a.md' },
           ],
           7,
         ),
@@ -89,9 +90,15 @@ describe('discoverIndexedSources', () => {
       unknown,
       string[],
     ];
-    expect(JSON.stringify(filter)).toContain('chunk_index');
+    expect(filter).toEqual({
+      must: [
+        { key: 'chunk_index', match: { value: 0 } },
+        { is_empty: { key: 'file_path' } },
+      ],
+      must_not: [{ is_empty: { key: 'source' } }],
+    });
     expect(firstCursor).toBeUndefined();
-    expect(fields).toEqual(['source', 'source_rule']);
+    expect(fields).toEqual(['source', 'source_rule', 'file_path']);
     expect(scrollPage.mock.calls[1][2]).toBe(7);
   });
 });

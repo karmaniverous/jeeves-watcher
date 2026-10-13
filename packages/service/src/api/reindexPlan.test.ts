@@ -1,6 +1,6 @@
 /**
  * @module api/reindexPlan.test
- * groupByRoot: files are counted under the first watch root whose glob prefix they start with (slashes normalised), others under "(unmatched)".
+ * groupByRoot: files are counted under the first watch root that contains them (separator-aware, slashes normalised), others under "(unmatched)".
  */
 
 import { describe, expect, it } from 'vitest';
@@ -20,6 +20,12 @@ describe('groupByRoot', () => {
         ['/w/docs/**/*.md', '/w/notes/**', '/w/**'],
       ),
     ).toEqual({ '/w/docs': 2, '/w/notes': 1, '(unmatched)': 1 });
+  });
+
+  it('never claims a sibling directory sharing the root prefix', () => {
+    expect(
+      groupByRoot(['/w/docs2/x.md', '/w/docs/a.md'], ['/w/docs/**']),
+    ).toEqual({ '/w/docs': 1, '(unmatched)': 1 });
   });
 
   it('normalises backslashes in files and roots', () => {

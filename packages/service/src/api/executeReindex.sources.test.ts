@@ -59,19 +59,6 @@ describe('executeReindex: source documents', () => {
     expect(result.filesProcessed).toBe(1);
   });
 
-  it('full discovers sources from chunk-0 points carrying source', async () => {
-    const f = fixture();
-    await f.index(A);
-    await executeReindex(f.deps, 'full');
-    const [filter, , , fields] = f.store.scrollPage.mock
-      .calls[0] as unknown as [unknown, unknown, unknown, string[]];
-    expect(filter).toEqual({
-      must: [{ key: 'chunk_index', match: { value: 0 } }],
-      must_not: [{ is_empty: { key: 'source' } }],
-    });
-    expect(fields).toEqual(['source', 'source_rule']);
-  });
-
   it('dry-run plans count files per root and sources per name', async () => {
     const f = fixture();
     await f.index(A, B, C);

@@ -12,6 +12,7 @@ import {
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import type pino from 'pino';
 
+import { publicConfig } from '../publicConfig';
 import { sendInternalError, sendResult } from '../sendError';
 
 /** Dependencies for the config apply route handler. */
@@ -51,6 +52,22 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
 }
 
 /**
+ * Replace the echoed `config` of a core apply result with its public
+ * allow-listed view.
+ *
+ * @param result - Core apply result.
+ * @returns The result with a redacted `config`, when it has one.
+ */
+function redactConfig(result: { status: number; body: unknown }): {
+  status: number;
+  body: unknown;
+} {
+  const { body } = result;
+  if (!isPlainObject(body) || !isPlainObject(body['config'])) return result;
+  return { ...result, body: { ...body, config: publicConfig(body['config']) } };
+}
+
+/**
  * Create handler for POST /config/apply.
  *
  * @remarks
@@ -58,10 +75,15 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
  * config path so the patch is merged into the file the service actually
  * loaded (not a path derived from `configRoot`, which may be unset or
  * different in the service process). Accepts `{ patch }` (sent by the
- * plugin's `watcher_config_apply`) or `{ config }`. 4xx results get a
- * `code` from their status (`invalid_request`); a 5xx result (config file
- * unreadable or unwritable, apply callback failed) is logged and answered
- * with a generic `500 internal_error`, so file paths never leak.
+ * plugin's `watcher_config_apply`) or `{ config }`. Success is
+ * `200 { applied: true, config }`, where `config` is filtered through the
+ * same allow-list as `GET /config` ({@link publicConfig}), so secrets
+ * (`api`, `sources`, provider keys) are never echoed. When the file was
+ * written but the apply callback (reload) failed, the body also carries
+ * `warning: string` describing the failure. 4xx results get a `code` from
+ * their status (`invalid_request`); a 5xx result (config file unreadable or
+ * unwritable) is logged and answered with a generic `500 internal_error`,
+ * so file paths never leak.
  *
  * @param deps - Route dependencies.
  */
@@ -88,6 +110,6 @@ export function createConfigApplyRouteHandler(deps: ConfigApplyRouteDeps) {
       deps.logger?.error({ result: result.body }, 'Config apply failed');
       return sendInternalError(reply);
     }
-    return sendResult(reply, result);
+    return sendResult(reply, redactConfig(result));
   };
 }

@@ -1,6 +1,6 @@
 /**
  * @module api/reindexCallback.test
- * reportReindexCompletion: no request without `reindex.callbackUrl`; POSTs the JSON payload; retries a non-OK response and rejects after three attempts. Fake timers, stubbed fetch.
+ * reportReindexCompletion: no request without `reindex.callbackUrl`; POSTs the JSON payload; retries a non-OK response; after three failed attempts logs the delivery failure and resolves (never throws). Fake timers, stubbed fetch.
  */
 
 import pino from 'pino';
@@ -56,15 +56,30 @@ describe('reportReindexCompletion', () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
-  it('gives up after three attempts', async () => {
-    fetchMock.mockResolvedValue({ ok: false, status: 500 });
-    const done = reportReindexCompletion(withUrl, payload, logger);
-    const settled = done.then(
-      () => undefined,
-      (e: unknown) => e,
-    );
-    await vi.runAllTimersAsync();
-    expect(await settled).toMatchObject({ message: 'Non-OK response: 500' });
-    expect(fetchMock).toHaveBeenCalledTimes(3);
-  });
+  it.each([
+    [
+      'a non-OK response',
+      () => fetchMock.mockResolvedValue({ ok: false, status: 500 }),
+    ],
+    [
+      'a network error',
+      () => fetchMock.mockRejectedValue(new Error('ECONNREFUSED')),
+    ],
+  ])(
+    'gives up after three attempts on %s, logs and resolves',
+    async (_, arrange) => {
+      arrange();
+      const error = vi.fn();
+      const spyLogger = { warn: vi.fn(), error } as unknown as pino.Logger;
+      const done = reportReindexCompletion(withUrl, payload, spyLogger);
+      await vi.runAllTimersAsync();
+      await expect(done).resolves.toBeUndefined();
+      expect(fetchMock).toHaveBeenCalledTimes(3);
+      expect(error).toHaveBeenCalledTimes(1);
+      expect(error.mock.calls[0][0]).toMatchObject({
+        url: CALLBACK_URL,
+        scope: 'full',
+      });
+    },
+  );
 });

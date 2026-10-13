@@ -1,6 +1,6 @@
 /**
  * @module api/prunePlan
- * Computes the prune plan: scrolls Qdrant (file_path + source, with retry/resume), classifies orphaned file points, never selects source points. I/O: Qdrant scroll, fs.access.
+ * Computes the prune plan: scrolls Qdrant (file_path + source, with retry/resume), classifies orphaned file points, never selects source points (isSourcePoint). I/O: Qdrant scroll, fs.access.
  */
 
 import { access } from 'node:fs/promises';
@@ -11,6 +11,11 @@ import { parallel } from 'radash';
 
 import type { JeevesWatcherConfig } from '../config/types';
 import { createIsGitignored, type GitignoreFilter } from '../gitignore';
+import {
+  FIELD_FILE_PATH,
+  FIELD_SOURCE,
+  isSourcePoint,
+} from '../processor/payloadFields';
 import { normalizeError } from '../util/normalizeError';
 import { normalizeSlashes } from '../util/normalizeSlashes';
 import { normalizePathCase } from '../vcs/gitExec';
@@ -56,7 +61,7 @@ async function scrollPageWithRetry(
         undefined,
         PRUNE_SCROLL_PAGE_SIZE,
         cursor,
-        ['file_path', 'source'],
+        [FIELD_FILE_PATH, FIELD_SOURCE],
       );
       return { points: page.points, nextCursor: page.nextCursor };
     } catch (error) {
@@ -85,7 +90,9 @@ const FS_ACCESS_CONCURRENCY = 100;
  *
  * 1. Enumerate all watched files from the filesystem → `watchedFiles` set.
  * 2. Scroll Qdrant points (`file_path` and `source`). For each point:
- *    - Carries `source` → never selected (source documents are not files).
+ *    - Source point ({@link isSourcePoint}: non-empty `source`, no
+ *      `file_path`) → never selected. A file point carrying a rule-written
+ *      `source` is classified like any other file point.
  *    - No `file_path` → orphan.
  *    - `file_path` not in `watchedFiles` → orphan (out of watch scope).
  *    - `file_path` in `watchedFiles` → check disk existence via `fs.access()`.
@@ -135,9 +142,9 @@ export async function computePrunePlan(
       for (const point of page.points) {
         totalPoints++;
         // Prune guard (row 27): source points are never pruned.
-        if (point.payload.source !== undefined) continue;
-        const filePath = point.payload.file_path as string | undefined;
-        if (!filePath) {
+        if (isSourcePoint(point.payload)) continue;
+        const filePath = point.payload[FIELD_FILE_PATH];
+        if (typeof filePath !== 'string' || filePath.length === 0) {
           orphanedIds.push(point.id);
           continue;
         }

@@ -1,11 +1,19 @@
 /**
  * @module api/sourceDiscovery
- * Finds the source documents a reindex covers: scrolls Qdrant for chunk-0 points carrying `source` (projection: source, source_rule), or resolves issue references to their stored or recorded rules. Qdrant reads only.
+ * Finds the source documents a reindex covers: scrolls Qdrant for chunk-0 source points (isSourcePoint; projection: source, source_rule, file_path), or resolves issue references to their stored or recorded rules. Qdrant reads only.
  */
 
 import { parallel } from 'radash';
 
 import type { IssueRecord } from '../issues/types';
+import {
+  FIELD_CHUNK_INDEX,
+  FIELD_FILE_PATH,
+  FIELD_SOURCE,
+  FIELD_SOURCE_RULE,
+  isSourcePoint,
+  SOURCE_POINT_CONDITIONS,
+} from '../processor/payloadFields';
 import type { SourceTarget } from '../processor/resolvers/SourceResolver';
 import type { SourceOperationsInterface } from '../processor/SourceOperations';
 import { parseSourceReference } from '../sources';
@@ -18,10 +26,13 @@ const DISCOVERY_PAGE_SIZE = 256;
 /** Parallel stored-rule lookups for issue references. */
 const RULE_LOOKUP_CONCURRENCY = 16;
 
-/** Chunk-0 points that carry a non-empty `source`: one per source document. */
+/** Chunk-0 source points (see {@link isSourcePoint}): one per source document. */
 const INDEXED_SOURCES_FILTER = {
-  must: [{ key: 'chunk_index', match: { value: 0 } }],
-  must_not: [{ is_empty: { key: 'source' } }],
+  must: [
+    { key: FIELD_CHUNK_INDEX, match: { value: 0 } },
+    ...SOURCE_POINT_CONDITIONS.must,
+  ],
+  must_not: SOURCE_POINT_CONDITIONS.must_not,
 };
 
 /** Source documents found for a reindex. */
@@ -52,16 +63,15 @@ export async function discoverIndexedSources(
       INDEXED_SOURCES_FILTER,
       DISCOVERY_PAGE_SIZE,
       cursor,
-      ['source', 'source_rule'],
+      [FIELD_SOURCE, FIELD_SOURCE_RULE, FIELD_FILE_PATH],
     );
     for (const { payload } of page.points) {
-      const ref = payload['source'];
-      if (typeof ref !== 'string' || ref.length === 0 || seen.has(ref)) {
-        continue;
-      }
+      if (!isSourcePoint(payload)) continue;
+      const ref = String(payload[FIELD_SOURCE]);
+      if (seen.has(ref)) continue;
       seen.add(ref);
       total++;
-      const rule = payload['source_rule'];
+      const rule = payload[FIELD_SOURCE_RULE];
       if (typeof rule === 'string' && rule.length > 0) {
         targets.push({ ref, rule });
       }

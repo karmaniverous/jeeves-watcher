@@ -1,6 +1,6 @@
 /**
  * @module api/reindexPrune.test
- * executePrune: the file queue is paused for the whole run and always resumed; a dry run deletes nothing; an incomplete scroll aborts the live prune; orphans are deleted in batches of 500 and reported to the callback; a delete failure fails the run.
+ * executePrune: the file queue is paused for the whole run and always resumed; a dry run deletes nothing; an incomplete scroll aborts the live prune; orphans are deleted in batches of 500 and reported to the callback; a delete failure fails the run; a planning failure rethrows on a dry run and resolves as a reported failed run when live.
  */
 
 import pino from 'pino';
@@ -103,10 +103,25 @@ describe('executePrune', () => {
     expect(queue.resume).toHaveBeenCalledTimes(1);
   });
 
-  it('resumes the queue and rethrows when planning fails', async () => {
+  it('dry run: resumes the queue and rethrows when planning fails', async () => {
     const { deps, queue } = makeDeps();
     vi.mocked(computePrunePlan).mockRejectedValue(new Error('scroll failed'));
-    await expect(executePrune(deps, false)).rejects.toThrow('scroll failed');
+    await expect(executePrune(deps, true)).rejects.toThrow('scroll failed');
     expect(queue.resume).toHaveBeenCalledTimes(1);
+    expect(reportReindexCompletion).not.toHaveBeenCalled();
+  });
+
+  it('live: a planning failure resolves as a failed run, reported to the callback', async () => {
+    const { deps, queue, vectorStore } = makeDeps();
+    vi.mocked(computePrunePlan).mockRejectedValue(new Error('scroll failed'));
+    const result = await executePrune(deps, false);
+    expect(result).toEqual({ filesProcessed: 0, durationMs: 0, errors: 1 });
+    expect(vectorStore.delete).not.toHaveBeenCalled();
+    expect(queue.resume).toHaveBeenCalledTimes(1);
+    expect(reportReindexCompletion).toHaveBeenCalledWith(
+      deps.config,
+      expect.objectContaining({ scope: 'prune', errors: ['scroll failed'] }),
+      deps.logger,
+    );
   });
 });

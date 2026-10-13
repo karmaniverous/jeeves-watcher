@@ -12,6 +12,7 @@ import { extractWatchPathStrings } from '@karmaniverous/jeeves-watcher-core';
 import type { JeevesWatcherConfig } from '../config/types';
 import { createIsGitignored, type GitignoreFilter } from '../gitignore';
 import { isPathWatched } from '../util/isPathWatched';
+import { isPathWithin } from '../util/isPathWithin';
 import { normalizeSlashes } from '../util/normalizeSlashes';
 import { listFilesFromGlobs } from './fileScan';
 import { invalidRequest, RequestError } from './requestError';
@@ -79,7 +80,9 @@ async function getPathFileList(
       isGitignored,
     );
     const targetAbsPath = resolve(targetPath);
-    return allWatchedFiles.filter((f) => resolve(f).startsWith(targetAbsPath));
+    return allWatchedFiles.filter((f) =>
+      isPathWithin(resolve(f), targetAbsPath),
+    );
   }
 
   throw invalidRequest(`Path is neither a file nor a directory: ${targetPath}`);
