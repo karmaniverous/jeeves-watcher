@@ -1260,10 +1260,10 @@ curl http://localhost:1936/config/schema
 
 **Success (200 OK):**
 
-Returns a JSON Schema object describing the merged config document shape, including:
+Returns a JSON Schema object describing the merged config document shape:
 
-- Top-level fields `description`, `search` (`scoreThresholds`), `schemas`, `inferenceRules`, `maps`, `templates`, `templateHelpers`, `mapHelpers` (and a legacy `slots` entry, which is not a config key)
-- Runtime-injected fields (`inferenceRules[].values`, `issues`)
+- Exactly the document's top-level keys, all required: the `PUBLIC_CONFIG_KEYS` allow-list (`description`, `watch`, `configWatch`, `search`, `schemas`, `inferenceRules`, `mapHelpers`, `templateHelpers`, `maps`, `templates`) plus `issues`. Each config key is taken from the core config schema (`jeevesWatcherConfigSchema`), so `schemas` is a record of named schemas and `search` includes `scoreThresholds` and `hybrid`.
+- Runtime-injected fields: `inferenceRules[].source` and `inferenceRules[].values`, helper `exports` under `mapHelpers` / `templateHelpers`, and `issues` (issue records as in `GET /issues`).
 
 The schema is generated from Zod using `z.toJSONSchema()` and describes the queryable surface exposed by [`GET /config`](#get-config).
 
@@ -1274,7 +1274,11 @@ The schema is generated from Zod using `z.toJSONSchema()` and describes the quer
   "type": "object",
   "properties": {
     "description": { "type": "string" },
-    "schemas": { "type": "array" },
+    "schemas": {
+      "type": "object",
+      "propertyNames": { "type": "string" },
+      "additionalProperties": { "anyOf": [{ "type": "object" }, { "type": "string" }] }
+    },
     "inferenceRules": {
       "type": "array",
       "items": {
@@ -1282,6 +1286,7 @@ The schema is generated from Zod using `z.toJSONSchema()` and describes the quer
         "properties": {
           "name": { "type": "string" },
           "description": { "type": "string" },
+          "source": { "type": "string" },
           "values": {
             "type": "object",
             "additionalProperties": { "type": "array" }
