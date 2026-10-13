@@ -10,6 +10,7 @@ import type pino from 'pino';
 import type { EmbeddingProvider, EmbedOptions } from '../../embedding';
 import { EmbeddingUnavailableError } from '../../embedding/rateLimitError';
 import type { VectorStore } from '../../vectorStore';
+import { sendError } from '../sendError';
 import { parseBody } from './parseBody';
 import { wrapHandler } from './wrapHandler';
 
@@ -61,9 +62,9 @@ export function createSearchHandler(deps: SearchRouteDeps) {
             String(Math.max(1, Math.ceil(error.retryAfterMs / 1000))),
           );
         }
-        void reply
-          .status(503)
-          .send({ error: error.name, message: error.message });
+        sendError(reply, 503, 'embedding_unavailable', error.name, {
+          message: error.message,
+        });
         return;
       }
 

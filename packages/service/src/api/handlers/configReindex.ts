@@ -18,6 +18,11 @@ import type { ValuesManager } from '../../values';
 import type { VectorStoreClient } from '../../vectorStore';
 import { executeReindex } from '../executeReindex';
 import type { ReindexTracker } from '../ReindexTracker';
+import {
+  NOT_AVAILABLE,
+  sendError,
+  sendSourcesNotAvailable,
+} from '../sendError';
 import { parseBody } from './parseBody';
 import { reindexSources } from './reindexSources';
 import { wrapHandler } from './wrapHandler';
@@ -57,10 +62,7 @@ export function createConfigReindexHandler(deps: ConfigReindexRouteDeps) {
       if (body.source !== undefined) {
         const { processor, sourceQueue: queue } = deps;
         if (!queue || !hasSourceOperations(processor)) {
-          return await reply.status(400).send({
-            error: 'Not available',
-            message: 'Source documents are not supported by this instance.',
-          });
+          return sendSourcesNotAvailable(reply, 400);
         }
         const ops = processor.sourceOperations();
         const refs = [body.source].flat();
@@ -68,8 +70,7 @@ export function createConfigReindexHandler(deps: ConfigReindexRouteDeps) {
       }
 
       if (scope === 'prune' && !deps.vectorStore) {
-        return await reply.status(400).send({
-          error: 'Not available',
+        return sendError(reply, 400, 'not_available', NOT_AVAILABLE, {
           message: 'Prune scope requires vectorStore to be configured.',
         });
       }

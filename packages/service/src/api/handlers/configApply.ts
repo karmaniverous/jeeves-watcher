@@ -11,6 +11,8 @@ import {
 } from '@karmaniverous/jeeves';
 import type { FastifyReply, FastifyRequest } from 'fastify';
 
+import { sendResult } from '../sendError';
+
 /** Dependencies for the config apply route handler. */
 export interface ConfigApplyRouteDeps {
   /** Component descriptor (schema, customMerge). */
@@ -53,7 +55,8 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
  * config path so the patch is merged into the file the service actually
  * loaded (not a path derived from `configRoot`, which may be unset or
  * different in the service process). Accepts `{ patch }` (sent by the
- * plugin's `watcher_config_apply`) or `{ config }`.
+ * plugin's `watcher_config_apply`) or `{ config }`. Error results get a
+ * `code` from their status (`invalid_request`, `internal_error`).
  *
  * @param deps - Route dependencies.
  */
@@ -67,12 +70,15 @@ export function createConfigApplyRouteHandler(deps: ConfigApplyRouteDeps) {
     const body = request.body ?? {};
     const patch = body.patch ?? body.config ?? {};
     if (!isPlainObject(patch)) {
-      return reply.status(400).send({
-        error: 'Config validation failed',
-        issues: [{ path: ['patch'], message: 'patch must be an object' }],
+      return sendResult(reply, {
+        status: 400,
+        body: {
+          error: 'Config validation failed',
+          issues: [{ path: ['patch'], message: 'patch must be an object' }],
+        },
       });
     }
     const result = await apply({ patch, replace: body.replace === true });
-    return reply.status(result.status).send(result.body);
+    return sendResult(reply, result);
   };
 }

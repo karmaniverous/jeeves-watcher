@@ -12,7 +12,7 @@ import {
 } from '@karmaniverous/jeeves-watcher-core';
 import Fastify, { type FastifyInstance } from 'fastify';
 
-import { registerApiKeyAuth } from './apiKeyAuth';
+import { registerApiHooks } from './apiHooks';
 import type { ApiServerOptions } from './apiServerOptions';
 import {
   CONFIG_WATCH_VALID_SCOPES,
@@ -86,8 +86,8 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
 
   const reindexTracker = options.reindexTracker ?? new ReindexTracker();
   const app = Fastify({ logger: false });
-  // api.apiKey is read once from the startup config (restart to change).
-  registerApiKeyAuth(app, config.api?.apiKey, logger);
+  // Auth + error handlers; api.apiKey is read once (restart to change).
+  registerApiHooks(app, config.api?.apiKey, logger);
 
   const triggerReindex = (scope: ReindexScope) => {
     if (!CONFIG_WATCH_VALID_SCOPES.includes(scope)) {

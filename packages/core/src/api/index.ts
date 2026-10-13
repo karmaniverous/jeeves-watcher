@@ -1,6 +1,6 @@
 /**
  * @module api
- * Barrel for the public HTTP API request/response Zod schemas and inferred types (status, search, scan, render, metadata, reindex, issues, documents). No I/O.
+ * Barrel for the public HTTP API request/response Zod schemas and inferred types (status, search, scan, render, metadata, reindex, issues, documents, error bodies and codes). No I/O.
  */
 
 export {
@@ -48,6 +48,14 @@ export {
   documentsResultsResponseSchema,
   MAX_DOCUMENTS_PER_REQUEST,
 } from './documents.js';
+export {
+  API_ERROR_CODES,
+  API_ERROR_STATUS,
+  type ApiErrorBody,
+  apiErrorBodySchema,
+  type ApiErrorCode,
+  apiErrorCodeSchema,
+} from './errors.js';
 export {
   ISSUE_TYPES,
   type IssueRecord,

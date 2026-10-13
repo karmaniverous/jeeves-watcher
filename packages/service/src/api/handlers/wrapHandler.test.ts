@@ -45,6 +45,7 @@ describe('wrapHandler', () => {
 
     expect(statusMock).toHaveBeenCalledWith(500);
     expect(sendMock).toHaveBeenCalledWith({
+      code: 'internal_error',
       error: 'Error',
       message: 'Test error',
     });

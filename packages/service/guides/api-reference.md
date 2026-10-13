@@ -10,7 +10,9 @@ The watcher exposes a lightweight HTTP API for search, metadata enrichment, and 
 
 **Authentication:** none by default. When `api.apiKey` is set, every route except `GET /status` requires `Authorization: Bearer <key>`; see [Authentication](#authentication). The examples below omit the header.
 
-**Request validation:** request bodies are validated against the Zod schemas exported by `@karmaniverous/jeeves-watcher-core`. An invalid body returns `400 { error, details }`, where `error` is the first issue's message and `details` is the full issue list.
+**Request validation:** request bodies are validated against the Zod schemas exported by `@karmaniverous/jeeves-watcher-core`. An invalid body returns `400 { code: "invalid_request", error, details }`, where `error` is the first issue's message and `details` is the full issue list.
+
+**Errors (v0.20.0+):** every non-2xx response carries a machine-readable `code`; see [Error Handling](#error-handling).
 
 **Source documents (v0.20.0+):** besides files, the watcher indexes records retrieved from other systems by callback. See [`POST /documents`](#post-documents), [`POST /documents/delete`](#post-documentsdelete) and the [Source Documents guide](./source-documents.md).
 
@@ -128,6 +130,7 @@ curl -X POST http://localhost:1936/metadata \
 
 ```json
 {
+  "code": "invalid_request",
   "error": "Metadata validation failed",
   "details": [
     { "field": "priority", "message": "must be one of: low, medium, high" }
@@ -159,7 +162,7 @@ curl -X POST http://localhost:1936/metadata \
 
 **Source documents (`source`):**
 
-- The document must be indexed: its designated rule is read from the stored `source_rule`. Otherwise the response is `404 { "error": "Source document not indexed" }` and nothing is stored.
+- The document must be indexed: its designated rule is read from the stored `source_rule`. Otherwise the response is `404 { "code": "source_not_indexed", "error": "Source document not indexed" }` and nothing is stored.
 - The metadata is validated against the designated rule's schema (`400` on failure).
 - It is stored in the enrichment store under the exact reference, written to every chunk with `setPayload` (no re-embedding, no callback), and merged again whenever the document is re-processed.
 - System fields (`source`, `source_rule`, `chunk_*`, ...) can never be overwritten.
@@ -228,10 +231,11 @@ curl -X POST http://localhost:1936/render \
 | --- | --- |
 | `200` | Success |
 | `400` | Invalid body (neither or both of `path` / `source`, malformed reference) |
-| `403` | Path is outside watched scope |
-| `404` | File not found; or `{ "error": "Source document not indexed" }` (no stored point, so no designated rule is known); or `{ "error": "Source document not found" }` (the callback answered `404`; points are left alone) |
-| `422` | Render/extraction failed; for a source document, `{ error, code, details? }` with an [issue code](#issue-codes) such as `match_failed`, `rule_missing`, `no_content` or `unsupported_content_type` |
-| `502` | Source callback failed: `{ error, code: "source_unavailable" }` |
+| `403` | `path_not_watched`: path is outside watched scope |
+| `404` | `not_found`: file not found; or `source_not_indexed` (no stored point, so no designated rule is known); or `source_not_found` (the callback answered `404`; points are left alone) |
+| `422` | `pipeline_error`: render/extraction failed; for a source document `issueType` holds the [issue code](#issue-codes) (`match_failed`, `rule_missing`, `no_content`, ...) and `details` any AJV errors. `unsupported_content_type` when the callback returned a non-JSON body |
+| `502` | `source_unavailable`: the source callback failed (`issueType: "source_unavailable"`) |
+| `503` | `not_available`: source render on an instance without source-document support |
 
 ### Behavior
 
@@ -415,6 +419,7 @@ The `filter` parameter accepts a native [Qdrant filter object](https://qdrant.te
 
 ```json
 {
+  "code": "embedding_unavailable",
   "error": "EmbeddingUnavailableError",
   "message": "Embedding provider still rate-limited after 3 attempts: ..."
 }
@@ -737,7 +742,7 @@ The reindex runs **asynchronously** — the API returns immediately with the pla
 | Code | Condition |
 | --- | --- |
 | `200` | Success (started or dry_run) |
-| `400` | Invalid body (unknown scope, missing `path`/`source` for scope `path`, `source` outside scope `path`, malformed reference), or prune without vectorStore |
+| `400` | `invalid_request`: invalid body (unknown scope, missing `path`/`source` for scope `path`, `source` outside scope `path`, malformed reference). `not_available`: prune without vectorStore, or `source` on an instance without source-document support |
 | `500` | Server error |
 
 ### Scopes
@@ -920,8 +925,8 @@ A designated rule whose `match` rejects the record is never an HTTP error: async
 | Code | Condition |
 | --- | --- |
 | `400` | Invalid body: `documents` missing, empty or over 100 entries; missing or empty `source`/`rule`; unknown keys; invalid `wait` |
-| `401` | `api.apiKey` is set and the bearer token is missing or wrong |
-| `503` | The instance's document processor does not support source documents |
+| `401` | `unauthorized`: `api.apiKey` is set and the bearer token is missing or wrong |
+| `503` | `not_available`: the instance's document processor does not support source documents |
 
 ### Behavior
 
@@ -1372,6 +1377,7 @@ curl -X POST http://localhost:1936/config/apply \
 
 ```json
 {
+  "code": "invalid_request",
   "error": "Config validation failed",
   "issues": [
     { "path": ["embedding", "dimensions"], "message": "Invalid input" }
@@ -1884,28 +1890,47 @@ Uses `git check-ignore -v` to determine exclusion status and the specific rule/s
 
 ## Error Handling
 
-All endpoints return JSON errors with this schema:
+Since v0.20.0 every non-2xx response has this body (`apiErrorBodySchema` in `@karmaniverous/jeeves-watcher-core`):
 
 ```json
 {
-  "error": "ErrorClassName",
-  "message": "Human-readable error message"
+  "code": "invalid_request",
+  "error": "Human-readable text",
+  "message": "Optional longer explanation",
+  "details": []
 }
 ```
 
-Validation errors (`400`) also carry `details` with the full list of schema issues. Source-document failures carry a machine-readable `code` (see [Issue Codes](#issue-codes)).
+- `code` is machine-readable and stable: branch on it. The list is `API_ERROR_CODES` in core (type `ApiErrorCode`); codes may be added, never repurposed.
+- `error` is the human-readable text earlier versions sent, unchanged, so older clients keep working. Do not parse it.
+- `message` (optional) adds detail; `details` (optional) holds structured data such as the Zod issues of a `400`.
+- `issueType` (optional) names the [issue code](#issue-codes) behind a failed source render.
+- Some endpoints add fields of their own (`issues` on `POST /config/apply`).
+- HTTP statuses did not change in v0.20.0.
+
+| `code` | Status | Meaning |
+| --- | --- | --- |
+| `invalid_request` | `400` | The body, query or parameters failed validation, or the request was rejected before reaching a route (malformed JSON, unsupported media type: the framework's status is kept, e.g. `415`). |
+| `unauthorized` | `401` | `api.apiKey` is set and the bearer token is missing or wrong. |
+| `path_not_watched` | `403` | The file path is outside the watched scope (`POST /render`). |
+| `not_found` | `404` | No such route, file, VCS watch root, file at a commit, `.gitignore` or `.gitignore` pattern. |
+| `source_not_indexed` | `404` | No stored point for the source reference, so no designated rule is known (`POST /render`, `POST /metadata`). |
+| `source_not_found` | `404` | The source callback answered `404` (`POST /render`). |
+| `unsupported_content_type` | `422` | The source callback returned a non-JSON body (`POST /render`). |
+| `pipeline_error` | `422` | Rendering or extraction failed; for a source document `issueType` names the failure. |
+| `source_unavailable` | `502` | The source callback failed (`POST /render`). |
+| `not_available` | `503` (`400` on `POST /reindex`) | The feature is not available on this instance: no source-document support, no vector store for prune, or no filesystem watcher (`POST /walk`). |
+| `scan_in_progress` | `503` | The initial filesystem scan is still running (`POST /walk`); retry later. |
+| `embedding_unavailable` | `503` | The embedding provider's retry budget ran out (`POST /search`); honour `Retry-After`. |
+| `internal_error` | `500` | Unexpected server-side failure (check the service log). Errors not caught by a route answer `{ "code": "internal_error", "error": "Internal Server Error", "message": "Internal server error" }` and never include the underlying error. |
+
+Per-document outcomes are not HTTP errors and use their own codes: `rejected[].error.code` of `POST /documents` (rejection codes) and `error.code` of `failed` results ([issue codes](#issue-codes)).
 
 **Status codes:**
 
-- `200 OK` — Success
-- `202 Accepted` — Notifications queued (`POST /documents`)
-- `400 Bad Request` — Validation error (invalid scope, missing required field, etc.)
-- `401 Unauthorized` — `api.apiKey` is set and the bearer token is missing or wrong
-- `404 Not Found` — Document not found or not indexed
-- `422 Unprocessable Entity` — Render failed
-- `502 Bad Gateway` — A source callback failed (`POST /render { source }`)
-- `503 Service Unavailable` — The embedding provider's retry budget ran out (`POST /search`), or a feature is not available on this instance
-- `500 Internal Server Error` — Server-side failure (check logs for details)
+- `200 OK`: success
+- `202 Accepted`: notifications queued (`POST /documents`)
+- `400 Bad Request`, `401 Unauthorized`, `403 Forbidden`, `404 Not Found`, `422 Unprocessable Entity`, `500 Internal Server Error`, `502 Bad Gateway`, `503 Service Unavailable`: see the table above
 
 ---
 
@@ -1933,7 +1958,7 @@ curl -X POST http://watcher.internal.example:1936/search \
 ```
 
 - Every route requires `Authorization: Bearer <apiKey>` (the `Bearer` scheme name is case-insensitive) — including unknown routes, the config, rules and VCS endpoints — **except `GET /status`** (and `HEAD /status`), which stays open for health checks.
-- A missing, malformed or wrong token gets `401 { "error": "Unauthorized" }`. The presented token is never logged; rejections log only the method and path at `debug` level.
+- A missing, malformed or wrong token gets `401 { "code": "unauthorized", "error": "Unauthorized" }`. The presented token is never logged; rejections log only the method and path at `debug` level.
 - The comparison is constant-time.
 - An empty `apiKey` (`""`) fails closed: no token can match, so every route except `GET /status` answers `401`.
 - If `apiKey` still contains an unresolved `${...}` after environment-variable substitution, loading the config fails and the service does not start.
@@ -1955,7 +1980,7 @@ The API itself has no request rate limit; add one at a reverse proxy if you need
 
 The **embedding provider** is rate-limited. Since v0.20.0, one shared limiter wraps the provider and every caller draws from it: file watching, source-document notifications, reindex and search. See [`embedding.rateLimitPerMinute`](./configuration.md#embedding-rate-limiting) for the semantics (and the 0.20.0 behaviour change).
 
-When the provider answers `429`, the limiter pauses **all** embedding requests for the provider's `Retry-After` (capped at `maxBackoffMs`), then retries. Indexing makes up to 5 attempts per embedding request and then records an `embedding_error` issue. Search makes up to 3 attempts and waits at most 10 seconds in total; when that budget runs out, `POST /search` answers `503 { error, message }` with a `Retry-After` header instead of `500`.
+When the provider answers `429`, the limiter pauses **all** embedding requests for the provider's `Retry-After` (capped at `maxBackoffMs`), then retries. Indexing makes up to 5 attempts per embedding request and then records an `embedding_error` issue. Search makes up to 3 attempts and waits at most 10 seconds in total; when that budget runs out, `POST /search` answers `503 { code: "embedding_unavailable", error, message }` with a `Retry-After` header instead of `500`.
 
 ---
 

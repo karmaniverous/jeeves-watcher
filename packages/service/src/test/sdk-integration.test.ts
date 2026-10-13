@@ -97,7 +97,11 @@ describe.skipIf(!qdrantAvailable())(
       const anon = createWatcherClient({ baseUrl: harness.baseUrl! });
       const error = await caught(anon.issues());
       expect(error).toBeInstanceOf(WatcherError);
-      expect(error).toMatchObject({ status: 401, code: 'Unauthorized' });
+      expect(error).toMatchObject({
+        status: 401,
+        code: 'unauthorized',
+        message: 'Unauthorized',
+      });
     });
 
     it('notify (202), then search and scan with a user_id filter', async () => {
@@ -169,7 +173,8 @@ describe.skipIf(!qdrantAvailable())(
       );
       expect(error).toMatchObject({
         status: 404,
-        code: 'Source document not indexed',
+        code: 'source_not_indexed',
+        message: 'Source document not indexed',
       });
     });
 

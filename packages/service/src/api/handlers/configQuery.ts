@@ -16,6 +16,7 @@ import type { IssuesManager } from '../../issues';
 import { normalizeError } from '../../util/normalizeError';
 import type { ValuesManager } from '../../values';
 import { buildMergedDocument } from '../mergedDocument';
+import { sendError, sendResult } from '../sendError';
 
 /** Dependencies for the config query route handler. */
 export interface ConfigQueryRouteDeps {
@@ -35,7 +36,8 @@ type ConfigQueryRequest = FastifyRequest<{
  * Create handler for GET /config.
  *
  * Uses `createConfigQueryHandler` from core to handle JSONPath querying.
- * Invalid JSONPath expressions are client errors and return 400.
+ * Invalid JSONPath expressions are client errors and return
+ * `400 invalid_request`.
  *
  * @param deps - Route dependencies.
  */
@@ -55,15 +57,18 @@ export function createConfigQueryHandler(deps: ConfigQueryRouteDeps) {
       const { path } = request.query;
       const result = await coreHandler({ path });
       if (result.status >= 400) {
-        return await reply.status(result.status).send(result.body);
+        return await sendResult(reply, result);
       }
       return result.body;
     } catch (error) {
       const err = normalizeError(error);
       deps.logger.error({ err }, 'Config query failed');
-      return await reply.status(400).send({
-        error: err.message || 'Query failed',
-      });
+      return await sendError(
+        reply,
+        400,
+        'invalid_request',
+        err.message || 'Query failed',
+      );
     }
   };
 }

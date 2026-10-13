@@ -9,6 +9,7 @@ import type pino from 'pino';
 import { resolveWatchRoot } from '../../../vcs/resolveWatchRoot';
 import { runGit } from '../../../vcs/runGit';
 import type { VcsCoordinator } from '../../../vcs/VcsCoordinator';
+import { sendError } from '../../sendError';
 import { wrapHandler } from '../wrapHandler';
 
 export interface VcsCheckExclusionRouteDeps {
@@ -33,17 +34,23 @@ export function createVcsCheckExclusionHandler(
       const { path } = request.query;
 
       if (!path) {
-        void reply
-          .status(400)
-          .send({ error: 'Missing required query parameter: path' });
+        sendError(
+          reply,
+          400,
+          'invalid_request',
+          'Missing required query parameter: path',
+        );
         return;
       }
 
       const resolved = resolveWatchRoot(deps.coordinator, path);
       if (!resolved) {
-        void reply
-          .status(404)
-          .send({ error: 'Path does not match any VCS-enabled watch root' });
+        sendError(
+          reply,
+          404,
+          'not_found',
+          'Path does not match any VCS-enabled watch root',
+        );
         return;
       }
 

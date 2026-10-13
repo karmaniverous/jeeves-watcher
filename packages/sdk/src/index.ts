@@ -24,6 +24,9 @@ export {
 
 // Core API types (request/response shapes) and the source callback contract.
 export {
+  API_ERROR_CODES,
+  type ApiErrorBody,
+  type ApiErrorCode,
   type ApiErrorResponse,
   type DocumentError,
   type DocumentNotification,

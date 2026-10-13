@@ -5,7 +5,8 @@
 
 /**
  * Codes the SDK assigns itself. Errors from a non-2xx response carry the
- * server's code instead (`body.code`, else `body.error`, else `http_<status>`).
+ * server's code instead: an `ApiErrorCode` (core `API_ERROR_CODES`) from a
+ * 0.20.0+ service, else `body.code`, else `body.error`, else `http_<status>`.
  *
  * - `invalid_options`: {@link createWatcherClient} options are invalid.
  * - `invalid_request`: the request body failed the core request schema; nothing was sent.

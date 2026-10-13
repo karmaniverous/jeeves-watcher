@@ -42,7 +42,10 @@ describe.skipIf(!qdrantAvailable())(
     it('returns 401 without a token', async () => {
       const res = await call('/issues');
       expect(res.status).toBe(401);
-      expect(await res.json()).toEqual({ error: 'Unauthorized' });
+      expect(await res.json()).toEqual({
+        code: 'unauthorized',
+        error: 'Unauthorized',
+      });
     });
 
     it('returns 401 with a wrong token', async () => {

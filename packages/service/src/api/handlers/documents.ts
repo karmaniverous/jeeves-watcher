@@ -20,6 +20,7 @@ import {
   type SourceOperationsInterface,
 } from '../../processor/SourceOperations';
 import type { SourceNotifyQueue } from '../../queue/SourceNotifyQueue';
+import { sendSourcesNotAvailable } from '../sendError';
 import { parseBody } from './parseBody';
 import { wrapHandler } from './wrapHandler';
 
@@ -113,10 +114,7 @@ export function createDocumentsHandler(deps: DocumentsHandlerDeps) {
 
       const { processor, sourceQueue } = deps;
       if (!sourceQueue || !hasSourceOperations(processor)) {
-        return reply.status(503).send({
-          error: 'Not available',
-          message: 'Source documents are not supported by this instance.',
-        });
+        return sendSourcesNotAvailable(reply);
       }
       const ops = processor.sourceOperations();
       const checked = body.documents.map((d) => check(ops, d.source, d.rule));

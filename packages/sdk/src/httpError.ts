@@ -1,7 +1,9 @@
 /**
  * @module httpError
- * Maps a non-2xx watcher response (status + raw body text) to a WatcherError, taking code/message/details from the JSON error body when present. Pure.
+ * Maps a non-2xx watcher response (status + raw body text) to a WatcherError: the canonical `code` and `error` text of a 0.20.0+ error body, else the legacy `error`/`message` fields. Pure.
  */
+
+import { apiErrorCodeSchema } from '@karmaniverous/jeeves-watcher-core';
 
 import { WatcherError } from './WatcherError.js';
 
@@ -27,10 +29,36 @@ const stringField = (body: unknown, key: string): string | undefined => {
 };
 
 /**
+ * Code and message of a 0.20.0+ error body: `code` is one of the canonical
+ * API error codes and `error` is the human-readable text (`message`, when
+ * present, is appended). Pure.
+ *
+ * @param body - Parsed response body.
+ * @returns Code and message, or `undefined` for any other body.
+ */
+function canonical(
+  body: unknown,
+): { code: string; message: string } | undefined {
+  const code = apiErrorCodeSchema.safeParse(stringField(body, 'code'));
+  const error = stringField(body, 'error');
+  if (!code.success || error === undefined) return undefined;
+  const extra = stringField(body, 'message');
+  return {
+    code: code.data,
+    message:
+      extra !== undefined && extra !== error ? `${error}: ${extra}` : error,
+  };
+}
+
+/**
  * Build the error for a non-2xx response.
  *
- * - `code`: `body.code`, else `body.error`, else `http_<status>`.
- * - `message`: `body.message`, else `body.error`, else `HTTP <status> <statusText>`.
+ * - Canonical body (`code` is an `ApiErrorCode`, `error` is a string): `code`
+ *   is `body.code`; `message` is `body.error`, plus `: <body.message>` when
+ *   present.
+ * - Otherwise (older servers, proxies): `code` is `body.code`, else
+ *   `body.error`, else `http_<status>`; `message` is `body.message`, else
+ *   `body.error`, else `HTTP <status> <statusText>`.
  * - `details`: `body.details` when present, else the parsed body (or raw text).
  *
  * @param status - HTTP status.
@@ -51,8 +79,7 @@ export function httpError(
   const details: unknown = hasDetails
     ? body.details
     : (body ?? (text.length > 0 ? text : undefined));
-  return new WatcherError({
-    status,
+  const mapped = canonical(body) ?? {
     code:
       stringField(body, 'code') ??
       stringField(body, 'error') ??
@@ -61,6 +88,6 @@ export function httpError(
       stringField(body, 'message') ??
       stringField(body, 'error') ??
       fallbackMessage,
-    details,
-  });
+  };
+  return new WatcherError({ status, ...mapped, details });
 }

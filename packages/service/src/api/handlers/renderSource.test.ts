@@ -116,7 +116,10 @@ describe('POST /render { source }', () => {
     ops.storedRule.mockResolvedValue(null);
     const res = await render({ source: REF });
     expect(res.statusCode).toBe(404);
-    expect(res.json()).toEqual({ error: 'Source document not indexed' });
+    expect(res.json()).toEqual({
+      code: 'source_not_indexed',
+      error: 'Source document not indexed',
+    });
     expect(ops.render).not.toHaveBeenCalled();
   });
 
@@ -124,28 +127,39 @@ describe('POST /render { source }', () => {
     ops.render.mockResolvedValue({ kind: 'gone' });
     const res = await render({ source: REF });
     expect(res.statusCode).toBe(404);
-    expect(res.json()).toEqual({ error: 'Source document not found' });
+    expect(res.json()).toEqual({
+      code: 'source_not_found',
+      error: 'Source document not found',
+    });
   });
 
   it.each([
-    ['source_unavailable', 502],
-    ['match_failed', 422],
-    ['rule_missing', 422],
-  ])('maps %s to %i', async (code, status) => {
+    ['source_unavailable', 502, 'source_unavailable'],
+    ['match_failed', 422, 'pipeline_error'],
+    ['rule_missing', 422, 'pipeline_error'],
+  ])('maps %s to %i', async (code, status, apiCode) => {
     ops.render.mockResolvedValue({
       kind: 'failed',
       error: { code, message: 'boom', details: [{ x: 1 }] },
     });
     const res = await render({ source: REF });
     expect(res.statusCode).toBe(status);
-    expect(res.json()).toEqual({ error: 'boom', code, details: [{ x: 1 }] });
+    expect(res.json()).toEqual({
+      code: apiCode,
+      error: 'boom',
+      issueType: code,
+      details: [{ x: 1 }],
+    });
   });
 
   it('returns 500 on an unexpected error', async () => {
     ops.storedRule.mockRejectedValue(new Error('qdrant down'));
     const res = await render({ source: REF });
     expect(res.statusCode).toBe(500);
-    expect(res.json()).toEqual({ error: 'qdrant down' });
+    expect(res.json()).toEqual({
+      code: 'internal_error',
+      error: 'qdrant down',
+    });
   });
 
   it('returns 503 when the processor has no source support', async () => {

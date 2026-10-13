@@ -99,7 +99,9 @@ Every failure is a `WatcherError` with `code`, optional `status` and optional `d
 | `timeout` | No response within `timeoutMs`. | — |
 | `network_error` | `fetch` rejected (connection refused, DNS, …); see `cause`. | — |
 | `invalid_options` | `createWatcherClient` options are invalid. | — |
-| server code | A non-2xx response: `body.code`, else `body.error`, else `http_<status>`. `details` is `body.details` or the body. | 4xx / 5xx |
+| server code | A non-2xx response: an `ApiErrorCode` (below) from a 0.20.0+ service; from older services `body.code`, else `body.error`, else `http_<status>`. `details` is `body.details` or the body. | 4xx / 5xx |
+
+A 0.20.0+ service answers every non-2xx with `{ code, error, message?, details? }`. `code` is one of `API_ERROR_CODES` (exported, with the `ApiErrorCode` type): `invalid_request`, `unauthorized`, `path_not_watched`, `not_found`, `source_not_indexed`, `source_not_found`, `unsupported_content_type`, `pipeline_error`, `source_unavailable`, `not_available`, `scan_in_progress`, `embedding_unavailable`, `internal_error`. The SDK copies it to `err.code`; `err.message` is the body's `error` text, with `message` appended when present. Branch on `code`, never on the message. The server's `invalid_request` (a `400`, `status` set) shares its name with the SDK's client-side `invalid_request` (nothing sent, no `status`). See the service API reference for what each code means.
 
 ```ts
 import { isWatcherError } from '@karmaniverous/jeeves-watcher-sdk';
@@ -107,7 +109,7 @@ import { isWatcherError } from '@karmaniverous/jeeves-watcher-sdk';
 try {
   await watcher.search({ query, filter });
 } catch (err) {
-  if (isWatcherError(err) && err.status === 503) {
+  if (isWatcherError(err) && err.code === 'embedding_unavailable') {
     // embedding provider exhausted its retry budget: back off and retry later
   }
   throw err;

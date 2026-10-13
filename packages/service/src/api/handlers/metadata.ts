@@ -10,6 +10,7 @@ import type pino from 'pino';
 import type { JeevesWatcherConfig } from '../../config/types';
 import type { DocumentProcessorInterface } from '../../processor';
 import { hasSourceOperations } from '../../processor/SourceOperations';
+import { sendError, sendSourcesNotAvailable } from '../sendError';
 import {
   validateMetadataPayload,
   validateSourceMetadataPayload,
@@ -25,6 +26,19 @@ interface MetadataRouteDeps {
 }
 
 type MetadataRequest = FastifyRequest<{ Body: unknown }>;
+
+/** Send `404 source_not_indexed`. */
+const sendNotIndexed = (reply: FastifyReply) =>
+  sendError(reply, 404, 'source_not_indexed', 'Source document not indexed');
+
+/** Send `400 invalid_request` for failed metadata validation. */
+const sendInvalid = (
+  reply: FastifyReply,
+  validation: { error: string; details?: unknown },
+) =>
+  sendError(reply, 400, 'invalid_request', validation.error, {
+    details: validation.details,
+  });
 
 /**
  * Enrich a source document. The designated rule comes from the stored
@@ -44,29 +58,20 @@ async function updateSourceMetadata(
   reply: FastifyReply,
 ) {
   if (!hasSourceOperations(deps.processor)) {
-    return reply.code(503).send({
-      error: 'Not available',
-      message: 'Source documents are not supported by this instance.',
-    });
+    return sendSourcesNotAvailable(reply);
   }
   const ops = deps.processor.sourceOperations();
   const rule = await ops.storedRule(ref);
-  if (rule === null) {
-    return reply.code(404).send({ error: 'Source document not indexed' });
-  }
+  if (rule === null) return sendNotIndexed(reply);
   const validation = validateSourceMetadataPayload(
     deps.getConfig(),
     rule,
     metadata,
     deps.configDir,
   );
-  if (!validation.ok) {
-    return reply
-      .code(400)
-      .send({ error: validation.error, details: validation.details });
-  }
+  if (!validation.ok) return sendInvalid(reply, validation);
   if ((await ops.updateMetadata(ref, metadata)) === null) {
-    return reply.code(404).send({ error: 'Source document not indexed' });
+    return sendNotIndexed(reply);
   }
   return { ok: true, matched_rules: validation.matchedRules };
 }
@@ -93,11 +98,7 @@ export function createMetadataHandler(deps: MetadataRouteDeps) {
         metadata,
         deps.configDir,
       );
-      if (!validation.ok) {
-        return reply
-          .code(400)
-          .send({ error: validation.error, details: validation.details });
-      }
+      if (!validation.ok) return sendInvalid(reply, validation);
 
       await deps.processor.processMetadataUpdate(path, metadata);
       return { ok: true, matched_rules: validation.matchedRules };

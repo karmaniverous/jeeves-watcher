@@ -155,6 +155,7 @@ describe('createSearchHandler', () => {
     expect(reply.header).toHaveBeenCalledWith('Retry-After', '3');
     expect(reply.send).toHaveBeenCalledTimes(1);
     expect(reply.send).toHaveBeenCalledWith({
+      code: 'embedding_unavailable',
       error: 'EmbeddingUnavailableError',
       message: 'still rate-limited',
     });

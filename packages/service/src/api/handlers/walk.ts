@@ -11,6 +11,7 @@ import type pino from 'pino';
 import { normalizeSlashes } from '../../util/normalizeSlashes';
 import type { FileSystemWatcher } from '../../watcher';
 import { getWatchRootBases } from '../fileScan';
+import { sendError } from '../sendError';
 import { wrapHandler } from './wrapHandler';
 
 /** Dependencies for the walk route handler. */
@@ -36,8 +37,7 @@ export function createWalkHandler(deps: WalkRouteDeps) {
       const { globs } = request.body;
 
       if (!Array.isArray(globs) || globs.length === 0) {
-        return await reply.status(400).send({
-          error: 'Missing globs',
+        return sendError(reply, 400, 'invalid_request', 'Missing globs', {
           message:
             'The "globs" field is required and must be a non-empty string array.',
         });
@@ -46,15 +46,13 @@ export function createWalkHandler(deps: WalkRouteDeps) {
       const fileSystemWatcher = deps.getFileSystemWatcher?.();
 
       if (!fileSystemWatcher) {
-        return await reply.status(503).send({
-          error: 'Watcher unavailable',
+        return sendError(reply, 503, 'not_available', 'Watcher unavailable', {
           message: 'Filesystem watcher is not initialized.',
         });
       }
 
       if (!fileSystemWatcher.isReady) {
-        return await reply.status(503).send({
-          error: 'Scan in progress',
+        return sendError(reply, 503, 'scan_in_progress', 'Scan in progress', {
           message:
             'Initial filesystem scan is still active. Try again after scan completes.',
         });

@@ -13,6 +13,7 @@ import { normalizeSlashes } from '../../../util/normalizeSlashes';
 import { resolveWatchRootsForGlob } from '../../../vcs/resolveWatchRoot';
 import { runGit } from '../../../vcs/runGit';
 import type { VcsCoordinator } from '../../../vcs/VcsCoordinator';
+import { sendError } from '../../sendError';
 import { wrapHandler } from '../wrapHandler';
 
 export interface VcsRevertRouteDeps {
@@ -37,17 +38,23 @@ export function createVcsRevertHandler(deps: VcsRevertRouteDeps) {
       const { glob, commit, existingOnly } = request.body;
 
       if (!glob || !commit) {
-        void reply
-          .status(400)
-          .send({ error: 'Missing required body parameters: glob, commit' });
+        sendError(
+          reply,
+          400,
+          'invalid_request',
+          'Missing required body parameters: glob, commit',
+        );
         return;
       }
 
       const resolved = resolveWatchRootsForGlob(deps.coordinator, glob);
       if (resolved.length === 0) {
-        void reply
-          .status(404)
-          .send({ error: 'Glob does not match any VCS-enabled watch root' });
+        sendError(
+          reply,
+          404,
+          'not_found',
+          'Glob does not match any VCS-enabled watch root',
+        );
         return;
       }
 

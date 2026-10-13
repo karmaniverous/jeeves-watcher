@@ -9,6 +9,7 @@ import type pino from 'pino';
 import { resolveWatchRootsForGlob } from '../../../vcs/resolveWatchRoot';
 import { runGit } from '../../../vcs/runGit';
 import type { VcsCoordinator } from '../../../vcs/VcsCoordinator';
+import { sendError } from '../../sendError';
 import { wrapHandler } from '../wrapHandler';
 
 export interface VcsDiffRouteDeps {
@@ -33,17 +34,23 @@ export function createVcsDiffHandler(deps: VcsDiffRouteDeps) {
       const { glob, commit, commitEnd } = request.query;
 
       if (!glob || !commit) {
-        void reply
-          .status(400)
-          .send({ error: 'Missing required query parameters: glob, commit' });
+        sendError(
+          reply,
+          400,
+          'invalid_request',
+          'Missing required query parameters: glob, commit',
+        );
         return;
       }
 
       const resolved = resolveWatchRootsForGlob(deps.coordinator, glob);
       if (resolved.length === 0) {
-        void reply
-          .status(404)
-          .send({ error: 'No VCS-enabled watch root matches the given glob' });
+        sendError(
+          reply,
+          404,
+          'not_found',
+          'No VCS-enabled watch root matches the given glob',
+        );
         return;
       }
 

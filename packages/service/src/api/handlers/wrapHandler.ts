@@ -1,6 +1,6 @@
 /**
  * @module api/handlers/wrapHandler
- * Generic error-handling wrapper for Fastify route handlers.
+ * Generic error-handling wrapper for Fastify route handlers: uncaught errors are logged and answered with `500 internal_error`.
  */
 
 import type {
@@ -11,6 +11,7 @@ import type {
 import type pino from 'pino';
 
 import { normalizeError } from '../../util/normalizeError';
+import { sendError } from '../sendError';
 
 /**
  * Wrap a Fastify route handler with standardised error handling.
@@ -38,8 +39,7 @@ export function wrapHandler<T extends RouteGenericInterface, R = unknown>(
       const normalized = normalizeError(error);
       logger.error({ err: normalized }, `${label} failed`);
       if (!reply.sent) {
-        void reply.status(500).send({
-          error: normalized.constructor.name,
+        sendError(reply, 500, 'internal_error', normalized.constructor.name, {
           message: normalized.message || 'Internal server error',
         });
       }

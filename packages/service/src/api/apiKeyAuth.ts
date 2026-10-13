@@ -9,8 +9,12 @@ import { getEndpoint } from '@karmaniverous/jeeves-watcher-core';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import type pino from 'pino';
 
+import { apiErrorBody, sendError } from './sendError';
+
 /** Body returned with every 401 response. */
-export const UNAUTHORIZED_BODY = { error: 'Unauthorized' } as const;
+export const UNAUTHORIZED_BODY = Object.freeze(
+  apiErrorBody('unauthorized', 'Unauthorized'),
+);
 
 const BEARER_PATTERN = /^Bearer[ \t]+(\S+)[ \t]*$/i;
 
@@ -80,7 +84,8 @@ export function registerApiKeyAuth(
         { method: request.method, path: request.url.split('?', 1)[0] },
         'Rejected API request without a valid bearer token',
       );
-      return reply.code(401).send(UNAUTHORIZED_BODY);
+      const { code, error } = UNAUTHORIZED_BODY;
+      return sendError(reply, 401, code, error);
     },
   );
 }

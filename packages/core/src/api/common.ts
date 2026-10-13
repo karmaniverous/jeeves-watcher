@@ -15,7 +15,11 @@ export const qdrantFilterSchema = z
 /** A Qdrant filter object. */
 export type QdrantFilter = z.infer<typeof qdrantFilterSchema>;
 
-/** Error body returned by the API on 4xx/5xx responses. */
+/**
+ * Error body shape common to every watcher version: `error` plus optional
+ * `message` and `details`, no `code`. Responses from 0.20.0+ also carry a
+ * machine-readable `code`; see `apiErrorBodySchema` (module `api/errors`).
+ */
 export const apiErrorResponseSchema = z.object({
   /** Short error description. */
   error: z.string(),

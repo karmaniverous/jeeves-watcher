@@ -162,7 +162,10 @@ describe('POST /render handler', () => {
     );
 
     expect(reply.statusCode).toBe(403);
-    expect(reply.body).toEqual({ error: 'Path is outside watched scope' });
+    expect(reply.body).toEqual({
+      code: 'path_not_watched',
+      error: 'Path is outside watched scope',
+    });
   });
 
   it('returns 404 when file is not found', async () => {
@@ -179,7 +182,7 @@ describe('POST /render handler', () => {
     );
 
     expect(reply.statusCode).toBe(404);
-    expect(reply.body).toEqual({ error: 'File not found' });
+    expect(reply.body).toEqual({ code: 'not_found', error: 'File not found' });
   });
 
   it('returns 400 for missing path', async () => {
@@ -206,7 +209,10 @@ describe('POST /render handler', () => {
     );
 
     expect(reply.statusCode).toBe(422);
-    expect(reply.body).toEqual({ error: 'Extraction failed' });
+    expect(reply.body).toEqual({
+      code: 'pipeline_error',
+      error: 'Extraction failed',
+    });
   });
 
   it('does not include transformed flag in response', async () => {

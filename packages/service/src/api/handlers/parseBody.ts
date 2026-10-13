@@ -1,15 +1,18 @@
 /**
  * @module api/handlers/parseBody
- * Validates Fastify request bodies against core Zod schemas; on failure sends 400 with error and Zod issue details.
+ * Validates Fastify request bodies against core Zod schemas; on failure sends 400 `invalid_request` with error and Zod issue details.
  */
 
 import type { FastifyReply } from 'fastify';
 import type { z } from 'zod';
 
+import { sendError } from '../sendError';
+
 /**
  * Parse a request body with a Zod schema.
  *
- * On failure, sends `400 { error, details }` where `error` is the first
+ * On failure, sends `400 { code: 'invalid_request', error, details }`
+ * where `error` is the first
  * issue's message and `details` is the full Zod issue list, and returns
  * `undefined`. The caller must return immediately in that case.
  *
@@ -26,9 +29,12 @@ export function parseBody<S extends z.ZodType>(
   const result = schema.safeParse(body);
   if (result.success) return result.data;
 
-  void reply.status(400).send({
-    error: result.error.issues[0]?.message ?? 'Invalid request body',
-    details: result.error.issues,
-  });
+  sendError(
+    reply,
+    400,
+    'invalid_request',
+    result.error.issues[0]?.message ?? 'Invalid request body',
+    { details: result.error.issues },
+  );
   return undefined;
 }
