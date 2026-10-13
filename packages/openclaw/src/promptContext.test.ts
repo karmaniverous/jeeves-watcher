@@ -13,6 +13,11 @@ describe('WATCHER_PROMPT_CONTEXT', () => {
     expect(WATCHER_PROMPT_CONTEXT).toContain('Search-first rule');
     expect(WATCHER_PROMPT_CONTEXT).toContain('$.search.scoreThresholds');
   });
+
+  it('states that score thresholds have no defaults', () => {
+    expect(WATCHER_PROMPT_CONTEXT).toContain('there are no defaults');
+    expect(WATCHER_PROMPT_CONTEXT).not.toMatch(/\d\.\d+ \/ \d\.\d+/);
+  });
 });
 
 describe('registerWatcherPromptContext', () => {
