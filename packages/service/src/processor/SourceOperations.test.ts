@@ -260,9 +260,11 @@ describe('SourceOperations.updateMetadata', () => {
 });
 
 describe('SourceOperations.process', () => {
-  it('indexes through the shared pipeline (processSource delegates here)', async () => {
+  it('indexes through the shared pipeline (the notify queue runs this)', async () => {
     const { processor, vectorStore } = setup();
-    await expect(processor.processSource(REF, 'chat')).resolves.toMatchObject({
+    await expect(
+      processor.sourceOperations().process(REF, 'chat'),
+    ).resolves.toMatchObject({
       source: REF,
       status: 'indexed',
     });

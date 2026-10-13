@@ -1,21 +1,21 @@
 /**
  * @module queue/SourceNotifyQueue.force.test
- * Source notify queue: `force` reaches processSource and merges as OR into a pending or dirty run; an unexpected processSource rejection records an `extraction_error` issue carrying the designated rule, a tagged one keeps its code and details (fake timers).
+ * Source notify queue: `force` reaches process and merges as OR into a pending or dirty run; an unexpected process rejection records an `extraction_error` issue carrying the designated rule, a tagged one keeps its code and details (fake timers).
  */
 
 import type { DocumentResult } from '@karmaniverous/jeeves-watcher-core';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ProcessingFailure } from '../processor/issueRecording';
-import type { SourceProcessorInterface } from '../processor/types';
+import type { SourceProcess } from './SourceNotifyQueue';
 import { SourceNotifyQueue } from './SourceNotifyQueue';
 
 const RUN_MS = 100;
 
 function createProcessor() {
   const calls: Array<{ ref: string; rule: string; force?: boolean }> = [];
-  const processor: SourceProcessorInterface = {
-    processSource: (ref, rule, options) => {
+  const processor: SourceProcess = {
+    process: (ref, rule, options) => {
       calls.push({ ref, rule, force: options?.force });
       return new Promise<DocumentResult>((resolve) => {
         setTimeout(() => {
@@ -36,7 +36,7 @@ describe('SourceNotifyQueue force', () => {
     vi.useRealTimers();
   });
 
-  it('passes force to processSource; notifications never force', async () => {
+  it('passes force to process; notifications never force', async () => {
     const { processor, calls } = createProcessor();
     const queue = new SourceNotifyQueue(processor);
     queue.start();
@@ -80,8 +80,8 @@ describe('SourceNotifyQueue force', () => {
 
 describe('SourceNotifyQueue unexpected rejection', () => {
   it('records an extraction_error issue with the designated rule', async () => {
-    const processor: SourceProcessorInterface = {
-      processSource: () => Promise.reject(new Error('kaboom')),
+    const processor: SourceProcess = {
+      process: () => Promise.reject(new Error('kaboom')),
     };
     const issues = { record: vi.fn(), clear: vi.fn() };
     const queue = new SourceNotifyQueue(processor, {}, undefined, issues);
@@ -102,10 +102,10 @@ describe('SourceNotifyQueue unexpected rejection', () => {
     );
   });
 
-  it('keeps the code and details of a tagged rejection (same recording as processSource)', async () => {
+  it('keeps the code and details of a tagged rejection (same recording as a processed failure)', async () => {
     const details = [{ stage: 'schema' }];
-    const processor: SourceProcessorInterface = {
-      processSource: () =>
+    const processor: SourceProcess = {
+      process: () =>
         Promise.reject(
           new ProcessingFailure('upsert_error', new Error('down'), details),
         ),

@@ -1,6 +1,6 @@
 /**
  * @module app/shutdown.test
- * shutdownComponents order and safety: the API server closes before producers stop and queues drain; stores close only when every queue step finished; a hung source queue leaves stores open after the timeout (fake timers).
+ * shutdownComponents order and safety: the API server closes before producers stop and queues drain and stop; stores close only when every queue step finished; a hung source queue leaves stores open after the timeout (fake timers).
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -20,7 +20,7 @@ function components(sourceStop: () => Promise<void>) {
     parts: {
       server: { close: log('server close') },
       producers: [{ stop: log('watcher stop') }, undefined],
-      queue: { drain: log('queue drain') },
+      queue: { drain: log('queue drain'), stop: log('queue stop') },
       sourceQueue: {
         drain: log('source drain'),
         stop: () => {
@@ -53,6 +53,7 @@ describe('shutdownComponents', () => {
       'server close',
       'watcher stop',
       'queue drain',
+      'queue stop',
       'source drain',
       'source stop',
       'values flush',

@@ -21,7 +21,7 @@ describe('EventQueue', () => {
       debounceMs: 100,
       concurrency: 5,
     });
-    queue.process();
+    queue.start();
 
     const event: WatchEvent = {
       type: 'modify',
@@ -49,7 +49,7 @@ describe('EventQueue', () => {
       debounceMs: 50,
       concurrency: 5,
     });
-    queue.process();
+    queue.start();
 
     queue.enqueue({ type: 'modify', path: '/a.txt', priority: 'normal' }, fn);
     queue.enqueue({ type: 'modify', path: '/b.txt', priority: 'normal' }, fn);
@@ -77,7 +77,7 @@ describe('EventQueue', () => {
       debounceMs: 10,
       concurrency: 2,
     });
-    queue.process();
+    queue.start();
 
     for (let i = 0; i < 5; i++) {
       queue.enqueue(
@@ -100,7 +100,7 @@ describe('EventQueue', () => {
       debounceMs: 50,
       concurrency: 5,
     });
-    queue.process();
+    queue.start();
 
     // Should resolve immediately without hanging
     await queue.drain();
@@ -129,7 +129,7 @@ describe('EventQueue', () => {
     await vi.advanceTimersByTimeAsync(20);
 
     // Now start processing
-    queue.process();
+    queue.start();
     await vi.advanceTimersByTimeAsync(10);
     await queue.drain();
 
@@ -148,7 +148,7 @@ describe('EventQueue', () => {
       debounceMs: 100,
       concurrency: 5,
     });
-    queue.process();
+    queue.start();
 
     queue.enqueue({ type: 'create', path: '/a.txt', priority: 'normal' }, fn);
     await vi.advanceTimersByTimeAsync(50);

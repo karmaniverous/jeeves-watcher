@@ -44,7 +44,8 @@ describe('JeevesWatcher startup: notify queue concurrency', () => {
         ensureCollection: vi.fn().mockResolvedValue(undefined),
         ensureTextIndex: vi.fn().mockResolvedValue(undefined),
       }) as never,
-    createDocumentProcessor: () => ({ processSource }) as never,
+    createDocumentProcessor: () =>
+      ({ sourceOperations: () => ({ process: processSource }) }) as never,
     createFileSystemWatcher: () =>
       ({ start: vi.fn(), stop: vi.fn().mockResolvedValue(undefined) }) as never,
     createApiServer: (options) => {

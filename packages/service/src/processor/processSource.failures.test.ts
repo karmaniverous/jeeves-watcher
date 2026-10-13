@@ -83,7 +83,7 @@ describe('processSource failures', () => {
     f.store.getPayload.mockRejectedValueOnce(new Error('qdrant down'));
     f.store.upsert.mockClear();
 
-    const result = await f.processor.processSource(REF, RULE);
+    const result = await f.processor.sourceOperations().process(REF, RULE);
 
     expect(result).toMatchObject({
       status: 'failed',
@@ -100,7 +100,7 @@ describe('processSource failures', () => {
     const f = sourceReindexFixture({ [REF]: doc('u1', 'hello') });
     f.processor.updateRules(brokenSetRules());
 
-    const result = await f.processor.processSource(REF, RULE);
+    const result = await f.processor.sourceOperations().process(REF, RULE);
 
     expect(result).toMatchObject({
       status: 'failed',

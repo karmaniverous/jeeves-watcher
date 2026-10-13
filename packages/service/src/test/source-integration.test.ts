@@ -81,7 +81,9 @@ describe.skipIf(!qdrantAvailable())(
     });
 
     it('indexes a source document end to end', async () => {
-      const result = await harness.processor.processSource(REF, RULE);
+      const result = await harness.processor
+        .sourceOperations()
+        .process(REF, RULE);
       expect(result).toEqual({
         source: REF,
         status: 'indexed',
@@ -107,7 +109,9 @@ describe.skipIf(!qdrantAvailable())(
     });
 
     it('keeps case-distinct references as distinct documents', async () => {
-      const result = await harness.processor.processSource(REF_LOWER, RULE);
+      const result = await harness.processor
+        .sourceOperations()
+        .process(REF_LOWER, RULE);
       expect(result.status).toBe('indexed');
 
       const upper = await harness.vectorStore.getPayload(sourcePointId(REF, 0));
@@ -123,7 +127,9 @@ describe.skipIf(!qdrantAvailable())(
       const before = await harness.vectorStore.getPayload(
         sourcePointId(REF, 0),
       );
-      const result = await harness.processor.processSource(REF, RULE);
+      const result = await harness.processor
+        .sourceOperations()
+        .process(REF, RULE);
       expect(result.status).toBe('unchanged');
       const after = await harness.vectorStore.getPayload(sourcePointId(REF, 0));
       expect(after?.['modified_at']).toBe(before?.['modified_at']);
@@ -132,7 +138,9 @@ describe.skipIf(!qdrantAvailable())(
     it('records match_failed and writes nothing for a non-matching record', async () => {
       stub.route('/threads/chat/thread/bad', { body: { userId: 'u3' } });
       const ref = 'app://chat/thread/bad';
-      const result = await harness.processor.processSource(ref, RULE);
+      const result = await harness.processor
+        .sourceOperations()
+        .process(ref, RULE);
       expect(result.status).toBe('failed');
       expect(result.error?.code).toBe('match_failed');
       expect(
@@ -145,7 +153,9 @@ describe.skipIf(!qdrantAvailable())(
         status: 404,
         body: { error: 'gone' },
       });
-      const result = await harness.processor.processSource(REF, RULE);
+      const result = await harness.processor
+        .sourceOperations()
+        .process(REF, RULE);
       expect(result).toEqual({ source: REF, status: 'deleted' });
       expect(
         await harness.vectorStore.getPayload(sourcePointId(REF, 0)),

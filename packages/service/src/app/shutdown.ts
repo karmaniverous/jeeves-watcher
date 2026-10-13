@@ -53,23 +53,46 @@ async function step(
   return done;
 }
 
+/** A queue drained and stopped on shutdown. */
+export interface StoppableQueue {
+  /** Resolve once the queue holds no work. */
+  drain: () => Promise<void>;
+  /** Drop remaining work, refuse new work, resolve once in-flight work ends. */
+  stop: () => Promise<void>;
+}
+
 /** Queues drained on shutdown. */
 export interface ShutdownQueues {
   /** The file event queue. */
-  queue?: { drain: () => Promise<void> };
+  queue?: StoppableQueue;
   /** The source notify queue. */
-  sourceQueue?: { drain: () => Promise<void>; stop: () => Promise<void> };
+  sourceQueue?: StoppableQueue;
 }
 
 /**
- * Drain the file queue, then the source notify queue, then stop the source
- * queue (refuse new work, wait for in-flight runs); each step is bounded by
- * `timeoutMs`.
+ * Drain a queue, then stop it (whatever the drain did); each step bounded.
+ *
+ * @returns `true` when the stop finished, i.e. no run is still in flight.
+ */
+async function drainThenStop(
+  label: string,
+  queue: StoppableQueue,
+  timeoutMs: number,
+  logger: pino.Logger | undefined,
+): Promise<boolean> {
+  await step(`${label} drain`, queue.drain(), timeoutMs, logger);
+  return step(`${label} stop`, queue.stop(), timeoutMs, logger);
+}
+
+/**
+ * Drain and stop the file queue, then the source notify queue. Stopping
+ * drops work the drain did not reach, refuses new work and waits for
+ * in-flight runs; each step is bounded by `timeoutMs`.
  *
  * @param queues - The queues (absent ones are skipped).
  * @param timeoutMs - Per-step timeout in milliseconds.
  * @param logger - Logger for timeout warnings.
- * @returns `true` when every step finished, i.e. no run is still in flight.
+ * @returns `true` when every stop finished, i.e. no run is still in flight.
  */
 export async function drainQueues(
   queues: ShutdownQueues,
@@ -78,16 +101,17 @@ export async function drainQueues(
 ): Promise<boolean> {
   let idle = true;
   if (queues.queue) {
-    const drained = queues.queue.drain();
-    idle = (await step('Queue drain', drained, timeoutMs, logger)) && idle;
+    idle = await drainThenStop('Queue', queues.queue, timeoutMs, logger);
   }
   if (queues.sourceQueue) {
     const { sourceQueue } = queues;
-    const drained = sourceQueue.drain();
-    await step('Source queue drain', drained, timeoutMs, logger);
-    const stopped = sourceQueue.stop();
-    idle =
-      (await step('Source queue stop', stopped, timeoutMs, logger)) && idle;
+    const stopped = await drainThenStop(
+      'Source queue',
+      sourceQueue,
+      timeoutMs,
+      logger,
+    );
+    idle = stopped && idle;
   }
   return idle;
 }

@@ -1,6 +1,6 @@
 /**
  * @module processor/processSource.test
- * DocumentProcessor.processSource: source point IDs/payload, created_at on replace, unchanged and metadata-only updates, 404 delete, failures as issues.
+ * DocumentProcessor source processing (sourceOperations().process): source point IDs/payload, created_at on replace, unchanged and metadata-only updates, 404 delete, failures as issues.
  */
 
 import pino from 'pino';
@@ -38,17 +38,11 @@ const rules: InferenceRule[] = [
   },
 ];
 
-interface Mocks {
-  getPayload: Mock;
-  upsert: Mock;
-  delete: Mock;
-  setPayload: Mock;
-  deletePayload: Mock;
-  embed: Mock;
-  record: Mock;
-  clear: Mock;
-  retrieve: Mock;
-}
+type Mocks = Record<
+  'getPayload' | 'upsert' | 'delete' | 'setPayload' | 'deletePayload',
+  Mock
+> &
+  Record<'embed' | 'record' | 'clear' | 'retrieve', Mock>;
 
 function setup(
   result: SourceRetrievalResult = { kind: 'document', body: BODY },
@@ -119,10 +113,15 @@ function storedPayload(overrides: Record<string, unknown> = {}) {
 }
 
 type UpsertedPoint = { id: string; payload: Record<string, unknown> };
-describe('DocumentProcessor.processSource', () => {
+
+/** Process {@link REF} through the processor's source operations. */
+const run = (processor: DocumentProcessor, rule = 'chat') =>
+  processor.sourceOperations().process(REF, rule);
+
+describe('DocumentProcessor source processing', () => {
   it('indexes a source document with source identity and no file_path', async () => {
     const { processor, mocks } = setup();
-    const result = await processor.processSource(REF, 'chat');
+    const result = await run(processor);
 
     expect(result).toEqual({
       source: REF,
@@ -149,7 +148,7 @@ describe('DocumentProcessor.processSource', () => {
     expect(sourcePointId(REF, 0)).not.toBe(pointId(REF, 0));
 
     const { processor, mocks } = setup();
-    await processor.processSource(REF, 'chat');
+    await run(processor);
     expect(mocks.getPayload).toHaveBeenCalledWith(sourcePointId(REF, 0));
   });
 
@@ -159,7 +158,7 @@ describe('DocumentProcessor.processSource', () => {
       total_chunks: 3,
       created_at: 100,
     });
-    await processor.processSource(REF, 'chat');
+    await run(processor);
 
     const [point] = mocks.upsert.mock.calls[0][0] as UpsertedPoint[];
     expect(point.payload['created_at']).toBe(100);
@@ -172,7 +171,7 @@ describe('DocumentProcessor.processSource', () => {
 
   it('skips unchanged content and metadata without writing', async () => {
     const { processor, mocks } = setup(undefined, storedPayload());
-    const result = await processor.processSource(REF, 'chat');
+    const result = await run(processor);
 
     expect(result).toEqual({
       source: REF,
@@ -189,7 +188,7 @@ describe('DocumentProcessor.processSource', () => {
       undefined,
       storedPayload({ user_id: 'old', total_chunks: 2 }),
     );
-    const result = await processor.processSource(REF, 'chat');
+    const result = await run(processor);
 
     expect(result).toMatchObject({ status: 'indexed', chunks: 2 });
     expect(mocks.embed).not.toHaveBeenCalled();
@@ -210,7 +209,7 @@ describe('DocumentProcessor.processSource', () => {
 
   it('deletes a stored key no longer projected without re-embedding', async () => {
     const { processor, mocks } = setup(undefined, storedPayload({ stale: 1 }));
-    await processor.processSource(REF, 'chat');
+    await run(processor);
     expect(mocks.deletePayload).toHaveBeenCalledWith(expect.any(Array), [
       'stale',
     ]);
@@ -222,7 +221,7 @@ describe('DocumentProcessor.processSource', () => {
       { kind: 'gone' },
       { total_chunks: 2 },
     );
-    const result = await processor.processSource(REF, 'chat');
+    const result = await run(processor);
 
     expect(result).toEqual({ source: REF, status: 'deleted' });
     expect(mocks.delete).toHaveBeenCalledWith([
@@ -239,7 +238,7 @@ describe('DocumentProcessor.processSource', () => {
       code: 'source_unavailable',
       message: 'HTTP 503',
     });
-    const result = await processor.processSource(REF, 'chat');
+    const result = await run(processor);
 
     expect(result).toEqual({
       source: REF,
@@ -271,7 +270,7 @@ describe('DocumentProcessor.processSource', () => {
         },
       ]),
     );
-    const result = await strict.processor.processSource(REF, 'chat');
+    const result = await run(strict.processor);
     expect(result.status).toBe('failed');
     expect(result.error?.code).toBe('match_failed');
     expect(result.error?.details).toEqual([
@@ -288,7 +287,7 @@ describe('DocumentProcessor.processSource', () => {
 
   it('returns rule_missing and leaves points untouched', async () => {
     const { processor, mocks } = setup();
-    const result = await processor.processSource(REF, 'gone-rule');
+    const result = await run(processor, 'gone-rule');
     expect(result.error?.code).toBe('rule_missing');
     expect(mocks.record.mock.calls[0]?.[3]).toEqual({
       ...OP,

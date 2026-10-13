@@ -46,7 +46,8 @@ describe('JeevesWatcher startup: core defaults', () => {
         ensureCollection: vi.fn().mockResolvedValue(undefined),
         ensureTextIndex: vi.fn().mockResolvedValue(undefined),
       }) as never,
-    createDocumentProcessor: () => ({ processSource: vi.fn() }) as never,
+    createDocumentProcessor: () =>
+      ({ sourceOperations: () => ({ process: vi.fn() }) }) as never,
     createFileSystemWatcher: () =>
       ({ start: vi.fn(), stop: vi.fn().mockResolvedValue(undefined) }) as never,
     createEventQueue: (options) => {

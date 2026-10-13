@@ -1,9 +1,11 @@
 /**
  * @module vectorStore/payload
- * Point payload operations on a Qdrant collection: read one point's payload, merge fields into points (set-payload), and remove keys from points (delete-payload). Qdrant I/O.
+ * Point payload operations on a Qdrant collection: read one point's payload, read points with vectors, merge fields into points (set-payload), and remove keys from points (delete-payload). Qdrant I/O.
  */
 
 import type { QdrantClient } from '@qdrant/js-client-rest';
+
+import type { VectorPoint } from './types';
 
 /** The subset of the Qdrant client used for payload operations. */
 export type PayloadClient = Pick<
@@ -22,7 +24,7 @@ export type PayloadClient = Pick<
  * indexed"; callers tag and record it).
  */
 export async function getPointPayload(
-  client: PayloadClient,
+  client: Pick<PayloadClient, 'retrieve'>,
   collectionName: string,
   id: string,
 ): Promise<Record<string, unknown> | null> {
@@ -36,6 +38,36 @@ export async function getPointPayload(
 }
 
 /**
+ * Retrieve points with their vectors and payloads by ID.
+ *
+ * @param client - Qdrant client.
+ * @param collectionName - Collection.
+ * @param ids - The point IDs (no request when empty).
+ * @returns Points with vectors; missing IDs (and points without a vector)
+ *   are omitted.
+ * @throws When the read fails (never reported as missing points).
+ */
+export async function getPointsWithVectors(
+  client: Pick<PayloadClient, 'retrieve'>,
+  collectionName: string,
+  ids: string[],
+): Promise<VectorPoint[]> {
+  if (ids.length === 0) return [];
+  const results = await client.retrieve(collectionName, {
+    ids,
+    with_payload: true,
+    with_vector: true,
+  });
+  return results
+    .filter((r) => r.vector != null)
+    .map((r) => ({
+      id: String(r.id),
+      vector: r.vector as number[],
+      payload: r.payload as Record<string, unknown>,
+    }));
+}
+
+/**
  * Merge payload fields into points (Qdrant set-payload; other keys kept).
  *
  * @param client - Qdrant client.
@@ -44,7 +76,7 @@ export async function getPointPayload(
  * @param payload - Fields to set.
  */
 export async function setPointsPayload(
-  client: PayloadClient,
+  client: Pick<PayloadClient, 'setPayload'>,
   collectionName: string,
   ids: string[],
   payload: Record<string, unknown>,
@@ -62,7 +94,7 @@ export async function setPointsPayload(
  * @param keys - Keys to remove (no-op when empty).
  */
 export async function deletePointsPayload(
-  client: PayloadClient,
+  client: Pick<PayloadClient, 'deletePayload'>,
   collectionName: string,
   ids: string[],
   keys: string[],

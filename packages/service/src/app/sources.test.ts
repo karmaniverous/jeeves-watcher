@@ -1,6 +1,6 @@
 /**
  * @module app/sources.test
- * Unit tests for source startup helpers (client creation, processor capability check, notify queue factory) and shutdown queue draining.
+ * Unit tests for source startup helpers (client creation, notify queue factory over source operations) and shutdown queue draining.
  */
 
 import pino from 'pino';
@@ -10,11 +10,7 @@ import type { DocumentProcessorInterface } from '../processor';
 import { SourceClient } from '../sources';
 import { createTestConfig } from '../test/helpers';
 import { drainQueues } from './shutdown';
-import {
-  createNotifyQueue,
-  createSourceRetriever,
-  isSourceProcessor,
-} from './sources';
+import { createNotifyQueue, createSourceRetriever } from './sources';
 
 const logger = pino({ level: 'silent' });
 
@@ -47,36 +43,35 @@ describe('createSourceRetriever', () => {
 });
 
 describe('createNotifyQueue', () => {
-  it('detects source-capable processors', () => {
-    expect(isSourceProcessor(fileOnlyProcessor)).toBe(false);
-    expect(
-      isSourceProcessor({
-        processSource: vi.fn(),
-      } as unknown as DocumentProcessorInterface),
-    ).toBe(true);
-  });
-
-  it('routes runs to processSource', async () => {
-    const processSource = vi
+  it('routes each run to the source operations current at that run', async () => {
+    const process = vi
       .fn()
       .mockResolvedValue({ source: 'app://a', status: 'unchanged' });
+    const sourceOperations = vi.fn(() => ({ process }));
     const queue = createNotifyQueue(
-      { processSource } as unknown as DocumentProcessorInterface,
+      { sourceOperations } as unknown as DocumentProcessorInterface,
       2,
       logger,
     );
+    expect(sourceOperations).not.toHaveBeenCalled();
     queue.start();
     await expect(queue.processNow('app://a', 'r')).resolves.toEqual({
       source: 'app://a',
       status: 'unchanged',
     });
-    expect(processSource).toHaveBeenCalledWith('app://a', 'r', {
-      force: false,
-    });
+    expect(process).toHaveBeenCalledWith('app://a', 'r', { force: false });
+    expect(sourceOperations).toHaveBeenCalledOnce();
   });
 
-  it('fails runs with source_unavailable when the processor cannot process sources', async () => {
-    const queue = createNotifyQueue(fileOnlyProcessor, 2, logger);
+  it.each([
+    ['a file-only processor', fileOnlyProcessor],
+    // The legacy capability no longer counts: the queue and the API agree.
+    [
+      'a processor with processSource but no source operations',
+      { processSource: vi.fn() } as unknown as DocumentProcessorInterface,
+    ],
+  ])('fails runs with source_unavailable for %s', async (_label, processor) => {
+    const queue = createNotifyQueue(processor, 2, logger);
     queue.start();
     const result = await queue.processNow('app://a', 'r');
     expect(result.status).toBe('failed');
@@ -89,11 +84,14 @@ describe('drainQueues', () => {
     vi.useRealTimers();
   });
 
-  it('drains both queues, then stops the source queue', async () => {
+  it('drains and stops the file queue, then the source queue', async () => {
     const order: string[] = [];
     await drainQueues(
       {
-        queue: { drain: () => Promise.resolve(void order.push('file')) },
+        queue: {
+          drain: () => Promise.resolve(void order.push('file')),
+          stop: () => Promise.resolve(void order.push('file stop')),
+        },
         sourceQueue: {
           drain: () => Promise.resolve(void order.push('source')),
           stop: () => Promise.resolve(void order.push('stop')),
@@ -102,7 +100,20 @@ describe('drainQueues', () => {
       1000,
       logger,
     );
-    expect(order).toEqual(['file', 'source', 'stop']);
+    expect(order).toEqual(['file', 'file stop', 'source', 'stop']);
+  });
+
+  it('stops the file queue after a drain timeout; idle when the stop finishes', async () => {
+    vi.useFakeTimers();
+    const stop = vi.fn().mockResolvedValue(undefined);
+    const done = drainQueues(
+      { queue: { drain: () => new Promise<void>(() => undefined), stop } },
+      500,
+      { warn: vi.fn() } as unknown as pino.Logger,
+    );
+    await vi.advanceTimersByTimeAsync(500);
+    expect(await done).toBe(true);
+    expect(stop).toHaveBeenCalledOnce();
   });
 
   it('gives up after the timeout with a warning and still stops the source queue', async () => {

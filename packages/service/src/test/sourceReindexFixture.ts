@@ -7,12 +7,12 @@ import pino from 'pino';
 import { vi } from 'vitest';
 
 import type { ExecuteReindexDeps } from '../api/executeReindex';
+import { createNotifyQueue } from '../app/sources';
 import type { InferenceRule } from '../config/types';
 import type { IssuesManager } from '../issues';
 import type { IssueRecord } from '../issues/types';
 import { pointId } from '../pointId';
 import { DocumentProcessor } from '../processor';
-import { SourceNotifyQueue } from '../queue/SourceNotifyQueue';
 import { compileRules } from '../rules';
 import type { SourceRetrievalResult, SourceRetriever } from '../sources';
 import type { VectorStoreClient } from '../vectorStore';
@@ -164,7 +164,11 @@ export function sourceReindexFixture(responses: Responses) {
     issuesManager: issues as unknown as IssuesManager,
     sourceRetriever: retriever,
   });
-  const sourceQueue = new SourceNotifyQueue(processor, { concurrency: 2 });
+  const sourceQueue = createNotifyQueue(
+    processor,
+    2,
+    pino({ level: 'silent' }),
+  );
   sourceQueue.start();
   const deps: ExecuteReindexDeps = {
     config: {
@@ -181,7 +185,8 @@ export function sourceReindexFixture(responses: Responses) {
   };
   /** Index references through the processor (as notify would). */
   const index = async (...refs: string[]) => {
-    for (const ref of refs) await processor.processSource(ref, RULE);
+    for (const ref of refs)
+      await processor.sourceOperations().process(ref, RULE);
     embed.mockClear();
     retrieve.mockClear();
     store.delete.mockClear();

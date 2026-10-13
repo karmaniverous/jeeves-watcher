@@ -14,6 +14,7 @@
 import type pino from 'pino';
 
 import { normalizeError } from '../util/normalizeError';
+import { computeDelayMs } from '../util/retry';
 import { sleep } from '../util/sleep';
 import {
   EmbeddingRateLimitError,
@@ -141,7 +142,7 @@ export class RateLimitedEmbeddingProvider implements EmbeddingProvider {
     const { retryAfterMs } = error;
     const pauseMs =
       retryAfterMs ??
-      Math.min(this.baseBackoffMs * 2 ** (attempt - 1), this.maxBackoffMs);
+      computeDelayMs(attempt, this.baseBackoffMs, this.maxBackoffMs);
     const now = Date.now();
     this.pausedUntilMs = Math.max(this.pausedUntilMs, now + pauseMs);
 

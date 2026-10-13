@@ -32,7 +32,36 @@ interface RetryOptions {
   signal?: AbortSignal;
 }
 
-function computeDelayMs(
+/** Retry timing: attempt count and backoff (see {@link retry}). */
+export type RetryPolicy = Pick<
+  RetryOptions,
+  'attempts' | 'baseDelayMs' | 'maxDelayMs' | 'jitter'
+>;
+
+/**
+ * The retry policy for transient network failures of a single remote call
+ * (Qdrant writes, embedding HTTP requests): 5 attempts, exponential backoff
+ * from 500 ms capped at 10 s, up to +20% jitter.
+ */
+export const NETWORK_RETRY_POLICY: Readonly<RetryPolicy> = {
+  attempts: 5,
+  baseDelayMs: 500,
+  maxDelayMs: 10_000,
+  jitter: 0.2,
+};
+
+/**
+ * Exponential backoff delay before retrying after a failed attempt:
+ * `baseDelayMs * 2^(attempt - 1)`, capped at `maxDelayMs`, then increased by
+ * a random factor in `[0, jitter]`.
+ *
+ * @param attempt - The 1-based attempt that failed.
+ * @param baseDelayMs - Delay after the first failure.
+ * @param maxDelayMs - Cap before jitter.
+ * @param jitter - Random jitter factor (0 for none).
+ * @returns The delay in milliseconds (rounded).
+ */
+export function computeDelayMs(
   attempt: number,
   baseDelayMs: number,
   maxDelayMs: number,

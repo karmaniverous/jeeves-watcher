@@ -16,11 +16,10 @@ import {
   SourceReferenceError,
   type SourceRetriever,
 } from '../sources';
-import { documentPointId } from './documentIdentity';
+import { documentPointId, storedIdentity } from './documentIdentity';
 import { updateDocumentMetadata } from './documentMetadata';
 import type { IndexOptions, PipelineContext } from './documentPipeline';
 import { ProcessingFailure } from './issueRecording';
-import { FIELD_SOURCE_RULE } from './payloadFields';
 import { processSourceDocument } from './processSource';
 import type { RenderResult } from './renderResult';
 import { SourceResolver } from './resolvers/SourceResolver';
@@ -46,7 +45,7 @@ export type SourceRenderOutcome =
 
 /** Source-document operations used by the API. */
 export interface SourceOperationsInterface {
-  /** Process a reference with its designated rule (see `processSource`); `force` re-embeds unchanged content. */
+  /** Process a reference with its designated rule (see `processSourceDocument`); `force` re-embeds unchanged content. */
   process(
     ref: string,
     rule: string,
@@ -164,9 +163,12 @@ export class SourceOperations implements SourceOperationsInterface {
 
   /** {@inheritDoc SourceOperationsInterface.storedRule} */
   async storedRule(ref: string): Promise<string | null> {
-    const payload = await this.chunkZero(ref);
-    const rule = payload?.[FIELD_SOURCE_RULE];
-    return typeof rule === 'string' && rule.length > 0 ? rule : null;
+    const target = { kind: 'source', ref } as const;
+    const payload = await this.ctx.pipeline.vectorStore.getPayload(
+      documentPointId(target, 0),
+    );
+    const identity = payload ? storedIdentity(target, payload) : null;
+    return identity?.kind === 'source' ? identity.rule : null;
   }
 
   /**
@@ -224,11 +226,6 @@ export class SourceOperations implements SourceOperationsInterface {
       { kind: 'source', ref },
       metadata,
     );
-  }
-
-  private chunkZero(ref: string): Promise<Record<string, unknown> | null> {
-    const target = { kind: 'source', ref } as const;
-    return this.ctx.pipeline.vectorStore.getPayload(documentPointId(target, 0));
   }
 
   private resolver(): SourceResolver {

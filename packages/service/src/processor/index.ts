@@ -4,7 +4,6 @@
  * Core document processing pipeline. Resolves files and source documents, computes embeddings, syncs with vector store.
  */
 
-import type { DocumentResult } from '@karmaniverous/jeeves-watcher-core';
 import type pino from 'pino';
 
 import type { ContentHashCache } from '../cache';
@@ -16,11 +15,7 @@ import type { SourceRetriever } from '../sources';
 import type { TemplateEngine } from '../templates';
 import type { ValuesManager } from '../values';
 import type { VectorStore } from '../vectorStore';
-import {
-  indexDocument,
-  type IndexOptions,
-  type PipelineContext,
-} from './documentPipeline';
+import { indexDocument, type PipelineContext } from './documentPipeline';
 import type { DocumentProcessorDeps } from './DocumentProcessorDeps';
 import {
   deleteFilePoints,
@@ -45,10 +40,7 @@ import {
   type SourceOperationsInterface,
   type SourceOperationsProvider,
 } from './SourceOperations';
-import type {
-  DocumentProcessorInterface,
-  SourceProcessorInterface,
-} from './types';
+import type { DocumentProcessorInterface } from './types';
 
 export type { DocumentProcessorDeps } from './DocumentProcessorDeps';
 export type { ProcessorConfig } from './ProcessorConfig';
@@ -61,10 +53,7 @@ export type { DocumentProcessorInterface } from './types';
  * Handles extracting text, computing embeddings, and syncing with the vector store.
  */
 export class DocumentProcessor
-  implements
-    DocumentProcessorInterface,
-    SourceProcessorInterface,
-    SourceOperationsProvider
+  implements DocumentProcessorInterface, SourceOperationsProvider
 {
   private config: ProcessorConfig;
   private readonly embeddingProvider: EmbeddingProvider;
@@ -174,15 +163,6 @@ export class DocumentProcessor
       },
       undefined,
     );
-  }
-
-  /** {@inheritDoc SourceProcessorInterface.processSource} */
-  processSource(
-    ref: string,
-    rule: string,
-    options?: IndexOptions,
-  ): Promise<DocumentResult> {
-    return this.sourceOperations().process(ref, rule, options);
   }
 
   /** {@inheritDoc SourceOperationsProvider.sourceOperations} */

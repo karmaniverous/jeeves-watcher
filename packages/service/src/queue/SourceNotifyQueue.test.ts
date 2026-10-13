@@ -7,8 +7,8 @@ import type { DocumentResult } from '@karmaniverous/jeeves-watcher-core';
 import type pino from 'pino';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type { SourceProcessorInterface } from '../processor/types';
 import { combinePausableQueues } from './pausable';
+import type { SourceProcess } from './SourceNotifyQueue';
 import {
   SourceNotifyQueue,
   SourceNotifyQueueStoppedError,
@@ -27,8 +27,8 @@ function createFake(failRefs: string[] = []) {
   const calls: Array<{ ref: string; rule: string }> = [];
   let active = 0;
   let maxActive = 0;
-  const processor: SourceProcessorInterface = {
-    processSource: (ref, rule) => {
+  const processor: SourceProcess = {
+    process: (ref, rule) => {
       calls.push({ ref, rule });
       if (failRefs.includes(ref)) throw new Error(`boom ${ref}`);
       const seen = content.get(ref) ?? 'none';

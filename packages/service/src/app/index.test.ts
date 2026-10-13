@@ -40,7 +40,7 @@ describe('JeevesWatcher.stop', () => {
     // Inject internal state via any-cast to simulate a started watcher
     const w = watcher as unknown as Record<string, unknown>;
     w.enrichmentStore = { close: closeFn };
-    w.queue = { drain: drainFn };
+    w.queue = { drain: drainFn, stop: vi.fn().mockResolvedValue(undefined) };
     w.server = { close: serverCloseFn };
     w.watcher = { stop: watcherStopFn };
     w.configWatcher = { stop: configWatcherStopFn };

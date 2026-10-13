@@ -249,7 +249,7 @@ export class FileSystemWatcher {
       this.health.recordFailure(error);
     });
 
-    this.queue.process();
+    this.queue.start();
     this.logger.info(
       { paths: this.config.paths },
       'Filesystem watcher started',

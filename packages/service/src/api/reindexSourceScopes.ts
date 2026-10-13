@@ -160,7 +160,7 @@ export async function runSourceScope(
       counts[result.status]++;
       if (result.status === 'failed') failed.push(ref);
     } catch (error) {
-      // processSource reports its own failures; a stopped queue rejects.
+      // A run reports its own failures; a stopped queue rejects.
       counts.failed++;
       failed.push(ref);
       options.logger.warn(

@@ -38,7 +38,7 @@ export interface PayloadIndexFlagMismatch {
   field: string;
   /** The Qdrant flag. */
   flag: 'is_tenant' | 'is_principal';
-  /** Desired value (from configuration). */
+  /** Desired value (from the configured or system index). */
   expected: boolean;
   /** Value currently reported by Qdrant. */
   actual: boolean;
@@ -100,24 +100,31 @@ function flagMismatches(
 /**
  * Decide which payload indexes to create. Pure.
  *
- * System indexes come first; configured entries override a system entry for
- * the same field, and a later configured entry overrides an earlier one.
- * Fields already indexed with the same type are skipped (a differing
- * `is_tenant` / `is_principal` flag is reported in `flagMismatches`); fields
- * indexed with a different type are reported as mismatches. Nothing is ever
- * recreated.
+ * The desired indexes are the system indexes followed by the configured
+ * ones. Config validation (core) rejects an entry for a system field and a
+ * second entry for one field, so every field appears once. Fields already
+ * indexed with the same type are skipped (a differing `is_tenant` /
+ * `is_principal` flag is reported in `flagMismatches`); fields indexed with
+ * a different type are reported as mismatches. Nothing is ever recreated.
  *
  * @param configured - Configured `vectorStore.payloadIndexes` (may be undefined).
  * @param existing - Qdrant `payload_schema`: field name to its index info.
  * @returns The creation plan.
+ * @throws Error when a field appears twice (unvalidated configuration).
  */
 export function planPayloadIndexes(
   configured: readonly PayloadIndexConfig[] | undefined,
   existing: Record<string, ExistingPayloadIndex | undefined>,
 ): PayloadIndexPlan {
-  const desired = new Map<string, PayloadIndexConfig>();
-  for (const index of [...SYSTEM_PAYLOAD_INDEXES, ...(configured ?? [])]) {
-    desired.set(index.field, index);
+  const desired = [...SYSTEM_PAYLOAD_INDEXES, ...(configured ?? [])];
+  const seen = new Set<string>();
+  for (const { field } of desired) {
+    if (seen.has(field)) {
+      throw new Error(
+        `Payload index for "${field}" declared twice (configuration was not validated)`,
+      );
+    }
+    seen.add(field);
   }
 
   const plan: PayloadIndexPlan = {
@@ -125,7 +132,7 @@ export function planPayloadIndexes(
     mismatches: [],
     flagMismatches: [],
   };
-  for (const index of desired.values()) {
+  for (const index of desired) {
     const current = existing[index.field];
     if (!current) {
       plan.create.push(index);
@@ -189,13 +196,13 @@ export async function ensurePayloadIndexes(
   for (const mismatch of plan.mismatches) {
     getLogger(logger).warn(
       { collectionName, ...mismatch },
-      'Existing payload index type differs from configuration; leaving it unchanged',
+      'Existing payload index type differs from the desired index; leaving it unchanged',
     );
   }
   for (const mismatch of plan.flagMismatches) {
     getLogger(logger).warn(
       { collectionName, ...mismatch },
-      `Existing payload index ${mismatch.flag} differs from configuration; leaving it unchanged (drop the index to recreate it)`,
+      `Existing payload index ${mismatch.flag} differs from the desired index; leaving it unchanged (drop the index to recreate it)`,
     );
   }
 

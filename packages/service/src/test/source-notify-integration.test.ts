@@ -5,9 +5,9 @@
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
+import { createNotifyQueue } from '../app/sources';
 import { createLogger } from '../logger';
 import { sourcePointId } from '../pointId';
-import { SourceNotifyQueue } from '../queue/SourceNotifyQueue';
 import { qdrantAvailable } from './harness/qdrant';
 import { type ServiceHarness, startServiceHarness } from './harness/service';
 import {
@@ -86,9 +86,9 @@ describe.skipIf(!qdrantAvailable())(
     });
 
     it('collapses a burst on one reference to the latest content', async () => {
-      const queue = new SourceNotifyQueue(
+      const queue = createNotifyQueue(
         harness.processor,
-        { concurrency: 2 },
+        2,
         createLogger({ level: 'silent' }),
       );
       queue.start();

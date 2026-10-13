@@ -13,6 +13,7 @@ import type { FastifyInstance } from 'fastify';
 
 import { createApiServer } from '../../api';
 import { createProcessorConfig } from '../../app/initialization';
+import { createNotifyQueue } from '../../app/sources';
 import type { JeevesWatcherConfig } from '../../config/types';
 import {
   createEmbeddingProvider,
@@ -23,7 +24,7 @@ import { IssuesManager } from '../../issues';
 import { createLogger } from '../../logger';
 import { DocumentProcessor } from '../../processor';
 import { EventQueue } from '../../queue';
-import { SourceNotifyQueue } from '../../queue/SourceNotifyQueue';
+import type { SourceNotifyQueue } from '../../queue/SourceNotifyQueue';
 import { compileRules } from '../../rules';
 import { SourceClient } from '../../sources';
 import { buildTemplateEngine } from '../../templates';
@@ -201,12 +202,7 @@ async function setUp(
     sourceRetriever: new SourceClient(config.sources),
   });
 
-  const sourceQueue = new SourceNotifyQueue(
-    processor,
-    { concurrency: 2 },
-    logger,
-    issuesManager,
-  );
+  const sourceQueue = createNotifyQueue(processor, 2, logger, issuesManager);
   sourceQueue.start();
   cleanup.push(() => sourceQueue.stop());
 

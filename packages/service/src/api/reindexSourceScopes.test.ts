@@ -1,13 +1,13 @@
 /**
  * @module api/reindexSourceScopes.test
- * runSourceScope goes through the notify queue: a reindex and a concurrent notification of the same reference never run in parallel and the final state is the latest; `force` reaches processSource; a stopped queue counts as failed and lists the reference; failed results and rejections are counted and listed with progress after each. resolveSourceScope needs the queue, the vector store, source operations and (scope issues) the issues store.
+ * runSourceScope goes through the notify queue: a reindex and a concurrent notification of the same reference never run in parallel and the final state is the latest; `force` reaches process; a stopped queue counts as failed and lists the reference; failed results and rejections are counted and listed with progress after each. resolveSourceScope needs the queue, the vector store, source operations and (scope issues) the issues store.
  */
 
 import type { DocumentResult } from '@karmaniverous/jeeves-watcher-core';
 import pino from 'pino';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type { SourceProcessorInterface } from '../processor/types';
+import type { SourceProcess } from '../queue/SourceNotifyQueue';
 import { SourceNotifyQueue } from '../queue/SourceNotifyQueue';
 import { sourceReindexFixture } from '../test/sourceReindexFixture';
 import { resolveSourceScope, runSourceScope } from './reindexSourceScopes';
@@ -22,8 +22,8 @@ function createProcessor() {
   const forces: boolean[] = [];
   let active = 0;
   let maxActive = 0;
-  const processor: SourceProcessorInterface = {
-    processSource: (ref, _rule, options) => {
+  const processor: SourceProcess = {
+    process: (ref, _rule, options) => {
       forces.push(options?.force ?? false);
       const seen = content.get(ref) ?? 'none';
       active += 1;

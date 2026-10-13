@@ -1,6 +1,6 @@
 /**
  * @module queue/SourceNotifyQueue
- * In-memory notify queue for source documents, keyed by reference: pending notifications merge, in-flight ones mark the reference dirty for exactly one re-run. Calls processSource; records an issue when it rejects unexpectedly.
+ * In-memory notify queue for source documents, keyed by reference: pending notifications merge, in-flight ones mark the reference dirty for exactly one re-run. Runs each reference through the source operations; records an issue when a run rejects unexpectedly.
  */
 
 import type { DocumentResult } from '@karmaniverous/jeeves-watcher-core';
@@ -11,7 +11,8 @@ import {
   reportFailure,
   UNTAGGED_ISSUE_TYPE,
 } from '../processor/issueRecording';
-import type { SourceProcessorInterface } from '../processor/types';
+import type { SourceOperationsInterface } from '../processor/SourceOperations';
+import { IdleSignals } from './idleSignals';
 import type { PausableQueue } from './pausable';
 import {
   type InFlight,
@@ -34,6 +35,17 @@ export {
   type SourceQueueIssues,
 } from './sourceNotifyTypes';
 
+/** What the queue runs: one reference with its designated rule. */
+export type SourceProcess = Pick<SourceOperationsInterface, 'process'>;
+
+/** Options of the internal schedule step. */
+interface ScheduleOptions {
+  /** Re-embed unchanged content (merged as OR). */
+  force: boolean;
+  /** Caller waiting for the run's result (`processNow`). */
+  waiter?: Waiter;
+}
+
 /** Operation recorded on the issue of an unexpected rejection. */
 const UNEXPECTED_OPERATION = 'Source notify run failed unexpectedly';
 
@@ -45,13 +57,13 @@ const UNEXPECTED_OPERATION = 'Source notify run failed unexpectedly';
  * - One for an **in-flight** reference marks it dirty: when the current run
  *   ends the reference is queued once more (at the back), however many
  *   notifications arrived meanwhile.
- * - Every run calls `processSource`, which retrieves current state, so a
+ * - Every run calls `process`, which retrieves current state, so a
  *   burst on one reference costs at most two retrievals and the final state
  *   wins. Runs never overlap for the same reference.
  *
  * References are compared exactly (case-sensitive), like source point IDs.
  * The queue holds work until {@link start}; {@link pause} (prune) stops new
- * runs without rejecting enqueues. Failures never escape: `processSource`
+ * runs without rejecting enqueues. Failures never escape: `process`
  * records issues itself, and an unexpected rejection becomes a `failed`
  * result and an `extraction_error` issue (with the designated rule).
  *
@@ -67,17 +79,17 @@ export class SourceNotifyQueue implements PausableQueue {
   private readonly pending = new Map<string, Job>();
   private readonly inFlight = new Map<string, InFlight>();
 
-  private drainWaiters: Array<() => void> = [];
-  private idleWaiters: Array<() => void> = [];
+  private readonly signals = new IdleSignals();
 
   /**
-   * @param processor - Processes one reference with its designated rule.
+   * @param processor - Processes one reference with its designated rule
+   *   (source operations).
    * @param options - Queue options (validated).
    * @param logger - Logger for unexpected processing rejections.
    * @param issues - Issues store for unexpected processing rejections.
    */
   constructor(
-    private readonly processor: SourceProcessorInterface,
+    private readonly processor: SourceProcess,
     options: SourceNotifyQueueOptions = {},
     private readonly logger?: pino.Logger,
     private readonly issues?: SourceQueueIssues,
@@ -95,7 +107,7 @@ export class SourceNotifyQueue implements PausableQueue {
    */
   enqueue(ref: string, rule: string): boolean {
     if (this.stopped) return false;
-    this.schedule(ref, rule, false);
+    this.schedule(ref, rule, { force: false });
     this.pump();
     return true;
   }
@@ -124,7 +136,7 @@ export class SourceNotifyQueue implements PausableQueue {
     }
     const force = options.force ?? false;
     const result = new Promise<DocumentResult>((resolve, reject) => {
-      this.schedule(ref, rule, force, { resolve, reject });
+      this.schedule(ref, rule, { force, waiter: { resolve, reject } });
     });
     this.pump();
     return result;
@@ -148,19 +160,13 @@ export class SourceNotifyQueue implements PausableQueue {
   }
 
   /** {@inheritDoc PausableQueue.waitForIdleWorkers} */
-  async waitForIdleWorkers(): Promise<void> {
-    if (this.inFlight.size === 0) return;
-    await new Promise<void>((resolve) => {
-      this.idleWaiters.push(resolve);
-    });
+  waitForIdleWorkers(): Promise<void> {
+    return this.signals.waitForIdleWorkers(this.inFlight.size === 0);
   }
 
   /** Resolve once nothing is pending, owed (dirty) or in flight. */
-  async drain(): Promise<void> {
-    if (this.isIdle()) return;
-    await new Promise<void>((resolve) => {
-      this.drainWaiters.push(resolve);
-    });
+  drain(): Promise<void> {
+    return this.signals.drain(this.isIdle());
   }
 
   /**
@@ -184,8 +190,7 @@ export class SourceNotifyQueue implements PausableQueue {
   private schedule(
     ref: string,
     rule: string,
-    force: boolean,
-    waiter?: Waiter,
+    { force, waiter }: ScheduleOptions,
   ): void {
     const waiters = waiter ? [waiter] : [];
     const running = this.inFlight.get(ref);
@@ -227,7 +232,7 @@ export class SourceNotifyQueue implements PausableQueue {
   private async execute(job: Job): Promise<DocumentResult> {
     const { ref, rule, force } = job;
     try {
-      return await this.processor.processSource(ref, rule, { force });
+      return await this.processor.process(ref, rule, { force });
     } catch (error) {
       const failure = reportFailure(
         { logger: this.logger, issuesManager: this.issues },
@@ -248,15 +253,9 @@ export class SourceNotifyQueue implements PausableQueue {
   }
 
   private settle(): void {
-    if (this.inFlight.size === 0) {
-      const idle = this.idleWaiters;
-      this.idleWaiters = [];
-      for (const resolve of idle) resolve();
-    }
-    if (this.isIdle()) {
-      const drained = this.drainWaiters;
-      this.drainWaiters = [];
-      for (const resolve of drained) resolve();
-    }
+    this.signals.settle({
+      idleWorkers: this.inFlight.size === 0,
+      drained: this.isIdle(),
+    });
   }
 }

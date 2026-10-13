@@ -56,16 +56,22 @@ describe('planPayloadIndexes', () => {
     ]);
   });
 
-  it('lets a configured entry override a system index for the same field', () => {
-    const plan = planPayloadIndexes(
-      [{ field: 'source', type: 'keyword', isTenant: true }],
-      {},
-    );
-    expect(plan.create).toEqual([
-      { field: 'source', type: 'keyword', isTenant: true },
-      { field: 'source_rule', type: 'keyword' },
-    ]);
-  });
+  it.each([
+    [[{ field: 'source', type: 'keyword' as const, isTenant: true }]],
+    [
+      [
+        { field: 'user_id', type: 'keyword' as const },
+        { field: 'user_id', type: 'integer' as const },
+      ],
+    ],
+  ])(
+    'refuses a field declared twice (%j bypassed validation)',
+    (configured) => {
+      expect(() => planPayloadIndexes(configured, {})).toThrow(
+        'declared twice',
+      );
+    },
+  );
 
   it('ignores unrelated existing indexes (never drops)', () => {
     const plan = planPayloadIndexes(undefined, {
@@ -193,7 +199,7 @@ describe('ensurePayloadIndexes', () => {
         expected: 'keyword',
         actual: 'integer',
       }),
-      expect.stringContaining('differs'),
+      expect.stringContaining('differs from the desired index'),
     );
   });
 

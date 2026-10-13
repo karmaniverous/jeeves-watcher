@@ -11,13 +11,24 @@ import type { EmbeddingConfig } from '../config/types';
  * Per-call budget for the shared rate limiter. Providers that do not
  * rate-limit ignore the budget; providers that retry internally await
  * `beforeRetry` before each retry.
+ *
+ * The budget bounds the limiter, not the provider's own network retries:
+ * each of the `attempts` provider calls may itself retry a transient
+ * (non-429) failure up to `NETWORK_RETRY_POLICY.attempts` times in all, with
+ * backoff sleeps, so one `embed()` can issue up to `attempts` x 5 HTTP
+ * requests.
  */
 export interface EmbedOptions {
-  /** Maximum provider attempts for this call (429 retries included). */
+  /**
+   * Maximum provider calls for this call: a 429 ends a provider call and
+   * costs one attempt. Transient network retries inside a provider call do
+   * not count against it (see the interface note).
+   */
   attempts?: number;
   /**
    * Maximum total time to wait for the limiter (token or `Retry-After`
-   * pause), in ms. When a wait would exceed it, the call fails fast.
+   * pause), in ms. When a wait would exceed it, the call fails fast. The
+   * provider's own network-retry backoff sleeps are not counted.
    */
   maxWaitMs?: number;
   /**

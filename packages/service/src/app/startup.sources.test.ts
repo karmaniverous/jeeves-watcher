@@ -38,7 +38,7 @@ function buildFactories(
       }) as never,
     createDocumentProcessor: (deps) => {
       captured.processorDeps = deps;
-      return { processSource } as never;
+      return { sourceOperations: () => ({ process: processSource }) } as never;
     },
     createEventQueue: (options) => {
       captured.fileQueue = new EventQueue(options);

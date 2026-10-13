@@ -18,7 +18,7 @@ import { EMBEDDING_DEFAULTS } from '../config/defaults';
 import type { EmbeddingConfig } from '../config/types';
 import { getLogger } from '../util/logger';
 import { normalizeError } from '../util/normalizeError';
-import { retry } from '../util/retry';
+import { NETWORK_RETRY_POLICY, retry } from '../util/retry';
 import {
   EmbeddingRateLimitError,
   EmbeddingUnavailableError,
@@ -148,10 +148,7 @@ export function createGeminiProvider(
           return data.embeddings.map((e) => e.values);
         },
         {
-          attempts: 5,
-          baseDelayMs: 500,
-          maxDelayMs: 10_000,
-          jitter: 0.2,
+          ...NETWORK_RETRY_POLICY,
           shouldRetry: (error) =>
             !(error instanceof EmbeddingRateLimitError) &&
             !(error instanceof EmbeddingUnavailableError),

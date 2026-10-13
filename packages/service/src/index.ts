@@ -72,7 +72,6 @@ export type {
   SourceOperationsProvider,
   SourceRenderOutcome,
 } from './processor/SourceOperations';
-export type { SourceProcessorInterface } from './processor/types';
 export type {
   EventQueueOptions,
   PausableQueue,
@@ -87,6 +86,7 @@ export {
   type SourceNotifyQueueOptions,
   sourceNotifyQueueOptionsSchema,
   SourceNotifyQueueStoppedError,
+  type SourceProcess,
   type SourceQueueIssues,
 } from './queue/SourceNotifyQueue';
 export type {
