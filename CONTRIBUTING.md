@@ -2,12 +2,12 @@
 
 Thanks for contributing!
 
-This project is a Node.js service that watches the filesystem, extracts/chunks text, generates embeddings, and keeps a Qdrant collection in sync.
+This project is a Node.js service that watches the filesystem, extracts/chunks text, generates embeddings, and keeps a Qdrant collection in sync. It is an npm workspaces monorepo: `packages/core` (schemas, endpoint catalog, shared HTTP contract), `packages/sdk` (TypeScript client), `packages/service` (the service and CLI) and `packages/openclaw` (the OpenClaw plugin).
 
 If you’re new to the codebase, start with:
 
-- `guides/getting-started.md`
-- `guides/architecture.md`
+- `packages/service/guides/getting-started.md`
+- `packages/service/guides/architecture.md`
 
 ---
 
@@ -63,19 +63,22 @@ npm install
 For local manual testing:
 
 ```bash
-npx jeeves-watcher init --output ./jeeves-watcher.config.json
-npx jeeves-watcher validate --config ./jeeves-watcher.config.json
+npm run build
+npx jeeves-watcher init --output ./config
+npx jeeves-watcher config validate --config ./config/config.json
 ```
+
+`--output` is a directory; `init` writes `config.json` into it.
 
 Then start:
 
 ```bash
-npx jeeves-watcher start --config ./jeeves-watcher.config.json
+npx jeeves-watcher start --config ./config/config.json
 ```
 
 Configuration reference:
 
-- `guides/configuration.md`
+- `packages/service/guides/configuration.md`
 
 ---
 
@@ -100,15 +103,17 @@ Notes:
 
 - Integration tests only ever create, use and drop collections named **`jeeves_watcher_it_*`** (`jeeves_watcher_it_<label>_<run>_<worker>_<nonce>`, see `packages/service/src/test/harness/qdrant.ts`), and only on the Qdrant the global setup provisioned or guarded for this run. The harness refuses any other name or URL, and the global teardown sweeps leftover collections of **this run only** (never a concurrent run's): defence in depth should `QDRANT_URL` ever point at an instance with other data.
 - Tests create temp directories under your OS temp folder:
-  - `.../jeeves-watcher-test/watched`
-  - `.../jeeves-watcher-test/metadata`
+  - `.../jeeves-watcher-test-<worker>/watched`
+  - `.../jeeves-watcher-test-<worker>/state`
   - `.../jeeves-watcher-qdrant-*` (throwaway Qdrant state, removed at teardown)
+
+  `<worker>` is the Vitest worker id (the process id outside a worker).
 
 ---
 
 ## Mock Embedding Provider (no API keys needed)
 
-CI and local tests do **not** require a Gemini/OpenAI key.
+CI and local tests do **not** require a Gemini key.
 
 The test configuration uses:
 
@@ -117,8 +122,8 @@ The test configuration uses:
 
 Implementation:
 
-- `src/embedding/index.ts` — `createMockProvider()`
-- `src/test/helpers.ts` — `createTestConfig()` sets `provider: "mock"`
+- `packages/service/src/embedding/mockProvider.ts` — `createMockFromConfig()` (registered as `mock` in `packages/service/src/embedding/index.ts`)
+- `packages/service/src/test/helpers.ts` — `createTestConfig()` sets `provider: "mock"`
 
 This keeps tests stable and fast while still exercising the full Qdrant integration.
 
@@ -126,17 +131,18 @@ This keeps tests stable and fast while still exercising the full Qdrant integrat
 
 ## Code Quality / Required Checks
 
-Before opening a PR (and before each commit when working in this repo), run all code quality checks, including:
+Before opening a PR (and before each commit when working in this repo), run all code quality checks from the repo root:
 
-- typecheck
-- lint
-- test
-- diagrams
-- docs
-- build
-- knip
+```bash
+npm run typecheck
+npm run lint
+npm test
+npm run build
+npm run docs
+npm run knip
+```
 
-All must pass with no errors or warnings.
+All must pass with no errors or warnings. When you change a diagram, also run `npm run diagrams -w packages/service` (needs PlantUML).
 
 ---
 
@@ -146,12 +152,12 @@ Architecture diagrams are created with **PlantUML** and embedded in documentatio
 
 ### Directory Structure
 
-- **Source files**: `diagrams/*.pu` — PlantUML source code
-- **Rendered output**: `assets/*.png` — Generated PNG images
+- **Source files**: `packages/service/diagrams/*.pu` — PlantUML source code
+- **Rendered output**: `packages/service/assets/*.png` — Generated PNG images
 
 ### VS Code Extension (Recommended)
 
-The [jebbs.plantuml](https://marketplace.visualstudio.com/items?itemName=jebbs.plantuml) extension is configured in `.vscode/settings.json` for live preview and rendering.
+The [jebbs.plantuml](https://marketplace.visualstudio.com/items?itemName=jebbs.plantuml) extension is recommended in `.vscode/extensions.json` and configured in `.vscode/settings.json` for live preview and rendering.
 
 Install it for:
 
@@ -161,16 +167,16 @@ Install it for:
 
 ### Rendering from CLI
 
-To render all diagrams:
+To render all diagrams (from the repo root):
 
 ```bash
-plantuml -tpng -o "../assets" diagrams/*.pu
+npm run diagrams -w packages/service
 ```
 
-To render a single diagram:
+To render a single diagram (from `packages/service/diagrams`):
 
 ```bash
-plantuml -tpng -o "../assets" diagrams/my-diagram.pu
+plantuml -tpng -o ../assets my-diagram.pu
 ```
 
 ### Embedding in Documentation
@@ -181,7 +187,7 @@ Use relative paths from the doc file to the rendered diagram:
 ![Diagram Description](../assets/diagram-name.png)
 ```
 
-Example (from `guides/architecture.md`):
+Example (from `packages/service/guides/architecture.md`):
 
 ```markdown
 ![System Architecture](../assets/system-architecture.png)
@@ -223,33 +229,41 @@ The test suite is intentionally integration-heavy.
 
 - **Real Qdrant**: `VectorStoreClient` uses `@qdrant/js-client-rest` against the throwaway Qdrant started by the global setup (or the instance named by `QDRANT_URL`).
 - **Temp files**: tests write real files to a temp watched directory.
-- **Real pipeline**: tests call `DocumentProcessor.processFile()` and verify that Qdrant points/payloads exist.
+- **Real pipeline**: tests call `DocumentProcessor.processFile()` (and the API and source-document paths) and verify that Qdrant points/payloads exist.
 - **Cleanup**:
   - each suite works in its own throwaway `jeeves_watcher_it_*` collection, dropped when the suite ends
   - temp dirs are removed after each test and at the end of the suite
 
 Start points:
 
-- `src/test/integration.test.ts`
-- `src/test/helpers.ts`
+- `packages/service/src/test/integration.test.ts`
+- `packages/service/src/test/helpers.ts`
 
 ---
 
 ## Project Structure (high-level)
 
-- `src/app/` — app composition / start-from-config
-- `src/cli/` — CLI entry points (`jeeves-watcher ...`)
-- `src/config/` — config types + loader
-- `src/watcher/` — chokidar filesystem watcher
-- `src/processor/` — core pipeline (extract → hash → rules → chunk → embed → upsert)
-- `src/extractors/` — format-specific text extraction
-- `src/rules/` — inference rules engine (ajv + custom `glob` keyword + template interpolation)
-- `src/vectorStore/` — Qdrant wrapper
-- `src/api/` — Fastify API server routes
+- `packages/core/src/` — Zod config and API schemas, endpoint catalog, error codes, shared HTTP client contract
+- `packages/sdk/src/` — typed TypeScript client
+- `packages/openclaw/src/` — OpenClaw plugin tools
+- `packages/service/src/`:
+  - `app/` — app composition / start-from-config
+  - `cli/` — CLI entry point (`jeeves-watcher ...`)
+  - `config/` — config loader
+  - `watcher/` — chokidar filesystem watcher
+  - `queue/` — file event queue and source notify queue
+  - `processor/` — core pipeline (resolve → rules → chunk → embed → upsert) for files and source documents
+  - `sources/` — source callback client (retrieval, URL building, per-source concurrency)
+  - `extractors/` — format-specific text extraction
+  - `rules/` — inference rules engine (ajv + custom `glob` keyword + template interpolation)
+  - `enrichment/` — SQLite enrichment store
+  - `vectorStore/` — Qdrant wrapper
+  - `vcs/` — git-backed version control
+  - `api/` — Fastify API server routes
 
 For deeper detail, see:
 
-- `guides/architecture.md`
+- `packages/service/guides/architecture.md`
 
 ---
 
@@ -257,7 +271,7 @@ For deeper detail, see:
 
 If something is unclear or you hit an edge case:
 
-1. Check `guides/` first.
+1. Check `packages/service/guides/` and `packages/openclaw/guides/` first.
 2. Search issues: https://github.com/karmaniverous/jeeves-watcher/issues
 3. Open a new issue with:
    - OS + Node version
