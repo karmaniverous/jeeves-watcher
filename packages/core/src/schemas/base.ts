@@ -140,9 +140,13 @@ export const apiConfigSchema = z.object({
   /** Bearer API key required on every route except GET /status. */
   apiKey: z
     .string()
+    .min(
+      1,
+      'api.apiKey must be a non-empty string (remove it to disable authentication)',
+    )
     .optional()
     .describe(
-      'Bearer API key required on every route except GET /status (supports ${ENV_VAR} substitution). Unset: no authentication. Read at startup only.',
+      'Bearer API key required on every route except GET /status (supports ${ENV_VAR} substitution). Must be non-empty. Unset: no authentication. Read at startup only.',
     ),
 });
 

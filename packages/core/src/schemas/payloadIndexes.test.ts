@@ -116,4 +116,37 @@ describe('vectorStoreConfigSchema.payloadIndexes', () => {
       'isTenant',
     ]);
   });
+
+  it('rejects a duplicate field, pointing at the second entry', () => {
+    const result = vectorStoreConfigSchema.safeParse({
+      ...base,
+      payloadIndexes: [
+        { field: 'user_id', type: 'keyword' },
+        { field: 'to_ts', type: 'integer' },
+        { field: 'user_id', type: 'uuid' },
+      ],
+    });
+    expect(result.success).toBe(false);
+    expect(result.error?.issues).toEqual([
+      expect.objectContaining({
+        path: ['payloadIndexes', 2, 'field'],
+        message: expect.stringContaining('Duplicate') as unknown,
+      }),
+    ]);
+  });
+
+  it.each(['source', 'source_rule'])(
+    'rejects the system-indexed field %s',
+    (field) => {
+      const result = vectorStoreConfigSchema.safeParse({
+        ...base,
+        payloadIndexes: [{ field, type: 'keyword' }],
+      });
+      expect(result.success).toBe(false);
+      expect(result.error?.issues[0]).toMatchObject({
+        path: ['payloadIndexes', 0, 'field'],
+        message: expect.stringContaining('system field') as unknown,
+      });
+    },
+  );
 });

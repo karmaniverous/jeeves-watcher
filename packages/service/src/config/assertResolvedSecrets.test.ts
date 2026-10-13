@@ -1,6 +1,6 @@
 /**
  * @module config/assertResolvedSecrets.test
- * Tests for the unresolved-`${…}` startup check on api.apiKey and sources, unit and through loadConfig.
+ * Tests for the startup secret checks (unresolved env references in api.apiKey and sources, empty api.apiKey) and unknown source-key warnings, unit and through loadConfig.
  */
 
 import { mkdtemp, writeFile } from 'node:fs/promises';
@@ -123,5 +123,36 @@ describe('loadConfig secret check', () => {
     });
     const config = await loadConfig(cfgPath);
     expect(config.api?.apiKey).toBe('resolved-key');
+  });
+
+  it('fails with a clear message when api.apiKey resolves to an empty string', async () => {
+    vi.stubEnv(envName, '');
+    const cfgPath = await writeConfig({
+      ...base,
+      api: { apiKey: ref(envName) },
+    });
+    await expect(loadConfig(cfgPath)).rejects.toThrow(
+      /api\.apiKey is empty after environment variable substitution/,
+    );
+  });
+
+  it('fails at validation when api.apiKey is written empty', async () => {
+    const cfgPath = await writeConfig({ ...base, api: { apiKey: '' } });
+    await expect(loadConfig(cfgPath)).rejects.toThrow(
+      /api\.apiKey: api\.apiKey must be a non-empty string/,
+    );
+  });
+
+  it('reports unknown source keys through onWarning', async () => {
+    const cfgPath = await writeConfig({
+      ...base,
+      sources: { app: { url: 'http://x/{id}', batchUrl: 'http://x/b' } },
+    });
+    const onWarning = vi.fn();
+    const config = await loadConfig(cfgPath, { onWarning });
+    expect(onWarning).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ path: 'sources.app.batchUrl' }),
+    );
+    expect(config.sources?.['app']).not.toHaveProperty('batchUrl');
   });
 });

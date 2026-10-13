@@ -4,7 +4,7 @@
  */
 
 import type {
-  DocumentError,
+  DocumentRejectionError,
   DocumentResult,
 } from '@karmaniverous/jeeves-watcher-core';
 import Fastify, { type FastifyInstance } from 'fastify';
@@ -20,7 +20,10 @@ const logger = pino({ level: 'silent' });
 const OK = 'app://chat/thread/1';
 
 /** validate(): unknown source names and rules prefixed `missing` fail. */
-function validate(ref: string, rule: string): DocumentError | undefined {
+function validate(
+  ref: string,
+  rule: string,
+): DocumentRejectionError | undefined {
   if (!ref.startsWith('app://')) {
     return { code: 'unknown_source', message: 'not configured' };
   }

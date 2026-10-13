@@ -109,7 +109,7 @@ describe('sourceReferenceSchema', () => {
 
 describe('sourceDocumentSchema', () => {
   it('accepts any JSON object', () => {
-    const doc = { userId: 'u', streaks: [{ msgs: [] }] };
+    const doc = { userId: 'u', items: [{ msgs: [] }] };
     expect(sourceDocumentSchema.parse(doc)).toEqual(doc);
   });
 

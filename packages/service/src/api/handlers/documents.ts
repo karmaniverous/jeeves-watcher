@@ -4,8 +4,8 @@
  */
 
 import {
-  type DocumentError,
   type DocumentRejection,
+  type DocumentRejectionError,
   type DocumentResult,
   documentsEnvelopeSchema,
   documentsQuerySchema,
@@ -35,7 +35,7 @@ export interface DocumentsHandlerDeps {
 }
 
 /** Error returned for a notification accepted while the queue is stopping. */
-const QUEUE_STOPPED: DocumentError = {
+const QUEUE_STOPPED: DocumentRejectionError = {
   code: 'queue_stopped',
   message: 'The service is shutting down; notify again later',
 };
@@ -43,7 +43,7 @@ const QUEUE_STOPPED: DocumentError = {
 /** A notification after synchronous validation. */
 type Checked =
   | { source: string; rule: string; error?: undefined }
-  | { source: string; rule: string; error: DocumentError };
+  | { source: string; rule: string; error: DocumentRejectionError };
 
 /**
  * Validate one notification: reference syntax (core schema), then the

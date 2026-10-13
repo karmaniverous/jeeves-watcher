@@ -39,6 +39,20 @@ describe('IssuesManager', () => {
     expect(issues[0].property).toBe('title');
   });
 
+  it('persists rule and JSON details, readable by a fresh instance', () => {
+    const details = [{ keyword: 'required', params: { missingProperty: 'x' } }];
+    manager.record('app://chat/1', 'match_failed', 'No match', {
+      operation: 'Failed to process source document',
+      rule: 'chat',
+      details,
+    });
+    const reloaded = new IssuesManager(tempDir, logger).get('app://chat/1');
+    expect(reloaded).toEqual([
+      expect.objectContaining({ type: 'match_failed', rule: 'chat', details }),
+    ]);
+    expect(issueRecordSchema.safeParse(reloaded?.[0]).success).toBe(true);
+  });
+
   it('appends multiple issues for the same file', () => {
     manager.record('test.md', 'interpolation_error', 'First error');
     manager.record('test.md', 'type_collision', 'Second error');

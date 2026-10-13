@@ -68,7 +68,11 @@ export async function reloadConfig(
 
   try {
     const oldConfig = state.config;
-    const newConfig = await deps.factories.loadConfig(configPath);
+    const newConfig = await deps.factories.loadConfig(configPath, {
+      onWarning: (warning) => {
+        logger.warn({ path: warning.path }, warning.message);
+      },
+    });
     state.config = newConfig;
 
     const compiledRules = deps.factories.compileRules(

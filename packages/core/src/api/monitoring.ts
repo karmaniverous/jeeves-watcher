@@ -61,12 +61,17 @@ export const issueRecordSchema = z.object({
   property: z.string().optional(),
   /** Name(s) of the rule(s) involved in the issue. */
   rules: z.array(z.string()).optional(),
-  /** Rule name for single-rule issues (for backward compatibility). */
+  /**
+   * Rule name for single-rule issues; for a source document, its designated
+   * rule (so an `issues` reindex can retry a document that has no points).
+   */
   rule: z.string().optional(),
   /** Declared types for type collision issues. */
   types: z.array(z.string()).optional(),
   /** Error message describing the failure. */
   message: z.string(),
+  /** Optional structured details (e.g. the AJV errors of `match_failed`); JSON. */
+  details: z.unknown().optional(),
   /** Unix timestamp (seconds) or ISO string of the last occurrence. */
   timestamp: z.union([z.number(), z.string()]),
 });
@@ -78,7 +83,7 @@ export type IssueRecord = z.infer<typeof issueRecordSchema>;
 export const issuesResponseSchema = z.object({
   /** Number of documents with issues. */
   count: z.number().int().nonnegative(),
-  /** Issue records keyed by document key (file path). */
+  /** Issue records keyed by document key (file path or source reference). */
   issues: z.record(z.string(), z.array(issueRecordSchema)),
 });
 

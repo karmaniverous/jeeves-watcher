@@ -3,20 +3,22 @@
  * Plans and creates missing Qdrant payload indexes (configured `vectorStore.payloadIndexes` plus system `source`/`source_rule` keyword indexes). Never drops; warns on type mismatch.
  */
 
-import type { PayloadIndexConfig } from '@karmaniverous/jeeves-watcher-core';
+import {
+  type PayloadIndexConfig,
+  SYSTEM_PAYLOAD_INDEX_FIELDS,
+} from '@karmaniverous/jeeves-watcher-core';
 import type { QdrantClient, Schemas } from '@qdrant/js-client-rest';
 import type pino from 'pino';
 
 import { getLogger } from '../util/logger';
 
 /**
- * Keyword indexes the watcher always ensures, regardless of configuration.
- * A configured entry for the same field takes precedence.
+ * Keyword indexes the watcher always ensures, regardless of configuration
+ * (core `SYSTEM_PAYLOAD_INDEX_FIELDS`; config validation rejects entries for
+ * these fields).
  */
-export const SYSTEM_PAYLOAD_INDEXES: readonly PayloadIndexConfig[] = [
-  { field: 'source', type: 'keyword' },
-  { field: 'source_rule', type: 'keyword' },
-];
+export const SYSTEM_PAYLOAD_INDEXES: readonly PayloadIndexConfig[] =
+  SYSTEM_PAYLOAD_INDEX_FIELDS.map((field) => ({ field, type: 'keyword' }));
 
 /** An existing index whose type differs from the desired one. */
 export interface PayloadIndexMismatch {

@@ -32,8 +32,8 @@ describe('jeevesWatcherConfigSchema 0.20.0 additions', () => {
       },
       sources: {
         app: {
-          url: '${CG_SOURCE_BASE_URL}/watcher/sources/{id}',
-          headers: { Authorization: 'Bearer ${CG_SOURCE_KEY}' },
+          url: '${APP_SOURCE_BASE_URL}/watcher/sources/{id}',
+          headers: { Authorization: 'Bearer ${APP_SOURCE_KEY}' },
         },
       },
     });
@@ -49,6 +49,18 @@ describe('jeevesWatcherConfigSchema 0.20.0 additions', () => {
     });
     expect(result.success).toBe(false);
     expect(result.error?.issues[0].path).toEqual(['api', 'apiKey']);
+  });
+
+  it('rejects an empty api.apiKey with a clear message', () => {
+    const result = jeevesWatcherConfigSchema.safeParse({
+      ...minimal,
+      api: { apiKey: '' },
+    });
+    expect(result.success).toBe(false);
+    expect(result.error?.issues[0]).toMatchObject({
+      path: ['api', 'apiKey'],
+      message: expect.stringContaining('non-empty') as unknown,
+    });
   });
 
   it('rejects an invalid source name with a path into sources', () => {

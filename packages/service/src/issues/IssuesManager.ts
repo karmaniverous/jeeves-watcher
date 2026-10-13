@@ -22,12 +22,23 @@ export class IssuesManager extends JsonFileStore<IssuesFile> {
     return {};
   }
 
-  /** Record or update an issue for a file path. */
+  /**
+   * Record an issue for a document key (file path or source reference).
+   *
+   * @param filePath - Document key.
+   * @param type - Canonical issue code.
+   * @param message - Error message.
+   * @param options - Optional operation, property, rule(s), types and
+   *   structured `details` (stored as JSON, e.g. AJV errors).
+   */
   record(
     filePath: string,
     type: IssueRecord['type'],
     message: string,
-    options?: Pick<IssueRecord, 'operation' | 'property' | 'rules' | 'types'>,
+    options?: Pick<
+      IssueRecord,
+      'operation' | 'property' | 'rules' | 'rule' | 'types' | 'details'
+    >,
   ): void {
     const issues = this.load();
     const newIssue: IssueRecord = {

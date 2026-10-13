@@ -4,7 +4,8 @@
  */
 
 import type {
-  DocumentError,
+  DocumentFailure,
+  DocumentRejectionError,
   DocumentResult,
 } from '@karmaniverous/jeeves-watcher-core';
 
@@ -42,7 +43,7 @@ export interface SourceOperationsContext {
 export type SourceRenderOutcome =
   | { kind: 'rendered'; result: RenderResult }
   | { kind: 'gone' }
-  | { kind: 'failed'; error: DocumentError };
+  | { kind: 'failed'; error: DocumentFailure };
 
 /** Source-document operations used by the API. */
 export interface SourceOperationsInterface {
@@ -53,7 +54,7 @@ export interface SourceOperationsInterface {
     options?: IndexOptions,
   ): Promise<DocumentResult>;
   /** Synchronously validate a notification; `undefined` when acceptable. */
-  validate(ref: string, rule: string): DocumentError | undefined;
+  validate(ref: string, rule: string): DocumentRejectionError | undefined;
   /** Designated rule stored on the document's chunk-0 point, or `null` if not indexed. */
   storedRule(ref: string): Promise<string | null>;
   /** Retrieve and render a document without embedding or writing anything. */
@@ -126,7 +127,7 @@ export class SourceOperations implements SourceOperationsInterface {
    * @param rule - Designated rule name.
    * @returns The rejection, or `undefined` when acceptable.
    */
-  validate(ref: string, rule: string): DocumentError | undefined {
+  validate(ref: string, rule: string): DocumentRejectionError | undefined {
     try {
       parseSourceReference(ref);
       if (!this.ctx.retriever) {

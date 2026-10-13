@@ -1038,14 +1038,15 @@ curl http://localhost:1936/issues
 | `operation` | `string?` | Operation that failed (e.g. `Failed to process source document`). |
 | `property` | `string?` | Property name where the issue occurred. |
 | `rules` | `string[]?` | Rule names involved in the issue (for type collisions). |
-| `rule` | `string?` | Rule name for single-rule issues (backward compat). |
+| `rule` | `string?` | Rule name for single-rule issues; for a source document, its designated rule (recorded on every source failure). |
 | `types` | `string[]?` | Declared types for type collision issues. |
 | `message` | `string` | Human-readable error message. |
+| `details` | `unknown?` | Structured details (JSON), e.g. the AJV errors of a `match_failed` issue. |
 | `timestamp` | `number \| string` | Unix timestamp (seconds) or ISO string of last occurrence. |
 
 ### Issue Codes
 
-Every issue record carries one code from a single canonical list (`ISSUE_TYPES` in `@karmaniverous/jeeves-watcher-core`). The same codes appear as `error.code` in `failed` results of `POST /documents?wait=true`.
+Every issue record carries one code from a single canonical list (`ISSUE_TYPES` in `@karmaniverous/jeeves-watcher-core`). The same codes appear as `error.code` in `failed` results of `POST /documents?wait=true` (where a notification that failed synchronous validation carries its rejection code instead, e.g. `invalid_reference`).
 
 | Code | Applies to | Meaning |
 | --- | --- | --- |

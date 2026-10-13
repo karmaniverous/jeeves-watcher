@@ -1,6 +1,6 @@
 /**
  * @module test/chat-thread-rule-integration.test
- * Service integration (requires Qdrant): the deployed `chat-thread` rule renders a three-streak thread from the stub callback to the expected Markdown and payload; records missing `userId` or with empty `msgs` fail `match` (match_failed issue async, per-document failed with ?wait=true) and write nothing.
+ * Service integration (requires Qdrant): the deployed `chat-thread` rule renders a three-streak thread from the stub callback to the expected Markdown and payload; records missing `userId` or with empty `msgs` fail `match` (per-document failed with ?wait=true; on a fresh reference, a match_failed issue with rule and AJV details async) and write nothing.
  */
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -66,20 +66,24 @@ describe.skipIf(!qdrantAvailable())(
 
     beforeAll(async () => {
       const thread = threeStreakThread(FROM);
+      const noUser = { body: { ...thread, userId: undefined } };
+      const noMsgs = {
+        body: {
+          ...thread,
+          streaks: [{ streakId: 's1', side: 'u-42', msgs: [] }],
+        },
+      };
+      // `-async` twins: the async path is asserted on references the
+      // ?wait=true run never touched, so its issue cannot be a leftover.
       stub = await startStubSourceServer({
         '/watcher/sources/chat/thread/s3': { body: thread },
-        '/watcher/sources/chat/thread/nouser': {
-          body: { ...thread, userId: undefined },
-        },
-        '/watcher/sources/chat/thread/nomsgs': {
-          body: {
-            ...thread,
-            streaks: [{ streakId: 's1', side: 'u-42', msgs: [] }],
-          },
-        },
+        '/watcher/sources/chat/thread/nouser': noUser,
+        '/watcher/sources/chat/thread/nouser-async': noUser,
+        '/watcher/sources/chat/thread/nomsgs': noMsgs,
+        '/watcher/sources/chat/thread/nomsgs-async': noMsgs,
       });
       harness = await startServiceHarness({
-        label: 'cg_streak',
+        label: 'chat_thread',
         config: {
           api: { cacheTtlMs: 0 },
           sources: {
@@ -156,16 +160,29 @@ describe.skipIf(!qdrantAvailable())(
           },
         ],
       });
-      expect(await notify(ref, false)).toMatchObject({ accepted: [ref] });
-      await harness.sourceQueue.drain();
-      const { issues } = (await harness.app.inject({ url: '/issues' })).json<{
-        issues: Record<string, { type: string }[]>;
-      }>();
-      expect(issues[ref]).toEqual([
-        expect.objectContaining({ type: 'match_failed' }),
-      ]);
       expect(
         await harness.vectorStore.getPayload(sourcePointId(ref, 0)),
+      ).toBeNull();
+
+      const fresh = `${ref}-async`;
+      const issuesNow = async () =>
+        (await harness.app.inject({ url: '/issues' })).json<{
+          issues: Record<string, Record<string, unknown>[] | undefined>;
+        }>().issues;
+      expect((await issuesNow())[fresh]).toBeUndefined();
+      expect(await notify(fresh, false)).toMatchObject({ accepted: [fresh] });
+      await harness.sourceQueue.drain();
+      expect((await issuesNow())[fresh]).toEqual([
+        expect.objectContaining({
+          type: 'match_failed',
+          rule: RULE,
+          details: expect.arrayContaining([
+            expect.objectContaining({ keyword: expect.any(String) as unknown }),
+          ]) as unknown,
+        }),
+      ]);
+      expect(
+        await harness.vectorStore.getPayload(sourcePointId(fresh, 0)),
       ).toBeNull();
     });
   },

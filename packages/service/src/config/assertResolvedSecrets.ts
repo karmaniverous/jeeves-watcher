@@ -1,6 +1,6 @@
 /**
  * @module config/assertResolvedSecrets
- * Fail-fast check that secret-bearing config values (api.apiKey, sources.*.url and headers) contain no unresolved `${VAR}` after env substitution. Pure; throws.
+ * Fail-fast check that secret-bearing config values (api.apiKey, sources.*.url and headers) contain no unresolved `${VAR}` after env substitution, and that api.apiKey is not empty. Pure; throws.
  */
 
 import type { JeevesWatcherConfig } from './types';
@@ -33,16 +33,23 @@ export function findUnresolvedSecrets(config: JeevesWatcherConfig): string[] {
 }
 
 /**
- * Throw when any secret-bearing value still contains an unresolved `${…}`.
- * The error names the config paths only, never the values.
+ * Throw when any secret-bearing value still contains an unresolved `${…}`,
+ * or when `api.apiKey` is empty after substitution (e.g. its variable is set
+ * to an empty string). Errors name config paths only, never values.
  *
  * @param config - Config after environment-variable substitution.
  * @throws Error listing the offending config paths.
  */
 export function assertResolvedSecrets(config: JeevesWatcherConfig): void {
   const paths = findUnresolvedSecrets(config);
-  if (paths.length === 0) return;
-  throw new Error(
-    `Unresolved environment variable reference in: ${paths.join(', ')}. Set the referenced environment variables before starting jeeves-watcher.`,
-  );
+  if (paths.length > 0) {
+    throw new Error(
+      `Unresolved environment variable reference in: ${paths.join(', ')}. Set the referenced environment variables before starting jeeves-watcher.`,
+    );
+  }
+  if (config.api?.apiKey === '') {
+    throw new Error(
+      'api.apiKey is empty after environment variable substitution. Set a non-empty key, or remove api.apiKey to disable authentication.',
+    );
+  }
 }

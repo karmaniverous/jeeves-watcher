@@ -10,9 +10,12 @@ import {
   apiErrorResponseSchema,
   documentErrorSchema,
   documentTargetShape,
+  hasFilterCondition,
+  nonEmptyQdrantFilterSchema,
   qdrantFilterSchema,
   requireExactlyOneTarget,
 } from './common';
+import { apiErrorBodySchema } from './errors';
 
 const target = z
   .object(documentTargetShape)
@@ -49,5 +52,41 @@ describe('shared schemas', () => {
       documentErrorSchema.safeParse({ code: 'c', message: 'm' }).success,
     ).toBe(true);
     expect(documentErrorSchema.safeParse({ code: 'c' }).success).toBe(false);
+  });
+
+  it('apiErrorBodySchema extends apiErrorResponseSchema with code', () => {
+    expect(Object.keys(apiErrorBodySchema.shape).sort()).toEqual(
+      [
+        ...Object.keys(apiErrorResponseSchema.shape),
+        'code',
+        'issueType',
+      ].sort(),
+    );
+  });
+});
+
+describe('hasFilterCondition', () => {
+  it.each([
+    [{}],
+    [{ must: [] }],
+    [{ must: [], should: [], must_not: [] }],
+    [{ must: [{}] }],
+    [{ should: [{ must: [] }, {}] }],
+    [{ min_should: { conditions: [], min_count: 1 } }],
+    [{ unknown: [{ key: 'a' }] }],
+  ])('%j is condition-free', (filter) => {
+    expect(hasFilterCondition(filter)).toBe(false);
+    expect(nonEmptyQdrantFilterSchema.safeParse(filter).success).toBe(false);
+  });
+
+  it.each([
+    [{ must: [{ key: 'a', match: { value: 1 } }] }],
+    [{ must_not: [{ is_empty: { key: 'a' } }] }],
+    [{ should: [{ must: [{ has_id: [1] }] }] }],
+    [{ must: { key: 'a', match: { value: 1 } } }],
+    [{ min_should: { conditions: [{ key: 'a', match: { value: 1 } }] } }],
+  ])('%j has a condition', (filter) => {
+    expect(hasFilterCondition(filter)).toBe(true);
+    expect(nonEmptyQdrantFilterSchema.safeParse(filter).success).toBe(true);
   });
 });

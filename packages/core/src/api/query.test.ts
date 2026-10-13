@@ -35,6 +35,7 @@ describe('searchRequestSchema', () => {
     ['fractional limit', { query: 'q', limit: 1.5 }],
     ['negative offset', { query: 'q', offset: -1 }],
     ['array filter', { query: 'q', filter: [] }],
+    ['an unknown key (unsupported collapse)', { query: 'q', collapse: 'x' }],
   ])('rejects %s', (_label, body) => {
     expect(searchRequestSchema.safeParse(body).success).toBe(false);
   });

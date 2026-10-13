@@ -31,6 +31,7 @@ export {
 // Payload index schemas
 export {
   type PayloadIndexConfig,
+  payloadIndexesSchema,
   payloadIndexSchema,
   type PayloadIndexType,
   payloadIndexTypeSchema,

@@ -121,4 +121,17 @@ describe('documents.delete', () => {
     ).rejects.toMatchObject({ code: 'invalid_request' });
     expect(mock.calls).toHaveLength(0);
   });
+
+  it.each([
+    ['f.and() with no operands', f.and()],
+    ['{}', {}],
+    ['{ must: [] }', { must: [] }],
+    ['f.and(f.and(), f.or())', f.and(f.and(), f.or())],
+  ])('refuses a condition-free filter: %s', async (_label, filter) => {
+    const { watcher, mock } = client({ body: { deleted: 0 } });
+    await expect(watcher.documents.delete({ filter })).rejects.toMatchObject({
+      code: 'invalid_request',
+    });
+    expect(mock.calls).toHaveLength(0);
+  });
 });

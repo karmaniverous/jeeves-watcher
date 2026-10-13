@@ -1,6 +1,6 @@
 /**
  * @module api/handlers/configValidate.warnings.test
- * Tests that POST /config/validate surfaces reserved-field warnings without failing validation.
+ * Tests that POST /config/validate surfaces reserved-field and unknown source-key warnings without failing validation.
  */
 
 import pino from 'pino';
@@ -54,6 +54,16 @@ describe('POST /config/validate reserved-field warnings', () => {
     expect(result.valid).toBe(true);
     expect(result.warnings).toEqual([
       expect.objectContaining({ path: 'inferenceRules[r].schema.source' }),
+    ]);
+  });
+
+  it('stays valid and warns about unknown keys under sources.<name>', async () => {
+    const result = await validate({
+      sources: { app: { url: 'http://x/{id}', batchUrl: 'http://x/batch' } },
+    });
+    expect(result.valid).toBe(true);
+    expect(result.warnings).toEqual([
+      expect.objectContaining({ path: 'sources.app.batchUrl' }),
     ]);
   });
 

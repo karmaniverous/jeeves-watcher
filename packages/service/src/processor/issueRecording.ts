@@ -74,6 +74,8 @@ export interface FileErrorContext {
    * never recorded as issues.
    */
   issueType?: IssueType;
+  /** Designated rule of a source document, recorded on the issue. */
+  rule?: string;
 }
 
 /** A failure after it has been logged and (when typed) recorded. */
@@ -88,7 +90,9 @@ export interface ReportedFailure {
 
 /**
  * Log a failure and record a typed issue for the document key (replacing any
- * earlier issues for it). Untagged failures use `context.issueType`.
+ * earlier issues for it). Untagged failures use `context.issueType`. The
+ * issue carries `context.rule` and the failure's structured `details` when
+ * present.
  *
  * @param deps - Logger and optional issues store.
  * @param context - Document key, operation and fallback issue code.
@@ -100,17 +104,22 @@ export function reportFailure(
   context: FileErrorContext,
   error: unknown,
 ): ReportedFailure {
-  const { filePath, operation, issueType } = context;
+  const { filePath, operation, issueType, rule } = context;
   const tagged = error instanceof ProcessingFailure ? error : undefined;
   logError(deps.logger, tagged?.cause ?? error, { filePath }, operation);
 
   const type = tagged?.issueType ?? issueType;
   const message = error instanceof Error ? error.message : String(error);
+  const details = tagged?.details;
   if (type && deps.issuesManager) {
     deps.issuesManager.clear(filePath);
-    deps.issuesManager.record(filePath, type, message, { operation });
+    deps.issuesManager.record(filePath, type, message, {
+      operation,
+      ...(rule === undefined ? {} : { rule }),
+      ...(details === undefined ? {} : { details }),
+    });
   }
-  return { type, message, details: tagged?.details };
+  return { type, message, details };
 }
 
 /**

@@ -18,6 +18,7 @@ const RULE = 'chat-thread';
 const REF = 'app://chat/thread/f';
 const PATH = '/threads/chat/thread/f';
 const DOWN = 'down://chat/thread/f';
+const DOWN_ASYNC = 'down://chat/thread/g';
 
 const ok: StubResponse = { body: { userId: 'u1', text: 'stable content' } };
 
@@ -133,10 +134,13 @@ describe.skipIf(!qdrantAvailable())(
     it.each(cases)(
       '%s on the async path → typed issue in /issues, points untouched',
       async (_label, response, code) => {
+        // Start from no issue, so the assertion sees this run's issue only.
+        harness.issuesManager.clear(REF);
+        expect((await issues())[REF]).toBeUndefined();
         stub.route(PATH, response);
         expect(await notify(REF, false)).toMatchObject({ accepted: [REF] });
         expect((await issues())[REF]).toEqual([
-          expect.objectContaining({ type: code }),
+          expect.objectContaining({ type: code, rule: RULE }),
         ]);
         expect(await payloadOf(REF)).toEqual(indexed);
       },
@@ -152,11 +156,15 @@ describe.skipIf(!qdrantAvailable())(
           },
         ],
       });
-      await notify(DOWN, false);
-      expect((await issues())[DOWN]).toEqual([
-        expect.objectContaining({ type: 'source_unavailable' }),
-      ]);
       expect(await payloadOf(DOWN)).toBeNull();
+
+      // The async path on a reference the ?wait=true run never touched.
+      expect((await issues())[DOWN_ASYNC]).toBeUndefined();
+      await notify(DOWN_ASYNC, false);
+      expect((await issues())[DOWN_ASYNC]).toEqual([
+        expect.objectContaining({ type: 'source_unavailable', rule: RULE }),
+      ]);
+      expect(await payloadOf(DOWN_ASYNC)).toBeNull();
     });
 
     it('recovery clears the issue and leaves the content unchanged', async () => {

@@ -5,7 +5,7 @@
 
 import {
   type ApiErrorCode,
-  type DocumentError,
+  type DocumentFailure,
   issueTypeSchema,
 } from '@karmaniverous/jeeves-watcher-core';
 import type { FastifyReply } from 'fastify';
@@ -45,7 +45,7 @@ function renderFailureCode(issueType: string): {
  */
 function sendRenderFailure(
   reply: FastifyReply,
-  failure: DocumentError,
+  failure: DocumentFailure,
 ): FastifyReply {
   const { code: issue, message, details } = failure;
   const { code, status } = renderFailureCode(issue);

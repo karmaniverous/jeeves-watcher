@@ -15,10 +15,68 @@ export const qdrantFilterSchema = z
 /** A Qdrant filter object. */
 export type QdrantFilter = z.infer<typeof qdrantFilterSchema>;
 
+/** Boolean clauses of a Qdrant filter whose value is a condition list. */
+const FILTER_CLAUSES = ['must', 'should', 'must_not'] as const;
+
+/** Every key a Qdrant filter object may carry (clauses plus `min_should`). */
+const FILTER_KEYS = new Set<string>([...FILTER_CLAUSES, 'min_should']);
+
+const isPlainObject = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value);
+
+/**
+ * Whether a condition restricts anything. `{}` (an empty nested filter)
+ * does not; a nested filter (only clause keys) restricts when it has a
+ * condition itself; anything else (field, `is_empty`, `has_id`, `nested`, …,
+ * or a malformed value Qdrant will reject) counts as a condition.
+ */
+function isEffectiveCondition(condition: unknown): boolean {
+  if (!isPlainObject(condition)) return true;
+  const keys = Object.keys(condition);
+  if (keys.length === 0) return false;
+  return keys.every((key) => FILTER_KEYS.has(key))
+    ? hasFilterCondition(condition)
+    : true;
+}
+
+/** Whether a clause value (a condition or a list of them) has a condition. */
+const clauseHasCondition = (value: unknown): boolean =>
+  Array.isArray(value)
+    ? value.some(isEffectiveCondition)
+    : isPlainObject(value) && isEffectiveCondition(value);
+
+/**
+ * Whether a Qdrant filter contains at least one condition. `{}`,
+ * `{ must: [] }`, filters whose clauses are all empty (recursively) and
+ * filters with only unknown keys are condition-free: they would match every
+ * point.
+ *
+ * @param filter - A Qdrant filter object.
+ * @returns True when the filter restricts the points it matches.
+ */
+export function hasFilterCondition(filter: QdrantFilter): boolean {
+  if (FILTER_CLAUSES.some((clause) => clauseHasCondition(filter[clause]))) {
+    return true;
+  }
+  const minShould = filter.min_should;
+  return isPlainObject(minShould) && clauseHasCondition(minShould.conditions);
+}
+
+/**
+ * A Qdrant filter that must contain at least one condition (see
+ * {@link hasFilterCondition}); used where a match-everything filter would be
+ * destructive (`POST /documents/delete`).
+ */
+export const nonEmptyQdrantFilterSchema = qdrantFilterSchema.refine(
+  hasFilterCondition,
+  { message: 'filter must contain at least one condition' },
+);
+
 /**
  * Error body shape common to every watcher version: `error` plus optional
  * `message` and `details`, no `code`. Responses from 0.20.0+ also carry a
- * machine-readable `code`; see `apiErrorBodySchema` (module `api/errors`).
+ * machine-readable `code`; `apiErrorBodySchema` (module `api/errors`)
+ * extends this schema with it.
  */
 export const apiErrorResponseSchema = z.object({
   /** Short error description. */

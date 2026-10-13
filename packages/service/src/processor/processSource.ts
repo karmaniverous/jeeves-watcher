@@ -32,7 +32,8 @@ const UNTAGGED_ISSUE = 'extraction_error';
 /**
  * Retrieve a source document through its callback and index it with its
  * designated rule. 404 deletes the document's points; other failures record
- * an issue under the exact reference and leave points untouched.
+ * an issue (with the designated `rule` and any structured `details`) under
+ * the exact reference and leave points untouched.
  *
  * @param deps - Pipeline, resolver and enrichment store.
  * @param ref - The exact `<name>://<id>` reference.
@@ -72,6 +73,7 @@ export async function processSourceDocument(
         filePath: ref,
         operation: 'Failed to process source document',
         issueType: UNTAGGED_ISSUE,
+        rule,
       },
       error,
     );

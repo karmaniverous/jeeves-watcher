@@ -5,6 +5,8 @@
 
 import { z } from 'zod';
 
+import { SYSTEM_PAYLOAD_INDEX_FIELDS } from '../reservedFields.js';
+
 /** Qdrant payload index types supported by `vectorStore.payloadIndexes`. */
 export const payloadIndexTypeSchema = z
   .enum(['keyword', 'integer', 'float', 'bool', 'datetime', 'uuid', 'text'])
@@ -69,3 +71,32 @@ export const payloadIndexSchema = z
 
 /** A configured Qdrant payload index. */
 export type PayloadIndexConfig = z.infer<typeof payloadIndexSchema>;
+
+const systemIndexFields = new Set<string>(SYSTEM_PAYLOAD_INDEX_FIELDS);
+
+/**
+ * The `vectorStore.payloadIndexes` list. Each `field` may appear once, and
+ * the system-indexed fields (`source`, `source_rule`) are rejected: the
+ * watcher always keeps a keyword index on them.
+ */
+export const payloadIndexesSchema = z
+  .array(payloadIndexSchema)
+  .superRefine((indexes, ctx) => {
+    const seen = new Set<string>();
+    indexes.forEach(({ field }, i) => {
+      if (systemIndexFields.has(field)) {
+        ctx.addIssue({
+          code: 'custom',
+          path: [i, 'field'],
+          message: `"${field}" is a system field the watcher always indexes (keyword); remove this entry`,
+        });
+      } else if (seen.has(field)) {
+        ctx.addIssue({
+          code: 'custom',
+          path: [i, 'field'],
+          message: `Duplicate payload index for field "${field}"; each field may be indexed once`,
+        });
+      }
+      seen.add(field);
+    });
+  });

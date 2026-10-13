@@ -67,9 +67,12 @@ export interface DocumentsApi {
   /**
    * Delete source documents (`POST /documents/delete`) by reference or by
    * Qdrant filter. The server constrains the filter to points carrying
-   * `source`, so file points are never deleted.
+   * `source` and no `file_path`, so file points are never deleted. A
+   * condition-free filter (`{}`, `{ must: [] }`, `f.and()` with no operands,
+   * ...) would match every source document and is refused client-side with
+   * `invalid_request` before any request is sent.
    *
-   * @param request - `{ sources }` or `{ filter }`.
+   * @param request - `{ sources }` or `{ filter }` (at least one condition).
    * @returns The number of documents (not points) removed.
    */
   delete(request: DocumentsDeleteRequest): Promise<DocumentsDeleteResponse>;

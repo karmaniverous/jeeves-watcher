@@ -6,9 +6,7 @@
 import { isReservedPayloadField } from '@karmaniverous/jeeves-watcher-core';
 
 import { type DocumentIdentity, identityPayload } from './documentIdentity';
-
-/** Reserved field set by the pipeline itself and carried in rule metadata. */
-const FIELD_MATCHED_RULES = 'matched_rules';
+import { FIELD_MATCHED_RULES } from './payloadFields';
 
 /**
  * Prepare metadata for a payload write (upsert or `setPayload`): reserved

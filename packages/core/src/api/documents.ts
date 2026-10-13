@@ -6,7 +6,8 @@
 import { z } from 'zod';
 
 import { sourceReferenceSchema } from '../schemas/sources.js';
-import { documentErrorSchema, qdrantFilterSchema } from './common.js';
+import { documentErrorSchema, nonEmptyQdrantFilterSchema } from './common.js';
+import { issueTypeSchema } from './monitoring.js';
 
 /** Maximum number of documents in one `POST /documents` request. */
 export const MAX_DOCUMENTS_PER_REQUEST = 100;
@@ -102,12 +103,25 @@ export const documentsQuerySchema = z.object({
 /** Query string for `POST /documents`. */
 export type DocumentsQuery = z.infer<typeof documentsQuerySchema>;
 
+/** Why a notification was rejected: a typed code plus a message. */
+export const documentRejectionErrorSchema = documentErrorSchema
+  .omit({ details: true })
+  .extend({
+    /** Rejection code. */
+    code: documentRejectionCodeSchema,
+  });
+
+/** Why a notification was rejected. */
+export type DocumentRejectionError = z.infer<
+  typeof documentRejectionErrorSchema
+>;
+
 /** A notification rejected by synchronous validation. */
 export const documentRejectionSchema = z.object({
   /** The reference as submitted. */
   source: z.string(),
   /** Why it was rejected. */
-  error: documentErrorSchema.omit({ details: true }),
+  error: documentRejectionErrorSchema,
 });
 
 /** A notification rejected by synchronous validation. */
@@ -137,6 +151,28 @@ export const documentResultStatusSchema = z.enum([
 /** Outcome of processing one document synchronously. */
 export type DocumentResultStatus = z.infer<typeof documentResultStatusSchema>;
 
+/**
+ * Code of a failed per-document result: the issue type of a processing
+ * failure, or (with `?wait=true`) the rejection code of a notification that
+ * failed synchronous validation.
+ */
+export const documentFailureCodeSchema = z.union([
+  issueTypeSchema,
+  documentRejectionCodeSchema,
+]);
+
+/** Code of a failed per-document result. */
+export type DocumentFailureCode = z.infer<typeof documentFailureCodeSchema>;
+
+/** Failure detail of a per-document result: typed code, message, optional details. */
+export const documentFailureSchema = documentErrorSchema.extend({
+  /** Issue type or rejection code. */
+  code: documentFailureCodeSchema,
+});
+
+/** Failure detail of a per-document result. */
+export type DocumentFailure = z.infer<typeof documentFailureSchema>;
+
 /** Per-document result of `POST /documents?wait=true`. */
 export const documentResultSchema = z.object({
   /** The reference processed. */
@@ -148,7 +184,7 @@ export const documentResultSchema = z.object({
   /** Rules that matched (when indexed or unchanged). */
   matched_rules: z.array(z.string()).optional(),
   /** Failure detail (when failed). */
-  error: documentErrorSchema.optional(),
+  error: documentFailureSchema.optional(),
 });
 
 /** Per-document result of `POST /documents?wait=true`. */
@@ -167,7 +203,9 @@ export type DocumentsResultsResponse = z.infer<
 
 /**
  * Request body for `POST /documents/delete`: either explicit references or a
- * Qdrant filter (constrained server-side to points carrying `source`).
+ * Qdrant filter with at least one condition (a condition-free filter such as
+ * `{}` or `{ must: [] }` is rejected). The server constrains the filter to
+ * points carrying `source` and no `file_path`.
  */
 export const documentsDeleteRequestSchema = z.union([
   z.strictObject({
@@ -177,8 +215,8 @@ export const documentsDeleteRequestSchema = z.union([
       .min(1, 'sources must contain at least one reference'),
   }),
   z.strictObject({
-    /** Qdrant filter selecting the documents to delete. */
-    filter: qdrantFilterSchema,
+    /** Qdrant filter selecting the documents to delete (at least one condition). */
+    filter: nonEmptyQdrantFilterSchema,
   }),
 ]);
 

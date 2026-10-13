@@ -91,6 +91,10 @@ describe('POST /documents/delete', () => {
     ['both forms', { sources: ['app://a'], filter: {} }],
     ['empty sources', { sources: [] }],
     ['a malformed reference', { sources: ['a.md'] }],
+    ['an empty filter', { filter: {} }],
+    ['an empty must clause', { filter: { must: [] } }],
+    ['all clauses empty', { filter: { must: [], should: [], must_not: [] } }],
+    ['only empty nested filters', { filter: { must: [{}, { should: [] }] } }],
   ])('returns 400 for %s', async (_label, payload) => {
     const { status } = await post(payload);
     expect(status).toBe(400);
@@ -119,18 +123,40 @@ describe('POST /documents/delete', () => {
     expect(enrichmentStore.delete).toHaveBeenCalledWith('app://a');
   });
 
-  it.each([
-    ['an empty filter', {}],
-    [
-      'a file_path filter',
-      { must: [{ key: 'file_path', match: { value: 'j:/docs/a.md' } }] },
-    ],
-  ])('can never delete file points (%s)', async (_label, filter) => {
-    await post({ filter });
+  it('can never delete file points (a file_path filter)', async () => {
+    await post({
+      filter: {
+        must: [{ key: 'file_path', match: { value: 'j:/docs/a.md' } }],
+      },
+    });
     expect(points.has('f0')).toBe(true);
     const sent = vectorStore.scrollPage.mock.calls[0]?.[0];
     expect(sent).toMatchObject({
+      must: expect.arrayContaining([
+        { is_empty: { key: 'file_path' } },
+      ]) as unknown,
       must_not: [{ is_empty: { key: 'source' } }],
     });
   });
+
+  it.each([
+    ['the sources form', { sources: ['app://a'] }],
+    [
+      'the filter form',
+      { filter: { must: [{ key: 'user_id', match: { value: 'u1' } }] } },
+    ],
+  ])(
+    'never deletes a legacy file point carrying a rule-written source (%s)',
+    async (_label, payload) => {
+      points.set('l0', {
+        file_path: 'j:/docs/legacy.md',
+        source: 'app://a',
+        user_id: 'u1',
+      });
+      const { body } = await post(payload);
+      expect(body).toEqual({ deleted: 1 });
+      expect(points.has('l0')).toBe(true);
+      expect(points.has('a0')).toBe(false);
+    },
+  );
 });

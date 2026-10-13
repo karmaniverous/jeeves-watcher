@@ -6,7 +6,7 @@
 import type pino from 'pino';
 
 import { createApiServer } from '../api';
-import { loadConfig } from '../config';
+import { loadConfig, type LoadConfigOptions } from '../config';
 import type { JeevesWatcherConfig } from '../config/types';
 import { createEmbeddingProvider } from '../embedding';
 import { createLogger } from '../logger';
@@ -24,7 +24,10 @@ import { FileSystemWatcher, type FileSystemWatcherOptions } from '../watcher';
  */
 export interface JeevesWatcherFactories {
   /** Load and validate a {@link JeevesWatcherConfig} from disk. */
-  loadConfig: (configPath?: string) => Promise<JeevesWatcherConfig>;
+  loadConfig: (
+    configPath?: string,
+    options?: LoadConfigOptions,
+  ) => Promise<JeevesWatcherConfig>;
   /** Create a pino logger instance. */
   createLogger: typeof createLogger;
   /** Create an embedding provider from config. */

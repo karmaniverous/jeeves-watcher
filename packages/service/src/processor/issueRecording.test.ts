@@ -12,6 +12,7 @@ import {
   handleFileErrors,
   ProcessingFailure,
   type ProcessorIssues,
+  reportFailure,
   withIssueType,
 } from './issueRecording';
 
@@ -105,6 +106,27 @@ describe('handleFileErrors', () => {
       undefined,
     );
     expect(issues.record.mock.calls[0]?.[1]).toBe('upsert_error');
+  });
+
+  it('records the context rule and the failure details', () => {
+    const issues = makeIssues();
+    const details = [{ keyword: 'required', instancePath: '/json' }];
+    const reported = reportFailure(
+      { logger, issuesManager: asIssues(issues) },
+      { filePath: 'app://x', operation: 'op', rule: 'chat' },
+      new ProcessingFailure('match_failed', 'no match', details),
+    );
+    expect(reported).toEqual({
+      type: 'match_failed',
+      message: 'no match',
+      details,
+    });
+    expect(issues.record).toHaveBeenCalledWith(
+      'app://x',
+      'match_failed',
+      'no match',
+      { operation: 'op', rule: 'chat', details },
+    );
   });
 
   it('only logs when no fallback code is given and the failure is untagged', async () => {

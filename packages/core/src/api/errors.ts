@@ -5,6 +5,7 @@
 
 import { z } from 'zod';
 
+import { apiErrorResponseSchema } from './common.js';
 import { issueTypeSchema } from './monitoring.js';
 
 /**
@@ -82,20 +83,16 @@ export const API_ERROR_STATUS: Readonly<Record<ApiErrorCode, number>> = {
 };
 
 /**
- * Body of every non-2xx watcher response (0.20.0+). `error` is the
- * human-readable text earlier versions sent, kept unchanged for backward
- * compatibility; branch on `code`, never on `error`. Endpoints may add
- * further fields (e.g. `issues` on `POST /config/apply`).
+ * Body of every non-2xx watcher response (0.20.0+): the version-independent
+ * `apiErrorResponseSchema` (`error`, `message`, `details`) extended with
+ * `code` and `issueType`. `error` is the human-readable text earlier
+ * versions sent, kept unchanged for backward compatibility; branch on
+ * `code`, never on `error`. Endpoints may add further fields (e.g. `issues`
+ * on `POST /config/apply`).
  */
-export const apiErrorBodySchema = z.object({
+export const apiErrorBodySchema = apiErrorResponseSchema.extend({
   /** Machine-readable error code. */
   code: apiErrorCodeSchema,
-  /** Human-readable error text (unchanged from earlier versions). */
-  error: z.string(),
-  /** Optional longer explanation. */
-  message: z.string().optional(),
-  /** Optional structured details (e.g. Zod issues for a 400). */
-  details: z.unknown().optional(),
   /** Issue type of the pipeline failure behind a source render error. */
   issueType: issueTypeSchema.optional(),
 });

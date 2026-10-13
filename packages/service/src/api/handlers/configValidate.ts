@@ -10,6 +10,7 @@ import type { FastifyRequest } from 'fastify';
 import type pino from 'pino';
 
 import type { SchemaEntry } from '../../config/schemas';
+import { findUnknownSourceKeys } from '../../config/sourceKeyWarnings';
 import type { JeevesWatcherConfig } from '../../config/types';
 import { applyRules } from '../../rules/apply';
 import { buildAttributes } from '../../rules/attributes';
@@ -178,9 +179,10 @@ export function createConfigValidateHandler(deps: ConfigValidateRouteDeps) {
         }
       }
 
-      const warnings = parsed
-        ? findReservedFieldWarnings(parsed, deps.configDir)
-        : [];
+      const warnings = [
+        ...findUnknownSourceKeys(candidateRaw),
+        ...(parsed ? findReservedFieldWarnings(parsed, deps.configDir) : []),
+      ];
 
       return {
         valid: true,

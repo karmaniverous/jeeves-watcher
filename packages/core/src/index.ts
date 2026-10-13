@@ -33,8 +33,10 @@ export {
 export {
   findReservedPropertyNames,
   isReservedPayloadField,
+  PAYLOAD_FIELD,
   RESERVED_PAYLOAD_FIELDS,
   type ReservedPayloadField,
+  SYSTEM_PAYLOAD_INDEX_FIELDS,
 } from './reservedFields.js';
 export {
   type ApiConfig,
@@ -54,6 +56,7 @@ export {
   type NormalizedWatchPath,
   normalizeWatchPaths,
   type PayloadIndexConfig,
+  payloadIndexesSchema,
   payloadIndexSchema,
   type PayloadIndexType,
   payloadIndexTypeSchema,

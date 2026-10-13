@@ -1,6 +1,6 @@
 /**
  * @module test/documents-integration.test
- * Service integration (requires Qdrant): POST /documents notify (202 and ?wait=true) → /search finds it; /render, /metadata and /reindex with source; /documents/delete never removes file points; wait=true on a callback 404 → deleted.
+ * Service integration (requires Qdrant): POST /documents notify (202 and ?wait=true) then /search finds it; /render, /metadata and /reindex with source; /documents/delete rejects condition-free filters and never removes file points (even a legacy one carrying a rule-written source); wait=true on a callback 404 gives deleted.
  */
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -18,6 +18,7 @@ const A = 'app://chat/thread/a';
 const B = 'app://chat/thread/b';
 const GONE = 'app://chat/thread/gone';
 const FILE = 'j:/docs/readme.md';
+const LEGACY = 'j:/docs/legacy.md';
 
 const thread = (userId: string, text: string) => ({
   body: { userId, streaks: [{ msgs: [{ role: 'user', text }] }] },
@@ -72,12 +73,24 @@ describe.skipIf(!qdrantAvailable())(
           ],
         },
       });
-      // A file point that no /documents/delete request may ever remove.
+      // File points that no /documents/delete request may ever remove; the
+      // legacy one carries a rule-written `source` equal to a real reference.
       await harness.vectorStore.upsert([
         {
           id: pointId(FILE, 0),
           vector: Array.from({ length: 16 }, () => 0.25),
           payload: { file_path: FILE, chunk_text: 'file', user_id: 'u1' },
+        },
+        {
+          id: pointId(LEGACY, 0),
+          vector: Array.from({ length: 16 }, () => 0.5),
+          payload: {
+            file_path: LEGACY,
+            chunk_text: 'legacy',
+            user_id: 'u1',
+            source: B,
+            source_rule: RULE,
+          },
         },
       ]);
     });
@@ -190,16 +203,35 @@ describe.skipIf(!qdrantAvailable())(
         await harness.vectorStore.getPayload(sourcePointId(B, 0)),
       ).not.toBeNull();
 
-      const { status, body } = await post('/documents/delete', { filter: {} });
-      expect(status).toBe(200);
-      expect(body).toEqual({ deleted: 1 });
+      const byRule = await post('/documents/delete', {
+        filter: { must: [{ key: 'source_rule', match: { value: RULE } }] },
+      });
+      expect(byRule).toEqual({ status: 200, body: { deleted: 1 } });
       expect(
         await harness.vectorStore.getPayload(sourcePointId(B, 0)),
       ).toBeNull();
       expect(
         await harness.vectorStore.getPayload(pointId(FILE, 0)),
       ).toMatchObject({ file_path: FILE });
+      expect(
+        await harness.vectorStore.getPayload(pointId(LEGACY, 0)),
+      ).toMatchObject({ file_path: LEGACY, source: B });
       expect(harness.enrichmentStore.get(A)).toBeNull();
+    });
+
+    it.each([
+      ['{}', {}],
+      ['{ must: [] }', { must: [] }],
+      ['all clauses empty', { must: [], should: [], must_not: [] }],
+    ])('delete with a condition-free filter %s → 400', async (_l, filter) => {
+      const res = await post('/documents/delete', { filter });
+      expect(res).toMatchObject({
+        status: 400,
+        body: { code: 'invalid_request' },
+      });
+      expect(
+        await harness.vectorStore.getPayload(pointId(LEGACY, 0)),
+      ).not.toBeNull();
     });
 
     it('delete by sources removes every chunk of the listed documents', async () => {
@@ -209,6 +241,10 @@ describe.skipIf(!qdrantAvailable())(
       const { body } = await post('/documents/delete', { sources: [A, B] });
       expect(body).toEqual({ deleted: 1 });
       expect(await harness.vectorStore.count(bySource(A))).toBe(0);
+      // The legacy file point carrying source B survives the sources form.
+      expect(
+        await harness.vectorStore.getPayload(pointId(LEGACY, 0)),
+      ).toMatchObject({ file_path: LEGACY, source: B });
     });
 
     it('?wait=true on a callback 404 → deleted', async () => {

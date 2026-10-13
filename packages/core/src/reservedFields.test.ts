@@ -8,7 +8,9 @@ import { describe, expect, it } from 'vitest';
 import {
   findReservedPropertyNames,
   isReservedPayloadField,
+  PAYLOAD_FIELD,
   RESERVED_PAYLOAD_FIELDS,
+  SYSTEM_PAYLOAD_INDEX_FIELDS,
 } from './reservedFields';
 
 describe('reserved payload fields', () => {
@@ -17,6 +19,16 @@ describe('reserved payload fields', () => {
     expect(RESERVED_PAYLOAD_FIELDS).toContain('source_rule');
     expect(RESERVED_PAYLOAD_FIELDS).toContain('total_chunks');
     expect(RESERVED_PAYLOAD_FIELDS).toHaveLength(12);
+  });
+
+  it('derives the list from the named constants, without duplicates', () => {
+    expect([...RESERVED_PAYLOAD_FIELDS]).toEqual(Object.values(PAYLOAD_FIELD));
+    expect(new Set(RESERVED_PAYLOAD_FIELDS).size).toBe(12);
+    expect(PAYLOAD_FIELD.filePath).toBe('file_path');
+  });
+
+  it('system-indexed fields are source and source_rule', () => {
+    expect(SYSTEM_PAYLOAD_INDEX_FIELDS).toEqual(['source', 'source_rule']);
   });
 
   it.each(RESERVED_PAYLOAD_FIELDS)('%s is reserved', (name) => {

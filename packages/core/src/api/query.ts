@@ -7,8 +7,12 @@ import { z } from 'zod';
 
 import { qdrantFilterSchema } from './common.js';
 
-/** Request body for `POST /search`. */
-export const searchRequestSchema = z.object({
+/**
+ * Request body for `POST /search`. Unknown keys are rejected, so an
+ * unsupported option (e.g. `collapse`) fails with `400` instead of being
+ * silently ignored.
+ */
+export const searchRequestSchema = z.strictObject({
   /** Natural-language query text to embed. */
   query: z.string().min(1, 'query must be a non-empty string'),
   /** Maximum results to return. Default: 10. */
@@ -67,13 +71,16 @@ export const scanRequestSchema = z.object({
 /** Request body for `POST /scan`. */
 export type ScanRequest = z.infer<typeof scanRequestSchema>;
 
-/** A scrolled point. */
+/** A scrolled point (one entry of the `POST /scan` `points` page). */
 export const scanPointSchema = z.object({
   /** Point ID. */
   id: z.string(),
   /** Point payload (projected when `fields` is given). */
   payload: z.record(z.string(), z.unknown()),
 });
+
+/** A scrolled point. */
+export type ScanPoint = z.infer<typeof scanPointSchema>;
 
 /** Response body for `POST /scan`: a page of points, or a count when `countOnly`. */
 export const scanResponseSchema = z.union([

@@ -3,6 +3,7 @@
  * Fastify inject tests for `POST /render { source }`: stored designated rule, 404 not indexed / gone, 502/422 failures, 503 without source support, and the response cache bypass (path renders stay cached).
  */
 
+import type { IssueType } from '@karmaniverous/jeeves-watcher-core';
 import Fastify, { type FastifyInstance } from 'fastify';
 import pino from 'pino';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -133,7 +134,7 @@ describe('POST /render { source }', () => {
     });
   });
 
-  it.each([
+  it.each<[IssueType, number, string]>([
     ['source_unavailable', 502, 'source_unavailable'],
     ['match_failed', 422, 'pipeline_error'],
     ['rule_missing', 422, 'pipeline_error'],

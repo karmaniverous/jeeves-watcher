@@ -13,18 +13,25 @@ import {
 } from './sourceDeletion';
 
 const HAS_SOURCE = { must_not: [{ is_empty: { key: 'source' } }] };
+const NO_FILE_PATH = { is_empty: { key: 'file_path' } };
 
 describe('sourcesFilter', () => {
-  it('matches any of the references on the source field', () => {
+  it('matches any of the references on the source field, never a file point', () => {
     expect(sourcesFilter(['app://a', 'app://b'])).toEqual({
-      must: [{ key: 'source', match: { any: ['app://a', 'app://b'] } }],
+      must: [
+        { key: 'source', match: { any: ['app://a', 'app://b'] } },
+        NO_FILE_PATH,
+      ],
     });
   });
 });
 
 describe('constrainToSources', () => {
-  it('requires source on an empty filter', () => {
-    expect(constrainToSources({})).toEqual(HAS_SOURCE);
+  it('requires source and no file_path on an empty filter', () => {
+    expect(constrainToSources({})).toEqual({
+      must: [NO_FILE_PATH],
+      ...HAS_SOURCE,
+    });
   });
 
   it('nests the caller filter so its must_not/should cannot loosen the constraint', () => {
@@ -33,7 +40,7 @@ describe('constrainToSources', () => {
       must_not: [{ key: 'user_id', match: { value: 'u2' } }],
     };
     expect(constrainToSources(caller)).toEqual({
-      must: [caller],
+      must: [caller, NO_FILE_PATH],
       ...HAS_SOURCE,
     });
   });
@@ -69,7 +76,7 @@ describe('deleteSourcePoints', () => {
       { must: [] },
       256,
       undefined,
-      ['source'],
+      ['source', 'file_path'],
     ]);
     expect(vs.delete).toHaveBeenCalledWith(['1', '2', '3']);
     // Deletes happen only after scrolling finished.
@@ -78,8 +85,14 @@ describe('deleteSourcePoints', () => {
     );
   });
 
-  it('never deletes a point without a source reference', async () => {
-    const vs = store([[point('f', undefined), point('e', ''), point('s', 7)]]);
+  it('never deletes a point without a source reference, or a file point', async () => {
+    const legacy: ScrolledPoint = {
+      id: 'l',
+      payload: { source: 'app://a', file_path: 'j:/docs/a.md' },
+    };
+    const vs = store([
+      [point('f', undefined), point('e', ''), point('s', 7), legacy],
+    ]);
     expect(await deleteSourcePoints(vs, {})).toEqual({
       sources: [],
       points: 0,

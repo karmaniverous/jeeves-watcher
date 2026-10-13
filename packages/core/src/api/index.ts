@@ -8,6 +8,8 @@ export {
   apiErrorResponseSchema,
   type DocumentError,
   documentErrorSchema,
+  hasFilterCondition,
+  nonEmptyQdrantFilterSchema,
   type QdrantFilter,
   qdrantFilterSchema,
 } from './common.js';
@@ -22,11 +24,17 @@ export {
   renderResponseSchema,
 } from './documentOps.js';
 export {
+  type DocumentFailure,
+  type DocumentFailureCode,
+  documentFailureCodeSchema,
+  documentFailureSchema,
   type DocumentNotification,
   documentNotificationSchema,
   type DocumentRejection,
   type DocumentRejectionCode,
   documentRejectionCodeSchema,
+  type DocumentRejectionError,
+  documentRejectionErrorSchema,
   documentRejectionSchema,
   type DocumentResult,
   documentResultSchema,
@@ -68,6 +76,8 @@ export {
   statusResponseSchema,
 } from './monitoring.js';
 export {
+  type ScanPoint,
+  scanPointSchema,
   type ScanRequest,
   scanRequestSchema,
   type ScanResponse,

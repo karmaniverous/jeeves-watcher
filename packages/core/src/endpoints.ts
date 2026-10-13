@@ -1,9 +1,6 @@
 /**
- * Shared endpoint catalog — single source of truth for the jeeves-watcher API.
- *
- * Both the CLI service and the OpenClaw plugin derive their registrations
- * from this declarative catalog, eliminating drift between the two.
- *
+ * @module endpoints
+ * Declarative catalog of every jeeves-watcher HTTP endpoint (name, method, path, description) plus a typed lookup; the single source the service, plugin and SDK derive routes from. Pure.
  */
 
 /** HTTP methods used by the API. */
@@ -101,14 +98,14 @@ export const WATCHER_ENDPOINTS = [
     method: 'POST',
     path: '/documents/delete',
     description:
-      'Delete source documents by reference or by Qdrant filter (constrained to points carrying source).',
+      'Delete source documents by reference or by Qdrant filter (at least one condition; constrained to points carrying source and no file_path).',
   },
   {
     name: 'issues',
     method: 'GET',
     path: '/issues',
     description:
-      'Get runtime embedding failures. Shows files that failed processing and why.',
+      'Get runtime processing failures. Shows the documents (file path or source reference) that failed processing and why.',
   },
   {
     name: 'configSchema',

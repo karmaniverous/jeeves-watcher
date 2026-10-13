@@ -17,6 +17,7 @@ import type { VectorStoreClient } from '../vectorStore';
 import { DocumentProcessor } from './index';
 
 const REF = 'app://chat/thread/AbC';
+const OP = { operation: 'Failed to process source document' };
 const BODY = { userId: 'u1', content: 'hello world' };
 
 const rules: InferenceRule[] = [
@@ -249,7 +250,7 @@ describe('DocumentProcessor.processSource', () => {
       REF,
       'source_unavailable',
       'HTTP 503',
-      expect.anything(),
+      { ...OP, rule: 'chat' },
     );
     expect(mocks.upsert).not.toHaveBeenCalled();
     expect(mocks.delete).not.toHaveBeenCalled();
@@ -276,6 +277,12 @@ describe('DocumentProcessor.processSource', () => {
     expect(result.error?.details).toEqual([
       expect.objectContaining({ keyword: 'required' }),
     ]);
+    // The issue records the designated rule and the same AJV errors.
+    const call = strict.mocks.record.mock.calls[0] as unknown[];
+    expect([call[1], call[3]]).toEqual([
+      'match_failed',
+      { ...OP, rule: 'chat', details: result.error?.details },
+    ]);
     expect(strict.mocks.upsert).not.toHaveBeenCalled();
   });
 
@@ -283,6 +290,10 @@ describe('DocumentProcessor.processSource', () => {
     const { processor, mocks } = setup();
     const result = await processor.processSource(REF, 'gone-rule');
     expect(result.error?.code).toBe('rule_missing');
+    expect(mocks.record.mock.calls[0]?.[3]).toEqual({
+      ...OP,
+      rule: 'gone-rule',
+    });
     expect(mocks.retrieve).not.toHaveBeenCalled();
     expect(mocks.delete).not.toHaveBeenCalled();
   });

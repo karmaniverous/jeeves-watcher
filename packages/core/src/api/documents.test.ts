@@ -124,6 +124,48 @@ describe('documents responses', () => {
     ).toBe(true);
   });
 
+  it('accepts a rejection code as a ?wait=true failure code', () => {
+    expect(
+      documentsResultsResponseSchema.safeParse({
+        results: [
+          {
+            source: 'app:bad',
+            status: 'failed',
+            error: { code: 'invalid_reference', message: 'x' },
+          },
+        ],
+      }).success,
+    ).toBe(true);
+  });
+
+  it.each([
+    [
+      'an untyped result error code',
+      {
+        results: [
+          {
+            source: doc.source,
+            status: 'failed',
+            error: { code: 'boom', message: 'x' },
+          },
+        ],
+      },
+      documentsResultsResponseSchema,
+    ],
+    [
+      'a non-rejection code in a 202 rejection',
+      {
+        accepted: [],
+        rejected: [
+          { source: 'zz://1', error: { code: 'match_failed', message: 'x' } },
+        ],
+      },
+      documentsAcceptedResponseSchema,
+    ],
+  ])('rejects %s', (_label, body, schema) => {
+    expect(schema.safeParse(body).success).toBe(false);
+  });
+
   it('rejects an unknown result status', () => {
     expect(
       documentsResultsResponseSchema.safeParse({
@@ -136,7 +178,29 @@ describe('documents responses', () => {
 describe('documentsDeleteRequestSchema', () => {
   it.each([
     ['sources', { sources: [doc.source] }],
-    ['a filter', { filter: { must: [] } }],
+    [
+      'a filter',
+      { filter: { must: [{ key: 'user_id', match: { value: 'u1' } }] } },
+    ],
+    [
+      'a must_not-only filter',
+      { filter: { must_not: [{ is_empty: { key: 'user_id' } }] } },
+    ],
+    [
+      'a nested filter with a condition',
+      { filter: { must: [{ should: [{ has_id: ['x'] }] }] } },
+    ],
+    [
+      'a min_should filter',
+      {
+        filter: {
+          min_should: {
+            conditions: [{ key: 'a', match: { value: 1 } }],
+            min_count: 1,
+          },
+        },
+      },
+    ],
   ])('accepts %s', (_label, body) => {
     expect(documentsDeleteRequestSchema.parse(body)).toEqual(body);
   });
@@ -147,6 +211,12 @@ describe('documentsDeleteRequestSchema', () => {
     ['empty sources', { sources: [] }],
     ['a malformed reference', { sources: ['bad'] }],
     ['a non-object filter', { filter: 'x' }],
+    ['an empty filter', { filter: {} }],
+    ['an empty must', { filter: { must: [] } }],
+    ['all clauses empty', { filter: { must: [], should: [], must_not: [] } }],
+    ['only empty nested filters', { filter: { must: [{}, { should: [] }] } }],
+    ['an empty min_should', { filter: { min_should: { conditions: [] } } }],
+    ['only unknown keys', { filter: { foo: [{ key: 'a' }] } }],
   ])('rejects %s', (_label, body) => {
     expect(documentsDeleteRequestSchema.safeParse(body).success).toBe(false);
   });

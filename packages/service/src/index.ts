@@ -20,6 +20,7 @@ export type {
   InferenceRule,
   JeevesWatcherConfig,
   JeevesWatcherConfigInput,
+  LoadConfigOptions,
   LoggingConfig,
   VectorStoreConfig,
   WatchConfig,
@@ -102,6 +103,7 @@ export {
   sourceAttributesSchema,
   VirtualRuleStore,
 } from './rules';
+export type { ConfigWarning } from './rules/reservedFieldWarnings';
 export {
   type ParsedSourceReference,
   parsedSourceReferenceSchema,
