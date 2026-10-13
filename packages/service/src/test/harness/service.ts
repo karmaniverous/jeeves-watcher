@@ -14,7 +14,10 @@ import type { FastifyInstance } from 'fastify';
 import { createApiServer } from '../../api';
 import { createProcessorConfig } from '../../app/initialization';
 import type { JeevesWatcherConfig } from '../../config/types';
-import { createEmbeddingProvider } from '../../embedding';
+import {
+  createEmbeddingProvider,
+  type EmbeddingProvider,
+} from '../../embedding';
 import { EnrichmentStore } from '../../enrichment';
 import { IssuesManager } from '../../issues';
 import { createLogger } from '../../logger';
@@ -50,6 +53,11 @@ export interface ServiceHarnessOptions {
   config?: Partial<JeevesWatcherConfig>;
   /** Listen on an ephemeral 127.0.0.1 port and expose {@link ServiceHarness.baseUrl}. */
   listen?: boolean;
+  /**
+   * Wrap the counted embedding provider before it is shared by the
+   * processor, reindex and search (e.g. in the real shared rate limiter).
+   */
+  wrapEmbedding?: (provider: EmbeddingProvider) => EmbeddingProvider;
 }
 
 /** A started harness. Call {@link ServiceHarness.close} in `afterAll`. */
@@ -159,9 +167,10 @@ async function setUp(
   assertTestCollection(collectionName);
   const logger = createLogger({ level: 'silent' });
 
-  const { provider: embeddingProvider, counter } = countingProvider(
+  const { provider: counted, counter } = countingProvider(
     createEmbeddingProvider(config.embedding),
   );
+  const embeddingProvider = options.wrapEmbedding?.(counted) ?? counted;
   const vectorStore = new VectorStoreClient(
     config.vectorStore,
     embeddingProvider.dimensions,

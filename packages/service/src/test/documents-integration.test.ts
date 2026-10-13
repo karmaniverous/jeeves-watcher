@@ -17,6 +17,7 @@ const RULE = 'chat-thread';
 const A = 'app://chat/thread/a';
 const B = 'app://chat/thread/b';
 const GONE = 'app://chat/thread/gone';
+const LONG = 'app://chat/thread/long';
 const FILE = 'j:/docs/readme.md';
 const LEGACY = 'j:/docs/legacy.md';
 
@@ -38,6 +39,11 @@ describe.skipIf(!qdrantAvailable())(
       stub = await startStubSourceServer({
         '/threads/chat/thread/a': thread('u1', 'alpha message'),
         '/threads/chat/thread/b': thread('u2', 'bravo message'),
+        // Several chunks at the harness chunk size (1000).
+        '/threads/chat/thread/long': thread(
+          'u3',
+          Array.from({ length: 400 }, (_, i) => `word${String(i)}`).join(' '),
+        ),
         '/threads/chat/thread/gone': () =>
           goneExists
             ? thread('u1', 'soon gone')
@@ -235,12 +241,33 @@ describe.skipIf(!qdrantAvailable())(
     });
 
     it('delete by sources removes every chunk of the listed documents', async () => {
-      await post('/documents?wait=true', {
-        documents: [{ source: A, rule: RULE }],
+      const indexed = await post('/documents?wait=true', {
+        documents: [
+          { source: A, rule: RULE },
+          { source: LONG, rule: RULE },
+        ],
       });
-      const { body } = await post('/documents/delete', { sources: [A, B] });
-      expect(body).toEqual({ deleted: 1 });
+      expect(indexed.body).toMatchObject({
+        results: [{ status: 'indexed' }, { status: 'indexed' }],
+      });
+      const chunks = await harness.vectorStore.count(bySource(LONG));
+      expect(chunks).toBeGreaterThan(1);
+
+      const { body } = await post('/documents/delete', {
+        sources: [A, B, LONG],
+      });
+      expect(body).toEqual({ deleted: 2 });
       expect(await harness.vectorStore.count(bySource(A))).toBe(0);
+      expect(await harness.vectorStore.count(bySource(LONG))).toBe(0);
+      for (let chunk = 0; chunk < chunks; chunk++) {
+        expect(
+          await harness.vectorStore.getPayload(sourcePointId(LONG, chunk)),
+        ).toBeNull();
+      }
+      // File points survive the sources form.
+      expect(
+        await harness.vectorStore.getPayload(pointId(FILE, 0)),
+      ).toMatchObject({ file_path: FILE });
       // The legacy file point carrying source B survives the sources form.
       expect(
         await harness.vectorStore.getPayload(pointId(LEGACY, 0)),

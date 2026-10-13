@@ -38,6 +38,10 @@ describe('documentsRequestSchema', () => {
     ['a missing rule', { documents: [{ source: doc.source }] }],
     ['an empty rule', { documents: [{ ...doc, rule: '' }] }],
     ['inline push content', { documents: [{ ...doc, text: 'hi' }] }],
+    [
+      'inline push properties',
+      { documents: [{ ...doc, properties: { user_id: 'u1' } }] },
+    ],
   ])('rejects %s', (_label, body) => {
     expect(documentsRequestSchema.safeParse(body).success).toBe(false);
   });
@@ -56,6 +60,10 @@ describe('documentsEnvelopeSchema', () => {
     ['a non-string source', { documents: [{ ...doc, source: 1 }] }],
     ['a missing rule', { documents: [{ source: doc.source }] }],
     ['inline push content', { documents: [{ ...doc, text: 'hi' }] }],
+    [
+      'inline push properties',
+      { documents: [{ ...doc, properties: { user_id: 'u1' } }] },
+    ],
   ])('rejects %s', (_label, body) => {
     expect(documentsEnvelopeSchema.safeParse(body).success).toBe(false);
   });

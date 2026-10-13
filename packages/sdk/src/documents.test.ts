@@ -82,6 +82,10 @@ describe('documents.notify', () => {
     ['a malformed reference', [{ source: 'not a ref', rule: 'r' }]],
     ['an empty rule', [{ source: DOC.source, rule: '' }]],
     ['pushed content (notify only)', [{ ...DOC, text: 'inline' }]],
+    [
+      'pushed properties (notify only)',
+      [{ ...DOC, properties: { user_id: 'u1' } }],
+    ],
   ])('rejects %s client-side', async (_, documents) => {
     const { watcher, mock } = client({ status: 202, body: ACCEPTED });
     await expect(

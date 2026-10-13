@@ -114,6 +114,10 @@ describe('POST /documents: request validation', () => {
     ],
     ['a missing rule', { documents: [{ source: OK }] }],
     ['inline push content', { documents: [{ ...doc(OK), text: 'x' }] }],
+    [
+      'inline push properties',
+      { documents: [{ ...doc(OK), properties: { user_id: 'u1' } }] },
+    ],
   ])('returns 400 for %s', async (_label, payload) => {
     const ctx = setup();
     const { status, body } = await post(ctx, payload);

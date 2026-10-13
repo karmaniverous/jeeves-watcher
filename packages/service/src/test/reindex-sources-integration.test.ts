@@ -175,6 +175,19 @@ describe.skipIf(!qdrantAvailable())(
       expect(res.json()).toMatchObject({
         plan: { toDelete: 0 },
       });
+
+      // A live run, too: no source point is deleted.
+      const live = await harness.app.inject({
+        method: 'POST',
+        url: '/reindex',
+        payload: { scope: 'prune' },
+      });
+      expect(live.json()).toMatchObject({ status: 'started' });
+      await waitFor(async () => {
+        const status = await harness.app.inject({ url: '/status' });
+        return !status.json<{ health: { reindex: { active: boolean } } }>()
+          .health.reindex.active;
+      });
       expect(await payloadOf(A)).not.toBeNull();
       expect(await payloadOf(B)).not.toBeNull();
     });
