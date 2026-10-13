@@ -10,8 +10,9 @@ import {
   type JeevesComponentDescriptor,
 } from '@karmaniverous/jeeves';
 import type { FastifyReply, FastifyRequest } from 'fastify';
+import type pino from 'pino';
 
-import { sendResult } from '../sendError';
+import { sendInternalError, sendResult } from '../sendError';
 
 /** Dependencies for the config apply route handler. */
 export interface ConfigApplyRouteDeps {
@@ -24,6 +25,8 @@ export interface ConfigApplyRouteDeps {
   configPath: string;
   /** Called with the validated config after it has been written. */
   onConfigApply: (config: unknown) => Promise<void>;
+  /** Logger for 5xx results (their text is logged, never sent). */
+  logger?: pino.Logger;
 }
 
 type ConfigApplyRequest = FastifyRequest<{
@@ -55,8 +58,10 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
  * config path so the patch is merged into the file the service actually
  * loaded (not a path derived from `configRoot`, which may be unset or
  * different in the service process). Accepts `{ patch }` (sent by the
- * plugin's `watcher_config_apply`) or `{ config }`. Error results get a
- * `code` from their status (`invalid_request`, `internal_error`).
+ * plugin's `watcher_config_apply`) or `{ config }`. 4xx results get a
+ * `code` from their status (`invalid_request`); a 5xx result (config file
+ * unreadable or unwritable, apply callback failed) is logged and answered
+ * with a generic `500 internal_error`, so file paths never leak.
  *
  * @param deps - Route dependencies.
  */
@@ -79,6 +84,10 @@ export function createConfigApplyRouteHandler(deps: ConfigApplyRouteDeps) {
       });
     }
     const result = await apply({ patch, replace: body.replace === true });
+    if (result.status >= 500) {
+      deps.logger?.error({ result: result.body }, 'Config apply failed');
+      return sendInternalError(reply);
+    }
     return sendResult(reply, result);
   };
 }

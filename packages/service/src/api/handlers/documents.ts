@@ -19,7 +19,10 @@ import {
   hasSourceOperations,
   type SourceOperationsInterface,
 } from '../../processor/SourceOperations';
-import type { SourceNotifyQueue } from '../../queue/SourceNotifyQueue';
+import {
+  type SourceNotifyQueue,
+  SourceNotifyQueueStoppedError,
+} from '../../queue/SourceNotifyQueue';
 import { sendSourcesNotAvailable } from '../sendError';
 import { parseBody } from './parseBody';
 import { wrapHandler } from './wrapHandler';
@@ -75,7 +78,11 @@ function check(
  *
  * @param queue - The notify queue.
  * @param checked - Validated notifications.
- * @returns Per-document results; rejected ones are `failed` with their code.
+ * @returns Per-document results; rejected ones are `failed` with their code,
+ *   and documents the stopping queue refused are `failed` with
+ *   `queue_stopped`.
+ * @throws Any other rejection of `processNow` (an unexpected failure; the
+ *   request then fails with `500 internal_error`).
  */
 async function processAll(
   queue: Pick<SourceNotifyQueue, 'processNow'>,
@@ -86,7 +93,8 @@ async function processAll(
       if (error) return { source, status: 'failed', error };
       try {
         return await queue.processNow(source, rule);
-      } catch {
+      } catch (err) {
+        if (!(err instanceof SourceNotifyQueueStoppedError)) throw err;
         return { source, status: 'failed', error: QUEUE_STOPPED };
       }
     }),

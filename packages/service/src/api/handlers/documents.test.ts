@@ -13,6 +13,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import type { DocumentProcessorInterface } from '../../processor';
 import type { SourceOperationsInterface } from '../../processor/SourceOperations';
+import { SourceNotifyQueueStoppedError } from '../../queue/SourceNotifyQueue';
 import { registerApiKeyAuth } from '../apiKeyAuth';
 import { createDocumentsHandler } from './documents';
 
@@ -244,7 +245,9 @@ describe('POST /documents?wait=true', () => {
 
   it('maps a stopped queue to a failed queue_stopped result', async () => {
     const { body } = await post(
-      setup({ processNow: () => Promise.reject(new Error('stopped')) }),
+      setup({
+        processNow: () => Promise.reject(new SourceNotifyQueueStoppedError()),
+      }),
       { documents: [doc(OK)] },
       '/documents?wait=true',
     );
@@ -253,6 +256,17 @@ describe('POST /documents?wait=true', () => {
         { source: OK, status: 'failed', error: { code: 'queue_stopped' } },
       ],
     });
+  });
+
+  it('answers an unexpected processNow rejection with a generic 500', async () => {
+    const { status, body } = await post(
+      setup({ processNow: () => Promise.reject(new Error('secret detail')) }),
+      { documents: [doc(OK)] },
+      '/documents?wait=true',
+    );
+    expect(status).toBe(500);
+    expect(body).toMatchObject({ code: 'internal_error' });
+    expect(JSON.stringify(body)).not.toContain('secret detail');
   });
 });
 

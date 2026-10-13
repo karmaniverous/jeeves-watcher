@@ -9,10 +9,7 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import type pino from 'pino';
 
 import { registerApiKeyAuth } from './apiKeyAuth';
-import { codeForStatus, sendError } from './sendError';
-
-/** Text sent for any 5xx the error handler produces (no internals leak). */
-export const INTERNAL_ERROR_MESSAGE = 'Internal server error';
+import { codeForStatus, INTERNAL_ERROR_MESSAGE, sendError } from './sendError';
 
 /**
  * The HTTP status a thrown error asks for: its `statusCode` when that is a

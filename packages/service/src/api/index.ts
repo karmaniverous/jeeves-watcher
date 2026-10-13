@@ -1,6 +1,6 @@
 /**
  * @module api
- * Fastify API server factory. Registers all route handlers and returns an unstarted server instance.
+ * Fastify API server factory. Registers all route handlers (status, query, documents, config, rules, VCS) and returns an unstarted server instance.
  */
 
 import { dirname } from 'node:path';
@@ -14,36 +14,19 @@ import Fastify, { type FastifyInstance } from 'fastify';
 
 import { registerApiHooks } from './apiHooks';
 import type { ApiServerOptions } from './apiServerOptions';
-import {
-  CONFIG_WATCH_VALID_SCOPES,
-  executeReindex,
-  type ReindexScope,
-} from './executeReindex';
-import { createConfigApplyRouteHandler } from './handlers/configApply';
-import { createConfigMatchHandler } from './handlers/configMatch';
-import { createConfigQueryHandler } from './handlers/configQuery';
-import { createConfigReindexHandler } from './handlers/configReindex';
-import { createConfigSchemaHandler } from './handlers/configSchema';
-import { createConfigValidateHandler } from './handlers/configValidate';
 import { createFacetsHandler } from './handlers/facets';
 import { createIssuesHandler } from './handlers/issues';
 import { createMetadataHandler } from './handlers/metadata';
-import { createPointsDeleteHandler } from './handlers/pointsDelete';
 import { createRebuildMetadataHandler } from './handlers/rebuildMetadata';
 import { createRenderHandler } from './handlers/render';
-import { createRulesReapplyHandler } from './handlers/rulesReapply';
-import { createRulesRegisterHandler } from './handlers/rulesRegister';
-import {
-  createRulesUnregisterHandler,
-  createRulesUnregisterParamHandler,
-} from './handlers/rulesUnregister';
 import { createScanHandler } from './handlers/scan';
 import { createSearchHandler } from './handlers/search';
 import { createWalkHandler } from './handlers/walk';
 import { withCache } from './handlers/withCache';
 import { withCacheUnlessSource } from './handlers/withCacheUnlessSource';
-import { createOnRulesChanged } from './onRulesChanged';
+import { registerConfigRoutes } from './registerConfigRoutes';
 import { registerDocumentRoutes } from './registerDocumentRoutes';
+import { registerRuleRoutes } from './registerRuleRoutes';
 import { registerVcsRoutes } from './registerVcsRoutes';
 import { ReindexTracker } from './ReindexTracker';
 
@@ -56,26 +39,22 @@ export { ReindexTracker } from './ReindexTracker';
 /**
  * Create the Fastify API server with all routes registered.
  *
- * The returned instance is not yet listening — call `server.listen()` to start.
+ * The returned instance is not yet listening; call `server.listen()` to start.
  *
  * @param options - The server options.
  * @returns A configured Fastify instance.
  */
 export function createApiServer(options: ApiServerOptions): FastifyInstance {
   const {
-    descriptor,
     processor,
     vectorStore,
     embeddingProvider,
-    queue,
     logger,
     config,
     issuesManager,
     valuesManager,
     configPath,
-    helperIntrospection,
     virtualRuleStore,
-    gitignoreFilter,
     version,
     initialScanTracker,
   } = options;
@@ -89,31 +68,8 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
   // Auth + error handlers; api.apiKey is read once (restart to change).
   registerApiHooks(app, config.api?.apiKey, logger);
 
-  const triggerReindex = (scope: ReindexScope) => {
-    if (!CONFIG_WATCH_VALID_SCOPES.includes(scope)) {
-      logger.warn(
-        { scope },
-        `Scope "${scope}" is not valid for config-watch auto-trigger; ignoring.`,
-      );
-      return;
-    }
-    void executeReindex(
-      {
-        config: getConfig(),
-        processor,
-        logger,
-        reindexTracker,
-        valuesManager,
-        issuesManager,
-        gitignoreFilter,
-        vectorStore,
-        queue,
-      },
-      scope,
-    );
-  };
-
   const cacheTtlMs = config.api?.cacheTtlMs ?? 30000;
+  const configDir = dirname(configPath);
 
   const coreStatusHandler = coreCreateStatusHandler({
     name: 'watcher',
@@ -148,7 +104,10 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
       processor,
       getConfig,
       logger,
-      configDir: dirname(configPath),
+      configDir,
+      getVirtualRules: virtualRuleStore
+        ? () => Object.values(virtualRuleStore.getAll()).flat()
+        : undefined,
     }),
   );
 
@@ -167,19 +126,12 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
 
   app.get(
     getEndpoint('searchFacets').path,
-    createFacetsHandler({
-      getConfig,
-      valuesManager,
-      configDir: dirname(configPath),
-    }),
+    createFacetsHandler({ getConfig, valuesManager, configDir }),
   );
 
   app.post(
     getEndpoint('scan').path,
-    createScanHandler({
-      vectorStore,
-      logger,
-    }),
+    createScanHandler({ vectorStore, logger }),
   );
 
   app.post(
@@ -215,22 +167,6 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
     }),
   );
 
-  app.post(
-    getEndpoint('reindex').path,
-    createConfigReindexHandler({
-      getConfig,
-      processor,
-      logger,
-      reindexTracker,
-      valuesManager,
-      issuesManager,
-      gitignoreFilter,
-      vectorStore,
-      queue,
-      sourceQueue: options.sourceQueue,
-    }),
-  );
-
   registerDocumentRoutes(app, { ...options, processor, vectorStore, logger });
 
   app.get(
@@ -238,106 +174,15 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
     withCache(cacheTtlMs, createIssuesHandler({ issuesManager })),
   );
 
-  app.get(
-    getEndpoint('configSchema').path,
-    withCache(cacheTtlMs, createConfigSchemaHandler()),
-  );
-
-  app.post(
-    getEndpoint('configMatch').path,
-    createConfigMatchHandler({ getConfig, logger }),
-  );
-
-  app.get(
-    getEndpoint('config').path,
-    withCache(
-      cacheTtlMs,
-      createConfigQueryHandler({
-        getConfig,
-        valuesManager,
-        issuesManager,
-        logger,
-        helperIntrospection,
-        getVirtualRules: virtualRuleStore
-          ? () => virtualRuleStore.getAll()
-          : undefined,
-      }),
-    ),
-  );
-
-  app.post(
-    getEndpoint('configValidate').path,
-    createConfigValidateHandler({
-      getConfig,
-      logger,
-      configDir: dirname(configPath),
-    }),
-  );
-
-  app.post(
-    getEndpoint('configApply').path,
-    createConfigApplyRouteHandler({
-      descriptor,
-      configPath,
-      onConfigApply: () => {
-        const cfg = getConfig();
-        triggerReindex(cfg.configWatch?.reindex ?? 'issues');
-        return Promise.resolve();
-      },
-    }),
-  );
+  registerConfigRoutes(app, options, { getConfig, reindexTracker, cacheTtlMs });
 
   // Virtual rules and points deletion routes
   if (virtualRuleStore) {
-    const onRulesChanged = createOnRulesChanged({
-      getConfig,
-      configPath,
-      processor,
-      logger,
+    registerRuleRoutes(app, options, {
       virtualRuleStore,
+      getConfig,
       reindexTracker,
-      valuesManager,
-      issuesManager,
-      gitignoreFilter,
-      vectorStore,
     });
-
-    app.post(
-      getEndpoint('rulesRegister').path,
-      createRulesRegisterHandler({
-        virtualRuleStore,
-        logger,
-        onRulesChanged,
-      }),
-    );
-
-    app.delete(
-      getEndpoint('rulesUnregister').path,
-      createRulesUnregisterHandler({
-        virtualRuleStore,
-        logger,
-        onRulesChanged,
-      }),
-    );
-
-    app.delete(
-      getEndpoint('rulesUnregisterBySource').path,
-      createRulesUnregisterParamHandler({
-        virtualRuleStore,
-        logger,
-        onRulesChanged,
-      }),
-    );
-
-    app.post(
-      getEndpoint('pointsDelete').path,
-      createPointsDeleteHandler({ vectorStore, logger }),
-    );
-
-    app.post(
-      getEndpoint('rulesReapply').path,
-      createRulesReapplyHandler({ processor, vectorStore, logger }),
-    );
   }
 
   // VCS routes: only registered when a VcsCoordinator is provided

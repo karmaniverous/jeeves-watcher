@@ -153,13 +153,14 @@ describe('POST /render { source }', () => {
     });
   });
 
-  it('returns 500 on an unexpected error', async () => {
+  it('returns a generic 500 on an unexpected error (no internals)', async () => {
     ops.storedRule.mockRejectedValue(new Error('qdrant down'));
     const res = await render({ source: REF });
     expect(res.statusCode).toBe(500);
     expect(res.json()).toEqual({
       code: 'internal_error',
-      error: 'qdrant down',
+      error: 'Internal Server Error',
+      message: 'Internal server error',
     });
   });
 

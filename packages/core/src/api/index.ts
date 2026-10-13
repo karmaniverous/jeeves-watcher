@@ -90,6 +90,7 @@ export {
   searchResultSchema,
 } from './query.js';
 export {
+  MAX_REINDEX_SOURCES_PER_REQUEST,
   type ReindexPlan,
   reindexPlanSchema,
   type ReindexRequest,

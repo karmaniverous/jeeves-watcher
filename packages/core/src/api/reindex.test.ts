@@ -5,7 +5,14 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { reindexRequestSchema, reindexResponseSchema } from './reindex';
+import {
+  MAX_REINDEX_SOURCES_PER_REQUEST,
+  reindexRequestSchema,
+  reindexResponseSchema,
+} from './reindex';
+
+const refs = (n: number) =>
+  Array.from({ length: n }, (_, i) => `app://${String(i)}`);
 
 describe('reindexRequestSchema', () => {
   it.each([
@@ -32,6 +39,17 @@ describe('reindexRequestSchema', () => {
     ['non-boolean dryRun', { dryRun: 'yes' }],
   ])('rejects %s', (_label, body) => {
     expect(reindexRequestSchema.safeParse(body).success).toBe(false);
+  });
+
+  it('caps the source list', () => {
+    const max = MAX_REINDEX_SOURCES_PER_REQUEST;
+    const ok = { scope: 'path', source: refs(max) };
+    expect(reindexRequestSchema.safeParse(ok).success).toBe(true);
+    const tooMany = reindexRequestSchema.safeParse({
+      scope: 'path',
+      source: refs(max + 1),
+    });
+    expect(tooMany.success).toBe(false);
   });
 
   it('lists valid scopes in the scope error', () => {

@@ -17,6 +17,9 @@ interface ErrorReply {
   status: (statusCode: number) => { send: (payload: unknown) => unknown };
 }
 
+/** `message` sent with every 5xx the API produces (no internals leak). */
+export const INTERNAL_ERROR_MESSAGE = 'Internal server error';
+
 /** `error` text sent when the processor has no source-document support. */
 export const NOT_AVAILABLE = 'Not available';
 
@@ -66,18 +69,26 @@ export function sendError<R extends ErrorReply>(
 }
 
 /**
- * Send `503 not_available` (or the given status) for a processor without
- * source-document support.
+ * Send `500 internal_error` with generic text. The caller logs the error;
+ * it is never sent.
  *
  * @param reply - Fastify reply.
- * @param status - HTTP status; `503` unless the route historically used another.
  * @returns The reply.
  */
-export function sendSourcesNotAvailable<R extends ErrorReply>(
-  reply: R,
-  status = 503,
-): R {
-  return sendError(reply, status, 'not_available', NOT_AVAILABLE, {
+export function sendInternalError<R extends ErrorReply>(reply: R): R {
+  return sendError(reply, 500, 'internal_error', 'Internal Server Error', {
+    message: INTERNAL_ERROR_MESSAGE,
+  });
+}
+
+/**
+ * Send `503 not_available` for a processor without source-document support.
+ *
+ * @param reply - Fastify reply.
+ * @returns The reply.
+ */
+export function sendSourcesNotAvailable<R extends ErrorReply>(reply: R): R {
+  return sendError(reply, 503, 'not_available', NOT_AVAILABLE, {
     message: SOURCES_NOT_SUPPORTED,
   });
 }

@@ -13,7 +13,9 @@ import { mockReply } from '../test/vcsHandlers';
 import {
   apiErrorBody,
   codeForStatus,
+  INTERNAL_ERROR_MESSAGE,
   sendError,
+  sendInternalError,
   sendResult,
   sendSourcesNotAvailable,
 } from './sendError';
@@ -70,18 +72,24 @@ describe('sendError', () => {
     });
   });
 
-  it('sendSourcesNotAvailable defaults to 503 and accepts another status', () => {
-    const expected = {
+  it('sendSourcesNotAvailable sends 503 not_available', () => {
+    const a = sendSourcesNotAvailable(mockReply());
+    expect(a.statusCode).toBe(503);
+    expect(a.body).toEqual({
       code: 'not_available',
       error: 'Not available',
       message: 'Source documents are not supported by this instance.',
-    };
-    const a = sendSourcesNotAvailable(mockReply());
-    expect(a.statusCode).toBe(503);
-    expect(a.body).toEqual(expected);
-    const b = sendSourcesNotAvailable(mockReply(), 400);
-    expect(b.statusCode).toBe(400);
-    expect(b.body).toEqual(expected);
+    });
+  });
+
+  it('sendInternalError sends generic 500 text', () => {
+    const a = sendInternalError(mockReply());
+    expect(a.statusCode).toBe(500);
+    expect(a.body).toEqual({
+      code: 'internal_error',
+      error: 'Internal Server Error',
+      message: INTERNAL_ERROR_MESSAGE,
+    });
   });
 });
 

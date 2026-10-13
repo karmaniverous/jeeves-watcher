@@ -1,6 +1,6 @@
 /**
  * @module api/handlers/configReindex
- * Fastify route handler for POST /reindex. Triggers an async reindex job scoped to issues, full, rules, path, or prune processing.
+ * Fastify route handler for POST /reindex. Resolves the scope's targets once (plan), then triggers the async reindex job (issues, full, rules, path, prune) with them.
  */
 
 import { reindexRequestSchema } from '@karmaniverous/jeeves-watcher-core';
@@ -16,7 +16,7 @@ import type { PausableQueue } from '../../queue';
 import type { SourceNotifyQueue } from '../../queue/SourceNotifyQueue';
 import type { ValuesManager } from '../../values';
 import type { VectorStoreClient } from '../../vectorStore';
-import { executeReindex } from '../executeReindex';
+import { executeReindex, prepareReindex } from '../executeReindex';
 import type { ReindexTracker } from '../ReindexTracker';
 import {
   NOT_AVAILABLE,
@@ -29,14 +29,23 @@ import { wrapHandler } from './wrapHandler';
 
 /** Dependencies for the reindex route handler. */
 export interface ConfigReindexRouteDeps {
+  /** Live config getter. */
   getConfig: () => JeevesWatcherConfig;
+  /** Document processor. */
   processor: DocumentProcessorInterface;
+  /** Logger. */
   logger: pino.Logger;
+  /** Reindex progress tracker (`GET /status`). */
   reindexTracker: ReindexTracker;
+  /** Values index (cleared by scope `full`). */
   valuesManager?: ValuesManager;
+  /** Issues store (scope `issues`). */
   issuesManager?: IssuesManager;
+  /** Gitignore filter for path targets. */
   gitignoreFilter?: GitignoreFilter;
+  /** Vector store (prune; source discovery). */
   vectorStore?: VectorStoreClient;
+  /** File queue (paused during prune). */
   queue?: PausableQueue;
   /**
    * Notify queue: scope `path` with `source` references enqueues; scopes
@@ -50,7 +59,14 @@ type ConfigReindexRequest = FastifyRequest<{ Body: unknown }>;
 /**
  * Create handler for POST /reindex.
  *
+ * Non-prune scopes resolve their files and source documents once: the
+ * resulting plan is returned (`dry_run`, or `started` with the plan) and the
+ * live run reuses the same targets. An invalid path target is a 4xx
+ * (`path_not_watched`, `not_found`, `invalid_request`); `source` on an
+ * instance without source support is `503 not_available`.
+ *
  * @param deps - Route dependencies.
+ * @returns Fastify route handler.
  */
 export function createConfigReindexHandler(deps: ConfigReindexRouteDeps) {
   return wrapHandler(
@@ -65,11 +81,12 @@ export function createConfigReindexHandler(deps: ConfigReindexRouteDeps) {
       if (body.source !== undefined) {
         const { processor, sourceQueue: queue } = deps;
         if (!queue || !hasSourceOperations(processor)) {
-          return sendSourcesNotAvailable(reply, 400);
+          return sendSourcesNotAvailable(reply);
         }
         const ops = processor.sourceOperations();
         const refs = [body.source].flat();
-        return reindexSources({ ops, queue }, refs, dryRun);
+        const concurrency = deps.getConfig().reindex?.concurrency;
+        return reindexSources({ ops, queue, concurrency }, refs, dryRun);
       }
 
       if (scope === 'prune' && !deps.vectorStore) {
@@ -97,42 +114,38 @@ export function createConfigReindexHandler(deps: ConfigReindexRouteDeps) {
       const pathParam =
         scope === 'path' || scope === 'rules' ? body.path : undefined;
 
-      if (dryRun) {
-        // Dry run: compute plan synchronously and return
-        const result = await executeReindex(
-          reindexDeps,
-          scope,
-          pathParam,
-          true,
-        );
-        return await reply.status(200).send({
-          status: 'dry_run',
-          scope,
-          plan: result.plan,
-        });
-      }
-
-      // Live prune: fire and forget without pre-computing plan (avoids double-scrolling the collection).
       if (scope === 'prune') {
+        if (dryRun) {
+          const result = await executeReindex(
+            reindexDeps,
+            'prune',
+            pathParam,
+            true,
+          );
+          return await reply
+            .status(200)
+            .send({ status: 'dry_run', scope, plan: result.plan });
+        }
+        // Live prune: fire and forget without pre-computing plan (avoids double-scrolling the collection).
         void executeReindex(reindexDeps, 'prune', pathParam, false);
         return await reply
           .status(200)
           .send({ status: 'started', scope: 'prune' });
       }
 
-      // Non-prune scopes: compute plan first then execute async.
-      const planResult = await executeReindex(
-        reindexDeps,
-        scope,
-        pathParam,
-        true,
-      );
+      // Non-prune scopes: resolve the targets once; the run reuses them.
+      const prepared = await prepareReindex(reindexDeps, scope, pathParam);
+      if (dryRun) {
+        return await reply
+          .status(200)
+          .send({ status: 'dry_run', scope, plan: prepared.plan });
+      }
 
-      void executeReindex(reindexDeps, scope, pathParam, false);
+      void executeReindex(reindexDeps, scope, pathParam, false, prepared);
 
       return await reply
         .status(200)
-        .send({ status: 'started', scope, plan: planResult.plan });
+        .send({ status: 'started', scope, plan: prepared.plan });
     },
     deps.logger,
     'Reindex request',

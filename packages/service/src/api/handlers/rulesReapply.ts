@@ -11,31 +11,42 @@ import type pino from 'pino';
 import type { DocumentProcessorInterface } from '../../processor';
 import { normalizeSlashes } from '../../util/normalizeSlashes';
 import type { VectorStore } from '../../vectorStore';
+import { invalidRequest } from '../requestError';
 import { wrapHandler } from './wrapHandler';
 
 interface RulesReapplyDeps {
+  /** Document processor (re-applies rules per file). */
   processor: DocumentProcessorInterface;
+  /** Vector store scrolled for indexed file paths. */
   vectorStore: VectorStore;
+  /** Logger. */
   logger: pino.Logger;
 }
 
 type ReapplyRequest = FastifyRequest<{
-  Body: { globs: string[] };
+  Body: { globs?: unknown } | undefined;
 }>;
+
+/** Whether a value is a non-empty array of non-empty strings. */
+const isGlobList = (value: unknown): value is string[] =>
+  Array.isArray(value) &&
+  value.length > 0 &&
+  value.every((g) => typeof g === 'string' && g.length > 0);
 
 /**
  * Create handler for POST /rules/reapply.
  *
  * Scrolls through all indexed points, finds files matching the given globs,
- * and re-applies current inference rules without re-embedding.
+ * and re-applies current inference rules without re-embedding. Missing or
+ * malformed `globs` are `400 invalid_request`.
  */
 export function createRulesReapplyHandler(deps: RulesReapplyDeps) {
   return wrapHandler(
     async (request: ReapplyRequest) => {
-      const { globs } = request.body;
+      const globs = request.body?.globs;
 
-      if (!Array.isArray(globs) || globs.length === 0) {
-        throw new Error(
+      if (!isGlobList(globs)) {
+        throw invalidRequest(
           'Missing required field: globs (non-empty string array)',
         );
       }

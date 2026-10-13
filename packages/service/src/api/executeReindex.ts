@@ -10,15 +10,15 @@ import {
 
 import { normalizeError } from '../util/normalizeError';
 import { reportReindexCompletion } from './reindexCallback';
-import { filePlan, listScopeFiles, runFileScope } from './reindexFileScopes';
-import { collectPathFiles } from './reindexPathFiles';
+import { runFileScope } from './reindexFileScopes';
 import type { ReindexPlan } from './reindexPlan';
-import { executePrune } from './reindexPrune';
 import {
-  resolveSourceScope,
-  runSourceScope,
-  withSourcePlan,
-} from './reindexSourceScopes';
+  type PreparedReindex,
+  prepareReindex,
+  toPathArray,
+} from './reindexPrepare';
+import { executePrune } from './reindexPrune';
+import { runSourceScope } from './reindexSourceScopes';
 import type {
   ExecuteReindexDeps,
   ExecuteReindexResult,
@@ -26,6 +26,7 @@ import type {
 } from './reindexTypes';
 
 export type { ReindexScope };
+export { type PreparedReindex, prepareReindex } from './reindexPrepare';
 export type { ExecuteReindexDeps } from './reindexTypes';
 
 /** Ordered list of valid reindex scopes (from the core request schema). */
@@ -49,8 +50,17 @@ export const CONFIG_WATCH_VALID_SCOPES: readonly ReindexScope[] = [
  *
  * @param deps - Dependencies.
  * @param scope - Reindex scope: 'issues', 'full', 'rules', 'path', or 'prune'.
+ * A live run resolves its targets ({@link prepareReindex}) inside its own
+ * error handling, so a failure there fails the run (reported to the
+ * callback) instead of escaping a fire-and-forget call; a caller that has
+ * already prepared the run (to answer with its plan) passes `prepared`, so
+ * files are not listed and sources not scrolled twice.
+ *
+ * @param deps - Dependencies.
+ * @param scope - Reindex scope: 'issues', 'full', 'rules', 'path', or 'prune'.
  * @param path - Target path (required when scope is 'path').
  * @param dryRun - When true, compute and return the plan without executing.
+ * @param prepared - Targets already resolved for this request (non-prune).
  * @returns The reindex result including the blast area plan.
  */
 export async function executeReindex(
@@ -58,6 +68,7 @@ export async function executeReindex(
   scope: ReindexScope,
   path?: string | string[],
   dryRun: boolean = false,
+  prepared?: PreparedReindex,
 ): Promise<ExecuteReindexResult> {
   const { config, logger, reindexTracker, valuesManager } = deps;
 
@@ -67,11 +78,7 @@ export async function executeReindex(
     );
   }
 
-  const pathArray: string[] | undefined = path
-    ? Array.isArray(path)
-      ? path
-      : [path]
-    : undefined;
+  const pathArray = toPathArray(path);
 
   if (scope === 'path' && (!pathArray || pathArray.length === 0)) {
     throw new Error('The "path" parameter is required when scope is "path".');
@@ -84,38 +91,24 @@ export async function executeReindex(
     return executePrune(deps, dryRun);
   }
 
-  // Non-prune scopes: compute plan from file lists
-  const fileList = await listScopeFiles(deps, scope, pathArray);
-  let plan: ReindexPlan | undefined =
-    fileList !== undefined ? filePlan(fileList, config) : undefined;
-
   if (dryRun) {
-    plan = withSourcePlan(
-      plan,
-      await resolveSourceScope(deps, scope, pathArray),
-    );
-    // For path scope without pre-computed plan, compute it now
-    if (plan === undefined && scope === 'path' && pathArray) {
-      const pathFiles = await collectPathFiles(
-        pathArray,
-        config,
-        deps.gitignoreFilter,
-      );
-      plan = filePlan(pathFiles, config);
-    }
+    const { plan } = prepared ?? (await prepareReindex(deps, scope, path));
     return { filesProcessed: 0, durationMs: 0, errors: 0, plan };
   }
 
   reindexTracker?.start(scope);
   const startTime = Date.now();
   let fileTotal: number | undefined;
+  let plan: ReindexPlan | undefined = prepared?.plan;
 
   try {
-    // Discovered inside the try: a Qdrant failure fails this run, never
-    // escapes as an unhandled rejection of a fire-and-forget reindex.
-    const sources = await resolveSourceScope(deps, scope, pathArray);
+    // Resolved inside the try: a file-listing or Qdrant failure fails this
+    // run, never escapes as an unhandled rejection of a fire-and-forget
+    // reindex.
+    const targets = prepared ?? (await prepareReindex(deps, scope, path));
+    const { fileList, sources } = targets;
+    plan = targets.plan;
     const sourceTotal = sources?.targets.length ?? 0;
-    plan = withSourcePlan(plan, sources);
     if (scope === 'full' && valuesManager) {
       valuesManager.clearAll();
     }
@@ -123,7 +116,6 @@ export async function executeReindex(
     const { filesProcessed, errors } = await runFileScope(
       deps,
       scope,
-      pathArray,
       fileList,
       {
         onTotal: (total) => {
@@ -131,9 +123,6 @@ export async function executeReindex(
           reindexTracker?.setTotal(total + sourceTotal);
         },
         onProcessed: () => reindexTracker?.incrementProcessed(),
-        onPlan: (resolved) => {
-          plan = resolved;
-        },
       },
     );
 

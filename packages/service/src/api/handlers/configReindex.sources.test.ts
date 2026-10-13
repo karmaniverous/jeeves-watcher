@@ -1,6 +1,6 @@
 /**
  * @module api/handlers/configReindex.sources.test
- * POST /reindex (explicit request) asks executeReindex to cover source documents, for the plan and the run alike.
+ * POST /reindex (explicit request) covers source documents: the targets are prepared once with includeSources and the run reuses them.
  */
 
 import type { FastifyReply, FastifyRequest } from 'fastify';
@@ -9,17 +9,19 @@ import { describe, expect, it, vi } from 'vitest';
 
 import type { JeevesWatcherConfig } from '../../config/types';
 import type { DocumentProcessor } from '../../processor';
-import { executeReindex } from '../executeReindex';
+import { executeReindex, prepareReindex } from '../executeReindex';
 import { ReindexTracker } from '../ReindexTracker';
 import { createConfigReindexHandler } from './configReindex';
 
+const PREPARED = {
+  plan: { total: 2, toProcess: 2, toDelete: 0, byRoot: { app: 2 } },
+  fileList: [],
+  sources: undefined,
+};
+
 vi.mock('../executeReindex', () => ({
-  executeReindex: vi.fn().mockResolvedValue({
-    filesProcessed: 0,
-    durationMs: 0,
-    errors: 0,
-    plan: { total: 2, toProcess: 2, toDelete: 0, byRoot: { app: 2 } },
-  }),
+  executeReindex: vi.fn(),
+  prepareReindex: vi.fn(),
 }));
 
 type Handler = (
@@ -31,8 +33,14 @@ describe('POST /reindex: source documents', () => {
   it.each(['full', 'rules', 'issues'] as const)(
     'explicit %s requests include sources',
     async (scope) => {
-      const mocked = vi.mocked(executeReindex);
-      mocked.mockClear();
+      const prepare = vi.mocked(prepareReindex);
+      const execute = vi.mocked(executeReindex);
+      prepare.mockReset().mockResolvedValue(PREPARED);
+      execute.mockReset().mockResolvedValue({
+        filesProcessed: 0,
+        durationMs: 0,
+        errors: 0,
+      });
       const handler = createConfigReindexHandler({
         getConfig: () =>
           ({ watch: { paths: [] } }) as unknown as JeevesWatcherConfig,
@@ -50,14 +58,13 @@ describe('POST /reindex: source documents', () => {
         reply as unknown as FastifyReply,
       );
 
-      expect(mocked).toHaveBeenCalledTimes(2);
-      for (const [deps] of mocked.mock.calls) {
-        expect(deps.includeSources).toBe(true);
-      }
+      expect(prepare).toHaveBeenCalledTimes(1);
+      expect(prepare.mock.calls[0][0].includeSources).toBe(true);
+      expect(execute).toHaveBeenCalledTimes(1);
+      expect(execute.mock.calls[0][0].includeSources).toBe(true);
+      expect(execute.mock.calls[0][4]).toBe(PREPARED);
       expect(reply.send).toHaveBeenCalledWith(
-        expect.objectContaining({
-          plan: expect.objectContaining({ byRoot: { app: 2 } }) as unknown,
-        }),
+        expect.objectContaining({ plan: PREPARED.plan }),
       );
     },
   );

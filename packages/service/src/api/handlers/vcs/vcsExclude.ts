@@ -16,8 +16,11 @@ import type { VcsCoordinator } from '../../../vcs/VcsCoordinator';
 import { sendError } from '../../sendError';
 import { wrapHandler } from '../wrapHandler';
 
+/** Dependencies of the POST /vcs/exclude handler. */
 export interface VcsExcludeRouteDeps {
+  /** VCS coordinator (tracked roots and git operations). */
   coordinator: VcsCoordinator;
+  /** Logger. */
   logger: pino.Logger;
 }
 

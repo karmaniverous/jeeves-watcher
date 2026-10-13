@@ -1,6 +1,6 @@
 /**
  * @module api/handlers/wrapHandler
- * Generic error-handling wrapper for Fastify route handlers: uncaught errors are logged and answered with `500 internal_error`.
+ * Generic error-handling wrapper for Fastify route handlers: a thrown `RequestError` is sent with its own status and code; anything else is logged and answered with a generic `500 internal_error`.
  */
 
 import type {
@@ -11,15 +11,21 @@ import type {
 import type pino from 'pino';
 
 import { normalizeError } from '../../util/normalizeError';
-import { sendError } from '../sendError';
+import { RequestError } from '../requestError';
+import { sendError, sendInternalError } from '../sendError';
 
 /**
  * Wrap a Fastify route handler with standardised error handling.
  *
+ * - A {@link RequestError} (bad client input) is sent with its status, code
+ *   and text, and logged at `debug`.
+ * - Any other error is logged at `error` and answered with
+ *   `500 internal_error` and generic text: the error itself is never sent.
+ *
  * @param fn - The handler function.
  * @param logger - Logger instance.
  * @param label - Label for error log messages.
- * @returns A wrapped handler that catches errors and returns 500.
+ * @returns A wrapped handler that catches errors.
  */
 export function wrapHandler<T extends RouteGenericInterface, R = unknown>(
   fn: (request: FastifyRequest<T>, reply: FastifyReply) => R | Promise<R>,
@@ -36,13 +42,21 @@ export function wrapHandler<T extends RouteGenericInterface, R = unknown>(
         void reply.send(result);
       }
     } catch (error) {
-      const normalized = normalizeError(error);
-      logger.error({ err: normalized }, `${label} failed`);
-      if (!reply.sent) {
-        sendError(reply, 500, 'internal_error', normalized.constructor.name, {
-          message: normalized.message || 'Internal server error',
-        });
+      if (error instanceof RequestError) {
+        logger.debug({ err: error }, `${label} rejected`);
+        if (!reply.sent) {
+          sendError(
+            reply,
+            error.status,
+            error.code,
+            error.message,
+            error.extras,
+          );
+        }
+        return;
       }
+      logger.error({ err: normalizeError(error) }, `${label} failed`);
+      if (!reply.sent) sendInternalError(reply);
     }
   };
 }

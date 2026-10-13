@@ -29,9 +29,9 @@ import { issueTypeSchema } from './monitoring.js';
  * - `pipeline_error` (422): rendering or extraction failed; for a source
  *   document `issueType` names the failing stage.
  * - `source_unavailable` (502): the source callback failed.
- * - `not_available` (503, or 400 on `POST /reindex`): the feature is not
- *   available on this instance (no source support, no vector store, no
- *   filesystem watcher).
+ * - `not_available` (503): the feature is not available on this instance
+ *   (no source support, no filesystem watcher). A prune reindex
+ *   (`POST /reindex`) without a vector store keeps its 0.19 status `400`.
  * - `scan_in_progress` (503): the initial filesystem scan is still running;
  *   retry later.
  * - `embedding_unavailable` (503): the embedding provider's retry budget ran
@@ -64,7 +64,8 @@ export type ApiErrorCode = z.infer<typeof apiErrorCodeSchema>;
 
 /**
  * The HTTP status each code is normally sent with. `not_available` is the
- * one code also sent with another status (`400` from `POST /reindex`).
+ * one code also sent with another status (`400` for a prune without a
+ * vector store, unchanged from 0.19).
  */
 export const API_ERROR_STATUS: Readonly<Record<ApiErrorCode, number>> = {
   invalid_request: 400,

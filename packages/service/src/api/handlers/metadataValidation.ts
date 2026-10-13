@@ -3,7 +3,7 @@
  * Validates metadata enrichment payload against resolved schemas for matched inference rules.
  */
 
-import type { JeevesWatcherConfig } from '../../config/types';
+import type { InferenceRule, JeevesWatcherConfig } from '../../config/types';
 import { buildSyntheticAttributes } from '../../rules/attributes';
 import { type CompiledRule, compileRules } from '../../rules/compile';
 import { mergeSchemas } from '../../rules/schemaMerge';
@@ -88,13 +88,16 @@ export function validateMetadataPayload(
 
 /**
  * Validate a metadata payload for a source document against its designated
- * rule's schema. Only config rules are known here: a designated rule that is
- * not in config (e.g. a virtual rule) validates nothing and matches nothing.
+ * rule's schema. The rule is looked up as the processor does: the first rule
+ * of that name among the config rules, then the registered virtual rules. A
+ * designated rule that no longer exists in either validates nothing and
+ * matches nothing.
  *
  * @param config - Live config.
  * @param ruleName - The designated rule (`source_rule`).
  * @param metadata - Enrichment metadata.
  * @param configDir - Config directory for schema file references.
+ * @param virtualRules - Registered virtual rules (after the config rules).
  * @returns The validation outcome.
  */
 export function validateSourceMetadataPayload(
@@ -102,11 +105,13 @@ export function validateSourceMetadataPayload(
   ruleName: string,
   metadata: Record<string, unknown>,
   configDir?: string,
+  virtualRules: readonly InferenceRule[] = [],
 ): MetadataValidationOutcome {
-  const rules = (config.inferenceRules ?? []).filter(
+  const rule = [...(config.inferenceRules ?? []), ...virtualRules].find(
     (r) => r.name === ruleName,
   );
-  return validateAgainstRules(config, compileRules(rules), metadata, configDir);
+  const compiled = rule ? compileRules([rule]) : [];
+  return validateAgainstRules(config, compiled, metadata, configDir);
 }
 
 /**

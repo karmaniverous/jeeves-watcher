@@ -130,7 +130,7 @@ describe('valid source targets reach the source path', () => {
   it.each([
     ['/render', { source: 'app://chat/1' }, 503],
     ['/metadata', { source: 'app://chat/1', metadata: {} }, 503],
-    ['/reindex', { scope: 'path', source: ['app://chat/1'] }, 400],
+    ['/reindex', { scope: 'path', source: ['app://chat/1'] }, 503],
   ])('%s', async (url, payload, status) => {
     const res = await post(url, payload);
     expect(res.status).toBe(status);

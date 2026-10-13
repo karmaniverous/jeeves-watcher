@@ -10,6 +10,7 @@ import type pino from 'pino';
 import type { EnrichmentStoreInterface } from '../../enrichment';
 import type { IssuesManager } from '../../issues';
 import type { VectorStore } from '../../vectorStore';
+import { withFilterErrors } from '../requestError';
 import {
   constrainToSources,
   deleteSourcePoints,
@@ -38,7 +39,8 @@ export interface DocumentsDeleteHandlerDeps {
  * entries and issues are removed for those references and, in the
  * `sources` form, for every listed reference (so a document that only ever
  * failed leaves no issue behind). A notification still queued for a deleted
- * reference re-indexes it when it runs.
+ * reference re-indexes it when it runs. A filter Qdrant rejects is
+ * `400 invalid_request` (nothing is deleted).
  *
  * @param deps - Handler dependencies.
  * @returns Fastify route handler.
@@ -53,9 +55,8 @@ export function createDocumentsDeleteHandler(deps: DocumentsDeleteHandlerDeps) {
         'sources' in body
           ? sourcesFilter(body.sources)
           : constrainToSources(body.filter);
-      const { sources, points } = await deleteSourcePoints(
-        deps.vectorStore,
-        filter,
+      const { sources, points } = await withFilterErrors(
+        deleteSourcePoints(deps.vectorStore, filter),
       );
 
       const cleanup = new Set(sources);

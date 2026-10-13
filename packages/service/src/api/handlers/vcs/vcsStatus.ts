@@ -10,8 +10,11 @@ import type { VcsCoordinator } from '../../../vcs/VcsCoordinator';
 import type { PushError, VcsBreakerState } from '../../../vcs/VcsManager';
 import { wrapHandler } from '../wrapHandler';
 
+/** Dependencies of the GET /vcs/status handler. */
 export interface VcsStatusRouteDeps {
+  /** VCS coordinator (tracked roots and git operations). */
   coordinator: VcsCoordinator;
+  /** Logger. */
   logger: pino.Logger;
 }
 

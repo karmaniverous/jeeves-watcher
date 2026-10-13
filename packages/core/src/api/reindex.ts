@@ -24,10 +24,22 @@ const pathTargetsSchema = z.union([
   z.array(filePathSchema).min(1, 'path must not be an empty array'),
 ]);
 
-/** One or more source references (a non-empty array or a single reference). */
+/** Maximum number of source references in one `POST /reindex` request. */
+export const MAX_REINDEX_SOURCES_PER_REQUEST = 1000;
+
+/**
+ * One or more source references (a single reference, or an array of 1 to
+ * {@link MAX_REINDEX_SOURCES_PER_REQUEST}).
+ */
 const sourceTargetsSchema = z.union([
   sourceReferenceSchema,
-  z.array(sourceReferenceSchema).min(1, 'source must not be an empty array'),
+  z
+    .array(sourceReferenceSchema)
+    .min(1, 'source must not be an empty array')
+    .max(
+      MAX_REINDEX_SOURCES_PER_REQUEST,
+      `source must contain at most ${String(MAX_REINDEX_SOURCES_PER_REQUEST)} references`,
+    ),
 ]);
 
 /**

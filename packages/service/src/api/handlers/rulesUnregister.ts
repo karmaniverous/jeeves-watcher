@@ -7,17 +7,20 @@ import type { FastifyRequest } from 'fastify';
 import type pino from 'pino';
 
 import type { VirtualRuleStore } from '../../rules/virtualRules';
+import { invalidRequest } from '../requestError';
 import { wrapHandler } from './wrapHandler';
 
 interface RulesUnregisterDeps {
+  /** Store the rules are removed from. */
   virtualRuleStore: VirtualRuleStore;
+  /** Logger. */
   logger: pino.Logger;
   /** Callback invoked after rules change so the processor can update. */
   onRulesChanged: () => void;
 }
 
 type UnregisterBodyRequest = FastifyRequest<{
-  Body: { source: string };
+  Body: { source?: unknown } | undefined;
 }>;
 
 type UnregisterParamRequest = FastifyRequest<{
@@ -25,11 +28,12 @@ type UnregisterParamRequest = FastifyRequest<{
 }>;
 
 /**
- * Core unregister logic shared by body and param handlers.
+ * Core unregister logic shared by body and param handlers. A missing or
+ * non-string `source` is `400 invalid_request`.
  */
-function unregisterSource(deps: RulesUnregisterDeps, source: string) {
+function unregisterSource(deps: RulesUnregisterDeps, source: unknown) {
   if (!source || typeof source !== 'string') {
-    throw new Error('Missing required field: source');
+    throw invalidRequest('Missing required field: source');
   }
 
   const removed = deps.virtualRuleStore.unregister(source);
@@ -46,7 +50,7 @@ function unregisterSource(deps: RulesUnregisterDeps, source: string) {
 export function createRulesUnregisterHandler(deps: RulesUnregisterDeps) {
   return wrapHandler(
     (request: UnregisterBodyRequest) => {
-      return unregisterSource(deps, request.body.source);
+      return unregisterSource(deps, request.body?.source);
     },
     deps.logger,
     'RulesUnregister',

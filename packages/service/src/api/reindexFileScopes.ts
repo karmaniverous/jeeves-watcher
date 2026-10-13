@@ -39,23 +39,24 @@ export function filePlan(
 }
 
 /**
- * List the files of a non-prune scope before execution. Scope `path` is
- * resolved separately ({@link collectPathFiles}) and yields `undefined`.
+ * List the files of a non-prune scope before execution.
  *
  * - `issues`: the file-path keys of the issues store (when present).
+ * - `path`: the targets, directories expanded ({@link collectPathFiles};
+ *   throws `RequestError` for a target that is not watched or missing).
  * - `rules` with paths: watch roots intersected with the caller's globs.
  * - otherwise: every watched file.
  *
  * @param deps - Reindex dependencies.
  * @param scope - Reindex scope (not `prune`).
  * @param pathArray - Target paths/globs (`path` and `rules` scopes).
- * @returns The scope's files, or `undefined` for scope `path`.
+ * @returns The scope's files.
  */
 export async function listScopeFiles(
   deps: ExecuteReindexDeps,
   scope: ReindexScope,
   pathArray: string[] | undefined,
-): Promise<string[] | undefined> {
+): Promise<string[]> {
   const { config } = deps;
   const isGitignored = createIsGitignored(deps.gitignoreFilter);
   const watchPaths = extractWatchPathStrings(config.watch.paths);
@@ -67,8 +68,7 @@ export async function listScopeFiles(
     );
   }
   if (scope === 'path' && pathArray) {
-    // Path plan computed from collectPathFiles.
-    return undefined;
+    return collectPathFiles(pathArray, config, deps.gitignoreFilter);
   }
   if (scope === 'rules' && pathArray && pathArray.length > 0) {
     return listFilesFromWatchRoots(
@@ -96,8 +96,6 @@ export interface FileScopeProgress {
   onTotal: (total: number) => void;
   /** Called after each processed file. */
   onProcessed: () => void;
-  /** Called with the plan resolved during execution (scope `path` only). */
-  onPlan: (plan: ReindexPlan) => void;
 }
 
 /**
@@ -105,7 +103,6 @@ export interface FileScopeProgress {
  *
  * @param deps - Reindex dependencies.
  * @param scope - Reindex scope (not `prune`).
- * @param pathArray - Target paths/globs (`path` and `rules` scopes).
  * @param fileList - Files from {@link listScopeFiles}.
  * @param progress - Progress hooks.
  * @returns Files processed and errors.
@@ -113,8 +110,7 @@ export interface FileScopeProgress {
 export async function runFileScope(
   deps: ExecuteReindexDeps,
   scope: ReindexScope,
-  pathArray: string[] | undefined,
-  fileList: string[] | undefined,
+  fileList: string[],
   progress: FileScopeProgress,
 ): Promise<FileScopeOutcome> {
   const { config, processor, logger } = deps;
@@ -126,7 +122,7 @@ export async function runFileScope(
     onFileProcessed: progress.onProcessed,
   };
 
-  if (scope === 'issues' && fileList) {
+  if (scope === 'issues') {
     let filesProcessed = 0;
     let errors = 0;
     await parallel(concurrency, fileList, async (filePath) => {
@@ -144,6 +140,17 @@ export async function runFileScope(
     return { filesProcessed, errors };
   }
 
+  if (scope === 'path') {
+    progress.onTotal(fileList.length);
+    let filesProcessed = 0;
+    await parallel(concurrency, fileList, async (filePath) => {
+      await processor.processFile(filePath);
+      progress.onProcessed();
+      filesProcessed++;
+    });
+    return { filesProcessed, errors: 0 };
+  }
+
   if (scope === 'rules') {
     const filesProcessed = await processAllFiles(
       watchPaths,
@@ -155,23 +162,6 @@ export async function runFileScope(
       isGitignored,
       fileList,
     );
-    return { filesProcessed, errors: 0 };
-  }
-
-  if (scope === 'path' && pathArray) {
-    const uniqueFiles = await collectPathFiles(
-      pathArray,
-      config,
-      deps.gitignoreFilter,
-    );
-    progress.onPlan(filePlan(uniqueFiles, config));
-    progress.onTotal(uniqueFiles.length);
-    let filesProcessed = 0;
-    await parallel(concurrency, uniqueFiles, async (filePath) => {
-      await processor.processFile(filePath);
-      progress.onProcessed();
-      filesProcessed++;
-    });
     return { filesProcessed, errors: 0 };
   }
 

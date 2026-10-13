@@ -18,14 +18,23 @@ import type { ReindexTracker } from './ReindexTracker';
 
 /** Dependencies for executeReindex. */
 export interface ExecuteReindexDeps {
+  /** Config snapshot for this run (watch paths, reindex settings). */
   config: JeevesWatcherConfig;
+  /** Document processor the files (and source documents) go through. */
   processor: DocumentProcessorInterface;
+  /** Logger. */
   logger: pino.Logger;
+  /** Progress tracker reported by `GET /status`. */
   reindexTracker?: ReindexTracker;
+  /** Values index, cleared by scope `full`. */
   valuesManager?: ValuesManager;
+  /** Issues store read by scope `issues`. */
   issuesManager?: { getAll: () => IssuesFile };
+  /** Gitignore filter applied to listed files and path targets. */
   gitignoreFilter?: GitignoreFilter;
+  /** Vector store (required by prune; source discovery reads it). */
   vectorStore?: VectorStoreClient;
+  /** File event queue, paused for the duration of a prune. */
   queue?: PausableQueue;
   /**
    * Source notify queue: source documents of a reindex are processed through
@@ -56,9 +65,13 @@ export interface SourceReindexCounts {
 
 /** Result of a reindex execution. */
 export interface ExecuteReindexResult {
+  /** Files processed. */
   filesProcessed: number;
+  /** Wall time of the run (0 for a dry run). */
   durationMs: number;
+  /** Files and source documents that failed (1 when the run itself failed). */
   errors: number;
+  /** The blast-area plan. */
   plan?: ReindexPlan;
   /** Source-document counts, when the run covered sources. */
   sources?: SourceReindexCounts;

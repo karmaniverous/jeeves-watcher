@@ -1,12 +1,16 @@
 /**
  * @module api/sourceDiscovery.test
- * discoverIssueSources: references take their stored rule when indexed, otherwise the latest rule recorded on their issue (first notification failed, no points); references with neither are counted but not targeted; file keys are ignored.
+ * discoverIssueSources: references take their stored rule when indexed, otherwise the latest rule recorded on their issue (first notification failed, no points); references with neither are counted but not targeted; file keys are ignored. discoverIndexedSources pages through chunk-0 source points (projection source/source_rule), dedupes and skips points without a rule. countBySourceName groups by name.
  */
 
 import { describe, expect, it, vi } from 'vitest';
 
 import type { IssueRecord } from '../issues/types';
-import { discoverIssueSources } from './sourceDiscovery';
+import {
+  countBySourceName,
+  discoverIndexedSources,
+  discoverIssueSources,
+} from './sourceDiscovery';
 
 const issue = (rule?: string): IssueRecord => ({
   type: 'source_unavailable',
@@ -41,5 +45,65 @@ describe('discoverIssueSources', () => {
     );
     expect(found.targets).toHaveLength(2);
     expect(ops.storedRule).not.toHaveBeenCalledWith('/docs/a.md');
+  });
+});
+
+describe('discoverIndexedSources', () => {
+  it('pages through chunk-0 source points, deduped, rule required', async () => {
+    const page = (payloads: Record<string, unknown>[], next?: number) => ({
+      points: payloads.map((payload, i) => ({ id: String(i), payload })),
+      nextCursor: next,
+    });
+    const scrollPage = vi
+      .fn()
+      .mockResolvedValueOnce(
+        page(
+          [
+            { source: 'app://1', source_rule: 'r' },
+            { source: 'app://2' },
+            { source: '' },
+          ],
+          7,
+        ),
+      )
+      .mockResolvedValueOnce(
+        page([
+          { source: 'app://1', source_rule: 'r' },
+          { source: 'other://3', source_rule: 's' },
+        ]),
+      );
+
+    const found = await discoverIndexedSources({ scrollPage });
+
+    expect(found).toEqual({
+      total: 3,
+      targets: [
+        { ref: 'app://1', rule: 'r' },
+        { ref: 'other://3', rule: 's' },
+      ],
+    });
+    expect(scrollPage).toHaveBeenCalledTimes(2);
+    const [filter, , firstCursor, fields] = scrollPage.mock.calls[0] as [
+      unknown,
+      number,
+      unknown,
+      string[],
+    ];
+    expect(JSON.stringify(filter)).toContain('chunk_index');
+    expect(firstCursor).toBeUndefined();
+    expect(fields).toEqual(['source', 'source_rule']);
+    expect(scrollPage.mock.calls[1][2]).toBe(7);
+  });
+});
+
+describe('countBySourceName', () => {
+  it('counts targets per source name', () => {
+    expect(
+      countBySourceName([
+        { ref: 'app://1', rule: 'r' },
+        { ref: 'app://2', rule: 'r' },
+        { ref: 'other://x/y', rule: 'r' },
+      ]),
+    ).toEqual({ app: 2, other: 1 });
   });
 });

@@ -213,12 +213,12 @@ describe('POST /reindex { scope: path, source }', () => {
     expect(queue.enqueue).not.toHaveBeenCalled();
   });
 
-  it('returns 400 without a notify queue', async () => {
+  it('returns 503 without a notify queue', async () => {
     const { status, body } = await post('/reindex-plain', {
       scope: 'path',
       source: ['app://chat/1'],
     });
-    expect(status).toBe(400);
+    expect(status).toBe(503);
     expect(body).toMatchObject({ error: 'Not available' });
   });
 });

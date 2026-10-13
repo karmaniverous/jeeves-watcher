@@ -141,16 +141,21 @@ describe('handler error codes', () => {
   });
 
   it.each([
-    [{ scope: 'prune' }, 'Prune scope requires vectorStore to be configured.'],
+    [
+      { scope: 'prune' },
+      400, // 0.19 status, kept
+      'Prune scope requires vectorStore to be configured.',
+    ],
     [
       { scope: 'path', source: REF },
+      503,
       'Source documents are not supported by this instance.',
     ],
   ])(
-    'reindex %j without support -> 400 not_available',
-    async (body, message) => {
+    'reindex %j without support -> %i not_available',
+    async (body, status, message) => {
       const res = await post('/reindex', body, false);
-      expect(res.statusCode).toBe(400);
+      expect(res.statusCode).toBe(status);
       expect(res.json()).toEqual({
         code: 'not_available',
         error: 'Not available',

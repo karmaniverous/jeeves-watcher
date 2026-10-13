@@ -14,7 +14,11 @@ import type pino from 'pino';
 import type { DocumentProcessorInterface } from '../../processor';
 import { hasSourceOperations } from '../../processor/SourceOperations';
 import { normalizeError } from '../../util/normalizeError';
-import { sendError, sendSourcesNotAvailable } from '../sendError';
+import {
+  sendError,
+  sendInternalError,
+  sendSourcesNotAvailable,
+} from '../sendError';
 
 /**
  * Map a pipeline failure to its API code and status. Pure.
@@ -63,8 +67,8 @@ function sendRenderFailure(
  * - `502 source_unavailable`; `422 unsupported_content_type`;
  *   `422 pipeline_error` for other pipeline failures. `issueType` names the
  *   failure (`rule_missing`, `match_failed`, ...).
- * - `503 not_available` without source support; `500 internal_error` on an
- *   unexpected error.
+ * - `503 not_available` without source support; `500 internal_error` with
+ *   generic text on an unexpected error (logged, never sent).
  * - `200 { renderAs, content, rules, metadata }`, with
  *   `Cache-Control: no-cache`.
  *
@@ -112,6 +116,6 @@ export async function renderSource(
   } catch (error) {
     const err = normalizeError(error);
     logger.error({ source: ref, err }, 'Source render failed');
-    return sendError(reply, 500, 'internal_error', err.message);
+    return sendInternalError(reply);
   }
 }

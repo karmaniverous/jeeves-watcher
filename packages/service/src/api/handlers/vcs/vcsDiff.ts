@@ -12,8 +12,11 @@ import type { VcsCoordinator } from '../../../vcs/VcsCoordinator';
 import { sendError } from '../../sendError';
 import { wrapHandler } from '../wrapHandler';
 
+/** Dependencies of the GET /vcs/diff handler. */
 export interface VcsDiffRouteDeps {
+  /** VCS coordinator (tracked roots and git operations). */
   coordinator: VcsCoordinator;
+  /** Logger. */
   logger: pino.Logger;
 }
 

@@ -7,11 +7,8 @@ import Fastify, { type FastifyInstance } from 'fastify';
 import pino from 'pino';
 import { afterEach, describe, expect, it } from 'vitest';
 
-import {
-  INTERNAL_ERROR_MESSAGE,
-  registerApiHooks,
-  statusOfError,
-} from './apiHooks';
+import { registerApiHooks, statusOfError } from './apiHooks';
+import { INTERNAL_ERROR_MESSAGE } from './sendError';
 
 const logger = pino({ level: 'silent' });
 const KEY = 'test-key';

@@ -4,7 +4,13 @@
  * watcher descriptor and a config file outside any derived configRoot path.
  */
 
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -118,6 +124,20 @@ describe('POST /config/apply', () => {
   it('rejects a non-object patch', async () => {
     const res = await post({ patch: [1, 2] });
     expect(res.statusCode).toBe(400);
+  });
+
+  it('answers an unreadable config file with a generic 500 (no path)', async () => {
+    rmSync(configPath);
+    mkdirSync(configPath); // reading a directory fails (EISDIR)
+    const res = await post({ patch: {} });
+    expect(res.statusCode).toBe(500);
+    expect(res.json()).toEqual({
+      code: 'internal_error',
+      error: 'Internal Server Error',
+      message: 'Internal server error',
+    });
+    expect(res.body).not.toContain('custom-name.json');
+    expect(onConfigApply).not.toHaveBeenCalled();
   });
 
   it('replace: true validates the patch on its own', async () => {
