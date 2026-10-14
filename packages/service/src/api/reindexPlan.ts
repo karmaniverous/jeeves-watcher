@@ -5,12 +5,14 @@
 
 import { isPathWithin } from '../util/isPathWithin';
 import { normalizeSlashes } from '../util/normalizeSlashes';
+import { globRoot } from '../watcher/globToDir';
 
 export type { ReindexPlan } from '@karmaniverous/jeeves-watcher-core';
 
 /**
  * Group file paths by their watch root prefix.
- * Each file is grouped under the first watch root (glob up to `**`) that
+ * Each file is grouped under the first watch root (the glob's static prefix,
+ * up to the first segment with `*`, `?`, `[` or `{`; see `globRoot`) that
  * contains it, separator-aware: root `/w/docs` never claims `/w/docs2/a.md`.
  * Files that don't match any root are grouped under `'(unmatched)'`.
  *
@@ -26,8 +28,10 @@ export function groupByRoot(
   for (const fp of filePaths) {
     const normalised = normalizeSlashes(fp);
     let matched = false;
-    for (const root of watchPaths) {
-      const rootNorm = normalizeSlashes(root).replace(/\/?\*\*.*$/, '');
+    for (const watchPath of watchPaths) {
+      const root = globRoot(watchPath);
+      // A relative glob with no static prefix ('**/*.md') claims every path.
+      const rootNorm = root === '.' ? '' : root;
       if (isPathWithin(normalised, rootNorm)) {
         byRoot[rootNorm] = (byRoot[rootNorm] ?? 0) + 1;
         matched = true;
