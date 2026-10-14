@@ -1277,7 +1277,9 @@ The schema is generated from Zod using `z.toJSONSchema()` and describes the quer
     "schemas": {
       "type": "object",
       "propertyNames": { "type": "string" },
-      "additionalProperties": { "anyOf": [{ "type": "object" }, { "type": "string" }] }
+      "additionalProperties": {
+        "anyOf": [{ "type": "object" }, { "type": "string" }]
+      }
     },
     "inferenceRules": {
       "type": "array",
