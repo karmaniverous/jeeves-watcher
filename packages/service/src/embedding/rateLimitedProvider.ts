@@ -6,7 +6,8 @@
  * pauses every caller. A longer `Retry-After` is not waited for: the call
  * fails at once with `EmbeddingUnavailableError` (carrying `retryAfterMs`)
  * instead of retrying early and burning attempts, and every other call fails
- * the same way until the provider's pause has passed. Without `Retry-After`,
+ * the same way until the provider's pause has fully passed (even once the
+ * time left has dropped below `maxBackoffMs`). Without `Retry-After`,
  * the pause backs off exponentially from `baseBackoffMs`, capped at
  * `maxBackoffMs`.
  */
@@ -67,6 +68,12 @@ export class RateLimitedEmbeddingProvider implements EmbeddingProvider {
   private tokens: number;
   private lastRefillMs = Date.now();
   private pausedUntilMs = 0;
+  /**
+   * End of the latest pause that was over `maxBackoffMs` when requested.
+   * Until then every caller fails fast, even once the remaining time has
+   * dropped below `maxBackoffMs`.
+   */
+  private failFastUntilMs = 0;
 
   /**
    * @param inner - The provider to rate-limit.
@@ -145,6 +152,9 @@ export class RateLimitedEmbeddingProvider implements EmbeddingProvider {
       computeDelayMs(attempt, this.baseBackoffMs, this.maxBackoffMs);
     const now = Date.now();
     this.pausedUntilMs = Math.max(this.pausedUntilMs, now + pauseMs);
+    if (pauseMs > this.maxBackoffMs) {
+      this.failFastUntilMs = Math.max(this.failFastUntilMs, now + pauseMs);
+    }
 
     this.logger?.warn(
       {
@@ -159,7 +169,7 @@ export class RateLimitedEmbeddingProvider implements EmbeddingProvider {
     if (pauseMs > this.maxBackoffMs) throw this.pauseTooLong(pauseMs, error);
   }
 
-  /** The fail-fast error for a provider pause longer than `maxBackoffMs`. */
+  /** The fail-fast error for a provider pause requested longer than `maxBackoffMs`. */
   private pauseTooLong(
     waitMs: number,
     cause: EmbeddingRateLimitError | undefined,
@@ -204,7 +214,9 @@ export class RateLimitedEmbeddingProvider implements EmbeddingProvider {
       const now = Date.now();
       this.refill(now);
       const pauseMs = this.pauseRemainingMs(now);
-      if (pauseMs > this.maxBackoffMs) throw this.pauseTooLong(pauseMs, cause);
+      if (pauseMs > this.maxBackoffMs || now < this.failFastUntilMs) {
+        throw this.pauseTooLong(pauseMs, cause);
+      }
       const waitMs = Math.max(pauseMs, this.tokenWaitMs());
 
       if (waitMs === 0) {

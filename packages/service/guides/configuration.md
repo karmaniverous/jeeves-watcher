@@ -246,7 +246,7 @@ Since 0.20.0, one token bucket wraps the embedding provider. It is created once 
 On HTTP `429` the limiter pauses **every** caller for the provider's `Retry-After` (the header, or Google's `retryDelay` in the response body; without either, 1 second doubling per attempt, capped at the root `maxBackoffMs`, default 60 seconds; see Error Resilience below), then retries:
 
 - A requested pause of up to `maxBackoffMs` is waited **in full** (never shortened, so the retry is not throttled again).
-- A requested pause **longer** than `maxBackoffMs` fails the request at once, and every other caller fails fast until the pause has passed.
+- A requested pause **longer** than `maxBackoffMs` fails the request at once, and every other caller fails fast until the pause has fully passed (even once less than `maxBackoffMs` of it remains).
 - **Indexing** (watch, notify, reindex): up to 5 attempts per request, then the document gets an `embedding_error` issue.
 - **Search**: up to 3 attempts and at most 10 seconds of waiting (or at once on a pause longer than `maxBackoffMs`), then `POST /search` answers `503` with a `Retry-After` header instead of `500`:
 

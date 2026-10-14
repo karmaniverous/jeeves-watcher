@@ -2214,7 +2214,7 @@ The **embedding provider** is rate-limited. Since v0.20.0, one shared limiter wr
 When the provider answers `429`, the limiter pauses **all** embedding requests:
 
 - A pause the provider asks for (`Retry-After`, or Google's `retryDelay` when there is no header) of up to the root `maxBackoffMs` is waited in full, then the request is retried. Without either, the limiter backs off exponentially, capped at `maxBackoffMs`.
-- A requested pause **longer** than `maxBackoffMs` is not shortened: the request fails at once, and every other caller fails fast until the pause has passed, instead of retrying early and being throttled again.
+- A requested pause **longer** than `maxBackoffMs` is not shortened: the request fails at once, and every other caller fails fast until the pause has fully passed (even once less than `maxBackoffMs` of it remains), instead of retrying early and being throttled again.
 - Indexing makes up to 5 attempts per embedding request and then records an `embedding_error` issue (the document is retried on its next change, notification or reindex).
 - Search makes up to 3 attempts and waits at most 10 seconds in total; when that budget runs out, or the provider's pause is too long, `POST /search` answers `503 { code: "embedding_unavailable", error, message }` with a `Retry-After` header instead of `500`.
 - Retries the Gemini client makes on its own (non-`429` failures) also take a limiter token, so every HTTP request to the provider counts against `rateLimitPerMinute`.

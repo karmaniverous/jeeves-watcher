@@ -1,6 +1,6 @@
 /**
  * @module embedding/rateLimitedProvider.backoff.test
- * RateLimitedEmbeddingProvider back-off policy: exponential back-off capped at maxBackoffMs, per-call attempt override, and a later shorter Retry-After never shortening an active pause.
+ * RateLimitedEmbeddingProvider back-off policy: exponential back-off capped at maxBackoffMs, per-call attempt override, a later shorter Retry-After never shortening an active pause, and an over-limit Retry-After failing every caller fast until it has fully passed.
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -103,5 +103,55 @@ describe('RateLimitedEmbeddingProvider back-off', () => {
     await vi.advanceTimersByTimeAsync(1);
     expect(embed).toHaveBeenCalledTimes(4);
     expect(first.done && second.done).toBe(true);
+  });
+
+  it('fails every caller fast until an over-limit Retry-After has fully passed', async () => {
+    const { inner, embed } = makeInner();
+    embed.mockRejectedValueOnce(new EmbeddingRateLimitError('429', 5_000));
+    const limited = new RateLimitedEmbeddingProvider(inner, {
+      maxBackoffMs: 1_000,
+    });
+
+    const first = track(limited.embed(['a']));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(first.error).toBeInstanceOf(EmbeddingUnavailableError);
+
+    // 500 ms left: below maxBackoffMs, but the pause was over the limit.
+    await vi.advanceTimersByTimeAsync(4_500);
+    const late = track(limited.embed(['b']));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(late.error).toBeInstanceOf(EmbeddingUnavailableError);
+    expect(late.error).toMatchObject({ retryAfterMs: 500 });
+    expect(embed).toHaveBeenCalledTimes(1);
+
+    await vi.advanceTimersByTimeAsync(500);
+    const after = track(limited.embed(['c']));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(after.done).toBe(true);
+    expect(after.error).toBeUndefined();
+    expect(embed).toHaveBeenCalledTimes(2);
+  });
+
+  it('waits out a normal 429 that follows a passed over-limit pause', async () => {
+    const { inner, embed } = makeInner();
+    embed
+      .mockRejectedValueOnce(new EmbeddingRateLimitError('429', 5_000))
+      .mockRejectedValueOnce(new EmbeddingRateLimitError('429', 500));
+    const limited = new RateLimitedEmbeddingProvider(inner, {
+      maxBackoffMs: 1_000,
+    });
+
+    const first = track(limited.embed(['a']));
+    await vi.advanceTimersByTimeAsync(5_000);
+    expect(first.error).toBeInstanceOf(EmbeddingUnavailableError);
+
+    const next = track(limited.embed(['b']));
+    await vi.advanceTimersByTimeAsync(499);
+    expect(next.done).toBe(false);
+    expect(embed).toHaveBeenCalledTimes(2);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(next.done).toBe(true);
+    expect(next.error).toBeUndefined();
+    expect(embed).toHaveBeenCalledTimes(3);
   });
 });
