@@ -213,7 +213,7 @@ Check whether a path is excluded from version tracking and why (`GET /vcs/check-
 
 ## Jeeves Platform Integration
 
-The plugin builds on [`@karmaniverous/jeeves`](https://www.npmjs.com/package/@karmaniverous/jeeves) 0.6 (the static-content core). It writes **no** workspace files and starts no timers:
+The plugin builds on [`@karmaniverous/jeeves`](https://www.npmjs.com/package/@karmaniverous/jeeves) 0.7 (static-content core since 0.6). It writes **no** workspace files and starts no timers:
 
 - **Always-in-context rules**: the watcher escalation, scan-first and search-first rules and score guidance are injected on every turn via `before_prompt_build` (`registerPromptContext`). They replace the v0.x TOOLS.md `## Watcher` section.
 - **Live state**: served by tools (`watcher_status`, `watcher_config`) rather than a refreshed file.

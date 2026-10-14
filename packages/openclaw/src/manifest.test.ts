@@ -63,9 +63,11 @@ describe('package.json', () => {
     expect(pkg).not.toHaveProperty('bin');
   });
 
-  it('pins the static-content jeeves core', () => {
+  it('pins the static-content jeeves core (exact, 0.6 or later)', () => {
     const deps = pkg.dependencies as Record<string, string>;
-    expect(deps['@karmaniverous/jeeves']).toMatch(/^0\.6\./);
+    const pin = deps['@karmaniverous/jeeves'];
+    expect(pin).toMatch(/^0\.\d+\.\d+$/);
+    expect(Number(pin.split('.')[1])).toBeGreaterThanOrEqual(6);
   });
 });
 
