@@ -2,11 +2,50 @@
 
 All notable changes to this project will be documented in this file.
 
-## [unreleased]
+## [0.17.0] - 2026-10-14
+
+### 🚀 Features
+
+- CLI and OpenClaw plugin send the API bearer key
+
+### 🐛 Bug Fixes
+
+- *(cli)* Report unreadable or malformed config patches cleanly
+- *(openclaw)* Prompt context states score thresholds have no defaults
+- *(release)* GitHub release notes and changelog use the new version tag
 
 ### 💼 Other
 
 - Updated core
+
+### 🚜 Refactor
+
+- One HTTP client contract in core; error status comes from the code
+- Shared reindex deps, defaults and work policy; admin route schemas; route handlers wrapped
+
+### 📚 Documentation
+
+- Typedoc covers core, sdk and service; fix docs warnings
+- Document review fixes, error bodies and status shape
+- *(openclaw)* Skill, README and integration guide match the tools; watcher_issues description
+- Neutral example paths and names in guides, skill and tests
+
+### 🧪 Testing
+
+- Rule handlers, plugin config tools, CLI helpers and edges
+
+### ⚙️ Miscellaneous Tasks
+
+- Ship LICENSE in every package; core README and license metadata
+## [0.16.1] - 2026-09-30
+
+### 💼 Other
+
+- Updated core
+
+### ⚙️ Miscellaneous Tasks
+
+- Release @karmaniverous/jeeves-watcher-openclaw v0.16.1
 ## [0.16.0] - 2026-09-29
 
 ### 💼 Other
