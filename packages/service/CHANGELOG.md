@@ -2,7 +2,110 @@
 
 All notable changes to this project will be documented in this file.
 
-## [unreleased]
+## [0.20.0] - 2026-10-14
+
+### 🚀 Features
+
+- *(core)* Config schema for payload indexes, API key and sources
+- *(core)* Request/response schemas for public API endpoints
+- *(service)* Record processing failures as typed issues
+- *(service)* Shared embedding rate limiter with Retry-After
+- *(service)* API bearer auth, configured payload indexes, integration harness
+- *(service)* Source callback client
+- *(service)* Notification queue for source documents
+- *(service)* POST /documents, POST /documents/delete, source references on render/metadata/reindex
+- *(service)* Reindex scopes cover source documents
+- *(sdk)* @karmaniverous/jeeves-watcher-sdk 0.1.0
+- CLI and OpenClaw plugin send the API bearer key
+- Machine-readable error codes on API error responses
+
+### 🐛 Bug Fixes
+
+- Harden delete filters, issue records and config schemas
+- *(service)* Bound embedding retries, payload index flags and callback size
+- *(service)* Harden source processing, reindex routing and shutdown
+- *(cli)* Report unreadable or malformed config patches cleanly
+- *(service)* Client-input errors are 4xx; reindex prepares once
+- One source-point predicate, redacted config apply, never-throwing reindex callback, separator-aware path scopes
+- *(service)* A failed Qdrant read is an error, never "not indexed"
+- *(service)* Issues reindex tolerates a failed stored-rule lookup
+- *(service)* Gemini requests the configured dimensions; init template uses 3072
+- *(service)* GET /config/schema derives from the core config schema
+- *(service)* Reindex plans group files by each watch root's static glob prefix
+- *(service)* Enrich --json accepts only a JSON object
+- *(service)* An over-limit Retry-After fails every caller fast until it has fully passed
+- *(release)* GitHub release notes and changelog use the new version tag
+
+### 💼 Other
+
+- [256] fix(service): resolve file-based schemas against config dir in /config/validate
+
+validateInferenceRuleSchemas now receives deps.configDir and passes it to mergeSchemas, so relative global schema paths resolve against the config file's directory instead of process.cwd(). Adds regression tests for the resolved and missing-file cases.
+
+Closes #256. Part of #273 (S1). ([#274](https://github.com/karmaniverous/jeeves-watcher/pull/274))
+- Updated core
+
+### 🚜 Refactor
+
+- *(service)* Resolver layer for file and source documents; prune guard
+- *(service)* Split executeReindex by scope
+- One HTTP client contract in core; error status comes from the code
+- Shared reindex deps, defaults and work policy; admin route schemas; route handlers wrapped
+- Core owns defaults, limits and index-type guards; uniform route registrars
+- *(service)* One metadata write path, shared rule options, core defaults, one failure recorder
+- *(service)* Per-kind document behaviour, one hash, options object for embed-and-upsert
+- *(service)* Retried Qdrant writes, queue idle signals, one source-operations path for the notify queue
+- *(service)* Split app wiring below 300 lines; config warnings emitted once by loadConfig
+- *(service)* Source rules without file access, one render result, test-support wiring from production
+- *(service)* One render-result builder, no file reader for source rules, shared test Qdrant helpers
+- *(service)* One WatcherProcessor type, adapter for file-only processors, no source guards in the API
+
+### 📚 Documentation
+
+- Source documents, notify API, auth, payload indexes, SDK
+- Typedoc covers core, sdk and service; fix docs warnings
+- Document review fixes, error bodies and status shape
+- *(service)* Verification citations for the review-2 test changes
+- *(service)* Configuration reference matches the config schema and runtime
+- *(service)* API reference matches the handlers
+- *(service)* Architecture and deployment guides match the code
+- *(service)* Inference rules, getting started and CLI reference match the code
+- *(service)* Source documents and version control guides match the code
+- Root README, CONTRIBUTING and package READMEs match the code
+- *(core)* StateDir description names values.v8
+- *(service)* VERIFICATION shutdown order and stray punctuation
+- Neutral example paths and names in guides, skill and tests
+- *(service)* Prettier formatting in api-reference
+
+### 🧪 Testing
+
+- Harden integration harness collection hygiene
+- Integration lifecycle for source documents
+- Neutral example names; remove client wording from tests and docs
+- Provision a throwaway Qdrant for local test runs
+- Build the PDF extractor fixture with correct xref offsets
+- Route-wide auth, shared limiter, reload and deletion proofs
+- Harden throwaway Qdrant provisioning and harness guards
+- Split oversized suites and add module docs
+- VERIFICATION.md covers Decision 18 and the review fixes
+- Prove ingest embedding exhaustion, rate-limit defaults, notify concurrency and CLI key source
+- Rule handlers, plugin config tools, CLI helpers and edges
+- Reindex guards, prune retries, callback errors, source scopes, config-apply trigger, vcs edges
+- *(service)* Cover enrichment merge, prepare, rule errors, render stage, maps, failed deletes, file render fallbacks
+- *(service)* Cover limiter back-off cap, attempt override and config wiring, payload deletes, shutdown timeouts, queue stop
+- *(service)* Cover test Qdrant provisioning: global setup, binary download, binary and Docker start failures, sweep and URL guard
+- *(service)* Strengthen processor, source client, embedding, vector store and config tests
+- *(service)* Pin startup warnings to the console, reload reindex deps, stop order, PDF warning and load-time warning suppression
+- *(service)* Count embeddings, assert issues and AJV details, isolate integration cases, synchronous notify burst
+- *(service)* Keep documents-integration within 300 lines
+- *(service)* Split the rules engine suite into matching, set and JsonMap suites
+
+### ⚙️ Miscellaneous Tasks
+
+- Ship LICENSE in every package; core README and license metadata
+- Service resolves the SDK from the workspace, not as a dependency
+- Tsdoc config for core; real-git reconciliation tests get the suite's 30 s budget
+## [0.19.1] - 2026-09-30
 
 ### 💼 Other
 
@@ -69,6 +172,10 @@ Pure moves along existing describe boundaries; all 80 test names preserved.
 
 resolve() follows the host platform, so a Windows drive path is relative on Linux. Test lowercasing with a path absolute on both; run the backslash case on Windows only.
 - Updated core
+
+### ⚙️ Miscellaneous Tasks
+
+- Release @karmaniverous/jeeves-watcher v0.19.1
 ## [0.19.0] - 2026-09-29
 
 ### 💼 Other
