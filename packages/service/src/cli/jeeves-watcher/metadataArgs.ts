@@ -3,8 +3,14 @@
  * Parses the `enrich` command's --json and --key options into a metadata object; reports validation errors on stderr and sets the exit code.
  */
 
+/** Whether a parsed JSON value is a plain object (not null, an array or a primitive). */
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
 /**
  * Parse `--json` and `--key` options into a metadata object.
+ * `--json` must be a JSON object; null, arrays and primitives are rejected.
  *
  * @param json - Metadata as a JSON string, if given.
  * @param keys - `key=value` pairs (applied after `json`).
@@ -17,13 +23,20 @@ export function parseMetadataArgs(
   let metadata: Record<string, unknown> = {};
 
   if (json) {
+    let parsed: unknown;
     try {
-      metadata = JSON.parse(json) as Record<string, unknown>;
+      parsed = JSON.parse(json);
     } catch {
       console.error('Invalid JSON:', json);
       process.exitCode = 1;
       return null;
     }
+    if (!isPlainObject(parsed)) {
+      console.error('JSON metadata must be an object:', json);
+      process.exitCode = 1;
+      return null;
+    }
+    metadata = parsed;
   }
 
   if (Array.isArray(keys) && keys.length > 0) {

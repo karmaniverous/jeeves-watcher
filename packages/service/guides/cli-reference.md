@@ -233,11 +233,11 @@ jeeves-watcher enrich <path> [-k <key=value>...] [-j <json>] [-p <port>] [-H <ho
 | Option                     | Default     | Description                  |
 | -------------------------- | ----------- | ---------------------------- |
 | `-k, --key <key=value...>` | `[]`        | Key-value pairs (repeatable) |
-| `-j, --json <json>`        | —           | Metadata as JSON string      |
+| `-j, --json <json>`        | —           | Metadata as a JSON object    |
 | `-p, --port <port>`        | `1936`      | API port                     |
 | `-H, --host <host>`        | `127.0.0.1` | API host                     |
 
-At least one of `--key` or `--json` is required. `--key` values are strings and are applied after `--json` (they win on conflict). Invalid input prints `Invalid JSON: <json>`, `Invalid key-value pair: <pair>` or `No metadata provided. Use --key or --json.` and exits with code `1` without calling the API.
+At least one of `--key` or `--json` is required. `--key` values are strings and are applied after `--json` (they win on conflict). Invalid input prints `Invalid JSON: <json>`, `JSON metadata must be an object: <json>` (for `null`, an array or a primitive), `Invalid key-value pair: <pair>` or `No metadata provided. Use --key or --json.` and exits with code `1` without calling the API.
 
 ---
 
