@@ -2,7 +2,50 @@
 
 All notable changes to this project will be documented in this file.
 
-## [unreleased]
+## [0.4.0] - 2026-10-14
+
+### 🚀 Features
+
+- *(core)* Config schema for payload indexes, API key and sources
+- *(core)* Request/response schemas for public API endpoints
+- *(service)* Record processing failures as typed issues
+- *(service)* POST /documents, POST /documents/delete, source references on render/metadata/reindex
+- *(service)* Reindex scopes cover source documents
+- Machine-readable error codes on API error responses
+
+### 🐛 Bug Fixes
+
+- Harden delete filters, issue records and config schemas
+- *(service)* Harden source processing, reindex routing and shutdown
+- *(service)* Client-input errors are 4xx; reindex prepares once
+- *(service)* Gemini requests the configured dimensions; init template uses 3072
+- *(release)* GitHub release notes and changelog use the new version tag
+
+### 🚜 Refactor
+
+- One HTTP client contract in core; error status comes from the code
+- Shared reindex deps, defaults and work policy; admin route schemas; route handlers wrapped
+- Core owns defaults, limits and index-type guards; uniform route registrars
+
+### 📚 Documentation
+
+- Typedoc covers core, sdk and service; fix docs warnings
+- *(core)* Rebuild-metadata endpoint description and status uptime comment match the code
+- Root README, CONTRIBUTING and package READMEs match the code
+- *(core)* StateDir description names values.v8
+- Neutral example paths and names in guides, skill and tests
+
+### 🧪 Testing
+
+- Neutral example names; remove client wording from tests and docs
+- Route-wide auth, shared limiter, reload and deletion proofs
+- Rule handlers, plugin config tools, CLI helpers and edges
+
+### ⚙️ Miscellaneous Tasks
+
+- Ship LICENSE in every package; core README and license metadata
+- Tsdoc config for core; real-git reconciliation tests get the suite's 30 s budget
+## [0.3.1] - 2026-09-30
 
 ### 💼 Other
 
@@ -23,6 +66,10 @@ All notable changes to this project will be documented in this file.
 - Squash refuses on in-progress sequencer/rebase/merge state or dirty
   tracked files, aborts a failed cherry-pick during cleanup, and stale
   state is reported at startup.
+
+### ⚙️ Miscellaneous Tasks
+
+- Release @karmaniverous/jeeves-watcher-core v0.3.1
 ## [0.3.0] - 2026-09-29
 
 ### 💼 Other
