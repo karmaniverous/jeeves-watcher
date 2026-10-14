@@ -13,7 +13,7 @@ export type FetchLike = (input: string, init: RequestInit) => Promise<Response>;
 
 /** Options for {@link createWatcherClient}. */
 export interface WatcherClientOptions {
-  /** Base URL of the watcher API, e.g. `http://watcher.internal.example:1936`. May carry a path prefix. */
+  /** Base URL of the watcher API, e.g. `http://watcher.internal.example:1936`. May carry a path prefix; must not carry a query string or fragment. */
   baseUrl: string;
   /** API key sent as `Authorization: Bearer <apiKey>` (watcher `api.apiKey`). */
   apiKey?: string;
@@ -43,7 +43,7 @@ const invalid = (message: string): WatcherError =>
  *
  * @param options - Caller options.
  * @returns Resolved options.
- * @throws {@link WatcherError} `invalid_options` on a bad base URL, empty API key, non-positive timeout or missing `fetch`.
+ * @throws {@link WatcherError} `invalid_options` on a bad base URL (not http(s), or carrying a query string or fragment), empty API key, non-positive timeout or missing `fetch`.
  */
 export function resolveClientOptions(
   options: WatcherClientOptions,
@@ -51,6 +51,13 @@ export function resolveClientOptions(
   const { baseUrl, apiKey, timeoutMs = DEFAULT_TIMEOUT_MS } = options;
   if (!URL.canParse(baseUrl) || !/^https?:$/.test(new URL(baseUrl).protocol)) {
     throw invalid(`baseUrl must be an http(s) URL, got "${baseUrl}"`);
+  }
+  // Endpoint paths are appended to baseUrl, so a query or fragment would
+  // swallow them. Check the raw string: URL drops an empty `?` or `#`.
+  if (/[?#]/.test(baseUrl)) {
+    throw invalid(
+      `baseUrl must not contain a query string or fragment, got "${baseUrl}"`,
+    );
   }
   if (apiKey?.length === 0) {
     throw invalid('apiKey must be a non-empty string when set');

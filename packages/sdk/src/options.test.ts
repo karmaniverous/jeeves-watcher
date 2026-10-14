@@ -33,6 +33,10 @@ describe('resolveClientOptions', () => {
   it.each([
     ['a relative baseUrl', { baseUrl: '/watcher' }],
     ['a non-http baseUrl', { baseUrl: 'ftp://h' }],
+    ['a baseUrl with a query string', { baseUrl: 'http://h?x=1' }],
+    ['a baseUrl with an empty query', { baseUrl: 'http://h/prefix?' }],
+    ['a baseUrl with a fragment', { baseUrl: 'http://h/prefix#top' }],
+    ['a baseUrl with an empty fragment', { baseUrl: 'http://h#' }],
     ['an empty apiKey', { baseUrl: 'http://h', apiKey: '' }],
     ['a zero timeout', { baseUrl: 'http://h', timeoutMs: 0 }],
     ['a NaN timeout', { baseUrl: 'http://h', timeoutMs: Number.NaN }],
@@ -40,6 +44,14 @@ describe('resolveClientOptions', () => {
     expect(() => resolveClientOptions(options)).toThrow(
       expect.objectContaining({ code: 'invalid_options' }) as Error,
     );
+  });
+});
+
+describe('resolveClientOptions baseUrl query/fragment', () => {
+  it('names the problem in the error message', () => {
+    expect(() =>
+      resolveClientOptions({ baseUrl: 'http://h?x=1', fetch }),
+    ).toThrow('baseUrl must not contain a query string or fragment');
   });
 });
 
