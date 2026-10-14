@@ -7,6 +7,7 @@ import type { Stats } from 'node:fs';
 import { basename, dirname, extname } from 'node:path';
 
 import { normalizeSlashes } from '../util/normalizeSlashes';
+import type { SourceAttributes } from './sourceAttributes';
 
 /**
  * Attributes derived from a watched file for rule matching.
@@ -32,6 +33,9 @@ export interface FileAttributes {
   /** Parsed JSON content, if any. */
   json?: Record<string, unknown>;
 }
+
+/** Attributes rules are matched and resolved against: a file or a source document. */
+export type RuleAttributes = FileAttributes | SourceAttributes;
 
 /** Derive the path-based file properties shared by all attribute builders. */
 function buildFileProps(filePath: string) {

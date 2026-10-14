@@ -3,8 +3,10 @@
  * Jeeves component descriptor for the watcher OpenClaw plugin.
  *
  * @remarks
- * Feeds `createPluginToolset()` (`watcher_status`, `watcher_config`,
- * `watcher_config_apply`, `watcher_service`). The service descriptor
+ * Feeds `createPluginToolset()`, of which the plugin registers
+ * `watcher_status` and `watcher_service`; its `watcher_config` and
+ * `watcher_config_apply` are replaced by the plugin's own (`configTools.ts`,
+ * which send the API key). The service descriptor
  * (`packages/service/src/descriptor.ts`) is the canonical source for the
  * config schema and CLI commands.
  */

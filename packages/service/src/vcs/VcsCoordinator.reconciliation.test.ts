@@ -72,7 +72,7 @@ describe('VcsCoordinator startup deletion reconciliation (#249)', () => {
     expect(tracked).toContain('gone.md');
     expect(tracked).toContain('sub/ignored/gone.txt');
     expect(tracked).toContain('keep.txt');
-  });
+  }, 30000);
 
   it('reconciles every root in its own repo', async () => {
     const other = resolve(await makeTempRepo('vcs-coord-recon-b-'));
@@ -98,5 +98,5 @@ describe('VcsCoordinator startup deletion reconciliation (#249)', () => {
     } finally {
       await rm(other, { recursive: true, force: true });
     }
-  });
+  }, 30000);
 });

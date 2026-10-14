@@ -1,9 +1,10 @@
 import type { PluginApi } from '@karmaniverous/jeeves';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { getApiUrl, getConfigRoot } from './helpers.js';
+import { getApiKey, getApiUrl, getConfigRoot } from './helpers.js';
 
 afterEach(() => {
+  delete process.env.JEEVES_WATCHER_API_KEY;
   delete process.env.JEEVES_WATCHER_URL;
   delete process.env.JEEVES_CONFIG_ROOT;
 });
@@ -49,6 +50,30 @@ describe('getApiUrl', () => {
     expect(
       getApiUrl(withEntryConfig({ apiUrl: 'http://config-wins:7777' })),
     ).toBe('http://config-wins:7777');
+  });
+});
+
+describe('getApiKey', () => {
+  it('prefers plugin-scoped config, then entry config, then env', () => {
+    process.env.JEEVES_WATCHER_API_KEY = 'env-key';
+    const entry = withEntryConfig({ apiKey: 'entry-key' });
+    expect(getApiKey({ ...entry, pluginConfig: { apiKey: 'scoped' } })).toBe(
+      'scoped',
+    );
+    expect(getApiKey(entry)).toBe('entry-key');
+    expect(getApiKey({ registerTool: vi.fn() })).toBe('env-key');
+  });
+
+  it('treats a blank entry-config key as unset', () => {
+    expect(getApiKey(withEntryConfig({ apiKey: '  ' }))).toBeUndefined();
+  });
+
+  it('returns undefined when unset or blank', () => {
+    expect(getApiKey({ registerTool: vi.fn() })).toBeUndefined();
+    process.env.JEEVES_WATCHER_API_KEY = ' ';
+    expect(
+      getApiKey({ pluginConfig: { apiKey: '' }, registerTool: vi.fn() }),
+    ).toBeUndefined();
   });
 });
 

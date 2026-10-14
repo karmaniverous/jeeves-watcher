@@ -14,12 +14,14 @@ function mockReply() {
     statusCode: 200,
     headers: {} as Record<string, string>,
     body: undefined as unknown,
+    sent: false,
     status(code: number) {
       reply.statusCode = code;
       return reply;
     },
     send(data: unknown) {
       reply.body = data;
+      reply.sent = true;
       return Promise.resolve(reply);
     },
     header(key: string, value: string) {
@@ -38,7 +40,7 @@ function mockRequest(body: Record<string, unknown>) {
 }
 
 const watchConfig = {
-  paths: ['j:/domains/**/*.json', 'j:/domains/**/*.md'],
+  paths: ['c:/data/**/*.json', 'c:/data/**/*.md'],
   ignored: ['**/node_modules/**'],
 };
 
@@ -75,6 +77,7 @@ function makeDeps(
       error: vi.fn(),
       warn: vi.fn(),
       info: vi.fn(),
+      debug: vi.fn(),
     } as unknown as RenderHandlerDeps['logger'],
     ...overrides,
   } as RenderHandlerDeps;
@@ -87,7 +90,7 @@ describe('POST /render handler', () => {
     const reply = mockReply();
 
     await handler(
-      mockRequest({ path: 'j:/domains/slack/msg.json' }),
+      mockRequest({ path: 'c:/data/chat/msg.json' }),
       reply as never,
     );
 
@@ -109,7 +112,7 @@ describe('POST /render handler', () => {
     const reply = mockReply();
 
     await handler(
-      mockRequest({ path: 'j:/domains/docs/readme.md' }),
+      mockRequest({ path: 'c:/data/docs/readme.md' }),
       reply as never,
     );
 
@@ -131,7 +134,7 @@ describe('POST /render handler', () => {
     const reply = mockReply();
 
     await handler(
-      mockRequest({ path: 'j:/domains/docs/readme.md' }),
+      mockRequest({ path: 'c:/data/docs/readme.md' }),
       reply as never,
     );
 
@@ -144,7 +147,7 @@ describe('POST /render handler', () => {
     const reply = mockReply();
 
     await handler(
-      mockRequest({ path: 'j:/domains/slack/msg.json' }),
+      mockRequest({ path: 'c:/data/chat/msg.json' }),
       reply as never,
     );
 
@@ -162,7 +165,10 @@ describe('POST /render handler', () => {
     );
 
     expect(reply.statusCode).toBe(403);
-    expect(reply.body).toEqual({ error: 'Path is outside watched scope' });
+    expect(reply.body).toEqual({
+      code: 'path_not_watched',
+      error: 'Path is outside watched scope',
+    });
   });
 
   it('returns 404 when file is not found', async () => {
@@ -174,12 +180,12 @@ describe('POST /render handler', () => {
     const reply = mockReply();
 
     await handler(
-      mockRequest({ path: 'j:/domains/slack/missing.json' }),
+      mockRequest({ path: 'c:/data/chat/missing.json' }),
       reply as never,
     );
 
     expect(reply.statusCode).toBe(404);
-    expect(reply.body).toEqual({ error: 'File not found' });
+    expect(reply.body).toEqual({ code: 'not_found', error: 'File not found' });
   });
 
   it('returns 400 for missing path', async () => {
@@ -192,7 +198,7 @@ describe('POST /render handler', () => {
     expect(reply.statusCode).toBe(400);
   });
 
-  it('returns 422 for other errors', async () => {
+  it('returns 422 pipeline_error tagged extraction_error for other render errors', async () => {
     const deps = makeDeps();
     (
       deps.processor.renderFile as unknown as ReturnType<typeof vi.fn>
@@ -201,12 +207,16 @@ describe('POST /render handler', () => {
     const reply = mockReply();
 
     await handler(
-      mockRequest({ path: 'j:/domains/slack/bad.json' }),
+      mockRequest({ path: 'c:/data/chat/bad.json' }),
       reply as never,
     );
 
     expect(reply.statusCode).toBe(422);
-    expect(reply.body).toEqual({ error: 'Extraction failed' });
+    expect(reply.body).toEqual({
+      code: 'pipeline_error',
+      error: 'Extraction failed',
+      issueType: 'extraction_error',
+    });
   });
 
   it('does not include transformed flag in response', async () => {
@@ -215,7 +225,7 @@ describe('POST /render handler', () => {
     const reply = mockReply();
 
     await handler(
-      mockRequest({ path: 'j:/domains/slack/msg.json' }),
+      mockRequest({ path: 'c:/data/chat/msg.json' }),
       reply as never,
     );
 

@@ -29,7 +29,7 @@ note right of API
     "filePath": "d:/meetings/transcript.md",
     "metadata": {
       "summary": "Architecture discussion",
-      "participants": ["Jason", "Devin"],
+      "participants": ["Alice", "Bob"],
       "topics": ["inference rules", "embedding"]
     }
   }

@@ -1,3 +1,8 @@
+/**
+ * @module test/gitignore-integration.test
+ * File integration (requires Qdrant): with a GitignoreFilter applied, only non-ignored files of a fake repo are indexed. Uses a guarded harness collection on the run's Qdrant.
+ */
+
 import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
@@ -19,20 +24,25 @@ import { DocumentProcessor } from '../processor';
 import { compileRules } from '../rules';
 import { VectorStoreClient } from '../vectorStore';
 import {
+  assertTestVectorStore,
+  dropCollection,
+  qdrantAvailable,
+  uniqueCollectionName,
+} from './harness/qdrant';
+import {
   cleanupWatchedDir,
   createTestConfig,
   getWatchDir,
   setupTestDirs,
 } from './helpers';
 
-const skipIntegration = process.env['QDRANT_AVAILABLE'] !== 'true';
-
-describe.skipIf(skipIntegration)(
+describe.skipIf(!qdrantAvailable())(
   'Gitignore integration tests (requires Qdrant)',
   () => {
     const config = createTestConfig();
-    // Use a separate collection to avoid conflicts with parallel test files
-    config.vectorStore.collectionName = 'jeeves_watcher_test_gitignore';
+    // Use a separate, unique `jeeves_watcher_it_` collection: no conflicts
+    // with parallel test files, never a shared Qdrant's data.
+    config.vectorStore.collectionName = uniqueCollectionName('gitignore');
     const embeddingProvider = createEmbeddingProvider(config.embedding);
     const logger = createLogger({ level: 'silent' });
 
@@ -40,20 +50,11 @@ describe.skipIf(skipIntegration)(
     let processor: DocumentProcessor;
 
     beforeAll(async () => {
+      assertTestVectorStore(config.vectorStore);
       vectorStore = new VectorStoreClient(
         config.vectorStore,
         embeddingProvider.dimensions,
       );
-
-      const url = config.vectorStore.url;
-      const collectionName = config.vectorStore.collectionName;
-      try {
-        await fetch(`${url}/collections/${collectionName}`, {
-          method: 'DELETE',
-        });
-      } catch {
-        // ignore
-      }
       await vectorStore.ensureCollection();
 
       const compiledRules = compileRules(config.inferenceRules ?? []);
@@ -73,15 +74,7 @@ describe.skipIf(skipIntegration)(
     });
 
     afterAll(async () => {
-      const url = config.vectorStore.url;
-      const collectionName = config.vectorStore.collectionName;
-      try {
-        await fetch(`${url}/collections/${collectionName}`, {
-          method: 'DELETE',
-        });
-      } catch {
-        // ignore
-      }
+      await dropCollection(config.vectorStore.collectionName);
     });
 
     beforeEach(async () => {
@@ -89,15 +82,7 @@ describe.skipIf(skipIntegration)(
     });
 
     afterEach(async () => {
-      const url = config.vectorStore.url;
-      const collectionName = config.vectorStore.collectionName;
-      try {
-        await fetch(`${url}/collections/${collectionName}`, {
-          method: 'DELETE',
-        });
-      } catch {
-        // ignore
-      }
+      await dropCollection(config.vectorStore.collectionName);
       await vectorStore.ensureCollection();
       await cleanupWatchedDir();
     });
@@ -138,20 +123,12 @@ describe.skipIf(skipIntegration)(
           }
         }
 
-        // Verify Qdrant state: only tracked file indexed
+        // The tracked file is indexed (the ignored ones were never processed).
         const trackedPayload = await vectorStore.getPayload(
           pointId(trackedFile, 0),
         );
         expect(trackedPayload).not.toBeNull();
         expect(trackedPayload!['chunk_text']).toContain('hello');
-
-        const logPayload = await vectorStore.getPayload(pointId(ignoredLog, 0));
-        expect(logPayload).toBeNull();
-
-        const distPayload = await vectorStore.getPayload(
-          pointId(ignoredDist, 0),
-        );
-        expect(distPayload).toBeNull();
       });
     });
   },

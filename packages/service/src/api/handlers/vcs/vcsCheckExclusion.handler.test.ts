@@ -1,8 +1,9 @@
 /**
  * @module api/handlers/vcs/vcsCheckExclusion.handler.test
  * GET /vcs/check-exclusion handler behavior: reports excluded:false for
- * tracked files, excluded:true (with the matching rule) for gitignored
- * files, 400s for a missing path, and 404s for a path outside any root.
+ * tracked files, excluded:true with the matching rule and the ignore file it
+ * came from for gitignored files, 400s for a missing path, and 404s for a
+ * path outside any root.
  */
 
 import { rm, writeFile } from 'node:fs/promises';
@@ -75,6 +76,7 @@ describe('GET /vcs/check-exclusion', () => {
     };
     expect(body.excluded).toBe(true);
     expect(body.rule).toBe('*.log');
+    expect(body.source).toBe('.gitignore');
   });
 
   it('returns 400 for missing path', async () => {
@@ -103,5 +105,6 @@ describe('GET /vcs/check-exclusion', () => {
     await handler(request, reply as never);
 
     expect(reply.statusCode).toBe(404);
+    expect(reply.body).toMatchObject({ code: 'not_found' });
   });
 });

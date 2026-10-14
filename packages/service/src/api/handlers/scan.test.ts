@@ -9,7 +9,7 @@ describe('createScanHandler', () => {
 
   const mockDeps = {
     vectorStore: { scrollPage: scrollPageMock, count: countMock },
-    logger: { warn: vi.fn(), error: vi.fn() },
+    logger: { warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
   } as unknown as ScanRouteDeps;
 
   it('returns points and cursor on normal scan', async () => {
@@ -85,9 +85,11 @@ describe('createScanHandler', () => {
     await handler(request, reply);
 
     expect(statusMock).toHaveBeenCalledWith(400);
-    expect(sendMock).toHaveBeenCalledWith({
-      error: 'Missing required field: filter (object)',
-    });
+    expect(sendMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        error: 'Missing required field: filter (object)',
+      }),
+    );
   });
 
   it('rejects out of bounds limit', async () => {
@@ -100,8 +102,10 @@ describe('createScanHandler', () => {
     await handler(request, reply);
 
     expect(statusMock).toHaveBeenCalledWith(400);
-    expect(sendMock).toHaveBeenCalledWith({
-      error: 'limit must be between 1 and 1000',
-    });
+    expect(sendMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        error: 'limit must be between 1 and 1000',
+      }),
+    );
   });
 });

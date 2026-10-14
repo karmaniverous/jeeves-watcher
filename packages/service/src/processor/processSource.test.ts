@@ -1,0 +1,271 @@
+/**
+ * @module processor/processSource.test
+ * DocumentProcessor source processing (sourceOperations().process): source point IDs/payload, created_at on replace, unchanged and metadata-only updates, 404 delete, failures as issues.
+ */
+
+import pino from 'pino';
+import { describe, expect, it, type Mock, vi } from 'vitest';
+
+import type { InferenceRule } from '../config/types';
+import type { EmbeddingProvider } from '../embedding';
+import { contentHash } from '../hash';
+import type { IssuesManager } from '../issues';
+import { pointId, sourcePointId } from '../pointId';
+import { compileRules } from '../rules';
+import type { SourceRetrievalResult, SourceRetriever } from '../sources';
+import type { VectorStoreClient } from '../vectorStore';
+import { DocumentProcessor } from './index';
+
+const REF = 'app://chat/thread/AbC';
+const OP = { operation: 'Failed to process source document' };
+const BODY = { userId: 'u1', content: 'hello world' };
+
+const rules: InferenceRule[] = [
+  {
+    name: 'chat',
+    description: 'Chat',
+    match: { type: 'object', required: ['source', 'json'] },
+    schema: [
+      {
+        type: 'object',
+        properties: {
+          user_id: { type: 'string', set: '{{json.userId}}' },
+          file_path: { type: 'string', set: 'evil' },
+          source: { type: 'string', set: 'evil' },
+        },
+      },
+    ],
+  },
+];
+
+type Mocks = Record<
+  'getPayload' | 'upsert' | 'delete' | 'setPayload' | 'deletePayload',
+  Mock
+> &
+  Record<'embed' | 'record' | 'clear' | 'retrieve', Mock>;
+
+function setup(
+  result: SourceRetrievalResult = { kind: 'document', body: BODY },
+  existing: Record<string, unknown> | null = null,
+) {
+  const mocks: Mocks = {
+    getPayload: vi.fn().mockResolvedValue(existing),
+    upsert: vi.fn().mockResolvedValue(undefined),
+    delete: vi.fn().mockResolvedValue(undefined),
+    setPayload: vi.fn().mockResolvedValue(undefined),
+    deletePayload: vi.fn().mockResolvedValue(undefined),
+    embed: vi.fn((texts: string[]) => Promise.resolve(texts.map(() => [0.1]))),
+    record: vi.fn(),
+    clear: vi.fn(),
+    retrieve: vi.fn().mockResolvedValue(result),
+  };
+  const retriever: SourceRetriever = {
+    resolve: vi.fn(),
+    retrieve: mocks.retrieve,
+  };
+  const embeddingProvider: EmbeddingProvider = {
+    dimensions: 1,
+    embed: mocks.embed,
+  };
+  const enrichmentStore = {
+    get: vi.fn().mockReturnValue(null),
+    set: vi.fn(),
+    delete: vi.fn(),
+    move: vi.fn(),
+    list: vi.fn().mockReturnValue([]),
+    close: vi.fn(),
+  };
+  const processor = new DocumentProcessor({
+    config: { chunkSize: 1000, chunkOverlap: 0 },
+    embeddingProvider,
+    vectorStore: mocks as unknown as VectorStoreClient,
+    compiledRules: compileRules(rules),
+    logger: pino({ level: 'silent' }),
+    enrichmentStore,
+    issuesManager: {
+      record: mocks.record,
+      clear: mocks.clear,
+      get: vi.fn(),
+    } as unknown as IssuesManager,
+    sourceRetriever: retriever,
+  });
+  return { processor, mocks, enrichmentStore };
+}
+
+/** Chunk-0 payload a previous indexing of BODY stored. */
+function storedPayload(overrides: Record<string, unknown> = {}) {
+  return {
+    user_id: 'u1',
+    matched_rules: ['chat'],
+    source: REF,
+    source_rule: 'chat',
+    content_hash: contentHash('hello world'),
+    total_chunks: 1,
+    chunk_index: 0,
+    chunk_text: 'hello world',
+    created_at: 100,
+    modified_at: 200,
+    line_start: 1,
+    line_end: 1,
+    ...overrides,
+  };
+}
+
+type UpsertedPoint = { id: string; payload: Record<string, unknown> };
+
+/** Process {@link REF} through the processor's source operations. */
+const run = (processor: DocumentProcessor, rule = 'chat') =>
+  processor.sourceOperations().process(REF, rule);
+
+describe('DocumentProcessor source processing', () => {
+  it('indexes a source document with source identity and no file_path', async () => {
+    const { processor, mocks } = setup();
+    const result = await run(processor);
+
+    expect(result).toEqual({
+      source: REF,
+      status: 'indexed',
+      chunks: 1,
+      matched_rules: ['chat'],
+    });
+    const [point] = mocks.upsert.mock.calls[0][0] as UpsertedPoint[];
+    expect(point.id).toBe(sourcePointId(REF, 0));
+    expect(point.payload).toMatchObject({
+      source: REF,
+      source_rule: 'chat',
+      user_id: 'u1',
+      chunk_text: 'hello world',
+      matched_rules: ['chat'],
+    });
+    expect(point.payload).not.toHaveProperty('file_path');
+    expect(mocks.clear).toHaveBeenCalledWith(REF);
+  });
+
+  it('keys points by the exact reference (case-sensitive, not normalised)', async () => {
+    const lower = 'app://chat/thread/abc';
+    expect(sourcePointId(REF, 0)).not.toBe(sourcePointId(lower, 0));
+    // Normalising would have produced the lower-case reference's ID.
+    expect(pointId(REF, 0)).toBe(sourcePointId(lower, 0));
+
+    const { processor, mocks } = setup();
+    await run(processor);
+    expect(mocks.getPayload).toHaveBeenCalledWith(sourcePointId(REF, 0));
+  });
+
+  it('keeps created_at from chunk 0 on replace and removes orphan chunks', async () => {
+    const { processor, mocks } = setup(undefined, {
+      content_hash: 'old',
+      total_chunks: 3,
+      created_at: 100,
+    });
+    await run(processor);
+
+    const [point] = mocks.upsert.mock.calls[0][0] as UpsertedPoint[];
+    expect(point.payload['created_at']).toBe(100);
+    expect(point.payload['modified_at']).toBeGreaterThan(100);
+    expect(mocks.delete).toHaveBeenCalledWith([
+      sourcePointId(REF, 1),
+      sourcePointId(REF, 2),
+    ]);
+  });
+
+  it('skips unchanged content and metadata without writing', async () => {
+    const { processor, mocks } = setup(undefined, storedPayload());
+    const result = await run(processor);
+
+    expect(result).toEqual({
+      source: REF,
+      status: 'unchanged',
+      matched_rules: ['chat'],
+    });
+    expect(mocks.embed).not.toHaveBeenCalled();
+    expect(mocks.upsert).not.toHaveBeenCalled();
+    expect(mocks.setPayload).not.toHaveBeenCalled();
+  });
+
+  it('updates metadata with setPayload only when content is unchanged', async () => {
+    const { processor, mocks } = setup(
+      undefined,
+      storedPayload({ user_id: 'old', total_chunks: 2 }),
+    );
+    const result = await run(processor);
+
+    expect(result).toMatchObject({ status: 'indexed', chunks: 2 });
+    expect(mocks.embed).not.toHaveBeenCalled();
+    expect(mocks.upsert).not.toHaveBeenCalled();
+    const [ids, payload] = mocks.setPayload.mock.calls[0] as [
+      string[],
+      Record<string, unknown>,
+    ];
+    expect(ids).toEqual([sourcePointId(REF, 0), sourcePointId(REF, 1)]);
+    expect(payload).toMatchObject({
+      user_id: 'u1',
+      source: REF,
+      source_rule: 'chat',
+    });
+    expect(payload).not.toHaveProperty('file_path');
+    expect(payload).not.toHaveProperty('chunk_text');
+  });
+
+  it('keeps enrichment on reprocess (unchanged, nothing written)', async () => {
+    const stored = storedPayload({ note: 'kept' });
+    const { processor, mocks, enrichmentStore } = setup(undefined, stored);
+    enrichmentStore.get.mockReturnValue({ note: 'kept' });
+    expect(await run(processor)).toMatchObject({ status: 'unchanged' });
+    expect(enrichmentStore.get).toHaveBeenCalledWith(REF);
+    expect(mocks.deletePayload).not.toHaveBeenCalled();
+    expect(mocks.setPayload).not.toHaveBeenCalled();
+  });
+
+  it('deletes a stored key no longer projected without re-embedding', async () => {
+    const stored = storedPayload({ stale: 1, total_chunks: 2 });
+    const { processor, mocks } = setup(undefined, stored);
+    await run(processor);
+    expect(mocks.deletePayload).toHaveBeenCalledWith(
+      [sourcePointId(REF, 0), sourcePointId(REF, 1)],
+      ['stale'],
+    );
+    expect(mocks.embed).not.toHaveBeenCalled();
+    expect(mocks.upsert).not.toHaveBeenCalled();
+  });
+
+  it('deletes the document points and enrichment on 404', async () => {
+    const { processor, mocks, enrichmentStore } = setup(
+      { kind: 'gone' },
+      { total_chunks: 2 },
+    );
+    const result = await run(processor);
+
+    expect(result).toEqual({ source: REF, status: 'deleted' });
+    expect(mocks.delete).toHaveBeenCalledWith([
+      sourcePointId(REF, 0),
+      sourcePointId(REF, 1),
+    ]);
+    expect(enrichmentStore.delete).toHaveBeenCalledWith(REF);
+    expect(mocks.clear).toHaveBeenCalledWith(REF);
+  });
+
+  it('records a callback error under the exact reference and leaves points alone', async () => {
+    const { processor, mocks } = setup({
+      kind: 'error',
+      code: 'source_unavailable',
+      message: 'HTTP 503',
+    });
+    const result = await run(processor);
+
+    expect(result).toEqual({
+      source: REF,
+      status: 'failed',
+      error: { code: 'source_unavailable', message: 'HTTP 503' },
+    });
+    expect(mocks.record).toHaveBeenCalledWith(
+      REF,
+      'source_unavailable',
+      'HTTP 503',
+      { ...OP, rule: 'chat' },
+    );
+    expect(mocks.upsert).not.toHaveBeenCalled();
+    expect(mocks.delete).not.toHaveBeenCalled();
+    expect(mocks.setPayload).not.toHaveBeenCalled();
+  });
+});

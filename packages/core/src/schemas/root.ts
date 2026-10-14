@@ -6,6 +6,7 @@
 import { jsonMapMapSchema } from '@karmaniverous/jsonmap';
 import { z } from 'zod';
 
+import { REINDEX_DEFAULTS } from '../defaults.js';
 import {
   apiConfigSchema,
   configWatchConfigSchema,
@@ -18,6 +19,7 @@ import {
   schemaEntrySchema,
 } from './inference.js';
 import { embeddingConfigSchema, vectorStoreConfigSchema } from './services.js';
+import { sourcesConfigSchema } from './sources.js';
 import { vcsConfigSchema } from './vcs.js';
 
 /**
@@ -52,12 +54,12 @@ export const jeevesWatcherConfigSchema = z.object({
   ),
   /** API server configuration. */
   api: apiConfigSchema.optional().describe('API server configuration.'),
-  /** Directory for persistent state files (issues.json, values.json, enrichments.sqlite). */
+  /** Directory for persistent state files (issues.json, values.v8, enrichments.sqlite). */
   stateDir: z
     .string()
     .optional()
     .describe(
-      'Directory for persistent state files (issues.json, values.json, enrichments.sqlite). Defaults to .jeeves-metadata.',
+      'Directory for persistent state files (issues.json, values.v8, enrichments.sqlite). Defaults to .jeeves-metadata.',
     ),
   /** Rules for inferring metadata from document properties (inline objects or file paths). */
   inferenceRules: z
@@ -139,9 +141,9 @@ export const jeevesWatcherConfigSchema = z.object({
         .number()
         .int()
         .min(1)
-        .default(50)
+        .default(REINDEX_DEFAULTS.concurrency)
         .describe(
-          'Maximum concurrent file operations during reindex (default 50).',
+          `Maximum concurrent file operations during reindex (default ${String(REINDEX_DEFAULTS.concurrency)}).`,
         ),
     })
     .optional()
@@ -180,6 +182,8 @@ export const jeevesWatcherConfigSchema = z.object({
     .describe(
       'VCS configuration for git-backed version control of watched content.',
     ),
+  /** Named sources for non-file documents (callback retrieval). */
+  sources: sourcesConfigSchema.optional(),
   /** Logging configuration. */
   logging: loggingConfigSchema.optional().describe('Logging configuration.'),
   /** Timeout in milliseconds for graceful shutdown. */

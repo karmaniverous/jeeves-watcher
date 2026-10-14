@@ -3,6 +3,7 @@
  * VCS (version control system) utilities for git-backed content versioning.
  */
 
+export { type CircuitBreakerSnapshot } from './CommitCircuitBreaker.js';
 export { CommitMessageGenerator } from './CommitMessageGenerator.js';
 export { type ResolvedWatchRoot } from './resolveWatchRoot.js';
 export {
@@ -20,4 +21,4 @@ export {
   initRepo,
 } from './vcsBootstrap.js';
 export { VcsCoordinator } from './VcsCoordinator.js';
-export { VcsManager } from './VcsManager.js';
+export { type VcsBreakerState, VcsManager } from './VcsManager.js';

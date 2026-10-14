@@ -17,6 +17,8 @@ import {
   type PluginApi,
 } from '@karmaniverous/jeeves';
 
+import { registerApiTool } from './apiTool.js';
+import { configToolConfigs, CORE_TOOLS_REPLACED } from './configTools.js';
 import { getApiUrl } from './helpers.js';
 import {
   createLazyCore,
@@ -35,19 +37,25 @@ export default function register(api: PluginApi): void {
 
   const toolApi = withGuardedTools(api, createLazyCore(api));
 
-  // 4 standard tools from core factory: watcher_status, watcher_config,
-  // watcher_config_apply, watcher_service. `apiUrl` is resolved lazily on
-  // every call, so the HTTP tools honour the configured URL (defaultPort is
-  // only core's fallback).
+  // 4 standard tools: watcher_status and watcher_service from the core
+  // factory; watcher_config and watcher_config_apply re-implemented here so
+  // they send the bearer key (core cannot attach headers). `apiUrl` is
+  // resolved lazily on every call by every tool (defaultPort is only core's
+  // fallback).
   for (const tool of createPluginToolset(
     createWatcherComponent(PLUGIN_VERSION),
     { apiUrl: () => getApiUrl(api) },
   )) {
-    toolApi.registerTool(tool, { optional: true });
+    if (!CORE_TOOLS_REPLACED.has(tool.name)) {
+      toolApi.registerTool(tool, { optional: true });
+    }
+  }
+  for (const config of configToolConfigs) {
+    registerApiTool(toolApi, () => getApiUrl(api), config);
   }
 
   // 14 domain-specific tools (search, enrich, scan, vcs, ...).
-  registerWatcherTools(toolApi, getApiUrl(api));
+  registerWatcherTools(toolApi, () => getApiUrl(api));
 
   registerWatcherPromptContext(api);
 }

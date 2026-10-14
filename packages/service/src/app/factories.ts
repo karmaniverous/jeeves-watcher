@@ -6,25 +6,35 @@
 import type pino from 'pino';
 
 import { createApiServer } from '../api';
-import { loadConfig } from '../config';
+import { loadConfig, type LoadConfigOptions } from '../config';
 import type { JeevesWatcherConfig } from '../config/types';
 import { createEmbeddingProvider } from '../embedding';
 import { createLogger } from '../logger';
 import {
   DocumentProcessor,
   type DocumentProcessorInterface,
+  type WatcherProcessor,
 } from '../processor';
 import { EventQueue } from '../queue';
 import { compileRules } from '../rules';
 import { VectorStoreClient } from '../vectorStore';
 import { FileSystemWatcher, type FileSystemWatcherOptions } from '../watcher';
 
+/** Runtime options for {@link JeevesWatcher} that aren't serializable in config. */
+export interface JeevesWatcherRuntimeOptions {
+  /** Callback invoked on unrecoverable system error. If not set, throws. */
+  onFatalError?: (error: unknown) => void;
+}
+
 /**
  * Component factories for {@link JeevesWatcher}. Override in tests to inject mocks.
  */
 export interface JeevesWatcherFactories {
   /** Load and validate a {@link JeevesWatcherConfig} from disk. */
-  loadConfig: (configPath?: string) => Promise<JeevesWatcherConfig>;
+  loadConfig: (
+    configPath?: string,
+    options?: LoadConfigOptions,
+  ) => Promise<JeevesWatcherConfig>;
   /** Create a pino logger instance. */
   createLogger: typeof createLogger;
   /** Create an embedding provider from config. */
@@ -40,7 +50,7 @@ export interface JeevesWatcherFactories {
   /** Create a document processor for file ingestion. */
   createDocumentProcessor: (
     deps: ConstructorParameters<typeof DocumentProcessor>[0],
-  ) => DocumentProcessorInterface;
+  ) => WatcherProcessor;
   /** Create an event queue for batching file-system events. */
   createEventQueue: (
     options: ConstructorParameters<typeof EventQueue>[0],

@@ -8,7 +8,7 @@
   },
   "dependencies": {
     "@commander-js/extra-typings": "^15.0.0",
-    "@karmaniverous/jeeves": "0.6.0",
+    "@karmaniverous/jeeves": "0.7.0",
     "@karmaniverous/jeeves-watcher-core": "^0.3.1",
     "@karmaniverous/jsonmap": "^2.1.1",
     "@langchain/textsplitters": "*",
@@ -20,13 +20,13 @@
     "cosmiconfig": "*",
     "dayjs": "^1.11.23",
     "fastify": "*",
-    "handlebars": "^4.7.9",
+    "handlebars": "^4.7.10",
     "hast-util-to-mdast": "^10.1.2",
-    "ignore": "^7.0.10",
-    "js-yaml": "^5.4.2",
-    "mammoth": "^1.12.3",
-    "mdast-util-from-adf": "^2.2.0",
-    "mdast-util-to-markdown": "^2.1.2",
+    "ignore": "^7.0.12",
+    "js-yaml": "^5.4.3",
+    "mammoth": "^1.13.0",
+    "mdast-util-from-adf": "^2.3.0",
+    "mdast-util-to-markdown": "^2.2.0",
     "package-directory": "^8.2.0",
     "picomatch": "^4.0.7",
     "pino": "*",
@@ -35,32 +35,32 @@
     "unified": "^11.0.5",
     "unpdf": "^1.8.1",
     "uuid": "*",
-    "zod": "^4.6.5"
+    "zod": "^4.6.7"
   },
   "description": "Filesystem watcher that keeps a Qdrant vector store in sync with document changes",
   "devDependencies": {
-    "@dotenvx/dotenvx": "^2.30.0",
+    "@dotenvx/dotenvx": "^2.35.0",
     "@rollup/plugin-alias": "^6.0.0",
     "@rollup/plugin-commonjs": "^29.0.3",
     "@rollup/plugin-json": "^6.1.0",
     "@rollup/plugin-node-resolve": "^16.0.3",
     "@rollup/plugin-typescript": "^12.3.0",
     "@types/fs-extra": "^11.0.4",
-    "@types/node": "^26.6.3",
+    "@types/node": "^26.6.5",
     "@types/picomatch": "^4.0.3",
-    "@vitest/coverage-v8": "^5.0.2",
+    "@vitest/coverage-v8": "^5.0.4",
     "cross-env": "^10.1.0",
     "fs-extra": "^11.4.1",
-    "happy-dom": "^20.14.5",
-    "knip": "^6.38.0",
-    "release-it": "^21.1.0",
-    "rollup": "^4.63.5",
+    "happy-dom": "^21.0.1",
+    "knip": "^6.41.0",
+    "release-it": "^21.1.1",
+    "rollup": "^4.64.6",
     "rollup-plugin-dts": "^6.5.1",
     "tslib": "^2.8.1",
     "typedoc": "^0.28.20",
     "typedoc-plugin-mdn-links": "^5.1.1",
     "typedoc-plugin-replace-text": "^4.2.0",
-    "vitest": "^5.0.2"
+    "vitest": "^5.0.4"
   },
   "engines": {
     "node": ">=22.13"
@@ -104,7 +104,9 @@
       "tagName": "service/${version}"
     },
     "github": {
-      "release": true
+      "release": true,
+      "releaseName": "${name.split('/').pop()}@${version}",
+      "releaseNotes": "npx git-cliff --tag service/${version} --unreleased --strip header"
     },
     "hooks": {
       "after:bump": [
@@ -123,7 +125,7 @@
         "git switch ${branchName}"
       ],
       "before:npm:release": [
-        "npx git-cliff -o CHANGELOG.md",
+        "npx git-cliff --tag service/${version} -o CHANGELOG.md",
         "git add -A"
       ]
     },

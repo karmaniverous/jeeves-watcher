@@ -3,7 +3,7 @@
  * Configuration loading and re-exports of schemas and types from core.
  */
 
-export { loadConfig } from './loadConfig';
+export { loadConfig, type LoadConfigOptions } from './loadConfig';
 export type {
   ApiConfig,
   ConfigWatchConfig,

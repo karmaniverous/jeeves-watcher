@@ -9,6 +9,16 @@ export {
   type ApplyRulesResult,
   type RuleLogger,
 } from './apply';
-export { buildAttributes, type FileAttributes } from './attributes';
+export {
+  buildAttributes,
+  type FileAttributes,
+  type RuleAttributes,
+} from './attributes';
 export { type CompiledRule, compileRules } from './compile';
+export { formatRuleErrors, type RuleApplicationError } from './ruleErrors';
+export {
+  buildSourceAttributes,
+  type SourceAttributes,
+  sourceAttributesSchema,
+} from './sourceAttributes';
 export { VirtualRuleStore } from './virtualRules';

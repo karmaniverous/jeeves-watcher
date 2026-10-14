@@ -11,6 +11,7 @@ import type pino from 'pino';
 import type { JeevesWatcherConfig } from '../../config/types';
 import { buildSyntheticAttributes } from '../../rules/attributes';
 import { compileRules } from '../../rules/compile';
+import { sendError } from '../sendError';
 import { wrapHandler } from './wrapHandler';
 
 /** Request body for POST /config/match. */
@@ -59,7 +60,11 @@ export function createConfigMatchHandler(options: ConfigMatchHandlerOptions) {
     const body = req.body as ConfigMatchRequest;
 
     if (!Array.isArray(body.paths)) {
-      res.code(400).send({ error: 'Request body must include "paths" array' });
+      sendError(
+        res,
+        'invalid_request',
+        'Request body must include "paths" array',
+      );
       return;
     }
 

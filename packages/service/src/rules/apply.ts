@@ -1,10 +1,7 @@
 /**
  * @module rules/apply
- * Applies compiled inference rules to file attributes, producing merged metadata via template resolution and JsonMap transforms.
+ * Applies compiled inference rules to file or source attributes, producing merged metadata via schema resolution, JsonMap transforms and render/template output; collects interpolation errors.
  */
-
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
 
 import {
   type Json,
@@ -18,9 +15,11 @@ import { loadNamespacedExports } from '../helpers/loadModule';
 import { createHandlebarsInstance, type TemplateEngine } from '../templates';
 import { renderDoc } from '../templates/renderDoc';
 import { normalizeError } from '../util/normalizeError';
-import type { FileAttributes } from './attributes';
+import type { RuleAttributes } from './attributes';
 import type { CompiledRule } from './compile';
 import { createJsonMapLib } from './jsonMapLib';
+import { resolveMapDefinition } from './resolveMap';
+import type { RuleApplicationError } from './ruleErrors';
 import {
   mergeSchemas,
   resolveAndCoerce,
@@ -77,6 +76,11 @@ export interface ApplyRulesResult {
   matchedRules: string[];
   /** The renderAs value from the last matching rule that declares it, or null. */
   renderAs: string | null;
+  /**
+   * Interpolation failures (schema `set` resolution, `render`, `template`)
+   * of matched rules, in order. Each was also logged as a warning.
+   */
+  errors: RuleApplicationError[];
 }
 
 /**
@@ -99,21 +103,32 @@ export interface ApplyRulesOptions {
   extractText?: (filePath: string) => string | undefined;
 }
 
+/** A content output of a rule: `render` (renderDoc) or `template`. */
+type OutputStage = Exclude<RuleApplicationError['stage'], 'schema'>;
+
+/** Log labels of the content output stages: `[empty output, failure]`. */
+const OUTPUT_LABEL: Record<OutputStage, [string, string]> = {
+  render: ['renderDoc', 'renderDoc failed'],
+  template: ['Template', 'Template render failed'],
+};
+
 /**
  * Apply compiled inference rules to file attributes, returning merged metadata and optional rendered content.
  *
  * Rules are evaluated in order; later rules override earlier ones.
  * If a rule has a `map`, the JsonMap transformation is applied after `set` resolution,
- * and map output overrides set output on conflict.
+ * and map output overrides set output on conflict. A failing schema, render
+ * or template is logged and reported in `errors`; the rule's output for that
+ * stage is skipped (a schema failure skips the rest of the rule).
  *
  * @param compiledRules - The compiled rules to evaluate.
- * @param attributes - The file attributes to match against.
+ * @param attributes - The file or source attributes to match against.
  * @param options - Optional configuration for rule application.
- * @returns The merged metadata and optional rendered content.
+ * @returns The merged metadata, optional rendered content and errors.
  */
 export async function applyRules(
   compiledRules: CompiledRule[],
-  attributes: FileAttributes,
+  attributes: RuleAttributes,
   options: ApplyRulesOptions = {},
 ): Promise<ApplyRulesResult> {
   const {
@@ -138,140 +153,111 @@ export async function applyRules(
   let renderedContent: string | null = null;
   let renderAs: string | null = null;
   const matchedRules: string[] = [];
+  const errors: RuleApplicationError[] = [];
   const log: RuleLogger = logger ?? console;
 
+  /** Record an interpolation failure; returns its message. */
+  const fail = (
+    rule: string,
+    stage: RuleApplicationError['stage'],
+    error: unknown,
+  ): string => {
+    const { message } = normalizeError(error);
+    errors.push({ rule, stage, message });
+    return message;
+  };
+
   for (const [, { rule, validate }] of compiledRules.entries()) {
-    if (validate(attributes)) {
-      matchedRules.push(rule.name);
-      // Resolve renderAs (last-match-wins)
-      if (rule.renderAs) {
-        renderAs = rule.renderAs;
+    if (!validate(attributes)) continue;
+    matchedRules.push(rule.name);
+    // Resolve renderAs (last-match-wins)
+    if (rule.renderAs) renderAs = rule.renderAs;
+
+    // Apply schema-based metadata extraction
+    if (rule.schema && rule.schema.length > 0) {
+      try {
+        const mergedSchema = mergeSchemas(rule.schema, {
+          globalSchemas,
+          configDir,
+        });
+        validateSchemaCompleteness(mergedSchema, rule.name);
+        validateFacetTypes(mergedSchema, rule.name);
+        const schemaOutput = resolveAndCoerce(mergedSchema, attributes, hbs);
+        merged = { ...merged, ...schemaOutput };
+      } catch (error) {
+        const message = fail(rule.name, 'schema', error);
+        log.warn(
+          `Schema processing failed for rule "${rule.name}": ${message}`,
+        );
+        continue;
       }
+    }
 
-      // Apply schema-based metadata extraction
-      if (rule.schema && rule.schema.length > 0) {
-        try {
-          // Merge schemas
-          const mergedSchema = mergeSchemas(rule.schema, {
-            globalSchemas,
-            configDir,
-          });
-
-          // Validate schema completeness
-          validateSchemaCompleteness(mergedSchema, rule.name);
-          validateFacetTypes(mergedSchema, rule.name);
-
-          // Resolve and coerce metadata
-          const schemaOutput = resolveAndCoerce(mergedSchema, attributes, hbs);
-          merged = { ...merged, ...schemaOutput };
-        } catch (error) {
-          log.warn(
-            `Schema processing failed for rule "${rule.name}": ${normalizeError(error).message}`,
-          );
-          continue;
-        }
-      }
-
-      // Apply map transformation if present
-      if (rule.map) {
-        let mapDef: JsonMapMap | undefined;
-
-        // Resolve map reference
-        if (typeof rule.map === 'string') {
-          if (rule.map.endsWith('.json') && configDir) {
-            // File path: load from .json file
-            try {
-              const mapPath = resolve(configDir, rule.map);
-              const raw = readFileSync(mapPath, 'utf-8');
-              mapDef = JSON.parse(raw) as JsonMapMap;
-            } catch (error) {
-              log.warn(
-                `Failed to load map file "${rule.map}": ${normalizeError(error).message}`,
-              );
-              continue;
-            }
-          } else {
-            mapDef = namedMaps?.[rule.map];
-            if (!mapDef) {
-              log.warn(
-                `Map reference "${rule.map}" not found in named maps. Skipping map transformation.`,
-              );
-              continue;
-            }
-          }
+    // Apply map transformation if present
+    if (rule.map) {
+      const mapDef = resolveMapDefinition(rule.map, namedMaps, configDir, log);
+      if (!mapDef) continue;
+      try {
+        const jsonMap = new JsonMap(mapDef, lib);
+        const mapOutput = await jsonMap.transform(
+          attributes as unknown as Json,
+        );
+        if (
+          mapOutput &&
+          typeof mapOutput === 'object' &&
+          !Array.isArray(mapOutput)
+        ) {
+          merged = { ...merged, ...(mapOutput as Record<string, unknown>) };
         } else {
-          mapDef = rule.map;
-        }
-
-        // Execute JsonMap transformation
-        try {
-          const jsonMap = new JsonMap(mapDef, lib);
-          const mapOutput = await jsonMap.transform(
-            attributes as unknown as Json,
-          );
-          if (
-            mapOutput &&
-            typeof mapOutput === 'object' &&
-            !Array.isArray(mapOutput)
-          ) {
-            merged = { ...merged, ...(mapOutput as Record<string, unknown>) };
-          } else {
-            log.warn(
-              `JsonMap transformation did not return an object; skipping merge.`,
-            );
-          }
-        } catch (error) {
           log.warn(
-            `JsonMap transformation failed: ${normalizeError(error).message}`,
+            `JsonMap transformation did not return an object; skipping merge.`,
           );
         }
+      } catch (error) {
+        log.warn(
+          `JsonMap transformation failed: ${normalizeError(error).message}`,
+        );
       }
-      // Build template context: attributes (with json spread at top) + map output
-      const context: Record<string, unknown> = {
-        ...(attributes.json ?? {}),
-        ...attributes,
-        ...merged,
-      };
+    }
 
-      // Render via renderDoc if present
-      if (rule.render) {
-        try {
-          const result = renderDoc(context, rule.render, hbs);
-          if (result && result.trim()) {
-            renderedContent = result;
-          } else {
-            log.warn(
-              `renderDoc for rule "${rule.name}" rendered empty output. Falling back to raw content.`,
-            );
-          }
-        } catch (error) {
+    // Build template context: attributes (with json spread at top) + map output
+    const context: Record<string, unknown> = {
+      ...(attributes.json ?? {}),
+      ...attributes,
+      ...merged,
+    };
+
+    // renderDoc first, then the template (which wins when both render).
+    const { render, template } = rule;
+    const outputs: Array<[OutputStage, (() => string | null) | undefined]> = [
+      ['render', render ? () => renderDoc(context, render, hbs) : undefined],
+      [
+        'template',
+        template && templateEngine
+          ? () => templateEngine.render(rule.name, context)
+          : undefined,
+      ],
+    ];
+    for (const [stage, produce] of outputs) {
+      if (!produce) continue;
+      const [label, failure] = OUTPUT_LABEL[stage];
+      try {
+        const result = produce();
+        if (result?.trim()) {
+          renderedContent = result;
+        } else {
           log.warn(
-            `renderDoc failed for rule "${rule.name}": ${normalizeError(error).message}. Falling back to raw content.`,
+            `${label} for rule "${rule.name}" rendered empty output. Falling back to raw content.`,
           );
         }
-      }
-
-      // Render template if present
-      if (rule.template && templateEngine) {
-        const templateKey = rule.name;
-
-        try {
-          const result = templateEngine.render(templateKey, context);
-          if (result && result.trim()) {
-            renderedContent = result;
-          } else {
-            log.warn(
-              `Template for rule "${rule.name}" rendered empty output. Falling back to raw content.`,
-            );
-          }
-        } catch (error) {
-          log.warn(
-            `Template render failed for rule "${rule.name}": ${normalizeError(error).message}. Falling back to raw content.`,
-          );
-        }
+      } catch (error) {
+        const message = fail(rule.name, stage, error);
+        log.warn(
+          `${failure} for rule "${rule.name}": ${message}. Falling back to raw content.`,
+        );
       }
     }
   }
 
-  return { metadata: merged, renderedContent, matchedRules, renderAs };
+  return { metadata: merged, renderedContent, matchedRules, renderAs, errors };
 }

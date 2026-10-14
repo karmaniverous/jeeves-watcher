@@ -5,13 +5,13 @@
 
 import type pino from 'pino';
 
-import { executeReindex } from '../api/executeReindex';
+import { executeReindex, reindexDepsFrom } from '../api/executeReindex';
 import type { InitialScanTracker } from '../api/InitialScanTracker';
 import type { ContentHashCache } from '../cache';
 import type { JeevesWatcherConfig } from '../config/types';
 import type { GitignoreFilter } from '../gitignore';
 import type { IssuesManager } from '../issues';
-import type { DocumentProcessorInterface } from '../processor';
+import type { WatcherProcessor } from '../processor';
 import type { EventQueue } from '../queue';
 import { normalizeError } from '../util/normalizeError';
 import type { ValuesManager } from '../values';
@@ -35,7 +35,7 @@ interface ReloadDeps {
   configPath: string;
   factories: JeevesWatcherFactories;
   queue: EventQueue;
-  processor: DocumentProcessorInterface;
+  processor: WatcherProcessor;
   logger: pino.Logger;
   runtimeOptions: {
     maxRetries?: number;
@@ -67,7 +67,11 @@ export async function reloadConfig(
 
   try {
     const oldConfig = state.config;
-    const newConfig = await deps.factories.loadConfig(configPath);
+    const newConfig = await deps.factories.loadConfig(configPath, {
+      onWarning: (warning) => {
+        logger.warn({ path: warning.path }, warning.message);
+      },
+    });
     state.config = newConfig;
 
     const compiledRules = deps.factories.compileRules(
@@ -110,15 +114,15 @@ export async function reloadConfig(
     );
 
     await executeReindex(
-      {
-        config: newConfig,
+      reindexDepsFrom({
+        getConfig: () => newConfig,
         processor,
         logger,
         valuesManager: deps.valuesManager,
         issuesManager: deps.issuesManager,
         gitignoreFilter: state.gitignoreFilter,
-      },
-      reindexScope,
+      }),
+      { scope: reindexScope },
     );
   } catch (error) {
     logger.error({ err: normalizeError(error) }, 'Failed to reload config');

@@ -3,22 +3,35 @@
  * Gemini embedding provider using the Google Generative AI REST API directly.
  * Uses node:https with a keep-alive agent for reliable performance in
  * long-running processes (avoids undici/fetch event-loop contention).
+ * HTTP 429 is not retried here: it surfaces as an EmbeddingRateLimitError
+ * carrying `Retry-After`, for the shared limiter to handle. Other failures
+ * are retried, each retry first awaiting the limiter's `beforeRetry` (one
+ * token per HTTP request).
  */
 
+import type { IncomingHttpHeaders } from 'node:http';
 import https from 'node:https';
 
 import type pino from 'pino';
 
+import { EMBEDDING_DEFAULTS } from '../config/defaults';
 import type { EmbeddingConfig } from '../config/types';
 import { getLogger } from '../util/logger';
 import { normalizeError } from '../util/normalizeError';
-import { retry } from '../util/retry';
-import type { EmbeddingProvider } from './types';
+import { NETWORK_RETRY_POLICY, retry } from '../util/retry';
+import {
+  EmbeddingRateLimitError,
+  EmbeddingUnavailableError,
+  parseRetryAfterMs,
+} from './rateLimitError';
+import type { EmbeddingProvider, EmbedOptions } from './types';
 
-/** Shape of a single embedding request within a batch. */
+/** Shape of a single embedding request within a batch (`EmbedContentRequest`). */
 interface EmbedRequest {
   model: string;
   content: { parts: Array<{ text: string }> };
+  /** Requested vector size (the configured `dimensions`). */
+  outputDimensionality: number;
 }
 
 /** Shape of the batchEmbedContents API response. */
@@ -35,7 +48,11 @@ const agent = new https.Agent({ keepAlive: true });
 function httpsPost(
   url: string,
   body: string,
-): Promise<{ status: number; body: string }> {
+): Promise<{
+  status: number;
+  body: string;
+  headers: IncomingHttpHeaders;
+}> {
   return new Promise((resolve, reject) => {
     const parsed = new URL(url);
     const req = https.request(
@@ -56,6 +73,7 @@ function httpsPost(
           resolve({
             status: res.statusCode ?? 0,
             body: Buffer.concat(chunks).toString('utf8'),
+            headers: res.headers,
           });
         });
       },
@@ -68,6 +86,10 @@ function httpsPost(
 
 /**
  * Create a Gemini embedding provider using the Google Generative AI REST API.
+ * Every request asks for vectors of the configured `dimensions`
+ * (`outputDimensionality`), so a size below the model's native one (e.g.
+ * 768 for `gemini-embedding-001`, native 3072) is honoured; a response of
+ * any other size fails.
  *
  * @param config - The embedding configuration.
  * @param logger - Optional pino logger for retry warnings.
@@ -84,7 +106,7 @@ export function createGeminiProvider(
     );
   }
 
-  const dimensions = config.dimensions ?? 3072;
+  const dimensions = config.dimensions ?? EMBEDDING_DEFAULTS.dimensions;
   const model = config.model;
   const apiKey = config.apiKey;
   const log = getLogger(logger);
@@ -93,10 +115,15 @@ export function createGeminiProvider(
 
   return {
     dimensions,
-    async embed(texts: string[]): Promise<number[][]> {
+    async embed(
+      texts: string[],
+      options: EmbedOptions = {},
+    ): Promise<number[][]> {
       const vectors = await retry(
         async (attempt) => {
           if (attempt > 1) {
+            // Each retry is another request: draw from the shared limiter.
+            await options.beforeRetry?.();
             log.warn(
               { attempt, provider: 'gemini', model },
               'Retrying embedding request',
@@ -106,9 +133,17 @@ export function createGeminiProvider(
           const requests: EmbedRequest[] = texts.map((text) => ({
             model: `models/${model}`,
             content: { parts: [{ text }] },
+            outputDimensionality: dimensions,
           }));
 
           const response = await httpsPost(url, JSON.stringify({ requests }));
+
+          if (response.status === 429) {
+            throw new EmbeddingRateLimitError(
+              `Gemini API error 429: ${response.body}`,
+              parseRetryAfterMs(response.headers['retry-after'], response.body),
+            );
+          }
 
           if (response.status < 200 || response.status >= 300) {
             throw new Error(
@@ -120,10 +155,10 @@ export function createGeminiProvider(
           return data.embeddings.map((e) => e.values);
         },
         {
-          attempts: 5,
-          baseDelayMs: 500,
-          maxDelayMs: 10_000,
-          jitter: 0.2,
+          ...NETWORK_RETRY_POLICY,
+          shouldRetry: (error) =>
+            !(error instanceof EmbeddingRateLimitError) &&
+            !(error instanceof EmbeddingUnavailableError),
           onRetry: ({ attempt, delayMs, error }) => {
             log.warn(
               {

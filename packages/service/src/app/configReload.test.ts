@@ -7,7 +7,7 @@ import pino from 'pino';
 import { describe, expect, it, vi } from 'vitest';
 
 import type { JeevesWatcherConfig } from '../config/types';
-import type { DocumentProcessorInterface } from '../processor';
+import type { WatcherProcessor } from '../processor';
 import { reloadConfig } from './configReload';
 import type { JeevesWatcherFactories } from './factories';
 
@@ -31,7 +31,7 @@ function makeDeps(
   const logger = pino({ level: 'silent' });
   const processor = {
     updateRules: vi.fn(),
-  } as unknown as DocumentProcessorInterface;
+  } as unknown as WatcherProcessor;
 
   const factories = {
     loadConfig: vi.fn().mockResolvedValue(loadedConfig),
@@ -173,5 +173,43 @@ describe('reloadConfig', () => {
     expect(createWatcher).not.toHaveBeenCalled();
     expect(state.watcher).toBe(oldWatcher);
     expect(state.config).toBe(newConfig);
+  });
+
+  it('logs each load warning once, as loadConfig reports it', async () => {
+    const config = {
+      ...makeConfig(),
+      inferenceRules: [
+        { name: 'r', schema: [{ properties: { file_path: {} } }] },
+      ],
+    } as unknown as JeevesWatcherConfig;
+    const { processor, factories } = makeDeps(config);
+    const warning = {
+      path: 'inferenceRules[r].schema.file_path',
+      message: 'm',
+    };
+    vi.mocked(factories.loadConfig).mockImplementation((_path, options) => {
+      options?.onWarning?.(warning);
+      return Promise.resolve(config);
+    });
+    const warn = vi.fn();
+    const logger = { info: vi.fn(), warn, error: vi.fn(), debug: vi.fn() };
+
+    await reloadConfig(
+      { config, watcher: undefined, gitignoreFilter: undefined },
+      {
+        configPath: '/path/to/config.json',
+        factories,
+        queue: {} as never,
+        processor,
+        logger: logger as unknown as pino.Logger,
+        runtimeOptions: {},
+        initialScanTracker: {} as never,
+      },
+    );
+
+    expect(warn).toHaveBeenCalledExactlyOnceWith(
+      { path: warning.path },
+      warning.message,
+    );
   });
 });

@@ -1,29 +1,33 @@
 /**
  * @module processor/processingPipeline
- * Extracted embed→chunk→upsert pipeline for DocumentProcessor.
+ * Chunk, embed and upsert pipeline, shared by file and source documents (identity decides point IDs and identity fields).
  */
 
 import type pino from 'pino';
 
 import type { EmbeddingProvider } from '../embedding';
-import { contentHash } from '../hash';
-import { pointId } from '../pointId';
-import { normalizeSlashes } from '../util/normalizeSlashes';
 import type { VectorStore } from '../vectorStore';
-import { chunkIds, getChunkCount } from './chunkIds';
+import { getChunkCount } from './chunkIds';
+import {
+  documentChunkIds,
+  type DocumentIdentity,
+  documentPointId,
+  identityLogFields,
+} from './documentIdentity';
+import { withIssueType } from './issueRecording';
 import { computeLineOffsets } from './lineOffsets';
 import {
   FIELD_CHUNK_INDEX,
   FIELD_CHUNK_TEXT,
   FIELD_CONTENT_HASH,
   FIELD_CREATED_AT,
-  FIELD_FILE_PATH,
   FIELD_LINE_END,
   FIELD_LINE_START,
   FIELD_MODIFIED_AT,
   FIELD_TOTAL_CHUNKS,
 } from './payloadFields';
 import type { Splitter } from './splitter';
+import { withSystemFields } from './systemFields';
 
 /** Default number of points to upsert per batch (prevents OOM on large files). */
 const DEFAULT_UPSERT_BATCH_SIZE = 50;
@@ -43,24 +47,52 @@ interface PipelineDeps {
   upsertBatchSize?: number;
 }
 
+/** Document creation and modification timestamps (unix seconds). */
+export interface DocumentDates {
+  /** Creation time. */
+  createdAt: number;
+  /** Modification time. */
+  modifiedAt: number;
+}
+
+/** The document fields the embed-and-upsert pipeline writes. */
+export interface EmbeddableDocument {
+  /** The document identity (point IDs and identity fields). */
+  identity: DocumentIdentity;
+  /** The text to chunk and embed. */
+  text: string;
+  /** Metadata attached to every chunk point (reserved names are dropped). */
+  metadata: Record<string, unknown>;
+  /** Rules the pipeline applied (written as `matched_rules`). */
+  matchedRules?: readonly string[];
+  /** Log label naming the document kind (e.g. `File`, `Source document`). */
+  logLabel: string;
+}
+
+/** Per-write inputs of {@link embedAndUpsertDocument}. */
+export interface EmbedWriteOptions {
+  /** Existing chunk-0 payload (for orphan cleanup), or null. */
+  existing: Record<string, unknown> | null;
+  /** Creation and modification timestamps (unix seconds). */
+  dates: DocumentDates;
+  /** Content hash of `document.text` (computed once by the caller). */
+  hash: string;
+}
+
 /**
  * Embed text chunks, upsert to vector store, and clean up orphaned chunks.
  *
  * @param deps - Pipeline dependencies (embedding provider, vector store, splitter, logger).
- * @param text - The text content to embed.
- * @param filePath - The file path (used for point IDs).
- * @param metadata - Metadata to attach to each chunk point.
- * @param existingPayload - Existing payload from the vector store (for orphan cleanup), or null.
- * @param fileDates - File creation and modification timestamps (unix seconds).
+ * @param document - The document to write.
+ * @param options - Existing chunk-0 payload, dates and content hash.
+ * @returns The number of chunks written.
+ * @throws ProcessingFailure `embedding_error` (nothing upserted) or `upsert_error`.
  */
-export async function embedAndUpsert(
+export async function embedAndUpsertDocument(
   deps: PipelineDeps,
-  text: string,
-  filePath: string,
-  metadata: Record<string, unknown>,
-  existingPayload: Record<string, unknown> | null,
-  fileDates: { createdAt: number; modifiedAt: number },
-): Promise<void> {
+  document: EmbeddableDocument,
+  options: EmbedWriteOptions,
+): Promise<number> {
   const {
     embeddingProvider,
     vectorStore,
@@ -68,9 +100,10 @@ export async function embedAndUpsert(
     logger,
     upsertBatchSize = DEFAULT_UPSERT_BATCH_SIZE,
   } = deps;
+  const { identity, text, metadata, matchedRules } = document;
+  const { existing, dates, hash } = options;
 
-  const oldTotalChunks = getChunkCount(existingPayload);
-  const hash = contentHash(text);
+  const oldTotalChunks = getChunkCount(existing);
 
   // Chunk text
   const chunks = await splitter.splitText(text);
@@ -79,46 +112,52 @@ export async function embedAndUpsert(
   const offsets = computeLineOffsets(text, chunks);
 
   // Embed chunks in batches to respect Gemini's 100-doc limit
-  const allVectors: number[][] = [];
-  for (let start = 0; start < chunks.length; start += EMBED_BATCH_SIZE) {
-    const batch = chunks.slice(start, start + EMBED_BATCH_SIZE);
-    const batchVectors = await embeddingProvider.embed(batch);
-    allVectors.push(...batchVectors);
-  }
-  const vectors = allVectors;
+  const vectors = await withIssueType('embedding_error', async () => {
+    const allVectors: number[][] = [];
+    for (let start = 0; start < chunks.length; start += EMBED_BATCH_SIZE) {
+      const batch = chunks.slice(start, start + EMBED_BATCH_SIZE);
+      allVectors.push(...(await embeddingProvider.embed(batch)));
+    }
+    return allVectors;
+  });
 
   // Build all points
+  const base = withSystemFields(metadata, identity, matchedRules);
   const points = chunks.map((chunk, i) => ({
-    id: pointId(filePath, i),
+    id: documentPointId(identity, i),
     vector: vectors[i],
     payload: {
-      ...metadata,
-      [FIELD_FILE_PATH]: normalizeSlashes(filePath),
+      ...base,
       [FIELD_CHUNK_INDEX]: i,
       [FIELD_TOTAL_CHUNKS]: chunks.length,
       [FIELD_CONTENT_HASH]: hash,
       [FIELD_CHUNK_TEXT]: chunk,
-      [FIELD_CREATED_AT]: fileDates.createdAt,
-      [FIELD_MODIFIED_AT]: fileDates.modifiedAt,
+      [FIELD_CREATED_AT]: dates.createdAt,
+      [FIELD_MODIFIED_AT]: dates.modifiedAt,
       [FIELD_LINE_START]: offsets[i]?.lineStart ?? 1,
       [FIELD_LINE_END]: offsets[i]?.lineEnd ?? 1,
     },
   }));
 
-  // Upsert in batches to avoid OOM on large files (#162)
-  const batchSize = Math.max(1, upsertBatchSize);
-  for (let start = 0; start < points.length; start += batchSize) {
-    await vectorStore.upsert(points.slice(start, start + batchSize));
-  }
+  await withIssueType('upsert_error', async () => {
+    // Upsert in batches to avoid OOM on large files (#162)
+    const batchSize = Math.max(1, upsertBatchSize);
+    for (let start = 0; start < points.length; start += batchSize) {
+      await vectorStore.upsert(points.slice(start, start + batchSize));
+    }
 
-  // Clean up orphaned chunks
-  if (oldTotalChunks > chunks.length) {
-    const orphanIds = chunkIds(filePath, oldTotalChunks).slice(chunks.length);
-    await vectorStore.delete(orphanIds);
-  }
+    // Clean up orphaned chunks
+    if (oldTotalChunks > chunks.length) {
+      const orphanIds = documentChunkIds(identity, oldTotalChunks).slice(
+        chunks.length,
+      );
+      await vectorStore.delete(orphanIds);
+    }
+  });
 
   logger.info(
-    { filePath, chunks: chunks.length },
-    'File processed successfully',
+    { ...identityLogFields(identity), chunks: chunks.length },
+    `${document.logLabel} processed successfully`,
   );
+  return chunks.length;
 }

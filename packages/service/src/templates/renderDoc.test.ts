@@ -13,7 +13,7 @@ describe('renderDoc', () => {
 
   it('renders frontmatter and body sections', () => {
     const out = renderDoc(
-      { key: 'WEB-1', summary: 'Hello', description: '# Inner\ntext' },
+      { key: 'PROJ-1', summary: 'Hello', description: '# Inner\ntext' },
       {
         frontmatter: ['key'],
         body: [
@@ -30,7 +30,7 @@ describe('renderDoc', () => {
     );
 
     expect(out).toContain('---');
-    expect(out).toContain('key: WEB-1');
+    expect(out).toContain('key: PROJ-1');
     expect(out).toContain('# Summary');
   });
 

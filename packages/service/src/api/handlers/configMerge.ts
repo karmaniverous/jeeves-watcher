@@ -3,20 +3,12 @@
  * Shared config merge utilities.
  */
 
+import { isPlainObject } from '@karmaniverous/jeeves-watcher-core';
+
 /** A validation error entry. */
 export interface ValidationError {
   path: string;
   message: string;
-}
-
-/**
- * Check whether a value is a plain object (not null, not an array).
- *
- * @param value - Value to check.
- * @returns True for plain objects.
- */
-function isPlainObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 /**

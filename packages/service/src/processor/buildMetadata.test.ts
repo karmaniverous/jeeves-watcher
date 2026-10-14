@@ -25,6 +25,7 @@ vi.mock('../rules', () => ({
     renderedContent: null,
     matchedRules: ['rule-1'],
     renderAs: null,
+    errors: [],
   }),
 }));
 
@@ -87,7 +88,7 @@ describe('buildMergedMetadata', () => {
       category: 'override',
       extra: 'yes',
     });
-    expect(result.enrichment).toEqual({ category: 'override', extra: 'yes' });
+    expect(result.inferred).toEqual({ category: 'doc' });
   });
 
   it('handles null enrichment gracefully', async () => {
@@ -99,26 +100,20 @@ describe('buildMergedMetadata', () => {
       enrichmentStore,
     });
 
-    expect(result.enrichment).toBeNull();
     expect(result.metadata).toEqual({ category: 'doc' });
+    expect(result.metadata).not.toBe(result.inferred);
   });
 
   it('passes options through to applyRules', async () => {
-    const logger = { info: vi.fn() } as unknown as Parameters<
-      typeof buildMergedMetadata
-    >[0]['logger'];
+    const ruleOptions = { configDir: '/cfg' };
 
     await buildMergedMetadata({
       filePath: testFile,
       compiledRules: [],
-      logger,
+      ruleOptions,
     });
 
-    expect(applyRules).toHaveBeenCalledWith(
-      [],
-      expect.anything(),
-      expect.objectContaining({ logger }),
-    );
+    expect(applyRules).toHaveBeenCalledWith([], expect.anything(), ruleOptions);
   });
 
   it('returns renderAs: null when no rule declares renderAs', async () => {
@@ -136,6 +131,7 @@ describe('buildMergedMetadata', () => {
       renderedContent: null,
       matchedRules: ['rule-md'],
       renderAs: 'md',
+      errors: [],
     });
 
     const result = await buildMergedMetadata({
@@ -152,6 +148,7 @@ describe('buildMergedMetadata', () => {
       renderedContent: null,
       matchedRules: ['rule-md', 'rule-html'],
       renderAs: 'html',
+      errors: [],
     });
 
     const result = await buildMergedMetadata({
@@ -160,6 +157,26 @@ describe('buildMergedMetadata', () => {
     });
 
     expect(result.renderAs).toBe('html');
+  });
+
+  it('returns applyRules errors as ruleErrors', async () => {
+    const errors = [
+      { rule: 'rule-1', stage: 'template' as const, message: 'boom' },
+    ];
+    vi.mocked(applyRules).mockResolvedValueOnce({
+      metadata: { category: 'doc' },
+      renderedContent: null,
+      matchedRules: ['rule-1'],
+      renderAs: null,
+      errors,
+    });
+
+    const result = await buildMergedMetadata({
+      filePath: testFile,
+      compiledRules: [],
+    });
+
+    expect(result.ruleErrors).toEqual(errors);
   });
 
   it('includes extracted text in result', async () => {

@@ -131,6 +131,7 @@ function defaultMergedMetadata() {
     inferred: { domain: 'test' },
     enrichment: null,
     attributes: {},
+    dates: { createdAt: 1700000000, modifiedAt: 1700100000 },
   };
 }
 

@@ -13,7 +13,7 @@ import { BinaryFileStore } from '../util/BinaryFileStore';
 export type ValuesIndex = Record<string, Record<string, unknown[]>>;
 
 /**
- * Manages a persistent values.json file tracking distinct metadata values per rule.
+ * Manages a persistent values.v8 file tracking distinct metadata values per rule.
  */
 export class ValuesManager extends BinaryFileStore<ValuesIndex> {
   constructor(stateDir: string, logger: pino.Logger) {

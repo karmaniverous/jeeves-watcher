@@ -4,11 +4,18 @@
  * watcher descriptor and a config file outside any derived configRoot path.
  */
 
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import Fastify, { type FastifyInstance } from 'fastify';
+import pino from 'pino';
 import {
   afterEach,
   beforeEach,
@@ -20,6 +27,7 @@ import {
 } from 'vitest';
 
 import { watcherDescriptor } from '../../descriptor';
+import { PUBLIC_CONFIG_KEYS } from '../publicConfig';
 import { createConfigApplyRouteHandler } from './configApply';
 
 const baseConfig = {
@@ -61,6 +69,7 @@ describe('POST /config/apply', () => {
         descriptor: watcherDescriptor,
         configPath,
         onConfigApply,
+        logger: pino({ level: 'silent' }),
       }),
     );
   });
@@ -118,6 +127,63 @@ describe('POST /config/apply', () => {
   it('rejects a non-object patch', async () => {
     const res = await post({ patch: [1, 2] });
     expect(res.statusCode).toBe(400);
+  });
+
+  it('answers an unreadable config file with a generic 500 (no path)', async () => {
+    rmSync(configPath);
+    mkdirSync(configPath); // reading a directory fails (EISDIR)
+    const res = await post({ patch: {} });
+    expect(res.statusCode).toBe(500);
+    expect(res.json()).toEqual({
+      code: 'internal_error',
+      error: 'Internal Server Error',
+      message: 'Internal server error',
+    });
+    expect(res.body).not.toContain('custom-name.json');
+    expect(onConfigApply).not.toHaveBeenCalled();
+  });
+
+  it('never echoes secrets: the returned config is allow-listed like GET /config', async () => {
+    writeFileSync(
+      configPath,
+      JSON.stringify({
+        ...baseConfig,
+        embedding: { ...baseConfig.embedding, apiKey: 'embed-secret' },
+        api: { apiKey: 'api-secret' },
+        sources: {
+          app: {
+            url: 'http://x/{id}',
+            headers: { Authorization: 'Bearer source-secret' },
+          },
+        },
+      }),
+    );
+    const res = await post({ patch: { watch: { debounceMs: 250 } } });
+    expect(res.statusCode).toBe(200);
+    const body = res.json<{ applied: boolean; config: object }>();
+    expect(body.applied).toBe(true);
+    for (const key of Object.keys(body.config)) {
+      expect(PUBLIC_CONFIG_KEYS).toContain(key);
+    }
+    for (const key of ['api', 'sources', 'embedding', 'vectorStore']) {
+      expect(body.config).not.toHaveProperty(key);
+    }
+    expect(body.config).toMatchObject({ watch: { debounceMs: 250 } });
+    expect(res.body).not.toMatch(/secret/);
+  });
+
+  it('reports a failed apply callback as 200 with warning, still redacted', async () => {
+    writeFileSync(
+      configPath,
+      JSON.stringify({ ...baseConfig, api: { apiKey: 'api-secret' } }),
+    );
+    onConfigApply.mockRejectedValueOnce(new Error('reload failed'));
+    const res = await post({ patch: {} });
+    expect(res.statusCode).toBe(200);
+    const body = res.json<{ warning: string; config: object }>();
+    expect(body.warning).toContain('reload failed');
+    expect(body.config).not.toHaveProperty('api');
+    expect(res.body).not.toContain('api-secret');
   });
 
   it('replace: true validates the patch on its own', async () => {

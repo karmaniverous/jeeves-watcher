@@ -5,6 +5,8 @@
 
 import { z } from 'zod';
 
+import { payloadIndexesSchema } from './payloadIndexes.js';
+
 /**
  * Embedding model configuration.
  */
@@ -13,13 +15,13 @@ export const embeddingConfigSchema = z.object({
   provider: z
     .string()
     .default('gemini')
-    .describe('Embedding provider name (e.g., "gemini", "openai").'),
+    .describe('Embedding provider name. Default: "gemini".'),
   /** The embedding model name. */
   model: z
     .string()
     .default('gemini-embedding-001')
     .describe(
-      'Embedding model identifier (e.g., "gemini-embedding-001", "text-embedding-3-small").',
+      'Embedding model identifier for the provider. Default: "gemini-embedding-001".',
     ),
   /** Maximum tokens per chunk for splitting. */
   chunkSize: z
@@ -76,6 +78,12 @@ export const vectorStoreConfigSchema = z.object({
     .optional()
     .describe(
       'Qdrant API key for authentication (supports ${ENV_VAR} substitution).',
+    ),
+  /** Payload indexes created at startup when missing (never dropped). */
+  payloadIndexes: payloadIndexesSchema
+    .optional()
+    .describe(
+      'Qdrant payload indexes created at startup when missing (never dropped). Each field at most once; source and source_rule are always indexed and cannot be listed. Default: none.',
     ),
 });
 

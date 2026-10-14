@@ -4,6 +4,7 @@
  * @packageDocumentation
  */
 
+export * from './api/index.js';
 export {
   COMPONENT_NAME,
   CORE_PACKAGE,
@@ -17,6 +18,7 @@ export {
   EMBEDDING_DEFAULTS,
   INIT_CONFIG_TEMPLATE,
   LOGGING_DEFAULTS,
+  REINDEX_DEFAULTS,
   ROOT_DEFAULTS,
   VCS_DEFAULTS,
   WATCH_DEFAULTS,
@@ -30,6 +32,23 @@ export {
   WATCHER_ENDPOINTS,
 } from './endpoints.js';
 export {
+  API_KEY_ENV_VAR,
+  bearerHeaders,
+  formatHttpError,
+  httpError,
+  type HttpErrorInfo,
+  tryParseJson,
+  unauthorizedMessage,
+} from './httpContract.js';
+export {
+  findReservedPropertyNames,
+  isReservedPayloadField,
+  PAYLOAD_FIELD,
+  RESERVED_PAYLOAD_FIELDS,
+  type ReservedPayloadField,
+  SYSTEM_PAYLOAD_INDEX_FIELDS,
+} from './reservedFields.js';
+export {
   type ApiConfig,
   apiConfigSchema,
   type ConfigWatchConfig,
@@ -39,6 +58,8 @@ export {
   extractWatchPathStrings,
   type InferenceRule,
   inferenceRuleSchema,
+  isPrincipalIndexType,
+  isTenantIndexType,
   type JeevesWatcherConfig,
   type JeevesWatcherConfigInput,
   jeevesWatcherConfigSchema,
@@ -46,9 +67,32 @@ export {
   loggingConfigSchema,
   type NormalizedWatchPath,
   normalizeWatchPaths,
+  type PayloadIndexConfig,
+  payloadIndexesSchema,
+  payloadIndexSchema,
+  type PayloadIndexType,
+  payloadIndexTypeSchema,
+  type PrincipalIndexType,
   type RenderBodySection,
+  renderBodySectionSchema,
   type RenderConfig,
+  renderConfigSchema,
   type SchemaEntry,
+  schemaEntrySchema,
+  SOURCE_DOCUMENT_GONE_STATUS,
+  SOURCE_ID_PLACEHOLDER,
+  SOURCE_NAME_PATTERN,
+  SOURCE_REFERENCE_PATTERN,
+  type SourceConfig,
+  sourceConfigSchema,
+  type SourceDocument,
+  sourceDocumentSchema,
+  sourceNameSchema,
+  type SourceReference,
+  sourceReferenceSchema,
+  type SourcesConfig,
+  sourcesConfigSchema,
+  type TenantIndexType,
   type VcsAuthorConfig,
   vcsAuthorConfigSchema,
   type VcsCommitMessageConfig,

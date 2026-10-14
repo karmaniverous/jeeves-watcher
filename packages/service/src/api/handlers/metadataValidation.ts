@@ -3,9 +3,11 @@
  * Validates metadata enrichment payload against resolved schemas for matched inference rules.
  */
 
+import { isPlainObject } from '@karmaniverous/jeeves-watcher-core';
+
 import type { JeevesWatcherConfig } from '../../config/types';
 import { buildSyntheticAttributes } from '../../rules/attributes';
-import { compileRules } from '../../rules/compile';
+import { type CompiledRule, compileRules } from '../../rules/compile';
 import { mergeSchemas } from '../../rules/schemaMerge';
 
 interface ValidationDetail {
@@ -30,10 +32,6 @@ interface MetadataValidationError {
 
 type MetadataValidationOutcome =
   MetadataValidationResult | MetadataValidationError;
-
-function isPlainObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
 
 function isValueValidForType(value: unknown, expectedType: string): boolean {
   switch (expectedType) {
@@ -83,6 +81,40 @@ export function validateMetadataPayload(
   const attrs = buildSyntheticAttributes(path);
 
   const matched = compiled.filter((r) => r.validate(attrs));
+  return validateAgainstRules(config, matched, metadata, configDir);
+}
+
+/**
+ * Validate a metadata payload for a source document against its designated
+ * rule's schema. The caller resolves the rule with the processor's own
+ * lookup (`SourceOperations.compiledRule`), so validation and processing
+ * can never disagree about which rule applies. A designated rule that no
+ * longer exists validates nothing and matches nothing.
+ *
+ * @param config - Live config (global schemas).
+ * @param rule - The designated rule, compiled; `undefined` when it no longer exists.
+ * @param metadata - Enrichment metadata.
+ * @param configDir - Config directory for schema file references.
+ * @returns The validation outcome.
+ */
+export function validateSourceMetadataPayload(
+  config: JeevesWatcherConfig,
+  rule: CompiledRule | undefined,
+  metadata: Record<string, unknown>,
+  configDir?: string,
+): MetadataValidationOutcome {
+  return validateAgainstRules(config, rule ? [rule] : [], metadata, configDir);
+}
+
+/**
+ * Validate metadata values against the merged schemas of the given rules.
+ */
+function validateAgainstRules(
+  config: JeevesWatcherConfig,
+  matched: CompiledRule[],
+  metadata: Record<string, unknown>,
+  configDir?: string,
+): MetadataValidationOutcome {
   const matchedNames = matched.map((m) => m.rule.name);
 
   const schemaRefs = matched.flatMap((m) => m.rule.schema ?? []);

@@ -6,7 +6,12 @@
 import { type PluginApi } from '@karmaniverous/jeeves';
 import { getEndpoint } from '@karmaniverous/jeeves-watcher-core';
 
-import { type ApiToolConfig, pickDefined, registerApiTool } from './apiTool.js';
+import {
+  type ApiToolConfig,
+  type BaseUrlSource,
+  pickDefined,
+  registerApiTool,
+} from './apiTool.js';
 import { vcsToolConfigs } from './vcsTools.js';
 
 /**
@@ -17,8 +22,16 @@ import { vcsToolConfigs } from './vcsTools.js';
  * OpenClaw Tool Search keeps them model-visible: semantic search must be a
  * direct tool or the model reaches for grep first. All other tools remain
  * catalog-eligible.
+ *
+ * @param api - Plugin API.
+ * @param baseUrl - API base URL, or a getter resolved on every call (so a
+ *   changed `apiUrl` takes effect without re-registering, as for the config
+ *   tools).
  */
-export function registerWatcherTools(api: PluginApi, baseUrl: string): void {
+export function registerWatcherTools(
+  api: PluginApi,
+  baseUrl: BaseUrlSource,
+): void {
   const tools: ApiToolConfig[] = [
     {
       name: 'watcher_search',
@@ -177,7 +190,7 @@ export function registerWatcherTools(api: PluginApi, baseUrl: string): void {
     {
       name: 'watcher_issues',
       description:
-        'Get runtime embedding failures. Shows files that failed processing and why.',
+        'Get runtime processing failures. Shows the documents (file path or source reference) that failed processing and why.',
       parameters: { type: 'object', properties: {} },
       buildRequest: () => [getEndpoint('issues').path],
     },

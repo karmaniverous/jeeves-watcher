@@ -1,49 +1,49 @@
+/**
+ * @module api/handlers/configReindex.test
+ * POST /reindex handler: non-prune scopes resolve their targets once (prepareReindex) and the live run reuses them; dry runs only prepare; prune keeps its own path (live: no plan, dry: executeReindex plan); invalid path targets are 4xx.
+ */
+
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import pino from 'pino';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { JeevesWatcherConfig } from '../../config/types';
 import type { IssuesManager } from '../../issues';
 import type { DocumentProcessor } from '../../processor';
 import type { ValuesManager } from '../../values';
+import { executeReindex, prepareReindex } from '../executeReindex';
 import { ReindexTracker } from '../ReindexTracker';
+import { RequestError } from '../requestError';
 import type { ConfigReindexRouteDeps } from './configReindex';
 import { createConfigReindexHandler } from './configReindex';
 
-// Mock executeReindex to avoid actual file processing
-vi.mock('../executeReindex', () => ({
-  VALID_REINDEX_SCOPES: ['issues', 'full', 'rules', 'path', 'prune'],
-  executeReindex: vi.fn().mockResolvedValue({
+const PLAN = { total: 5, toProcess: 5, toDelete: 0, byRoot: {} };
+const PREPARED = { plan: PLAN, fileList: ['a.md'], sources: undefined };
+
+// Mock the reindex execution to avoid actual file processing.
+vi.mock('../executeReindex', async (importOriginal) => ({
+  ...(await importOriginal<object>()),
+  executeReindex: vi.fn(),
+  prepareReindex: vi.fn(),
+}));
+
+const mockedExecute = vi.mocked(executeReindex);
+const mockedPrepare = vi.mocked(prepareReindex);
+
+beforeEach(() => {
+  mockedExecute.mockReset().mockResolvedValue({
     filesProcessed: 5,
     durationMs: 100,
     errors: 0,
-    plan: { total: 5, toProcess: 5, toDelete: 0, byRoot: {} },
-  }),
-}));
+    plan: PLAN,
+  });
+  mockedPrepare.mockReset().mockResolvedValue(PREPARED);
+});
 
-import type { Mock } from 'vitest';
-
-import { executeReindex } from '../executeReindex';
-
-const mockedExecuteReindex = executeReindex as Mock;
-
-type ConfigReindexRequest = FastifyRequest<{
-  Body: {
-    scope?: 'issues' | 'full';
-    path?: string | string[];
-    dryRun?: boolean;
-  };
-}>;
-
-type ConfigReindexHandler = (
-  request: ConfigReindexRequest,
+type Handler = (
+  request: FastifyRequest,
   reply: FastifyReply,
 ) => Promise<unknown>;
-
-interface MockReply {
-  status: ReturnType<typeof vi.fn>;
-  send: ReturnType<typeof vi.fn>;
-}
 
 function createDeps() {
   return {
@@ -66,184 +66,119 @@ function createDeps() {
   } satisfies ConfigReindexRouteDeps;
 }
 
-function mockRequest(body: Record<string, unknown> = {}): ConfigReindexRequest {
-  return { body } as unknown as ConfigReindexRequest;
-}
-
-function mockReply(): MockReply {
-  return {
+/** Run the handler with a body; return the reply mock and sent payload. */
+async function run(deps: ConfigReindexRouteDeps, body: object = {}) {
+  const reply = {
     status: vi.fn().mockReturnThis(),
     send: vi.fn().mockImplementation((d: unknown) => d),
+    sent: false,
   };
+  const handler = createConfigReindexHandler(deps) as unknown as Handler;
+  await handler(
+    { body } as unknown as FastifyRequest,
+    reply as unknown as FastifyReply,
+  );
+  return { reply, sent: reply.send.mock.calls[0]?.[0] as unknown };
 }
 
 describe('createConfigReindexHandler', () => {
   it('returns started status with default issues scope and plan', async () => {
-    const deps = createDeps();
-    const handler = createConfigReindexHandler(
-      deps,
-    ) as unknown as ConfigReindexHandler;
-    const reply = mockReply();
-    await handler(mockRequest({}), reply as unknown as FastifyReply);
-
+    const { reply, sent } = await run(createDeps());
     expect(reply.status).toHaveBeenCalledWith(200);
-
-    expect(reply.send).toHaveBeenCalledWith(
-      expect.objectContaining({
-        status: 'started',
-        scope: 'issues',
-      }),
-    );
-
-    const sent = reply.send.mock.calls[0]?.[0] as unknown as {
-      plan?: unknown;
-    };
-    expect(sent.plan).toBeDefined();
+    expect(sent).toEqual({ status: 'started', scope: 'issues', plan: PLAN });
   });
 
-  it('passes full scope when requested', async () => {
+  it('prepares once and runs with the prepared targets', async () => {
     const deps = createDeps();
-    const handler = createConfigReindexHandler(
-      deps,
-    ) as unknown as ConfigReindexHandler;
-    const reply = mockReply();
-    await handler(
-      mockRequest({ scope: 'full' }),
-      reply as unknown as FastifyReply,
-    );
+    const { sent } = await run(deps, { scope: 'full' });
 
-    expect(reply.send).toHaveBeenCalledWith(
-      expect.objectContaining({
-        status: 'started',
-        scope: 'full',
-      }),
-    );
-
-    const sent = reply.send.mock.calls[0]?.[0] as unknown as {
-      plan?: unknown;
-    };
-    expect(sent.plan).toBeDefined();
-    // Called twice: once for dry-run plan, once for actual execution
-    expect(mockedExecuteReindex).toHaveBeenCalledWith(
+    expect(sent).toEqual({ status: 'started', scope: 'full', plan: PLAN });
+    expect(mockedPrepare).toHaveBeenCalledTimes(1);
+    expect(mockedPrepare).toHaveBeenCalledWith(
       expect.objectContaining({ config: deps.getConfig() }),
       'full',
       undefined,
-      true, // dry-run for plan
     );
-    expect(mockedExecuteReindex).toHaveBeenCalledWith(
+    expect(mockedExecute).toHaveBeenCalledTimes(1);
+    expect(mockedExecute).toHaveBeenCalledWith(
       expect.objectContaining({ config: deps.getConfig() }),
-      'full',
-      undefined,
-      false, // actual execution
+      { scope: 'full', path: undefined, prepared: PREPARED },
     );
   });
 
-  it('passes valuesManager and issuesManager to executeReindex', async () => {
+  it('passes valuesManager and issuesManager to the run', async () => {
     const deps = createDeps();
-    const handler = createConfigReindexHandler(
-      deps,
-    ) as unknown as ConfigReindexHandler;
-    const reply = mockReply();
-    await handler(
-      mockRequest({ scope: 'full' }),
-      reply as unknown as FastifyReply,
-    );
-
-    expect(mockedExecuteReindex).toHaveBeenCalledWith(
+    await run(deps, { scope: 'full' });
+    expect(mockedExecute).toHaveBeenCalledWith(
       expect.objectContaining({
         valuesManager: deps.valuesManager,
         issuesManager: deps.issuesManager,
       }),
-      'full',
-      undefined,
-      expect.any(Boolean),
+      { scope: 'full', path: undefined, prepared: PREPARED },
     );
+  });
+
+  it('passes path targets for scopes path and rules', async () => {
+    await run(createDeps(), { scope: 'path', path: ['a.md'] });
+    expect(mockedPrepare).toHaveBeenCalledWith(expect.anything(), 'path', [
+      'a.md',
+    ]);
+  });
+
+  it('returns dry_run status from the prepared plan only', async () => {
+    const { sent } = await run(createDeps(), { scope: 'full', dryRun: true });
+    expect(sent).toEqual({ status: 'dry_run', scope: 'full', plan: PLAN });
+    expect(mockedPrepare).toHaveBeenCalledTimes(1);
+    expect(mockedExecute).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    [
+      new RequestError('path_not_watched', 'Path is outside watch scope: x'),
+      403,
+    ],
+    [new RequestError('not_found', 'Path not found: x'), 404],
+  ])('answers an invalid path target with its 4xx', async (error, status) => {
+    mockedPrepare.mockRejectedValue(error);
+    const { reply, sent } = await run(createDeps(), {
+      scope: 'path',
+      path: 'x',
+    });
+    expect(reply.status).toHaveBeenCalledWith(status);
+    expect(sent).toEqual({ code: error.code, error: error.message });
+    expect(mockedExecute).not.toHaveBeenCalled();
   });
 
   it('live prune returns immediately without plan (no double scroll)', async () => {
-    mockedExecuteReindex.mockClear();
     const deps = {
       ...createDeps(),
       vectorStore: {} as unknown as ConfigReindexRouteDeps['vectorStore'],
     };
-    const handler = createConfigReindexHandler(
-      deps,
-    ) as unknown as ConfigReindexHandler;
-    const reply = mockReply();
-    await handler(
-      mockRequest({ scope: 'prune', dryRun: false }),
-      reply as unknown as FastifyReply,
-    );
+    const { reply, sent } = await run(deps, { scope: 'prune', dryRun: false });
 
     expect(reply.status).toHaveBeenCalledWith(200);
-    expect(reply.send).toHaveBeenCalledWith({
-      status: 'started',
+    expect(sent).toEqual({ status: 'started', scope: 'prune' });
+    expect(mockedPrepare).not.toHaveBeenCalled();
+    expect(mockedExecute).toHaveBeenCalledTimes(1);
+    expect(mockedExecute).toHaveBeenCalledWith(expect.anything(), {
       scope: 'prune',
+      path: undefined,
     });
-
-    // Only one call to executeReindex (the live execution), NOT two
-    expect(mockedExecuteReindex).toHaveBeenCalledTimes(1);
-    expect(mockedExecuteReindex).toHaveBeenCalledWith(
-      expect.anything(),
-      'prune',
-      undefined,
-      false,
-    );
   });
 
   it('dry-run prune returns full plan', async () => {
-    mockedExecuteReindex.mockClear();
     const deps = {
       ...createDeps(),
       vectorStore: {} as unknown as ConfigReindexRouteDeps['vectorStore'],
     };
-    const handler = createConfigReindexHandler(
-      deps,
-    ) as unknown as ConfigReindexHandler;
-    const reply = mockReply();
-    await handler(
-      mockRequest({ scope: 'prune', dryRun: true }),
-      reply as unknown as FastifyReply,
-    );
+    const { sent } = await run(deps, { scope: 'prune', dryRun: true });
 
-    expect(reply.send).toHaveBeenCalledWith(
-      expect.objectContaining({
-        status: 'dry_run',
-        scope: 'prune',
-        plan: expect.any(Object) as unknown,
-      }),
-    );
-    // Dry-run: only one call
-    expect(mockedExecuteReindex).toHaveBeenCalledTimes(1);
-    expect(mockedExecuteReindex).toHaveBeenCalledWith(
-      expect.anything(),
-      'prune',
-      undefined,
-      true,
-    );
-  });
-
-  it('returns dry_run status when dryRun is true', async () => {
-    const deps = createDeps();
-    const handler = createConfigReindexHandler(
-      deps,
-    ) as unknown as ConfigReindexHandler;
-    const reply = mockReply();
-    await handler(
-      mockRequest({ scope: 'full', dryRun: true }),
-      reply as unknown as FastifyReply,
-    );
-
-    expect(reply.send).toHaveBeenCalledWith(
-      expect.objectContaining({
-        status: 'dry_run',
-        scope: 'full',
-      }),
-    );
-
-    const sent = reply.send.mock.calls[0]?.[0] as unknown as {
-      plan?: unknown;
-    };
-    expect(sent.plan).toBeDefined();
+    expect(sent).toEqual({ status: 'dry_run', scope: 'prune', plan: PLAN });
+    expect(mockedExecute).toHaveBeenCalledTimes(1);
+    expect(mockedExecute).toHaveBeenCalledWith(expect.anything(), {
+      scope: 'prune',
+      path: undefined,
+      dryRun: true,
+    });
   });
 });

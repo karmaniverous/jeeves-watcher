@@ -21,7 +21,7 @@ interface Manifest {
     required?: string[];
     properties: Record<string, { type: string; default?: unknown }>;
   };
-  uiHints: Record<string, { placeholder?: string }>;
+  uiHints: Record<string, { placeholder?: string; sensitive?: boolean }>;
 }
 
 const manifest = readJson('../openclaw.plugin.json') as unknown as Manifest;
@@ -40,6 +40,13 @@ describe('openclaw.plugin.json', () => {
     expect(manifest.configSchema.additionalProperties).toBe(false);
   });
 
+  it('declares an optional, sensitive apiKey with no default', () => {
+    expect(properties.apiKey.type).toBe('string');
+    expect(properties.apiKey).not.toHaveProperty('default');
+    expect(manifest.configSchema.required ?? []).not.toContain('apiKey');
+    expect(manifest.uiHints.apiKey.sensitive).toBe(true);
+  });
+
   it('carries no Windows drive-letter paths', () => {
     expect(JSON.stringify(manifest)).not.toMatch(/"[a-zA-Z]:[\\/]/);
   });
@@ -56,9 +63,11 @@ describe('package.json', () => {
     expect(pkg).not.toHaveProperty('bin');
   });
 
-  it('pins the static-content jeeves core', () => {
+  it('pins the static-content jeeves core (exact, 0.6 or later)', () => {
     const deps = pkg.dependencies as Record<string, string>;
-    expect(deps['@karmaniverous/jeeves']).toMatch(/^0\.6\./);
+    const pin = deps['@karmaniverous/jeeves'];
+    expect(pin).toMatch(/^0\.\d+\.\d+$/);
+    expect(Number(pin.split('.')[1])).toBeGreaterThanOrEqual(6);
   });
 });
 

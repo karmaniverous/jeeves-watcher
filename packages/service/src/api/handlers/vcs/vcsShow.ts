@@ -11,10 +11,14 @@ import type pino from 'pino';
 import { resolveWatchRoot } from '../../../vcs/resolveWatchRoot';
 import { runGit } from '../../../vcs/runGit';
 import type { VcsCoordinator } from '../../../vcs/VcsCoordinator';
+import { sendError } from '../../sendError';
 import { wrapHandler } from '../wrapHandler';
 
+/** Dependencies of the GET /vcs/show handler. */
 export interface VcsShowRouteDeps {
+  /** VCS coordinator (tracked roots and git operations). */
   coordinator: VcsCoordinator;
+  /** Logger. */
   logger: pino.Logger;
 }
 
@@ -48,17 +52,21 @@ export function createVcsShowHandler(deps: VcsShowRouteDeps) {
       const { path, commit } = request.query;
 
       if (!path || !commit) {
-        void reply
-          .status(400)
-          .send({ error: 'Missing required query parameters: path, commit' });
+        sendError(
+          reply,
+          'invalid_request',
+          'Missing required query parameters: path, commit',
+        );
         return;
       }
 
       const resolved = resolveWatchRoot(deps.coordinator, path);
       if (!resolved) {
-        void reply
-          .status(404)
-          .send({ error: 'Path does not match any VCS-enabled watch root' });
+        sendError(
+          reply,
+          'not_found',
+          'Path does not match any VCS-enabled watch root',
+        );
         return;
       }
 
@@ -72,9 +80,7 @@ export function createVcsShowHandler(deps: VcsShowRouteDeps) {
         const contentType = CONTENT_TYPES[ext] ?? 'application/octet-stream';
         void reply.header('content-type', contentType).send(stdout);
       } catch {
-        void reply
-          .status(404)
-          .send({ error: 'File not found at the specified commit' });
+        sendError(reply, 'not_found', 'File not found at the specified commit');
       }
     },
     deps.logger,

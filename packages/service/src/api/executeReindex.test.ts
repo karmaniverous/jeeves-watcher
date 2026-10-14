@@ -1,6 +1,11 @@
-import { pino } from 'pino';
-import { describe, expect, it, vi } from 'vitest';
+/**
+ * @module api/executeReindex.test
+ * Unit tests for executeReindex over mocks: the three programming-error guards, tracker and values bookkeeping per scope, issues reprocessing, the measured duration, and dry-run plans for the issues, full, rules and prune scopes (with files listed, so "nothing processed" is meaningful).
+ */
 
+import { afterEach, describe, expect, it, vi } from 'vitest';
+
+import { makeDeps } from '../test/reindexDeps';
 import { executeReindex, type ExecuteReindexDeps } from './executeReindex';
 
 vi.mock('node:fs/promises', async (importOriginal) => {
@@ -25,92 +30,71 @@ vi.mock('./fileScan', async (importOriginal) => {
   };
 });
 
-// Mock processAllFiles
-vi.mock('./processAllFiles', () => ({
-  processAllFiles: vi.fn().mockResolvedValue(0),
-}));
-
-import { listFilesFromGlobs, listFilesFromWatchRoots } from './fileScan';
+import { listFilesFromGlobs } from './fileScan';
 
 const listFilesFromGlobsMock = vi.mocked(listFilesFromGlobs);
-const listFilesFromWatchRootsMock = vi.mocked(listFilesFromWatchRoots);
+const ISSUE = [
+  { type: 'extraction_error' as const, message: 'x', timestamp: 0 },
+];
 
-interface MockRefs {
-  trackerStart: ReturnType<typeof vi.fn>;
-  trackerComplete: ReturnType<typeof vi.fn>;
-  clearAll: ReturnType<typeof vi.fn>;
-  processFile: ReturnType<typeof vi.fn>;
-}
+afterEach(() => {
+  vi.useRealTimers();
+});
 
-function makeDeps(overrides: Partial<ExecuteReindexDeps> = {}): {
-  deps: ExecuteReindexDeps;
-  mocks: MockRefs;
-} {
-  const trackerStart = vi.fn();
-  const trackerComplete = vi.fn();
-  const clearAll = vi.fn();
-  const processFile = vi.fn().mockResolvedValue(undefined);
-
-  const deps: ExecuteReindexDeps = {
-    config: {
-      watch: { paths: ['src/**'], ignored: [] },
-      vectorStore: {
-        url: 'http://localhost',
-        collectionName: 'test',
-        apiKey: '',
-      },
-      stateDir: '.meta',
-      ...((overrides.config ?? {}) as Record<string, unknown>),
-    } as unknown as ExecuteReindexDeps['config'],
-    processor: {
-      processFile,
-      deleteFile: vi.fn().mockResolvedValue(undefined),
-      processMetadataUpdate: vi.fn().mockResolvedValue(null),
-      processRulesUpdate: vi.fn().mockResolvedValue(null),
-      moveFile: vi.fn().mockResolvedValue(undefined),
-      updateRules: vi.fn(),
-      renderFile: vi.fn(),
-    },
-    logger: pino({ level: 'silent' }),
-    reindexTracker: {
-      start: trackerStart,
-      complete: trackerComplete,
-      getStatus: vi.fn(),
-    } as unknown as ExecuteReindexDeps['reindexTracker'],
-    valuesManager: {
-      clearAll,
-      update: vi.fn(),
-    } as unknown as ExecuteReindexDeps['valuesManager'],
-    ...overrides,
-  };
-
-  return {
-    deps,
-    mocks: { trackerStart, trackerComplete, clearAll, processFile },
-  };
-}
+describe('executeReindex guards', () => {
+  it.each([
+    [
+      'an invalid scope',
+      { scope: 'bogus' as never },
+      'Invalid reindex scope: "bogus"',
+    ],
+    [
+      'path scope without a path',
+      { scope: 'path' as const },
+      'The "path" parameter is required when scope is "path".',
+    ],
+    [
+      'path scope with an empty path list',
+      { scope: 'path' as const, path: [] },
+      'The "path" parameter is required when scope is "path".',
+    ],
+    [
+      'prune without a vector store',
+      { scope: 'prune' as const },
+      'vectorStore is required for prune scope.',
+    ],
+  ])('throws for %s, before any work', async (_label, options, message) => {
+    listFilesFromGlobsMock.mockClear();
+    const { deps, mocks } = makeDeps();
+    await expect(executeReindex(deps, options)).rejects.toThrow(message);
+    expect(mocks.trackerStart).not.toHaveBeenCalled();
+    expect(listFilesFromGlobsMock).not.toHaveBeenCalled();
+  });
+});
 
 describe('executeReindex', () => {
   it('calls reindexTracker.start and complete on full scope', async () => {
     const { deps, mocks } = makeDeps();
-    await executeReindex(deps, 'full');
+    await executeReindex(deps, { scope: 'full' });
     expect(mocks.trackerStart).toHaveBeenCalledWith('full');
     expect(mocks.trackerComplete).toHaveBeenCalled();
   });
 
   it('clears valuesManager on full scope', async () => {
     const { deps, mocks } = makeDeps();
-    await executeReindex(deps, 'full');
+    await executeReindex(deps, { scope: 'full' });
     expect(mocks.clearAll).toHaveBeenCalled();
   });
 
   it('does not clear valuesManager on issues scope', async () => {
     const { deps, mocks } = makeDeps({
       issuesManager: {
-        getAll: () => ({ 'file.txt': { type: 'error' } }),
+        getAll: () => ({
+          'file.txt': ISSUE,
+        }),
       },
     });
-    await executeReindex(deps, 'issues');
+    await executeReindex(deps, { scope: 'issues' });
     expect(mocks.clearAll).not.toHaveBeenCalled();
   });
 
@@ -118,83 +102,28 @@ describe('executeReindex', () => {
     const { deps, mocks } = makeDeps({
       issuesManager: {
         getAll: () => ({
-          'a.txt': { type: 'err' },
-          'b.txt': { type: 'err' },
+          'a.txt': ISSUE,
+          'b.txt': ISSUE,
         }),
       },
     });
-    const result = await executeReindex(deps, 'issues');
+    const result = await executeReindex(deps, { scope: 'issues' });
     expect(mocks.processFile).toHaveBeenCalledTimes(2);
     expect(result.filesProcessed).toBe(2);
     expect(result.errors).toBe(0);
   });
 
-  it('counts errors when issue file processing fails', async () => {
-    const failingProcessFile = vi.fn().mockRejectedValue(new Error('fail'));
-    const { deps } = makeDeps({
-      processor: {
-        processFile: failingProcessFile,
-        deleteFile: vi.fn(),
-        processMetadataUpdate: vi.fn(),
-        processRulesUpdate: vi.fn(),
-        moveFile: vi.fn(),
-        updateRules: vi.fn(),
-        renderFile: vi.fn(),
-      },
-      issuesManager: { getAll: () => ({ 'a.txt': {} }) },
+  it('reports the measured run duration', async () => {
+    vi.useFakeTimers();
+    const { deps, mocks } = makeDeps({
+      issuesManager: { getAll: () => ({ 'a.txt': ISSUE }) },
     });
-    const result = await executeReindex(deps, 'issues');
-    expect(result.errors).toBe(1);
-    expect(result.filesProcessed).toBe(0);
-  });
-
-  it('fires callback when configured', async () => {
-    const fetchSpy = vi
-      .spyOn(globalThis, 'fetch')
-      .mockResolvedValue(new Response('ok', { status: 200 }));
-    const { deps } = makeDeps({
-      config: {
-        watch: { paths: [], ignored: [] },
-        vectorStore: { url: '', collectionName: '', apiKey: '' },
-        stateDir: '.meta',
-        reindex: { callbackUrl: 'http://example.com/cb' },
-      } as unknown as ExecuteReindexDeps['config'],
-      issuesManager: { getAll: () => ({}) },
+    mocks.processFile.mockImplementation(() => {
+      vi.advanceTimersByTime(1500);
+      return Promise.resolve();
     });
-    await executeReindex(deps, 'issues');
-    expect(fetchSpy).toHaveBeenCalledWith(
-      'http://example.com/cb',
-      expect.objectContaining({ method: 'POST' }),
-    );
-    fetchSpy.mockRestore();
-  });
-
-  it('returns result with durationMs', async () => {
-    const { deps } = makeDeps({
-      issuesManager: { getAll: () => ({}) },
-    });
-    const result = await executeReindex(deps, 'issues');
-    expect(result.durationMs).toBeGreaterThanOrEqual(0);
-  });
-
-  it('scope rules with path array calls listFilesFromWatchRoots', async () => {
-    listFilesFromWatchRootsMock.mockResolvedValue(['file1.ts', 'file2.ts']);
-    listFilesFromGlobsMock.mockClear();
-    listFilesFromWatchRootsMock.mockClear();
-
-    // Re-mock to return files for this test
-    listFilesFromWatchRootsMock.mockResolvedValue(['file1.ts', 'file2.ts']);
-
-    const { deps } = makeDeps();
-    await executeReindex(deps, 'rules', ['**/.meta/**']);
-
-    expect(listFilesFromWatchRootsMock).toHaveBeenCalledWith(
-      deps.config.watch.paths,
-      deps.config.watch.ignored,
-      ['**/.meta/**'],
-      undefined,
-    );
-    expect(listFilesFromGlobsMock).not.toHaveBeenCalled();
+    const result = await executeReindex(deps, { scope: 'issues' });
+    expect(result.durationMs).toBe(1500);
   });
 
   describe('dryRun', () => {
@@ -202,50 +131,54 @@ describe('executeReindex', () => {
       const { deps, mocks } = makeDeps({
         issuesManager: {
           getAll: () => ({
-            'a.txt': { type: 'err' },
-            'b.txt': { type: 'err' },
+            'src/a.txt': ISSUE,
+            'src/b.txt': ISSUE,
           }),
         },
       });
-      const result = await executeReindex(deps, 'issues', undefined, true);
-      expect(result.filesProcessed).toBe(0);
-      expect(result.durationMs).toBe(0);
-      expect(result.plan).toBeDefined();
-      expect(result.plan!.total).toBe(2);
-      expect(result.plan!.toProcess).toBe(2);
-      expect(result.plan!.toDelete).toBe(0);
+      const result = await executeReindex(deps, {
+        scope: 'issues',
+        dryRun: true,
+      });
+      expect(result).toEqual({
+        filesProcessed: 0,
+        durationMs: 0,
+        errors: 0,
+        plan: { total: 2, toProcess: 2, toDelete: 0, byRoot: { src: 2 } },
+      });
       expect(mocks.processFile).not.toHaveBeenCalled();
     });
 
-    it('full scope: returns plan without clearing valuesManager', async () => {
+    it('full scope: plans the listed files without processing or clearing', async () => {
+      listFilesFromGlobsMock.mockResolvedValueOnce(['src/a.ts', 'src/b.ts']);
       const { deps, mocks } = makeDeps();
-      const result = await executeReindex(deps, 'full', undefined, true);
+      const result = await executeReindex(deps, {
+        scope: 'full',
+        dryRun: true,
+      });
       expect(result.filesProcessed).toBe(0);
       expect(result.durationMs).toBe(0);
-      expect(result.plan).toBeDefined();
-      expect(result.plan!.toDelete).toBe(0);
+      expect(result.plan).toMatchObject({
+        total: 2,
+        toProcess: 2,
+        toDelete: 0,
+      });
       expect(mocks.clearAll).not.toHaveBeenCalled();
       expect(mocks.processFile).not.toHaveBeenCalled();
       expect(mocks.trackerStart).not.toHaveBeenCalled();
     });
 
-    it('rules scope: returns plan without calling processRulesUpdate', async () => {
-      const processRulesUpdate = vi.fn();
-      const { deps } = makeDeps({
-        processor: {
-          processFile: vi.fn(),
-          deleteFile: vi.fn(),
-          processMetadataUpdate: vi.fn(),
-          processRulesUpdate,
-          moveFile: vi.fn(),
-          updateRules: vi.fn(),
-          renderFile: vi.fn(),
-        },
+    it('rules scope: plans the listed files without calling processRulesUpdate', async () => {
+      listFilesFromGlobsMock.mockResolvedValueOnce(['src/a.ts']);
+      const { deps } = makeDeps();
+      const processRulesUpdate = vi.spyOn(deps.processor, 'processRulesUpdate');
+      const result = await executeReindex(deps, {
+        scope: 'rules',
+        dryRun: true,
       });
-      const result = await executeReindex(deps, 'rules', undefined, true);
       expect(result.filesProcessed).toBe(0);
       expect(result.durationMs).toBe(0);
-      expect(result.plan).toBeDefined();
+      expect(result.plan).toMatchObject({ total: 1, toProcess: 1 });
       expect(processRulesUpdate).not.toHaveBeenCalled();
     });
 
@@ -265,246 +198,19 @@ describe('executeReindex', () => {
           delete: deleteFn,
         } as unknown as ExecuteReindexDeps['vectorStore'],
       });
-      const result = await executeReindex(deps, 'prune', undefined, true);
+      const result = await executeReindex(deps, {
+        scope: 'prune',
+        dryRun: true,
+      });
       expect(result.filesProcessed).toBe(0);
       expect(result.durationMs).toBe(0);
-      expect(result.plan).toBeDefined();
-      expect(result.plan!.toDelete).toBeGreaterThan(0);
-      expect(result.plan!.toProcess).toBe(0);
+      // Nothing is watched (empty listing), so every point is orphaned.
+      expect(result.plan).toMatchObject({
+        total: 3,
+        toProcess: 0,
+        toDelete: 3,
+      });
       expect(deleteFn).not.toHaveBeenCalled();
     });
-
-    it('prune scope: executes deletions when dryRun is false', async () => {
-      const deleteFn = vi.fn().mockResolvedValue(undefined);
-      const scrollPageFn = vi.fn().mockResolvedValueOnce({
-        points: [
-          { id: 'p1', payload: { file_path: 'src/a.ts' } },
-          { id: 'p2', payload: { file_path: 'outside/b.ts' } },
-        ],
-        nextCursor: undefined,
-      });
-      const { deps } = makeDeps({
-        vectorStore: {
-          scrollPage: scrollPageFn,
-          delete: deleteFn,
-        } as unknown as ExecuteReindexDeps['vectorStore'],
-      });
-      const result = await executeReindex(deps, 'prune', undefined, false);
-      expect(result.plan).toBeDefined();
-      expect(deleteFn).toHaveBeenCalled();
-    });
-
-    it('prune scope: retries on scroll failure and resumes', async () => {
-      const deleteFn = vi.fn().mockResolvedValue(undefined);
-      const scrollPageFn = vi
-        .fn()
-        .mockResolvedValueOnce({
-          points: [{ id: 'p1', payload: { file_path: 'src/a.ts' } }],
-          nextCursor: 'cursor-1',
-        })
-        .mockRejectedValueOnce(new TypeError('fetch failed'))
-        .mockResolvedValueOnce({
-          points: [{ id: 'p2', payload: { file_path: 'outside/b.ts' } }],
-          nextCursor: undefined,
-        });
-      const { deps } = makeDeps({
-        vectorStore: {
-          scrollPage: scrollPageFn,
-          delete: deleteFn,
-        } as unknown as ExecuteReindexDeps['vectorStore'],
-      });
-      const result = await executeReindex(deps, 'prune', undefined, true);
-      expect(result.plan).toBeDefined();
-      expect(result.plan!.total).toBe(2);
-      expect(result.plan!.incomplete).toBeUndefined();
-      // scrollPage called 3 times: page 1 ok, page 2 fail, page 2 retry ok
-      expect(scrollPageFn).toHaveBeenCalledTimes(3);
-    });
-
-    it('prune scope: dry-run and live prune produce identical plans', async () => {
-      const deleteFn = vi.fn().mockResolvedValue(undefined);
-      const makeScrollFn = () =>
-        vi.fn().mockResolvedValueOnce({
-          points: [
-            { id: 'p1', payload: { file_path: 'src/a.ts' } },
-            { id: 'p2', payload: { file_path: 'outside/b.ts' } },
-            { id: 'p3', payload: { file_path: 'outside/c.ts' } },
-          ],
-          nextCursor: undefined,
-        });
-
-      const scrollDry = makeScrollFn();
-      const { deps: dryDeps } = makeDeps({
-        vectorStore: {
-          scrollPage: scrollDry,
-          delete: deleteFn,
-        } as unknown as ExecuteReindexDeps['vectorStore'],
-      });
-      const dryResult = await executeReindex(dryDeps, 'prune', undefined, true);
-
-      const scrollLive = makeScrollFn();
-      const { deps: liveDeps } = makeDeps({
-        vectorStore: {
-          scrollPage: scrollLive,
-          delete: deleteFn,
-        } as unknown as ExecuteReindexDeps['vectorStore'],
-      });
-      const liveResult = await executeReindex(
-        liveDeps,
-        'prune',
-        undefined,
-        false,
-      );
-
-      // Plans should match
-      expect(dryResult.plan!.total).toBe(liveResult.plan!.total);
-      expect(dryResult.plan!.toDelete).toBe(liveResult.plan!.toDelete);
-      expect(dryResult.plan!.toProcess).toBe(liveResult.plan!.toProcess);
-    });
-
-    it('prune scope: live prune aborts when plan is incomplete', async () => {
-      const deleteFn = vi.fn().mockResolvedValue(undefined);
-      const scrollPageFn = vi
-        .fn()
-        .mockResolvedValueOnce({
-          points: [{ id: 'p1', payload: { file_path: 'outside/b.ts' } }],
-          nextCursor: 'cursor-1',
-        })
-        .mockRejectedValue(new TypeError('fetch failed'));
-      const { deps } = makeDeps({
-        vectorStore: {
-          scrollPage: scrollPageFn,
-          delete: deleteFn,
-        } as unknown as ExecuteReindexDeps['vectorStore'],
-      });
-      const result = await executeReindex(deps, 'prune', undefined, false);
-
-      // Should abort with error and NOT call delete
-      expect(result.errors).toBe(1);
-      expect(result.plan!.incomplete).toBe(true);
-      expect(deleteFn).not.toHaveBeenCalled();
-    }, 60000);
-
-    it('prune scope: increased retries recover from transient failures', async () => {
-      const scrollPageFn = vi
-        .fn()
-        .mockResolvedValueOnce({
-          points: [{ id: 'p1', payload: { file_path: 'src/a.ts' } }],
-          nextCursor: 'cursor-1',
-        })
-        .mockRejectedValueOnce(new TypeError('fetch failed'))
-        .mockRejectedValueOnce(new TypeError('fetch failed'))
-        .mockRejectedValueOnce(new TypeError('fetch failed'))
-        .mockRejectedValueOnce(new TypeError('fetch failed'))
-        .mockResolvedValueOnce({
-          points: [{ id: 'p2', payload: { file_path: 'outside/b.ts' } }],
-          nextCursor: undefined,
-        });
-      const { deps } = makeDeps({
-        vectorStore: {
-          scrollPage: scrollPageFn,
-          delete: vi.fn(),
-        } as unknown as ExecuteReindexDeps['vectorStore'],
-      });
-      const result = await executeReindex(deps, 'prune', undefined, true);
-      expect(result.plan).toBeDefined();
-      expect(result.plan!.total).toBe(2);
-      expect(result.plan!.incomplete).toBeUndefined();
-    }, 30000);
-
-    it('prune scope: returns incomplete plan when all retries exhausted', async () => {
-      const scrollPageFn = vi
-        .fn()
-        .mockResolvedValueOnce({
-          points: [{ id: 'p1', payload: { file_path: 'src/a.ts' } }],
-          nextCursor: 'cursor-1',
-        })
-        .mockRejectedValue(new TypeError('fetch failed'));
-      const { deps } = makeDeps({
-        vectorStore: {
-          scrollPage: scrollPageFn,
-          delete: vi.fn(),
-        } as unknown as ExecuteReindexDeps['vectorStore'],
-      });
-      const result = await executeReindex(deps, 'prune', undefined, true);
-      expect(result.plan).toBeDefined();
-      expect(result.plan!.total).toBe(1);
-      expect(result.plan!.incomplete).toBe(true);
-    }, 60000);
-
-    it('filter-first: detects orphans outside watch scope', async () => {
-      // Watched files: src/a.ts exists on filesystem
-      listFilesFromGlobsMock.mockResolvedValueOnce(['src/a.ts']);
-
-      const deleteFn = vi.fn().mockResolvedValue(undefined);
-      const scrollPageFn = vi.fn().mockResolvedValueOnce({
-        points: [
-          { id: 'p1', payload: { file_path: 'src/a.ts' } },
-          { id: 'p2', payload: { file_path: 'outside/b.ts' } },
-          { id: 'p3', payload: {} },
-        ],
-        nextCursor: undefined,
-      });
-      const { deps } = makeDeps({
-        vectorStore: {
-          scrollPage: scrollPageFn,
-          delete: deleteFn,
-        } as unknown as ExecuteReindexDeps['vectorStore'],
-      });
-
-      // fs.access is mocked to reject (ENOENT) by default, so p1 is also orphaned
-      const result = await executeReindex(deps, 'prune', undefined, true);
-      expect(result.plan).toBeDefined();
-      expect(result.plan!.total).toBe(3);
-      // p1 (in scope but not on disk), p2 (outside scope), p3 (no file_path) — all orphans
-      expect(result.plan!.toDelete).toBe(3);
-    });
-
-    it('filter-first: detects files deleted from disk as orphans', async () => {
-      // Watched files list includes src/deleted.ts (matches watch scope)
-      // but the file doesn't exist on disk
-      listFilesFromGlobsMock.mockResolvedValueOnce(['src/deleted.ts']);
-
-      const deleteFn = vi.fn().mockResolvedValue(undefined);
-      const scrollPageFn = vi.fn().mockResolvedValueOnce({
-        points: [{ id: 'p1', payload: { file_path: 'src/deleted.ts' } }],
-        nextCursor: undefined,
-      });
-      const { deps } = makeDeps({
-        vectorStore: {
-          scrollPage: scrollPageFn,
-          delete: deleteFn,
-        } as unknown as ExecuteReindexDeps['vectorStore'],
-      });
-
-      const result = await executeReindex(deps, 'prune', undefined, true);
-      expect(result.plan).toBeDefined();
-      // src/deleted.ts is in watch scope but doesn't exist on disk → orphan
-      expect(result.plan!.toDelete).toBe(1);
-    });
-
-    it('filter-first: preserves incomplete safety from Step 5', async () => {
-      listFilesFromGlobsMock.mockResolvedValueOnce(['src/a.ts']);
-
-      const deleteFn = vi.fn().mockResolvedValue(undefined);
-      const scrollPageFn = vi
-        .fn()
-        .mockResolvedValueOnce({
-          points: [{ id: 'p1', payload: { file_path: 'src/a.ts' } }],
-          nextCursor: 'cursor-1',
-        })
-        .mockRejectedValue(new TypeError('fetch failed'));
-      const { deps } = makeDeps({
-        vectorStore: {
-          scrollPage: scrollPageFn,
-          delete: deleteFn,
-        } as unknown as ExecuteReindexDeps['vectorStore'],
-      });
-
-      const result = await executeReindex(deps, 'prune', undefined, false);
-      expect(result.errors).toBe(1);
-      expect(result.plan!.incomplete).toBe(true);
-      expect(deleteFn).not.toHaveBeenCalled();
-    }, 60000);
   });
 });

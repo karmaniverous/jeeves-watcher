@@ -3,24 +3,16 @@
  * Builds merged metadata from file content, inference rules, and enrichment store. I/O: reads files, extracts text, queries SQLite enrichment.
  */
 
-import { readFileSync } from 'node:fs';
 import { stat } from 'node:fs/promises';
 import { extname } from 'node:path';
 
-import type { JsonMapMap } from '@karmaniverous/jsonmap';
-import type pino from 'pino';
-
-import type { SchemaEntry } from '../config/schemas';
 import type { EnrichmentStoreInterface } from '../enrichment';
-import { mergeEnrichment } from '../enrichment';
-import {
-  type ExtractedText,
-  extractJsonText,
-  extractText,
-} from '../extractors';
-import type { CompiledRule } from '../rules';
+import { type ExtractedText, extractText } from '../extractors';
+import type { CompiledRule, RuleApplicationError } from '../rules';
 import { applyRules, buildAttributes } from '../rules';
-import type { TemplateEngine } from '../templates';
+import type { ApplyRulesOptions } from '../rules/apply';
+import type { DocumentDates } from './processingPipeline';
+import { withEnrichment } from './resolvers/ruleOptions';
 
 /**
  * The result of building merged metadata for a file.
@@ -28,8 +20,6 @@ import type { TemplateEngine } from '../templates';
 interface MergedMetadata {
   /** Metadata inferred from rules. */
   inferred: Record<string, unknown>;
-  /** Metadata loaded from enrichment store. */
-  enrichment: Record<string, unknown> | null;
   /** Combined metadata (composable merge). */
   metadata: Record<string, unknown>;
   /** File attributes used for rule matching. */
@@ -42,6 +32,10 @@ interface MergedMetadata {
   matchedRules: string[];
   /** The renderAs value from the highest-priority matched rule, or null. */
   renderAs: string | null;
+  /** Interpolation failures of matched rules (recorded as an issue). */
+  ruleErrors: RuleApplicationError[];
+  /** Creation and modification times from the same `stat` (unix seconds). */
+  dates: DocumentDates;
 }
 
 /**
@@ -52,41 +46,10 @@ interface BuildMergedMetadataOptions {
   filePath: string;
   /** The compiled inference rules. */
   compiledRules: CompiledRule[];
+  /** Options passed to `applyRules` (see `applyRuleOptions`). */
+  ruleOptions?: ApplyRulesOptions;
   /** Optional enrichment store for persisted metadata. */
   enrichmentStore?: EnrichmentStoreInterface;
-  /** Optional named JsonMap definitions. */
-  maps?: Record<string, JsonMapMap>;
-  /** Optional logger for rule warnings. */
-  logger?: pino.Logger;
-  /** Optional template engine for content templates. */
-  templateEngine?: TemplateEngine;
-  /** Optional config directory for resolving file paths. */
-  configDir?: string;
-  /** Optional custom JsonMap transform library. */
-  customMapLib?: Record<string, (...args: unknown[]) => unknown>;
-  /** Optional global schemas collection. */
-  globalSchemas?: Record<string, SchemaEntry>;
-}
-
-/**
- * Synchronously extract text from a file. Returns undefined on failure.
- * Used by fetchSiblings in JsonMap lib for sibling context extraction.
- */
-function syncExtractText(filePath: string): string | undefined {
-  try {
-    const raw = readFileSync(filePath, 'utf-8').replace(/^\uFEFF/, '');
-    const ext = extname(filePath).toLowerCase();
-
-    if (ext === '.json') {
-      const parsed = JSON.parse(raw) as unknown;
-      return extractJsonText(parsed);
-    }
-
-    // All other supported text formats: return raw content
-    return raw;
-  } catch {
-    return undefined;
-  }
 }
 
 /**
@@ -98,17 +61,7 @@ function syncExtractText(filePath: string): string | undefined {
 export async function buildMergedMetadata(
   options: BuildMergedMetadataOptions,
 ): Promise<MergedMetadata> {
-  const {
-    filePath,
-    compiledRules,
-    enrichmentStore,
-    maps,
-    logger,
-    templateEngine,
-    configDir,
-    customMapLib,
-    globalSchemas,
-  } = options;
+  const { filePath, compiledRules, ruleOptions, enrichmentStore } = options;
   const ext = extname(filePath);
   const stats = await stat(filePath);
 
@@ -127,30 +80,24 @@ export async function buildMergedMetadata(
     renderedContent,
     matchedRules,
     renderAs,
-  } = await applyRules(compiledRules, attributes, {
-    namedMaps: maps,
-    logger,
-    templateEngine,
-    configDir,
-    customMapLib,
-    globalSchemas,
-    extractText: syncExtractText,
-  });
+    errors: ruleErrors,
+  } = await applyRules(compiledRules, attributes, ruleOptions);
 
-  // 3. Read enrichment metadata from store (composable merge)
-  const enrichment = enrichmentStore?.get(filePath) ?? null;
-  const metadata: Record<string, unknown> = enrichment
-    ? mergeEnrichment(inferred, enrichment)
-    : { ...inferred };
+  // 3. Merge enrichment metadata from the store (composable merge)
+  const metadata = withEnrichment(enrichmentStore, filePath, inferred);
 
   return {
     inferred,
-    enrichment,
     metadata,
     attributes,
     extracted,
     renderedContent,
     matchedRules,
     renderAs,
+    ruleErrors,
+    dates: {
+      createdAt: Math.floor(stats.birthtimeMs / 1000),
+      modifiedAt: Math.floor(stats.mtimeMs / 1000),
+    },
   };
 }

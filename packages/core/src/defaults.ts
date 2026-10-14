@@ -8,10 +8,12 @@ import { DEFAULT_PORTS } from '@karmaniverous/jeeves';
 import type { JeevesWatcherConfig } from './types.js';
 
 /** Default root-level config values. */
-export const ROOT_DEFAULTS: Partial<JeevesWatcherConfig> = {
+export const ROOT_DEFAULTS = {
   stateDir: '.jeeves-metadata',
   shutdownTimeoutMs: 10000,
-};
+  /** Cap on system-error backoff and on any single embedding 429 pause. */
+  maxBackoffMs: 60000,
+} satisfies Partial<JeevesWatcherConfig>;
 
 /** Default configWatch values. */
 export const CONFIG_WATCH_DEFAULTS = {
@@ -24,6 +26,12 @@ export const API_DEFAULTS = {
   host: '127.0.0.1',
   port: DEFAULT_PORTS.watcher,
   cacheTtlMs: 30000,
+};
+
+/** Default reindex values. */
+export const REINDEX_DEFAULTS = {
+  /** Files (and source documents, and stored-rule lookups) in flight at once. */
+  concurrency: 50,
 };
 
 /** Default logging values. */
@@ -77,7 +85,8 @@ export const INIT_CONFIG_TEMPLATE = {
   embedding: {
     provider: 'gemini' as const,
     model: 'gemini-embedding-001',
-    dimensions: 768,
+    /** The model's native size (the service requests exactly this size). */
+    dimensions: EMBEDDING_DEFAULTS.dimensions,
   },
   vectorStore: {
     url: 'http://127.0.0.1:6333',

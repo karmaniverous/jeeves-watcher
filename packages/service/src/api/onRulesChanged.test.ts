@@ -47,14 +47,14 @@ describe('onRulesChanged auto-reindex (Fix 21)', () => {
       embeddingProvider: {} as never,
       queue: {} as never,
       config: {
-        watch: { paths: ['j:/domains/**/*.md'], ignored: [] },
+        watch: { paths: ['c:/data/**/*.md'], ignored: [] },
         api: {},
         vectorStore: { collectionName: 'test' },
         inferenceRules: [],
       } as never,
       getConfig: () =>
         ({
-          watch: { paths: ['j:/domains/**/*.md'], ignored: [] },
+          watch: { paths: ['c:/data/**/*.md'], ignored: [] },
           api: {},
           vectorStore: { collectionName: 'test' },
           inferenceRules: [],
@@ -156,12 +156,12 @@ describe('onRulesChanged auto-reindex (Fix 21)', () => {
     // call is recorded before inject() resolves — no settle delay needed.
     // It should have been called with scope 'rules' and the extracted globs.
     const reindexCalls = executeReindexMock.mock.calls.filter(
-      (call) => call[1] === 'rules',
+      (call) => call[1].scope === 'rules',
     );
     expect(reindexCalls.length).toBeGreaterThanOrEqual(1);
 
     expect(reindexCalls[0]).toBeDefined();
-    expect(reindexCalls[0][2]).toEqual(['**/.meta/**']);
+    expect(reindexCalls[0][1].path).toEqual(['**/.meta/**']);
   });
 
   it('skips reindex when rules have no match globs', async () => {
@@ -193,7 +193,7 @@ describe('onRulesChanged auto-reindex (Fix 21)', () => {
 
     // executeReindex should NOT have been called with scope 'rules'
     const reindexCalls = executeReindexMock.mock.calls.filter(
-      (call) => call[1] === 'rules',
+      (call) => call[1].scope === 'rules',
     );
     expect(reindexCalls).toHaveLength(0);
   });
@@ -253,14 +253,14 @@ describe('onRulesChanged auto-reindex (Fix 21)', () => {
     expect(response.statusCode).toBe(200);
 
     const reindexCalls = executeReindexMock.mock.calls.filter(
-      (call) => call[1] === 'rules',
+      (call) => call[1].scope === 'rules',
     );
     expect(reindexCalls.length).toBeGreaterThanOrEqual(1);
 
     expect(reindexCalls[0]).toBeDefined();
-    expect(reindexCalls[0][2]).toEqual(
+    expect(reindexCalls[0][1].path).toEqual(
       expect.arrayContaining(['**/.meta/**', '**/docs/**']),
     );
-    expect(reindexCalls[0][2] as string[]).toHaveLength(2);
+    expect(reindexCalls[0][1].path as string[]).toHaveLength(2);
   });
 });

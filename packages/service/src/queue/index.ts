@@ -1,7 +1,11 @@
 /**
  * @module queue
- * Debounced, rate-limited, concurrent event queue for file watchers. Manages priority queuing and async callbacks. No direct I/O; orchestrates processing.
+ * Debounced, concurrent event queue for file watchers. Manages priority queuing and async callbacks. Embedding request rate is limited by the shared embedding provider wrapper, not here. No direct I/O.
  */
+
+import { IdleSignals } from './idleSignals';
+
+export { combinePausableQueues, type PausableQueue } from './pausable';
 
 /**
  * A watch event.
@@ -35,20 +39,18 @@ export interface EventQueueOptions {
   debounceMs: number;
   /** Maximum number of concurrent processors. */
   concurrency: number;
-  /** Optional max processed events per minute (token bucket). */
-  rateLimitPerMinute?: number;
 }
 
 /**
- * A debounced, rate-limited, concurrent event queue.
+ * A debounced, concurrent event queue.
  */
 export class EventQueue {
   private readonly debounceMs: number;
   private readonly concurrency: number;
-  private readonly rateLimitPerMinute?: number;
 
   private started = false;
   private paused = false;
+  private stopped = false;
   private active = 0;
 
   private readonly debounceTimers = new Map<string, NodeJS.Timeout>();
@@ -57,11 +59,7 @@ export class EventQueue {
   private readonly normalQueue: QueuedItem[] = [];
   private readonly lowQueue: QueuedItem[] = [];
 
-  private tokens: number;
-  private lastRefillMs = Date.now();
-
-  private drainWaiters: Array<() => void> = [];
-  private idleWorkerWaiters: Array<() => void> = [];
+  private readonly signals = new IdleSignals();
 
   /**
    * Create an event queue.
@@ -71,17 +69,16 @@ export class EventQueue {
   public constructor(options: EventQueueOptions) {
     this.debounceMs = options.debounceMs;
     this.concurrency = options.concurrency;
-    this.rateLimitPerMinute = options.rateLimitPerMinute;
-    this.tokens = this.rateLimitPerMinute ?? Number.POSITIVE_INFINITY;
   }
 
   /**
-   * Enqueue an event, debounced per path+priority.
+   * Enqueue an event, debounced per path+priority. Ignored once stopped.
    *
    * @param event - The watch event.
    * @param fn - The processing function to invoke when dequeued.
    */
   public enqueue(event: WatchEvent, fn: ProcessFn): void {
+    if (this.stopped) return;
     const key = `${event.priority}:${event.path}`;
     this.latestByKey.set(key, { event, fn });
 
@@ -101,11 +98,33 @@ export class EventQueue {
   }
 
   /**
-   * Start processing events.
+   * Start processing events (events enqueued earlier are held until now).
    */
-  public process(): void {
+  public start(): void {
     this.started = true;
     this.pump();
+  }
+
+  /**
+   * Alias of {@link EventQueue.start}, kept for existing callers.
+   */
+  public process(): void {
+    this.start();
+  }
+
+  /**
+   * Stop: cancel pending debounces, drop queued events, ignore new ones, and
+   * resolve once in-flight work finishes. Drain waiters resolve then too.
+   */
+  public async stop(): Promise<void> {
+    this.stopped = true;
+    for (const timer of this.debounceTimers.values()) clearTimeout(timer);
+    this.debounceTimers.clear();
+    this.latestByKey.clear();
+    this.normalQueue.length = 0;
+    this.lowQueue.length = 0;
+    this.settle();
+    await this.waitForIdleWorkers();
   }
 
   /**
@@ -128,11 +147,8 @@ export class EventQueue {
    *
    * @returns A promise that resolves when the queue is drained.
    */
-  public async drain(): Promise<void> {
-    if (this.isIdle()) return;
-    await new Promise<void>((resolve) => {
-      this.drainWaiters.push(resolve);
-    });
+  public drain(): Promise<void> {
+    return this.signals.drain(this.isIdle());
   }
 
   /**
@@ -142,11 +158,8 @@ export class EventQueue {
    * It's useful when you need to temporarily quiesce outgoing work without losing
    * or rejecting new enqueues.
    */
-  public async waitForIdleWorkers(): Promise<void> {
-    if (this.active === 0) return;
-    await new Promise<void>((resolve) => {
-      this.idleWorkerWaiters.push(resolve);
-    });
+  public waitForIdleWorkers(): Promise<void> {
+    return this.signals.waitForIdleWorkers(this.active === 0);
   }
 
   private push(item: QueuedItem): void {
@@ -154,45 +167,16 @@ export class EventQueue {
     else this.normalQueue.push(item);
   }
 
-  private refillTokens(nowMs: number): void {
-    if (this.rateLimitPerMinute === undefined) return;
-
-    const elapsed = Math.max(0, nowMs - this.lastRefillMs);
-    const refillRatePerMs = this.rateLimitPerMinute / 60000;
-    const refill = elapsed * refillRatePerMs;
-
-    this.tokens = Math.min(this.rateLimitPerMinute, this.tokens + refill);
-    this.lastRefillMs = nowMs;
-  }
-
-  private takeToken(): boolean {
-    const now = Date.now();
-    this.refillTokens(now);
-    if (this.tokens < 1) return false;
-    this.tokens -= 1;
-    return true;
-  }
-
   private nextItem(): QueuedItem | undefined {
     return this.normalQueue.shift() ?? this.lowQueue.shift();
   }
 
   private pump(): void {
-    if (!this.started || this.paused) return;
+    if (!this.started || this.paused || this.stopped) return;
 
     while (this.active < this.concurrency) {
       const item = this.nextItem();
       if (!item) break;
-
-      if (!this.takeToken()) {
-        // Put it back at the front of its queue and try later.
-        if (item.event.priority === 'low') this.lowQueue.unshift(item);
-        else this.normalQueue.unshift(item);
-        setTimeout(() => {
-          this.pump();
-        }, 250);
-        break;
-      }
 
       this.active += 1;
       void Promise.resolve()
@@ -200,12 +184,11 @@ export class EventQueue {
         .finally(() => {
           this.active -= 1;
           this.pump();
-          this.maybeResolveDrain();
-          this.maybeResolveIdleWorkers();
+          this.settle();
         });
     }
 
-    this.maybeResolveDrain();
+    this.settle();
   }
 
   private isIdle(): boolean {
@@ -218,17 +201,10 @@ export class EventQueue {
     );
   }
 
-  private maybeResolveDrain(): void {
-    if (!this.isIdle()) return;
-    const waiters = this.drainWaiters;
-    this.drainWaiters = [];
-    for (const resolve of waiters) resolve();
-  }
-
-  private maybeResolveIdleWorkers(): void {
-    if (this.active !== 0) return;
-    const waiters = this.idleWorkerWaiters;
-    this.idleWorkerWaiters = [];
-    for (const resolve of waiters) resolve();
+  private settle(): void {
+    this.signals.settle({
+      idleWorkers: this.active === 0,
+      drained: this.isIdle(),
+    });
   }
 }

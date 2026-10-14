@@ -27,6 +27,7 @@ type ConfigQueryRequest = FastifyRequest<{
 interface MockReply {
   status: ReturnType<typeof vi.fn>;
   send: ReturnType<typeof vi.fn>;
+  sent: boolean;
 }
 
 function createDeps(
@@ -56,7 +57,11 @@ function mockRequest(query: Record<string, unknown>): ConfigQueryRequest {
 function mockReply(): MockReply {
   const reply: Partial<MockReply> = {};
   reply.status = vi.fn().mockReturnValue(reply);
-  reply.send = vi.fn().mockImplementation((data: unknown) => data);
+  reply.sent = false;
+  reply.send = vi.fn().mockImplementation((data: unknown) => {
+    reply.sent = true;
+    return data;
+  });
   return reply as MockReply;
 }
 
@@ -69,12 +74,13 @@ describe('createConfigQueryHandler', () => {
     });
 
     const handler = createConfigQueryHandler(deps);
-    const result = await handler(
+    const reply = mockReply();
+    await handler(
       mockRequest({ path: '$.inferenceRules[*].name' }),
-      mockReply() as unknown as FastifyReply,
+      reply as unknown as FastifyReply,
     );
 
-    expect(result).toEqual({ result: ['r1', 'r2'], count: 2 });
+    expect(reply.send).toHaveBeenCalledWith({ result: ['r1', 'r2'], count: 2 });
   });
 
   it('returns full document when no path provided', async () => {
@@ -86,28 +92,41 @@ describe('createConfigQueryHandler', () => {
     mockedBuild.mockReturnValue(doc);
 
     const handler = createConfigQueryHandler(deps);
-    const result = await handler(
-      mockRequest({}),
-      mockReply() as unknown as FastifyReply,
-    );
+    const reply = mockReply();
+    await handler(mockRequest({}), reply as unknown as FastifyReply);
 
-    expect(result).toEqual(doc);
+    expect(reply.send).toHaveBeenCalledWith(doc);
   });
 
-  it('returns error when query processing throws', async () => {
-    const deps = createDeps();
-    mockedBuild.mockImplementation(() => {
-      throw new Error('build failed');
-    });
+  it('answers an invalid JSONPath with 400 invalid_request', async () => {
+    mockedBuild.mockReturnValue({ inferenceRules: [] });
+    const handler = createConfigQueryHandler(createDeps());
+    const reply = mockReply();
+    await handler(
+      mockRequest({ path: '$[?(@.x ==' }),
+      reply as unknown as FastifyReply,
+    );
+    expect(reply.status).toHaveBeenCalledWith(400);
+    expect(reply.send).toHaveBeenCalledWith(
+      expect.objectContaining({ code: 'invalid_request' }),
+    );
+  });
 
-    const handler = createConfigQueryHandler(deps);
+  it('answers an unexpected failure with a generic 500, never the error text', async () => {
+    mockedBuild.mockImplementation(() => {
+      throw new Error('build failed: /secret/path');
+    });
+    const handler = createConfigQueryHandler(createDeps());
     const reply = mockReply();
     await handler(
       mockRequest({ path: '$.anything' }),
       reply as unknown as FastifyReply,
     );
-
-    expect(reply.status).toHaveBeenCalledWith(400);
+    expect(reply.status).toHaveBeenCalledWith(500);
+    expect(reply.send).toHaveBeenCalledWith(
+      expect.objectContaining({ code: 'internal_error' }),
+    );
+    expect(JSON.stringify(reply.send.mock.calls)).not.toContain('/secret/path');
   });
 
   it('returns empty result set', async () => {
@@ -115,11 +134,12 @@ describe('createConfigQueryHandler', () => {
     mockedBuild.mockReturnValue({ inferenceRules: [] });
 
     const handler = createConfigQueryHandler(deps);
-    const result = await handler(
+    const reply = mockReply();
+    await handler(
       mockRequest({ path: '$.nonexistent' }),
-      mockReply() as unknown as FastifyReply,
+      reply as unknown as FastifyReply,
     );
 
-    expect(result).toEqual({ result: [], count: 0 });
+    expect(reply.send).toHaveBeenCalledWith({ result: [], count: 0 });
   });
 });

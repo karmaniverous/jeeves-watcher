@@ -10,6 +10,7 @@ import { fileURLToPath } from 'node:url';
 import {
   extractWatchPathStrings,
   normalizeWatchPaths,
+  ROOT_DEFAULTS,
   vcsAuthorConfigSchema,
 } from '@karmaniverous/jeeves-watcher-core';
 import type { JsonMapMap } from '@karmaniverous/jsonmap';
@@ -17,6 +18,7 @@ import { packageDirectorySync } from 'package-directory';
 import type pino from 'pino';
 
 import type { JeevesWatcherConfig } from '../config/types';
+import { RateLimitedEmbeddingProvider } from '../embedding/rateLimitedProvider';
 import { type AllHelpersIntrospection, introspectAllHelpers } from '../helpers';
 import type { ProcessorConfig } from '../processor';
 import { loadCustomMapHelpers } from '../rules/apply';
@@ -54,7 +56,9 @@ export function resolveMapsConfig(
 }
 
 /**
- * Initialize embedding provider and vector store.
+ * Initialize embedding provider and vector store. The provider is wrapped
+ * once in the shared {@link RateLimitedEmbeddingProvider}, so every consumer
+ * (watch queue, reindex, search) draws from the same request budget.
  */
 export async function initEmbeddingAndStore(
   config: JeevesWatcherConfig,
@@ -63,9 +67,13 @@ export async function initEmbeddingAndStore(
 ) {
   let embeddingProvider;
   try {
-    embeddingProvider = factories.createEmbeddingProvider(
-      config.embedding,
-      logger,
+    embeddingProvider = new RateLimitedEmbeddingProvider(
+      factories.createEmbeddingProvider(config.embedding, logger),
+      {
+        rateLimitPerMinute: config.embedding.rateLimitPerMinute,
+        maxBackoffMs: config.maxBackoffMs ?? ROOT_DEFAULTS.maxBackoffMs,
+        logger,
+      },
     );
   } catch (error) {
     logger.fatal(
@@ -190,7 +198,7 @@ export async function initVcs(
     return false;
   }
 
-  const stateDir = config.stateDir ?? '.jeeves-metadata';
+  const stateDir = config.stateDir ?? ROOT_DEFAULTS.stateDir;
   const pathStrings = extractWatchPathStrings(config.watch.paths);
   const staticPaths = pathStrings.map((p) => globRoot(p));
   validateStateDirOverlap(stateDir, staticPaths);

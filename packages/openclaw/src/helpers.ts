@@ -2,9 +2,10 @@
  * Watcher-specific convenience wrappers over `@karmaniverous/jeeves` core SDK.
  *
  * @remarks
- * Only watcher-specific resolution logic lives here. Core SDK types and
- * utilities (`PluginApi`, `ToolResult`, `ok`, `connectionFail`, `fetchJson`,
- * `postJson`) should be imported directly from `@karmaniverous/jeeves`.
+ * Only watcher-specific resolution logic (API URL, API key, config root)
+ * lives here. Core SDK types and utilities (`PluginApi`, `ToolResult`, `ok`,
+ * `connectionFail`) should be imported directly from `@karmaniverous/jeeves`;
+ * watcher API requests go through `requestJson` (`./http.js`).
  *
  * @module plugin/helpers
  */
@@ -16,6 +17,7 @@ import {
 } from '@karmaniverous/jeeves';
 
 import {
+  API_KEY_ENV_VAR,
   CONFIG_ROOT_ENV_VAR,
   DEFAULT_API_URL,
   PLUGIN_ID,
@@ -40,6 +42,29 @@ export function getApiUrl(api: PluginApi): string {
     'JEEVES_WATCHER_URL',
     DEFAULT_API_URL,
   );
+}
+
+/**
+ * Resolve the watcher API bearer key, if configured.
+ *
+ * @remarks
+ * Resolution order: plugin-scoped config (`api.pluginConfig.apiKey`), then
+ * `plugins.entries.<id>.config.apiKey`, then `JEEVES_WATCHER_API_KEY`. Blank
+ * values count as unset. Resolved per request; never logged.
+ *
+ * @returns The key, or `undefined` when unset (requests carry no header).
+ */
+export function getApiKey(api: PluginApi): string | undefined {
+  const scoped = api.pluginConfig?.apiKey;
+  if (typeof scoped === 'string' && scoped.trim() !== '') return scoped;
+
+  const resolved = resolveOptionalPluginSetting(
+    api,
+    PLUGIN_ID,
+    'apiKey',
+    API_KEY_ENV_VAR,
+  );
+  return resolved?.trim() ? resolved : undefined;
 }
 
 /**

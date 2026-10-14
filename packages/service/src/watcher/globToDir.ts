@@ -15,8 +15,8 @@ import { normalizeSlashes } from '../util/normalizeSlashes';
  * Extract the static directory root from a glob pattern.
  * Stops at the first segment containing glob characters (`*`, `{`, `?`, `[`).
  *
- * @param glob - A glob pattern (e.g., `j:/domains/**\/*.json`).
- * @returns The static directory prefix (e.g., `j:/domains`).
+ * @param glob - A glob pattern (e.g., `c:/data/**\/*.json`).
+ * @returns The static directory prefix (e.g., `c:/data`).
  */
 export function globRoot(glob: string): string {
   const normalized = normalizeSlashes(glob);

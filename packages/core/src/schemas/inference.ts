@@ -109,7 +109,10 @@ export const renderConfigSchema = z.object({
     .describe('Ordered markdown body sections.'),
 });
 
+/** Render config: YAML frontmatter keys plus ordered Markdown body sections. */
 export type RenderConfig = z.infer<typeof renderConfigSchema>;
+
+/** One Markdown body section of a {@link RenderConfig}. */
 export type RenderBodySection = z.infer<typeof renderBodySectionSchema>;
 
 /**

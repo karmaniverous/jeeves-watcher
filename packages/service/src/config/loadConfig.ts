@@ -1,3 +1,8 @@
+/**
+ * @module config/loadConfig
+ * Loads the watcher config via cosmiconfig: schema validation, rule/map file resolution, defaults, env substitution and secret checks; reports non-fatal warnings (unknown source keys, reserved rule field names) through onWarning. Reads files.
+ */
+
 import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 
@@ -6,6 +11,8 @@ import type { JsonMapMap } from '@karmaniverous/jsonmap';
 import { cosmiconfig } from 'cosmiconfig';
 import { ZodError } from 'zod';
 
+import { findReservedFieldWarnings } from '../rules/reservedFieldWarnings';
+import { assertResolvedSecrets } from './assertResolvedSecrets';
 import {
   API_DEFAULTS,
   CONFIG_WATCH_DEFAULTS,
@@ -16,6 +23,8 @@ import {
 } from './defaults';
 import type { InferenceRule } from './schemas';
 import { type JeevesWatcherConfig, jeevesWatcherConfigSchema } from './schemas';
+import { findUnknownSourceKeys } from './sourceKeyWarnings';
+import type { ConfigWarning } from './warnings';
 
 const MODULE_NAME = 'jeeves-watcher';
 
@@ -37,15 +46,27 @@ function applyDefaults(raw: JeevesWatcherConfig): JeevesWatcherConfig {
   };
 }
 
+/** Options of {@link loadConfig}. */
+export interface LoadConfigOptions {
+  /**
+   * Receives non-fatal warnings once the config has loaded successfully:
+   * unknown keys under `sources.<name>` (which validation drops), then rule
+   * schema properties named like reserved system fields.
+   */
+  onWarning?: (warning: ConfigWarning) => void;
+}
+
 /**
  * Load the jeeves-watcher configuration.
  *
  * @param configPath - Optional explicit path to a config file.
+ * @param options - Optional warning sink.
  * @returns The loaded configuration.
  * @throws If no configuration is found or validation fails.
  */
 export async function loadConfig(
   configPath?: string,
+  options: LoadConfigOptions = {},
 ): Promise<JeevesWatcherConfig> {
   const explorer = cosmiconfig(MODULE_NAME);
 
@@ -93,7 +114,14 @@ export async function loadConfig(
     }
 
     const withDefaults = applyDefaults(validated);
-    return substituteEnvVars(withDefaults);
+    const substituted = substituteEnvVars(withDefaults);
+    assertResolvedSecrets(substituted);
+    const warnings = [
+      ...findUnknownSourceKeys(result.config),
+      ...findReservedFieldWarnings(substituted, configDir),
+    ];
+    for (const warning of warnings) options.onWarning?.(warning);
+    return substituted;
   } catch (error) {
     if (error instanceof ZodError) {
       const errors = error.issues

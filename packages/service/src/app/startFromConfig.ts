@@ -50,7 +50,13 @@ export async function startFromConfig(
     }
   }
 
-  const config = await loadConfig(resolvedPath);
+  // The logger is built from the config, so load-time warnings go to the
+  // console like the migration warnings above.
+  const config = await loadConfig(resolvedPath, {
+    onWarning: (warning) => {
+      console.warn(`[jeeves-watcher] ${warning.path}: ${warning.message}`);
+    },
+  });
   // Dynamic import breaks the circular dependency between this module
   // and app/index.ts (which defines JeevesWatcher and re-exports startFromConfig).
   const { JeevesWatcher } = await import('./index.js');

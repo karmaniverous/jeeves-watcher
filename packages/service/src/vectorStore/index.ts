@@ -1,16 +1,20 @@
+/**
+ * @module vectorStore
+ * Qdrant-backed {@link VectorStore}: collection setup, retried writes (see `writes`), payload reads, search, hybrid search and scrolling. Qdrant I/O.
+ */
+
 import { QdrantClient } from '@qdrant/js-client-rest';
 import type pino from 'pino';
 
 import type { VectorStoreConfig } from '../config/types';
-import { getLogger, type MinimalLogger } from '../util/logger';
-import { normalizeError } from '../util/normalizeError';
-import { retry } from '../util/retry';
 import { getCollectionInfo as getCollectionInfoHelper } from './collectionInfo';
 import { countPoints } from './count';
+import { ensureCollection as ensureCollectionHelper } from './ensureCollection';
 import {
   ensureTextIndex as ensureTextIndexHelper,
   hybridSearch as hybridSearchHelper,
 } from './hybridSearch';
+import { getPointPayload, getPointsWithVectors } from './payload';
 import { scrollCollection, scrollPage as scrollPageHelper } from './scroll';
 import type {
   CollectionInfo,
@@ -20,6 +24,7 @@ import type {
   VectorPoint,
   VectorStore,
 } from './types';
+import { QdrantWriter } from './writes';
 
 // Re-export types for public API
 export type {
@@ -36,15 +41,17 @@ export type {
  * Client wrapper for Qdrant vector store operations.
  *
  * Implements the {@link VectorStore} interface for dependency inversion.
+ * Writes (upsert, delete, set/delete payload) are retried, each retry on a
+ * fresh client (see QdrantWriter).
  */
 export class VectorStoreClient implements VectorStore {
   private readonly client: QdrantClient;
-  private writeClient: QdrantClient;
+  private readonly writer: QdrantWriter;
   private readonly clientConfig: { url: string; apiKey?: string };
   private readonly collectionName: string;
   private readonly dims: number;
-  private readonly log: MinimalLogger;
   private readonly pinoLogger?: pino.Logger;
+  private readonly payloadIndexes: VectorStoreConfig['payloadIndexes'];
 
   /**
    * Create a new VectorStoreClient.
@@ -60,11 +67,15 @@ export class VectorStoreClient implements VectorStore {
   ) {
     this.clientConfig = { url: config.url, apiKey: config.apiKey };
     this.client = this.createClient();
-    this.writeClient = this.client;
     this.collectionName = config.collectionName;
+    this.payloadIndexes = config.payloadIndexes;
     this.dims = dimensions;
-    this.log = getLogger(logger);
     this.pinoLogger = logger;
+    this.writer = new QdrantWriter({
+      collectionName: config.collectionName,
+      createClient: () => this.createClient(),
+      logger,
+    });
   }
 
   /**
@@ -73,7 +84,8 @@ export class VectorStoreClient implements VectorStore {
    * Used to avoid stale HTTP keep-alive connections. The Qdrant JS client's
    * internal undici Agent uses keepAliveTimeout: 10s, which causes ECONNRESET
    * when connections sit idle during slow embedding calls (Gemini p99 ~8s).
-   * Creating a fresh client for write operations ensures clean TCP connections.
+   * Writes therefore run on their own client, replaced on every retry
+   * (see QdrantWriter).
    */
   private createClient(): QdrantClient {
     return new QdrantClient({
@@ -93,138 +105,39 @@ export class VectorStoreClient implements VectorStore {
   }
 
   /**
-   * Ensure the collection exists with correct dimensions and Cosine distance.
+   * Ensure the collection exists (Cosine, configured dimensions) and create
+   * any missing payload indexes (configured plus `source`/`source_rule`).
    */
   async ensureCollection(): Promise<void> {
-    try {
-      const collections = await this.client.getCollections();
-      const exists = collections.collections.some(
-        (c) => c.name === this.collectionName,
-      );
-      if (!exists) {
-        await this.client.createCollection(this.collectionName, {
-          vectors: { size: this.dims, distance: 'Cosine' },
-        });
-      }
-    } catch (error) {
-      throw new Error(
-        `Failed to ensure collection "${this.collectionName}": ${String(error)}`,
-        { cause: error },
-      );
-    }
+    await ensureCollectionHelper(this.client, {
+      collectionName: this.collectionName,
+      dimensions: this.dims,
+      payloadIndexes: this.payloadIndexes,
+      logger: this.pinoLogger,
+    });
   }
 
-  /**
-   * Retry a Qdrant operation with standardized config and logging.
-   *
-   * @param operation - Operation name for logging (e.g., 'upsert', 'delete').
-   * @param fn - Async function to retry.
-   */
-  private async retryOperation(
-    operation: string,
-    fn: (attempt: number) => Promise<void>,
-  ): Promise<void> {
-    await retry(
-      async (attempt) => {
-        if (attempt > 1) {
-          this.log.warn(
-            { attempt, operation: `qdrant.${operation}` },
-            `Retrying Qdrant ${operation}`,
-          );
-        }
-        await fn(attempt);
-      },
-      {
-        attempts: 5,
-        baseDelayMs: 500,
-        maxDelayMs: 10_000,
-        jitter: 0.2,
-        onRetry: ({ attempt, delayMs, error }) => {
-          this.log.warn(
-            {
-              attempt,
-              delayMs,
-              operation: `qdrant.${operation}`,
-              err: normalizeError(error),
-            },
-            `Qdrant ${operation} failed; will retry`,
-          );
-        },
-      },
-    );
-  }
-
-  private getWriteClient(attempt: number): QdrantClient {
-    if (attempt > 1) {
-      this.pinoLogger?.info('Created fresh Qdrant client for retry');
-      this.writeClient = this.createClient();
-    }
-    return this.writeClient;
-  }
-
-  /**
-   * Upsert points into the collection.
-   *
-   * Uses the shared client. On retry (after ECONNRESET from stale connections),
-   * creates a fresh client to recover.
-   *
-   * @param points - The points to upsert.
-   */
+  /** {@inheritDoc VectorStore.upsert} */
   async upsert(points: VectorPoint[]): Promise<void> {
-    if (points.length === 0) return;
-
-    await this.retryOperation('upsert', async (attempt) => {
-      const client = this.getWriteClient(attempt);
-
-      await client.upsert(this.collectionName, {
-        wait: true,
-        points: points.map((p) => ({
-          id: p.id,
-          vector: p.vector,
-          payload: p.payload,
-        })),
-      });
-    });
+    await this.writer.upsert(points);
   }
 
-  /**
-   * Delete points by their IDs.
-   *
-   * Uses the shared client. On retry, creates a fresh client to recover.
-   *
-   * @param ids - The point IDs to delete.
-   */
+  /** {@inheritDoc VectorStore.delete} */
   async delete(ids: string[]): Promise<void> {
-    if (ids.length === 0) return;
-
-    await this.retryOperation('delete', async (attempt) => {
-      const client = this.getWriteClient(attempt);
-
-      await client.delete(this.collectionName, {
-        wait: true,
-        points: ids,
-      });
-    });
+    await this.writer.delete(ids);
   }
 
-  /**
-   * Set payload fields for the specified point IDs.
-   *
-   * This merges the given payload object into each point's existing payload.
-   *
-   * @param ids - Point IDs to update.
-   * @param payload - Payload fields to set.
-   */
+  /** {@inheritDoc VectorStore.setPayload} */
   async setPayload(
     ids: string[],
     payload: Record<string, unknown>,
   ): Promise<void> {
-    if (ids.length === 0) return;
-    await this.client.setPayload(this.collectionName, {
-      wait: true,
-      points: ids,
-      payload,
-    });
+    await this.writer.setPayload(ids, payload);
+  }
+
+  /** {@inheritDoc VectorStore.deletePayload} */
+  async deletePayload(ids: string[], keys: string[]): Promise<void> {
+    await this.writer.deletePayload(ids, keys);
   }
 
   /**
@@ -232,19 +145,10 @@ export class VectorStoreClient implements VectorStore {
    *
    * @param id - The point ID.
    * @returns The payload, or `null` if the point doesn't exist.
+   * @throws When the read fails (never reported as a missing point).
    */
   async getPayload(id: string): Promise<Record<string, unknown> | null> {
-    try {
-      const results = await this.client.retrieve(this.collectionName, {
-        ids: [id],
-        with_payload: true,
-        with_vector: false,
-      });
-      if (results.length === 0) return null;
-      return results[0].payload as Record<string, unknown>;
-    } catch {
-      return null;
-    }
+    return getPointPayload(this.client, this.collectionName, id);
   }
 
   /**
@@ -339,25 +243,10 @@ export class VectorStoreClient implements VectorStore {
    *
    * @param ids - The point IDs to retrieve.
    * @returns Points with vectors and payloads; missing IDs are omitted.
+   * @throws When the read fails (never reported as missing points).
    */
   async getPointsWithVectors(ids: string[]): Promise<VectorPoint[]> {
-    if (ids.length === 0) return [];
-    try {
-      const results = await this.client.retrieve(this.collectionName, {
-        ids,
-        with_payload: true,
-        with_vector: true,
-      });
-      return results
-        .filter((r) => r.vector != null)
-        .map((r) => ({
-          id: String(r.id),
-          vector: r.vector as number[],
-          payload: r.payload as Record<string, unknown>,
-        }));
-    } catch {
-      return [];
-    }
+    return getPointsWithVectors(this.client, this.collectionName, ids);
   }
 
   /**

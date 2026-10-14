@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -6,6 +6,7 @@ import pino from 'pino';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { IssuesManager } from './IssuesManager';
+import { issueRecordSchema } from './types';
 
 describe('IssuesManager', () => {
   let tempDir: string;
@@ -36,6 +37,20 @@ describe('IssuesManager', () => {
     expect(issues.length).toBe(1);
     expect(issues[0].type).toBe('interpolation_error');
     expect(issues[0].property).toBe('title');
+  });
+
+  it('persists rule and JSON details, readable by a fresh instance', () => {
+    const details = [{ keyword: 'required', params: { missingProperty: 'x' } }];
+    manager.record('app://chat/1', 'match_failed', 'No match', {
+      operation: 'Failed to process source document',
+      rule: 'chat',
+      details,
+    });
+    const reloaded = new IssuesManager(tempDir, logger).get('app://chat/1');
+    expect(reloaded).toEqual([
+      expect.objectContaining({ type: 'match_failed', rule: 'chat', details }),
+    ]);
+    expect(issueRecordSchema.safeParse(reloaded?.[0]).success).toBe(true);
   });
 
   it('appends multiple issues for the same file', () => {
@@ -139,6 +154,57 @@ describe('IssuesManager', () => {
         message: "Failed to resolve ${json.from.email}: 'from' is null",
       });
       expect(issues[0].timestamp).toBeTypeOf('number');
+    });
+  });
+
+  describe('processing failure issues (#255)', () => {
+    it('records a typed processing issue with its operation', () => {
+      manager.record('big.md', 'embedding_error', 'quota exceeded', {
+        operation: 'Failed to process file',
+      });
+      const issues = manager.get('big.md')!;
+      expect(issues).toHaveLength(1);
+      expect(issueRecordSchema.parse(issues[0])).toMatchObject({
+        type: 'embedding_error',
+        operation: 'Failed to process file',
+        message: 'quota exceeded',
+      });
+    });
+
+    it('get returns undefined for a file without issues', () => {
+      expect(manager.get('none.md')).toBeUndefined();
+    });
+
+    it('get returns a copy that does not mutate the store', () => {
+      manager.record('a.md', 'upsert_error', 'down');
+      manager.get('a.md')!.length = 0;
+      expect(manager.get('a.md')).toHaveLength(1);
+    });
+
+    it('loads a legacy (pre-0.20.0) issues.json and its records still parse', () => {
+      const legacy = {
+        'old.md': [
+          {
+            type: 'type_collision',
+            property: 'status',
+            rules: ['r1', 'r2'],
+            types: ['string', 'integer'],
+            message: 'Type collision',
+            timestamp: 1760000000,
+          },
+          {
+            type: 'interpolation_error',
+            rule: 'r3',
+            message: 'missing var',
+            timestamp: '2026-01-01T00:00:00Z',
+          },
+        ],
+      };
+      writeFileSync(join(tempDir, 'issues.json'), JSON.stringify(legacy));
+      const loaded = new IssuesManager(tempDir, logger).get('old.md')!;
+      expect(loaded.map((i) => issueRecordSchema.parse(i))).toEqual(
+        legacy['old.md'],
+      );
     });
   });
 

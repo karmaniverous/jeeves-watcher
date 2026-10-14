@@ -1,6 +1,6 @@
 /**
  * @module enrichment/EnrichmentStore
- * SQLite-backed enrichment metadata store. Persists path-keyed metadata at stateDir/enrichments.sqlite. Atomic writes, supports move.
+ * SQLite-backed enrichment metadata store. Persists path- or source-reference-keyed metadata (references verbatim) at stateDir/enrichments.sqlite. Atomic writes, supports move.
  */
 
 import { mkdirSync } from 'node:fs';
@@ -9,7 +9,7 @@ import { DatabaseSync } from 'node:sqlite';
 
 import type pino from 'pino';
 
-import { normalizePath } from '../util/normalizePath';
+import { normalizeDocumentKey } from '../util/documentKey';
 
 const BUSY_TIMEOUT_MS = 5000;
 
@@ -86,7 +86,7 @@ export class EnrichmentStore implements EnrichmentStoreInterface {
   }
 
   get(path: string): Record<string, unknown> | null {
-    const normalized = normalizePath(path);
+    const normalized = normalizeDocumentKey(path);
     const row = this.db
       .prepare('SELECT metadata FROM enrichments WHERE path = ?')
       .get(normalized) as { metadata: string } | undefined;
@@ -95,7 +95,7 @@ export class EnrichmentStore implements EnrichmentStoreInterface {
   }
 
   set(path: string, metadata: Record<string, unknown>): void {
-    const normalized = normalizePath(path);
+    const normalized = normalizeDocumentKey(path);
     const now = new Date().toISOString();
     const existing = this.get(path);
     const merged = existing ? { ...existing, ...metadata } : metadata;
@@ -117,13 +117,13 @@ export class EnrichmentStore implements EnrichmentStoreInterface {
   }
 
   delete(path: string): void {
-    const normalized = normalizePath(path);
+    const normalized = normalizeDocumentKey(path);
     this.db.prepare('DELETE FROM enrichments WHERE path = ?').run(normalized);
   }
 
   move(oldPath: string, newPath: string): void {
-    const normalizedOld = normalizePath(oldPath);
-    const normalizedNew = normalizePath(newPath);
+    const normalizedOld = normalizeDocumentKey(oldPath);
+    const normalizedNew = normalizeDocumentKey(newPath);
     const now = new Date().toISOString();
     this.db
       .prepare('UPDATE enrichments SET path = ?, updated_at = ? WHERE path = ?')

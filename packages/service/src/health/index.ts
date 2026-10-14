@@ -4,6 +4,7 @@
  * Triggers fatal error callback when maxRetries is exceeded.
  */
 
+import { ROOT_DEFAULTS } from '@karmaniverous/jeeves-watcher-core';
 import type pino from 'pino';
 
 import { normalizeError } from '../util/normalizeError';
@@ -38,7 +39,7 @@ export class SystemHealth {
 
   constructor(options: SystemHealthOptions) {
     this.maxRetries = options.maxRetries ?? Number.POSITIVE_INFINITY;
-    this.maxBackoffMs = options.maxBackoffMs ?? 60_000;
+    this.maxBackoffMs = options.maxBackoffMs ?? ROOT_DEFAULTS.maxBackoffMs;
     this.baseDelayMs = options.baseDelayMs ?? 1000;
     this.onFatalError = options.onFatalError;
     this.logger = options.logger;

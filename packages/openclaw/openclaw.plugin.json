@@ -13,6 +13,10 @@
         "description": "jeeves-watcher API base URL",
         "default": "http://127.0.0.1:1936"
       },
+      "apiKey": {
+        "type": "string",
+        "description": "Bearer key sent as Authorization: Bearer <key> on every watcher API request; must match the service's api.apiKey. Falls back to the JEEVES_WATCHER_API_KEY env var. Unset: no header."
+      },
       "configRoot": {
         "type": "string",
         "description": "Platform config root path (e.g. /srv/jeeves/config). No default: set it here (jeeves install --config-root) or via the JEEVES_CONFIG_ROOT env var."
@@ -45,6 +49,11 @@
     "apiUrl": {
       "label": "Watcher API URL",
       "placeholder": "http://127.0.0.1:1936"
+    },
+    "apiKey": {
+      "label": "Watcher API key",
+      "help": "Sent as a bearer token; matches the service's api.apiKey. Leave unset when the API has no key.",
+      "sensitive": true
     },
     "configRoot": {
       "label": "Config root",

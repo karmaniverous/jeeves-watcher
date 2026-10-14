@@ -67,6 +67,7 @@ describe('DocumentProcessor file date & line offset fields', () => {
 
   it('includes created_at, modified_at, line_start, line_end in upserted points', async () => {
     mockedBuildMergedMetadata.mockResolvedValue({
+      dates: { createdAt: 1700000000, modifiedAt: 1700100000 },
       metadata: { domain: 'test' },
       extracted: { text: 'line1\nline2\nline3', frontmatter: null, json: null },
       renderedContent: null,

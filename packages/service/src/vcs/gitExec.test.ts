@@ -68,21 +68,19 @@ describe('findRootForPath', () => {
   it('matches case-insensitively on Windows in both directions', () => {
     expect(
       findRootForPath(
-        ['j:/domains/projects'],
-        'J:/domains/projects/file.txt',
+        ['c:/data/projects'],
+        'C:/data/projects/file.txt',
         'win32',
       ),
-    ).toBe('j:/domains/projects');
+    ).toBe('c:/data/projects');
     expect(
       findRootForPath(
-        ['J:/Domains/Projects'],
-        'j:/domains/projects/file.txt',
+        ['C:/Data/Projects'],
+        'c:/data/projects/file.txt',
         'win32',
       ),
-    ).toBe('J:/Domains/Projects');
-    expect(findRootForPath(['j:/domains'], 'J:/domains', 'win32')).toBe(
-      'j:/domains',
-    );
+    ).toBe('C:/Data/Projects');
+    expect(findRootForPath(['c:/data'], 'C:/data', 'win32')).toBe('c:/data');
   });
 
   it('is case-sensitive on other platforms', () => {

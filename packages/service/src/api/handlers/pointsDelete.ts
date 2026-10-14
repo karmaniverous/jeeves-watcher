@@ -3,50 +3,52 @@
  * Fastify route handler for POST /points/delete.
  */
 
+import { pointsDeleteRequestSchema } from '@karmaniverous/jeeves-watcher-core';
 import type { FastifyRequest } from 'fastify';
 import type pino from 'pino';
 
 import type { VectorStore } from '../../vectorStore';
+import { deletePointsByFilter } from '../pointDeletion';
+import { withFilterErrors } from '../requestError';
+import { parseBody } from './parseBody';
 import { wrapHandler } from './wrapHandler';
 
+/** Dependencies of the POST /points/delete handler. */
 export interface PointsDeleteDeps {
+  /** Vector store the points are deleted from. */
   vectorStore: VectorStore;
+  /** Logger. */
   logger: pino.Logger;
 }
 
-type PointsDeleteRequest = FastifyRequest<{
-  Body: { filter: Record<string, unknown> };
-}>;
+type PointsDeleteRequest = FastifyRequest<{ Body: unknown }>;
 
 /**
  * Create handler for POST /points/delete.
- * Deletes points matching a Qdrant filter.
+ * Deletes points matching a Qdrant filter. A missing or non-object `filter`,
+ * or one Qdrant rejects, is `400 invalid_request`.
+ *
+ * @param deps - Handler dependencies.
+ * @returns Fastify route handler.
  */
 export function createPointsDeleteHandler(deps: PointsDeleteDeps) {
   return wrapHandler(
     async (request: PointsDeleteRequest) => {
-      const { filter } = request.body;
+      const { filter } = parseBody(
+        pointsDeleteRequestSchema,
+        request.body ?? {},
+      );
 
-      if (typeof filter !== 'object') {
-        throw new Error('Missing required field: filter (object)');
-      }
-
-      // Collect matching point IDs via scroll
-      const ids: string[] = [];
-      for await (const point of deps.vectorStore.scroll(filter, 100)) {
-        ids.push(point.id);
-      }
-
-      if (ids.length > 0) {
-        await deps.vectorStore.delete(ids);
-      }
+      const deleted = await withFilterErrors(
+        deletePointsByFilter(deps.vectorStore, filter),
+      );
 
       deps.logger.info(
-        { filter, deleted: ids.length },
+        { filter, deleted: deleted.length },
         'Points deleted by filter',
       );
 
-      return { deleted: ids.length };
+      return { deleted: deleted.length };
     },
     deps.logger,
     'PointsDelete',

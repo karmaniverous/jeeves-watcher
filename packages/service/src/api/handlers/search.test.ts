@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
+import { EmbeddingUnavailableError } from '../../embedding/rateLimitError';
 import type { SearchRouteDeps } from './search';
 import { createSearchHandler } from './search';
 
@@ -105,6 +106,75 @@ describe('createSearchHandler', () => {
       undefined,
       10,
     );
+  });
+
+  it('embeds the query with a bounded rate-limit budget', async () => {
+    const embed = vi.fn().mockResolvedValue([[0.1, 0.2, 0.3]]);
+    const deps = {
+      ...mockDeps,
+      embeddingProvider: { embed, dimensions: 3 },
+    } as unknown as SearchRouteDeps;
+    const handler = createSearchHandler(deps);
+    const reply = { status: vi.fn().mockReturnThis(), send: vi.fn() } as never;
+
+    await handler({ body: { query: 'q' } } as never, reply);
+
+    expect(embed).toHaveBeenCalledWith(['q'], {
+      attempts: 3,
+      maxWaitMs: 10_000,
+    });
+  });
+
+  it('responds 503 with { error, message } when the embedding budget is exhausted', async () => {
+    const deps = {
+      ...mockDeps,
+      embeddingProvider: {
+        embed: vi.fn().mockRejectedValue(
+          new EmbeddingUnavailableError('still rate-limited', {
+            retryAfterMs: 2_500,
+          }),
+        ),
+        dimensions: 3,
+      },
+      logger: { error: vi.fn(), warn: vi.fn() },
+    } as unknown as SearchRouteDeps;
+    const handler = createSearchHandler(deps);
+    const reply = {
+      sent: false,
+      header: vi.fn().mockReturnThis(),
+      status: vi.fn().mockReturnThis(),
+      send: vi.fn(function (this: { sent: boolean }) {
+        this.sent = true;
+        return this;
+      }),
+    };
+
+    await handler({ body: { query: 'q' } } as never, reply as never);
+
+    expect(reply.status).toHaveBeenCalledWith(503);
+    expect(reply.header).toHaveBeenCalledWith('Retry-After', '3');
+    expect(reply.send).toHaveBeenCalledTimes(1);
+    expect(reply.send).toHaveBeenCalledWith({
+      code: 'embedding_unavailable',
+      error: 'EmbeddingUnavailableError',
+      message: 'still rate-limited',
+    });
+  });
+
+  it('still responds 500 for other embedding failures', async () => {
+    const deps = {
+      ...mockDeps,
+      embeddingProvider: {
+        embed: vi.fn().mockRejectedValue(new Error('bad key')),
+        dimensions: 3,
+      },
+    } as unknown as SearchRouteDeps;
+    const handler = createSearchHandler(deps);
+    const reply = { status: vi.fn().mockReturnThis(), send: vi.fn() };
+
+    await handler({ body: { query: 'q' } } as never, reply as never);
+
+    expect(reply.status).toHaveBeenCalledWith(500);
   });
 
   it('falls back to vector search when hybrid is disabled', async () => {

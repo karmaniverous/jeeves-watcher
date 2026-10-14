@@ -9,10 +9,14 @@ import type pino from 'pino';
 import { resolveWatchRootsForGlob } from '../../../vcs/resolveWatchRoot';
 import { runGit } from '../../../vcs/runGit';
 import type { VcsCoordinator } from '../../../vcs/VcsCoordinator';
+import { sendError } from '../../sendError';
 import { wrapHandler } from '../wrapHandler';
 
+/** Dependencies of the GET /vcs/history handler. */
 export interface VcsHistoryRouteDeps {
+  /** VCS coordinator (tracked roots and git operations). */
   coordinator: VcsCoordinator;
+  /** Logger. */
   logger: pino.Logger;
 }
 
@@ -80,9 +84,11 @@ export function createVcsHistoryHandler(deps: VcsHistoryRouteDeps) {
       const { glob, since, until, limit: limitStr } = request.query;
 
       if (!glob) {
-        void reply
-          .status(400)
-          .send({ error: 'Missing required query parameter: glob' });
+        sendError(
+          reply,
+          'invalid_request',
+          'Missing required query parameter: glob',
+        );
         return;
       }
 
@@ -90,9 +96,11 @@ export function createVcsHistoryHandler(deps: VcsHistoryRouteDeps) {
       const resolved = resolveWatchRootsForGlob(deps.coordinator, glob);
 
       if (resolved.length === 0) {
-        void reply
-          .status(404)
-          .send({ error: 'No VCS-enabled watch root matches the given glob' });
+        sendError(
+          reply,
+          'not_found',
+          'No VCS-enabled watch root matches the given glob',
+        );
         return;
       }
 

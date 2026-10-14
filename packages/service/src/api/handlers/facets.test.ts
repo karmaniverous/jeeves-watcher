@@ -267,7 +267,7 @@ describe('GET /search/facets handler', () => {
     const values = makeValuesManager({
       rule: {
         title: ['Doc A', 'Doc B', 'Doc C'],
-        issue_key: ['WEB-1', 'WEB-2', 'WEB-3'],
+        issue_key: ['PROJ-1', 'PROJ-2', 'PROJ-3'],
         domain: ['slack', 'email'],
       },
     });

@@ -5,43 +5,37 @@
     "packages/*"
   ],
   "scripts": {
-    "build": "npm run build --workspace=packages/core && npm run build --workspace=packages/service && npm run build --workspace=packages/openclaw",
+    "build": "npm run build --workspace=packages/core && npm run build --workspace=packages/sdk && npm run build --workspace=packages/service && npm run build --workspace=packages/openclaw",
     "lint": "eslint .",
     "lint:fix": "eslint --fix .",
-    "test": "npm run test --workspace=packages/core && npm run test --workspace=packages/service && npm run test --workspace=packages/openclaw",
+    "test": "npm run test --workspace=packages/core && npm run test --workspace=packages/sdk && npm run test --workspace=packages/service && npm run test --workspace=packages/openclaw",
     "knip": "knip",
     "docs": "typedoc",
-    "typecheck": "npm run typecheck --workspace=packages/core && npm run typecheck --workspace=packages/service && npm run typecheck --workspace=packages/openclaw"
+    "typecheck": "npm run typecheck --workspace=packages/core && npm run typecheck --workspace=packages/sdk && npm run typecheck --workspace=packages/service && npm run typecheck --workspace=packages/openclaw"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@vitest/eslint-plugin": "^1.6.27",
-    "eslint": "^10.11.0",
+    "eslint": "^10.12.0",
     "eslint-config-prettier": "^10.1.8",
-    "eslint-plugin-prettier": "^5.5.6",
+    "eslint-plugin-prettier": "^5.5.7",
     "eslint-plugin-simple-import-sort": "^14.0.0",
-    "eslint-plugin-tsdoc": "^0.5.3",
+    "eslint-plugin-tsdoc": "^0.5.4",
     "git-cliff": "^2.14.2",
-    "knip": "^6.38.0",
-    "lefthook": "^2.1.14",
-    "prettier": "^3.9.9",
+    "knip": "^6.41.0",
+    "lefthook": "^2.2.2",
+    "prettier": "^3.9.10",
     "rimraf": "^6.1.3",
     "tsx": "^4.23.15",
     "typescript": "^6.0.3",
-    "typescript-eslint": "^8.70.1"
+    "typescript-eslint": "^8.71.2"
   },
   "engines": {
     "node": ">=22.13"
   },
   "overrides": {
-    "@atlaskit/adf-schema": {
-      "linkify-it": "^5.0.2"
-    },
-    "@atlaskit/react-ufo": {
-      "uuid": "^14.0.2"
-    },
     "eslint-plugin-tsdoc": {
-      "@typescript-eslint/utils": "^8.70.1"
+      "@typescript-eslint/utils": "^8.71.2"
     }
   },
   "allowScripts": {

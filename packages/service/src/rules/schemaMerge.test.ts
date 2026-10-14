@@ -273,7 +273,7 @@ describe('resolveAndCoerce', () => {
         modified: '',
       },
       json: {
-        entityKey: 'WEB-123',
+        entityKey: 'PROJ-123',
         current: { fields: { created: '1735689600' } },
         priority: '3.5',
       },
@@ -283,7 +283,7 @@ describe('resolveAndCoerce', () => {
 
     expect(result).toEqual({
       domain: 'jira',
-      issue_key: 'WEB-123',
+      issue_key: 'PROJ-123',
       created: 1735689600,
       priority: 3.5,
     });

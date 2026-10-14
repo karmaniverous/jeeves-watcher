@@ -58,12 +58,13 @@ describe('createConfigQueryHandler (globals resolve)', () => {
     mockedBuild.mockReturnValue(doc);
 
     const handler = createConfigQueryHandler(deps);
-    const result = await handler(
+    const reply = mockReply();
+    await handler(
       mockRequest({ path: '$.schemas' }),
-      mockReply() as unknown as FastifyReply,
+      reply as unknown as FastifyReply,
     );
 
-    expect(result).toEqual({
+    expect(reply.send).toHaveBeenCalledWith({
       result: [{ base: { properties: {} } }],
       count: 1,
     });

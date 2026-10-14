@@ -1,19 +1,19 @@
 /**
  * @module plugin/apiTool
- * Generic HTTP-backed watcher tool registration: config shape, request helpers, and ok/connectionFail wrapping.
+ * Generic HTTP-backed watcher tool registration: config shape, request helpers, and ok/connectionFail wrapping. Requests carry the bearer key (if configured) via `requestJson`.
  */
 
 import {
   connectionFail,
-  fetchJson,
   ok,
   type PluginApi,
-  postJson,
   type ToolDescriptor,
   type ToolResult,
 } from '@karmaniverous/jeeves';
 
 import { PLUGIN_ID } from './constants.js';
+import { getApiKey } from './helpers.js';
+import { requestJson } from './http.js';
 
 /**
  * OpenClaw Tool Search catalog mode.
@@ -44,10 +44,19 @@ export interface ApiToolConfig {
   buildRequest: (params: Record<string, unknown>) => [string, unknown?];
 }
 
-/** Register a single API tool with standard try/catch + ok/connectionFail. */
+/** API base URL, or a resolver evaluated on every call. */
+export type BaseUrlSource = string | (() => string);
+
+/**
+ * Register a single API tool with standard try/catch + ok/connectionFail.
+ *
+ * @remarks
+ * The bearer key is resolved from `api` ({@link getApiKey}) on every call,
+ * so a key set after registration takes effect without re-registering.
+ */
 export function registerApiTool(
   api: PluginApi,
-  baseUrl: string,
+  baseUrlSource: BaseUrlSource,
   config: ApiToolConfig,
 ): void {
   const tool: CatalogToolDescriptor = {
@@ -59,11 +68,15 @@ export function registerApiTool(
       _id: string,
       params: Record<string, unknown>,
     ): Promise<ToolResult> => {
+      const baseUrl =
+        typeof baseUrlSource === 'function' ? baseUrlSource() : baseUrlSource;
       try {
         const [endpoint, body] = config.buildRequest(params);
-        const url = `${baseUrl}${endpoint}`;
-        const data =
-          body !== undefined ? await postJson(url, body) : await fetchJson(url);
+        const data = await requestJson(
+          `${baseUrl}${endpoint}`,
+          body,
+          getApiKey(api),
+        );
         return ok(data);
       } catch (error) {
         return connectionFail(error, baseUrl, PLUGIN_ID);

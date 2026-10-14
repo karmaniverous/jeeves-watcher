@@ -6,6 +6,7 @@
 import { DEFAULT_PORT as _DEFAULT_PORT } from '@karmaniverous/jeeves-watcher-core';
 
 export {
+  API_KEY_ENV_VAR,
   COMPONENT_NAME,
   DEFAULT_PORT,
   PLUGIN_PACKAGE,

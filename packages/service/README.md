@@ -4,18 +4,20 @@ Filesystem watcher that keeps a [Qdrant](https://qdrant.tech/) vector store in s
 
 ## Requirements
 
-- **Node.js** ≥ 22
+- **Node.js** ≥ 22.13
 
 ## Features
 
 - **Filesystem watching** — monitors directories for file changes via [chokidar](https://github.com/paulmillr/chokidar)
-- **Multi-format extraction** — PDF, HTML, DOCX, Markdown, plain text, and more
-- **Configurable chunking** — token-based text splitting with overlap control
+- **Multi-format extraction** — PDF, HTML, DOCX, Markdown, JSON and plain text (other extensions are read as plain text)
+- **Configurable chunking** — character-based text splitting with overlap control
 - **Embedding providers** — Gemini (default) or mock (for testing); extensible via provider registry
 - **Qdrant sync** — automatic upsert/delete keeps the vector store current
 - **Rules engine** — glob-based inference rules for metadata enrichment
-- **REST API** — Fastify server for search, status, config, and management
-- **CLI** — `jeeves-watcher init`, `validate`, `start`, and more
+- **REST API** — Fastify server for search, status, config, and management, with optional bearer API key (`api.apiKey`)
+- **Source documents** — index records owned by another application, retrieved by HTTP callback on notification (`sources` config, `POST /documents`); see the [Source Documents guide](https://docs.karmanivero.us/jeeves-watcher/documents/Service_Guides.Source_Documents.html)
+- **SDK** — [`@karmaniverous/jeeves-watcher-sdk`](https://www.npmjs.com/package/@karmaniverous/jeeves-watcher-sdk), a typed TypeScript client for the application-facing API
+- **CLI** — `jeeves-watcher init`, `config validate`, `start`, and more
 
 ## Version Control (VCS)
 
@@ -51,6 +53,7 @@ Add a `vcs` block to your config:
 | Property | Default | Description |
 | --- | --- | --- |
 | `vcs.enabled` | `false` | Enable git-backed version control globally |
+| `vcs.author.name` / `vcs.author.email` | `"jeeves-watcher"` / `"watcher@localhost"` | Git commit author identity |
 | `vcs.commitThrottleMs` | `30000` | Throttle interval (ms) for batching file changes into commits. Min: 1000 |
 | `vcs.maxBatchSize` | `1000` | Maximum files per commit batch. Flushes immediately when exceeded. Min: 1 |
 | `vcs.branch` | `"master"` | Git branch name for VCS operations. Squash retention and startup recovery target this branch |
@@ -62,6 +65,9 @@ Add a `vcs` block to your config:
 | `vcs.retention.maxVersions` | `100` | Maximum commits retained per root (older ones squashed) |
 | `vcs.retention.squashCron` | `"0 0 * * *"` | Cron schedule for squash retention (5-field, checked every 60s) |
 | `vcs.defaultAccessToken` | — | Fallback git access token for all roots. Supports env var substitution |
+| `vcs.staleLockThresholdMs` | `60000` | Age (ms) after which a git `index.lock` is considered stale and removed. Min: 5000 |
+| `vcs.maxConsecutiveFailures` | `5` | Commit circuit breaker: trips after this many consecutive commit failures. Min: 1 |
+| `vcs.circuitBreakerCooldownMs` | `300000` | Cooldown (ms) before a tripped breaker allows one recovery attempt; pending files are kept. Min: 1000 |
 
 ### Per-Root Overrides via `watch.paths`
 
@@ -71,15 +77,15 @@ Watch path entries can be objects with per-root VCS overrides:
 {
   "watch": {
     "paths": [
-      "J:/domains/notes/**/*.md",
+      "/data/notes/**/*.md",
       {
-        "path": "J:/domains/jira/**/*.json",
+        "path": "/data/tickets/**/*.json",
         "vcs": {
           "enabled": false
         }
       },
       {
-        "path": "J:/domains/email/**/*.json",
+        "path": "/data/email/**/*.json",
         "vcs": {
           "remote": "https://github.com/org/email-archive.git",
           "accessToken": "${GITHUB_TOKEN}",
@@ -99,7 +105,7 @@ Per-root properties (`remote`, `accessToken`) are only available in per-root ove
 ### Deployment Notes
 
 - **Git dependency:** `git` must be on the system PATH. The watcher initializes a git repository in each VCS-enabled watch root automatically.
-- **stateDir:** The `.jeeves-metadata/` directory (configurable via `stateDir`) is always gitignored. VCS state (git repos) lives inside the watch roots themselves, not in stateDir.
+- **stateDir:** With VCS enabled, `stateDir` (default `.jeeves-metadata`) must not overlap any watch root (equal, parent or child): startup fails otherwise. The `.gitignore` the watcher maintains in each VCS root always lists `.git/`, `node_modules/`, `.jeeves-watcher/` and `.jeeves-metadata/`. VCS state (git repos) lives inside the watch roots themselves, not in stateDir.
 - **Filesystem constraints:** Each VCS-enabled watch path entry must resolve to a single directory root (not a glob with wildcards in directory segments).
 
 ### Remote Push
@@ -115,7 +121,7 @@ When `remote` is set on a per-root VCS config, the watcher pushes to the remote 
   "watch": {
     "paths": [
       {
-        "path": "J:/domains/notes",
+        "path": "/data/notes",
         "vcs": {
           "remote": "https://github.com/org/notes-archive.git"
         }
@@ -165,11 +171,11 @@ The following helpers are available in every JsonMap `lib` context:
 
 ### `fetchSiblings`
 
-Retrieves extracted text from sibling files in the same directory, useful for contextual embedding (e.g., injecting surrounding email thread messages).
+Retrieves text from sibling files (same directory, same extension) around the current file, useful for contextual embedding (e.g., injecting surrounding email thread messages). JSON siblings use the JSON text derivation; other files are read raw.
 
 **Options:** `{ before?: number (default 3), after?: number (default 1), sort?: "name" | "mtime" (default "name") }`
 
-Returns `string[]` of extracted text. Files that fail extraction are silently skipped.
+Returns `string[]` of sibling text. Files that cannot be read are silently skipped. For a source document there is no file to read around, so `fetchSiblings` returns `[]`.
 
 ## Install
 
@@ -180,14 +186,14 @@ npm install @karmaniverous/jeeves-watcher
 ## Quick Start
 
 ```bash
-# Generate a config file
-npx jeeves-watcher init --output ./jeeves-watcher.config.json
+# Generate ./config/config.json (--output is a directory)
+npx jeeves-watcher init --output ./config
 
 # Validate it
-npx jeeves-watcher validate --config ./jeeves-watcher.config.json
+npx jeeves-watcher config validate --config ./config/config.json
 
 # Start the watcher
-npx jeeves-watcher start --config ./jeeves-watcher.config.json
+npx jeeves-watcher start --config ./config/config.json
 ```
 
 ## Documentation

@@ -1,55 +1,28 @@
 /**
  * @module cli/jeeves-watcher/customCommands
  * Domain-specific CLI commands registered via the descriptor's customCliCommands.
- * Uses fetchJson/postJson from core instead of hand-rolled API helpers.
+ * Every API call goes through the shared client (`apiClient`), which sends the bearer key when one is resolved.
  */
 
 import type { Command } from '@commander-js/extra-typings';
-import { DEFAULT_PORTS, fetchJson, postJson } from '@karmaniverous/jeeves';
+import {
+  getEndpoint,
+  reindexScopeSchema,
+} from '@karmaniverous/jeeves-watcher-core';
 
-import { VALID_REINDEX_SCOPES } from '../../api/executeReindex';
-
-const DEFAULT_PORT = String(DEFAULT_PORTS.watcher);
-const DEFAULT_HOST = '127.0.0.1';
-
-/** Standard API options present on every custom command. */
-interface ApiOpts {
-  host: string;
-  port: string;
-}
-
-/** Build the API base URL from host and port options. */
-function baseUrl(opts: ApiOpts): string {
-  return `http://${opts.host}:${opts.port}`;
-}
-
-/** Add standard --port and --host options to a command. */
-function withApiOptions<
-  TArgs extends unknown[],
-  TOpts extends Record<string, unknown>,
-  TGlobalOpts extends Record<string, unknown>,
->(cmd: Command<TArgs, TOpts, TGlobalOpts>) {
-  return cmd
-    .option('-p, --port <port>', 'API port', DEFAULT_PORT)
-    .option('-H, --host <host>', 'API host', DEFAULT_HOST);
-}
-
-/** Wrap an async action with standard error handling. */
-function handleErrors(fn: () => Promise<void>): () => Promise<void> {
-  return async () => {
-    try {
-      await fn();
-    } catch (err) {
-      console.error(err instanceof Error ? err.message : String(err));
-      process.exitCode = 1;
-    }
-  };
-}
-
-/** Print JSON response to stdout. */
-function printJson(data: unknown): void {
-  console.log(JSON.stringify(data, null, 2));
-}
+import {
+  apiClient,
+  handleErrors,
+  printJson,
+  withApiOptions,
+} from './apiOptions';
+import { authenticateConfigCommands } from './configCommands';
+import {
+  formatHelperSection,
+  type HelperEntry,
+  type QueryResult,
+} from './helperFormat';
+import { parseMetadataArgs } from './metadataArgs';
 
 /**
  * Register all domain-specific commands on the given Commander program.
@@ -57,6 +30,9 @@ function printJson(data: unknown): void {
  * @param program - The Commander program from createServiceCli.
  */
 export function registerCustomCommands(program: Command): void {
+  // Core's `config` / `config apply` call the API too: give them the key.
+  authenticateConfigCommands(program);
+
   // --- search ---
   withApiOptions(
     program
@@ -66,7 +42,7 @@ export function registerCustomCommands(program: Command): void {
       .option('-l, --limit <limit>', 'Max results', '10'),
   ).action(async (query, opts) => {
     await handleErrors(async () => {
-      const result = await postJson(`${baseUrl(opts)}/search`, {
+      const result = await apiClient(opts).post(getEndpoint('search').path, {
         query,
         limit: Number(opts.limit),
       });
@@ -94,7 +70,7 @@ export function registerCustomCommands(program: Command): void {
       const metadata = parseMetadataArgs(opts.json, opts.key);
       if (!metadata) return;
 
-      const result = await postJson(`${baseUrl(opts)}/metadata`, {
+      const result = await apiClient(opts).post(getEndpoint('metadata').path, {
         path,
         metadata,
       });
@@ -115,7 +91,7 @@ export function registerCustomCommands(program: Command): void {
   ).action(async (opts) => {
     await handleErrors(async () => {
       const filterObj = JSON.parse(opts.filter) as Record<string, unknown>;
-      const result = await postJson(`${baseUrl(opts)}/scan`, {
+      const result = await apiClient(opts).post(getEndpoint('scan').path, {
         filter: filterObj,
         limit: Number(opts.limit),
         cursor: opts.cursor,
@@ -144,13 +120,9 @@ export function registerCustomCommands(program: Command): void {
       ),
   ).action(async (opts) => {
     await handleErrors(async () => {
-      if (
-        !VALID_REINDEX_SCOPES.includes(
-          opts.scope as (typeof VALID_REINDEX_SCOPES)[number],
-        )
-      ) {
+      if (!reindexScopeSchema.safeParse(opts.scope).success) {
         console.error(
-          `Invalid scope "${opts.scope}". Must be one of: ${VALID_REINDEX_SCOPES.join(', ')}`,
+          `Invalid scope "${opts.scope}". Must be one of: ${reindexScopeSchema.options.join(', ')}`,
         );
         process.exitCode = 1;
         return;
@@ -161,7 +133,10 @@ export function registerCustomCommands(program: Command): void {
         body.path = opts.path.length === 1 ? opts.path[0] : opts.path;
       }
 
-      const result = await postJson(`${baseUrl(opts)}/reindex`, body);
+      const result = await apiClient(opts).post(
+        getEndpoint('reindex').path,
+        body,
+      );
       printJson(result);
     })();
   });
@@ -175,7 +150,10 @@ export function registerCustomCommands(program: Command): void {
       ),
   ).action(async (opts) => {
     await handleErrors(async () => {
-      const result = await postJson(`${baseUrl(opts)}/rebuild-metadata`, {});
+      const result = await apiClient(opts).post(
+        getEndpoint('rebuildMetadata').path,
+        {},
+      );
       printJson(result);
     })();
   });
@@ -187,7 +165,7 @@ export function registerCustomCommands(program: Command): void {
       .description('List current processing issues (GET /issues)'),
   ).action(async (opts) => {
     await handleErrors(async () => {
-      const result = await fetchJson(`${baseUrl(opts)}/issues`);
+      const result = await apiClient(opts).get(getEndpoint('issues').path);
       printJson(result);
     })();
   });
@@ -197,13 +175,15 @@ export function registerCustomCommands(program: Command): void {
     program.command('helpers').description('List available helper functions'),
   ).action(async (opts) => {
     await handleErrors(async () => {
-      const base = baseUrl(opts);
-      const mapPath = encodeURIComponent('$.mapHelpers');
-      const tplPath = encodeURIComponent('$.templateHelpers');
+      const client = apiClient(opts);
+      const query = (path: string) =>
+        client.get(
+          `${getEndpoint('config').path}?path=${encodeURIComponent(path)}`,
+        ) as Promise<QueryResult>;
 
       const [mapResult, tplResult] = await Promise.all([
-        fetchJson(`${base}/config?path=${mapPath}`) as Promise<QueryResult>,
-        fetchJson(`${base}/config?path=${tplPath}`) as Promise<QueryResult>,
+        query('$.mapHelpers'),
+        query('$.templateHelpers'),
       ]);
 
       const mapData = mapResult.result[0] as
@@ -224,79 +204,4 @@ export function registerCustomCommands(program: Command): void {
       }
     })();
   });
-}
-
-// --- shared helpers ---
-
-interface HelperEntry {
-  path?: string;
-  description?: string;
-  exports?: Record<string, string>;
-}
-
-interface QueryResult {
-  result: unknown[];
-  count: number;
-}
-
-/** Parse --json and --key options into a metadata object. Returns null on validation failure. */
-function parseMetadataArgs(
-  json: string | undefined,
-  keys: string[],
-): Record<string, unknown> | null {
-  let metadata: Record<string, unknown> = {};
-
-  if (json) {
-    try {
-      metadata = JSON.parse(json) as Record<string, unknown>;
-    } catch {
-      console.error('Invalid JSON:', json);
-      process.exitCode = 1;
-      return null;
-    }
-  }
-
-  if (Array.isArray(keys) && keys.length > 0) {
-    for (const pair of keys) {
-      const eqIndex = pair.indexOf('=');
-      if (eqIndex === -1) {
-        console.error(`Invalid key-value pair: ${pair}`);
-        process.exitCode = 1;
-        return null;
-      }
-      metadata[pair.slice(0, eqIndex)] = pair.slice(eqIndex + 1);
-    }
-  }
-
-  if (Object.keys(metadata).length === 0) {
-    console.error('No metadata provided. Use --key or --json.');
-    process.exitCode = 1;
-    return null;
-  }
-
-  return metadata;
-}
-
-/** Format a helpers section for display. */
-function formatHelperSection(
-  title: string,
-  data: Record<string, HelperEntry> | undefined,
-): string {
-  if (!data || Object.keys(data).length === 0) return '';
-
-  const lines: string[] = [`${title}:`];
-  for (const [namespace, entry] of Object.entries(data)) {
-    if (entry.description) {
-      lines.push(`  [${namespace}] ${entry.description}`);
-    }
-    if (entry.exports) {
-      for (const [name, desc] of Object.entries(entry.exports)) {
-        const descPart = desc ? ` - ${desc}` : '';
-        lines.push(`  ${name.padEnd(40)}${descPart}`);
-      }
-    } else {
-      lines.push(`  (no exports introspected)`);
-    }
-  }
-  return lines.join('\n');
 }

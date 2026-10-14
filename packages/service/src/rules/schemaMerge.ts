@@ -8,7 +8,7 @@ import { resolve as resolvePath } from 'node:path';
 
 import type Handlebars from 'handlebars';
 
-import type { FileAttributes } from './attributes';
+import type { RuleAttributes } from './attributes';
 import { coerceType } from './coerceType';
 import { resolveTemplateVars } from './templates';
 
@@ -188,7 +188,7 @@ export { coerceType } from './coerceType';
  */
 export function resolveAndCoerce(
   schema: ResolvedSchema,
-  attributes: FileAttributes,
+  attributes: RuleAttributes,
   hbs: typeof Handlebars,
 ): Record<string, unknown> {
   const result: Record<string, unknown> = {};

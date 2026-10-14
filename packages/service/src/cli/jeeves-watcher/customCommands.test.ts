@@ -1,9 +1,8 @@
 /**
  * @module cli/jeeves-watcher/customCommands.test
- * Tests for custom CLI commands registered via the descriptor.
+ * Tests for the search, enrich and scan custom CLI commands registered via the descriptor (fetch mocked).
  */
 
-import { Command } from '@commander-js/extra-typings';
 import {
   afterEach,
   beforeEach,
@@ -14,12 +13,17 @@ import {
   vi,
 } from 'vitest';
 
-import { registerCustomCommands } from './customCommands';
+import {
+  getFirstCallUrl,
+  getFirstRequestBody,
+  makeCli,
+  mockFetch,
+  mockJsonResponse,
+} from '../../test/cliCommands';
 
 let consoleLogSpy: MockInstance;
 let consoleErrorSpy: MockInstance;
 
-const mockFetch = vi.fn();
 global.fetch = mockFetch;
 
 beforeEach(() => {
@@ -32,38 +36,6 @@ afterEach(() => {
   consoleLogSpy.mockRestore();
   consoleErrorSpy.mockRestore();
 });
-
-function makeCli(): Command {
-  const cli = new Command().exitOverride();
-  registerCustomCommands(cli);
-  return cli;
-}
-
-function mockJsonResponse(data: unknown): void {
-  mockFetch.mockResolvedValue({
-    ok: true,
-    text: () => Promise.resolve(JSON.stringify(data)),
-    json: () => Promise.resolve(data),
-  });
-}
-
-function getFirstCallUrl(): string {
-  const calls = mockFetch.mock.calls as unknown[][];
-  const first = calls.at(0);
-  if (!first) return '';
-  const url = first[0];
-  return typeof url === 'string' ? url : '';
-}
-
-function getFirstRequestBody(): string {
-  const calls = mockFetch.mock.calls as unknown[][];
-  const firstCall = calls.at(0);
-  if (!firstCall) return '';
-  const init = firstCall[1];
-  if (typeof init !== 'object' || init === null || !('body' in init)) return '';
-  const body = (init as { body?: unknown }).body;
-  return typeof body === 'string' ? body : '';
-}
 
 // --- search ---
 
@@ -241,167 +213,16 @@ describe('scan command', () => {
     const body = JSON.parse(getFirstRequestBody()) as Record<string, unknown>;
     expect(body.fields).toEqual(['file_path', 'domain']);
   });
-});
 
-// --- reindex ---
-
-describe('reindex command', () => {
-  it('defaults to rules scope', async () => {
+  it('reports a --filter that is not JSON without sending a request', async () => {
     const cli = makeCli();
-    mockJsonResponse({ status: 'started' });
+    mockJsonResponse({ points: [] });
 
-    await cli.parseAsync(['node', 'test', 'reindex']);
+    await cli.parseAsync(['node', 'test', 'scan', '--filter', '{nope']);
 
-    const body = JSON.parse(getFirstRequestBody()) as Record<string, unknown>;
-    expect(body.scope).toBe('rules');
-  });
-
-  it('rejects invalid scope', async () => {
-    const cli = makeCli();
-
-    await cli.parseAsync(['node', 'test', 'reindex', '--scope', 'invalid']);
-
-    expect(consoleErrorSpy).toHaveBeenCalledWith(
-      'Invalid scope "invalid". Must be one of: issues, full, rules, path, prune',
-    );
     expect(mockFetch).not.toHaveBeenCalled();
-  });
-
-  it('passes path for path scope', async () => {
-    const cli = makeCli();
-    mockJsonResponse({ status: 'started' });
-
-    await cli.parseAsync([
-      'node',
-      'test',
-      'reindex',
-      '--scope',
-      'path',
-      '--path',
-      '/some/file.md',
-    ]);
-
-    const body = JSON.parse(getFirstRequestBody()) as Record<string, unknown>;
-    expect(body.scope).toBe('path');
-    expect(body.path).toBe('/some/file.md');
-  });
-
-  it('sends multiple paths as array', async () => {
-    const cli = makeCli();
-    mockJsonResponse({ status: 'started' });
-
-    await cli.parseAsync([
-      'node',
-      'test',
-      'reindex',
-      '--scope',
-      'path',
-      '--path',
-      '/a.md',
-      '--path',
-      '/b.md',
-    ]);
-
-    const body = JSON.parse(getFirstRequestBody()) as Record<string, unknown>;
-    expect(body.path).toEqual(['/a.md', '/b.md']);
-  });
-});
-
-// --- rebuild-metadata ---
-
-describe('rebuild-metadata command', () => {
-  it('calls POST /rebuild-metadata and prints response', async () => {
-    const cli = makeCli();
-    const response = { filesProcessed: 42 };
-    mockJsonResponse(response);
-
-    await cli.parseAsync(['node', 'test', 'rebuild-metadata']);
-
-    expect(getFirstCallUrl()).toBe('http://127.0.0.1:1936/rebuild-metadata');
-    expect(consoleLogSpy).toHaveBeenCalledWith(
-      JSON.stringify(response, null, 2),
-    );
-  });
-});
-
-// --- issues ---
-
-describe('issues command', () => {
-  it('calls GET /issues and prints response', async () => {
-    const cli = makeCli();
-    const response = { count: 2, issues: { '/a.md': {}, '/b.md': {} } };
-    mockJsonResponse(response);
-
-    await cli.parseAsync(['node', 'test', 'issues']);
-
-    expect(getFirstCallUrl()).toBe('http://127.0.0.1:1936/issues');
-    expect(consoleLogSpy).toHaveBeenCalledWith(
-      JSON.stringify(response, null, 2),
-    );
-  });
-});
-
-// --- helpers ---
-
-describe('helpers command', () => {
-  it('fetches and formats map and template helpers', async () => {
-    mockFetch
-      .mockResolvedValueOnce({
-        ok: true,
-        text: () =>
-          Promise.resolve(
-            JSON.stringify({
-              result: [
-                {
-                  slack: {
-                    description: 'Slack helpers',
-                    exports: { slack_format: 'Format channel' },
-                  },
-                },
-              ],
-              count: 1,
-            }),
-          ),
-        json: () =>
-          Promise.resolve({
-            result: [
-              {
-                slack: {
-                  description: 'Slack helpers',
-                  exports: { slack_format: 'Format channel' },
-                },
-              },
-            ],
-            count: 1,
-          }),
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        text: () => Promise.resolve(JSON.stringify({ result: [{}], count: 0 })),
-        json: () => Promise.resolve({ result: [{}], count: 0 }),
-      });
-
-    const cli = makeCli();
-    await cli.parseAsync(['node', 'test', 'helpers']);
-
-    expect(mockFetch).toHaveBeenCalledTimes(2);
-    expect(consoleLogSpy).toHaveBeenCalled();
-    const output = String(consoleLogSpy.mock.calls[0]?.[0] ?? '');
-    expect(output).toContain('JsonMap lib functions');
-    expect(output).toContain('slack_format');
-  });
-
-  it('prints message when no helpers are configured', async () => {
-    mockFetch.mockResolvedValue({
-      ok: true,
-      text: () =>
-        Promise.resolve(JSON.stringify({ result: [undefined], count: 0 })),
-      json: () => Promise.resolve({ result: [undefined], count: 0 }),
-    });
-
-    const cli = makeCli();
-    await cli.parseAsync(['node', 'test', 'helpers']);
-
-    expect(consoleLogSpy).toHaveBeenCalledWith('No helpers configured.');
+    expect(consoleErrorSpy).toHaveBeenCalledWith(expect.stringMatching(/JSON/));
+    expect(process.exitCode).toBe(1);
+    process.exitCode = undefined;
   });
 });

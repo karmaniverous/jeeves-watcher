@@ -11,8 +11,12 @@
     "packages/core": {},
     "packages/service": {
       "entry": ["src/cli/jeeves-watcher/index.ts"],
-      "ignoreDependencies": ["@rollup/plugin-typescript={paths:{}}"]
+      "ignoreDependencies": [
+        "@rollup/plugin-typescript={paths:{}}",
+        "@karmaniverous/jeeves-watcher-sdk"
+      ]
     },
-    "packages/openclaw": {}
+    "packages/openclaw": {},
+    "packages/sdk": {}
   }
 }

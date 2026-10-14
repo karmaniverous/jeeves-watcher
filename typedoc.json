@@ -1,5 +1,11 @@
 {
-  "entryPoints": ["./packages/service/src/index.ts"],
+  "entryPoints": [
+    "./packages/core",
+    "./packages/sdk",
+    "./packages/service",
+    "./packages/openclaw"
+  ],
+  "entryPointStrategy": "packages",
   "highlightLanguages": [
     "bash",
     "console",

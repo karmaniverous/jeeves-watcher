@@ -3,64 +3,54 @@
  * Fastify route handler for POST /scan. Filter-only point query without vector search.
  */
 
-import type { FastifyReply, FastifyRequest } from 'fastify';
+import {
+  SCAN_DEFAULT_LIMIT,
+  scanRequestSchema,
+} from '@karmaniverous/jeeves-watcher-core';
+import type { FastifyRequest } from 'fastify';
 import type pino from 'pino';
 
 import type { VectorStore } from '../../vectorStore';
+import { withFilterErrors } from '../requestError';
+import { parseBody } from './parseBody';
 import { wrapHandler } from './wrapHandler';
 
 /** Dependencies for the scan route handler. */
 export interface ScanRouteDeps {
+  /** Vector store scrolled. */
   vectorStore: VectorStore;
+  /** Logger. */
   logger: pino.Logger;
 }
 
-type ScanRequest = FastifyRequest<{
-  Body: {
-    filter?: Record<string, unknown>;
-    limit?: number;
-    cursor?: string | number;
-    fields?: string[];
-    countOnly?: boolean;
-  };
-}>;
+type ScanRequest = FastifyRequest<{ Body: unknown }>;
 
 /**
- * Create handler for POST /scan.
+ * Create handler for POST /scan. A filter Qdrant rejects is
+ * `400 invalid_request`.
  *
  * @param deps - Route dependencies.
+ * @returns Fastify route handler.
  */
 export function createScanHandler(deps: ScanRouteDeps) {
   return wrapHandler(
-    async (request: ScanRequest, reply: FastifyReply) => {
-      const { filter, limit = 100, cursor, fields, countOnly } = request.body;
-
-      if (!filter || typeof filter !== 'object') {
-        deps.logger.warn('Scan rejected: missing or invalid filter');
-        void reply
-          .status(400)
-          .send({ error: 'Missing required field: filter (object)' });
-        return;
-      }
-
-      if (typeof limit !== 'number' || limit < 1 || limit > 1000) {
-        deps.logger.warn({ limit }, 'Scan rejected: limit out of bounds');
-        void reply
-          .status(400)
-          .send({ error: 'limit must be between 1 and 1000' });
-        return;
-      }
+    async (request: ScanRequest) => {
+      const body = parseBody(scanRequestSchema, request.body);
+      const {
+        filter,
+        limit = SCAN_DEFAULT_LIMIT,
+        cursor,
+        fields,
+        countOnly,
+      } = body;
 
       if (countOnly) {
-        const count = await deps.vectorStore.count(filter);
+        const count = await withFilterErrors(deps.vectorStore.count(filter));
         return { count };
       }
 
-      const result = await deps.vectorStore.scrollPage(
-        filter,
-        limit,
-        cursor,
-        fields,
+      const result = await withFilterErrors(
+        deps.vectorStore.scrollPage(filter, limit, cursor, fields),
       );
 
       return {

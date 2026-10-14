@@ -13,10 +13,14 @@ import type pino from 'pino';
 import { normalizeSlashes } from '../../../util/normalizeSlashes';
 import { findRootForPath } from '../../../vcs/gitExec';
 import type { VcsCoordinator } from '../../../vcs/VcsCoordinator';
+import { sendError } from '../../sendError';
 import { wrapHandler } from '../wrapHandler';
 
+/** Dependencies of the POST /vcs/exclude handler. */
 export interface VcsExcludeRouteDeps {
+  /** VCS coordinator (tracked roots and git operations). */
   coordinator: VcsCoordinator;
+  /** Logger. */
   logger: pino.Logger;
 }
 
@@ -72,9 +76,11 @@ export function createVcsExcludeHandler(deps: VcsExcludeRouteDeps) {
       const { glob, root: requestedRoot, remove } = request.body;
 
       if (!glob) {
-        void reply
-          .status(400)
-          .send({ error: 'Missing required body parameter: glob' });
+        sendError(
+          reply,
+          'invalid_request',
+          'Missing required body parameter: glob',
+        );
         return;
       }
 
@@ -84,9 +90,7 @@ export function createVcsExcludeHandler(deps: VcsExcludeRouteDeps) {
         const normalizedRoot = normalizeSlashes(requestedRoot);
         const manager = deps.coordinator.getManager(normalizedRoot);
         if (!manager) {
-          void reply
-            .status(404)
-            .send({ error: 'Root is not a VCS-enabled watch root' });
+          sendError(reply, 'not_found', 'Root is not a VCS-enabled watch root');
           return;
         }
         root = normalizedRoot;
@@ -99,9 +103,11 @@ export function createVcsExcludeHandler(deps: VcsExcludeRouteDeps) {
           basePath,
         );
         if (!matchedRoot) {
-          void reply
-            .status(404)
-            .send({ error: 'Glob does not match any VCS-enabled watch root' });
+          sendError(
+            reply,
+            'not_found',
+            'Glob does not match any VCS-enabled watch root',
+          );
           return;
         }
         root = matchedRoot;
@@ -130,9 +136,11 @@ export function createVcsExcludeHandler(deps: VcsExcludeRouteDeps) {
         try {
           content = await readFile(gitignorePath, 'utf8');
         } catch {
-          void reply
-            .status(404)
-            .send({ error: 'No .gitignore found at the expected location' });
+          sendError(
+            reply,
+            'not_found',
+            'No .gitignore found at the expected location',
+          );
           return;
         }
 
@@ -140,9 +148,7 @@ export function createVcsExcludeHandler(deps: VcsExcludeRouteDeps) {
         const filtered = lines.filter((line) => line.trim() !== pattern);
 
         if (filtered.length === lines.length) {
-          void reply
-            .status(404)
-            .send({ error: 'Pattern not found in .gitignore' });
+          sendError(reply, 'not_found', 'Pattern not found in .gitignore');
           return;
         }
 

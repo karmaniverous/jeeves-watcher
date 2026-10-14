@@ -1,0 +1,95 @@
+name: Integration Tests
+
+# Runs the full test suite against a real Qdrant service so the
+# "requires Qdrant" integration suites execute instead of skipping, and
+# smoke-tests the throwaway-Qdrant provisioning used by local runs.
+
+on:
+  push:
+    branches:
+      - main
+      - 'feature/**'
+  pull_request:
+    branches:
+      - main
+      - 'feature/**'
+  workflow_dispatch:
+
+jobs:
+  integration:
+    runs-on: ubuntu-24.04
+
+    services:
+      qdrant:
+        image: qdrant/qdrant:v1.19.1
+        ports:
+          - 6333:6333
+
+    env:
+      # Use the service container above. Setting QDRANT_URL stops the test
+      # global setup from downloading and starting a throwaway Qdrant; the
+      # container must stay empty of non-test collections (shared-instance guard).
+      QDRANT_URL: http://localhost:6333
+      # Fail instead of skipping when Qdrant is unreachable (test/globalSetup.ts).
+      QDRANT_REQUIRED: 'true'
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Wait for Qdrant
+        run: |
+          for i in $(seq 1 60); do
+            if curl -fsS "$QDRANT_URL/healthz" > /dev/null; then
+              echo "Qdrant is ready"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "Qdrant did not become ready" >&2
+          exit 1
+
+      - name: Build
+        run: npm run build
+
+      - name: Test
+        run: npm test
+
+  # The job above uses a service container, so it never exercises the path
+  # local runs take: no QDRANT_URL, test global setup downloads, verifies and
+  # starts a throwaway Qdrant. Run that path once; QDRANT_REQUIRED makes a
+  # provisioning failure fail the job instead of skipping the suites.
+  provisioning:
+    runs-on: ubuntu-24.04
+
+    env:
+      QDRANT_REQUIRED: 'true'
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Provisioning smoke test (throwaway Qdrant)
+        working-directory: packages/service
+        # The release binary is the preferred strategy: fail if the run fell
+        # back to Docker, which would hide a broken download or verification.
+        run: |
+          set -o pipefail
+          npx vitest run src/test/harness src/test/auth-indexes-integration.test.ts 2>&1 | tee provisioning.log
+          grep -F "throwaway Qdrant (binary)" provisioning.log

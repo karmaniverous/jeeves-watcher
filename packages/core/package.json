@@ -1,24 +1,26 @@
 {
+  "author": "Jason Williscroft",
   "bugs": {
     "url": "https://github.com/karmaniverous/jeeves-watcher/issues"
   },
   "dependencies": {
-    "@karmaniverous/jeeves": "0.6.0",
+    "@karmaniverous/jeeves": "0.7.0",
     "@karmaniverous/jsonmap": "^2.1.1",
-    "zod": "^4.6.5"
+    "zod": "^4.6.7"
   },
+  "description": "Shared Zod schemas, types, defaults and constants for jeeves-watcher, its SDK and its OpenClaw plugin",
   "devDependencies": {
-    "@dotenvx/dotenvx": "^2.30.0",
+    "@dotenvx/dotenvx": "^2.35.0",
     "@rollup/plugin-commonjs": "^29.0.3",
     "@rollup/plugin-json": "^6.1.0",
     "@rollup/plugin-node-resolve": "^16.0.3",
     "@rollup/plugin-typescript": "^12.3.0",
-    "@types/node": "^26.6.3",
+    "@types/node": "^26.6.5",
     "cross-env": "^10.1.0",
-    "release-it": "^21.1.0",
-    "rollup": "^4.63.5",
+    "release-it": "^21.1.1",
+    "rollup": "^4.64.6",
     "rollup-plugin-dts": "^6.5.1",
-    "vitest": "^5.0.2"
+    "vitest": "^5.0.4"
   },
   "engines": {
     "node": ">=22.13"
@@ -35,6 +37,7 @@
     "dist"
   ],
   "homepage": "https://github.com/karmaniverous/jeeves-watcher#readme",
+  "license": "BSD-3-Clause",
   "name": "@karmaniverous/jeeves-watcher-core",
   "publishConfig": {
     "access": "public"
@@ -47,7 +50,9 @@
       "tagName": "core/${version}"
     },
     "github": {
-      "release": true
+      "release": true,
+      "releaseName": "${name.split('/').pop()}@${version}",
+      "releaseNotes": "npx git-cliff --tag core/${version} --unreleased --strip header"
     },
     "hooks": {
       "after:bump": [
@@ -66,7 +71,7 @@
         "git switch ${branchName}"
       ],
       "before:npm:release": [
-        "npx git-cliff -o CHANGELOG.md",
+        "npx git-cliff --tag core/${version} -o CHANGELOG.md",
         "git add -A"
       ]
     },

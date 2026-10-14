@@ -1,11 +1,33 @@
 /**
  * @module processor/processingPipeline.test
- * Tests for the embedAndUpsert pipeline — batched upsert (#162) and embedding batch splitting (#186).
+ * Tests for the embedAndUpsertDocument pipeline: the caller-computed content hash is written as given, — batched upsert (#162) and embedding batch splitting (#186).
  */
 
 import { describe, expect, it, vi } from 'vitest';
 
-import { embedAndUpsert } from './processingPipeline';
+import { contentHash } from '../hash';
+import { embedAndUpsertDocument } from './processingPipeline';
+
+const TEXT = 'hello world';
+
+/** Embed and upsert {@link TEXT} as the file `filePath`. */
+function embedFile(
+  deps: unknown,
+  filePath: string,
+  existing: Record<string, unknown> | null,
+  hash = contentHash(TEXT),
+): Promise<number> {
+  return embedAndUpsertDocument(
+    deps as never,
+    {
+      identity: { kind: 'file', filePath },
+      text: TEXT,
+      metadata: {},
+      logLabel: 'File',
+    },
+    { existing, dates: { createdAt: 1000, modifiedAt: 2000 }, hash },
+  );
+}
 
 /** Build a minimal splitter that returns `count` fixed-length chunks. */
 function makeSplitter(count: number) {
@@ -24,7 +46,7 @@ function makeEmbeddingProvider() {
   };
 }
 
-describe('embedAndUpsert — batched upsert (#162)', () => {
+describe('embedAndUpsertDocument — batched upsert (#162)', () => {
   it('calls upsert once for a small file (fewer than batch size chunks)', async () => {
     const chunks = 10;
     const upsertMock = vi.fn().mockResolvedValue(undefined);
@@ -36,14 +58,7 @@ describe('embedAndUpsert — batched upsert (#162)', () => {
       upsertBatchSize: 50,
     };
 
-    await embedAndUpsert(
-      deps as never,
-      'hello world',
-      'test/file.md',
-      {},
-      null,
-      { createdAt: 1000, modifiedAt: 2000 },
-    );
+    await embedFile(deps, 'test/file.md', null);
 
     expect(upsertMock).toHaveBeenCalledTimes(1);
     expect(upsertMock.mock.calls[0][0]).toHaveLength(chunks);
@@ -61,14 +76,7 @@ describe('embedAndUpsert — batched upsert (#162)', () => {
       upsertBatchSize: batchSize,
     };
 
-    await embedAndUpsert(
-      deps as never,
-      'hello world',
-      'test/large.md',
-      {},
-      null,
-      { createdAt: 1000, modifiedAt: 2000 },
-    );
+    await embedFile(deps, 'test/large.md', null);
 
     // 120 chunks / 50 per batch = 3 calls (50 + 50 + 20)
     expect(upsertMock).toHaveBeenCalledTimes(3);
@@ -88,14 +96,7 @@ describe('embedAndUpsert — batched upsert (#162)', () => {
       // upsertBatchSize not provided — defaults to 50
     };
 
-    await embedAndUpsert(
-      deps as never,
-      'hello world',
-      'test/default.md',
-      {},
-      null,
-      { createdAt: 1000, modifiedAt: 2000 },
-    );
+    await embedFile(deps, 'test/default.md', null);
 
     // 100 chunks / 50 per batch = 2 calls
     expect(upsertMock).toHaveBeenCalledTimes(2);
@@ -113,15 +114,7 @@ describe('embedAndUpsert — batched upsert (#162)', () => {
       logger: { info: vi.fn() } as never,
     };
 
-    await embedAndUpsert(
-      deps as never,
-      'hello world',
-      'test/shrunk.md',
-      {},
-      // Simulate existing payload with 10 chunks
-      { total_chunks: oldTotalChunks },
-      { createdAt: 1000, modifiedAt: 2000 },
-    );
+    await embedFile(deps, 'test/shrunk.md', { total_chunks: oldTotalChunks });
 
     expect(deleteMock).toHaveBeenCalledTimes(1);
   });
@@ -138,14 +131,7 @@ describe('embedAndUpsert — batched upsert (#162)', () => {
       upsertBatchSize: batchSize,
     };
 
-    await embedAndUpsert(
-      deps as never,
-      'hello world',
-      'test/points.md',
-      {},
-      null,
-      { createdAt: 1000, modifiedAt: 2000 },
-    );
+    await embedFile(deps, 'test/points.md', null);
 
     // 73 chunks / 30 per batch = 3 calls (30 + 30 + 13)
     const totalPointsUpserted = upsertMock.mock.calls.reduce(
@@ -156,7 +142,29 @@ describe('embedAndUpsert — batched upsert (#162)', () => {
   });
 });
 
-describe('embedAndUpsert — embedding batch splitting (#186)', () => {
+describe('embedAndUpsertDocument — content hash', () => {
+  it('writes the caller-computed hash on every chunk without recomputing it', async () => {
+    const upsertMock = vi.fn().mockResolvedValue(undefined);
+    const deps = {
+      embeddingProvider: makeEmbeddingProvider(),
+      vectorStore: { upsert: upsertMock, delete: vi.fn() },
+      splitter: makeSplitter(2),
+      logger: { info: vi.fn() } as never,
+    };
+
+    expect(await embedFile(deps, 'test/hash.md', null, 'given-hash')).toBe(2);
+
+    const points = upsertMock.mock.calls[0][0] as Array<{
+      payload: Record<string, unknown>;
+    }>;
+    expect(points.map((pt) => pt.payload.content_hash)).toEqual([
+      'given-hash',
+      'given-hash',
+    ]);
+  });
+});
+
+describe('embedAndUpsertDocument — embedding batch splitting (#186)', () => {
   it('calls embed twice when chunk count exceeds 100', async () => {
     const chunks = 150;
     const embeddingProvider = makeEmbeddingProvider();
@@ -170,14 +178,7 @@ describe('embedAndUpsert — embedding batch splitting (#186)', () => {
       logger: { info: vi.fn() } as never,
     };
 
-    await embedAndUpsert(
-      deps as never,
-      'hello world',
-      'test/large.md',
-      {},
-      null,
-      { createdAt: 1000, modifiedAt: 2000 },
-    );
+    await embedFile(deps, 'test/large.md', null);
 
     // 150 chunks → 2 embed calls (100 + 50)
     expect(embeddingProvider.embed).toHaveBeenCalledTimes(2);
@@ -198,14 +199,7 @@ describe('embedAndUpsert — embedding batch splitting (#186)', () => {
       logger: { info: vi.fn() } as never,
     };
 
-    await embedAndUpsert(
-      deps as never,
-      'hello world',
-      'test/exact.md',
-      {},
-      null,
-      { createdAt: 1000, modifiedAt: 2000 },
-    );
+    await embedFile(deps, 'test/exact.md', null);
 
     expect(embeddingProvider.embed).toHaveBeenCalledTimes(1);
     expect(embeddingProvider.embed.mock.calls[0][0]).toHaveLength(100);
@@ -229,14 +223,7 @@ describe('embedAndUpsert — embedding batch splitting (#186)', () => {
       logger: { info: vi.fn() } as never,
     };
 
-    await embedAndUpsert(
-      deps as never,
-      'hello world',
-      'test/order.md',
-      {},
-      null,
-      { createdAt: 1000, modifiedAt: 2000 },
-    );
+    await embedFile(deps, 'test/order.md', null);
 
     // Verify all 150 points were upserted with correctly ordered vectors
     const allPoints = upsertMock.mock.calls.flatMap(
