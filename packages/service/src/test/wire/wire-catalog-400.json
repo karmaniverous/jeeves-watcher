@@ -1,0 +1,182 @@
+{
+  "configApply non-object patch": {
+    "status": 400,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "error": "Invalid input: expected record, received array",
+      "code": "invalid_request",
+      "details": [
+        {
+          "slot": "body",
+          "path": ["patch"],
+          "code": "invalid_type",
+          "message": "Invalid input: expected record, received array",
+          "params": {
+            "expected": "record"
+          }
+        }
+      ]
+    }
+  },
+  "render neither target": {
+    "status": 400,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "error": "Exactly one of path or source is required",
+      "code": "invalid_request",
+      "details": [
+        {
+          "slot": "body",
+          "path": ["path"],
+          "code": "custom",
+          "message": "Exactly one of path or source is required",
+          "params": {}
+        }
+      ]
+    }
+  },
+  "render both targets": {
+    "status": 400,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "error": "Exactly one of path or source is required",
+      "code": "invalid_request",
+      "details": [
+        {
+          "slot": "body",
+          "path": [],
+          "code": "custom",
+          "message": "Exactly one of path or source is required",
+          "params": {}
+        }
+      ]
+    }
+  },
+  "search unknown key": {
+    "status": 400,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "error": "Unrecognized key: \"collapse\"",
+      "code": "invalid_request",
+      "details": [
+        {
+          "slot": "body",
+          "path": [],
+          "code": "unrecognized_keys",
+          "message": "Unrecognized key: \"collapse\"",
+          "params": {
+            "keys": ["collapse"]
+          }
+        }
+      ]
+    }
+  },
+  "search empty query": {
+    "status": 400,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "error": "query must be a non-empty string",
+      "code": "invalid_request",
+      "details": [
+        {
+          "slot": "body",
+          "path": ["query"],
+          "code": "too_small",
+          "message": "query must be a non-empty string",
+          "params": {
+            "origin": "string",
+            "minimum": 1,
+            "inclusive": true
+          }
+        }
+      ]
+    }
+  },
+  "scan missing filter": {
+    "status": 400,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "error": "Missing required field: filter (object)",
+      "code": "invalid_request",
+      "details": [
+        {
+          "slot": "body",
+          "path": ["filter"],
+          "code": "invalid_type",
+          "message": "Missing required field: filter (object)",
+          "params": {
+            "expected": "record"
+          }
+        }
+      ]
+    }
+  },
+  "scan limit out of range": {
+    "status": 400,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "error": "limit must be between 1 and 1000",
+      "code": "invalid_request",
+      "details": [
+        {
+          "slot": "body",
+          "path": ["limit"],
+          "code": "too_big",
+          "message": "limit must be between 1 and 1000",
+          "params": {
+            "origin": "number",
+            "maximum": 1000,
+            "inclusive": true
+          }
+        }
+      ]
+    }
+  },
+  "vcsShow missing params": {
+    "status": 400,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "code": "invalid_request",
+      "error": "Invalid input: expected string, received undefined",
+      "details": [
+        {
+          "slot": "query",
+          "path": ["path"],
+          "code": "invalid_type",
+          "message": "Invalid input: expected string, received undefined",
+          "params": {
+            "expected": "string"
+          }
+        },
+        {
+          "slot": "query",
+          "path": ["commit"],
+          "code": "invalid_type",
+          "message": "Invalid input: expected string, received undefined",
+          "params": {
+            "expected": "string"
+          }
+        }
+      ]
+    }
+  },
+  "vcsShow missing commit": {
+    "status": 400,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "code": "invalid_request",
+      "error": "Invalid input: expected string, received undefined",
+      "details": [
+        {
+          "slot": "query",
+          "path": ["commit"],
+          "code": "invalid_type",
+          "message": "Invalid input: expected string, received undefined",
+          "params": {
+            "expected": "string"
+          }
+        }
+      ]
+    }
+  }
+}

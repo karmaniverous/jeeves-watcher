@@ -172,9 +172,12 @@ export const WIRE_AUTH = { authorization: `Bearer ${WIRE_KEY}` };
 /**
  * Start the wire app.
  *
+ * @param logger - Logger for both apps (default silent).
  * @returns The started app; call `close` in `afterAll`.
  */
-export async function startWireApp(): Promise<WireApp> {
+export async function startWireApp(
+  logger: pino.Logger = pino({ level: 'silent' }),
+): Promise<WireApp> {
   const dir = await mkdtemp(join(tmpdir(), 'jeeves-watcher-wire-'));
   const configPath = join(dir, 'config.json');
   const writeConfig = () =>
@@ -196,7 +199,7 @@ export async function startWireApp(): Promise<WireApp> {
     descriptor: watcherDescriptor,
     configPath,
     config: buildConfig(dir, state),
-    logger: pino({ level: 'silent' }),
+    logger,
     version: '0.0.0-wire',
     queue: { pause: () => undefined, resume: () => undefined },
     processor: {

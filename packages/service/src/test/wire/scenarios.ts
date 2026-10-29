@@ -233,6 +233,34 @@ function record(
 }
 
 /**
+ * Run one scenario (authenticated) from a reset state and return the raw
+ * reply.
+ *
+ * @param wire - The wire app.
+ * @param scenario - The scenario.
+ * @returns The Fastify inject response.
+ */
+export async function injectScenario(
+  wire: WireApp,
+  scenario: WireScenario,
+): Promise<LightMyRequestResponse> {
+  await wire.reset();
+  Object.assign(wire.state, scenario.state);
+  const url = scenario.url
+    .replace('{root}', wire.vcsRoot)
+    .replace('{commit}', wire.commit);
+  const app = scenario.withoutVcs ? wire.appWithoutVcs : wire.app;
+  return app.inject({
+    method: scenario.method,
+    url,
+    headers: WIRE_AUTH,
+    ...(scenario.payload === undefined
+      ? {}
+      : { payload: scenario.payload as object }),
+  });
+}
+
+/**
  * Run one scenario (authenticated) and record the reply.
  *
  * @param wire - The wire app.
@@ -243,20 +271,7 @@ export async function runScenario(
   wire: WireApp,
   scenario: WireScenario,
 ): Promise<WireRecord> {
-  await wire.reset();
-  Object.assign(wire.state, scenario.state);
-  const url = scenario.url
-    .replace('{root}', wire.vcsRoot)
-    .replace('{commit}', wire.commit);
-  const app = scenario.withoutVcs ? wire.appWithoutVcs : wire.app;
-  const res = await app.inject({
-    method: scenario.method,
-    url,
-    headers: WIRE_AUTH,
-    ...(scenario.payload === undefined
-      ? {}
-      : { payload: scenario.payload as object }),
-  });
+  const res = await injectScenario(wire, scenario);
   // A successful /vcs/show body is file content: compare its exact bytes.
   const raw = res.statusCode < 400 && scenario.url.startsWith('/vcs/show');
   return record(res, wire, raw);

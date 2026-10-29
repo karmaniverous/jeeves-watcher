@@ -62,7 +62,7 @@ describe('registerDocumentRoutes', () => {
 });
 
 describe('registerConfigRoutes', () => {
-  it('registers the config and reindex routes', async () => {
+  it('registers the legacy config and reindex routes, not the catalog ones', async () => {
     app = Fastify();
     registerConfigRoutes(app, options, {
       getConfig: () => config,
@@ -74,11 +74,12 @@ describe('registerConfigRoutes', () => {
       'reindex',
       'configSchema',
       'configMatch',
-      'config',
       'configValidate',
-      'configApply',
     ] as const) {
       expect(app.hasRoute(route(name))).toBe(true);
+    }
+    for (const name of ['config', 'configApply'] as const) {
+      expect(app.hasRoute(route(name))).toBe(false);
     }
     const res = await app.inject({
       method: 'POST',

@@ -44,18 +44,22 @@ export function isAuthorized(
   return timingSafeEqual(presented, expectedDigest) && token !== undefined;
 }
 
+/** Path of the open OpenAPI document (served by `api/registerCatalog`). */
+export const OPENAPI_PATH = '/openapi.json';
+
 /**
- * Whether a request is exempt from authentication: `GET /status` (and the
- * HEAD route Fastify derives from it), with or without a query string. Pure.
+ * Whether a request is exempt from authentication: `GET /status` and
+ * `GET /openapi.json` (and the HEAD routes Fastify derives from them), with
+ * or without a query string. Pure.
  *
  * @param method - HTTP method.
  * @param url - Raw request URL (path plus optional query string).
- * @returns `true` for the public health-check route.
+ * @returns `true` for the public health-check and OpenAPI routes.
  */
 export function isPublicRoute(method: string, url: string): boolean {
   if (method !== 'GET' && method !== 'HEAD') return false;
   const path = url.split('?', 1)[0];
-  return path === getEndpoint('status').path;
+  return path === getEndpoint('status').path || path === OPENAPI_PATH;
 }
 
 /**

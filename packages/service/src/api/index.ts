@@ -1,11 +1,10 @@
 /**
  * @module api
- * Fastify API server factory. Registers all route handlers (status, query, documents, config, rules, VCS) and returns an unstarted server instance.
+ * Fastify API server factory. Registers the catalog routes (status, config, config apply, render, search, scan, vcs/show, plus `GET /openapi.json`) and the legacy routes (query, documents, config, rules, VCS), and returns an unstarted server instance.
  */
 
 import { dirname } from 'node:path';
 
-import { createStatusHandler as coreCreateStatusHandler } from '@karmaniverous/jeeves';
 import {
   API_DEFAULTS,
   extractWatchPathStrings,
@@ -19,13 +18,13 @@ import { createFacetsHandler } from './handlers/facets';
 import { createIssuesHandler } from './handlers/issues';
 import { createMetadataHandler } from './handlers/metadata';
 import { createRebuildMetadataHandler } from './handlers/rebuildMetadata';
-import { createRenderHandler } from './handlers/render';
-import { createScanHandler } from './handlers/scan';
-import { createSearchHandler } from './handlers/search';
 import { createWalkHandler } from './handlers/walk';
 import { withCache } from './handlers/withCache';
-import { withCacheUnlessSource } from './handlers/withCacheUnlessSource';
-import { registerConfigRoutes } from './registerConfigRoutes';
+import { registerCatalog } from './registerCatalog';
+import {
+  createConfigApplyCallback,
+  registerConfigRoutes,
+} from './registerConfigRoutes';
 import { registerDocumentRoutes } from './registerDocumentRoutes';
 import { registerRuleRoutes } from './registerRuleRoutes';
 import { registerVcsRoutes } from './registerVcsRoutes';
@@ -40,7 +39,9 @@ export { ReindexTracker } from './ReindexTracker';
 /**
  * Create the Fastify API server with all routes registered.
  *
- * The returned instance is not yet listening; call `server.listen()` to start.
+ * The returned instance is not yet listening; call `server.listen()` to
+ * start. The catalog routes are registered in a child plugin, so a
+ * registration error surfaces from `ready()` or `listen()` (spec #281 D29).
  *
  * @param options - The server options.
  * @returns A configured Fastify instance.
@@ -72,32 +73,52 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
   const cacheTtlMs = config.api?.cacheTtlMs ?? API_DEFAULTS.cacheTtlMs;
   const configDir = dirname(configPath);
 
-  const coreStatusHandler = coreCreateStatusHandler({
-    name: 'watcher',
-    version: version ?? 'unknown',
-    getHealth: async () => {
-      const collectionInfo = await vectorStore.getCollectionInfo();
-      return {
-        collection: {
-          name: getConfig().vectorStore.collectionName,
-          pointCount: collectionInfo.pointCount,
-          dimensions: collectionInfo.dimensions,
+  registerCatalog(app, {
+    logger,
+    responseValidation: 'log',
+    handlers: {
+      cacheTtlMs,
+      status: {
+        vectorStore,
+        getConfig,
+        version,
+        reindexTracker,
+        initialScanTracker,
+      },
+      config: {
+        getConfig,
+        valuesManager,
+        issuesManager,
+        helperIntrospection: options.helperIntrospection,
+        getVirtualRules: virtualRuleStore
+          ? () => virtualRuleStore.getAll()
+          : undefined,
+      },
+      configApply: {
+        descriptor: options.descriptor,
+        configPath,
+        logger,
+        onConfigApply: createConfigApplyCallback(options, {
+          getConfig,
+          reindexTracker,
+        }),
+      },
+      render: { processor, getWatch: () => getConfig().watch, logger },
+      search: {
+        embeddingProvider,
+        vectorStore,
+        logger,
+        getHybridConfig: () => {
+          const hybrid = getConfig().search?.hybrid;
+          return hybrid
+            ? { enabled: hybrid.enabled, textWeight: hybrid.textWeight }
+            : undefined;
         },
-        reindex: reindexTracker.getStatus(),
-        ...(initialScanTracker
-          ? { initialScan: initialScanTracker.getStatus() }
-          : {}),
-      };
+      },
+      scan: { vectorStore, logger },
+      vcsShow: { coordinator: options.vcsCoordinator },
     },
   });
-
-  app.get(
-    getEndpoint('status').path,
-    withCache(cacheTtlMs, async () => {
-      const result = await coreStatusHandler();
-      return result.body;
-    }),
-  );
 
   app.post(
     getEndpoint('metadata').path,
@@ -109,27 +130,9 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
     }),
   );
 
-  // Source renders bypass the response cache (Decision 16.11).
-  app.post(
-    getEndpoint('render').path,
-    withCacheUnlessSource(
-      cacheTtlMs,
-      createRenderHandler({
-        processor,
-        getWatch: () => getConfig().watch,
-        logger,
-      }),
-    ),
-  );
-
   app.get(
     getEndpoint('searchFacets').path,
     createFacetsHandler({ getConfig, valuesManager, configDir }),
-  );
-
-  app.post(
-    getEndpoint('scan').path,
-    createScanHandler({ vectorStore, logger }),
   );
 
   app.post(
@@ -138,21 +141,6 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
       getWatchPaths: () => extractWatchPathStrings(getConfig().watch.paths),
       getFileSystemWatcher,
       logger,
-    }),
-  );
-
-  app.post(
-    getEndpoint('search').path,
-    createSearchHandler({
-      embeddingProvider,
-      vectorStore,
-      logger,
-      getHybridConfig: () => {
-        const hybrid = getConfig().search?.hybrid;
-        return hybrid
-          ? { enabled: hybrid.enabled, textWeight: hybrid.textWeight }
-          : undefined;
-      },
     }),
   );
 
@@ -183,7 +171,7 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
     });
   }
 
-  // VCS routes: only registered when a VcsCoordinator is provided
+  // Legacy VCS routes: only registered when a VcsCoordinator is provided
   if (options.vcsCoordinator) {
     registerVcsRoutes(app, options, { coordinator: options.vcsCoordinator });
   }
