@@ -5,6 +5,7 @@
  */
 
 export * from './api/index.js';
+export { WATCHER_CATALOG, type WatcherCatalog } from './catalog.js';
 export {
   COMPONENT_NAME,
   CORE_PACKAGE,

@@ -1,6 +1,6 @@
 /**
  * @module api
- * Barrel for the public HTTP API request/response Zod schemas and inferred types (status, search, scan, render, metadata, reindex, issues, documents, error bodies and codes). No I/O.
+ * Barrel for the public HTTP API request/response Zod schemas and inferred types (status and health, search, scan, render, metadata, reindex, issues, documents, vcs/show, error bodies and codes). No I/O.
  */
 
 export {
@@ -79,6 +79,8 @@ export {
   apiErrorCodeSchema,
 } from './errors.js';
 export {
+  type InitialScanStatus,
+  initialScanStatusSchema,
   ISSUE_TYPES,
   type IssueRecord,
   issueRecordSchema,
@@ -86,8 +88,12 @@ export {
   issuesResponseSchema,
   type IssueType,
   issueTypeSchema,
+  type ReindexStatus,
+  reindexStatusSchema,
   type StatusResponse,
   statusResponseSchema,
+  type WatcherHealth,
+  watcherHealthSchema,
 } from './monitoring.js';
 export {
   SCAN_DEFAULT_LIMIT,
@@ -119,3 +125,4 @@ export {
   type ReindexScope,
   reindexScopeSchema,
 } from './reindex.js';
+export { type VcsShowQuery, vcsShowQuerySchema } from './vcs.js';

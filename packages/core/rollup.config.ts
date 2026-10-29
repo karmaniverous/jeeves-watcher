@@ -44,6 +44,7 @@ const library: RollupOptions = {
 /** Bundled .d.ts declarations. */
 const types: RollupOptions = {
   input: 'src/index.ts',
+  external,
   output: [{ file: 'dist/index.d.ts', format: 'esm' }],
   plugins: [dtsPlugin()],
 };

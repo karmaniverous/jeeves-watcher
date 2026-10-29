@@ -22,6 +22,70 @@ export const statusResponseSchema = z.object({
 /** Response body for `GET /status`. */
 export type StatusResponse = z.infer<typeof statusResponseSchema>;
 
+/** Reindex state in `GET /status` `health.reindex`. */
+export const reindexStatusSchema = z.object({
+  /** Whether a reindex is in progress. */
+  active: z.boolean(),
+  /** Active reindex scope (while active). */
+  scope: z.string().optional(),
+  /** ISO 8601 start time (while active). */
+  startedAt: z.string().optional(),
+  /** Files processed so far (while active). */
+  filesProcessed: z.number().optional(),
+  /** Files to process (while active). */
+  totalFiles: z.number().optional(),
+});
+
+/** Reindex state in `GET /status` `health.reindex`. */
+export type ReindexStatus = z.infer<typeof reindexStatusSchema>;
+
+/** Initial filesystem scan state in `GET /status` `health.initialScan`. */
+export const initialScanStatusSchema = z.object({
+  /** Whether the initial scan is in progress. */
+  active: z.boolean(),
+  /** Files matched by the watch globs. */
+  filesMatched: z.number().optional(),
+  /** Files enqueued so far. */
+  filesEnqueued: z.number().optional(),
+  /** ISO 8601 start time. */
+  startedAt: z.string().optional(),
+  /** ISO 8601 completion time. */
+  completedAt: z.string().optional(),
+  /** Scan duration in milliseconds. */
+  durationMs: z.number().optional(),
+});
+
+/** Initial filesystem scan state in `GET /status` `health.initialScan`. */
+export type InitialScanStatus = z.infer<typeof initialScanStatusSchema>;
+
+/**
+ * `GET /status` `health`: collection, reindex and initial-scan state, or
+ * `{ error }` when the vector store is unreachable (status `degraded`).
+ * Loose and optional throughout, so new health keys pass through.
+ */
+export const watcherHealthSchema = z.looseObject({
+  /** Vector store collection. */
+  collection: z
+    .object({
+      /** Collection name. */
+      name: z.string(),
+      /** Indexed points. */
+      pointCount: z.number(),
+      /** Vector dimensions. */
+      dimensions: z.number(),
+    })
+    .optional(),
+  /** Reindex state. */
+  reindex: reindexStatusSchema.optional(),
+  /** Initial scan state (once the scan tracker exists). */
+  initialScan: initialScanStatusSchema.optional(),
+  /** Why health could not be read (degraded). */
+  error: z.string().optional(),
+});
+
+/** `GET /status` `health`. */
+export type WatcherHealth = z.infer<typeof watcherHealthSchema>;
+
 /**
  * Canonical issue codes, in one list (spec Decision 16.4).
  *
