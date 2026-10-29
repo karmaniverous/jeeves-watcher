@@ -1,20 +1,25 @@
 /**
  * @module api/catalog/scanHandler
- * Catalog handler for POST /scan: filter-only point query, same behaviour
- * as the legacy route (`api/handlers/scan`) with the request already
- * validated by the catalog's `scan` entry schema.
+ * Catalog handler for POST /scan: filter-only point query, with the
+ * request already validated by the catalog's `scan` entry schema.
  */
 
 import type { CatalogHandler } from '@karmaniverous/jeeves/fastify';
 import { SCAN_DEFAULT_LIMIT } from '@karmaniverous/jeeves-watcher-core';
+import type pino from 'pino';
 
-import type { ScanRouteDeps } from '../handlers/scan';
+import type { VectorStore } from '../../vectorStore';
 import { withFilterErrors } from '../requestError';
 import type { Entry } from './catalogEntry';
 import { wrapCatalogHandler } from './wrapCatalogHandler';
 
 /** Dependencies for the catalog `scan` entry's handler. */
-export type CatalogScanDeps = ScanRouteDeps;
+export interface CatalogScanDeps {
+  /** Vector store scrolled. */
+  vectorStore: VectorStore;
+  /** Logger. */
+  logger: pino.Logger;
+}
 
 /**
  * Create the catalog handler for `POST /scan`. A filter Qdrant rejects is

@@ -1,10 +1,9 @@
 /**
  * @module api/catalog
- * Catalog handlers for every `WATCHER_CATALOG` entry (#281 step 6):
- * `status`, `config` and `configApply` adapted from core's standard
- * handlers (`standardHandlers`), plus `render`, `search`, `scan` and
- * `vcsShow`. Not yet wired into routes (`createApiServer` still serves the
- * legacy routes; the route switch is #281 step 7).
+ * Catalog handlers for every `WATCHER_CATALOG` entry: `status`, `config`
+ * and `configApply` adapted from core's standard handlers
+ * (`standardHandlers`), plus `render`, `search`, `scan` and `vcsShow`.
+ * Registered by `api/registerCatalog`.
  */
 
 import type { CatalogHandlers } from '@karmaniverous/jeeves/fastify';

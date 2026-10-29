@@ -2,29 +2,51 @@
  * @module api/catalog/searchHandler
  * Catalog handler for POST /search: embeds the query through the shared
  * rate limiter (bounded budget; exhaustion sends 503 with `Retry-After`) and
- * performs vector store similarity search, same behaviour as the legacy
- * route (`api/handlers/search`) with the request already validated by the
- * catalog's `search` entry schema.
+ * performs vector store similarity search, with the request already
+ * validated by the catalog's `search` entry schema.
  */
 
 import type { CatalogHandler } from '@karmaniverous/jeeves/fastify';
 import { SEARCH_DEFAULT_LIMIT } from '@karmaniverous/jeeves-watcher-core';
 import type pino from 'pino';
 
-import type { EmbeddingProvider } from '../../embedding';
+import type { EmbeddingProvider, EmbedOptions } from '../../embedding';
 import { EmbeddingUnavailableError } from '../../embedding/rateLimitError';
 import { normalizeError } from '../../util/normalizeError';
 import type { VectorStore } from '../../vectorStore';
-import {
-  type HybridSearchConfig,
-  retryAfterSeconds,
-  SEARCH_EMBED_BUDGET,
-} from '../handlers/search';
 import { withFilterErrors } from '../requestError';
 import { INTERNAL_ERROR_MESSAGE } from '../sendError';
 import type { Entry } from './catalogEntry';
 import { errorResult } from './errorResult';
 import { catalogErrorFromThrown } from './wrapCatalogHandler';
+
+/** Hybrid search configuration passed to the search handler. */
+export interface HybridSearchConfig {
+  /** Fuse dense results with full-text matches. */
+  enabled: boolean;
+  /** Weight of the text results in the fusion (0-1). */
+  textWeight: number;
+}
+
+/**
+ * Query-embedding budget: interactive search fails fast with 503 rather
+ * than queueing behind a long rate-limit pause.
+ */
+export const SEARCH_EMBED_BUDGET: EmbedOptions = {
+  attempts: 3,
+  maxWaitMs: 10_000,
+};
+
+/**
+ * `Retry-After` header value (whole seconds, at least 1) for a known
+ * embedding retry delay. Pure.
+ *
+ * @param retryAfterMs - Retry delay in milliseconds.
+ * @returns The header value.
+ */
+export function retryAfterSeconds(retryAfterMs: number): string {
+  return String(Math.max(1, Math.ceil(retryAfterMs / 1000)));
+}
 
 /** Dependencies for the catalog `search` entry's handler. */
 export interface CatalogSearchDeps {

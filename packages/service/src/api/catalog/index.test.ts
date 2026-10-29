@@ -9,6 +9,7 @@ import pino from 'pino';
 import { describe, expect, it, vi } from 'vitest';
 
 import { watcherDescriptor } from '../../descriptor';
+import { clearCache } from '../handlers/withCache';
 import { createCatalogHandlers } from './index';
 
 vi.mock('../mergedDocument', () => ({
@@ -16,7 +17,18 @@ vi.mock('../mergedDocument', () => ({
   resolveReferences: vi.fn((doc: unknown) => doc),
 }));
 
-function buildHandlers() {
+function buildHandlers(
+  renderFile: () => Promise<unknown> = () =>
+    Promise.resolve({
+      renderAs: 'md',
+      content: 'x',
+      rules: [],
+      metadata: {},
+      transformed: true,
+    }),
+  storedRule: () => Promise<string | null> = () => Promise.resolve(null),
+  cacheTtlMs = 0,
+) {
   const logger = pino({ level: 'silent' });
   return createCatalogHandlers({
     status: {
@@ -43,16 +55,9 @@ function buildHandlers() {
     },
     render: {
       processor: {
-        renderFile: () =>
-          Promise.resolve({
-            renderAs: 'md',
-            content: 'x',
-            rules: [],
-            metadata: {},
-            transformed: true,
-          }),
+        renderFile,
         sourceOperations: () => ({
-          storedRule: () => Promise.resolve(null),
+          storedRule,
           render: vi.fn(),
         }),
       } as never,
@@ -76,7 +81,7 @@ function buildHandlers() {
       logger,
     },
     vcsShow: {},
-    cacheTtlMs: 0,
+    cacheTtlMs,
   });
 }
 
@@ -124,5 +129,39 @@ describe('createCatalogHandlers', () => {
       { method: 'GET', url: '/vcs/show' } as never,
     );
     expect(vcsShow.status).toBe(404); // no coordinator configured
+  });
+});
+
+describe('render response caching', () => {
+  const fileInput = { params: {}, query: {}, body: { path: 'a.md' } };
+  const sourceInput = { params: {}, query: {}, body: { source: 'app://1' } };
+
+  it('caches file renders', async () => {
+    clearCache();
+    const renderFile = vi.fn().mockResolvedValue({
+      renderAs: 'md',
+      content: 'x',
+      rules: [],
+      metadata: {},
+      transformed: true,
+    });
+    const handlers = buildHandlers(renderFile, undefined, 60_000);
+
+    await handlers.render(fileInput, {} as never);
+    await handlers.render(fileInput, {} as never);
+
+    expect(renderFile).toHaveBeenCalledTimes(1);
+  });
+
+  it('never caches source renders: every one runs live', async () => {
+    clearCache();
+    const storedRule = vi.fn().mockResolvedValue(null);
+    const handlers = buildHandlers(undefined, storedRule, 60_000);
+
+    const first = await handlers.render(sourceInput, {} as never);
+    await handlers.render(sourceInput, {} as never);
+
+    expect(first.status).toBe(404);
+    expect(storedRule).toHaveBeenCalledTimes(2);
   });
 });

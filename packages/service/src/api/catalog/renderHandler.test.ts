@@ -121,6 +121,40 @@ describe('createCatalogRenderHandler', () => {
     });
   });
 
+  it.each([
+    ['untagged', new Error('boom'), 'extraction_error'],
+    [
+      'stage-tagged',
+      new ProcessingFailure('interpolation_error', new Error('bad template')),
+      'interpolation_error',
+    ],
+  ] as const)(
+    'tags a %s render failure with its issueType',
+    async (_label, error, issueType) => {
+      const handler = createCatalogRenderHandler(
+        deps({ renderFile: vi.fn().mockRejectedValue(error) }),
+      );
+
+      const result = await handler(input({ path: 'docs/a.md' }), {} as never);
+
+      expect(result.status).toBe(422);
+      expect(result.body).toMatchObject({ code: 'pipeline_error', issueType });
+    },
+  );
+
+  it('answers a file render with exactly the public fields (no transformed flag)', async () => {
+    const handler = createCatalogRenderHandler(deps());
+
+    const result = await handler(input({ path: 'docs/a.md' }), {} as never);
+
+    expect(result.body).toEqual({
+      renderAs: 'md',
+      content: '# Rendered',
+      rules: ['doc'],
+      metadata: { title: 'Rendered' },
+    });
+  });
+
   it('renders a source document with Cache-Control: no-cache', async () => {
     const handler = createCatalogRenderHandler(deps());
 

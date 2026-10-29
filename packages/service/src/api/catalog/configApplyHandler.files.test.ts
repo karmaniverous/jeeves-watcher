@@ -1,7 +1,6 @@
 /**
- * @module api/handlers/configApply.test
- * Drives POST /config/apply through a real Fastify route with the real
- * watcher descriptor and a config file outside any derived configRoot path.
+ * @module api/catalog/configApplyHandler.files.test
+ * `createCatalogConfigApplySource` against a real config file: deep merge, rules merged by name, validation before write, generic 500 for an unreadable file, an allow-listed echo, a failed apply callback reported as a warning, and `replace`. Body shape (the `{ config }` alias, a non-object patch) is the catalog schema's job (`api/registerCatalog`, wire baseline).
  */
 
 import {
@@ -14,7 +13,6 @@ import {
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import Fastify, { type FastifyInstance } from 'fastify';
 import pino from 'pino';
 import {
   afterEach,
@@ -28,7 +26,7 @@ import {
 
 import { watcherDescriptor } from '../../descriptor';
 import { PUBLIC_CONFIG_KEYS } from '../publicConfig';
-import { createConfigApplyRouteHandler } from './configApply';
+import { createCatalogConfigApplySource } from './configApplyHandler';
 
 const baseConfig = {
   watch: { paths: ['**/*.md'], debounceMs: 100 },
@@ -39,21 +37,27 @@ const baseConfig = {
   ],
 };
 
-describe('POST /config/apply', () => {
+describe('createCatalogConfigApplySource over a real file', () => {
   let dir: string;
   let configPath: string;
-  let app: FastifyInstance;
+  let source: ReturnType<typeof createCatalogConfigApplySource>;
   let onConfigApply: Mock<(config: unknown) => Promise<void>>;
 
   const readConfig = () =>
     JSON.parse(readFileSync(configPath, 'utf8')) as Record<string, unknown>;
 
-  const post = (payload: unknown) =>
-    app.inject({
-      method: 'POST',
-      url: '/config/apply',
-      payload: payload as object,
-    });
+  /** Apply a validated body; shaped like an inject reply for readability. */
+  const post = async (payload: {
+    patch: Record<string, unknown>;
+    replace?: boolean;
+  }) => {
+    const result = await source(payload);
+    return {
+      statusCode: result.status,
+      json: () => result.body,
+      body: JSON.stringify(result.body),
+    };
+  };
 
   beforeEach(() => {
     dir = mkdtempSync(join(tmpdir(), 'jw-config-apply-'));
@@ -62,20 +66,15 @@ describe('POST /config/apply', () => {
     onConfigApply = vi
       .fn<(config: unknown) => Promise<void>>()
       .mockResolvedValue(undefined);
-    app = Fastify();
-    app.post(
-      '/config/apply',
-      createConfigApplyRouteHandler({
-        descriptor: watcherDescriptor,
-        configPath,
-        onConfigApply,
-        logger: pino({ level: 'silent' }),
-      }),
-    );
+    source = createCatalogConfigApplySource({
+      descriptor: watcherDescriptor,
+      configPath,
+      onConfigApply,
+      logger: pino({ level: 'silent' }),
+    });
   });
 
-  afterEach(async () => {
-    await app.close();
+  afterEach(() => {
     rmSync(dir, { recursive: true, force: true });
   });
 
@@ -84,11 +83,6 @@ describe('POST /config/apply', () => {
     expect(res.statusCode).toBe(200);
     expect(readConfig()).toMatchObject(baseConfig);
     expect(onConfigApply).toHaveBeenCalledTimes(1);
-  });
-
-  it('accepts the { config } body shape', async () => {
-    const res = await post({ config: {} });
-    expect(res.statusCode).toBe(200);
   });
 
   it('deep-merges a single nested key without dropping siblings', async () => {
@@ -124,11 +118,6 @@ describe('POST /config/apply', () => {
     expect(onConfigApply).not.toHaveBeenCalled();
   });
 
-  it('rejects a non-object patch', async () => {
-    const res = await post({ patch: [1, 2] });
-    expect(res.statusCode).toBe(400);
-  });
-
   it('answers an unreadable config file with a generic 500 (no path)', async () => {
     rmSync(configPath);
     mkdirSync(configPath); // reading a directory fails (EISDIR)
@@ -160,7 +149,7 @@ describe('POST /config/apply', () => {
     );
     const res = await post({ patch: { watch: { debounceMs: 250 } } });
     expect(res.statusCode).toBe(200);
-    const body = res.json<{ applied: boolean; config: object }>();
+    const body = res.json() as { applied: boolean; config: object };
     expect(body.applied).toBe(true);
     for (const key of Object.keys(body.config)) {
       expect(PUBLIC_CONFIG_KEYS).toContain(key);
@@ -180,7 +169,7 @@ describe('POST /config/apply', () => {
     onConfigApply.mockRejectedValueOnce(new Error('reload failed'));
     const res = await post({ patch: {} });
     expect(res.statusCode).toBe(200);
-    const body = res.json<{ warning: string; config: object }>();
+    const body = res.json() as { warning: string; config: object };
     expect(body.warning).toContain('reload failed');
     expect(body.config).not.toHaveProperty('api');
     expect(res.body).not.toContain('api-secret');

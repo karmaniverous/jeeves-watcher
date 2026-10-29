@@ -1,6 +1,6 @@
 /**
- * @module api/handlers/search.qdrant.test
- * Regression test for #239: drives POST /search through the real
+ * @module api/catalog/searchHandler.qdrant.test
+ * Regression test for #239: drives the catalog search handler through the real
  * VectorStoreClient and the real `@qdrant/js-client-rest` QdrantClient,
  * against a stub Qdrant HTTP server (no client mocks). Catches client API
  * removals such as `QdrantClient.search` in 1.19.
@@ -9,13 +9,15 @@
 import { createServer, type IncomingMessage, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 
-import Fastify, { type FastifyInstance } from 'fastify';
 import pino from 'pino';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { createEmbeddingProvider } from '../../embedding';
 import { VectorStoreClient } from '../../vectorStore';
-import { createSearchHandler, type HybridSearchConfig } from './search';
+import {
+  createCatalogSearchHandler,
+  type HybridSearchConfig,
+} from './searchHandler';
 
 interface RecordedRequest {
   method: string;
@@ -34,10 +36,10 @@ async function readBody(req: IncomingMessage): Promise<string> {
   return data;
 }
 
-describe('POST /search via real QdrantClient', () => {
+describe('catalog search via real QdrantClient', () => {
   const requests: RecordedRequest[] = [];
   let qdrant: Server;
-  let app: FastifyInstance;
+  let search: ReturnType<typeof createCatalogSearchHandler>;
   let hybrid: HybridSearchConfig | undefined;
 
   beforeAll(async () => {
@@ -77,20 +79,15 @@ describe('POST /search via real QdrantClient', () => {
       3,
     );
 
-    app = Fastify();
-    app.post(
-      '/search',
-      createSearchHandler({
-        embeddingProvider,
-        vectorStore,
-        logger: pino({ level: 'silent' }),
-        getHybridConfig: () => hybrid,
-      }),
-    );
+    search = createCatalogSearchHandler({
+      embeddingProvider,
+      vectorStore,
+      logger: pino({ level: 'silent' }),
+      getHybridConfig: () => hybrid,
+    });
   });
 
   afterAll(async () => {
-    await app.close();
     await new Promise<void>((resolve) => {
       qdrant.close(() => {
         resolve();
@@ -105,14 +102,17 @@ describe('POST /search via real QdrantClient', () => {
 
   it('uses the Query API and maps results', async () => {
     const filter = { must: [{ key: 'domain', match: { value: 'x' } }] };
-    const res = await app.inject({
-      method: 'POST',
-      url: '/search',
-      payload: { query: 'hello', limit: 5, offset: 2, filter },
-    });
+    const res = await search(
+      {
+        params: {},
+        query: {},
+        body: { query: 'hello', limit: 5, offset: 2, filter },
+      },
+      {} as never,
+    );
 
-    expect(res.statusCode).toBe(200);
-    expect(res.json()).toEqual([
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual([
       { id: 'p1', score: 0.9, payload: { file_path: 'a.md' } },
       { id: '2', score: 0.5, payload: { file_path: 'b.md' } },
     ]);
@@ -131,14 +131,13 @@ describe('POST /search via real QdrantClient', () => {
 
   it('uses the Query API with RRF prefetches for hybrid search', async () => {
     hybrid = { enabled: true, textWeight: 0.25 };
-    const res = await app.inject({
-      method: 'POST',
-      url: '/search',
-      payload: { query: 'hello' },
-    });
+    const res = await search(
+      { params: {}, query: {}, body: { query: 'hello' } },
+      {} as never,
+    );
 
-    expect(res.statusCode).toBe(200);
-    expect(res.json()).toHaveLength(2);
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveLength(2);
     expect(requests[0].url).toBe('/collections/test/points/query');
     expect(requests[0].body['prefetch']).toHaveLength(2);
     expect(requests[0].body['query']).toEqual({

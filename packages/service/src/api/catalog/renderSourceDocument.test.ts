@@ -1,5 +1,5 @@
 /**
- * @module api/handlers/renderSourceDocument.test
+ * @module api/catalog/renderSourceDocument.test
  * `renderSourceDocument`: success body, `source_not_indexed`/`source_not_found`
  * and the three failed-pipeline codes, each thrown as a `RequestError`.
  */

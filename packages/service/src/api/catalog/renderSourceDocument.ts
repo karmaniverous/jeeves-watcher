@@ -1,11 +1,11 @@
 /**
- * @module api/handlers/renderSourceDocument
+ * @module api/catalog/renderSourceDocument
  * `POST /render { source }`, framework-free: looks up the stored designated
  * rule, retrieves the document through its callback and renders it, throwing
- * a `RequestError` for every documented failure. Shared by the legacy route
- * (`api/handlers/renderSource`) and the catalog `render` handler
- * (`api/catalog/renderHandler`); both answer every source reply with
- * `Cache-Control: no-cache`. Never writes points or issues.
+ * a `RequestError` for every documented failure. Used by the catalog
+ * `render` handler (`api/catalog/renderHandler`), which answers every
+ * source reply with `Cache-Control: no-cache`. Never writes points or
+ * issues.
  */
 
 import {

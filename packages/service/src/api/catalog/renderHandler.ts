@@ -2,10 +2,9 @@
  * @module api/catalog/renderHandler
  * Catalog handler for POST /render: runs a file (path) or a source document
  * (source) through the rule engine and returns rendered content. The
- * entry's body schema already guarantees exactly one of `path`/`source`;
- * same behaviour as the legacy route (`api/handlers/render`), except every
- * reply for a source target carries `Cache-Control: no-cache` (success and
- * error alike).
+ * entry's body schema already guarantees exactly one of `path`/`source`.
+ * Every reply for a source target carries `Cache-Control: no-cache`
+ * (success and error alike).
  */
 
 import type {
@@ -22,10 +21,10 @@ import type { WatchConfig } from '../../config/types';
 import type { WatcherProcessor } from '../../processor';
 import { ProcessingFailure } from '../../processor/issueRecording';
 import { isPathWatched } from '../../util/isPathWatched';
-import { renderSourceDocument } from '../handlers/renderSourceDocument';
 import { RequestError } from '../requestError';
 import type { Entry } from './catalogEntry';
 import { errorResult } from './errorResult';
+import { renderSourceDocument } from './renderSourceDocument';
 import { catalogErrorFromThrown } from './wrapCatalogHandler';
 
 /** Dependencies for the catalog `render` entry's handler. */

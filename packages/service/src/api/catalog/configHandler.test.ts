@@ -69,4 +69,24 @@ describe('createCatalogConfigSource', () => {
     expect(result.status).toBe(400);
     expect(result.body).toMatchObject({ code: 'invalid_request' });
   });
+
+  it('returns an empty result set for a path that matches nothing', async () => {
+    mockedBuild.mockReturnValue({ inferenceRules: [] });
+
+    const source = createCatalogConfigSource(deps());
+    const result = await source({ path: '$.nonexistent' });
+
+    expect(result).toEqual({ status: 200, body: { result: [], count: 0 } });
+  });
+
+  it('lets an unexpected failure propagate to the server error handler', async () => {
+    const failure = new Error('build failed: /secret/path');
+    mockedBuild.mockImplementation(() => {
+      throw failure;
+    });
+
+    const source = createCatalogConfigSource(deps());
+
+    await expect(source({ path: '$.x' })).rejects.toBe(failure);
+  });
 });

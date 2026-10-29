@@ -64,14 +64,20 @@ afterAll(async () => {
 
 describe('request validation', () => {
   it.each([
-    ['query', 'GET', '/vcs/show?path=a.md', undefined],
-    ['body', 'POST', '/render', {}],
-    ['body', 'POST', '/search', { query: '' }],
-    ['body', 'POST', '/scan', { limit: 5 }],
-    ['body', 'POST', '/config/apply', { patch: 'nope' }],
+    ['query', 'GET', '/vcs/show?path=a.md', undefined, ['commit']],
+    ['body', 'POST', '/render', {}, ['path']],
+    ['body', 'POST', '/render', { source: 'not a ref' }, ['source']],
+    ['body', 'POST', '/render', { path: 'a.md', source: 'app://1' }, []],
+    ['body', 'POST', '/search', undefined, []],
+    ['body', 'POST', '/search', { query: '' }, ['query']],
+    ['body', 'POST', '/search', { query: 'q', limit: 'ten' }, ['limit']],
+    ['body', 'POST', '/scan', { limit: 5 }, ['filter']],
+    ['body', 'POST', '/scan', { filter: {}, limit: 0 }, ['limit']],
+    ['body', 'POST', '/scan', { filter: {}, fields: 'file_path' }, ['fields']],
+    ['body', 'POST', '/config/apply', { patch: 'nope' }, ['patch']],
   ] as const)(
-    'rejects a bad %s on %s %s with 400 invalid_request',
-    async (slot, method, url, payload) => {
+    'rejects a bad %s on %s %s %j with 400 invalid_request',
+    async (slot, method, url, payload, issuePath) => {
       results.length = 0;
       const res = await wire.app.inject({
         method,
@@ -84,12 +90,13 @@ describe('request validation', () => {
       const body = res.json<{
         code: string;
         error: string;
-        details: Array<{ slot: string; message: string }>;
+        details: Array<{ slot: string; path: unknown[]; message: string }>;
       }>();
       expect(body.code).toBe('invalid_request');
       expect(body.details.length).toBeGreaterThan(0);
       expect(body.details.every((d) => d.slot === slot)).toBe(true);
       expect(body.error).toBe(body.details[0].message);
+      expect(body.details[0].path).toEqual(issuePath);
       expect(results).toEqual([]);
     },
   );

@@ -9,7 +9,7 @@ import pino from 'pino';
 import { describe, expect, it, vi } from 'vitest';
 
 import { EmbeddingUnavailableError } from '../../embedding/rateLimitError';
-import { createCatalogSearchHandler } from './searchHandler';
+import { createCatalogSearchHandler, retryAfterSeconds } from './searchHandler';
 
 function input(body: Record<string, unknown>) {
   return { params: {}, query: {}, body } as never;
@@ -138,5 +138,84 @@ describe('createCatalogSearchHandler', () => {
     expect(result.body).toMatchObject({ code: 'internal_error' });
     expect(JSON.stringify(result.body)).not.toContain('secret provider detail');
     expect(error).toHaveBeenCalledTimes(1);
+  });
+
+  describe('query plumbing', () => {
+    const filter = { must: [{ key: 'domain', match: { value: 'email' } }] };
+
+    function handlerWith(hybrid?: { enabled: boolean; textWeight: number }) {
+      const embed = vi.fn().mockResolvedValue([[0.1, 0.2, 0.3]]);
+      const search = vi.fn().mockResolvedValue([]);
+      const hybridSearch = vi.fn().mockResolvedValue([]);
+      const handler = createCatalogSearchHandler({
+        embeddingProvider: { embed } as never,
+        vectorStore: { search, hybridSearch } as never,
+        logger,
+        ...(hybrid ? { getHybridConfig: () => hybrid } : {}),
+      });
+      return { handler, embed, search, hybridSearch };
+    }
+
+    it('embeds the query with the bounded rate-limit budget', async () => {
+      const { handler, embed } = handlerWith();
+      await handler(input({ query: 'q' }), {} as never);
+      expect(embed).toHaveBeenCalledWith(['q'], {
+        attempts: 3,
+        maxWaitMs: 10_000,
+      });
+    });
+
+    it('passes filter and offset to a plain search', async () => {
+      const { handler, search } = handlerWith();
+      await handler(
+        input({ query: 'q', limit: 5, offset: 20, filter }),
+        {} as never,
+      );
+      expect(search).toHaveBeenCalledWith([0.1, 0.2, 0.3], 5, filter, 20);
+    });
+
+    it('passes filter and offset to a hybrid search', async () => {
+      const { handler, hybridSearch, search } = handlerWith({
+        enabled: true,
+        textWeight: 0.4,
+      });
+      await handler(
+        input({ query: 'q', limit: 5, offset: 20, filter }),
+        {} as never,
+      );
+      expect(hybridSearch).toHaveBeenCalledWith(
+        [0.1, 0.2, 0.3],
+        'q',
+        5,
+        0.4,
+        filter,
+        20,
+      );
+      expect(search).not.toHaveBeenCalled();
+    });
+
+    it('falls back to vector search when hybrid is disabled', async () => {
+      const { handler, hybridSearch, search } = handlerWith({
+        enabled: false,
+        textWeight: 0.4,
+      });
+      await handler(input({ query: 'q' }), {} as never);
+      expect(search).toHaveBeenCalledWith(
+        [0.1, 0.2, 0.3],
+        10,
+        undefined,
+        undefined,
+      );
+      expect(hybridSearch).not.toHaveBeenCalled();
+    });
+  });
+
+  it.each([
+    [1, '1'],
+    [1000, '1'],
+    [1001, '2'],
+    [2500, '3'],
+  ])('rounds a %ims retry delay up to Retry-After %s', (ms, header) => {
+    expect(retryAfterSeconds(ms)).toBe(header);
   });
 });

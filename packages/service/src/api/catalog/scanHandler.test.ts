@@ -65,4 +65,36 @@ describe('createCatalogScanHandler', () => {
     expect(result.status).toBe(400);
     expect(result.body).toMatchObject({ code: 'invalid_request' });
   });
+
+  it('passes filter, limit, cursor and fields through and answers a last page with a null cursor', async () => {
+    const scrollPage = vi.fn().mockResolvedValue({ points: [] });
+    const handler = createCatalogScanHandler({
+      vectorStore: { scrollPage, count: vi.fn() } as never,
+      logger,
+    });
+    const filter = { must: [{ key: 'domain', match: { value: 'x' } }] };
+
+    const result = await handler(
+      input({ filter, limit: 7, cursor: 'c1', fields: ['file_path'] }),
+      {} as never,
+    );
+
+    expect(scrollPage).toHaveBeenCalledWith(filter, 7, 'c1', ['file_path']);
+    expect(result).toEqual({
+      status: 200,
+      body: { points: [], cursor: null },
+    });
+  });
+
+  it('defaults the page size', async () => {
+    const scrollPage = vi.fn().mockResolvedValue({ points: [] });
+    const handler = createCatalogScanHandler({
+      vectorStore: { scrollPage, count: vi.fn() } as never,
+      logger,
+    });
+
+    await handler(input({ filter: {} }), {} as never);
+
+    expect(scrollPage).toHaveBeenCalledWith({}, 100, undefined, undefined);
+  });
 });

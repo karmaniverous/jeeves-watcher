@@ -1,6 +1,6 @@
 /**
  * @module api
- * Fastify API server factory. Registers the catalog routes (status, config, config apply, render, search, scan, vcs/show, plus `GET /openapi.json`) and the legacy routes (query, documents, config, rules, VCS), and returns an unstarted server instance.
+ * Fastify API server factory. Registers the catalog routes (status, config, config apply, render, search, scan, vcs/show, plus `GET /openapi.json`) and the remaining routes (metadata, facets, walk, documents, issues, config schema/match/validate, reindex, rules, VCS), and returns an unstarted server instance.
  */
 
 import { dirname } from 'node:path';
