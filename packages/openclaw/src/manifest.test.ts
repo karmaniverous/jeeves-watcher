@@ -1,11 +1,10 @@
 /**
  * @module plugin/manifest.test
- * Static checks on the published plugin manifest, package.json, and skill.
+ * Static checks on the published plugin manifest and package.json.
  */
 
 import { readFileSync } from 'node:fs';
 
-import { validateSkillFrontmatter } from '@karmaniverous/jeeves';
 import { describe, expect, it } from 'vitest';
 
 const readJson = (rel: string): Record<string, unknown> =>
@@ -68,15 +67,5 @@ describe('package.json', () => {
     const pin = deps['@karmaniverous/jeeves'];
     expect(pin).toMatch(/^0\.\d+\.\d+(?:-[0-9A-Za-z.]+)?$/);
     expect(Number(pin.split('.')[1])).toBeGreaterThanOrEqual(6);
-  });
-});
-
-describe('skills/jeeves-watcher/SKILL.md', () => {
-  it('has name and description frontmatter', () => {
-    const skill = readFileSync(
-      new URL('../skills/jeeves-watcher/SKILL.md', import.meta.url),
-      'utf8',
-    );
-    expect(validateSkillFrontmatter(skill).name).toBe('jeeves-watcher');
   });
 });

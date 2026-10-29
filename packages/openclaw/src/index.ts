@@ -42,10 +42,10 @@ export default function register(api: PluginApi): void {
   // they send the bearer key (core cannot attach headers). `apiUrl` is
   // resolved lazily on every call by every tool (defaultPort is only core's
   // fallback).
-  for (const tool of createPluginToolset(
-    createWatcherComponent(PLUGIN_VERSION),
-    { apiUrl: () => getApiUrl(api) },
-  )) {
+  const component = createWatcherComponent(PLUGIN_VERSION);
+  for (const tool of createPluginToolset(component, {
+    apiUrl: () => getApiUrl(api),
+  })) {
     if (!CORE_TOOLS_REPLACED.has(tool.name)) {
       toolApi.registerTool(tool, { optional: true });
     }
@@ -57,5 +57,5 @@ export default function register(api: PluginApi): void {
   // 14 domain-specific tools (search, enrich, scan, vcs, ...).
   registerWatcherTools(toolApi, () => getApiUrl(api));
 
-  registerWatcherPromptContext(api);
+  registerWatcherPromptContext(api, component);
 }

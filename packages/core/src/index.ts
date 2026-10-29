@@ -40,6 +40,7 @@ export {
   tryParseJson,
   unauthorizedMessage,
 } from './httpContract.js';
+export { WATCHER_PROMPT_RULES } from './promptRules.js';
 export {
   findReservedPropertyNames,
   isReservedPayloadField,
@@ -110,3 +111,4 @@ export {
   type WatchPathVcsConfig,
   watchPathVcsConfigSchema,
 } from './schemas.js';
+export { WATCHER_SKILL } from './skill.generated.js';

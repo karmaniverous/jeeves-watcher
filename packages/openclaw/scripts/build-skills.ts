@@ -1,24 +1,15 @@
 /**
  * @module scripts/build-skills
- * Copies skill files to dist/skills/ for plugin packaging.
+ * Writes the watcher skill (watcher-core's `WATCHER_SKILL`, the descriptor's `skill`) to `dist/skills/jeeves-watcher/SKILL.md` for plugin packaging.
  */
 
-import fs from 'node:fs';
 import path from 'node:path';
 
-const ROOT = path.resolve(import.meta.dirname, '..');
-const SKILLS_DIR = path.join(ROOT, 'skills');
-const DIST_DIR = path.join(ROOT, 'dist', 'skills');
+import { WATCHER_SKILL } from '@karmaniverous/jeeves-watcher-core';
 
-for (const entry of fs.readdirSync(SKILLS_DIR, { withFileTypes: true })) {
-  if (!entry.isDirectory()) continue;
+import { writeSkill } from '../src/skillFiles.js';
 
-  const srcFile = path.join(SKILLS_DIR, entry.name, 'SKILL.md');
-  if (!fs.existsSync(srcFile)) continue;
+const DIST_DIR = path.resolve(import.meta.dirname, '..', 'dist');
 
-  const outDir = path.join(DIST_DIR, entry.name);
-  fs.mkdirSync(outDir, { recursive: true });
-  fs.copyFileSync(srcFile, path.join(outDir, 'SKILL.md'));
-
-  console.log(`Copied: dist/skills/${entry.name}/SKILL.md`);
-}
+const file = writeSkill(DIST_DIR, WATCHER_SKILL);
+console.log(`Wrote: ${path.relative(path.dirname(DIST_DIR), file)}`);

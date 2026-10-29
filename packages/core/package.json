@@ -94,6 +94,7 @@
     "prebuild": "npx rimraf dist",
     "release": "dotenvx run -f .env.local -- release-it",
     "release:pre": "dotenvx run -f .env.local -- release-it --no-git.requireBranch --github.preRelease --preRelease",
+    "skill": "tsx scripts/generate-skill.ts",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },

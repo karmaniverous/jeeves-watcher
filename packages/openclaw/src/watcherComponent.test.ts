@@ -1,4 +1,8 @@
 import { jeevesComponentDescriptorSchema } from '@karmaniverous/jeeves';
+import {
+  WATCHER_PROMPT_RULES,
+  WATCHER_SKILL,
+} from '@karmaniverous/jeeves-watcher-core';
 import { describe, expect, it } from 'vitest';
 
 import { createWatcherComponent } from './watcherComponent.js';
@@ -19,6 +23,11 @@ describe('createWatcherComponent', () => {
     expect(component).not.toHaveProperty('generateToolsContent');
     expect(component).not.toHaveProperty('sectionId');
     expect(component).not.toHaveProperty('refreshIntervalSeconds');
+  });
+
+  it('carries the core prompt rules and skill', () => {
+    expect(component.promptRules).toBe(WATCHER_PROMPT_RULES);
+    expect(component.skill).toBe(WATCHER_SKILL);
   });
 
   it('builds a start command and rejects run()', async () => {

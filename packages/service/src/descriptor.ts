@@ -20,6 +20,8 @@ import {
   jeevesWatcherConfigSchema,
   PLUGIN_PACKAGE,
   SERVICE_PACKAGE,
+  WATCHER_PROMPT_RULES,
+  WATCHER_SKILL,
 } from '@karmaniverous/jeeves-watcher-core';
 import { packageDirectorySync } from 'package-directory';
 
@@ -59,6 +61,10 @@ export const watcherDescriptor: JeevesComponentDescriptor = {
   configSchema: jeevesWatcherConfigSchema,
   configFileName: 'config.json',
   initTemplate: () => ({ ...INIT_CONFIG_TEMPLATE }),
+
+  // Agent-facing text, shared with the plugin through watcher-core.
+  promptRules: WATCHER_PROMPT_RULES,
+  skill: WATCHER_SKILL,
 
   // onConfigApply is overridden in createApiServer (api/index.ts) via the
   // descriptor passed as a dependency, where it has access to the live

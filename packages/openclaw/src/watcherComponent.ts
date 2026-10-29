@@ -15,6 +15,10 @@ import {
   type JeevesComponentDescriptor,
   jeevesComponentDescriptorSchema,
 } from '@karmaniverous/jeeves';
+import {
+  WATCHER_PROMPT_RULES,
+  WATCHER_SKILL,
+} from '@karmaniverous/jeeves-watcher-core';
 
 import {
   COMPONENT_NAME,
@@ -43,6 +47,9 @@ export function createWatcherComponent(
     configSchema: jeevesComponentDescriptorSchema.shape.name,
     configFileName: 'config.json',
     initTemplate: () => ({}),
+    // Injected by the plugin (prompt rules) and written by its build (skill).
+    promptRules: WATCHER_PROMPT_RULES,
+    skill: WATCHER_SKILL,
     startCommand: (configPath: string) => [
       'jeeves-watcher',
       'start',
