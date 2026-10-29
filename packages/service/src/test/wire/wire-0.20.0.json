@@ -1,0 +1,571 @@
+{
+  "status": {
+    "status": 200,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "name": "watcher",
+      "version": "0.0.0-wire",
+      "uptime": 0,
+      "status": "healthy",
+      "health": {
+        "collection": {
+          "name": "wire",
+          "pointCount": 7,
+          "dimensions": 3
+        },
+        "reindex": {
+          "active": false
+        }
+      }
+    }
+  },
+  "status HEAD": {
+    "status": 200,
+    "contentType": "application/json; charset=utf-8",
+    "body": ""
+  },
+  "status degraded": {
+    "status": 200,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "name": "watcher",
+      "version": "0.0.0-wire",
+      "uptime": 0,
+      "status": "degraded",
+      "health": {
+        "error": "qdrant down"
+      }
+    }
+  },
+  "config full": {
+    "status": 200,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "description": "",
+      "watch": {
+        "paths": [
+          "**/*.md"
+        ],
+        "ignored": []
+      },
+      "configWatch": {},
+      "search": {},
+      "schemas": {},
+      "inferenceRules": [],
+      "mapHelpers": {},
+      "templateHelpers": {},
+      "maps": {},
+      "templates": {},
+      "issues": {}
+    }
+  },
+  "config jsonpath": {
+    "status": 200,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "result": [
+        [
+          "**/*.md"
+        ]
+      ],
+      "count": 1
+    }
+  },
+  "config invalid jsonpath": {
+    "status": 400,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "code": "invalid_request",
+      "error": "Unclosed ( at character 2"
+    }
+  },
+  "configApply patch": {
+    "status": 200,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "applied": true,
+      "config": {
+        "watch": {
+          "paths": [
+            "**/*.md"
+          ],
+          "ignored": []
+        }
+      }
+    }
+  },
+  "configApply config alias": {
+    "status": 200,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "applied": true,
+      "config": {
+        "watch": {
+          "paths": [
+            "**/*.md"
+          ],
+          "ignored": []
+        }
+      }
+    }
+  },
+  "configApply empty body": {
+    "status": 200,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "applied": true,
+      "config": {
+        "watch": {
+          "paths": [
+            "**/*.md"
+          ],
+          "ignored": []
+        }
+      }
+    }
+  },
+  "configApply replace": {
+    "status": 200,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "applied": true,
+      "config": {
+        "watch": {
+          "paths": [
+            "**/*.txt"
+          ],
+          "ignored": []
+        }
+      }
+    }
+  },
+  "configApply non-object patch": {
+    "status": 400,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "code": "invalid_request",
+      "error": "Config validation failed",
+      "issues": [
+        {
+          "path": [
+            "patch"
+          ],
+          "message": "patch must be an object"
+        }
+      ]
+    }
+  },
+  "configApply invalid config": {
+    "status": 400,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "code": "invalid_request",
+      "error": "Config validation failed",
+      "issues": [
+        {
+          "expected": "object",
+          "code": "invalid_type",
+          "path": [
+            "watch"
+          ],
+          "message": "Invalid input: expected object, received number"
+        }
+      ]
+    }
+  },
+  "render file": {
+    "status": 200,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "renderAs": "md",
+      "content": "# Rendered",
+      "rules": [
+        "doc"
+      ],
+      "metadata": {
+        "title": "Rendered"
+      }
+    }
+  },
+  "render passthrough": {
+    "status": 200,
+    "contentType": "application/json; charset=utf-8",
+    "cacheControl": "no-cache",
+    "body": {
+      "renderAs": "md",
+      "content": "# Rendered",
+      "rules": [],
+      "metadata": {
+        "title": "Rendered"
+      }
+    }
+  },
+  "render not watched": {
+    "status": 403,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "code": "path_not_watched",
+      "error": "Path is outside watched scope"
+    }
+  },
+  "render missing": {
+    "status": 404,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "code": "not_found",
+      "error": "File not found"
+    }
+  },
+  "render pipeline error": {
+    "status": 422,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "code": "pipeline_error",
+      "error": "bad bytes",
+      "issueType": "extraction_error"
+    }
+  },
+  "render crash": {
+    "status": 422,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "code": "pipeline_error",
+      "error": "stub crash",
+      "issueType": "extraction_error"
+    }
+  },
+  "render neither target": {
+    "status": 400,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "code": "invalid_request",
+      "error": "Exactly one of path or source is required",
+      "details": [
+        {
+          "code": "custom",
+          "path": [
+            "path"
+          ],
+          "message": "Exactly one of path or source is required"
+        }
+      ]
+    }
+  },
+  "render both targets": {
+    "status": 400,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "code": "invalid_request",
+      "error": "Exactly one of path or source is required",
+      "details": [
+        {
+          "code": "custom",
+          "path": [],
+          "message": "Exactly one of path or source is required"
+        }
+      ]
+    }
+  },
+  "render source": {
+    "status": 200,
+    "contentType": "application/json; charset=utf-8",
+    "cacheControl": "no-cache",
+    "body": {
+      "renderAs": "md",
+      "content": "# Chat",
+      "rules": [
+        "chat"
+      ],
+      "metadata": {
+        "channel": "c1"
+      }
+    }
+  },
+  "render source not indexed": {
+    "status": 404,
+    "contentType": "application/json; charset=utf-8",
+    "cacheControl": "no-cache",
+    "body": {
+      "code": "source_not_indexed",
+      "error": "Source document not indexed"
+    }
+  },
+  "render source gone": {
+    "status": 404,
+    "contentType": "application/json; charset=utf-8",
+    "cacheControl": "no-cache",
+    "body": {
+      "code": "source_not_found",
+      "error": "Source document not found"
+    }
+  },
+  "render source unavailable": {
+    "status": 502,
+    "contentType": "application/json; charset=utf-8",
+    "cacheControl": "no-cache",
+    "body": {
+      "code": "source_unavailable",
+      "error": "source_unavailable happened",
+      "details": {
+        "reason": "stub"
+      },
+      "issueType": "source_unavailable"
+    }
+  },
+  "render source unsupported content type": {
+    "status": 422,
+    "contentType": "application/json; charset=utf-8",
+    "cacheControl": "no-cache",
+    "body": {
+      "code": "unsupported_content_type",
+      "error": "unsupported_content_type happened",
+      "details": {
+        "reason": "stub"
+      },
+      "issueType": "unsupported_content_type"
+    }
+  },
+  "render source pipeline error": {
+    "status": 422,
+    "contentType": "application/json; charset=utf-8",
+    "cacheControl": "no-cache",
+    "body": {
+      "code": "pipeline_error",
+      "error": "rule_missing happened",
+      "details": {
+        "reason": "stub"
+      },
+      "issueType": "rule_missing"
+    }
+  },
+  "search": {
+    "status": 200,
+    "contentType": "application/json; charset=utf-8",
+    "body": [
+      {
+        "id": "p1",
+        "score": 0.9,
+        "payload": {
+          "file_path": "a.md"
+        }
+      }
+    ]
+  },
+  "search hybrid": {
+    "status": 200,
+    "contentType": "application/json; charset=utf-8",
+    "body": [
+      {
+        "id": "p1",
+        "score": 0.5,
+        "payload": {
+          "file_path": "a.md"
+        }
+      }
+    ]
+  },
+  "search unknown key": {
+    "status": 400,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "code": "invalid_request",
+      "error": "Unrecognized key: \"collapse\"",
+      "details": [
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "collapse"
+          ],
+          "path": [],
+          "message": "Unrecognized key: \"collapse\""
+        }
+      ]
+    }
+  },
+  "search empty query": {
+    "status": 400,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "code": "invalid_request",
+      "error": "query must be a non-empty string",
+      "details": [
+        {
+          "origin": "string",
+          "code": "too_small",
+          "minimum": 1,
+          "inclusive": true,
+          "path": [
+            "query"
+          ],
+          "message": "query must be a non-empty string"
+        }
+      ]
+    }
+  },
+  "search embedding unavailable": {
+    "status": 503,
+    "contentType": "application/json; charset=utf-8",
+    "retryAfter": "3",
+    "body": {
+      "code": "embedding_unavailable",
+      "error": "EmbeddingUnavailableError",
+      "message": "budget exhausted"
+    }
+  },
+  "search filter rejected": {
+    "status": 400,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "code": "invalid_request",
+      "error": "Invalid filter",
+      "message": "Wrong filter"
+    }
+  },
+  "scan": {
+    "status": 200,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "points": [
+        {
+          "id": "p1",
+          "payload": {
+            "file_path": "a.md"
+          }
+        }
+      ],
+      "cursor": "next"
+    }
+  },
+  "scan countOnly": {
+    "status": 200,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "count": 42
+    }
+  },
+  "scan missing filter": {
+    "status": 400,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "code": "invalid_request",
+      "error": "Missing required field: filter (object)",
+      "details": [
+        {
+          "expected": "record",
+          "code": "invalid_type",
+          "path": [
+            "filter"
+          ],
+          "message": "Missing required field: filter (object)"
+        }
+      ]
+    }
+  },
+  "scan limit out of range": {
+    "status": 400,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "code": "invalid_request",
+      "error": "limit must be between 1 and 1000",
+      "details": [
+        {
+          "origin": "number",
+          "code": "too_big",
+          "maximum": 1000,
+          "inclusive": true,
+          "path": [
+            "limit"
+          ],
+          "message": "limit must be between 1 and 1000"
+        }
+      ]
+    }
+  },
+  "scan filter rejected": {
+    "status": 400,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "code": "invalid_request",
+      "error": "Invalid filter",
+      "message": "Wrong filter"
+    }
+  },
+  "vcsShow markdown": {
+    "status": 200,
+    "contentType": "text/markdown",
+    "body": "# Notes\n\nSome *markdown*.\n"
+  },
+  "vcsShow json": {
+    "status": 200,
+    "contentType": "application/json; charset=utf-8",
+    "body": "{ \"a\": 1 }\n"
+  },
+  "vcsShow text": {
+    "status": 200,
+    "contentType": "text/plain",
+    "body": "hello world"
+  },
+  "vcsShow unknown extension": {
+    "status": 200,
+    "contentType": "application/octet-stream",
+    "body": "opaque"
+  },
+  "vcsShow missing params": {
+    "status": 400,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "code": "invalid_request",
+      "error": "Missing required query parameters: path, commit"
+    }
+  },
+  "vcsShow missing commit": {
+    "status": 400,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "code": "invalid_request",
+      "error": "Missing required query parameters: path, commit"
+    }
+  },
+  "vcsShow unknown root": {
+    "status": 404,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "code": "not_found",
+      "error": "Path does not match any VCS-enabled watch root"
+    }
+  },
+  "vcsShow bad commit": {
+    "status": 404,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "code": "not_found",
+      "error": "File not found at the specified commit"
+    }
+  },
+  "vcsShow missing file": {
+    "status": 404,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "code": "not_found",
+      "error": "File not found at the specified commit"
+    }
+  },
+  "vcsShow without vcs": {
+    "status": 404,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "code": "not_found",
+      "error": "Not Found",
+      "message": "Route GET:/vcs/show?path={root}/notes.md&commit={commit} not found"
+    }
+  },
+  "vcsShow without vcs, missing params": {
+    "status": 404,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "code": "not_found",
+      "error": "Not Found",
+      "message": "Route GET:/vcs/show not found"
+    }
+  }
+}
