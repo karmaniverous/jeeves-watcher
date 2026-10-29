@@ -4,20 +4,23 @@ import type { FastifyReply, FastifyRequest } from 'fastify';
 /**
  * Cache entry with expiration
  */
-interface CacheEntry {
+export interface CacheEntry {
   value: unknown;
   expiresAt: number;
 }
 
 /**
- * In-memory response cache
+ * In-memory response cache, shared with `api/catalog/withCatalogCache` so
+ * the two caching layers never disagree on a cached response and
+ * `clearCache` clears both (spec #281 step 6).
  */
-const cache = new Map<string, CacheEntry>();
+export const sharedResponseCache = new Map<string, CacheEntry>();
+const cache = sharedResponseCache;
 
 /**
  * Generates a deterministic hash for an object
  */
-function hashObject(obj: unknown): string {
+export function hashObject(obj: unknown): string {
   if (obj === undefined) return 'undefined';
   if (obj === null) return 'null';
 

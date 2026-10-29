@@ -29,7 +29,7 @@ type VcsShowRequest = FastifyRequest<{
   };
 }>;
 
-const CONTENT_TYPES: Record<string, string> = {
+const CONTENT_TYPES: Readonly<Record<string, string>> = {
   '.txt': 'text/plain',
   '.md': 'text/markdown',
   '.json': 'application/json',
@@ -42,6 +42,19 @@ const CONTENT_TYPES: Record<string, string> = {
   '.yml': 'text/yaml',
   '.csv': 'text/csv',
 };
+
+/**
+ * Content type for a file shown from git, by extension (unknown extensions
+ * are `application/octet-stream`). Pure.
+ *
+ * @param path - File path (only its extension is used).
+ * @returns The content type.
+ */
+export function contentTypeFor(path: string): string {
+  return (
+    CONTENT_TYPES[extname(path).toLowerCase()] ?? 'application/octet-stream'
+  );
+}
 
 /**
  * Create handler for GET /vcs/show.
@@ -76,9 +89,7 @@ export function createVcsShowHandler(deps: VcsShowRouteDeps) {
           `${commit}:${resolved.relativePath}`,
         ]);
 
-        const ext = extname(path).toLowerCase();
-        const contentType = CONTENT_TYPES[ext] ?? 'application/octet-stream';
-        void reply.header('content-type', contentType).send(stdout);
+        void reply.header('content-type', contentTypeFor(path)).send(stdout);
       } catch {
         sendError(reply, 'not_found', 'File not found at the specified commit');
       }

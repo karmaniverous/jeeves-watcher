@@ -6,7 +6,10 @@
  * Delegates JSON querying to `createConfigQueryHandler` from `@karmaniverous/jeeves` core.
  */
 
-import { createConfigQueryHandler as coreCreateConfigQueryHandler } from '@karmaniverous/jeeves';
+import {
+  type ConfigQueryHandler,
+  createConfigQueryHandler as coreCreateConfigQueryHandler,
+} from '@karmaniverous/jeeves';
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import type pino from 'pino';
 
@@ -33,6 +36,37 @@ type ConfigQueryRequest = FastifyRequest<{
 }>;
 
 /**
+ * Build the framework-agnostic config query handler (core's generic
+ * `createConfigQueryHandler`, given the watcher's merged document). Shared
+ * by this module's Fastify route handler and the catalog `config` entry's
+ * handler (`api/catalog/configHandler`).
+ *
+ * @param deps - The live config getter, values/issues managers and optional
+ *   helper introspection and virtual rules getter.
+ * @returns A `ConfigQueryHandler`: `(query) => Promise<{status, body}>`.
+ */
+export function createCoreConfigQueryHandler(
+  deps: Pick<
+    ConfigQueryRouteDeps,
+    | 'getConfig'
+    | 'valuesManager'
+    | 'issuesManager'
+    | 'helperIntrospection'
+    | 'getVirtualRules'
+  >,
+): ConfigQueryHandler {
+  return coreCreateConfigQueryHandler(() =>
+    buildMergedDocument({
+      config: deps.getConfig(),
+      valuesManager: deps.valuesManager,
+      issuesManager: deps.issuesManager,
+      helperIntrospection: deps.helperIntrospection,
+      virtualRules: deps.getVirtualRules?.(),
+    }),
+  );
+}
+
+/**
  * Create handler for GET /config.
  *
  * Uses `createConfigQueryHandler` from core to handle JSONPath querying.
@@ -44,15 +78,7 @@ type ConfigQueryRequest = FastifyRequest<{
  * @param deps - Route dependencies.
  */
 export function createConfigQueryHandler(deps: ConfigQueryRouteDeps) {
-  const coreHandler = coreCreateConfigQueryHandler(() =>
-    buildMergedDocument({
-      config: deps.getConfig(),
-      valuesManager: deps.valuesManager,
-      issuesManager: deps.issuesManager,
-      helperIntrospection: deps.helperIntrospection,
-      virtualRules: deps.getVirtualRules?.(),
-    }),
-  );
+  const coreHandler = createCoreConfigQueryHandler(deps);
 
   return wrapHandler(
     async (request: ConfigQueryRequest, reply: FastifyReply) => {

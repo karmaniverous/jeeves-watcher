@@ -45,12 +45,13 @@ type ConfigApplyRequest = FastifyRequest<{
 
 /**
  * Replace the echoed `config` of a core apply result with its public
- * allow-listed view.
+ * allow-listed view. Shared by this module's Fastify route handler and the
+ * catalog `configApply` entry's handler (`api/catalog/configApplyHandler`).
  *
  * @param result - Core apply result.
  * @returns The result with a redacted `config`, when it has one.
  */
-function redactConfig(result: { status: number; body: unknown }): {
+export function redactConfig(result: { status: number; body: unknown }): {
   status: number;
   body: unknown;
 } {

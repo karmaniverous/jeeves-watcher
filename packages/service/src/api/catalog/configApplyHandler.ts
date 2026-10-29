@@ -1,0 +1,81 @@
+/**
+ * @module api/catalog/configApplyHandler
+ * `ConfigApplyHandler` source for the catalog `configApply` entry: core's
+ * generic config-apply handler, with the echoed config redacted
+ * (`publicConfig`, same allow-list as `GET /config`), a `code` added to any
+ * error result, and a 5xx logged and answered with a generic
+ * `internal_error` (file paths never leak). The catalog's `patch`/`replace`
+ * body is already validated by the entry's schema; the `{ config }` alias
+ * and absent-patch default are normalized before validation by a
+ * `preValidation` hook (step 7, D27), so this handler only ever sees
+ * `{ patch, replace? }`.
+ */
+
+import {
+  type ConfigApplyHandler,
+  createConfigApplyHandler,
+  type JeevesComponentDescriptor,
+} from '@karmaniverous/jeeves';
+import type pino from 'pino';
+
+import { redactConfig } from '../handlers/configApply';
+import { codeForStatus, INTERNAL_ERROR_MESSAGE } from '../sendError';
+
+/** Dependencies for the catalog `configApply` entry's source handler. */
+export interface CatalogConfigApplyDeps {
+  /** Component descriptor (schema, customMerge). */
+  descriptor: JeevesComponentDescriptor;
+  /**
+   * Path of the config file the service is running from. Empty string means
+   * unknown; core then falls back to its registered/derived path.
+   */
+  configPath: string;
+  /** Called with the validated config after it has been written. */
+  onConfigApply: (config: unknown) => Promise<void>;
+  /** Logger for 5xx results (logged, never sent). */
+  logger: pino.Logger;
+}
+
+/**
+ * Build the `ConfigApplyHandler` source for `POST /config/apply`.
+ *
+ * @param deps - Descriptor, config path, apply callback and logger.
+ * @returns A `ConfigApplyHandler`, ready for `standardHandlers`.
+ */
+export function createCatalogConfigApplySource(
+  deps: CatalogConfigApplyDeps,
+): ConfigApplyHandler {
+  const apply = createConfigApplyHandler(
+    { ...deps.descriptor, onConfigApply: deps.onConfigApply },
+    deps.configPath || undefined,
+  );
+
+  return async (request) => {
+    const result = await apply(request);
+
+    if (result.status >= 500) {
+      deps.logger.error({ result: result.body }, 'Config apply failed');
+      return {
+        status: 500,
+        body: {
+          code: 'internal_error',
+          error: 'Internal Server Error',
+          message: INTERNAL_ERROR_MESSAGE,
+        },
+      };
+    }
+
+    if (result.status >= 400) {
+      const body = (result.body ?? {}) as Record<string, unknown>;
+      return {
+        status: result.status,
+        body:
+          'code' in body
+            ? body
+            : { code: codeForStatus(result.status), ...body },
+      };
+    }
+
+    return redactConfig(result);
+  };
+}

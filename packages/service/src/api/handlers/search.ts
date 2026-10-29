@@ -44,7 +44,21 @@ type SearchRequest = FastifyRequest<{ Body: unknown }>;
  * Query-embedding budget: interactive search fails fast with 503 rather
  * than queueing behind a long rate-limit pause.
  */
-const SEARCH_EMBED_BUDGET: EmbedOptions = { attempts: 3, maxWaitMs: 10_000 };
+export const SEARCH_EMBED_BUDGET: EmbedOptions = {
+  attempts: 3,
+  maxWaitMs: 10_000,
+};
+
+/**
+ * `Retry-After` header value (whole seconds, at least 1) for a known
+ * embedding retry delay. Pure.
+ *
+ * @param retryAfterMs - Retry delay in milliseconds.
+ * @returns The header value.
+ */
+export function retryAfterSeconds(retryAfterMs: number): string {
+  return String(Math.max(1, Math.ceil(retryAfterMs / 1000)));
+}
 
 /**
  * Create handler for POST /search. A filter Qdrant rejects is
@@ -72,7 +86,7 @@ export function createSearchHandler(deps: SearchRouteDeps) {
         if (error.retryAfterMs !== undefined) {
           void reply.header(
             'Retry-After',
-            String(Math.max(1, Math.ceil(error.retryAfterMs / 1000))),
+            retryAfterSeconds(error.retryAfterMs),
           );
         }
         sendError(reply, 'embedding_unavailable', error.name, {
