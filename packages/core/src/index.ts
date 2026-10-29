@@ -41,6 +41,7 @@ export {
   tryParseJson,
   unauthorizedMessage,
 } from './httpContract.js';
+export { WATCHER_OPENAPI_DOCUMENT } from './openapi.js';
 export { WATCHER_PROMPT_RULES } from './promptRules.js';
 export {
   findReservedPropertyNames,

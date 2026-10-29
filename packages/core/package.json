@@ -33,10 +33,12 @@
         "types": "./dist/index.d.ts",
         "default": "./dist/index.js"
       }
-    }
+    },
+    "./openapi.json": "./openapi.json"
   },
   "files": [
-    "dist"
+    "dist",
+    "openapi.json"
   ],
   "homepage": "https://github.com/karmaniverous/jeeves-watcher#readme",
   "license": "BSD-3-Clause",
@@ -59,7 +61,8 @@
     "hooks": {
       "after:bump": [
         "npm install --package-lock-only --ignore-scripts",
-        "git add ../../package-lock.json"
+        "npm run openapi",
+        "git add ../../package-lock.json openapi.json"
       ],
       "after:init": [
         "npm run lint",
@@ -91,6 +94,7 @@
     "changelog": "git-cliff -o CHANGELOG.md",
     "lint": "eslint .",
     "lint:fix": "eslint --fix .",
+    "openapi": "tsx scripts/write-openapi.ts",
     "prebuild": "npx rimraf dist",
     "release": "dotenvx run -f .env.local -- release-it",
     "release:pre": "dotenvx run -f .env.local -- release-it --no-git.requireBranch --github.preRelease --preRelease",
