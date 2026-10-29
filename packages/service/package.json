@@ -8,7 +8,7 @@
   },
   "dependencies": {
     "@commander-js/extra-typings": "^15.0.0",
-    "@karmaniverous/jeeves": "0.7.0",
+    "@karmaniverous/jeeves": "0.8.0-1",
     "@karmaniverous/jeeves-watcher-core": "^0.4.0",
     "@karmaniverous/jsonmap": "^2.1.1",
     "@langchain/textsplitters": "*",
@@ -20,6 +20,7 @@
     "cosmiconfig": "*",
     "dayjs": "^1.11.23",
     "fastify": "*",
+    "fastify-type-provider-zod": "^7.0.0",
     "handlebars": "^4.7.10",
     "hast-util-to-mdast": "^10.1.2",
     "ignore": "^7.0.12",

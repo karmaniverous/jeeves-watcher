@@ -33,12 +33,23 @@ const fixture = (file: string) =>
 const baselineTools = JSON.parse(fixture('tools.json')) as ToolSurface[];
 const baselineRules = fixture('promptRules.md');
 
+/** Add `additionalProperties: false` to an object parameter schema. */
+const closed = (before: ToolSurface): ToolSurface => ({
+  ...before,
+  parameters: {
+    ...(before.parameters as Record<string, unknown>),
+    additionalProperties: false,
+  },
+});
+
 /**
  * Documented changes, keyed by tool name: the expected surface replaces the
- * baseline one. Empty until tools move to the catalog.
+ * baseline one.
  */
-const CHANGES: Partial<Record<string, (before: ToolSurface) => ToolSurface>> =
-  {};
+const CHANGES: Partial<Record<string, (before: ToolSurface) => ToolSurface>> = {
+  // jeeves 0.8.0 generates core's standard tool schemas from its catalog.
+  watcher_status: closed,
+};
 
 /** Register the plugin against a capturing API. */
 function capture(): { tools: ToolSurface[]; hooks: [string, unknown][] } {

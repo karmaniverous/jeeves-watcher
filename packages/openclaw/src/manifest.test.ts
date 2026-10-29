@@ -66,7 +66,7 @@ describe('package.json', () => {
   it('pins the static-content jeeves core (exact, 0.6 or later)', () => {
     const deps = pkg.dependencies as Record<string, string>;
     const pin = deps['@karmaniverous/jeeves'];
-    expect(pin).toMatch(/^0\.\d+\.\d+$/);
+    expect(pin).toMatch(/^0\.\d+\.\d+(?:-[0-9A-Za-z.]+)?$/);
     expect(Number(pin.split('.')[1])).toBeGreaterThanOrEqual(6);
   });
 });

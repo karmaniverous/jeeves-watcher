@@ -14,7 +14,11 @@ import resolve from '@rollup/plugin-node-resolve';
 import typescriptPlugin from '@rollup/plugin-typescript';
 import type { RollupLog, RollupOptions } from 'rollup';
 
-const external: (string | RegExp)[] = [/^node:/, '@karmaniverous/jeeves'];
+const external: (string | RegExp)[] = [
+  /^node:/,
+  // The jeeves core and its sub-paths (`/catalog`, ...): one shared copy.
+  /^@karmaniverous\/jeeves(?:\/|$)/,
+];
 
 /**
  * Third-party noise from bundled dependencies (zod): comment annotations
