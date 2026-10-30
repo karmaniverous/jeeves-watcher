@@ -20,8 +20,7 @@ import { isPlainObject } from '@karmaniverous/jeeves-watcher-core';
 import type pino from 'pino';
 
 import { publicConfig } from '../publicConfig';
-import { INTERNAL_ERROR_MESSAGE } from '../sendError';
-import { withErrorCode } from './errorResult';
+import { internalErrorResult, withErrorCode } from './errorResult';
 
 /** Dependencies for the catalog `configApply` entry's source handler. */
 export interface CatalogConfigApplyDeps {
@@ -73,14 +72,7 @@ export function createCatalogConfigApplySource(
 
     if (result.status >= 500) {
       deps.logger.error({ result: result.body }, 'Config apply failed');
-      return {
-        status: 500,
-        body: {
-          code: 'internal_error',
-          error: 'Internal Server Error',
-          message: INTERNAL_ERROR_MESSAGE,
-        },
-      };
+      return internalErrorResult();
     }
 
     if (result.status >= 400) return withErrorCode(result);

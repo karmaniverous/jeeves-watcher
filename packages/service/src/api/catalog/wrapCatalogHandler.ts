@@ -20,8 +20,11 @@ import type pino from 'pino';
 
 import { normalizeError } from '../../util/normalizeError';
 import { RequestError } from '../requestError';
-import { INTERNAL_ERROR_MESSAGE } from '../sendError';
-import { type CatalogErrorResult, errorResult } from './errorResult';
+import {
+  type CatalogErrorResult,
+  errorResult,
+  internalErrorResult,
+} from './errorResult';
 
 /** Extract a catalog entry's success body type from its `HandlerResult`. */
 type SuccessBody<E extends CatalogEntry> = Extract<
@@ -58,9 +61,7 @@ export function catalogErrorFromThrown(
     return errorResult(error.code, error.message, error.extras);
   }
   logger.error({ err: normalizeError(error) }, `${label} failed`);
-  return errorResult('internal_error', 'Internal Server Error', {
-    message: INTERNAL_ERROR_MESSAGE,
-  });
+  return internalErrorResult();
 }
 
 /**

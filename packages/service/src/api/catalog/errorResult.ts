@@ -15,7 +15,7 @@ import {
   isPlainObject,
 } from '@karmaniverous/jeeves-watcher-core';
 
-import { codeForStatus } from '../sendError';
+import { codeForStatus, INTERNAL_ERROR_MESSAGE } from '../sendError';
 
 /** Extra fields merged into the error body beyond `code` and `error`. */
 export type ErrorResultExtras = Record<string, unknown>;
@@ -35,7 +35,7 @@ export interface CatalogErrorResult {
  * @param error - Human-readable text (unchanged from earlier versions).
  * @param extras - Any extra fields merged into the body (e.g. `message`,
  *   `details`, `issueType`, or a core handler's own extra fields such as
- *   `issues`).
+ *   `issues`); `undefined` values are left out.
  * @returns The status and error body.
  */
 export function errorResult(
@@ -45,8 +45,26 @@ export function errorResult(
 ): CatalogErrorResult {
   return {
     status: API_ERROR_STATUS[code] as ErrorStatus,
-    body: { code, error, ...extras },
+    body: {
+      code,
+      error,
+      ...Object.fromEntries(
+        Object.entries(extras).filter(([, value]) => value !== undefined),
+      ),
+    },
   };
+}
+
+/**
+ * The generic `500 internal_error` result: the error itself is logged by the
+ * caller and never sent. Pure.
+ *
+ * @returns The status and generic error body.
+ */
+export function internalErrorResult(): CatalogErrorResult {
+  return errorResult('internal_error', 'Internal Server Error', {
+    message: INTERNAL_ERROR_MESSAGE,
+  });
 }
 
 /**

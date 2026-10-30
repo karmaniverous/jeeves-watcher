@@ -15,9 +15,8 @@ import { EmbeddingUnavailableError } from '../../embedding/rateLimitError';
 import { normalizeError } from '../../util/normalizeError';
 import type { VectorStore } from '../../vectorStore';
 import { withFilterErrors } from '../requestError';
-import { INTERNAL_ERROR_MESSAGE } from '../sendError';
 import type { Entry } from './catalogEntry';
-import { errorResult } from './errorResult';
+import { errorResult, internalErrorResult } from './errorResult';
 import { catalogErrorFromThrown } from './wrapCatalogHandler';
 
 /** Hybrid search configuration passed to the search handler. */
@@ -81,9 +80,7 @@ export function createCatalogSearchHandler(
     } catch (error) {
       if (!(error instanceof EmbeddingUnavailableError)) {
         deps.logger.error({ err: normalizeError(error) }, 'Search failed');
-        return errorResult('internal_error', 'Internal Server Error', {
-          message: INTERNAL_ERROR_MESSAGE,
-        });
+        return internalErrorResult();
       }
       deps.logger.warn({ err: error }, 'Search embedding unavailable');
       const headers =

@@ -7,7 +7,8 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { errorResult, withErrorCode } from './errorResult';
+import { INTERNAL_ERROR_MESSAGE } from '../sendError';
+import { errorResult, internalErrorResult, withErrorCode } from './errorResult';
 
 describe('errorResult', () => {
   it('maps a code to its status with no extras', () => {
@@ -89,6 +90,28 @@ describe('withErrorCode', () => {
     expect(withErrorCode({ status: 404, body: null })).toEqual({
       status: 404,
       body: { code: 'not_found' },
+    });
+  });
+});
+
+describe('errorResult extras', () => {
+  it('leaves out undefined extras', () => {
+    expect(
+      errorResult('not_found', 'Missing', { issueType: undefined, path: 'a' })
+        .body,
+    ).toEqual({ code: 'not_found', error: 'Missing', path: 'a' });
+  });
+});
+
+describe('internalErrorResult', () => {
+  it('is the generic 500 body', () => {
+    expect(internalErrorResult()).toEqual({
+      status: 500,
+      body: {
+        code: 'internal_error',
+        error: 'Internal Server Error',
+        message: INTERNAL_ERROR_MESSAGE,
+      },
     });
   });
 });
