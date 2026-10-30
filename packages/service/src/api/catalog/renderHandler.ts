@@ -21,7 +21,6 @@ import type { WatchConfig } from '../../config/types';
 import type { WatcherProcessor } from '../../processor';
 import { ProcessingFailure } from '../../processor/issueRecording';
 import { isPathWatched } from '../../util/isPathWatched';
-import { RequestError } from '../requestError';
 import type { Entry } from './catalogEntry';
 import { errorResult } from './errorResult';
 import { renderSourceDocument } from './renderSourceDocument';
@@ -90,11 +89,7 @@ export function createCatalogRenderHandler(
         watch.ignored,
       )
     ) {
-      return catalogErrorFromThrown(
-        new RequestError('path_not_watched', 'Path is outside watched scope'),
-        deps.logger,
-        'Render',
-      );
+      return errorResult('path_not_watched', 'Path is outside watched scope');
     }
 
     try {
@@ -111,11 +106,7 @@ export function createCatalogRenderHandler(
         : { status: 200, body, headers: NO_CACHE_HEADERS };
     } catch (error) {
       if (isMissingFile(error)) {
-        return catalogErrorFromThrown(
-          new RequestError('not_found', 'File not found'),
-          deps.logger,
-          'Render',
-        );
+        return errorResult('not_found', 'File not found');
       }
       // Everything renderFile runs is the extraction pipeline (stat,
       // extract, rules, template): its failures are the documented

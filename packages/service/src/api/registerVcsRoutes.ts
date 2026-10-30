@@ -1,6 +1,6 @@
 /**
  * @module api/registerVcsRoutes
- * Registers the legacy git-backed versioning (VCS) routes on a Fastify instance. Only called when a VcsCoordinator is configured. GET /vcs/show is a catalog route (pi/registerCatalog).
+ * Registers the legacy git-backed versioning (VCS) routes on a Fastify instance. Only called when a VcsCoordinator is configured. GET /vcs/show is a catalog route (`api/registerCatalog`).
  */
 
 import { getEndpoint } from '@karmaniverous/jeeves-watcher-core';

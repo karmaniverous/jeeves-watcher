@@ -4,7 +4,7 @@ import type { FastifyReply, FastifyRequest } from 'fastify';
 /**
  * Cache entry with expiration
  */
-export interface CacheEntry {
+interface CacheEntry {
   value: unknown;
   expiresAt: number;
 }
@@ -15,7 +15,6 @@ export interface CacheEntry {
  * `clearCache` clears both (spec #281 step 6).
  */
 export const sharedResponseCache = new Map<string, CacheEntry>();
-const cache = sharedResponseCache;
 
 /**
  * Generates a deterministic hash for an object
@@ -54,7 +53,7 @@ export function withCache<
 
     // Check cache
     const now = Date.now();
-    const entry = cache.get(key);
+    const entry = sharedResponseCache.get(key);
 
     if (entry && entry.expiresAt > now) {
       void fReply.send(entry.value);
@@ -88,7 +87,7 @@ export function withCache<
     // Prefer captured reply payload (wrapHandler path). Fall back to handler return value.
     const payloadToCache =
       capturedPayload !== undefined ? capturedPayload : result;
-    cache.set(key, {
+    sharedResponseCache.set(key, {
       value: payloadToCache,
       expiresAt: now + ttlMs,
     });
@@ -101,5 +100,5 @@ export function withCache<
  * Clear the entire response cache (useful for testing or forced resets)
  */
 export function clearCache(): void {
-  cache.clear();
+  sharedResponseCache.clear();
 }

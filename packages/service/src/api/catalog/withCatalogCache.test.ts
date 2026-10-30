@@ -87,6 +87,26 @@ describe('withCatalogCache', () => {
     expect(calls).toBe(2);
   });
 
+  it('does not cache a no-cache response under a lower-case header name', async () => {
+    clearCache();
+    let calls = 0;
+    const handler = vi.fn(() => {
+      calls++;
+      return Promise.resolve({
+        status: 200,
+        body: { calls },
+        headers: { 'cache-control': 'no-cache' },
+      });
+    });
+    const cached = withCatalogCache('test', 60_000, handler as never);
+    const input = { params: {}, query: {}, body: {} };
+
+    await cached(input, {} as never);
+    await cached(input, {} as never);
+
+    expect(calls).toBe(2);
+  });
+
   it('bypasses the cache (read and write) when shouldBypass is true', async () => {
     clearCache();
     let calls = 0;

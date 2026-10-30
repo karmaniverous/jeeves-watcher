@@ -15,6 +15,17 @@ import type {
 
 import { hashObject, sharedResponseCache } from '../handlers/withCache';
 
+/**
+ * Whether response headers mark the result `Cache-Control: no-cache`, under
+ * any spelling of the header name. Pure.
+ */
+function isNoCache(headers: Record<string, unknown> | undefined): boolean {
+  return Object.entries(headers ?? {}).some(
+    ([name, value]) =>
+      name.toLowerCase() === 'cache-control' && value === 'no-cache',
+  );
+}
+
 /** Options for {@link withCatalogCache}. */
 export interface WithCatalogCacheOptions<E extends CatalogEntry> {
   /**
@@ -65,11 +76,7 @@ export function withCatalogCache<E extends CatalogEntry>(
 
     const result = await handler(input, request);
 
-    if (
-      !bypass &&
-      result.status < 400 &&
-      result.headers?.['Cache-Control'] !== 'no-cache'
-    ) {
+    if (!bypass && result.status < 400 && !isNoCache(result.headers)) {
       sharedResponseCache.set(key, {
         value: result,
         expiresAt: Date.now() + ttlMs,
