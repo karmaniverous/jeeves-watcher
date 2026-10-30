@@ -132,4 +132,15 @@ describe('vcsShowQuerySchema', () => {
     ).toBe(false);
     expect(vcsShowQuerySchema.safeParse({ path: 'a' }).success).toBe(false);
   });
+
+  it('names the missing parameter', () => {
+    const missing = vcsShowQuerySchema.safeParse({ commit: 'b' });
+    expect(missing.error?.issues[0]?.message).toBe(
+      'Missing required query parameter: path',
+    );
+    const empty = vcsShowQuerySchema.safeParse({ path: 'a', commit: '' });
+    expect(empty.error?.issues[0]?.message).toBe(
+      'Missing required query parameter: commit',
+    );
+  });
 });

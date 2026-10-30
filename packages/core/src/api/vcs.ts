@@ -8,9 +8,15 @@ import { z } from 'zod';
 /** Query string of `GET /vcs/show`. */
 export const vcsShowQuerySchema = z.object({
   /** Absolute path of the file inside a VCS-enabled watch root. */
-  path: z.string().min(1).describe('File path to retrieve.'),
+  path: z
+    .string({ error: 'Missing required query parameter: path' })
+    .min(1, { error: 'Missing required query parameter: path' })
+    .describe('File path to retrieve.'),
   /** Version identifier (a commit). */
-  commit: z.string().min(1).describe('Version identifier.'),
+  commit: z
+    .string({ error: 'Missing required query parameter: commit' })
+    .min(1, { error: 'Missing required query parameter: commit' })
+    .describe('Version identifier.'),
 });
 
 /** Query string of `GET /vcs/show`. */

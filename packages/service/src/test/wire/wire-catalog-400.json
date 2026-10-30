@@ -137,13 +137,13 @@
     "contentType": "application/json; charset=utf-8",
     "body": {
       "code": "invalid_request",
-      "error": "Invalid input: expected string, received undefined",
+      "error": "Missing required query parameter: path",
       "details": [
         {
           "slot": "query",
           "path": ["path"],
           "code": "invalid_type",
-          "message": "Invalid input: expected string, received undefined",
+          "message": "Missing required query parameter: path",
           "params": {
             "expected": "string"
           }
@@ -152,7 +152,7 @@
           "slot": "query",
           "path": ["commit"],
           "code": "invalid_type",
-          "message": "Invalid input: expected string, received undefined",
+          "message": "Missing required query parameter: commit",
           "params": {
             "expected": "string"
           }
@@ -165,13 +165,13 @@
     "contentType": "application/json; charset=utf-8",
     "body": {
       "code": "invalid_request",
-      "error": "Invalid input: expected string, received undefined",
+      "error": "Missing required query parameter: commit",
       "details": [
         {
           "slot": "query",
           "path": ["commit"],
           "code": "invalid_type",
-          "message": "Invalid input: expected string, received undefined",
+          "message": "Missing required query parameter: commit",
           "params": {
             "expected": "string"
           }
