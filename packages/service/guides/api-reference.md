@@ -8,7 +8,7 @@ The watcher exposes a lightweight HTTP API for search, metadata enrichment, and 
 
 **Default address:** `http://127.0.0.1:1936` (configurable via `api.host` and `api.port`)
 
-**Authentication:** none by default. When `api.apiKey` is set, every route except `GET /status` requires `Authorization: Bearer <key>`; see [Authentication](#authentication). The examples below omit the header.
+**Authentication:** none by default. When `api.apiKey` is set, every route except `GET /status` and `GET /openapi.json` requires `Authorization: Bearer <key>`; see [Authentication](#authentication). The examples below omit the header.
 
 **Endpoint catalog (unreleased):** `GET /status`, `GET /config`, `POST /config/apply`, `POST /render`, `POST /search`, `POST /scan` and `GET /vcs/show` are described once, as entries of `WATCHER_CATALOG` in `@karmaniverous/jeeves-watcher-core`. Their routes, request validation, response validation, the [OpenAPI document](#get-openapijson) and the plugin tools are all built from it. The other routes are not in the catalog yet.
 
@@ -2154,7 +2154,8 @@ Since v0.20.0 every non-2xx response has this body (`apiErrorBodySchema` in `@ka
 - Some endpoints add fields of their own (`issues` on `POST /config/apply`).
 - The one body without `code` is the catalog's response-validation failure, `500 { "error": "Response validation failed" }` (see [Response validation](#api-reference)), which only a server bug produces.
 - A route's status is derived from its `code` through `API_ERROR_STATUS` in core (the table below), so the same code always has the same status. The single exception is `not_available` from a prune without a vector store, which keeps its 0.19 status `400`. Requests rejected by the framework before reaching a route keep the framework's status: `401` maps to `unauthorized`, `404` to `not_found` (unknown route: `{ "code": "not_found", "error": "Not Found", "message": "Route POST:/nope not found" }`), any other 4xx to `invalid_request` (with the HTTP status text as `error` and the framework's explanation as `message`), and any 5xx to the generic `internal_error` body.
-- The CLI and the plugin report an error as one line, `HTTP <status> <code>: <message>`, where `<message>` is `error` plus `: <message>` when the body has a different `message` (`formatHttpError` in core).
+- The CLI and the plugin's own tools report an error as one line, `HTTP <status> <code>: <message>`, where `<message>` is `error` plus `: <message>` when the body has a different `message` (`formatHttpError` in core).
+- The plugin's catalog-built tools (`watcher_status`, `watcher_config`, `watcher_config_apply`, `watcher_search`, `watcher_scan`, `watcher_vcs_show`) report `HTTP <status>: <body>` with the JSON body verbatim. On catalog routes an error body lists `error` before `code`.
 - A 5xx body never carries the underlying error (file paths, Qdrant or provider messages): the cause is logged and the body is the generic `internal_error` text below.
 - HTTP status changes in v0.20.0, all from `500` for what are client mistakes: invalid bodies of the rules routes and `POST /points/delete`, filters Qdrant rejects (`400`), and invalid `POST /reindex` path targets (`403` / `404` / `400`). Successful responses and every other status are unchanged.
 
