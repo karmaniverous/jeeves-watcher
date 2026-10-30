@@ -12,9 +12,9 @@ The watcher is an HTTP API running as a background service (typically NSSM on Wi
 
 **Default port:** 1936 (configurable via `api.port` in watcher config) **Non-default port:** If the watcher runs on a different port, the user must set `plugins.entries.jeeves-watcher-openclaw.config.apiUrl` in `openclaw.json`. The plugin cannot auto-discover a non-default port.
 
-**API key:** If the watcher sets `api.apiKey`, every route except `GET /status` needs `Authorization: Bearer <key>`. The tools send it from `plugins.entries.jeeves-watcher-openclaw.config.apiKey` (or the `JEEVES_WATCHER_API_KEY` env var). A missing or wrong key comes back as `HTTP 401 unauthorized: the watcher API requires an API key. Provide it via plugins.entries.jeeves-watcher-openclaw.config.apiKey or the JEEVES_WATCHER_API_KEY env var.` (or, when a key was sent, `... rejected the API key. Check ... against the service's api.apiKey.`). When calling the API directly, add the header yourself. Never echo the key.
+**API key:** If the watcher sets `api.apiKey`, every route except `GET /status` needs `Authorization: Bearer <key>`. The tools send it from `plugins.entries.jeeves-watcher-openclaw.config.apiKey` (or the `JEEVES_WATCHER_API_KEY` env var). From `watcher_config`, `watcher_config_apply`, `watcher_search`, `watcher_scan` and `watcher_vcs_show`, a missing or wrong key comes back as `HTTP 401: {"error":"Unauthorized","code":"unauthorized"}` (see [Error Handling](#error-handling) for the fix). From the other tools it reads `HTTP 401 unauthorized: the watcher API requires an API key. Provide it via plugins.entries.jeeves-watcher-openclaw.config.apiKey or the JEEVES_WATCHER_API_KEY env var.` (or, when a key was sent, `... rejected the API key. Check ... against the service's api.apiKey.`). When calling the API directly, add the header yourself. Never echo the key.
 
-**Tool errors:** Tool error text is prefixed `Error: `. Any other non-2xx response reads `HTTP <status> <code>: <message>`, where `<code>` is the server's machine-readable error code (e.g. `HTTP 400 invalid_request: Validation failed`, `HTTP 503 scan_in_progress: Scan in progress: ...`). Branch on the code, not the message. Structured `details` (Zod issues, per-property validation failures) are in the HTTP response body only; call the API directly when you need them. An unreachable service reads `Service not reachable at <url>.` with a hint to set `apiUrl`. (`watcher_status` and `watcher_service` come from the shared Jeeves core toolset and word their own errors.)
+**Tool errors:** Tool error text is prefixed `Error: `. The tools built from the watcher's endpoint catalog (`watcher_status`, `watcher_config`, `watcher_config_apply`, `watcher_search`, `watcher_scan`, `watcher_vcs_show`) report a non-2xx response as `HTTP <status>: <body>`, with the server's JSON body verbatim: read its `code` (and `details` or `issues`) there. They also reject parameters that don't match their schema before sending anything. From the other tools, any other non-2xx response reads `HTTP <status> <code>: <message>`, where `<code>` is the server's machine-readable error code (e.g. `HTTP 400 invalid_request: Validation failed`, `HTTP 503 scan_in_progress: Scan in progress: ...`). Branch on the code, not the message. Structured `details` (Zod issues, per-property validation failures) are in the HTTP response body only; call the API directly when you need them. An unreachable service reads `Service not reachable at <url>.` with a hint to set `apiUrl`. (`watcher_service` comes from the shared Jeeves core toolset and words its own errors.)
 
 **Health check:** `GET /status` returns `name`, `version`, `uptime`, `status` (`healthy`/`degraded`/`unhealthy`), and a `health` object containing `collection` (`name`, `pointCount`, `dimensions`), `reindex` progress, and `initialScan` progress.
 
@@ -421,10 +421,11 @@ Partial configs are merged into the running config shallowly: each top-level key
 Apply config changes (`POST /config/apply`, sent as `{ patch: config }`).
 
 - `config` (object, required) — full or partial config to apply
+- `replace` (boolean, optional) — replace the whole config with `config` instead of merging
 
 Partial configs are deep-merged into the config file the service runs from (objects recursively, arrays replaced, `inferenceRules` by rule name), so `{}` or a single key is valid. The merged result is validated and written to disk, then the `configWatch.reindex` scope (default `issues`) runs; that reindex covers files only. With `configWatch.enabled` (default `true`) the service picks up the written file without a restart, including new/removed watch paths (the filesystem watcher is rebuilt), inference rule changes, move detection settings, and gitignore filter updates.
 
-Returns `{ applied: true, config }`. `config` is redacted through the same allow-list as `GET /config`: `api`, `sources` and provider keys are never echoed. When the file was written but the post-write apply step failed, the body also carries `warning` (a string describing the failure). An invalid merged config is a tool error reading `HTTP 400 invalid_request: Config validation failed` (the Zod `issues` are only in the HTTP body), so run `watcher_validate` first. A config file the service cannot read or write is a generic `HTTP 500 internal_error`, with the cause in the service log.
+Returns `{ applied: true, config }`. `config` is redacted through the same allow-list as `GET /config`: `api`, `sources` and provider keys are never echoed. When the file was written but the post-write apply step failed, the body also carries `warning` (a string describing the failure). An invalid merged config is a tool error reading `HTTP 400: {"code":"invalid_request","error":"Config validation failed","issues":[...]}`, so run `watcher_validate` first. A config file the service cannot read or write is `HTTP 500` with the generic `internal_error` body, the cause in the service log.
 
 ### `watcher_reindex`
 
@@ -1045,6 +1046,14 @@ If the watcher is unreachable:
 - Inform the user that semantic search is temporarily unavailable
 - Fall back to direct `read` for known file paths
 - Do not retry silently in a loop
+
+If a tool fails with `HTTP 401` (`unauthorized`):
+
+- The watcher sets `api.apiKey` and the plugin sent no key, or a different one.
+- Ask the user to set `plugins.entries.jeeves-watcher-openclaw.config.apiKey` in `openclaw.json` (or the `JEEVES_WATCHER_API_KEY` environment variable of the gateway) to the service's `api.apiKey`. The tools read it on every call, so no restart is needed.
+- Never ask for, print or guess the key. `GET /status` and `GET /openapi.json` never need it.
+
+If a tool fails with `HTTP 500: {"error":"Response validation failed"}`, the watcher produced a response that doesn't match its own schema: a server bug. Report it with the request you made; retrying won't help.
 
 If tools are unavailable (plugin not loaded in this session):
 

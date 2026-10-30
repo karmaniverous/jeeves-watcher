@@ -44,11 +44,14 @@ Plugin config lives in `openclaw.json` under `plugins.entries.jeeves-watcher-ope
 
 ## Available Tools
 
-The plugin registers 18 tools (`contracts.tools` in `openclaw.plugin.json`). `watcher_status` and `watcher_service` come from the shared `@karmaniverous/jeeves` core toolset; every other tool is a thin wrapper over one watcher HTTP endpoint and sends the API key when one is configured.
+The plugin registers 18 tools (`contracts.tools` in `openclaw.plugin.json`), all as optional tools. Core's toolset (`createPluginToolset` in `@karmaniverous/jeeves`) builds seven of them: `watcher_service`, plus six from the watcher's endpoint catalog (`WATCHER_CATALOG` in `@karmaniverous/jeeves-watcher-core`): `watcher_status`, `watcher_config`, `watcher_config_apply`, `watcher_search`, `watcher_scan` and `watcher_vcs_show`. Their parameters are generated from the catalog's request schemas, so they reject unknown parameters and carry the server's bounds. The other eleven are thin wrappers built by the plugin, one per watcher HTTP endpoint. Every HTTP tool reads `apiUrl` and the API key on each call and sends the key when one is configured (`watcher_status` never needs it).
 
 ### Errors
 
-A non-2xx response from the watcher API becomes a tool error reading `HTTP <status> <code>: <message>` (prefixed `Error: `), where `<code>` is the server's machine-readable error code, e.g. `HTTP 400 invalid_request: Config validation failed`. A `401` keeps its key guidance: `HTTP 401 unauthorized: the watcher API requires an API key. Provide it via plugins.entries.jeeves-watcher-openclaw.config.apiKey or the JEEVES_WATCHER_API_KEY env var.` (or, when a key was sent, `... rejected the API key. Check ... against the service's api.apiKey.`). Structured `details` (Zod issues, per-property validation failures) stay in the HTTP response body. A refused, unresolvable or timed-out connection reads `Service not reachable at <apiUrl>.` with a hint to set `apiUrl`.
+A non-2xx response from the watcher API becomes a tool error (prefixed `Error: `). The two kinds of tool report it differently:
+
+- **Catalog-built tools** (`watcher_status`, `watcher_config`, `watcher_config_apply`, `watcher_search`, `watcher_scan`, `watcher_vcs_show`) report core's `HTTP <status>: <body>`, with the server's JSON body verbatim, e.g. `HTTP 400: {"code":"invalid_request","error":"Config validation failed","issues":[...]}`. A `401` is `HTTP 401: {"error":"Unauthorized","code":"unauthorized"}`; the skill's troubleshooting section says how to supply or fix the key. Parameters that fail the tool's own schema are rejected before any request is sent.
+- **Plugin-built tools** report `HTTP <status> <code>: <message>`, where `<code>` is the server's machine-readable error code, e.g. `HTTP 400 invalid_request: Invalid filter`. A `401` keeps its key guidance: `HTTP 401 unauthorized: the watcher API requires an API key. Provide it via plugins.entries.jeeves-watcher-openclaw.config.apiKey or the JEEVES_WATCHER_API_KEY env var.` (or, when a key was sent, `... rejected the API key. Check ... against the service's api.apiKey.`). For these tools, structured `details` (Zod issues, per-property validation failures) stay in the HTTP response body. A refused, unresolvable or timed-out connection reads `Service not reachable at <apiUrl>.` with a hint to set `apiUrl`.
 
 ### `watcher_status`
 
@@ -60,10 +63,12 @@ Semantic search across all indexed documents (`POST /search`). Pass a natural-la
 
 **Parameters:**
 
-- `query` (string, required) — search text
-- `limit` (number) — max results (default: 10)
-- `offset` (number) — skip N results for pagination
+- `query` (string, required, non-empty) — search text
+- `limit` (integer > 0) — max results (default: 10)
+- `offset` (integer ≥ 0) — skip N results for pagination
 - `filter` (object) — Qdrant filter conditions
+
+Registered `catalogMode: 'direct-only'` (see the README's Tool Search section).
 
 ### `watcher_enrich`
 
@@ -76,7 +81,7 @@ Set or update metadata on a document by file path (`POST /metadata`). Metadata i
 
 ### `watcher_config`
 
-Query the effective runtime config via JSONPath (`GET /config`). Returns the full resolved merged document when no path is provided. Useful for discovering available inference rules, schemas, and runtime values. Only the allow-listed keys (`description`, `watch`, `configWatch`, `search`, `schemas`, `inferenceRules`, `mapHelpers`, `templateHelpers`, `maps`, `templates`) plus `issues` are included; `api`, `sources` and provider keys never are. Implemented by the plugin (not the core toolset) so the request carries the API key.
+Query the effective runtime config via JSONPath (`GET /config`). Returns the full resolved merged document when no path is provided. Useful for discovering available inference rules, schemas, and runtime values. Only the allow-listed keys (`description`, `watch`, `configWatch`, `search`, `schemas`, `inferenceRules`, `mapHelpers`, `templateHelpers`, `maps`, `templates`) plus `issues` are included; `api`, `sources` and provider keys never are. Built by core's toolset from the catalog's `config` entry, with the API key.
 
 **Parameters:**
 
@@ -93,13 +98,14 @@ Validate a candidate config (or the current config if omitted), optionally testi
 
 ### `watcher_config_apply`
 
-Apply a config patch to the running watcher service (`POST /config/apply`, body `{ patch }`). The patch is deep-merged into the service's config file (`inferenceRules` by rule name), validated and written; the `configWatch.reindex` scope (default `issues`, files only) is then triggered. Implemented by the plugin so the request carries the API key.
+Apply a config patch to the running watcher service (`POST /config/apply`, body `{ patch }`). The patch is deep-merged into the service's config file (`inferenceRules` by rule name), validated and written; the `configWatch.reindex` scope (default `issues`, files only) is then triggered. Built by core's toolset from the catalog's `configApply` entry, with the API key; the tool's `config` parameter is sent as `patch`.
 
 **Parameters:**
 
 - `config` (object, required) — config patch to apply
+- `replace` (boolean) — replace the whole config with the patch instead of merging
 
-Returns `{ applied: true, config }`. The echoed `config` is redacted through the same allow-list as `GET /config` (`api`, `sources` and provider keys are never echoed). When the config was written but the post-write apply step failed, the response also carries `warning` (a string). An invalid merged config is `HTTP 400 invalid_request: Config validation failed`; use `watcher_validate` to see the individual errors. A server-side failure (config file unreadable or unwritable) comes back as a generic `internal_error`, with the cause in the service log.
+Returns `{ applied: true, config }`. The echoed `config` is redacted through the same allow-list as `GET /config` (`api`, `sources` and provider keys are never echoed). When the config was written but the post-write apply step failed, the response also carries `warning` (a string). An invalid merged config is an `HTTP 400` whose body has `"error":"Config validation failed"` and the `issues`; use `watcher_validate` to see the individual errors. A server-side failure (config file unreadable or unwritable) comes back as a generic `internal_error`, with the cause in the service log.
 
 ### `watcher_reindex`
 
@@ -126,8 +132,8 @@ Filter-only point query without vector search (`POST /scan`). Returns metadata f
 **Parameters:**
 
 - `filter` (object, required) — Qdrant filter object
-- `limit` (number) — page size (default: 100, max: 1000)
-- `cursor` (string) — opaque cursor from previous response for pagination
+- `limit` (integer, 1 to 1000) — page size (default: 100)
+- `cursor` (string or number) — opaque cursor from previous response for pagination
 - `fields` (string[]) — payload fields to return (projection)
 - `countOnly` (boolean) — if true, return `{ count }` instead of points
 
@@ -162,12 +168,12 @@ Query change history by path or glob with optional date range (`GET /vcs/history
 
 #### `watcher_vcs_show`
 
-Retrieve file content at a specific version (`GET /vcs/show`).
+Retrieve file content at a specific version (`GET /vcs/show`). Returns the file's text, whatever its type (before the catalog slice the tool failed on any file that was not JSON). Built by core's toolset from the catalog's `vcsShow` entry.
 
 **Parameters:**
 
-- `path` (string, required) — file path to retrieve
-- `commit` (string, required) — version identifier
+- `path` (string, required, non-empty) — file path to retrieve
+- `commit` (string, required, non-empty) — version identifier
 
 #### `watcher_vcs_diff`
 
