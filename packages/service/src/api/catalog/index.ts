@@ -58,11 +58,6 @@ export interface CreateCatalogHandlersOptions {
   cacheTtlMs: number;
 }
 
-/** Whether a `render` request targets a source document (never cached). */
-function targetsSource(input: { body: { source?: string } }): boolean {
-  return input.body.source !== undefined;
-}
-
 /**
  * Build the catalog handler for every `WATCHER_CATALOG` entry.
  *
@@ -82,11 +77,11 @@ export function createCatalogHandlers(
     status: withCatalogCache('status', options.cacheTtlMs, standard.status),
     config: withCatalogCache('config', options.cacheTtlMs, standard.config),
     configApply: standard.configApply,
+    // Source renders reply Cache-Control: no-cache, so they are never cached.
     render: withCatalogCache(
       'render',
       options.cacheTtlMs,
       createCatalogRenderHandler(options.render),
-      { shouldBypass: targetsSource },
     ),
     search: createCatalogSearchHandler(options.search),
     scan: createCatalogScanHandler(options.scan),

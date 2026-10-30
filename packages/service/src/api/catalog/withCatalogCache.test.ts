@@ -1,8 +1,7 @@
 /**
  * @module api/catalog/withCatalogCache.test
  * Behaviour of `withCatalogCache`: caches a success by entry name and
- * input, skips errors and `Cache-Control: no-cache` responses, and honours
- * `shouldBypass`. Shares its store with `withCache`'s `clearCache`.
+ * input and skips errors and `Cache-Control: no-cache` responses. Shares its store with `withCache`'s `clearCache`.
  */
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -99,24 +98,6 @@ describe('withCatalogCache', () => {
       });
     });
     const cached = withCatalogCache('test', 60_000, handler as never);
-    const input = { params: {}, query: {}, body: {} };
-
-    await cached(input, {} as never);
-    await cached(input, {} as never);
-
-    expect(calls).toBe(2);
-  });
-
-  it('bypasses the cache (read and write) when shouldBypass is true', async () => {
-    clearCache();
-    let calls = 0;
-    const handler = vi.fn(() => {
-      calls++;
-      return Promise.resolve({ status: 200, body: { calls } });
-    });
-    const cached = withCatalogCache('test', 60_000, handler as never, {
-      shouldBypass: () => true,
-    });
     const input = { params: {}, query: {}, body: {} };
 
     await cached(input, {} as never);

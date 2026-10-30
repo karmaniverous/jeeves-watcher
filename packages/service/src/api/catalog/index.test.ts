@@ -12,6 +12,15 @@ import { watcherDescriptor } from '../../descriptor';
 import { clearCache } from '../handlers/withCache';
 import { createCatalogHandlers } from './index';
 
+vi.mock('./renderSourceDocument', () => ({
+  renderSourceDocument: vi.fn().mockResolvedValue({
+    renderAs: 'md',
+    content: 'src',
+    rules: [],
+    metadata: {},
+  }),
+}));
+
 vi.mock('../mergedDocument', () => ({
   buildMergedDocument: vi.fn().mockReturnValue({ description: '' }),
   resolveReferences: vi.fn((doc: unknown) => doc),
@@ -153,15 +162,16 @@ describe('render response caching', () => {
     expect(renderFile).toHaveBeenCalledTimes(1);
   });
 
-  it('never caches source renders: every one runs live', async () => {
+  it('never caches a successful source render: every one runs live', async () => {
     clearCache();
-    const storedRule = vi.fn().mockResolvedValue(null);
-    const handlers = buildHandlers(undefined, storedRule, 60_000);
+    const { renderSourceDocument } = await import('./renderSourceDocument');
+    vi.mocked(renderSourceDocument).mockClear();
+    const handlers = buildHandlers(undefined, undefined, 60_000);
 
     const first = await handlers.render(sourceInput, {} as never);
     await handlers.render(sourceInput, {} as never);
 
-    expect(first.status).toBe(404);
-    expect(storedRule).toHaveBeenCalledTimes(2);
+    expect(first.status).toBe(200);
+    expect(renderSourceDocument).toHaveBeenCalledTimes(2);
   });
 });
