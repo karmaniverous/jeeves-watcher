@@ -97,6 +97,13 @@ describe('plugin bearer key', () => {
     expect(authHeaders(fetchMock)).toEqual(list.map(() => `Bearer ${KEY}`));
   });
 
+  it('sends no key from watcher_status, even when one is configured', async () => {
+    const fetchMock = stubFetch();
+    const { tools } = setUp({ pluginConfig: { apiKey: KEY } });
+    await tools.get('watcher_status')!.execute('1', {});
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(authHeaders(fetchMock)).toEqual([undefined]);
+  });
   it('falls back to JEEVES_WATCHER_API_KEY, resolved per call', async () => {
     const fetchMock = stubFetch();
     const { tools } = setUp();

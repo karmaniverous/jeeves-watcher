@@ -153,6 +153,23 @@ describe('catalog client round trip', () => {
     expect(config).toMatchObject({ count: 1 });
   });
 
+  it('sends no key for status, even with one configured', async () => {
+    const seen: (string | null)[] = [];
+    const fetchSpy = vi.fn((...args: Parameters<typeof fetch>) => {
+      seen.push(new Headers(args[1]?.headers).get('authorization'));
+      return fetch(...args);
+    });
+    const spied = createCatalogClient(WATCHER_CATALOG, {
+      baseUrl,
+      auth: { bearer: WIRE_KEY },
+      fetch: fetchSpy,
+    });
+
+    await spied.status();
+    await spied.config({ path: '$.watch' });
+
+    expect(seen).toEqual([null, `Bearer ${WIRE_KEY}`]);
+  });
   it('searches, scans and renders', async () => {
     const hits = await client().search({ query: 'hello' });
     expect(Array.isArray(hits)).toBe(true);
