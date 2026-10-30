@@ -7,7 +7,7 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { errorResult } from './errorResult';
+import { errorResult, withErrorCode } from './errorResult';
 
 describe('errorResult', () => {
   it('maps a code to its status with no extras', () => {
@@ -61,6 +61,34 @@ describe('errorResult', () => {
         details: { reason: 'stub' },
         issueType: 'extraction_error',
       },
+    });
+  });
+});
+
+describe('withErrorCode', () => {
+  it.each([
+    ['a 2xx result', { status: 200, body: { result: [] } }],
+    [
+      'an error body that has a code',
+      { status: 400, body: { code: 'invalid_request', error: 'x' } },
+    ],
+  ])('returns %s unchanged', (_name, result) => {
+    expect(withErrorCode(result)).toBe(result);
+  });
+
+  it('adds the code for the status before the body fields', () => {
+    expect(
+      withErrorCode({ status: 400, body: { error: 'Bad', issues: [1] } }),
+    ).toEqual({
+      status: 400,
+      body: { code: 'invalid_request', error: 'Bad', issues: [1] },
+    });
+  });
+
+  it('gives a non-object error body just the code', () => {
+    expect(withErrorCode({ status: 404, body: null })).toEqual({
+      status: 404,
+      body: { code: 'not_found' },
     });
   });
 });

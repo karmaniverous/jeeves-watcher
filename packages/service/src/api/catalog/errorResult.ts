@@ -3,7 +3,8 @@
  * Build a catalog handler's error-path result (`{ status, body }`) for a
  * machine-readable API error code: the status is the one `API_ERROR_STATUS`
  * assigns to the code, and the body is the catalog's loose `ErrorBody`
- * (`code`, `error`, plus any extra fields). Pure.
+ * (`code`, `error`, plus any extra fields); and give a core handler's
+ * error result a `code` (`withErrorCode`). Pure.
  */
 
 import type { ErrorBody } from '@karmaniverous/jeeves/catalog';
@@ -11,7 +12,10 @@ import type { ErrorStatus } from '@karmaniverous/jeeves/fastify';
 import {
   API_ERROR_STATUS,
   type ApiErrorCode,
+  isPlainObject,
 } from '@karmaniverous/jeeves-watcher-core';
+
+import { codeForStatus } from '../sendError';
 
 /** Extra fields merged into the error body beyond `code` and `error`. */
 export type ErrorResultExtras = Record<string, unknown>;
@@ -43,4 +47,22 @@ export function errorResult(
     status: API_ERROR_STATUS[code] as ErrorStatus,
     body: { code, error, ...extras },
   };
+}
+
+/**
+ * Give a core handler's error result a machine-readable `code`: a non-2xx
+ * body without one gets the code for its status (`codeForStatus`), spread
+ * before the body's own fields. A 2xx result, or a body that already has a
+ * `code`, is returned unchanged. Pure.
+ *
+ * @param result - A core handler result (`{ status, body }`).
+ * @returns The result, with a `code` on any error body.
+ */
+export function withErrorCode<R extends { status: number; body: unknown }>(
+  result: R,
+): R {
+  if (result.status < 400) return result;
+  const body = isPlainObject(result.body) ? result.body : {};
+  if ('code' in body) return result;
+  return { ...result, body: { code: codeForStatus(result.status), ...body } };
 }

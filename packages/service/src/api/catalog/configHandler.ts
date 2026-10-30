@@ -17,7 +17,7 @@ import type { AllHelpersIntrospection } from '../../helpers';
 import type { IssuesManager } from '../../issues';
 import type { ValuesManager } from '../../values';
 import { buildMergedDocument } from '../mergedDocument';
-import { codeForStatus } from '../sendError';
+import { withErrorCode } from './errorResult';
 
 /** Dependencies for the catalog `config` entry's source handler. */
 export interface CatalogConfigDeps {
@@ -53,16 +53,5 @@ export function createCatalogConfigSource(
     }),
   );
 
-  return async (query) => {
-    const result = await coreHandler(query);
-    if (result.status < 400) return result;
-
-    const body = (result.body ?? {}) as Record<string, unknown>;
-    if ('code' in body) return result;
-
-    return {
-      status: result.status,
-      body: { code: codeForStatus(result.status), ...body },
-    };
-  };
+  return async (query) => withErrorCode(await coreHandler(query));
 }

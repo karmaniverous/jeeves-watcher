@@ -20,7 +20,8 @@ import { isPlainObject } from '@karmaniverous/jeeves-watcher-core';
 import type pino from 'pino';
 
 import { publicConfig } from '../publicConfig';
-import { codeForStatus, INTERNAL_ERROR_MESSAGE } from '../sendError';
+import { INTERNAL_ERROR_MESSAGE } from '../sendError';
+import { withErrorCode } from './errorResult';
 
 /** Dependencies for the catalog `configApply` entry's source handler. */
 export interface CatalogConfigApplyDeps {
@@ -82,16 +83,7 @@ export function createCatalogConfigApplySource(
       };
     }
 
-    if (result.status >= 400) {
-      const body = (result.body ?? {}) as Record<string, unknown>;
-      return {
-        status: result.status,
-        body:
-          'code' in body
-            ? body
-            : { code: codeForStatus(result.status), ...body },
-      };
-    }
+    if (result.status >= 400) return withErrorCode(result);
 
     return redactConfig(result);
   };
