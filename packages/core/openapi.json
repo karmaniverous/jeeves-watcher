@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "jeeves-watcher",
-    "version": "0.4.0",
+    "version": "0.5.0-0",
     "description": "HTTP API of the jeeves-watcher service: the routes in its endpoint catalog (WATCHER_CATALOG). Every route except GET /status requires the API key as a bearer token when api.apiKey is configured."
   },
   "paths": {
