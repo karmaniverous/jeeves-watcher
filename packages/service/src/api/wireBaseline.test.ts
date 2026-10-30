@@ -12,7 +12,7 @@ import { readFileSync } from 'node:fs';
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { captureLogger, LOG_MODE_MISMATCH } from '../test/wire/captureLogger';
+import { captureLogger, RESPONSE_MISMATCH } from '../test/wire/captureLogger';
 import {
   runScenario,
   WIRE_SCENARIOS,
@@ -86,9 +86,9 @@ describe('slice routes keep the 0.20.0 wire format', () => {
 });
 
 describe('catalog response validation', () => {
-  it("logs no 'log'-mode response mismatch across every scenario", () => {
+  it('logs no response mismatch across every scenario', () => {
     const mismatches = captured.records.filter((r) =>
-      r.msg.startsWith(LOG_MODE_MISMATCH),
+      r.msg.startsWith(RESPONSE_MISMATCH),
     );
     expect(mismatches).toEqual([]);
   });

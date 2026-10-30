@@ -75,7 +75,7 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
 
   registerCatalog(app, {
     logger,
-    responseValidation: 'log',
+    responseValidation: 'strict',
     handlers: {
       cacheTtlMs,
       status: {

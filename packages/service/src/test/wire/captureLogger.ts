@@ -1,6 +1,6 @@
 /**
  * @module test/wire/captureLogger
- * A pino logger that keeps its `warn`-and-above records in memory, so tests can assert on what the server logged (e.g. no catalog `'log'`-mode response mismatches).
+ * A pino logger that keeps its `warn`-and-above records in memory, so tests can assert on what the server logged (e.g. no catalog response mismatches).
  */
 
 import pino from 'pino';
@@ -23,8 +23,12 @@ export interface CaptureLogger {
   records: CapturedLog[];
 }
 
-/** Message core's catalog plugin logs for a `'log'`-mode response mismatch. */
-export const LOG_MODE_MISMATCH = 'Response validation failed (log mode)';
+/**
+ * Prefix of the message core's catalog plugin logs for a response that
+ * doesn't match its schema, in either mode (`'strict'` logs it as an error
+ * and answers 500; `'log'` appends `(log mode)` and sends the response).
+ */
+export const RESPONSE_MISMATCH = 'Response validation failed';
 
 /**
  * Create a logger that captures `warn` and above in memory.
