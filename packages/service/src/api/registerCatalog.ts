@@ -109,7 +109,11 @@ export function registerCatalog(
           request.body = normalizeConfigApplyBody(request.body);
           return;
         }
-        if (!vcsEnabled && request.method === 'GET' && route === vcsShowPath) {
+        if (
+          !vcsEnabled &&
+          (request.method === 'GET' || request.method === 'HEAD') &&
+          route === vcsShowPath
+        ) {
           return reply
             .status(404)
             .send(notFoundBody(request.method, request.url));
