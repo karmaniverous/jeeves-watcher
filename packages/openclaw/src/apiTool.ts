@@ -15,34 +15,17 @@ import { PLUGIN_ID } from './constants.js';
 import { getApiKey } from './helpers.js';
 import { requestJson } from './http.js';
 
-/**
- * OpenClaw Tool Search catalog mode.
- *
- * @remarks
- * Mirrors `AnyAgentTool['catalogMode']` in the OpenClaw plugin SDK
- * (OpenClaw 2026.9+). `'direct-only'` keeps the tool model-visible instead of
- * moving it into the hidden `tool_search` catalog. Declared locally because
- * `ToolDescriptor` in `@karmaniverous/jeeves` does not carry it yet and
- * `openclaw` is not a dependency of this package.
- */
-export type ToolCatalogMode = 'direct-only';
-
-/** A tool descriptor carrying the optional OpenClaw catalog mode. */
-export type CatalogToolDescriptor = ToolDescriptor & {
-  /** OpenClaw Tool Search catalog mode (omitted = catalog-eligible). */
-  catalogMode?: ToolCatalogMode;
-};
-
 /** Config for a watcher API tool. */
 export interface ApiToolConfig {
   name: string;
   description: string;
   parameters: Record<string, unknown>;
-  /** OpenClaw Tool Search catalog mode; omit to leave the tool catalog-eligible. */
-  catalogMode?: ToolCatalogMode;
   /** Build the request: return [endpoint, body?]. No body = GET. */
   buildRequest: (params: Record<string, unknown>) => [string, unknown?];
 }
+
+/** A tool config, or the name of a catalog-built tool registered in its place. */
+export type WatcherToolEntry = ApiToolConfig | string;
 
 /** API base URL, or a resolver evaluated on every call. */
 export type BaseUrlSource = string | (() => string);
@@ -59,11 +42,10 @@ export function registerApiTool(
   baseUrlSource: BaseUrlSource,
   config: ApiToolConfig,
 ): void {
-  const tool: CatalogToolDescriptor = {
+  const tool: ToolDescriptor = {
     name: config.name,
     description: config.description,
     parameters: config.parameters,
-    ...(config.catalogMode ? { catalogMode: config.catalogMode } : {}),
     execute: async (
       _id: string,
       params: Record<string, unknown>,

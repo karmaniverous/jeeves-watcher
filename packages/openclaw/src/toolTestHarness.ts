@@ -10,7 +10,8 @@ import type {
 } from '@karmaniverous/jeeves';
 import { type Mock, vi } from 'vitest';
 
-import type { CatalogToolDescriptor } from './apiTool.js';
+import { createCatalogTools } from './catalogTools.js';
+import { createWatcherComponent } from './watcherComponent.js';
 import { registerWatcherTools } from './watcherTools.js';
 
 /** Base URL used by tool tests. */
@@ -29,19 +30,28 @@ export function mockFetch(data: unknown = {}): Mock<FetchStub> {
 
 /** A registered tool plus the options it was registered with. */
 export interface CapturedTool {
-  tool: CatalogToolDescriptor;
+  tool: ToolDescriptor;
   options?: ToolRegistrationOptions;
 }
 
-/** Register the watcher tools against a capturing API; returns them by name, in order. */
+/**
+ * Register the 14 domain watcher tools (the catalog-built ones included)
+ * against a capturing API whose `apiUrl` is `baseUrl`; returns them by
+ * name, in order.
+ */
 export function captureTools(baseUrl = BASE): Map<string, CapturedTool> {
   const tools = new Map<string, CapturedTool>();
   const api: PluginApi = {
+    pluginConfig: { apiUrl: baseUrl },
     registerTool: (tool: ToolDescriptor, options?: ToolRegistrationOptions) => {
       tools.set(tool.name, { tool, options });
     },
   };
-  registerWatcherTools(api, baseUrl);
+  registerWatcherTools(
+    api,
+    baseUrl,
+    createCatalogTools(api, createWatcherComponent('0.0.0-test')),
+  );
   return tools;
 }
 

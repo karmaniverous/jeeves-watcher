@@ -2,7 +2,6 @@ import type { PluginApi, ToolDescriptor } from '@karmaniverous/jeeves';
 import { getConfigRoot as getCoreConfigRoot } from '@karmaniverous/jeeves';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import type { CatalogToolDescriptor } from './apiTool.js';
 import { CONFIG_ROOT_NOT_CONFIGURED } from './constants.js';
 import {
   createLazyCore,
@@ -87,7 +86,7 @@ describe('guardTool', () => {
   });
 
   it('preserves catalogMode and other descriptor properties', () => {
-    const tool: CatalogToolDescriptor = {
+    const tool: ToolDescriptor = {
       ...makeTool(),
       catalogMode: 'direct-only',
     };

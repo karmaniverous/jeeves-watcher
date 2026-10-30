@@ -42,13 +42,77 @@ const closed = (before: ToolSurface): ToolSurface => ({
   },
 });
 
+/** Zod's JSON Schema for an open record (`z.record(z.string(), z.unknown())`). */
+const OPEN_RECORD = {
+  additionalProperties: {},
+  propertyNames: { type: 'string' },
+};
+
+/** JSON Schema for a non-negative / positive safe integer. */
+const MAX_SAFE = { type: 'integer', maximum: Number.MAX_SAFE_INTEGER };
+
+/**
+ * Close the parameter schema, then merge `fields` into its properties (each
+ * merged over the baseline property, so names and descriptions are kept).
+ */
+const catalogBuilt =
+  (fields: Record<string, Record<string, unknown>> = {}) =>
+  (before: ToolSurface): ToolSurface => {
+    const params = closed(before).parameters as {
+      properties: Record<string, Record<string, unknown>>;
+    };
+    const properties = { ...params.properties };
+    for (const [key, patch] of Object.entries(fields))
+      properties[key] = { ...properties[key], ...patch };
+    return { ...before, parameters: { ...params, properties } };
+  };
+
 /**
  * Documented changes, keyed by tool name: the expected surface replaces the
- * baseline one.
+ * baseline one. Every catalog-built tool's parameters are generated from its
+ * entry's request schema (spec #281 design 7): closed objects, open records
+ * for filters and patches, and the bounds the server already enforced.
+ * Names, descriptions and `catalogMode` are unchanged.
  */
 const CHANGES: Partial<Record<string, (before: ToolSurface) => ToolSurface>> = {
-  // jeeves 0.8.0 generates core's standard tool schemas from its catalog.
-  watcher_status: closed,
+  watcher_status: catalogBuilt(),
+  watcher_config: catalogBuilt(),
+  watcher_config_apply: (before) => {
+    const after = catalogBuilt({ config: OPEN_RECORD })(before);
+    const params = after.parameters as {
+      properties: Record<string, unknown>;
+    };
+    // jeeves 0.8.0: the standard config-apply tool gains `replace`.
+    return {
+      ...after,
+      parameters: {
+        ...params,
+        properties: {
+          ...params.properties,
+          replace: {
+            type: 'boolean',
+            description: 'Replace the whole config instead of merging',
+          },
+        },
+      },
+    };
+  },
+  watcher_search: catalogBuilt({
+    query: { minLength: 1 },
+    limit: { ...MAX_SAFE, exclusiveMinimum: 0 },
+    offset: { ...MAX_SAFE, minimum: 0 },
+    filter: OPEN_RECORD,
+  }),
+  watcher_scan: catalogBuilt({
+    filter: OPEN_RECORD,
+    limit: { type: 'integer', minimum: 1, maximum: 1000 },
+    // Qdrant point ids (and so cursors) are strings or numbers.
+    cursor: { type: ['string', 'number'] },
+  }),
+  watcher_vcs_show: catalogBuilt({
+    path: { minLength: 1 },
+    commit: { minLength: 1 },
+  }),
 };
 
 /** Register the plugin against a capturing API. */

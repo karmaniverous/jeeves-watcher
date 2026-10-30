@@ -8,8 +8,10 @@ afterEach(() => {
 });
 
 describe('vcsToolConfigs', () => {
-  it('defines the 7 catalog-eligible watcher_vcs_* tools', () => {
-    expect(vcsToolConfigs.map((c) => c.name)).toEqual([
+  it('lists the 7 catalog-eligible watcher_vcs_* tools, watcher_vcs_show by name', () => {
+    const name = (c: (typeof vcsToolConfigs)[number]) =>
+      typeof c === 'string' ? c : c.name;
+    expect(vcsToolConfigs.map(name)).toEqual([
       'watcher_vcs_status',
       'watcher_vcs_history',
       'watcher_vcs_show',
@@ -18,7 +20,10 @@ describe('vcsToolConfigs', () => {
       'watcher_vcs_exclude',
       'watcher_vcs_check',
     ]);
-    expect(vcsToolConfigs.every((c) => c.catalogMode === undefined)).toBe(true);
+    expect(vcsToolConfigs[2]).toBe('watcher_vcs_show');
+    const tools = captureTools();
+    for (const c of vcsToolConfigs)
+      expect(tools.get(name(c))?.tool.catalogMode).toBeUndefined();
   });
 });
 
@@ -55,17 +60,36 @@ describe('VCS tool execution', () => {
     );
   });
 
-  it('watcher_vcs_show builds query string', async () => {
-    const fetchMock = mockFetch({ content: 'hello' });
+  it('watcher_vcs_show GETs /vcs/show and returns the file text (non-JSON)', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      headers: new Headers({ 'content-type': 'text/markdown' }),
+      text: () => Promise.resolve('# Not JSON\n'),
+      json: () => Promise.reject(new SyntaxError('Unexpected token #')),
+    });
     vi.stubGlobal('fetch', fetchMock);
-    await run(captureTools(), 'watcher_vcs_show', {
-      path: 'foo.md',
+    const result = await run(captureTools(), 'watcher_vcs_show', {
+      path: 'docs/foo.md',
       commit: 'abc123',
     });
-    expect(fetchMock).toHaveBeenCalledWith(
-      `${BASE}/vcs/show?path=foo.md&commit=abc123`,
-      undefined,
+    const [url, init] = fetchMock.mock.calls[0] as [unknown, RequestInit];
+    expect(String(url)).toBe(
+      `${BASE}/vcs/show?path=docs%2Ffoo.md&commit=abc123`,
     );
+    expect(init.method ?? 'GET').toBe('GET');
+    expect(result.isError).toBeFalsy();
+    expect(result.content[0].text).toContain('# Not JSON');
+  });
+
+  it('watcher_vcs_show rejects a missing commit before any request', async () => {
+    const fetchMock = mockFetch();
+    vi.stubGlobal('fetch', fetchMock);
+    const result = await run(captureTools(), 'watcher_vcs_show', {
+      path: 'foo.md',
+    });
+    expect(result.isError).toBe(true);
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it('watcher_vcs_diff builds query string with optional commitEnd', async () => {
