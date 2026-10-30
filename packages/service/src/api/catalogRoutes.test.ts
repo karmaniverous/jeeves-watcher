@@ -127,7 +127,8 @@ describe('serialised response equals the handler result', () => {
       checked += 1;
     }
     expect(checked).toBeGreaterThanOrEqual(20);
-  });
+    // Replays every wire scenario through the real server in one test.
+  }, 30_000);
 });
 
 describe('catalog client round trip', () => {

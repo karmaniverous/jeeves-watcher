@@ -101,6 +101,22 @@ describe('createCatalogRenderHandler', () => {
     expect(result.body).toMatchObject({ code: 'not_found' });
   });
 
+  it('answers a missing file reported only in the error message with 404', async () => {
+    const handler = createCatalogRenderHandler(
+      deps({
+        renderFile: vi
+          .fn()
+          .mockRejectedValue(
+            new Error('read failed', { cause: new Error('no such file') }),
+          ),
+      }),
+    );
+
+    const result = await handler(input({ path: 'docs/a.md' }), {} as never);
+
+    expect(result.status).toBe(404);
+    expect(result.body).toMatchObject({ code: 'not_found' });
+  });
   it('answers a pipeline failure with 422 pipeline_error', async () => {
     const handler = createCatalogRenderHandler(
       deps({
