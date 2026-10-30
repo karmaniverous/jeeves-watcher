@@ -8,14 +8,14 @@
   },
   "description": "Typed TypeScript client for the jeeves-watcher HTTP API: search, scan, render, metadata, reindex, issues and source-document notify/delete",
   "devDependencies": {
-    "@dotenvx/dotenvx": "^2.35.0",
-    "@rollup/plugin-typescript": "^12.3.0",
-    "@types/node": "^26.6.5",
+    "@dotenvx/dotenvx": "^2.38.2",
+    "@rollup/plugin-typescript": "^12.3.1",
+    "@types/node": "^26.6.6",
     "cross-env": "^10.1.0",
     "release-it": "^21.1.1",
-    "rollup": "^4.64.6",
+    "rollup": "^4.66.0",
     "rollup-plugin-dts": "^6.5.1",
-    "vitest": "^5.0.4"
+    "vitest": "^5.0.5"
   },
   "engines": {
     "node": ">=22.13"
