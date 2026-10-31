@@ -170,16 +170,24 @@ describe('catalog client round trip', () => {
 
     expect(seen).toEqual([null, `Bearer ${WIRE_KEY}`]);
   });
-  it('searches, scans and renders', async () => {
+  it('searches, scans and renders, decoding exactly what the handler returned', async () => {
+    results.length = 0;
     const hits = await client().search({ query: 'hello' });
-    expect(Array.isArray(hits)).toBe(true);
-    expect(hits.length).toBeGreaterThan(0);
-
     const page = await client().scan({ filter: {}, limit: 1 });
-    expect(page).toMatchObject({ cursor: 'next' });
-
     const rendered = await client().render({ path: 'docs/a.md' });
-    expect(rendered).toHaveProperty('content');
+
+    expect(hits.length).toBeGreaterThan(0);
+    expect(page).toMatchObject({ cursor: 'next' });
+    expect(results.map(({ entry }) => entry)).toEqual([
+      'search',
+      'scan',
+      'render',
+    ]);
+    expect([hits, page, rendered]).toEqual(
+      results.map(
+        ({ result }) => JSON.parse(JSON.stringify(result.body)) as unknown,
+      ),
+    );
   });
 
   it('shows a committed file as text', async () => {
