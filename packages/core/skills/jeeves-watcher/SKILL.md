@@ -511,7 +511,7 @@ Filter-only point query without vector search (`POST /scan`). Use for structural
       "payload": { "file_path": "/data/tickets/PROJ-123.json" }
     }
   ],
-  "cursor": "opaque-string-or-null"
+  "cursor": "opaque string, number or null"
 }
 ```
 

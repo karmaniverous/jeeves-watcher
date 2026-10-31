@@ -1,6 +1,6 @@
 /**
  * @module plugin/catalogTools
- * The watcher tools built from `WATCHER_CATALOG` by core's toolset: the three standard tools (`watcher_status`, `watcher_config`, `watcher_config_apply`) and `watcher_search`, `watcher_scan` and `watcher_vcs_show`, all sending the bearer key where their entry requires it.
+ * The watcher tools built from `WATCHER_CATALOG` by core's toolset: the four standard tools (`watcher_status`, `watcher_service`, `watcher_config`, `watcher_config_apply`) and `watcher_search`, `watcher_scan` and `watcher_vcs_show`, all sending the bearer key where their entry requires it; `registerCatalogTool` registers one of them as an optional tool.
  *
  * @remarks
  * Parameters come from the catalog's request schemas; names and

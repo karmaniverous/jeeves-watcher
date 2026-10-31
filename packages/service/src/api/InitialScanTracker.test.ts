@@ -50,7 +50,7 @@ describe('InitialScanTracker', () => {
     }
   });
 
-  it('leaves the duration out when completed without a start', () => {
+  it('reports only inactive when completed without a start', () => {
     const tracker = new InitialScanTracker();
     tracker.complete();
     expect(tracker.getStatus()).toEqual({ active: false });

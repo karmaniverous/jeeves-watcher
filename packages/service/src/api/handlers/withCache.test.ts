@@ -96,7 +96,7 @@ describe('withCache', () => {
 });
 
 describe('hashObject', () => {
-  it('keeps undefined, null, a string and its JSON spelling apart', () => {
+  it('keeps undefined, null and distinct strings and objects apart', () => {
     const hashes = [undefined, null, 'null', '"x"', 'x', { a: 1 }].map(
       hashObject,
     );

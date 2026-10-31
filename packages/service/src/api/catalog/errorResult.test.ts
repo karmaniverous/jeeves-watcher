@@ -96,12 +96,13 @@ describe('withErrorCode', () => {
 
 describe('errorResult extras', () => {
   it('leaves out undefined extras', () => {
-    // Keys, not toEqual: toEqual treats an undefined-valued key as absent.
+    // Keys (in any order), not toEqual: toEqual treats an undefined-valued
+    // key as absent.
     expect(
       Object.keys(
         errorResult('not_found', 'Missing', { issueType: undefined, path: 'a' })
           .body,
-      ),
+      ).sort(),
     ).toEqual(['code', 'error', 'path']);
   });
 });
