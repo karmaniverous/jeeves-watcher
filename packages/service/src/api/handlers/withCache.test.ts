@@ -11,9 +11,9 @@ function mockReq(method = 'POST', url = '/render', body = { path: 'test' }) {
   return { method, url, body } as never;
 }
 
-function mockReply(headers: Record<string, string> = {}) {
+function mockReply(headers: Record<string, string> = {}, statusCode = 200) {
   const reply = {
-    statusCode: 200,
+    statusCode,
     getHeader(name: string) {
       return headers[name];
     },
@@ -86,10 +86,10 @@ describe('withCache', () => {
     });
 
     const req = mockReq();
-    const reply = Object.assign(mockReply() as object, { statusCode: 404 });
+    const reply = mockReply({}, 404);
 
-    await handler(req, reply as never);
-    await handler(req, reply as never);
+    await handler(req, reply);
+    await handler(req, reply);
 
     expect(callCount).toBe(2);
   });
