@@ -9,6 +9,7 @@ import pino from 'pino';
 import { describe, expect, it, vi } from 'vitest';
 
 import { EmbeddingUnavailableError } from '../../embedding/rateLimitError';
+import { internalErrorResult } from './errorResult';
 import { createCatalogSearchHandler, retryAfterSeconds } from './searchHandler';
 
 function input(body: Record<string, unknown>) {
@@ -134,8 +135,7 @@ describe('createCatalogSearchHandler', () => {
 
     const result = await handler(input({ query: 'hello' }), {} as never);
 
-    expect(result.status).toBe(500);
-    expect(result.body).toMatchObject({ code: 'internal_error' });
+    expect(result).toEqual(internalErrorResult());
     expect(JSON.stringify(result.body)).not.toContain('secret provider detail');
     expect(error).toHaveBeenCalledTimes(1);
   });

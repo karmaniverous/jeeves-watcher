@@ -86,6 +86,26 @@ describe('withCatalogCache', () => {
     expect(calls).toBe(2);
   });
 
+  it('caches a response whose Cache-Control is anything but no-cache', async () => {
+    clearCache();
+    let calls = 0;
+    const handler = vi.fn(() => {
+      calls++;
+      return Promise.resolve({
+        status: 200,
+        body: { calls },
+        headers: { 'Cache-Control': 'max-age=300' },
+      });
+    });
+    const cached = withCatalogCache('test', 60_000, handler as never);
+    const input = { params: {}, query: {}, body: {} };
+
+    await cached(input, {} as never);
+    await cached(input, {} as never);
+
+    expect(calls).toBe(1);
+  });
+
   it('does not cache a no-cache response under a lower-case header name', async () => {
     clearCache();
     let calls = 0;

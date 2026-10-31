@@ -5,7 +5,7 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { clearCache, withCache } from './withCache';
+import { clearCache, hashObject, withCache } from './withCache';
 
 function mockReq(method = 'POST', url = '/render', body = { path: 'test' }) {
   return { method, url, body } as never;
@@ -75,5 +75,35 @@ describe('withCache', () => {
     await handler(req, reply);
 
     expect(callCount).toBe(1);
+  });
+
+  it('never caches an error reply', async () => {
+    clearCache();
+    let callCount = 0;
+    const handler = withCache(60000, () => {
+      callCount++;
+      return { error: 'nope' };
+    });
+
+    const req = mockReq();
+    const reply = Object.assign(mockReply() as object, { statusCode: 404 });
+
+    await handler(req, reply as never);
+    await handler(req, reply as never);
+
+    expect(callCount).toBe(2);
+  });
+});
+
+describe('hashObject', () => {
+  it('keeps undefined, null, a string and its JSON spelling apart', () => {
+    const hashes = [undefined, null, 'null', '"x"', 'x', { a: 1 }].map(
+      hashObject,
+    );
+    expect(new Set(hashes).size).toBe(hashes.length);
+  });
+
+  it('hashes equal values equally', () => {
+    expect(hashObject({ a: [1, 2] })).toBe(hashObject({ a: [1, 2] }));
   });
 });
