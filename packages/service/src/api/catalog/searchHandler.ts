@@ -97,20 +97,18 @@ export function createCatalogSearchHandler(
 
     try {
       const hybridConfig = deps.getHybridConfig?.();
-      const results = hybridConfig?.enabled
-        ? await withFilterErrors(
-            deps.vectorStore.hybridSearch(
+      const results = await withFilterErrors(
+        hybridConfig?.enabled
+          ? deps.vectorStore.hybridSearch(
               vectors[0],
               query,
               limit,
               hybridConfig.textWeight,
               filter,
               offset,
-            ),
-          )
-        : await withFilterErrors(
-            deps.vectorStore.search(vectors[0], limit, filter, offset),
-          );
+            )
+          : deps.vectorStore.search(vectors[0], limit, filter, offset),
+      );
       return { status: 200, body: results };
     } catch (error) {
       return catalogErrorFromThrown(error, deps.logger, 'Search');
