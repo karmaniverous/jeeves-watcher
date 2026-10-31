@@ -157,6 +157,28 @@ describe('tool execution', () => {
     expect(body).toEqual({ scope: 'full' });
   });
 
+  it('watcher_reindex forwards path and dryRun only when set', async () => {
+    const fetchMock = mockFetch({ ok: true });
+    vi.stubGlobal('fetch', fetchMock);
+    await run(captureTools(), 'watcher_reindex', {
+      scope: 'path',
+      path: 'c:/data/a.md',
+      dryRun: true,
+    });
+    await run(captureTools(), 'watcher_reindex', { dryRun: false });
+    const bodies = fetchMock.mock.calls.map(
+      (call) =>
+        JSON.parse((call as [string, RequestInit])[1].body as string) as Record<
+          string,
+          unknown
+        >,
+    );
+    expect(bodies).toEqual([
+      { scope: 'path', path: 'c:/data/a.md', dryRun: true },
+      { scope: 'rules' },
+    ]);
+  });
+
   it('watcher_walk POSTs globs', async () => {
     const fetchMock = mockFetch({
       paths: ['c:/data/foo/bar.md'],
