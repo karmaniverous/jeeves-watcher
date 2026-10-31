@@ -33,7 +33,10 @@ describe('registerCatalog registration errors', () => {
     const app = Fastify({ logger: false });
     app.post('/search', () => ({}));
 
-    expect(registerCatalog(app, options)).toBeUndefined();
+    // Not awaited: the call itself must not throw.
+    expect(() => {
+      registerCatalog(app, options);
+    }).not.toThrow();
     await expect(app.ready()).rejects.toThrow(/search/);
   });
 
