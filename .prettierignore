@@ -1,3 +1,8 @@
 # Generated files (rewritten by tooling; formatting them causes churn)
 **/CHANGELOG.md
 packages/service/config.schema.json
+
+# Generated and snapshot baselines (byte-compared by tests)
+packages/core/openapi.json
+packages/openclaw/src/test/baseline-0.17.0/
+packages/service/src/test/wire/
