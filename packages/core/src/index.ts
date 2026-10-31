@@ -5,6 +5,7 @@
  */
 
 export * from './api/index.js';
+export { WATCHER_CATALOG, type WatcherCatalog } from './catalog.js';
 export {
   COMPONENT_NAME,
   CORE_PACKAGE,
@@ -40,6 +41,8 @@ export {
   tryParseJson,
   unauthorizedMessage,
 } from './httpContract.js';
+export { WATCHER_OPENAPI_DOCUMENT } from './openapi.js';
+export { WATCHER_PROMPT_RULES } from './promptRules.js';
 export {
   findReservedPropertyNames,
   isReservedPayloadField,
@@ -110,3 +113,4 @@ export {
   type WatchPathVcsConfig,
   watchPathVcsConfigSchema,
 } from './schemas.js';
+export { WATCHER_SKILL } from './skill.generated.js';

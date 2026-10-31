@@ -11,14 +11,9 @@
  * `watcher_service install`) are gated; HTTP-only tools work without it.
  */
 
-import {
-  createPluginToolset,
-  getPackageVersion,
-  type PluginApi,
-} from '@karmaniverous/jeeves';
+import { getPackageVersion, type PluginApi } from '@karmaniverous/jeeves';
 
-import { registerApiTool } from './apiTool.js';
-import { configToolConfigs, CORE_TOOLS_REPLACED } from './configTools.js';
+import { createCatalogTools, registerCatalogTool } from './catalogTools.js';
 import { getApiUrl } from './helpers.js';
 import {
   createLazyCore,
@@ -31,31 +26,32 @@ import { registerWatcherTools } from './watcherTools.js';
 
 const PLUGIN_VERSION = getPackageVersion(import.meta.url);
 
+/** The standard tools, in their 0.17.0 registration order. */
+const STANDARD_TOOLS = [
+  'watcher_status',
+  'watcher_service',
+  'watcher_config',
+  'watcher_config_apply',
+] as const;
+
 /** Register all jeeves-watcher tools with the OpenClaw plugin API. */
 export default function register(api: PluginApi): void {
   warnIfConfigRootUnset(api);
 
   const toolApi = withGuardedTools(api, createLazyCore(api));
+  const component = createWatcherComponent(PLUGIN_VERSION);
 
-  // 4 standard tools: watcher_status and watcher_service from the core
-  // factory; watcher_config and watcher_config_apply re-implemented here so
-  // they send the bearer key (core cannot attach headers). `apiUrl` is
-  // resolved lazily on every call by every tool (defaultPort is only core's
-  // fallback).
-  for (const tool of createPluginToolset(
-    createWatcherComponent(PLUGIN_VERSION),
-    { apiUrl: () => getApiUrl(api) },
-  )) {
-    if (!CORE_TOOLS_REPLACED.has(tool.name)) {
-      toolApi.registerTool(tool, { optional: true });
-    }
-  }
-  for (const config of configToolConfigs) {
-    registerApiTool(toolApi, () => getApiUrl(api), config);
+  // Core's toolset from WATCHER_CATALOG: the 4 standard tools, plus
+  // watcher_search, watcher_scan and watcher_vcs_show. Every tool resolves
+  // the base URL (and, where its entry requires it, the bearer key) on each
+  // call.
+  const catalogTools = createCatalogTools(api, component);
+  for (const name of STANDARD_TOOLS) {
+    registerCatalogTool(toolApi, catalogTools, name);
   }
 
   // 14 domain-specific tools (search, enrich, scan, vcs, ...).
-  registerWatcherTools(toolApi, () => getApiUrl(api));
+  registerWatcherTools(toolApi, () => getApiUrl(api), catalogTools);
 
-  registerWatcherPromptContext(api);
+  registerWatcherPromptContext(api, component);
 }

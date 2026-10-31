@@ -1,0 +1,221 @@
+/**
+ * @module api/catalog/searchHandler.test
+ * `createCatalogSearchHandler`: plain and hybrid search, an embedding-budget
+ * exhaustion (`503` with `Retry-After`) and a Qdrant filter rejection
+ * (`400`).
+ */
+
+import pino from 'pino';
+import { describe, expect, it, vi } from 'vitest';
+
+import { EmbeddingUnavailableError } from '../../embedding/rateLimitError';
+import { internalErrorResult } from './errorResult';
+import { createCatalogSearchHandler, retryAfterSeconds } from './searchHandler';
+
+function input(body: Record<string, unknown>) {
+  return { params: {}, query: {}, body } as never;
+}
+
+describe('createCatalogSearchHandler', () => {
+  const logger = pino({ level: 'silent' });
+
+  it('searches with the embedded query vector', async () => {
+    const search = vi
+      .fn()
+      .mockResolvedValue([{ id: 'p1', score: 0.9, payload: {} }]);
+    const handler = createCatalogSearchHandler({
+      embeddingProvider: {
+        embed: vi.fn().mockResolvedValue([[0.1, 0.2]]),
+      } as never,
+      vectorStore: { search, hybridSearch: vi.fn() } as never,
+      logger,
+    });
+
+    const result = await handler(
+      input({ query: 'hello', limit: 3 }),
+      {} as never,
+    );
+
+    expect(search).toHaveBeenCalledWith([0.1, 0.2], 3, undefined, undefined);
+    expect(result).toEqual({
+      status: 200,
+      body: [{ id: 'p1', score: 0.9, payload: {} }],
+    });
+  });
+
+  it('uses hybrid search when configured', async () => {
+    const hybridSearch = vi
+      .fn()
+      .mockResolvedValue([{ id: 'p2', score: 0.5, payload: {} }]);
+    const handler = createCatalogSearchHandler({
+      embeddingProvider: { embed: vi.fn().mockResolvedValue([[0.1]]) } as never,
+      vectorStore: { search: vi.fn(), hybridSearch } as never,
+      logger,
+      getHybridConfig: () => ({ enabled: true, textWeight: 0.3 }),
+    });
+
+    await handler(input({ query: 'hello' }), {} as never);
+
+    expect(hybridSearch).toHaveBeenCalledWith(
+      [0.1],
+      'hello',
+      10,
+      0.3,
+      undefined,
+      undefined,
+    );
+  });
+
+  it('answers an exhausted embedding budget with 503 and Retry-After', async () => {
+    const handler = createCatalogSearchHandler({
+      embeddingProvider: {
+        embed: vi.fn().mockRejectedValue(
+          new EmbeddingUnavailableError('budget exhausted', {
+            retryAfterMs: 2500,
+          }),
+        ),
+      } as never,
+      vectorStore: { search: vi.fn(), hybridSearch: vi.fn() } as never,
+      logger,
+    });
+
+    const result = await handler(input({ query: 'hello' }), {} as never);
+
+    expect(result.status).toBe(503);
+    expect(result.body).toMatchObject({ code: 'embedding_unavailable' });
+    expect(result.headers).toEqual({ 'Retry-After': '3' });
+  });
+
+  it('maps a Qdrant filter rejection to 400 invalid_request', async () => {
+    const rejection = Object.assign(new Error('Bad Request'), {
+      status: 400,
+      data: { status: { error: 'Wrong filter' } },
+    });
+    const handler = createCatalogSearchHandler({
+      embeddingProvider: { embed: vi.fn().mockResolvedValue([[0.1]]) } as never,
+      vectorStore: {
+        search: vi.fn().mockRejectedValue(rejection),
+        hybridSearch: vi.fn(),
+      } as never,
+      logger,
+    });
+
+    const result = await handler(input({ query: 'hello' }), {} as never);
+
+    expect(result.status).toBe(400);
+    expect(result.body).toMatchObject({ code: 'invalid_request' });
+  });
+
+  it('answers an exhausted budget without a known delay with 503 and no Retry-After', async () => {
+    const handler = createCatalogSearchHandler({
+      embeddingProvider: {
+        embed: vi
+          .fn()
+          .mockRejectedValue(new EmbeddingUnavailableError('budget exhausted')),
+      } as never,
+      vectorStore: { search: vi.fn(), hybridSearch: vi.fn() } as never,
+      logger,
+    });
+
+    const result = await handler(input({ query: 'hello' }), {} as never);
+
+    expect(result.status).toBe(503);
+    expect(result).not.toHaveProperty('headers');
+  });
+
+  it('answers any other embedding failure with a generic 500, never the error text', async () => {
+    const error = vi.fn();
+    const handler = createCatalogSearchHandler({
+      embeddingProvider: {
+        embed: vi.fn().mockRejectedValue(new Error('secret provider detail')),
+      } as never,
+      vectorStore: { search: vi.fn(), hybridSearch: vi.fn() } as never,
+      logger: { error, warn: vi.fn() } as never,
+    });
+
+    const result = await handler(input({ query: 'hello' }), {} as never);
+
+    expect(result).toEqual(internalErrorResult());
+    expect(JSON.stringify(result.body)).not.toContain('secret provider detail');
+    expect(error).toHaveBeenCalledTimes(1);
+  });
+
+  describe('query plumbing', () => {
+    const filter = { must: [{ key: 'domain', match: { value: 'email' } }] };
+
+    function handlerWith(hybrid?: { enabled: boolean; textWeight: number }) {
+      const embed = vi.fn().mockResolvedValue([[0.1, 0.2, 0.3]]);
+      const search = vi.fn().mockResolvedValue([]);
+      const hybridSearch = vi.fn().mockResolvedValue([]);
+      const handler = createCatalogSearchHandler({
+        embeddingProvider: { embed } as never,
+        vectorStore: { search, hybridSearch } as never,
+        logger,
+        ...(hybrid ? { getHybridConfig: () => hybrid } : {}),
+      });
+      return { handler, embed, search, hybridSearch };
+    }
+
+    it('embeds the query with the bounded rate-limit budget', async () => {
+      const { handler, embed } = handlerWith();
+      await handler(input({ query: 'q' }), {} as never);
+      expect(embed).toHaveBeenCalledWith(['q'], {
+        attempts: 3,
+        maxWaitMs: 10_000,
+      });
+    });
+
+    it('passes filter and offset to a plain search', async () => {
+      const { handler, search } = handlerWith();
+      await handler(
+        input({ query: 'q', limit: 5, offset: 20, filter }),
+        {} as never,
+      );
+      expect(search).toHaveBeenCalledWith([0.1, 0.2, 0.3], 5, filter, 20);
+    });
+
+    it('passes filter and offset to a hybrid search', async () => {
+      const { handler, hybridSearch, search } = handlerWith({
+        enabled: true,
+        textWeight: 0.4,
+      });
+      await handler(
+        input({ query: 'q', limit: 5, offset: 20, filter }),
+        {} as never,
+      );
+      expect(hybridSearch).toHaveBeenCalledWith(
+        [0.1, 0.2, 0.3],
+        'q',
+        5,
+        0.4,
+        filter,
+        20,
+      );
+      expect(search).not.toHaveBeenCalled();
+    });
+
+    it('falls back to vector search when hybrid is disabled', async () => {
+      const { handler, hybridSearch, search } = handlerWith({
+        enabled: false,
+        textWeight: 0.4,
+      });
+      await handler(input({ query: 'q' }), {} as never);
+      expect(search).toHaveBeenCalledWith(
+        [0.1, 0.2, 0.3],
+        10,
+        undefined,
+        undefined,
+      );
+      expect(hybridSearch).not.toHaveBeenCalled();
+    });
+  });
+
+  it.each([
+    [1, '1'],
+    [1000, '1'],
+    [1001, '2'],
+    [2500, '3'],
+  ])('rounds a %ims retry delay up to Retry-After %s', (ms, header) => {
+    expect(retryAfterSeconds(ms)).toBe(header);
+  });
+});

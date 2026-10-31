@@ -10,14 +10,16 @@ interface CacheEntry {
 }
 
 /**
- * In-memory response cache
+ * In-memory response cache, shared with `api/catalog/withCatalogCache` so
+ * the two caching layers never disagree on a cached response and
+ * `clearCache` clears both (spec #281 step 6).
  */
-const cache = new Map<string, CacheEntry>();
+export const sharedResponseCache = new Map<string, CacheEntry>();
 
 /**
  * Generates a deterministic hash for an object
  */
-function hashObject(obj: unknown): string {
+export function hashObject(obj: unknown): string {
   if (obj === undefined) return 'undefined';
   if (obj === null) return 'null';
 
@@ -51,7 +53,7 @@ export function withCache<
 
     // Check cache
     const now = Date.now();
-    const entry = cache.get(key);
+    const entry = sharedResponseCache.get(key);
 
     if (entry && entry.expiresAt > now) {
       void fReply.send(entry.value);
@@ -85,7 +87,7 @@ export function withCache<
     // Prefer captured reply payload (wrapHandler path). Fall back to handler return value.
     const payloadToCache =
       capturedPayload !== undefined ? capturedPayload : result;
-    cache.set(key, {
+    sharedResponseCache.set(key, {
       value: payloadToCache,
       expiresAt: now + ttlMs,
     });
@@ -98,5 +100,5 @@ export function withCache<
  * Clear the entire response cache (useful for testing or forced resets)
  */
 export function clearCache(): void {
-  cache.clear();
+  sharedResponseCache.clear();
 }

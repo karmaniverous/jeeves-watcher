@@ -1,14 +1,14 @@
 /**
  * @module plugin/vcsTools
- * Version-tracking (watcher_vcs_*) tool configs for the OpenClaw plugin; each maps tool params to a watcher VCS endpoint.
+ * Version-tracking (watcher_vcs_*) tools for the OpenClaw plugin: configs mapping tool params to a watcher VCS endpoint, and the place of the catalog-built `watcher_vcs_show`.
  */
 
 import { getEndpoint } from '@karmaniverous/jeeves-watcher-core';
 
-import { type ApiToolConfig, buildQuery, pickDefined } from './apiTool.js';
+import { buildQuery, pickDefined, type WatcherToolEntry } from './apiTool.js';
 
-/** The 7 watcher_vcs_* tool configs. */
-export const vcsToolConfigs: ApiToolConfig[] = [
+/** The 7 watcher_vcs_* tools: configs, and `watcher_vcs_show` built from the catalog. */
+export const vcsToolConfigs: WatcherToolEntry[] = [
   {
     name: 'watcher_vcs_status',
     description:
@@ -46,27 +46,7 @@ export const vcsToolConfigs: ApiToolConfig[] = [
       `${getEndpoint('vcsHistory').path}${buildQuery(params, ['glob', 'since', 'until', 'limit'])}`,
     ],
   },
-  {
-    name: 'watcher_vcs_show',
-    description: 'Retrieve file content at a specific version',
-    parameters: {
-      type: 'object',
-      required: ['path', 'commit'],
-      properties: {
-        path: {
-          type: 'string',
-          description: 'File path to retrieve.',
-        },
-        commit: {
-          type: 'string',
-          description: 'Version identifier.',
-        },
-      },
-    },
-    buildRequest: (params) => [
-      `${getEndpoint('vcsShow').path}${buildQuery(params, ['path', 'commit'])}`,
-    ],
-  },
+  'watcher_vcs_show',
   {
     name: 'watcher_vcs_diff',
     description:

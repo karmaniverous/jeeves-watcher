@@ -3,19 +3,10 @@
  * Tracks reindex operation state for status reporting. Single instance shared across handlers.
  */
 
-/** Reindex status snapshot for API consumers. */
-export interface ReindexStatus {
-  /** Whether a reindex operation is currently in progress. */
-  active: boolean;
-  /** The active reindex scope (when {@link active} is true). */
-  scope?: string;
-  /** ISO 8601 timestamp when the current reindex started (when {@link active} is true). */
-  startedAt?: string;
-  /** Number of files processed so far (when {@link active} is true). */
-  filesProcessed?: number;
-  /** Total number of files to process (when {@link active} is true). */
-  totalFiles?: number;
-}
+import type { ReindexStatus } from '@karmaniverous/jeeves-watcher-core';
+
+/** Reindex status snapshot for API consumers (watcher-core's `GET /status` schema type). */
+export type { ReindexStatus };
 
 /**
  * Tracks the state of reindex operations.

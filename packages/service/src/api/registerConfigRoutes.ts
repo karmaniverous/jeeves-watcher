@@ -1,22 +1,17 @@
 /**
  * @module api/registerConfigRoutes
- * Registers the config and reindex routes (GET /config, /config/schema, POST /config/match, /config/validate, /config/apply, /reindex) on a Fastify instance; config apply triggers the configured auto-reindex.
+ * Registers the legacy config and reindex routes (GET /config/schema, POST /config/match, /config/validate, /reindex) on a Fastify instance, and builds the config-apply callback that triggers the configured auto-reindex. `GET /config` and `POST /config/apply` are catalog routes (`api/registerCatalog`).
  */
 
 import { dirname } from 'node:path';
 
-import {
-  type ConfigWatchReindexScope,
-  getEndpoint,
-} from '@karmaniverous/jeeves-watcher-core';
+import { getEndpoint } from '@karmaniverous/jeeves-watcher-core';
 import type { FastifyInstance } from 'fastify';
 
 import type { JeevesWatcherConfig } from '../config/types';
 import type { ApiServerOptions } from './apiServerOptions';
 import { executeReindex, reindexDepsFrom } from './executeReindex';
-import { createConfigApplyRouteHandler } from './handlers/configApply';
 import { createConfigMatchHandler } from './handlers/configMatch';
-import { createConfigQueryHandler } from './handlers/configQuery';
 import { createConfigReindexHandler } from './handlers/configReindex';
 import { createConfigSchemaHandler } from './handlers/configSchema';
 import { createConfigValidateHandler } from './handlers/configValidate';
@@ -34,11 +29,32 @@ export interface ConfigRouteContext {
 }
 
 /**
- * Register the config and reindex routes.
+ * Build the callback `POST /config/apply` runs after writing the config: it
+ * triggers `configWatch.reindex` (default `issues`; `prune` is never
+ * auto-triggered). That reindex is config-triggered, so it stays file-only
+ * (Decision 16.11). The reindex runs in the background.
  *
- * `POST /config/apply` triggers `configWatch.reindex` (default `issues`;
- * `prune` is never auto-triggered). That reindex is config-triggered, so it
- * stays file-only (Decision 16.11).
+ * @param options - Server options.
+ * @param context - Live config getter and reindex tracker.
+ * @returns The apply callback.
+ */
+export function createConfigApplyCallback(
+  options: ApiServerOptions,
+  context: Pick<ConfigRouteContext, 'getConfig' | 'reindexTracker'>,
+): () => Promise<void> {
+  const { getConfig, reindexTracker } = context;
+  return () => {
+    const scope = getConfig().configWatch?.reindex ?? 'issues';
+    void executeReindex(
+      reindexDepsFrom({ ...options, getConfig, reindexTracker }),
+      { scope },
+    );
+    return Promise.resolve();
+  };
+}
+
+/**
+ * Register the legacy config and reindex routes.
  *
  * @param app - The Fastify instance.
  * @param options - Server options.
@@ -49,16 +65,9 @@ export function registerConfigRoutes(
   options: ApiServerOptions,
   context: ConfigRouteContext,
 ): void {
-  const { logger, issuesManager, valuesManager } = options;
+  const { logger } = options;
   const { getConfig, reindexTracker, cacheTtlMs } = context;
   const configDir = dirname(options.configPath);
-
-  const triggerReindex = (scope: ConfigWatchReindexScope) => {
-    void executeReindex(
-      reindexDepsFrom({ ...options, getConfig, reindexTracker }),
-      { scope },
-    );
-  };
 
   app.post(
     getEndpoint('reindex').path,
@@ -75,40 +84,8 @@ export function registerConfigRoutes(
     createConfigMatchHandler({ getConfig, logger }),
   );
 
-  const { virtualRuleStore } = options;
-  app.get(
-    getEndpoint('config').path,
-    withCache(
-      cacheTtlMs,
-      createConfigQueryHandler({
-        getConfig,
-        valuesManager,
-        issuesManager,
-        logger,
-        helperIntrospection: options.helperIntrospection,
-        getVirtualRules: virtualRuleStore
-          ? () => virtualRuleStore.getAll()
-          : undefined,
-      }),
-    ),
-  );
-
   app.post(
     getEndpoint('configValidate').path,
     createConfigValidateHandler({ getConfig, logger, configDir }),
-  );
-
-  app.post(
-    getEndpoint('configApply').path,
-    createConfigApplyRouteHandler({
-      descriptor: options.descriptor,
-      configPath: options.configPath,
-      logger,
-      onConfigApply: () => {
-        const cfg = getConfig();
-        triggerReindex(cfg.configWatch?.reindex ?? 'issues');
-        return Promise.resolve();
-      },
-    }),
   );
 }

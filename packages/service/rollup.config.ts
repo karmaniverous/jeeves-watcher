@@ -47,6 +47,10 @@ const commonPlugins = [
 
 const commonAliases: Alias[] = [];
 
+/** Escape a package name for use in a regular expression. */
+const escapeRegExp = (text: string): string =>
+  text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
 /**
  * Common input options for library builds (ESM + CJS).
  * Externalize runtime dependencies and peers.
@@ -57,9 +61,13 @@ const commonInputOptions: InputOptions = {
     // Node built-ins, including prefix-only modules such as node:sqlite that
     // @rollup/plugin-node-resolve does not recognise as built-ins.
     /^node:/,
-    ...Object.keys(pkg.dependencies ?? {}),
-    ...Object.keys(pkg.peerDependencies ?? {}),
-    'tslib',
+    // Dependencies and peers by prefix, so sub-path imports such as
+    // `@karmaniverous/jeeves/fastify` stay external too.
+    ...[
+      ...Object.keys(pkg.dependencies ?? {}),
+      ...Object.keys(pkg.peerDependencies ?? {}),
+      'tslib',
+    ].map((name) => new RegExp(`^${escapeRegExp(name)}(?:/|$)`)),
   ],
   plugins: [aliasPlugin({ entries: commonAliases }), ...commonPlugins],
 };

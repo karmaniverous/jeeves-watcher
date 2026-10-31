@@ -1,66 +1,41 @@
 /**
  * @module plugin/watcherTools
- * Domain-specific watcher tool registrations (14 tools) for the OpenClaw plugin.
+ * Domain-specific watcher tool registrations (14 tools) for the OpenClaw plugin: the catalog-built ones (`catalogTools`) in their 0.17.0 places, the rest as API tool configs.
  */
 
-import { type PluginApi } from '@karmaniverous/jeeves';
+import { type PluginApi, type ToolDescriptor } from '@karmaniverous/jeeves';
 import { getEndpoint } from '@karmaniverous/jeeves-watcher-core';
 
 import {
-  type ApiToolConfig,
   type BaseUrlSource,
   pickDefined,
   registerApiTool,
+  type WatcherToolEntry,
 } from './apiTool.js';
+import { registerCatalogTool } from './catalogTools.js';
 import { vcsToolConfigs } from './vcsTools.js';
 
 /**
  * Register the 14 domain-specific watcher_* tools with the OpenClaw plugin API.
  *
  * @remarks
- * `watcher_search` and `watcher_scan` are `catalogMode: 'direct-only'` so
- * OpenClaw Tool Search keeps them model-visible: semantic search must be a
- * direct tool or the model reaches for grep first. All other tools remain
- * catalog-eligible.
+ * `watcher_search`, `watcher_scan` and `watcher_vcs_show` are built from the
+ * catalog (`catalogTools`) and passed in; they keep their 0.17.0 places.
  *
  * @param api - Plugin API.
  * @param baseUrl - API base URL, or a getter resolved on every call (so a
  *   changed `apiUrl` takes effect without re-registering, as for the config
  *   tools).
+ * @param catalogTools - Catalog-built tools, by name.
+ * @throws When a named catalog-built tool is missing.
  */
 export function registerWatcherTools(
   api: PluginApi,
   baseUrl: BaseUrlSource,
+  catalogTools: ReadonlyMap<string, ToolDescriptor>,
 ): void {
-  const tools: ApiToolConfig[] = [
-    {
-      name: 'watcher_search',
-      description:
-        'Semantic search over indexed documents. Supports Qdrant filters. This is a direct tool: call it directly, never through tool_call.',
-      catalogMode: 'direct-only',
-      parameters: {
-        type: 'object',
-        required: ['query'],
-        properties: {
-          query: { type: 'string', description: 'Search query text.' },
-          limit: { type: 'number', description: 'Max results (default 10).' },
-          offset: {
-            type: 'number',
-            description: 'Number of results to skip for pagination.',
-          },
-          filter: { type: 'object', description: 'Qdrant filter object.' },
-        },
-      },
-      buildRequest: (params) => {
-        const body = pickDefined(params, [
-          'query',
-          'limit',
-          'offset',
-          'filter',
-        ]);
-        return [getEndpoint('search').path, body];
-      },
-    },
+  const tools: WatcherToolEntry[] = [
+    'watcher_search',
     {
       name: 'watcher_enrich',
       description: 'Set or update metadata on a document by file path.',
@@ -144,49 +119,7 @@ export function registerWatcherTools(
         },
       ],
     },
-    {
-      name: 'watcher_scan',
-      description:
-        'Filter-only point query without vector search. Returns metadata for points matching a Qdrant filter. Use for structural queries: file enumeration, staleness checks, delta computation. Use watcher_search for semantic/similarity queries. This is a direct tool: call it directly, never through tool_call.',
-      catalogMode: 'direct-only',
-      parameters: {
-        type: 'object',
-        required: ['filter'],
-        properties: {
-          filter: {
-            type: 'object',
-            description: 'Qdrant filter object (required).',
-          },
-          limit: {
-            type: 'number',
-            description: 'Page size (default 100, max 1000).',
-          },
-          cursor: {
-            type: 'string',
-            description: 'Opaque cursor from previous response for pagination.',
-          },
-          fields: {
-            type: 'array',
-            items: { type: 'string' },
-            description: 'Payload fields to return (projection).',
-          },
-          countOnly: {
-            type: 'boolean',
-            description: 'If true, return { count } instead of points.',
-          },
-        },
-      },
-      buildRequest: (params) => {
-        const body = pickDefined(params, [
-          'filter',
-          'limit',
-          'cursor',
-          'fields',
-          'countOnly',
-        ]);
-        return [getEndpoint('scan').path, body];
-      },
-    },
+    'watcher_scan',
     {
       name: 'watcher_issues',
       description:
@@ -219,6 +152,10 @@ export function registerWatcherTools(
   ];
 
   for (const tool of tools) {
-    registerApiTool(api, baseUrl, tool);
+    if (typeof tool === 'string') {
+      registerCatalogTool(api, catalogTools, tool);
+    } else {
+      registerApiTool(api, baseUrl, tool);
+    }
   }
 }

@@ -1,9 +1,13 @@
 /**
  * @module api/routeAuth.test
- * With `api.apiKey` set, every route `createApiServer` actually registers (enumerated from `printRoutes`, all optional route groups enabled) answers 401 without a valid bearer token, except `GET`/`HEAD /status`.
+ * With `api.apiKey` set, every route `createApiServer` actually registers (enumerated from `printRoutes`, all optional route groups enabled) answers 401 without a valid bearer token, except `GET`/`HEAD /status` and `/openapi.json`; every catalog entry follows its declared auth mode.
  */
 
-import { WATCHER_ENDPOINTS } from '@karmaniverous/jeeves-watcher-core';
+import {
+  WATCHER_CATALOG,
+  WATCHER_ENDPOINTS,
+  WATCHER_OPENAPI_DOCUMENT,
+} from '@karmaniverous/jeeves-watcher-core';
 import type { FastifyInstance } from 'fastify';
 import pino from 'pino';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -71,8 +75,10 @@ function parseRoutes(tree: string): RegisteredRoute[] {
 /** A concrete URL for a route path (fills `:param` segments). */
 const concrete = (path: string) => path.replace(/:[^/]+/g, 'x');
 
-const isStatus = ({ method, path }: RegisteredRoute) =>
-  path === '/status' && (method === 'GET' || method === 'HEAD');
+const OPEN_PATHS = new Set(['/status', '/openapi.json']);
+
+const isOpen = ({ method, path }: RegisteredRoute) =>
+  OPEN_PATHS.has(path) && (method === 'GET' || method === 'HEAD');
 
 let app: FastifyInstance;
 let routes: RegisteredRoute[];
@@ -95,8 +101,8 @@ describe('api.apiKey covers every registered route', () => {
     }
   });
 
-  it('returns 401 without a token on every route except GET/HEAD /status', async () => {
-    const guarded = routes.filter((r) => !isStatus(r));
+  it('returns 401 without a token on every route except the open ones', async () => {
+    const guarded = routes.filter((r) => !isOpen(r));
     expect(guarded.length).toBeGreaterThanOrEqual(WATCHER_ENDPOINTS.length - 1);
     for (const route of guarded) {
       const res = await app.inject({
@@ -115,8 +121,8 @@ describe('api.apiKey covers every registered route', () => {
     }
   });
 
-  it('returns 401 with a wrong token on every route except GET/HEAD /status', async () => {
-    for (const route of routes.filter((r) => !isStatus(r))) {
+  it('returns 401 with a wrong token on every route except the open ones', async () => {
+    for (const route of routes.filter((r) => !isOpen(r))) {
       const res = await app.inject({
         method: route.method as 'GET',
         url: concrete(route.path),
@@ -126,12 +132,36 @@ describe('api.apiKey covers every registered route', () => {
     }
   });
 
-  it('leaves GET and HEAD /status open', async () => {
-    const status = routes.filter(isStatus).map((r) => r.method);
-    expect(status.sort()).toEqual(['GET', 'HEAD']);
+  it('leaves GET and HEAD /status and /openapi.json open', async () => {
+    const open = routes.filter(isOpen).map((r) => `${r.method} ${r.path}`);
+    expect(open.sort()).toEqual([
+      'GET /openapi.json',
+      'GET /status',
+      'HEAD /openapi.json',
+      'HEAD /status',
+    ]);
     for (const method of ['GET', 'HEAD'] as const) {
       const res = await app.inject({ method, url: '/status' });
       expect(res.statusCode).toBe(200);
     }
   });
+
+  it('serves the OpenAPI document without a token', async () => {
+    const res = await app.inject({ method: 'GET', url: '/openapi.json' });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual(WATCHER_OPENAPI_DOCUMENT);
+  });
+});
+
+describe('catalog entries follow their declared auth mode', () => {
+  it.each(WATCHER_CATALOG.entries.map((e) => [e.name, e] as const))(
+    '%s',
+    async (_name, entry) => {
+      const res = await app.inject({
+        method: entry.method,
+        url: concrete(entry.path),
+      });
+      expect(res.statusCode).toBe(entry.auth === 'none' ? 200 : 401);
+    },
+  );
 });

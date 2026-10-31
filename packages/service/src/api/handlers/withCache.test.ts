@@ -5,15 +5,15 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { clearCache, withCache } from './withCache';
+import { clearCache, hashObject, withCache } from './withCache';
 
 function mockReq(method = 'POST', url = '/render', body = { path: 'test' }) {
   return { method, url, body } as never;
 }
 
-function mockReply(headers: Record<string, string> = {}) {
+function mockReply(headers: Record<string, string> = {}, statusCode = 200) {
   const reply = {
-    statusCode: 200,
+    statusCode,
     getHeader(name: string) {
       return headers[name];
     },
@@ -75,5 +75,35 @@ describe('withCache', () => {
     await handler(req, reply);
 
     expect(callCount).toBe(1);
+  });
+
+  it('never caches an error reply', async () => {
+    clearCache();
+    let callCount = 0;
+    const handler = withCache(60000, () => {
+      callCount++;
+      return { error: 'nope' };
+    });
+
+    const req = mockReq();
+    const reply = mockReply({}, 404);
+
+    await handler(req, reply);
+    await handler(req, reply);
+
+    expect(callCount).toBe(2);
+  });
+});
+
+describe('hashObject', () => {
+  it('keeps undefined, null and distinct strings and objects apart', () => {
+    const hashes = [undefined, null, 'null', '"x"', 'x', { a: 1 }].map(
+      hashObject,
+    );
+    expect(new Set(hashes).size).toBe(hashes.length);
+  });
+
+  it('hashes equal values equally', () => {
+    expect(hashObject({ a: [1, 2] })).toBe(hashObject({ a: [1, 2] }));
   });
 });

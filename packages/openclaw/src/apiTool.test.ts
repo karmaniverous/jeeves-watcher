@@ -4,7 +4,6 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   type ApiToolConfig,
   buildQuery,
-  type CatalogToolDescriptor,
   pickDefined,
   registerApiTool,
 } from './apiTool.js';
@@ -17,7 +16,7 @@ const config: ApiToolConfig = {
 };
 
 /** Register one config and return the descriptor handed to the API. */
-function registerOne(cfg: ApiToolConfig): CatalogToolDescriptor {
+function registerOne(cfg: ApiToolConfig): ToolDescriptor {
   const registered: ToolDescriptor[] = [];
   const api: PluginApi = {
     registerTool: (tool: ToolDescriptor) => {
@@ -30,12 +29,7 @@ function registerOne(cfg: ApiToolConfig): CatalogToolDescriptor {
 }
 
 describe('registerApiTool', () => {
-  it('passes catalogMode through when configured', () => {
-    const tool = registerOne({ ...config, catalogMode: 'direct-only' });
-    expect(tool.catalogMode).toBe('direct-only');
-  });
-
-  it('omits catalogMode entirely when not configured', () => {
+  it('registers no catalogMode (catalog-built tools set their own)', () => {
     expect(registerOne(config)).not.toHaveProperty('catalogMode');
   });
 });

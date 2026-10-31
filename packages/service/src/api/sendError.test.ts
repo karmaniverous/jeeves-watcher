@@ -17,7 +17,6 @@ import {
   sendError,
   sendErrorWithStatus,
   sendInternalError,
-  sendResult,
   sendSourcesNotAvailable,
 } from './sendError';
 
@@ -111,45 +110,5 @@ describe('codeForStatus', () => {
     [503, 'internal_error'],
   ])('%i -> %s', (status, code) => {
     expect(codeForStatus(status)).toBe(code);
-  });
-});
-
-describe('sendResult', () => {
-  it('adds a code to error bodies and keeps every other field', () => {
-    const reply = sendResult(mockReply(), {
-      status: 400,
-      body: { error: 'Config validation failed', issues: [{ path: ['x'] }] },
-    });
-    expect(reply.statusCode).toBe(400);
-    expect(reply.body).toEqual({
-      code: 'invalid_request',
-      error: 'Config validation failed',
-      issues: [{ path: ['x'] }],
-    });
-  });
-
-  it('maps 5xx results to internal_error', () => {
-    const reply = sendResult(mockReply(), {
-      status: 500,
-      body: { error: 'Failed to write config' },
-    });
-    expect(reply.body).toEqual({
-      code: 'internal_error',
-      error: 'Failed to write config',
-    });
-  });
-
-  it('leaves an existing code and success bodies alone', () => {
-    const coded = sendResult(mockReply(), {
-      status: 404,
-      body: { code: 'source_not_found', error: 'x' },
-    });
-    expect(coded.body).toEqual({ code: 'source_not_found', error: 'x' });
-    const ok = sendResult(mockReply(), {
-      status: 200,
-      body: { applied: true },
-    });
-    expect(ok.statusCode).toBe(200);
-    expect(ok.body).toEqual({ applied: true });
   });
 });

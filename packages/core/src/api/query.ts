@@ -27,13 +27,26 @@ export const SCAN_MAX_LIMIT = 1000;
  */
 export const searchRequestSchema = z.strictObject({
   /** Natural-language query text to embed. */
-  query: z.string().min(1, 'query must be a non-empty string'),
+  query: z
+    .string()
+    .min(1, 'query must be a non-empty string')
+    .describe('Search query text.'),
   /** Maximum results to return. Default: {@link SEARCH_DEFAULT_LIMIT}. */
-  limit: z.number().int().positive().optional(),
+  limit: z
+    .number()
+    .int()
+    .positive()
+    .optional()
+    .describe(`Max results (default ${String(SEARCH_DEFAULT_LIMIT)}).`),
   /** Number of results to skip (pagination). */
-  offset: z.number().int().nonnegative().optional(),
+  offset: z
+    .number()
+    .int()
+    .nonnegative()
+    .optional()
+    .describe('Number of results to skip for pagination.'),
   /** Optional Qdrant filter. */
-  filter: qdrantFilterSchema.optional(),
+  filter: qdrantFilterSchema.optional().describe('Qdrant filter object.'),
 });
 
 /** Request body for `POST /search`. */
@@ -63,20 +76,34 @@ const SCAN_LIMIT_MESSAGE = `limit must be between 1 and ${String(SCAN_MAX_LIMIT)
 /** Request body for `POST /scan`. */
 export const scanRequestSchema = z.object({
   /** Qdrant filter (required). */
-  filter: qdrantFilter(FILTER_REQUIRED_MESSAGE),
+  filter: qdrantFilter(FILTER_REQUIRED_MESSAGE).describe(
+    'Qdrant filter object (required).',
+  ),
   /** Page size (1 to {@link SCAN_MAX_LIMIT}). Default: {@link SCAN_DEFAULT_LIMIT}. */
   limit: z
     .number({ error: SCAN_LIMIT_MESSAGE })
     .int('limit must be an integer')
     .min(1, SCAN_LIMIT_MESSAGE)
     .max(SCAN_MAX_LIMIT, SCAN_LIMIT_MESSAGE)
-    .optional(),
+    .optional()
+    .describe(
+      `Page size (default ${String(SCAN_DEFAULT_LIMIT)}, max ${String(SCAN_MAX_LIMIT)}).`,
+    ),
   /** Opaque cursor from a previous page. */
-  cursor: z.union([z.string(), z.number()]).optional(),
+  cursor: z
+    .union([z.string(), z.number()])
+    .optional()
+    .describe('Opaque cursor from previous response for pagination.'),
   /** Payload fields to return (projection). */
-  fields: z.array(z.string()).optional(),
+  fields: z
+    .array(z.string())
+    .optional()
+    .describe('Payload fields to return (projection).'),
   /** Return only `{ count }`. */
-  countOnly: z.boolean().optional(),
+  countOnly: z
+    .boolean()
+    .optional()
+    .describe('If true, return { count } instead of points.'),
 });
 
 /** Request body for `POST /scan`. */

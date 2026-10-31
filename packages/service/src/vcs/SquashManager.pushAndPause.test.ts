@@ -128,7 +128,9 @@ describe('SquashManager.runSquash', () => {
       expect.objectContaining({ root: tempDir }),
       'Squash force push failed',
     );
-  });
+    // Real git subprocesses: same budget as the force-push test above (the
+    // default 5s timed out under full-suite load on Windows).
+  }, 30000);
 
   it('calls pause/resume callbacks around squash operations (Bug 3)', async () => {
     const now = new Date();

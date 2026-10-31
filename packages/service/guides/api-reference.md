@@ -8,9 +8,13 @@ The watcher exposes a lightweight HTTP API for search, metadata enrichment, and 
 
 **Default address:** `http://127.0.0.1:1936` (configurable via `api.host` and `api.port`)
 
-**Authentication:** none by default. When `api.apiKey` is set, every route except `GET /status` requires `Authorization: Bearer <key>`; see [Authentication](#authentication). The examples below omit the header.
+**Authentication:** none by default. When `api.apiKey` is set, every route except `GET /status` and `GET /openapi.json` requires `Authorization: Bearer <key>`; see [Authentication](#authentication). The examples below omit the header.
 
-**Request validation:** the bodies of `POST /metadata`, `/render`, `/search`, `/scan`, `/reindex`, `/documents`, `/documents/delete`, `/rules/register`, `/rules/reapply`, `/points/delete` and `DELETE /rules/unregister` (and the `POST /documents` query string) are validated against the Zod schemas exported by `@karmaniverous/jeeves-watcher-core`. An invalid body returns `400 { code: "invalid_request", error, details }`, where `error` is the first issue's message and `details` is the full Zod issue list. Unless a section says the schema is strict, unknown keys are dropped silently. The other routes (`POST /walk`, the `/config/*` routes, the VCS routes) check their required fields themselves; their `400` bodies carry no `details`.
+**Endpoint catalog (unreleased):** `GET /status`, `GET /config`, `POST /config/apply`, `POST /render`, `POST /search`, `POST /scan` and `GET /vcs/show` are described once, as entries of `WATCHER_CATALOG` in `@karmaniverous/jeeves-watcher-core`. Their routes, request validation, response validation, the [OpenAPI document](#get-openapijson) and the plugin tools are all built from it. The other routes are not in the catalog yet.
+
+**Request validation:** the bodies of `POST /metadata`, `/render`, `/search`, `/scan`, `/reindex`, `/documents`, `/documents/delete`, `/rules/register`, `/rules/reapply`, `/points/delete` and `DELETE /rules/unregister` (and the `POST /documents` query string) are validated against the Zod schemas exported by `@karmaniverous/jeeves-watcher-core`. An invalid body returns `400 { code: "invalid_request", error, details }`, where `error` is the first issue's message. For the catalog routes, `details` lists one entry per issue: `{ slot, path, code, message, params }`, where `slot` is `body`, `query` or `params` and `params` holds the issue's own fields (for example `{ "keys": ["collapse"] }` or `{ "origin": "number", "maximum": 1000, "inclusive": true }`). For the other routes `details` is the Zod issue list. Unless a section says the schema is strict, unknown keys are dropped silently. The routes outside the catalog without a schema (`POST /walk`, the other `/config/*` routes, the other VCS routes) check their required fields themselves; their `400` bodies carry no `details`.
+
+**Response validation (unreleased):** each catalog route's response is checked against its entry's schema before it is sent. A response that doesn't match is never sent: the client gets `500 { "error": "Response validation failed" }` and the mismatch is logged as an error with its issues. This indicates a server bug; report it.
 
 **Errors (v0.20.0+):** every non-2xx response carries a machine-readable `code`; see [Error Handling](#error-handling).
 
@@ -79,6 +83,18 @@ curl http://localhost:1936/status
 The response is cached for `api.cacheTtlMs` (default 30 seconds), so progress counters can lag by that much.
 
 `GET /status` is always open, even when `api.apiKey` is set, so load balancers and uptime checks can use it.
+
+---
+
+## GET /openapi.json
+
+**Unreleased.** The OpenAPI 3.1 document of the catalog routes (`GET /status`, `GET /config`, `POST /config/apply`, `POST /render`, `POST /search`, `POST /scan`, `GET /vcs/show`): request and response schemas, field descriptions, error responses and the bearer security scheme.
+
+```bash
+curl http://localhost:1936/openapi.json
+```
+
+Like `GET /status`, it is open even when `api.apiKey` is set. The same document ships in `@karmaniverous/jeeves-watcher-core` as `WATCHER_OPENAPI_DOCUMENT` and as the `@karmaniverous/jeeves-watcher-core/openapi.json` file; `info.version` is the watcher-core version.
 
 ---
 
@@ -1504,12 +1520,12 @@ curl -X POST http://localhost:1936/config/apply \
 
 ```typescript
 {
-  patch?: Record<string, unknown>; // Partial config to merge (`config` is accepted as an alias; default {})
+  patch?: Record<string, unknown>; // Partial config to merge (default {})
   replace?: boolean;               // true = the patch replaces the whole config instead of merging
 }
 ```
 
-The body has no core schema; other keys are ignored. A `patch` that is not an object is `400` with `issues: [{ "path": ["patch"], "message": "patch must be an object" }]`.
+Schema: the `configApply` entry of `WATCHER_CATALOG` (core's `configApplyBodySchema`). Other keys are ignored. Before validation, a body without `patch` gets `patch: {}`, and a body with `config` but no `patch` uses `config` as the patch. **Deprecated:** send `patch`; the `config` alias will be removed. A `patch` that is not an object, or a `replace` that is not a boolean, is a request-validation `400` (`details` lists the issues; unreleased, before which a non-object `patch` was answered with `issues: [{ "path": ["patch"], "message": "patch must be an object" }]`).
 
 ### Response
 
@@ -1924,7 +1940,7 @@ Resolves the watch root for the path, computes the relative path, and runs `git 
 
 #### Errors
 
-`400 invalid_request` when `path` or `commit` is missing (`"Missing required query parameters: path, commit"`); `404 not_found` when no VCS root contains the path (`"Path does not match any VCS-enabled watch root"`) or `git show` fails, for example an unknown commit or a file absent at that commit (`"File not found at the specified commit"`).
+`400 invalid_request` when `path` or `commit` is missing or empty, with `error` naming the first missing one (`"Missing required query parameter: path"`) and one `details` entry (slot `query`) per parameter (unreleased; before, `"Missing required query parameters: path, commit"` without `details`); `404 not_found` when no VCS root contains the path (`"Path does not match any VCS-enabled watch root"`) or `git show` fails, for example an unknown commit or a file absent at that commit (`"File not found at the specified commit"`).
 
 ---
 
@@ -2136,8 +2152,10 @@ Since v0.20.0 every non-2xx response has this body (`apiErrorBodySchema` in `@ka
 - `message` (optional) adds detail; `details` (optional) holds structured data such as the Zod issues of a `400`.
 - `issueType` (optional) names the [issue code](#issue-codes) behind a failed render.
 - Some endpoints add fields of their own (`issues` on `POST /config/apply`).
+- The one body without `code` is the catalog's response-validation failure, `500 { "error": "Response validation failed" }` (see [Response validation](#api-reference)), which only a server bug produces.
 - A route's status is derived from its `code` through `API_ERROR_STATUS` in core (the table below), so the same code always has the same status. The single exception is `not_available` from a prune without a vector store, which keeps its 0.19 status `400`. Requests rejected by the framework before reaching a route keep the framework's status: `401` maps to `unauthorized`, `404` to `not_found` (unknown route: `{ "code": "not_found", "error": "Not Found", "message": "Route POST:/nope not found" }`), any other 4xx to `invalid_request` (with the HTTP status text as `error` and the framework's explanation as `message`), and any 5xx to the generic `internal_error` body.
-- The CLI and the plugin report an error as one line, `HTTP <status> <code>: <message>`, where `<message>` is `error` plus `: <message>` when the body has a different `message` (`formatHttpError` in core).
+- The CLI and the plugin's own tools report an error as one line, `HTTP <status> <code>: <message>`, where `<message>` is `error` plus `: <message>` when the body has a different `message` (`formatHttpError` in core).
+- The plugin's catalog-built tools (`watcher_status`, `watcher_config`, `watcher_config_apply`, `watcher_search`, `watcher_scan`, `watcher_vcs_show`) report `HTTP <status>: <body>` with the JSON body verbatim. On catalog routes an error body lists `error` before `code`.
 - A 5xx body never carries the underlying error (file paths, Qdrant or provider messages): the cause is logged and the body is the generic `internal_error` text below.
 - HTTP status changes in v0.20.0, all from `500` for what are client mistakes: invalid bodies of the rules routes and `POST /points/delete`, filters Qdrant rejects (`400`), and invalid `POST /reindex` path targets (`403` / `404` / `400`). Successful responses and every other status are unchanged.
 
@@ -2190,7 +2208,7 @@ curl -X POST http://watcher.internal.example:1936/search \
   -d '{"query": "password reset"}'
 ```
 
-- Every route requires `Authorization: Bearer <apiKey>` (the `Bearer` scheme name is case-insensitive) — including unknown routes, the config, rules and VCS endpoints — **except `GET /status`** (and `HEAD /status`), which stays open for health checks.
+- Every route requires `Authorization: Bearer <apiKey>` (the `Bearer` scheme name is case-insensitive) — including unknown routes, the config, rules and VCS endpoints — **except `GET /status`** (and `HEAD /status`), which stays open for health checks, and `GET /openapi.json` (unreleased).
 - A missing, malformed or wrong token gets `401 { "code": "unauthorized", "error": "Unauthorized" }`. The presented token is never logged; rejections log only the method and path at `debug` level.
 - The comparison is constant-time.
 - `apiKey` must be non-empty: `""` (or a variable that substitutes to `""`) is a config validation error, so the service does not start. Omit the key to run without authentication. (Should an empty key ever reach the server, it still fails closed: no token matches.)
@@ -2200,7 +2218,7 @@ curl -X POST http://watcher.internal.example:1936/search \
   - **CLI** (`config`, `config apply`, `search`, `enrich`, `scan`, `reindex`, `rebuild-metadata`, `issues`, `helpers`): the `--api-key <key>` flag, else the `JEEVES_WATCHER_API_KEY` environment variable. These commands do not read the config file. Prefer the environment variable: a flag value is visible in the process list. See [CLI Reference](./cli-reference.md#authentication).
   - **OpenClaw plugin**: `plugins.entries.jeeves-watcher-openclaw.config.apiKey`, else `JEEVES_WATCHER_API_KEY`; sent on every tool request.
   - **SDK**: the [`apiKey` option](./source-documents.md#sdk).
-  - On `401`, the CLI and the plugin say how to supply the key (or, when one was sent, that it was rejected) and never print it. The environment variable name is `API_KEY_ENV_VAR` in core.
+  - On `401`, the CLI and the plugin's own tools say how to supply the key (or, when one was sent, that it was rejected) and never print it. The plugin's catalog-built tools (`watcher_config`, `watcher_config_apply`, `watcher_search`, `watcher_scan`, `watcher_vcs_show`) report `HTTP 401: <body>` instead; the skill's troubleshooting section covers it. The environment variable name is `API_KEY_ENV_VAR` in core.
 - `api` settings never appear in `GET /config`.
 
 For TLS, or for authentication schemes other than a single shared key, put a reverse proxy in front of the watcher.

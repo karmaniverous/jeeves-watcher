@@ -3,21 +3,10 @@
  * Tracks initial filesystem scan state for status reporting.
  */
 
-/** Initial scan status snapshot for API consumers. */
-export interface InitialScanStatus {
-  /** Whether the initial scan is currently in progress. */
-  active: boolean;
-  /** Number of files matched by watch globs. */
-  filesMatched?: number;
-  /** Number of files enqueued for processing so far. */
-  filesEnqueued?: number;
-  /** ISO 8601 timestamp when the scan started. */
-  startedAt?: string;
-  /** ISO 8601 timestamp when the scan completed. */
-  completedAt?: string;
-  /** Total scan duration in milliseconds. */
-  durationMs?: number;
-}
+import type { InitialScanStatus } from '@karmaniverous/jeeves-watcher-core';
+
+/** Initial scan status snapshot for API consumers (watcher-core's `GET /status` schema type). */
+export type { InitialScanStatus };
 
 /**
  * Tracks the state of the initial filesystem scan after service start.

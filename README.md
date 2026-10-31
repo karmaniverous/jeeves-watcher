@@ -245,6 +245,7 @@ The watcher provides a REST API (default port: 1936):
 | Endpoint | Method | Description |
 | --- | --- | --- |
 | `/status` | GET | Health check, uptime, collection (name, point count, dimensions), reindex and initial-scan state |
+| `/openapi.json` | GET | OpenAPI 3.1 document of the catalog routes (`/status`, `/config`, `/config/apply`, `/render`, `/search`, `/scan`, `/vcs/show`); open like `/status` |
 | `/search` | POST | Semantic search (`{ query: string, limit?: number, offset?: number, filter?: object }`; unknown keys are rejected) |
 | `/render` | POST | Render a document through inference rules (`{ path }` or `{ source }`) (v0.8.0+) |
 | `/search/facets` | GET | Schema-derived search facet definitions with live values (v0.8.0+) |
@@ -263,12 +264,12 @@ The watcher provides a REST API (default port: 1936):
 | `/rules/unregister/:source` | DELETE | Remove all virtual rules from a named source |
 | `/scan` | POST | Filter-only point query with cursor pagination (`{ filter, limit?, cursor?, fields?, countOnly? }`) |
 | `/config/validate` | POST | Validate a configuration without applying (`{ config?, testPaths? }`) |
-| `/config/apply` | POST | Merge a patch, validate, write, and reload configuration (`{ patch, replace? }`; `config` is an alias of `patch`). The echoed config is redacted like `GET /config`. |
+| `/config/apply` | POST | Merge a patch, validate, write, and reload configuration (`{ patch, replace? }`; `config` is a deprecated alias of `patch`). The echoed config is redacted like `GET /config`. |
 | `/rules/reapply` | POST | Re-apply inference rules to files matching globs (`{ globs }`) |
 | `/points/delete` | POST | Delete points matching a Qdrant filter (`{ filter }`) |
 | `/vcs/*` | GET/POST | Version control: `status`, `history`, `show`, `diff`, `check-exclusion`, `revert`, `exclude` (see the [Version Control guide](packages/service/guides/version-control.md)) |
 
-Errors carry `{ error, code, message?, details? }`; the HTTP status follows from `code`, with one exception: a `prune` reindex without a vector store answers `400 not_available` (see [Error Handling](packages/service/guides/api-reference.md#error-handling)).
+Errors carry `{ error, code, message?, details? }`; the HTTP status follows from `code`, with one exception: a `prune` reindex without a vector store answers `400 not_available` (see [Error Handling](packages/service/guides/api-reference.md#error-handling)). The routes in the endpoint catalog (`WATCHER_CATALOG` in watcher-core) also validate their responses: a response that doesn't match its schema is a `500` that only a server bug produces.
 
 ### Example: Search
 
@@ -331,7 +332,7 @@ This repo includes an OpenClaw plugin (`packages/openclaw`) that exposes the jee
 | `watcher_vcs_exclude` | Exclude or re-include paths from version tracking |
 | `watcher_vcs_check` | Whether a path is excluded from version tracking, and why |
 
-The plugin is a standard OpenClaw plugin on [`@karmaniverous/jeeves`](https://www.npmjs.com/package/@karmaniverous/jeeves) 0.7 core, installed by `jeeves install`. It writes no workspace files; its always-in-context watcher rules are injected via the `before_prompt_build` hook. See the [OpenClaw Integration Guide](packages/openclaw/guides/openclaw-integration.md) for details.
+The plugin is a standard OpenClaw plugin on [`@karmaniverous/jeeves`](https://www.npmjs.com/package/@karmaniverous/jeeves) 0.8 core, installed by `jeeves install`. Its standard tools, `watcher_search`, `watcher_scan` and `watcher_vcs_show` are built from the watcher's endpoint catalog by core's toolset. It writes no workspace files; its always-in-context watcher rules are injected via the `before_prompt_build` hook. See the [OpenClaw Integration Guide](packages/openclaw/guides/openclaw-integration.md) for details.
 
 Plugin configuration supports `apiUrl` (defaults to `http://127.0.0.1:1936`), an optional `apiKey` (sent as a bearer token when the service sets `api.apiKey`; env fallback `JEEVES_WATCHER_API_KEY`) and `configRoot` (no default: set it in plugin config or via `JEEVES_CONFIG_ROOT`; resolved lazily, so the plugin registers before it is set).
 

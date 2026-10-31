@@ -11,5 +11,4 @@ export {
   type RenderBodySection,
   type RenderConfig,
   type SchemaEntry,
-  type WatchConfig,
 } from '@karmaniverous/jeeves-watcher-core';

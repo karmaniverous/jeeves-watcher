@@ -138,26 +138,3 @@ export function codeForStatus(status: number): ApiErrorCode {
   if (status >= 400 && status < 500) return 'invalid_request';
   return 'internal_error';
 }
-
-/**
- * Send a `{ status, body }` result from a shared core handler. Error results
- * get a `code` (from {@link codeForStatus}) unless the body already has one;
- * every other field is kept. Success bodies are sent unchanged.
- *
- * @param reply - Fastify reply.
- * @param result - Status and body produced by the core handler.
- * @returns The reply.
- */
-export function sendResult<R extends ErrorReply>(
-  reply: R,
-  result: { status: number; body: unknown },
-): R {
-  const { status, body } = result;
-  const isObject = typeof body === 'object' && body !== null;
-  const payload =
-    status >= 400 && isObject && !('code' in body)
-      ? { code: codeForStatus(status), ...body }
-      : body;
-  void reply.status(status).send(payload);
-  return reply;
-}

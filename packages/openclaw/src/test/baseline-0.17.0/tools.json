@@ -1,0 +1,435 @@
+[
+  {
+    "name": "watcher_status",
+    "description": "Get watcher service health, version, and uptime.",
+    "parameters": {
+      "type": "object",
+      "properties": {}
+    },
+    "options": {
+      "optional": true
+    }
+  },
+  {
+    "name": "watcher_service",
+    "description": "Manage the watcher system service. Actions: install, uninstall, start, stop, restart, status.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "action": {
+          "type": "string",
+          "enum": [
+            "install",
+            "uninstall",
+            "start",
+            "stop",
+            "restart",
+            "status"
+          ],
+          "description": "Service action to perform"
+        }
+      },
+      "required": [
+        "action"
+      ]
+    },
+    "options": {
+      "optional": true
+    }
+  },
+  {
+    "name": "watcher_config",
+    "description": "Query watcher running configuration. Optional JSONPath filter.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "string",
+          "description": "JSONPath expression (optional)"
+        }
+      }
+    },
+    "options": {
+      "optional": true
+    }
+  },
+  {
+    "name": "watcher_config_apply",
+    "description": "Apply a config patch to the running watcher service.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "config": {
+          "type": "object",
+          "description": "Config patch to apply"
+        }
+      },
+      "required": [
+        "config"
+      ]
+    },
+    "options": {
+      "optional": true
+    }
+  },
+  {
+    "name": "watcher_search",
+    "description": "Semantic search over indexed documents. Supports Qdrant filters. This is a direct tool: call it directly, never through tool_call.",
+    "parameters": {
+      "type": "object",
+      "required": [
+        "query"
+      ],
+      "properties": {
+        "query": {
+          "type": "string",
+          "description": "Search query text."
+        },
+        "limit": {
+          "type": "number",
+          "description": "Max results (default 10)."
+        },
+        "offset": {
+          "type": "number",
+          "description": "Number of results to skip for pagination."
+        },
+        "filter": {
+          "type": "object",
+          "description": "Qdrant filter object."
+        }
+      }
+    },
+    "catalogMode": "direct-only",
+    "options": {
+      "optional": true
+    }
+  },
+  {
+    "name": "watcher_enrich",
+    "description": "Set or update metadata on a document by file path.",
+    "parameters": {
+      "type": "object",
+      "required": [
+        "path",
+        "metadata"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "description": "Relative file path of the document."
+        },
+        "metadata": {
+          "type": "object",
+          "description": "Key-value metadata to set on the document."
+        }
+      }
+    },
+    "options": {
+      "optional": true
+    }
+  },
+  {
+    "name": "watcher_validate",
+    "description": "Validate a candidate config (or current config if omitted). Optionally test file paths against the config to preview rule matching and metadata output.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "config": {
+          "type": "object",
+          "description": "Candidate config (partial or full). Omit to validate current config."
+        },
+        "testPaths": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "File paths to test against the config for dry-run preview."
+        }
+      }
+    },
+    "options": {
+      "optional": true
+    }
+  },
+  {
+    "name": "watcher_reindex",
+    "description": "Trigger a reindex of the watched files.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "scope": {
+          "type": "string",
+          "enum": [
+            "rules",
+            "full",
+            "issues",
+            "path",
+            "prune"
+          ],
+          "description": "Reindex scope: \"rules\" (default) re-applies inference rules; \"full\" re-embeds everything; \"issues\" re-processes files with errors; \"path\" reindexes a specific file or directory (requires path parameter); \"prune\" deletes points for files no longer in watch scope."
+        },
+        "path": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          ],
+          "description": "Target file or directory path (required when scope is \"path\"). Accepts a single path or array of paths."
+        },
+        "dryRun": {
+          "type": "boolean",
+          "description": "When true, compute and return the blast area plan without executing. Returns counts by root showing impact."
+        }
+      }
+    },
+    "options": {
+      "optional": true
+    }
+  },
+  {
+    "name": "watcher_scan",
+    "description": "Filter-only point query without vector search. Returns metadata for points matching a Qdrant filter. Use for structural queries: file enumeration, staleness checks, delta computation. Use watcher_search for semantic/similarity queries. This is a direct tool: call it directly, never through tool_call.",
+    "parameters": {
+      "type": "object",
+      "required": [
+        "filter"
+      ],
+      "properties": {
+        "filter": {
+          "type": "object",
+          "description": "Qdrant filter object (required)."
+        },
+        "limit": {
+          "type": "number",
+          "description": "Page size (default 100, max 1000)."
+        },
+        "cursor": {
+          "type": "string",
+          "description": "Opaque cursor from previous response for pagination."
+        },
+        "fields": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Payload fields to return (projection)."
+        },
+        "countOnly": {
+          "type": "boolean",
+          "description": "If true, return { count } instead of points."
+        }
+      }
+    },
+    "catalogMode": "direct-only",
+    "options": {
+      "optional": true
+    }
+  },
+  {
+    "name": "watcher_issues",
+    "description": "Get runtime processing failures. Shows the documents (file path or source reference) that failed processing and why.",
+    "parameters": {
+      "type": "object",
+      "properties": {}
+    },
+    "options": {
+      "optional": true
+    }
+  },
+  {
+    "name": "watcher_walk",
+    "description": "Walk watched filesystem paths with glob intersection. Returns matching file paths from all configured watch roots, applying watch.ignored and gitignore filtering.",
+    "parameters": {
+      "type": "object",
+      "required": [
+        "globs"
+      ],
+      "properties": {
+        "globs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Glob patterns to intersect with watch paths (e.g., [\"**/.meta/meta.json\"])."
+        }
+      }
+    },
+    "options": {
+      "optional": true
+    }
+  },
+  {
+    "name": "watcher_vcs_status",
+    "description": "Get version tracking health: enabled state, tracked roots, remote status, last activity",
+    "parameters": {
+      "type": "object",
+      "properties": {}
+    },
+    "options": {
+      "optional": true
+    }
+  },
+  {
+    "name": "watcher_vcs_history",
+    "description": "Query change history by path or glob with optional date range",
+    "parameters": {
+      "type": "object",
+      "required": [
+        "glob"
+      ],
+      "properties": {
+        "glob": {
+          "type": "string",
+          "description": "Path or glob pattern to query history for."
+        },
+        "since": {
+          "type": "string",
+          "description": "Start date (ISO 8601 or git date string)."
+        },
+        "until": {
+          "type": "string",
+          "description": "End date (ISO 8601 or git date string)."
+        },
+        "limit": {
+          "type": "number",
+          "description": "Maximum number of history entries to return."
+        }
+      }
+    },
+    "options": {
+      "optional": true
+    }
+  },
+  {
+    "name": "watcher_vcs_show",
+    "description": "Retrieve file content at a specific version",
+    "parameters": {
+      "type": "object",
+      "required": [
+        "path",
+        "commit"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "description": "File path to retrieve."
+        },
+        "commit": {
+          "type": "string",
+          "description": "Version identifier."
+        }
+      }
+    },
+    "options": {
+      "optional": true
+    }
+  },
+  {
+    "name": "watcher_vcs_diff",
+    "description": "Show what changed between two versions, or between a version and current",
+    "parameters": {
+      "type": "object",
+      "required": [
+        "glob",
+        "commit"
+      ],
+      "properties": {
+        "glob": {
+          "type": "string",
+          "description": "Path or glob pattern to diff."
+        },
+        "commit": {
+          "type": "string",
+          "description": "Start version identifier."
+        },
+        "commitEnd": {
+          "type": "string",
+          "description": "End version identifier (defaults to current if omitted)."
+        }
+      }
+    },
+    "options": {
+      "optional": true
+    }
+  },
+  {
+    "name": "watcher_vcs_revert",
+    "description": "Undo changes by restoring files to a specific version",
+    "parameters": {
+      "type": "object",
+      "required": [
+        "glob",
+        "commit"
+      ],
+      "properties": {
+        "glob": {
+          "type": "string",
+          "description": "Path or glob pattern to revert."
+        },
+        "commit": {
+          "type": "string",
+          "description": "Version to restore files to."
+        },
+        "existingOnly": {
+          "type": "boolean",
+          "description": "When true, only revert files that currently exist (skip deleted files)."
+        }
+      }
+    },
+    "options": {
+      "optional": true
+    }
+  },
+  {
+    "name": "watcher_vcs_exclude",
+    "description": "Exclude or re-include paths from version tracking",
+    "parameters": {
+      "type": "object",
+      "required": [
+        "glob"
+      ],
+      "properties": {
+        "glob": {
+          "type": "string",
+          "description": "Glob pattern to exclude or re-include."
+        },
+        "root": {
+          "type": "string",
+          "description": "Tracked root to target (defaults to auto-detect)."
+        },
+        "remove": {
+          "type": "boolean",
+          "description": "When true, remove the exclusion rule (re-include the path)."
+        }
+      }
+    },
+    "options": {
+      "optional": true
+    }
+  },
+  {
+    "name": "watcher_vcs_check",
+    "description": "Check whether a path is excluded from version tracking and why",
+    "parameters": {
+      "type": "object",
+      "required": [
+        "path"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "description": "File path to check exclusion status for."
+        }
+      }
+    },
+    "options": {
+      "optional": true
+    }
+  }
+]

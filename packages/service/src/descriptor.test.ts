@@ -5,6 +5,10 @@
 
 import { Command } from '@commander-js/extra-typings';
 import { jeevesComponentDescriptorSchema } from '@karmaniverous/jeeves';
+import {
+  WATCHER_PROMPT_RULES,
+  WATCHER_SKILL,
+} from '@karmaniverous/jeeves-watcher-core';
 import { describe, expect, it } from 'vitest';
 
 import { watcherDescriptor } from './descriptor';
@@ -26,6 +30,11 @@ describe('watcherDescriptor', () => {
     expect(watcherDescriptor.pluginPackage).toBe(
       '@karmaniverous/jeeves-watcher-openclaw',
     );
+  });
+
+  it('carries the core prompt rules and skill', () => {
+    expect(watcherDescriptor.promptRules).toBe(WATCHER_PROMPT_RULES);
+    expect(watcherDescriptor.skill).toBe(WATCHER_SKILL);
   });
 
   it('carries no v0.x workspace-writer fields', () => {

@@ -12,7 +12,15 @@ import typescriptPlugin from '@rollup/plugin-typescript';
 import type { RollupOptions } from 'rollup';
 import dtsPlugin from 'rollup-plugin-dts';
 
-const external = ['@karmaniverous/jeeves', '@karmaniverous/jsonmap', 'zod'];
+/**
+ * Runtime dependencies stay external, sub-paths included (`@karmaniverous/jeeves/catalog`,
+ * `zod/v4/core`), so consumers share one copy of each.
+ */
+const external = [
+  /^@karmaniverous\/jeeves(?:\/|$)/,
+  '@karmaniverous/jsonmap',
+  /^zod(?:\/|$)/,
+];
 
 const typescript = typescriptPlugin({
   tsconfig: './tsconfig.json',
@@ -36,6 +44,7 @@ const library: RollupOptions = {
 /** Bundled .d.ts declarations. */
 const types: RollupOptions = {
   input: 'src/index.ts',
+  external,
   output: [{ file: 'dist/index.d.ts', format: 'esm' }],
   plugins: [dtsPlugin()],
 };
