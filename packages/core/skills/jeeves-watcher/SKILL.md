@@ -497,7 +497,7 @@ Filter-only point query without vector search (`POST /scan`). Use for structural
 
 - `filter` (object, required) — Qdrant filter object. Required to prevent accidental full-collection scans.
 - `limit` (number, optional) — page size (integer 1 to 1000), default 100
-- `cursor` (string, optional) — opaque cursor from previous response for pagination
+- `cursor` (string or number, optional) — opaque cursor from previous response for pagination
 - `fields` (string[], optional) — payload fields to return (projection)
 - `countOnly` (boolean, optional) — if true, return `{ count }` instead of points
 

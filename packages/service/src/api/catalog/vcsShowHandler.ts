@@ -60,6 +60,9 @@ export function createCatalogVcsShowHandler(
   deps: CatalogVcsShowDeps,
 ): CatalogHandler<Entry<'vcsShow'>> {
   return async (input, request) => {
+    // Over HTTP, `registerCatalog`'s preValidation hook answers a VCS-off
+    // request first (so `HEAD` and an invalid query get the same 404); this
+    // guard keeps the handler total on its own.
     if (!deps.coordinator) {
       return { status: 404, body: notFoundBody(request.method, request.url) };
     }

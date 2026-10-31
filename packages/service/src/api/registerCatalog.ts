@@ -83,11 +83,12 @@ export function normalizeConfigApplyBody(body: unknown): unknown {
 /**
  * Register the catalog routes and `GET /openapi.json`.
  *
- * Inside the child plugin, two `preValidation` hooks run before the
+ * Inside the child plugin, one `preValidation` hook runs before the
  * catalog validates a request:
  * - `POST /config/apply` gets {@link normalizeConfigApplyBody};
- * - with VCS disabled, `GET /vcs/show` answers the exact not-found body an
- *   unregistered route sends, whatever its query (spec #281 D28).
+ * - with VCS disabled, `GET /vcs/show` (and the `HEAD` route Fastify
+ *   derives from it) answers the exact not-found body an unregistered route
+ *   sends, whatever its query (spec #281 D28).
  *
  * @param app - The root Fastify app (auth and error hooks already set).
  * @param options - Handler dependencies, logger and validation mode.

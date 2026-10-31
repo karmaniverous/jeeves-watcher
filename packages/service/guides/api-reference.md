@@ -1940,7 +1940,7 @@ Resolves the watch root for the path, computes the relative path, and runs `git 
 
 #### Errors
 
-`400 invalid_request` when `path` or `commit` is missing or empty, with one `details` entry (slot `query`) per parameter (unreleased; before, `"Missing required query parameters: path, commit"` without `details`); `404 not_found` when no VCS root contains the path (`"Path does not match any VCS-enabled watch root"`) or `git show` fails, for example an unknown commit or a file absent at that commit (`"File not found at the specified commit"`).
+`400 invalid_request` when `path` or `commit` is missing or empty, with `error` naming the first missing one (`"Missing required query parameter: path"`) and one `details` entry (slot `query`) per parameter (unreleased; before, `"Missing required query parameters: path, commit"` without `details`); `404 not_found` when no VCS root contains the path (`"Path does not match any VCS-enabled watch root"`) or `git show` fails, for example an unknown commit or a file absent at that commit (`"File not found at the specified commit"`).
 
 ---
 
