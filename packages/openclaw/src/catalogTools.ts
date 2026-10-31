@@ -59,3 +59,21 @@ export function createCatalogTools(
   });
   return new Map(tools.map((tool) => [tool.name, tool]));
 }
+
+/**
+ * Register one catalog-built tool as an optional tool.
+ *
+ * @param api - Plugin API (tool registration target).
+ * @param catalogTools - Catalog-built tools, by name ({@link createCatalogTools}).
+ * @param name - Tool name.
+ * @throws When no tool of that name was built.
+ */
+export function registerCatalogTool(
+  api: Pick<PluginApi, 'registerTool'>,
+  catalogTools: ReadonlyMap<string, ToolDescriptor>,
+  name: string,
+): void {
+  const tool = catalogTools.get(name);
+  if (!tool) throw new Error(`Catalog tool not built: ${name}`);
+  api.registerTool(tool, { optional: true });
+}

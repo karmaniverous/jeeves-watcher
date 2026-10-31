@@ -12,6 +12,7 @@ import {
   registerApiTool,
   type WatcherToolEntry,
 } from './apiTool.js';
+import { registerCatalogTool } from './catalogTools.js';
 import { vcsToolConfigs } from './vcsTools.js';
 
 /**
@@ -152,9 +153,7 @@ export function registerWatcherTools(
 
   for (const tool of tools) {
     if (typeof tool === 'string') {
-      const built = catalogTools.get(tool);
-      if (!built) throw new Error(`Catalog tool not built: ${tool}`);
-      api.registerTool(built, { optional: true });
+      registerCatalogTool(api, catalogTools, tool);
     } else {
       registerApiTool(api, baseUrl, tool);
     }

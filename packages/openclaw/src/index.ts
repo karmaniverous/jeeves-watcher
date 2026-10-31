@@ -13,7 +13,7 @@
 
 import { getPackageVersion, type PluginApi } from '@karmaniverous/jeeves';
 
-import { createCatalogTools } from './catalogTools.js';
+import { createCatalogTools, registerCatalogTool } from './catalogTools.js';
 import { getApiUrl } from './helpers.js';
 import {
   createLazyCore,
@@ -47,9 +47,7 @@ export default function register(api: PluginApi): void {
   // call.
   const catalogTools = createCatalogTools(api, component);
   for (const name of STANDARD_TOOLS) {
-    const tool = catalogTools.get(name);
-    if (!tool) throw new Error(`Standard tool not built: ${name}`);
-    toolApi.registerTool(tool, { optional: true });
+    registerCatalogTool(toolApi, catalogTools, name);
   }
 
   // 14 domain-specific tools (search, enrich, scan, vcs, ...).
