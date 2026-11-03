@@ -15,6 +15,7 @@ import { IssuesManager } from '../issues';
 import { pointId } from '../pointId';
 import type { DocumentProcessor } from '../processor';
 import { EventQueue } from '../queue';
+import { VirtualRuleStore } from '../rules/virtualRules';
 import { ValuesManager } from '../values';
 import type { VectorStoreClient } from '../vectorStore';
 import { qdrantAvailable } from './harness/qdrant';
@@ -58,6 +59,7 @@ describe.skipIf(!qdrantAvailable())(
           issuesManager: new IssuesManager(stateDir, logger),
           valuesManager: new ValuesManager(stateDir, logger),
           enrichmentStore,
+          virtualRuleStore: new VirtualRuleStore(),
           configPath: '',
         });
         onTestFinished(() => server.close());
@@ -92,6 +94,7 @@ describe.skipIf(!qdrantAvailable())(
           issuesManager: new IssuesManager(stateDir, logger),
           valuesManager: new ValuesManager(stateDir, logger),
           enrichmentStore,
+          virtualRuleStore: new VirtualRuleStore(),
           configPath: '',
         });
         onTestFinished(() => server.close());
@@ -149,6 +152,7 @@ describe.skipIf(!qdrantAvailable())(
           logger,
           issuesManager: new IssuesManager(stateDir, logger),
           valuesManager: new ValuesManager(stateDir, logger),
+          virtualRuleStore: new VirtualRuleStore(),
           configPath: '',
         });
         onTestFinished(() => server.close());

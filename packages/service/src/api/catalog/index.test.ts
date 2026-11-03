@@ -1,15 +1,22 @@
 /**
  * @module api/catalog/index.test
- * `createCatalogHandlers` builds one handler per served catalog entry
- * name, each callable and behaviourally wired to its dependencies.
+ * `createCatalogHandlers` builds one handler per catalog entry name, each
+ * callable and behaviourally wired to its dependencies; the gated `/vcs/*`
+ * entries get the not-found stubs while VCS is off and their real handlers
+ * while it is on.
  */
 
+import { WATCHER_CATALOG } from '@karmaniverous/jeeves-watcher-core';
 import pino from 'pino';
 import { describe, expect, it, vi } from 'vitest';
 
 import { watcherDescriptor } from '../../descriptor';
-import { clearCache } from '../handlers/withCache';
-import { createCatalogHandlers, SERVED_CATALOG } from './index';
+import { clearCache } from '../responseCache';
+import {
+  createCatalogHandlers,
+  type CreateCatalogHandlersOptions,
+} from './index';
+import { notFoundBody } from './notFoundBody';
 
 vi.mock('./renderSourceDocument', () => ({
   renderSourceDocument: vi.fn().mockResolvedValue({
@@ -36,8 +43,10 @@ function buildHandlers(
     }),
   storedRule: () => Promise<string | null> = () => Promise.resolve(null),
   cacheTtlMs = 0,
+  vcs?: CreateCatalogHandlersOptions['vcs'],
 ) {
   const logger = pino({ level: 'silent' });
+  const unused = {} as never;
   return createCatalogHandlers({
     status: {
       vectorStore: {
@@ -88,15 +97,28 @@ function buildHandlers(
       } as never,
       logger,
     },
-    vcsShow: {},
+    configMatch: unused,
+    configValidate: unused,
+    searchFacets: unused,
+    walk: unused,
+    issues: { issuesManager: { getAll: () => ({}) } },
+    metadata: unused,
+    reindex: unused,
+    documents: unused,
+    documentsDelete: unused,
+    pointsDelete: unused,
+    rebuildMetadata: unused,
+    rulesReapply: unused,
+    rules: unused,
+    ...(vcs ? { vcs } : {}),
     cacheTtlMs,
   });
 }
 
 describe('createCatalogHandlers', () => {
-  it('builds a handler for every served catalog entry name', () => {
+  it('builds a handler for every catalog entry name', () => {
     const handlers = buildHandlers();
-    const names = SERVED_CATALOG.entries.map((entry) => entry.name);
+    const names = WATCHER_CATALOG.entries.map((entry) => entry.name);
 
     for (const name of names) {
       expect(typeof handlers[name]).toBe('function');
@@ -104,7 +126,7 @@ describe('createCatalogHandlers', () => {
     expect(Object.keys(handlers).sort()).toEqual([...names].sort());
   });
 
-  it('wires status, config, render, search, scan and vcsShow handlers', async () => {
+  it('wires status, config, render, search, scan and issues handlers', async () => {
     const handlers = buildHandlers();
     const input = { params: {}, query: {}, body: {} } as never;
 
@@ -132,11 +154,48 @@ describe('createCatalogHandlers', () => {
     );
     expect(scan.status).toBe(200);
 
-    const vcsShow = await handlers.vcsShow(
-      { params: {}, query: { path: 'a', commit: 'b' }, body: {} },
-      { method: 'GET', url: '/vcs/show' } as never,
+    const issues = await handlers.issues(input, {} as never);
+    expect(issues).toEqual({ status: 200, body: { count: 0, issues: {} } });
+  });
+
+  it('answers every gated entry with the not-found body while VCS is off', async () => {
+    const handlers = buildHandlers();
+    const request = (url: string) => ({ method: 'GET', url }) as never;
+    const input = { params: {}, query: {}, body: {} } as never;
+
+    for (const name of [
+      'vcsStatus',
+      'vcsHistory',
+      'vcsShow',
+      'vcsDiff',
+      'vcsCheckExclusion',
+      'vcsRevert',
+      'vcsExclude',
+    ] as const) {
+      const result = await handlers[name](input, request(`/x?${name}`));
+      expect(result).toEqual({
+        status: 404,
+        body: notFoundBody('GET', `/x?${name}`),
+      });
+    }
+  });
+
+  it('wires the real /vcs/* handlers while VCS is on', async () => {
+    const coordinator = { getRoots: () => [], getManager: () => undefined };
+    const handlers = buildHandlers(undefined, undefined, 0, {
+      coordinator: coordinator as never,
+      logger: pino({ level: 'silent' }),
+    });
+
+    const status = await handlers.vcsStatus(
+      { params: {}, query: {}, body: {} },
+      {} as never,
     );
-    expect(vcsShow.status).toBe(404); // no coordinator configured
+
+    expect(status).toEqual({
+      status: 200,
+      body: { enabled: false, roots: [] },
+    });
   });
 });
 

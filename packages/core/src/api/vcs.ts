@@ -63,6 +63,14 @@ export type VcsStatusResponse = z.infer<typeof vcsStatusResponseSchema>;
 /** Query string of `GET /vcs/history`. */
 export const vcsHistoryQuerySchema = z.object({
   glob: requiredQueryParam('glob', 'Glob inside a VCS-enabled watch root.'),
+  since: z
+    .string()
+    .optional()
+    .describe('Only commits after this date (any date git log accepts).'),
+  until: z
+    .string()
+    .optional()
+    .describe('Only commits before this date (any date git log accepts).'),
   limit: z.string().optional().describe('Most commits to return (default 20).'),
 });
 

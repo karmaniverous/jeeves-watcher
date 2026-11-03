@@ -1135,7 +1135,7 @@
     "/vcs/status": {
       "get": {
         "operationId": "vcsStatus",
-        "description": "VCS state for all roots: enabled state, tracked files, last commit, remote status, commit circuit breaker state.",
+        "description": "VCS state for all roots: enabled state, tracked files, last commit, remote status, commit circuit breaker state. Answers 404 `not_found` when version control is disabled (`vcs.enabled: false`).",
         "security": [
           {
             "bearer": []
@@ -1248,7 +1248,7 @@
     "/vcs/history": {
       "get": {
         "operationId": "vcsHistory",
-        "description": "Query change history by path or glob with optional date range.",
+        "description": "Query change history by path or glob with optional date range. Answers 404 `not_found` when version control is disabled (`vcs.enabled: false`).",
         "security": [
           {
             "bearer": []
@@ -1265,6 +1265,24 @@
             },
             "required": true,
             "description": "Glob inside a VCS-enabled watch root."
+          },
+          {
+            "in": "query",
+            "name": "since",
+            "schema": {
+              "description": "Only commits after this date (any date git log accepts).",
+              "type": "string"
+            },
+            "description": "Only commits after this date (any date git log accepts)."
+          },
+          {
+            "in": "query",
+            "name": "until",
+            "schema": {
+              "description": "Only commits before this date (any date git log accepts).",
+              "type": "string"
+            },
+            "description": "Only commits before this date (any date git log accepts)."
           },
           {
             "in": "query",
@@ -1330,7 +1348,7 @@
     "/vcs/show": {
       "get": {
         "operationId": "vcsShow",
-        "description": "Retrieve file content at a specific version. The reply is the raw file content; its content-type follows the file extension.",
+        "description": "Retrieve file content at a specific version. The reply is the raw file content; its content-type follows the file extension. Answers 404 `not_found` when version control is disabled (`vcs.enabled: false`).",
         "security": [
           {
             "bearer": []
@@ -1387,7 +1405,7 @@
     "/vcs/diff": {
       "get": {
         "operationId": "vcsDiff",
-        "description": "Show what changed between two versions, or between a version and current. The reply is a unified diff.",
+        "description": "Show what changed between two versions, or between a version and current. The reply is a unified diff. Answers 404 `not_found` when version control is disabled (`vcs.enabled: false`).",
         "security": [
           {
             "bearer": []
@@ -1453,7 +1471,7 @@
     "/vcs/check-exclusion": {
       "get": {
         "operationId": "vcsCheckExclusion",
-        "description": "Check whether a path is excluded from version tracking and why.",
+        "description": "Check whether a path is excluded from version tracking and why. Answers 404 `not_found` when version control is disabled (`vcs.enabled: false`).",
         "security": [
           {
             "bearer": []
@@ -2453,7 +2471,7 @@
     "/vcs/revert": {
       "post": {
         "operationId": "vcsRevert",
-        "description": "Restore files from a historical commit (forward-only reversion).",
+        "description": "Restore files from a historical commit (forward-only reversion). Answers 404 `not_found` when version control is disabled (`vcs.enabled: false`).",
         "security": [
           {
             "bearer": []
@@ -2533,7 +2551,7 @@
     "/vcs/exclude": {
       "post": {
         "operationId": "vcsExclude",
-        "description": "Manage .gitignore entries for version tracking exclusion.",
+        "description": "Manage .gitignore entries for version tracking exclusion. Answers 404 `not_found` when version control is disabled (`vcs.enabled: false`).",
         "security": [
           {
             "bearer": []

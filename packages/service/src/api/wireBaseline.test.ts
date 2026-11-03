@@ -1,6 +1,6 @@
 /**
  * @module api/wireBaseline.test
- * Wire baseline for the catalog slice routes: every scenario in `test/wire/scenarios` is replayed through the real server and must match what jeeves-watcher 0.20.0 sent (`test/wire/wire-0.20.0.json`), apart from the documented changes listed here.
+ * Wire baseline for every catalog route: every scenario in `test/wire/scenarios` is replayed through the real server and must match what jeeves-watcher 0.20.0 sent (`test/wire/wire-0.20.0.json`), apart from the documented changes listed here.
  *
  * The only changes are request-validation 400s, which the catalog now
  * produces (`test/wire/wire-catalog-400.json`): still `400 invalid_request`,
@@ -51,17 +51,6 @@ const CHANGES: Partial<Record<string, (before: WireRecord) => WireRecord>> =
     ]),
   );
 
-/**
- * Rejected `POST /documents/delete` requests whose 400 text changed when the
- * request schema became one object with a refinement (spec Design 3) while
- * the legacy route still answers. Still `400 invalid_request`; the catalog
- * switch (A3) moves them to `wire-catalog-400.json` and empties this set.
- */
-const TRANSITIONAL_400 = new Set([
-  'documentsDelete empty body',
-  'documentsDelete both selectors',
-]);
-
 let wire: WireApp;
 const captured = captureLogger();
 
@@ -73,7 +62,7 @@ afterAll(async () => {
   await wire.close();
 });
 
-describe('slice routes keep the 0.20.0 wire format', () => {
+describe('catalog routes keep the 0.20.0 wire format', () => {
   it('has a baseline for every scenario and no stale ones', () => {
     expect(Object.keys(baseline).sort()).toEqual(
       WIRE_SCENARIOS.map((s) => s.name).sort(),
@@ -91,15 +80,7 @@ describe('slice routes keep the 0.20.0 wire format', () => {
     async (name, scenario) => {
       const before = baseline[name];
       const expected = CHANGES[name]?.(before) ?? before;
-      // A transitional 400 is compared on status and code only.
-      const view = (record: WireRecord) =>
-        TRANSITIONAL_400.has(name)
-          ? {
-              status: record.status,
-              code: (record.body as { code?: unknown }).code,
-            }
-          : record;
-      expect(view(await runScenario(wire, scenario))).toEqual(view(expected));
+      expect(await runScenario(wire, scenario)).toEqual(expected);
     },
   );
 });

@@ -1,10 +1,11 @@
 /**
  * @module api/registerCatalog
- * Registers the served catalog routes (status, config, config apply,
- * render, search, scan, vcs/show) in a child plugin, so `createApiServer`
- * stays synchronous (spec #281 D29), plus the open `GET /openapi.json`
- * route. Request validation comes from the catalog; validation errors are
- * `400 invalid_request` (`formatValidationError`).
+ * Registers every `WATCHER_CATALOG` route in a child plugin, so
+ * `createApiServer` stays synchronous (spec #281 D29), plus the open
+ * `GET /openapi.json` route. Request validation comes from the catalog;
+ * validation errors are `400 invalid_request` (`formatValidationError`). A
+ * gated entry whose feature is off answers the not-found 404 an
+ * unregistered route sends (`api/featureGates`).
  */
 
 import {
@@ -14,6 +15,7 @@ import {
 } from '@karmaniverous/jeeves/fastify';
 import {
   getEndpoint,
+  WATCHER_CATALOG,
   WATCHER_OPENAPI_DOCUMENT,
 } from '@karmaniverous/jeeves-watcher-core';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
@@ -21,8 +23,9 @@ import type pino from 'pino';
 
 import { OPENAPI_PATH } from './apiKeyAuth';
 import type { CreateCatalogHandlersOptions } from './catalog';
-import { createCatalogHandlers, SERVED_CATALOG } from './catalog';
+import { createCatalogHandlers } from './catalog';
 import { notFoundBody } from './catalog/notFoundBody';
+import { disabledRoutes, routeKey } from './featureGates';
 
 /** Response validation mode of the catalog routes. */
 export type CatalogResponseValidation = 'log' | 'strict';
@@ -82,12 +85,15 @@ export function normalizeConfigApplyBody(body: unknown): unknown {
 /**
  * Register the catalog routes and `GET /openapi.json`.
  *
- * Inside the child plugin, one `preValidation` hook runs before the
- * catalog validates a request:
- * - `POST /config/apply` gets {@link normalizeConfigApplyBody};
- * - with VCS disabled, `GET /vcs/show` (and the `HEAD` route Fastify
- *   derives from it) answers the exact not-found body an unregistered route
- *   sends, whatever its query (spec #281 D28).
+ * Inside the child plugin, two hooks run before a catalog handler:
+ * - the feature gate (`onRequest`, after the root app's auth hook and
+ *   before the body is parsed): a gated entry whose feature is off answers
+ *   the exact not-found body an unregistered route sends, for any method
+ *   and whatever the query or body (spec Design 3, D28). Version control is
+ *   on exactly when the `/vcs/*` handlers have their dependencies;
+ * - `preValidation`: `POST /config/apply` gets {@link normalizeConfigApplyBody},
+ *   and `POST /rebuild-metadata` without a body gets `{}` (its 0.20.0 route
+ *   never read the body, so a bodyless request succeeded).
  *
  * @param app - The root Fastify app (auth and error hooks already set).
  * @param options - Handler dependencies, logger and validation mode.
@@ -97,33 +103,39 @@ export function registerCatalog(
   options: RegisterCatalogOptions,
 ): void {
   const configApplyPath = getEndpoint('configApply').path;
-  const vcsShowPath = getEndpoint('vcsShow').path;
-  const vcsEnabled = options.handlers.vcsShow.coordinator !== undefined;
+  const rebuildMetadataPath = getEndpoint('rebuildMetadata').path;
+  const disabled = disabledRoutes(WATCHER_CATALOG.entries, {
+    vcs: options.handlers.vcs !== undefined,
+  });
 
   void app.register(async (child) => {
     child.addHook(
-      'preValidation',
+      'onRequest',
       async (request: FastifyRequest, reply: FastifyReply) => {
-        const route = request.routeOptions.url;
-        if (request.method === 'POST' && route === configApplyPath) {
-          request.body = normalizeConfigApplyBody(request.body);
-          return;
-        }
-        if (
-          !vcsEnabled &&
-          (request.method === 'GET' || request.method === 'HEAD') &&
-          route === vcsShowPath
-        ) {
+        const route = request.routeOptions.url ?? '';
+        if (disabled.has(routeKey(request.method, route))) {
           return reply
             .status(404)
             .send(notFoundBody(request.method, request.url));
         }
       },
     );
+    child.addHook(
+      'preValidation',
+      (request: FastifyRequest, _reply: FastifyReply, done: () => void) => {
+        const route = request.routeOptions.url;
+        if (request.method === 'POST' && route === configApplyPath) {
+          request.body = normalizeConfigApplyBody(request.body);
+        } else if (request.method === 'POST' && route === rebuildMetadataPath) {
+          request.body ??= {};
+        }
+        done();
+      },
+    );
 
     await registerCatalogRoutes(
       child,
-      SERVED_CATALOG,
+      WATCHER_CATALOG,
       createCatalogHandlers(options.handlers),
       {
         formatValidationError,

@@ -1,6 +1,6 @@
 /**
  * @module api
- * Fastify API server factory. Registers the catalog routes (status, config, config apply, render, search, scan, vcs/show, plus `GET /openapi.json`) and the remaining routes (metadata, facets, walk, documents, issues, config schema/match/validate, reindex, rules, VCS), and returns an unstarted server instance.
+ * Fastify API server factory. Registers every `WATCHER_CATALOG` route (plus `GET /openapi.json`) from the catalog, and returns an unstarted server instance.
  */
 
 import { dirname } from 'node:path';
@@ -8,26 +8,14 @@ import { dirname } from 'node:path';
 import {
   API_DEFAULTS,
   extractWatchPathStrings,
-  getEndpoint,
 } from '@karmaniverous/jeeves-watcher-core';
 import Fastify, { type FastifyInstance } from 'fastify';
 
 import { registerApiHooks } from './apiHooks';
 import type { ApiServerOptions } from './apiServerOptions';
-import { createFacetsHandler } from './handlers/facets';
-import { createIssuesHandler } from './handlers/issues';
-import { createMetadataHandler } from './handlers/metadata';
-import { createRebuildMetadataHandler } from './handlers/rebuildMetadata';
-import { createWalkHandler } from './handlers/walk';
-import { withCache } from './handlers/withCache';
+import { createConfigApplyCallback } from './configApplyCallback';
+import { createOnRulesChanged } from './onRulesChanged';
 import { registerCatalog } from './registerCatalog';
-import {
-  createConfigApplyCallback,
-  registerConfigRoutes,
-} from './registerConfigRoutes';
-import { registerDocumentRoutes } from './registerDocumentRoutes';
-import { registerRuleRoutes } from './registerRuleRoutes';
-import { registerVcsRoutes } from './registerVcsRoutes';
 import { ReindexTracker } from './ReindexTracker';
 
 export type { ApiServerOptions } from './apiServerOptions';
@@ -42,6 +30,8 @@ export { ReindexTracker } from './ReindexTracker';
  * The returned instance is not yet listening; call `server.listen()` to
  * start. The catalog routes are registered in a child plugin, so a
  * registration error surfaces from `ready()` or `listen()` (spec #281 D29).
+ * The `/vcs/*` routes answer as unregistered unless a `vcsCoordinator` is
+ * given (`api/featureGates`).
  *
  * @param options - The server options.
  * @returns A configured Fastify instance.
@@ -73,6 +63,21 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
   const cacheTtlMs = config.api?.cacheTtlMs ?? API_DEFAULTS.cacheTtlMs;
   const configDir = dirname(configPath);
 
+  // Registering or unregistering rules rebuilds the processor's rules and
+  // triggers a file-only reindex.
+  const onRulesChanged = createOnRulesChanged({
+    getConfig,
+    configPath,
+    processor,
+    logger,
+    virtualRuleStore,
+    reindexTracker,
+    valuesManager,
+    issuesManager,
+    gitignoreFilter: options.gitignoreFilter,
+    vectorStore,
+  });
+
   registerCatalog(app, {
     logger,
     responseValidation: 'strict',
@@ -90,9 +95,7 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
         valuesManager,
         issuesManager,
         helperIntrospection: options.helperIntrospection,
-        getVirtualRules: virtualRuleStore
-          ? () => virtualRuleStore.getAll()
-          : undefined,
+        getVirtualRules: () => virtualRuleStore.getAll(),
       },
       configApply: {
         descriptor: options.descriptor,
@@ -103,6 +106,8 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
           reindexTracker,
         }),
       },
+      configMatch: { getConfig, logger },
+      configValidate: { getConfig, logger, configDir },
       render: { processor, getWatch: () => getConfig().watch, logger },
       search: {
         embeddingProvider,
@@ -116,65 +121,35 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
         },
       },
       scan: { vectorStore, logger },
-      vcsShow: { coordinator: options.vcsCoordinator },
+      searchFacets: { getConfig, valuesManager, configDir, logger },
+      walk: {
+        getWatchPaths: () => extractWatchPathStrings(getConfig().watch.paths),
+        getFileSystemWatcher,
+        logger,
+      },
+      issues: { issuesManager },
+      metadata: { processor, getConfig, logger, configDir },
+      reindex: { ...options, getConfig, reindexTracker },
+      documents: { processor, sourceQueue: options.sourceQueue, logger },
+      documentsDelete: {
+        vectorStore,
+        enrichmentStore: options.enrichmentStore,
+        issuesManager,
+        logger,
+      },
+      pointsDelete: { vectorStore, logger },
+      rebuildMetadata: {
+        enrichmentStore: options.enrichmentStore,
+        vectorStore,
+        logger,
+      },
+      rulesReapply: { processor, vectorStore, logger },
+      rules: { virtualRuleStore, logger, onRulesChanged },
+      ...(options.vcsCoordinator
+        ? { vcs: { coordinator: options.vcsCoordinator, logger } }
+        : {}),
     },
   });
-
-  app.post(
-    getEndpoint('metadata').path,
-    createMetadataHandler({
-      processor,
-      getConfig,
-      logger,
-      configDir,
-    }),
-  );
-
-  app.get(
-    getEndpoint('searchFacets').path,
-    createFacetsHandler({ getConfig, valuesManager, configDir }),
-  );
-
-  app.post(
-    getEndpoint('walk').path,
-    createWalkHandler({
-      getWatchPaths: () => extractWatchPathStrings(getConfig().watch.paths),
-      getFileSystemWatcher,
-      logger,
-    }),
-  );
-
-  app.post(
-    getEndpoint('rebuildMetadata').path,
-    createRebuildMetadataHandler({
-      enrichmentStore: options.enrichmentStore,
-      vectorStore,
-      logger,
-    }),
-  );
-
-  registerDocumentRoutes(app, options);
-
-  app.get(
-    getEndpoint('issues').path,
-    withCache(cacheTtlMs, createIssuesHandler({ issuesManager })),
-  );
-
-  registerConfigRoutes(app, options, { getConfig, reindexTracker, cacheTtlMs });
-
-  // Virtual rules and points deletion routes
-  if (virtualRuleStore) {
-    registerRuleRoutes(app, options, {
-      virtualRuleStore,
-      getConfig,
-      reindexTracker,
-    });
-  }
-
-  // Legacy VCS routes: only registered when a VcsCoordinator is provided
-  if (options.vcsCoordinator) {
-    registerVcsRoutes(app, options, { coordinator: options.vcsCoordinator });
-  }
 
   return app;
 }

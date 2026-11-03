@@ -3,7 +3,7 @@ import { describe, expect, expectTypeOf, it } from 'vitest';
 import type { z } from 'zod';
 
 import { vcsShowQuerySchema, watcherHealthSchema } from './api/index.js';
-import { WATCHER_CATALOG } from './catalog.js';
+import { VCS_DISABLED_NOTE, WATCHER_CATALOG } from './catalog.js';
 import { getEndpoint, WATCHER_ENDPOINTS } from './endpoints.js';
 
 /** `kind` per entry (spec Design 3, under the 0.20.0 names). */
@@ -154,6 +154,30 @@ describe('WATCHER_CATALOG', () => {
         expect((field as z.ZodType).description, `${name}.${key}`).toBeTruthy();
       }
     }
+  });
+
+  it('ends the description of every /vcs/ entry, and only those, with the VCS-off note', () => {
+    const noted = WATCHER_CATALOG.entries
+      .filter((e) => e.description.endsWith(` ${VCS_DISABLED_NOTE}`))
+      .map((e) => e.name);
+    const vcs = WATCHER_CATALOG.entries
+      .filter((e) => e.path.startsWith('/vcs/'))
+      .map((e) => e.name);
+    expect(vcs).toHaveLength(7);
+    expect(noted).toEqual(vcs);
+  });
+
+  it('keeps the extra text of vcsShow and vcsDiff before the VCS-off note', () => {
+    expect(WATCHER_CATALOG.byName('vcsDiff').description).toBe(
+      `${getEndpoint('vcsDiff').description} The reply is a unified diff. ${VCS_DISABLED_NOTE}`,
+    );
+  });
+
+  it('takes since and until on the vcsHistory query', () => {
+    const query = WATCHER_CATALOG.byName('vcsHistory').query;
+    expect(
+      query.parse({ glob: '*.md', since: '2024-01-01', until: '2024-12-31' }),
+    ).toEqual({ glob: '*.md', since: '2024-01-01', until: '2024-12-31' });
   });
 
   it('keeps literal entry names', () => {

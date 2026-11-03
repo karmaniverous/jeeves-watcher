@@ -59,8 +59,9 @@ export interface ApiServerOptions {
   configPath: string;
   /** Helper introspection for merged document. */
   helperIntrospection?: AllHelpersIntrospection;
-  /** Virtual rule store for externally registered inference rules. */
-  virtualRuleStore?: VirtualRuleStore;
+  /** Virtual rule store for externally registered inference rules (the
+   * `/rules/*` routes). */
+  virtualRuleStore: VirtualRuleStore;
   /** Gitignore filter for reindex path validation. */
   gitignoreFilter?: GitignoreFilter;
   /** Service version string for /status endpoint. */
@@ -73,6 +74,7 @@ export interface ApiServerOptions {
   getFileSystemWatcher?: () => FileSystemWatcher | undefined;
   /** Optional enrichment store for persisted enrichment metadata. */
   enrichmentStore?: EnrichmentStoreInterface;
-  /** VCS coordinator for git-backed versioning API routes. */
+  /** VCS coordinator for the git-backed versioning (`/vcs/*`) routes; without
+   * it they answer as unregistered (`api/featureGates`). */
   vcsCoordinator?: VcsCoordinator;
 }

@@ -74,6 +74,27 @@ function route<N extends EndpointName>(name: N) {
   return { name, method, path, description, auth: bearer } as const;
 }
 
+/**
+ * Description suffix of every entry the service serves only while version
+ * control is on (spec Design 3): with VCS off, the route answers the
+ * not-found 404 an unregistered route sends.
+ */
+export const VCS_DISABLED_NOTE =
+  'Answers 404 `not_found` when version control is disabled (`vcs.enabled: false`).';
+
+/**
+ * {@link route} for a version-control entry: its description ends with
+ * {@link VCS_DISABLED_NOTE}, after any extra text.
+ *
+ * @param name - Endpoint name.
+ * @param extra - Text appended to the endpoint description first.
+ */
+function vcsRoute<N extends EndpointName>(name: N, extra?: string) {
+  const base = route(name);
+  const text = extra ? `${base.description} ${extra}` : base.description;
+  return { ...base, description: `${text} ${VCS_DISABLED_NOTE}` } as const;
+}
+
 /** The watcher endpoint catalog. */
 export const WATCHER_CATALOG = defineCatalog([
   ...standardEntries('watcher', {
@@ -134,34 +155,35 @@ export const WATCHER_CATALOG = defineCatalog([
     kind: 'read',
   },
   {
-    ...route('vcsStatus'),
+    ...vcsRoute('vcsStatus'),
     response: vcsStatusResponseSchema,
     kind: 'read',
   },
   {
-    ...route('vcsHistory'),
+    ...vcsRoute('vcsHistory'),
     query: vcsHistoryQuerySchema,
     response: vcsHistoryResponseSchema,
     kind: 'read',
   },
   {
-    ...route('vcsShow'),
-    description: `${getEndpoint('vcsShow').description} The reply is the raw file content; its content-type follows the file extension.`,
+    ...vcsRoute(
+      'vcsShow',
+      'The reply is the raw file content; its content-type follows the file extension.',
+    ),
     query: vcsShowQuerySchema,
     response: z.string(),
     contentType: 'text/plain',
     kind: 'read',
   },
   {
-    ...route('vcsDiff'),
-    description: `${getEndpoint('vcsDiff').description} The reply is a unified diff.`,
+    ...vcsRoute('vcsDiff', 'The reply is a unified diff.'),
     query: vcsDiffQuerySchema,
     response: vcsDiffResponseSchema,
     contentType: 'text/plain',
     kind: 'read',
   },
   {
-    ...route('vcsCheckExclusion'),
+    ...vcsRoute('vcsCheckExclusion'),
     query: vcsCheckExclusionQuerySchema,
     response: vcsCheckExclusionResponseSchema,
     kind: 'read',
@@ -236,14 +258,14 @@ export const WATCHER_CATALOG = defineCatalog([
     kind: 'destructive',
   },
   {
-    ...route('vcsRevert'),
+    ...vcsRoute('vcsRevert'),
     body: vcsRevertRequestSchema,
     response: vcsRevertResponseSchema,
     kind: 'destructive',
   },
   {
     // D103: it untracks files, ending their history.
-    ...route('vcsExclude'),
+    ...vcsRoute('vcsExclude'),
     body: vcsExcludeRequestSchema,
     response: vcsExcludeResponseSchema,
     kind: 'destructive',

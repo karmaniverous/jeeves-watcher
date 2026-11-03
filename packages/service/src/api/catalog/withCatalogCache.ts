@@ -1,8 +1,7 @@
 /**
  * @module api/catalog/withCatalogCache
- * In-memory TTL cache for catalog handlers (`CatalogHandler<E>`), sharing
- * its store and `clearCache` with `api/handlers/withCache` (spec #281 step
- * 6: "same TTL, same bypass rules, same `clearCache`"). A success is cached
+ * In-memory TTL cache for catalog handlers (`CatalogHandler<E>`), over the
+ * store of `api/responseCache` (cleared by its `clearCache`). A success is cached
  * unless its headers ask `Cache-Control: no-cache`; errors are never
  * cached, so a request that must run live (`render`'s source target,
  * Decision 16.11) replies `no-cache`.
@@ -14,7 +13,7 @@ import type {
   HandlerResult,
 } from '@karmaniverous/jeeves/fastify';
 
-import { hashObject, sharedResponseCache } from '../handlers/withCache';
+import { hashObject, sharedResponseCache } from '../responseCache';
 
 /**
  * Whether response headers mark the result `Cache-Control: no-cache`, under

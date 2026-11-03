@@ -1,6 +1,6 @@
 /**
  * @module api/sendError.test
- * Unit tests for the error body builder, sendError (status from the code), sendErrorWithStatus, the sources-not-available shortcut, status-to-code mapping and core result passthrough.
+ * Unit tests for the error body builder, sendError (status from the code), sendErrorWithStatus, status-to-code mapping and core result passthrough.
  */
 
 import {
@@ -13,11 +13,8 @@ import { mockReply } from '../test/vcsHandlers';
 import {
   apiErrorBody,
   codeForStatus,
-  INTERNAL_ERROR_MESSAGE,
   sendError,
   sendErrorWithStatus,
-  sendInternalError,
-  sendSourcesNotAvailable,
 } from './sendError';
 
 describe('apiErrorBody', () => {
@@ -76,26 +73,6 @@ describe('sendError', () => {
     const reply = sendErrorWithStatus(mockReply(), 400, 'not_available', 'n');
     expect(reply.statusCode).toBe(400);
     expect(reply.body).toEqual({ code: 'not_available', error: 'n' });
-  });
-
-  it('sendSourcesNotAvailable sends 503 not_available', () => {
-    const a = sendSourcesNotAvailable(mockReply());
-    expect(a.statusCode).toBe(503);
-    expect(a.body).toEqual({
-      code: 'not_available',
-      error: 'Not available',
-      message: 'Source documents are not supported by this instance.',
-    });
-  });
-
-  it('sendInternalError sends generic 500 text', () => {
-    const a = sendInternalError(mockReply());
-    expect(a.statusCode).toBe(500);
-    expect(a.body).toEqual({
-      code: 'internal_error',
-      error: 'Internal Server Error',
-      message: INTERNAL_ERROR_MESSAGE,
-    });
   });
 });
 
