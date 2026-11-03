@@ -51,6 +51,17 @@ const CHANGES: Partial<Record<string, (before: WireRecord) => WireRecord>> =
     ]),
   );
 
+/**
+ * Rejected `POST /documents/delete` requests whose 400 text changed when the
+ * request schema became one object with a refinement (spec Design 3) while
+ * the legacy route still answers. Still `400 invalid_request`; the catalog
+ * switch (A3) moves them to `wire-catalog-400.json` and empties this set.
+ */
+const TRANSITIONAL_400 = new Set([
+  'documentsDelete empty body',
+  'documentsDelete both selectors',
+]);
+
 let wire: WireApp;
 const captured = captureLogger();
 
@@ -80,7 +91,15 @@ describe('slice routes keep the 0.20.0 wire format', () => {
     async (name, scenario) => {
       const before = baseline[name];
       const expected = CHANGES[name]?.(before) ?? before;
-      expect(await runScenario(wire, scenario)).toEqual(expected);
+      // A transitional 400 is compared on status and code only.
+      const view = (record: WireRecord) =>
+        TRANSITIONAL_400.has(name)
+          ? {
+              status: record.status,
+              code: (record.body as { code?: unknown }).code,
+            }
+          : record;
+      expect(view(await runScenario(wire, scenario))).toEqual(view(expected));
     },
   );
 });

@@ -1,14 +1,15 @@
 /**
  * @module api/catalog
- * Catalog handlers for every `WATCHER_CATALOG` entry: `status`, `config`
+ * Catalog handlers for every served catalog entry (`SERVED_CATALOG`): `status`, `config`
  * and `configApply` adapted from core's standard handlers
  * (`standardHandlers`), plus `render`, `search`, `scan` and `vcsShow`.
  * Registered by `api/registerCatalog`.
  */
 
+import { defineCatalog } from '@karmaniverous/jeeves/catalog';
 import type { CatalogHandlers } from '@karmaniverous/jeeves/fastify';
 import { standardHandlers } from '@karmaniverous/jeeves/fastify';
-import type { WatcherCatalog } from '@karmaniverous/jeeves-watcher-core';
+import { WATCHER_CATALOG } from '@karmaniverous/jeeves-watcher-core';
 
 import {
   type CatalogConfigApplyDeps,
@@ -37,6 +38,24 @@ import {
 } from './vcsShowHandler';
 import { withCatalogCache } from './withCatalogCache';
 
+/**
+ * The catalog entries the service serves from the catalog so far. The other
+ * routes keep their legacy registrations until the catalog switch (spec A3),
+ * which serves the whole `WATCHER_CATALOG` and deletes this subset.
+ */
+export const SERVED_CATALOG = defineCatalog([
+  WATCHER_CATALOG.byName('status'),
+  WATCHER_CATALOG.byName('config'),
+  WATCHER_CATALOG.byName('configApply'),
+  WATCHER_CATALOG.byName('render'),
+  WATCHER_CATALOG.byName('search'),
+  WATCHER_CATALOG.byName('scan'),
+  WATCHER_CATALOG.byName('vcsShow'),
+] as const);
+
+/** {@link SERVED_CATALOG}'s type. */
+export type ServedCatalog = typeof SERVED_CATALOG;
+
 /** Dependencies for every slice entry's catalog handler. */
 export interface CreateCatalogHandlersOptions {
   /** `status` entry dependencies. */
@@ -59,14 +78,14 @@ export interface CreateCatalogHandlersOptions {
 }
 
 /**
- * Build the catalog handler for every `WATCHER_CATALOG` entry.
+ * Build the catalog handler for every served catalog entry.
  *
  * @param options - Per-entry dependencies and the shared cache TTL.
- * @returns One handler per entry name, matching `WATCHER_CATALOG`.
+ * @returns One handler per entry name, matching {@link SERVED_CATALOG}.
  */
 export function createCatalogHandlers(
   options: CreateCatalogHandlersOptions,
-): CatalogHandlers<WatcherCatalog> {
+): CatalogHandlers<ServedCatalog> {
   const standard = standardHandlers({
     status: createCatalogStatusSource(options.status),
     config: createCatalogConfigSource(options.config),

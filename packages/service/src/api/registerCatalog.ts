@@ -1,6 +1,6 @@
 /**
  * @module api/registerCatalog
- * Registers the `WATCHER_CATALOG` routes (status, config, config apply,
+ * Registers the served catalog routes (status, config, config apply,
  * render, search, scan, vcs/show) in a child plugin, so `createApiServer`
  * stays synchronous (spec #281 D29), plus the open `GET /openapi.json`
  * route. Request validation comes from the catalog; validation errors are
@@ -14,7 +14,6 @@ import {
 } from '@karmaniverous/jeeves/fastify';
 import {
   getEndpoint,
-  WATCHER_CATALOG,
   WATCHER_OPENAPI_DOCUMENT,
 } from '@karmaniverous/jeeves-watcher-core';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
@@ -22,7 +21,7 @@ import type pino from 'pino';
 
 import { OPENAPI_PATH } from './apiKeyAuth';
 import type { CreateCatalogHandlersOptions } from './catalog';
-import { createCatalogHandlers } from './catalog';
+import { createCatalogHandlers, SERVED_CATALOG } from './catalog';
 import { notFoundBody } from './catalog/notFoundBody';
 
 /** Response validation mode of the catalog routes. */
@@ -124,7 +123,7 @@ export function registerCatalog(
 
     await registerCatalogRoutes(
       child,
-      WATCHER_CATALOG,
+      SERVED_CATALOG,
       createCatalogHandlers(options.handlers),
       {
         formatValidationError,

@@ -3,7 +3,10 @@
  * POST /documents/delete: removes source documents by reference list or source-constrained Qdrant filter; also clears their enrichment entries and issues. Returns the number of documents removed.
  */
 
-import { documentsDeleteRequestSchema } from '@karmaniverous/jeeves-watcher-core';
+import {
+  type DocumentsDeleteRequest,
+  documentsDeleteRequestSchema,
+} from '@karmaniverous/jeeves-watcher-core';
 import type { FastifyRequest } from 'fastify';
 import type pino from 'pino';
 
@@ -48,10 +51,14 @@ export interface DocumentsDeleteHandlerDeps {
 export function createDocumentsDeleteHandler(deps: DocumentsDeleteHandlerDeps) {
   return wrapHandler(
     async (request: FastifyRequest<{ Body: unknown }>) => {
-      const body = parseBody(documentsDeleteRequestSchema, request.body);
+      // The schema's refinement guarantees exactly one selector.
+      const body = parseBody(
+        documentsDeleteRequestSchema,
+        request.body,
+      ) as DocumentsDeleteRequest;
 
       const filter =
-        'sources' in body
+        body.sources !== undefined
           ? sourcesFilter(body.sources)
           : constrainToSources(body.filter);
       const { sources, points } = await withFilterErrors(
@@ -59,7 +66,7 @@ export function createDocumentsDeleteHandler(deps: DocumentsDeleteHandlerDeps) {
       );
 
       const cleanup = new Set(sources);
-      if ('sources' in body) for (const ref of body.sources) cleanup.add(ref);
+      for (const ref of body.sources ?? []) cleanup.add(ref);
       for (const ref of cleanup) {
         deps.enrichmentStore?.delete(ref);
         deps.issuesManager?.clear(ref);

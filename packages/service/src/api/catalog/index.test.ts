@@ -1,16 +1,15 @@
 /**
  * @module api/catalog/index.test
- * `createCatalogHandlers` builds one handler per `WATCHER_CATALOG` entry
+ * `createCatalogHandlers` builds one handler per served catalog entry
  * name, each callable and behaviourally wired to its dependencies.
  */
 
-import { WATCHER_CATALOG } from '@karmaniverous/jeeves-watcher-core';
 import pino from 'pino';
 import { describe, expect, it, vi } from 'vitest';
 
 import { watcherDescriptor } from '../../descriptor';
 import { clearCache } from '../handlers/withCache';
-import { createCatalogHandlers } from './index';
+import { createCatalogHandlers, SERVED_CATALOG } from './index';
 
 vi.mock('./renderSourceDocument', () => ({
   renderSourceDocument: vi.fn().mockResolvedValue({
@@ -95,9 +94,9 @@ function buildHandlers(
 }
 
 describe('createCatalogHandlers', () => {
-  it('builds a handler for every WATCHER_CATALOG entry name', () => {
+  it('builds a handler for every served catalog entry name', () => {
     const handlers = buildHandlers();
-    const names = WATCHER_CATALOG.entries.map((entry) => entry.name);
+    const names = SERVED_CATALOG.entries.map((entry) => entry.name);
 
     for (const name of names) {
       expect(typeof handlers[name]).toBe('function');

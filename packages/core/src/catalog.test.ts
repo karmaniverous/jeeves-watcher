@@ -4,17 +4,48 @@ import type { z } from 'zod';
 
 import { vcsShowQuerySchema, watcherHealthSchema } from './api/index.js';
 import { WATCHER_CATALOG } from './catalog.js';
-import { getEndpoint } from './endpoints.js';
+import { getEndpoint, WATCHER_ENDPOINTS } from './endpoints.js';
 
-const SLICE = [
-  'status',
-  'config',
-  'configApply',
-  'render',
-  'search',
-  'scan',
-  'vcsShow',
-] as const;
+/** `kind` per entry (spec Design 3, under the 0.20.0 names). */
+const KINDS = {
+  read: [
+    'status',
+    'config',
+    'configSchema',
+    'configMatch',
+    'configValidate',
+    'search',
+    'scan',
+    'searchFacets',
+    'render',
+    'walk',
+    'issues',
+    'vcsStatus',
+    'vcsHistory',
+    'vcsShow',
+    'vcsDiff',
+    'vcsCheckExclusion',
+  ],
+  write: [
+    'configApply',
+    'metadata',
+    'reindex',
+    'documents',
+    'rulesRegister',
+    'rulesReapply',
+    'rebuildMetadata',
+  ],
+  destructive: [
+    'documentsDelete',
+    'pointsDelete',
+    'rulesUnregister',
+    'rulesUnregisterBySource',
+    'vcsRevert',
+    'vcsExclude',
+  ],
+} as const;
+
+const TEXT_PLAIN = new Set(['vcsShow', 'vcsDiff']);
 
 const entry = (name: string) => {
   const found = WATCHER_CATALOG.entries.find((e) => e.name === name);
@@ -23,12 +54,15 @@ const entry = (name: string) => {
 };
 
 describe('WATCHER_CATALOG', () => {
-  it('holds exactly the slice entries', () => {
-    expect(WATCHER_CATALOG.entries.map((e) => e.name)).toEqual([...SLICE]);
+  it('has one entry per WATCHER_ENDPOINTS endpoint (29)', () => {
+    expect(WATCHER_CATALOG.entries.map((e) => e.name).sort()).toEqual(
+      WATCHER_ENDPOINTS.map((e) => e.name).sort(),
+    );
+    expect(WATCHER_CATALOG.entries).toHaveLength(29);
   });
 
-  it.each(SLICE)(
-    '%s agrees with WATCHER_ENDPOINTS on method and path',
+  it.each(WATCHER_ENDPOINTS.map((e) => e.name))(
+    '%s agrees with WATCHER_ENDPOINTS on method and path (D23)',
     (name) => {
       const endpoint = getEndpoint(name);
       expect({ method: entry(name).method, path: entry(name).path }).toEqual({
@@ -44,25 +78,63 @@ describe('WATCHER_CATALOG', () => {
       Object.fromEntries(WATCHER_CATALOG.entries.map((e) => [e.name, e.auth])),
     ).toEqual(
       Object.fromEntries(
-        SLICE.map((name) => [name, name === 'status' ? 'none' : bearer]),
+        WATCHER_ENDPOINTS.map(({ name }) => [
+          name,
+          name === 'status' ? 'none' : bearer,
+        ]),
       ),
     );
   });
 
-  it('marks only configApply as a write', () => {
-    for (const e of WATCHER_CATALOG.entries) {
-      expect(e.kind).toBe(e.name === 'configApply' ? 'write' : 'read');
-    }
+  it('gives every entry its Design 3 kind', () => {
+    const expected = Object.fromEntries(
+      Object.entries(KINDS).flatMap(([kind, names]) =>
+        names.map((name) => [name, kind]),
+      ),
+    );
+    expect(
+      Object.fromEntries(WATCHER_CATALOG.entries.map((e) => [e.name, e.kind])),
+    ).toEqual(expected);
   });
 
-  it('declares vcsShow as text/plain and every other entry as JSON', () => {
-    for (const e of WATCHER_CATALOG.entries as readonly CatalogEntry[]) {
-      expect(e.contentType).toBe(
-        e.name === 'vcsShow' ? 'text/plain' : undefined,
-      );
-    }
+  it('declares vcsShow and vcsDiff as text/plain and every other entry as JSON', () => {
+    const entries = WATCHER_CATALOG.entries as readonly CatalogEntry[];
+    expect(
+      Object.fromEntries(entries.map((e) => [e.name, e.contentType])),
+    ).toEqual(
+      Object.fromEntries(
+        entries.map((e) => [
+          e.name,
+          TEXT_PLAIN.has(e.name) ? 'text/plain' : undefined,
+        ]),
+      ),
+    );
   });
 
+  // `response` is required by the CatalogEntry type, so only inputs are checked.
+  it('gives every entry a request schema for each input it takes', () => {
+    const entries = WATCHER_CATALOG.entries as readonly CatalogEntry[];
+    const missing = entries.flatMap((e) => [
+      ...(e.method === 'POST' && e.body === undefined
+        ? [`${e.name}.body`]
+        : []),
+      ...(e.path.includes(':') && e.params === undefined
+        ? [`${e.name}.params`]
+        : []),
+    ]);
+    expect(missing).toEqual([]);
+  });
+
+  it('accepts exactly one deleteDocuments selector', () => {
+    const body = WATCHER_CATALOG.byName('documentsDelete').body;
+    const filter = { must: [{ key: 'a', match: { value: 1 } }] };
+    expect(body.safeParse({ sources: ['app://d/1'] }).success).toBe(true);
+    expect(body.safeParse({ filter }).success).toBe(true);
+    expect(body.safeParse({}).success).toBe(false);
+    expect(body.safeParse({ sources: ['app://d/1'], filter }).success).toBe(
+      false,
+    );
+  });
   it('types the status health with watcherHealthSchema', () => {
     const status = WATCHER_CATALOG.byName('status');
     const parsed = status.response.parse({
