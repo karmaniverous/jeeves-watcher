@@ -5,6 +5,8 @@
 
 import type { LightMyRequestResponse } from 'fastify';
 
+import { normalizeSlashes } from '../../util/normalizeSlashes';
+import { CATALOG_COMPLETION_SCENARIOS } from './scenariosCompletion';
 import { WIRE_AUTH, type WireApp, type WireState } from './wireApp';
 
 /** What a client sees for one request. */
@@ -29,8 +31,10 @@ export interface WireScenario {
   state?: Partial<WireState>;
   /** Use the server without a VCS coordinator. */
   withoutVcs?: boolean;
+  /** Use the server without a source notify queue. */
+  withoutSourceQueue?: boolean;
   /** HTTP method. */
-  method: 'GET' | 'HEAD' | 'POST';
+  method: 'GET' | 'HEAD' | 'POST' | 'DELETE';
   /** URL; `{root}` and `{commit}` are filled from the wire app. */
   url: string;
   /** JSON body. */
@@ -182,6 +186,7 @@ export const WIRE_SCENARIOS: readonly WireScenario[] = [
   get('vcsShow without vcs, missing params', '/vcs/show', {
     withoutVcs: true,
   }),
+  ...CATALOG_COMPLETION_SCENARIOS,
 ];
 
 /**
@@ -192,9 +197,21 @@ export const WIRE_SCENARIOS: readonly WireScenario[] = [
  * @returns The normalised text.
  */
 function normalise(text: string, wire: WireApp): string {
-  return text
-    .split(wire.vcsRoot)
-    .join('{root}')
+  // Temp and working directories differ per run and platform; each is
+  // replaced in its JSON-escaped, raw and forward-slash forms.
+  const forms = (path: string) => [
+    JSON.stringify(path).slice(1, -1),
+    path,
+    normalizeSlashes(path),
+  ];
+  let out = text.split(wire.vcsRoot).join('{root}');
+  for (const [path, token] of [
+    [wire.dir, '{dir}'],
+    [process.cwd(), '{cwd}'],
+  ] as const) {
+    for (const form of forms(path)) out = out.split(form).join(token);
+  }
+  return out
     .split(wire.commit)
     .join('{commit}')
     .replace(/"uptime":\d+/g, '"uptime":0');
@@ -246,17 +263,23 @@ export async function injectScenario(
 ): Promise<LightMyRequestResponse> {
   await wire.reset();
   Object.assign(wire.state, scenario.state);
-  const url = scenario.url
-    .replace('{root}', wire.vcsRoot)
-    .replace('{commit}', wire.commit);
-  const app = scenario.withoutVcs ? wire.appWithoutVcs : wire.app;
+  const fill = (text: string) =>
+    text.split('{root}').join(wire.vcsRoot).split('{commit}').join(wire.commit);
+  const url = fill(scenario.url);
+  const payload =
+    scenario.payload === undefined
+      ? undefined
+      : (JSON.parse(fill(JSON.stringify(scenario.payload))) as unknown);
+  const app = scenario.withoutVcs
+    ? wire.appWithoutVcs
+    : scenario.withoutSourceQueue
+      ? wire.appWithoutSourceQueue
+      : wire.app;
   return app.inject({
     method: scenario.method,
     url,
     headers: WIRE_AUTH,
-    ...(scenario.payload === undefined
-      ? {}
-      : { payload: scenario.payload as object }),
+    ...(payload === undefined ? {} : { payload: payload as object }),
   });
 }
 

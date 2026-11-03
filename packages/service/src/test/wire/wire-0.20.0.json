@@ -567,5 +567,2762 @@
       "error": "Not Found",
       "message": "Route GET:/vcs/show not found"
     }
+  },
+  "configSchema": {
+    "status": 200,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "description": {
+          "description": "Human-readable description of this deployment's organizational strategy and content domains.",
+          "type": "string"
+        },
+        "watch": {
+          "type": "object",
+          "properties": {
+            "paths": {
+              "minItems": 1,
+              "type": "array",
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "description": "Glob pattern for files to watch."
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "path": {
+                        "type": "string",
+                        "description": "Glob pattern for files to watch."
+                      },
+                      "vcs": {
+                        "description": "Per-root VCS configuration overrides.",
+                        "type": "object",
+                        "properties": {
+                          "enabled": {
+                            "default": false,
+                            "description": "Enable git-backed version control of watched content. Default: false.",
+                            "type": "boolean"
+                          },
+                          "author": {
+                            "description": "Git commit author identity. Set per-repo during init. Defaults: name=\"jeeves-watcher\", email=\"watcher@localhost\".",
+                            "type": "object",
+                            "properties": {
+                              "name": {
+                                "default": "jeeves-watcher",
+                                "description": "Author name for git commits. Default: \"jeeves-watcher\".",
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "email": {
+                                "default": "watcher@localhost",
+                                "description": "Author email for git commits. Default: \"watcher@localhost\".",
+                                "type": "string",
+                                "minLength": 1
+                              }
+                            },
+                            "required": [
+                              "name",
+                              "email"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "commitThrottleMs": {
+                            "default": 30000,
+                            "description": "Throttle interval in milliseconds for batching commits. Default: 30000.",
+                            "type": "integer",
+                            "minimum": 1000,
+                            "maximum": 9007199254740991
+                          },
+                          "maxBatchSize": {
+                            "default": 1000,
+                            "description": "Maximum number of files per commit batch. Default: 1000.",
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 9007199254740991
+                          },
+                          "commitMessage": {
+                            "description": "AI-generated commit message configuration.",
+                            "type": "object",
+                            "properties": {
+                              "enabled": {
+                                "default": true,
+                                "description": "Enable AI-generated commit messages. Default: true.",
+                                "type": "boolean"
+                              },
+                              "provider": {
+                                "default": "anthropic",
+                                "description": "AI provider for commit message generation. Default: \"anthropic\".",
+                                "type": "string"
+                              },
+                              "model": {
+                                "default": "claude-haiku-4-0",
+                                "description": "AI model for commit message generation. Default: \"claude-haiku-4-0\".",
+                                "type": "string"
+                              },
+                              "apiKey": {
+                                "description": "API key for commit message provider. Supports env var substitution (e.g., \"${ANTHROPIC_API_KEY}\").",
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "enabled",
+                              "provider",
+                              "model"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "retention": {
+                            "description": "Version retention policy configuration.",
+                            "type": "object",
+                            "properties": {
+                              "maxAgeDays": {
+                                "default": 30,
+                                "description": "Maximum age in days for retained versions. Default: 30.",
+                                "type": "integer",
+                                "minimum": 1,
+                                "maximum": 9007199254740991
+                              },
+                              "maxVersions": {
+                                "default": 100,
+                                "description": "Maximum number of versions to retain per file. Default: 100.",
+                                "type": "integer",
+                                "minimum": 1,
+                                "maximum": 9007199254740991
+                              },
+                              "squashCron": {
+                                "default": "0 0 * * *",
+                                "description": "Cron expression for squash schedule. Default: \"0 0 * * *\" (daily at midnight).",
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "maxAgeDays",
+                              "maxVersions",
+                              "squashCron"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "defaultAccessToken": {
+                            "description": "Default git access token for all roots. Supports env var substitution (e.g., \"${GIT_TOKEN}\").",
+                            "type": "string"
+                          },
+                          "staleLockThresholdMs": {
+                            "default": 60000,
+                            "description": "Age in ms after which an index.lock is considered stale and force-removed. Default: 60000.",
+                            "type": "integer",
+                            "minimum": 5000,
+                            "maximum": 9007199254740991
+                          },
+                          "maxConsecutiveFailures": {
+                            "default": 5,
+                            "description": "Circuit breaker: trip after this many consecutive commit failures. Default: 5.",
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 9007199254740991
+                          },
+                          "circuitBreakerCooldownMs": {
+                            "default": 300000,
+                            "description": "Circuit breaker cooldown in ms before a half-open recovery attempt. Default: 300000 (5 minutes).",
+                            "type": "integer",
+                            "minimum": 1000,
+                            "maximum": 9007199254740991
+                          },
+                          "branch": {
+                            "default": "master",
+                            "description": "Git branch name for VCS operations. Default: \"master\".",
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "remote": {
+                            "description": "Git remote URL for this watch root.",
+                            "type": "string"
+                          },
+                          "accessToken": {
+                            "description": "Access token override for this watch root. Supports env var substitution (e.g., \"${GIT_TOKEN}\").",
+                            "type": "string"
+                          }
+                        },
+                        "additionalProperties": false
+                      }
+                    },
+                    "required": [
+                      "path"
+                    ],
+                    "additionalProperties": false
+                  }
+                ]
+              },
+              "description": "Paths to watch. Each entry may be a glob string (e.g., \"**/*.md\") or an object with a path and optional per-root VCS overrides. At least one required."
+            },
+            "ignored": {
+              "default": [
+                "**/node_modules/**"
+              ],
+              "description": "Glob patterns to exclude from watching (e.g., \"**/node_modules/**\").",
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "pollIntervalMs": {
+              "description": "Polling interval in milliseconds when usePolling is enabled.",
+              "type": "number"
+            },
+            "usePolling": {
+              "description": "Use polling instead of native file system events (for network drives).",
+              "type": "boolean"
+            },
+            "debounceMs": {
+              "description": "Debounce delay in milliseconds for file change events.",
+              "type": "number"
+            },
+            "stabilityThresholdMs": {
+              "description": "Time in milliseconds a file must remain unchanged before processing.",
+              "type": "number"
+            },
+            "respectGitignore": {
+              "description": "Skip files ignored by .gitignore in git repositories. Only applies to repos with a .git directory. Default: true.",
+              "type": "boolean"
+            },
+            "moveDetection": {
+              "description": "Move detection: correlate unlink+add events as file moves to avoid re-embedding.",
+              "type": "object",
+              "properties": {
+                "enabled": {
+                  "default": true,
+                  "description": "Enable move detection via content hash correlation.",
+                  "type": "boolean"
+                },
+                "bufferMs": {
+                  "default": 2000,
+                  "description": "How long (ms) to buffer unlink events before treating as deletes.",
+                  "type": "integer",
+                  "minimum": 100,
+                  "maximum": 9007199254740991
+                }
+              },
+              "required": [
+                "enabled",
+                "bufferMs"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "paths",
+            "ignored"
+          ],
+          "additionalProperties": false,
+          "description": "File system watch configuration."
+        },
+        "configWatch": {
+          "description": "Configuration file watch settings.",
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "description": "Enable automatic reloading when config file changes.",
+              "type": "boolean"
+            },
+            "debounceMs": {
+              "description": "Debounce delay in milliseconds for config file change detection.",
+              "type": "number"
+            },
+            "reindex": {
+              "description": "Reindex scope triggered on config change. Default: issues.",
+              "type": "string",
+              "enum": [
+                "issues",
+                "full",
+                "rules"
+              ]
+            }
+          },
+          "additionalProperties": false
+        },
+        "search": {
+          "description": "Search configuration including score thresholds and hybrid search.",
+          "type": "object",
+          "properties": {
+            "scoreThresholds": {
+              "type": "object",
+              "properties": {
+                "strong": {
+                  "type": "number",
+                  "minimum": -1,
+                  "maximum": 1
+                },
+                "relevant": {
+                  "type": "number",
+                  "minimum": -1,
+                  "maximum": 1
+                },
+                "noise": {
+                  "type": "number",
+                  "minimum": -1,
+                  "maximum": 1
+                }
+              },
+              "required": [
+                "strong",
+                "relevant",
+                "noise"
+              ],
+              "additionalProperties": false
+            },
+            "hybrid": {
+              "type": "object",
+              "properties": {
+                "enabled": {
+                  "default": false,
+                  "type": "boolean"
+                },
+                "textWeight": {
+                  "default": 0.3,
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                }
+              },
+              "required": [
+                "enabled",
+                "textWeight"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        },
+        "schemas": {
+          "description": "Global named schema definitions (inline objects or file paths) referenced by inference rules.",
+          "type": "object",
+          "propertyNames": {
+            "type": "string"
+          },
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "description": "JSON Schema type (always \"object\" for schema definitions).",
+                    "type": "string",
+                    "const": "object"
+                  },
+                  "properties": {
+                    "description": "Map of property names to JSON Schema property definitions.",
+                    "type": "object",
+                    "propertyNames": {
+                      "type": "string"
+                    },
+                    "additionalProperties": {
+                      "type": "object",
+                      "propertyNames": {
+                        "type": "string"
+                      },
+                      "additionalProperties": {}
+                    }
+                  }
+                },
+                "additionalProperties": false
+              },
+              {
+                "type": "string",
+                "description": "File path to a JSON schema file."
+              }
+            ]
+          }
+        },
+        "inferenceRules": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "description": "Unique name identifying this inference rule."
+              },
+              "description": {
+                "type": "string",
+                "minLength": 1,
+                "description": "Human-readable description of what this rule does."
+              },
+              "match": {
+                "type": "object",
+                "propertyNames": {
+                  "type": "string"
+                },
+                "additionalProperties": {},
+                "description": "JSON Schema object to match against file attributes."
+              },
+              "schema": {
+                "description": "Array of schema references (named schema refs or inline objects) merged left-to-right.",
+                "type": "array",
+                "items": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "description": "Named reference to a global schema."
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "description": "JSON Schema type (always \"object\" for schema definitions).",
+                          "type": "string",
+                          "const": "object"
+                        },
+                        "properties": {
+                          "description": "Map of property names to JSON Schema property definitions.",
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {
+                            "type": "object",
+                            "propertyNames": {
+                              "type": "string"
+                            },
+                            "additionalProperties": {}
+                          }
+                        }
+                      },
+                      "additionalProperties": false
+                    }
+                  ]
+                }
+              },
+              "map": {
+                "description": "JsonMap transformation (inline definition, named map reference, or .json file path).",
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/__schema0"
+                  },
+                  {
+                    "type": "string"
+                  }
+                ]
+              },
+              "template": {
+                "description": "Handlebars content template (inline string, named ref, or .hbs/.handlebars file path).",
+                "type": "string"
+              },
+              "render": {
+                "description": "Declarative render configuration for frontmatter + structured Markdown output (mutually exclusive with template).",
+                "type": "object",
+                "properties": {
+                  "frontmatter": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "description": "Keys or glob patterns to include as YAML frontmatter. Supports picomatch globs (e.g. \"*\") and \"!\"-prefixed exclusion patterns (e.g. \"!_*\"). Explicit names preserve declaration order; glob-matched keys are sorted alphabetically."
+                  },
+                  "body": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "path": {
+                          "type": "string",
+                          "minLength": 1,
+                          "description": "Key path in template context to render."
+                        },
+                        "heading": {
+                          "type": "number",
+                          "minimum": 1,
+                          "maximum": 6,
+                          "description": "Markdown heading level (1-6)."
+                        },
+                        "label": {
+                          "description": "Override heading text.",
+                          "type": "string"
+                        },
+                        "format": {
+                          "description": "Name of a registered Handlebars helper used as a format handler.",
+                          "type": "string"
+                        },
+                        "formatArgs": {
+                          "description": "Additional args passed to the format helper.",
+                          "type": "array",
+                          "items": {}
+                        },
+                        "each": {
+                          "description": "If true, the value at path is treated as an array and iterated.",
+                          "type": "boolean"
+                        },
+                        "headingTemplate": {
+                          "description": "Handlebars template string for per-item heading text (used when each=true).",
+                          "type": "string"
+                        },
+                        "contentPath": {
+                          "description": "Key path within each item to use as renderable content (used when each=true).",
+                          "type": "string"
+                        },
+                        "sort": {
+                          "description": "Key path within each item to sort by (used when each=true).",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "path",
+                        "heading"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "description": "Ordered markdown body sections."
+                  }
+                },
+                "required": [
+                  "frontmatter",
+                  "body"
+                ],
+                "additionalProperties": false
+              },
+              "renderAs": {
+                "description": "Output file extension override (without dot). Requires template or render.",
+                "type": "string",
+                "pattern": "^[a-z0-9]{1,10}$"
+              },
+              "source": {
+                "type": "string",
+                "description": "\"config\", or the source that registered the rule."
+              },
+              "values": {
+                "type": "object",
+                "propertyNames": {
+                  "type": "string"
+                },
+                "additionalProperties": {
+                  "type": "array",
+                  "items": {}
+                },
+                "description": "Distinct values seen per property (files only)."
+              }
+            },
+            "required": [
+              "name",
+              "description",
+              "match",
+              "source",
+              "values"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "mapHelpers": {
+          "type": "object",
+          "propertyNames": {
+            "type": "string"
+          },
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              },
+              "exports": {
+                "description": "Introspected helper exports, when available.",
+                "type": "object",
+                "propertyNames": {
+                  "type": "string"
+                },
+                "additionalProperties": {
+                  "type": "string"
+                }
+              }
+            },
+            "required": [
+              "path"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "templateHelpers": {
+          "type": "object",
+          "propertyNames": {
+            "type": "string"
+          },
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              },
+              "exports": {
+                "description": "Introspected helper exports, when available.",
+                "type": "object",
+                "propertyNames": {
+                  "type": "string"
+                },
+                "additionalProperties": {
+                  "type": "string"
+                }
+              }
+            },
+            "required": [
+              "path"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "maps": {
+          "description": "Reusable named JsonMap transformations (inline definition or .json file path resolved relative to config directory).",
+          "type": "object",
+          "propertyNames": {
+            "type": "string"
+          },
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/__schema0"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "map": {
+                    "anyOf": [
+                      {
+                        "$ref": "#/$defs/__schema0"
+                      },
+                      {
+                        "type": "string"
+                      }
+                    ]
+                  },
+                  "description": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "map"
+                ],
+                "additionalProperties": false
+              }
+            ]
+          }
+        },
+        "templates": {
+          "description": "Named reusable Handlebars templates (inline strings or .hbs/.handlebars file paths).",
+          "type": "object",
+          "propertyNames": {
+            "type": "string"
+          },
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "template": {
+                    "type": "string"
+                  },
+                  "description": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "template"
+                ],
+                "additionalProperties": false
+              }
+            ]
+          }
+        },
+        "issues": {
+          "type": "object",
+          "propertyNames": {
+            "type": "string"
+          },
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "enum": [
+                    "type_collision",
+                    "interpolation_error",
+                    "extraction_error",
+                    "embedding_error",
+                    "upsert_error",
+                    "match_failed",
+                    "rule_missing",
+                    "no_content",
+                    "source_unavailable",
+                    "unsupported_content_type"
+                  ],
+                  "description": "Issue code: type_collision (conflicting metadata types), interpolation_error (template rendering failure), extraction_error (reading, rule application or chunking failed), embedding_error (embedding provider failed), upsert_error (vector store write failed), match_failed (designated rule did not match), rule_missing (designated rule not found), no_content (nothing to embed), source_unavailable (source callback failed), unsupported_content_type (callback returned a non-JSON body)."
+                },
+                "operation": {
+                  "type": "string"
+                },
+                "property": {
+                  "type": "string"
+                },
+                "rules": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "rule": {
+                  "type": "string"
+                },
+                "types": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "message": {
+                  "type": "string"
+                },
+                "details": {},
+                "timestamp": {
+                  "type": [
+                    "number",
+                    "string"
+                  ]
+                }
+              },
+              "required": [
+                "type",
+                "message",
+                "timestamp"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "description": "Current runtime issues, as in GET /issues."
+        }
+      },
+      "required": [
+        "description",
+        "watch",
+        "configWatch",
+        "search",
+        "schemas",
+        "inferenceRules",
+        "mapHelpers",
+        "templateHelpers",
+        "maps",
+        "templates",
+        "issues"
+      ],
+      "additionalProperties": false,
+      "$defs": {
+        "__schema0": {
+          "anyOf": [
+            {
+              "type": [
+                "string",
+                "number",
+                "boolean",
+                "null"
+              ]
+            },
+            {
+              "type": "object",
+              "propertyNames": {
+                "type": "string"
+              },
+              "additionalProperties": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/__schema0"
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "$": {
+                        "anyOf": [
+                          {
+                            "type": "object",
+                            "properties": {
+                              "method": {
+                                "type": "string"
+                              },
+                              "params": {
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string"
+                                    }
+                                  }
+                                ]
+                              }
+                            },
+                            "required": [
+                              "method",
+                              "params"
+                            ],
+                            "additionalProperties": false
+                          },
+                          {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "method": {
+                                  "type": "string"
+                                },
+                                "params": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "string"
+                                      }
+                                    }
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "method",
+                                "params"
+                              ],
+                              "additionalProperties": false
+                            }
+                          }
+                        ]
+                      }
+                    },
+                    "required": [
+                      "$"
+                    ],
+                    "additionalProperties": false
+                  }
+                ]
+              }
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/__schema0"
+              }
+            }
+          ]
+        }
+      }
+    }
+  },
+  "configSchema unknown query": {
+    "status": 200,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "description": {
+          "description": "Human-readable description of this deployment's organizational strategy and content domains.",
+          "type": "string"
+        },
+        "watch": {
+          "type": "object",
+          "properties": {
+            "paths": {
+              "minItems": 1,
+              "type": "array",
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "description": "Glob pattern for files to watch."
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "path": {
+                        "type": "string",
+                        "description": "Glob pattern for files to watch."
+                      },
+                      "vcs": {
+                        "description": "Per-root VCS configuration overrides.",
+                        "type": "object",
+                        "properties": {
+                          "enabled": {
+                            "default": false,
+                            "description": "Enable git-backed version control of watched content. Default: false.",
+                            "type": "boolean"
+                          },
+                          "author": {
+                            "description": "Git commit author identity. Set per-repo during init. Defaults: name=\"jeeves-watcher\", email=\"watcher@localhost\".",
+                            "type": "object",
+                            "properties": {
+                              "name": {
+                                "default": "jeeves-watcher",
+                                "description": "Author name for git commits. Default: \"jeeves-watcher\".",
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "email": {
+                                "default": "watcher@localhost",
+                                "description": "Author email for git commits. Default: \"watcher@localhost\".",
+                                "type": "string",
+                                "minLength": 1
+                              }
+                            },
+                            "required": [
+                              "name",
+                              "email"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "commitThrottleMs": {
+                            "default": 30000,
+                            "description": "Throttle interval in milliseconds for batching commits. Default: 30000.",
+                            "type": "integer",
+                            "minimum": 1000,
+                            "maximum": 9007199254740991
+                          },
+                          "maxBatchSize": {
+                            "default": 1000,
+                            "description": "Maximum number of files per commit batch. Default: 1000.",
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 9007199254740991
+                          },
+                          "commitMessage": {
+                            "description": "AI-generated commit message configuration.",
+                            "type": "object",
+                            "properties": {
+                              "enabled": {
+                                "default": true,
+                                "description": "Enable AI-generated commit messages. Default: true.",
+                                "type": "boolean"
+                              },
+                              "provider": {
+                                "default": "anthropic",
+                                "description": "AI provider for commit message generation. Default: \"anthropic\".",
+                                "type": "string"
+                              },
+                              "model": {
+                                "default": "claude-haiku-4-0",
+                                "description": "AI model for commit message generation. Default: \"claude-haiku-4-0\".",
+                                "type": "string"
+                              },
+                              "apiKey": {
+                                "description": "API key for commit message provider. Supports env var substitution (e.g., \"${ANTHROPIC_API_KEY}\").",
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "enabled",
+                              "provider",
+                              "model"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "retention": {
+                            "description": "Version retention policy configuration.",
+                            "type": "object",
+                            "properties": {
+                              "maxAgeDays": {
+                                "default": 30,
+                                "description": "Maximum age in days for retained versions. Default: 30.",
+                                "type": "integer",
+                                "minimum": 1,
+                                "maximum": 9007199254740991
+                              },
+                              "maxVersions": {
+                                "default": 100,
+                                "description": "Maximum number of versions to retain per file. Default: 100.",
+                                "type": "integer",
+                                "minimum": 1,
+                                "maximum": 9007199254740991
+                              },
+                              "squashCron": {
+                                "default": "0 0 * * *",
+                                "description": "Cron expression for squash schedule. Default: \"0 0 * * *\" (daily at midnight).",
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "maxAgeDays",
+                              "maxVersions",
+                              "squashCron"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "defaultAccessToken": {
+                            "description": "Default git access token for all roots. Supports env var substitution (e.g., \"${GIT_TOKEN}\").",
+                            "type": "string"
+                          },
+                          "staleLockThresholdMs": {
+                            "default": 60000,
+                            "description": "Age in ms after which an index.lock is considered stale and force-removed. Default: 60000.",
+                            "type": "integer",
+                            "minimum": 5000,
+                            "maximum": 9007199254740991
+                          },
+                          "maxConsecutiveFailures": {
+                            "default": 5,
+                            "description": "Circuit breaker: trip after this many consecutive commit failures. Default: 5.",
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 9007199254740991
+                          },
+                          "circuitBreakerCooldownMs": {
+                            "default": 300000,
+                            "description": "Circuit breaker cooldown in ms before a half-open recovery attempt. Default: 300000 (5 minutes).",
+                            "type": "integer",
+                            "minimum": 1000,
+                            "maximum": 9007199254740991
+                          },
+                          "branch": {
+                            "default": "master",
+                            "description": "Git branch name for VCS operations. Default: \"master\".",
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "remote": {
+                            "description": "Git remote URL for this watch root.",
+                            "type": "string"
+                          },
+                          "accessToken": {
+                            "description": "Access token override for this watch root. Supports env var substitution (e.g., \"${GIT_TOKEN}\").",
+                            "type": "string"
+                          }
+                        },
+                        "additionalProperties": false
+                      }
+                    },
+                    "required": [
+                      "path"
+                    ],
+                    "additionalProperties": false
+                  }
+                ]
+              },
+              "description": "Paths to watch. Each entry may be a glob string (e.g., \"**/*.md\") or an object with a path and optional per-root VCS overrides. At least one required."
+            },
+            "ignored": {
+              "default": [
+                "**/node_modules/**"
+              ],
+              "description": "Glob patterns to exclude from watching (e.g., \"**/node_modules/**\").",
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "pollIntervalMs": {
+              "description": "Polling interval in milliseconds when usePolling is enabled.",
+              "type": "number"
+            },
+            "usePolling": {
+              "description": "Use polling instead of native file system events (for network drives).",
+              "type": "boolean"
+            },
+            "debounceMs": {
+              "description": "Debounce delay in milliseconds for file change events.",
+              "type": "number"
+            },
+            "stabilityThresholdMs": {
+              "description": "Time in milliseconds a file must remain unchanged before processing.",
+              "type": "number"
+            },
+            "respectGitignore": {
+              "description": "Skip files ignored by .gitignore in git repositories. Only applies to repos with a .git directory. Default: true.",
+              "type": "boolean"
+            },
+            "moveDetection": {
+              "description": "Move detection: correlate unlink+add events as file moves to avoid re-embedding.",
+              "type": "object",
+              "properties": {
+                "enabled": {
+                  "default": true,
+                  "description": "Enable move detection via content hash correlation.",
+                  "type": "boolean"
+                },
+                "bufferMs": {
+                  "default": 2000,
+                  "description": "How long (ms) to buffer unlink events before treating as deletes.",
+                  "type": "integer",
+                  "minimum": 100,
+                  "maximum": 9007199254740991
+                }
+              },
+              "required": [
+                "enabled",
+                "bufferMs"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "paths",
+            "ignored"
+          ],
+          "additionalProperties": false,
+          "description": "File system watch configuration."
+        },
+        "configWatch": {
+          "description": "Configuration file watch settings.",
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "description": "Enable automatic reloading when config file changes.",
+              "type": "boolean"
+            },
+            "debounceMs": {
+              "description": "Debounce delay in milliseconds for config file change detection.",
+              "type": "number"
+            },
+            "reindex": {
+              "description": "Reindex scope triggered on config change. Default: issues.",
+              "type": "string",
+              "enum": [
+                "issues",
+                "full",
+                "rules"
+              ]
+            }
+          },
+          "additionalProperties": false
+        },
+        "search": {
+          "description": "Search configuration including score thresholds and hybrid search.",
+          "type": "object",
+          "properties": {
+            "scoreThresholds": {
+              "type": "object",
+              "properties": {
+                "strong": {
+                  "type": "number",
+                  "minimum": -1,
+                  "maximum": 1
+                },
+                "relevant": {
+                  "type": "number",
+                  "minimum": -1,
+                  "maximum": 1
+                },
+                "noise": {
+                  "type": "number",
+                  "minimum": -1,
+                  "maximum": 1
+                }
+              },
+              "required": [
+                "strong",
+                "relevant",
+                "noise"
+              ],
+              "additionalProperties": false
+            },
+            "hybrid": {
+              "type": "object",
+              "properties": {
+                "enabled": {
+                  "default": false,
+                  "type": "boolean"
+                },
+                "textWeight": {
+                  "default": 0.3,
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                }
+              },
+              "required": [
+                "enabled",
+                "textWeight"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        },
+        "schemas": {
+          "description": "Global named schema definitions (inline objects or file paths) referenced by inference rules.",
+          "type": "object",
+          "propertyNames": {
+            "type": "string"
+          },
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "description": "JSON Schema type (always \"object\" for schema definitions).",
+                    "type": "string",
+                    "const": "object"
+                  },
+                  "properties": {
+                    "description": "Map of property names to JSON Schema property definitions.",
+                    "type": "object",
+                    "propertyNames": {
+                      "type": "string"
+                    },
+                    "additionalProperties": {
+                      "type": "object",
+                      "propertyNames": {
+                        "type": "string"
+                      },
+                      "additionalProperties": {}
+                    }
+                  }
+                },
+                "additionalProperties": false
+              },
+              {
+                "type": "string",
+                "description": "File path to a JSON schema file."
+              }
+            ]
+          }
+        },
+        "inferenceRules": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "description": "Unique name identifying this inference rule."
+              },
+              "description": {
+                "type": "string",
+                "minLength": 1,
+                "description": "Human-readable description of what this rule does."
+              },
+              "match": {
+                "type": "object",
+                "propertyNames": {
+                  "type": "string"
+                },
+                "additionalProperties": {},
+                "description": "JSON Schema object to match against file attributes."
+              },
+              "schema": {
+                "description": "Array of schema references (named schema refs or inline objects) merged left-to-right.",
+                "type": "array",
+                "items": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "description": "Named reference to a global schema."
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "description": "JSON Schema type (always \"object\" for schema definitions).",
+                          "type": "string",
+                          "const": "object"
+                        },
+                        "properties": {
+                          "description": "Map of property names to JSON Schema property definitions.",
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {
+                            "type": "object",
+                            "propertyNames": {
+                              "type": "string"
+                            },
+                            "additionalProperties": {}
+                          }
+                        }
+                      },
+                      "additionalProperties": false
+                    }
+                  ]
+                }
+              },
+              "map": {
+                "description": "JsonMap transformation (inline definition, named map reference, or .json file path).",
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/__schema0"
+                  },
+                  {
+                    "type": "string"
+                  }
+                ]
+              },
+              "template": {
+                "description": "Handlebars content template (inline string, named ref, or .hbs/.handlebars file path).",
+                "type": "string"
+              },
+              "render": {
+                "description": "Declarative render configuration for frontmatter + structured Markdown output (mutually exclusive with template).",
+                "type": "object",
+                "properties": {
+                  "frontmatter": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "description": "Keys or glob patterns to include as YAML frontmatter. Supports picomatch globs (e.g. \"*\") and \"!\"-prefixed exclusion patterns (e.g. \"!_*\"). Explicit names preserve declaration order; glob-matched keys are sorted alphabetically."
+                  },
+                  "body": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "path": {
+                          "type": "string",
+                          "minLength": 1,
+                          "description": "Key path in template context to render."
+                        },
+                        "heading": {
+                          "type": "number",
+                          "minimum": 1,
+                          "maximum": 6,
+                          "description": "Markdown heading level (1-6)."
+                        },
+                        "label": {
+                          "description": "Override heading text.",
+                          "type": "string"
+                        },
+                        "format": {
+                          "description": "Name of a registered Handlebars helper used as a format handler.",
+                          "type": "string"
+                        },
+                        "formatArgs": {
+                          "description": "Additional args passed to the format helper.",
+                          "type": "array",
+                          "items": {}
+                        },
+                        "each": {
+                          "description": "If true, the value at path is treated as an array and iterated.",
+                          "type": "boolean"
+                        },
+                        "headingTemplate": {
+                          "description": "Handlebars template string for per-item heading text (used when each=true).",
+                          "type": "string"
+                        },
+                        "contentPath": {
+                          "description": "Key path within each item to use as renderable content (used when each=true).",
+                          "type": "string"
+                        },
+                        "sort": {
+                          "description": "Key path within each item to sort by (used when each=true).",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "path",
+                        "heading"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "description": "Ordered markdown body sections."
+                  }
+                },
+                "required": [
+                  "frontmatter",
+                  "body"
+                ],
+                "additionalProperties": false
+              },
+              "renderAs": {
+                "description": "Output file extension override (without dot). Requires template or render.",
+                "type": "string",
+                "pattern": "^[a-z0-9]{1,10}$"
+              },
+              "source": {
+                "type": "string",
+                "description": "\"config\", or the source that registered the rule."
+              },
+              "values": {
+                "type": "object",
+                "propertyNames": {
+                  "type": "string"
+                },
+                "additionalProperties": {
+                  "type": "array",
+                  "items": {}
+                },
+                "description": "Distinct values seen per property (files only)."
+              }
+            },
+            "required": [
+              "name",
+              "description",
+              "match",
+              "source",
+              "values"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "mapHelpers": {
+          "type": "object",
+          "propertyNames": {
+            "type": "string"
+          },
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              },
+              "exports": {
+                "description": "Introspected helper exports, when available.",
+                "type": "object",
+                "propertyNames": {
+                  "type": "string"
+                },
+                "additionalProperties": {
+                  "type": "string"
+                }
+              }
+            },
+            "required": [
+              "path"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "templateHelpers": {
+          "type": "object",
+          "propertyNames": {
+            "type": "string"
+          },
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              },
+              "exports": {
+                "description": "Introspected helper exports, when available.",
+                "type": "object",
+                "propertyNames": {
+                  "type": "string"
+                },
+                "additionalProperties": {
+                  "type": "string"
+                }
+              }
+            },
+            "required": [
+              "path"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "maps": {
+          "description": "Reusable named JsonMap transformations (inline definition or .json file path resolved relative to config directory).",
+          "type": "object",
+          "propertyNames": {
+            "type": "string"
+          },
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/__schema0"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "map": {
+                    "anyOf": [
+                      {
+                        "$ref": "#/$defs/__schema0"
+                      },
+                      {
+                        "type": "string"
+                      }
+                    ]
+                  },
+                  "description": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "map"
+                ],
+                "additionalProperties": false
+              }
+            ]
+          }
+        },
+        "templates": {
+          "description": "Named reusable Handlebars templates (inline strings or .hbs/.handlebars file paths).",
+          "type": "object",
+          "propertyNames": {
+            "type": "string"
+          },
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "template": {
+                    "type": "string"
+                  },
+                  "description": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "template"
+                ],
+                "additionalProperties": false
+              }
+            ]
+          }
+        },
+        "issues": {
+          "type": "object",
+          "propertyNames": {
+            "type": "string"
+          },
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "enum": [
+                    "type_collision",
+                    "interpolation_error",
+                    "extraction_error",
+                    "embedding_error",
+                    "upsert_error",
+                    "match_failed",
+                    "rule_missing",
+                    "no_content",
+                    "source_unavailable",
+                    "unsupported_content_type"
+                  ],
+                  "description": "Issue code: type_collision (conflicting metadata types), interpolation_error (template rendering failure), extraction_error (reading, rule application or chunking failed), embedding_error (embedding provider failed), upsert_error (vector store write failed), match_failed (designated rule did not match), rule_missing (designated rule not found), no_content (nothing to embed), source_unavailable (source callback failed), unsupported_content_type (callback returned a non-JSON body)."
+                },
+                "operation": {
+                  "type": "string"
+                },
+                "property": {
+                  "type": "string"
+                },
+                "rules": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "rule": {
+                  "type": "string"
+                },
+                "types": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "message": {
+                  "type": "string"
+                },
+                "details": {},
+                "timestamp": {
+                  "type": [
+                    "number",
+                    "string"
+                  ]
+                }
+              },
+              "required": [
+                "type",
+                "message",
+                "timestamp"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "description": "Current runtime issues, as in GET /issues."
+        }
+      },
+      "required": [
+        "description",
+        "watch",
+        "configWatch",
+        "search",
+        "schemas",
+        "inferenceRules",
+        "mapHelpers",
+        "templateHelpers",
+        "maps",
+        "templates",
+        "issues"
+      ],
+      "additionalProperties": false,
+      "$defs": {
+        "__schema0": {
+          "anyOf": [
+            {
+              "type": [
+                "string",
+                "number",
+                "boolean",
+                "null"
+              ]
+            },
+            {
+              "type": "object",
+              "propertyNames": {
+                "type": "string"
+              },
+              "additionalProperties": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/__schema0"
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "$": {
+                        "anyOf": [
+                          {
+                            "type": "object",
+                            "properties": {
+                              "method": {
+                                "type": "string"
+                              },
+                              "params": {
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string"
+                                    }
+                                  }
+                                ]
+                              }
+                            },
+                            "required": [
+                              "method",
+                              "params"
+                            ],
+                            "additionalProperties": false
+                          },
+                          {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "method": {
+                                  "type": "string"
+                                },
+                                "params": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "string"
+                                      }
+                                    }
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "method",
+                                "params"
+                              ],
+                              "additionalProperties": false
+                            }
+                          }
+                        ]
+                      }
+                    },
+                    "required": [
+                      "$"
+                    ],
+                    "additionalProperties": false
+                  }
+                ]
+              }
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/__schema0"
+              }
+            }
+          ]
+        }
+      }
+    }
+  },
+  "configMatch": {
+    "status": 200,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "matches": [
+        {
+          "rules": [],
+          "watched": true
+        },
+        {
+          "rules": [],
+          "watched": false
+        }
+      ]
+    }
+  },
+  "configMatch missing paths": {
+    "status": 400,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "code": "invalid_request",
+      "error": "Request body must include \"paths\" array"
+    }
+  },
+  "configMatch paths not array": {
+    "status": 400,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "code": "invalid_request",
+      "error": "Request body must include \"paths\" array"
+    }
+  },
+  "configMatch unknown key": {
+    "status": 200,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "matches": [
+        {
+          "rules": [],
+          "watched": true
+        }
+      ]
+    }
+  },
+  "configValidate current": {
+    "status": 200,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "valid": true
+    }
+  },
+  "configValidate invalid": {
+    "status": 200,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "valid": false,
+      "errors": [
+        {
+          "path": "watch",
+          "message": "Invalid input: expected object, received number"
+        }
+      ]
+    }
+  },
+  "configValidate test paths": {
+    "status": 200,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "valid": true,
+      "testResults": [
+        {
+          "path": "/no/such/file.md",
+          "matchedRules": [],
+          "metadata": {},
+          "error": "File not found"
+        }
+      ]
+    }
+  },
+  "configValidate unknown key": {
+    "status": 200,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "valid": true
+    }
+  },
+  "reindex issues dry run": {
+    "status": 200,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "status": "dry_run",
+      "scope": "issues",
+      "plan": {
+        "total": 0,
+        "toProcess": 0,
+        "toDelete": 0,
+        "byRoot": {}
+      }
+    }
+  },
+  "reindex issues": {
+    "status": 200,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "status": "started",
+      "scope": "issues",
+      "plan": {
+        "total": 0,
+        "toProcess": 0,
+        "toDelete": 0,
+        "byRoot": {}
+      }
+    }
+  },
+  "reindex default scope dry run": {
+    "status": 200,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "status": "dry_run",
+      "scope": "issues",
+      "plan": {
+        "total": 0,
+        "toProcess": 0,
+        "toDelete": 0,
+        "byRoot": {}
+      }
+    }
+  },
+  "reindex unknown scope": {
+    "status": 400,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "code": "invalid_request",
+      "error": "Scope must be one of: issues, full, rules, path, prune",
+      "details": [
+        {
+          "code": "invalid_value",
+          "values": [
+            "issues",
+            "full",
+            "rules",
+            "path",
+            "prune"
+          ],
+          "path": [
+            "scope"
+          ],
+          "message": "Scope must be one of: issues, full, rules, path, prune"
+        }
+      ]
+    }
+  },
+  "reindex source dry run": {
+    "status": 200,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "status": "dry_run",
+      "scope": "path",
+      "plan": {
+        "total": 1,
+        "toProcess": 1,
+        "toDelete": 0,
+        "byRoot": {
+          "app": 1
+        }
+      }
+    }
+  },
+  "reindex source without queue": {
+    "status": 503,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "code": "not_available",
+      "error": "Not available",
+      "message": "Source documents are not supported by this instance."
+    }
+  },
+  "reindex prune dry run": {
+    "status": 200,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "status": "dry_run",
+      "scope": "prune",
+      "plan": {
+        "total": 1,
+        "toProcess": 0,
+        "toDelete": 1,
+        "byRoot": {
+          "": 1
+        }
+      }
+    }
+  },
+  "reindex unknown key": {
+    "status": 200,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "status": "dry_run",
+      "scope": "issues",
+      "plan": {
+        "total": 0,
+        "toProcess": 0,
+        "toDelete": 0,
+        "byRoot": {}
+      }
+    }
+  },
+  "issues": {
+    "status": 200,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "count": 0,
+      "issues": {}
+    }
+  },
+  "facets": {
+    "status": 200,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "facets": []
+    }
+  },
+  "facets unknown query": {
+    "status": 200,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "facets": []
+    }
+  },
+  "rebuildMetadata": {
+    "status": 200,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "ok": true
+    }
+  },
+  "rebuildMetadata unknown key": {
+    "status": 200,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "ok": true
+    }
+  },
+  "metadata file": {
+    "status": 200,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "ok": true,
+      "matched_rules": []
+    }
+  },
+  "metadata source": {
+    "status": 200,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "ok": true,
+      "matched_rules": [
+        "chat"
+      ]
+    }
+  },
+  "metadata source not indexed": {
+    "status": 404,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "code": "source_not_indexed",
+      "error": "Source document not indexed"
+    }
+  },
+  "metadata neither target": {
+    "status": 400,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "code": "invalid_request",
+      "error": "Exactly one of path or source is required",
+      "details": [
+        {
+          "code": "custom",
+          "path": [
+            "path"
+          ],
+          "message": "Exactly one of path or source is required"
+        }
+      ]
+    }
+  },
+  "metadata missing metadata": {
+    "status": 400,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "code": "invalid_request",
+      "error": "Missing required field: metadata (object)",
+      "details": [
+        {
+          "expected": "record",
+          "code": "invalid_type",
+          "path": [
+            "metadata"
+          ],
+          "message": "Missing required field: metadata (object)"
+        }
+      ]
+    }
+  },
+  "metadata unknown key": {
+    "status": 200,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "ok": true,
+      "matched_rules": []
+    }
+  },
+  "walk": {
+    "status": 200,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "paths": [
+        "{dir}/docs/a.md"
+      ],
+      "matchedCount": 1,
+      "scannedRoots": [
+        "{cwd}"
+      ]
+    }
+  },
+  "walk missing globs": {
+    "status": 400,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "code": "invalid_request",
+      "error": "Missing globs",
+      "message": "The \"globs\" field is required and must be a non-empty string array."
+    }
+  },
+  "walk scanning": {
+    "status": 503,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "code": "scan_in_progress",
+      "error": "Scan in progress",
+      "message": "Initial filesystem scan is still active. Try again after scan completes."
+    }
+  },
+  "walk no watcher": {
+    "status": 503,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "code": "not_available",
+      "error": "Watcher unavailable",
+      "message": "Filesystem watcher is not initialized."
+    }
+  },
+  "walk unknown key": {
+    "status": 200,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "paths": [
+        "{dir}/docs/a.md"
+      ],
+      "matchedCount": 1,
+      "scannedRoots": [
+        "{cwd}"
+      ]
+    }
+  },
+  "documents accepted": {
+    "status": 202,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "accepted": [
+        "app://chat/1"
+      ],
+      "rejected": []
+    }
+  },
+  "documents wait": {
+    "status": 200,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "results": [
+        {
+          "source": "app://chat/1",
+          "status": "indexed"
+        }
+      ]
+    }
+  },
+  "documents invalid reference": {
+    "status": 202,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "accepted": [],
+      "rejected": [
+        {
+          "source": "not a reference",
+          "error": {
+            "code": "invalid_reference",
+            "message": "Source reference must match <name>://<id> (name ^[a-z][a-z0-9-]{1,31}$, id 1-512 non-whitespace characters)"
+          }
+        }
+      ]
+    }
+  },
+  "documents without queue": {
+    "status": 503,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "code": "not_available",
+      "error": "Not available",
+      "message": "Source documents are not supported by this instance."
+    }
+  },
+  "documents empty body": {
+    "status": 400,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "code": "invalid_request",
+      "error": "Invalid input: expected array, received undefined",
+      "details": [
+        {
+          "expected": "array",
+          "code": "invalid_type",
+          "path": [
+            "documents"
+          ],
+          "message": "Invalid input: expected array, received undefined"
+        }
+      ]
+    }
+  },
+  "documents unknown key": {
+    "status": 202,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "accepted": [
+        "app://chat/1"
+      ],
+      "rejected": []
+    }
+  },
+  "documentsDelete sources": {
+    "status": 200,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "deleted": 0
+    }
+  },
+  "documentsDelete filter": {
+    "status": 200,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "deleted": 0
+    }
+  },
+  "documentsDelete empty body": {
+    "status": 400,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "code": "invalid_request",
+      "error": "Invalid input",
+      "details": [
+        {
+          "code": "invalid_union",
+          "errors": [
+            [
+              {
+                "expected": "array",
+                "code": "invalid_type",
+                "path": [
+                  "sources"
+                ],
+                "message": "Invalid input: expected array, received undefined"
+              }
+            ],
+            [
+              {
+                "expected": "record",
+                "code": "invalid_type",
+                "path": [
+                  "filter"
+                ],
+                "message": "Invalid input: expected record, received undefined"
+              }
+            ]
+          ],
+          "path": [],
+          "message": "Invalid input"
+        }
+      ]
+    }
+  },
+  "documentsDelete both selectors": {
+    "status": 400,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "code": "invalid_request",
+      "error": "Invalid input",
+      "details": [
+        {
+          "code": "invalid_union",
+          "errors": [
+            [
+              {
+                "code": "unrecognized_keys",
+                "keys": [
+                  "filter"
+                ],
+                "path": [],
+                "message": "Unrecognized key: \"filter\""
+              }
+            ],
+            [
+              {
+                "code": "unrecognized_keys",
+                "keys": [
+                  "sources"
+                ],
+                "path": [],
+                "message": "Unrecognized key: \"sources\""
+              }
+            ]
+          ],
+          "path": [],
+          "message": "Invalid input"
+        }
+      ]
+    }
+  },
+  "documentsDelete filter rejected": {
+    "status": 400,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "code": "invalid_request",
+      "error": "Invalid filter",
+      "message": "Wrong filter"
+    }
+  },
+  "documentsDelete unknown key": {
+    "status": 400,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "code": "invalid_request",
+      "error": "Unrecognized key: \"extra\"",
+      "details": [
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "extra"
+          ],
+          "path": [],
+          "message": "Unrecognized key: \"extra\""
+        }
+      ]
+    }
+  },
+  "pointsDelete": {
+    "status": 200,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "deleted": 1
+    }
+  },
+  "pointsDelete missing filter": {
+    "status": 400,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "code": "invalid_request",
+      "error": "Missing required field: filter (object)",
+      "details": [
+        {
+          "expected": "record",
+          "code": "invalid_type",
+          "path": [
+            "filter"
+          ],
+          "message": "Missing required field: filter (object)"
+        }
+      ]
+    }
+  },
+  "pointsDelete filter rejected": {
+    "status": 400,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "code": "invalid_request",
+      "error": "Invalid filter",
+      "message": "Wrong filter"
+    }
+  },
+  "pointsDelete unknown key": {
+    "status": 200,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "deleted": 1
+    }
+  },
+  "rulesRegister": {
+    "status": 200,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "source": "plug",
+      "registered": 1,
+      "totalVirtualRules": 1
+    }
+  },
+  "rulesRegister invalid rules": {
+    "status": 200,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "source": "plug",
+      "registered": 1,
+      "totalVirtualRules": 1
+    }
+  },
+  "rulesRegister missing source": {
+    "status": 400,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "code": "invalid_request",
+      "error": "Missing required field: source",
+      "details": [
+        {
+          "expected": "string",
+          "code": "invalid_type",
+          "path": [
+            "source"
+          ],
+          "message": "Missing required field: source"
+        }
+      ]
+    }
+  },
+  "rulesRegister unknown key": {
+    "status": 200,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "source": "plug",
+      "registered": 0,
+      "totalVirtualRules": 0
+    }
+  },
+  "rulesUnregister": {
+    "status": 200,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "source": "plug",
+      "removed": false
+    }
+  },
+  "rulesUnregister missing source": {
+    "status": 400,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "code": "invalid_request",
+      "error": "Missing required field: source",
+      "details": [
+        {
+          "expected": "string",
+          "code": "invalid_type",
+          "path": [
+            "source"
+          ],
+          "message": "Missing required field: source"
+        }
+      ]
+    }
+  },
+  "rulesUnregister unknown key": {
+    "status": 200,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "source": "plug",
+      "removed": false
+    }
+  },
+  "rulesUnregisterBySource": {
+    "status": 200,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "source": "plug",
+      "removed": false
+    }
+  },
+  "rulesReapply": {
+    "status": 200,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "matched": 1,
+      "updated": 1
+    }
+  },
+  "rulesReapply missing globs": {
+    "status": 400,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "code": "invalid_request",
+      "error": "Missing required field: globs (non-empty string array)",
+      "details": [
+        {
+          "expected": "array",
+          "code": "invalid_type",
+          "path": [
+            "globs"
+          ],
+          "message": "Missing required field: globs (non-empty string array)"
+        }
+      ]
+    }
+  },
+  "rulesReapply unknown key": {
+    "status": 200,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "matched": 1,
+      "updated": 1
+    }
+  },
+  "vcsStatus": {
+    "status": 200,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "enabled": true,
+      "roots": [
+        {
+          "path": "{root}",
+          "tracked": 2,
+          "lastCommit": {
+            "hash": "{commit}",
+            "message": "fixtures",
+            "timestamp": "2026-01-01T00:00:00Z"
+          },
+          "remoteUrl": null,
+          "lastPush": null,
+          "pushErrors": [],
+          "breaker": {
+            "consecutiveFailures": 0,
+            "tripped": false,
+            "trippedAt": null,
+            "lastError": null,
+            "pendingCount": 0
+          }
+        }
+      ]
+    }
+  },
+  "vcsHistory": {
+    "status": 200,
+    "contentType": "application/json; charset=utf-8",
+    "body": [
+      {
+        "commit": "{commit}",
+        "message": "fixtures",
+        "timestamp": "2026-01-01T00:00:00Z",
+        "files": [
+          "blob.xyz",
+          "data.json",
+          "notes.md"
+        ]
+      },
+      {
+        "commit": "6b247145e3252a6aaecd14a76483f57e3b950b02",
+        "message": "initial commit",
+        "timestamp": "2026-01-01T00:00:00Z",
+        "files": [
+          "hello.txt"
+        ]
+      }
+    ]
+  },
+  "vcsHistory limit": {
+    "status": 200,
+    "contentType": "application/json; charset=utf-8",
+    "body": [
+      {
+        "commit": "{commit}",
+        "message": "fixtures",
+        "timestamp": "2026-01-01T00:00:00Z",
+        "files": [
+          "blob.xyz",
+          "data.json",
+          "notes.md"
+        ]
+      }
+    ]
+  },
+  "vcsHistory missing glob": {
+    "status": 400,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "code": "invalid_request",
+      "error": "Missing required query parameter: glob"
+    }
+  },
+  "vcsHistory unknown root": {
+    "status": 404,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "code": "not_found",
+      "error": "No VCS-enabled watch root matches the given glob"
+    }
+  },
+  "vcsHistory unknown key": {
+    "status": 200,
+    "contentType": "application/json; charset=utf-8",
+    "body": [
+      {
+        "commit": "{commit}",
+        "message": "fixtures",
+        "timestamp": "2026-01-01T00:00:00Z",
+        "files": [
+          "blob.xyz",
+          "data.json",
+          "notes.md"
+        ]
+      },
+      {
+        "commit": "6b247145e3252a6aaecd14a76483f57e3b950b02",
+        "message": "initial commit",
+        "timestamp": "2026-01-01T00:00:00Z",
+        "files": [
+          "hello.txt"
+        ]
+      }
+    ]
+  },
+  "vcsDiff": {
+    "status": 200,
+    "contentType": "text/plain",
+    "body": "diff --git a/blob.xyz b/blob.xyz\nnew file mode 100644\nindex 0000000..3289820\n--- /dev/null\n+++ b/blob.xyz\n@@ -0,0 +1 @@\n+opaque\n\\ No newline at end of file\ndiff --git a/data.json b/data.json\nnew file mode 100644\nindex 0000000..10c30db\n--- /dev/null\n+++ b/data.json\n@@ -0,0 +1 @@\n+{ \"a\": 1 }\ndiff --git a/notes.md b/notes.md\nnew file mode 100644\nindex 0000000..b9daef6\n--- /dev/null\n+++ b/notes.md\n@@ -0,0 +1,3 @@\n+# Notes\n+\n+Some *markdown*.\n"
+  },
+  "vcsDiff range": {
+    "status": 200,
+    "contentType": "text/plain",
+    "body": "diff --git a/blob.xyz b/blob.xyz\nnew file mode 100644\nindex 0000000..3289820\n--- /dev/null\n+++ b/blob.xyz\n@@ -0,0 +1 @@\n+opaque\n\\ No newline at end of file\ndiff --git a/data.json b/data.json\nnew file mode 100644\nindex 0000000..10c30db\n--- /dev/null\n+++ b/data.json\n@@ -0,0 +1 @@\n+{ \"a\": 1 }\ndiff --git a/notes.md b/notes.md\nnew file mode 100644\nindex 0000000..b9daef6\n--- /dev/null\n+++ b/notes.md\n@@ -0,0 +1,3 @@\n+# Notes\n+\n+Some *markdown*.\n"
+  },
+  "vcsDiff missing commit": {
+    "status": 400,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "code": "invalid_request",
+      "error": "Missing required query parameters: glob, commit"
+    }
+  },
+  "vcsDiff unknown root": {
+    "status": 404,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "code": "not_found",
+      "error": "No VCS-enabled watch root matches the given glob"
+    }
+  },
+  "vcsCheckExclusion": {
+    "status": 200,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "excluded": false
+    }
+  },
+  "vcsCheckExclusion missing path": {
+    "status": 400,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "code": "invalid_request",
+      "error": "Missing required query parameter: path"
+    }
+  },
+  "vcsCheckExclusion unknown root": {
+    "status": 404,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "code": "not_found",
+      "error": "Path does not match any VCS-enabled watch root"
+    }
+  },
+  "vcsRevert": {
+    "status": 200,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "restored": 1,
+      "files": [
+        "{root}/hello.txt"
+      ]
+    }
+  },
+  "vcsRevert existing only": {
+    "status": 200,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "restored": 0,
+      "files": []
+    }
+  },
+  "vcsRevert missing commit": {
+    "status": 400,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "code": "invalid_request",
+      "error": "Missing required body parameters: glob, commit"
+    }
+  },
+  "vcsRevert unknown root": {
+    "status": 404,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "code": "not_found",
+      "error": "Glob does not match any VCS-enabled watch root"
+    }
+  },
+  "vcsRevert unknown key": {
+    "status": 200,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "restored": 1,
+      "files": [
+        "{root}/hello.txt"
+      ]
+    }
+  },
+  "vcsExclude add": {
+    "status": 200,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "ok": true,
+      "gitignorePath": "{root}/tmp/.gitignore",
+      "action": "added"
+    }
+  },
+  "vcsExclude add with root": {
+    "status": 200,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "ok": true,
+      "gitignorePath": "{root}/tmp/.gitignore",
+      "action": "added"
+    }
+  },
+  "vcsExclude remove absent": {
+    "status": 404,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "code": "not_found",
+      "error": "No .gitignore found at the expected location"
+    }
+  },
+  "vcsExclude missing glob": {
+    "status": 400,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "code": "invalid_request",
+      "error": "Missing required body parameter: glob"
+    }
+  },
+  "vcsExclude unknown root": {
+    "status": 404,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "code": "not_found",
+      "error": "Glob does not match any VCS-enabled watch root"
+    }
+  },
+  "vcsExclude root not vcs": {
+    "status": 404,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "code": "not_found",
+      "error": "Root is not a VCS-enabled watch root"
+    }
+  },
+  "vcsExclude unknown key": {
+    "status": 200,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "ok": true,
+      "gitignorePath": "{root}/tmp/.gitignore",
+      "action": "added"
+    }
+  },
+  "vcsStatus without vcs": {
+    "status": 404,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "code": "not_found",
+      "error": "Not Found",
+      "message": "Route GET:/vcs/status not found"
+    }
+  },
+  "vcsHistory without vcs": {
+    "status": 404,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "code": "not_found",
+      "error": "Not Found",
+      "message": "Route GET:/vcs/history?glob={root}/** not found"
+    }
+  },
+  "vcsDiff without vcs": {
+    "status": 404,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "code": "not_found",
+      "error": "Not Found",
+      "message": "Route GET:/vcs/diff?glob={root}/**&commit={commit} not found"
+    }
+  },
+  "vcsCheckExclusion without vcs": {
+    "status": 404,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "code": "not_found",
+      "error": "Not Found",
+      "message": "Route GET:/vcs/check-exclusion?path={root}/notes.md not found"
+    }
+  },
+  "vcsRevert without vcs": {
+    "status": 404,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "code": "not_found",
+      "error": "Not Found",
+      "message": "Route POST:/vcs/revert not found"
+    }
+  },
+  "vcsExclude without vcs": {
+    "status": 404,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "code": "not_found",
+      "error": "Not Found",
+      "message": "Route POST:/vcs/exclude not found"
+    }
   }
 }

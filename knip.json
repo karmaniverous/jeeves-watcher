@@ -10,7 +10,10 @@
   "workspaces": {
     "packages/core": {},
     "packages/service": {
-      "entry": ["src/cli/jeeves-watcher/index.ts"],
+      "entry": [
+        "src/cli/jeeves-watcher/index.ts",
+        "vitest.wire-record.config.mts"
+      ],
       "ignoreDependencies": [
         "@rollup/plugin-typescript={paths:{}}",
         "@karmaniverous/jeeves-watcher-sdk"

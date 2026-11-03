@@ -152,6 +152,7 @@
     "release": "dotenvx run -f .env.local -- release-it",
     "release:pre": "dotenvx run -f .env.local -- release-it --no-git.requireBranch --github.preRelease --preRelease",
     "test": "vitest run",
+    "wire:capture": "node scripts/capture-wire-0.20.0.mjs",
     "typecheck": "tsc"
   },
   "type": "module",

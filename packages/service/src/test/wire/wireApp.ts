@@ -12,10 +12,13 @@ import pino from 'pino';
 
 import { createApiServer } from '../../api';
 import type { ApiServerOptions } from '../../api/apiServerOptions';
+import { ReindexTracker } from '../../api/ReindexTracker';
 import type { JeevesWatcherConfig } from '../../config/types';
 import { watcherDescriptor } from '../../descriptor';
 import { EmbeddingUnavailableError } from '../../embedding/rateLimitError';
 import { ProcessingFailure } from '../../processor/issueRecording';
+import { VirtualRuleStore } from '../../rules/virtualRules';
+import { normalizeSlashes } from '../../util/normalizeSlashes';
 import { execFileAsync } from '../git';
 import { makeVcsApiCoordinator, makeVcsApiRoot } from '../vcsHandlers';
 
@@ -33,6 +36,10 @@ export interface WireState {
   render: 'transformed' | 'passthrough' | 'missing' | 'pipeline' | 'crash';
   /** Stored designated rule of a source document (`null`: not indexed). */
   sourceRule: string | null;
+  /** Filesystem watcher state seen by `POST /walk`. */
+  walk: 'ready' | 'scanning' | 'absent';
+  /** Deletion scrolls also return a source-document point. */
+  sourcePoint: boolean;
   /** What a source render does. */
   sourceRender:
     | 'ok'
@@ -51,6 +58,18 @@ export const DEFAULT_WIRE_STATE: WireState = {
   render: 'transformed',
   sourceRule: 'chat',
   sourceRender: 'ok',
+  walk: 'ready',
+  sourcePoint: false,
+};
+
+/** Fixed git identity and dates, so every wire repo's commit SHAs are stable. */
+const WIRE_GIT_ENV = {
+  GIT_AUTHOR_NAME: 'Wire',
+  GIT_AUTHOR_EMAIL: 'wire@example.com',
+  GIT_AUTHOR_DATE: '2026-01-01T00:00:00Z',
+  GIT_COMMITTER_NAME: 'Wire',
+  GIT_COMMITTER_EMAIL: 'wire@example.com',
+  GIT_COMMITTER_DATE: '2026-01-01T00:00:00Z',
 };
 
 /** A started wire app. */
@@ -59,6 +78,8 @@ export interface WireApp {
   app: FastifyInstance;
   /** The same server without a VCS coordinator. */
   appWithoutVcs: FastifyInstance;
+  /** The app with VCS on and no source notify queue configured. */
+  appWithoutSourceQueue: FastifyInstance;
   /** Stub behaviour (mutate per request; reset with {@link WireApp.reset}). */
   state: WireState;
   /** Restore {@link DEFAULT_WIRE_STATE} and the original config file. */
@@ -78,6 +99,11 @@ export const WIRE_KEY = 'wire-key';
 
 const point = { id: 'p1', score: 0.9, payload: { file_path: 'a.md' } };
 const scrolled = { id: 'p1', payload: { file_path: 'a.md' } };
+/** A source-document point, as deletion scrolls see it. */
+const sourcePointOf = () => ({
+  id: 'p2',
+  payload: { source: 'app://chat/1', file_path: 'app://chat/1' },
+});
 
 /** Files committed to the VCS root besides `hello.txt`. */
 export const VCS_FILES: Record<string, string> = {
@@ -96,6 +122,10 @@ function qdrantRejection(): Error {
 function sourceOperations(state: WireState) {
   return {
     storedRule: () => Promise.resolve(state.sourceRule),
+    validate: () => undefined,
+    compiledRule: () => ({ rule: { name: state.sourceRule ?? 'chat' } }),
+    updateMetadata: () =>
+      Promise.resolve(state.sourceRule === null ? null : { ok: true }),
     render: () => {
       if (state.sourceRender === 'ok') {
         return Promise.resolve({
@@ -178,7 +208,9 @@ export const WIRE_AUTH = { authorization: `Bearer ${WIRE_KEY}` };
 export async function startWireApp(
   logger: pino.Logger = pino({ level: 'silent' }),
 ): Promise<WireApp> {
+  Object.assign(process.env, WIRE_GIT_ENV);
   const dir = await mkdtemp(join(tmpdir(), 'jeeves-watcher-wire-'));
+  const rules = new VirtualRuleStore();
   const configPath = join(dir, 'config.json');
   const writeConfig = () =>
     writeFile(configPath, JSON.stringify(WIRE_CONFIG_FILE, null, 2), 'utf8');
@@ -201,10 +233,16 @@ export async function startWireApp(
     config: buildConfig(dir, state),
     logger,
     version: '0.0.0-wire',
-    queue: { pause: () => undefined, resume: () => undefined },
+    queue: {
+      pause: () => undefined,
+      resume: () => undefined,
+      waitForIdleWorkers: () => Promise.resolve(),
+    },
     processor: {
       renderFile: () => renderFile(state),
       sourceOperations: () => sourceOperations(state),
+      processMetadataUpdate: () => Promise.resolve(),
+      processRulesUpdate: () => Promise.resolve({ ok: true }),
     },
     vectorStore: {
       getCollectionInfo: () =>
@@ -220,10 +258,26 @@ export async function startWireApp(
           ? Promise.reject(qdrantRejection())
           : Promise.resolve([point]),
       hybridSearch: () => Promise.resolve([{ ...point, score: 0.5 }]),
-      scrollPage: () =>
+      // The first page offers a cursor; following it ends the scroll, so
+      // paging callers (deletion, rule re-apply) terminate.
+      scrollPage: (_filter: unknown, _limit: number, cursor?: string) =>
         state.filterRejected
           ? Promise.reject(qdrantRejection())
-          : Promise.resolve({ points: [scrolled], nextCursor: 'next' }),
+          : Promise.resolve(
+              cursor === 'next'
+                ? { points: [], nextCursor: undefined }
+                : {
+                    points: state.sourcePoint
+                      ? [scrolled, sourcePointOf()]
+                      : [scrolled],
+                    nextCursor: 'next',
+                  },
+            ),
+      delete: () => Promise.resolve(),
+      scroll: async function* () {
+        yield { id: 'p1', payload: { file_path: 'a.md', title: 'A' } };
+        await Promise.resolve();
+      },
       count: () => Promise.resolve(42),
     },
     embeddingProvider: {
@@ -237,23 +291,53 @@ export async function startWireApp(
             )
           : Promise.resolve([[0.1, 0.2, 0.3]]),
     },
-    issuesManager: { getAll: () => ({}) },
+    issuesManager: { getAll: () => ({}), clear: () => undefined },
+    enrichmentStore: { set: () => undefined, delete: () => undefined },
+    virtualRuleStore: rules,
+    reindexTracker: new ReindexTracker(),
+    sourceQueue: {
+      enqueue: () => true,
+      processNow: (source: string) =>
+        Promise.resolve({ source, status: 'indexed' }),
+    },
+    getFileSystemWatcher: () =>
+      state.walk === 'absent'
+        ? undefined
+        : {
+            isReady: state.walk === 'ready',
+            getWatchedFiles: () => [
+              normalizeSlashes(join(dir, 'docs', 'a.md')),
+              normalizeSlashes(join(dir, 'docs', 'b.txt')),
+            ],
+          },
     valuesManager: { getAll: () => ({}), getForRule: () => ({}) },
   } as unknown as ApiServerOptions;
 
   const coordinator = makeVcsApiCoordinator(vcsRoot);
   const app = createApiServer({ ...options, vcsCoordinator: coordinator });
   const appWithoutVcs = createApiServer(options);
+  const appWithoutSourceQueue = createApiServer({
+    ...options,
+    vcsCoordinator: coordinator,
+    sourceQueue: undefined,
+  });
   await app.ready();
   await appWithoutVcs.ready();
+  await appWithoutSourceQueue.ready();
 
   return {
     app,
     appWithoutVcs,
+    appWithoutSourceQueue,
     state,
     reset: async () => {
       Object.assign(state, DEFAULT_WIRE_STATE);
       await writeConfig();
+      for (const source of Object.keys(rules.getAll()))
+        rules.unregister(source);
+      // Undo VCS writes (revert, exclude) so every scenario sees the same repo.
+      await execFileAsync('git', ['checkout', '--', '.'], { cwd: vcsRoot });
+      await execFileAsync('git', ['clean', '-fdq'], { cwd: vcsRoot });
     },
     vcsRoot,
     commit: stdout.trim(),
@@ -261,6 +345,7 @@ export async function startWireApp(
     close: async () => {
       await app.close();
       await appWithoutVcs.close();
+      await appWithoutSourceQueue.close();
       await rm(dir, { recursive: true, force: true });
       await rm(vcsRoot, { recursive: true, force: true });
     },
