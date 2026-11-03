@@ -4,20 +4,16 @@
  */
 
 import type { CatalogHandler } from '@karmaniverous/jeeves/fastify';
+import type { VcsHistoryResponse } from '@karmaniverous/jeeves-watcher-core';
 
-import { resolveWatchRootsForGlob } from '../../vcs/resolveWatchRoot';
 import { runGit } from '../../vcs/runGit';
-import { RequestError } from '../requestError';
 import type { Entry } from './catalogEntry';
 import type { CatalogVcsDeps } from './vcsDeps';
+import { requireGlobRoots } from './vcsRoots';
 import { wrapCatalogHandler } from './wrapCatalogHandler';
 
-interface HistoryEntry {
-  commit: string;
-  message: string;
-  timestamp: string;
-  files: string[];
-}
+/** One commit of the history. */
+type HistoryEntry = VcsHistoryResponse[number];
 
 /** Matches a commit header line: 40-hex-char hash, pipe, message, pipe, ISO timestamp. */
 const HEADER_RE = /^([0-9a-f]{40})\|(.+)\|(\d{4}-\d{2}-\d{2}T.+)$/;
@@ -72,14 +68,11 @@ export function createCatalogVcsHistoryHandler(
       const { glob, since, until, limit: limitStr } = input.query;
 
       const limit = limitStr ? parseInt(limitStr, 10) : 20;
-      const resolved = resolveWatchRootsForGlob(deps.coordinator, glob);
-
-      if (resolved.length === 0) {
-        throw new RequestError(
-          'not_found',
-          'No VCS-enabled watch root matches the given glob',
-        );
-      }
+      const resolved = requireGlobRoots(
+        deps.coordinator,
+        glob,
+        'No VCS-enabled watch root matches the given glob',
+      );
 
       const allEntries: HistoryEntry[] = [];
 

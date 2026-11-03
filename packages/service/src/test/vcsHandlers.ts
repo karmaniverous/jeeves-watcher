@@ -13,14 +13,7 @@ import { join, resolve } from 'node:path';
 import Fastify, { type FastifyInstance } from 'fastify';
 import pino from 'pino';
 
-import { createCatalogVcsCheckExclusionHandler } from '../api/catalog/vcsCheckExclusionHandler';
-import type { CatalogVcsDeps } from '../api/catalog/vcsDeps';
-import { createCatalogVcsDiffHandler } from '../api/catalog/vcsDiffHandler';
-import { createCatalogVcsExcludeHandler } from '../api/catalog/vcsExcludeHandler';
-import { createCatalogVcsHistoryHandler } from '../api/catalog/vcsHistoryHandler';
-import { createCatalogVcsRevertHandler } from '../api/catalog/vcsRevertHandler';
-import { createCatalogVcsShowHandler } from '../api/catalog/vcsShowHandler';
-import { createCatalogVcsStatusHandler } from '../api/catalog/vcsStatusHandler';
+import { createVcsCatalogHandlers } from '../api/catalog';
 import type { JeevesWatcherConfig } from '../config/types';
 import { normalizeSlashes } from '../util/normalizeSlashes';
 import { initRepo } from '../vcs/vcsBootstrap';
@@ -90,17 +83,11 @@ export async function makeVcsApiRoot(): Promise<string> {
 export async function serveVcsCatalog(
   coordinator: VcsCoordinator,
 ): Promise<FastifyInstance> {
-  const deps: CatalogVcsDeps = { coordinator, logger: silentLogger };
   const app = Fastify({ logger: false });
-  await registerCatalogEntries(app, {
-    vcsStatus: createCatalogVcsStatusHandler(deps),
-    vcsHistory: createCatalogVcsHistoryHandler(deps),
-    vcsShow: createCatalogVcsShowHandler(deps),
-    vcsDiff: createCatalogVcsDiffHandler(deps),
-    vcsCheckExclusion: createCatalogVcsCheckExclusionHandler(deps),
-    vcsRevert: createCatalogVcsRevertHandler(deps),
-    vcsExclude: createCatalogVcsExcludeHandler(deps),
-  });
+  await registerCatalogEntries(
+    app,
+    createVcsCatalogHandlers({ coordinator, logger: silentLogger }),
+  );
   await app.ready();
   return app;
 }

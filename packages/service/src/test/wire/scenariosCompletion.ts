@@ -4,7 +4,7 @@
  */
 
 import type { WireScenario } from './scenarios';
-import type { WireState } from './wireApp';
+import type { WireState } from './wireStubs';
 
 const post = (
   name: string,

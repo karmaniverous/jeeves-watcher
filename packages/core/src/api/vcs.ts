@@ -6,17 +6,31 @@
 import { z } from 'zod';
 
 /**
- * A required, non-empty query parameter whose missing or empty value is
- * reported as `Missing required query parameter: <name>` (a schema-level
- * `error` also words the schema's own checks, here `min(1)`).
+ * A required, non-empty string whose missing or empty value is reported as
+ * `error` (a schema-level `error` also words the schema's own checks, here
+ * `min(1)`).
+ *
+ * @param error - Message for a missing, non-string or empty value.
+ * @param description - Field description (OpenAPI and tool text).
+ * @returns The field schema.
+ */
+function requiredString(error: string, description: string) {
+  return z.string({ error }).min(1).describe(description);
+}
+
+/**
+ * A required, non-empty query parameter, reported as
+ * `Missing required query parameter: <name>`.
  *
  * @param name - Parameter name.
  * @param description - Parameter description (OpenAPI and tool text).
  * @returns The parameter schema.
  */
 function requiredQueryParam(name: string, description: string) {
-  const error = `Missing required query parameter: ${name}`;
-  return z.string({ error }).min(1).describe(description);
+  return requiredString(
+    `Missing required query parameter: ${name}`,
+    description,
+  );
 }
 
 /** Query string of `GET /vcs/show`. */
@@ -29,11 +43,6 @@ export const vcsShowQuerySchema = z.object({
 
 /** Query string of `GET /vcs/show`. */
 export type VcsShowQuery = z.infer<typeof vcsShowQuerySchema>;
-
-/** A required string field in a JSON request body. */
-function requiredBodyParam(error: string, description: string) {
-  return z.string({ error }).min(1, { error }).describe(description);
-}
 
 /** Response body of `GET /vcs/status`. */
 export const vcsStatusResponseSchema = z.object({
@@ -130,11 +139,11 @@ export type VcsCheckExclusionResponse = z.infer<
 
 /** Request body of `POST /vcs/revert`. */
 export const vcsRevertRequestSchema = z.object({
-  glob: requiredBodyParam(
+  glob: requiredString(
     'Missing required body parameters: glob, commit',
     'Glob of files to restore.',
   ),
-  commit: requiredBodyParam(
+  commit: requiredString(
     'Missing required body parameters: glob, commit',
     'Version to restore from.',
   ),
@@ -158,7 +167,7 @@ export type VcsRevertResponse = z.infer<typeof vcsRevertResponseSchema>;
 
 /** Request body of `POST /vcs/exclude`. */
 export const vcsExcludeRequestSchema = z.object({
-  glob: requiredBodyParam(
+  glob: requiredString(
     'Missing required body parameter: glob',
     'Glob to add to (or remove from) the nearest .gitignore.',
   ),

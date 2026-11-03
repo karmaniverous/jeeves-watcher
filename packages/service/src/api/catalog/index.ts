@@ -151,7 +151,7 @@ type GatedHandlers = Pick<CatalogHandlers<WatcherCatalog>, GatedEntryName>;
  * @param deps - VCS coordinator and logger.
  * @returns One handler per `/vcs/*` entry.
  */
-function vcsHandlers(deps: CatalogVcsDeps): GatedHandlers {
+export function createVcsCatalogHandlers(deps: CatalogVcsDeps): GatedHandlers {
   return {
     vcsStatus: createCatalogVcsStatusHandler(deps),
     vcsHistory: createCatalogVcsHistoryHandler(deps),
@@ -253,6 +253,6 @@ export function createCatalogHandlers(
     rulesUnregisterBySource: createCatalogRulesUnregisterBySourceHandler(
       options.rules,
     ),
-    ...(options.vcs ? vcsHandlers(options.vcs) : vcsOffHandlers()),
+    ...(options.vcs ? createVcsCatalogHandlers(options.vcs) : vcsOffHandlers()),
   };
 }

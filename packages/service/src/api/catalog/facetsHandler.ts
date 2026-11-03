@@ -4,6 +4,7 @@
  */
 
 import type { CatalogHandler } from '@karmaniverous/jeeves/fastify';
+import type { ListFacetsResponse } from '@karmaniverous/jeeves-watcher-core';
 import type pino from 'pino';
 
 import type { JeevesWatcherConfig } from '../../config/types';
@@ -16,19 +17,12 @@ import type { ValuesManager } from '../../values';
 import type { Entry } from './catalogEntry';
 import { wrapCatalogHandler } from './wrapCatalogHandler';
 
-/** A single facet definition in the response. */
-interface Facet {
-  /** The metadata field name. */
-  field: string;
-  /** JSON Schema type (e.g. "string", "number", "boolean"). */
-  type: string;
-  /** UI rendering hint (e.g. "dropdown", "tags", "range"). */
-  uiHint: string;
-  /** Known values for this field. Enum values if declared; otherwise live values from the index. */
-  values: unknown[];
-  /** Which inference rules define this field. */
-  rules: string[];
-}
+/**
+ * A single facet definition in the response: field, JSON Schema type, UI
+ * hint, known values (enum values if declared, otherwise live values from
+ * the index) and the rules defining the field.
+ */
+type Facet = ListFacetsResponse['facets'][number];
 
 /** Dependencies for the facets lister. */
 export interface FacetsDeps {
@@ -144,7 +138,7 @@ export function createFacetsLister(deps: FacetsDeps) {
 
   let cached: CachedFacetSchema | undefined;
 
-  return (): { facets: Facet[] } => {
+  return (): ListFacetsResponse => {
     const config = getConfig();
 
     const mergeOptions: SchemaMergeOptions = {

@@ -5,11 +5,10 @@
 
 import type { CatalogHandler } from '@karmaniverous/jeeves/fastify';
 
-import { resolveWatchRootsForGlob } from '../../vcs/resolveWatchRoot';
 import { runGit } from '../../vcs/runGit';
-import { RequestError } from '../requestError';
 import type { Entry } from './catalogEntry';
 import type { CatalogVcsDeps } from './vcsDeps';
+import { requireGlobRoots } from './vcsRoots';
 import { wrapCatalogHandler } from './wrapCatalogHandler';
 
 /**
@@ -25,13 +24,11 @@ export function createCatalogVcsDiffHandler(
     async (input) => {
       const { glob, commit, commitEnd } = input.query;
 
-      const resolved = resolveWatchRootsForGlob(deps.coordinator, glob);
-      if (resolved.length === 0) {
-        throw new RequestError(
-          'not_found',
-          'No VCS-enabled watch root matches the given glob',
-        );
-      }
+      const resolved = requireGlobRoots(
+        deps.coordinator,
+        glob,
+        'No VCS-enabled watch root matches the given glob',
+      );
 
       const diffs: string[] = [];
 

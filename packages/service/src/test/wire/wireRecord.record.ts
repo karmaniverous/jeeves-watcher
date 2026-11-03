@@ -7,8 +7,9 @@ import { writeFileSync } from 'node:fs';
 
 import { afterAll, beforeAll, expect, it } from 'vitest';
 
-import { runScenario, WIRE_SCENARIOS, type WireRecord } from './scenarios';
+import { WIRE_SCENARIOS, type WireRecord } from './scenarios';
 import { startWireApp, type WireApp } from './wireApp';
+import { runScenario } from './wireRun';
 
 let wire: WireApp;
 

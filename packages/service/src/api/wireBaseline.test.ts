@@ -13,12 +13,9 @@ import { readFileSync } from 'node:fs';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { captureLogger, RESPONSE_MISMATCH } from '../test/wire/captureLogger';
-import {
-  runScenario,
-  WIRE_SCENARIOS,
-  type WireRecord,
-} from '../test/wire/scenarios';
+import { WIRE_SCENARIOS, type WireRecord } from '../test/wire/scenarios';
 import { startWireApp, type WireApp } from '../test/wire/wireApp';
+import { runScenario } from '../test/wire/wireRun';
 
 const baseline = JSON.parse(
   readFileSync(

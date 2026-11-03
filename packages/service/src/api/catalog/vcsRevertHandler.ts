@@ -9,11 +9,10 @@ import { dirname, join } from 'node:path';
 import type { CatalogHandler } from '@karmaniverous/jeeves/fastify';
 
 import { normalizeSlashes } from '../../util/normalizeSlashes';
-import { resolveWatchRootsForGlob } from '../../vcs/resolveWatchRoot';
 import { runGit } from '../../vcs/runGit';
-import { RequestError } from '../requestError';
 import type { Entry } from './catalogEntry';
 import type { CatalogVcsDeps } from './vcsDeps';
+import { requireGlobRoots } from './vcsRoots';
 import { wrapCatalogHandler } from './wrapCatalogHandler';
 
 /**
@@ -29,13 +28,11 @@ export function createCatalogVcsRevertHandler(
     async (input) => {
       const { glob, commit, existingOnly } = input.body;
 
-      const resolved = resolveWatchRootsForGlob(deps.coordinator, glob);
-      if (resolved.length === 0) {
-        throw new RequestError(
-          'not_found',
-          'Glob does not match any VCS-enabled watch root',
-        );
-      }
+      const resolved = requireGlobRoots(
+        deps.coordinator,
+        glob,
+        'Glob does not match any VCS-enabled watch root',
+      );
 
       const allFiles: string[] = [];
 
