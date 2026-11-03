@@ -67,6 +67,25 @@ describe('createCatalogConfigMatchHandler', () => {
     });
   });
 
+  it('matches the watch scope alone without rules or ignores', async () => {
+    const config: JeevesWatcherConfig = {
+      ...configWith('docs/**'),
+      watch: { paths: ['docs/**/*.md'], ignored: [] },
+      inferenceRules: undefined,
+    };
+    const handler = createCatalogConfigMatchHandler({
+      getConfig: () => config,
+      logger,
+    });
+
+    expect((await match(handler)(['docs/a.md', 'src/b.md'])).body).toEqual({
+      matches: [
+        { rules: [], watched: true },
+        { rules: [], watched: false },
+      ],
+    });
+  });
+
   it('recompiles the rules after a config reload', async () => {
     let config = configWith('docs/**/*.md');
     const handler = createCatalogConfigMatchHandler({

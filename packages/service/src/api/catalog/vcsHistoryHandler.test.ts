@@ -9,6 +9,7 @@
 import { rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
+import type { VcsHistoryResponse } from '@karmaniverous/jeeves-watcher-core';
 import type { FastifyInstance } from 'fastify';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
@@ -19,12 +20,7 @@ import {
   serveVcsCatalog,
 } from '../../test/vcsHandlers';
 
-interface HistoryEntry {
-  commit: string;
-  message: string;
-  timestamp: string;
-  files: string[];
-}
+type HistoryEntry = VcsHistoryResponse[number];
 
 describe('GET /vcs/history', () => {
   let rootA: string;
@@ -73,6 +69,18 @@ describe('GET /vcs/history', () => {
 
     expect(res.json<HistoryEntry[]>()).toHaveLength(2);
   });
+
+  it('returns the newest 20 commits without a limit', async () => {
+    for (let i = 0; i < 20; i++) {
+      await commitHello(`v${String(i)}`, `commit ${String(i)}`);
+    }
+
+    const res = await history({ glob: rootA + '/hello.txt' });
+
+    const body = res.json<HistoryEntry[]>();
+    expect(body).toHaveLength(20);
+    expect(body[0].message).toBe('commit 19');
+  }, 60_000);
 
   it('answers the catalog 400 for a missing glob', async () => {
     const res = await history({});

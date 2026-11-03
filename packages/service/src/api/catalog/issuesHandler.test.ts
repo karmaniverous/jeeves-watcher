@@ -26,4 +26,22 @@ describe('createCatalogIssuesHandler', () => {
       body: { count: 2, issues },
     });
   });
+
+  it('leaves out a key without issues, from the body and the count', async () => {
+    const issue = {
+      type: 'interpolation_error' as const,
+      message: 'x',
+      timestamp: 0,
+    };
+    const handler = createCatalogIssuesHandler({
+      issuesManager: {
+        getAll: (): IssuesFile => ({ 'a.md': [issue], 'b.md': undefined }),
+      },
+    });
+
+    expect(await handler({} as never, {} as never)).toEqual({
+      status: 200,
+      body: { count: 1, issues: { 'a.md': [issue] } },
+    });
+  });
 });

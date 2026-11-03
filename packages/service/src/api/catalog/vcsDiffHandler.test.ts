@@ -76,6 +76,22 @@ describe('GET /vcs/diff', () => {
     expect(res.body).not.toContain('v3');
   });
 
+  it('diffs the whole root when the glob is the root itself', async () => {
+    const first = await head();
+    await commitHello('changed content');
+
+    const res = await diff({ glob: rootA, commit: first });
+
+    expect(res.body).toContain('changed content');
+  });
+
+  it('answers an empty diff when nothing changed', async () => {
+    const res = await diff({ glob: rootA + '/hello.txt', commit: 'HEAD' });
+
+    expect(res.statusCode).toBe(200);
+    expect(res.body).toBe('');
+  });
+
   it('answers the catalog 400 for a missing commit', async () => {
     const res = await diff({ glob: rootA + '/hello.txt' });
 

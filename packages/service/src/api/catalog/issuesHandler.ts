@@ -26,7 +26,8 @@ export function createCatalogIssuesHandler(
 ): CatalogHandler<Entry<'issues'>> {
   return () => {
     const issues = deps.issuesManager.getAll();
-    // A key without issues would not survive JSON serialisation anyway.
+    // A key without issues would not survive JSON serialisation anyway, so
+    // it is neither sent nor counted.
     const present = Object.fromEntries(
       Object.entries(issues).flatMap(([key, records]) =>
         records ? [[key, records] as const] : [],
@@ -34,7 +35,7 @@ export function createCatalogIssuesHandler(
     );
     return Promise.resolve({
       status: 200,
-      body: { count: Object.keys(issues).length, issues: present },
+      body: { count: Object.keys(present).length, issues: present },
     });
   };
 }

@@ -90,11 +90,61 @@ describe('POST /vcs/exclude', () => {
     expect(res.json()).toMatchObject({ code: 'invalid_request' });
   });
 
+  it('returns 404 for a glob outside every root', async () => {
+    const res = await exclude({ glob: '/nonexistent/root/*.log' });
+
+    expect(res.statusCode).toBe(404);
+    expect(res.json()).toMatchObject({
+      code: 'not_found',
+      error: 'Glob does not match any VCS-enabled watch root',
+    });
+  });
+
+  it('returns 404 when there is no .gitignore to remove from', async () => {
+    const res = await exclude({ glob: rootA + '/*.log', remove: true });
+
+    expect(res.statusCode).toBe(404);
+    expect(res.json()).toMatchObject({
+      code: 'not_found',
+      error: 'No .gitignore found at the expected location',
+    });
+  });
+
   it('returns 404 for invalid root', async () => {
     const res = await exclude({ glob: '*.log', root: '/nonexistent/root' });
 
     expect(res.statusCode).toBe(404);
     expect(res.json()).toMatchObject({ code: 'not_found' });
+  });
+
+  it('excludes a literal path from its parent directory', async () => {
+    const res = await exclude({ glob: rootA + '/sub/debug.log' });
+
+    expect(res.json()).toEqual({
+      ok: true,
+      gitignorePath: rootA + '/sub/.gitignore',
+      action: 'added',
+    });
+    const content = await readFile(join(rootA, 'sub', '.gitignore'), 'utf8');
+    expect(content).toBe('debug.log\n');
+  });
+
+  it('takes a glob relative to an explicit root as is', async () => {
+    const res = await exclude({ glob: '*.log', root: rootA });
+
+    expect(res.json()).toMatchObject({
+      gitignorePath: rootA + '/.gitignore',
+      action: 'added',
+    });
+  });
+
+  it('appends to a .gitignore without a final newline', async () => {
+    await writeFile(join(rootA, '.gitignore'), '*.tmp', 'utf8');
+
+    await exclude({ glob: rootA + '/*.log' });
+
+    const content = await readFile(join(rootA, '.gitignore'), 'utf8');
+    expect(content).toBe('*.tmp\n*.log\n');
   });
 
   it('does not duplicate existing pattern', async () => {

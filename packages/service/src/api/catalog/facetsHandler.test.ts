@@ -93,6 +93,36 @@ describe('GET /search/facets handler', () => {
     ]);
   });
 
+  it('defaults type and uiHint, skips schemaless rules, and lets a later enum win', () => {
+    const config = makeConfig([
+      { name: 'no-schema', description: 'N', match: {} },
+      {
+        name: 'rule-a',
+        description: 'A',
+        match: {},
+        schema: [{ properties: { level: { enum: ['low'] } } }],
+      },
+      {
+        name: 'rule-b',
+        description: 'B',
+        match: {},
+        schema: [{ properties: { level: { enum: ['high'] } } }],
+      },
+    ]);
+
+    const result = createFacetsLister(makeDeps({ getConfig: () => config }))();
+
+    expect(result.facets).toEqual([
+      {
+        field: 'level',
+        type: 'string',
+        uiHint: 'dropdown',
+        values: ['high'],
+        rules: ['rule-a', 'rule-b'],
+      },
+    ]);
+  });
+
   it('deduplicates fields across multiple rules', () => {
     const config = makeConfig([
       {

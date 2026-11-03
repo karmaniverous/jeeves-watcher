@@ -137,10 +137,15 @@ describe('body normalisation', () => {
     expect(res.json()).toEqual({ ok: true });
   });
 
-  it('still rejects a bodyless POST to a route that needs a body', async () => {
-    const res = await send(wire.app, 'POST', '/walk');
+  // /config/validate's fields are all optional, so only the missing body
+  // itself is rejected: the normalisation is for /rebuild-metadata alone.
+  it.each(['/walk', '/config/validate'])(
+    'still rejects a bodyless POST %s',
+    async (url) => {
+      const res = await send(wire.app, 'POST', url);
 
-    expect(res.statusCode).toBe(400);
-    expect(res.json()).toMatchObject({ code: 'invalid_request' });
-  });
+      expect(res.statusCode).toBe(400);
+      expect(res.json()).toMatchObject({ code: 'invalid_request' });
+    },
+  );
 });
