@@ -110,6 +110,9 @@
       "releaseNotes": "npx git-cliff --tag service/${version} --unreleased --strip header"
     },
     "hooks": {
+      "before:init": [
+        "node ../../scripts/check-core-range.mjs"
+      ],
       "after:bump": [
         "npm install --package-lock-only --ignore-scripts",
         "git add ../../package-lock.json"

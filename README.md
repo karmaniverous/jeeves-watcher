@@ -347,6 +347,12 @@ Plugin configuration supports `apiUrl` (defaults to `http://127.0.0.1:1936`), an
 
 Any other extension is read as plain text.
 
+## Releasing
+
+The packages are released one at a time with `npm run release` (or `npm run release:pre`) from each package directory. Release order matters: **`packages/core` first**, then its dependents (`packages/sdk`, `packages/service`, `packages/openclaw`).
+
+Each dependent's `release-it` `before:init` hook runs `scripts/check-core-range.mjs`, which stops the release before any version bump, tag or publish when the package's declared range for `@karmaniverous/jeeves-watcher-core` does not admit the version in `packages/core/package.json`. The check reads the local core version, not the registry, so it passes as soon as the range is raised, even before core is published. If it fails, raise the dependent's range and release core first.
+
 ## License
 
 BSD-3-Clause
