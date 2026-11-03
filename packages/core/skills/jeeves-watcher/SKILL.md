@@ -848,6 +848,13 @@ Each inference rule has:
 - `render` (optional) — declarative frontmatter + Markdown renderer (mutually exclusive with `template`)
 - `renderAs` (optional) — output extension (1-10 lowercase alphanumerics); requires `template` or `render`
 
+### Authoring Notes
+
+- **`maps` entries are bare strings or inline maps.** A string value is a file path, loaded and parsed as a JsonMap at startup. A `{ path, description }` object is kept as-is and never loaded from the file, so it silently does nothing useful. (`mapHelpers` and `templateHelpers` are different: `{ path, description }` objects are their documented form.)
+- **Metadata is derived with `set`, not `attributes`.** Each schema property's `set` template produces its value. There is no `attributes` key in the config schema; older configs and examples that use one need rewriting.
+- **`render.frontmatter` accepts picomatch globs and `!` exclusions** alongside explicit keys, e.g. `["meta_id", "*", "!_*", "!chunk_*"]`. Explicit names keep their listed order; keys matched by a glob follow, sorted alphabetically; a key matching an exclusion is dropped.
+- **Virtual rules have a startup window.** Virtual rules are registered at runtime by other services (`POST /rules/register`, e.g. jeeves-meta), so they are absent during the initial file scan after a watcher start. Files indexed in that window lack virtual-rule metadata until the registration's automatic rules reindex runs, or until `POST /rules/reapply` covers them. If metadata from a virtual rule is missing right after a restart, check whether its service has registered yet.
+
 ### Config Workflow
 
 1. Edit config (or build partial config object)
