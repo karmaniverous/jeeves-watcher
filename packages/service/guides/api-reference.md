@@ -676,7 +676,7 @@ Globs are matched against slash-normalised paths, case-insensitively, dotfiles i
 | --- | --- |
 | `400` | `invalid_request` (request validation): `globs` is missing, not an array, empty, or has a non-string entry (unreleased; before, `error: "Missing globs"` without `details`, and the entries' types were not checked) |
 | `503` | `not_available` (`"Watcher unavailable"`): the instance has no filesystem watcher; `scan_in_progress` (`"Scan in progress"`): the initial filesystem scan is still running, retry later |
-| `500` | `internal_error`: unexpected failure, including a request without a JSON body (generic body) |
+| `500` | `internal_error`: unexpected failure (generic body; unreleased: before, also a request without a JSON body) |
 
 ---
 
