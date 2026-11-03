@@ -4,7 +4,10 @@
  */
 
 import type { CatalogHandler } from '@karmaniverous/jeeves/fastify';
-import { documentTarget } from '@karmaniverous/jeeves-watcher-core';
+import {
+  documentTarget,
+  type MetadataResponse,
+} from '@karmaniverous/jeeves-watcher-core';
 import type pino from 'pino';
 
 import type { JeevesWatcherConfig } from '../../config/types';
@@ -37,12 +40,6 @@ const notIndexed = () =>
 const invalid = (validation: { error: string; details?: unknown }) =>
   invalidRequest(validation.error, { details: validation.details });
 
-/** The success body of `POST /metadata`. */
-interface MetadataResult {
-  ok: true;
-  matched_rules: string[];
-}
-
 /**
  * Enrich a source document. The designated rule comes from the stored
  * chunk-0 point (`404` when not indexed; nothing is stored then) and the
@@ -59,7 +56,7 @@ async function updateSourceMetadata(
   deps: CatalogMetadataDeps,
   ref: string,
   metadata: Record<string, unknown>,
-): Promise<MetadataResult> {
+): Promise<MetadataResponse> {
   const ops = deps.processor.sourceOperations();
   const rule = await ops.storedRule(ref);
   if (rule === null) throw notIndexed();
