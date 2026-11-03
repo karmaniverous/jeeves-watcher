@@ -1,7 +1,7 @@
 ---
 name: jeeves-watcher
 description: >
-  Semantic search across a structured document archive. Use when you need to recall prior context, find documents, answer questions that require searching across indexed domains, enrich document metadata, manage watcher config, or diagnose indexing issues.
+  Semantic search of the indexed archive: recall prior context, find documents, scan, enrich metadata, watcher config, reindex, indexing issues, file history.
 ---
 
 # jeeves-watcher — Search, Discovery & Administration
