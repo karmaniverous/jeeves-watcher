@@ -245,8 +245,13 @@ export const CATALOG_COMPLETION_SCENARIOS: readonly WireScenario[] = [
   ),
   get('vcsDiff missing commit', '/vcs/diff?glob={root}/**'),
   get('vcsDiff unknown root', '/vcs/diff?glob=/elsewhere/**&commit={commit}'),
+  get('vcsDiff unknown key', '/vcs/diff?glob={root}/**&commit={commit}~1&x=1'),
   get('vcsCheckExclusion', '/vcs/check-exclusion?path={root}/notes.md'),
   get('vcsCheckExclusion missing path', '/vcs/check-exclusion'),
+  get(
+    'vcsCheckExclusion unknown key',
+    '/vcs/check-exclusion?path={root}/notes.md&x=1',
+  ),
   get(
     'vcsCheckExclusion unknown root',
     '/vcs/check-exclusion?path=/elsewhere/a.md',
