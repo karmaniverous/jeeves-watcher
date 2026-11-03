@@ -51,7 +51,10 @@ describe("'strict' response validation", () => {
     const res = await app.inject({ method: 'GET', url: '/status' });
 
     expect(res.statusCode).toBe(500);
-    expect(res.json()).toEqual({ error: 'Response validation failed' });
+    expect(res.json()).toEqual({
+      error: 'Response validation failed',
+      code: 'internal_error',
+    });
     expect(res.body).not.toContain('"7"');
 
     const logged = captured.records.filter((r) =>

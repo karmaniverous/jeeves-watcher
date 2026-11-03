@@ -29,3 +29,147 @@ export const vcsShowQuerySchema = z.object({
 
 /** Query string of `GET /vcs/show`. */
 export type VcsShowQuery = z.infer<typeof vcsShowQuerySchema>;
+
+/** A required string field in a JSON request body. */
+function requiredBodyParam(error: string, description: string) {
+  return z.string({ error }).min(1, { error }).describe(description);
+}
+
+/** Response body of `GET /vcs/status`. */
+export const vcsStatusResponseSchema = z.object({
+  enabled: z.boolean(),
+  roots: z.array(
+    z.object({
+      path: z.string(),
+      tracked: z.number().int().nonnegative(),
+      lastCommit: z
+        .object({
+          hash: z.string(),
+          message: z.string(),
+          timestamp: z.string(),
+        })
+        .nullable(),
+      remoteUrl: z.string().nullable(),
+      lastPush: z.string().nullable(),
+      pushErrors: z.array(z.unknown()),
+      breaker: z.unknown(),
+    }),
+  ),
+});
+
+/** Response body of `GET /vcs/status`. */
+export type VcsStatusResponse = z.infer<typeof vcsStatusResponseSchema>;
+
+/** Query string of `GET /vcs/history`. */
+export const vcsHistoryQuerySchema = z.object({
+  glob: requiredQueryParam('glob', 'Glob inside a VCS-enabled watch root.'),
+  limit: z.string().optional().describe('Most commits to return (default 20).'),
+});
+
+/** Query string of `GET /vcs/history`. */
+export type VcsHistoryQuery = z.infer<typeof vcsHistoryQuerySchema>;
+
+/** Response body of `GET /vcs/history`: commits touching the glob, newest first. */
+export const vcsHistoryResponseSchema = z.array(
+  z.object({
+    commit: z.string(),
+    message: z.string(),
+    timestamp: z.string(),
+    files: z.array(z.string()),
+  }),
+);
+
+/** Response body of `GET /vcs/history`. */
+export type VcsHistoryResponse = z.infer<typeof vcsHistoryResponseSchema>;
+
+/** Query string of `GET /vcs/diff`. */
+export const vcsDiffQuerySchema = z.object({
+  glob: requiredQueryParam('glob', 'Glob inside a VCS-enabled watch root.'),
+  commit: requiredQueryParam('commit', 'Version to diff from.'),
+  commitEnd: z
+    .string()
+    .optional()
+    .describe('Version to diff to (default: the working tree).'),
+});
+
+/** Query string of `GET /vcs/diff`. */
+export type VcsDiffQuery = z.infer<typeof vcsDiffQuerySchema>;
+
+/** Response body of `GET /vcs/diff`: a unified diff, `text/plain`. */
+export const vcsDiffResponseSchema = z.string();
+
+/** Query string of `GET /vcs/check-exclusion`. */
+export const vcsCheckExclusionQuerySchema = z.object({
+  path: requiredQueryParam('path', 'Path inside a VCS-enabled watch root.'),
+});
+
+/** Query string of `GET /vcs/check-exclusion`. */
+export type VcsCheckExclusionQuery = z.infer<
+  typeof vcsCheckExclusionQuerySchema
+>;
+
+/** Response body of `GET /vcs/check-exclusion`. */
+export const vcsCheckExclusionResponseSchema = z.object({
+  excluded: z.boolean(),
+  rule: z.string().optional(),
+  source: z.string().optional(),
+});
+
+/** Response body of `GET /vcs/check-exclusion`. */
+export type VcsCheckExclusionResponse = z.infer<
+  typeof vcsCheckExclusionResponseSchema
+>;
+
+/** Request body of `POST /vcs/revert`. */
+export const vcsRevertRequestSchema = z.object({
+  glob: requiredBodyParam(
+    'Missing required body parameters: glob, commit',
+    'Glob of files to restore.',
+  ),
+  commit: requiredBodyParam(
+    'Missing required body parameters: glob, commit',
+    'Version to restore from.',
+  ),
+  existingOnly: z
+    .boolean()
+    .optional()
+    .describe('Restore only files that exist in the working tree.'),
+});
+
+/** Request body of `POST /vcs/revert`. */
+export type VcsRevertRequest = z.infer<typeof vcsRevertRequestSchema>;
+
+/** Response body of `POST /vcs/revert`. */
+export const vcsRevertResponseSchema = z.object({
+  restored: z.number().int().nonnegative(),
+  files: z.array(z.string()),
+});
+
+/** Response body of `POST /vcs/revert`. */
+export type VcsRevertResponse = z.infer<typeof vcsRevertResponseSchema>;
+
+/** Request body of `POST /vcs/exclude`. */
+export const vcsExcludeRequestSchema = z.object({
+  glob: requiredBodyParam(
+    'Missing required body parameter: glob',
+    'Glob to add to (or remove from) the nearest .gitignore.',
+  ),
+  remove: z
+    .boolean()
+    .optional()
+    .describe('Remove the glob instead of adding it.'),
+  root: z.string().optional().describe('Watch root to write under.'),
+});
+
+/** Request body of `POST /vcs/exclude`. */
+export type VcsExcludeRequest = z.infer<typeof vcsExcludeRequestSchema>;
+
+/** Response body of `POST /vcs/exclude`. */
+export const vcsExcludeResponseSchema = z.object({
+  ok: z.literal(true),
+  gitignorePath: z.string(),
+  action: z.string(),
+});
+
+/** Response body of `POST /vcs/exclude`. */
+export type VcsExcludeResponse = z.infer<typeof vcsExcludeResponseSchema>;

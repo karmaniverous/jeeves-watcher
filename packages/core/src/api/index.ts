@@ -6,12 +6,26 @@
 export {
   type PointsDeleteRequest,
   pointsDeleteRequestSchema,
+  type PointsDeleteResponse,
+  pointsDeleteResponseSchema,
+  type RebuildMetadataRequest,
+  rebuildMetadataRequestSchema,
+  type RebuildMetadataResponse,
+  rebuildMetadataResponseSchema,
   type RulesReapplyRequest,
   rulesReapplyRequestSchema,
+  type RulesReapplyResponse,
+  rulesReapplyResponseSchema,
   type RulesRegisterRequest,
   rulesRegisterRequestSchema,
+  type RulesRegisterResponse,
+  rulesRegisterResponseSchema,
+  type RulesUnregisterParams,
+  rulesUnregisterParamsSchema,
   type RulesUnregisterRequest,
   rulesUnregisterRequestSchema,
+  type RulesUnregisterResponse,
+  rulesUnregisterResponseSchema,
 } from './admin.js';
 export {
   type ApiErrorResponse,
@@ -26,6 +40,18 @@ export {
   type QdrantFilter,
   qdrantFilterSchema,
 } from './common.js';
+export {
+  type GetConfigSchemaResponse,
+  getConfigSchemaResponseSchema,
+  type MatchConfigRequest,
+  matchConfigRequestSchema,
+  type MatchConfigResponse,
+  matchConfigResponseSchema,
+  type ValidateConfigRequest,
+  validateConfigRequestSchema,
+  type ValidateConfigResponse,
+  validateConfigResponseSchema,
+} from './configRoutes.js';
 export {
   type MetadataRequest,
   metadataRequestSchema,
@@ -96,6 +122,8 @@ export {
   watcherHealthSchema,
 } from './monitoring.js';
 export {
+  type ListFacetsResponse,
+  listFacetsResponseSchema,
   SCAN_DEFAULT_LIMIT,
   SCAN_MAX_LIMIT,
   type ScanPoint,
@@ -111,6 +139,10 @@ export {
   searchResponseSchema,
   type SearchResult,
   searchResultSchema,
+  type WalkRequest,
+  walkRequestSchema,
+  type WalkResponse,
+  walkResponseSchema,
 } from './query.js';
 export {
   type ConfigWatchReindexScope,
@@ -125,4 +157,28 @@ export {
   type ReindexScope,
   reindexScopeSchema,
 } from './reindex.js';
-export { type VcsShowQuery, vcsShowQuerySchema } from './vcs.js';
+export {
+  type VcsCheckExclusionQuery,
+  vcsCheckExclusionQuerySchema,
+  type VcsCheckExclusionResponse,
+  vcsCheckExclusionResponseSchema,
+  type VcsDiffQuery,
+  vcsDiffQuerySchema,
+  vcsDiffResponseSchema,
+  type VcsExcludeRequest,
+  vcsExcludeRequestSchema,
+  type VcsExcludeResponse,
+  vcsExcludeResponseSchema,
+  type VcsHistoryQuery,
+  vcsHistoryQuerySchema,
+  type VcsHistoryResponse,
+  vcsHistoryResponseSchema,
+  type VcsRevertRequest,
+  vcsRevertRequestSchema,
+  type VcsRevertResponse,
+  vcsRevertResponseSchema,
+  type VcsShowQuery,
+  vcsShowQuerySchema,
+  type VcsStatusResponse,
+  vcsStatusResponseSchema,
+} from './vcs.js';

@@ -43,7 +43,14 @@ const { values } = parseArgs({
 });
 const out = resolve(values.out);
 
-/** Run a command, inheriting stdio; `shell` lets npm/npx resolve on Windows. */
+/**
+ * Run a command, inheriting stdio; `shell` lets npm/npx resolve on Windows.
+ *
+ * @param {string} cmd - Executable.
+ * @param {string[]} args - Arguments.
+ * @param {string} cwd - Working directory.
+ * @param {Record<string, string>} [env] - Extra environment variables.
+ */
 const run = (cmd, args, cwd, env = {}) =>
   execFileSync(cmd, args, {
     cwd,
