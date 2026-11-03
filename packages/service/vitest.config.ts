@@ -22,6 +22,10 @@ export default defineConfig({
     environment: 'node',
     globalSetup: ['./src/test/globalSetup.ts'],
     setupFiles: ['./src/test/setup.ts'],
+    // Integration suites start a whole service (collection, indexes, API) in
+    // beforeAll. On windows-latest that can exceed vitest's 10 s default
+    // (seen in CI 2026-11-03), so hooks get 30 s; test timeouts are unchanged.
+    hookTimeout: 30_000,
     exclude: ['**/node_modules/**', '**/dist/**', '**/.rollup.cache/**'],
     coverage: {
       provider: 'v8',

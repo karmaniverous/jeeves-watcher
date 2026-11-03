@@ -43,6 +43,29 @@ describe('extractText', () => {
     expect(result.text).toContain('Body text.');
   });
 
+  it('reads the last front-matter value of a CRLF file as js-yaml did', async () => {
+    const dir = await tempDir();
+    const file = join(dir, 'doc.md');
+    await writeFile(
+      file,
+      '---\r\ntitle: Hello\r\ncount: 3\r\n---\r\nBody.\r\n',
+      'utf8',
+    );
+
+    const result = await extractText(file, '.md');
+    expect(result.frontmatter).toEqual({ title: 'Hello', count: 3 });
+  });
+
+  it('rejects front matter with a non-core tag (an extraction_error)', async () => {
+    const dir = await tempDir();
+    const file = join(dir, 'doc.md');
+    await writeFile(file, '---\ntitle: !custom x\n---\nBody.\n', 'utf8');
+
+    await expect(extractText(file, '.md')).rejects.toThrow(
+      /TAG_RESOLVE_FAILED/,
+    );
+  });
+
   it('handles markdown with horizontal rules without YAML errors', async () => {
     const dir = await tempDir();
     const file = join(dir, 'doc.md');

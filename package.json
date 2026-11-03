@@ -8,7 +8,8 @@
     "build": "npm run build --workspace=packages/core && npm run build --workspace=packages/sdk && npm run build --workspace=packages/service && npm run build --workspace=packages/openclaw",
     "lint": "eslint .",
     "lint:fix": "eslint --fix .",
-    "test": "npm run test --workspace=packages/core && npm run test --workspace=packages/sdk && npm run test --workspace=packages/service && npm run test --workspace=packages/openclaw",
+    "test": "npm run test:scripts && npm run test --workspace=packages/core && npm run test --workspace=packages/sdk && npm run test --workspace=packages/service && npm run test --workspace=packages/openclaw",
+    "test:scripts": "node --test scripts/*.test.mjs",
     "knip": "knip",
     "docs": "typedoc",
     "typecheck": "npm run typecheck --workspace=packages/core && npm run typecheck --workspace=packages/sdk && npm run typecheck --workspace=packages/service && npm run typecheck --workspace=packages/openclaw"
@@ -26,6 +27,7 @@
     "lefthook": "^2.2.2",
     "prettier": "^3.9.10",
     "rimraf": "^6.1.3",
+    "semver": "^7.8.6",
     "tsx": "^4.23.15",
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.72.1"

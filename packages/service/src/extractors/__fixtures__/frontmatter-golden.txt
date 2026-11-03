@@ -1,0 +1,583 @@
+# Front-matter golden sample for #203 (spec D65, D97, D141, D158, D169, D180).
+#
+# SYNTHETIC: every value below is invented. The blocks reproduce the key
+# structure, value shapes and YAML features of real front matter (site pages,
+# specs, skills, notes), never its content.
+#
+# Each block starts with a line "=== <id> <expect>":
+#   same            both parsers give the same value
+#   both-fail       both parsers refuse the block (an extraction_error)
+#   accepted-diff   js-yaml parses it, yaml refuses it: an accepted difference
+# Lines before the first "===" are this header. The test reads the file with
+# its line breaks normalised, then checks every block with LF and with CRLF
+# line breaks (as the extractor hands over the block of a CRLF file).
+
+=== site-page-basic same
+title: Welcome to the Example Garden
+permalink: /garden/
+layout: single
+=== site-page-tags-flow same
+title: "Seasonal Planting Notes"
+permalink: /notes/seasonal-planting/
+layout: single
+tags: [gardening, seasons, how-to]
+hashtag: "#examplegarden"
+=== site-page-excerpt-html same
+title: Ready to Try Something New?
+permalink: /openings/
+excerpt: "Join a made-up crew and build kites on a fictional island. <strong><em>See the list below!</em></strong>"
+layout: splash
+=== site-page-header-map same
+title: "Lanterns: A Short History"
+header:
+  og_image: /assets/images/lantern-og.png
+  teaser: /assets/images/lantern-teaser.png
+=== site-page-header-overlay same
+title: The Paper Boat Project
+header:
+  overlay_image: /assets/images/boats-wide.jpg
+  overlay_filter: 0.5
+  og_image: /assets/images/boats-og.jpg
+  teaser: /assets/images/boats-teaser.jpg
+=== site-page-header-actions same
+title: Build a Sundial
+header:
+  overlay_class: dim
+  overlay_filter: rgba(0, 0, 0, 0.4)
+  overlay_image: /assets/images/sundial.jpg
+  caption: "Photo: Example Studio"
+  actions:
+    - label: "Start here"
+      url: "/sundial/start/"
+    - label: Download plans
+      url: https://example.com/plans/sundial.pdf
+=== site-page-redirects same
+title: Old Notes on Clay
+permalink: /clay/
+redirect_from:
+  - /pottery/
+  - /notes/clay-old/
+  - /2019/03/clay.html
+=== site-page-redirect-to same
+title: Moved
+redirect_to: https://example.org/new-home/
+sitemap: false
+=== site-page-booleans same
+title: Quiet Page
+author_profile: true
+toc: true
+toc_sticky: false
+related: false
+share: true
+=== site-page-book same
+title: "Chapter 7: The Lighthouse Keeper"
+book_page: 142
+previous: /book/chapter-6/
+x_url: https://x.example.com/fictional/status/1234567890
+linkedin_url: https://www.linkedin.example.com/posts/fictional-post
+pinterest_url: https://pin.example.com/pin/987654321/
+instagram_url: https://instagram.example.com/p/AbCdEf123/
+=== site-page-book-first same
+title: "Chapter 1: Arrival"
+book_page: 1
+previous: null
+=== site-page-book-tilde same
+title: "Chapter 2: The Market"
+book_page: 9
+previous: ~
+=== site-page-date same
+title: A Walk in the Fog
+date: 2024-02-29
+layout: post
+tags:
+  - weather
+  - walking
+=== site-page-datetime same
+title: Launch Night
+date: 2023-07-14T21:30:00+02:00
+last_modified_at: 2023-07-15 08:00:00
+=== site-page-feature-row same
+title: Workshop Catalogue
+feature_row:
+  - image_path: /assets/images/kite.png
+    alt: "A red kite"
+    title: "Kites"
+    excerpt: "Light frames, strong string."
+    url: "/kites/"
+    btn_label: "Read more"
+  - image_path: /assets/images/boat.png
+    alt: "A folded boat"
+    title: "Boats"
+    excerpt: "Paper that floats, for a while."
+    url: "/boats/"
+    btn_label: "Read more"
+=== site-page-pagination same
+title: Archive
+layout: home
+pagination:
+  enabled: true
+  per_page: 10
+=== site-page-sidebar same
+title: Getting Started
+sidebar_label: Start
+sidebar_position: 2
+=== site-page-read-time same
+title: A Long Letter
+read_time_override: 12
+hide_banner: true
+=== site-page-authors same
+title: Joint Report on Imaginary Bridges
+authors: [Ada Example, Bo Placeholder]
+date: 2022-11-30
+=== site-page-authors-block same
+title: Field Guide
+authors:
+  - Cy Fictional
+  - Dee Sample
+  - Eli Madeup
+=== site-page-collection same
+title: Item Forty-Two
+collection_id: widgets
+page_key: widget-42
+page_number: 42
+cover_image: /covers/widget-42.webp
+=== site-page-comments same
+# Page settings
+title: Commented Page  # trailing comment
+layout: single # another
+# tags below
+tags: [a, b]
+=== site-page-quoted-keys same
+"title": Quoted Key Page
+'layout': single
+"permalink": "/quoted/"
+=== site-page-colon-values same
+title: "Time: 10:30 to 11:45"
+subtitle: 'Ratio 3:2 explained'
+note: "url: https://example.com/a#b"
+=== site-page-hash-in-value same
+title: Issue Notes
+hashtag: "#notes"
+anchor_link: https://example.com/page#section-2
+plain: value # comment after value
+=== site-page-unicode same
+title: "Café Ünïcode — test ✓"
+tagline: "日本語のテキスト"
+emoji: "🌱 sprout"
+=== site-page-escapes same
+title: "Tab\there, newline\nthere, quote \" and backslash \\"
+single: 'It''s single-quoted'
+unicode_escape: "\u00e9t\u00e9"
+=== site-page-empty-values same
+title: Sparse
+excerpt:
+teaser: ""
+tags: []
+header: {}
+=== site-page-flow-map same
+title: Flow Map
+header: {og_image: /a.png, teaser: /b.png}
+pagination: { enabled: false }
+=== site-page-nested-flow same
+title: Nested Flow
+matrix: [[1, 2], [3, 4]]
+points: [{x: 1, y: 2}, {x: 3, y: 4}]
+=== site-page-multiline-plain same
+title: A title that wraps
+  onto a second line
+excerpt: first part of the excerpt
+  and the second part
+=== site-page-multiline-dquote same
+excerpt: "A double-quoted excerpt
+  that continues here
+
+  and has a paragraph break."
+=== site-page-multiline-squote same
+excerpt: 'A single-quoted excerpt
+  that continues here.'
+=== site-page-seq-no-indent same
+title: Zero-indent Sequence
+tags:
+- alpha
+- beta
+- gamma
+=== spec-basic same
+title: Example Service Spec
+spec-version: "0.4.0"
+code-version: "0.3.2"
+status: draft
+=== spec-version-unquoted same
+title: Version Shapes
+version: 1.10
+release: 2.0
+build: 0042
+=== spec-prepared same
+title: Proposal for an Imaginary Client
+prepared for: Fictional Holdings
+prepared by: Example Consulting
+prepared: 2025-01-15
+=== spec-prepared-underscore same
+title: Statement of Work (sample)
+prepared_for: Placeholder Ltd
+prepared_by: Sample Studio
+audience: internal
+=== spec-dash-keys same
+title: Review Notes
+in-response-to: "proposal-v2"
+verified-against: main@abc1234
+revision-note: 2025-06-01
+=== spec-children same
+title: Parent Topic
+children:
+  - child-one
+  - child-two
+parent: root-topic
+=== spec-repos same
+title: Cross-repo Plan
+repos:
+  - example-org/widget-core
+  - example-org/widget-service
+branch: feature/sample-branch
+repo: example-org/widget-core
+=== spec-description-folded same
+name: sample-skill
+description: >
+  A folded description that spans
+  several lines and folds them
+
+  into paragraphs.
+=== spec-description-folded-strip same
+name: sample-skill-two
+description: >-
+  Folded and stripped,
+  no trailing newline.
+=== spec-description-literal same
+name: sample-skill-three
+description: |
+  Line one stays.
+  Line two stays.
+
+  Paragraph two.
+=== spec-description-literal-keep same
+description: |+
+  Keep trailing newlines.
+
+other: x
+=== spec-description-literal-indent same
+code: |2
+    indented by two extra
+  base line
+=== spec-metadata-nested same
+name: sample-tool
+description: Does sample things.
+metadata:
+  openclaw:
+    emoji: "🧪"
+    requires:
+      bins: [sample-cli]
+      env: [SAMPLE_TOKEN]
+    install:
+      - kind: npm
+        package: sample-cli
+=== skill-allowed-tools same
+name: example-helper
+description: "Use when an example needs helping; not for real work."
+allowed-tools: [read, write, exec]
+user-invocable: true
+=== note-meeting same
+title: Weekly Sync (sample)
+event_date: 2025-03-04
+presenter: Ada Example
+source: recording
+format: transcript
+language: en
+=== note-video same
+title: Demo Video
+video_id: aBcD-1234_x
+retrieved: 2025-05-05
+duration: 754
+=== note-channel same
+channel: "#sample-channel"
+created: 2024-12-12
+updated: 2025-01-01
+maintainer: Bo Placeholder
+=== note-target same
+target: example-service
+method: POST
+spec: /specs/sample.md
+basis: measured
+raw: "true"
+=== bool-yes-no same
+a: yes
+b: no
+c: Yes
+d: NO
+=== bool-on-off same
+a: on
+b: off
+c: On
+d: OFF
+=== bool-y-n same
+a: y
+b: n
+c: Y
+=== bool-core same
+a: true
+b: false
+c: True
+d: FALSE
+=== bool-mixed-case same
+a: tRUE
+b: fAlse
+=== null-forms same
+a: null
+b: Null
+c: NULL
+d: ~
+e:
+=== int-octal-leading-zero same
+a: 017
+b: 08
+c: 0009
+=== int-octal-0o same
+a: 0o17
+b: 0o0
+=== int-hex same
+a: 0x1F
+b: 0xff
+=== int-underscore same
+a: 1_000
+b: 1_000_000
+=== int-signs same
+a: +12
+b: -7
+c: -0
+d: 0
+=== int-large same
+a: 12345678901234567890
+b: 9007199254740993
+=== float-forms same
+a: 1.5
+b: .5
+c: -.25
+d: 1.0
+e: 0.
+f: 1e3
+g: 6.02E+23
+h: 1e-400
+=== float-special same
+a: .inf
+b: -.Inf
+c: +.INF
+d: .nan
+e: .NaN
+=== float-huge same
+a: 1e400
+b: -1e400
+=== float-like-strings same
+a: 1.2.3
+b: 1,5
+c: 3 apples
+d: 0.1.0-beta
+=== date-bare same
+a: 2026-11-02
+b: 2001-12-14t21:59:43.10-05:00
+c: 2001-12-14 21:59:43.10 -5
+=== time-sexagesimal same
+a: 1:20
+b: 190:20:30
+=== keys-numeric same
+1: one
+2.5: two and a half
+0x10: hex key
+=== keys-bool-null same
+true: yes-key
+false: no-key
+~: tilde-key
+=== keys-null-word same
+null: null-key
+=== keys-date same
+2026-01-01: new year
+=== keys-explicit same
+? simple
+: value
+? "quoted key"
+: other
+=== merge-key same
+base: &base
+  layout: single
+  toc: true
+page:
+  <<: *base
+  title: Merged Page
+=== merge-key-list same
+a: &a {x: 1}
+b: &b {y: 2}
+c:
+  <<: [*a, *b]
+=== anchors-scalars same
+default_author: &author Ada Example
+editor: *author
+reviewer: *author
+=== anchors-seq same
+common_tags: &tags [one, two]
+page_tags: *tags
+=== anchors-map same
+defaults: &d
+  share: true
+  related: false
+post:
+  settings: *d
+=== proto-key same
+__proto__: not a prototype
+constructor: plain
+=== proto-nested same
+a:
+  __proto__:
+    polluted: false
+=== seq-of-seqs same
+grid:
+  - - 1
+    - 2
+  - - 3
+    - 4
+=== seq-of-maps-compact same
+items:
+  - {name: alpha, size: 1}
+  - {name: beta, size: 2}
+=== deep-nesting same
+a:
+  b:
+    c:
+      d:
+        e: deep
+=== long-string same
+excerpt: "This is a deliberately long, invented sentence that goes on for a while to look like a real excerpt, with commas, semicolons; parentheses (like these), and an ampersand & a less-than < sign."
+=== html-in-values same
+excerpt: <p>Plain <em>HTML</em> in a plain scalar</p>
+caption: '<a href="https://example.com">Example</a>'
+=== doc-start-only same
+title: Has a trailing document end marker
+...
+=== explicit-indent-flow same
+list: [
+  one,
+  two,
+  ]
+map: {
+  a: 1,
+  b: 2
+  }
+=== tag-str same
+a: !!str 1
+b: !!str true
+c: !!str 2026-01-01
+d: !!str
+=== tag-int same
+a: !!int 7
+b: !!int "8"
+c: !!int 0x1F
+d: !!int 0o17
+=== tag-bool same
+a: !!bool true
+b: !!bool "false"
+=== tag-null same
+a: !!null
+b: !!null null
+=== tag-float-fraction same
+a: !!float 1.5
+b: !!float .inf
+c: !!float 1e3
+d: !!float 1.
+=== tag-map-seq same
+a: !!map {b: 1}
+b: !!seq [1, 2]
+=== tag-verbatim same
+a: !<tag:yaml.org,2002:str> 5
+=== tag-on-key same
+!!str 10: ten
+=== tag-binary both-fail
+title: Has Binary
+icon: !!binary R0lGODlhAQABAAAAACw=
+=== tag-set both-fail
+title: Has Set
+members: !!set {alpha, beta}
+=== tag-timestamp both-fail
+title: Has Timestamp
+at: !!timestamp 2026-11-02T10:00:00Z
+=== tag-custom both-fail
+title: Has Custom Tag
+note: !custom some value
+=== tag-local both-fail
+title: Has Local Tag
+widget: !widget {size: 3}
+=== tag-omap both-fail
+ordered: !!omap [{a: 1}, {b: 2}]
+=== tag-pairs both-fail
+pairs: !!pairs [{a: 1}, {a: 2}]
+=== tag-merge-scalar both-fail
+a: !!merge x
+=== tag-int-fraction both-fail
+a: !!int 1.5
+=== tag-bool-bad both-fail
+a: !!bool maybe
+=== tag-null-bad both-fail
+a: !!null something
+=== tag-float-empty both-fail
+a: !!float
+=== tag-float-int accepted-diff
+title: Float Tag On An Integer
+weight: !!float 1
+=== tag-float-quoted-int accepted-diff
+title: Float Tag On A Quoted Integer
+weight: !!float "1"
+=== tag-float-negative-int accepted-diff
+weight: !!float -3
+=== yaml-directive-1-1 accepted-diff
+%YAML 1.1
+--- # directive applies
+flag: yes
+=== error-duplicate-key both-fail
+title: First
+title: Second
+=== error-duplicate-key-nested both-fail
+header:
+  teaser: /a.png
+  teaser: /b.png
+=== error-unclosed-flow-seq both-fail
+tags: [one, two
+=== error-unclosed-flow-map both-fail
+header: {a: 1
+=== error-unclosed-dquote both-fail
+title: "never closed
+=== error-bad-indent both-fail
+title: x
+  bad: indent
+=== error-tab-indent both-fail
+header:
+	teaser: /a.png
+=== error-multi-doc both-fail
+title: one
+---
+title: two
+=== error-unknown-alias both-fail
+a: *nowhere
+=== error-empty both-fail
+=== error-comment-only both-fail
+# only a comment here
+=== error-complex-key-flow-seq both-fail
+[a, b]: value
+=== error-complex-key-explicit-map both-fail
+? {a: 1}
+: value
+=== error-complex-key-alias both-fail
+x: &k [a]
+*k : value
+=== error-text-not-yaml both-fail
+title: x
+this line is not yaml: [
+=== scalar-root same
+just a string
+=== seq-root same
+- one
+- two

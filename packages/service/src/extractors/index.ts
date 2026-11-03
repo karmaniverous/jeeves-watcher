@@ -7,8 +7,9 @@
 import { readFile } from 'node:fs/promises';
 
 import * as cheerio from 'cheerio';
-import { load as yamlLoad } from 'js-yaml';
 import mammoth from 'mammoth';
+
+import { parseFrontmatter } from './frontmatter';
 
 /**
  * Result of extracting text and structured data from a file.
@@ -27,6 +28,7 @@ export interface ExtractedText {
  *
  * @param markdown - The raw markdown content.
  * @returns The extracted frontmatter (if any) and body.
+ * @throws Error when the frontmatter cannot be parsed (see {@link parseFrontmatter}).
  */
 function extractMarkdownFrontmatter(markdown: string): {
   frontmatter?: Record<string, unknown>;
@@ -41,7 +43,7 @@ function extractMarkdownFrontmatter(markdown: string): {
   if (!match) return { body: markdown };
 
   const [, rawYaml, body] = match;
-  const parsed = yamlLoad(rawYaml);
+  const parsed = parseFrontmatter(rawYaml);
   const frontmatter =
     parsed && typeof parsed === 'object' && !Array.isArray(parsed)
       ? (parsed as Record<string, unknown>)

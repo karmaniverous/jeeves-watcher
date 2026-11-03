@@ -133,24 +133,34 @@ describe.skipIf(!qdrantAvailable())(
       server = (watcher as unknown as { server: FastifyInstance }).server;
 
       // Edit every startup-only key, plus a rule so the reload is observable.
-      await writeFile(
-        configPath,
-        JSON.stringify(
-          configFile({
-            apiKey: KEY_V2,
-            sourceUrl: edited.url,
-            extraSource: edited.url,
-            indexes: [
-              { field: 'user_id', type: 'keyword', isTenant: true },
-              { field: 'team_id', type: 'keyword' },
-            ],
-            ruleName: 'thread-v2',
-          }),
-        ),
+      const editedConfig = JSON.stringify(
+        configFile({
+          apiKey: KEY_V2,
+          sourceUrl: edited.url,
+          extraSource: edited.url,
+          indexes: [
+            { field: 'user_id', type: 'keyword', isTenant: true },
+            { field: 'team_id', type: 'keyword' },
+          ],
+          ruleName: 'thread-v2',
+        }),
       );
+      await writeFile(configPath, editedConfig);
+      // The config file watcher does not report readiness, so a write made
+      // before it is ready can go unseen. Rewrite the same content every 3 s
+      // until the reload is observed: what is under test is how a reload
+      // treats startup-only keys, not when the first event arrives.
+      let lastWrite = Date.now();
       await waitFor(async () => {
         const res = await call('/config', KEY_V1);
-        return res.statusCode === 200 && res.body.includes('thread-v2');
+        if (res.statusCode === 200 && res.body.includes('thread-v2')) {
+          return true;
+        }
+        if (Date.now() - lastWrite >= 3000) {
+          await writeFile(configPath, editedConfig);
+          lastWrite = Date.now();
+        }
+        return false;
       });
     }, 60_000);
 

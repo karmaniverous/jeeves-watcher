@@ -417,6 +417,15 @@ interface FileAttributes {
 
 **Source documents (v0.20.0+)** are matched against different attributes: a `source` object (`ref`, `name`, `id`, `rule`, `retrievedAt`) and `json` (the callback body), with no `file` key. Only the document's designated rule is applied to it. See [Source Documents](./source-documents.md#the-designated-rule).
 
+### How Front Matter Is Parsed
+
+`frontmatter` is the YAML block between a leading `---` line and the next `---` line, parsed as **YAML 1.2** (v0.21.0+ uses [`yaml`](https://eemeli.org/yaml/); earlier versions used `js-yaml`, which gave the same values). Only a mapping becomes `frontmatter`; any other value is ignored.
+
+- **Plain scalars follow YAML 1.2:** `yes`, `no`, `on` and `off` stay strings; `true`/`false` are booleans; `017` is 17 and `0o17` is 15; `1_000` stays a string; dates such as `2026-11-02` stay strings (no `Date`); a `<<` key is an ordinary key (no merge). A number too large for a double (`1e400`) stays a string; a null key (`~:` or `null:`) becomes the key `"null"`.
+- **Tags:** the core tags `!!str`, `!!int`, `!!bool`, `!!null`, `!!float`, `!!map` and `!!seq` resolve as usual. Any other tag (`!!binary`, `!!set`, `!!timestamp`, `!!omap`, `!!pairs`, or a custom tag such as `!custom`) is refused.
+- **Refused blocks:** a block that does not parse cleanly (a syntax error, a duplicate key, more than one document, a refused tag, a collection used as a mapping key, an empty block, or a `%YAML` directive other than 1.2) makes the file an `extraction_error` issue (see `GET /issues`); it is not indexed until fixed. Nothing is written to the service's stderr.
+- **`!!float` on an integer (changed in v0.21.0):** a `!!float` whose value is not written as a float, such as `weight: !!float 1` or `weight: !!float "1"`, is refused (an `extraction_error`), where v0.20.0 read it as the number `1`. Write `weight: 1.0` (or drop the tag) instead. `!!float 1.5`, `!!float 1e3` and `!!float .inf` still parse.
+
 ---
 
 ## Matching with JSON Schema

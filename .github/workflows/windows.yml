@@ -1,0 +1,48 @@
+name: Windows
+
+# Runs the test suites on windows-latest (spec D68, D94): the VCS, watcher
+# and (when it lands) change-source suites behave differently there (git path
+# handling and the git.exe launcher, rename locks, parcel's windows backend),
+# so they must pass on Windows before any change to them merges. The whole
+# service suite runs, so a new suite is covered without editing this file.
+#
+# No Qdrant service container is available on Windows runners: the test
+# global setup downloads, verifies and starts the throwaway Qdrant release
+# binary, and QDRANT_REQUIRED makes a provisioning failure fail the job
+# instead of skipping the integration suites.
+
+on:
+  push:
+    branches:
+      - main
+      - 'feature/**'
+  pull_request:
+    branches:
+      - main
+      - 'feature/**'
+  workflow_dispatch:
+
+jobs:
+  windows:
+    runs-on: windows-latest
+
+    env:
+      QDRANT_REQUIRED: 'true'
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Test
+        run: npm test
