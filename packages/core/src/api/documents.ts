@@ -94,14 +94,17 @@ export const documentRejectionCodeSchema = z.enum([
 export type DocumentRejectionCode = z.infer<typeof documentRejectionCodeSchema>;
 
 /**
- * Query string for `POST /documents`. `wait` accepts a boolean or the strings
- * `true`/`false`/`1`/`0`.
+ * Query string for `POST /documents`. `wait` accepts the strings
+ * `true`/`false`/`1`/`0` (a query string never carries a JSON boolean).
  */
 export const documentsQuerySchema = z.object({
   /** Process synchronously and return per-document results. */
   wait: z
     .stringbool({ truthy: ['true', '1'], falsy: ['false', '0'] })
-    .optional(),
+    .optional()
+    .describe(
+      'Process synchronously and answer 200 with per-document results: true or 1 (false or 0, the default, answers 202).',
+    ),
 });
 
 /** Query string for `POST /documents`. */
@@ -239,7 +242,12 @@ export const documentsDeleteRequestSchema = z
     }
   });
 
-/** Request body for `POST /documents/delete`: references or a filter, never both. */
+/**
+ * Request body for `POST /documents/delete`: references or a filter, never
+ * both. Written out rather than inferred: inference sees the schema's two
+ * optional selectors, not the refinement requiring exactly one, so the
+ * handler casts its validated body to this type.
+ */
 export type DocumentsDeleteRequest =
   | { sources: z.infer<typeof sourceReferenceSchema>[]; filter?: never }
   | { filter: z.infer<typeof nonEmptyQdrantFilterSchema>; sources?: never };

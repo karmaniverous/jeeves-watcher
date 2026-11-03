@@ -60,8 +60,29 @@ export const vcsStatusResponseSchema = z.object({
         .nullable(),
       remoteUrl: z.string().nullable(),
       lastPush: z.string().nullable(),
-      pushErrors: z.array(z.unknown()),
-      breaker: z.unknown(),
+      pushErrors: z.array(
+        z.object({
+          /** ISO 8601 time of the failed push. */
+          timestamp: z.string(),
+          /** Why the push failed (credentials redacted). */
+          message: z.string(),
+        }),
+      ),
+      /** The root's commit circuit breaker (null without a manager). */
+      breaker: z
+        .object({
+          /** Consecutive commit failures since the last success. */
+          consecutiveFailures: z.number().int().nonnegative(),
+          /** Whether the breaker is tripped. */
+          tripped: z.boolean(),
+          /** ISO 8601 time of the current trip, or null. */
+          trippedAt: z.string().nullable(),
+          /** Message of the most recent failure, or null. */
+          lastError: z.string().nullable(),
+          /** Files queued or in flight, not yet committed. */
+          pendingCount: z.number().int().nonnegative(),
+        })
+        .nullable(),
     }),
   ),
 });
@@ -185,7 +206,7 @@ export type VcsExcludeRequest = z.infer<typeof vcsExcludeRequestSchema>;
 export const vcsExcludeResponseSchema = z.object({
   ok: z.literal(true),
   gitignorePath: z.string(),
-  action: z.string(),
+  action: z.enum(['added', 'removed']),
 });
 
 /** Response body of `POST /vcs/exclude`. */
