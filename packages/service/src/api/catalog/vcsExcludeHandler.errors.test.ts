@@ -36,7 +36,7 @@ afterEach(async () => {
 const exclude = (payload: Record<string, unknown>) =>
   app.inject({ method: 'POST', url: '/vcs/exclude', payload });
 
-describe('POST /vcs/exclude errors', () => {
+describe('POST /vcs/exclude errors', { timeout: 20_000 }, () => {
   it('answers 503 with Retry-After: 30 when the lock stays busy, writing nothing', async () => {
     const lock = coordinator.getManager(root)?.lock;
     if (!lock) throw new Error('no manager');

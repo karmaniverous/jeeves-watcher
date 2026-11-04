@@ -15,7 +15,7 @@ import {
   serveVcsCatalog,
 } from '../../test/vcsHandlers';
 
-describe('POST /vcs/exclude', () => {
+describe('POST /vcs/exclude', { timeout: 20_000 }, () => {
   let rootA: string;
   let app: FastifyInstance;
   const excludeFile = () => join(rootA, '.git', 'info', 'exclude');

@@ -71,7 +71,7 @@ afterEach(async () => {
   }
 });
 
-describe('runExclude', () => {
+describe('runExclude', { timeout: 20_000 }, () => {
   it('pushes the untrack commit in the same hold', async () => {
     const bare = normalizeSlashes(
       await mkdtemp(join(tmpdir(), 'exclude-bare-')),

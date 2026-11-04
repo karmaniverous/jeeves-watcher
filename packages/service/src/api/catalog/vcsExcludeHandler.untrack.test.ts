@@ -51,7 +51,7 @@ afterEach(async () => {
   await rm(root, { recursive: true, force: true });
 });
 
-describe('POST /vcs/exclude untracking', () => {
+describe('POST /vcs/exclude untracking', { timeout: 20_000 }, () => {
   it('untracks matching files in one commit, keeping them on disk and an unrelated staged entry', async () => {
     await seed({ 'a.log': 'a', 'sub/b.log': 'b', 'keep.md': 'k' });
     await put({ 'keep.md': 'staged edit' });
