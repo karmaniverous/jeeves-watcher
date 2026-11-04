@@ -108,6 +108,38 @@ export class QdrantWriter {
     );
   }
 
+  /**
+   * Merge payload fields into every point matching `filter` (D139).
+   *
+   * @param filter - Qdrant filter (must select one document's points).
+   * @param payload - Payload fields to set.
+   */
+  async setPayloadWhere(
+    filter: Record<string, unknown>,
+    payload: Record<string, unknown>,
+  ): Promise<void> {
+    await this.write('setPayload', (client, collectionName) =>
+      client.setPayload(collectionName, { payload, filter, wait: true }),
+    );
+  }
+
+  /**
+   * Remove payload keys from every point matching `filter` (no-op when
+   * `keys` is empty).
+   *
+   * @param filter - Qdrant filter (must select one document's points).
+   * @param keys - Keys to remove.
+   */
+  async deletePayloadWhere(
+    filter: Record<string, unknown>,
+    keys: string[],
+  ): Promise<void> {
+    if (keys.length === 0) return;
+    await this.write('deletePayload', (client, collectionName) =>
+      client.deletePayload(collectionName, { keys, filter, wait: true }),
+    );
+  }
+
   /** Run one write under the retry policy, refreshing the client per retry. */
   private async write(
     operation: string,

@@ -7,7 +7,10 @@
  */
 
 import { createStatusHandler, type StatusHandler } from '@karmaniverous/jeeves';
-import type { VcsHealth } from '@karmaniverous/jeeves-watcher-core';
+import type {
+  SystemIndexes,
+  VcsHealth,
+} from '@karmaniverous/jeeves-watcher-core';
 
 import type { InitialScanTracker } from '../InitialScanTracker';
 import type { ReindexTracker } from '../ReindexTracker';
@@ -19,6 +22,8 @@ export interface CatalogStatusVectorStore {
     pointCount: number;
     dimensions: number;
   }>;
+  /** System payload index states (D74, D154), when the store tracks them. */
+  systemIndexStates?: () => SystemIndexes;
 }
 
 /** Dependencies for the catalog `status` entry's source handler. */
@@ -50,12 +55,16 @@ export function createCatalogStatusSource(
     name: 'watcher',
     version: deps.version ?? 'unknown',
     getHealth: async () => {
-      const collectionInfo = await deps.vectorStore.getCollectionInfo();
+      const { vectorStore } = deps;
+      const collectionInfo = await vectorStore.getCollectionInfo();
       return {
         collection: {
           name: deps.getConfig().vectorStore.collectionName,
           pointCount: collectionInfo.pointCount,
           dimensions: collectionInfo.dimensions,
+          ...(vectorStore.systemIndexStates
+            ? { systemIndexes: vectorStore.systemIndexStates() }
+            : {}),
         },
         reindex: deps.reindexTracker.getStatus(),
         ...(deps.initialScanTracker

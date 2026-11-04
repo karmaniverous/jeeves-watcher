@@ -58,6 +58,23 @@
                             },
                             "dimensions": {
                               "type": "number"
+                            },
+                            "systemIndexes": {
+                              "type": "object",
+                              "propertyNames": {
+                                "type": "string"
+                              },
+                              "additionalProperties": {
+                                "type": "string",
+                                "enum": [
+                                  "building",
+                                  "ready",
+                                  "conflict",
+                                  "failed"
+                                ],
+                                "description": "System payload index state: building (background creation running), ready, conflict (the field has another index type; left alone) or failed (creation failed; retried at the next start)."
+                              },
+                              "description": "System payload indexes the service creates whatever payloadIndexes says (file_path keyword), by field."
                             }
                           },
                           "required": [

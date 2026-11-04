@@ -74,6 +74,28 @@ export const vcsHealthSchema = z.object({
 export type VcsHealth = z.infer<typeof vcsHealthSchema>;
 
 /**
+ * State of one system payload index (D74, D154): `building` until its
+ * background creation returns, then `ready`; `conflict` when the field
+ * already has another index type (left alone); `failed` when creation
+ * failed (retried at the next start).
+ */
+export const systemIndexStateSchema = z
+  .enum(['building', 'ready', 'conflict', 'failed'])
+  .describe(
+    'System payload index state: building (background creation running), ready, conflict (the field has another index type; left alone) or failed (creation failed; retried at the next start).',
+  );
+
+/** System payload index states by field, in `health.collection.systemIndexes`. */
+export const systemIndexesSchema = z
+  .record(z.string(), systemIndexStateSchema)
+  .describe(
+    'System payload indexes the service creates whatever payloadIndexes says (file_path keyword), by field.',
+  );
+
+/** System payload index states by field. */
+export type SystemIndexes = z.infer<typeof systemIndexesSchema>;
+
+/**
  * `GET /status` `health`: collection, reindex and initial-scan state, or
  * `{ error }` when the vector store is unreachable (status `degraded`).
  * Loose and optional throughout, so new health keys pass through.
@@ -88,6 +110,8 @@ export const watcherHealthSchema = z.looseObject({
       pointCount: z.number(),
       /** Vector dimensions. */
       dimensions: z.number(),
+      /** System payload index states (D74, D154). */
+      systemIndexes: systemIndexesSchema.optional(),
     })
     .optional(),
   /** Reindex state. */

@@ -102,3 +102,29 @@ export async function deletePointsPayload(
   if (ids.length === 0 || keys.length === 0) return;
   await client.deletePayload(collectionName, { wait: true, points: ids, keys });
 }
+
+/**
+ * The IDs among `ids` that exist (`with_payload: false`, no vectors), in
+ * the order given. Needs no payload index; used by ID-addressed metadata
+ * writes while a field's keyword index is not ready (D154).
+ *
+ * @param client - Qdrant client.
+ * @param collectionName - Collection.
+ * @param ids - Candidate point IDs (no request when empty).
+ * @returns The existing IDs.
+ * @throws When the read fails (never reported as missing points).
+ */
+export async function existingPointIds(
+  client: Pick<PayloadClient, 'retrieve'>,
+  collectionName: string,
+  ids: string[],
+): Promise<string[]> {
+  if (ids.length === 0) return [];
+  const results = await client.retrieve(collectionName, {
+    ids,
+    with_payload: false,
+    with_vector: false,
+  });
+  const found = new Set(results.map((r) => String(r.id)));
+  return ids.filter((id) => found.has(id));
+}

@@ -38,7 +38,10 @@ function undeclared(value: unknown, schema: z.ZodType, at = ''): string[] {
   });
 }
 
-/** Health with every feature on: a running reindex, both scan states, VCS. */
+/**
+ * Health with every feature on: a running reindex, both scan states, VCS,
+ * system indexes (B5a).
+ */
 async function healthSamples(): Promise<Record<string, unknown>[]> {
   const reindexTracker = new ReindexTracker();
   reindexTracker.start('full');
@@ -58,6 +61,7 @@ async function healthSamples(): Promise<Record<string, unknown>[]> {
       vectorStore: {
         getCollectionInfo: () =>
           Promise.resolve({ pointCount: 7, dimensions: 3 }),
+        systemIndexStates: () => ({ file_path: 'building' as const }),
       },
       getConfig: () => ({ vectorStore: { collectionName: 'watcher' } }),
       version: '1.2.3',
