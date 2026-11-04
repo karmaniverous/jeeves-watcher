@@ -1,6 +1,6 @@
 /**
  * @module embedding/rateLimitedProvider.storedBackoff.test
- * RateLimitedEmbeddingProvider stored back-off (B6, Design 8): a Retry-After over maxBackoffMs fails fast and is stored capped at 5 minutes, a success clears only pauses requested before it started (a 429 still pauses every caller), and a Retry-After within maxBackoffMs is honoured in full.
+ * RateLimitedEmbeddingProvider stored back-off (B6, Design 8): a Retry-After over maxBackoffMs fails fast and is stored capped at 5 minutes, a success never lifts a pause, so one set while a call was in flight still pauses every caller, and a Retry-After within maxBackoffMs is honoured in full.
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -94,7 +94,7 @@ describe('RateLimitedEmbeddingProvider stored back-off', () => {
     expect(other.error).toBeInstanceOf(EmbeddingUnavailableError);
     expect(embed).toHaveBeenCalledTimes(2);
 
-    // Once it has passed, the next call probes and its success clears it.
+    // Once it has expired, the next call probes the provider.
     await vi.advanceTimersByTimeAsync(60_000);
     await expect(limited.embed(['c'])).resolves.toHaveLength(1);
     expect(limited.backoffUntilMs).toBeUndefined();

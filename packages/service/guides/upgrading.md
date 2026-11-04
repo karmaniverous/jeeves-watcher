@@ -67,7 +67,7 @@ What changes for an existing deployment, release by release. The [Changelog](../
 - **`GET /status` gains `health.embedding`**: `state` (`ok` or `failing`), `lastSuccessAt`, `lastError` (`{ at, code }`), `failingSince` and `backoffUntil`. Codes only: no provider error text or path. Embeddings turn `failing` after at least 3 failures with 60 s without a success, and `ok` again at the first success.
 - **`status` is `degraded`** (HTTP 200) while embeddings are failing or a VCS circuit breaker is tripped. Anything that alarms on a non-`healthy` status will now see these.
 - **`embedding.alertUrl`** (optional) receives a POST when embeddings turn failing (`embedding_failed`) and when they recover (`embedding_recovered`). The body is `{ event, at, service, version, host, collection, failingSince, lastError }`, unsigned: use a private endpoint. Delivery makes up to 3 attempts, each with a 10 s timeout.
-- **A provider back-off is now capped at 5 minutes** and cleared by the next successful call (a call already in flight when another call is rate-limited does not lift that newer pause). A long `Retry-After` (e.g. a daily quota) used to keep every embedding call failing until it passed; now the first call after 5 minutes probes the provider. The `Retry-After` on a search `503` reflects that probe time.
+- **A provider back-off is now capped at 5 minutes** and then expires. A long `Retry-After` (e.g. a daily quota) used to keep every embedding call failing until it passed; now the first call after 5 minutes probes the provider. The `Retry-After` on a search `503` reflects that probe time.
 - **The reindex callback** also times out each attempt after 10 s (it shares the alert's delivery code).
 
 ### Operation names

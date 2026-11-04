@@ -289,7 +289,7 @@ Each transition is logged (an error when failing, info on recovery) and, when `e
 
 `event` is `embedding_failed` or `embedding_recovered` (whose `failingSince` is when the outage began). Error codes are `rate_limited`, `timeout`, `http_<status>`, `network` or `error`; provider error text goes to the log only. The body is unsigned and sent without credentials, so point `alertUrl` at a private endpoint. Delivery makes up to 3 attempts (1 s, then 2 s apart) with a 10 s timeout each; a failed delivery is logged and never affects embedding.
 
-A provider back-off (a `Retry-After` longer than `maxBackoffMs`) is stored for at most 5 minutes and cleared by the next successful call: the first call after it probes the provider. A call already in flight when another call is rate-limited does not lift that newer pause. `health.embedding.backoffUntil` shows when.
+A provider back-off (a `Retry-After` longer than `maxBackoffMs`) is stored for at most 5 minutes, then expires: the first call after it probes the provider. A success never shortens a pause, so a 429 always pauses every caller. `health.embedding.backoffUntil` shows when.
 
 ### Supported Providers
 
