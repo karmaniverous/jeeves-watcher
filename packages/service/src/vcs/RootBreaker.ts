@@ -43,12 +43,12 @@ export class RootBreaker {
     );
   }
 
-  /** Current state for status reporting. */
   /** First trip since the last success (see `CommitCircuitBreaker`). */
   trippedSince(): string | null {
     return this.breaker.trippedSince();
   }
 
+  /** Current state for status reporting. */
   snapshot(): CircuitBreakerSnapshot {
     return this.breaker.snapshot();
   }
