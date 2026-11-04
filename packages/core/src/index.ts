@@ -29,15 +29,7 @@ export {
   VCS_DEFAULTS,
   WATCH_DEFAULTS,
 } from './defaults.js';
-export {
-  API_KEY_ENV_VAR,
-  bearerHeaders,
-  formatHttpError,
-  httpError,
-  type HttpErrorInfo,
-  tryParseJson,
-  unauthorizedMessage,
-} from './httpContract.js';
+export { API_KEY_ENV_VAR } from './httpContract.js';
 export { WATCHER_OPENAPI_DOCUMENT } from './openapi.js';
 export { WATCHER_PROMPT_RULES } from './promptRules.js';
 export {
