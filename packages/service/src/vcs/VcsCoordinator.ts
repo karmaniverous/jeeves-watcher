@@ -200,11 +200,12 @@ export class VcsCoordinator {
       pending += state.pendingCount;
       if (!state.tripped) continue;
       trippedRoots++;
+      const since = manager.trippedSince;
       if (
-        state.trippedAt !== null &&
-        (oldestTrippedAt === null || state.trippedAt < oldestTrippedAt)
+        since !== null &&
+        (oldestTrippedAt === null || since < oldestTrippedAt)
       ) {
-        oldestTrippedAt = state.trippedAt;
+        oldestTrippedAt = since;
       }
     }
     return {

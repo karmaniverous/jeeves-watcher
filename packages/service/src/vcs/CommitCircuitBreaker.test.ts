@@ -73,6 +73,19 @@ describe('CommitCircuitBreaker', () => {
     });
   });
 
+  it('keeps the first trip time across failed half-open attempts until a success', () => {
+    const { breaker, clock } = makeBreaker(1, 1000);
+    expect(breaker.trippedSince()).toBeNull();
+    breaker.recordFailure('x');
+    const first = new Date(clock.now).toISOString();
+    clock.now += 1500;
+    breaker.recordFailure('still broken');
+
+    expect(breaker.trippedSince()).toBe(first);
+    breaker.recordSuccess();
+    expect(breaker.trippedSince()).toBeNull();
+  });
+
   it('resets everything on success and says whether it had been tripped', () => {
     const { breaker } = makeBreaker(1);
     breaker.recordFailure('x');

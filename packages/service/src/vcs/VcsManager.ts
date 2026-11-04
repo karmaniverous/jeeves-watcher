@@ -139,6 +139,11 @@ export class VcsManager {
     };
   }
 
+  /** First breaker trip since the last success, for `health.vcs`. */
+  get trippedSince(): string | null {
+    return this.breaker.trippedSince();
+  }
+
   /**
    * Begin accepting file changes after startup maintenance under the lock
    * (never a checkout, D167); start the hourly sweep and squash. Baseline
@@ -154,10 +159,7 @@ export class VcsManager {
     this.logger.info({ root: this.rootPath }, 'VcsManager started');
   }
 
-  /**
-   * Signal that the initial filesystem scan is complete.
-   * Clears the baseline flag so subsequent commits use normal "watcher: batch" messages.
-   */
+  /** Initial scan done: later commits use `watcher: batch` messages. */
   endBaseline(): void {
     this.isBaseline = false;
   }

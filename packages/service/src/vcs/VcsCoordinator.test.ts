@@ -186,13 +186,19 @@ describe('VcsCoordinator', () => {
     vi.spyOn(a, 'breakerState', 'get').mockReturnValue({
       ...state,
       tripped: true,
-      trippedAt: '2026-11-04T02:00:00.000Z',
+      trippedAt: '2026-11-04T09:00:00.000Z', // re-armed; not the first trip
       pendingCount: 3,
     });
+    vi.spyOn(a, 'trippedSince', 'get').mockReturnValue(
+      '2026-11-04T02:00:00.000Z',
+    );
     const bState = vi.spyOn(b, 'breakerState', 'get').mockReturnValue({
       ...state,
       pendingCount: 2,
     });
+    const bSince = vi
+      .spyOn(b, 'trippedSince', 'get')
+      .mockReturnValue('2026-11-04T00:00:00.000Z'); // ignored: not tripped
     expect(coordinator.getHealth()).toEqual({
       roots: 2,
       pending: 5,
@@ -200,18 +206,15 @@ describe('VcsCoordinator', () => {
       oldestTrippedAt: '2026-11-04T02:00:00.000Z',
     });
 
-    bState.mockReturnValue({
-      ...state,
-      tripped: true,
-      trippedAt: '2026-11-04T01:00:00.000Z',
-    });
+    bState.mockReturnValue({ ...state, tripped: true });
+    bSince.mockReturnValue('2026-11-04T01:00:00.000Z');
     expect(coordinator.getHealth()).toMatchObject({
       trippedRoots: 2,
       oldestTrippedAt: '2026-11-04T01:00:00.000Z',
     });
 
-    for (const trippedAt of [null, '2026-11-04T03:00:00.000Z']) {
-      bState.mockReturnValue({ ...state, tripped: true, trippedAt });
+    for (const since of [null, '2026-11-04T03:00:00.000Z']) {
+      bSince.mockReturnValue(since);
       expect(coordinator.getHealth()).toMatchObject({
         trippedRoots: 2,
         oldestTrippedAt: '2026-11-04T02:00:00.000Z',
