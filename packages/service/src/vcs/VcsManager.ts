@@ -98,6 +98,7 @@ export class VcsManager {
       commit: (batch) => this.commitBatch(batch),
       root: rootPath,
       logger,
+      onThrow: (message, n) => this.breaker.failed(message, n),
     });
     this.breaker = new RootBreaker(
       rootPath,

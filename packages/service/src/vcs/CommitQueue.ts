@@ -27,6 +27,8 @@ export interface CommitQueueOptions {
   root: string;
   /** Logs a batch that throws instead of resolving false (a bug). */
   logger: pino.Logger;
+  /** Called when a batch throws, so the owner can count the failure. */
+  onThrow?: (message: string, pendingCount: number) => void;
 }
 
 /** Pending files and the batch chain of one root. */
@@ -140,6 +142,12 @@ export class CommitQueue {
           { root: this.options.root, err: normalizeError(error) },
           'VCS batch threw; its files are kept for the next one',
         );
+        this.options.onThrow?.(
+          normalizeError(error).message,
+          this.pending.size,
+        );
+        // Retry at the next throttle, not only at the next file change.
+        this.startThrottle();
       } finally {
         this.inFlight -= batch.length;
       }
