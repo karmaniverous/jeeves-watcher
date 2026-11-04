@@ -12,7 +12,7 @@ Production deployment recommendations for `jeeves-watcher`.
 
 ### Node.js
 
-**Version:** Node.js 22.13+ (Node.js 24+ recommended). Enrichment metadata is stored with Node's built-in `node:sqlite` module, so installation needs no native build tools.
+**Version:** Node.js 22.22+ (Node.js 24+ recommended). Enrichment metadata is stored with Node's built-in `node:sqlite` module, so installation needs no native build tools.
 
 **Installation:**
 
@@ -23,7 +23,7 @@ Production deployment recommendations for `jeeves-watcher`.
 **Verify:**
 
 ```bash
-node --version  # Should be v22.13.0 or higher
+node --version  # Should be v22.22.0 or higher
 ```
 
 ### Git (Optional — for VCS)

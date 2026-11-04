@@ -33,7 +33,7 @@
     "typescript-eslint": "^8.72.1"
   },
   "engines": {
-    "node": ">=22.13"
+    "node": ">=22.22"
   },
   "overrides": {
     "eslint-plugin-tsdoc": {

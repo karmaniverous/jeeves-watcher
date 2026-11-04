@@ -28,6 +28,14 @@ What changes for an existing deployment, release by release. The [Changelog](../
 - **`GET /status`** gains `health.vcs` when some root has VCS enabled: the VCS root count, files pending commit, roots whose breaker is tripped, and when the longest-failing one first tripped.
 - **`GET /config/schema`** shows `maxFileBytes` under `watch.paths[].vcs`, the per-root override.
 
+### Node.js and chokidar 6
+
+- **The service needs Node.js 22.22 or later** (was 22.13), because chokidar 6 requires it. The SDK and core packages keep 22.13.
+- **chokidar 6 replaces chokidar 5** for the chokidar change source and the config-file watcher. The backend is pinned to 0.20.0's behaviour: one `fs.watch` per directory (chokidar's `native` backend), or stat polling with `watch.usePolling` (`polling`). chokidar 6's default `auto` backend (recursive `fs.watch` on Windows and macOS) is not used. Editor atomic-write handling is unchanged: on with native watching, off when polling.
+- `watch.pollIntervalMs` must be positive: chokidar 6 rejects `0` or less, so the service then uses chokidar's default of 100 ms.
+- chokidar 6 never applies `watch.ignored` to the folders above a watch root (a missing root is watched through its parent until it appears). A root that an `ignored` pattern itself names is still skipped, and paths inside the roots are filtered as before.
+- The `CHOKIDAR_USEPOLLING` and `CHOKIDAR_INTERVAL` environment variables still override the config.
+
 ### Library API
 
 - **`createLogger` is now async** and resolves once the log file is open. Add `await`: `const logger = await createLogger(config.logging);`.

@@ -149,8 +149,8 @@ See [Inference Rules Guide](./inference-rules.md) for merge semantics and usage 
 | `ignored` | `string[]` | `["**/node_modules/**"]` | Glob patterns to exclude from watching. Setting the key replaces the default, so list `**/node_modules/**` again if you need it. |
 | `debounceMs` | `number` | `300` | Events for the same file are collapsed until this long has passed since the last one (prevents re-embedding during rapid edits). |
 | `stabilityThresholdMs` | `number` | `500` | File must be stable (no size changes) for this long before processing. |
-| `pollIntervalMs` | `number` | `1000` | Polling interval if `usePolling` is enabled. |
-| `usePolling` | `boolean` | `false` | Use polling instead of native filesystem events. Enable for network drives or Docker volumes. |
+| `pollIntervalMs` | `number` | `1000` | Polling interval if `usePolling` is enabled. Must be positive; `0` or less falls back to chokidar's 100 ms. |
+| `usePolling` | `boolean` | `false` | Use polling (chokidar's `polling` backend) instead of native filesystem events (one `fs.watch` per directory, chokidar's `native` backend). Enable for network drives or Docker volumes. |
 | `respectGitignore` | `boolean` | `true` | Skip files ignored by `.gitignore` in git repositories. Nested `.gitignore` files are respected within their subtree. Only applies to repos with a `.git` directory. |
 | `moveDetection.enabled` | `boolean` | `true` | Treat an unlink followed by an add of the same content as a move: the points are re-keyed to the new path without re-embedding. |
 | `moveDetection.bufferMs` | `integer` | `2000` | How long (ms, min 100) an unlink is held while waiting for a matching add before it is treated as a delete. |

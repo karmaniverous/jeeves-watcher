@@ -7,6 +7,7 @@ import chokidar, { type FSWatcher } from 'chokidar';
 import type pino from 'pino';
 
 import { normalizeError } from '../util/normalizeError';
+import { backendOptions } from '../watcher/chokidarOptions';
 
 interface ConfigWatcherOptions {
   configPath: string;
@@ -32,6 +33,7 @@ export class ConfigWatcher {
     if (!this.options.enabled) return;
 
     this.watcher = chokidar.watch(this.options.configPath, {
+      ...backendOptions(),
       ignoreInitial: true,
     });
 
