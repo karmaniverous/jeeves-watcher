@@ -46,6 +46,29 @@ What changes for an existing deployment, release by release. The [Changelog](../
   2. Remove it with the glob you used in 0.20.0 (if you sent a leading `/` together with `root`, drop the `/` or send the absolute `<root>/...` form): `POST /vcs/exclude` `{ "glob": "<glob>", "remove": true }` (it falls back to 0.20.0's `.gitignore` line, and `file` names the `.gitignore` it edited).
   3. Add it again: `POST /vcs/exclude` `{ "glob": "<glob>" }` (same glob form as step 2). Mind the anchoring: write `**/` where the old line matched at any depth. Removing the `.gitignore` line brings the files back into the watcher's index scope, so they are embedded again (a reindex cost for large folders).
 
+### Processing at scale
+
+- **Processing ceilings, with deletion on the first start.** `processing.maxFileBytes` (default `64m`, checked with `stat` before extraction), `processing.maxChunksPerFile` (default 5000) and `processing.maxTextBytes` (default `8m` of extracted text) cap what one document may cost. A document over a ceiling has its points deleted and a `too_large` issue recorded; it leaves search. The size check runs before the unchanged-content check, so on the first start every file already indexed over a ceiling is deleted. Before upgrading, list those files with the read-only corpus survey (from a clone of the repository):
+
+  ```bash
+  node scripts/corpus-survey.mjs --url http://localhost:6333 --collection <collectionName>
+  ```
+
+  Add `--api-key <key>` for a secured Qdrant, `--max-chunks`, `--max-file-bytes` or `--max-text-bytes` to try other ceilings, and `--json <file>` for the full table. To keep such a file indexed, raise the ceiling in config before upgrading; after a raise, `POST /reindex` with scope `issues` brings back the documents that were too large. Source documents get the chunk and text ceilings too (their 10 MiB response cap is unchanged) and answer `failed` with code `too_large`. On the host the defaults were derived from (780,178 points, 332,481 files) only the single largest file, at 6,185 chunks, was over.
+
+- **`GET /issues` and `GET /config/schema`** can show the new issue type `too_large` (an approved wire departure).
+- **Large documents no longer hold every vector in memory.** Embeddings are written one window of 100 chunks at a time. Chunk 0 is written first as a claim that counts the highest chunk number either version reaches and has no content hash, so a document whose write fails part-way is never treated as unchanged and a delete still reaches every chunk written. Chunk 0 gets its content hash and final count only after the stale chunks are deleted.
+- **One document is processed at a time.** Every process, delete, move, ceiling deletion and metadata change of a document holds an in-process lock on it, so two runs of the same file can no longer interleave and leave chunks behind. `POST /metadata`, `POST /rules/reapply` and `POST /documents/delete` wait at most 10 s for each document's lock, then answer `503 not_available` with `Retry-After: 10`. A single-document request has then changed nothing; a multi-document request keeps the documents it already changed. Retry after the delay. The CLI's timeout already allows for the wait.
+- **A `file_path` keyword index is created on every collection** in the background at startup (startup does not wait; on a large collection the build can take minutes). `GET /status` reports it under `health.collection.systemIndexes` (`building`, `ready`, `conflict` or `failed`). While it builds, or when `file_path` already has an index of another type (`conflict`: the existing index is left alone), metadata writes address each chunk by ID as before; once it is ready they are one write by filter.
+
+### Embedding health
+
+- **`GET /status` gains `health.embedding`**: `state` (`ok` or `failing`), `lastSuccessAt`, `lastError` (`{ at, code }`), `failingSince` and `backoffUntil`. Codes only: no provider error text or path. Embeddings turn `failing` after at least 3 failures with 60 s without a success, and `ok` again at the first success.
+- **`status` is `degraded`** (HTTP 200) while embeddings are failing or a VCS circuit breaker is tripped. Anything that alarms on a non-`healthy` status will now see these.
+- **`embedding.alertUrl`** (optional) receives a POST when embeddings turn failing (`embedding_failed`) and when they recover (`embedding_recovered`). The body is `{ event, at, service, version, host, collection, failingSince, lastError }`, unsigned: use a private endpoint. Delivery makes up to 3 attempts, each with a 10 s timeout.
+- **A provider back-off is now capped at 5 minutes** and cleared by any successful call. A long `Retry-After` (e.g. a daily quota) used to keep every embedding call failing until it passed; now the first call after 5 minutes probes the provider. The `Retry-After` on a search `503` reflects that probe time.
+- **The reindex callback** also times out each attempt after 10 s (it shares the alert's delivery code).
+
 ### Operation names
 
 - **Every operation has one verb-first name** (D77): the catalog entry, the SDK method, the OpenAPI `operationId` and (as `watcher_` plus the name in snake_case) the plugin tool. Routes and paths are unchanged, so the HTTP API itself does not change. Renamed:

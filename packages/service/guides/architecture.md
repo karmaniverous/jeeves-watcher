@@ -89,12 +89,12 @@ The core processing flow transforms file changes into searchable vectors. The fi
 4. **Merge Enrichment** — Read the document's entry from the enrichment store and merge it over the rule metadata (scalars: enrichment wins; arrays: union, deduplicated)
 5. **Update Values Index** — Record distinct values per property per matched rule (runs even when the content turns out unchanged)
 6. **Empty Check** — Whitespace-only text is skipped (logged at `debug` as `Skipping empty document`)
-7. **Content Hash** — SHA-256 of the text to embed (a matching rule's rendered template output, otherwise the extracted text)
-8. **Hash Check** — If chunk 0 already carries the same `content_hash`, the file is skipped: nothing is embedded or written
-9. **Chunk Text** — Split large documents with overlap
-10. **Embed Chunks** — Generate vectors via the embedding provider (up to 100 chunks per request)
-11. **Upsert to Qdrant** — Store vectors + payloads (including `matched_rules`), 50 points per request
-12. **Cleanup Orphaned Chunks** — Remove old chunks if the document shrank
+7. **Ceilings** — Extracted text over `processing.maxTextBytes`, then a split into more than `processing.maxChunksPerFile` chunks, deletes the document's points and records `too_large` (v0.21.0+; a file over `processing.maxFileBytes` was already stopped by a `stat` before step 1)
+8. **Content Hash** — SHA-256 of the text to embed (a matching rule's rendered template output, otherwise the extracted text)
+9. **Hash Check** — If chunk 0 already carries the same `content_hash`, the file is skipped: nothing is embedded or written
+10. **Embed and Upsert, one window at a time** — Up to 100 chunks per embedding request, each window upserted (50 points per request) before the next is embedded, so one window of vectors is in memory (v0.21.0+). The first window writes chunk 0 as a claim: `total_chunks` is the larger of the old and new counts and `content_hash` is absent, so a run failing part-way is never "unchanged" and a delete still reaches every chunk written
+11. **Cleanup Orphaned Chunks** — Remove chunks from the new count up to the claimed count if the document shrank
+12. **Finalise Chunk 0** — Set its `content_hash` and the new `total_chunks`
 
 ### 3. Metadata Enrichment (API)
 
@@ -105,6 +105,8 @@ The enrichment API allows external callers to add metadata without re-embedding:
 1. **POST /metadata** with a file `path` (or a source reference `source`) and `metadata`; values that do not match the matching rules' declared property types are rejected with `400 invalid_request`
 2. **Store** — The metadata is merged into the document's entry in the enrichment store (top-level keys replace existing ones). For a file, the entry is stored even when the file is not indexed yet, so it applies once it is
 3. **Update Qdrant payloads** — If the document is indexed, the stored enrichment is written to the payload of every chunk (reserved system fields are dropped; the stored identity and `matched_rules` are kept)
+
+The payload write is one Qdrant write filtered on the document's `file_path` (or `source`) once that field has a ready keyword index (the `file_path` system index, v0.21.0+), and otherwise one by point ID over the chunks that exist (so a document left as a chunk-0 claim is updated too).
 
 **Key principle:** Enrichment updates metadata only. No text extraction, no re-embedding, no hash check. Fast metadata updates without changing vectors.
 
@@ -246,6 +248,8 @@ Filesystem events go through one debounced, concurrent queue.
 **Concurrency:** Up to `embedding.concurrency` (default: 5) documents are processed at once; normal-priority events run before low-priority ones. Embedding API requests from every path (watch, source-document notifications, reindex, search) draw from one shared rate limiter (`embedding.rateLimitPerMinute`, counted in requests since v0.20.0).
 
 **Failures:** A failing document is logged and recorded in the issues file; it does not stop the queue.
+
+**Document locks (v0.21.0+):** Every process, delete, move, ceiling deletion and metadata change (`POST /metadata`, rule re-application) of one document runs under an in-process FIFO lock keyed by the normalised file path (the point-ID normalisation) or the source reference. Different documents still run concurrently; two runs of one document never interleave. A move takes both paths' locks in sorted order. Background work waits as long as it takes; `POST /metadata`, `POST /rules/reapply` and `POST /documents/delete` wait at most 10 s per document, then answer `503 not_available` with `Retry-After: 10`. A lock held over 5 minutes is logged as a warning.
 
 ### Source Notify Queue
 
@@ -404,6 +408,8 @@ Transient failures are retried; anything that still fails is recorded as an issu
 | Qdrant write (upsert, delete, set-payload, delete-payload) | 5 attempts, same backoff, each retry on a fresh Qdrant client |
 | Text extraction error | No retry (logged and recorded as an `extraction_error` issue) |
 
+**Embedding health (v0.21.0+):** A tracker wraps the shared rate-limited provider. At least 3 failed calls with 60 s without a success turn it `failing` (`GET /status` reports `degraded`, an error is logged, and `embedding.alertUrl` gets `embedding_failed`); the first success turns it `ok` again (`embedding_recovered`). A stored provider back-off is capped at 5 minutes and cleared by any success. Alerts and the reindex callback share one delivery helper: 3 attempts, 1 s then 2 s apart, 10 s timeout each, never thrown. See [Embedding Health](./configuration.md#embedding-health).
+
 **Issues file:** Documents that fail are recorded in the issues file (persisted to `{stateDir}/issues.json`) with a canonical issue code (`embedding_error`, `upsert_error`, `extraction_error`, ...). Surfaced via `GET /issues`; re-processed by an `issues` reindex (the default on config reload).
 
 ---
@@ -426,7 +432,7 @@ Partially processed files are safe — on the next start the initial scan re-pro
 
 ## Collection Bootstrap
 
-On startup, if the Qdrant collection doesn't exist, the watcher creates it, then creates any missing payload indexes (configured `vectorStore.payloadIndexes` plus the system `source`/`source_rule` indexes):
+On startup, if the Qdrant collection doesn't exist, the watcher creates it, then creates any missing payload indexes (configured `vectorStore.payloadIndexes` plus the `source`/`source_rule` indexes), and starts the background build of the system indexes (`file_path`, v0.21.0+; startup does not wait, and `GET /status` reports `health.collection.systemIndexes`):
 
 ```javascript
 await qdrant.createCollection(collectionName, {
