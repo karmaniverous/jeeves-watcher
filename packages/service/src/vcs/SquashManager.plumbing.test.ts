@@ -186,6 +186,27 @@ describe('SquashManager plumbing rewrite (D166)', () => {
     expect(await git('rev-parse', 'HEAD^{tree}')).toBe(treeBefore);
   }, 30000);
 
+  it('completes when update-ref fails but the branch is already at the rebuilt tip', async () => {
+    await createSquashableHistory(tempDir);
+    let rebuilt = '';
+    const manager = makeSquashManager(tempDir, makeRetention(), silentLogger, {
+      hooks: {
+        rebuiltTip: (tip) => {
+          rebuilt = tip;
+          return Promise.resolve(tip);
+        },
+        beforeUpdateRef: async () => {
+          await git('update-ref', 'refs/heads/master', rebuilt);
+        },
+      },
+    });
+
+    const result = await manager.runSquash();
+
+    expect(result.squashed).toBe(true);
+    expect(await git('rev-parse', 'master')).toBe(rebuilt);
+  }, 30000);
+
   it('reports a failed update-ref as an error when the branch did not move', async () => {
     await createSquashableHistory(tempDir);
     const before = await git('rev-parse', 'master');

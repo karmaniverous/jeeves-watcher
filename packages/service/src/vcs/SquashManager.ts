@@ -214,8 +214,18 @@ export class SquashManager {
         old,
       ]);
     } catch (error) {
-      // A failure with the ref unchanged is git's own (lock, timeout).
-      if ((await refTip(this.rootPath, ref)) === old) throw error;
+      // A failure with the ref unchanged is git's own (lock, timeout); one
+      // that left the ref at our tip (reflog write, timeout after the move)
+      // still squashed.
+      const now = await refTip(this.rootPath, ref);
+      if (now === old) throw error;
+      if (now === tip) {
+        this.logger.warn(
+          { root: this.rootPath, err: normalizeError(error) },
+          'Squash update-ref reported a failure but the branch is at the new tip',
+        );
+        return this.completed(commits.length, boundaryIndex);
+      }
       const message = 'Squash skipped: the branch moved during the squash';
       this.logger.warn(
         { root: this.rootPath, err: normalizeError(error) },
@@ -224,8 +234,16 @@ export class SquashManager {
       return { squashed: false, error: message };
     }
 
+    return this.completed(commits.length, boundaryIndex);
+  }
+
+  /** Log a finished squash, force push if configured, and report it. */
+  private async completed(
+    total: number,
+    boundaryIndex: number,
+  ): Promise<SquashResult> {
     const commitsRemoved = boundaryIndex;
-    const commitsRetained = commits.length - boundaryIndex;
+    const commitsRetained = total - boundaryIndex;
     this.logger.info(
       { root: this.rootPath, commitsRemoved, commitsRetained },
       'Squash retention completed',
