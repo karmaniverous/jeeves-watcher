@@ -1,82 +1,40 @@
 /**
  * @module createWatcherClient
- * Typed client factory for the application-facing watcher API: status, search, scan, render, metadata, reindex, issues and the documents group. Network I/O via fetch.
+ * Typed watcher API client built on jeeves's catalog client: one method per `WATCHER_CATALOG` entry, named by the entry, plus the `documents` group; every failure is a {@link WatcherError}. Network I/O via fetch.
  */
 
 import {
-  type IssuesResponse,
-  issuesResponseSchema,
-  type MetadataRequest,
-  metadataRequestSchema,
-  type MetadataResponse,
-  metadataResponseSchema,
-  type ReindexRequest,
-  reindexRequestSchema,
-  type ReindexResponse,
-  reindexResponseSchema,
-  type RenderRequest,
-  renderRequestSchema,
-  type RenderResponse,
-  renderResponseSchema,
-  type ScanRequest,
-  scanRequestSchema,
-  type ScanResponse,
-  scanResponseSchema,
-  type SearchRequest,
-  searchRequestSchema,
-  type SearchResponse,
-  searchResponseSchema,
-  type StatusResponse,
-  statusResponseSchema,
+  type CatalogClient,
+  createCatalogClient,
+} from '@karmaniverous/jeeves/catalog';
+import {
+  WATCHER_CATALOG,
+  type WatcherCatalog,
 } from '@karmaniverous/jeeves-watcher-core';
 
 import { createDocumentsApi, type DocumentsApi } from './documents.js';
 import { resolveClientOptions, type WatcherClientOptions } from './options.js';
-import { createTransport } from './transport.js';
+import { toWatcherError } from './toWatcherError.js';
+
+/** Catalog entries exposed only through the `documents` group (D60). */
+type GroupedEntry = 'notifyDocuments' | 'deleteDocuments';
+
+/** One method per catalog entry, as jeeves's catalog client types them. */
+type CatalogMethods = CatalogClient<WatcherCatalog>;
 
 /**
- * A watcher API client. Every method validates its request with the core
- * schema before sending, validates the response, and throws a
- * {@link WatcherError} on any failure. No retries.
+ * A watcher API client: one method per `WATCHER_CATALOG` entry, named by the
+ * entry (`search`, `listIssues`, `showVcsFile`, ...), except
+ * `notifyDocuments` and `deleteDocuments`, which are the `documents` group.
+ * Every method validates its input against the entry's schemas before
+ * sending, parses the response with the entry's response schema (unknown
+ * keys are dropped), and throws a {@link WatcherError} on any failure. No
+ * retries.
  */
-export interface WatcherClient {
-  /** Service health (`GET /status`; open even when an API key is configured). */
-  status(): Promise<StatusResponse>;
-  /**
-   * Semantic search (`POST /search`).
-   *
-   * @param request - Query text, optional `limit`, `offset` and Qdrant `filter`.
-   */
-  search(request: SearchRequest): Promise<SearchResponse>;
-  /**
-   * Filter-only point query (`POST /scan`).
-   *
-   * @param request - Qdrant `filter`, optional `limit`, `cursor`, `fields`, `countOnly`.
-   */
-  scan(request: ScanRequest): Promise<ScanResponse>;
-  /**
-   * Render a document through the template pipeline (`POST /render`).
-   *
-   * @param request - `{ path }` for a file or `{ source }` for a source document.
-   */
-  render(request: RenderRequest): Promise<RenderResponse>;
-  /**
-   * Set enrichment metadata on a document (`POST /metadata`).
-   *
-   * @param request - `{ path }` or `{ source }`, plus `metadata`.
-   */
-  metadata(request: MetadataRequest): Promise<MetadataResponse>;
-  /**
-   * Start a scoped reindex (`POST /reindex`).
-   *
-   * @param request - Scope (default `issues`), targets and `dryRun`.
-   */
-  reindex(request?: ReindexRequest): Promise<ReindexResponse>;
-  /** Current processing issues keyed by document (`GET /issues`). */
-  issues(): Promise<IssuesResponse>;
+export type WatcherClient = Omit<CatalogMethods, GroupedEntry> & {
   /** Source-document notify and delete. */
   documents: DocumentsApi;
-}
+};
 
 /**
  * Create a watcher API client.
@@ -97,50 +55,28 @@ export interface WatcherClient {
 export function createWatcherClient(
   options: WatcherClientOptions,
 ): WatcherClient {
-  const transport = createTransport(resolveClientOptions(options));
+  const resolved = resolveClientOptions(options);
+  const catalogClient = createCatalogClient(WATCHER_CATALOG, {
+    baseUrl: resolved.baseUrl,
+    ...(resolved.apiKey === undefined
+      ? {}
+      : { auth: { bearer: resolved.apiKey } }),
+    timeoutMs: resolved.timeoutMs,
+    fetch: resolved.fetch,
+  });
+  const methods = Object.fromEntries(
+    WATCHER_CATALOG.entries.map(({ name }) => {
+      const call = catalogClient[name] as (input?: unknown) => Promise<unknown>;
+      const method = (input?: unknown) =>
+        call(input).catch((error: unknown) => {
+          throw toWatcherError(error, name, resolved.timeoutMs);
+        });
+      return [name, method];
+    }),
+  ) as unknown as CatalogMethods;
+  const { notifyDocuments, deleteDocuments, ...rest } = methods;
   return {
-    status: () =>
-      transport({ endpoint: 'status', responseSchema: statusResponseSchema }),
-    search: (request) =>
-      transport({
-        endpoint: 'search',
-        body: request,
-        bodySchema: searchRequestSchema,
-        responseSchema: searchResponseSchema,
-      }),
-    scan: (request) =>
-      transport({
-        endpoint: 'scan',
-        body: request,
-        bodySchema: scanRequestSchema,
-        responseSchema: scanResponseSchema,
-      }),
-    render: (request) =>
-      transport({
-        endpoint: 'render',
-        body: request,
-        bodySchema: renderRequestSchema,
-        responseSchema: renderResponseSchema,
-      }),
-    metadata: (request) =>
-      transport({
-        endpoint: 'setMetadata',
-        body: request,
-        bodySchema: metadataRequestSchema,
-        responseSchema: metadataResponseSchema,
-      }),
-    reindex: (request = {}) =>
-      transport({
-        endpoint: 'reindex',
-        body: request,
-        bodySchema: reindexRequestSchema,
-        responseSchema: reindexResponseSchema,
-      }),
-    issues: () =>
-      transport({
-        endpoint: 'listIssues',
-        responseSchema: issuesResponseSchema,
-      }),
-    documents: createDocumentsApi(transport),
+    ...rest,
+    documents: createDocumentsApi(notifyDocuments, deleteDocuments),
   };
 }

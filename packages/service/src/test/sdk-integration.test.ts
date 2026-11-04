@@ -1,6 +1,6 @@
 /**
  * @module test/sdk-integration.test
- * SDK end-to-end (requires Qdrant): the jeeves-watcher-sdk client against the real Fastify API over HTTP with an API key: every in-scope method, filter helpers, notify 202 and wait=true, delete, and server error mapping.
+ * SDK end-to-end (requires Qdrant): the jeeves-watcher-sdk client (catalog-built, SDK 0.3.0) against the real Fastify API over HTTP with an API key: the documents group, search/scan with filter helpers, render, setMetadata, reindex, config, rules, walk and facets, notify 202 and wait=true, delete, and server error mapping.
  */
 
 import {
@@ -93,9 +93,41 @@ describe.skipIf(!qdrantAvailable())(
       await expect(open.status()).resolves.toMatchObject({ name: 'watcher' });
     });
 
+    it('round-trips the catalog methods SDK 0.3.0 adds (config, rules, facets; walk answers 503)', async () => {
+      await expect(watcher.config({ path: '$.api' })).resolves.toMatchObject({
+        result: expect.any(Array) as unknown,
+      });
+      await expect(watcher.getConfigSchema()).resolves.toMatchObject({
+        type: 'object',
+      });
+      await expect(
+        watcher.matchConfig({ paths: ['/nowhere/a.md'] }),
+      ).resolves.toMatchObject({ matches: expect.any(Array) as unknown });
+      await expect(watcher.validateConfig({})).resolves.toMatchObject({
+        valid: true,
+      });
+      await expect(watcher.listFacets()).resolves.toMatchObject({
+        facets: expect.any(Array) as unknown,
+      });
+      // The harness runs no filesystem watcher: walk answers 503 not_available.
+      await expect(watcher.walk({ globs: ['**/*.md'] })).rejects.toMatchObject({
+        code: 'not_available',
+        status: 503,
+      });
+      await expect(
+        watcher.registerRules({
+          source: 'sdk-int',
+          rules: [{ name: 'sdk-int-rule', match: { type: 'object' } }],
+        }),
+      ).resolves.toMatchObject({ source: 'sdk-int' });
+      await expect(
+        watcher.unregisterRulesBySource({ source: 'sdk-int' }),
+      ).resolves.toMatchObject({ source: 'sdk-int' });
+    });
+
     it('maps a 401 without the key to WatcherError', async () => {
       const anon = createWatcherClient({ baseUrl: harness.baseUrl! });
-      const error = await caught(anon.issues());
+      const error = await caught(anon.listIssues());
       expect(error).toBeInstanceOf(WatcherError);
       expect(error).toMatchObject({
         status: 401,
@@ -155,7 +187,7 @@ describe.skipIf(!qdrantAvailable())(
         content: '- user: alpha message\n',
       });
       await expect(
-        watcher.metadata({ source: A, metadata: { priority: 2 } }),
+        watcher.setMetadata({ source: A, metadata: { priority: 2 } }),
       ).resolves.toEqual({ ok: true, matched_rules: [RULE] });
       await expect(
         watcher.reindex({ scope: 'path', source: A, dryRun: true }),
@@ -164,12 +196,12 @@ describe.skipIf(!qdrantAvailable())(
         scope: 'path',
         plan: { toProcess: 1, byRoot: { app: 1 } },
       });
-      await expect(watcher.issues()).resolves.toMatchObject({ count: 0 });
+      await expect(watcher.listIssues()).resolves.toMatchObject({ count: 0 });
     });
 
     it('maps a server 404 error body', async () => {
       const error = await caught(
-        watcher.metadata({ source: 'app://chat/thread/none', metadata: {} }),
+        watcher.setMetadata({ source: 'app://chat/thread/none', metadata: {} }),
       );
       expect(error).toMatchObject({
         status: 404,

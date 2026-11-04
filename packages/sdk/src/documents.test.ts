@@ -77,7 +77,36 @@ describe('documents.notify', () => {
     const { watcher } = client({ status: 202, body: ACCEPTED });
     await expect(
       watcher.documents.notify([DOC], { wait: true }),
-    ).rejects.toMatchObject({ code: 'invalid_response', status: 202 });
+    ).rejects.toMatchObject({
+      code: 'invalid_response',
+      message: 'notifyDocuments answered without per-document results',
+    });
+  });
+
+  it('rejects a results shape when no wait expected the 202 body', async () => {
+    const { watcher } = client({ body: RESULTS });
+    await expect(watcher.documents.notify([DOC])).rejects.toMatchObject({
+      code: 'invalid_response',
+      message: 'notifyDocuments answered without accepted references',
+    });
+  });
+
+  it('sends a malformed reference: the server rejects it in `rejected` (the envelope does not check references)', async () => {
+    const bad = { source: 'not a ref', rule: 'r' };
+    const rejected = [
+      {
+        source: 'not a ref',
+        error: { code: 'invalid_reference', message: 'x' },
+      },
+    ];
+    const { watcher, mock } = client({
+      status: 202,
+      body: { accepted: [], rejected },
+    });
+    await expect(watcher.documents.notify([bad])).resolves.toMatchObject({
+      accepted: [],
+    });
+    expect(mock.calls[0]?.body).toEqual({ documents: [bad] });
   });
 
   it.each([
@@ -86,7 +115,6 @@ describe('documents.notify', () => {
       'more than the maximum',
       Array.from({ length: MAX_DOCUMENTS_PER_REQUEST + 1 }, () => DOC),
     ],
-    ['a malformed reference', [{ source: 'not a ref', rule: 'r' }]],
     ['an empty rule', [{ source: DOC.source, rule: '' }]],
     ['pushed content (notify only)', [{ ...DOC, text: 'inline' }]],
     [

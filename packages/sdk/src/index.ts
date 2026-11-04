@@ -1,5 +1,5 @@
 /**
- * Typed client for the jeeves-watcher HTTP API: `createWatcherClient`, the `documents` notify/delete group, Qdrant filter helpers `f`, `WatcherError`, and the core API and callback-contract types.
+ * Typed client for the jeeves-watcher HTTP API, built on jeeves's catalog client over `WATCHER_CATALOG`: `createWatcherClient` (one method per catalog entry, plus the `documents` notify/delete group), Qdrant filter helpers `f`, `WatcherError`, and the core API and callback-contract types.
  *
  * @packageDocumentation
  */
@@ -15,6 +15,7 @@ export {
   type FetchLike,
   type WatcherClientOptions,
 } from './options.js';
+export { MAX_RETRY_AFTER_MS } from './toWatcherError.js';
 export {
   isWatcherError,
   type WatcherClientErrorCode,

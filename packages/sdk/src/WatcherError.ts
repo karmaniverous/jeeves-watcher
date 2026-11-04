@@ -5,12 +5,12 @@
 
 /**
  * Codes the SDK assigns itself. Errors from a non-2xx response carry the
- * server's code instead: an `ApiErrorCode` (core `API_ERROR_CODES`) from a
- * 0.20.0+ service, else `body.code`, else `body.error`, else `http_<status>`.
+ * server's code instead: the body's `code` (an `ApiErrorCode`, core
+ * `API_ERROR_CODES`), else `http_<status>`.
  *
  * - `invalid_options`: {@link createWatcherClient} options are invalid.
- * - `invalid_request`: the request body failed the core request schema; nothing was sent.
- * - `invalid_response`: a 2xx response was not JSON or failed the core response schema.
+ * - `invalid_request`: the input failed the catalog entry's request schema; nothing was sent.
+ * - `invalid_response`: a 2xx response was not JSON or failed the entry's response schema.
  * - `timeout`: no response within `timeoutMs`.
  * - `network_error`: `fetch` rejected (connection refused, DNS failure, …).
  */
@@ -31,6 +31,8 @@ export interface WatcherErrorInit {
   status?: number;
   /** Structured details (Zod issues, server `details`, or the raw body). */
   details?: unknown;
+  /** Delay the server asked for (`Retry-After`), in ms, clamped to 0..3,600,000. */
+  retryAfterMs?: number;
   /** Underlying error, if any. */
   cause?: unknown;
 }
@@ -46,11 +48,17 @@ export class WatcherError extends Error {
   readonly status?: number;
   /** Structured details (Zod issues, server `details`, or the raw body). */
   readonly details?: unknown;
+  /**
+   * Delay the server asked for before a retry (`Retry-After` on a `503` or
+   * `429`), in milliseconds, clamped to 0..3,600,000 (D78). The SDK never
+   * waits or retries itself.
+   */
+  readonly retryAfterMs?: number;
 
   /**
    * Create a watcher error.
    *
-   * @param init - Code, message and optional status, details and cause.
+   * @param init - Code, message and optional status, details, retry delay and cause.
    */
   constructor(init: WatcherErrorInit) {
     super(init.message, init.cause === undefined ? {} : { cause: init.cause });
@@ -58,6 +66,7 @@ export class WatcherError extends Error {
     this.code = init.code;
     this.status = init.status;
     this.details = init.details;
+    this.retryAfterMs = init.retryAfterMs;
   }
 }
 
