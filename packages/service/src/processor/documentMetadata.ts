@@ -1,6 +1,6 @@
 /**
  * @module processor/documentMetadata
- * Enrichment metadata updates for indexed documents (files and sources): reads chunk 0, stores enrichment, re-asserts the stored identity and writes the merged payload to every chunk (no re-embed). Qdrant and enrichment-store I/O.
+ * Enrichment metadata updates for indexed documents (files and sources): reads chunk 0, stores enrichment, re-asserts the stored identity and writes the merged payload to every chunk, by filter or by existing IDs (D139; no re-embed). Qdrant and enrichment-store I/O.
  */
 
 import type pino from 'pino';
@@ -9,13 +9,13 @@ import type { EnrichmentStoreInterface } from '../enrichment';
 import type { VectorStore } from '../vectorStore';
 import { getChunkCount } from './chunkIds';
 import {
-  documentChunkIds,
   documentKey,
   documentPointId,
   type DocumentTarget,
   identityLogFields,
   storedIdentity,
 } from './documentIdentity';
+import { writeDocumentPayload } from './documentPayloadWrite';
 import { withIssueType } from './issueRecording';
 import { withSystemFields } from './systemFields';
 
@@ -69,13 +69,14 @@ export async function updateDocumentMetadata(
 
   if (!options.storeWhenNotIndexed) ctx.enrichmentStore?.set(key, metadata);
   const merged = ctx.enrichmentStore?.get(key) ?? metadata;
-  const ids = documentChunkIds(identity, getChunkCount(existing));
   await withIssueType('upsert_error', () =>
-    ctx.vectorStore.setPayload(ids, withSystemFields(merged, identity)),
+    writeDocumentPayload(ctx.vectorStore, identity, existing, {
+      set: withSystemFields(merged, identity),
+    }),
   );
 
   ctx.logger.info(
-    { ...identityLogFields(identity), chunks: ids.length },
+    { ...identityLogFields(identity), chunks: getChunkCount(existing) },
     'Metadata updated',
   );
   return merged;

@@ -17,6 +17,8 @@ function setup(stored: Record<string, unknown> | null) {
   const vectorStore = {
     getPayload: vi.fn().mockResolvedValue(stored),
     setPayload: vi.fn().mockResolvedValue(undefined),
+    keywordIndexReady: vi.fn().mockReturnValue(false),
+    existingIds: vi.fn((ids: string[]) => Promise.resolve(ids)),
   };
   const enrichment = new Map<string, Record<string, unknown>>();
   const enrichmentStore = {

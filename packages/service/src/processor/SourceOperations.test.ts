@@ -59,6 +59,8 @@ function setup(
   const vectorStore = {
     getPayload: vi.fn().mockResolvedValue(options.stored ?? null),
     setPayload: vi.fn().mockResolvedValue(undefined),
+    keywordIndexReady: vi.fn().mockReturnValue(false),
+    existingIds: vi.fn((ids: string[]) => Promise.resolve(ids)),
     upsert: vi.fn().mockResolvedValue(undefined),
     delete: vi.fn().mockResolvedValue(undefined),
   };

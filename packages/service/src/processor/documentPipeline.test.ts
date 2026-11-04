@@ -46,6 +46,8 @@ function setup(existing: Record<string, unknown> | null = null) {
     upsert: vi.fn().mockResolvedValue(undefined),
     delete: vi.fn().mockResolvedValue(undefined),
     setPayload: vi.fn().mockResolvedValue(undefined),
+    keywordIndexReady: vi.fn().mockReturnValue(false),
+    existingIds: vi.fn((ids: string[]) => Promise.resolve(ids)),
     deletePayload: vi.fn().mockResolvedValue(undefined),
   };
   const issuesManager = {
