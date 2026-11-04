@@ -197,17 +197,18 @@ Undo changes by restoring files to a specific version (`POST /vcs/revert`).
 
 #### `watcher_vcs_exclude`
 
-Exclude or re-include paths from version tracking (`POST /vcs/exclude`).
+Exclude a path from version history while keeping it in search, or remove the exclusion (`POST /vcs/exclude`). Adding writes a root-anchored pattern to the root's `.git/info/exclude` and untracks the files it matches, ending their history (the files stay on disk).
 
 **Parameters:**
 
-- `glob` (string, required) — glob pattern to exclude or re-include
-- `root` (string) — tracked root to target (defaults to auto-detect)
-- `remove` (boolean) — when true, remove the exclusion rule (re-include the path)
+- `glob` (string, required) — one gitignore pattern, absolute under a tracked root or relative to `root` (a glob starting with `/` is a filesystem path); brackets are a character class, so escape them to name a file literally (`Report \[draft\].docx`)
+- `root` (string) — tracked root to target (defaults to auto-detect); a glob outside it is refused
+- `remove` (boolean) — when true, remove the exclusion rule (untracked files are not re-added)
+- `confirm` (boolean) — required (true) when more than 100 files would be untracked; without it the tool reports `HTTP 409 confirm_required` and nothing changes
 
 #### `watcher_vcs_check`
 
-Check whether a path is excluded from version tracking and why (`GET /vcs/check-exclusion`).
+Check whether git ignores a path and why: the rule, the file holding it (`.git/info/exclude` for a VCS-only exclusion) and its line (`GET /vcs/check-exclusion`). A tracked path is never reported ignored.
 
 **Parameters:**
 

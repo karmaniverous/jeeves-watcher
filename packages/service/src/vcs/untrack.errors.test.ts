@@ -69,7 +69,7 @@ describe('untrack error handling', () => {
     await expect(
       untrackPaths(repo, {
         select: (env) => listTracked(repo, ['big.bin'], { env }),
-        message: 'untrack test',
+        message: () => 'untrack test',
         pattern: '*.bin',
         hooks: { afterUpdateRef: () => Promise.reject(new Error('crash')) },
       }),
@@ -109,7 +109,7 @@ describe('untrack error handling', () => {
     await expect(
       untrackPaths(repo, {
         select: (env) => listTracked(repo, ['big.bin'], { env }),
-        message: 'untrack test',
+        message: () => 'untrack test',
       }),
     ).rejects.toThrow(GitTimeoutError);
     expect(await lsFiles()).toEqual(['big.bin']);

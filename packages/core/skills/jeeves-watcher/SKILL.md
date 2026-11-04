@@ -988,8 +988,8 @@ The watcher includes built-in history and undo for your watched files. When enab
 | `watcher_vcs_show` | Retrieve the content of a file at a specific past version |
 | `watcher_vcs_diff` | Show what changed between two versions, or between a past version and now |
 | `watcher_vcs_revert` | Undo changes by restoring files to a specific past version |
-| `watcher_vcs_exclude` | Exclude (or re-include) paths from version tracking |
-| `watcher_vcs_check` | Check whether a path is excluded from version tracking and why |
+| `watcher_vcs_exclude` | Exclude a path from version history (it stays in search), or remove the exclusion; untracks matching files |
+| `watcher_vcs_check` | Check whether git ignores a path and why (rule, file, line) |
 
 ### Usage Patterns
 
@@ -1039,7 +1039,15 @@ Squash retention activates by default when VCS is enabled, even without explicit
 
 Not all watched files need version history. For example, if Jira issues are synced read-only, there's nothing to "undo." Use `watcher_vcs_exclude` to stop tracking specific paths.
 
-Exclusions are placed as close to the target as possible: if you exclude `/data/tickets/**/*.json`, the exclusion rule is written inside the `/data/tickets/` directory, not at the root. This keeps exclusions local and easy to reason about. Re-include a path by calling `watcher_vcs_exclude` with `remove: true`.
+The exclusion is VCS-only: the pattern goes to the root's `.git/info/exclude`, so the files stop being versioned but stay indexed and searchable.
+
+- **Destructive.** Adding a pattern untracks the tracked files it matches, in one commit: their history ends at their last committed version (the files stay on disk). `remove: true` deletes the pattern but does not restore history; the files are versioned again from their next change.
+- **One gitignore pattern, root-anchored.** The pattern is written as `/` plus the glob relative to the root, so `/data/tickets/*.json` (root `/data`) matches only directly under `tickets/`; use `**/` for any depth. Pass `root` to give a root-relative glob (`tickets/**/*.json`, without a leading `/`: with `root`, a glob starting with `/` is a filesystem path and must lie under the root).
+- **Brackets are a character class.** `Report [draft].docx` matches `Report d.docx`; escape them to name the file: `Report \[draft\].docx`.
+- **Refused (`400`):** a newline, a leading `!` or `#`, braces, a pattern matching the whole root (`*`, `**`, `**/*`, ...), or a glob outside the given `root`.
+- **More than 100 files** to untrack need `confirm: true`; without it the tool reports `409 confirm_required` with the count and changes nothing. Check the count with the user before confirming.
+- **Busy root.** If version control is busy on the root for 30 s the tool reports `503 not_available`; retry after 30 s.
+- `watcher_vcs_check` reports `excluded: false` for a tracked file even when a human `.gitignore` matches it (git never reports tracked paths as ignored); exclude it to untrack it.
 
 ### Score Interpretation
 

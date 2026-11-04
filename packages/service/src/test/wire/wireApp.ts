@@ -123,6 +123,7 @@ export async function startWireApp(
       for (const source of Object.keys(rules.getAll()))
         rules.unregister(source);
       // Undo VCS writes (revert, exclude) so every scenario sees the same repo.
+      await rm(join(vcsRoot, '.git', 'info', 'exclude'), { force: true });
       await execFileAsync('git', ['checkout', '--', '.'], { cwd: vcsRoot });
       await execFileAsync('git', ['clean', '-fdq'], { cwd: vcsRoot });
     },

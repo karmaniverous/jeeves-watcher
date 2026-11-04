@@ -1,6 +1,6 @@
 /**
  * @module test/wire/fixtureSchemas
- * Checks the watcher-core request and response schemas against the recorded 0.20.0 wire baseline: every successful answer parses under its route's response schema, and every request 0.20.0 accepted parses under its route's request schema. Reads the fixture file only.
+ * Checks the watcher-core request and response schemas against the recorded 0.20.0 wire baseline: every successful answer parses under its route's response schema (after an approved departure's reshaping), and every request 0.20.0 accepted parses under its route's request schema. Reads the fixture file only.
  */
 
 import {
@@ -56,6 +56,11 @@ interface RouteSchemas {
   request?: z.ZodType;
   /** Schemas a 2xx body may match (any one). */
   response: z.ZodType[];
+  /**
+   * An approved 0.21.0 departure (Design 2): the 0.20.0 body in the new
+   * shape, so the unchanged rest is still checked.
+   */
+  departure?: (body: Record<string, unknown>) => unknown;
 }
 
 /** Route schemas keyed by the scenario name's first word. */
@@ -124,6 +129,12 @@ const ROUTES: Partial<Record<string, RouteSchemas>> = {
   vcsExclude: {
     request: vcsExcludeRequestSchema,
     response: [vcsExcludeResponseSchema],
+    // B4: `file` and `untracked` replace `gitignorePath` (D54, D71).
+    departure: ({ gitignorePath, ...rest }) => ({
+      ...rest,
+      file: gitignorePath,
+      untracked: 0,
+    }),
   },
 };
 
@@ -150,8 +161,9 @@ describe('0.20.0 wire baseline against watcher-core schemas', () => {
   it.each(CATALOG_COMPLETION_SCENARIOS.filter(ok).map((s) => [s.name, s]))(
     '%s: response parses',
     (_name, scenario) => {
-      const { response } = routeOf(scenario);
-      const body = records[scenario.name].body;
+      const { response, departure } = routeOf(scenario);
+      const recorded = records[scenario.name].body as Record<string, unknown>;
+      const body = departure ? departure(recorded) : recorded;
       expect(response.some((schema) => schema.safeParse(body).success)).toBe(
         true,
       );

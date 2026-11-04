@@ -2051,7 +2051,7 @@ A root whose listing fails (for example an unknown commit) restores nothing, so 
 
 ### POST /vcs/exclude
 
-Manage `.gitignore` entries with locality-based placement.
+Exclude a path from version history without dropping it from search (VCS-only exclusion, unreleased, spec B4). The pattern goes to the root's `.git/info/exclude`, which git honours and the watcher's indexing filter never reads, and the tracked files it matches are untracked in one commit. This entry is `destructive` in the catalog (D103): history stops for the untracked files.
 
 #### Request
 
@@ -2059,8 +2059,7 @@ Manage `.gitignore` entries with locality-based placement.
 curl -X POST http://localhost:1936/vcs/exclude \
   -H "Content-Type: application/json" \
   -d '{
-    "glob": "d:/documents/temp/**/*.tmp",
-    "remove": false
+    "glob": "d:/documents/temp/**/*.tmp"
   }'
 ```
 
@@ -2068,11 +2067,14 @@ curl -X POST http://localhost:1936/vcs/exclude \
 
 ```typescript
 {
-  glob: string;      // Glob pattern to add or remove
-  root?: string;     // Watch root (resolved automatically if omitted)
-  remove?: boolean;  // Remove the entry instead of adding (default: false)
+  glob: string;       // One gitignore pattern: absolute under a VCS root, or relative to `root`
+  root?: string;      // VCS root to write under (default: the root containing the glob)
+  remove?: boolean;   // Remove the pattern instead of adding it (default: false)
+  confirm?: boolean;  // Required (true) to untrack more than 100 files
 }
 ```
+
+The glob is a gitignore pattern, so `*`, `?`, `**` and brackets keep their gitignore meaning. Brackets are a character class: `Report [draft].docx` matches `Report d.docx`, not the file with the brackets. Escape them to name a file literally: `"Report \\[draft\\].docx"` in JSON (`Report \[draft\].docx`). A backslash before a bracket is kept as that escape; any other backslash is a Windows path separator.
 
 #### Response
 
@@ -2081,30 +2083,45 @@ curl -X POST http://localhost:1936/vcs/exclude \
 ```json
 {
   "ok": true,
-  "gitignorePath": "d:/documents/temp/.gitignore",
-  "action": "added"
+  "file": "d:/documents/.git/info/exclude",
+  "action": "added",
+  "untracked": 3
 }
 ```
 
 | Field | Type | Description |
 | --- | --- | --- |
 | `ok` | `boolean` | Success indicator. |
-| `gitignorePath` | `string` | Path (forward slashes) of the `.gitignore` file that was modified. |
+| `file` | `string` | Path (forward slashes) of the file written: the root's `.git/info/exclude`, or, for a `remove` of a pattern 0.20.0 wrote, that `.gitignore`. |
 | `action` | `string` | `"added"` or `"removed"`. |
+| `untracked` | `number` | Paths removed from the index (committed in HEAD or only staged); `0` for `removed`. |
+
+0.20.0 answered `{ ok, gitignorePath, action }`; `file` and `untracked` replace `gitignorePath` (an approved wire departure, spec Design 2).
 
 #### Behavior
 
-Splits the root-relative glob at its first segment containing a wildcard into a directory prefix and pattern suffix (a literal path goes to its parent directory's `.gitignore`), then places the entry in a `.gitignore` at that directory (locality principle), creating the directory and file if needed. Adding a pattern that is already present changes nothing and still answers `"added"`. Removing deletes the lines equal to the pattern.
+- **Anchoring.** The pattern is written root-anchored: `/` followed by the glob relative to the root (D81). The written patterns `/docs` and `/docs/` (from the glob `<root>/docs`, or `docs` with `root`) name the root's `docs` folder and everything under it; `**/build/` names every `build` folder. With `root`, a glob starting with `/` (or a drive) is a filesystem path, so `/docs` there means the folder `/docs` on disk and is `400` unless it lies under the root; give root-relative globs without the leading `/`. Trailing spaces are dropped (git ignores them in the exclude file). 0.20.0 wrote un-anchored lines into a `.gitignore` near the glob, so `*.log` there matched at every depth; 0.21.0's `/*.log` matches only at the root. Write `**/*.log` for every depth.
+- **Adding** runs in one hold of the root's git lock, waited for at most 30 s: the tracked files the pattern matches are listed (`git ls-files -c -i -x <pattern>`, in HEAD and in the index), the line is appended to `.git/info/exclude` (once: a pattern already there is not duplicated), the files are removed from HEAD in one commit `Untrack <n> files matching <pattern>` and from the index, and the commit is pushed when the root has a remote. Files stay on disk and in search. Other staged changes are kept. A file a failed batch staged but never committed is untracked too and counted. With an unborn HEAD nothing is committed; staged matches are unstaged.
+- **More than 100 files** to untrack need `confirm: true`. Without it the route answers `409` and writes nothing.
+- **Removing** deletes the anchored line from `.git/info/exclude`; if it is not there, the line 0.20.0 wrote for the same glob in its locality `.gitignore` (the deepest literal directory of the glob). Untracked files are not re-added: their next change is versioned again.
+- **Queued batches** that hold an excluded path drop it, because git now reports it ignored.
+- **Refused patterns** (`400`): a newline, a leading `!` or `#`, braces (`{a,b}` is not gitignore syntax), and a pattern matching the whole root (a path part that is empty or only `*`, `**` and `/`: `*`, `**`, `/`, `/**`, `**/*`, `*/**`). `docs/*` and `**/*.tmp` are accepted.
 
 #### Errors
 
-`400 invalid_request` without `glob` (`"Missing required body parameter: glob"`), or when `remove` is not a JSON boolean (unreleased, D183: 0.20.0 read any truthy value, so `"false"` acted as `true`). `404 not_found` when `root` is not a VCS root (`"Root is not a VCS-enabled watch root"`), when no VCS root contains the glob (`"Glob does not match any VCS-enabled watch root"`), or, for `remove`, when the `.gitignore` does not exist (`"No .gitignore found at the expected location"`) or does not contain the pattern (`"Pattern not found in .gitignore"`).
+| Status | `code` | When |
+| --- | --- | --- |
+| `400` | `invalid_request` | `glob` missing (`"Missing required body parameter: glob"`), `remove` or `confirm` not a JSON boolean (D183), a refused pattern (`"The glob must be a single pattern (no newline)"`, `"The glob must not start with ! or #"`, `"Braces are not gitignore syntax"`, `"The glob matches the whole root"`), or a glob outside an explicit `root` (`"The glob resolves outside the root"`; with `root`, an absolute glob must lie under it and a relative one may not climb out with `..`). |
+| `404` | `not_found` | `root` is not a VCS root (`"Root is not a VCS-enabled watch root"`), no VCS root contains the glob (`"Glob does not match any VCS-enabled watch root"`), or, for `remove`, the pattern is in neither file (`"No .gitignore found at the expected location"`, `"Pattern not found in .gitignore"`, 0.20.0's texts). |
+| `409` | `confirm_required` | More than 100 files would be untracked and `confirm` is not `true`. Nothing is written. The body adds the count: `{ "error": "Excluding /bulk/*.dat would untrack 101 files; repeat with confirm: true", "code": "confirm_required", "untracked": 101 }`. |
+| `503` | `not_available` | The root's git lock stayed busy (a long batch commit or squash) for 30 s. Nothing is written. `Retry-After: 30`; `message` is `"Version control is busy on this root; retry after 30 s"`. |
+| `500` | `internal_error` | git failed, including an untrack commit beaten twice by commits from elsewhere (the appended line is removed again). |
 
 ---
 
 ### GET /vcs/check-exclusion
 
-Check whether a file is excluded by `.gitignore`.
+Check whether git ignores a path, and why.
 
 #### Request
 
@@ -2125,24 +2142,30 @@ curl "http://localhost:1936/vcs/check-exclusion?path=d:/documents/temp/scratch.t
 ```json
 {
   "excluded": true,
-  "rule": "**/*.tmp",
-  "source": "temp/.gitignore"
+  "rule": "/temp/**/*.tmp",
+  "source": ".git/info/exclude",
+  "line": 2
 }
 ```
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `excluded` | `boolean` | Whether the file is ignored by git. |
-| `rule` | `string?` | The matching `.gitignore` pattern (if excluded). |
-| `source` | `string?` | The file containing the rule, as `git check-ignore -v` reports it (relative to the watch root for a `.gitignore` in the tree). |
+| `excluded` | `boolean` | Whether git ignores the path. |
+| `rule` | `string?` | The matching pattern (if excluded). |
+| `source` | `string?` | The file holding the rule, as `git check-ignore -v` names it: `.git/info/exclude` for a VCS-only exclusion, a `.gitignore` relative to the watch root, or a global excludes file. |
+| `line` | `number?` | The rule's 1-based line number in `source` (unreleased, D82). |
 
 #### Behavior
 
-Runs `git check-ignore -v` in the watch root to determine exclusion status and the specific rule/source responsible. If git's output cannot be parsed, the response is `{ "excluded": true }` without `rule` and `source`. Any non-zero git exit (not only "not ignored") answers `{ "excluded": false }`.
+Runs `git check-ignore -v` in the watch root (unreleased, D82):
+
+- A tracked path is never reported ignored, even when a rule matches it: `excluded: false`. So a file a human `.gitignore` covers but git still tracks answers `excluded: false`; exclude it through `POST /vcs/exclude` to untrack it.
+- A path a negated rule (`!pattern`) re-includes answers `excluded: false`.
+- git's "not ignored" exit answers `excluded: false`; any other git failure answers `500 internal_error`. (0.20.0 answered `excluded: false` for every git failure, and `excluded: true` without `rule` for output it could not parse.)
 
 #### Errors
 
-`400 invalid_request` without `path` (`"Missing required query parameter: path"`); `404 not_found` when no VCS root contains the path (`"Path does not match any VCS-enabled watch root"`).
+`400 invalid_request` without `path` (`"Missing required query parameter: path"`); `404 not_found` when no VCS root contains the path (`"Path does not match any VCS-enabled watch root"`); `500 internal_error` when git fails.
 
 ---
 
@@ -2176,13 +2199,14 @@ Since v0.20.0 every non-2xx response has this body (`apiErrorBodySchema` in `@ka
 | `invalid_request` | `400` | The body, query or parameters failed validation, a filter was rejected by Qdrant (`error: "Invalid filter"`) or has no condition (`POST /documents/delete`), an invalid JSONPath (`GET /config`), a `POST /reindex` path target that is neither file nor directory, or the request was rejected before reaching a route (malformed JSON, unsupported media type: the framework's status is kept, e.g. `415`). |
 | `unauthorized` | `401` | `api.apiKey` is set and the bearer token is missing or wrong. |
 | `path_not_watched` | `403` | The file path is outside the watched scope (`POST /render`), or a `POST /reindex` path target is outside it or gitignored. |
-| `not_found` | `404` | No such route, file (including a `POST /reindex` path target), VCS watch root, file at a commit, `.gitignore` or `.gitignore` pattern. |
+| `not_found` | `404` | No such route, file (including a `POST /reindex` path target), VCS watch root, file at a commit, or exclude pattern to remove (`POST /vcs/exclude`). |
 | `source_not_indexed` | `404` | No stored point for the source reference, so no designated rule is known (`POST /render`, `POST /metadata`). |
 | `source_not_found` | `404` | The source callback answered `404` (`POST /render`). |
 | `unsupported_content_type` | `422` | The source callback returned a non-JSON body (`POST /render`). |
 | `pipeline_error` | `422` | Rendering or extraction failed (`POST /render`); `issueType` names the failure. |
+| `confirm_required` | `409` | `POST /vcs/exclude` would untrack more than 100 files and `confirm` is not `true`; nothing was written, and `untracked` holds the count (unreleased, D103). |
 | `source_unavailable` | `502` | The source callback failed (`POST /render`). |
-| `not_available` | `503` | The feature is not available on this instance: no source-document support (`POST /documents`, and `POST /render`, `POST /metadata` and `POST /reindex` with `source`; `POST /documents/delete` works without it), or no filesystem watcher (`POST /walk`). A prune without a vector store keeps its 0.19 status `400`. |
+| `not_available` | `503` | The feature is not available on this instance: no source-document support (`POST /documents`, and `POST /render`, `POST /metadata` and `POST /reindex` with `source`; `POST /documents/delete` works without it), or no filesystem watcher (`POST /walk`), or `POST /vcs/exclude` waited 30 s for the root's git lock (`Retry-After: 30`, unreleased, D102). A prune without a vector store keeps its 0.19 status `400`. |
 | `scan_in_progress` | `503` | The initial filesystem scan is still running (`POST /walk`); retry later. |
 | `embedding_unavailable` | `503` | The embedding provider's retry budget ran out (`POST /search`); honour `Retry-After`. |
 | `internal_error` | `500` | Unexpected server-side failure (check the service log), including a Qdrant read failure on `POST /metadata` or `POST /render` with `source`. Always `{ "code": "internal_error", "error": "Internal Server Error", "message": "Internal server error" }`, never the underlying error. |
@@ -2193,7 +2217,7 @@ Per-document outcomes are not HTTP errors and use their own codes: `rejected[].e
 
 - `200 OK`: success
 - `202 Accepted`: notifications queued (`POST /documents`)
-- `400 Bad Request`, `401 Unauthorized`, `403 Forbidden`, `404 Not Found`, `422 Unprocessable Entity`, `500 Internal Server Error`, `502 Bad Gateway`, `503 Service Unavailable`: see the table above
+- `400 Bad Request`, `401 Unauthorized`, `403 Forbidden`, `404 Not Found`, `409 Conflict`, `422 Unprocessable Entity`, `500 Internal Server Error`, `502 Bad Gateway`, `503 Service Unavailable`: see the table above
 
 ---
 

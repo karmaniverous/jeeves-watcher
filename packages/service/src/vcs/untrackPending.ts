@@ -16,6 +16,7 @@ import type pino from 'pino';
 import { z } from 'zod';
 
 import { normalizeError } from '../util/normalizeError';
+import { removeExcludeLine } from './excludeFile';
 import { getErrorCode } from './gitExec';
 import { gitForceRemove } from './gitIndex';
 import { runGit } from './runGit';
@@ -106,21 +107,6 @@ async function inHeadHistory(root: string, commit: string): Promise<boolean> {
     if (code === 1 || code === 128) return false;
     throw error;
   }
-}
-
-/** Remove an exclude pattern's line from `.git/info/exclude`. */
-async function removeExcludeLine(root: string, pattern: string): Promise<void> {
-  const file = join(root, '.git', 'info', 'exclude');
-  let text: string;
-  try {
-    text = await readFile(file, 'utf8');
-  } catch {
-    return;
-  }
-  const lines = text.split(/\r?\n/);
-  const kept = lines.filter((line) => line.trim() !== pattern);
-  if (kept.length !== lines.length)
-    await writeFile(file, kept.join('\n'), 'utf8');
 }
 
 /**

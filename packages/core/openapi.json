@@ -1592,6 +1592,11 @@
                     },
                     "source": {
                       "type": "string"
+                    },
+                    "line": {
+                      "type": "integer",
+                      "exclusiveMinimum": 0,
+                      "maximum": 9007199254740991
                     }
                   },
                   "required": [
@@ -2639,7 +2644,7 @@
     "/vcs/exclude": {
       "post": {
         "operationId": "vcsExclude",
-        "description": "Manage .gitignore entries for version tracking exclusion. Answers 404 `not_found` when version control is disabled (`vcs.enabled: false`).",
+        "description": "Exclude a path from version history (VCS-only: it stays in search) or remove the exclusion. The glob is a gitignore pattern, so brackets are a character class: escape them to name a file literally (`Report \\[draft\\].docx`). Adding a pattern also untracks the tracked files it matches, in one commit (history stops for them; the files stay on disk and in search); `remove` does not restore that history. More than 100 files to untrack need `confirm: true` (else 409 `confirm_required` with `untracked`, nothing written). The route waits at most 30 s for the root's git lock, then answers 503 `not_available` with `Retry-After: 30`, nothing written. A glob outside an explicit `root` is 400; a glob under no VCS root is 404. Answers 404 `not_found` when version control is disabled (`vcs.enabled: false`).",
         "security": [
           {
             "bearer": []
@@ -2654,15 +2659,19 @@
                   "glob": {
                     "type": "string",
                     "minLength": 1,
-                    "description": "Glob to add to (or remove from) the nearest .gitignore."
+                    "description": "One gitignore pattern, absolute (under a VCS root) or relative to `root`. It is written root-anchored (`/` + the root-relative pattern) to the root's `.git/info/exclude`. Brackets are a character class: escape them to name a file literally (`Report \\[draft\\].docx`). A newline, a leading `!` or `#`, braces, or a pattern matching the whole root is refused."
                   },
                   "remove": {
-                    "description": "Remove the glob instead of adding it.",
+                    "description": "Remove the pattern instead of adding it (from `.git/info/exclude`, else from the `.gitignore` a 0.20.0 exclude wrote). Files are not re-added; their next change is versioned again.",
                     "type": "boolean"
                   },
                   "root": {
-                    "description": "Watch root to write under.",
+                    "description": "VCS root to write under (default: the root containing the glob); a glob outside it is refused.",
                     "type": "string"
+                  },
+                  "confirm": {
+                    "description": "Required (true) when adding the pattern would untrack more than 100 files.",
+                    "type": "boolean"
                   }
                 },
                 "required": [
@@ -2684,7 +2693,7 @@
                       "type": "boolean",
                       "const": true
                     },
-                    "gitignorePath": {
+                    "file": {
                       "type": "string"
                     },
                     "action": {
@@ -2693,12 +2702,18 @@
                         "added",
                         "removed"
                       ]
+                    },
+                    "untracked": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
                     }
                   },
                   "required": [
                     "ok",
-                    "gitignorePath",
-                    "action"
+                    "file",
+                    "action",
+                    "untracked"
                   ],
                   "additionalProperties": false
                 }

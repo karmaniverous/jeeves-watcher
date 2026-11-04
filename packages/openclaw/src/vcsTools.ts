@@ -3,9 +3,30 @@
  * Version-tracking (watcher_vcs_*) tools for the OpenClaw plugin: configs mapping tool params to a watcher VCS endpoint, and the place of the catalog-built `watcher_vcs_show`.
  */
 
-import { getEndpoint } from '@karmaniverous/jeeves-watcher-core';
+import {
+  getEndpoint,
+  VCS_EXCLUDE_CONFIRM_THRESHOLD,
+} from '@karmaniverous/jeeves-watcher-core';
 
 import { buildQuery, pickDefined, type WatcherToolEntry } from './apiTool.js';
+
+/** `watcher_vcs_exclude` description (0.21.0, spec B4). */
+export const VCS_EXCLUDE_DESCRIPTION = `Exclude a path from version history (VCS-only: it stays in search), or remove the exclusion. Adding untracks the files the pattern matches, ending their history; more than ${String(VCS_EXCLUDE_CONFIRM_THRESHOLD)} files need confirm: true.`;
+
+/** `watcher_vcs_exclude` `glob` description (0.21.0, spec B4). */
+export const VCS_EXCLUDE_GLOB_DESCRIPTION =
+  'One gitignore pattern, absolute under a tracked root or relative to root (no leading /: a glob starting with / is a filesystem path); written root-anchored to the root .git/info/exclude. Brackets are a character class: escape them to name a file literally (Report \\[draft\\].docx).';
+
+/** `watcher_vcs_exclude` `confirm` description (0.21.0, spec B4). */
+export const VCS_EXCLUDE_CONFIRM_DESCRIPTION = `Required (true) when adding the pattern would untrack more than ${String(VCS_EXCLUDE_CONFIRM_THRESHOLD)} files.`;
+
+/** `watcher_vcs_exclude` `remove` description (0.21.0, spec B4). */
+export const VCS_EXCLUDE_REMOVE_DESCRIPTION =
+  'When true, remove the exclusion rule. Untracked files are not re-added; their next change is versioned again.';
+
+/** `watcher_vcs_check` description (0.21.0, spec B4). */
+export const VCS_CHECK_DESCRIPTION =
+  'Check whether git ignores a path and why: the rule, the file holding it and its line';
 
 /** The 7 watcher_vcs_* tools: configs, and `watcher_vcs_show` built from the catalog. */
 export const vcsToolConfigs: WatcherToolEntry[] = [
@@ -103,14 +124,14 @@ export const vcsToolConfigs: WatcherToolEntry[] = [
   },
   {
     name: 'watcher_vcs_exclude',
-    description: 'Exclude or re-include paths from version tracking',
+    description: VCS_EXCLUDE_DESCRIPTION,
     parameters: {
       type: 'object',
       required: ['glob'],
       properties: {
         glob: {
           type: 'string',
-          description: 'Glob pattern to exclude or re-include.',
+          description: VCS_EXCLUDE_GLOB_DESCRIPTION,
         },
         root: {
           type: 'string',
@@ -118,20 +139,22 @@ export const vcsToolConfigs: WatcherToolEntry[] = [
         },
         remove: {
           type: 'boolean',
-          description:
-            'When true, remove the exclusion rule (re-include the path).',
+          description: VCS_EXCLUDE_REMOVE_DESCRIPTION,
+        },
+        confirm: {
+          type: 'boolean',
+          description: VCS_EXCLUDE_CONFIRM_DESCRIPTION,
         },
       },
     },
     buildRequest: (params) => {
-      const body = pickDefined(params, ['glob', 'root', 'remove']);
+      const body = pickDefined(params, ['glob', 'root', 'remove', 'confirm']);
       return [getEndpoint('vcsExclude').path, body];
     },
   },
   {
     name: 'watcher_vcs_check',
-    description:
-      'Check whether a path is excluded from version tracking and why',
+    description: VCS_CHECK_DESCRIPTION,
     parameters: {
       type: 'object',
       required: ['path'],

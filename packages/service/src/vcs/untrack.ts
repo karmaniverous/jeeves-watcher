@@ -34,10 +34,17 @@ export interface UntrackRequest {
    * selects the index (`GIT_INDEX_FILE` for the private one).
    */
   select: (env: NodeJS.ProcessEnv) => Promise<string[]>;
-  /** Commit message. */
-  message: string;
+  /** Commit message, given the number of HEAD paths the commit removes. */
+  message: (count: number) => string;
   /** Exclude pattern recorded in the marker (`/vcs/exclude`), if any. */
   pattern?: string;
+  /**
+   * Called once, after both lists are taken (the HEAD list on the private
+   * index and the real-index list) and before anything is written, with
+   * the size of their union. Throwing aborts the untrack with nothing
+   * written (the `/vcs/exclude` `confirm` check, D103).
+   */
+  beforeWrite?: (count: number) => Promise<void>;
   /** Test hooks. */
   hooks?: UntrackHooks;
 }
@@ -91,7 +98,8 @@ interface PrivateCommit {
 }
 
 /**
- * Build the untrack commit on a private index from `head`.
+ * Build the untrack commit on a private index from `head`, calling
+ * `admit` with the HEAD list before writing anything.
  *
  * @returns The HEAD list and the new commit.
  */
@@ -99,6 +107,7 @@ async function buildPrivateCommit(
   root: string,
   head: string,
   request: UntrackRequest,
+  admit: (headPaths: string[]) => Promise<void>,
 ): Promise<PrivateCommit> {
   const index = privateIndexPath(root);
   const env = { ...process.env, GIT_INDEX_FILE: index };
@@ -106,6 +115,7 @@ async function buildPrivateCommit(
   await removePrivateIndex(root);
   await runGit(root, ['read-tree', head], { env, indexLockPath });
   const headPaths = await request.select(env);
+  await admit(headPaths);
   if (headPaths.length === 0) return { headPaths, commit: undefined };
 
   await gitRmCached(root, headPaths, { env, indexLockPath });
@@ -113,7 +123,14 @@ async function buildPrivateCommit(
     await runGit(root, ['write-tree'], { env, indexLockPath })
   ).stdout.trim();
   const commit = (
-    await runGit(root, ['commit-tree', tree, '-p', head, '-m', request.message])
+    await runGit(root, [
+      'commit-tree',
+      tree,
+      '-p',
+      head,
+      '-m',
+      request.message(headPaths.length),
+    ])
   ).stdout.trim();
   return { headPaths, commit };
 }
@@ -135,10 +152,16 @@ export async function untrackPaths(
   const realPaths = await request.select(process.env);
   let head = await readHead(root);
   let built: PrivateCommit = { headPaths: [], commit: undefined };
+  let admitted = false;
+  const admit = async (headPaths: string[]) => {
+    if (admitted) return;
+    admitted = true;
+    await request.beforeWrite?.(union(headPaths, realPaths).length);
+  };
 
   try {
     for (let attempt = 1; head !== undefined; attempt++) {
-      built = await buildPrivateCommit(root, head, request);
+      built = await buildPrivateCommit(root, head, request, admit);
       if (built.commit === undefined) break;
       await writeUntrackMarker(root, {
         oldHead: head,
@@ -169,6 +192,8 @@ export async function untrackPaths(
     await removePrivateIndex(root);
   }
 
+  // Unborn HEAD: no private index, so only the real-index list counts.
+  await admit([]);
   const untracked = union(built.headPaths, realPaths);
   if (built.commit !== undefined) await request.hooks?.afterUpdateRef?.();
   await gitForceRemove(root, untracked);

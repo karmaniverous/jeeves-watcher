@@ -14,6 +14,7 @@ import Fastify, { type FastifyInstance } from 'fastify';
 import pino from 'pino';
 
 import { createVcsCatalogHandlers } from '../api/catalog';
+import type { CatalogVcsDeps } from '../api/catalog/vcsDeps';
 import type { JeevesWatcherConfig } from '../config/types';
 import { normalizeSlashes } from '../util/normalizeSlashes';
 import { initRepo } from '../vcs/vcsBootstrap';
@@ -78,15 +79,17 @@ export async function makeVcsApiRoot(): Promise<string> {
  * strict response validation) over `coordinator`. Close it after the test.
  *
  * @param coordinator - The VCS coordinator.
+ * @param options - Other handler dependencies (e.g. `lockWaitMs`).
  * @returns The ready app.
  */
 export async function serveVcsCatalog(
   coordinator: VcsCoordinator,
+  options: Partial<Omit<CatalogVcsDeps, 'coordinator'>> = {},
 ): Promise<FastifyInstance> {
   const app = Fastify({ logger: false });
   await registerCatalogEntries(
     app,
-    createVcsCatalogHandlers({ coordinator, logger: silentLogger }),
+    createVcsCatalogHandlers({ coordinator, logger: silentLogger, ...options }),
   );
   await app.ready();
   return app;

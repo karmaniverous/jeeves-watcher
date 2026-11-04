@@ -33,6 +33,19 @@ What changes for an existing deployment, release by release. The [Changelog](../
 - **`GET /status`** gains `health.vcs` when some root has VCS enabled: the VCS root count, files pending commit, roots whose breaker is tripped, and when the longest-failing one first tripped.
 - **`GET /config/schema`** shows `maxFileBytes` under `watch.paths[].vcs`, the per-root override (an approved wire departure, D185).
 
+### VCS-only exclusion
+
+- **`POST /vcs/exclude` writes `.git/info/exclude`, not a `.gitignore`.** An excluded file leaves version history but stays in search (0.20.0's `.gitignore` line also dropped it from the index). Tracked files the pattern matches are now untracked, in one commit, and the commit is pushed; 0.20.0 left them tracked, so they kept being committed. See [VCS-Only Exclusion](./version-control.md#vcs-only-exclusion).
+- **Patterns are root-anchored.** The line is `/` plus the root-relative glob: `*.log` given for a root now matches only at the root. Use `**/*.log` for every depth. 0.20.0 wrote the un-anchored rest of the glob into the `.gitignore` of the deepest literal folder.
+- **With `root`, a glob starting with `/` is a filesystem path.** 0.20.0 read `{ "glob": "/docs", "root": "<root>" }` as the root's `docs` folder; 0.21.0 reads `/docs` as the folder on disk and answers `400 The glob resolves outside the root` unless it lies under the root. Send `docs` (root-relative) or `<root>/docs` (absolute) instead.
+- **Brackets are a character class.** `Report [draft].docx` matches `Report d.docx`; escape them (`Report \[draft\].docx`) to exclude the file itself.
+- **The response changed:** `{ ok, file, action, untracked }` replaces `{ ok, gitignorePath, action }` (an approved wire departure). New answers: `400` for a newline, a leading `!` or `#`, braces, a whole-root pattern, or a glob outside an explicit `root`; `409 confirm_required` when more than 100 files would be untracked without `confirm: true` (nothing written); `503 not_available` with `Retry-After: 30` when the root's git lock stays busy for 30 s.
+- **`GET /vcs/check-exclusion`** adds `line`, answers `excluded: false` for a path a negated rule re-includes, and answers `500` when git fails (0.20.0 answered `excluded: false`). A tracked file under a human `.gitignore` rule answers `excluded: false`: git never reports tracked paths as ignored.
+- **Migrating patterns 0.20.0 wrote.** They sit in `.gitignore` files and cannot be told apart from human lines, so they are not moved. For each one you want VCS-only:
+  1. Find it: `GET /vcs/check-exclusion?path=<a file it covers>` names the `.gitignore` (`source`), the pattern (`rule`) and its `line`.
+  2. Remove it with the glob you used in 0.20.0 (if you sent a leading `/` together with `root`, drop the `/` or send the absolute `<root>/...` form): `POST /vcs/exclude` `{ "glob": "<glob>", "remove": true }` (it falls back to 0.20.0's `.gitignore` line, and `file` names the `.gitignore` it edited).
+  3. Add it again: `POST /vcs/exclude` `{ "glob": "<glob>" }` (same glob form as step 2). Mind the anchoring: write `**/` where the old line matched at any depth. Removing the `.gitignore` line brings the files back into the watcher's index scope, so they are embedded again (a reindex cost for large folders).
+
 ### Dependencies
 
 - **unpdf 2** extracts PDF text. Indexed text is unchanged. unpdf 2 declares Node.js 24 or later, which the new Node floor covers.
@@ -50,3 +63,4 @@ Stop the service and reinstall 0.20.0. Before starting it:
 2. **Over-cap files.** 0.20.0 has no size cap, so its next change to a file 0.21.0 untracked for size stages and commits it; a file over 100 MiB then makes GitHub reject every later push from that root. Find such files (on disk, over `vcs.maxFileBytes`, not listed by `git ls-files`; 0.21.0's warnings name them) and either set `vcs.enabled: false` for 0.20.0 or move them out of the watched root while 0.20.0 runs.
 3. **Logs.** 0.20.0 writes `logging.file` again; the rotated files can be archived.
 4. **Config.** The new keys (`vcs.maxFileBytes`, `logging.rotation`) can stay: 0.20.0 strips unknown keys on load.
+5. **Exclusions.** Move every pattern from each root's `.git/info/exclude` back into the root `.gitignore`, or delete it. 0.20.0 has no `check-ignore` filter, so an active exclude pattern makes its batches fail again (and trips the breaker), and its `POST /vcs/exclude` `remove` looks only in `.gitignore` files. A pattern moved into a `.gitignore` also drops its files from search under 0.20.0, so delete rather than move any pattern whose files must stay searchable. Files 0.21.0 untracked stay untracked until they next change.

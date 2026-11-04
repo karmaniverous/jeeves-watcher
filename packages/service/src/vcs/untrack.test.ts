@@ -28,7 +28,7 @@ function request(
 ): UntrackRequest {
   return {
     select: (env) => listTracked(repo, paths, { env }),
-    message: 'untrack test',
+    message: () => 'untrack test',
     ...extra,
   };
 }
@@ -148,6 +148,68 @@ describe('untrackPaths', () => {
     ).rejects.toThrow();
     expect(await lsFiles()).toEqual(['big.bin']);
     expect(await exists(untrackMarkerPath(repo))).toBe(false);
+  });
+});
+
+describe('untrackPaths beforeWrite (D103, D164)', () => {
+  it('gets the union of the HEAD and real-index lists once, before any write', async () => {
+    await writeFile(join(repo, 'a.bin'), 'a');
+    await writeFile(join(repo, 'b.bin'), 'b');
+    await commitAll(repo, 'seed');
+    await writeFile(join(repo, 'new.bin'), 'n');
+    await g('add', 'new.bin');
+    const counts: number[] = [];
+
+    const result = await untrackPaths(
+      repo,
+      request(['a.bin', 'b.bin', 'new.bin'], {
+        beforeWrite: (count) => {
+          counts.push(count);
+          return Promise.resolve();
+        },
+      }),
+    );
+
+    expect(counts).toEqual([3]);
+    expect(result.untracked.sort()).toEqual(['a.bin', 'b.bin', 'new.bin']);
+  });
+
+  it('counts only the real index when HEAD is unborn', async () => {
+    await writeFile(join(repo, 'a.bin'), 'a');
+    await g('add', 'a.bin');
+    const counts: number[] = [];
+
+    await untrackPaths(
+      repo,
+      request(['a.bin'], {
+        beforeWrite: (count) => {
+          counts.push(count);
+          return Promise.resolve();
+        },
+      }),
+    );
+
+    expect(counts).toEqual([1]);
+  });
+
+  it('writes nothing when it throws', async () => {
+    await writeFile(join(repo, 'a.bin'), 'a');
+    await commitAll(repo, 'seed');
+    const head = await g('rev-parse', 'HEAD');
+
+    await expect(
+      untrackPaths(
+        repo,
+        request(['a.bin'], {
+          beforeWrite: () => Promise.reject(new Error('refused')),
+        }),
+      ),
+    ).rejects.toThrow('refused');
+
+    expect(await g('rev-parse', 'HEAD')).toBe(head);
+    expect(await lsFiles()).toEqual(['a.bin']);
+    expect(await exists(untrackMarkerPath(repo))).toBe(false);
+    expect(await exists(privateIndexPath(repo))).toBe(false);
   });
 });
 

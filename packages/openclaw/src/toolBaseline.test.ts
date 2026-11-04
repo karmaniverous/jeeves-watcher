@@ -14,6 +14,13 @@ import type {
 import { describe, expect, it } from 'vitest';
 
 import register from './index.js';
+import {
+  VCS_CHECK_DESCRIPTION,
+  VCS_EXCLUDE_CONFIRM_DESCRIPTION,
+  VCS_EXCLUDE_DESCRIPTION,
+  VCS_EXCLUDE_GLOB_DESCRIPTION,
+  VCS_EXCLUDE_REMOVE_DESCRIPTION,
+} from './vcsTools.js';
 
 /** The agent-facing part of a registered tool. */
 interface ToolSurface {
@@ -112,6 +119,38 @@ const CHANGES: Partial<Record<string, (before: ToolSurface) => ToolSurface>> = {
   watcher_vcs_show: catalogBuilt({
     path: { minLength: 1 },
     commit: { minLength: 1 },
+  }),
+  // P6 B4: VCS-only exclusion (descriptions, and `confirm`, D103).
+  watcher_vcs_exclude: (before) => {
+    const params = before.parameters as {
+      properties: Record<string, Record<string, unknown>>;
+    };
+    return {
+      ...before,
+      description: VCS_EXCLUDE_DESCRIPTION,
+      parameters: {
+        ...params,
+        properties: {
+          ...params.properties,
+          glob: {
+            ...params.properties.glob,
+            description: VCS_EXCLUDE_GLOB_DESCRIPTION,
+          },
+          remove: {
+            ...params.properties.remove,
+            description: VCS_EXCLUDE_REMOVE_DESCRIPTION,
+          },
+          confirm: {
+            type: 'boolean',
+            description: VCS_EXCLUDE_CONFIRM_DESCRIPTION,
+          },
+        },
+      },
+    };
+  },
+  watcher_vcs_check: (before) => ({
+    ...before,
+    description: VCS_CHECK_DESCRIPTION,
   }),
 };
 

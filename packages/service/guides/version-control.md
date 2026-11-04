@@ -176,8 +176,10 @@ Errors use the standard error body (`{ code, error }`, with the status derived f
 
 | Status | `code` | When |
 | --- | --- | --- |
-| `400` | `invalid_request` | A required parameter is missing. |
-| `404` | `not_found` | The path or glob is outside every VCS-enabled root; `root` is not a VCS-enabled root; the file does not exist at the commit (`/vcs/show`); the `.gitignore` or the pattern to remove does not exist (`/vcs/exclude`). |
+| `400` | `invalid_request` | A required parameter is missing, or `/vcs/exclude` refused the pattern. |
+| `404` | `not_found` | The path or glob is outside every VCS-enabled root; `root` is not a VCS-enabled root; the file does not exist at the commit (`/vcs/show`); the pattern to remove is in neither `.git/info/exclude` nor its 0.20.0 `.gitignore` (`/vcs/exclude`). |
+| `409` | `confirm_required` | `/vcs/exclude` would untrack more than 100 files without `confirm: true`. |
+| `503` | `not_available` | `/vcs/exclude` waited 30 s for the root lock (`Retry-After: 30`). |
 | `500` | `internal_error` | An unexpected failure (logged; the response carries generic text, `message: "Internal server error"`). |
 
 Paths and globs are absolute. A glob is resolved to the root(s) it falls under and passed to git relative to that root as a pathspec, so git's wildcard rules apply: `*` also matches `/` (`docs/*.md` matches nested files too), while `docs/**/*.md` requires at least one subdirectory.
@@ -389,7 +391,7 @@ curl -X POST http://localhost:1936/vcs/revert \
 
 ### POST /vcs/exclude
 
-Manage `.gitignore` entries.
+Exclude a path from version history while keeping it in search (VCS-only exclusion, unreleased, spec B4). See the [API reference](./api-reference.md#post-vcsexclude) for every error text.
 
 #### Request
 
@@ -397,9 +399,8 @@ Manage `.gitignore` entries.
 curl -X POST http://localhost:1936/vcs/exclude \
   -H "Content-Type: application/json" \
   -d '{
-    "glob": "d:/documents/temp/**/*.tmp",
-    "root": "d:/documents",
-    "remove": false
+    "glob": "temp/**/*.tmp",
+    "root": "d:/documents"
   }'
 ```
 
@@ -407,9 +408,10 @@ curl -X POST http://localhost:1936/vcs/exclude \
 
 ```typescript
 {
-  glob: string;      // Absolute glob pattern to add or remove
-  root?: string;     // Watch root (resolved from the glob if omitted)
-  remove?: boolean;  // Remove the entry instead of adding (default: false)
+  glob: string;       // One gitignore pattern: absolute under a VCS root, or relative to `root`
+  root?: string;      // VCS root to write under (resolved from the glob if omitted)
+  remove?: boolean;   // Remove the pattern instead of adding it (default: false)
+  confirm?: boolean;  // Required (true) to untrack more than 100 files
 }
 ```
 
@@ -418,28 +420,28 @@ curl -X POST http://localhost:1936/vcs/exclude \
 ```json
 {
   "ok": true,
-  "gitignorePath": "d:/documents/temp/.gitignore",
-  "action": "added"
+  "file": "d:/documents/.git/info/exclude",
+  "action": "added",
+  "untracked": 3
 }
 ```
 
 | Field | Type | Description |
 | --- | --- | --- |
 | `ok` | `boolean` | Success indicator. |
-| `gitignorePath` | `string` | Path to the `.gitignore` file that was modified. |
+| `file` | `string` | The file written: the root's `.git/info/exclude`, or the `.gitignore` a removed 0.20.0 pattern was in. |
 | `action` | `string` | `"added"` or `"removed"`. |
+| `untracked` | `number` | Paths removed from the index (in HEAD or only staged); `0` for `removed`. |
 
 #### Behavior
 
-Uses the **locality principle**: the `.gitignore` entry is placed in the deepest directory before the first wildcard segment (the parent directory for a literal path). For example, `d:/documents/temp/**/*.tmp` results in a `.gitignore` at `d:/documents/temp/` containing `**/*.tmp`.
-
-Adding a pattern that is already present succeeds without writing (`action: "added"`). Removing deletes every line equal to the pattern; a missing `.gitignore` or pattern is `404 not_found`. `.gitignore` only affects untracked files: a file git already tracks keeps being committed until it is removed from the index. With the default `watch.respectGitignore: true`, the watcher also stops reacting to the newly ignored files, so later changes to them are neither versioned nor re-embedded.
+See [VCS-Only Exclusion](#vcs-only-exclusion). In short: the pattern is written root-anchored to `.git/info/exclude`, the tracked files it matches are untracked in one commit (pushed when the root has a remote), and the files stay on disk and in search. More than 100 files need `confirm: true` (else `409 confirm_required` with `untracked`, nothing written). The route waits at most 30 s for the root's git lock, then answers `503 not_available` with `Retry-After: 30`, nothing written. A newline, a leading `!` or `#`, braces and a pattern matching the whole root are `400`; so is a glob outside an explicit `root`. `remove` deletes the anchored line from `.git/info/exclude`, else the line 0.20.0 wrote in its locality `.gitignore`; untracked files are not re-added.
 
 ---
 
 ### GET /vcs/check-exclusion
 
-Check whether a file is excluded by `.gitignore`.
+Check whether git ignores a path, and why.
 
 #### Request
 
@@ -456,16 +458,20 @@ curl "http://localhost:1936/vcs/check-exclusion?path=d:/documents/temp/scratch.t
 ```json
 {
   "excluded": true,
-  "rule": "**/*.tmp",
-  "source": "temp/.gitignore"
+  "rule": "/temp/**/*.tmp",
+  "source": ".git/info/exclude",
+  "line": 2
 }
 ```
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `excluded` | `boolean` | Whether the file is ignored by git (`git check-ignore`). Any `git check-ignore` failure also reads as `false`. |
-| `rule` | `string?` | The matching `.gitignore` pattern (if excluded). |
-| `source` | `string?` | The `.gitignore` file containing the rule, as git reports it (relative to the root). |
+| `excluded` | `boolean` | Whether git ignores the path (`git check-ignore`). A tracked path never is, and a path a negated (`!`) rule re-includes is not. |
+| `rule` | `string?` | The matching pattern (if excluded). |
+| `source` | `string?` | The file holding the rule, as git names it: `.git/info/exclude` for a VCS-only exclusion, or a `.gitignore` relative to the root. |
+| `line` | `number?` | The rule's 1-based line in `source` (unreleased). |
+
+A git failure other than "not ignored" answers `500 internal_error` (0.20.0 answered `excluded: false`).
 
 ---
 
@@ -480,7 +486,7 @@ The OpenClaw plugin exposes each endpoint as a tool. Tool errors read `HTTP <sta
 | `watcher_vcs_show` | `GET /vcs/show` | `path`, `commit` (both required) |
 | `watcher_vcs_diff` | `GET /vcs/diff` | `glob`, `commit` (both required), `commitEnd` |
 | `watcher_vcs_revert` | `POST /vcs/revert` | `glob`, `commit` (both required), `existingOnly` |
-| `watcher_vcs_exclude` | `POST /vcs/exclude` | `glob` (required), `root`, `remove` |
+| `watcher_vcs_exclude` | `POST /vcs/exclude` | `glob` (required), `root`, `remove`, `confirm` |
 | `watcher_vcs_check` | `GET /vcs/check-exclusion` | `path` (required) |
 
 There are no VCS CLI commands.
@@ -615,7 +621,7 @@ At startup each root, under its lock: removes a stale `index.lock`; sweeps git t
 
 ### Untracking
 
-Untracking (the size cap today) builds a commit on a private index (`.git/untrack.index`) read from HEAD, without the paths HEAD holds, publishes it with a compare-and-swap `update-ref` (rebuilt once if HEAD moved), then removes the paths from the real index with `git update-index --force-remove`. Unrelated staged changes are kept; the files stay on disk; with an unborn HEAD nothing is committed. A `.git/untrack.pending` marker covers the moment between the commit and the index removal: at startup and before each batch, a marker whose commit is in HEAD's history is finished, and any other is discarded with a warning (its `.git/info/exclude` line, when it wrote one, is removed too). If git cannot answer (a timeout), the marker stays and the batch retries.
+Untracking (the size cap and `POST /vcs/exclude`) builds a commit on a private index (`.git/untrack.index`) read from HEAD, without the paths HEAD holds, publishes it with a compare-and-swap `update-ref` (rebuilt once if HEAD moved), then removes the paths from the real index with `git update-index --force-remove`. Unrelated staged changes are kept; the files stay on disk; with an unborn HEAD nothing is committed. A `.git/untrack.pending` marker covers the moment between the commit and the index removal: at startup and before each batch, a marker whose commit is in HEAD's history is finished, and any other is discarded with a warning (its `.git/info/exclude` line, when it wrote one, is removed too). If git cannot answer (a timeout), the marker stays and the batch retries.
 
 ### "Nothing Staged" Handling
 
@@ -656,7 +662,7 @@ Each commit covers at most `maxBatchSize` files; a flush with a larger backlog c
 
 ### The Root Lock
 
-The watcher's own git work on a root (batch commits with their push, squash, untracking, temp-file sweeps) runs one at a time, in arrival order, under an in-process per-root lock. A wait longer than 10 seconds and a hold longer than 5 minutes are logged as warnings. The lock cannot exclude other processes, so everything done under it is also safe without it.
+The watcher's own git work on a root (batch commits with their push, squash, untracking, temp-file sweeps) runs one at a time, in arrival order, under an in-process per-root lock. A wait longer than 10 seconds and a hold longer than 5 minutes are logged as warnings. `POST /vcs/exclude` waits at most 30 seconds, then answers `503` without doing anything. The lock cannot exclude other processes, so everything done under it is also safe without it.
 
 ### Git Configuration Pinning
 
@@ -666,14 +672,27 @@ Every git invocation made by the VCS subsystem passes `-c core.longpaths=true` (
 
 ## Exclusion Management
 
-### `.gitignore` vs `watch.ignored`
+### VCS-Only Exclusion
+
+`POST /vcs/exclude` stops version history for a path without dropping it from search (unreleased, spec B4). It writes the pattern to the root's `.git/info/exclude`, a per-repository ignore file git honours in `add`, `status` and `check-ignore` but that is not part of the tree; the watcher's indexing filter (`watch.respectGitignore`) reads only `.gitignore` files, so the files stay indexed and searchable.
+
+- **Anchored patterns.** The line is `/` plus the glob relative to the root, so `/docs` (from `<root>/docs`, or `docs` with `root`) names the root's `docs` folder and everything under it, `/*.log` matches log files at the root only, and `**/*.log` matches them at any depth. (0.20.0 wrote un-anchored lines into a `.gitignore` near the glob, where `*.log` matched at every depth below that folder.)
+- **Absolute or root-relative.** Without `root` the glob is absolute. With `root` it may be absolute (under the root) or relative to it; a glob starting with `/` is always a filesystem path, so write `docs`, not `/docs`, for the root's folder.
+- **Brackets** are a gitignore character class: `Report [draft].docx` matches `Report d.docx`. Escape them to name the file: `Report \[draft\].docx` (`"Report \\[draft\\].docx"` in JSON).
+- **Untracking.** Tracked files the pattern matches, committed or only staged, are untracked in one commit `Untrack <n> files matching <pattern>` (see [Untracking](#untracking)), which is pushed when the root has a remote. Other staged changes are kept. Their history stops at their last committed version; the files stay on disk. More than 100 files need `confirm: true`.
+- **Refused patterns:** a newline, a leading `!` or `#`, braces, and a pattern matching the whole root (`*`, `**`, `/`, `/**`, `**/*`, `*/**`, ...).
+- **Removing** a pattern does not re-add the files; their next change is versioned again.
+- **A file a human `.gitignore` covers but git still tracks** keeps being versioned, and `GET /vcs/check-exclusion` answers `excluded: false` for it (git never reports a tracked path as ignored). Exclude it through `POST /vcs/exclude` to untrack it.
+
+### `.gitignore` vs `.git/info/exclude` vs `watch.ignored`
 
 These are separate settings:
 
-- **`.gitignore`:** controls what git tracks. Managed via `POST /vcs/exclude`.
+- **`.gitignore`:** controls what git tracks and, with the default `watch.respectGitignore: true`, what the watcher indexes. Edit it yourself; the API no longer writes it (apart from the always-on entries below).
+- **`.git/info/exclude`:** controls only what git tracks. Managed via `POST /vcs/exclude`.
 - **`watch.ignored`:** controls what the watcher monitors at all (for both embedding and versioning). Set in config.
 
-With the default `watch.respectGitignore: true`, the watcher skips git-ignored files entirely, so a git-ignored file is neither embedded nor versioned. With `respectGitignore: false`, git-ignored files are embedded, but see the [caution above](#what-gets-versioned) about versioning them.
+With the default `watch.respectGitignore: true`, the watcher skips `.gitignore`d files entirely, so such a file is neither embedded nor versioned. With `respectGitignore: false`, `.gitignore`d files are embedded, but see the [caution above](#what-gets-versioned) about versioning them.
 
 ### Always-On Entries
 
@@ -685,10 +704,6 @@ The VCS subsystem automatically adds these to every root's `.gitignore`:
 - `.jeeves-metadata/`
 
 These entries are re-added on every startup (missing ones are appended) and cannot be removed via the API.
-
-### Locality Principle
-
-When adding a `.gitignore` entry via `POST /vcs/exclude`, the entry is placed in the **deepest appropriate directory**. For example, excluding `d:/documents/temp/**/*.log` places `**/*.log` in `d:/documents/temp/.gitignore`, not at the root.
 
 ---
 

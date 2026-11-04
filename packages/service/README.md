@@ -145,15 +145,15 @@ To prevent unbounded history growth, the squash retention system periodically co
 
 ### API Endpoints
 
-| Endpoint               | Method | Description                       |
-| ---------------------- | ------ | --------------------------------- |
-| `/vcs/status`          | GET    | VCS state for all roots           |
-| `/vcs/history`         | GET    | Commit history for a path/glob    |
-| `/vcs/show`            | GET    | File content at a specific commit |
-| `/vcs/diff`            | GET    | Diff between commits              |
-| `/vcs/revert`          | POST   | Restore files from a past commit  |
-| `/vcs/exclude`         | POST   | Manage gitignore exclusions       |
-| `/vcs/check-exclusion` | GET    | Check gitignore status of a path  |
+| Endpoint | Method | Description |
+| --- | --- | --- |
+| `/vcs/status` | GET | VCS state for all roots |
+| `/vcs/history` | GET | Commit history for a path/glob |
+| `/vcs/show` | GET | File content at a specific commit |
+| `/vcs/diff` | GET | Diff between commits |
+| `/vcs/revert` | POST | Restore files from a past commit |
+| `/vcs/exclude` | POST | VCS-only exclusion (`.git/info/exclude`), untracking matches |
+| `/vcs/check-exclusion` | GET | Whether git ignores a path: rule, file, line |
 
 ## JsonMap Built-in Helpers
 

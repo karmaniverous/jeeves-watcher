@@ -160,6 +160,7 @@ export {
   reindexScopeSchema,
 } from './reindex.js';
 export {
+  VCS_EXCLUDE_CONFIRM_THRESHOLD,
   type VcsCheckExclusionQuery,
   vcsCheckExclusionQuerySchema,
   type VcsCheckExclusionResponse,

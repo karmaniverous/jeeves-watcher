@@ -214,7 +214,8 @@ export const WATCHER_ENDPOINTS = [
     name: 'vcsExclude',
     method: 'POST',
     path: '/vcs/exclude',
-    description: 'Manage .gitignore entries for version tracking exclusion.',
+    description:
+      'Exclude a path from version history (VCS-only: it stays in search) or remove the exclusion.',
   },
 ] as const satisfies readonly EndpointDescriptor[];
 

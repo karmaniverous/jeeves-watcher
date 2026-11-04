@@ -1,12 +1,9 @@
 /**
  * @module api/catalog/vcsExcludeHandler.test
- * POST /vcs/exclude over the catalog route: adds/removes a pattern in
- * .gitignore, places .gitignore at the deepest common directory, avoids
- * duplicate entries, the catalog's 400 for a missing glob, and 404s for an
- * invalid root or a pattern that isn't there to remove.
+ * POST /vcs/exclude over the catalog route (Design 5, D54, D81): adds a root-anchored pattern to `.git/info/exclude` (idempotent; never a `.gitignore`, so search is unaffected), removes it (or a 0.20.0 locality `.gitignore` line, with 0.20.0's 404 texts), and answers 400 (refused pattern, outside an explicit root), 404 (no root) and the catalog's 400 (missing glob, non-boolean `remove`/`confirm`). Real git.
  */
 
-import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { readFile, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
 import type { FastifyInstance } from 'fastify';
@@ -18,12 +15,15 @@ import {
   serveVcsCatalog,
 } from '../../test/vcsHandlers';
 
-describe('POST /vcs/exclude', () => {
+describe('POST /vcs/exclude', { timeout: 20_000 }, () => {
   let rootA: string;
   let app: FastifyInstance;
+  const excludeFile = () => join(rootA, '.git', 'info', 'exclude');
+  const readExclude = () => readFile(excludeFile(), 'utf8');
 
   beforeEach(async () => {
     rootA = await makeVcsApiRoot();
+    await writeFile(excludeFile(), '# git default\n', 'utf8');
     app = await serveVcsCatalog(makeVcsApiCoordinator(rootA));
   });
 
@@ -35,125 +35,124 @@ describe('POST /vcs/exclude', () => {
   const exclude = (payload: Record<string, unknown>) =>
     app.inject({ method: 'POST', url: '/vcs/exclude', payload });
 
-  it('adds pattern to .gitignore at the root', async () => {
-    const res = await exclude({ glob: rootA + '/*.log' });
+  it('appends the root-anchored pattern to .git/info/exclude', async () => {
+    const res = await exclude({ glob: rootA + '/sub/*.log' });
 
     expect(res.statusCode).toBe(200);
     expect(res.json()).toEqual({
       ok: true,
-      gitignorePath: rootA + '/.gitignore',
+      file: rootA + '/.git/info/exclude',
       action: 'added',
+      untracked: 0,
     });
-    const content = await readFile(join(rootA, '.gitignore'), 'utf8');
-    expect(content).toBe('*.log\n');
+    expect(await readExclude()).toBe('# git default\n/sub/*.log\n');
   });
 
-  it('removes pattern from .gitignore', async () => {
+  it('does not duplicate a pattern already present', async () => {
+    await exclude({ glob: rootA + '/*.log' });
+    const res = await exclude({ glob: rootA + '/*.log' });
+
+    expect(res.json()).toMatchObject({ action: 'added', untracked: 0 });
+    expect(await readExclude()).toBe('# git default\n/*.log\n');
+  });
+
+  it('takes a glob relative to an explicit root', async () => {
+    const res = await exclude({ glob: '*.log', root: rootA });
+
+    expect(res.json()).toMatchObject({ action: 'added' });
+    expect(await readExclude()).toContain('/*.log\n');
+  });
+
+  it('removes the anchored line from .git/info/exclude', async () => {
+    await exclude({ glob: rootA + '/*.log' });
+
+    const res = await exclude({ glob: rootA + '/*.log', remove: true });
+
+    expect(res.json()).toEqual({
+      ok: true,
+      file: rootA + '/.git/info/exclude',
+      action: 'removed',
+      untracked: 0,
+    });
+    expect(await readExclude()).toBe('# git default\n');
+  });
+
+  it('removes a 0.20.0 locality .gitignore line when .git/info/exclude lacks it', async () => {
     await writeFile(join(rootA, '.gitignore'), '*.log\n*.tmp\n', 'utf8');
 
     const res = await exclude({ glob: rootA + '/*.log', remove: true });
 
-    expect(res.json()).toMatchObject({ ok: true, action: 'removed' });
-    const content = await readFile(join(rootA, '.gitignore'), 'utf8');
-    expect(content).not.toContain('*.log');
-    expect(content).toContain('*.tmp');
+    expect(res.json()).toEqual({
+      ok: true,
+      file: rootA + '/.gitignore',
+      action: 'removed',
+      untracked: 0,
+    });
+    expect(await readFile(join(rootA, '.gitignore'), 'utf8')).toBe('*.tmp\n');
   });
 
-  it('returns 404 when the pattern to remove is absent', async () => {
-    await writeFile(join(rootA, '.gitignore'), '*.tmp\n', 'utf8');
+  it.each([
+    [undefined, 'No .gitignore found at the expected location'],
+    ['*.tmp\n', 'Pattern not found in .gitignore'],
+  ])(
+    'answers 0.20.0 404 texts for a pattern to remove that is nowhere (.gitignore %j)',
+    async (gitignore, error) => {
+      if (gitignore !== undefined) {
+        await writeFile(join(rootA, '.gitignore'), gitignore, 'utf8');
+      }
 
-    const res = await exclude({ glob: rootA + '/*.log', remove: true });
+      const res = await exclude({ glob: rootA + '/*.log', remove: true });
+
+      expect(res.statusCode).toBe(404);
+      expect(res.json()).toEqual({ code: 'not_found', error });
+    },
+  );
+
+  it('answers 400 for a refused pattern and writes nothing', async () => {
+    const res = await exclude({ glob: rootA + '/**' });
+
+    expect(res.statusCode).toBe(400);
+    expect(res.json()).toEqual({
+      code: 'invalid_request',
+      error: 'The glob matches the whole root',
+    });
+    expect(await readExclude()).toBe('# git default\n');
+  });
+
+  it('answers 400 for a glob outside an explicit root', async () => {
+    const res = await exclude({ glob: '/elsewhere/*.log', root: rootA });
+
+    expect(res.statusCode).toBe(400);
+    expect(res.json()).toMatchObject({
+      code: 'invalid_request',
+      error: 'The glob resolves outside the root',
+    });
+  });
+
+  it.each([
+    [
+      { glob: '/nonexistent/root/*.log' },
+      'Glob does not match any VCS-enabled watch root',
+    ],
+    [
+      { glob: '*.log', root: '/nonexistent/root' },
+      'Root is not a VCS-enabled watch root',
+    ],
+  ])('answers 404 for %j', async (payload, error) => {
+    const res = await exclude(payload);
 
     expect(res.statusCode).toBe(404);
-    expect(res.json()).toMatchObject({ code: 'not_found' });
+    expect(res.json()).toEqual({ code: 'not_found', error });
   });
 
-  it('places .gitignore at deepest common directory (locality)', async () => {
-    await mkdir(join(rootA, 'sub', 'dir'), { recursive: true });
-
-    const res = await exclude({ glob: rootA + '/sub/dir/*.log' });
-
-    const body = res.json<{ ok: boolean; gitignorePath: string }>();
-    expect(body.ok).toBe(true);
-    expect(body.gitignorePath).toContain('sub/dir/.gitignore');
-    const content = await readFile(
-      join(rootA, 'sub', 'dir', '.gitignore'),
-      'utf8',
-    );
-    expect(content).toContain('*.log');
-  });
-
-  it('answers the catalog 400 for a missing glob', async () => {
-    const res = await exclude({});
+  it.each([
+    [{}],
+    [{ glob: '*.log', remove: 'false' }],
+    [{ glob: '*.log', confirm: 'true' }],
+  ])('answers the catalog 400 for %j', async (payload) => {
+    const res = await exclude(payload);
 
     expect(res.statusCode).toBe(400);
     expect(res.json()).toMatchObject({ code: 'invalid_request' });
-  });
-
-  it('returns 404 for a glob outside every root', async () => {
-    const res = await exclude({ glob: '/nonexistent/root/*.log' });
-
-    expect(res.statusCode).toBe(404);
-    expect(res.json()).toMatchObject({
-      code: 'not_found',
-      error: 'Glob does not match any VCS-enabled watch root',
-    });
-  });
-
-  it('returns 404 when there is no .gitignore to remove from', async () => {
-    const res = await exclude({ glob: rootA + '/*.log', remove: true });
-
-    expect(res.statusCode).toBe(404);
-    expect(res.json()).toMatchObject({
-      code: 'not_found',
-      error: 'No .gitignore found at the expected location',
-    });
-  });
-
-  it('returns 404 for invalid root', async () => {
-    const res = await exclude({ glob: '*.log', root: '/nonexistent/root' });
-
-    expect(res.statusCode).toBe(404);
-    expect(res.json()).toMatchObject({ code: 'not_found' });
-  });
-
-  it('excludes a literal path from its parent directory', async () => {
-    const res = await exclude({ glob: rootA + '/sub/debug.log' });
-
-    expect(res.json()).toEqual({
-      ok: true,
-      gitignorePath: rootA + '/sub/.gitignore',
-      action: 'added',
-    });
-    const content = await readFile(join(rootA, 'sub', '.gitignore'), 'utf8');
-    expect(content).toBe('debug.log\n');
-  });
-
-  it('takes a glob relative to an explicit root as is', async () => {
-    const res = await exclude({ glob: '*.log', root: rootA });
-
-    expect(res.json()).toMatchObject({
-      gitignorePath: rootA + '/.gitignore',
-      action: 'added',
-    });
-  });
-
-  it('appends to a .gitignore without a final newline', async () => {
-    await writeFile(join(rootA, '.gitignore'), '*.tmp', 'utf8');
-
-    await exclude({ glob: rootA + '/*.log' });
-
-    const content = await readFile(join(rootA, '.gitignore'), 'utf8');
-    expect(content).toBe('*.tmp\n*.log\n');
-  });
-
-  it('does not duplicate existing pattern', async () => {
-    await writeFile(join(rootA, '.gitignore'), '*.log\n', 'utf8');
-
-    const res = await exclude({ glob: rootA + '/*.log' });
-
-    expect(res.json()).toMatchObject({ ok: true, action: 'added' });
-    const content = await readFile(join(rootA, '.gitignore'), 'utf8');
-    expect(content).toBe('*.log\n');
   });
 });

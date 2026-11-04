@@ -61,7 +61,7 @@ describe('index lock naming', () => {
 
     await untrackPaths(repo, {
       select: (env) => listTracked(repo, ['big.bin'], { env }),
-      message: 'untrack',
+      message: () => 'untrack',
     });
 
     expect(locks()).toContainEqual([
