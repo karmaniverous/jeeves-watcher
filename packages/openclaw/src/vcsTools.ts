@@ -3,21 +3,26 @@
  * Version-tracking (watcher_vcs_*) tools for the OpenClaw plugin: configs mapping tool params to a watcher VCS endpoint, and the place of the catalog-built `watcher_vcs_show`.
  */
 
-import { getEndpoint } from '@karmaniverous/jeeves-watcher-core';
+import {
+  getEndpoint,
+  VCS_EXCLUDE_CONFIRM_THRESHOLD,
+} from '@karmaniverous/jeeves-watcher-core';
 
 import { buildQuery, pickDefined, type WatcherToolEntry } from './apiTool.js';
 
 /** `watcher_vcs_exclude` description (0.21.0, spec B4). */
-export const VCS_EXCLUDE_DESCRIPTION =
-  'Exclude a path from version history (VCS-only: it stays in search), or remove the exclusion. Adding untracks the files the pattern matches, ending their history; more than 100 files need confirm: true.';
+export const VCS_EXCLUDE_DESCRIPTION = `Exclude a path from version history (VCS-only: it stays in search), or remove the exclusion. Adding untracks the files the pattern matches, ending their history; more than ${String(VCS_EXCLUDE_CONFIRM_THRESHOLD)} files need confirm: true.`;
 
 /** `watcher_vcs_exclude` `glob` description (0.21.0, spec B4). */
 export const VCS_EXCLUDE_GLOB_DESCRIPTION =
   'One gitignore pattern, absolute under a tracked root or relative to root; written root-anchored to the root .git/info/exclude. Brackets are a character class: escape them to name a file literally (Report \\[draft\\].docx).';
 
 /** `watcher_vcs_exclude` `confirm` description (0.21.0, spec B4). */
-export const VCS_EXCLUDE_CONFIRM_DESCRIPTION =
-  'Required (true) when adding the pattern would untrack more than 100 files.';
+export const VCS_EXCLUDE_CONFIRM_DESCRIPTION = `Required (true) when adding the pattern would untrack more than ${String(VCS_EXCLUDE_CONFIRM_THRESHOLD)} files.`;
+
+/** `watcher_vcs_exclude` `remove` description (0.21.0, spec B4). */
+export const VCS_EXCLUDE_REMOVE_DESCRIPTION =
+  'When true, remove the exclusion rule. Untracked files are not re-added; their next change is versioned again.';
 
 /** `watcher_vcs_check` description (0.21.0, spec B4). */
 export const VCS_CHECK_DESCRIPTION =
@@ -134,8 +139,7 @@ export const vcsToolConfigs: WatcherToolEntry[] = [
         },
         remove: {
           type: 'boolean',
-          description:
-            'When true, remove the exclusion rule (re-include the path).',
+          description: VCS_EXCLUDE_REMOVE_DESCRIPTION,
         },
         confirm: {
           type: 'boolean',

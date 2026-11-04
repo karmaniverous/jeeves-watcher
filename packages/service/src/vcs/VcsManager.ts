@@ -166,8 +166,9 @@ export class VcsManager {
   }
 
   /**
-   * Add a file to the pending set and start the throttle timer (a full set
-   * commits at once). The breaker is not reset here: recovery is time-based.
+   * Add a file to the pending set and start the throttle timer; a full set
+   * commits at once. The breaker is intentionally not reset here: recovery is
+   * time-based, so a busy root cannot hammer a deterministic failure.
    *
    * @param filePath - Absolute path of the changed file.
    */

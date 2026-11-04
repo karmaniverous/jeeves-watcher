@@ -67,9 +67,9 @@ export interface ExcludeOutcome {
   untracked: number;
 }
 
-/** The untrack commit's message. */
+/** The untrack commit's message (Design 5's template, whatever the count). */
 function untrackMessage(count: number, pattern: string): string {
-  return `Untrack ${String(count)} file${count === 1 ? '' : 's'} matching ${pattern}`;
+  return `Untrack ${String(count)} files matching ${pattern}`;
 }
 
 /**

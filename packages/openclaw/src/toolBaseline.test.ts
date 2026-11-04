@@ -19,6 +19,7 @@ import {
   VCS_EXCLUDE_CONFIRM_DESCRIPTION,
   VCS_EXCLUDE_DESCRIPTION,
   VCS_EXCLUDE_GLOB_DESCRIPTION,
+  VCS_EXCLUDE_REMOVE_DESCRIPTION,
 } from './vcsTools.js';
 
 /** The agent-facing part of a registered tool. */
@@ -134,6 +135,10 @@ const CHANGES: Partial<Record<string, (before: ToolSurface) => ToolSurface>> = {
           glob: {
             ...params.properties.glob,
             description: VCS_EXCLUDE_GLOB_DESCRIPTION,
+          },
+          remove: {
+            ...params.properties.remove,
+            description: VCS_EXCLUDE_REMOVE_DESCRIPTION,
           },
           confirm: {
             type: 'boolean',
