@@ -16,7 +16,7 @@ The watcher is an HTTP API running as a background service (typically NSSM on Wi
 
 **Tool errors:** Tool error text is prefixed `Error: `. The tools built from the watcher's endpoint catalog (`watcher_status`, `watcher_config`, `watcher_config_apply`, `watcher_search`, `watcher_scan`, `watcher_vcs_show`) report a non-2xx response as `HTTP <status>: <body>`, with the server's JSON body verbatim: read its `code` (and `details` or `issues`) there. They also reject parameters that don't match their schema before sending anything. From the other tools, any other non-2xx response reads `HTTP <status> <code>: <message>`, where `<code>` is the server's machine-readable error code (e.g. `HTTP 400 invalid_request: Validation failed`, `HTTP 503 scan_in_progress: Scan in progress: ...`). Branch on the code, not the message. Structured `details` (Zod issues, per-property validation failures) are in the HTTP response body only; call the API directly when you need them. An unreachable service reads `Service not reachable at <url>.` with a hint to set `apiUrl`. (`watcher_service` comes from the shared Jeeves core toolset and words its own errors.)
 
-**Health check:** `GET /status` returns `name`, `version`, `uptime`, `status` (`healthy`/`degraded`/`unhealthy`), and a `health` object containing `collection` (`name`, `pointCount`, `dimensions`), `reindex` progress, and `initialScan` progress.
+**Health check:** `GET /status` returns `name`, `version`, `uptime`, `status` (`healthy`/`degraded`/`unhealthy`), and a `health` object containing `collection` (`name`, `pointCount`, `dimensions`), `reindex` progress, `initialScan` progress, and (when version tracking is on) `vcs` (`roots`, `pending`, `trippedRoots`, `oldestTrippedAt`).
 
 **Mental model:** The `watcher_*` tools are thin HTTP wrappers. Each tool call translates to an HTTP request to the watcher API. When tools are available, use them. When they're not (e.g., different session, plugin not loaded), you can hit the API directly. Replace `<PORT>` below with the configured port (default 1936; check `plugins.entries.jeeves-watcher-openclaw.config.apiUrl` in `openclaw.json` if overridden), and add `-H "Authorization: Bearer <key>"` when the service sets `api.apiKey`:
 
@@ -391,7 +391,7 @@ Returns `{ ok: true, matched_rules }`. The tool addresses files only; to enrich 
 
 ### `watcher_status`
 
-Service health check (`GET /status`, never needs the API key). Returns `name`, `version`, `uptime`, `status`, and a `health` object: `collection` (`name`, `pointCount`, `dimensions`), `reindex` (`active`; while active also `scope`, `startedAt`, `filesProcessed`, `totalFiles`), and `initialScan`.
+Service health check (`GET /status`, never needs the API key). Returns `name`, `version`, `uptime`, `status`, and a `health` object: `collection` (`name`, `pointCount`, `dimensions`), `reindex` (`active`; while active also `scope`, `startedAt`, `filesProcessed`, `totalFiles`), `initialScan`, and `vcs` when version tracking is on: `roots`, `pending` (changes not yet committed), `trippedRoots` (roots whose commits keep failing) and `oldestTrippedAt`.
 
 After a service restart, the `health.initialScan` field shows scan progress:
 

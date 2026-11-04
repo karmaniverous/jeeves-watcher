@@ -27,7 +27,7 @@ afterEach(async () => {
   await rm(repo, {
     recursive: true,
     force: true,
-    maxRetries: 20,
+    maxRetries: 80,
     retryDelay: 200,
   });
 });
@@ -37,7 +37,7 @@ afterEach(async () => {
  * creates `.git/index.lock` first (as a git that took the lock would).
  */
 function hangingGit(createLock: boolean): string[] {
-  const script = `${createLock ? "require('fs').writeFileSync('.git/index.lock','');" : ''}setTimeout(()=>{},1500)`;
+  const script = `${createLock ? "require('fs').writeFileSync('.git/index.lock','');" : ''}setTimeout(()=>{},10000)`;
   return ['-c', `alias.hang=!node -e "${script}"`, 'hang'];
 }
 
@@ -123,6 +123,8 @@ describe('execGit', () => {
     expect(isGitTimeout(error)).toBe(true);
     const timeout = error as GitTimeoutError;
     expect(timeout.exitedAt).toBeGreaterThanOrEqual(timeout.spawnedAt);
+    // Killed, not left to finish its 10 s on its own.
+    expect(timeout.exitedAt - timeout.spawnedAt).toBeLessThan(5000);
     expect(timeout.removedIndexLock).toBe(true);
     await expect(stat(join(repo, '.git', 'index.lock'))).rejects.toThrow();
   });
