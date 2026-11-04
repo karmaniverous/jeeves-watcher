@@ -184,15 +184,23 @@ export class BatchCommitter {
       return { committed: false, unstaged };
     }
 
+    await this.push();
+    return { committed: true, unstaged };
+  }
+
+  /**
+   * Push to the remote (if any), recording the time or the failure for
+   * `/vcs/status`. Never throws. The caller holds RootGitLock.
+   */
+  async push(): Promise<void> {
     const pushTime = await pushToRemote(
-      rootPath,
+      this.deps.rootPath,
       this.deps.remoteUrl,
       this.deps.accessToken,
       this.pushErrors,
-      logger,
+      this.deps.logger,
     );
     if (pushTime) this.lastPush = pushTime;
-    return { committed: true, unstaged };
   }
 
   /**
@@ -265,7 +273,7 @@ export class BatchCommitter {
     const { rootPath, logger } = this.deps;
     const { commit, untracked } = await untrackPaths(rootPath, {
       select: (env) => listTracked(rootPath, paths, { env }),
-      message: overCapMessage(paths.length),
+      message: () => overCapMessage(paths.length),
     });
     logger.info(
       { root: rootPath, commit, count: untracked.length },
