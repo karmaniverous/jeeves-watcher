@@ -2,6 +2,64 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.0-2] - 2026-11-04
+
+### 🚀 Features
+
+- *(core)* Schemas for the remaining catalog routes (A1)
+- *(core)* Catalog entries for every route (A2)
+- *(service)* Serve every route from the catalog (A3)
+- *(vcs)* Staging, untracking, squash plumbing, git process layer (0.21.0 B2, B3)
+- *(vcs)* VCS-only exclusion through .git/info/exclude (spec B4)
+
+### 🐛 Bug Fixes
+
+- *(core)* Close the vcs/status push error and breaker shapes, enum the exclude action, describe wait
+- Independent review findings on the clients
+
+### 💼 Other
+
+- [281] chore: pin jeeves 0.8.0-6; drop fastify-type-provider-zod, zod-openapi, openapi-types
+
+jeeves 0.8.0-6 makes fastify, fastify-type-provider-zod and zod-openapi its own dependencies (jeeves Decision 88), so the service and core no longer supply them.
+- [281] chore: pin jeeves 0.8.0
+- [281] chore: patch/minor deps, prettier-ignore generated baselines, squash test timeout
+- [281] refactor: one requiredQueryParam for the vcs/show query schema (#281)
+
+Independent review: each parameter repeated its 'Missing required query parameter' text, and the min(1) copy was redundant (a schema-level error also words its checks; the mutant dropping it survived). openapi.json unchanged.
+- [281] docs: review fixes for the skill, API reference and plugin README (#281)
+
+SKILL.md: watcher_scan cursor is a string or a number (D34); WATCHER_SKILL regenerated. API reference: the /vcs/show 400 error text. Plugin README: one list. registerCatalog TSDoc: one preValidation hook, HEAD included. vcsShowHandler: say why its VCS-off guard stays.
+- [281] test,docs: second-review nits on the fix commits (#281)
+
+Fresh review of faf2fe9..e0cfae6: test names now say what they prove (hashObject, InitialScanTracker without start); errorResult keys compared in any order (M3 still KILLED); skill scan response cursor is a string, number or null (WATCHER_SKILL regenerated); catalogTools module TSDoc lists the four standard tools and registerCatalogTool.
+- Pin @karmaniverous/jeeves 0.9.0-0 (D42)
+- Patch and minor dependency updates
+- Require Node >=24.22.2 (D188)
+
+### 🚜 Refactor
+
+- *(service)* DRY and file-size pass over the catalog completion
+- *(vcs)* Exclude nits (threshold constant, remove text, commit message template, VcsManager doc)
+- [**breaking**] Verb-first operation names (D77); retire WATCHER_ENDPOINTS (D41)
+- *(core)* [**breaking**] Drop the client fetch helpers
+
+### 📚 Documentation
+
+- *(core)* Skill authoring notes for maps, set, frontmatter globs, virtual rules (#258)
+- Core README describes the full catalog; walk no longer 500s without a body
+- *(logging)* MaxFiles keeps that many rotated files plus the active one (D184); cite D182/D183 in the API reference
+- Rollback step for .git/info/exclude, absolute vs root-relative globs, core skill
+- *(vcs)* Leading-slash glob with root in the upgrade guide, tool and skill text; stronger remove test
+- Clients on the catalog (SDK guide, CLI reference, plugin guide, upgrading)
+
+### 🧪 Testing
+
+- *(vcs)* Assert a timed-out git call is killed, not left to finish; skill: health.vcs
+
+### ⚙️ Miscellaneous Tasks
+
+- *(skills)* Trim jeeves-watcher skill description to 160 chars or less
 ## [0.5.0-0] - 2026-10-30
 
 ### 💼 Other
@@ -36,6 +94,7 @@ Independent review finding 12. vcsShowQuerySchema had no messages of its own, so
 - [281] docs: review fixes for auth exemptions, error formats and key order (#281)
 
 Independent review findings 9 and 10. The API reference summary and the skill now say GET /openapi.json needs no key, and the skill's endpoint table lists it. The error-format line covers the catalog-built tools' HTTP <status>: <body>. Catalog error bodies list error before code, so the config-apply 400 examples in the skill and the plugin guide now match the real text. WATCHER_SKILL regenerated.
+- [281] chore: release @karmaniverous/jeeves-watcher-core v0.5.0-0
 ## [0.4.0] - 2026-10-14
 
 ### 🚀 Features
