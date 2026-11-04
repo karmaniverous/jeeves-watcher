@@ -114,11 +114,13 @@ export async function indexDocument(
     ctx.chunkSize ?? EMBEDDING_DEFAULTS.chunkSize,
     ctx.chunkOverlap ?? EMBEDDING_DEFAULTS.chunkOverlap,
   );
+  const split = await splitter.splitText(text);
   const dates = await document.dates(existing);
-  const chunks = await embedAndUpsertDocument({ ...ctx, splitter }, document, {
+  const chunks = await embedAndUpsertDocument(ctx, document, {
     existing,
     dates,
     hash,
+    chunks: split,
   });
 
   ctx.issuesManager?.clear(key);

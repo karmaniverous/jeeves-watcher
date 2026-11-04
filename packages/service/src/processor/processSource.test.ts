@@ -39,7 +39,13 @@ const rules: InferenceRule[] = [
 ];
 
 type Mocks = Record<
-  'getPayload' | 'upsert' | 'delete' | 'setPayload' | 'deletePayload',
+  | 'getPayload'
+  | 'upsert'
+  | 'delete'
+  | 'setPayload'
+  | 'deletePayload'
+  | 'keywordIndexReady'
+  | 'existingIds',
   Mock
 > &
   Record<'embed' | 'record' | 'clear' | 'retrieve', Mock>;
