@@ -29,6 +29,7 @@ import {
   configureRepoIdentity,
   ensureGitignore,
   initRepo,
+  killsLauncher,
   validateStateDirOverlap,
 } from '../vcs';
 import { globRoot } from '../watcher/globToDir.js';
@@ -218,6 +219,11 @@ export async function initVcs(
   if (!gitAvailable) {
     logger.warn('git not found on PATH — VCS disabled for this session');
     return false;
+  }
+  if (killsLauncher()) {
+    logger.warn(
+      "git's exec path has no git.exe; using the launcher on PATH, so a timed-out git call may keep running and hold index.lock (D79)",
+    );
   }
 
   const stateDir = config.stateDir ?? ROOT_DEFAULTS.stateDir;

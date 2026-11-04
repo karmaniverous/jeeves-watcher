@@ -5,6 +5,7 @@
 
 export { type CircuitBreakerSnapshot } from './CommitCircuitBreaker.js';
 export { CommitMessageGenerator } from './CommitMessageGenerator.js';
+export { killsLauncher } from './gitBinary.js';
 export { type ResolvedWatchRoot } from './resolveWatchRoot.js';
 export { RootGitLock } from './RootGitLock.js';
 export {

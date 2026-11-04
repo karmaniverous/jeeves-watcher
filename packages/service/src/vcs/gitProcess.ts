@@ -122,6 +122,21 @@ export async function removeOwnIndexLock(
   }
 }
 
+/**
+ * The command as error messages show it: paths after `--` are counted, not
+ * listed (a tracked-check chunk holds up to 500 of them, which would flood
+ * logs and `/vcs/status`).
+ *
+ * @param args - Full argv after the executable.
+ * @returns `git <args>`, with `-- <n paths>` in place of a path list.
+ */
+export function describeCommand(args: readonly string[]): string {
+  const separator = args.indexOf('--');
+  if (separator === -1) return `git ${args.join(' ')}`;
+  const paths = args.length - separator - 1;
+  return `git ${args.slice(0, separator + 1).join(' ')} <${String(paths)} path${paths === 1 ? '' : 's'}>`;
+}
+
 /** Build the error a non-zero exit rejects with (execFile's shape). */
 function exitError(
   command: string,
@@ -153,7 +168,7 @@ export function execGit(
   args: readonly string[],
   options: ExecGitOptions,
 ): Promise<ExecGitResult> {
-  const command = `git ${args.join(' ')}`;
+  const command = describeCommand(args);
   const maxBuffer = options.maxBuffer ?? DEFAULT_MAX_BUFFER;
   const lockPath = options.indexLockPath;
 

@@ -150,6 +150,7 @@ describe('watchConfigChanged', () => {
 vi.mock('../vcs', async (importOriginal) => ({
   ...(await importOriginal()),
   checkGitAvailable: vi.fn().mockResolvedValue(true),
+  killsLauncher: vi.fn().mockReturnValue(false),
   configureRepoIdentity: vi.fn().mockResolvedValue(undefined),
   initRepo: vi.fn().mockResolvedValue(undefined),
   ensureGitignore: vi.fn().mockResolvedValue(undefined),
@@ -182,6 +183,21 @@ describe('initVcs', () => {
       expect.objectContaining({ root: '/some/path' }),
       'VCS initialized for watch root',
     );
+  });
+
+  it('warns once when git can only run through the Windows launcher (D79)', async () => {
+    const { killsLauncher } = await import('../vcs');
+    vi.mocked(killsLauncher).mockReturnValueOnce(true);
+    const logger = pino({ level: 'silent' });
+    const warn = vi.spyOn(logger, 'warn');
+    const config = {
+      vcs: { enabled: true, commitThrottleMs: 5000, maxBatchSize: 1000 },
+      watch: { paths: ['/launcher/root/**'], ignored: [] },
+    } as unknown as JeevesWatcherConfig;
+
+    expect(await initVcs(config, logger)).toBe(true);
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('(D79)'));
   });
 
   it('calls configureRepoIdentity with defaults when no author specified', async () => {

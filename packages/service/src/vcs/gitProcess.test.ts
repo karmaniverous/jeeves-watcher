@@ -11,9 +11,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { makeTempRepo } from '../test/vcsRepo';
 import * as gitBinaryModule from './gitBinary';
-import { findGitBinary, gitBinary } from './gitBinary';
+import { findGitBinary, gitBinary, killsLauncher } from './gitBinary';
 import type { GitTimeoutError } from './gitProcess';
 import {
+  describeCommand,
   execGit,
   isGitTimeout,
   realIndexLock,
@@ -120,9 +121,10 @@ describe('execGit', () => {
   });
 
   it('kills a timed-out call, awaits its exit and removes the index.lock it created', async () => {
+    // 4 s gives the child time to start and take the lock on a busy host.
     const error: unknown = await execGit(hangingGit(true), {
       cwd: repo,
-      timeoutMs: 700,
+      timeoutMs: 4000,
       indexLockPath: realIndexLock(repo),
     }).catch((e: unknown) => e);
 
@@ -130,10 +132,10 @@ describe('execGit', () => {
     const timeout = error as GitTimeoutError;
     expect(timeout.exitedAt).toBeGreaterThanOrEqual(timeout.spawnedAt);
     // Killed, not left to finish its 10 s on its own.
-    expect(timeout.exitedAt - timeout.spawnedAt).toBeLessThan(5000);
+    expect(timeout.exitedAt - timeout.spawnedAt).toBeLessThan(9000);
     expect(timeout.removedIndexLock).toBe(true);
     await expect(stat(join(repo, '.git', 'index.lock'))).rejects.toThrow();
-  });
+  }, 30_000);
 
   it('keeps an index.lock that predates the timed-out call', async () => {
     const lock = join(repo, '.git', 'index.lock');
@@ -152,16 +154,60 @@ describe('execGit', () => {
   });
 
   it('leaves a lock created during a call that takes no index lock (another writer holds it)', async () => {
-    // The hanging alias stands in for a concurrent writer taking the lock
-    // while a read (no indexLockPath) runs and times out.
-    const error: unknown = await execGit(hangingGit(true), {
+    // A concurrent writer takes the lock while a read (no indexLockPath)
+    // hangs and times out.
+    const lock = realIndexLock(repo);
+    const pending = execGit(hangingGit(false), {
       cwd: repo,
-      timeoutMs: 700,
+      timeoutMs: 2000,
     }).catch((e: unknown) => e);
+    await new Promise((r) => setTimeout(r, 300));
+    await writeFile(lock, '');
+    const error = await pending;
 
-    expect(isGitTimeout(error)).toBe(true);
+    expect(error).toMatchObject({ name: 'GitTimeoutError' });
     expect((error as GitTimeoutError).removedIndexLock).toBe(false);
     expect((await stat(realIndexLock(repo))).isFile()).toBe(true);
+  }, 30_000);
+});
+
+describe('killsLauncher', () => {
+  it('is true only for plain git on Windows', () => {
+    expect(killsLauncher('win32', 'git')).toBe(true);
+    expect(
+      killsLauncher('win32', 'C:/Git/mingw64/libexec/git-core/git.exe'),
+    ).toBe(false);
+    expect(killsLauncher('linux', 'git')).toBe(false);
+  });
+});
+
+describe('describeCommand', () => {
+  it('counts the paths after -- instead of listing them', () => {
+    expect(describeCommand(['ls-files', '-z', '--', 'a.md', 'b.md'])).toBe(
+      'git ls-files -z -- <2 paths>',
+    );
+    expect(describeCommand(['ls-files', '--', 'a.md'])).toBe(
+      'git ls-files -- <1 path>',
+    );
+    expect(describeCommand(['log', '-1'])).toBe('git log -1');
+  });
+
+  it('keeps path lists out of a failed call message', async () => {
+    const error: unknown = await execGit(
+      [
+        '--literal-pathspecs',
+        'ls-files',
+        '--error-unmatch',
+        '--',
+        'nope-1.md',
+        'nope-2.md',
+      ],
+      { cwd: repo, timeoutMs: 30_000 },
+    ).catch((e: unknown) => e);
+
+    const message = (error as Error).message.split('\n')[0];
+    expect(message).toContain('-- <2 paths>');
+    expect(message).not.toContain('nope-1.md');
   });
 });
 

@@ -53,3 +53,18 @@ export function gitBinary(): string {
   resolved ??= findGitBinary();
   return resolved;
 }
+
+/**
+ * Whether git runs through `PATH` on Windows, where `git` is the launcher
+ * D79 rules out: killing it leaves the real git holding `index.lock`.
+ *
+ * @param platform - Platform (default: `process.platform`).
+ * @param binary - Resolved executable (default: {@link gitBinary}).
+ * @returns true when timed-out calls cannot be killed reliably.
+ */
+export function killsLauncher(
+  platform: string = process.platform,
+  binary: string = gitBinary(),
+): boolean {
+  return platform === 'win32' && binary === 'git';
+}
