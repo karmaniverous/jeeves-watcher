@@ -13,8 +13,11 @@
 
 import { getPackageVersion, type PluginApi } from '@karmaniverous/jeeves';
 
-import { createCatalogTools, registerCatalogTool } from './catalogTools.js';
-import { getApiUrl } from './helpers.js';
+import {
+  createCatalogTools,
+  registerCatalogTool,
+  WATCHER_TOOL_NAMES,
+} from './catalogTools.js';
 import {
   createLazyCore,
   warnIfConfigRootUnset,
@@ -22,17 +25,8 @@ import {
 } from './lazyCore.js';
 import { registerWatcherPromptContext } from './promptContext.js';
 import { createWatcherComponent } from './watcherComponent.js';
-import { registerWatcherTools } from './watcherTools.js';
 
 const PLUGIN_VERSION = getPackageVersion(import.meta.url);
-
-/** The standard tools, in their 0.17.0 registration order. */
-const STANDARD_TOOLS = [
-  'watcher_status',
-  'watcher_service',
-  'watcher_config',
-  'watcher_config_apply',
-] as const;
 
 /** Register all jeeves-watcher tools with the OpenClaw plugin API. */
 export default function register(api: PluginApi): void {
@@ -41,17 +35,14 @@ export default function register(api: PluginApi): void {
   const toolApi = withGuardedTools(api, createLazyCore(api));
   const component = createWatcherComponent(PLUGIN_VERSION);
 
-  // Core's toolset from WATCHER_CATALOG: the 4 standard tools, plus
-  // watcher_search, watcher_scan and watcher_show_vcs_file. Every tool resolves
-  // the base URL (and, where its entry requires it, the bearer key) on each
-  // call.
+  // Every tool comes from core's toolset over WATCHER_CATALOG (D38): the 4
+  // standard tools and the 14 domain tools, in their 0.17.0 order. Each
+  // resolves the base URL (and, where its entry requires it, the bearer key)
+  // on every call.
   const catalogTools = createCatalogTools(api, component);
-  for (const name of STANDARD_TOOLS) {
+  for (const name of WATCHER_TOOL_NAMES) {
     registerCatalogTool(toolApi, catalogTools, name);
   }
-
-  // 14 domain-specific tools (search, enrich, scan, vcs, ...).
-  registerWatcherTools(toolApi, () => getApiUrl(api), catalogTools);
 
   registerWatcherPromptContext(api, component);
 }

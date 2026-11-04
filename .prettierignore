@@ -6,3 +6,4 @@ packages/service/config.schema.json
 packages/core/openapi.json
 packages/openclaw/src/test/baseline-0.17.0/
 packages/service/src/test/wire/*.json
+packages/openclaw/src/test/surface-0.18.0/

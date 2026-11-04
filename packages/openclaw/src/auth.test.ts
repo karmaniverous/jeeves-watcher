@@ -1,13 +1,11 @@
 /**
  * @module plugin/auth.test
- * Plugin-level bearer-key tests through the real entry point: every HTTP tool (the catalog-built ones and the plugin's own) sends the key when configured and none when unset; the key never reaches logs or tool results.
+ * Plugin-level bearer-key tests through the real entry point: every HTTP tool (all catalog-built) sends the key when configured and none when unset; the key never reaches logs or tool results.
  */
 
 import type { PluginApi, ToolDescriptor } from '@karmaniverous/jeeves';
-import { unauthorizedMessage } from '@karmaniverous/jeeves-watcher-core';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { PLUGIN_KEY_SOURCES } from './http.js';
 import register from './index.js';
 
 const KEY = 'plugin-auth-secret';
@@ -15,32 +13,25 @@ const KEY = 'plugin-auth-secret';
 /** Tools that make no HTTP call (watcher_service) or hit the open GET /status. */
 const NOT_AUTHENTICATED = new Set(['watcher_service', 'watcher_status']);
 
-/** Params that make every plugin-built HTTP tool issue its request. */
-const PARAMS: Record<string, unknown> = {
-  config: { x: 1 },
-  query: 'q',
-  path: 'a.md',
-  metadata: { k: 'v' },
-  filter: {},
-  globs: ['**/*.md'],
-  commit: 'abc',
-  glob: '*.md',
-  paths: ['a.md'],
-};
-
 /**
- * Valid params for the catalog-built tools, whose parameter schemas are
- * closed: an unknown parameter fails before any request.
+ * Valid params per tool. Every parameter schema is closed: an unknown
+ * parameter fails before any request. Tools absent here take none.
  */
-const CATALOG_PARAMS: Partial<Record<string, Record<string, unknown>>> = {
-  watcher_config: {},
+const PARAMS: Partial<Record<string, Record<string, unknown>>> = {
   watcher_config_apply: { config: { x: 1 } },
   watcher_search: { query: 'q' },
+  watcher_set_metadata: { path: 'a.md', metadata: { k: 'v' } },
   watcher_scan: { filter: {} },
+  watcher_walk: { globs: ['**/*.md'] },
+  watcher_list_vcs_history: { glob: '*.md' },
   watcher_show_vcs_file: { path: 'a.md', commit: 'abc' },
+  watcher_diff_vcs: { glob: '*.md', commit: 'abc' },
+  watcher_revert_vcs: { glob: '*.md', commit: 'abc' },
+  watcher_exclude_vcs_path: { glob: '*.md' },
+  watcher_check_vcs_exclusion: { path: 'a.md' },
 };
 
-const paramsFor = (name: string) => CATALOG_PARAMS[name] ?? PARAMS;
+const paramsFor = (name: string) => PARAMS[name] ?? {};
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -131,11 +122,10 @@ describe('plugin bearer key', () => {
     );
   });
 
+  // Every tool reports core's `HTTP <status>: <body>`; the key guidance is in
+  // the skill's troubleshooting section (spec #281 D31).
   it.each([
-    // Plugin-built tools add key guidance to a 401.
-    ['watcher_set_metadata', unauthorizedMessage(true, PLUGIN_KEY_SOURCES)],
-    // Catalog-built tools report core's `HTTP <status>: <body>`; the guidance
-    // is in the skill's troubleshooting section (spec #281 D31).
+    ['watcher_set_metadata', 'HTTP 401: {"error":"Unauthorized"}'],
     ['watcher_config', 'HTTP 401: {"error":"Unauthorized"}'],
   ])(
     '%s: a 401 is an error that never logs or returns the key',
