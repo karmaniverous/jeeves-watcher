@@ -1,8 +1,11 @@
 /**
  * @module vcs/CommitQueue
- * The pending-file queue of one VCS root: a set of paths, a throttle (not a debounce), batches of at most maxBatchSize chained one after another under RootGitLock, and an in-hold flush for squash (D101). No I/O of its own.
+ * The pending-file queue of one VCS root: a set of paths, a throttle (not a debounce), batches of at most maxBatchSize chained one after another under RootGitLock, and an in-hold flush for squash (D101). No I/O of its own besides logging a batch that throws.
  */
 
+import type pino from 'pino';
+
+import { normalizeError } from '../util/normalizeError';
 import type { RootGitLock } from './RootGitLock';
 
 /** Collaborators of a {@link CommitQueue}. */
@@ -20,6 +23,10 @@ export interface CommitQueueOptions {
    * failed (it is then put back with {@link CommitQueue.retain}).
    */
   commit: (batch: string[]) => Promise<boolean>;
+  /** Repository root, for the log line of a batch that throws. */
+  root: string;
+  /** Logs a batch that throws instead of resolving false (a bug). */
+  logger: pino.Logger;
 }
 
 /** Pending files and the batch chain of one root. */
@@ -126,6 +133,13 @@ export class CommitQueue {
     this.chain = this.chain.then(async () => {
       try {
         await this.options.lock.run('commit', () => this.options.commit(batch));
+      } catch (error) {
+        // Keep the chain resolved, or every later batch would be skipped.
+        this.retain(batch);
+        this.options.logger.error(
+          { root: this.options.root, err: normalizeError(error) },
+          'VCS batch threw; its files are kept for the next one',
+        );
       } finally {
         this.inFlight -= batch.length;
       }

@@ -96,6 +96,8 @@ export class VcsManager {
       onThrottle: () => void this.flush(),
       lock: this.lock,
       commit: (batch) => this.commitBatch(batch),
+      root: rootPath,
+      logger,
     });
     this.breaker = new RootBreaker(
       rootPath,
