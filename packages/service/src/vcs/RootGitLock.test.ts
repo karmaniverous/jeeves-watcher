@@ -1,6 +1,6 @@
 /**
  * @module vcs/RootGitLock.test
- * RootGitLock (D66, D81, D102): FIFO order, release on throw, holder tracking, and the long-wait and long-hold warnings.
+ * RootGitLock (D66, D81, D102): FIFO order, release on throw, holder tracking, the long-wait and long-hold warnings, and the bounded wait of API routes.
  */
 
 import pino from 'pino';
@@ -9,7 +9,9 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   LOCK_HOLD_WARN_MS,
   LOCK_WAIT_WARN_MS,
+  LockWaitTimeoutError,
   RootGitLock,
+  ROUTE_LOCK_WAIT_MS,
 } from './RootGitLock';
 
 const logger = pino({ level: 'silent' });
@@ -95,5 +97,80 @@ describe('RootGitLock', () => {
     gate.resolve();
     await Promise.all([holder, waiter]);
     expect(warn).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('RootGitLock.runWithin (D102)', () => {
+  it('runs at once when the lock is free', async () => {
+    const lock = new RootGitLock('/r', logger);
+
+    await expect(
+      lock.runWithin('exclude', ROUTE_LOCK_WAIT_MS, () => Promise.resolve(7)),
+    ).resolves.toBe(7);
+  });
+
+  it('acquires when the holder releases before the wait runs out', async () => {
+    vi.useFakeTimers();
+    const lock = new RootGitLock('/r', logger);
+    const gate = deferred();
+    const holder = lock.run('commit', () => gate.promise);
+
+    const waiter = lock.runWithin('exclude', ROUTE_LOCK_WAIT_MS, () =>
+      Promise.resolve(lock.heldBy),
+    );
+    await vi.advanceTimersByTimeAsync(ROUTE_LOCK_WAIT_MS - 1);
+    gate.resolve();
+
+    await expect(waiter).resolves.toBe('exclude');
+    await holder;
+  });
+
+  it('gives up after the wait without running its work, and later callers keep FIFO order', async () => {
+    vi.useFakeTimers();
+    const lock = new RootGitLock('/r', logger);
+    const gate = deferred();
+    const order: string[] = [];
+    const holder = lock.run('commit', async () => {
+      await gate.promise;
+      order.push('commit');
+    });
+    let ran = false;
+    const waiter = lock.runWithin('exclude', ROUTE_LOCK_WAIT_MS, () => {
+      ran = true;
+      return Promise.resolve();
+    });
+    const outcome = waiter.then(
+      () => undefined,
+      (error: unknown) => error,
+    );
+    const later = lock.run('squash', () => {
+      order.push('squash');
+      return Promise.resolve();
+    });
+
+    await vi.advanceTimersByTimeAsync(ROUTE_LOCK_WAIT_MS);
+    const error = await outcome;
+    expect(error).toBeInstanceOf(LockWaitTimeoutError);
+    expect(error).toMatchObject({
+      root: '/r',
+      operation: 'exclude',
+      waitMs: ROUTE_LOCK_WAIT_MS,
+      heldBy: 'commit',
+    });
+    expect(lock.heldBy).toBe('commit');
+
+    gate.resolve();
+    await Promise.all([holder, later]);
+    expect(ran).toBe(false);
+    expect(order).toEqual(['commit', 'squash']);
+    expect(lock.heldBy).toBeUndefined();
+  });
+
+  it('names a queued operation when nothing holds the lock yet', () => {
+    expect(
+      new LockWaitTimeoutError('/r', 'exclude', 5, undefined).message,
+    ).toBe(
+      'RootGitLock on /r not acquired by exclude within 5 ms (held by a queued operation)',
+    );
   });
 });
