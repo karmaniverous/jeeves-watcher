@@ -64,7 +64,7 @@ describe('detectStaleGitOperation', () => {
     await expect(git(tempDir, 'cherry-pick', 'side')).rejects.toThrow();
 
     expect(await detectStaleGitOperation(tempDir)).toBe('CHERRY_PICK_HEAD');
-  });
+  }, 30_000); // ~10 real git calls: over 5 s on a slow Windows runner
 });
 
 describe('headRef', () => {
