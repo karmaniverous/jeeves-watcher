@@ -55,6 +55,13 @@ export const embeddingConfigSchema = z.object({
     .number()
     .optional()
     .describe('Maximum concurrent embedding requests.'),
+  /** URL POSTed when embedding health changes state (unsigned body). */
+  alertUrl: z
+    .url()
+    .optional()
+    .describe(
+      'URL that receives a POST when embedding health turns failing (embedding_failed) or recovers (embedding_recovered). The body is unsigned and sent without credentials: use a private endpoint. Read at each transition.',
+    ),
 });
 
 /** Embedding model configuration: provider, model, chunking, dimensions, rate limits, and API key. */

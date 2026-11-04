@@ -70,25 +70,66 @@ function stripSchemaProperty(
   return out;
 }
 
+/** What B5a's `too_large` issue type appends to the issue-code description. */
+const TOO_LARGE_DESCRIPTION =
+  ', too_large (over a processing ceiling; its points were deleted)';
+
 /**
- * Strip `maxFileBytes` from the per-root `vcs` schema in a config JSON
- * schema. `GET /config/schema` serves only the public keys; `watch` is one,
- * and its `paths[].vcs` override (D12) extends the whole `vcs` schema, so
- * the new key appears there (approved departure, D185). `logging.rotation`
- * is not public and never appears.
+ * Deep-copy `value`, removing `too_large` from every issue-code enum (one
+ * that lists `type_collision`) and its clause from that enum's description.
+ */
+function stripTooLargeIssueType(value: Json, counter: { n: number }): Json {
+  if (Array.isArray(value)) {
+    return value.map((v) => stripTooLargeIssueType(v, counter));
+  }
+  if (typeof value !== 'object' || value === null) return value;
+  const out: Record<string, Json> = {};
+  for (const [k, v] of Object.entries(value)) {
+    out[k] = stripTooLargeIssueType(v, counter);
+  }
+  const { enum: values, description } = out;
+  if (
+    Array.isArray(values) &&
+    values.includes('type_collision') &&
+    values.includes('too_large')
+  ) {
+    out.enum = values.filter((v) => v !== 'too_large');
+    counter.n++;
+    if (
+      typeof description === 'string' &&
+      description.includes(TOO_LARGE_DESCRIPTION)
+    ) {
+      out.description = description.replace(TOO_LARGE_DESCRIPTION, '');
+      counter.n++;
+    }
+  }
+  return out;
+}
+
+/**
+ * Strip the 0.21.0 additions from a config JSON schema. `GET /config/schema`
+ * serves only the public keys; `watch` is one, and its `paths[].vcs`
+ * override (D12) extends the whole `vcs` schema, so `maxFileBytes` appears
+ * there (approved departure, D185). `logging.rotation`, `processing` and
+ * `embedding.alertUrl` are not public and never appear. The merged
+ * `issues[].type` enum gains `too_large` (B5a, Design 2).
  */
 function stripNewConfigKeys(received: WireRecord): {
   record: WireRecord;
   stripped: number;
 } {
   const counter = { n: 0 };
-  const body = stripSchemaProperty(
+  const withoutKeys = stripSchemaProperty(
     received.body,
     'maxFileBytes',
     (p) => 'maxConsecutiveFailures' in p,
     counter,
   );
-  return { record: { ...received, body }, stripped: counter.n };
+  const vcsStripped = counter.n;
+  const body = stripTooLargeIssueType(withoutKeys, counter);
+  // Both departures must still happen, or one of them is stale.
+  const stripped = vcsStripped > 0 && counter.n > vcsStripped ? counter.n : 0;
+  return { record: { ...received, body }, stripped };
 }
 
 /** Strip `health.vcs` from a `/status` record. */
@@ -106,7 +147,7 @@ function stripHealthVcs(received: WireRecord): {
 
 const CONFIG_KEYS: WireDeparture = {
   reason:
-    'P5 B2: watch.paths[].vcs gains maxFileBytes (D80 via the D12 per-root override), approved departure D185',
+    'P5 B2: watch.paths[].vcs gains maxFileBytes (D80 via the D12 per-root override), approved departure D185; P9 B5a: issues[].type gains too_large (D44), Design 2',
   strip: stripNewConfigKeys,
 };
 

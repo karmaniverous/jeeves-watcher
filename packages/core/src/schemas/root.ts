@@ -18,6 +18,7 @@ import {
   inferenceRuleSchema,
   schemaEntrySchema,
 } from './inference.js';
+import { processingConfigSchema } from './processing.js';
 import { embeddingConfigSchema, vectorStoreConfigSchema } from './services.js';
 import { sourcesConfigSchema } from './sources.js';
 import { vcsConfigSchema } from './vcs.js';
@@ -181,6 +182,12 @@ export const jeevesWatcherConfigSchema = z.object({
     .optional()
     .describe(
       'VCS configuration for git-backed version control of watched content.',
+    ),
+  /** Processing ceilings (D44, D64). */
+  processing: processingConfigSchema
+    .optional()
+    .describe(
+      'Processing ceilings: a document over one has its points deleted and a too_large issue recorded. Read per document.',
     ),
   /** Named sources for non-file documents (callback retrieval). */
   sources: sourcesConfigSchema.optional(),

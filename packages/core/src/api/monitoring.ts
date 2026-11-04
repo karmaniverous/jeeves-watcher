@@ -107,7 +107,8 @@ export type WatcherHealth = z.infer<typeof watcherHealthSchema>;
  * Canonical issue codes, in one list (spec Decision 16.4).
  *
  * `type_collision` and `interpolation_error` predate 0.20.0; the rest cover
- * processing failures (#255) and source documents.
+ * processing failures (#255) and source documents; `too_large` marks a
+ * document over a `processing` ceiling (D44).
  */
 export const ISSUE_TYPES = [
   'type_collision',
@@ -120,13 +121,14 @@ export const ISSUE_TYPES = [
   'no_content',
   'source_unavailable',
   'unsupported_content_type',
+  'too_large',
 ] as const;
 
 /** Schema for the canonical issue code carried by every issue record. */
 export const issueTypeSchema = z
   .enum(ISSUE_TYPES)
   .describe(
-    'Issue code: type_collision (conflicting metadata types), interpolation_error (template rendering failure), extraction_error (reading, rule application or chunking failed), embedding_error (embedding provider failed), upsert_error (vector store write failed), match_failed (designated rule did not match), rule_missing (designated rule not found), no_content (nothing to embed), source_unavailable (source callback failed), unsupported_content_type (callback returned a non-JSON body).',
+    'Issue code: type_collision (conflicting metadata types), interpolation_error (template rendering failure), extraction_error (reading, rule application or chunking failed), embedding_error (embedding provider failed), upsert_error (vector store write failed), match_failed (designated rule did not match), rule_missing (designated rule not found), no_content (nothing to embed), source_unavailable (source callback failed), unsupported_content_type (callback returned a non-JSON body), too_large (over a processing ceiling; its points were deleted).',
   );
 
 /** Canonical issue code. */
