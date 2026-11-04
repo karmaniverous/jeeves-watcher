@@ -10,11 +10,13 @@ The watcher exposes a lightweight HTTP API for search, metadata enrichment, and 
 
 **Authentication:** none by default. When `api.apiKey` is set, every route except `GET /status` and `GET /openapi.json` requires `Authorization: Bearer <key>`; see [Authentication](#authentication). The examples below omit the header.
 
-**Endpoint catalog (unreleased):** `GET /status`, `GET /config`, `POST /config/apply`, `POST /render`, `POST /search`, `POST /scan` and `GET /vcs/show` are described once, as entries of `WATCHER_CATALOG` in `@karmaniverous/jeeves-watcher-core`. Their routes, request validation, response validation, the [OpenAPI document](#get-openapijson) and the plugin tools are all built from it. The other routes are not in the catalog yet.
+**Endpoint catalog (unreleased):** every route below except `GET /openapi.json` is described once, as an entry of `WATCHER_CATALOG` in `@karmaniverous/jeeves-watcher-core`. Its route, request validation, response validation, the [OpenAPI document](#get-openapijson) and the plugin tools are all built from it.
 
-**Request validation:** the bodies of `POST /metadata`, `/render`, `/search`, `/scan`, `/reindex`, `/documents`, `/documents/delete`, `/rules/register`, `/rules/reapply`, `/points/delete` and `DELETE /rules/unregister` (and the `POST /documents` query string) are validated against the Zod schemas exported by `@karmaniverous/jeeves-watcher-core`. An invalid body returns `400 { code: "invalid_request", error, details }`, where `error` is the first issue's message. For the catalog routes, `details` lists one entry per issue: `{ slot, path, code, message, params }`, where `slot` is `body`, `query` or `params` and `params` holds the issue's own fields (for example `{ "keys": ["collapse"] }` or `{ "origin": "number", "maximum": 1000, "inclusive": true }`). For the other routes `details` is the Zod issue list. Unless a section says the schema is strict, unknown keys are dropped silently. The routes outside the catalog without a schema (`POST /walk`, the other `/config/*` routes, the other VCS routes) check their required fields themselves; their `400` bodies carry no `details`.
+**Request validation:** every route's body, query string and path parameters are validated against its catalog entry's schemas (the Zod schemas exported by `@karmaniverous/jeeves-watcher-core`). An invalid request returns `400 { code: "invalid_request", error, details }`, where `error` is the first issue's message and `details` lists one entry per issue: `{ slot, path, code, message, params }`, where `slot` is `body`, `query` or `params` and `params` holds the issue's own fields (for example `{ "keys": ["collapse"] }` or `{ "origin": "number", "maximum": 1000, "inclusive": true }`). Unless a section says the schema is strict, unknown keys are dropped silently. Unreleased: before, the routes outside the catalog answered with their own `error` text (quoted in their sections as "before"), `details` was the Zod issue list, and the routes without a schema (`POST /walk`, `/config/match`, `/config/validate`, the VCS routes other than `GET /vcs/show`) sent no `details`; a missing body, which those routes answered with the generic `500`, is now this `400` too. Checks a schema cannot express (a rule that does not compile, metadata that does not match its rule, a filter Qdrant rejects) keep the `400` bodies their sections describe.
 
-**Response validation (unreleased):** each catalog route's response is checked against its entry's schema before it is sent. A response that doesn't match is never sent: the client gets `500 { "error": "Response validation failed" }` and the mismatch is logged as an error with its issues. This indicates a server bug; report it.
+**Gated routes (unreleased):** the `/vcs/*` routes need version control. A server built without a VCS coordinator (`createApiServer` without `vcsCoordinator`; the service always builds one) answers every `/vcs/*` request, whatever its method, query or body, with the `404` body of an unregistered route (the same fields and values; as on every catalog route, `error` comes before `code`): `{ "code": "not_found", "error": "Not Found", "message": "Route GET:/vcs/show?path=a.md&commit=abc not found" }` (the URL as sent, query string included). Nothing is validated first, so not even a malformed body gets a `400`.
+
+**Response validation (unreleased):** each catalog route's response is checked against its entry's schema before it is sent. A response that doesn't match is never sent: the client gets `500 { "error": "Response validation failed", "code": "internal_error" }` and the mismatch is logged as an error with its issues. This indicates a server bug; report it.
 
 **Errors (v0.20.0+):** every non-2xx response carries a machine-readable `code`; see [Error Handling](#error-handling).
 
@@ -88,7 +90,7 @@ The response is cached for `api.cacheTtlMs` (default 30 seconds), so progress co
 
 ## GET /openapi.json
 
-**Unreleased.** The OpenAPI 3.1 document of the catalog routes (`GET /status`, `GET /config`, `POST /config/apply`, `POST /render`, `POST /search`, `POST /scan`, `GET /vcs/show`): request and response schemas, field descriptions, error responses and the bearer security scheme.
+**Unreleased.** The OpenAPI 3.1 document of every catalog route (all routes but this one): request and response schemas, field descriptions, error responses and the bearer security scheme. The description of each `/vcs/*` operation notes its [gated](#api-reference) `404`.
 
 ```bash
 curl http://localhost:1936/openapi.json
@@ -128,7 +130,7 @@ curl -X POST http://localhost:1936/metadata \
 // Exactly one of path or source is required.
 ```
 
-Schema: `metadataRequestSchema` in `@karmaniverous/jeeves-watcher-core`. Neither or both of `path` / `source`, a malformed reference, or a missing or non-object `metadata` (`error: "Missing required field: metadata (object)"`) is `400 invalid_request`.
+Schema: `metadataRequestSchema` in `@karmaniverous/jeeves-watcher-core`. Neither or both of `path` / `source`, a malformed reference, or a missing or non-object `metadata` is the request-validation `400 invalid_request` (unreleased; before, a missing `metadata` read `error: "Missing required field: metadata (object)"`).
 
 ### Response
 
@@ -256,7 +258,7 @@ Schema: `renderRequestSchema` in `@karmaniverous/jeeves-watcher-core`.
 
 ### Caching
 
-- **Transformed responses** (template or render ran): cached via `withCache` with the configured TTL.
+- **Transformed responses** (template or render ran): cached with the configured TTL (`api.cacheTtlMs`).
 - **Passthrough responses** (no transform): `Cache-Control: no-cache` header set; bypasses the cache.
 - **Source documents** (`source`): never cached (no cache read, no cache write) and always sent with `Cache-Control: no-cache`, because the record behind the callback can change at any time.
 
@@ -603,7 +605,7 @@ Schema: `scanRequestSchema` in `@karmaniverous/jeeves-watcher-core`; the default
 | Code | Condition |
 | --- | --- |
 | `200` | Success |
-| `400` | `invalid_request`: missing or non-object `filter` (`error: "Missing required field: filter (object)"`), a `limit` outside 1 to 1000 (`"limit must be between 1 and 1000"`) or not an integer (`"limit must be an integer"`), or a filter Qdrant rejects (`error: "Invalid filter"`, Qdrant's reason as `message`) |
+| `400` | `invalid_request`: missing or non-object `filter` (request validation), a `limit` outside 1 to 1000 (`"limit must be between 1 and 1000"`) or not an integer (`"limit must be an integer"`), or a filter Qdrant rejects (`error: "Invalid filter"`, Qdrant's reason as `message`) |
 | `500` | `internal_error`: unexpected failure (generic body) |
 
 ### Behavior
@@ -672,9 +674,9 @@ Globs are matched against slash-normalised paths, case-insensitively, dotfiles i
 
 | Code | Condition |
 | --- | --- |
-| `400` | `invalid_request` (`error: "Missing globs"`, `message: "The \"globs\" field is required and must be a non-empty string array."`): `globs` is missing, not an array, or empty (the entries' types are not checked) |
+| `400` | `invalid_request` (request validation): `globs` is missing, not an array, empty, or has a non-string entry (unreleased; before, `error: "Missing globs"` without `details`, and the entries' types were not checked) |
 | `503` | `not_available` (`"Watcher unavailable"`): the instance has no filesystem watcher; `scan_in_progress` (`"Scan in progress"`): the initial filesystem scan is still running, retry later |
-| `500` | `internal_error`: unexpected failure, including a request without a JSON body (generic body) |
+| `500` | `internal_error`: unexpected failure (generic body; unreleased: before, also a request without a JSON body) |
 
 ---
 
@@ -1352,7 +1354,7 @@ curl -X POST http://localhost:1936/config/match \
 }
 ```
 
-A body whose `paths` is not an array is `400 { "code": "invalid_request", "error": "Request body must include \"paths\" array" }`; a request without a JSON body fails with the generic `500`.
+A missing body, or one whose `paths` is not an array of strings, is the request-validation `400 invalid_request` (unreleased; before, `error: "Request body must include \"paths\" array"` without `details`, and a request without a JSON body failed with the generic `500`).
 
 ### Response
 
@@ -1455,7 +1457,7 @@ curl -X POST http://localhost:1936/config/validate \
 }
 ```
 
-**Invalid (also 200 OK):** an invalid config is a successful validation with a negative result, not an HTTP error. The route has no `400` of its own: only malformed JSON is rejected (by the framework, `400 invalid_request`). A request without a JSON body fails with the generic `500`.
+**Invalid (also 200 OK):** an invalid config is a successful validation with a negative result, not an HTTP error. The route has no `400` of its own: only a request its schema rejects (malformed JSON, a missing body, a non-object `config`, a non-array `testPaths`) is a `400 invalid_request` (unreleased; before, a request without a JSON body failed with the generic `500`).
 
 ```json
 {
@@ -1640,7 +1642,7 @@ Registering replaces the source's previous rules, rebuilds the processor's rule 
 
 Virtual rules live in memory: a restart loses them and they must be registered again. A config reload rebuilds the processor's rule set from the config rules alone: registered virtual rules stay in the store (and in `GET /config`) but stop applying to processing until the next register or unregister call.
 
-**Errors (v0.20.0+; these were `500` before):** `400 invalid_request` when `source` is missing or empty (`error: "Missing required field: source"`), `rules` is not an array (`"Missing required field: rules (array)"`), a rule is not an object with a `name` (`"Every rule must be an object with a name"`), or the rules do not compile, for example two rules share a name or a `match` schema is invalid (`error: "Invalid rules"`, the compiler's explanation in `message`). Nothing is registered then.
+**Errors (v0.20.0+; these were `500` before):** `400 invalid_request` when `source` is missing or empty, `rules` is not an array or a rule is not an object with a `name` (request validation; unreleased, before which these read `"Missing required field: source"`, `"Missing required field: rules (array)"` and `"Every rule must be an object with a name"`), or the rules do not compile, for example two rules share a name or a `match` schema is invalid (`error: "Invalid rules"`, the compiler's explanation in `message`). Nothing is registered then.
 
 ---
 
@@ -1675,7 +1677,7 @@ curl -X DELETE http://localhost:1936/rules/unregister \
 }
 ```
 
-`removed` is `false` when the source had no rules. When rules were removed, the processor's rule set is rebuilt and, if the remaining virtual rules match on `file.path` globs, a file-only `rules` reindex runs as for registration. A missing or empty `source` is `400 invalid_request` (`error: "Missing required field: source"`; schema `rulesUnregisterRequestSchema`; v0.20.0+, was `500`).
+`removed` is `false` when the source had no rules. When rules were removed, the processor's rule set is rebuilt and, if the remaining virtual rules match on `file.path` globs, a file-only `rules` reindex runs as for registration. A missing or empty `source` is the request-validation `400 invalid_request` (schema `rulesUnregisterRequestSchema`; v0.20.0+, was `500`; unreleased, before which it read `error: "Missing required field: source"`).
 
 ---
 
@@ -1742,7 +1744,7 @@ Schema: `pointsDeleteRequestSchema` in `@karmaniverous/jeeves-watcher-core` (v0.
 
 `deleted` counts points. Unlike [`POST /documents/delete`](#post-documentsdelete), this route applies the filter as given, to file and source points alike, and does not refuse a condition-free filter: `{ "filter": {} }` deletes every point. Matching points are collected first, then deleted in batches.
 
-**Errors (v0.20.0+; these were `500` before):** `400 invalid_request` when `filter` is missing or not an object (`error: "Missing required field: filter (object)"`), or when Qdrant rejects it (`error: "Invalid filter"`). Nothing is deleted then.
+**Errors (v0.20.0+; these were `500` before):** `400 invalid_request` when `filter` is missing or not an object (request validation; unreleased, before which it read `error: "Missing required field: filter (object)"`), or when Qdrant rejects it (`error: "Invalid filter"`). Nothing is deleted then.
 
 ---
 
@@ -1768,7 +1770,7 @@ curl -X POST http://localhost:1936/rules/reapply \
 }
 ```
 
-Missing or empty `globs`, or an empty or non-string entry, is `400 invalid_request` (`error: "Missing required field: globs (non-empty string array)"`; schema `rulesReapplyRequestSchema`; v0.20.0+, was `500`).
+Missing or empty `globs`, or an empty or non-string entry, is the request-validation `400 invalid_request` (schema `rulesReapplyRequestSchema`; v0.20.0+, was `500`; unreleased, before which it read `error: "Missing required field: globs (non-empty string array)"`).
 
 ### Response
 
@@ -1803,7 +1805,7 @@ Missing or empty `globs`, or an empty or non-string entry, is `400 invalid_reque
 
 ## VCS Endpoints
 
-Version control endpoints for git-backed content history. Requires `vcs.enabled: true` in config: without it there are no VCS roots, so `GET /vcs/status` answers `{ "enabled": false, "roots": [] }` and the other VCS routes answer `404 not_found` (no matching watch root). See the [Version Control (VCS) Guide](./version-control.md) for architectural context, configuration, and operational details.
+Version control endpoints for git-backed content history. Requires `vcs.enabled: true` in config: without it there are no VCS roots, so `GET /vcs/status` answers `{ "enabled": false, "roots": [] }` and the other VCS routes answer `404 not_found` (no matching watch root). A server embedded without a VCS coordinator answers every VCS route as unregistered (see [Gated routes](#api-reference)). Every VCS route's query or body is validated by its catalog entry: a missing parameter is the request-validation `400` (unreleased; the `error` texts quoted below are the earlier ones, sent without `details`). See the [Version Control (VCS) Guide](./version-control.md) for architectural context, configuration, and operational details.
 
 ---
 
@@ -2149,13 +2151,13 @@ Since v0.20.0 every non-2xx response has this body (`apiErrorBodySchema` in `@ka
 
 - `code` is machine-readable and stable: branch on it. The list is `API_ERROR_CODES` in core (type `ApiErrorCode`); codes may be added, never repurposed.
 - `error` is the human-readable text earlier versions sent, unchanged, so older clients keep working. Do not parse it.
-- `message` (optional) adds detail; `details` (optional) holds structured data such as the Zod issues of a `400`.
+- `message` (optional) adds detail; `details` (optional) holds structured data such as the validation issues of a `400`.
 - `issueType` (optional) names the [issue code](#issue-codes) behind a failed render.
 - Some endpoints add fields of their own (`issues` on `POST /config/apply`).
-- The one body without `code` is the catalog's response-validation failure, `500 { "error": "Response validation failed" }` (see [Response validation](#api-reference)), which only a server bug produces.
+- The catalog's response-validation failure is `500 { "error": "Response validation failed", "code": "internal_error" }` (see [Response validation](#api-reference)), which only a server bug produces.
 - A route's status is derived from its `code` through `API_ERROR_STATUS` in core (the table below), so the same code always has the same status. The single exception is `not_available` from a prune without a vector store, which keeps its 0.19 status `400`. Requests rejected by the framework before reaching a route keep the framework's status: `401` maps to `unauthorized`, `404` to `not_found` (unknown route: `{ "code": "not_found", "error": "Not Found", "message": "Route POST:/nope not found" }`), any other 4xx to `invalid_request` (with the HTTP status text as `error` and the framework's explanation as `message`), and any 5xx to the generic `internal_error` body.
 - The CLI and the plugin's own tools report an error as one line, `HTTP <status> <code>: <message>`, where `<message>` is `error` plus `: <message>` when the body has a different `message` (`formatHttpError` in core).
-- The plugin's catalog-built tools (`watcher_status`, `watcher_config`, `watcher_config_apply`, `watcher_search`, `watcher_scan`, `watcher_vcs_show`) report `HTTP <status>: <body>` with the JSON body verbatim. On catalog routes an error body lists `error` before `code`.
+- The plugin's catalog-built tools (`watcher_status`, `watcher_config`, `watcher_config_apply`, `watcher_search`, `watcher_scan`, `watcher_vcs_show`) report `HTTP <status>: <body>` with the JSON body verbatim. Every route is now a catalog route, so every error body, including the gated `/vcs/*` `404`, lists `error` before `code` (unreleased; 0.20.0 listed `code` first on the routes outside the catalog). Parse the body as JSON rather than relying on key order.
 - A 5xx body never carries the underlying error (file paths, Qdrant or provider messages): the cause is logged and the body is the generic `internal_error` text below.
 - HTTP status changes in v0.20.0, all from `500` for what are client mistakes: invalid bodies of the rules routes and `POST /points/delete`, filters Qdrant rejects (`400`), and invalid `POST /reindex` path targets (`403` / `404` / `400`). Successful responses and every other status are unchanged.
 

@@ -245,7 +245,7 @@ The watcher provides a REST API (default port: 1936):
 | Endpoint | Method | Description |
 | --- | --- | --- |
 | `/status` | GET | Health check, uptime, collection (name, point count, dimensions), reindex and initial-scan state |
-| `/openapi.json` | GET | OpenAPI 3.1 document of the catalog routes (`/status`, `/config`, `/config/apply`, `/render`, `/search`, `/scan`, `/vcs/show`); open like `/status` |
+| `/openapi.json` | GET | OpenAPI 3.1 document of the catalog routes (every route above and below); open like `/status` |
 | `/search` | POST | Semantic search (`{ query: string, limit?: number, offset?: number, filter?: object }`; unknown keys are rejected) |
 | `/render` | POST | Render a document through inference rules (`{ path }` or `{ source }`) (v0.8.0+) |
 | `/search/facets` | GET | Schema-derived search facet definitions with live values (v0.8.0+) |
@@ -269,7 +269,7 @@ The watcher provides a REST API (default port: 1936):
 | `/points/delete` | POST | Delete points matching a Qdrant filter (`{ filter }`) |
 | `/vcs/*` | GET/POST | Version control: `status`, `history`, `show`, `diff`, `check-exclusion`, `revert`, `exclude` (see the [Version Control guide](packages/service/guides/version-control.md)) |
 
-Errors carry `{ error, code, message?, details? }`; the HTTP status follows from `code`, with one exception: a `prune` reindex without a vector store answers `400 not_available` (see [Error Handling](packages/service/guides/api-reference.md#error-handling)). The routes in the endpoint catalog (`WATCHER_CATALOG` in watcher-core) also validate their responses: a response that doesn't match its schema is a `500` that only a server bug produces.
+Errors carry `{ error, code, message?, details? }`; the HTTP status follows from `code`, with one exception: a `prune` reindex without a vector store answers `400 not_available` (see [Error Handling](packages/service/guides/api-reference.md#error-handling)). Every route is an entry of the endpoint catalog (`WATCHER_CATALOG` in watcher-core), which validates its request (an invalid one is `400 invalid_request` with one `details` entry per issue) and its response: a response that doesn't match its schema is a `500` that only a server bug produces.
 
 ### Example: Search
 

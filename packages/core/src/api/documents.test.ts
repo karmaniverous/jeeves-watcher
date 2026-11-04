@@ -86,7 +86,7 @@ describe('documentsQuerySchema', () => {
     [{ wait: 'true' }, true],
     [{ wait: '1' }, true],
     [{ wait: 'false' }, false],
-    [{ wait: true }, true],
+    [{ wait: '0' }, false],
   ])('parses %j', (query, expected) => {
     expect(documentsQuerySchema.parse(query).wait).toBe(expected);
   });
@@ -217,6 +217,14 @@ describe('documentsDeleteRequestSchema', () => {
   it.each([
     ['an empty body', {}],
     ['both forms', { sources: [doc.source], filter: {} }],
+    [
+      'both valid forms',
+      {
+        sources: [doc.source],
+        filter: { must: [{ key: 'a', match: { value: 1 } }] },
+      },
+    ],
+    ['an unknown key', { sources: [doc.source], extra: 1 }],
     ['empty sources', { sources: [] }],
     ['a malformed reference', { sources: ['bad'] }],
     ['a non-object filter', { filter: 'x' }],

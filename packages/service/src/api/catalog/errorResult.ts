@@ -15,7 +15,12 @@ import {
   isPlainObject,
 } from '@karmaniverous/jeeves-watcher-core';
 
-import { codeForStatus, INTERNAL_ERROR_MESSAGE } from '../sendError';
+import {
+  codeForStatus,
+  INTERNAL_ERROR_MESSAGE,
+  NOT_AVAILABLE,
+  SOURCES_NOT_SUPPORTED,
+} from '../sendError';
 
 /** Extra fields merged into the error body beyond `code` and `error`. */
 export type ErrorResultExtras = Record<string, unknown>;
@@ -64,6 +69,19 @@ export function errorResult(
 export function internalErrorResult(): CatalogErrorResult {
   return errorResult('internal_error', 'Internal Server Error', {
     message: INTERNAL_ERROR_MESSAGE,
+  });
+}
+
+/**
+ * The `503 not_available` result for a request that needs source-document
+ * support on an instance without it (no notify queue, or a processor
+ * adapted by `withoutSourceSupport`). Pure.
+ *
+ * @returns The status and error body.
+ */
+export function sourcesNotAvailableResult(): CatalogErrorResult {
+  return errorResult('not_available', NOT_AVAILABLE, {
+    message: SOURCES_NOT_SUPPORTED,
   });
 }
 

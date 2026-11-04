@@ -1,12 +1,12 @@
 /**
  * @module api/catalog/withCatalogCache.test
  * Behaviour of `withCatalogCache`: caches a success by entry name and
- * input and skips errors and `Cache-Control: no-cache` responses. Shares its store with `withCache`'s `clearCache`.
+ * input and skips errors and `Cache-Control: no-cache` responses. Its store is `api/responseCache`'s, emptied by its `clearCache`.
  */
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { clearCache } from '../handlers/withCache';
+import { clearCache } from '../responseCache';
 import { withCatalogCache } from './withCatalogCache';
 
 describe('withCatalogCache', () => {
@@ -161,7 +161,7 @@ describe('withCatalogCache', () => {
       expect(handler).toHaveBeenCalledTimes(2);
     });
 
-    it('is emptied by withCache clearCache', async () => {
+    it('is emptied by clearCache', async () => {
       clearCache();
       const handler = vi.fn(() => Promise.resolve({ status: 200, body: {} }));
       const cached = withCatalogCache('clear', 60_000, handler as never);

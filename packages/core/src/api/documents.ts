@@ -94,17 +94,17 @@ export const documentRejectionCodeSchema = z.enum([
 export type DocumentRejectionCode = z.infer<typeof documentRejectionCodeSchema>;
 
 /**
- * Query string for `POST /documents`. `wait` accepts a boolean or the strings
- * `true`/`false`/`1`/`0`.
+ * Query string for `POST /documents`. `wait` accepts the strings
+ * `true`/`false`/`1`/`0` (a query string never carries a JSON boolean).
  */
 export const documentsQuerySchema = z.object({
   /** Process synchronously and return per-document results. */
   wait: z
-    .union([
-      z.boolean(),
-      z.stringbool({ truthy: ['true', '1'], falsy: ['false', '0'] }),
-    ])
-    .optional(),
+    .stringbool({ truthy: ['true', '1'], falsy: ['false', '0'] })
+    .optional()
+    .describe(
+      'Process synchronously and answer 200 with per-document results: true or 1 (false or 0, the default, answers 202).',
+    ),
 });
 
 /** Query string for `POST /documents`. */
@@ -213,9 +213,13 @@ export type DocumentsResultsResponse = z.infer<
  * Qdrant filter with at least one condition (a condition-free filter such as
  * `{}` or `{ must: [] }` is rejected). The server constrains the filter to
  * points carrying `source` and no `file_path`.
+ *
+ * One strict object with both selectors optional and a refinement requiring
+ * exactly one, because a catalog body must be a single Zod object (spec
+ * Design 3). It accepts exactly the requests 0.20.0's two-shape union did.
  */
-export const documentsDeleteRequestSchema = z.union([
-  z.strictObject({
+export const documentsDeleteRequestSchema = z
+  .strictObject({
     /** References of the documents to delete: 1 to {@link MAX_DELETE_SOURCES_PER_REQUEST}. */
     sources: z
       .array(sourceReferenceSchema)
@@ -223,18 +227,30 @@ export const documentsDeleteRequestSchema = z.union([
       .max(
         MAX_DELETE_SOURCES_PER_REQUEST,
         `sources must contain at most ${String(MAX_DELETE_SOURCES_PER_REQUEST)} references`,
-      ),
-  }),
-  z.strictObject({
+      )
+      .optional(),
     /** Qdrant filter selecting the documents to delete (at least one condition). */
-    filter: nonEmptyQdrantFilterSchema,
-  }),
-]);
+    filter: nonEmptyQdrantFilterSchema.optional(),
+  })
+  .superRefine((val, ctx) => {
+    if ((val.sources === undefined) === (val.filter === undefined)) {
+      ctx.addIssue({
+        code: 'custom',
+        path: [],
+        message: 'Exactly one of sources or filter is required',
+      });
+    }
+  });
 
-/** Request body for `POST /documents/delete`. */
-export type DocumentsDeleteRequest = z.infer<
-  typeof documentsDeleteRequestSchema
->;
+/**
+ * Request body for `POST /documents/delete`: references or a filter, never
+ * both. Written out rather than inferred: inference sees the schema's two
+ * optional selectors, not the refinement requiring exactly one, so the
+ * handler casts its validated body to this type.
+ */
+export type DocumentsDeleteRequest =
+  | { sources: z.infer<typeof sourceReferenceSchema>[]; filter?: never }
+  | { filter: z.infer<typeof nonEmptyQdrantFilterSchema>; sources?: never };
 
 /** Response body for `POST /documents/delete`. */
 export const documentsDeleteResponseSchema = z.object({

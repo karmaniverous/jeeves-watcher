@@ -15,7 +15,7 @@ import { Writable } from 'node:stream';
 import pino from 'pino';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { createVcsStatusHandler } from '../api/handlers/vcs/vcsStatus';
+import { createCatalogVcsStatusHandler } from '../api/catalog/vcsStatusHandler';
 import type { JeevesWatcherConfig } from '../config/types';
 import {
   type DroppingRemote,
@@ -193,17 +193,8 @@ describe('access token redaction on failed push (#245)', () => {
     const [root] = coordinator.getRoots();
     await coordinator.getManager(root)?.flush();
 
-    const handler = createVcsStatusHandler({ coordinator, logger });
-    let body: unknown;
-    const reply = {
-      status: () => reply,
-      header: () => reply,
-      send: (data: unknown) => {
-        body = data;
-        return reply;
-      },
-    };
-    await handler({ query: {} } as never, reply as never);
+    const handler = createCatalogVcsStatusHandler({ coordinator, logger });
+    const { body } = await handler({} as never, {} as never);
     await coordinator.stop();
 
     const roots = (body as { roots: Array<{ pushErrors: unknown[] }> }).roots;

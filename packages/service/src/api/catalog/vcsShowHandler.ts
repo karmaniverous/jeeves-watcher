@@ -1,9 +1,8 @@
 /**
  * @module api/catalog/vcsShowHandler
  * Catalog handler for GET /vcs/show: file content at a specific commit.
- * With no VCS coordinator (VCS disabled), answers with today's exact
- * Fastify not-found body (`notFoundBody`, spec #281 D28) instead of a
- * route the catalog never fails to match.
+ * Built only while VCS is on; with VCS off, the feature gate
+ * (`api/featureGates`) answers first (spec D28, D50).
  */
 
 import { extname } from 'node:path';
@@ -12,10 +11,9 @@ import type { CatalogHandler } from '@karmaniverous/jeeves/fastify';
 
 import { resolveWatchRoot } from '../../vcs/resolveWatchRoot';
 import { runGit } from '../../vcs/runGit';
-import type { VcsCoordinator } from '../../vcs/VcsCoordinator';
 import type { Entry } from './catalogEntry';
 import { errorResult } from './errorResult';
-import { notFoundBody } from './notFoundBody';
+import type { CatalogVcsDeps } from './vcsDeps';
 
 const CONTENT_TYPES: Readonly<Record<string, string>> = {
   '.txt': 'text/plain',
@@ -44,29 +42,16 @@ function contentTypeFor(path: string): string {
   );
 }
 
-/** Dependencies for the catalog `vcsShow` entry's handler. */
-export interface CatalogVcsShowDeps {
-  /** VCS coordinator (tracked roots and git operations); absent when VCS is disabled. */
-  coordinator?: VcsCoordinator;
-}
-
 /**
  * Create the catalog handler for `GET /vcs/show`.
  *
- * @param deps - The VCS coordinator, when VCS is enabled.
+ * @param deps - The VCS coordinator.
  * @returns The catalog handler.
  */
 export function createCatalogVcsShowHandler(
-  deps: CatalogVcsShowDeps,
+  deps: Pick<CatalogVcsDeps, 'coordinator'>,
 ): CatalogHandler<Entry<'vcsShow'>> {
-  return async (input, request) => {
-    // Over HTTP, `registerCatalog`'s preValidation hook answers a VCS-off
-    // request first (so `HEAD` and an invalid query get the same 404); this
-    // guard keeps the handler total on its own.
-    if (!deps.coordinator) {
-      return { status: 404, body: notFoundBody(request.method, request.url) };
-    }
-
+  return async (input) => {
     const { path, commit } = input.query;
     const resolved = resolveWatchRoot(deps.coordinator, path);
     if (!resolved) {

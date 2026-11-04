@@ -1061,7 +1061,7 @@ If a tool fails with `HTTP 401` (`unauthorized`):
 - Ask the user to set `plugins.entries.jeeves-watcher-openclaw.config.apiKey` in `openclaw.json` (or the `JEEVES_WATCHER_API_KEY` environment variable of the gateway) to the service's `api.apiKey`. The tools read it on every call, so no restart is needed.
 - Never ask for, print or guess the key. `GET /status` and `GET /openapi.json` never need it.
 
-If a tool fails with `HTTP 500: {"error":"Response validation failed"}`, the watcher produced a response that doesn't match its own schema: a server bug. Report it with the request you made; retrying won't help.
+If a tool fails with `HTTP 500: {"error":"Response validation failed","code":"internal_error"}`, the watcher produced a response that doesn't match its own schema: a server bug. Report it with the request you made; retrying won't help.
 
 If tools are unavailable (plugin not loaded in this session):
 

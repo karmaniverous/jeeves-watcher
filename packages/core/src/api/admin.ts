@@ -69,3 +69,65 @@ export const rulesReapplyRequestSchema = z.object({
 
 /** POST /rules/reapply request body. */
 export type RulesReapplyRequest = z.infer<typeof rulesReapplyRequestSchema>;
+
+/** POST /points/delete response body: how many points were deleted. */
+export const pointsDeleteResponseSchema = z.object({
+  deleted: z.number().int().nonnegative(),
+});
+
+/** POST /points/delete response body. */
+export type PointsDeleteResponse = z.infer<typeof pointsDeleteResponseSchema>;
+
+/** POST /rules/register response body. */
+export const rulesRegisterResponseSchema = z.object({
+  source: z.string(),
+  registered: z.number().int().nonnegative(),
+  totalVirtualRules: z.number().int().nonnegative(),
+});
+
+/** POST /rules/register response body. */
+export type RulesRegisterResponse = z.infer<typeof rulesRegisterResponseSchema>;
+
+/** Response body of both rule unregister routes. */
+export const rulesUnregisterResponseSchema = z.object({
+  source: z.string(),
+  removed: z.boolean(),
+});
+
+/** Response body of both rule unregister routes. */
+export type RulesUnregisterResponse = z.infer<
+  typeof rulesUnregisterResponseSchema
+>;
+
+/** Path parameters of DELETE /rules/unregister/:source. */
+export const rulesUnregisterParamsSchema = z.object({
+  source: ruleSourceSchema,
+});
+
+/** Path parameters of DELETE /rules/unregister/:source. */
+export type RulesUnregisterParams = z.infer<typeof rulesUnregisterParamsSchema>;
+
+/** POST /rules/reapply response body. */
+export const rulesReapplyResponseSchema = z.object({
+  matched: z.number().int().nonnegative(),
+  updated: z.number().int().nonnegative(),
+});
+
+/** POST /rules/reapply response body. */
+export type RulesReapplyResponse = z.infer<typeof rulesReapplyResponseSchema>;
+
+/** POST /rebuild-metadata request body: takes no fields. */
+export const rebuildMetadataRequestSchema = z.object({});
+
+/** POST /rebuild-metadata request body. */
+export type RebuildMetadataRequest = z.infer<
+  typeof rebuildMetadataRequestSchema
+>;
+
+/** POST /rebuild-metadata response body. */
+export const rebuildMetadataResponseSchema = z.object({ ok: z.literal(true) });
+
+/** POST /rebuild-metadata response body. */
+export type RebuildMetadataResponse = z.infer<
+  typeof rebuildMetadataResponseSchema
+>;

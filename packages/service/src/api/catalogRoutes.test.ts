@@ -7,13 +7,10 @@ import { createCatalogClient } from '@karmaniverous/jeeves/catalog';
 import { WATCHER_CATALOG } from '@karmaniverous/jeeves-watcher-core';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
-import { injectScenario, WIRE_SCENARIOS } from '../test/wire/scenarios';
-import {
-  startWireApp,
-  VCS_FILES,
-  WIRE_KEY,
-  type WireApp,
-} from '../test/wire/wireApp';
+import { WIRE_SCENARIOS } from '../test/wire/scenarios';
+import { startWireApp, VCS_FILES, type WireApp } from '../test/wire/wireApp';
+import { injectScenario } from '../test/wire/wireRun';
+import { WIRE_KEY } from '../test/wire/wireStubs';
 import type * as CatalogModule from './catalog';
 
 /** What a catalog handler resolves to, as far as these tests look. */

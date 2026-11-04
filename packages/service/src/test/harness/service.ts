@@ -26,7 +26,7 @@ import { createLogger } from '../../logger';
 import { DocumentProcessor } from '../../processor';
 import { EventQueue } from '../../queue';
 import type { SourceNotifyQueue } from '../../queue/SourceNotifyQueue';
-import { compileRules } from '../../rules';
+import { compileRules, VirtualRuleStore } from '../../rules';
 import { buildTemplateEngine } from '../../templates';
 import { ValuesManager } from '../../values';
 import { VectorStoreClient } from '../../vectorStore';
@@ -213,6 +213,7 @@ async function setUp(
     issuesManager,
     valuesManager,
     enrichmentStore,
+    virtualRuleStore: new VirtualRuleStore(),
     configPath: join(stateDir, 'jeeves-watcher.config.json'),
   });
   cleanup.push(() => app.close());

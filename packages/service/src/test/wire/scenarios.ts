@@ -1,11 +1,10 @@
 /**
  * @module test/wire/scenarios
- * Wire scenarios for the catalog slice routes (status, config, config apply, render, search, scan, vcs/show) and a recorder that captures status, the headers clients see and the body, normalising volatile values. Drives a {@link WireApp}; no assertions.
+ * Wire scenarios: the Phase 1 routes (status, config, config apply, render, search, scan, vcs/show) here, the other routes in `scenariosCompletion`, and the shape of a recorded reply (`WireRecord`). Run by `wireRun`; no assertions.
  */
 
-import type { LightMyRequestResponse } from 'fastify';
-
-import { WIRE_AUTH, type WireApp, type WireState } from './wireApp';
+import { CATALOG_COMPLETION_SCENARIOS } from './scenariosCompletion';
+import type { WireState } from './wireStubs';
 
 /** What a client sees for one request. */
 export interface WireRecord {
@@ -29,8 +28,10 @@ export interface WireScenario {
   state?: Partial<WireState>;
   /** Use the server without a VCS coordinator. */
   withoutVcs?: boolean;
+  /** Use the server without a source notify queue. */
+  withoutSourceQueue?: boolean;
   /** HTTP method. */
-  method: 'GET' | 'HEAD' | 'POST';
+  method: 'GET' | 'HEAD' | 'POST' | 'DELETE';
   /** URL; `{root}` and `{commit}` are filled from the wire app. */
   url: string;
   /** JSON body. */
@@ -182,97 +183,5 @@ export const WIRE_SCENARIOS: readonly WireScenario[] = [
   get('vcsShow without vcs, missing params', '/vcs/show', {
     withoutVcs: true,
   }),
+  ...CATALOG_COMPLETION_SCENARIOS,
 ];
-
-/**
- * Replace volatile values: status uptime, the temp root and commit hash.
- *
- * @param text - Serialised body.
- * @param wire - The wire app.
- * @returns The normalised text.
- */
-function normalise(text: string, wire: WireApp): string {
-  return text
-    .split(wire.vcsRoot)
-    .join('{root}')
-    .split(wire.commit)
-    .join('{commit}')
-    .replace(/"uptime":\d+/g, '"uptime":0');
-}
-
-/**
- * Record what a client sees.
- *
- * @param res - Injected response.
- * @param wire - The wire app.
- * @param raw - Keep the body as text even when it is JSON (file bytes).
- * @returns The record.
- */
-function record(
-  res: LightMyRequestResponse,
-  wire: WireApp,
-  raw: boolean,
-): WireRecord {
-  const header = (name: string) => {
-    const value = res.headers[name];
-    return value === undefined ? undefined : String(value);
-  };
-  const contentType = header('content-type');
-  const text = normalise(res.body, wire);
-  const isJson =
-    !raw && contentType?.startsWith('application/json') && text !== '';
-  return {
-    status: res.statusCode,
-    ...(contentType ? { contentType } : {}),
-    ...(header('cache-control')
-      ? { cacheControl: header('cache-control') }
-      : {}),
-    ...(header('retry-after') ? { retryAfter: header('retry-after') } : {}),
-    body: isJson ? (JSON.parse(text) as unknown) : text,
-  };
-}
-
-/**
- * Run one scenario (authenticated) from a reset state and return the raw
- * reply.
- *
- * @param wire - The wire app.
- * @param scenario - The scenario.
- * @returns The Fastify inject response.
- */
-export async function injectScenario(
-  wire: WireApp,
-  scenario: WireScenario,
-): Promise<LightMyRequestResponse> {
-  await wire.reset();
-  Object.assign(wire.state, scenario.state);
-  const url = scenario.url
-    .replace('{root}', wire.vcsRoot)
-    .replace('{commit}', wire.commit);
-  const app = scenario.withoutVcs ? wire.appWithoutVcs : wire.app;
-  return app.inject({
-    method: scenario.method,
-    url,
-    headers: WIRE_AUTH,
-    ...(scenario.payload === undefined
-      ? {}
-      : { payload: scenario.payload as object }),
-  });
-}
-
-/**
- * Run one scenario (authenticated) and record the reply.
- *
- * @param wire - The wire app.
- * @param scenario - The scenario.
- * @returns The record.
- */
-export async function runScenario(
-  wire: WireApp,
-  scenario: WireScenario,
-): Promise<WireRecord> {
-  const res = await injectScenario(wire, scenario);
-  // A successful /vcs/show body is file content: compare its exact bytes.
-  const raw = res.statusCode < 400 && scenario.url.startsWith('/vcs/show');
-  return record(res, wire, raw);
-}

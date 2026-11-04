@@ -1,6 +1,6 @@
 /**
  * @module api/requestError
- * Client-input errors thrown by route handlers (`RequestError`, sent by `wrapHandler` with its code and the code's status) and the mapping of Qdrant request rejections (bad filters) to `400 invalid_request`. Pure.
+ * Client-input errors thrown by route handlers (`RequestError`, sent by `wrapCatalogHandler` with its code and the code's status) and the mapping of Qdrant request rejections (bad filters) to `400 invalid_request`. Pure.
  */
 
 import {
@@ -11,7 +11,7 @@ import {
 import type { ApiErrorExtras } from './sendError';
 
 /**
- * An error caused by the request, not by the service: `wrapHandler` sends it
+ * An error caused by the request, not by the service: `wrapCatalogHandler` sends it
  * as `{ code, error: message, ...extras }` with the status core assigns to
  * its code (`API_ERROR_STATUS`).
  */

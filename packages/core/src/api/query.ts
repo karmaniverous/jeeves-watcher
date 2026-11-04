@@ -136,3 +136,40 @@ export const scanResponseSchema = z.union([
 
 /** Response body for `POST /scan`. */
 export type ScanResponse = z.infer<typeof scanResponseSchema>;
+
+/** Request body for `POST /walk`. */
+export const walkRequestSchema = z.object({
+  globs: z
+    .array(z.string())
+    .min(1)
+    .describe('Globs matched against the watched files.'),
+});
+
+/** Request body for `POST /walk`. */
+export type WalkRequest = z.infer<typeof walkRequestSchema>;
+
+/** Response body for `POST /walk`. */
+export const walkResponseSchema = z.object({
+  paths: z.array(z.string()),
+  matchedCount: z.number().int().nonnegative(),
+  scannedRoots: z.array(z.string()),
+});
+
+/** Response body for `POST /walk`. */
+export type WalkResponse = z.infer<typeof walkResponseSchema>;
+
+/** Response body for `GET /search/facets`: the facetable fields and their values. */
+export const listFacetsResponseSchema = z.object({
+  facets: z.array(
+    z.object({
+      field: z.string(),
+      type: z.string(),
+      uiHint: z.string(),
+      values: z.array(z.unknown()),
+      rules: z.array(z.string()),
+    }),
+  ),
+});
+
+/** Response body for `GET /search/facets`. */
+export type ListFacetsResponse = z.infer<typeof listFacetsResponseSchema>;

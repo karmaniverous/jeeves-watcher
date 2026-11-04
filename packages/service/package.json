@@ -8,7 +8,7 @@
   },
   "dependencies": {
     "@commander-js/extra-typings": "^15.0.0",
-    "@karmaniverous/jeeves": "0.8.0",
+    "@karmaniverous/jeeves": "0.9.0-0",
     "@karmaniverous/jeeves-watcher-core": "^0.5.0-0",
     "@karmaniverous/jsonmap": "^2.1.1",
     "@langchain/textsplitters": "*",
@@ -49,19 +49,19 @@
     "@types/fs-extra": "^11.0.4",
     "@types/node": "^26.6.6",
     "@types/picomatch": "^4.0.3",
-    "@vitest/coverage-v8": "^5.0.5",
+    "@vitest/coverage-v8": "^5.1.0",
     "cross-env": "^10.1.0",
     "fs-extra": "^11.4.1",
     "happy-dom": "^21.0.4",
-    "knip": "^6.44.0",
+    "knip": "^6.44.1",
     "release-it": "^21.1.2",
-    "rollup": "^4.67.2",
+    "rollup": "^4.67.4",
     "rollup-plugin-dts": "^6.5.1",
     "tslib": "^2.9.1",
     "typedoc": "^0.28.20",
     "typedoc-plugin-mdn-links": "^5.1.1",
     "typedoc-plugin-replace-text": "^4.2.0",
-    "vitest": "^5.0.5"
+    "vitest": "^5.1.0"
   },
   "engines": {
     "node": ">=22.13"
@@ -152,6 +152,7 @@
     "release": "dotenvx run -f .env.local -- release-it",
     "release:pre": "dotenvx run -f .env.local -- release-it --no-git.requireBranch --github.preRelease --preRelease",
     "test": "vitest run",
+    "wire:capture": "node scripts/capture-wire-0.20.0.mjs",
     "typecheck": "tsc"
   },
   "type": "module",

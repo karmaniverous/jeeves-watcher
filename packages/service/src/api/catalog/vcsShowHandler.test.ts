@@ -1,8 +1,8 @@
 /**
  * @module api/catalog/vcsShowHandler.test
- * `createCatalogVcsShowHandler`: file content at a commit, 404s for an
- * unknown root or missing file, and today's exact not-found body when VCS
- * is disabled (D28).
+ * `createCatalogVcsShowHandler`: file content at a commit, and 404s for an
+ * unknown root or missing file. VCS off is the feature gate's
+ * (`api/featureGates.test`).
  */
 
 import { rm } from 'node:fs/promises';
@@ -83,24 +83,6 @@ describe('createCatalogVcsShowHandler', () => {
     expect(result.body).toMatchObject({
       code: 'not_found',
       error: 'Path does not match any VCS-enabled watch root',
-    });
-  });
-
-  it('answers with the exact Fastify not-found body when VCS is disabled', async () => {
-    const handler = createCatalogVcsShowHandler({});
-
-    const result = await handler(
-      input({ path: rootA + '/hello.txt', commit: 'HEAD' }),
-      request('GET', '/vcs/show?path=x&commit=HEAD'),
-    );
-
-    expect(result).toEqual({
-      status: 404,
-      body: {
-        code: 'not_found',
-        error: 'Not Found',
-        message: 'Route GET:/vcs/show?path=x&commit=HEAD not found',
-      },
     });
   });
 });

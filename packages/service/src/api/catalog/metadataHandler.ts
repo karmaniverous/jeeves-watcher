@@ -1,0 +1,110 @@
+/**
+ * @module api/catalog/metadataHandler
+ * Catalog handler for `POST /metadata`: enrichment metadata updates via the document processor, for a file path or a source reference. The request is validated by the catalog's `metadata` entry schema; the metadata itself is validated here against the target's rule schemas.
+ */
+
+import type { CatalogHandler } from '@karmaniverous/jeeves/fastify';
+import {
+  documentTarget,
+  type MetadataResponse,
+} from '@karmaniverous/jeeves-watcher-core';
+import type pino from 'pino';
+
+import type { JeevesWatcherConfig } from '../../config/types';
+import type { WatcherProcessor } from '../../processor';
+import {
+  validateMetadataPayload,
+  validateSourceMetadataPayload,
+} from '../handlers/metadataValidation';
+import { invalidRequest, RequestError } from '../requestError';
+import type { Entry } from './catalogEntry';
+import { wrapCatalogHandler } from './wrapCatalogHandler';
+
+/** Dependencies for the catalog `metadata` entry's handler. */
+export interface CatalogMetadataDeps {
+  /** Document processor. */
+  processor: WatcherProcessor;
+  /** Live config getter. */
+  getConfig: () => JeevesWatcherConfig;
+  /** Logger. */
+  logger: pino.Logger;
+  /** Config directory (schema file references). */
+  configDir?: string;
+}
+
+/** The `404 source_not_indexed` error. */
+const notIndexed = () =>
+  new RequestError('source_not_indexed', 'Source document not indexed');
+
+/** The `400 invalid_request` error for failed metadata validation. */
+const invalid = (validation: { error: string; details?: unknown }) =>
+  invalidRequest(validation.error, { details: validation.details });
+
+/**
+ * Enrich a source document. The designated rule comes from the stored
+ * chunk-0 point (`404` when not indexed; nothing is stored then) and the
+ * metadata is validated against that rule's schema, resolved by the
+ * processor's own lookup (config or virtual rule).
+ *
+ * @param deps - Handler dependencies.
+ * @param ref - The exact `<name>://<id>` reference.
+ * @param metadata - Enrichment metadata.
+ * @returns The response body.
+ * @throws RequestError `404 source_not_indexed` or `400 invalid_request`.
+ */
+async function updateSourceMetadata(
+  deps: CatalogMetadataDeps,
+  ref: string,
+  metadata: Record<string, unknown>,
+): Promise<MetadataResponse> {
+  const ops = deps.processor.sourceOperations();
+  const rule = await ops.storedRule(ref);
+  if (rule === null) throw notIndexed();
+  const validation = validateSourceMetadataPayload(
+    deps.getConfig(),
+    ops.compiledRule(rule),
+    metadata,
+    deps.configDir,
+  );
+  if (!validation.ok) throw invalid(validation);
+  if ((await ops.updateMetadata(ref, metadata)) === null) throw notIndexed();
+  return { ok: true, matched_rules: validation.matchedRules };
+}
+
+/**
+ * Create the catalog handler for `POST /metadata` (`path` or `source`).
+ * Values that do not match the declared property types are
+ * `400 invalid_request` with per-property `details`.
+ *
+ * @param deps - Handler dependencies.
+ * @returns The catalog handler.
+ */
+export function createCatalogMetadataHandler(
+  deps: CatalogMetadataDeps,
+): CatalogHandler<Entry<'metadata'>> {
+  return wrapCatalogHandler<Entry<'metadata'>>(
+    async (input) => {
+      const { metadata } = input.body;
+      const target = documentTarget(input.body);
+      if (target.kind === 'source') {
+        return {
+          body: await updateSourceMetadata(deps, target.source, metadata),
+        };
+      }
+      const { path } = target;
+
+      const validation = validateMetadataPayload(
+        deps.getConfig(),
+        path,
+        metadata,
+        deps.configDir,
+      );
+      if (!validation.ok) throw invalid(validation);
+
+      await deps.processor.processMetadataUpdate(path, metadata);
+      return { body: { ok: true, matched_rules: validation.matchedRules } };
+    },
+    deps.logger,
+    'Metadata update',
+  );
+}

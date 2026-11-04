@@ -100,31 +100,6 @@ export function sendErrorWithStatus<R extends ErrorReply>(
 }
 
 /**
- * Send `500 internal_error` with generic text. The caller logs the error;
- * it is never sent.
- *
- * @param reply - Fastify reply.
- * @returns The reply.
- */
-export function sendInternalError<R extends ErrorReply>(reply: R): R {
-  return sendError(reply, 'internal_error', 'Internal Server Error', {
-    message: INTERNAL_ERROR_MESSAGE,
-  });
-}
-
-/**
- * Send `503 not_available` for a processor without source-document support.
- *
- * @param reply - Fastify reply.
- * @returns The reply.
- */
-export function sendSourcesNotAvailable<R extends ErrorReply>(reply: R): R {
-  return sendError(reply, 'not_available', NOT_AVAILABLE, {
-    message: SOURCES_NOT_SUPPORTED,
-  });
-}
-
-/**
  * Generic code for a status when nothing more specific is known (framework
  * errors, results of shared core handlers). Pure.
  *

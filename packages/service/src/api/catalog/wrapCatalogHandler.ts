@@ -3,8 +3,8 @@
  * Generic error-handling wrapper for catalog handlers (`CatalogHandler<E>`
  * from `@karmaniverous/jeeves/fastify`): a thrown `RequestError` becomes its
  * `errorResult` (code and status); anything else is logged and answered
- * with a generic `internal_error`. Mirrors `wrapHandler`, but for a function
- * that returns a value instead of sending a Fastify reply.
+ * with a generic `internal_error`. The wrapped function returns its body
+ * instead of sending a Fastify reply.
  */
 
 import type { CatalogEntry } from '@karmaniverous/jeeves/catalog';

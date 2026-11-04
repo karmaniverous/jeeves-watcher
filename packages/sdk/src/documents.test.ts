@@ -125,7 +125,8 @@ describe('documents.delete', () => {
   it('rejects both forms at once, and empty sources', async () => {
     const { watcher, mock } = client({ body: { deleted: 0 } });
     await expect(
-      watcher.documents.delete({ sources: [DOC.source], filter: {} }),
+      // The type forbids both selectors; untyped callers still hit the schema.
+      watcher.documents.delete({ sources: [DOC.source], filter: {} } as never),
     ).rejects.toMatchObject({ code: 'invalid_request' });
     await expect(
       watcher.documents.delete({ sources: [] }),

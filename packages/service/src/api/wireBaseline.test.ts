@@ -1,6 +1,6 @@
 /**
  * @module api/wireBaseline.test
- * Wire baseline for the catalog slice routes: every scenario in `test/wire/scenarios` is replayed through the real server and must match what jeeves-watcher 0.20.0 sent (`test/wire/wire-0.20.0.json`), apart from the documented changes listed here.
+ * Wire baseline for every catalog route: every scenario in `test/wire/scenarios` is replayed through the real server and must match what jeeves-watcher 0.20.0 sent (`test/wire/wire-0.20.0.json`), apart from the documented changes listed here.
  *
  * The only changes are request-validation 400s, which the catalog now
  * produces (`test/wire/wire-catalog-400.json`): still `400 invalid_request`,
@@ -13,12 +13,9 @@ import { readFileSync } from 'node:fs';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { captureLogger, RESPONSE_MISMATCH } from '../test/wire/captureLogger';
-import {
-  runScenario,
-  WIRE_SCENARIOS,
-  type WireRecord,
-} from '../test/wire/scenarios';
+import { WIRE_SCENARIOS, type WireRecord } from '../test/wire/scenarios';
 import { startWireApp, type WireApp } from '../test/wire/wireApp';
+import { runScenario } from '../test/wire/wireRun';
 
 const baseline = JSON.parse(
   readFileSync(
@@ -62,7 +59,7 @@ afterAll(async () => {
   await wire.close();
 });
 
-describe('slice routes keep the 0.20.0 wire format', () => {
+describe('catalog routes keep the 0.20.0 wire format', () => {
   it('has a baseline for every scenario and no stale ones', () => {
     expect(Object.keys(baseline).sort()).toEqual(
       WIRE_SCENARIOS.map((s) => s.name).sort(),

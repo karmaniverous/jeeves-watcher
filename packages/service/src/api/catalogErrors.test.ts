@@ -6,6 +6,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import type { JeevesWatcherConfig } from '../config/types';
+import { VirtualRuleStore } from '../rules/virtualRules';
 import { captureLogger } from '../test/wire/captureLogger';
 import type { ApiServerOptions } from './apiServerOptions';
 import { createApiServer } from './index';
@@ -34,6 +35,7 @@ const options = {
     },
   },
   valuesManager: { getAll: () => ({}), getForRule: () => ({}) },
+  virtualRuleStore: new VirtualRuleStore(),
 } as unknown as ApiServerOptions;
 
 let app: ReturnType<typeof createApiServer>;
