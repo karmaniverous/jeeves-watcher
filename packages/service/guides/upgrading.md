@@ -10,7 +10,7 @@ What changes for an existing deployment, release by release. The [Changelog](../
 
 ### Logging
 
-- **`logging.file` now rotates by default** (10 MB, daily, 14 files kept). Every file, the active one included, is named `<name>.<yyyy-MM-dd>.<n>.<ext>` (`watcher.2026-11-04.1.log` for `watcher.log`), so a plain `watcher.log` is no longer written. Point anything that tails the log at the newest file by modification time.
+- **`logging.file` now rotates by default** (10 MB, daily, 14 rotated files kept plus the active one). Every file, the active one included, is named `<name>.<yyyy-MM-dd>.<n>.<ext>` (`watcher.2026-11-04.1.log` for `watcher.log`), so a plain `watcher.log` is no longer written. Point anything that tails the log at the newest file by modification time.
 - Rotation deletes older files matching that name pattern, so keep the log in a folder of its own.
 - If you rotate the file externally (logrotate), either remove that rotation or set `logging.rotation: false` to keep one plain file.
 - See [Configuration](./configuration.md#logging---logging-configuration).

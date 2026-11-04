@@ -648,7 +648,7 @@ The callback body is `{ scope, filesProcessed, durationMs, errors, sources? }`: 
 | `rotation` | `object \| false` | see below | Rotation of `file`; `false` writes one file without rotation. |
 | `rotation.maxSize` | `number \| string` | `"10m"` | Rotate when the file reaches this size: bytes, or a string with a `k`, `m` or `g` suffix (binary units). |
 | `rotation.frequency` | `"daily" \| "hourly" \| number` | `"daily"` | Also rotate on this schedule (a number is milliseconds). |
-| `rotation.maxFiles` | `number` | `14` | Rotated files kept besides the active one; older ones, including those of earlier runs, are deleted. |
+| `rotation.maxFiles` | `number` | `14` | Rotated files kept in addition to the active one, so up to `maxFiles + 1` files remain; older ones, including those of earlier runs, are deleted. |
 
 Uses structured JSON logging via [pino](https://github.com/pinojs/pino). With `file`, logs rotate through [pino-roll](https://github.com/mcollina/pino-roll):
 

@@ -545,7 +545,7 @@ pino writes numeric levels (`30` = info, `40` = warn, `50` = error). Output goes
 
 **Parse with standard tools:** jq, Splunk, ELK stack, etc.
 
-**Log rotation:** The watcher rotates `logging.file` itself (`logging.rotation`, on by default: 10 MB, daily, 14 files). Every file, the active one included, is named `<name>.<date>.<n>.<ext>`, so tail the newest by modification time. Put the file in a folder of its own: rotation deletes older files that match the name pattern. Set `logging.rotation: false` to keep one plain file and rotate it externally (logrotate on Linux). Without `logging.file`, logs go to stdout, which NSSM can rotate on Windows. See [Configuration](./configuration.md#logging---logging-configuration).
+**Log rotation:** The watcher rotates `logging.file` itself (`logging.rotation`, on by default: 10 MB, daily, 14 rotated files plus the active one). Every file, the active one included, is named `<name>.<date>.<n>.<ext>`, so tail the newest by modification time. Put the file in a folder of its own: rotation deletes older files that match the name pattern. Set `logging.rotation: false` to keep one plain file and rotate it externally (logrotate on Linux). Without `logging.file`, logs go to stdout, which NSSM can rotate on Windows. See [Configuration](./configuration.md#logging---logging-configuration).
 
 ### Alerts
 

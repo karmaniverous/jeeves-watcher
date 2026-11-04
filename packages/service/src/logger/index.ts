@@ -39,11 +39,8 @@ export function rollOptions(
     size: `${String(parseByteSize(maxSize))}b`,
     frequency: rotation.frequency ?? LOGGING_ROTATION_DEFAULTS.frequency,
     dateFormat: 'yyyy-MM-dd',
-    // pino-roll documents `count` as files besides the active one, but with
-    // removeOtherLogFiles its cleanup (lib/utils.js) keeps `count` files of
-    // whatever the folder lists, and it lists while the new file is still
-    // opening: in practice `count` rotated files remain besides the active one
-    // (D159).
+    // pino-roll keeps `count` rotated files in addition to the active one, so
+    // maxFiles: N leaves up to N + 1 files (D184, amending D93/D159).
     limit: {
       count: rotation.maxFiles ?? LOGGING_ROTATION_DEFAULTS.maxFiles,
       removeOtherLogFiles: true,

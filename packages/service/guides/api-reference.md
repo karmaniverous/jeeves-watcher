@@ -2031,6 +2031,8 @@ curl -X POST http://localhost:1936/vcs/revert \
 | `restored` | `number` | Number of files restored. |
 | `files` | `string[]` | Absolute paths (forward slashes) of restored files. |
 
+`existingOnly` must be a JSON boolean; anything else answers `400 invalid_request` (unreleased, D183: 0.20.0 read any truthy value, so `"false"` acted as `true`).
+
 #### Behavior
 
 1. Lists the files at the specified commit with `git ls-tree -r --name-only {commit} -- {root-relative glob}` (the whole tree when the glob is a root itself)
@@ -2095,7 +2097,7 @@ Splits the root-relative glob at its first segment containing a wildcard into a 
 
 #### Errors
 
-`400 invalid_request` without `glob` (`"Missing required body parameter: glob"`). `404 not_found` when `root` is not a VCS root (`"Root is not a VCS-enabled watch root"`), when no VCS root contains the glob (`"Glob does not match any VCS-enabled watch root"`), or, for `remove`, when the `.gitignore` does not exist (`"No .gitignore found at the expected location"`) or does not contain the pattern (`"Pattern not found in .gitignore"`).
+`400 invalid_request` without `glob` (`"Missing required body parameter: glob"`), or when `remove` is not a JSON boolean (unreleased, D183: 0.20.0 read any truthy value, so `"false"` acted as `true`). `404 not_found` when `root` is not a VCS root (`"Root is not a VCS-enabled watch root"`), when no VCS root contains the glob (`"Glob does not match any VCS-enabled watch root"`), or, for `remove`, when the `.gitignore` does not exist (`"No .gitignore found at the expected location"`) or does not contain the pattern (`"Pattern not found in .gitignore"`).
 
 ---
 
@@ -2164,7 +2166,7 @@ Since v0.20.0 every non-2xx response has this body (`apiErrorBodySchema` in `@ka
 - The catalog's response-validation failure is `500 { "error": "Response validation failed", "code": "internal_error" }` (see [Response validation](#api-reference)), which only a server bug produces.
 - A route's status is derived from its `code` through `API_ERROR_STATUS` in core (the table below), so the same code always has the same status. The single exception is `not_available` from a prune without a vector store, which keeps its 0.19 status `400`. Requests rejected by the framework before reaching a route keep the framework's status: `401` maps to `unauthorized`, `404` to `not_found` (unknown route: `{ "code": "not_found", "error": "Not Found", "message": "Route POST:/nope not found" }`), any other 4xx to `invalid_request` (with the HTTP status text as `error` and the framework's explanation as `message`), and any 5xx to the generic `internal_error` body.
 - The CLI and the plugin's own tools report an error as one line, `HTTP <status> <code>: <message>`, where `<message>` is `error` plus `: <message>` when the body has a different `message` (`formatHttpError` in core).
-- The plugin's catalog-built tools (`watcher_status`, `watcher_config`, `watcher_config_apply`, `watcher_search`, `watcher_scan`, `watcher_vcs_show`) report `HTTP <status>: <body>` with the JSON body verbatim. Every route is now a catalog route, so every error body, including the gated `/vcs/*` `404`, lists `error` before `code` (unreleased; 0.20.0 listed `code` first on the routes outside the catalog). Parse the body as JSON rather than relying on key order.
+- The plugin's catalog-built tools (`watcher_status`, `watcher_config`, `watcher_config_apply`, `watcher_search`, `watcher_scan`, `watcher_vcs_show`) report `HTTP <status>: <body>` with the JSON body verbatim. Every route is now a catalog route, so every error body, including the gated `/vcs/*` `404`, lists `error` before `code` (unreleased, D182; 0.20.0 listed `code` first on the routes outside the catalog). Parse the body as JSON rather than relying on key order.
 - A 5xx body never carries the underlying error (file paths, Qdrant or provider messages): the cause is logged and the body is the generic `internal_error` text below.
 - HTTP status changes in v0.20.0, all from `500` for what are client mistakes: invalid bodies of the rules routes and `POST /points/delete`, filters Qdrant rejects (`400`), and invalid `POST /reindex` path targets (`403` / `404` / `400`). Successful responses and every other status are unchanged.
 

@@ -161,13 +161,15 @@ export const logRotationConfigSchema = z.object({
     .describe(
       'Also rotate "daily", "hourly", or every N milliseconds. Default: "daily".',
     ),
-  /** Rotated files kept beside the active one. */
+  /** Rotated files kept in addition to the active one (up to N + 1 files, D184). */
   maxFiles: z
     .number()
     .int()
     .min(1)
     .optional()
-    .describe('Number of rotated log files kept. Default: 14.'),
+    .describe(
+      'Number of rotated log files kept in addition to the active one, so up to maxFiles + 1 files remain. Default: 14.',
+    ),
 });
 
 /** Log file rotation settings. */

@@ -1,6 +1,6 @@
 /**
  * @module logger/index.test
- * Logger creation and rotation (D171): pino-roll options (`1k` becomes `1024b`), rotation at 1,024 bytes, `maxFiles: 2` holding across restarts and rotations, a plain destination with rotation off, and refusals reaching the file and stderr. Real files in temp folders.
+ * Logger creation and rotation (D171): pino-roll options (`1k` becomes `1024b`), rotation at 1,024 bytes, `maxFiles: 2` leaving 2 rotated files plus the active one across restarts and rotations (D184), a plain destination with rotation off, and refusals reaching the file and stderr. Real files in temp folders.
  */
 
 import { mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises';
@@ -126,11 +126,8 @@ describe('createLogger', () => {
       await close(logger);
     }
 
-    // pino-roll lists the folder while the new file is still opening, so the
-    // active file is usually not counted: maxFiles + 1 remain (3 here).
-    const remaining = (await logFiles()).length;
-    expect(remaining).toBeGreaterThanOrEqual(2);
-    expect(remaining).toBeLessThanOrEqual(3);
+    // D184: maxFiles rotated files plus the active one remain after a roll.
+    expect(await logFiles()).toHaveLength(2 + 1);
     expect(await readFile(join(dir, 'unrelated.txt'), 'utf8')).toBe('keep me');
   }, 30_000);
 });
