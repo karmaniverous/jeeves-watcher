@@ -9,7 +9,7 @@
 
 import { rm } from 'node:fs/promises';
 
-import { normalizePathCase } from './gitExec';
+import { getErrorCode, normalizePathCase } from './gitExec';
 import { gitForceRemove, gitRmCached } from './gitIndex';
 import { runGit } from './runGit';
 import {
@@ -51,7 +51,8 @@ export interface UntrackResult {
 }
 
 /**
- * HEAD's commit, or undefined when HEAD is unborn.
+ * HEAD's commit, or undefined when HEAD is unborn (`rev-parse --verify -q`
+ * exits 1). Any other failure (a timeout) is rethrown.
  *
  * @param root - Repository root.
  * @returns The full hash, or undefined.
@@ -65,8 +66,9 @@ export async function readHead(root: string): Promise<string | undefined> {
       'HEAD',
     ]);
     return stdout.trim() || undefined;
-  } catch {
-    return undefined;
+  } catch (error) {
+    if (getErrorCode(error) === 1) return undefined;
+    throw error;
   }
 }
 

@@ -16,6 +16,7 @@ import type pino from 'pino';
 import { z } from 'zod';
 
 import { normalizeError } from '../util/normalizeError';
+import { getErrorCode } from './gitExec';
 import { gitForceRemove } from './gitIndex';
 import { runGit } from './runGit';
 
@@ -90,13 +91,20 @@ async function readMarker(root: string): Promise<UntrackMarker | undefined> {
   return untrackMarkerSchema.parse(JSON.parse(text));
 }
 
-/** Whether `commit` is HEAD or one of its ancestors. */
+/**
+ * Whether `commit` is HEAD or one of its ancestors. git answers "no" with
+ * exit 1, or 128 when it does not know the commit; any other failure (a
+ * timeout) is rethrown, so a published untrack is never discarded by
+ * mistake.
+ */
 async function inHeadHistory(root: string, commit: string): Promise<boolean> {
   try {
     await runGit(root, ['merge-base', '--is-ancestor', commit, 'HEAD']);
     return true;
-  } catch {
-    return false;
+  } catch (error) {
+    const code = getErrorCode(error);
+    if (code === 1 || code === 128) return false;
+    throw error;
   }
 }
 
