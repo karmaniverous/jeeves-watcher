@@ -61,6 +61,12 @@ curl http://localhost:1936/status
       "filesEnqueued": 156576,
       "completedAt": "2026-03-15T01:31:12.000Z",
       "durationMs": 552000
+    },
+    "vcs": {
+      "roots": 2,
+      "pending": 0,
+      "trippedRoots": 0,
+      "oldestTrippedAt": null
     }
   }
 }
@@ -75,6 +81,7 @@ curl http://localhost:1936/status
 | `health.collection` | `object` | Qdrant collection stats: `name`, `pointCount` (total points/chunks), `dimensions`. |
 | `health.reindex` | `object` | Reindex progress. `active`; while active also `scope`, `startedAt`, `filesProcessed` and `totalFiles` (files plus source documents in the run; both stay `0` during a prune). `POST /reindex { scope: "path", source }` and `POST /documents` are not tracked here. |
 | `health.initialScan` | `object?` | Initial filesystem scan after start (absent when there is no filesystem watcher). Only `{ "active": false }` before the scan starts; then `active`, `filesMatched`, `filesEnqueued`; `startedAt` while active; `completedAt` and `durationMs` once finished. |
+| `health.vcs` | `object?` | Version control across roots (absent when no root has VCS enabled): `roots` (VCS-enabled roots), `pending` (files queued or in flight, not yet committed), `trippedRoots` (roots whose commit circuit breaker is tripped), `oldestTrippedAt` (ISO time the longest-tripped breaker tripped, or `null`). Per-root detail is in [`GET /vcs/status`](./version-control.md#get-vcsstatus). |
 
 > **v0.5.0 change:** `payloadFields` has been removed from the status response. Use [`GET /config`](#get-config) or [`GET /config/schema`](#get-configschema) to discover schema and payload field information.
 

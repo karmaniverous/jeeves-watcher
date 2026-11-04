@@ -7,6 +7,7 @@
  */
 
 import { createStatusHandler, type StatusHandler } from '@karmaniverous/jeeves';
+import type { VcsHealth } from '@karmaniverous/jeeves-watcher-core';
 
 import type { InitialScanTracker } from '../InitialScanTracker';
 import type { ReindexTracker } from '../ReindexTracker';
@@ -32,6 +33,8 @@ export interface CatalogStatusDeps {
   reindexTracker: ReindexTracker;
   /** Initial scan tracker, when the service runs one. */
   initialScanTracker?: InitialScanTracker;
+  /** VCS health (`health.vcs`, D86), when any root has VCS enabled. */
+  getVcsHealth?: () => VcsHealth;
 }
 
 /**
@@ -58,6 +61,7 @@ export function createCatalogStatusSource(
         ...(deps.initialScanTracker
           ? { initialScan: deps.initialScanTracker.getStatus() }
           : {}),
+        ...(deps.getVcsHealth ? { vcs: deps.getVcsHealth() } : {}),
       };
     },
   });

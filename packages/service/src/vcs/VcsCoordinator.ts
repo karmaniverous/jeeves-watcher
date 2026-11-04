@@ -9,15 +9,16 @@ import { resolve } from 'node:path';
 import {
   normalizeWatchPaths,
   type VcsConfig,
+  type VcsHealth,
   vcsRetentionConfigSchema,
 } from '@karmaniverous/jeeves-watcher-core';
 import type pino from 'pino';
 
 import type { JeevesWatcherConfig } from '../config/types';
 import { normalizeSlashes } from '../util/normalizeSlashes';
-import { globRoot } from '../watcher/globToDir.js';
 import { CommitMessageGenerator } from './CommitMessageGenerator';
 import { findRootForPath, normalizePathCase } from './gitExec';
+import { resolveMaxFileBytes, watchRootOf } from './maxFileBytes';
 import { resolveCommitMessageApiKey } from './resolveCommitMessageApiKey';
 import { VcsManager } from './VcsManager';
 import { createWatchScope, type WatchScope } from './watchScope';
@@ -31,7 +32,17 @@ export class VcsCoordinator {
   private readonly logger: pino.Logger;
   private readonly isInWatchScope: WatchScope = () => false;
 
-  constructor(config: JeevesWatcherConfig, logger: pino.Logger) {
+  /**
+   * @param config - Config at construction (roots, remotes, retention).
+   * @param logger - Logger.
+   * @param getConfig - Live config, for settings read at each staging
+   *   (`vcs.maxFileBytes`, D67). Default: the construction config.
+   */
+  constructor(
+    config: JeevesWatcherConfig,
+    logger: pino.Logger,
+    getConfig: () => JeevesWatcherConfig = () => config,
+  ) {
     this.logger = logger;
 
     if (!config.vcs?.enabled) return;
@@ -45,7 +56,7 @@ export class VcsCoordinator {
       const rootVcs = entry.vcs?.enabled ?? config.vcs.enabled;
       if (!rootVcs) continue;
 
-      const resolvedRoot = normalizeSlashes(resolve(globRoot(entry.path)));
+      const resolvedRoot = watchRootOf(entry.path);
       const rootKey = normalizePathCase(resolvedRoot);
 
       // Deduplicate: skip if another glob already resolved to this root.
@@ -94,6 +105,9 @@ export class VcsCoordinator {
         generator,
         remoteUrl,
         accessToken,
+        {
+          getMaxFileBytes: () => resolveMaxFileBytes(getConfig(), resolvedRoot),
+        },
       );
       this.managers.set(rootKey, manager);
       this.roots.push(resolvedRoot);
@@ -104,8 +118,7 @@ export class VcsCoordinator {
   }
 
   /**
-   * Start all VcsManager instances.
-   * Runs startup orphan detection/recovery for each root.
+   * Start all VcsManager instances (each runs its startup maintenance).
    */
   async start(): Promise<void> {
     const startPromises: Promise<void>[] = [];
@@ -171,6 +184,35 @@ export class VcsCoordinator {
     });
     await Promise.all(stopPromises);
     this.logger.info('VcsCoordinator stopped');
+  }
+
+  /**
+   * VCS state for `GET /status` `health.vcs` (D86).
+   *
+   * @returns Root count, total backlog, tripped roots and the oldest trip.
+   */
+  getHealth(): VcsHealth {
+    let pending = 0;
+    let trippedRoots = 0;
+    let oldestTrippedAt: string | null = null;
+    for (const manager of this.managers.values()) {
+      const state = manager.breakerState;
+      pending += state.pendingCount;
+      if (!state.tripped) continue;
+      trippedRoots++;
+      if (
+        state.trippedAt !== null &&
+        (oldestTrippedAt === null || state.trippedAt < oldestTrippedAt)
+      ) {
+        oldestTrippedAt = state.trippedAt;
+      }
+    }
+    return {
+      roots: this.managers.size,
+      pending,
+      trippedRoots,
+      oldestTrippedAt,
+    };
   }
 
   /**

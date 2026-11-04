@@ -118,6 +118,33 @@
                           ],
                           "additionalProperties": false
                         },
+                        "vcs": {
+                          "type": "object",
+                          "properties": {
+                            "roots": {
+                              "type": "number"
+                            },
+                            "pending": {
+                              "type": "number"
+                            },
+                            "trippedRoots": {
+                              "type": "number"
+                            },
+                            "oldestTrippedAt": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "roots",
+                            "pending",
+                            "trippedRoots",
+                            "oldestTrippedAt"
+                          ],
+                          "additionalProperties": false
+                        },
                         "error": {
                           "type": "string"
                         }

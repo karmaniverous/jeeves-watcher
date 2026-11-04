@@ -6,9 +6,8 @@
 import { access, appendFile, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
-import type pino from 'pino';
-
-import { execFileAsync, gitArgs } from './gitExec';
+import { gitArgs } from './gitExec';
+import { execGit } from './gitProcess';
 import { runGit } from './runGit';
 
 /** Always-on .gitignore entries for VCS-managed watch roots. */
@@ -20,13 +19,17 @@ export const ALWAYS_GITIGNORE_ENTRIES = [
 ];
 
 /**
- * Check whether git is available on the system PATH.
+ * Check whether git is available. Also resolves the real git binary that
+ * every later call spawns (D79).
  *
  * @returns true if git is available, false otherwise.
  */
 export async function checkGitAvailable(): Promise<boolean> {
   try {
-    await execFileAsync('git', gitArgs('--version'));
+    await execGit(gitArgs('--version'), {
+      cwd: process.cwd(),
+      timeoutMs: 30_000,
+    });
     return true;
   } catch {
     return false;
@@ -64,60 +67,6 @@ export async function configureRepoIdentity(
 ): Promise<void> {
   await runGit(rootPath, ['config', '--local', 'user.name', name]);
   await runGit(rootPath, ['config', '--local', 'user.email', email]);
-}
-
-/**
- * Detect and recover from orphan branch state on startup.
- *
- * If the repo is on an unexpected branch (e.g. a leftover squash orphan),
- * force-updates the expected branch to the current HEAD and checks it out.
- * Orphan branches are NOT deleted — they serve as a recovery safety net.
- *
- * @param rootPath - Directory of the git repository.
- * @param expectedBranch - The configured branch name (e.g. "master").
- * @param logger - Logger instance for warnings and info.
- */
-export async function detectAndRecoverOrphanBranch(
-  rootPath: string,
-  expectedBranch: string,
-  logger: pino.Logger,
-): Promise<void> {
-  const gitDir = join(rootPath, '.git');
-  try {
-    await access(gitDir);
-  } catch {
-    // Not a git repo — nothing to detect
-    return;
-  }
-
-  const { stdout: branchOut } = await runGit(rootPath, [
-    'rev-parse',
-    '--abbrev-ref',
-    'HEAD',
-  ]);
-  const currentBranch = branchOut.trim();
-
-  if (currentBranch === expectedBranch) return;
-
-  logger.warn(
-    { root: rootPath, currentBranch, expectedBranch },
-    'Repo is on unexpected branch — recovering to configured branch',
-  );
-
-  // Get current HEAD
-  const { stdout: headOut } = await runGit(rootPath, ['rev-parse', 'HEAD']);
-  const headHash = headOut.trim();
-
-  // Force-update the expected branch to current HEAD
-  await runGit(rootPath, ['branch', '-f', expectedBranch, headHash]);
-
-  // Checkout the expected branch
-  await runGit(rootPath, ['checkout', expectedBranch]);
-
-  logger.info(
-    { root: rootPath, recoveredFrom: currentBranch, expectedBranch, headHash },
-    'Orphan branch recovery complete — now on configured branch',
-  );
 }
 
 /**

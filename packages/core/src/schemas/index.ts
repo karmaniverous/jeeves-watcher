@@ -12,9 +12,14 @@ export {
   configWatchConfigSchema,
   type LoggingConfig,
   loggingConfigSchema,
+  type LogRotationConfig,
+  logRotationConfigSchema,
   type WatchConfig,
   watchConfigSchema,
 } from './base.js';
+
+// Byte sizes
+export { type ByteSize, byteSizeSchema, parseByteSize } from './byteSize.js';
 
 // Inference schemas
 export {

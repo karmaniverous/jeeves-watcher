@@ -118,6 +118,8 @@ export {
   reindexStatusSchema,
   type StatusResponse,
   statusResponseSchema,
+  type VcsHealth,
+  vcsHealthSchema,
   type WatcherHealth,
   watcherHealthSchema,
 } from './monitoring.js';

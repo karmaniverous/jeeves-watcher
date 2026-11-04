@@ -7,13 +7,12 @@
 import pino from 'pino';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { makeRetention } from '../test/squashRepo';
-import { SquashManager } from './SquashManager';
+import { makeRetention, makeSquashManager } from '../test/squashRepo';
 
 const silentLogger = pino({ level: 'silent' });
 
 function scheduled(squashCron: string) {
-  const manager = new SquashManager(
+  const manager = makeSquashManager(
     '/not/used',
     makeRetention({ squashCron }),
     silentLogger,

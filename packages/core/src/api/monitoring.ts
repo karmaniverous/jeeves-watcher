@@ -58,6 +58,21 @@ export const initialScanStatusSchema = z.object({
 /** Initial filesystem scan state in `GET /status` `health.initialScan`. */
 export type InitialScanStatus = z.infer<typeof initialScanStatusSchema>;
 
+/** VCS state in `GET /status` `health.vcs` (D86): roots, backlog, tripped breakers. */
+export const vcsHealthSchema = z.object({
+  /** VCS-enabled roots. */
+  roots: z.number(),
+  /** Files queued or in flight, not yet committed, across roots. */
+  pending: z.number(),
+  /** Roots whose commit circuit breaker is tripped. */
+  trippedRoots: z.number(),
+  /** ISO 8601 time the longest-tripped breaker tripped, or null. */
+  oldestTrippedAt: z.string().nullable(),
+});
+
+/** VCS state in `GET /status` `health.vcs`. */
+export type VcsHealth = z.infer<typeof vcsHealthSchema>;
+
 /**
  * `GET /status` `health`: collection, reindex and initial-scan state, or
  * `{ error }` when the vector store is unreachable (status `degraded`).
@@ -79,6 +94,8 @@ export const watcherHealthSchema = z.looseObject({
   reindex: reindexStatusSchema.optional(),
   /** Initial scan state (once the scan tracker exists). */
   initialScan: initialScanStatusSchema.optional(),
+  /** VCS state (when VCS is enabled on any root). */
+  vcs: vcsHealthSchema.optional(),
   /** Why health could not be read (degraded). */
   error: z.string().optional(),
 });

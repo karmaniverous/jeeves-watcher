@@ -49,6 +49,7 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
     virtualRuleStore,
     version,
     initialScanTracker,
+    vcsCoordinator,
   } = options;
 
   const getConfig = options.getConfig ?? (() => config);
@@ -89,6 +90,9 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
         version,
         reindexTracker,
         initialScanTracker,
+        ...(vcsCoordinator
+          ? { getVcsHealth: () => vcsCoordinator.getHealth() }
+          : {}),
       },
       config: {
         getConfig,

@@ -6,6 +6,7 @@
 import { z } from 'zod';
 
 import { configWatchReindexScopeSchema } from '../api/reindex.js';
+import { byteSizeSchema } from './byteSize.js';
 import { watchPathEntrySchema } from './vcs.js';
 
 /**
@@ -144,6 +145,35 @@ export const apiConfigSchema = z.object({
 export type ApiConfig = z.infer<typeof apiConfigSchema>;
 
 /**
+ * Log file rotation (D171). Every key falls back to its default.
+ */
+export const logRotationConfigSchema = z.object({
+  /** Rotate when the file reaches this size. */
+  maxSize: byteSizeSchema
+    .optional()
+    .describe(
+      'Rotate when the log file reaches this size: bytes, or a string with a k, m or g suffix (binary units). Default: "10m".',
+    ),
+  /** Rotate on this schedule too. */
+  frequency: z
+    .union([z.enum(['daily', 'hourly']), z.number().int().positive()])
+    .optional()
+    .describe(
+      'Also rotate "daily", "hourly", or every N milliseconds. Default: "daily".',
+    ),
+  /** Rotated files kept beside the active one. */
+  maxFiles: z
+    .number()
+    .int()
+    .min(1)
+    .optional()
+    .describe('Number of rotated log files kept. Default: 14.'),
+});
+
+/** Log file rotation settings. */
+export type LogRotationConfig = z.infer<typeof logRotationConfigSchema>;
+
+/**
  * Logging configuration.
  */
 export const loggingConfigSchema = z.object({
@@ -157,6 +187,13 @@ export const loggingConfigSchema = z.object({
     .string()
     .optional()
     .describe('Path to log file (logs to stdout if omitted).'),
+  /** Rotation of the log file (D171). */
+  rotation: z
+    .union([z.literal(false), logRotationConfigSchema])
+    .optional()
+    .describe(
+      'Rotation of logging.file: false to disable, or { maxSize, frequency, maxFiles }. Default when logging.file is set: { maxSize: "10m", frequency: "daily", maxFiles: 14 }.',
+    ),
 });
 
 /** Logging configuration: level and optional file output path. */

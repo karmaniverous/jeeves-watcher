@@ -1,133 +1,195 @@
 /**
  * @module vcs/gitIndex
- * Git index operations used by the commit pipeline: staging additions and
- * removals through stdin, listing tracked-but-deleted paths, detecting a
- * staged diff, and creating a commit. Every call carries
- * {@link GIT_BASE_ARGS} via {@link gitArgs}.
+ * Git index operations used by the commit pipeline: literal-pathspec staging through stdin (`add`, `add -u`, `rm --cached`), `check-ignore`, `update-index --force-remove`, deleted-path listing, staged-diff detection and commit.
+ *
+ * Path lists are root-relative and NUL-separated on stdin, which sidesteps
+ * Windows' 32,767-character command line. Every pathspec call that names
+ * exact paths runs with the global `--literal-pathspecs`, so `a[1].md`
+ * never matches `a1.md` (D116); `check-ignore` is the exception (it exits
+ * 128 with the option and already reads paths literally, D135), and
+ * `update-index --stdin` takes no pathspecs at all (D163). Each path-list
+ * call is timed by its path count ({@link pathListTimeoutMs}).
  */
 
-import { execFile } from 'node:child_process';
 import { resolve } from 'node:path';
 
 import { normalizeSlashes } from '../util/normalizeSlashes';
-import { getErrorCode, GIT_TIMEOUT_STANDARD, gitArgs } from './gitExec';
-import { runGit } from './runGit';
+import {
+  getErrorCode,
+  GIT_TIMEOUT_STANDARD,
+  pathListTimeoutMs,
+} from './gitExec';
+import { runGit, type RunGitOptions } from './runGit';
 
 /** Max stdout buffered from `git ls-files` (large corpora can list many paths). */
 const LS_FILES_MAX_BUFFER = 256 * 1024 * 1024;
 
+/** Options for a path-list call. */
+export interface PathListOptions {
+  /** Timeout override (default: {@link pathListTimeoutMs} of the count). */
+  timeoutMs?: number;
+  /** Child environment (e.g. `GIT_INDEX_FILE` for a private index). */
+  env?: NodeJS.ProcessEnv;
+  /** Index lock checked after a timeout (see `ExecGitOptions`). */
+  indexLockPath?: string;
+}
+
+/** Leading options of a stdin path-list call. */
+const FROM_STDIN = ['--pathspec-from-file=-', '--pathspec-file-nul'];
+
 /**
- * Run a git subcommand with a NUL-delimited file list piped through stdin.
+ * Run a path-list command with the paths NUL-separated on stdin.
  *
- * This sidesteps the Windows CreateProcessW 32 767-char limit that
- * triggers ENAMETOOLONG when batches contain many files with long
- * absolute paths.
- *
- * @param argv - Full git argv (base args, subcommand, and flags).
- * @param files - Absolute paths to pipe through stdin (NUL-delimited).
- * @param cwd - Repository root (working directory for git).
- * @param timeoutMs - Kill the child process after this many milliseconds.
+ * @returns The child's output.
  */
-function execGitStdin(
-  argv: string[],
-  files: string[],
+function runPathList(
   cwd: string,
-  timeoutMs: number,
-): Promise<void> {
-  return new Promise((resolvePromise, reject) => {
-    let timedOut = false;
-    const child = execFile('git', argv, { cwd }, (error: Error | null) => {
-      clearTimeout(timer);
-      if (timedOut) return;
-      if (error) reject(error);
-      else resolvePromise();
-    });
-
-    const timer = setTimeout(() => {
-      timedOut = true;
-      child.kill();
-      reject(
-        new Error(
-          `git ${argv.join(' ')} timed out after ${String(timeoutMs)}ms`,
-        ),
-      );
-    }, timeoutMs);
-
-    if (!child.stdin) {
-      clearTimeout(timer);
-      reject(new Error('Failed to open stdin for git command'));
-      return;
-    }
-    // Suppress EPIPE: expected if git exits before we finish writing.
-    child.stdin.on('error', (err: NodeJS.ErrnoException) => {
-      if (err.code !== 'EPIPE') {
-        clearTimeout(timer);
-        reject(err);
-      }
-    });
-    child.stdin.end(files.join('\0'));
-  });
+  args: string[],
+  paths: readonly string[],
+  options: PathListOptions = {},
+): ReturnType<typeof runGit> {
+  const runOptions: RunGitOptions = {
+    timeoutMs: options.timeoutMs ?? pathListTimeoutMs(paths.length),
+    input: paths.join('\0'),
+    ...(options.env === undefined ? {} : { env: options.env }),
+    ...(options.indexLockPath === undefined
+      ? {}
+      : { indexLockPath: options.indexLockPath }),
+  };
+  return runGit(cwd, args, runOptions);
 }
 
 /**
- * Stage files with `git add --pathspec-from-file=- --pathspec-file-nul`.
+ * Stage present files that git does not track yet:
+ * `git --literal-pathspecs add --pathspec-from-file=- --pathspec-file-nul`.
  *
- * @param files - Absolute paths of files to stage.
- * @param cwd - Repository root (working directory for git).
- * @param timeoutMs - Kill the child process after this many milliseconds.
+ * @param cwd - Repository root.
+ * @param paths - Root-relative paths.
+ * @param options - Timeout override.
  */
-export async function gitAddViaStdin(
-  files: string[],
+export async function gitAdd(
   cwd: string,
-  timeoutMs = GIT_TIMEOUT_STANDARD,
+  paths: readonly string[],
+  options?: PathListOptions,
 ): Promise<void> {
-  if (files.length === 0) return;
-  await execGitStdin(
-    gitArgs('add', '--pathspec-from-file=-', '--pathspec-file-nul'),
-    files,
+  if (paths.length === 0) return;
+  await runPathList(
     cwd,
-    timeoutMs,
+    ['--literal-pathspecs', 'add', ...FROM_STDIN],
+    paths,
+    options,
   );
 }
 
 /**
- * Stage the removal (index only) of tracked files that are missing from
- * disk. `--ignore-unmatch` means a path that isn't actually tracked is
- * skipped instead of failing the whole command. See #249.
+ * Stage changes to tracked files: `git --literal-pathspecs add -u`. Unlike
+ * plain `add`, it exits 0 for a tracked file under an ignored folder (D174).
  *
- * @param files - Absolute paths of tracked files to remove from the index.
- * @param cwd - Repository root (working directory for git).
- * @param timeoutMs - Kill the child process after this many milliseconds.
+ * @param cwd - Repository root.
+ * @param paths - Root-relative paths of tracked, present files.
+ * @param options - Timeout override.
  */
-export async function gitRmCachedViaStdin(
-  files: string[],
+export async function gitAddUpdate(
   cwd: string,
-  timeoutMs = GIT_TIMEOUT_STANDARD,
+  paths: readonly string[],
+  options?: PathListOptions,
 ): Promise<void> {
-  if (files.length === 0) return;
-  await execGitStdin(
-    gitArgs(
+  if (paths.length === 0) return;
+  await runPathList(
+    cwd,
+    ['--literal-pathspecs', 'add', '-u', ...FROM_STDIN],
+    paths,
+    options,
+  );
+}
+
+/**
+ * Remove paths from an index (the files stay on disk):
+ * `git --literal-pathspecs rm --cached -r --ignore-unmatch --quiet`. A path
+ * the index lacks is skipped instead of failing the call (#249).
+ *
+ * @param cwd - Repository root.
+ * @param paths - Root-relative paths.
+ * @param options - Timeout, environment (a private index) and lock path.
+ */
+export async function gitRmCached(
+  cwd: string,
+  paths: readonly string[],
+  options?: PathListOptions,
+): Promise<void> {
+  if (paths.length === 0) return;
+  await runPathList(
+    cwd,
+    [
+      '--literal-pathspecs',
       'rm',
       '--cached',
+      '-r',
       '--ignore-unmatch',
       '--quiet',
-      '--pathspec-from-file=-',
-      '--pathspec-file-nul',
-    ),
-    files,
-    cwd,
-    timeoutMs,
+      ...FROM_STDIN,
+    ],
+    paths,
+    options,
   );
+}
+
+/**
+ * Remove paths from the real index whatever their staged or working-tree
+ * state: `git update-index --force-remove -z --stdin` (D163). It reads each
+ * path literally and never refuses, unlike `rm --cached`.
+ *
+ * @param cwd - Repository root.
+ * @param paths - Root-relative paths.
+ * @param options - Timeout override.
+ */
+export async function gitForceRemove(
+  cwd: string,
+  paths: readonly string[],
+  options?: PathListOptions,
+): Promise<void> {
+  if (paths.length === 0) return;
+  await runPathList(
+    cwd,
+    ['update-index', '--force-remove', '-z', '--stdin'],
+    paths,
+    options,
+  );
+}
+
+/**
+ * List which of `paths` git ignores: `git check-ignore --stdin -z`, without
+ * `--literal-pathspecs` (D135). Only untracked paths are reported. Exit 1
+ * means none is ignored, not a failure.
+ *
+ * @param cwd - Repository root.
+ * @param paths - Root-relative paths of untracked files.
+ * @param options - Timeout override.
+ * @returns The ignored paths, as git printed them.
+ */
+export async function listIgnored(
+  cwd: string,
+  paths: readonly string[],
+  options?: PathListOptions,
+): Promise<string[]> {
+  if (paths.length === 0) return [];
+  try {
+    const { stdout } = await runPathList(
+      cwd,
+      ['check-ignore', '--stdin', '-z'],
+      paths,
+      options,
+    );
+    return stdout.split('\0').filter((p) => p.length > 0);
+  } catch (error) {
+    if (getErrorCode(error) === 1) return [];
+    throw error;
+  }
 }
 
 /**
  * List tracked paths that are missing from the working tree, via a single
  * `git ls-files --deleted -z` call (never one process per file).
- *
- * `git ls-files` has no `--pathspec-from-file`, so rather than passing the
- * candidate paths (which could exceed the Windows command-line limit) this
- * asks for every tracked-but-deleted path; callers intersect with their own
- * candidates. Output is bounded by the number of deleted tracked files.
  *
  * @param cwd - Repository root (working directory for git).
  * @param timeoutMs - Kill the child process after this many milliseconds.

@@ -37,7 +37,11 @@ Reverting a file restores its content from a historical commit via `git show`, t
 
 VCS receives the same file events as the embedding pipeline: files that match `watch.paths`, are not excluded by `watch.ignored` and (with the default `watch.respectGitignore: true`) are not git-ignored. Events reach VCS before extraction, so a file the watcher cannot embed (e.g. a binary or unsupported format matched by a watch glob) is still versioned. Version history and the vector index keep separate state.
 
-> **Keep `watch.respectGitignore` enabled with VCS.** With `respectGitignore: false`, git-ignored files are still sent to VCS, and `git add` refuses an ignored path: the batch fails, is retried, and eventually trips the [circuit breaker](#retries-and-the-circuit-breaker).
+An ignored path never fails a batch. Each batch is split by one tracked check (`git ls-files`): files git already tracks stage with `git add -u`, which records their changes even under an ignored folder (#279); new files are filtered by `git check-ignore` first, so a git-ignored new file is simply not added. Paths always reach git literally, so `a[1].md` never stands for `a1.md`.
+
+### File Size Cap
+
+`vcs.maxFileBytes` (default 100 MB, under GitHub's 100 MiB file limit; `0` disables) caps what git versions. A new file over the cap is not staged. A tracked file that grows past it is untracked in a commit of its own (`watcher: untrack N files over vcs.maxFileBytes`), made just before the batch commit: its history ends at its last committed version, and the file stays on disk. Each over-cap path is warned about once per process (again if it drops under the cap and grows back). The value is read at each staging, so a config change applies without a restart.
 
 ---
 
@@ -80,7 +84,8 @@ VCS receives the same file events as the embedding pipeline: files that match `w
 | `enabled` | `boolean` | `false` | Enable VCS tracking globally. |
 | `commitThrottleMs` | `number` | `30000` | Throttle interval in milliseconds for batching commits (min: 1000). Timer starts on first change and does not reset. |
 | `maxBatchSize` | `number` | `1000` | Max files per commit batch (min: 1). Overflow rolls to next cycle. |
-| `branch` | `string` | `"master"` | Git branch name for VCS operations. Squash retention and startup orphan recovery target this branch instead of dynamically detecting the current branch. |
+| `maxFileBytes` | `number \| string` | `100000000` | [Size cap](#file-size-cap) for versioned files: bytes, or a string with a `k`, `m` or `g` suffix (binary units, e.g. `"50m"`). `0` disables. Read at each staging. |
+| `branch` | `string` | `"master"` | Git branch name for VCS operations. Squash retention and the startup branch check target this branch instead of dynamically detecting the current branch. |
 | `author` | `object` | See below | Git commit identity, written to each repository's local git config at startup. |
 | `author.name` | `string` | `"jeeves-watcher"` | Commit author name. |
 | `author.email` | `string` | `"watcher@localhost"` | Commit author email. |
@@ -138,6 +143,7 @@ String-only watch paths inherit the root-level `vcs` config. In an object entry'
 - `enabled` defaults to `false`: an object entry must set `"enabled": true` to be versioned, even when `vcs.enabled` is `true`.
 - `commitThrottleMs`, `maxBatchSize`, `branch`, `staleLockThresholdMs`, `maxConsecutiveFailures` and `circuitBreakerCooldownMs` likewise fall back to their defaults, so repeat any root-level value you changed.
 - `author`, `commitMessage` and `retention` have no default: when omitted they are inherited from the root-level block (each replaces the root-level object as a whole when set). `accessToken` falls back to `defaultAccessToken`.
+- `maxFileBytes` has no schema default either: when omitted it is the root-level value, else 100 MB.
 
 `vcs.enabled` must still be `true` at the root level for any root to be versioned.
 
@@ -579,65 +585,63 @@ The cron expression uses the 5-field format (`minute hour day-of-month month day
 
 ### Squash Mechanism
 
-1. Refuse if `index.lock` exists or an in-progress git operation is present (see [Safety Guards](#safety-guards)).
-2. **Pause** the commit pipeline (pending commits are drained first).
-3. Refuse if tracked files have uncommitted changes.
-4. Read the commit log and compute the retention boundary; stop if there is nothing to squash.
-5. Check out a temporary orphan branch at the last commit to squash and create a single `historical baseline` commit from its tree (`commit-tree`).
-6. Cherry-pick all retained commits on top.
-7. Force-update the **configured branch** (from `vcs.branch`) to the new history, check it out and delete the temporary branch.
-8. Force-push if a remote is configured.
-9. **Resume** the commit pipeline.
+Squash rewrites history with plumbing only: no checkout, reset or cherry-pick, so it never touches the working tree or the index, and it needs no clean tree.
 
-All git operations during squash have explicit timeouts (30s standard, 120s for cherry-pick, 60s for push) to prevent permanent pipeline freezes from hung git processes.
+1. Take the root's lock (shared with batch commits, untracking and temp-file sweeps), then commit the pending batch inside that hold. If that commit fails, the squash refuses.
+2. Refuse if an in-progress git operation is present or HEAD is not on the configured branch (see [Safety Guards](#safety-guards)).
+3. List the branch's first-parent history (`git rev-list --reverse --first-parent`) and compute the retention boundary from author dates; stop if there is nothing to squash.
+4. Create a parentless `historical baseline` commit with the tree of the last commit to squash (`commit-tree`), then recreate each retained commit on top with its own tree, message bytes, author and committer identities and raw dates (timezones included). Merges along the first-parent chain become single-parent commits with the same tree.
+5. Check that the rebuilt tip has the same tree as the old tip; if not, stop without moving anything.
+6. Move the **configured branch** (from `vcs.branch`) with a compare-and-swap `git update-ref -m "jeeves-watcher squash" <branch> <new> <old>`. If anyone committed to the branch meanwhile, the swap fails, nothing changes, and the squash runs again at the next cron match.
+7. Force-push if a remote is configured.
 
-### Pause/Resume Coordination
-
-Squash pauses the VcsManager commit pipeline before rewriting history. This drains any pending commits, then blocks new commits from executing during the squash. File changes that arrive during the squash are queued in the pending set and committed after resume. The resume always fires (via a `finally` block), even if the squash fails.
+A file untracked by the [size cap](#file-size-cap) keeps its newest content on disk through a squash. Squash never takes `index.lock`, so a lock held by another git process does not block it.
 
 ### Force Push After Squash
 
 If a remote is configured, the squashed history is force-pushed. This is acceptable because the remote is a **backup mirror**: no other writers commit to it. A failed force push is logged; the local squash stands.
 
-### Lock Contention
-
-If `index.lock` is held by another git operation when the squash starts, the squash aborts cleanly (`Squash aborted: index.lock exists, will retry next cycle`) and runs again at the next cron match. No data is lost.
-
 ### Safety Guards
 
-The squash rewrites history in the working tree (`reset --hard`, `checkout -f`), so it refuses to run when doing so could lose data or wedge the repo. Each refusal is logged and retried at the next cron match:
+Each refusal is logged and retried at the next cron match:
 
 - **In-progress git operation.** If `.git/sequencer`, `.git/rebase-merge`, `.git/rebase-apply`, `.git/CHERRY_PICK_HEAD`, or `.git/MERGE_HEAD` exists, the squash refuses (error log). The watcher never clears this state itself; resolve it manually (e.g. `git cherry-pick --quit`, `git rebase --abort`, `git merge --abort`). The same condition is reported at startup.
-- **Uncommitted tracked changes.** After draining the commit pipeline, if `git status --porcelain --untracked-files=no` reports anything, the squash refuses (warning log) rather than overwrite uncommitted content. Untracked files do not block.
-- **Failed squash cleanup.** If a squash fails midway, `git cherry-pick --abort` runs before returning to the configured branch (and the temporary branch and any leftover `index.lock` are removed), so a failure never leaves a half-finished cherry-pick sequence behind.
+- **HEAD off the configured branch.** If HEAD is detached or on another branch, the squash refuses (warning log). The watcher never switches branches.
+- **Failed flush.** If the pending batch fails to commit inside the squash's hold, the squash refuses.
 
-### Startup Orphan Recovery
+### Startup Checks
 
-If the service starts and a VCS root is on an unexpected branch (e.g., a leftover squash orphan branch from a crash), the VcsManager detects this during startup and recovers:
+At startup each root, under its lock: removes a stale `index.lock`; sweeps git temp files (`tmp_pack_*`, `tmp_idx_*`, `tmp_obj_*`, `tmp_objdir-*` under `.git/objects`) untouched for over an hour (the sweep also runs hourly); finishes or discards an interrupted untrack (see [Untracking](#untracking)); and logs a warning, changing nothing, when HEAD is not on the configured branch or a `__squash_orphan_*` branch left by 0.20.0 exists. Check the root by hand, `git checkout <branch>`, and delete leftover orphan branches yourself.
 
-1. Reads the current branch via `git rev-parse --abbrev-ref HEAD`
-2. If it differs from the configured `branch`, force-updates the configured branch to the current HEAD
-3. Checks out the configured branch
+### Untracking
 
-Orphan branches are **not deleted**: they serve as a recovery safety net. If recovery fails, the error is logged and the manager continues with the current state.
+Untracking (the size cap today) builds a commit on a private index (`.git/untrack.index`) read from HEAD, without the paths HEAD holds, publishes it with a compare-and-swap `update-ref` (rebuilt once if HEAD moved), then removes the paths from the real index with `git update-index --force-remove`. Unrelated staged changes are kept; the files stay on disk; with an unborn HEAD nothing is committed. A `.git/untrack.pending` marker covers the moment between the commit and the index removal: at startup and before each batch, a marker whose commit is in HEAD's history is finished, and any other is discarded with a warning.
 
 ### "Nothing Staged" Handling
 
 When a batch stages nothing (e.g., a file was touched but its content is identical), the pipeline detects it with `git diff --cached --quiet` and skips `git commit`. This is a no-op, not a failure: it counts as a success for the circuit breaker, and files are not re-queued. Detection does not parse git's output text, so it is unaffected by untracked files, unstaged changes outside the batch, `status.showUntrackedFiles`, or git's message wording.
 
-### Missing Paths in a Batch
+### Staging a Batch
 
-Before staging, each batch is partitioned:
+Each batch is split by one tracked check (`git --literal-pathspecs ls-files -z -c -- <paths>`, in chunks of at most 500 paths or 24 KiB):
 
-- Files that exist are staged with `git add`.
-- Files that are gone but tracked have their deletion staged with `git rm --cached --ignore-unmatch`.
+- Tracked files that exist stage with `git add -u` (this works under an ignored folder).
+- Files that exist and are not tracked pass `git check-ignore`; the rest stage with `git add`.
+- Tracked files that are gone have their deletion staged with `git rm --cached`.
 - Files that are gone and were never tracked (created and deleted between commits) are dropped.
+- Tracked files over the [size cap](#file-size-cap) are untracked; new ones over it are dropped.
 
-A missing path never fails the batch. Paths are passed to git through stdin, so a large batch never hits the Windows command-line length limit.
+A missing or ignored path never fails the batch. Path lists reach git through stdin (or in chunks, for `ls-files`), root-relative and literal, so a large batch never hits the Windows command-line length limit.
 
 ### Startup Deletion Reconciliation
 
 The initial filesystem scan only reports files that exist, so deletions that happened while the service was stopped (or unlink events that were missed) are never observed as events. When the initial scan completes, each root lists tracked-but-deleted paths (`git ls-files --deleted`), keeps those inside the watch scope (`watch.paths` minus `watch.ignored`), and adds them to the baseline batch so the deletions are committed.
+
+### Timeouts and Bisection
+
+Each git call that takes a list of paths has a timeout of 30 seconds plus 50 ms per path, at most 10 minutes (1,000 paths: 80 seconds); other calls have 30 seconds, pushes 60 seconds. Every call runs the real git binary (on Windows, the one in `git --exec-path`, not the `cmd\git.exe` launcher), so a timed-out call is really killed. After its exit, an `index.lock` created during the call is removed, and git temp files it left are deleted in the background once they stop changing.
+
+A staging step that times out is split in halves and retried, down to single paths. The whole batch, bisection included, gets at most three times its first timeout (and never more than 30 minutes), so the root's lock is always released. Paths that could not be staged are re-queued, and the batch counts as one failure for the circuit breaker.
 
 ### Retries and the Circuit Breaker
 
@@ -648,11 +652,15 @@ Each commit covers at most `maxBatchSize` files; a flush with a larger backlog c
 - Pending files are **retained**, never discarded. Batches that arrive while cooling down go straight back into the pending set.
 - After `circuitBreakerCooldownMs` (default 5 minutes) a single half-open commit attempt runs from a timer; no new file event is needed. Success resets the breaker; failure re-arms the cooldown.
 - The breaker is **not** reset by new file events, so a busy root cannot hammer a deterministic failure.
-- Breaker state is exposed per root in `GET /vcs/status` under `breaker`.
+- Breaker state is exposed per root in `GET /vcs/status` under `breaker`, and summarised across roots in `GET /status` under `health.vcs` (`roots`, `pending`, `trippedRoots`, `oldestTrippedAt`).
+
+### The Root Lock
+
+The watcher's own git work on a root (batch commits with their push, squash, untracking, temp-file sweeps) runs one at a time, in arrival order, under an in-process per-root lock. A wait longer than 10 seconds and a hold longer than 5 minutes are logged as warnings. The lock cannot exclude other processes, so everything done under it is also safe without it.
 
 ### Git Configuration Pinning
 
-Every git invocation made by the VCS subsystem passes `-c core.longpaths=true`, so paths longer than the Windows `MAX_PATH` limit work without any repo-local or machine-wide git configuration.
+Every git invocation made by the VCS subsystem passes `-c core.longpaths=true` (paths longer than the Windows `MAX_PATH` limit work without any git configuration) and `-c core.quotePath=false` (non-ASCII paths are printed as-is, so `/vcs/history` and `/vcs/diff` return them unescaped, #252).
 
 ---
 
@@ -723,11 +731,11 @@ No manual intervention is needed in most cases. If the circuit breaker trips, ch
 
 ### Squash Refused
 
-**Symptom:** Logs show `Squash refused: in-progress git operation detected (.git/<marker>)` or `Squash refused: working tree has uncommitted changes to tracked files`.
+**Symptom:** Logs show `Squash refused: in-progress git operation detected (.git/<marker>)`, `Squash refused: HEAD is not on <branch>`, or `Squash refused: the pending batch failed to commit`.
 
-**Cause:** An abandoned cherry-pick, rebase, or merge in `.git/`, or tracked changes that the commit pipeline has not committed.
+**Cause:** An abandoned cherry-pick, rebase, or merge in `.git/`; HEAD detached or on another branch; or a failing commit pipeline.
 
-**Resolution:** For an in-progress operation, inspect the repo and clear it manually (`git cherry-pick --quit`, `git rebase --abort`, or `git merge --abort`). For uncommitted tracked changes, check `GET /vcs/status` for a tripped breaker; once commits succeed, the next squash cycle proceeds.
+**Resolution:** For an in-progress operation, inspect the repo and clear it manually (`git cherry-pick --quit`, `git rebase --abort`, or `git merge --abort`). For a wrong branch, check the root and `git checkout <branch>`. For a failing pipeline, check `GET /vcs/status` for a tripped breaker; once commits succeed, the next squash cycle proceeds.
 
 ### Large Initial Commits
 
@@ -755,21 +763,21 @@ No manual intervention is needed in most cases. If the circuit breaker trips, ch
 
 **Resolution:** Install git and ensure it is on the system `PATH`, then restart the watcher. On Windows, the installer typically adds git to `PATH` automatically. On Linux, install via your package manager (`apt install git`, `yum install git`, etc.).
 
-### Repo on Wrong Branch After Crash
+### Repo on the Wrong Branch
 
-**Symptom:** Log shows `Repo is on unexpected branch — recovering to configured branch` at startup.
+**Symptom:** Log shows `VCS root is not in its expected branch state` at startup.
 
-**Cause:** The service crashed or was killed during a squash operation, leaving the repo on a temporary orphan branch.
+**Cause:** HEAD is detached or on another branch, or a `__squash_orphan_*` branch left by a 0.20.0 squash exists.
 
-**Automatic recovery:** The VcsManager detects the wrong branch at startup, force-updates the configured branch to the current HEAD, and checks out the configured branch. No manual intervention needed. The orphan branch is preserved as a safety net.
+**Resolution:** The watcher never switches branches or deletes them. Inspect the root, `git checkout <branch>` (the configured `vcs.branch`), and delete leftover `__squash_orphan_*` branches once you are sure they hold nothing you need. Squash refuses until HEAD is on the configured branch.
 
 ### Git Operations Timing Out
 
 **Symptom:** Log shows timeout errors for git operations.
 
-**Cause:** A git operation (add, commit, push, cherry-pick) took longer than its timeout.
+**Cause:** A git operation took longer than its timeout (see [Timeouts and Bisection](#timeouts-and-bisection)).
 
-**Resolution:** Standard operations time out at 30 seconds, cherry-pick at 120 seconds, push at 60 seconds. If timeouts occur regularly, investigate disk I/O, network connectivity (for push), or repository size (for cherry-pick during squash).
+**Resolution:** Staging timeouts are bisected and the unstaged paths retried automatically. If timeouts occur regularly, investigate disk I/O, antivirus scanning of the repository, network connectivity (for push), or very large files (lower `vcs.maxFileBytes`).
 
 ---
 

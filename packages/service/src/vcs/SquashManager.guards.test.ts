@@ -1,8 +1,6 @@
 /**
  * @module vcs/SquashManager.guards.test
- * Squash safety guards (#249): refuse on in-progress git operations and on
- * uncommitted tracked changes, and never leave a sequencer behind after a
- * failed cherry-pick. All tests run real git against temp repos.
+ * Squash guards and the lock-held flush (D20, D101, D148): refuse on in-progress git operations, when HEAD is off the configured branch, or when the in-hold flush fails; squash a dirty tree without touching it. Real git against temp repos.
  */
 
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
@@ -20,9 +18,9 @@ import {
   daysAgo,
   initTestRepo,
   makeRetention,
+  makeSquashManager,
 } from '../test/squashRepo';
-import { detectStaleGitOperation } from './gitRepoState';
-import { SquashManager } from './SquashManager';
+import { RootGitLock } from './RootGitLock';
 
 const silentLogger = pino({ level: 'silent' });
 
@@ -42,27 +40,25 @@ afterEach(async () => {
   await rm(tempDir, { recursive: true, force: true });
 });
 
-describe('SquashManager guards (#249)', () => {
+describe('SquashManager guards', () => {
   it.each(['sequencer', 'rebase-merge', 'rebase-apply'])(
-    'refuses with an in-progress operation (.git/%s) and never pauses',
+    'refuses with an in-progress operation (.git/%s)',
     async (marker) => {
       await createSquashableHistory(tempDir);
       await mkdir(join(tempDir, '.git', marker));
-
       const logger = pino({ level: 'silent' });
       const errorSpy = vi.spyOn(logger, 'error');
-      const pauseFn = vi.fn(() => Promise.resolve());
-      const manager = new SquashManager(tempDir, makeRetention(), logger, {
-        pauseCommits: pauseFn,
-      });
 
-      const result = await manager.runSquash();
+      const result = await makeSquashManager(
+        tempDir,
+        makeRetention(),
+        logger,
+      ).runSquash();
 
       expect(result).toEqual({
         squashed: false,
         error: `Squash refused: in-progress git operation detected (.git/${marker})`,
       });
-      expect(pauseFn).not.toHaveBeenCalled();
       expect(errorSpy).toHaveBeenCalledWith(
         expect.objectContaining({ root: tempDir, marker }),
         expect.stringContaining('Squash refused'),
@@ -76,9 +72,12 @@ describe('SquashManager guards (#249)', () => {
     async (marker) => {
       await createSquashableHistory(tempDir);
       await writeFile(join(tempDir, '.git', marker), `${'0'.repeat(40)}\n`);
-      const manager = new SquashManager(tempDir, makeRetention(), silentLogger);
 
-      const result = await manager.runSquash();
+      const result = await makeSquashManager(
+        tempDir,
+        makeRetention(),
+        silentLogger,
+      ).runSquash();
 
       expect(result.squashed).toBe(false);
       expect(result.error).toContain(marker);
@@ -86,86 +85,109 @@ describe('SquashManager guards (#249)', () => {
     },
   );
 
-  it('refuses with a dirty tracked file, resumes, and leaves its content intact', async () => {
+  it('refuses when HEAD is not on the configured branch, moving nothing', async () => {
+    await createSquashableHistory(tempDir);
+    const tip = await git('rev-parse', 'HEAD');
+    await git('checkout', '-q', '--detach');
+
+    const result = await makeSquashManager(
+      tempDir,
+      makeRetention(),
+      silentLogger,
+    ).runSquash();
+
+    expect(result).toEqual({
+      squashed: false,
+      error: 'Squash refused: HEAD is not on master',
+    });
+    expect(await git('rev-parse', 'master')).toBe(tip);
+  });
+
+  it('squashes a dirty tree and leaves the working tree and index as they were', async () => {
     await createSquashableHistory(tempDir);
     const dirty = join(tempDir, 'file3.txt');
     await writeFile(dirty, 'uncommitted edit', 'utf8');
-
-    const logger = pino({ level: 'silent' });
-    const warnSpy = vi.spyOn(logger, 'warn');
-    const resumeFn = vi.fn(() => {});
-    const manager = new SquashManager(tempDir, makeRetention(), logger, {
-      pauseCommits: () => Promise.resolve(),
-      resumeCommits: resumeFn,
-    });
-
-    const result = await manager.runSquash();
-
-    expect(result.squashed).toBe(false);
-    expect(result.error).toContain('uncommitted changes');
-    expect(warnSpy).toHaveBeenCalledWith(
-      expect.objectContaining({ root: tempDir }),
-      expect.stringContaining('Squash refused'),
-    );
-    expect(resumeFn).toHaveBeenCalledTimes(1);
-    expect(await readFile(dirty, 'utf8')).toBe('uncommitted edit');
-    expect(await commitCount(tempDir)).toBe(3);
-  });
-
-  it('refuses with a staged but uncommitted change', async () => {
-    await createSquashableHistory(tempDir);
     await writeFile(join(tempDir, 'file1.txt'), 'staged edit', 'utf8');
     await git('add', 'file1.txt');
-    const manager = new SquashManager(tempDir, makeRetention(), silentLogger);
+    await writeFile(join(tempDir, 'untracked.pdf'), 'not tracked', 'utf8');
+    const statusBefore = await git('status', '--porcelain');
 
-    const result = await manager.runSquash();
-
-    expect(result.squashed).toBe(false);
-    expect(await git('diff', '--cached', '--name-only')).toBe('file1.txt');
-  });
-
-  it('still squashes a clean tree with untracked files present', async () => {
-    await createSquashableHistory(tempDir);
-    const untracked = join(tempDir, 'untracked.pdf');
-    await writeFile(untracked, 'not tracked', 'utf8');
-    const manager = new SquashManager(tempDir, makeRetention(), silentLogger);
-
-    const result = await manager.runSquash();
+    const result = await makeSquashManager(
+      tempDir,
+      makeRetention(),
+      silentLogger,
+    ).runSquash();
 
     expect(result).toEqual({
       squashed: true,
       commitsRemoved: 2,
       commitsRetained: 1,
     });
-    expect(await commitCount(tempDir)).toBe(2);
-    expect(await readFile(untracked, 'utf8')).toBe('not tracked');
+    expect(await readFile(dirty, 'utf8')).toBe('uncommitted edit');
+    expect(await git('status', '--porcelain')).toBe(statusBefore);
+    expect(await git('diff', '--cached', '--name-only')).toBe('file1.txt');
     expect(await git('rev-parse', '--abbrev-ref', 'HEAD')).toBe('master');
   }, 30000);
 
-  it('aborts a failed cherry-pick so no sequencer is left behind', async () => {
-    // A retained merge commit makes `git cherry-pick <list>` fail for real
-    // ("is a merge but no -m option was given") after it has started a
-    // sequence, which is the state that wedged a production repository.
+  it('squashes a branch with a merge commit along the first-parent chain', async () => {
     await createCommit(tempDir, 'old1.txt', 'a', daysAgo(60));
     await createCommit(tempDir, 'old2.txt', 'b', daysAgo(50));
     await createCommit(tempDir, 'recent.txt', 'c', daysAgo(2));
-    await git('checkout', '-b', 'side');
+    await git('checkout', '-q', '-b', 'side');
     await createCommit(tempDir, 'side.txt', 'd', daysAgo(1));
-    await git('checkout', 'master');
+    await git('checkout', '-q', 'master');
     await createCommit(tempDir, 'main.txt', 'e', daysAgo(1));
     await git('merge', '--no-ff', '-m', 'merge side', 'side');
-    const headBefore = await git('rev-parse', 'HEAD');
-    const countBefore = await commitCount(tempDir);
+    const treeBefore = await git('rev-parse', 'HEAD^{tree}');
 
-    const manager = new SquashManager(tempDir, makeRetention(), silentLogger);
-    const result = await manager.runSquash();
+    const result = await makeSquashManager(
+      tempDir,
+      makeRetention(),
+      silentLogger,
+    ).runSquash();
 
-    expect(result.squashed).toBe(false);
-    expect(result.error).toMatch(/cherry-pick/);
-    expect(await detectStaleGitOperation(tempDir)).toBeUndefined();
-    expect(await git('rev-parse', '--abbrev-ref', 'HEAD')).toBe('master');
-    expect(await git('rev-parse', 'HEAD')).toBe(headBefore);
-    expect(await commitCount(tempDir)).toBe(countBefore);
-    expect(await git('status', '--porcelain', '--untracked-files=no')).toBe('');
+    expect(result).toEqual({
+      squashed: true,
+      commitsRemoved: 2,
+      commitsRetained: 3,
+    });
+    expect(await git('rev-parse', 'HEAD^{tree}')).toBe(treeBefore);
+    expect(await git('log', '--format=%s', '-1')).toBe('merge side');
   }, 30000);
+});
+
+describe('SquashManager in-hold flush (D101)', () => {
+  it('flushes inside the lock before rewriting', async () => {
+    await createSquashableHistory(tempDir);
+    const lock = new RootGitLock(tempDir, silentLogger);
+    const heldDuringFlush: (string | undefined)[] = [];
+    const manager = makeSquashManager(tempDir, makeRetention(), silentLogger, {
+      lock,
+      flushInHold: () => {
+        heldDuringFlush.push(lock.heldBy);
+        return Promise.resolve(true);
+      },
+    });
+
+    expect((await manager.runSquash()).squashed).toBe(true);
+    expect(heldDuringFlush).toEqual(['squash']);
+  }, 30000);
+
+  it('refuses when the in-hold flush fails', async () => {
+    await createSquashableHistory(tempDir);
+    const tip = await git('rev-parse', 'HEAD');
+
+    const result = await makeSquashManager(
+      tempDir,
+      makeRetention(),
+      silentLogger,
+      { flushInHold: () => Promise.resolve(false) },
+    ).runSquash();
+
+    expect(result).toEqual({
+      squashed: false,
+      error: 'Squash refused: the pending batch failed to commit',
+    });
+    expect(await git('rev-parse', 'HEAD')).toBe(tip);
+  });
 });

@@ -144,11 +144,14 @@ export {
   CommitMessageGenerator,
   type PendingReversion,
   type PushError,
+  RootGitLock,
+  type SquashHooks,
   SquashManager,
   type SquashManagerOptions,
   type SquashResult,
   VcsCoordinator,
   VcsManager,
+  type VcsManagerOptions,
 } from './vcs';
 export type {
   CollectionInfo,

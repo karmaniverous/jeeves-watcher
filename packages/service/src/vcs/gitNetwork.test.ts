@@ -29,8 +29,8 @@ import {
   vi,
 } from 'vitest';
 
-import type * as GitExecModule from './gitExec';
-import { execFileAsync, GIT_BASE_ARGS } from './gitExec';
+import { execFileAsync } from '../test/git';
+import { GIT_BASE_ARGS } from './gitExec';
 import {
   buildAuthHeader,
   buildGitNetworkArgs,
@@ -38,10 +38,12 @@ import {
   execGitNetwork,
   gitPushNonInteractive,
 } from './gitNetwork';
+import type * as GitProcessModule from './gitProcess';
+import { execGit } from './gitProcess';
 
-vi.mock('./gitExec', async (importOriginal) => {
-  const actual = await importOriginal<typeof GitExecModule>();
-  return { ...actual, execFileAsync: vi.fn(actual.execFileAsync) };
+vi.mock('./gitProcess', async (importOriginal) => {
+  const actual = await importOriginal<typeof GitProcessModule>();
+  return { ...actual, execGit: vi.fn(actual.execGit) };
 });
 
 describe('buildGitNetworkEnv', () => {
@@ -135,7 +137,7 @@ describe('execGitNetwork', { timeout: TEST_TIMEOUT_MS }, () => {
   });
 
   it('passes the helper reset args and non-interactive env to git', async () => {
-    const spy = vi.mocked(execFileAsync);
+    const spy = vi.mocked(execGit);
     spy.mockClear();
     await expect(
       execGitNetwork(['ls-remote', url], {
@@ -146,12 +148,7 @@ describe('execGitNetwork', { timeout: TEST_TIMEOUT_MS }, () => {
     ).rejects.toThrow();
 
     expect(spy).toHaveBeenCalledTimes(1);
-    const [file, args, options] = spy.mock.calls[0] as unknown as [
-      string,
-      string[],
-      { cwd: string; env: NodeJS.ProcessEnv; timeout: number },
-    ];
-    expect(file).toBe('git');
+    const [args, options] = spy.mock.calls[0];
     expect(args).toEqual([
       ...GIT_BASE_ARGS,
       ...buildGitNetworkArgs(true),
@@ -159,7 +156,7 @@ describe('execGitNetwork', { timeout: TEST_TIMEOUT_MS }, () => {
       url,
     ]);
     expect(options.cwd).toBe(cwd);
-    expect(options.timeout).toBe(GIT_TIMEOUT_MS);
+    expect(options.timeoutMs).toBe(GIT_TIMEOUT_MS);
     expect(options.env).toMatchObject({
       GIT_TERMINAL_PROMPT: '0',
       GCM_INTERACTIVE: 'never',
@@ -213,15 +210,14 @@ describe('execGitNetwork', { timeout: TEST_TIMEOUT_MS }, () => {
 
 describe('gitPushNonInteractive', () => {
   const lastCall = () =>
-    vi.mocked(execFileAsync).mock.calls.at(-1) as unknown as [
-      string,
+    vi.mocked(execGit).mock.calls.at(-1) as unknown as [
       string[],
       { env: NodeJS.ProcessEnv },
     ];
-  const lastArgs = (): string[] => lastCall()[1];
+  const lastArgs = (): string[] => lastCall()[0];
   /** Config entries passed to git via GIT_CONFIG_* in the last call. */
   const lastConfig = (): Array<[string, string]> => {
-    const { env } = lastCall()[2];
+    const { env } = lastCall()[1];
     const count = Number(env.GIT_CONFIG_COUNT ?? 0);
     const entries: Array<[string, string]> = [];
     for (let i = 0; i < count; i++) {
@@ -234,8 +230,9 @@ describe('gitPushNonInteractive', () => {
   };
 
   beforeEach(() => {
-    vi.mocked(execFileAsync).mockClear();
-    vi.mocked(execFileAsync).mockResolvedValueOnce({
+    vi.mocked(execGit).mockClear();
+    vi.mocked(execGit).mockResolvedValueOnce({
+      stdoutBuffer: Buffer.alloc(0),
       stdout: '',
       stderr: '',
     });

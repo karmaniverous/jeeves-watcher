@@ -44,19 +44,24 @@ describe('VcsManager instance', () => {
       const lockPath = join(tempDir, '.git', 'index.lock');
       await writeFile(lockPath, '', 'utf8');
 
+      // Release the lock when the first retry is announced, so the retry
+      // succeeds however slowly the first attempt starts.
+      warnSpy.mockImplementation((_obj: unknown, msg?: string) => {
+        if (msg === 'index.lock contention, retrying') {
+          void rm(lockPath, { force: true });
+        }
+      });
+
       const filePath = join(tempDir, 'lock-test.txt');
       await writeFile(filePath, 'content', 'utf8');
       manager.fileChanged(filePath);
 
-      // Remove the lock after a short delay to let retry succeed
-      setTimeout(() => {
-        void rm(lockPath, { force: true });
-      }, 300);
-
       await manager.flush();
 
-      // Should have retried (warn was called with index.lock contention message)
-      expect(warnSpy).toHaveBeenCalled();
+      expect(warnSpy).toHaveBeenCalledWith(
+        expect.anything(),
+        'index.lock contention, retrying',
+      );
 
       // The commit should eventually succeed
       const { stdout } = await execFileAsync(

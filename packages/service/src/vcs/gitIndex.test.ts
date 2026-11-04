@@ -1,7 +1,8 @@
 /**
  * @module vcs/gitIndex.test
- * Git index operations against real temp repos: stdin staging of additions
- * and removals, deleted-path listing, staged-diff detection, and commit.
+ * Git index operations against real temp repos: literal stdin staging
+ * (`add`, `add -u`, `rm --cached`), `update-index --force-remove`,
+ * `check-ignore`, deleted-path listing, staged-diff detection, and commit.
  */
 
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
@@ -13,11 +14,14 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { execFileAsync } from '../test/git';
 import { normalizeSlashes } from '../util/normalizeSlashes';
 import {
-  gitAddViaStdin,
+  gitAdd,
+  gitAddUpdate,
   gitCommit,
-  gitRmCachedViaStdin,
+  gitForceRemove,
+  gitRmCached,
   hasStagedChanges,
   listDeletedTrackedPaths,
+  listIgnored,
 } from './gitIndex';
 import { initRepo } from './vcsBootstrap';
 
@@ -47,17 +51,14 @@ afterEach(async () => {
   await rm(tempDir, { recursive: true, force: true });
 });
 
-describe('gitAddViaStdin', () => {
+describe('gitAdd', () => {
   it('stages several files, including names with spaces, in one call', async () => {
     const names = ['file0.txt', 'file 1.txt', 'file2.txt'];
     for (const name of names) {
       await writeFile(join(tempDir, name), name, 'utf8');
     }
 
-    await gitAddViaStdin(
-      names.map((n) => join(tempDir, n)),
-      tempDir,
-    );
+    await gitAdd(tempDir, names);
 
     const staged = (await git('diff', '--cached', '--name-only'))
       .trim()
@@ -66,43 +67,47 @@ describe('gitAddViaStdin', () => {
     expect(staged).toEqual([...names].sort());
   });
 
-  it('stages the deletion of a tracked file that is gone from disk', async () => {
-    await commitFiles(['to-delete.txt']);
-    await rm(join(tempDir, 'to-delete.txt'));
+  it('fails for a tracked file under an ignored folder (why tracked files use add -u)', async () => {
+    await mkdir(join(tempDir, 'docs'));
+    await commitFiles(['docs/a.md']);
+    await writeFile(join(tempDir, '.gitignore'), 'docs/\n', 'utf8');
+    await writeFile(join(tempDir, 'docs', 'a.md'), 'changed', 'utf8');
 
-    await gitAddViaStdin([join(tempDir, 'to-delete.txt')], tempDir);
-
-    expect((await git('diff', '--cached', '--name-status')).trim()).toMatch(
-      /^D\s+to-delete\.txt$/,
-    );
-  });
-
-  it('fails the whole call for a vanished path git never tracked', async () => {
-    await writeFile(join(tempDir, 'real.txt'), 'x', 'utf8');
-    await expect(
-      gitAddViaStdin(
-        [join(tempDir, 'real.txt'), join(tempDir, 'ghost.txt')],
-        tempDir,
-      ),
-    ).rejects.toThrow(/did not match any files/);
-    // This is why batchStaging drops missing-untracked paths first.
-    expect((await git('diff', '--cached', '--name-only')).trim()).toBe('');
+    await expect(gitAdd(tempDir, ['docs/a.md'])).rejects.toMatchObject({
+      code: 1,
+    });
   });
 
   it('is a no-op for an empty list', async () => {
-    await expect(gitAddViaStdin([], tempDir)).resolves.toBeUndefined();
+    await expect(gitAdd(tempDir, [])).resolves.toBeUndefined();
   });
 });
 
-describe('gitRmCachedViaStdin', () => {
+describe('gitAddUpdate', () => {
+  it('stages a tracked file under an ignored folder (D174)', async () => {
+    await mkdir(join(tempDir, 'docs'));
+    await commitFiles(['docs/a.md']);
+    await writeFile(join(tempDir, '.gitignore'), 'docs/\n', 'utf8');
+    await writeFile(join(tempDir, 'docs', 'a.md'), 'changed', 'utf8');
+
+    await gitAddUpdate(tempDir, ['docs/a.md']);
+
+    expect((await git('diff', '--cached', '--name-only')).trim()).toBe(
+      'docs/a.md',
+    );
+  });
+
+  it('is a no-op for an empty list', async () => {
+    await expect(gitAddUpdate(tempDir, [])).resolves.toBeUndefined();
+  });
+});
+
+describe('gitRmCached', () => {
   it('stages removals and ignores paths that are not tracked', async () => {
     await commitFiles(['a.txt', 'b.txt']);
     await rm(join(tempDir, 'a.txt'));
 
-    await gitRmCachedViaStdin(
-      [join(tempDir, 'a.txt'), join(tempDir, 'never-tracked.txt')],
-      tempDir,
-    );
+    await gitRmCached(tempDir, ['a.txt', 'never-tracked.txt']);
 
     expect((await git('diff', '--cached', '--name-status')).trim()).toMatch(
       /^D\s+a\.txt$/,
@@ -111,7 +116,46 @@ describe('gitRmCachedViaStdin', () => {
   });
 
   it('is a no-op for an empty list', async () => {
-    await expect(gitRmCachedViaStdin([], tempDir)).resolves.toBeUndefined();
+    await expect(gitRmCached(tempDir, [])).resolves.toBeUndefined();
+  });
+});
+
+describe('gitForceRemove', () => {
+  it('removes a path with staged changes and keeps the file on disk (D163)', async () => {
+    await commitFiles(['a[1].md', 'a1.md']);
+    await writeFile(join(tempDir, 'a[1].md'), 'staged edit', 'utf8');
+    await git('add', '--', ':(literal)a[1].md');
+
+    await gitForceRemove(tempDir, ['a[1].md']);
+
+    expect((await git('ls-files')).trim().split('\n')).toEqual(['a1.md']);
+    expect((await git('status', '--porcelain')).trim().split('\n')).toEqual([
+      'D  a[1].md',
+      '?? a[1].md',
+    ]);
+  });
+
+  it('is a no-op for an empty list', async () => {
+    await expect(gitForceRemove(tempDir, [])).resolves.toBeUndefined();
+  });
+});
+
+describe('listIgnored', () => {
+  it('lists ignored paths and treats exit 1 (none ignored) as an empty list', async () => {
+    await writeFile(join(tempDir, '.gitignore'), '*.log\n', 'utf8');
+
+    expect(await listIgnored(tempDir, ['a.log', 'b.md'])).toEqual(['a.log']);
+    expect(await listIgnored(tempDir, ['b.md'])).toEqual([]);
+    expect(await listIgnored(tempDir, [])).toEqual([]);
+  });
+
+  it('rethrows real failures', async () => {
+    const notARepo = await mkdtemp(join(tmpdir(), 'git-index-norepo-'));
+    try {
+      await expect(listIgnored(notARepo, ['a.md'])).rejects.toThrow();
+    } finally {
+      await rm(notARepo, { recursive: true, force: true });
+    }
   });
 });
 

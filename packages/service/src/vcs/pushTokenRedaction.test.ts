@@ -22,9 +22,9 @@ import {
   startDroppingRemote,
 } from '../test/droppingRemote';
 import { execFileAsync, TEST_GIT_TIMEOUT_MS } from '../test/git';
+import { makeSquashManager } from '../test/squashRepo';
 import { normalizeSlashes } from '../util/normalizeSlashes';
 import { gitPushNonInteractive } from './gitNetwork';
-import { SquashManager } from './SquashManager';
 import { initRepo } from './vcsBootstrap';
 import { VcsCoordinator } from './VcsCoordinator';
 import { VcsManager } from './VcsManager';
@@ -210,7 +210,7 @@ describe('access token redaction on failed push (#245)', () => {
     await commitAt(dir, 'new.txt', 1);
     const { logger, lines } = capturingLogger();
     const errorSpy = vi.spyOn(logger, 'error');
-    const manager = new SquashManager(
+    const manager = makeSquashManager(
       dir,
       { maxAgeDays: 30, maxVersions: 100, squashCron: '0 0 * * *' },
       logger,

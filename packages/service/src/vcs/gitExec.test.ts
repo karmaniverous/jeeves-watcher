@@ -14,6 +14,7 @@ import {
   gitArgs,
   isIndexLockError,
   pathKey,
+  pathListTimeoutMs,
 } from './gitExec';
 
 function execError(message: string, fields: Record<string, unknown>): Error {
@@ -40,6 +41,14 @@ describe('gitArgs', () => {
     const first = gitArgs('status');
     first.push('mutated');
     expect(gitArgs('status')).toEqual([...GIT_BASE_ARGS, 'status']);
+  });
+});
+
+describe('pathListTimeoutMs', () => {
+  it('is 30 s plus 50 ms per path, capped at 600 s (D55)', () => {
+    expect(pathListTimeoutMs(0)).toBe(30_000);
+    expect(pathListTimeoutMs(1000)).toBe(80_000);
+    expect(pathListTimeoutMs(20_000)).toBe(600_000);
   });
 });
 

@@ -635,7 +635,8 @@ The callback body is `{ scope, filesProcessed, durationMs, errors, sources? }`: 
 {
   "logging": {
     "level": "info",
-    "file": "./logs/watcher.log"
+    "file": "./logs/watcher.log",
+    "rotation": { "maxSize": "10m", "frequency": "daily", "maxFiles": 14 }
   }
 }
 ```
@@ -644,8 +645,12 @@ The callback body is `{ scope, filesProcessed, durationMs, errors, sources? }`: 
 | --- | --- | --- | --- |
 | `level` | `string` | `"info"` | pino log level: `"trace"`, `"debug"`, `"info"`, `"warn"`, `"error"`, `"fatal"`, or `"silent"` to turn logging off. Any other value stops the service at startup. |
 | `file` | `string` | `undefined` | Log file path. If omitted, logs to stdout. |
+| `rotation` | `object \| false` | see below | Rotation of `file`; `false` writes one file without rotation. |
+| `rotation.maxSize` | `number \| string` | `"10m"` | Rotate when the file reaches this size: bytes, or a string with a `k`, `m` or `g` suffix (binary units). |
+| `rotation.frequency` | `"daily" \| "hourly" \| number` | `"daily"` | Also rotate on this schedule (a number is milliseconds). |
+| `rotation.maxFiles` | `number` | `14` | Rotated files kept besides the active one; older ones, including those of earlier runs, are deleted. |
 
-Uses structured JSON logging via [pino](https://github.com/pinojs/pino).
+Uses structured JSON logging via [pino](https://github.com/pinojs/pino). With `file`, logs rotate through [pino-roll](https://github.com/mcollina/pino-roll): rotated files are named `<name>.<yyyy-MM-dd>.<n>.<ext>` beside the active one (for `watcher.log`: `watcher.2026-11-04.1.log`), and pruning only touches files of that shape. The file is opened before the service logs its first line, and a refused or failed start is written to the log file and to stderr.
 
 ---
 
@@ -722,6 +727,7 @@ On shutdown, the watcher (v0.20.0+ order):
 | `enabled` | `boolean` | `false` | Enable git-backed content versioning. |
 | `commitThrottleMs` | `number` | `30000` | Throttle interval (ms) for batching commits (min: 1000). |
 | `maxBatchSize` | `number` | `1000` | Max files per commit batch (min: 1). |
+| `maxFileBytes` | `number \| string` | `100000000` | Size cap for versioned files: bytes, or a string with a `k`, `m` or `g` suffix (binary units). A new file over it is not staged; a tracked file that grows past it is untracked in its own commit. `0` disables. Read at each staging. See [Version Control](./version-control.md#file-size-cap). |
 | `branch` | `string` | `"master"` | Git branch name for VCS operations. Squash retention and startup recovery target this branch. |
 | `author.name` | `string` | `"jeeves-watcher"` | Git commit author name, written to each repository's local git config at startup. |
 | `author.email` | `string` | `"watcher@localhost"` | Git commit author email. |
