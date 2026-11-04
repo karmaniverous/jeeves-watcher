@@ -16,7 +16,6 @@ import { SystemHealth, type SystemHealthOptions } from '../health';
 import type { DocumentProcessorInterface } from '../processor';
 import type { EventQueue } from '../queue';
 import { normalizeError } from '../util/normalizeError';
-import { backendOptions } from './chokidarOptions';
 import { resolveIgnored, resolveWatchPaths } from './globToDir';
 import { MoveCorrelator } from './MoveCorrelator';
 import { ScanStats } from './ScanStats';
@@ -170,7 +169,8 @@ export class FileSystemWatcher {
 
     this.watcher = chokidar.watch(roots, {
       ignored,
-      ...backendOptions(this.config),
+      usePolling: this.config.usePolling,
+      interval: this.config.pollIntervalMs,
       awaitWriteFinish: this.config.stabilityThresholdMs
         ? { stabilityThreshold: this.config.stabilityThresholdMs }
         : false,

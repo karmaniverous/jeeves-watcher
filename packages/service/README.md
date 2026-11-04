@@ -4,7 +4,7 @@ Filesystem watcher that keeps a [Qdrant](https://qdrant.tech/) vector store in s
 
 ## Requirements
 
-- **Node.js** ≥ 22.22
+- **Node.js** ≥ 22.13
 
 ## Features
 
