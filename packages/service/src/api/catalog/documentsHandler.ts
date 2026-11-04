@@ -24,7 +24,7 @@ import type { Entry } from './catalogEntry';
 import { sourcesNotAvailableResult } from './errorResult';
 import { catalogErrorFromThrown } from './wrapCatalogHandler';
 
-/** Dependencies for the catalog `documents` entry's handler. */
+/** Dependencies for the catalog `notifyDocuments` entry's handler. */
 export interface CatalogDocumentsDeps {
   /** Document processor (its source operations). */
   processor: SourceOperationsProvider;
@@ -110,7 +110,7 @@ async function processAll(
  */
 export function createCatalogDocumentsHandler(
   deps: CatalogDocumentsDeps,
-): CatalogHandler<Entry<'documents'>> {
+): CatalogHandler<Entry<'notifyDocuments'>> {
   return async (input) => {
     try {
       const { processor, sourceQueue } = deps;

@@ -3,10 +3,7 @@
  * `createApiServer` registers every `WATCHER_CATALOG` route from the catalog, with or without a VCS coordinator (the `/vcs/*` routes are always registered; the feature gate answers them while VCS is off), and wires the handlers' dependencies (smoke requests that need no Qdrant).
  */
 
-import {
-  getEndpoint,
-  WATCHER_CATALOG,
-} from '@karmaniverous/jeeves-watcher-core';
+import { WATCHER_CATALOG } from '@karmaniverous/jeeves-watcher-core';
 import type { FastifyInstance } from 'fastify';
 import pino from 'pino';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -14,6 +11,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import type { JeevesWatcherConfig } from '../config/types';
 import { VirtualRuleStore } from '../rules/virtualRules';
 import type { ApiServerOptions } from './apiServerOptions';
+import type { WatcherEntryName } from './catalog/catalogEntry';
 import { createApiServer } from './index';
 
 const config = {
@@ -45,8 +43,8 @@ afterEach(async () => {
 });
 
 /** The route of an endpoint, as registered. */
-const route = (name: Parameters<typeof getEndpoint>[0]) => {
-  const { method, path } = getEndpoint(name);
+const route = (name: WatcherEntryName) => {
+  const { method, path } = WATCHER_CATALOG.byName(name);
   return { method, url: path };
 };
 

@@ -19,7 +19,7 @@ import {
 import type { Entry } from './catalogEntry';
 import { wrapCatalogHandler } from './wrapCatalogHandler';
 
-/** Dependencies for the catalog `documentsDelete` entry's handler. */
+/** Dependencies for the catalog `deleteDocuments` entry's handler. */
 export interface CatalogDocumentsDeleteDeps {
   /** Vector store. */
   vectorStore: Pick<VectorStore, 'scrollPage' | 'delete'>;
@@ -47,8 +47,8 @@ export interface CatalogDocumentsDeleteDeps {
  */
 export function createCatalogDocumentsDeleteHandler(
   deps: CatalogDocumentsDeleteDeps,
-): CatalogHandler<Entry<'documentsDelete'>> {
-  return wrapCatalogHandler<Entry<'documentsDelete'>>(
+): CatalogHandler<Entry<'deleteDocuments'>> {
+  return wrapCatalogHandler<Entry<'deleteDocuments'>>(
     async (input) => {
       // The schema's refinement guarantees exactly one selector.
       const body = input.body as DocumentsDeleteRequest;

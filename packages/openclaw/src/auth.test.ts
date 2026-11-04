@@ -37,7 +37,7 @@ const CATALOG_PARAMS: Partial<Record<string, Record<string, unknown>>> = {
   watcher_config_apply: { config: { x: 1 } },
   watcher_search: { query: 'q' },
   watcher_scan: { filter: {} },
-  watcher_vcs_show: { path: 'a.md', commit: 'abc' },
+  watcher_show_vcs_file: { path: 'a.md', commit: 'abc' },
 };
 
 const paramsFor = (name: string) => CATALOG_PARAMS[name] ?? PARAMS;
@@ -133,7 +133,7 @@ describe('plugin bearer key', () => {
 
   it.each([
     // Plugin-built tools add key guidance to a 401.
-    ['watcher_enrich', unauthorizedMessage(true, PLUGIN_KEY_SOURCES)],
+    ['watcher_set_metadata', unauthorizedMessage(true, PLUGIN_KEY_SOURCES)],
     // Catalog-built tools report core's `HTTP <status>: <body>`; the guidance
     // is in the skill's troubleshooting section (spec #281 D31).
     ['watcher_config', 'HTTP 401: {"error":"Unauthorized"}'],

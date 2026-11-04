@@ -16,13 +16,13 @@ export type WatcherFeatures = Readonly<Record<WatcherFeature, boolean>>;
  * entry needs version control (`vcs.enabled`, a `VcsCoordinator`).
  */
 export const WATCHER_FEATURE_GATES = {
-  vcsStatus: 'vcs',
-  vcsHistory: 'vcs',
-  vcsShow: 'vcs',
-  vcsDiff: 'vcs',
-  vcsCheckExclusion: 'vcs',
-  vcsRevert: 'vcs',
-  vcsExclude: 'vcs',
+  getVcsStatus: 'vcs',
+  listVcsHistory: 'vcs',
+  showVcsFile: 'vcs',
+  diffVcs: 'vcs',
+  checkVcsExclusion: 'vcs',
+  revertVcs: 'vcs',
+  excludeVcsPath: 'vcs',
 } as const satisfies Partial<Record<WatcherEntryName, WatcherFeature>>;
 
 /** The name of a gated catalog entry. */

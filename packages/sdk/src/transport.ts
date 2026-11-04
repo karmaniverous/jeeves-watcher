@@ -5,10 +5,10 @@
 
 import {
   bearerHeaders,
-  type EndpointName,
-  getEndpoint,
   httpError,
   tryParseJson,
+  WATCHER_CATALOG,
+  type WatcherCatalog,
 } from '@karmaniverous/jeeves-watcher-core';
 
 import type { ResolvedClientOptions } from './options.js';
@@ -30,7 +30,7 @@ export interface SchemaLike<T> {
 /** One request against a catalog endpoint. */
 export interface RequestSpec<T> {
   /** Catalog endpoint name; supplies method and path. */
-  endpoint: EndpointName;
+  endpoint: WatcherCatalog['entries'][number]['name'];
   /** Request body (JSON). */
   body?: unknown;
   /** Schema the body must satisfy before anything is sent. */
@@ -108,7 +108,7 @@ function parseResponse<T>(spec: RequestSpec<T>, status: number, text: string) {
  */
 export function createTransport(options: ResolvedClientOptions): Transport {
   return async <T>(spec: RequestSpec<T>): Promise<T> => {
-    const { method, path } = getEndpoint(spec.endpoint);
+    const { method, path } = WATCHER_CATALOG.byName(spec.endpoint);
     const hasBody = spec.body !== undefined || spec.bodySchema !== undefined;
     const body = hasBody ? validateBody(spec) : undefined;
     const query = new URLSearchParams(spec.query).toString();

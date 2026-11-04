@@ -30,7 +30,7 @@ const rule = (name: string, match: unknown = { type: 'object' }) => ({
 async function invoke(deps: CatalogRuleDeps, body: unknown) {
   const app = Fastify({ logger: false });
   await registerCatalogEntries(app, {
-    rulesRegister: createCatalogRulesRegisterHandler(deps),
+    registerRules: createCatalogRulesRegisterHandler(deps),
   });
   const res = await app.inject({
     method: 'POST',

@@ -38,7 +38,7 @@ async function invoke(scrollPage: ScrollPage, body: unknown) {
   const scrollMock = vi.fn(scrollPage);
   const app = Fastify({ logger: false });
   await registerCatalogEntries(app, {
-    pointsDelete: createCatalogPointsDeleteHandler({
+    deletePoints: createCatalogPointsDeleteHandler({
       vectorStore: { scrollPage: scrollMock, delete: deleteMock } as never,
       logger,
     }),

@@ -1,6 +1,6 @@
 /**
  * @module plugin/catalogTools
- * The watcher tools built from `WATCHER_CATALOG` by core's toolset: the four standard tools (`watcher_status`, `watcher_service`, `watcher_config`, `watcher_config_apply`) and `watcher_search`, `watcher_scan` and `watcher_vcs_show`, all sending the bearer key where their entry requires it; `registerCatalogTool` registers one of them as an optional tool.
+ * The watcher tools built from `WATCHER_CATALOG` by core's toolset: the four standard tools (`watcher_status`, `watcher_service`, `watcher_config`, `watcher_config_apply`) and `watcher_search`, `watcher_scan` and `watcher_show_vcs_file`, all sending the bearer key where their entry requires it; `registerCatalogTool` registers one of them as an optional tool.
  *
  * @remarks
  * Parameters come from the catalog's request schemas; names and
@@ -52,7 +52,7 @@ export function createCatalogTools(
           'Filter-only point query without vector search. Returns metadata for points matching a Qdrant filter. Use for structural queries: file enumeration, staleness checks, delta computation. Use watcher_search for semantic/similarity queries. This is a direct tool: call it directly, never through tool_call.',
         catalogMode: 'direct-only',
       },
-      vcsShow: {
+      showVcsFile: {
         description: 'Retrieve file content at a specific version',
       },
     },

@@ -1,6 +1,6 @@
 /**
  * @module api/catalog/vcsExcludeHandler
- * Catalog handler for `POST /vcs/exclude` (Design 5): resolves the root and anchored pattern, then adds it to the root's `.git/info/exclude` and untracks matching files, or removes it. Answers 409 `confirm_required` and 503 `not_available` with `Retry-After: 30` (D102, D103). The body is validated by the catalog's `vcsExclude` entry schema.
+ * Catalog handler for `POST /vcs/exclude` (Design 5): resolves the root and anchored pattern, then adds it to the root's `.git/info/exclude` and untracks matching files, or removes it. Answers 409 `confirm_required` and 503 `not_available` with `Retry-After: 30` (D102, D103). The body is validated by the catalog's `excludeVcsPath` entry schema.
  *
  * Written directly rather than through `wrapCatalogHandler`, because its
  * 503 carries a header and its 409 an extra field.
@@ -29,7 +29,7 @@ import { catalogErrorFromThrown } from './wrapCatalogHandler';
 const RETRY_AFTER_S = String(ROUTE_LOCK_WAIT_MS / 1000);
 
 /** `POST /vcs/exclude`'s handler result. */
-type ExcludeResult = HandlerResult<Entry<'vcsExclude'>>;
+type ExcludeResult = HandlerResult<Entry<'excludeVcsPath'>>;
 
 /**
  * The error result for a thrown error: the exclude-specific errors, else
@@ -68,7 +68,7 @@ function excludeErrorResult(
  */
 export function createCatalogVcsExcludeHandler(
   deps: CatalogVcsDeps,
-): CatalogHandler<Entry<'vcsExclude'>> {
+): CatalogHandler<Entry<'excludeVcsPath'>> {
   return async (input) => {
     try {
       const { manager, pattern, relativeGlob } = resolveExcludeTarget(

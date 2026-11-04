@@ -109,8 +109,8 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
           reindexTracker,
         }),
       },
-      configMatch: { getConfig, logger },
-      configValidate: { getConfig, logger, configDir },
+      matchConfig: { getConfig, logger },
+      validateConfig: { getConfig, logger, configDir },
       render: { processor, getWatch: () => getConfig().watch, logger },
       search: {
         embeddingProvider,
@@ -124,29 +124,29 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
         },
       },
       scan: { vectorStore, logger },
-      searchFacets: { getConfig, valuesManager, configDir, logger },
+      listFacets: { getConfig, valuesManager, configDir, logger },
       walk: {
         getWatchPaths: () => extractWatchPathStrings(getConfig().watch.paths),
         getFileSystemWatcher,
         logger,
       },
-      issues: { issuesManager },
-      metadata: { processor, getConfig, logger, configDir },
+      listIssues: { issuesManager },
+      setMetadata: { processor, getConfig, logger, configDir },
       reindex: { ...options, getConfig, reindexTracker },
-      documents: { processor, sourceQueue: options.sourceQueue, logger },
-      documentsDelete: {
+      notifyDocuments: { processor, sourceQueue: options.sourceQueue, logger },
+      deleteDocuments: {
         vectorStore,
         enrichmentStore: options.enrichmentStore,
         issuesManager,
         logger,
       },
-      pointsDelete: { vectorStore, logger },
+      deletePoints: { vectorStore, logger },
       rebuildMetadata: {
         enrichmentStore: options.enrichmentStore,
         vectorStore,
         logger,
       },
-      rulesReapply: { processor, vectorStore, logger },
+      reapplyRules: { processor, vectorStore, logger },
       rules: { virtualRuleStore, logger, onRulesChanged },
       ...(options.vcsCoordinator
         ? { vcs: { coordinator: options.vcsCoordinator, logger } }

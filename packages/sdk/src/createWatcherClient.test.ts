@@ -3,7 +3,7 @@
  * Unit tests for the client methods with an injected fetch: method, path (from the core catalog), headers, request bodies and validated responses.
  */
 
-import { getEndpoint } from '@karmaniverous/jeeves-watcher-core';
+import { WATCHER_CATALOG } from '@karmaniverous/jeeves-watcher-core';
 import { describe, expect, it } from 'vitest';
 
 import { createWatcherClient } from './createWatcherClient';
@@ -37,7 +37,7 @@ describe('createWatcherClient', () => {
     const { watcher, mock } = client({ body: STATUS });
     await expect(watcher.status()).resolves.toEqual(STATUS);
     expect(mock.calls[0]).toMatchObject({
-      url: `${BASE}${getEndpoint('status').path}`,
+      url: `${BASE}${WATCHER_CATALOG.byName('status').path}`,
       method: 'GET',
       body: undefined,
     });

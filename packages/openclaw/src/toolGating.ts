@@ -18,7 +18,7 @@
  *   service manager by service name.
  *
  * The 14 domain tools are HTTP only and never gated: `watcher_search`,
- * `watcher_scan` and `watcher_vcs_show` come from the same core toolset;
+ * `watcher_scan` and `watcher_show_vcs_file` come from the same core toolset;
  * the rest (in `watcherTools.ts` and `vcsTools.ts`) call the service API
  * via `registerApiTool` and `requestJson`.
  */

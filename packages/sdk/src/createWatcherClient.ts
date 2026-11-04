@@ -124,7 +124,7 @@ export function createWatcherClient(
       }),
     metadata: (request) =>
       transport({
-        endpoint: 'metadata',
+        endpoint: 'setMetadata',
         body: request,
         bodySchema: metadataRequestSchema,
         responseSchema: metadataResponseSchema,
@@ -137,7 +137,10 @@ export function createWatcherClient(
         responseSchema: reindexResponseSchema,
       }),
     issues: () =>
-      transport({ endpoint: 'issues', responseSchema: issuesResponseSchema }),
+      transport({
+        endpoint: 'listIssues',
+        responseSchema: issuesResponseSchema,
+      }),
     documents: createDocumentsApi(transport),
   };
 }

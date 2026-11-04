@@ -8,19 +8,19 @@ afterEach(() => {
 });
 
 describe('vcsToolConfigs', () => {
-  it('lists the 7 catalog-eligible watcher_vcs_* tools, watcher_vcs_show by name', () => {
+  it('lists the 7 catalog-eligible watcher_vcs_* tools, watcher_show_vcs_file by name', () => {
     const name = (c: (typeof vcsToolConfigs)[number]) =>
       typeof c === 'string' ? c : c.name;
     expect(vcsToolConfigs.map(name)).toEqual([
-      'watcher_vcs_status',
-      'watcher_vcs_history',
-      'watcher_vcs_show',
-      'watcher_vcs_diff',
-      'watcher_vcs_revert',
-      'watcher_vcs_exclude',
-      'watcher_vcs_check',
+      'watcher_get_vcs_status',
+      'watcher_list_vcs_history',
+      'watcher_show_vcs_file',
+      'watcher_diff_vcs',
+      'watcher_revert_vcs',
+      'watcher_exclude_vcs_path',
+      'watcher_check_vcs_exclusion',
     ]);
-    expect(vcsToolConfigs[2]).toBe('watcher_vcs_show');
+    expect(vcsToolConfigs[2]).toBe('watcher_show_vcs_file');
     const tools = captureTools();
     for (const c of vcsToolConfigs)
       expect(tools.get(name(c))?.tool.catalogMode).toBeUndefined();
@@ -28,17 +28,17 @@ describe('vcsToolConfigs', () => {
 });
 
 describe('VCS tool execution', () => {
-  it('watcher_vcs_status calls GET /vcs/status', async () => {
+  it('watcher_get_vcs_status calls GET /vcs/status', async () => {
     const fetchMock = mockFetch({ enabled: true });
     vi.stubGlobal('fetch', fetchMock);
-    await run(captureTools(), 'watcher_vcs_status', {});
+    await run(captureTools(), 'watcher_get_vcs_status', {});
     expect(fetchMock).toHaveBeenCalledWith(`${BASE}/vcs/status`, undefined);
   });
 
-  it('watcher_vcs_history builds query string with all params', async () => {
+  it('watcher_list_vcs_history builds query string with all params', async () => {
     const fetchMock = mockFetch([]);
     vi.stubGlobal('fetch', fetchMock);
-    await run(captureTools(), 'watcher_vcs_history', {
+    await run(captureTools(), 'watcher_list_vcs_history', {
       glob: '*.md',
       since: '2024-01-01',
       until: '2024-12-31',
@@ -50,17 +50,17 @@ describe('VCS tool execution', () => {
     );
   });
 
-  it('watcher_vcs_history omits undefined optional params', async () => {
+  it('watcher_list_vcs_history omits undefined optional params', async () => {
     const fetchMock = mockFetch([]);
     vi.stubGlobal('fetch', fetchMock);
-    await run(captureTools(), 'watcher_vcs_history', { glob: 'src/**' });
+    await run(captureTools(), 'watcher_list_vcs_history', { glob: 'src/**' });
     expect(fetchMock).toHaveBeenCalledWith(
       `${BASE}/vcs/history?glob=src%2F**`,
       undefined,
     );
   });
 
-  it('watcher_vcs_show GETs /vcs/show and returns the file text (non-JSON)', async () => {
+  it('watcher_show_vcs_file GETs /vcs/show and returns the file text (non-JSON)', async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
       status: 200,
@@ -69,7 +69,7 @@ describe('VCS tool execution', () => {
       json: () => Promise.reject(new SyntaxError('Unexpected token #')),
     });
     vi.stubGlobal('fetch', fetchMock);
-    const result = await run(captureTools(), 'watcher_vcs_show', {
+    const result = await run(captureTools(), 'watcher_show_vcs_file', {
       path: 'docs/foo.md',
       commit: 'abc123',
     });
@@ -82,20 +82,20 @@ describe('VCS tool execution', () => {
     expect(result.content[0].text).toContain('# Not JSON');
   });
 
-  it('watcher_vcs_show rejects a missing commit before any request', async () => {
+  it('watcher_show_vcs_file rejects a missing commit before any request', async () => {
     const fetchMock = mockFetch();
     vi.stubGlobal('fetch', fetchMock);
-    const result = await run(captureTools(), 'watcher_vcs_show', {
+    const result = await run(captureTools(), 'watcher_show_vcs_file', {
       path: 'foo.md',
     });
     expect(result.isError).toBe(true);
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it('watcher_vcs_diff builds query string with optional commitEnd', async () => {
+  it('watcher_diff_vcs builds query string with optional commitEnd', async () => {
     const fetchMock = mockFetch({ diff: '' });
     vi.stubGlobal('fetch', fetchMock);
-    await run(captureTools(), 'watcher_vcs_diff', {
+    await run(captureTools(), 'watcher_diff_vcs', {
       glob: '*.ts',
       commit: 'abc',
       commitEnd: 'def',
@@ -106,10 +106,10 @@ describe('VCS tool execution', () => {
     );
   });
 
-  it('watcher_vcs_diff omits commitEnd when not provided', async () => {
+  it('watcher_diff_vcs omits commitEnd when not provided', async () => {
     const fetchMock = mockFetch({ diff: '' });
     vi.stubGlobal('fetch', fetchMock);
-    await run(captureTools(), 'watcher_vcs_diff', {
+    await run(captureTools(), 'watcher_diff_vcs', {
       glob: '*.ts',
       commit: 'abc',
     });
@@ -119,10 +119,10 @@ describe('VCS tool execution', () => {
     );
   });
 
-  it('watcher_vcs_revert POSTs glob, commit, existingOnly', async () => {
+  it('watcher_revert_vcs POSTs glob, commit, existingOnly', async () => {
     const fetchMock = mockFetch({ ok: true });
     vi.stubGlobal('fetch', fetchMock);
-    await run(captureTools(), 'watcher_vcs_revert', {
+    await run(captureTools(), 'watcher_revert_vcs', {
       glob: 'src/**',
       commit: 'abc',
       existingOnly: true,
@@ -133,10 +133,10 @@ describe('VCS tool execution', () => {
     expect(body).toEqual({ glob: 'src/**', commit: 'abc', existingOnly: true });
   });
 
-  it('watcher_vcs_exclude POSTs glob with optional root and remove', async () => {
+  it('watcher_exclude_vcs_path POSTs glob with optional root and remove', async () => {
     const fetchMock = mockFetch({ ok: true });
     vi.stubGlobal('fetch', fetchMock);
-    await run(captureTools(), 'watcher_vcs_exclude', {
+    await run(captureTools(), 'watcher_exclude_vcs_path', {
       glob: '*.log',
       remove: true,
     });
@@ -147,10 +147,10 @@ describe('VCS tool execution', () => {
     expect(body).not.toHaveProperty('root');
   });
 
-  it('watcher_vcs_exclude passes confirm (D103)', async () => {
+  it('watcher_exclude_vcs_path passes confirm (D103)', async () => {
     const fetchMock = mockFetch({ ok: true });
     vi.stubGlobal('fetch', fetchMock);
-    await run(captureTools(), 'watcher_vcs_exclude', {
+    await run(captureTools(), 'watcher_exclude_vcs_path', {
       glob: '/bulk/*.dat',
       root: '/r',
       confirm: true,
@@ -160,10 +160,12 @@ describe('VCS tool execution', () => {
     expect(body).toEqual({ glob: '/bulk/*.dat', root: '/r', confirm: true });
   });
 
-  it('watcher_vcs_check builds query string', async () => {
+  it('watcher_check_vcs_exclusion builds query string', async () => {
     const fetchMock = mockFetch({ excluded: false });
     vi.stubGlobal('fetch', fetchMock);
-    await run(captureTools(), 'watcher_vcs_check', { path: 'src/index.ts' });
+    await run(captureTools(), 'watcher_check_vcs_exclusion', {
+      path: 'src/index.ts',
+    });
     expect(fetchMock).toHaveBeenCalledWith(
       `${BASE}/vcs/check-exclusion?path=src%2Findex.ts`,
       undefined,

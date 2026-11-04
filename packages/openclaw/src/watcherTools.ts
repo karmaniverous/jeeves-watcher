@@ -4,7 +4,7 @@
  */
 
 import { type PluginApi, type ToolDescriptor } from '@karmaniverous/jeeves';
-import { getEndpoint } from '@karmaniverous/jeeves-watcher-core';
+import { WATCHER_CATALOG } from '@karmaniverous/jeeves-watcher-core';
 
 import {
   type BaseUrlSource,
@@ -19,7 +19,7 @@ import { vcsToolConfigs } from './vcsTools.js';
  * Register the 14 domain-specific watcher_* tools with the OpenClaw plugin API.
  *
  * @remarks
- * `watcher_search`, `watcher_scan` and `watcher_vcs_show` are built from the
+ * `watcher_search`, `watcher_scan` and `watcher_show_vcs_file` are built from the
  * catalog (`catalogTools`) and passed in; they keep their 0.17.0 places.
  *
  * @param api - Plugin API.
@@ -37,7 +37,7 @@ export function registerWatcherTools(
   const tools: WatcherToolEntry[] = [
     'watcher_search',
     {
-      name: 'watcher_enrich',
+      name: 'watcher_set_metadata',
       description: 'Set or update metadata on a document by file path.',
       parameters: {
         type: 'object',
@@ -54,12 +54,12 @@ export function registerWatcherTools(
         },
       },
       buildRequest: (params) => [
-        getEndpoint('metadata').path,
+        WATCHER_CATALOG.byName('setMetadata').path,
         { path: params.path, metadata: params.metadata },
       ],
     },
     {
-      name: 'watcher_validate',
+      name: 'watcher_validate_config',
       description:
         'Validate a candidate config (or current config if omitted). Optionally test file paths against the config to preview rule matching and metadata output.',
       parameters: {
@@ -80,7 +80,7 @@ export function registerWatcherTools(
       },
       buildRequest: (params) => {
         const body = pickDefined(params, ['config', 'testPaths']);
-        return [getEndpoint('configValidate').path, body];
+        return [WATCHER_CATALOG.byName('validateConfig').path, body];
       },
     },
     {
@@ -111,7 +111,7 @@ export function registerWatcherTools(
         },
       },
       buildRequest: (params) => [
-        getEndpoint('reindex').path,
+        WATCHER_CATALOG.byName('reindex').path,
         {
           scope: params.scope ?? 'rules',
           ...(params.path ? { path: params.path } : {}),
@@ -121,11 +121,11 @@ export function registerWatcherTools(
     },
     'watcher_scan',
     {
-      name: 'watcher_issues',
+      name: 'watcher_list_issues',
       description:
         'Get runtime processing failures. Shows the documents (file path or source reference) that failed processing and why.',
       parameters: { type: 'object', properties: {} },
-      buildRequest: () => [getEndpoint('issues').path],
+      buildRequest: () => [WATCHER_CATALOG.byName('listIssues').path],
     },
     {
       name: 'watcher_walk',
@@ -144,7 +144,7 @@ export function registerWatcherTools(
         },
       },
       buildRequest: (params) => [
-        getEndpoint('walk').path,
+        WATCHER_CATALOG.byName('walk').path,
         { globs: params.globs },
       ],
     },

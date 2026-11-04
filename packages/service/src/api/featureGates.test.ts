@@ -40,7 +40,7 @@ describe('disabledRoutes', () => {
   it('never disables an ungated entry', () => {
     const entries = [
       { name: 'status', method: 'GET', path: '/status' },
-      { name: 'vcsShow', method: 'GET', path: '/vcs/show' },
+      { name: 'showVcsFile', method: 'GET', path: '/vcs/show' },
     ];
 
     expect([...disabledRoutes(entries, { vcs: false })]).toEqual([

@@ -1,6 +1,6 @@
 /**
  * @module api/catalog/vcsCheckExclusionHandler
- * Catalog handler for `GET /vcs/check-exclusion`: whether git ignores a path, with the matching rule, its file and line (D82). A git failure other than "not ignored" answers `500`. The query is validated by the catalog's `vcsCheckExclusion` entry schema.
+ * Catalog handler for `GET /vcs/check-exclusion`: whether git ignores a path, with the matching rule, its file and line (D82). A git failure other than "not ignored" answers `500`. The query is validated by the catalog's `checkVcsExclusion` entry schema.
  */
 
 import type { CatalogHandler } from '@karmaniverous/jeeves/fastify';
@@ -20,8 +20,8 @@ import { wrapCatalogHandler } from './wrapCatalogHandler';
  */
 export function createCatalogVcsCheckExclusionHandler(
   deps: CatalogVcsDeps,
-): CatalogHandler<Entry<'vcsCheckExclusion'>> {
-  return wrapCatalogHandler<Entry<'vcsCheckExclusion'>>(
+): CatalogHandler<Entry<'checkVcsExclusion'>> {
+  return wrapCatalogHandler<Entry<'checkVcsExclusion'>>(
     async (input) => {
       const resolved = resolveWatchRoot(deps.coordinator, input.query.path);
       if (!resolved) {

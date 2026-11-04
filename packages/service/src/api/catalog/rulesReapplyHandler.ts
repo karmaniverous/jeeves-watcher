@@ -12,7 +12,7 @@ import { reapplyRules } from '../reapplyRules';
 import type { Entry } from './catalogEntry';
 import { wrapCatalogHandler } from './wrapCatalogHandler';
 
-/** Dependencies for the catalog `rulesReapply` entry's handler. */
+/** Dependencies for the catalog `reapplyRules` entry's handler. */
 export interface CatalogRulesReapplyDeps {
   /** Document processor (re-applies rules per file). */
   processor: DocumentProcessorInterface;
@@ -31,8 +31,8 @@ export interface CatalogRulesReapplyDeps {
  */
 export function createCatalogRulesReapplyHandler(
   deps: CatalogRulesReapplyDeps,
-): CatalogHandler<Entry<'rulesReapply'>> {
-  return wrapCatalogHandler<Entry<'rulesReapply'>>(
+): CatalogHandler<Entry<'reapplyRules'>> {
+  return wrapCatalogHandler<Entry<'reapplyRules'>>(
     async (input) => ({
       body: await reapplyRules(
         deps.vectorStore,

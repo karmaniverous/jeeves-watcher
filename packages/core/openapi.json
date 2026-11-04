@@ -323,7 +323,7 @@
     },
     "/config/schema": {
       "get": {
-        "operationId": "configSchema",
+        "operationId": "getConfigSchema",
         "description": "Get the JSON Schema for the configuration file.",
         "security": [
           {
@@ -361,7 +361,7 @@
     },
     "/config/match": {
       "post": {
-        "operationId": "configMatch",
+        "operationId": "matchConfig",
         "description": "Test file paths against config inference rules.",
         "security": [
           {
@@ -443,7 +443,7 @@
     },
     "/config/validate": {
       "post": {
-        "operationId": "configValidate",
+        "operationId": "validateConfig",
         "description": "Validate a candidate config. Optionally test file paths against the config.",
         "security": [
           {
@@ -813,7 +813,7 @@
     },
     "/search/facets": {
       "get": {
-        "operationId": "searchFacets",
+        "operationId": "listFacets",
         "description": "List available search facets and their values.",
         "security": [
           {
@@ -1049,7 +1049,7 @@
     },
     "/issues": {
       "get": {
-        "operationId": "issues",
+        "operationId": "listIssues",
         "description": "Get runtime processing failures. Shows the documents (file path or source reference) that failed processing and why.",
         "security": [
           {
@@ -1161,7 +1161,7 @@
     },
     "/vcs/status": {
       "get": {
-        "operationId": "vcsStatus",
+        "operationId": "getVcsStatus",
         "description": "VCS state for all roots: enabled state, tracked files, last commit, remote status, commit circuit breaker state. Answers 404 `not_found` when version control is disabled (`vcs.enabled: false`).",
         "security": [
           {
@@ -1333,7 +1333,7 @@
     },
     "/vcs/history": {
       "get": {
-        "operationId": "vcsHistory",
+        "operationId": "listVcsHistory",
         "description": "Query change history by path or glob with optional date range. Answers 404 `not_found` when version control is disabled (`vcs.enabled: false`).",
         "security": [
           {
@@ -1433,7 +1433,7 @@
     },
     "/vcs/show": {
       "get": {
-        "operationId": "vcsShow",
+        "operationId": "showVcsFile",
         "description": "Retrieve file content at a specific version. The reply is the raw file content; its content-type follows the file extension. Answers 404 `not_found` when version control is disabled (`vcs.enabled: false`).",
         "security": [
           {
@@ -1490,7 +1490,7 @@
     },
     "/vcs/diff": {
       "get": {
-        "operationId": "vcsDiff",
+        "operationId": "diffVcs",
         "description": "Show what changed between two versions, or between a version and current. The reply is a unified diff. Answers 404 `not_found` when version control is disabled (`vcs.enabled: false`).",
         "security": [
           {
@@ -1556,7 +1556,7 @@
     },
     "/vcs/check-exclusion": {
       "get": {
-        "operationId": "vcsCheckExclusion",
+        "operationId": "checkVcsExclusion",
         "description": "Check whether a path is excluded from version tracking and why. Answers 404 `not_found` when version control is disabled (`vcs.enabled: false`).",
         "security": [
           {
@@ -1622,7 +1622,7 @@
     },
     "/metadata": {
       "post": {
-        "operationId": "metadata",
+        "operationId": "setMetadata",
         "description": "Set or update metadata on a document by file path or source reference.",
         "security": [
           {
@@ -1862,7 +1862,7 @@
     },
     "/documents": {
       "post": {
-        "operationId": "documents",
+        "operationId": "notifyDocuments",
         "description": "Notify changed source documents ({ source, rule }); queued and coalesced (202), or processed synchronously with ?wait=true. Answers 202 with accepted and rejected references, or with `wait=true` 200 with per-document results.",
         "security": [
           {
@@ -2088,7 +2088,7 @@
     },
     "/rules/register": {
       "post": {
-        "operationId": "rulesRegister",
+        "operationId": "registerRules",
         "description": "Register external inference rules.",
         "security": [
           {
@@ -2177,7 +2177,7 @@
     },
     "/rules/reapply": {
       "post": {
-        "operationId": "rulesReapply",
+        "operationId": "reapplyRules",
         "description": "Re-apply inference rules to existing vector points.",
         "security": [
           {
@@ -2302,7 +2302,7 @@
     },
     "/documents/delete": {
       "post": {
-        "operationId": "documentsDelete",
+        "operationId": "deleteDocuments",
         "description": "Delete source documents by reference or by Qdrant filter (at least one condition; constrained to points carrying source and no file_path).",
         "security": [
           {
@@ -2376,7 +2376,7 @@
     },
     "/points/delete": {
       "post": {
-        "operationId": "pointsDelete",
+        "operationId": "deletePoints",
         "description": "Delete points from the vector store by filter.",
         "security": [
           {
@@ -2442,7 +2442,7 @@
     },
     "/rules/unregister": {
       "delete": {
-        "operationId": "rulesUnregister",
+        "operationId": "unregisterRules",
         "description": "Unregister external inference rules.",
         "security": [
           {
@@ -2506,7 +2506,7 @@
     },
     "/rules/unregister/{source}": {
       "delete": {
-        "operationId": "rulesUnregisterBySource",
+        "operationId": "unregisterRulesBySource",
         "description": "Unregister all external inference rules from a source.",
         "security": [
           {
@@ -2563,7 +2563,7 @@
     },
     "/vcs/revert": {
       "post": {
-        "operationId": "vcsRevert",
+        "operationId": "revertVcs",
         "description": "Restore files from a historical commit (forward-only reversion). Answers 404 `not_found` when version control is disabled (`vcs.enabled: false`).",
         "security": [
           {
@@ -2643,7 +2643,7 @@
     },
     "/vcs/exclude": {
       "post": {
-        "operationId": "vcsExclude",
+        "operationId": "excludeVcsPath",
         "description": "Exclude a path from version history (VCS-only: it stays in search) or remove the exclusion. The glob is a gitignore pattern, so brackets are a character class: escape them to name a file literally (`Report \\[draft\\].docx`). Adding a pattern also untracks the tracked files it matches, in one commit (history stops for them; the files stay on disk and in search); `remove` does not restore that history. More than 100 files to untrack need `confirm: true` (else 409 `confirm_required` with `untracked`, nothing written). The route waits at most 30 s for the root's git lock, then answers 503 `not_available` with `Retry-After: 30`, nothing written. A glob outside an explicit `root` is 400; a glob under no VCS root is 404. Answers 404 `not_found` when version control is disabled (`vcs.enabled: false`).",
         "security": [
           {

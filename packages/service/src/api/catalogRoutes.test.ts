@@ -189,7 +189,7 @@ describe('catalog client round trip', () => {
 
   it('shows a committed file as text', async () => {
     const [name, content] = Object.entries(VCS_FILES)[0];
-    const text = await client().vcsShow({
+    const text = await client().showVcsFile({
       path: `${wire.vcsRoot}/${name}`,
       commit: wire.commit,
     });

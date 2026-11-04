@@ -66,8 +66,8 @@ async function getCommitCount(cwd: string): Promise<number> {
  */
 export function createCatalogVcsStatusHandler(
   deps: CatalogVcsDeps,
-): CatalogHandler<Entry<'vcsStatus'>> {
-  return wrapCatalogHandler<Entry<'vcsStatus'>>(
+): CatalogHandler<Entry<'getVcsStatus'>> {
+  return wrapCatalogHandler<Entry<'getVcsStatus'>>(
     async () => {
       const roots = deps.coordinator.getRoots();
       const enabled = roots.length > 0;

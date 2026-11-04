@@ -33,8 +33,8 @@ function unregisterSource(deps: CatalogRuleDeps, source: string) {
  */
 export function createCatalogRulesUnregisterHandler(
   deps: CatalogRuleDeps,
-): CatalogHandler<Entry<'rulesUnregister'>> {
-  return wrapCatalogHandler<Entry<'rulesUnregister'>>(
+): CatalogHandler<Entry<'unregisterRules'>> {
+  return wrapCatalogHandler<Entry<'unregisterRules'>>(
     (input) => unregisterSource(deps, input.body.source),
     deps.logger,
     'RulesUnregister',
@@ -50,8 +50,8 @@ export function createCatalogRulesUnregisterHandler(
  */
 export function createCatalogRulesUnregisterBySourceHandler(
   deps: CatalogRuleDeps,
-): CatalogHandler<Entry<'rulesUnregisterBySource'>> {
-  return wrapCatalogHandler<Entry<'rulesUnregisterBySource'>>(
+): CatalogHandler<Entry<'unregisterRulesBySource'>> {
+  return wrapCatalogHandler<Entry<'unregisterRulesBySource'>>(
     (input) => unregisterSource(deps, input.params.source),
     deps.logger,
     'RulesUnregister',

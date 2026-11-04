@@ -30,14 +30,6 @@ export {
   WATCH_DEFAULTS,
 } from './defaults.js';
 export {
-  type Endpoint,
-  type EndpointDescriptor,
-  type EndpointName,
-  getEndpoint,
-  type HttpMethod,
-  WATCHER_ENDPOINTS,
-} from './endpoints.js';
-export {
   API_KEY_ENV_VAR,
   bearerHeaders,
   formatHttpError,

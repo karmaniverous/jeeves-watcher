@@ -14,6 +14,7 @@ import type {
 import { describe, expect, it } from 'vitest';
 
 import register from './index.js';
+import { renamedTool as renamed } from './test/toolRenames.js';
 import {
   VCS_CHECK_DESCRIPTION,
   VCS_EXCLUDE_CONFIRM_DESCRIPTION,
@@ -116,12 +117,12 @@ const CHANGES: Partial<Record<string, (before: ToolSurface) => ToolSurface>> = {
     // Qdrant point ids (and so cursors) are strings or numbers.
     cursor: { type: ['string', 'number'] },
   }),
-  watcher_vcs_show: catalogBuilt({
+  watcher_show_vcs_file: catalogBuilt({
     path: { minLength: 1 },
     commit: { minLength: 1 },
   }),
   // P6 B4: VCS-only exclusion (descriptions, and `confirm`, D103).
-  watcher_vcs_exclude: (before) => {
+  watcher_exclude_vcs_path: (before) => {
     const params = before.parameters as {
       properties: Record<string, Record<string, unknown>>;
     };
@@ -148,11 +149,17 @@ const CHANGES: Partial<Record<string, (before: ToolSurface) => ToolSurface>> = {
       },
     };
   },
-  watcher_vcs_check: (before) => ({
+  watcher_check_vcs_exclusion: (before) => ({
     ...before,
     description: VCS_CHECK_DESCRIPTION,
   }),
 };
+
+/** The prompt rules name the VCS tools individually now (D77). */
+const expectedRules = baselineRules.replace(
+  'Version history: `watcher_vcs_*` tools.',
+  'Version history: `watcher_list_vcs_history`, `watcher_diff_vcs`, `watcher_show_vcs_file`.',
+);
 
 /** Register the plugin against a capturing API. */
 function capture(): { tools: ToolSurface[]; hooks: [string, unknown][] } {
@@ -178,27 +185,30 @@ function capture(): { tools: ToolSurface[]; hooks: [string, unknown][] } {
   return { tools, hooks };
 }
 
-describe('plugin surface keeps the 0.17.0 baseline', () => {
+describe('plugin surface keeps the 0.17.0 baseline, apart from the documented changes', () => {
   const { tools, hooks } = capture();
 
-  it('registers the same tool names in the same order', () => {
-    expect(tools.map((t) => t.name)).toEqual(baselineTools.map((t) => t.name));
+  it('registers the same tools, renamed (D77), in the same order', () => {
+    expect(tools.map((t) => t.name)).toEqual(
+      baselineTools.map((t) => renamed(t.name)),
+    );
   });
 
   it.each(baselineTools.map((t) => [t.name, t] as const))(
     '%s',
     (name, before) => {
-      const expected = CHANGES[name]?.(before) ?? before;
-      expect(tools.find((t) => t.name === name)).toEqual(expected);
+      const current = { ...before, name: renamed(name) };
+      const expected = CHANGES[current.name]?.(current) ?? current;
+      expect(tools.find((t) => t.name === current.name)).toEqual(expected);
     },
   );
 
-  it('injects the 0.17.0 prompt rules byte for byte', async () => {
+  it('injects the 0.17.0 prompt rules, with the VCS tools renamed', async () => {
     const hook = hooks.find(([name]) => name === 'before_prompt_build');
     const handler = hook?.[1] as PromptBuildHandler;
     const result = (await handler({ prompt: '', messages: [] }, {})) as {
       appendSystemContext?: string;
     };
-    expect(result.appendSystemContext).toBe(baselineRules);
+    expect(result.appendSystemContext).toBe(expectedRules);
   });
 });

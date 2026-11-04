@@ -5,7 +5,6 @@
 
 import {
   WATCHER_CATALOG,
-  WATCHER_ENDPOINTS,
   WATCHER_OPENAPI_DOCUMENT,
 } from '@karmaniverous/jeeves-watcher-core';
 import type { FastifyInstance } from 'fastify';
@@ -96,14 +95,16 @@ afterAll(async () => {
 describe('api.apiKey covers every registered route', () => {
   it('enumerates every catalogued endpoint from the live server', () => {
     const keys = new Set(routes.map((r) => `${r.method} ${r.path}`));
-    for (const endpoint of WATCHER_ENDPOINTS) {
+    for (const endpoint of WATCHER_CATALOG.entries) {
       expect(keys).toContain(`${endpoint.method} ${endpoint.path}`);
     }
   });
 
   it('returns 401 without a token on every route except the open ones', async () => {
     const guarded = routes.filter((r) => !isOpen(r));
-    expect(guarded.length).toBeGreaterThanOrEqual(WATCHER_ENDPOINTS.length - 1);
+    expect(guarded.length).toBeGreaterThanOrEqual(
+      WATCHER_CATALOG.entries.length - 1,
+    );
     for (const route of guarded) {
       const res = await app.inject({
         method: route.method as 'GET',

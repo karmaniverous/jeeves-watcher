@@ -4,73 +4,93 @@ import type { z } from 'zod';
 
 import { vcsShowQuerySchema, watcherHealthSchema } from './api/index.js';
 import { VCS_DISABLED_NOTE, WATCHER_CATALOG } from './catalog.js';
-import { getEndpoint, WATCHER_ENDPOINTS } from './endpoints.js';
 
-/** `kind` per entry (spec Design 3, under the 0.20.0 names). */
+/**
+ * Every entry's method and path, by its verb-first name (D77, Design 14).
+ * The paths are the 0.20.0 paths: renames never change a route.
+ */
+const ROUTES = {
+  status: ['GET', '/status'],
+  config: ['GET', '/config'],
+  configApply: ['POST', '/config/apply'],
+  getConfigSchema: ['GET', '/config/schema'],
+  matchConfig: ['POST', '/config/match'],
+  validateConfig: ['POST', '/config/validate'],
+  search: ['POST', '/search'],
+  scan: ['POST', '/scan'],
+  listFacets: ['GET', '/search/facets'],
+  render: ['POST', '/render'],
+  walk: ['POST', '/walk'],
+  listIssues: ['GET', '/issues'],
+  getVcsStatus: ['GET', '/vcs/status'],
+  listVcsHistory: ['GET', '/vcs/history'],
+  showVcsFile: ['GET', '/vcs/show'],
+  diffVcs: ['GET', '/vcs/diff'],
+  checkVcsExclusion: ['GET', '/vcs/check-exclusion'],
+  setMetadata: ['POST', '/metadata'],
+  reindex: ['POST', '/reindex'],
+  notifyDocuments: ['POST', '/documents'],
+  registerRules: ['POST', '/rules/register'],
+  reapplyRules: ['POST', '/rules/reapply'],
+  rebuildMetadata: ['POST', '/rebuild-metadata'],
+  deleteDocuments: ['POST', '/documents/delete'],
+  deletePoints: ['POST', '/points/delete'],
+  unregisterRules: ['DELETE', '/rules/unregister'],
+  unregisterRulesBySource: ['DELETE', '/rules/unregister/:source'],
+  revertVcs: ['POST', '/vcs/revert'],
+  excludeVcsPath: ['POST', '/vcs/exclude'],
+} as const;
+
+/** `kind` per entry (spec Design 3). */
 const KINDS = {
   read: [
     'status',
     'config',
-    'configSchema',
-    'configMatch',
-    'configValidate',
+    'getConfigSchema',
+    'matchConfig',
+    'validateConfig',
     'search',
     'scan',
-    'searchFacets',
+    'listFacets',
     'render',
     'walk',
-    'issues',
-    'vcsStatus',
-    'vcsHistory',
-    'vcsShow',
-    'vcsDiff',
-    'vcsCheckExclusion',
+    'listIssues',
+    'getVcsStatus',
+    'listVcsHistory',
+    'showVcsFile',
+    'diffVcs',
+    'checkVcsExclusion',
   ],
   write: [
     'configApply',
-    'metadata',
+    'setMetadata',
     'reindex',
-    'documents',
-    'rulesRegister',
-    'rulesReapply',
+    'notifyDocuments',
+    'registerRules',
+    'reapplyRules',
     'rebuildMetadata',
   ],
   destructive: [
-    'documentsDelete',
-    'pointsDelete',
-    'rulesUnregister',
-    'rulesUnregisterBySource',
-    'vcsRevert',
-    'vcsExclude',
+    'deleteDocuments',
+    'deletePoints',
+    'unregisterRules',
+    'unregisterRulesBySource',
+    'revertVcs',
+    'excludeVcsPath',
   ],
 } as const;
 
-const TEXT_PLAIN = new Set(['vcsShow', 'vcsDiff']);
-
-const entry = (name: string) => {
-  const found = WATCHER_CATALOG.entries.find((e) => e.name === name);
-  if (!found) throw new Error(`no entry ${name}`);
-  return found;
-};
+const TEXT_PLAIN = new Set(['showVcsFile', 'diffVcs']);
 
 describe('WATCHER_CATALOG', () => {
-  it('has one entry per WATCHER_ENDPOINTS endpoint (29)', () => {
-    expect(WATCHER_CATALOG.entries.map((e) => e.name).sort()).toEqual(
-      WATCHER_ENDPOINTS.map((e) => e.name).sort(),
-    );
+  it('holds the 29 operations under their verb-first names, on the 0.20.0 methods and paths', () => {
+    expect(
+      Object.fromEntries(
+        WATCHER_CATALOG.entries.map((e) => [e.name, [e.method, e.path]]),
+      ),
+    ).toEqual(ROUTES);
     expect(WATCHER_CATALOG.entries).toHaveLength(29);
   });
-
-  it.each(WATCHER_ENDPOINTS.map((e) => e.name))(
-    '%s agrees with WATCHER_ENDPOINTS on method and path (D23)',
-    (name) => {
-      const endpoint = getEndpoint(name);
-      expect({ method: entry(name).method, path: entry(name).path }).toEqual({
-        method: endpoint.method,
-        path: endpoint.path,
-      });
-    },
-  );
 
   it('leaves only status unauthenticated; every other entry takes the bearer key', () => {
     const bearer = { schemes: [{ in: 'bearer' }] };
@@ -78,7 +98,7 @@ describe('WATCHER_CATALOG', () => {
       Object.fromEntries(WATCHER_CATALOG.entries.map((e) => [e.name, e.auth])),
     ).toEqual(
       Object.fromEntries(
-        WATCHER_ENDPOINTS.map(({ name }) => [
+        Object.keys(ROUTES).map((name) => [
           name,
           name === 'status' ? 'none' : bearer,
         ]),
@@ -97,7 +117,7 @@ describe('WATCHER_CATALOG', () => {
     ).toEqual(expected);
   });
 
-  it('declares vcsShow and vcsDiff as text/plain and every other entry as JSON', () => {
+  it('declares showVcsFile and diffVcs as text/plain and every other entry as JSON', () => {
     const entries = WATCHER_CATALOG.entries as readonly CatalogEntry[];
     expect(
       Object.fromEntries(entries.map((e) => [e.name, e.contentType])),
@@ -126,7 +146,7 @@ describe('WATCHER_CATALOG', () => {
   });
 
   it('accepts exactly one deleteDocuments selector', () => {
-    const body = WATCHER_CATALOG.byName('documentsDelete').body;
+    const body = WATCHER_CATALOG.byName('deleteDocuments').body;
     const filter = { must: [{ key: 'a', match: { value: 1 } }] };
     expect(body.safeParse({ sources: ['app://d/1'] }).success).toBe(true);
     expect(body.safeParse({ filter }).success).toBe(true);
@@ -167,24 +187,24 @@ describe('WATCHER_CATALOG', () => {
     expect(noted).toEqual(vcs);
   });
 
-  it('keeps the extra text of vcsShow and vcsDiff before the VCS-off note', () => {
-    expect(WATCHER_CATALOG.byName('vcsDiff').description).toBe(
-      `${getEndpoint('vcsDiff').description} The reply is a unified diff. ${VCS_DISABLED_NOTE}`,
+  it('keeps the extra text of showVcsFile and diffVcs before the VCS-off note', () => {
+    expect(WATCHER_CATALOG.byName('diffVcs').description).toBe(
+      `Show what changed between two versions, or between a version and current. The reply is a unified diff. ${VCS_DISABLED_NOTE}`,
     );
   });
 
-  it('takes since and until on the vcsHistory query', () => {
-    const query = WATCHER_CATALOG.byName('vcsHistory').query;
+  it('takes since and until on the listVcsHistory query', () => {
+    const query = WATCHER_CATALOG.byName('listVcsHistory').query;
     expect(
       query.parse({ glob: '*.md', since: '2024-01-01', until: '2024-12-31' }),
     ).toEqual({ glob: '*.md', since: '2024-01-01', until: '2024-12-31' });
   });
 
   it('keeps literal entry names', () => {
-    expect(WATCHER_CATALOG.byName('vcsShow').name).toBe('vcsShow');
+    expect(WATCHER_CATALOG.byName('showVcsFile').name).toBe('showVcsFile');
     expectTypeOf(
-      WATCHER_CATALOG.byName('vcsShow').name,
-    ).toEqualTypeOf<'vcsShow'>();
+      WATCHER_CATALOG.byName('showVcsFile').name,
+    ).toEqualTypeOf<'showVcsFile'>();
   });
 });
 

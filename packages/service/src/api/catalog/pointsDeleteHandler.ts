@@ -1,6 +1,6 @@
 /**
  * @module api/catalog/pointsDeleteHandler
- * Catalog handler for `POST /points/delete`: deletes the points matching a Qdrant filter. The request (`filter`) is validated by the catalog's `pointsDelete` entry schema.
+ * Catalog handler for `POST /points/delete`: deletes the points matching a Qdrant filter. The request (`filter`) is validated by the catalog's `deletePoints` entry schema.
  */
 
 import type { CatalogHandler } from '@karmaniverous/jeeves/fastify';
@@ -12,7 +12,7 @@ import { withFilterErrors } from '../requestError';
 import type { Entry } from './catalogEntry';
 import { wrapCatalogHandler } from './wrapCatalogHandler';
 
-/** Dependencies for the catalog `pointsDelete` entry's handler. */
+/** Dependencies for the catalog `deletePoints` entry's handler. */
 export interface CatalogPointsDeleteDeps {
   /** Vector store the points are deleted from. */
   vectorStore: VectorStore;
@@ -29,8 +29,8 @@ export interface CatalogPointsDeleteDeps {
  */
 export function createCatalogPointsDeleteHandler(
   deps: CatalogPointsDeleteDeps,
-): CatalogHandler<Entry<'pointsDelete'>> {
-  return wrapCatalogHandler<Entry<'pointsDelete'>>(
+): CatalogHandler<Entry<'deletePoints'>> {
+  return wrapCatalogHandler<Entry<'deletePoints'>>(
     async (input) => {
       const { filter } = input.body;
 

@@ -54,13 +54,13 @@ async function build(sources: boolean): Promise<FastifyInstance> {
       logger,
       reindexTracker: new ReindexTracker(),
     }),
-    documents: createCatalogDocumentsHandler({ processor, logger }),
-    metadata: createCatalogMetadataHandler({
+    notifyDocuments: createCatalogDocumentsHandler({ processor, logger }),
+    setMetadata: createCatalogMetadataHandler({
       processor,
       getConfig: () => config,
       logger,
     }),
-    configMatch: createCatalogConfigMatchHandler({
+    matchConfig: createCatalogConfigMatchHandler({
       getConfig: () => config,
       logger,
     }),

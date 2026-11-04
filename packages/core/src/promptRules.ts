@@ -16,5 +16,5 @@ export const WATCHER_PROMPT_RULES = [
   '- **Scan-first rule:** For structural queries (file enumeration, staleness checks, domain listing, counts), use `watcher_scan` instead of `watcher_search`. Scan does not use embeddings and does not accept a query string.',
   '- **Search-first rule:** When finding, reading, or modifying files in indexed paths, run `watcher_search` FIRST, even if you already know the file path. Direct filesystem access is for acting on search results, not bypassing them.',
   '- **Scores:** strong / relevant / noise thresholds apply only when configured at `$.search.scoreThresholds` (query with `watcher_config`); there are no defaults. When configured, discard noise; if all results are noise, broaden the query.',
-  '- **Inventory on demand (`watcher_config`):** inference rules `$.inferenceRules[*]`, watched paths `$.watch.paths[*]`, ignored paths `$.watch.ignored[*]`. Version history: `watcher_vcs_*` tools. See the jeeves-watcher skill for detail.',
+  '- **Inventory on demand (`watcher_config`):** inference rules `$.inferenceRules[*]`, watched paths `$.watch.paths[*]`, ignored paths `$.watch.ignored[*]`. Version history: `watcher_list_vcs_history`, `watcher_diff_vcs`, `watcher_show_vcs_file`. See the jeeves-watcher skill for detail.',
 ].join('\n');

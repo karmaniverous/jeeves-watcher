@@ -1,6 +1,6 @@
 /**
  * @module api/catalog/metadataHandler
- * Catalog handler for `POST /metadata`: enrichment metadata updates via the document processor, for a file path or a source reference. The request is validated by the catalog's `metadata` entry schema; the metadata itself is validated here against the target's rule schemas.
+ * Catalog handler for `POST /metadata`: enrichment metadata updates via the document processor, for a file path or a source reference. The request is validated by the catalog's `setMetadata` entry schema; the metadata itself is validated here against the target's rule schemas.
  */
 
 import type { CatalogHandler } from '@karmaniverous/jeeves/fastify';
@@ -20,7 +20,7 @@ import { invalidRequest, RequestError } from '../requestError';
 import type { Entry } from './catalogEntry';
 import { wrapCatalogHandler } from './wrapCatalogHandler';
 
-/** Dependencies for the catalog `metadata` entry's handler. */
+/** Dependencies for the catalog `setMetadata` entry's handler. */
 export interface CatalogMetadataDeps {
   /** Document processor. */
   processor: WatcherProcessor;
@@ -81,8 +81,8 @@ async function updateSourceMetadata(
  */
 export function createCatalogMetadataHandler(
   deps: CatalogMetadataDeps,
-): CatalogHandler<Entry<'metadata'>> {
-  return wrapCatalogHandler<Entry<'metadata'>>(
+): CatalogHandler<Entry<'setMetadata'>> {
+  return wrapCatalogHandler<Entry<'setMetadata'>>(
     async (input) => {
       const { metadata } = input.body;
       const target = documentTarget(input.body);

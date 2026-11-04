@@ -23,8 +23,8 @@ describe('createCatalogTools', () => {
       'watcher_scan',
       'watcher_search',
       'watcher_service',
+      'watcher_show_vcs_file',
       'watcher_status',
-      'watcher_vcs_show',
     ]);
   });
 });

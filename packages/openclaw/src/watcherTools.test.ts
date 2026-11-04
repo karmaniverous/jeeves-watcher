@@ -17,19 +17,19 @@ describe('registerWatcherTools', () => {
   it('registers exactly 14 domain-specific watcher tools', () => {
     expect([...captureTools().keys()]).toEqual([
       'watcher_search',
-      'watcher_enrich',
-      'watcher_validate',
+      'watcher_set_metadata',
+      'watcher_validate_config',
       'watcher_reindex',
       'watcher_scan',
-      'watcher_issues',
+      'watcher_list_issues',
       'watcher_walk',
-      'watcher_vcs_status',
-      'watcher_vcs_history',
-      'watcher_vcs_show',
-      'watcher_vcs_diff',
-      'watcher_vcs_revert',
-      'watcher_vcs_exclude',
-      'watcher_vcs_check',
+      'watcher_get_vcs_status',
+      'watcher_list_vcs_history',
+      'watcher_show_vcs_file',
+      'watcher_diff_vcs',
+      'watcher_revert_vcs',
+      'watcher_exclude_vcs_path',
+      'watcher_check_vcs_exclusion',
     ]);
   });
 
@@ -62,10 +62,10 @@ describe('registerWatcherTools', () => {
 });
 
 describe('tool execution', () => {
-  it('watcher_issues calls GET /issues', async () => {
+  it('watcher_list_issues calls GET /issues', async () => {
     const fetchMock = mockFetch([]);
     vi.stubGlobal('fetch', fetchMock);
-    await run(captureTools(), 'watcher_issues', {});
+    await run(captureTools(), 'watcher_list_issues', {});
     expect(fetchMock).toHaveBeenCalledWith(`${BASE}/issues`, undefined);
   });
 
@@ -112,10 +112,10 @@ describe('tool execution', () => {
     expect(body).toEqual(params);
   });
 
-  it('watcher_enrich POSTs path and metadata', async () => {
+  it('watcher_set_metadata POSTs path and metadata', async () => {
     const fetchMock = mockFetch({ ok: true });
     vi.stubGlobal('fetch', fetchMock);
-    await run(captureTools(), 'watcher_enrich', {
+    await run(captureTools(), 'watcher_set_metadata', {
       path: 'foo.md',
       metadata: { tag: 'x' },
     });
@@ -125,10 +125,10 @@ describe('tool execution', () => {
     expect(body).toEqual({ path: 'foo.md', metadata: { tag: 'x' } });
   });
 
-  it('watcher_validate POSTs config and testPaths', async () => {
+  it('watcher_validate_config POSTs config and testPaths', async () => {
     const fetchMock = mockFetch({ valid: true });
     vi.stubGlobal('fetch', fetchMock);
-    await run(captureTools(), 'watcher_validate', {
+    await run(captureTools(), 'watcher_validate_config', {
       config: { rules: [] },
       testPaths: ['a.md'],
     });
@@ -204,7 +204,7 @@ describe('tool execution', () => {
         }),
       ),
     );
-    const result = await run(captureTools(), 'watcher_issues', {});
+    const result = await run(captureTools(), 'watcher_list_issues', {});
     expect(result.isError).toBe(true);
     expect(result.content[0].text).toContain('not reachable');
   });

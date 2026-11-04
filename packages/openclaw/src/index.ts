@@ -42,7 +42,7 @@ export default function register(api: PluginApi): void {
   const component = createWatcherComponent(PLUGIN_VERSION);
 
   // Core's toolset from WATCHER_CATALOG: the 4 standard tools, plus
-  // watcher_search, watcher_scan and watcher_vcs_show. Every tool resolves
+  // watcher_search, watcher_scan and watcher_show_vcs_file. Every tool resolves
   // the base URL (and, where its entry requires it, the bearer key) on each
   // call.
   const catalogTools = createCatalogTools(api, component);

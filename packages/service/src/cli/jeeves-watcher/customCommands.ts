@@ -6,8 +6,8 @@
 
 import type { Command } from '@commander-js/extra-typings';
 import {
-  getEndpoint,
   reindexScopeSchema,
+  WATCHER_CATALOG,
 } from '@karmaniverous/jeeves-watcher-core';
 
 import {
@@ -42,10 +42,13 @@ export function registerCustomCommands(program: Command): void {
       .option('-l, --limit <limit>', 'Max results', '10'),
   ).action(async (query, opts) => {
     await handleErrors(async () => {
-      const result = await apiClient(opts).post(getEndpoint('search').path, {
-        query,
-        limit: Number(opts.limit),
-      });
+      const result = await apiClient(opts).post(
+        WATCHER_CATALOG.byName('search').path,
+        {
+          query,
+          limit: Number(opts.limit),
+        },
+      );
       printJson(result);
     })();
   });
@@ -70,10 +73,13 @@ export function registerCustomCommands(program: Command): void {
       const metadata = parseMetadataArgs(opts.json, opts.key);
       if (!metadata) return;
 
-      const result = await apiClient(opts).post(getEndpoint('metadata').path, {
-        path,
-        metadata,
-      });
+      const result = await apiClient(opts).post(
+        WATCHER_CATALOG.byName('setMetadata').path,
+        {
+          path,
+          metadata,
+        },
+      );
       printJson(result);
     })();
   });
@@ -91,15 +97,18 @@ export function registerCustomCommands(program: Command): void {
   ).action(async (opts) => {
     await handleErrors(async () => {
       const filterObj = JSON.parse(opts.filter) as Record<string, unknown>;
-      const result = await apiClient(opts).post(getEndpoint('scan').path, {
-        filter: filterObj,
-        limit: Number(opts.limit),
-        cursor: opts.cursor,
-        fields: opts.fields
-          ? opts.fields.split(',').map((f) => f.trim())
-          : undefined,
-        countOnly: opts.countOnly,
-      });
+      const result = await apiClient(opts).post(
+        WATCHER_CATALOG.byName('scan').path,
+        {
+          filter: filterObj,
+          limit: Number(opts.limit),
+          cursor: opts.cursor,
+          fields: opts.fields
+            ? opts.fields.split(',').map((f) => f.trim())
+            : undefined,
+          countOnly: opts.countOnly,
+        },
+      );
       printJson(result);
     })();
   });
@@ -134,7 +143,7 @@ export function registerCustomCommands(program: Command): void {
       }
 
       const result = await apiClient(opts).post(
-        getEndpoint('reindex').path,
+        WATCHER_CATALOG.byName('reindex').path,
         body,
       );
       printJson(result);
@@ -151,7 +160,7 @@ export function registerCustomCommands(program: Command): void {
   ).action(async (opts) => {
     await handleErrors(async () => {
       const result = await apiClient(opts).post(
-        getEndpoint('rebuildMetadata').path,
+        WATCHER_CATALOG.byName('rebuildMetadata').path,
         {},
       );
       printJson(result);
@@ -165,7 +174,9 @@ export function registerCustomCommands(program: Command): void {
       .description('List current processing issues (GET /issues)'),
   ).action(async (opts) => {
     await handleErrors(async () => {
-      const result = await apiClient(opts).get(getEndpoint('issues').path);
+      const result = await apiClient(opts).get(
+        WATCHER_CATALOG.byName('listIssues').path,
+      );
       printJson(result);
     })();
   });
@@ -178,7 +189,7 @@ export function registerCustomCommands(program: Command): void {
       const client = apiClient(opts);
       const query = (path: string) =>
         client.get(
-          `${getEndpoint('config').path}?path=${encodeURIComponent(path)}`,
+          `${WATCHER_CATALOG.byName('config').path}?path=${encodeURIComponent(path)}`,
         ) as Promise<QueryResult>;
 
       const [mapResult, tplResult] = await Promise.all([

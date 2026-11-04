@@ -92,7 +92,7 @@ export function createDocumentsApi(transport: Transport): DocumentsApi {
     const body = { documents };
     if (options?.wait === true) {
       return transport({
-        endpoint: 'documents',
+        endpoint: 'notifyDocuments',
         body,
         bodySchema: documentsRequestSchema,
         query: { wait: 'true' },
@@ -100,7 +100,7 @@ export function createDocumentsApi(transport: Transport): DocumentsApi {
       });
     }
     return transport({
-      endpoint: 'documents',
+      endpoint: 'notifyDocuments',
       body,
       bodySchema: documentsRequestSchema,
       responseSchema: documentsAcceptedResponseSchema,
@@ -111,7 +111,7 @@ export function createDocumentsApi(transport: Transport): DocumentsApi {
     notify: notify as DocumentsApi['notify'],
     delete: (request) =>
       transport({
-        endpoint: 'documentsDelete',
+        endpoint: 'deleteDocuments',
         body: request,
         bodySchema: documentsDeleteRequestSchema,
         responseSchema: documentsDeleteResponseSchema,

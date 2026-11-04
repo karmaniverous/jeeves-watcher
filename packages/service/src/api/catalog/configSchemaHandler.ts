@@ -77,7 +77,7 @@ export const mergedConfigSchema = jeevesWatcherConfigSchema
  * @returns The catalog handler.
  */
 export function createCatalogConfigSchemaHandler(): CatalogHandler<
-  Entry<'configSchema'>
+  Entry<'getConfigSchema'>
 > {
   return () =>
     Promise.resolve({

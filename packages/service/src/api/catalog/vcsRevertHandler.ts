@@ -1,6 +1,6 @@
 /**
  * @module api/catalog/vcsRevertHandler
- * Catalog handler for `POST /vcs/revert`: restores files from a past commit. The body is validated by the catalog's `vcsRevert` entry schema.
+ * Catalog handler for `POST /vcs/revert`: restores files from a past commit. The body is validated by the catalog's `revertVcs` entry schema.
  */
 
 import { access, mkdir, writeFile } from 'node:fs/promises';
@@ -23,8 +23,8 @@ import { wrapCatalogHandler } from './wrapCatalogHandler';
  */
 export function createCatalogVcsRevertHandler(
   deps: CatalogVcsDeps,
-): CatalogHandler<Entry<'vcsRevert'>> {
-  return wrapCatalogHandler<Entry<'vcsRevert'>>(
+): CatalogHandler<Entry<'revertVcs'>> {
+  return wrapCatalogHandler<Entry<'revertVcs'>>(
     async (input) => {
       const { glob, commit, existingOnly } = input.body;
 
