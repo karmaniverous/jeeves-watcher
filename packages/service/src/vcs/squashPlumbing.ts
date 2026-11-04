@@ -237,3 +237,23 @@ export async function rebuildHistory(
 export async function treeOf(root: string, commit: string): Promise<string> {
   return (await runGit(root, ['rev-parse', `${commit}^{tree}`])).stdout.trim();
 }
+
+/**
+ * The commit a ref points at, or undefined when git cannot say.
+ *
+ * @param root - Repository root.
+ * @param ref - Full ref name.
+ * @returns The commit hash, or undefined.
+ */
+export async function refTip(
+  root: string,
+  ref: string,
+): Promise<string | undefined> {
+  try {
+    return (
+      await runGit(root, ['rev-parse', '--verify', '-q', ref])
+    ).stdout.trim();
+  } catch {
+    return undefined;
+  }
+}

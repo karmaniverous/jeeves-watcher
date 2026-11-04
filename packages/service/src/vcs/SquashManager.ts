@@ -27,6 +27,7 @@ import {
   type CommitInfo,
   listFirstParent,
   rebuildHistory,
+  refTip,
   treeOf,
 } from './squashPlumbing';
 
@@ -213,6 +214,8 @@ export class SquashManager {
         old,
       ]);
     } catch (error) {
+      // A failure with the ref unchanged is git's own (lock, timeout).
+      if ((await refTip(this.rootPath, ref)) === old) throw error;
       const message = 'Squash skipped: the branch moved during the squash';
       this.logger.warn(
         { root: this.rootPath, err: normalizeError(error) },

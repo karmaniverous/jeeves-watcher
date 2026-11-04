@@ -10,7 +10,7 @@ import { join } from 'node:path';
 
 import type { VcsConfig } from '@karmaniverous/jeeves-watcher-core';
 import pino from 'pino';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { execFileAsync } from '../test/git';
 import {
@@ -21,6 +21,7 @@ import {
   makeRetention,
   makeSquashManager,
 } from '../test/squashRepo';
+import { countCalls } from '../test/vcsRepo';
 import { parseRawCommit, reparentRawCommit } from './squashPlumbing';
 import { VcsManager } from './VcsManager';
 
@@ -185,6 +186,31 @@ describe('SquashManager plumbing rewrite (D166)', () => {
     expect(await git('rev-parse', 'HEAD^{tree}')).toBe(treeBefore);
   }, 30000);
 
+  it('reports a failed update-ref as an error when the branch did not move', async () => {
+    await createSquashableHistory(tempDir);
+    const before = await git('rev-parse', 'master');
+    const logger = pino({ level: 'silent' });
+    const error = vi.spyOn(logger, 'error');
+    const warn = vi.spyOn(logger, 'warn');
+    const manager = makeSquashManager(tempDir, makeRetention(), logger, {
+      hooks: {
+        beforeUpdateRef: async () => {
+          await writeFile(
+            join(tempDir, '.git', 'refs', 'heads', 'master.lock'),
+            '',
+          );
+        },
+      },
+    });
+
+    const result = await manager.runSquash();
+
+    expect(result.squashed).toBe(false);
+    expect(result.error).not.toContain('branch moved');
+    expect(countCalls(error, 'Squash operation failed')).toBe(1);
+    expect(warn).not.toHaveBeenCalled();
+    expect(await git('rev-parse', 'master')).toBe(before);
+  }, 30000);
   it('changes nothing when a foreign commit moves the branch mid-squash', async () => {
     await createSquashableHistory(tempDir);
     let foreign = '';
