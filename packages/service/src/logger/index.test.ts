@@ -110,7 +110,7 @@ describe('createLogger', () => {
     expect((await logFiles()).length).toBeGreaterThan(1);
   });
 
-  it('keeps maxFiles: 2 rotated files across three restarts and three rotations', async () => {
+  it('keeps maxFiles: 2 rotated files besides the active one across three restarts and three rotations', async () => {
     const file = join(dir, 'watcher.log');
     await writeFile(join(dir, 'unrelated.txt'), 'keep me');
     for (let restart = 0; restart < 3; restart++) {
@@ -125,7 +125,11 @@ describe('createLogger', () => {
       await close(logger);
     }
 
-    expect((await logFiles()).length).toBeLessThanOrEqual(3);
+    // pino-roll lists the folder while the new file is still opening, so the
+    // active file is usually not counted: maxFiles + 1 remain (3 here).
+    const remaining = (await logFiles()).length;
+    expect(remaining).toBeGreaterThanOrEqual(2);
+    expect(remaining).toBeLessThanOrEqual(3);
     expect(await readFile(join(dir, 'unrelated.txt'), 'utf8')).toBe('keep me');
   }, 30_000);
 });

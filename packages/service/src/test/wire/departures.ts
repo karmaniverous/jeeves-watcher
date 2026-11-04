@@ -65,22 +65,22 @@ function stripSchemaProperty(
   return out;
 }
 
-/** Strip the 0.21.0 config keys added so far from a config JSON schema. */
+/**
+ * Strip `maxFileBytes` from the per-root `vcs` schema in a config JSON
+ * schema. `GET /config/schema` serves only the public keys; `watch` is one,
+ * and its `paths[].vcs` override (D12) extends the whole `vcs` schema, so
+ * the new key appears there. `logging.rotation` is not public and never
+ * appears.
+ */
 function stripNewConfigKeys(received: WireRecord): {
   record: WireRecord;
   stripped: number;
 } {
   const counter = { n: 0 };
-  let body = stripSchemaProperty(
+  const body = stripSchemaProperty(
     received.body,
     'maxFileBytes',
     (p) => 'maxConsecutiveFailures' in p,
-    counter,
-  );
-  body = stripSchemaProperty(
-    body,
-    'rotation',
-    (p) => 'file' in p && 'level' in p,
     counter,
   );
   return { record: { ...received, body }, stripped: counter.n };
@@ -101,7 +101,7 @@ function stripHealthVcs(received: WireRecord): {
 
 const CONFIG_KEYS: WireDeparture = {
   reason:
-    'P5 B2/B3: config schema gains vcs.maxFileBytes (D80) and logging.rotation (D171), Design 10',
+    'P5 B2: watch.paths[].vcs gains maxFileBytes (D80 via the D12 per-root override); not in the Design 2 table, owner decision',
   strip: stripNewConfigKeys,
 };
 
