@@ -28,6 +28,11 @@ What changes for an existing deployment, release by release. The [Changelog](../
 - **`GET /status`** gains `health.vcs` when some root has VCS enabled: the VCS root count, files pending commit, roots whose breaker is tripped, and when the longest-failing one first tripped.
 - **`GET /config/schema`** shows `maxFileBytes` under `watch.paths[].vcs`, the per-root override (an approved wire departure, D185).
 
+### Dependencies
+
+- **unpdf 2** extracts PDF text. Indexed text is unchanged. unpdf 2 declares Node.js 24 or later, so `npm install` on Node.js 22 prints an `EBADENGINE` warning; the service still runs on Node.js 22 (tested on 22.22), and an install with `engine-strict` set fails there.
+- chokidar stays on major 5.
+
 ### Library API
 
 - **`createLogger` is now async** and resolves once the log file is open. Add `await`: `const logger = await createLogger(config.logging);`.
