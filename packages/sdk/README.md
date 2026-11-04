@@ -2,12 +2,12 @@
 
 Typed TypeScript client for the [jeeves-watcher](https://www.npmjs.com/package/@karmaniverous/jeeves-watcher) HTTP API.
 
-The SDK is thin by design. Request and response types come from [`@karmaniverous/jeeves-watcher-core`](https://www.npmjs.com/package/@karmaniverous/jeeves-watcher-core), the same Zod schemas the service validates against, so your types cannot drift from the server. Every request body is validated client-side before it is sent, and every response is checked against the core response schema.
+The SDK is thin by design: it is [jeeves](https://www.npmjs.com/package/@karmaniverous/jeeves)'s catalog client over the watcher's endpoint catalog (`WATCHER_CATALOG` in [`@karmaniverous/jeeves-watcher-core`](https://www.npmjs.com/package/@karmaniverous/jeeves-watcher-core)), the same Zod schemas the service validates against, so your types cannot drift from the server. Every input is validated client-side before it is sent, and every response is parsed with the route's response schema.
 
 - ESM only, Node.js ≥ 24.22.2 (uses the global `fetch`).
-- One runtime dependency: `@karmaniverous/jeeves-watcher-core` (and its own dependencies).
+- Two runtime dependencies: `@karmaniverous/jeeves` (the catalog client) and `@karmaniverous/jeeves-watcher-core` (the catalog).
 - One error type, `WatcherError`. No retries: the watcher owns rate limiting.
-- Application-facing surface only: `status`, `search`, `scan`, `render`, `metadata`, `reindex`, `issues`, and `documents.notify` / `documents.delete`. Admin endpoints (config, rules, VCS) are not covered.
+- One method per route, named by its catalog entry (`search`, `listIssues`, `setMetadata`, `showVcsFile`, ...), plus `documents.notify` / `documents.delete`. The [SDK Guide](./guides/sdk-guide.md) lists every method.
 
 For the concepts behind source documents (configured `sources`, the callback contract, designated rules, notify and coalescing) and the full HTTP reference, see the service guides: [Source Documents](https://docs.karmanivero.us/jeeves-watcher/documents/Service_Guides.Source_Documents.html) and [API Reference](https://docs.karmanivero.us/jeeves-watcher/documents/Service_Guides.API_Reference.html) (sources in [`packages/service/guides`](https://github.com/karmaniverous/jeeves-watcher/tree/main/packages/service/guides)).
 
@@ -54,14 +54,14 @@ await watcher.documents.delete({ filter: f.eq('user_id', userId) });
 
 ### Notify synchronously
 
-`notify` resolves with the `202` body (`accepted` references and synchronously `rejected` notifications). Processing failures then surface in `watcher.issues()`. For backfill and tests, pass `{ wait: true }` to process synchronously and get one result per document; the return type follows the option:
+`notify` resolves with the `202` body (`accepted` references and synchronously `rejected` notifications). Processing failures then surface in `watcher.listIssues()`. For backfill and tests, pass `{ wait: true }` to process synchronously and get one result per document; the return type follows the option:
 
 ```ts
 const { results } = await watcher.documents.notify(batch, { wait: true });
 // results: Array<{ source, status: 'indexed' | 'unchanged' | 'deleted' | 'failed', chunks?, matched_rules?, error? }>
 ```
 
-A request carries 1 to `MAX_DOCUMENTS_PER_REQUEST` (100) notifications.
+A request carries 1 to `MAX_DOCUMENTS_PER_REQUEST` (100) notifications. A malformed reference is not refused client-side: the server returns it in `rejected`. `{ wait: true }` returns only when every document has been processed, which can take minutes: size `timeoutMs` for the batch.
 
 ### Other methods
 
@@ -69,13 +69,16 @@ A request carries 1 to `MAX_DOCUMENTS_PER_REQUEST` (100) notifications.
 await watcher.status(); // open even when an API key is configured
 await watcher.scan({ filter: f.eq('user_id', userId), limit: 100 }); // filter-only, cursor paging
 await watcher.render({ source: 'app://chat/thread/123' }); // or { path }
-await watcher.metadata({
+await watcher.setMetadata({
   source: 'app://chat/thread/123',
   metadata: { priority: 2 },
 });
 await watcher.reindex({ scope: 'path', source: ['app://chat/thread/123'] }); // at most 1000 references
-await watcher.issues();
+await watcher.listIssues();
+await watcher.listVcsHistory({ glob: '/data/docs/**', limit: '20' }); // query fields are strings
 ```
+
+Every other route is a method too (`config`, `walk`, `registerRules`, `getVcsStatus`, `excludeVcsPath`, ...): see the [SDK Guide](./guides/sdk-guide.md#methods).
 
 ### Filter helpers
 
@@ -93,16 +96,16 @@ await watcher.issues();
 
 ## Error handling
 
-Every failure is a `WatcherError` with `code`, optional `status` and optional `details`:
+Every failure is a `WatcherError` with `code`, optional `status`, optional `details` and optional `retryAfterMs`:
 
 | `code` | When | `status` |
 | --- | --- | --- |
-| `invalid_request` | The body failed the core request schema; nothing was sent. `details` holds the Zod issues. | — |
-| `invalid_response` | A 2xx body was not JSON or did not match the core response schema. | 2xx |
+| `invalid_request` | The input failed the route's request schema; nothing was sent. `details` holds the Zod issues. | — |
+| `invalid_response` | A 2xx body was not JSON or did not match the route's response schema. | 2xx |
 | `timeout` | No response within `timeoutMs`. | — |
 | `network_error` | `fetch` rejected (connection refused, DNS, …); see `cause`. | — |
 | `invalid_options` | `createWatcherClient` options are invalid (e.g. a `baseUrl` that is not http(s) or carries a query string or fragment). | — |
-| server code | A non-2xx response: an `ApiErrorCode` (below) from a 0.20.0+ service; from older services `body.code`, else `body.error`, else `http_<status>`. `details` is `body.details` or the body. | 4xx / 5xx |
+| server code | A non-2xx response: the body's `code`, an `ApiErrorCode` (below); a body without one (an older service, a proxy) maps to `http_<status>`. `details` is `body.details` or the body. | 4xx / 5xx |
 
 A 0.20.0+ service answers every non-2xx with `{ code, error, message?, details? }`. `code` is one of `API_ERROR_CODES` (exported, with the `ApiErrorCode` type): `invalid_request`, `unauthorized`, `path_not_watched`, `not_found`, `source_not_indexed`, `source_not_found`, `unsupported_content_type`, `pipeline_error`, `confirm_required`, `source_unavailable`, `not_available`, `scan_in_progress`, `embedding_unavailable`, `internal_error`. The SDK copies it to `err.code`; `err.message` is the body's `error` text, with `: <message>` appended when the body's `message` is present and different. Branch on `code`, never on the message. A filter the server's Qdrant rejects comes back as `invalid_request` with `error` `Invalid filter` (Qdrant's reason in `message`); a `5xx` body never carries the server's internal error, only generic text, so check the service log. Per-document `error.code` values of `documents.notify` results are typed by core's `documentFailureCodeSchema` (rejection codes plus issue types). The server's `invalid_request` (a `400`, `status` set) shares its name with the SDK's client-side `invalid_request` (nothing sent, no `status`). See the service API reference for what each code means.
 
@@ -119,7 +122,7 @@ try {
 }
 ```
 
-The SDK never retries. Retry `timeout`, `network_error` and `503` at your own discretion; a notification is idempotent, so re-sending one is always safe.
+The SDK never retries. Retry `timeout`, `network_error` and `503` at your own discretion; a notification is idempotent, so re-sending one is always safe. A `503` carries `retryAfterMs` (the server's `Retry-After`, clamped to one hour): wait at least that long. A timeout does not cancel the operation on the server, so a timed-out `excludeVcsPath` or `revertVcs` may still complete: check (`checkVcsExclusion`, `listVcsHistory`) before retrying, and raise `timeoutMs` for those calls (they wait up to 30 s for the root's git lock).
 
 ## Implementing the callback side
 

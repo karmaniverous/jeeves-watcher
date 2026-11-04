@@ -477,17 +477,17 @@ A git failure other than "not ignored" answers `500 internal_error` (0.20.0 answ
 
 ### OpenClaw Plugin Tools
 
-The OpenClaw plugin exposes each endpoint as a tool. Tool errors read `HTTP <status> <code>: <message>`.
+The OpenClaw plugin exposes each endpoint as a tool, built from the catalog. Tool errors read `HTTP <status>: <body>`. The CLI has the same operations as `jeeves-watcher vcs status|history|show|diff|revert|check|exclude` (see the [CLI Reference](./cli-reference.md)).
 
 | Tool | Endpoint | Parameters |
 | --- | --- | --- |
-| `watcher_vcs_status` | `GET /vcs/status` | none |
-| `watcher_vcs_history` | `GET /vcs/history` | `glob` (required), `since`, `until`, `limit` |
-| `watcher_vcs_show` | `GET /vcs/show` | `path`, `commit` (both required) |
-| `watcher_vcs_diff` | `GET /vcs/diff` | `glob`, `commit` (both required), `commitEnd` |
-| `watcher_vcs_revert` | `POST /vcs/revert` | `glob`, `commit` (both required), `existingOnly` |
-| `watcher_vcs_exclude` | `POST /vcs/exclude` | `glob` (required), `root`, `remove`, `confirm` |
-| `watcher_vcs_check` | `GET /vcs/check-exclusion` | `path` (required) |
+| `watcher_get_vcs_status` | `GET /vcs/status` | none |
+| `watcher_list_vcs_history` | `GET /vcs/history` | `glob` (required), `since`, `until`, `limit` |
+| `watcher_show_vcs_file` | `GET /vcs/show` | `path`, `commit` (both required) |
+| `watcher_diff_vcs` | `GET /vcs/diff` | `glob`, `commit` (both required), `commitEnd` |
+| `watcher_revert_vcs` | `POST /vcs/revert` | `glob`, `commit` (both required), `existingOnly` |
+| `watcher_exclude_vcs_path` | `POST /vcs/exclude` | `glob` (required), `root`, `remove`, `confirm` |
+| `watcher_check_vcs_exclusion` | `GET /vcs/check-exclusion` | `path` (required) |
 
 There are no VCS CLI commands.
 

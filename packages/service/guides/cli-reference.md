@@ -6,7 +6,7 @@ title: CLI Reference
 
 Complete reference for all `jeeves-watcher` CLI commands.
 
-The CLI is built via `createServiceCli` from `@karmaniverous/jeeves` core, providing standard commands (`start`, `status`, `config`, `init`, `service`), plus domain-specific commands registered by the watcher descriptor. The watcher replaces the actions of `config` and `config apply` so they send the API key and report errors like the other API commands.
+The CLI is built via `createServiceCli` from `@karmaniverous/jeeves` core, providing standard commands (`start`, `status`, `config`, `init`, `service`), plus domain-specific commands registered by the watcher descriptor. The watcher replaces the actions of `config` and `config apply` so they send the API key and report errors like the other API commands. Every command that calls the API does so through the [SDK](../../sdk/guides/sdk-guide.md) with a 60 s timeout.
 
 Commands that call the API address `127.0.0.1:1936` by default (the service's default `api.host` and `api.port`).
 
@@ -71,7 +71,7 @@ jeeves-watcher config [jsonpath] [-p <port>]
 
 Always addresses `127.0.0.1` (there is no `--host` option).
 
-**Output:** the JSON response of `GET /config` (`{ "result": [...], "count": <n> }`). On failure prints `Config query failed: <message>` (for example `Config query failed: HTTP 400 invalid_request: ...`; see [Output and Errors](#output-and-errors)) and exits with code `1`.
+**Output:** the JSON response of `GET /config` (`{ "result": [...], "count": <n> }`). On failure prints `Config query failed: <code>: <message>` (for example `Config query failed: invalid_request: ...`; see [Output and Errors](#output-and-errors)) and exits with code `1`.
 
 **Examples:**
 
@@ -118,7 +118,7 @@ jeeves-watcher config apply [-p <port>] [-f <file>] [--replace]
 
 Without `-f`, the patch is read from stdin. The patch must be a JSON object; empty input means `{}`. It is sent as `{ "patch": <patch> }`, plus `"replace": true` with `--replace`. An unreadable file, invalid JSON or a non-object patch prints a one-line `Config apply failed: ...` (for example `cannot read patch file patch.json (ENOENT)`, `patch is not valid JSON (...)`, `patch must be a JSON object`) and exits with code `1`; nothing is sent to the service.
 
-**Output:** the JSON response of [`POST /config/apply`](./api-reference.md#post-configapply). An HTTP error prints `Config apply failed: HTTP <status> <code>: <message>` (see [Output and Errors](#output-and-errors)) and exits with code `1`.
+**Output:** the JSON response of [`POST /config/apply`](./api-reference.md#post-configapply). An HTTP error prints `Config apply failed: <code>: <message>` (see [Output and Errors](#output-and-errors)) and exits with code `1`.
 
 ```bash
 echo '{ "configWatch": { "reindex": "rules" } }' | jeeves-watcher config apply
@@ -175,7 +175,7 @@ When the service sets `api.apiKey`, every API route except `GET /status` needs `
 1. `--api-key <key>`
 2. the `JEEVES_WATCHER_API_KEY` environment variable
 
-With neither set, no `Authorization` header is sent (the right choice when the service has no key). These commands do not read the watcher config file, so `api.apiKey` there is not used. Prefer the environment variable: a `--api-key` value is visible in the process list and shell history. The key is never printed. A `401` exits with code `1` and a message saying how to supply (or check) the key.
+With neither set, no `Authorization` header is sent (the right choice when the service has no key). These commands do not read the watcher config file, so `api.apiKey` there is not used. Prefer the environment variable: a `--api-key` value is visible in the process list and shell history. The key is never printed. A `401` exits with code `1`, and a second line says how to supply (or check) the key.
 
 `status` needs no key and takes no `--api-key` option. `config validate`, `init` and `service` make no API calls.
 
@@ -192,11 +192,13 @@ All commands in this section accept `--api-key <key>` (see [Authentication](#aut
 
 ### Output and Errors
 
-Every domain-specific command prints the JSON response body, pretty-printed, on stdout (`helpers` prints text). Errors go to stderr and set exit code `1`:
+Every domain-specific command is one SDK call with a 60 s timeout, longer than any wait inside the service (the root git lock waits 30 s, a document lock 10 s), so a busy service answers `503` before the CLI gives up. It prints the JSON response body, pretty-printed, on stdout (`helpers` prints text; `vcs show` and `vcs diff` print the raw file or diff). Errors go to stderr as `<code>: <message>` and set exit code `1`:
 
-- An HTTP error prints `HTTP <status> <code>: <message>`, where `<code>` is the server's error code (for example `HTTP 400 invalid_request: Exactly one of path or source is required when scope is "path"`). Responses from older servers or proxies without a canonical body fall back to the body's `code` or `error`, else `http_<status>`.
-- A `401` prints guidance instead: `HTTP 401 unauthorized: the watcher API requires an API key. Provide it via ...` when no key was sent, or `... rejected the API key. Check ... against the service's api.apiKey.` when one was.
-- A connection failure prints the underlying error message (for example `fetch failed`).
+- An HTTP error prints the server's error code and message (for example `invalid_request: Validation failed: Exactly one of path or source is required when scope is "path"`). A body without a code (an older server, a proxy) prints `http_<status>`.
+- A `401` adds a line: `The watcher API requires an API key. Provide it via ...` when no key was sent, or `The watcher API rejected the API key. Check ... against the service's api.apiKey.` when one was.
+- A request the SDK refuses before sending prints `invalid_request: ...`; a reply that does not match the expected shape prints `invalid_response: ...`.
+- A connection failure prints `network_error: <operation> request failed: <reason>` (for example `fetch failed`), and a timeout `timeout: <operation> timed out after 60000 ms`.
+- `vcs exclude` and `vcs revert` keep running on the service after a timeout. Their timeout message adds that the operation may still complete, and how to check (`vcs check`, `vcs status` or `vcs history`), before you run it again.
 
 ### `jeeves-watcher search`
 
@@ -266,13 +268,14 @@ jeeves-watcher scan [-f <filter>] [-l <limit>] [-c <cursor>] [--fields <f1,f2>] 
 Trigger a scoped reindex operation (`POST /reindex`).
 
 ```bash
-jeeves-watcher reindex [-s <scope>] [-t <path>...] [-p <port>] [-H <host>]
+jeeves-watcher reindex [-s <scope>] [-t <path>...] [--dry-run] [-p <port>] [-H <host>]
 ```
 
 | Option | Default | Description |
 | --- | --- | --- |
 | `-s, --scope <scope>` | `rules` | Scope: `issues`, `full`, `rules`, `path`, `prune` |
 | `-t, --path <paths...>` | — | Target file paths or globs: required for `path`, optional for `rules` (narrows it to matching files) |
+| `--dry-run` | off | Return the plan without running it (`dryRun: true`) |
 | `-p, --port <port>` | `1936` | API port |
 | `-H, --host <host>` | `127.0.0.1` | API host |
 
@@ -284,7 +287,7 @@ jeeves-watcher reindex [-s <scope>] [-t <path>...] [-p <port>] [-H <host>]
 - `path` — Re-process specific file(s) or directory (content hash still applies)
 - `prune` — Delete orphaned points
 
-The CLI default scope is `rules`; the API's default (when `scope` is omitted) is `issues`. An unknown scope prints `Invalid scope "<scope>". Must be one of: issues, full, rules, path, prune` and exits with code `1` without calling the API. The CLI sends one path as a string and several as an array; it has no option for source references or `dryRun` (use [`POST /reindex`](./api-reference.md#post-reindex)). The command prints the `{ status, scope, plan }` response as soon as the reindex starts (`plan` is omitted for a live prune).
+The CLI default scope is `rules`; the API's default (when `scope` is omitted) is `issues`. An unknown scope prints `Invalid scope "<scope>". Must be one of: issues, full, rules, path, prune` and exits with code `1` without calling the API. The CLI sends one path as a string and several as an array; it has no option for source references (use [`POST /reindex`](./api-reference.md#post-reindex)). The command prints the `{ status, scope, plan }` response as soon as the reindex starts (`plan` is omitted for a live prune). With `--dry-run` nothing runs: the response is the plan (`dryRun: true`).
 
 ---
 
@@ -304,6 +307,44 @@ List current processing issues (`GET /issues`).
 
 ```bash
 jeeves-watcher issues [-p <port>] [-H <host>]
+```
+
+---
+
+### `jeeves-watcher walk`
+
+List the watched files matching one or more globs (`POST /walk`). Prints `{ paths, matchedCount, scannedRoots }`.
+
+```bash
+jeeves-watcher walk <globs...> [-p <port>] [-H <host>]
+```
+
+```bash
+jeeves-watcher walk "**/*.md" "docs/**"
+```
+
+---
+
+### `jeeves-watcher vcs`
+
+Version history of the watched files (`/vcs/*`). Every subcommand takes `-p, --port`, `-H, --host` and `--api-key`. With version control off (`vcs.enabled: false`), each answers `not_found: ...`. See [Version Control](./version-control.md).
+
+| Command | Route | Arguments and options | Prints |
+| --- | --- | --- | --- |
+| `vcs status` | `GET /vcs/status` | none | JSON |
+| `vcs history <glob>` | `GET /vcs/history` | `--since <date>`, `--until <date>`, `--limit <n>` | JSON |
+| `vcs show <path> <commit>` | `GET /vcs/show` | none | the file content, raw |
+| `vcs diff <glob> <commit>` | `GET /vcs/diff` | `--to <commit>` (default: the working tree) | the unified diff, raw |
+| `vcs revert <glob> <commit>` | `POST /vcs/revert` | `--existing-only` | JSON |
+| `vcs check <path>` | `GET /vcs/check-exclusion` | none | JSON |
+| `vcs exclude <glob>` | `POST /vcs/exclude` | `--remove`, `--root <root>`, `--confirm` | JSON |
+
+`vcs exclude` takes one gitignore pattern: escape brackets to name a file literally (`"Report \\[draft\\].docx"`). Adding a pattern untracks the files it matches, ending their history; more than 100 files need `--confirm` (else `confirm_required: ...`, nothing written). A busy root answers `not_available: ...` after 30 s: run the command again later.
+
+```bash
+jeeves-watcher vcs history "docs/**" --since 2026-10-01 --limit 5
+jeeves-watcher vcs show docs/guide.md 3f2a1c9 > guide.old.md
+jeeves-watcher vcs exclude "drafts/**" --confirm
 ```
 
 ---

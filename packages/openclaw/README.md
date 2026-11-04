@@ -50,7 +50,7 @@ Plugin config lives in `openclaw.json` under `plugins.entries.jeeves-watcher-ope
 
 The plugin builds on [`@karmaniverous/jeeves`](https://www.npmjs.com/package/@karmaniverous/jeeves) 0.8 (static-content core since 0.6). It writes **no** workspace files and starts no timers:
 
-- **Tools from the endpoint catalog**: core's toolset builds the standard tools and `watcher_search`, `watcher_scan` and `watcher_vcs_show` from `WATCHER_CATALOG` in watcher-core, so their parameters follow the service's request schemas. Their errors read `HTTP <status>: <body>`; see the [OpenClaw Integration guide](guides/openclaw-integration.md#errors).
+- **Tools from the endpoint catalog**: core's toolset builds every tool from `WATCHER_CATALOG` in watcher-core (0.18.0 renamed ten of them, e.g. `watcher_vcs_show` to `watcher_show_vcs_file`), so their parameters follow the service's request schemas. Each call waits up to 120 s; errors read `HTTP <status>: <body>`; see the [OpenClaw Integration guide](guides/openclaw-integration.md#errors).
 - **Always-in-context rules**: the watcher escalation, scan-first and search-first rules and score guidance are injected on every turn via `before_prompt_build` (`registerPromptContext`). They replace the v0.x TOOLS.md `## Watcher` section.
 - **Live state**: served by tools (`watcher_status`, `watcher_config`) rather than a refreshed file.
 - **Skill**: `jeeves-watcher` ships in the package and is declared in `openclaw.plugin.json` (`skills`).
@@ -62,22 +62,22 @@ The plugin builds on [`@karmaniverous/jeeves`](https://www.npmjs.com/package/@ka
 | --- | --- |
 | `watcher_status` | Service health, uptime, and collection stats |
 | `watcher_search` | Semantic search across indexed documents |
-| `watcher_enrich` | Set or update document metadata by file path |
+| `watcher_set_metadata` | Set or update document metadata by file path |
 | `watcher_config` | Query the effective runtime config via JSONPath |
 | `watcher_walk` | List watched files matching globs |
-| `watcher_validate` | Validate a candidate config, optionally testing file paths |
+| `watcher_validate_config` | Validate a candidate config, optionally testing file paths |
 | `watcher_config_apply` | Apply a config patch (response config redacted) |
 | `watcher_reindex` | Trigger a scoped reindex with blast area plan |
 | `watcher_scan` | Filter-only point query with cursor pagination |
-| `watcher_issues` | List processing issues (file paths and source references) |
+| `watcher_list_issues` | List processing issues (file paths and source references) |
 | `watcher_service` | Manage watcher background service (install/uninstall/start/stop/restart/status) |
-| `watcher_vcs_status` | Version tracking health: enabled state, tracked roots, remote status |
-| `watcher_vcs_history` | Query change history by path or glob with optional date range |
-| `watcher_vcs_show` | Retrieve file content at a specific version |
-| `watcher_vcs_diff` | Show changes between two versions, or between a version and current |
-| `watcher_vcs_revert` | Undo changes by restoring files to a specific version |
-| `watcher_vcs_exclude` | Exclude or re-include paths from version tracking |
-| `watcher_vcs_check` | Check whether a path is excluded from version tracking and why |
+| `watcher_get_vcs_status` | Version tracking health: enabled state, tracked roots, remote status |
+| `watcher_list_vcs_history` | Query change history by path or glob with optional date range |
+| `watcher_show_vcs_file` | Retrieve file content at a specific version |
+| `watcher_diff_vcs` | Show changes between two versions, or between a version and current |
+| `watcher_revert_vcs` | Undo changes by restoring files to a specific version |
+| `watcher_exclude_vcs_path` | Exclude or re-include paths from version tracking |
+| `watcher_check_vcs_exclusion` | Check whether a path is excluded from version tracking and why |
 
 ### Direct tools under OpenClaw Tool Search
 

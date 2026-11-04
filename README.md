@@ -109,7 +109,7 @@ The watcher will:
 | `jeeves-watcher helpers` | Show loaded map and template helpers |
 | `jeeves-watcher config apply [-f <file>] [--replace]` | Merge a config patch (file or stdin) into the running service's config, validate, write and reload |
 
-The API commands (`search`, `enrich`, `scan`, `reindex`, `rebuild-metadata`, `issues`, `helpers`, `config`, `config apply`) accept `--api-key` (default: the `JEEVES_WATCHER_API_KEY` environment variable); their HTTP errors print `HTTP <status> <code>: <message>` (a `401` prints key guidance instead). See the [CLI Reference](packages/service/guides/cli-reference.md).
+The API commands (`search`, `enrich`, `scan`, `walk`, `reindex`, `rebuild-metadata`, `issues`, `helpers`, `vcs ...`, `config`, `config apply`) call the API through the SDK with a 60 s timeout and accept `--api-key` (default: the `JEEVES_WATCHER_API_KEY` environment variable); their errors print `<code>: <message>` (a `401` adds key guidance). See the [CLI Reference](packages/service/guides/cli-reference.md).
 
 ## Configuration
 
@@ -230,7 +230,7 @@ Chunking settings are configured under `embedding`:
 
 ### Enrichment Store
 
-Enrichment metadata (from `POST /metadata` or `watcher_enrich`) is stored in a SQLite database at `<stateDir>/enrichments.sqlite`, using Node's built-in `node:sqlite` module (no native addon). Enrichments survive full reindexes. Composable merge: scalar fields overwrite, array fields union+deduplicate with inference rule output.
+Enrichment metadata (from `POST /metadata` or `watcher_set_metadata`) is stored in a SQLite database at `<stateDir>/enrichments.sqlite`, using Node's built-in `node:sqlite` module (no native addon). Enrichments survive full reindexes. Composable merge: scalar fields overwrite, array fields union+deduplicate with inference rule output.
 
 ```json
 {
@@ -316,23 +316,23 @@ This repo includes an OpenClaw plugin (`packages/openclaw`) that exposes the jee
 | `watcher_status` | Service health, version and uptime |
 | `watcher_service` | Manage the system service (install, uninstall, start, stop, restart, status) |
 | `watcher_search` | Semantic search across indexed documents |
-| `watcher_enrich` | Set or update document metadata |
+| `watcher_set_metadata` | Set or update document metadata |
 | `watcher_config` | Query the effective runtime config via JSONPath |
 | `watcher_walk` | List watched files matching globs |
-| `watcher_validate` | Validate a candidate config, optionally testing file paths |
+| `watcher_validate_config` | Validate a candidate config, optionally testing file paths |
 | `watcher_config_apply` | Apply a config patch (response config redacted) |
 | `watcher_reindex` | Trigger a scoped reindex with blast area plan |
 | `watcher_scan` | Filter-only point query with cursor pagination |
-| `watcher_issues` | List processing issues (file paths and source references) |
-| `watcher_vcs_status` | Version tracking state for every root |
-| `watcher_vcs_history` | Change history by path or glob, optional date range |
-| `watcher_vcs_show` | File content at a specific version |
-| `watcher_vcs_diff` | Changes between two versions, or a version and current |
-| `watcher_vcs_revert` | Restore files from a historical version |
-| `watcher_vcs_exclude` | Exclude or re-include paths from version tracking |
-| `watcher_vcs_check` | Whether a path is excluded from version tracking, and why |
+| `watcher_list_issues` | List processing issues (file paths and source references) |
+| `watcher_get_vcs_status` | Version tracking state for every root |
+| `watcher_list_vcs_history` | Change history by path or glob, optional date range |
+| `watcher_show_vcs_file` | File content at a specific version |
+| `watcher_diff_vcs` | Changes between two versions, or a version and current |
+| `watcher_revert_vcs` | Restore files from a historical version |
+| `watcher_exclude_vcs_path` | Exclude or re-include paths from version tracking |
+| `watcher_check_vcs_exclusion` | Whether a path is excluded from version tracking, and why |
 
-The plugin is a standard OpenClaw plugin on [`@karmaniverous/jeeves`](https://www.npmjs.com/package/@karmaniverous/jeeves) 0.8 core, installed by `jeeves install`. Its standard tools, `watcher_search`, `watcher_scan` and `watcher_vcs_show` are built from the watcher's endpoint catalog by core's toolset. It writes no workspace files; its always-in-context watcher rules are injected via the `before_prompt_build` hook. See the [OpenClaw Integration Guide](packages/openclaw/guides/openclaw-integration.md) for details.
+The plugin is a standard OpenClaw plugin on [`@karmaniverous/jeeves`](https://www.npmjs.com/package/@karmaniverous/jeeves) 0.9 core, installed by `jeeves install`. Every tool is built from the watcher's endpoint catalog by core's toolset and named `watcher_` plus its catalog entry in snake_case. It writes no workspace files; its always-in-context watcher rules are injected via the `before_prompt_build` hook. See the [OpenClaw Integration Guide](packages/openclaw/guides/openclaw-integration.md) for details.
 
 Plugin configuration supports `apiUrl` (defaults to `http://127.0.0.1:1936`), an optional `apiKey` (sent as a bearer token when the service sets `api.apiKey`; env fallback `JEEVES_WATCHER_API_KEY`) and `configRoot` (no default: set it in plugin config or via `JEEVES_CONFIG_ROOT`; resolved lazily, so the plugin registers before it is set).
 

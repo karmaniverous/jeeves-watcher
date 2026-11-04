@@ -44,14 +44,14 @@ Plugin config lives in `openclaw.json` under `plugins.entries.jeeves-watcher-ope
 
 ## Available Tools
 
-The plugin registers 18 tools (`contracts.tools` in `openclaw.plugin.json`), all as optional tools. Core's toolset (`createPluginToolset` in `@karmaniverous/jeeves`) builds seven of them: `watcher_service`, plus six from the watcher's endpoint catalog (`WATCHER_CATALOG` in `@karmaniverous/jeeves-watcher-core`): `watcher_status`, `watcher_config`, `watcher_config_apply`, `watcher_search`, `watcher_scan` and `watcher_vcs_show`. Their parameters are generated from the catalog's request schemas, so they reject unknown parameters and carry the server's bounds. The other eleven are thin wrappers built by the plugin, one per watcher HTTP endpoint. Every HTTP tool reads `apiUrl` and the API key on each call and sends the key when one is configured (`watcher_status` never needs it).
+The plugin registers 18 tools (`contracts.tools` in `openclaw.plugin.json`), all as optional tools. Core's toolset (`createPluginToolset` in `@karmaniverous/jeeves`) builds all of them: `watcher_service`, plus 17 from the watcher's endpoint catalog (`WATCHER_CATALOG` in `@karmaniverous/jeeves-watcher-core`), each named `watcher_` plus its catalog entry in snake_case (`showVcsFile` becomes `watcher_show_vcs_file`). Their parameters are generated from the catalog's request schemas, so they reject unknown parameters and carry the server's bounds. Every call waits up to 120 s (core's default); a timeout does not cancel the operation on the service, so check the outcome (for example with `watcher_check_vcs_exclusion`) before retrying a state change. Every HTTP tool reads `apiUrl` and the API key on each call and sends the key when one is configured (`watcher_status` never needs it).
 
 ### Errors
 
-A non-2xx response from the watcher API becomes a tool error (prefixed `Error: `). The two kinds of tool report it differently:
+A non-2xx response from the watcher API becomes a tool error (prefixed `Error: `):
 
-- **Catalog-built tools** (`watcher_status`, `watcher_config`, `watcher_config_apply`, `watcher_search`, `watcher_scan`, `watcher_vcs_show`) report core's `HTTP <status>: <body>`, with the server's JSON body verbatim, e.g. `HTTP 400: {"error":"Config validation failed","code":"invalid_request","issues":[...]}`. A `401` is `HTTP 401: {"error":"Unauthorized","code":"unauthorized"}`; the skill's troubleshooting section says how to supply or fix the key. Parameters that fail the tool's own schema are rejected before any request is sent.
-- **Plugin-built tools** report `HTTP <status> <code>: <message>`, where `<code>` is the server's machine-readable error code, e.g. `HTTP 400 invalid_request: Invalid filter`. A `401` keeps its key guidance: `HTTP 401 unauthorized: the watcher API requires an API key. Provide it via plugins.entries.jeeves-watcher-openclaw.config.apiKey or the JEEVES_WATCHER_API_KEY env var.` (or, when a key was sent, `... rejected the API key. Check ... against the service's api.apiKey.`). For these tools, structured `details` (Zod issues, per-property validation failures) stay in the HTTP response body. A refused, unresolvable or timed-out connection reads `Service not reachable at <apiUrl>.` with a hint to set `apiUrl`.
+- Every tool reports core's `HTTP <status>: <body>`, with the server's JSON body verbatim, e.g. `HTTP 400: {"error":"Config validation failed","code":"invalid_request","issues":[...]}`. A `401` is `HTTP 401: {"error":"Unauthorized","code":"unauthorized"}`; the skill's troubleshooting section says how to supply or fix the key. Parameters that fail the tool's own schema are rejected before any request is sent.
+- A refused or unresolvable connection reads `Service not reachable at <apiUrl>.` with a hint to set `apiUrl`.
 
 ### `watcher_status`
 
@@ -70,13 +70,13 @@ Semantic search across all indexed documents (`POST /search`). Pass a natural-la
 
 Registered `catalogMode: 'direct-only'` (see the README's Tool Search section).
 
-### `watcher_enrich`
+### `watcher_set_metadata`
 
-Set or update metadata on a document by file path (`POST /metadata`). Metadata is validated against the schemas of the rules matching the file and merged into its points without re-embedding. Returns `{ ok: true, matched_rules }`. Source documents are enriched through `POST /metadata` with `source` directly; the tool sends `path` only.
+Set or update metadata on a document by file path or source reference (`POST /metadata`; 0.17.0 `watcher_enrich`). Metadata is validated against the schemas of the rules matching the document and merged into its points without re-embedding. Returns `{ ok: true, matched_rules }`.
 
 **Parameters:**
 
-- `path` (string, required) — file path of the document
+- `path` (string) or `source` (string): exactly one; the file path or source reference of the document
 - `metadata` (object, required) — key-value metadata to set on the document
 
 ### `watcher_config`
@@ -87,7 +87,7 @@ Query the effective runtime config via JSONPath (`GET /config`). Returns the ful
 
 - `path` (string, optional) — JSONPath expression
 
-### `watcher_validate`
+### `watcher_validate_config`
 
 Validate a candidate config (or the current config if omitted), optionally testing file paths against it (`POST /config/validate`). Returns `{ valid: false, errors }`, or `{ valid: true, warnings?, testResults? }` with `{ path, matchedRules, metadata, error? }` per test path.
 
@@ -105,17 +105,18 @@ Apply a config patch to the running watcher service (`POST /config/apply`, body 
 - `config` (object, required) — config patch to apply
 - `replace` (boolean) — replace the whole config with the patch instead of merging
 
-Returns `{ applied: true, config }`. The echoed `config` is redacted through the same allow-list as `GET /config` (`api`, `sources` and provider keys are never echoed). When the config was written but the post-write apply step failed, the response also carries `warning` (a string). An invalid merged config is an `HTTP 400` whose body has `"error":"Config validation failed"` and the `issues`; use `watcher_validate` to see the individual errors. A server-side failure (config file unreadable or unwritable) comes back as a generic `internal_error`, with the cause in the service log.
+Returns `{ applied: true, config }`. The echoed `config` is redacted through the same allow-list as `GET /config` (`api`, `sources` and provider keys are never echoed). When the config was written but the post-write apply step failed, the response also carries `warning` (a string). An invalid merged config is an `HTTP 400` whose body has `"error":"Config validation failed"` and the `issues`; use `watcher_validate_config` to see the individual errors. A server-side failure (config file unreadable or unwritable) comes back as a generic `internal_error`, with the cause in the service log.
 
 ### `watcher_reindex`
 
-Trigger a scoped reindex (`POST /reindex`). Supports `rules`, `full`, `issues`, `path`, and `prune` scopes; the tool sends `rules` when `scope` is omitted (the HTTP API defaults to `issues`). Non-prune scopes return a blast area plan (files plus source documents). Live prune returns immediately without a plan. Explicit reindexes also cover source documents in `full`, `rules` (without `path`) and `issues`; `path` and `prune` cover files only (prune never deletes source points). Progress is reported by `watcher_status` under `health.reindex`. To reindex specific source references, call `POST /reindex` with `{ "scope": "path", "source": [...] }` directly; the tool has no `source` parameter.
+Trigger a scoped reindex (`POST /reindex`). Supports `rules`, `full`, `issues`, `path`, and `prune` scopes; without `scope` the service default (`issues`) applies (0.17.0 sent `rules`). Non-prune scopes return a blast area plan (files plus source documents). Live prune returns immediately without a plan. Explicit reindexes also cover source documents in `full`, `rules` (without `path`) and `issues`; `path` and `prune` cover files only (prune never deletes source points). Progress is reported by `watcher_status` under `health.reindex`. To reindex specific source references, pass `scope: "path"` with `source`.
 
 **Parameters:**
 
-- `scope` (string) — reindex scope (default: `rules`)
+- `scope` (string): reindex scope (default: `issues`)
 - `path` (string | string[]) — target file(s) or directories for `path` scope (required there); globs narrowing `rules` scope
 - `dryRun` (boolean) — compute plan without executing
+- `source` (string | string[]): source references for `path` scope (instead of `path`)
 
 ### `watcher_walk`
 
@@ -137,7 +138,7 @@ Filter-only point query without vector search (`POST /scan`). Returns metadata f
 - `fields` (string[]) — payload fields to return (projection)
 - `countOnly` (boolean) — if true, return `{ count }` instead of points
 
-### `watcher_issues`
+### `watcher_list_issues`
 
 List current processing issues (`GET /issues`): files and source documents with template or rule errors, or failed extraction, embedding, upsert, rule matching or source retrieval. Returns `{ count, issues }`, where `issues` maps each file path or source reference to its issue records (`type`, `message`, `timestamp`, and context fields). No parameters.
 
@@ -151,11 +152,11 @@ Manage the watcher background service (install, uninstall, start, stop, restart,
 
 ### Version Control (VCS) Tools
 
-#### `watcher_vcs_status`
+#### `watcher_get_vcs_status`
 
 Get version tracking health: enabled state, tracked roots, remote status, last activity (`GET /vcs/status`). No parameters.
 
-#### `watcher_vcs_history`
+#### `watcher_list_vcs_history`
 
 Query change history by path or glob with optional date range (`GET /vcs/history`).
 
@@ -166,7 +167,7 @@ Query change history by path or glob with optional date range (`GET /vcs/history
 - `until` (string) — end date (ISO 8601 or git date string)
 - `limit` (number) — maximum number of history entries to return
 
-#### `watcher_vcs_show`
+#### `watcher_show_vcs_file`
 
 Retrieve file content at a specific version (`GET /vcs/show`). Returns the file's text, whatever its type (before the catalog slice the tool failed on any file that was not JSON). Built by core's toolset from the catalog's `vcsShow` entry.
 
@@ -175,7 +176,7 @@ Retrieve file content at a specific version (`GET /vcs/show`). Returns the file'
 - `path` (string, required, non-empty) — file path to retrieve
 - `commit` (string, required, non-empty) — version identifier
 
-#### `watcher_vcs_diff`
+#### `watcher_diff_vcs`
 
 Show what changed between two versions, or between a version and current (`GET /vcs/diff`).
 
@@ -185,7 +186,7 @@ Show what changed between two versions, or between a version and current (`GET /
 - `commit` (string, required) — start version identifier
 - `commitEnd` (string) — end version identifier (defaults to current if omitted)
 
-#### `watcher_vcs_revert`
+#### `watcher_revert_vcs`
 
 Undo changes by restoring files to a specific version (`POST /vcs/revert`).
 
@@ -195,7 +196,7 @@ Undo changes by restoring files to a specific version (`POST /vcs/revert`).
 - `commit` (string, required) — version to restore files to
 - `existingOnly` (boolean) — when true, only revert files that currently exist (skip deleted files)
 
-#### `watcher_vcs_exclude`
+#### `watcher_exclude_vcs_path`
 
 Exclude a path from version history while keeping it in search, or remove the exclusion (`POST /vcs/exclude`). Adding writes a root-anchored pattern to the root's `.git/info/exclude` and untracks the files it matches, ending their history (the files stay on disk).
 
@@ -206,7 +207,7 @@ Exclude a path from version history while keeping it in search, or remove the ex
 - `remove` (boolean) — when true, remove the exclusion rule (untracked files are not re-added)
 - `confirm` (boolean) — required (true) when more than 100 files would be untracked; without it the tool reports `HTTP 409 confirm_required` and nothing changes
 
-#### `watcher_vcs_check`
+#### `watcher_check_vcs_exclusion`
 
 Check whether git ignores a path and why: the rule, the file holding it (`.git/info/exclude` for a VCS-only exclusion) and its line (`GET /vcs/check-exclusion`). A tracked path is never reported ignored.
 
@@ -245,7 +246,7 @@ The agent calls `watcher_status` and reports uptime, health, and collection poin
 
 > "Are there any files that failed to index?"
 
-The agent calls `watcher_issues` and summarizes any errors or warnings.
+The agent calls `watcher_list_issues` and summarizes any errors or warnings.
 
 ### Reindex after config change
 
