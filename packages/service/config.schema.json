@@ -85,6 +85,9 @@
         },
         "concurrency": {
           "$ref": "#/definitions/__schema77"
+        },
+        "alertUrl": {
+          "$ref": "#/definitions/__schema79"
         }
       },
       "description": "Embedding model configuration."
@@ -93,16 +96,16 @@
       "type": "object",
       "properties": {
         "url": {
-          "$ref": "#/definitions/__schema79"
-        },
-        "collectionName": {
-          "$ref": "#/definitions/__schema80"
-        },
-        "apiKey": {
           "$ref": "#/definitions/__schema81"
         },
-        "payloadIndexes": {
+        "collectionName": {
+          "$ref": "#/definitions/__schema82"
+        },
+        "apiKey": {
           "$ref": "#/definitions/__schema83"
+        },
+        "payloadIndexes": {
+          "$ref": "#/definitions/__schema85"
         }
       },
       "required": [
@@ -115,7 +118,7 @@
       "description": "API server configuration.",
       "allOf": [
         {
-          "$ref": "#/definitions/__schema92"
+          "$ref": "#/definitions/__schema94"
         }
       ]
     },
@@ -123,7 +126,7 @@
       "description": "Directory for persistent state files (issues.json, values.v8, enrichments.sqlite). Defaults to .jeeves-metadata.",
       "allOf": [
         {
-          "$ref": "#/definitions/__schema97"
+          "$ref": "#/definitions/__schema99"
         }
       ]
     },
@@ -131,7 +134,7 @@
       "description": "Rules for inferring metadata from file attributes. Each entry may be an inline rule object or a file path to a JSON rule file (resolved relative to config directory).",
       "allOf": [
         {
-          "$ref": "#/definitions/__schema98"
+          "$ref": "#/definitions/__schema100"
         }
       ]
     },
@@ -139,7 +142,7 @@
       "description": "Reusable named JsonMap transformations (inline definition or .json file path resolved relative to config directory).",
       "allOf": [
         {
-          "$ref": "#/definitions/__schema125"
+          "$ref": "#/definitions/__schema127"
         }
       ]
     },
@@ -147,7 +150,7 @@
       "description": "Named reusable Handlebars templates (inline strings or .hbs/.handlebars file paths).",
       "allOf": [
         {
-          "$ref": "#/definitions/__schema126"
+          "$ref": "#/definitions/__schema128"
         }
       ]
     },
@@ -155,7 +158,7 @@
       "description": "Custom Handlebars helper registration.",
       "allOf": [
         {
-          "$ref": "#/definitions/__schema127"
+          "$ref": "#/definitions/__schema129"
         }
       ]
     },
@@ -163,7 +166,7 @@
       "description": "Custom JsonMap lib function registration.",
       "allOf": [
         {
-          "$ref": "#/definitions/__schema128"
+          "$ref": "#/definitions/__schema130"
         }
       ]
     },
@@ -171,7 +174,7 @@
       "description": "Reindex configuration.",
       "allOf": [
         {
-          "$ref": "#/definitions/__schema129"
+          "$ref": "#/definitions/__schema131"
         }
       ]
     },
@@ -179,7 +182,7 @@
       "description": "Search configuration including score thresholds and hybrid search.",
       "allOf": [
         {
-          "$ref": "#/definitions/__schema131"
+          "$ref": "#/definitions/__schema133"
         }
       ]
     },
@@ -187,17 +190,25 @@
       "description": "VCS configuration for git-backed version control of watched content.",
       "allOf": [
         {
-          "$ref": "#/definitions/__schema132"
+          "$ref": "#/definitions/__schema134"
+        }
+      ]
+    },
+    "processing": {
+      "description": "Processing ceilings: a document over one has its points deleted and a too_large issue recorded. Read per document.",
+      "allOf": [
+        {
+          "$ref": "#/definitions/__schema135"
         }
       ]
     },
     "sources": {
       "type": "object",
       "propertyNames": {
-        "$ref": "#/definitions/__schema133"
+        "$ref": "#/definitions/__schema137"
       },
       "additionalProperties": {
-        "$ref": "#/definitions/__schema134"
+        "$ref": "#/definitions/__schema138"
       },
       "description": "Named sources for non-file documents, retrieved by callback. Keys are source names used in <name>://<id> references. Read at startup only."
     },
@@ -205,7 +216,7 @@
       "description": "Logging configuration.",
       "allOf": [
         {
-          "$ref": "#/definitions/__schema138"
+          "$ref": "#/definitions/__schema142"
         }
       ]
     },
@@ -213,7 +224,7 @@
       "description": "Timeout in milliseconds for graceful shutdown.",
       "allOf": [
         {
-          "$ref": "#/definitions/__schema144"
+          "$ref": "#/definitions/__schema148"
         }
       ]
     },
@@ -221,7 +232,7 @@
       "description": "Maximum consecutive system-level failures before triggering fatal error. Default: Infinity.",
       "allOf": [
         {
-          "$ref": "#/definitions/__schema145"
+          "$ref": "#/definitions/__schema149"
         }
       ]
     },
@@ -229,7 +240,7 @@
       "description": "Maximum backoff delay in milliseconds for system errors. Default: 60000.",
       "allOf": [
         {
-          "$ref": "#/definitions/__schema146"
+          "$ref": "#/definitions/__schema150"
         }
       ]
     }
@@ -969,26 +980,27 @@
       "type": "number"
     },
     "__schema79": {
-      "type": "string",
-      "description": "Qdrant server URL (e.g., \"http://localhost:6333\")."
-    },
-    "__schema80": {
-      "type": "string",
-      "description": "Qdrant collection name for vector storage."
-    },
-    "__schema81": {
-      "description": "Qdrant API key for authentication (supports ${ENV_VAR} substitution).",
+      "description": "URL that receives a POST when embedding health turns failing (embedding_failed) or recovers (embedding_recovered). The body is unsigned and sent without credentials: use a private endpoint. Read at each transition.",
       "allOf": [
         {
-          "$ref": "#/definitions/__schema82"
+          "$ref": "#/definitions/__schema80"
         }
       ]
     },
+    "__schema80": {
+      "type": "string",
+      "format": "uri"
+    },
+    "__schema81": {
+      "type": "string",
+      "description": "Qdrant server URL (e.g., \"http://localhost:6333\")."
+    },
     "__schema82": {
-      "type": "string"
+      "type": "string",
+      "description": "Qdrant collection name for vector storage."
     },
     "__schema83": {
-      "description": "Qdrant payload indexes created at startup when missing (never dropped). Each field at most once; source and source_rule are always indexed and cannot be listed. Default: none.",
+      "description": "Qdrant API key for authentication (supports ${ENV_VAR} substitution).",
       "allOf": [
         {
           "$ref": "#/definitions/__schema84"
@@ -996,25 +1008,36 @@
       ]
     },
     "__schema84": {
-      "type": "array",
-      "items": {
-        "$ref": "#/definitions/__schema85"
-      }
+      "type": "string"
     },
     "__schema85": {
+      "description": "Qdrant payload indexes created at startup when missing (never dropped). Each field at most once; source and source_rule are always indexed and cannot be listed. Default: none.",
+      "allOf": [
+        {
+          "$ref": "#/definitions/__schema86"
+        }
+      ]
+    },
+    "__schema86": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/__schema87"
+      }
+    },
+    "__schema87": {
       "type": "object",
       "properties": {
         "field": {
-          "$ref": "#/definitions/__schema86"
-        },
-        "type": {
-          "$ref": "#/definitions/__schema87"
-        },
-        "isTenant": {
           "$ref": "#/definitions/__schema88"
         },
-        "isPrincipal": {
+        "type": {
+          "$ref": "#/definitions/__schema89"
+        },
+        "isTenant": {
           "$ref": "#/definitions/__schema90"
+        },
+        "isPrincipal": {
+          "$ref": "#/definitions/__schema92"
         }
       },
       "required": [
@@ -1022,12 +1045,12 @@
         "type"
       ]
     },
-    "__schema86": {
+    "__schema88": {
       "type": "string",
       "minLength": 1,
       "description": "Payload field name to index."
     },
-    "__schema87": {
+    "__schema89": {
       "type": "string",
       "enum": [
         "keyword",
@@ -1040,19 +1063,8 @@
       ],
       "description": "Qdrant payload index type."
     },
-    "__schema88": {
-      "description": "Qdrant is_tenant: optimise storage for per-tenant filtering (keyword/uuid only).",
-      "allOf": [
-        {
-          "$ref": "#/definitions/__schema89"
-        }
-      ]
-    },
-    "__schema89": {
-      "type": "boolean"
-    },
     "__schema90": {
-      "description": "Qdrant is_principal: optimise storage for range filtering (integer/float/datetime only).",
+      "description": "Qdrant is_tenant: optimise storage for per-tenant filtering (keyword/uuid only).",
       "allOf": [
         {
           "$ref": "#/definitions/__schema91"
@@ -1063,13 +1075,24 @@
       "type": "boolean"
     },
     "__schema92": {
+      "description": "Qdrant is_principal: optimise storage for range filtering (integer/float/datetime only).",
+      "allOf": [
+        {
+          "$ref": "#/definitions/__schema93"
+        }
+      ]
+    },
+    "__schema93": {
+      "type": "boolean"
+    },
+    "__schema94": {
       "type": "object",
       "properties": {
         "host": {
           "description": "Host address for API server (e.g., \"127.0.0.1\", \"0.0.0.0\").",
           "allOf": [
             {
-              "$ref": "#/definitions/__schema93"
+              "$ref": "#/definitions/__schema95"
             }
           ]
         },
@@ -1077,7 +1100,7 @@
           "description": "Port for API server (e.g., 1936).",
           "allOf": [
             {
-              "$ref": "#/definitions/__schema94"
+              "$ref": "#/definitions/__schema96"
             }
           ]
         },
@@ -1085,7 +1108,7 @@
           "description": "TTL in milliseconds for caching read-heavy endpoints (e.g., /status, /config). Default: 30000.",
           "allOf": [
             {
-              "$ref": "#/definitions/__schema95"
+              "$ref": "#/definitions/__schema97"
             }
           ]
         },
@@ -1093,29 +1116,29 @@
           "description": "Bearer API key required on every route except GET /status (supports ${ENV_VAR} substitution). Must be non-empty. Unset: no authentication. Read at startup only.",
           "allOf": [
             {
-              "$ref": "#/definitions/__schema96"
+              "$ref": "#/definitions/__schema98"
             }
           ]
         }
       }
     },
-    "__schema93": {
+    "__schema95": {
       "type": "string"
     },
-    "__schema94": {
-      "type": "number"
-    },
-    "__schema95": {
-      "type": "number"
-    },
     "__schema96": {
+      "type": "number"
+    },
+    "__schema97": {
+      "type": "number"
+    },
+    "__schema98": {
       "type": "string",
       "minLength": 1
     },
-    "__schema97": {
+    "__schema99": {
       "type": "string"
     },
-    "__schema98": {
+    "__schema100": {
       "type": "array",
       "items": {
         "anyOf": [
@@ -1123,28 +1146,28 @@
             "type": "object",
             "properties": {
               "name": {
-                "$ref": "#/definitions/__schema99"
-              },
-              "description": {
-                "$ref": "#/definitions/__schema100"
-              },
-              "match": {
                 "$ref": "#/definitions/__schema101"
               },
-              "schema": {
-                "$ref": "#/definitions/__schema104"
+              "description": {
+                "$ref": "#/definitions/__schema102"
               },
-              "map": {
+              "match": {
+                "$ref": "#/definitions/__schema103"
+              },
+              "schema": {
                 "$ref": "#/definitions/__schema106"
               },
-              "template": {
-                "$ref": "#/definitions/__schema110"
+              "map": {
+                "$ref": "#/definitions/__schema108"
               },
-              "render": {
+              "template": {
                 "$ref": "#/definitions/__schema112"
               },
+              "render": {
+                "$ref": "#/definitions/__schema114"
+              },
               "renderAs": {
-                "$ref": "#/definitions/__schema123"
+                "$ref": "#/definitions/__schema125"
               }
             },
             "required": [
@@ -1159,39 +1182,39 @@
         ]
       }
     },
-    "__schema99": {
+    "__schema101": {
       "type": "string",
       "minLength": 1,
       "description": "Unique name identifying this inference rule."
     },
-    "__schema100": {
+    "__schema102": {
       "type": "string",
       "minLength": 1,
       "description": "Human-readable description of what this rule does."
     },
-    "__schema101": {
+    "__schema103": {
       "type": "object",
       "propertyNames": {
-        "$ref": "#/definitions/__schema102"
+        "$ref": "#/definitions/__schema104"
       },
       "additionalProperties": {
-        "$ref": "#/definitions/__schema103"
+        "$ref": "#/definitions/__schema105"
       },
       "description": "JSON Schema object to match against file attributes."
     },
-    "__schema102": {
+    "__schema104": {
       "type": "string"
     },
-    "__schema103": {},
-    "__schema104": {
+    "__schema105": {},
+    "__schema106": {
       "description": "Array of schema references (named schema refs or inline objects) merged left-to-right.",
       "allOf": [
         {
-          "$ref": "#/definitions/__schema105"
+          "$ref": "#/definitions/__schema107"
         }
       ]
     },
-    "__schema105": {
+    "__schema107": {
       "type": "array",
       "items": {
         "anyOf": [
@@ -1205,25 +1228,25 @@
         ]
       }
     },
-    "__schema106": {
+    "__schema108": {
       "description": "JsonMap transformation (inline definition, named map reference, or .json file path).",
       "allOf": [
         {
-          "$ref": "#/definitions/__schema107"
+          "$ref": "#/definitions/__schema109"
         }
       ]
     },
-    "__schema107": {
+    "__schema109": {
       "anyOf": [
         {
-          "$ref": "#/definitions/__schema108"
+          "$ref": "#/definitions/__schema110"
         },
         {
           "type": "string"
         }
       ]
     },
-    "__schema108": {
+    "__schema110": {
       "anyOf": [
         {
           "type": [
@@ -1241,7 +1264,7 @@
           "additionalProperties": {
             "anyOf": [
               {
-                "$ref": "#/definitions/__schema108"
+                "$ref": "#/definitions/__schema110"
               },
               {
                 "type": "object",
@@ -1249,12 +1272,12 @@
                   "$": {
                     "anyOf": [
                       {
-                        "$ref": "#/definitions/__schema109"
+                        "$ref": "#/definitions/__schema111"
                       },
                       {
                         "type": "array",
                         "items": {
-                          "$ref": "#/definitions/__schema109"
+                          "$ref": "#/definitions/__schema111"
                         }
                       }
                     ]
@@ -1270,12 +1293,12 @@
         {
           "type": "array",
           "items": {
-            "$ref": "#/definitions/__schema108"
+            "$ref": "#/definitions/__schema110"
           }
         }
       ]
     },
-    "__schema109": {
+    "__schema111": {
       "type": "object",
       "properties": {
         "method": {
@@ -1300,19 +1323,8 @@
         "params"
       ]
     },
-    "__schema110": {
-      "description": "Handlebars content template (inline string, named ref, or .hbs/.handlebars file path).",
-      "allOf": [
-        {
-          "$ref": "#/definitions/__schema111"
-        }
-      ]
-    },
-    "__schema111": {
-      "type": "string"
-    },
     "__schema112": {
-      "description": "Declarative render configuration for frontmatter + structured Markdown output (mutually exclusive with template).",
+      "description": "Handlebars content template (inline string, named ref, or .hbs/.handlebars file path).",
       "allOf": [
         {
           "$ref": "#/definitions/__schema113"
@@ -1320,19 +1332,30 @@
       ]
     },
     "__schema113": {
+      "type": "string"
+    },
+    "__schema114": {
+      "description": "Declarative render configuration for frontmatter + structured Markdown output (mutually exclusive with template).",
+      "allOf": [
+        {
+          "$ref": "#/definitions/__schema115"
+        }
+      ]
+    },
+    "__schema115": {
       "type": "object",
       "properties": {
         "frontmatter": {
           "type": "array",
           "items": {
-            "$ref": "#/definitions/__schema114"
+            "$ref": "#/definitions/__schema116"
           },
           "description": "Keys or glob patterns to include as YAML frontmatter. Supports picomatch globs (e.g. \"*\") and \"!\"-prefixed exclusion patterns (e.g. \"!_*\"). Explicit names preserve declaration order; glob-matched keys are sorted alphabetically."
         },
         "body": {
           "type": "array",
           "items": {
-            "$ref": "#/definitions/__schema115"
+            "$ref": "#/definitions/__schema117"
           },
           "description": "Ordered markdown body sections."
         }
@@ -1342,11 +1365,11 @@
         "body"
       ]
     },
-    "__schema114": {
+    "__schema116": {
       "type": "string",
       "minLength": 1
     },
-    "__schema115": {
+    "__schema117": {
       "type": "object",
       "properties": {
         "path": {
@@ -1364,7 +1387,7 @@
           "description": "Override heading text.",
           "allOf": [
             {
-              "$ref": "#/definitions/__schema116"
+              "$ref": "#/definitions/__schema118"
             }
           ]
         },
@@ -1372,7 +1395,7 @@
           "description": "Name of a registered Handlebars helper used as a format handler.",
           "allOf": [
             {
-              "$ref": "#/definitions/__schema117"
+              "$ref": "#/definitions/__schema119"
             }
           ]
         },
@@ -1380,7 +1403,7 @@
           "description": "Additional args passed to the format helper.",
           "allOf": [
             {
-              "$ref": "#/definitions/__schema118"
+              "$ref": "#/definitions/__schema120"
             }
           ]
         },
@@ -1388,7 +1411,7 @@
           "description": "If true, the value at path is treated as an array and iterated.",
           "allOf": [
             {
-              "$ref": "#/definitions/__schema119"
+              "$ref": "#/definitions/__schema121"
             }
           ]
         },
@@ -1396,7 +1419,7 @@
           "description": "Handlebars template string for per-item heading text (used when each=true).",
           "allOf": [
             {
-              "$ref": "#/definitions/__schema120"
+              "$ref": "#/definitions/__schema122"
             }
           ]
         },
@@ -1404,7 +1427,7 @@
           "description": "Key path within each item to use as renderable content (used when each=true).",
           "allOf": [
             {
-              "$ref": "#/definitions/__schema121"
+              "$ref": "#/definitions/__schema123"
             }
           ]
         },
@@ -1412,7 +1435,7 @@
           "description": "Key path within each item to sort by (used when each=true).",
           "allOf": [
             {
-              "$ref": "#/definitions/__schema122"
+              "$ref": "#/definitions/__schema124"
             }
           ]
         }
@@ -1422,41 +1445,41 @@
         "heading"
       ]
     },
-    "__schema116": {
-      "type": "string"
-    },
-    "__schema117": {
-      "type": "string"
-    },
     "__schema118": {
+      "type": "string"
+    },
+    "__schema119": {
+      "type": "string"
+    },
+    "__schema120": {
       "type": "array",
       "items": {}
     },
-    "__schema119": {
-      "type": "boolean"
-    },
-    "__schema120": {
-      "type": "string"
-    },
     "__schema121": {
-      "type": "string"
+      "type": "boolean"
     },
     "__schema122": {
       "type": "string"
     },
     "__schema123": {
+      "type": "string"
+    },
+    "__schema124": {
+      "type": "string"
+    },
+    "__schema125": {
       "description": "Output file extension override (without dot). Requires template or render.",
       "allOf": [
         {
-          "$ref": "#/definitions/__schema124"
+          "$ref": "#/definitions/__schema126"
         }
       ]
     },
-    "__schema124": {
+    "__schema126": {
       "type": "string",
       "pattern": "^[a-z0-9]{1,10}$"
     },
-    "__schema125": {
+    "__schema127": {
       "type": "object",
       "propertyNames": {
         "type": "string"
@@ -1464,7 +1487,7 @@
       "additionalProperties": {
         "anyOf": [
           {
-            "$ref": "#/definitions/__schema108"
+            "$ref": "#/definitions/__schema110"
           },
           {
             "type": "string"
@@ -1475,7 +1498,7 @@
               "map": {
                 "anyOf": [
                   {
-                    "$ref": "#/definitions/__schema108"
+                    "$ref": "#/definitions/__schema110"
                   },
                   {
                     "type": "string"
@@ -1493,7 +1516,7 @@
         ]
       }
     },
-    "__schema126": {
+    "__schema128": {
       "type": "object",
       "propertyNames": {
         "type": "string"
@@ -1520,47 +1543,47 @@
         ]
       }
     },
-    "__schema127": {
-      "type": "object",
-      "propertyNames": {
-        "type": "string"
-      },
-      "additionalProperties": {
-        "type": "object",
-        "properties": {
-          "path": {
-            "type": "string"
-          },
-          "description": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "path"
-        ]
-      }
-    },
-    "__schema128": {
-      "type": "object",
-      "propertyNames": {
-        "type": "string"
-      },
-      "additionalProperties": {
-        "type": "object",
-        "properties": {
-          "path": {
-            "type": "string"
-          },
-          "description": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "path"
-        ]
-      }
-    },
     "__schema129": {
+      "type": "object",
+      "propertyNames": {
+        "type": "string"
+      },
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "path"
+        ]
+      }
+    },
+    "__schema130": {
+      "type": "object",
+      "propertyNames": {
+        "type": "string"
+      },
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "path"
+        ]
+      }
+    },
+    "__schema131": {
       "type": "object",
       "properties": {
         "callbackUrl": {
@@ -1572,18 +1595,18 @@
           "description": "Maximum concurrent file operations during reindex (default 50).",
           "allOf": [
             {
-              "$ref": "#/definitions/__schema130"
+              "$ref": "#/definitions/__schema132"
             }
           ]
         }
       }
     },
-    "__schema130": {
+    "__schema132": {
       "type": "integer",
       "minimum": 1,
       "maximum": 9007199254740991
     },
-    "__schema131": {
+    "__schema133": {
       "type": "object",
       "properties": {
         "scoreThresholds": {
@@ -1628,7 +1651,7 @@
         }
       }
     },
-    "__schema132": {
+    "__schema134": {
       "type": "object",
       "properties": {
         "enabled": {
@@ -1669,12 +1692,46 @@
         }
       }
     },
-    "__schema133": {
+    "__schema135": {
+      "type": "object",
+      "properties": {
+        "maxFileBytes": {
+          "description": "Largest file processed, checked with stat before extraction (files only; source documents keep the 10 MiB response cap): bytes, or a string with a k, m or g suffix (binary units). A larger file has its points deleted and a too_large issue recorded. Default: '64m'.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/__schema40"
+            }
+          ]
+        },
+        "maxChunksPerFile": {
+          "description": "Most chunks one document (file or source) may split into; more has its points deleted and a too_large issue recorded. Default: 5000.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/__schema136"
+            }
+          ]
+        },
+        "maxTextBytes": {
+          "description": "Largest extracted text of one document (file or source), in UTF-8 bytes: bytes, or a string with a k, m or g suffix (binary units). More has its points deleted and a too_large issue recorded. Default: '8m'.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/__schema40"
+            }
+          ]
+        }
+      }
+    },
+    "__schema136": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 9007199254740991
+    },
+    "__schema137": {
       "type": "string",
       "pattern": "^[a-z][a-z0-9-]{1,31}$",
       "description": "Source name: lowercase letter, then 1-31 of [a-z0-9-]."
     },
-    "__schema134": {
+    "__schema138": {
       "type": "object",
       "properties": {
         "url": {
@@ -1686,7 +1743,7 @@
           "description": "Headers sent with every callback request (supports ${ENV_VAR} substitution).",
           "allOf": [
             {
-              "$ref": "#/definitions/__schema135"
+              "$ref": "#/definitions/__schema139"
             }
           ]
         },
@@ -1695,7 +1752,7 @@
           "description": "Callback timeout in milliseconds. Default: 10000.",
           "allOf": [
             {
-              "$ref": "#/definitions/__schema136"
+              "$ref": "#/definitions/__schema140"
             }
           ]
         },
@@ -1704,7 +1761,7 @@
           "description": "Maximum parallel callbacks for this source (e.g. during reindex). Default: 8.",
           "allOf": [
             {
-              "$ref": "#/definitions/__schema137"
+              "$ref": "#/definitions/__schema141"
             }
           ]
         }
@@ -1713,7 +1770,7 @@
         "url"
       ]
     },
-    "__schema135": {
+    "__schema139": {
       "type": "object",
       "propertyNames": {
         "type": "string"
@@ -1722,24 +1779,24 @@
         "type": "string"
       }
     },
-    "__schema136": {
+    "__schema140": {
       "type": "integer",
       "exclusiveMinimum": 0,
       "maximum": 9007199254740991
     },
-    "__schema137": {
+    "__schema141": {
       "type": "integer",
       "exclusiveMinimum": 0,
       "maximum": 9007199254740991
     },
-    "__schema138": {
+    "__schema142": {
       "type": "object",
       "properties": {
         "level": {
           "description": "Logging level (trace, debug, info, warn, error, fatal).",
           "allOf": [
             {
-              "$ref": "#/definitions/__schema139"
+              "$ref": "#/definitions/__schema143"
             }
           ]
         },
@@ -1747,7 +1804,7 @@
           "description": "Path to log file (logs to stdout if omitted).",
           "allOf": [
             {
-              "$ref": "#/definitions/__schema140"
+              "$ref": "#/definitions/__schema144"
             }
           ]
         },
@@ -1755,19 +1812,19 @@
           "description": "Rotation of logging.file: false to disable, or { maxSize, frequency, maxFiles }. Default when logging.file is set: { maxSize: \"10m\", frequency: \"daily\", maxFiles: 14 }.",
           "allOf": [
             {
-              "$ref": "#/definitions/__schema141"
+              "$ref": "#/definitions/__schema145"
             }
           ]
         }
       }
     },
-    "__schema139": {
+    "__schema143": {
       "type": "string"
     },
-    "__schema140": {
+    "__schema144": {
       "type": "string"
     },
-    "__schema141": {
+    "__schema145": {
       "anyOf": [
         {
           "type": "boolean",
@@ -1788,7 +1845,7 @@
               "description": "Also rotate \"daily\", \"hourly\", or every N milliseconds. Default: \"daily\".",
               "allOf": [
                 {
-                  "$ref": "#/definitions/__schema142"
+                  "$ref": "#/definitions/__schema146"
                 }
               ]
             },
@@ -1796,7 +1853,7 @@
               "description": "Number of rotated log files kept in addition to the active one, so up to maxFiles + 1 files remain. Default: 14.",
               "allOf": [
                 {
-                  "$ref": "#/definitions/__schema143"
+                  "$ref": "#/definitions/__schema147"
                 }
               ]
             }
@@ -1804,7 +1861,7 @@
         }
       ]
     },
-    "__schema142": {
+    "__schema146": {
       "anyOf": [
         {
           "type": "string",
@@ -1820,18 +1877,18 @@
         }
       ]
     },
-    "__schema143": {
+    "__schema147": {
       "type": "integer",
       "minimum": 1,
       "maximum": 9007199254740991
     },
-    "__schema144": {
+    "__schema148": {
       "type": "number"
     },
-    "__schema145": {
+    "__schema149": {
       "type": "number"
     },
-    "__schema146": {
+    "__schema150": {
       "type": "number"
     }
   }
