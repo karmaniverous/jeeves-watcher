@@ -121,9 +121,9 @@ export class DocumentLocks {
       holdWarnMs: DOCUMENT_LOCK_HOLD_WARN_MS,
       timeoutError: (operation, waitMs) =>
         new DocumentLockTimeoutError(key, operation, waitMs),
-      onIdle: () => {
-        if (this.locks.get(key) === lock) this.locks.delete(key);
-      },
+      // An idle lock is unreachable afterwards: lockFor() and run() are
+      // one synchronous step, so no caller can still hold this instance.
+      onIdle: () => this.locks.delete(key),
     });
     this.locks.set(key, lock);
     return lock;
