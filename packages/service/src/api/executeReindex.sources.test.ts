@@ -116,7 +116,12 @@ describe('executeReindex: source documents', () => {
     expect(
       f.store.points.get(sourcePointId(B, 0))?.payload['chunk_text'],
     ).toContain('bravo edited');
-    expect(f.store.setPayload).toHaveBeenCalledTimes(1);
+    // A's payload refresh, and B's chunk-0 finalise after its streamed write.
+    expect(f.store.setPayload).toHaveBeenCalledTimes(2);
+    expect(f.store.setPayload).toHaveBeenCalledWith(
+      [sourcePointId(B, 0)],
+      expect.objectContaining({ total_chunks: 1 }),
+    );
     expect(result.sources).toMatchObject({ indexed: 2, failed: 0 });
   });
 
