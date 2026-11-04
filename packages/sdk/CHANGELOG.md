@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.0-0] - 2026-11-04
+
+### 💼 Other
+
+- [281] chore: update dependencies (patch and minor) (#281)
+
+npm-check-updates --peer --target minor in the root and all four packages, then npm audit fix (non-breaking): audit 17 -> 14. One zod (4.6.7). All gates pass. Left for the owner (major): chokidar 6, unpdf 2, typescript 7 (blocked by typescript-eslint's peer range), mdast-util-from-adf 2.2 and release-it 19 (the remaining audit highs).
+- [281] chore: patch/minor deps, prettier-ignore generated baselines, squash test timeout
+- [281] updated core
 ## [0.2.0] - 2026-10-14
 
 ### 🚀 Features
@@ -42,3 +51,4 @@ All notable changes to this project will be documented in this file.
 ### ⚙️ Miscellaneous Tasks
 
 - Ship LICENSE in every package; core README and license metadata
+- Release @karmaniverous/jeeves-watcher-sdk v0.2.0
