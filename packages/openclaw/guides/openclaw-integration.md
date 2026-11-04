@@ -109,11 +109,11 @@ Returns `{ applied: true, config }`. The echoed `config` is redacted through the
 
 ### `watcher_reindex`
 
-Trigger a scoped reindex (`POST /reindex`). Supports `rules`, `full`, `issues`, `path`, and `prune` scopes; without `scope` the service default (`issues`) applies (0.17.0 sent `rules`). Non-prune scopes return a blast area plan (files plus source documents). Live prune returns immediately without a plan. Explicit reindexes also cover source documents in `full`, `rules` (without `path`) and `issues`; `path` and `prune` cover files only (prune never deletes source points). Progress is reported by `watcher_status` under `health.reindex`. To reindex specific source references, pass `scope: "path"` with `source`.
+Trigger a scoped reindex (`POST /reindex`). Supports `rules`, `full`, `issues`, `path`, and `prune` scopes; the tool sends `rules` when `scope` is omitted, as 0.17.0 did (the HTTP API defaults to `issues`). Non-prune scopes return a blast area plan (files plus source documents). Live prune returns immediately without a plan. Explicit reindexes also cover source documents in `full`, `rules` (without `path`) and `issues`; `path` and `prune` cover files only (prune never deletes source points). Progress is reported by `watcher_status` under `health.reindex`. To reindex specific source references, pass `scope: "path"` with `source`.
 
 **Parameters:**
 
-- `scope` (string): reindex scope (default: `issues`)
+- `scope` (string): reindex scope (default: `rules`)
 - `path` (string | string[]) — target file(s) or directories for `path` scope (required there); globs narrowing `rules` scope
 - `dryRun` (boolean) — compute plan without executing
 - `source` (string | string[]): source references for `path` scope (instead of `path`)

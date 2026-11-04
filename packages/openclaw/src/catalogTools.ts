@@ -41,6 +41,12 @@ export const VCS_EXCLUDE_DESCRIPTION = `Exclude a path from version history (VCS
 export const VCS_CHECK_DESCRIPTION =
   'Check whether git ignores a path and why: the rule, the file holding it and its line';
 
+/** The scope `watcher_reindex` sends when the caller omits one: 0.17.0's default (owner ruling, 2026-11-04). */
+export const REINDEX_DEFAULT_SCOPE = 'rules';
+
+/** `watcher_reindex` description. */
+export const REINDEX_DESCRIPTION = `Trigger a reindex of the watched files. Without scope, re-applies inference rules (scope "${REINDEX_DEFAULT_SCOPE}"); the HTTP API's own default is "issues".`;
+
 /**
  * The 14 domain tools, in their 0.17.0 registration order, by catalog entry.
  * Descriptions keep the 0.17.0 text unless it changed with the tool.
@@ -59,7 +65,7 @@ export const WATCHER_TOOL_SELECTION = {
     description:
       'Validate a candidate config (or current config if omitted). Optionally test file paths against the config to preview rule matching and metadata output.',
   },
-  reindex: { description: 'Trigger a reindex of the watched files.' },
+  reindex: { description: REINDEX_DESCRIPTION },
   scan: {
     description:
       'Filter-only point query without vector search. Returns metadata for points matching a Qdrant filter. Use for structural queries: file enumeration, staleness checks, delta computation. Use watcher_search for semantic/similarity queries. This is a direct tool: call it directly, never through tool_call.',
@@ -129,7 +135,27 @@ export function createCatalogTools(
     auth,
     tools: WATCHER_TOOL_SELECTION,
   });
-  return new Map(tools.map((tool) => [tool.name, tool]));
+  return new Map(
+    tools.map((tool) => [
+      tool.name,
+      tool.name === 'watcher_reindex' ? withDefaultScope(tool) : tool,
+    ]),
+  );
+}
+
+/**
+ * `watcher_reindex` with 0.17.0's default scope: a call without `scope` sends
+ * {@link REINDEX_DEFAULT_SCOPE}, so agents see no change from 0.17.0.
+ *
+ * @param tool - The catalog-built reindex tool.
+ * @returns The same tool, defaulting `scope`.
+ */
+function withDefaultScope(tool: ToolDescriptor): ToolDescriptor {
+  return {
+    ...tool,
+    execute: (id, params) =>
+      tool.execute(id, { scope: REINDEX_DEFAULT_SCOPE, ...params }),
+  };
 }
 
 /**

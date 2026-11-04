@@ -122,7 +122,7 @@ What changes for an existing deployment, release by release. The [Changelog](../
 
   Update any tool allow-list, prompt or skill that names the old tools. The bundled skill and prompt rules already use the new names.
 
-- **Parameters come from the catalog schemas.** `watcher_reindex` without `scope` now uses the server default (`issues`; 0.17.0 sent `rules`), `watcher_list_vcs_history.limit` is a string, and `watcher_set_metadata` also accepts `source`.
+- **Parameters come from the catalog schemas.** `watcher_reindex` without `scope` still sends `rules`, `watcher_list_vcs_history.limit` is a string, and `watcher_set_metadata` also accepts `source`.
 - **Every tool waits 120 s** (core's default), and errors read `HTTP <status>: <body>`. A `401` no longer carries key guidance: see the skill's troubleshooting section.
 
 ### Dependencies

@@ -188,7 +188,7 @@
   },
   {
     "name": "watcher_reindex",
-    "description": "Trigger a reindex of the watched files.",
+    "description": "Trigger a reindex of the watched files. Without scope, re-applies inference rules (scope \"rules\"); the HTTP API's own default is \"issues\".",
     "parameters": {
       "type": "object",
       "properties": {

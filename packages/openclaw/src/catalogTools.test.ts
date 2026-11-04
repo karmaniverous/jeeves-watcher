@@ -146,6 +146,22 @@ describe('domain tools send their entry request with the bearer key', () => {
       {},
       { scope: 'rules', dryRun: true },
     ],
+    [
+      'watcher_reindex',
+      { dryRun: true },
+      'POST',
+      '/reindex',
+      {},
+      { scope: 'rules', dryRun: true },
+    ],
+    [
+      'watcher_reindex',
+      { scope: 'issues' },
+      'POST',
+      '/reindex',
+      {},
+      { scope: 'issues' },
+    ],
     ['watcher_list_issues', {}, 'GET', '/issues', {}, undefined],
     [
       'watcher_walk',
