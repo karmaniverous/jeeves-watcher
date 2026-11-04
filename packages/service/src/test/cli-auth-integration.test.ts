@@ -16,7 +16,11 @@ import {
   vi,
 } from 'vitest';
 
-import { cliUnauthorizedMessage } from '../cli/jeeves-watcher/apiClient';
+import { unauthorizedHint } from '../cli/jeeves-watcher/cliClient';
+
+/** What the CLI prints after a 401 (`<code>: <message>`, then the key hint). */
+const denied401 = (keySent: boolean) =>
+  `unauthorized: Unauthorized\n${unauthorizedHint(keySent)}`;
 import { watcherDescriptor } from '../descriptor';
 import { qdrantAvailable } from './harness/qdrant';
 import { type ServiceHarness, startServiceHarness } from './harness/service';
@@ -109,22 +113,20 @@ describe.skipIf(!qdrantAvailable())(
 
       const denied = await runCli(['config'], target);
       expect(denied.exitCode).toBe(1);
-      expect(denied.stderr).toBe(
-        `Config query failed: ${cliUnauthorizedMessage(false)}`,
-      );
+      expect(denied.stderr).toBe(`Config query failed: ${denied401(false)}`);
     });
 
     it('gets 401 with guidance when no key is supplied', async () => {
       const run = await runCli(['issues']);
       expect(run.exitCode).toBe(1);
       expect(run.stdout).toBe('');
-      expect(run.stderr).toBe(cliUnauthorizedMessage(false));
+      expect(run.stderr).toBe(denied401(false));
     });
 
     it('gets 401 for a wrong key and never prints it', async () => {
       const run = await runCli(['issues', '--api-key', 'wrong-key']);
       expect(run.exitCode).toBe(1);
-      expect(run.stderr).toBe(cliUnauthorizedMessage(true));
+      expect(run.stderr).toBe(denied401(true));
       expect(`${run.stdout}${run.stderr}`).not.toContain('wrong-key');
     });
   },

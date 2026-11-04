@@ -1,6 +1,6 @@
 /**
  * @module cli/jeeves-watcher/customCommands.admin.test
- * Tests for the reindex, rebuild-metadata, issues and helpers custom CLI commands registered via the descriptor (fetch mocked).
+ * Tests for the walk, reindex (incl. --dry-run), rebuild-metadata, issues and helpers custom CLI commands registered via the descriptor (fetch mocked).
  */
 
 import {
@@ -37,6 +37,24 @@ afterEach(() => {
   consoleErrorSpy.mockRestore();
 });
 
+// --- walk ---
+
+describe('walk command (#213)', () => {
+  it('POSTs the globs to /walk and prints the paths', async () => {
+    const cli = makeCli();
+    const reply = { paths: ['/r/a.md'], matchedCount: 1, scannedRoots: ['/r'] };
+    mockJsonResponse(reply);
+
+    await cli.parseAsync(['node', 'test', 'walk', '**/*.md', 'docs/**']);
+
+    expect(getFirstCallUrl()).toBe('http://127.0.0.1:1936/walk');
+    expect(JSON.parse(getFirstRequestBody())).toEqual({
+      globs: ['**/*.md', 'docs/**'],
+    });
+    expect(consoleLogSpy).toHaveBeenCalledWith(JSON.stringify(reply, null, 2));
+  });
+});
+
 // --- reindex ---
 
 describe('reindex command', () => {
@@ -48,6 +66,34 @@ describe('reindex command', () => {
 
     const body = JSON.parse(getFirstRequestBody()) as Record<string, unknown>;
     expect(body.scope).toBe('rules');
+  });
+
+  it('sends dryRun with --dry-run (#257)', async () => {
+    const cli = makeCli();
+    mockJsonResponse({ scope: 'prune', dryRun: true, plan: {} });
+
+    await cli.parseAsync([
+      'node',
+      'test',
+      'reindex',
+      '--scope',
+      'prune',
+      '--dry-run',
+    ]);
+
+    expect(JSON.parse(getFirstRequestBody())).toEqual({
+      scope: 'prune',
+      dryRun: true,
+    });
+  });
+
+  it('sends no dryRun without --dry-run', async () => {
+    const cli = makeCli();
+    mockJsonResponse({ status: 'started', scope: 'rules' });
+
+    await cli.parseAsync(['node', 'test', 'reindex']);
+
+    expect(JSON.parse(getFirstRequestBody())).toEqual({ scope: 'rules' });
   });
 
   it('rejects invalid scope', async () => {
@@ -106,7 +152,7 @@ describe('reindex command', () => {
 describe('rebuild-metadata command', () => {
   it('calls POST /rebuild-metadata and prints response', async () => {
     const cli = makeCli();
-    const response = { filesProcessed: 42 };
+    const response = { ok: true };
     mockJsonResponse(response);
 
     await cli.parseAsync(['node', 'test', 'rebuild-metadata']);
@@ -123,7 +169,7 @@ describe('rebuild-metadata command', () => {
 describe('issues command', () => {
   it('calls GET /issues and prints response', async () => {
     const cli = makeCli();
-    const response = { count: 2, issues: { '/a.md': {}, '/b.md': {} } };
+    const response = { count: 2, issues: { '/a.md': [], '/b.md': [] } };
     mockJsonResponse(response);
 
     await cli.parseAsync(['node', 'test', 'issues']);

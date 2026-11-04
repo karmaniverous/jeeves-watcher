@@ -1,5 +1,5 @@
 /**
- * @module cli/jeeves-watcher/apiClient.configKey.test
+ * @module cli/jeeves-watcher/cliClient.configKey.test
  * The CLI never takes its API key from the config file: with a discoverable config carrying `api.apiKey` in the working directory and neither `--api-key` nor JEEVES_WATCHER_API_KEY set, requests carry no Authorization header and loadConfig is never called. Temp dir + chdir; fetch stubbed.
  */
 
@@ -23,7 +23,7 @@ const CONFIG_KEY = 'config-file-key-must-not-be-sent';
 
 type FetchArgs = [string, RequestInit | undefined];
 
-const fetchMock = vi.fn<(...args: FetchArgs) => Promise<unknown>>();
+const fetchMock = vi.fn<(...args: FetchArgs) => Promise<Response>>();
 
 describe('CLI API key source', () => {
   const cwd = process.cwd();
@@ -48,12 +48,13 @@ describe('CLI API key source', () => {
     vi.stubEnv(API_KEY_ENV_VAR, undefined);
     vi.stubGlobal('fetch', fetchMock);
     fetchMock.mockReset();
-    fetchMock.mockResolvedValue({
-      ok: true,
-      status: 200,
-      text: () => Promise.resolve('{}'),
-      json: () => Promise.resolve({}),
-    });
+    fetchMock.mockImplementation(() =>
+      Promise.resolve(
+        new Response(JSON.stringify({ count: 0, issues: {} }), {
+          headers: { 'content-type': 'application/json' },
+        }),
+      ),
+    );
     vi.spyOn(console, 'log').mockImplementation(() => {});
     vi.spyOn(console, 'error').mockImplementation(() => {});
   });
@@ -81,8 +82,7 @@ describe('CLI API key source', () => {
 
     expect(fetchMock).toHaveBeenCalledOnce();
     const init = fetchMock.mock.calls[0][1];
-    const headers = (init?.headers ?? {}) as Record<string, string>;
-    expect(headers.Authorization).toBeUndefined();
+    expect(new Headers(init?.headers).get('authorization')).toBeNull();
     expect(JSON.stringify(fetchMock.mock.calls)).not.toContain(CONFIG_KEY);
     expect(loadConfig).not.toHaveBeenCalled();
     expect(process.exitCode).toBeUndefined();

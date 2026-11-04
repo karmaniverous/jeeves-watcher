@@ -1,12 +1,14 @@
 /**
  * @module cli/jeeves-watcher/configCommands
- * Re-wires core's `config` and `config apply` CLI commands through the shared API client, adding `--api-key` so they send the bearer key. Reads patches from a file or stdin.
+ * Re-wires core's `config` and `config apply` CLI commands through the SDK client (`config`, `configApply`), adding `--api-key` so they send the bearer key. Reads patches from a file or stdin.
  *
  * @remarks
  * Core's `createServiceCli` registers both commands with an HTTP helper that
  * cannot attach headers. This module keeps their names, arguments, options and
- * output, adds `--api-key` and replaces only the action handlers. When the
- * commands are absent (e.g. a bare test program) it does nothing.
+ * output, adds `--api-key` and replaces only the action handlers, which call
+ * the SDK with the CLI's 60 s timeout. Failures print core's prefix, then
+ * `<code>: <message>`. When the commands are absent (e.g. a bare test
+ * program) it does nothing.
  */
 
 import { readFileSync } from 'node:fs';
@@ -16,11 +18,11 @@ import {
   API_DEFAULTS,
   API_KEY_ENV_VAR,
   isPlainObject,
-  WATCHER_CATALOG,
 } from '@karmaniverous/jeeves-watcher-core';
 import { z } from 'zod';
 
-import { apiClient, printJson } from './apiOptions';
+import { describeError, printJson } from './apiOptions';
+import { cliClient } from './cliClient';
 
 /** Host core's config commands always address. */
 const CONFIG_HOST = API_DEFAULTS.host;
@@ -50,10 +52,8 @@ function addApiKeyOption(cmd: CommandUnknownOpts): void {
 }
 
 /** Print an error with core's prefix and set exit code 1. */
-function reportFailure(prefix: string, err: unknown): void {
-  console.error(
-    `${prefix}: ${err instanceof Error ? err.message : String(err)}`,
-  );
+function reportFailure(prefix: string, err: unknown, apiKey?: string): void {
+  console.error(`${prefix}: ${describeError(err, apiKey)}`);
   process.exitCode = 1;
 }
 
@@ -107,14 +107,11 @@ export function authenticateConfigCommands(program: Command): void {
   configCmd.action(async () => {
     const opts = configOptsSchema.parse(configCmd.opts());
     const jsonpath = configCmd.args[0];
-    const qs = jsonpath ? `?path=${encodeURIComponent(jsonpath)}` : '';
     try {
-      const client = apiClient({ ...opts, host: CONFIG_HOST });
-      printJson(
-        await client.get(`${WATCHER_CATALOG.byName('config').path}${qs}`),
-      );
+      const client = cliClient({ ...opts, host: CONFIG_HOST });
+      printJson(await client.config(jsonpath ? { path: jsonpath } : {}));
     } catch (err) {
-      reportFailure('Config query failed', err);
+      reportFailure('Config query failed', err, opts.apiKey);
     }
   });
 
@@ -126,14 +123,15 @@ export function authenticateConfigCommands(program: Command): void {
     const opts = configOptsSchema.parse(applyCmd.opts());
     try {
       const patch = await readPatch(opts.file);
-      const body: Record<string, unknown> = { patch };
-      if (opts.replace) body.replace = true;
-      const client = apiClient({ ...opts, host: CONFIG_HOST });
+      const client = cliClient({ ...opts, host: CONFIG_HOST });
       printJson(
-        await client.post(WATCHER_CATALOG.byName('configApply').path, body),
+        await client.configApply({
+          patch,
+          ...(opts.replace ? { replace: true } : {}),
+        }),
       );
     } catch (err) {
-      reportFailure('Config apply failed', err);
+      reportFailure('Config apply failed', err, opts.apiKey);
     }
   });
 }
