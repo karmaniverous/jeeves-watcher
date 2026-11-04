@@ -65,7 +65,7 @@ export async function readHead(root: string): Promise<string | undefined> {
       '-q',
       'HEAD',
     ]);
-    return stdout.trim() || undefined;
+    return stdout.trim();
   } catch (error) {
     if (getErrorCode(error) === 1) return undefined;
     throw error;

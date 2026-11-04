@@ -248,3 +248,26 @@ describe('SquashManager plumbing rewrite (D166)', () => {
     expect(await git('status', '--porcelain')).toBe('');
   }, 30000);
 });
+
+describe('parseRawCommit', () => {
+  const header = 'tree abc\nauthor A <a@x> 1 +0000\ncommitter C <c@x> 2 +0100';
+
+  it('reads a commit with no message', () => {
+    const parsed = parseRawCommit(Buffer.from(header));
+    expect(parsed).toMatchObject({
+      tree: 'abc',
+      author: { name: 'A', email: 'a@x', date: '1 +0000' },
+      committer: { name: 'C', email: 'c@x', date: '2 +0100' },
+    });
+    expect(parsed.message).toHaveLength(0);
+  });
+
+  it('refuses a commit without a tree or an identity', () => {
+    expect(() =>
+      parseRawCommit(Buffer.from(header.replace('tree abc\n', ''))),
+    ).toThrow('Unparseable commit object');
+    expect(() =>
+      parseRawCommit(Buffer.from('tree abc\nauthor A <a@x> 1 +0000\n\nmsg')),
+    ).toThrow('Unparseable commit object');
+  });
+});

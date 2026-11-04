@@ -8,7 +8,7 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 
 import pino from 'pino';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { JeevesWatcherConfig } from '../config/types';
 import { execFileAsync } from '../test/git';
@@ -168,6 +168,55 @@ describe('VcsCoordinator', () => {
 
     // Two globs with the same static root should produce one manager
     expect(coordinator.getRoots()).toHaveLength(1);
+  });
+
+  it('sums pending files and reports tripped roots with the oldest trip (health.vcs)', () => {
+    const coordinator = new VcsCoordinator(
+      makeConfig([rootA, rootB]),
+      silentLogger,
+    );
+    const [a, b] = [...coordinator.getAllManagers().values()];
+    const state = {
+      consecutiveFailures: 0,
+      tripped: false,
+      trippedAt: null,
+      lastError: null,
+      pendingCount: 0,
+    };
+    vi.spyOn(a, 'breakerState', 'get').mockReturnValue({
+      ...state,
+      tripped: true,
+      trippedAt: '2026-11-04T02:00:00.000Z',
+      pendingCount: 3,
+    });
+    const bState = vi.spyOn(b, 'breakerState', 'get').mockReturnValue({
+      ...state,
+      pendingCount: 2,
+    });
+    expect(coordinator.getHealth()).toEqual({
+      roots: 2,
+      pending: 5,
+      trippedRoots: 1,
+      oldestTrippedAt: '2026-11-04T02:00:00.000Z',
+    });
+
+    bState.mockReturnValue({
+      ...state,
+      tripped: true,
+      trippedAt: '2026-11-04T01:00:00.000Z',
+    });
+    expect(coordinator.getHealth()).toMatchObject({
+      trippedRoots: 2,
+      oldestTrippedAt: '2026-11-04T01:00:00.000Z',
+    });
+
+    for (const trippedAt of [null, '2026-11-04T03:00:00.000Z']) {
+      bState.mockReturnValue({ ...state, tripped: true, trippedAt });
+      expect(coordinator.getHealth()).toMatchObject({
+        trippedRoots: 2,
+        oldestTrippedAt: '2026-11-04T02:00:00.000Z',
+      });
+    }
   });
 
   it('creates SquashManager even when retention is omitted from config', () => {

@@ -65,7 +65,7 @@ export async function detectStaleGitOperation(
 export async function headRef(rootPath: string): Promise<string | undefined> {
   try {
     const { stdout } = await runGit(rootPath, ['symbolic-ref', '-q', 'HEAD']);
-    return stdout.trim() || undefined;
+    return stdout.trim();
   } catch {
     return undefined;
   }

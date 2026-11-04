@@ -15,7 +15,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import pino from 'pino';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { execFileAsync } from '../test/git';
 import {
@@ -25,6 +25,7 @@ import {
   makeRetention,
   makeSquashManager,
 } from '../test/squashRepo';
+import { countCalls } from '../test/vcsRepo';
 
 const silentLogger = pino({ level: 'silent' });
 
@@ -181,6 +182,31 @@ describe('SquashManager.runSquash', () => {
     const result = await manager.runSquash();
     expect(result.squashed).toBe(false);
     expect(await commitCount(tempDir)).toBe(1);
+  });
+
+  it('logs a git failure and returns it as a refused squash; lists no commits while unborn', async () => {
+    const logger = pino({ level: 'silent' });
+    const error = vi.spyOn(logger, 'error');
+    const manager = makeSquashManager(
+      tempDir,
+      makeRetention({ maxAgeDays: 1, maxVersions: 1 }),
+      logger,
+    );
+    expect(await manager.getCommitLog()).toEqual([]);
+
+    // The configured branch has no commit yet: rev-parse fails.
+    const result = await manager.runSquash();
+    expect(result.squashed).toBe(false);
+    expect(result.error).toEqual(expect.any(String));
+    expect(countCalls(error, 'Squash operation failed')).toBe(1);
+
+    await createCommit(tempDir, 'file1.txt', 'a');
+    const { stdout: head } = await execFileAsync('git', ['rev-parse', 'HEAD'], {
+      cwd: tempDir,
+    });
+    expect((await manager.getCommitLog()).map((c) => c.hash)).toEqual([
+      head.trim(),
+    ]);
   });
 
   it('uses configured branch name instead of dynamic detection (Bug 1)', async () => {

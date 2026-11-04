@@ -87,13 +87,15 @@ describe('untrack error handling', () => {
     expect(await lsFiles()).toEqual([]);
   });
 
-  it('discards a marker whose commit git does not know (exit 128)', async () => {
+  it('discards a marker whose commit git does not know (exit 128), with no exclude file to edit', async () => {
+    await rm(join(repo, '.git', 'info', 'exclude'), { force: true });
     await writeFile(
       untrackMarkerPath(repo),
       JSON.stringify({
         oldHead: 'f'.repeat(40),
         newCommit: 'e'.repeat(40),
         paths: ['big.bin'],
+        pattern: '*.bin',
       }),
     );
 

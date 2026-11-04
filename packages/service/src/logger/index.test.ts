@@ -85,6 +85,7 @@ describe('createLogger', () => {
   it('logs to stdout without a file', async () => {
     const logger = await createLogger({ level: 'warn' });
     expect(logger.level).toBe('warn');
+    expect((await createLogger()).level).toBe('info');
   });
 
   it('opens the file before returning, so the first line is kept', async () => {
