@@ -8,7 +8,11 @@ import type pino from 'pino';
 import { normalizeError } from '../util/normalizeError';
 import { retry } from '../util/retry';
 import { stageBatch, type StagingOptions } from './batchStaging';
-import { type BisectionResult, stageWithBisection } from './bisectStaging';
+import {
+  bisectionDeadline,
+  type BisectionResult,
+  stageWithBisection,
+} from './bisectStaging';
 import type { CommitMessageBuilder } from './CommitMessageBuilder';
 import { isIndexLockError, pathListTimeoutMs } from './gitExec';
 import { gitCommit, hasStagedChanges } from './gitIndex';
@@ -52,6 +56,11 @@ export interface CommitContext {
   isBaseline: boolean;
   /** Reversions to describe in the message. */
   pendingReversions: readonly PendingReversion[];
+  /**
+   * Epoch ms the batch's staging must end by: one budget for all its
+   * attempts, bisection included (D72).
+   */
+  deadline: number;
 }
 
 /** Index.lock retry policy: only lock contention is transient (#249). */
@@ -78,6 +87,11 @@ export class BatchCommitter {
 
   constructor(private readonly deps: BatchCommitterDeps) {}
 
+  /** Path-list timeout (the test override, or the real one). */
+  private get timeoutFor(): (paths: number) => number {
+    return this.deps.timeoutFor ?? pathListTimeoutMs;
+  }
+
   /** ISO time of the last successful push, or null. */
   get lastPushTime(): string | null {
     return this.lastPush;
@@ -94,16 +108,17 @@ export class BatchCommitter {
    */
   async commitWithRetry(
     files: string[],
-    context: Omit<CommitContext, 'attempt'>,
+    context: Omit<CommitContext, 'attempt' | 'deadline'>,
   ): Promise<string[]> {
     const { rootPath, logger } = this.deps;
+    const deadline = bisectionDeadline(files.length, this.timeoutFor);
     await removeStaleIndexLock(
       rootPath,
       this.deps.staleLockThresholdMs,
       logger,
     );
     const { committed, unstaged } = await retry(
-      (attempt) => this.commit(files, { ...context, attempt }),
+      (attempt) => this.commit(files, { ...context, attempt, deadline }),
       {
         ...LOCK_RETRY,
         shouldRetry: isIndexLockError,
@@ -139,7 +154,7 @@ export class BatchCommitter {
     const { rootPath, logger } = this.deps;
     await recoverUntrackPending(rootPath, logger);
 
-    const { overCap, unstaged } = await this.stage(files);
+    const { overCap, unstaged } = await this.stage(files, context.deadline);
     const untrackCommit = await this.untrackOverCap(overCap);
 
     // "Nothing staged" is a no-op, detected without parsing git's text.
@@ -185,7 +200,7 @@ export class BatchCommitter {
    * temp files first; after a killed attempt, new ones are deleted in the
    * background once they stop changing (D66).
    */
-  private stage(files: string[]): Promise<BisectionResult> {
+  private stage(files: string[], deadline: number): Promise<BisectionResult> {
     const { rootPath, logger } = this.deps;
     const options: Omit<StagingOptions, 'timeoutFor'> = {
       maxFileBytes: this.deps.getMaxFileBytes(),
@@ -206,7 +221,8 @@ export class BatchCommitter {
         }
       },
       {
-        timeoutFor: this.deps.timeoutFor ?? pathListTimeoutMs,
+        timeoutFor: this.timeoutFor,
+        deadline,
         onTimeout: (paths) => {
           logger.warn(
             { root: rootPath, count: paths.length },

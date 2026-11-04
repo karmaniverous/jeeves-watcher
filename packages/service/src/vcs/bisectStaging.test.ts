@@ -90,4 +90,21 @@ describe('stageWithBisection', () => {
 
     expect(clock).toBe(BISECTION_BUDGET_MAX_MS);
   });
+
+  it("spends only what is left of a caller's deadline (one budget across retries)", async () => {
+    let clock = 0;
+    const attempt: StagingAttempt = (batch, timeoutFor) => {
+      clock += timeoutFor(batch.length);
+      return Promise.reject(timeout());
+    };
+
+    const result = await stageWithBisection(paths(4), attempt, {
+      timeoutFor: () => 1000,
+      now: () => clock,
+      deadline: 500,
+    });
+
+    expect(clock).toBe(500);
+    expect(result.unstaged).toHaveLength(4);
+  });
 });

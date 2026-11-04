@@ -33,6 +33,28 @@ export interface BisectionOptions {
   now?: () => number;
   /** Called after each timed-out attempt (cleanup, logging). */
   onTimeout?: (paths: readonly string[]) => void;
+  /**
+   * Epoch ms the batch must end by, when set by the caller (one deadline
+   * across a batch's retries, D72); default {@link bisectionDeadline}.
+   */
+  deadline?: number;
+}
+
+/**
+ * End of a batch's staging budget: three times the batch's first timeout,
+ * at most {@link BISECTION_BUDGET_MAX_MS}, from now.
+ *
+ * @param count - Paths in the batch.
+ * @param timeoutFor - Path-list timeout.
+ * @param now - Clock.
+ * @returns Epoch ms.
+ */
+export function bisectionDeadline(
+  count: number,
+  timeoutFor: (paths: number) => number,
+  now: () => number = Date.now,
+): number {
+  return now() + Math.min(BISECTION_BUDGET_MAX_MS, 3 * timeoutFor(count));
 }
 
 /**
@@ -53,8 +75,8 @@ export async function stageWithBisection(
 ): Promise<BisectionResult> {
   const now = options.now ?? Date.now;
   const deadline =
-    now() +
-    Math.min(BISECTION_BUDGET_MAX_MS, 3 * options.timeoutFor(files.length));
+    options.deadline ??
+    bisectionDeadline(files.length, options.timeoutFor, now);
   const capped = (paths: number) =>
     Math.max(1, Math.min(options.timeoutFor(paths), deadline - now()));
   const result: BisectionResult = { overCap: [], unstaged: [] };
