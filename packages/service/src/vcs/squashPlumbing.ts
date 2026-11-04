@@ -64,9 +64,24 @@ export interface RawCommit {
   committer: Identity;
   /** Message bytes, exactly as stored (everything after the header). */
   message: Buffer;
+  /** The `encoding` header of a non-UTF-8 commit, if any. */
+  encoding?: string;
 }
 
 const IDENTITY_LINE = /^(author|committer) (.*) <(.*)> (\d+ [+-]\d{4})$/;
+
+/**
+ * Decode a commit header in its declared encoding (UTF-8 by default, or
+ * when Node does not know the label).
+ */
+function decodeHeader(header: Buffer, encoding: string | undefined): string {
+  if (encoding === undefined) return header.toString('utf8');
+  try {
+    return new TextDecoder(encoding).decode(header);
+  } catch {
+    return header.toString('utf8');
+  }
+}
 
 /**
  * Parse `git cat-file commit` output. The message is the bytes after the
@@ -77,8 +92,11 @@ const IDENTITY_LINE = /^(author|committer) (.*) <(.*)> (\d+ [+-]\d{4})$/;
  */
 export function parseRawCommit(raw: Buffer): RawCommit {
   const split = raw.indexOf('\n\n');
-  const header = (split === -1 ? raw : raw.subarray(0, split)).toString('utf8');
+  const headerBytes = split === -1 ? raw : raw.subarray(0, split);
   const message = split === -1 ? Buffer.alloc(0) : raw.subarray(split + 2);
+  // Header lines other than identities are ASCII; read `encoding` first.
+  const encoding = /^encoding (.+)$/m.exec(headerBytes.toString('latin1'))?.[1];
+  const header = decodeHeader(headerBytes, encoding);
   let tree = '';
   const identities: Partial<Record<'author' | 'committer', Identity>> = {};
   for (const line of header.split('\n')) {
@@ -96,12 +114,54 @@ export function parseRawCommit(raw: Buffer): RawCommit {
   if (!tree || !author || !committer) {
     throw new Error('Unparseable commit object');
   }
-  return { tree, author, committer, message };
+  return {
+    tree,
+    author,
+    committer,
+    message,
+    ...(encoding === undefined ? {} : { encoding }),
+  };
+}
+
+/** Header lines a copy drops (with their continuation lines). */
+const DROPPED_HEADERS = /^(parent|gpgsig|gpgsig-sha256|mergetag) /;
+
+/**
+ * Rebuild a raw commit object on a new parent, byte for byte otherwise:
+ * its `parent` and signature headers are replaced by `parent <parent>`.
+ * Used for non-UTF-8 commits, whose identity bytes the environment of
+ * `commit-tree` cannot carry.
+ *
+ * @param raw - The raw commit object.
+ * @param parent - The new parent.
+ * @returns The new object's bytes.
+ */
+export function reparentRawCommit(raw: Buffer, parent: string): Buffer {
+  const split = raw.indexOf('\n\n');
+  const header = raw.subarray(0, split).toString('latin1').split('\n');
+  const kept: string[] = [];
+  let dropping = false;
+  for (const line of header) {
+    if (line.startsWith(' ')) {
+      if (!dropping) kept.push(line);
+      continue;
+    }
+    dropping = DROPPED_HEADERS.test(line);
+    if (dropping) continue;
+    kept.push(line);
+    if (line.startsWith('tree ')) kept.push(`parent ${parent}`);
+  }
+  return Buffer.concat([
+    Buffer.from(`${kept.join('\n')}\n`, 'latin1'),
+    raw.subarray(split + 1),
+  ]);
 }
 
 /**
  * Recreate one commit on `parent` with its original tree, message,
- * identities and raw dates (`commit-tree <tree> -p <parent> -F -`).
+ * identities and raw dates (`commit-tree <tree> -p <parent> -F -`). A
+ * non-UTF-8 commit (an `encoding` header) is rebuilt byte for byte with
+ * `hash-object -t commit -w --stdin` instead ({@link reparentRawCommit}).
  *
  * @param root - Repository root.
  * @param hash - The commit to copy.
@@ -115,6 +175,14 @@ async function copyCommit(
 ): Promise<string> {
   const { stdoutBuffer } = await runGit(root, ['cat-file', 'commit', hash]);
   const raw = parseRawCommit(stdoutBuffer);
+  if (raw.encoding !== undefined) {
+    const { stdout } = await runGit(
+      root,
+      ['hash-object', '-t', 'commit', '-w', '--stdin'],
+      { input: reparentRawCommit(stdoutBuffer, parent) },
+    );
+    return stdout.trim();
+  }
   const { stdout } = await runGit(
     root,
     ['commit-tree', raw.tree, '-p', parent, '-F', '-'],

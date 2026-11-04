@@ -21,7 +21,7 @@ import {
   makeRetention,
   makeSquashManager,
 } from '../test/squashRepo';
-import { parseRawCommit } from './squashPlumbing';
+import { parseRawCommit, reparentRawCommit } from './squashPlumbing';
 import { VcsManager } from './VcsManager';
 
 const silentLogger = pino({ level: 'silent' });
@@ -247,6 +247,61 @@ describe('SquashManager plumbing rewrite (D166)', () => {
     expect(await git('show', 'HEAD:written-during.txt')).toBe('pending');
     expect(await git('status', '--porcelain')).toBe('');
   }, 30000);
+});
+
+describe('SquashManager plumbing rewrite: non-UTF-8 commits', () => {
+  it('keeps the message bytes and encoding header of an ISO-8859-1 commit and reads its identities in that encoding', async () => {
+    await createCommit(tempDir, 'old1.txt', 'a', daysAgo(60));
+    await createCommit(tempDir, 'old2.txt', 'b', daysAgo(50));
+    await writeFile(join(tempDir, 'new.txt'), 'n', 'utf8');
+    await git('add', 'new.txt');
+    const tree = await git('write-tree');
+    const parent = await git('rev-parse', 'HEAD');
+    const when = `${String(epochDaysAgo(1))} +0100`;
+    const message = Buffer.from('caf\xe9\n', 'latin1');
+    const object = Buffer.concat([
+      Buffer.from(
+        `tree ${tree}\nparent ${parent}\nauthor Ren\xe9 <r@x> ${when}\ncommitter Ren\xe9 <r@x> ${when}\nencoding ISO-8859-1\n\n`,
+        'latin1',
+      ),
+      message,
+    ]);
+    const hash = (
+      spawnSync('git', ['hash-object', '-t', 'commit', '-w', '--stdin'], {
+        cwd: tempDir,
+        input: object,
+      }).stdout as Buffer
+    )
+      .toString('utf8')
+      .trim();
+    await git('update-ref', 'HEAD', hash);
+
+    const result = await makeSquashManager(
+      tempDir,
+      makeRetention(),
+      silentLogger,
+    ).runSquash();
+
+    expect(result.squashed).toBe(true);
+    const after = parseRawCommit(catCommit(await git('rev-parse', 'HEAD')));
+    expect(after.message.equals(message)).toBe(true);
+    expect(after.encoding).toBe('ISO-8859-1');
+    expect(after.author).toMatchObject({ name: 'Ren\u00e9', date: when });
+    expect(after.committer).toMatchObject({ name: 'Ren\u00e9', date: when });
+  }, 30000);
+});
+
+describe('reparentRawCommit', () => {
+  it('replaces parents and signatures, keeping every other byte', () => {
+    const raw = Buffer.from(
+      'tree t\nparent p1\nparent p2\nauthor A <a> 1 +0000\ncommitter C <c> 2 +0000\nencoding X\ngpgsig -----BEGIN-----\n sig\n -----END-----\n\nmsg\n',
+      'latin1',
+    );
+
+    expect(reparentRawCommit(raw, 'np').toString('latin1')).toBe(
+      'tree t\nparent np\nauthor A <a> 1 +0000\ncommitter C <c> 2 +0000\nencoding X\n\nmsg\n',
+    );
+  });
 });
 
 describe('parseRawCommit', () => {
