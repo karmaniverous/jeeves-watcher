@@ -19,6 +19,7 @@ import {
   GIT_TIMEOUT_STANDARD,
   pathListTimeoutMs,
 } from './gitExec';
+import { realIndexLock } from './gitProcess';
 import { runGit, type RunGitOptions } from './runGit';
 
 /** Options for a path-list call. */
@@ -27,7 +28,10 @@ export interface PathListOptions {
   timeoutMs?: number;
   /** Child environment (e.g. `GIT_INDEX_FILE` for a private index). */
   env?: NodeJS.ProcessEnv;
-  /** Index lock checked after a timeout (see `ExecGitOptions`). */
+  /**
+   * The index lock the call takes (default: the real index's, see
+   * `ExecGitOptions.indexLockPath`).
+   */
   indexLockPath?: string;
 }
 
@@ -37,6 +41,8 @@ const FROM_STDIN = ['--pathspec-from-file=-', '--pathspec-file-nul'];
 /**
  * Run a path-list command with the paths NUL-separated on stdin.
  *
+ * @param takesLock - Whether the command writes the index (and so takes
+ *   its lock); a read names no lock.
  * @returns The child's output.
  */
 function runPathList(
@@ -44,14 +50,15 @@ function runPathList(
   args: string[],
   paths: readonly string[],
   options: PathListOptions = {},
+  takesLock = true,
 ): ReturnType<typeof runGit> {
   const runOptions: RunGitOptions = {
     timeoutMs: options.timeoutMs ?? pathListTimeoutMs(paths.length),
     input: paths.join('\0'),
+    ...(takesLock
+      ? { indexLockPath: options.indexLockPath ?? realIndexLock(cwd) }
+      : {}),
     ...(options.env === undefined ? {} : { env: options.env }),
-    ...(options.indexLockPath === undefined
-      ? {}
-      : { indexLockPath: options.indexLockPath }),
   };
   return runGit(cwd, args, runOptions);
 }
@@ -176,6 +183,7 @@ export async function listIgnored(
       ['check-ignore', '--stdin', '-z'],
       paths,
       options,
+      false,
     );
     return stdout.split('\0').filter((p) => p.length > 0);
   } catch (error) {
@@ -240,7 +248,10 @@ export async function gitCommit(
   message: string,
   timeoutMs = GIT_TIMEOUT_STANDARD,
 ): Promise<string> {
-  await runGit(cwd, ['commit', '-m', message], { timeoutMs });
+  await runGit(cwd, ['commit', '-m', message], {
+    timeoutMs,
+    indexLockPath: realIndexLock(cwd),
+  });
   const { stdout } = await runGit(cwd, ['rev-parse', '--short', 'HEAD'], {
     timeoutMs,
   });

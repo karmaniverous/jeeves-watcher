@@ -13,7 +13,12 @@ import { makeTempRepo } from '../test/vcsRepo';
 import * as gitBinaryModule from './gitBinary';
 import { findGitBinary, gitBinary } from './gitBinary';
 import type { GitTimeoutError } from './gitProcess';
-import { execGit, isGitTimeout, removeOwnIndexLock } from './gitProcess';
+import {
+  execGit,
+  isGitTimeout,
+  realIndexLock,
+  removeOwnIndexLock,
+} from './gitProcess';
 
 let repo: string;
 
@@ -118,6 +123,7 @@ describe('execGit', () => {
     const error: unknown = await execGit(hangingGit(true), {
       cwd: repo,
       timeoutMs: 700,
+      indexLockPath: realIndexLock(repo),
     }).catch((e: unknown) => e);
 
     expect(isGitTimeout(error)).toBe(true);
@@ -138,10 +144,24 @@ describe('execGit', () => {
     const error: unknown = await execGit(hangingGit(false), {
       cwd: repo,
       timeoutMs: 300,
+      indexLockPath: lock,
     }).catch((e: unknown) => e);
 
     expect((error as GitTimeoutError).removedIndexLock).toBe(false);
     expect((await stat(lock)).isFile()).toBe(true);
+  });
+
+  it('leaves a lock created during a call that takes no index lock (another writer holds it)', async () => {
+    // The hanging alias stands in for a concurrent writer taking the lock
+    // while a read (no indexLockPath) runs and times out.
+    const error: unknown = await execGit(hangingGit(true), {
+      cwd: repo,
+      timeoutMs: 700,
+    }).catch((e: unknown) => e);
+
+    expect(isGitTimeout(error)).toBe(true);
+    expect((error as GitTimeoutError).removedIndexLock).toBe(false);
+    expect((await stat(realIndexLock(repo))).isFile()).toBe(true);
   });
 });
 

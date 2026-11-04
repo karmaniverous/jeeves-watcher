@@ -109,7 +109,9 @@ async function buildPrivateCommit(
   if (headPaths.length === 0) return { headPaths, commit: undefined };
 
   await gitRmCached(root, headPaths, { env, indexLockPath });
-  const tree = (await runGit(root, ['write-tree'], { env })).stdout.trim();
+  const tree = (
+    await runGit(root, ['write-tree'], { env, indexLockPath })
+  ).stdout.trim();
   const commit = (
     await runGit(root, ['commit-tree', tree, '-p', head, '-m', request.message])
   ).stdout.trim();

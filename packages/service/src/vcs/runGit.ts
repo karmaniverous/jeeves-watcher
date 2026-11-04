@@ -14,7 +14,7 @@ export interface RunGitOptions {
   input?: string | Buffer;
   /** Child environment (default: `process.env`). */
   env?: NodeJS.ProcessEnv;
-  /** Index lock checked after a timeout (see `ExecGitOptions`). */
+  /** The index lock the call takes, if any (see `ExecGitOptions`). */
   indexLockPath?: string;
 }
 

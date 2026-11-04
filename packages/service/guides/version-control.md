@@ -639,7 +639,7 @@ The initial filesystem scan only reports files that exist, so deletions that hap
 
 ### Timeouts and Bisection
 
-Each git call that takes a list of paths has a timeout of 30 seconds plus 50 ms per path, at most 10 minutes (1,000 paths: 80 seconds); other calls have 30 seconds, pushes 60 seconds. Every call runs the real git binary (on Windows, the one in `git --exec-path`, not the `cmd\git.exe` launcher), so a timed-out call is really killed. After its exit, an `index.lock` created during the call is removed, and git temp files it left are deleted in the background once they stop changing.
+Each git call that takes a list of paths has a timeout of 30 seconds plus 50 ms per path, at most 10 minutes (1,000 paths: 80 seconds); other calls have 30 seconds, pushes 60 seconds. Every call runs the real git binary (on Windows, the one in `git --exec-path`, not the `cmd\git.exe` launcher), so a timed-out call is really killed. After its exit, if the call writes the index (staging, `rm --cached`, `update-index`, `commit`, the untrack helper's private index), an `index.lock` created during the call is removed; a read or a plumbing call that takes no index lock leaves any lock alone, since another writer holds it. Git temp files it left are deleted in the background once they stop changing.
 
 A staging step that times out is split in halves and retried, down to single paths. The whole batch, bisection included, gets at most three times its first timeout (and never more than 30 minutes), so the root's lock is always released. Paths that could not be staged are re-queued, and the batch counts as one failure for the circuit breaker.
 

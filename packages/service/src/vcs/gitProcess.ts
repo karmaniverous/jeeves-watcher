@@ -5,10 +5,14 @@
  * Every VCS git call (index, plumbing, network, reads) goes through
  * {@link execGit}. Killing the real binary (not Git for Windows' launcher,
  * see `gitBinary`) and awaiting its `exit` event means "exited" really
- * means exited. git creates `index.lock` exclusively, so a lock whose
- * mtime lies between our spawn and that exit can only be ours, and is
- * removed before the {@link GitTimeoutError} reaches the caller (who then
- * bisects or applies D20's rules).
+ * means exited. A call that takes an index lock names it
+ * ({@link ExecGitOptions.indexLockPath}); git creates the lock exclusively,
+ * so for such a call a lock whose mtime lies between our spawn and that
+ * exit can only be ours, and is removed before the {@link GitTimeoutError}
+ * reaches the caller (who then bisects or applies D20's rules). A call that
+ * takes no index lock (reads, `commit-tree`, `update-ref`, push) names
+ * none: a lock created while it ran belongs to another writer and is left
+ * alone.
  */
 
 import { spawn } from 'node:child_process';
@@ -33,10 +37,22 @@ export interface ExecGitOptions {
   /** Max stdout bytes before the child is killed and the call fails. */
   maxBuffer?: number;
   /**
-   * Index lock to check after a timeout (default `<cwd>/.git/index.lock`;
-   * a private index's lock is `<GIT_INDEX_FILE>.lock`).
+   * The index lock this call takes ({@link realIndexLock}, or
+   * `<GIT_INDEX_FILE>.lock` for a private index), removed after a timeout
+   * when created within the call's window. Omit it for a call that takes no
+   * index lock: nothing is removed then.
    */
   indexLockPath?: string;
+}
+
+/**
+ * The real index's lock, `<root>/.git/index.lock`.
+ *
+ * @param root - Repository root.
+ * @returns The lock path.
+ */
+export function realIndexLock(root: string): string {
+  return join(root, '.git', 'index.lock');
 }
 
 /** Output of a successful git call. */
@@ -139,8 +155,7 @@ export function execGit(
 ): Promise<ExecGitResult> {
   const command = `git ${args.join(' ')}`;
   const maxBuffer = options.maxBuffer ?? DEFAULT_MAX_BUFFER;
-  const lockPath =
-    options.indexLockPath ?? join(options.cwd, '.git', 'index.lock');
+  const lockPath = options.indexLockPath;
 
   return new Promise((resolvePromise, reject) => {
     const spawnedAt = Date.now();
@@ -193,20 +208,22 @@ export function execGit(
       if (!timedOut) return;
       const exitedAt = Date.now();
       settle(() => {
-        void removeOwnIndexLock(lockPath, spawnedAt, exitedAt).then(
-          (removed) => {
-            reject(
-              new GitTimeoutError(
-                command,
-                options.timeoutMs,
-                spawnedAt,
-                exitedAt,
-                removed,
-                child.pid,
-              ),
-            );
-          },
-        );
+        const removal =
+          lockPath === undefined
+            ? Promise.resolve(false)
+            : removeOwnIndexLock(lockPath, spawnedAt, exitedAt);
+        void removal.then((removed) => {
+          reject(
+            new GitTimeoutError(
+              command,
+              options.timeoutMs,
+              spawnedAt,
+              exitedAt,
+              removed,
+              child.pid,
+            ),
+          );
+        });
       });
     });
 
