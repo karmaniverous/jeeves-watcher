@@ -120,13 +120,13 @@ When the plugin loads and the watcher service is NOT yet set up, drive the entir
 
 ### Step 1: Check Node.js
 
-Verify Node.js is installed and version ≥ 22.13:
+Verify Node.js is installed and version ≥ 24.22.2:
 
 ```bash
 node --version
 ```
 
-If missing or too old, guide the user to install Node.js 22.13+ from https://nodejs.org or via their package manager.
+If missing or too old, guide the user to install Node.js 24.22.2 or later from https://nodejs.org or via their package manager.
 
 ### Step 2: Install Qdrant
 

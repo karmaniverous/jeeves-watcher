@@ -12,7 +12,7 @@ Production deployment recommendations for `jeeves-watcher`.
 
 ### Node.js
 
-**Version:** Node.js 22.13+ (Node.js 24+ recommended). Enrichment metadata is stored with Node's built-in `node:sqlite` module, so installation needs no native build tools.
+**Version:** Node.js 24.22.2 or later. Earlier releases, Node.js 22 included, are not supported (see [Upgrading](./upgrading.md#nodejs) for why). Enrichment metadata is stored with Node's built-in `node:sqlite` module, so installation needs no native build tools.
 
 **Installation:**
 
@@ -23,7 +23,7 @@ Production deployment recommendations for `jeeves-watcher`.
 **Verify:**
 
 ```bash
-node --version  # Should be v22.13.0 or higher
+node --version  # Should be v24.22.2 or higher
 ```
 
 ### Git (Optional — for VCS)
@@ -545,7 +545,7 @@ pino writes numeric levels (`30` = info, `40` = warn, `50` = error). Output goes
 
 **Parse with standard tools:** jq, Splunk, ELK stack, etc.
 
-**Log rotation:** The watcher rotates `logging.file` itself (`logging.rotation`, on by default: 10 MiB, daily, 14 rotated files plus the active one). Every file, the active one included, is named `<name>.<date>.<n>.<ext>`, so tail the newest by modification time. Put the file in a folder of its own: rotation deletes older files that match the name pattern. Set `logging.rotation: false` to keep one plain file and rotate it externally (logrotate on Linux). Without `logging.file`, logs go to stdout, which NSSM can rotate on Windows. See [Configuration](./configuration.md#logging---logging-configuration).
+**Log rotation:** The watcher rotates `logging.file` itself (`logging.rotation`, on by default: 10 MiB, daily, 14 rotated files plus the active one). Every file, the active one included, is named `<name>.<date>.<n>.<ext>`, so tail the newest by modification time. Put the file in a folder of its own: rotation deletes older files that match the name pattern. Set `logging.rotation: false` to keep one plain file and rotate it externally (logrotate on Linux). Without `logging.file`, logs go to stdout, which NSSM can rotate on Windows. See [Configuration](./configuration.md#-logging-configuration).
 
 ### Alerts
 

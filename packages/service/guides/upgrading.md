@@ -8,13 +8,18 @@ What changes for an existing deployment, release by release. The [Changelog](../
 
 ## 0.21.0 (in progress)
 
+### Node.js
+
+- **Node.js 24.22.2 or later is required** (was 22.13). Every package (`@karmaniverous/jeeves-watcher`, `-core`, `-sdk`, `-openclaw`) declares `engines.node >=24.22.2`, so `npm install` on an older Node prints an `EBADENGINE` warning and fails with `engine-strict`. Upgrade Node before upgrading the watcher.
+- Why 24.22.2: on a Jeeves host running Node.js 24.18.0, SQLite write-ahead logs stopped checkpointing and grew without bound; after the host moved to 24.22.2, checkpoints and log sizes were normal again. The watcher keeps its enrichment store in SQLite through the built-in `node:sqlite` module, so it takes the same floor. It is the floor for every Jeeves component, and it also meets unpdf 2's own `>=24` (spec D188).
+
 ### Logging
 
 - **`logging.file` now rotates by default** (10 MiB, daily, 14 rotated files kept plus the active one). Every file, the active one included, is named `<name>.<yyyy-MM-dd>.<n>.<ext>` (`watcher.2026-11-04.1.log` for `watcher.log`), so a plain `watcher.log` is no longer written. Point anything that tails the log at the newest file by modification time.
 - Rotation deletes older files matching that name pattern, so keep the log in a folder of its own. A single `watcher.log` left by 0.20.0 is not managed by rotation: archive it, then delete it.
 - If you rotate the file externally (logrotate), either remove that rotation or set `logging.rotation: false` to keep one plain file.
 - The rotating stream runs in the main thread (no worker), and a refusal to start is also written to stderr, so a service manager's stderr log shows why the service stopped.
-- See [Configuration](./configuration.md#logging---logging-configuration).
+- See [Configuration](./configuration.md#-logging-configuration).
 
 ### Version control
 
@@ -30,7 +35,7 @@ What changes for an existing deployment, release by release. The [Changelog](../
 
 ### Dependencies
 
-- **unpdf 2** extracts PDF text. Indexed text is unchanged. unpdf 2 declares Node.js 24 or later, so `npm install` on Node.js 22 prints an `EBADENGINE` warning; the service still runs on Node.js 22 (tested on 22.22), and an install with `engine-strict` set fails there.
+- **unpdf 2** extracts PDF text. Indexed text is unchanged. unpdf 2 declares Node.js 24 or later, which the new Node floor covers.
 - chokidar stays on major 5.
 
 ### Library API

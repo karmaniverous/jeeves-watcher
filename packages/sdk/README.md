@@ -4,7 +4,7 @@ Typed TypeScript client for the [jeeves-watcher](https://www.npmjs.com/package/@
 
 The SDK is thin by design. Request and response types come from [`@karmaniverous/jeeves-watcher-core`](https://www.npmjs.com/package/@karmaniverous/jeeves-watcher-core), the same Zod schemas the service validates against, so your types cannot drift from the server. Every request body is validated client-side before it is sent, and every response is checked against the core response schema.
 
-- ESM only, Node.js ≥ 22.13 (uses the global `fetch`).
+- ESM only, Node.js ≥ 24.22.2 (uses the global `fetch`).
 - One runtime dependency: `@karmaniverous/jeeves-watcher-core` (and its own dependencies).
 - One error type, `WatcherError`. No retries: the watcher owns rate limiting.
 - Application-facing surface only: `status`, `search`, `scan`, `render`, `metadata`, `reindex`, `issues`, and `documents.notify` / `documents.delete`. Admin endpoints (config, rules, VCS) are not covered.
