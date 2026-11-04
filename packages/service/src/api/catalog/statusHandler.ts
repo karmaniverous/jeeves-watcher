@@ -41,12 +41,12 @@ export interface CatalogStatusDeps {
   initialScanTracker?: InitialScanTracker;
   /** VCS health (`health.vcs`, D86), when any root has VCS enabled. */
   getVcsHealth?: () => VcsHealth;
-  /** Embedding health (`health.embedding`, D86). */
+  /** Embedding health (`health.embedding`, D88, D89). */
   getEmbeddingHealth?: () => EmbeddingHealth;
 }
 
 /**
- * Whether a status body is `degraded` (D88): embeddings failing, or any VCS
+ * Whether a status body is `degraded` (D86): embeddings failing, or any VCS
  * circuit breaker tripped. Pure.
  *
  * @param health - The status body's `health`.
@@ -63,7 +63,7 @@ export function isDegraded(health: Record<string, unknown>): boolean {
 
 /**
  * Wrap a status handler so a degraded service reports
- * `status: 'degraded'` (D88). The HTTP status is unchanged (200).
+ * `status: 'degraded'` (D86). The HTTP status is unchanged (200).
  *
  * @param handler - The inner status handler.
  * @returns The wrapped handler.

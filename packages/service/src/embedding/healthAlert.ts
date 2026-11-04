@@ -1,6 +1,6 @@
 /**
  * @module embedding/healthAlert
- * The embedding health alert (D89): on each transition POST `{ event, at, service, version, host, collection, failingSince, lastError }` to `embedding.alertUrl` (read at each transition) through postWithRetry. Unsigned body: use a private endpoint.
+ * The embedding health alert (D88, D138): on each transition POST `{ event, at, service, version, host, collection, failingSince, lastError }` to `embedding.alertUrl` (read at each transition) through postWithRetry. Unsigned body: use a private endpoint.
  */
 
 import { hostname } from 'node:os';

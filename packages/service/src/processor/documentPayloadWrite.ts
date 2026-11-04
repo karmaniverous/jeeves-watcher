@@ -3,7 +3,7 @@
  * Write payload to every point of one document (D139, D154): one by-filter write when the document's field (file_path, or source) has a ready keyword index, otherwise ID addressing over the chunk-0 count, limited to the IDs that exist. Qdrant I/O.
  *
  * The ID fallback also covers a document left in the claim state by a
- * failed streamed write (D105): chunk 0 counts the high-water mark, some of
+ * failed streamed write (D87): chunk 0 counts the high-water mark, some of
  * whose IDs may not exist, and a set-payload on a missing ID would fail.
  */
 

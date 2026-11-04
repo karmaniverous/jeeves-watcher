@@ -1,6 +1,6 @@
 /**
  * @module embedding/healthAlert.test
- * The embedding alert (D89): POSTs event, at, service, version, host, collection, failingSince and lastError to embedding.alertUrl, read at each transition (a reload applies); no URL sends nothing; delivery runs in the background and settles.
+ * The embedding alert (D88, D138): POSTs event, at, service, version, host, collection, failingSince and lastError to embedding.alertUrl, read at each transition (a reload applies); no URL sends nothing; delivery runs in the background and settles.
  */
 
 import { createServer, type Server } from 'node:http';

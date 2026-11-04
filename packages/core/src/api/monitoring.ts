@@ -166,9 +166,9 @@ export const watcherHealthSchema = z.looseObject({
   /** Initial scan state (once the scan tracker exists). */
   initialScan: initialScanStatusSchema.optional(),
   /** VCS state (when VCS is enabled on any root). */
-  /** Embedding health (D86). */
-  embedding: embeddingHealthSchema.optional(),
   vcs: vcsHealthSchema.optional(),
+  /** Embedding health (D88, D89). */
+  embedding: embeddingHealthSchema.optional(),
   /** Why health could not be read (degraded). */
   error: z.string().optional(),
 });
