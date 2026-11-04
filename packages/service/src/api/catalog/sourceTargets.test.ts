@@ -141,10 +141,11 @@ describe('POST /metadata { source }', () => {
     });
     expect(status).toBe(200);
     expect(body).toEqual({ ok: true, matched_rules: ['chat'] });
-    expect(ops.updateMetadata).toHaveBeenCalledWith('app://chat/1', {
-      priority: 2,
-      note: 'x',
-    });
+    expect(ops.updateMetadata).toHaveBeenCalledWith(
+      'app://chat/1',
+      { priority: 2, note: 'x' },
+      { lockWaitMs: 10_000 },
+    );
   });
 
   it('returns 400 when metadata violates the designated rule schema', async () => {

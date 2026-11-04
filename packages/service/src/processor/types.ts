@@ -5,6 +5,7 @@
 
 import type { CompiledRule } from '../rules';
 import type { TemplateEngine } from '../templates';
+import type { DocumentLockOptions } from './DocumentLocks';
 import type { RenderResult } from './renderResult';
 import type { SourceOperationsProvider } from './SourceOperations';
 
@@ -20,14 +21,24 @@ export interface DocumentProcessorInterface {
   /** Delete a file's points/metadata from the system. */
   deleteFile(filePath: string): Promise<void>;
 
-  /** Process a metadata sidecar update for a file (payload update only). */
+  /**
+   * Process a metadata sidecar update for a file (payload update only).
+   * `options.lockWaitMs` bounds the document-lock wait (API routes, D118).
+   */
   processMetadataUpdate(
     filePath: string,
     metadata: Record<string, unknown>,
+    options?: DocumentLockOptions,
   ): Promise<Record<string, unknown> | null>;
 
-  /** Process a rules update for a file (rebuild merged metadata, payload update only). */
-  processRulesUpdate(filePath: string): Promise<Record<string, unknown> | null>;
+  /**
+   * Process a rules update for a file (rebuild merged metadata, payload
+   * update only). `options.lockWaitMs` bounds the document-lock wait.
+   */
+  processRulesUpdate(
+    filePath: string,
+    options?: DocumentLockOptions,
+  ): Promise<Record<string, unknown> | null>;
 
   /** Render a file through the rule engine without embedding. */
   renderFile(filePath: string): Promise<RenderResult>;

@@ -15,6 +15,8 @@ import {
   vi,
 } from 'vitest';
 
+import { DocumentLocks } from '../../processor/DocumentLocks';
+import type { SourceOperationsInterface } from '../../processor/SourceOperations';
 import { registerCatalogEntries } from '../../test/catalogRoutes';
 import type { ScrolledPoint } from '../../vectorStore';
 import { createCatalogDocumentsDeleteHandler } from './documentsDeleteHandler';
@@ -60,12 +62,31 @@ const vectorStore = {
 };
 const enrichmentStore = { delete: vi.fn() };
 const issuesManager = { clear: vi.fn() };
+const locks = new DocumentLocks(logger);
+const processor = {
+  sourceOperations: () =>
+    ({
+      withLock: (ref, operation, work, options) =>
+        locks.run(ref, operation, work, options),
+    }) as Pick<SourceOperationsInterface, 'withLock'> as never,
+};
+
+/** A promise with its resolver. */
+function deferred(): { promise: Promise<void>; resolve: () => void } {
+  let resolve!: () => void;
+  const promise = new Promise<void>((r) => {
+    resolve = r;
+  });
+  return { promise, resolve };
+}
 
 const app: FastifyInstance = Fastify({ logger: false });
 beforeAll(async () => {
   await registerCatalogEntries(app, {
     deleteDocuments: createCatalogDocumentsDeleteHandler({
       vectorStore,
+      processor,
+      lockWaitMs: 500,
       enrichmentStore,
       issuesManager,
       logger,
@@ -123,6 +144,46 @@ describe('POST /documents/delete', () => {
       ['app://zz'],
     ]);
     expect(issuesManager.clear.mock.calls).toEqual([['app://a'], ['app://zz']]);
+  });
+
+  it('answers 503 with Retry-After: 10 when a document stays locked, keeping documents already deleted (D118)', async () => {
+    const gate = deferred();
+    const holder = locks.run('app://b', 'process', () => gate.promise);
+    const res = await app.inject({
+      method: 'POST',
+      url: '/documents/delete',
+      payload: { sources: ['app://a', 'app://b'] },
+    });
+    expect(res.statusCode).toBe(503);
+    expect(res.headers['retry-after']).toBe('10');
+    expect(res.json()).toMatchObject({ code: 'not_available' });
+    // app://a was deleted before app://b's wait ran out.
+    expect([...points.keys()]).toEqual(['b0', 'f0']);
+    expect(issuesManager.clear.mock.calls).toEqual([['app://a']]);
+    gate.resolve();
+    await holder;
+    const retry = await post({ sources: ['app://a', 'app://b'] });
+    expect(retry).toEqual({ status: 200, body: { deleted: 1 } });
+    expect([...points.keys()]).toEqual(['f0']);
+  });
+
+  it('deletes each document under its lock (waits for a run in progress)', async () => {
+    const gate = deferred();
+    const order: string[] = [];
+    const holder = locks.run('app://a', 'process', async () => {
+      await gate.promise;
+      order.push('process');
+    });
+    const request = post({ sources: ['app://a'] }).then((r) => {
+      order.push('delete');
+      return r;
+    });
+    await new Promise((r) => setTimeout(r, 10));
+    expect(points.has('a0')).toBe(true);
+    gate.resolve();
+    await holder;
+    expect((await request).body).toEqual({ deleted: 1 });
+    expect(order).toEqual(['process', 'delete']);
   });
 
   it('deletes by filter, constrained to points carrying source', async () => {

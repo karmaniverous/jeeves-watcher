@@ -51,6 +51,7 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
     version,
     initialScanTracker,
     vcsCoordinator,
+    documentLockWaitMs: lockWaitMs,
   } = options;
 
   const getConfig = options.getConfig ?? (() => config);
@@ -131,11 +132,13 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
         logger,
       },
       listIssues: { issuesManager },
-      setMetadata: { processor, getConfig, logger, configDir },
+      setMetadata: { processor, getConfig, logger, configDir, lockWaitMs },
       reindex: { ...options, getConfig, reindexTracker },
       notifyDocuments: { processor, sourceQueue: options.sourceQueue, logger },
       deleteDocuments: {
         vectorStore,
+        processor,
+        lockWaitMs,
         enrichmentStore: options.enrichmentStore,
         issuesManager,
         logger,
@@ -146,7 +149,7 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
         vectorStore,
         logger,
       },
-      reapplyRules: { processor, vectorStore, logger },
+      reapplyRules: { processor, vectorStore, logger, lockWaitMs },
       rules: { virtualRuleStore, logger, onRulesChanged },
       ...(options.vcsCoordinator
         ? { vcs: { coordinator: options.vcsCoordinator, logger } }

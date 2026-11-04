@@ -77,4 +77,9 @@ export interface ApiServerOptions {
   /** VCS coordinator for the git-backed versioning (`/vcs/*`) routes; without
    * it they answer as unregistered (`api/featureGates`). */
   vcsCoordinator?: VcsCoordinator;
+  /**
+   * Longest document-lock wait of `POST /metadata`, `POST /rules/reapply`
+   * and `POST /documents/delete` (default 10 s, D118; tests only).
+   */
+  documentLockWaitMs?: number;
 }

@@ -18,15 +18,14 @@ import {
   LockWaitTimeoutError,
   ROUTE_LOCK_WAIT_MS,
 } from '../../vcs/RootGitLock';
-import { NOT_AVAILABLE } from '../sendError';
 import type { Entry } from './catalogEntry';
-import { errorResult } from './errorResult';
+import { busyResult, errorResult } from './errorResult';
 import { resolveExcludeTarget } from './excludeTarget';
 import type { CatalogVcsDeps } from './vcsDeps';
 import { catalogErrorFromThrown } from './wrapCatalogHandler';
 
 /** Seconds a busy-lock `503` asks the client to wait: the route's own wait (D102). */
-const RETRY_AFTER_S = String(ROUTE_LOCK_WAIT_MS / 1000);
+const RETRY_AFTER_S = ROUTE_LOCK_WAIT_MS / 1000;
 
 /** `POST /vcs/exclude`'s handler result. */
 type ExcludeResult = HandlerResult<Entry<'excludeVcsPath'>>;
@@ -47,12 +46,10 @@ function excludeErrorResult(
   }
   if (error instanceof LockWaitTimeoutError) {
     logger.warn({ err: error }, 'VcsExclude gave up waiting for RootGitLock');
-    return {
-      ...errorResult('not_available', NOT_AVAILABLE, {
-        message: `Version control is busy on this root; retry after ${RETRY_AFTER_S} s`,
-      }),
-      headers: { 'Retry-After': RETRY_AFTER_S },
-    };
+    return busyResult(
+      `Version control is busy on this root; retry after ${String(RETRY_AFTER_S)} s`,
+      RETRY_AFTER_S,
+    );
   }
   if (error instanceof LegacyPatternNotFoundError) {
     return errorResult('not_found', error.message);

@@ -95,6 +95,7 @@ describe('issueTypeSchema', () => {
       'no_content',
       'source_unavailable',
       'unsupported_content_type',
+      'too_large',
     ]);
     expect(issueTypeSchema.options).toEqual([...ISSUE_TYPES]);
   });

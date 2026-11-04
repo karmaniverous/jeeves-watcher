@@ -47,10 +47,7 @@ export {
 } from './payloadIndexes.js';
 
 // Processing schema
-export {
-  type ProcessingConfig,
-  processingConfigSchema,
-} from './processing.js';
+export { type ProcessingConfig, processingConfigSchema } from './processing.js';
 
 // Root schema
 export {

@@ -81,6 +81,8 @@ function sourceOperations(state: WireState) {
     compiledRule: () => ({ rule: { name: state.sourceRule ?? 'chat' } }),
     updateMetadata: () =>
       Promise.resolve(state.sourceRule === null ? null : { ok: true }),
+    withLock: <T>(_ref: string, _operation: string, work: () => Promise<T>) =>
+      work(),
     render: () => {
       if (state.sourceRender === 'ok') {
         return Promise.resolve({

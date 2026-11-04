@@ -15,6 +15,11 @@ import type { SourceRetriever } from '../sources';
 import type { TemplateEngine } from '../templates';
 import type { ValuesManager } from '../values';
 import type { VectorStore } from '../vectorStore';
+import {
+  type DocumentLockOptions,
+  DocumentLocks,
+  fileLockKey,
+} from './DocumentLocks';
 import { indexDocument, type PipelineContext } from './documentPipeline';
 import type { DocumentProcessorDeps } from './DocumentProcessorDeps';
 import {
@@ -63,6 +68,7 @@ export class DocumentProcessor implements WatcherProcessor {
   private readonly valuesManager?: ValuesManager;
   private readonly contentHashCache?: ContentHashCache;
   private readonly sourceRetriever?: SourceRetriever;
+  private readonly locks: DocumentLocks;
 
   /**
    * Create a new DocumentProcessor.
@@ -81,6 +87,7 @@ export class DocumentProcessor implements WatcherProcessor {
     this.valuesManager = deps.valuesManager;
     this.contentHashCache = deps.contentHashCache;
     this.sourceRetriever = deps.sourceRetriever;
+    this.locks = deps.documentLocks ?? new DocumentLocks(deps.logger);
   }
 
   /** Rule context reflecting the current rules, templates and config. */
@@ -143,22 +150,24 @@ export class DocumentProcessor implements WatcherProcessor {
    * @param filePath - The file to process.
    */
   async processFile(filePath: string): Promise<void> {
-    await this.withFailureHandling(
-      {
-        key: filePath,
-        operation: 'Failed to process file',
-        issueType: UNTAGGED_ISSUE_TYPE,
-      },
-      async () => {
-        const outcome = await this.fileResolver().resolve(filePath);
-        if (outcome.kind === 'document') {
-          const { document } = outcome;
-          await indexDocument(this.pipelineContext(), document);
-          // Indexed as before; the interpolation failure becomes an issue.
-          recordRuleErrors(this.issuesManager, filePath, document.ruleErrors);
-        }
-      },
-      undefined,
+    await this.locks.run(fileLockKey(filePath), 'process', () =>
+      this.withFailureHandling(
+        {
+          key: filePath,
+          operation: 'Failed to process file',
+          issueType: UNTAGGED_ISSUE_TYPE,
+        },
+        async () => {
+          const outcome = await this.fileResolver().resolve(filePath);
+          if (outcome.kind === 'document') {
+            const { document } = outcome;
+            await indexDocument(this.pipelineContext(), document);
+            // Indexed as before; the interpolation failure becomes an issue.
+            recordRuleErrors(this.issuesManager, filePath, document.ruleErrors);
+          }
+        },
+        undefined,
+      ),
     );
   }
 
@@ -169,6 +178,7 @@ export class DocumentProcessor implements WatcherProcessor {
       pipeline: this.pipelineContext(),
       retriever: this.sourceRetriever,
       enrichmentStore: this.enrichmentStore,
+      locks: this.locks,
     });
   }
 
@@ -178,10 +188,12 @@ export class DocumentProcessor implements WatcherProcessor {
    * @param filePath - The file to delete.
    */
   async deleteFile(filePath: string): Promise<void> {
-    await this.withFailureHandling(
-      { key: filePath, operation: 'Failed to delete file' },
-      () => deleteFilePoints(this.fileOperations(), filePath),
-      undefined,
+    await this.locks.run(fileLockKey(filePath), 'delete', () =>
+      this.withFailureHandling(
+        { key: filePath, operation: 'Failed to delete file' },
+        () => deleteFilePoints(this.fileOperations(), filePath),
+        undefined,
+      ),
     );
   }
 
@@ -192,16 +204,25 @@ export class DocumentProcessor implements WatcherProcessor {
    *
    * @param filePath - The file whose metadata to update.
    * @param metadata - The new metadata to merge.
+   * @param options - Bounded lock wait (API routes, D118).
    * @returns The merged payload, or `null` if the file is not indexed.
+   * @throws DocumentLockTimeoutError when a bounded lock wait runs out.
    */
-  async processMetadataUpdate(
+  processMetadataUpdate(
     filePath: string,
     metadata: Record<string, unknown>,
+    options?: DocumentLockOptions,
   ): Promise<Record<string, unknown> | null> {
-    return this.withFailureHandling(
-      { key: filePath, operation: 'Failed to update metadata' },
-      () => updateFileMetadata(this.fileOperations(), filePath, metadata),
-      null,
+    return this.locks.run(
+      fileLockKey(filePath),
+      'setMetadata',
+      () =>
+        this.withFailureHandling(
+          { key: filePath, operation: 'Failed to update metadata' },
+          () => updateFileMetadata(this.fileOperations(), filePath, metadata),
+          null,
+        ),
+      options,
     );
   }
 
@@ -211,19 +232,28 @@ export class DocumentProcessor implements WatcherProcessor {
    * re-asserted; interpolation failures are recorded as an issue).
    *
    * @param filePath - The file to update.
+   * @param options - Bounded lock wait (API routes, D118).
    * @returns The merged metadata, or `null` if the file is not indexed.
+   * @throws DocumentLockTimeoutError when a bounded lock wait runs out.
    */
-  async processRulesUpdate(
+  processRulesUpdate(
     filePath: string,
+    options?: DocumentLockOptions,
   ): Promise<Record<string, unknown> | null> {
-    return this.withFailureHandling(
-      {
-        key: filePath,
-        operation: 'Failed to re-apply rules',
-        issueType: UNTAGGED_ISSUE_TYPE,
-      },
-      () => reapplyFileRules(this.fileOperations(), filePath),
-      null,
+    return this.locks.run(
+      fileLockKey(filePath),
+      'reapplyRules',
+      () =>
+        this.withFailureHandling(
+          {
+            key: filePath,
+            operation: 'Failed to re-apply rules',
+            issueType: UNTAGGED_ISSUE_TYPE,
+          },
+          () => reapplyFileRules(this.fileOperations(), filePath),
+          null,
+        ),
+      options,
     );
   }
 
@@ -246,14 +276,17 @@ export class DocumentProcessor implements WatcherProcessor {
    * @param newPath - The new file path.
    */
   async moveFile(oldPath: string, newPath: string): Promise<void> {
-    await this.withFailureHandling(
-      {
-        key: newPath,
-        operation: 'Failed to move file',
-        issueType: UNTAGGED_ISSUE_TYPE,
-      },
-      () => moveFilePoints(this.fileOperations(), oldPath, newPath),
-      undefined,
+    const keys = [fileLockKey(oldPath), fileLockKey(newPath)];
+    await this.locks.runAll(keys, 'move', () =>
+      this.withFailureHandling(
+        {
+          key: newPath,
+          operation: 'Failed to move file',
+          issueType: UNTAGGED_ISSUE_TYPE,
+        },
+        () => moveFilePoints(this.fileOperations(), oldPath, newPath),
+        undefined,
+      ),
     );
   }
 

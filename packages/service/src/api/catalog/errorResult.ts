@@ -8,7 +8,10 @@
  */
 
 import type { ErrorBody } from '@karmaniverous/jeeves/catalog';
-import type { ErrorStatus } from '@karmaniverous/jeeves/fastify';
+import type {
+  ErrorStatus,
+  ResponseHeaders,
+} from '@karmaniverous/jeeves/fastify';
 import {
   API_ERROR_STATUS,
   type ApiErrorCode,
@@ -31,6 +34,8 @@ export interface CatalogErrorResult {
   status: ErrorStatus;
   /** Error body: `code`, `error`, and any extras. */
   body: ErrorBody;
+  /** Extra response headers (e.g. `Retry-After`). */
+  headers?: ResponseHeaders;
 }
 
 /**
@@ -83,6 +88,25 @@ export function sourcesNotAvailableResult(): CatalogErrorResult {
   return errorResult('not_available', NOT_AVAILABLE, {
     message: SOURCES_NOT_SUPPORTED,
   });
+}
+
+/**
+ * The `503 not_available` result for a request that gave up waiting for a
+ * busy lock (`RootGitLock`, D102; a document lock, D118), with
+ * `Retry-After`. Pure.
+ *
+ * @param message - What is busy (the body's `message`).
+ * @param retryAfterS - Seconds the client should wait before retrying.
+ * @returns The status, error body and header.
+ */
+export function busyResult(
+  message: string,
+  retryAfterS: number,
+): CatalogErrorResult {
+  return {
+    ...errorResult('not_available', NOT_AVAILABLE, { message }),
+    headers: { 'Retry-After': String(retryAfterS) },
+  };
 }
 
 /**

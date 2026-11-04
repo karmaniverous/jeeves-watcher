@@ -91,9 +91,11 @@ describe('POST /metadata', () => {
       status: 200,
       body: { ok: true, matched_rules: ['docs'] },
     });
-    expect(processMetadataUpdate).toHaveBeenCalledWith('a.md', {
-      priority: 1,
-    });
+    expect(processMetadataUpdate).toHaveBeenCalledWith(
+      'a.md',
+      { priority: 1 },
+      { lockWaitMs: 10_000 },
+    );
   });
 
   it('rejects a file metadata type mismatch with 400', async () => {
