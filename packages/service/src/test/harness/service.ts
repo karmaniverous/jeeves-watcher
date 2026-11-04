@@ -25,6 +25,7 @@ import { EnrichmentStore } from '../../enrichment';
 import { IssuesManager } from '../../issues';
 import { DocumentProcessor } from '../../processor';
 import { DocumentLocks } from '../../processor/DocumentLocks';
+import { resolveProcessingLimits } from '../../processor/processingLimits';
 import { EventQueue } from '../../queue';
 import type { SourceNotifyQueue } from '../../queue/SourceNotifyQueue';
 import { compileRules, VirtualRuleStore } from '../../rules';
@@ -196,6 +197,7 @@ async function setUp(
     valuesManager,
     sourceRetriever: createSourceRetriever(config),
     documentLocks,
+    getProcessingLimits: () => resolveProcessingLimits(config),
   });
 
   // Production wiring: both queues share the resolved embedding concurrency.

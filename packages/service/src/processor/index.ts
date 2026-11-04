@@ -4,23 +4,14 @@
  * Core document processing pipeline. Resolves files and source documents, computes embeddings, syncs with vector store.
  */
 
-import type pino from 'pino';
-
-import type { ContentHashCache } from '../cache';
-import type { EmbeddingProvider } from '../embedding';
-import type { EnrichmentStoreInterface } from '../enrichment';
-import type { IssuesManager } from '../issues';
 import type { CompiledRule } from '../rules';
-import type { SourceRetriever } from '../sources';
 import type { TemplateEngine } from '../templates';
-import type { ValuesManager } from '../values';
-import type { VectorStore } from '../vectorStore';
 import {
   type DocumentLockOptions,
   DocumentLocks,
   fileLockKey,
 } from './DocumentLocks';
-import { indexDocument, type PipelineContext } from './documentPipeline';
+import type { PipelineContext } from './documentPipeline';
 import type { DocumentProcessorDeps } from './DocumentProcessorDeps';
 import {
   deleteFilePoints,
@@ -30,12 +21,16 @@ import {
   renderFileDocument,
   updateFileMetadata,
 } from './fileOperations';
+import { indexFile } from './indexFile';
 import {
   type FailureContext,
   handleFailures,
-  recordRuleErrors,
   UNTAGGED_ISSUE_TYPE,
 } from './issueRecording';
+import {
+  DEFAULT_PROCESSING_LIMITS,
+  type ProcessingLimits,
+} from './processingLimits';
 import type { ProcessorConfig } from './ProcessorConfig';
 import type { RenderResult } from './renderResult';
 import { FileResolver } from './resolvers/FileResolver';
@@ -58,16 +53,8 @@ export type { DocumentProcessorInterface, WatcherProcessor } from './types';
  */
 export class DocumentProcessor implements WatcherProcessor {
   private config: ProcessorConfig;
-  private readonly embeddingProvider: EmbeddingProvider;
-  private readonly vectorStore: VectorStore;
   private compiledRules: CompiledRule[];
-  private readonly logger: pino.Logger;
   private templateEngine?: TemplateEngine;
-  private readonly enrichmentStore?: EnrichmentStoreInterface;
-  private readonly issuesManager?: IssuesManager;
-  private readonly valuesManager?: ValuesManager;
-  private readonly contentHashCache?: ContentHashCache;
-  private readonly sourceRetriever?: SourceRetriever;
   private readonly locks: DocumentLocks;
 
   /**
@@ -75,50 +62,48 @@ export class DocumentProcessor implements WatcherProcessor {
    *
    * @param deps - The processor dependencies.
    */
-  constructor(deps: DocumentProcessorDeps) {
+  constructor(private readonly deps: DocumentProcessorDeps) {
     this.config = deps.config;
-    this.embeddingProvider = deps.embeddingProvider;
-    this.vectorStore = deps.vectorStore;
     this.compiledRules = deps.compiledRules;
-    this.logger = deps.logger;
     this.templateEngine = deps.templateEngine;
-    this.enrichmentStore = deps.enrichmentStore;
-    this.issuesManager = deps.issuesManager;
-    this.valuesManager = deps.valuesManager;
-    this.contentHashCache = deps.contentHashCache;
-    this.sourceRetriever = deps.sourceRetriever;
     this.locks = deps.documentLocks ?? new DocumentLocks(deps.logger);
+  }
+
+  /** The processing ceilings now (read per document, D44). */
+  private limits(): ProcessingLimits {
+    return this.deps.getProcessingLimits?.() ?? DEFAULT_PROCESSING_LIMITS;
   }
 
   /** Rule context reflecting the current rules, templates and config. */
   private ruleContext(): RuleContext {
-    const { compiledRules, config, logger, templateEngine } = this;
-    const { enrichmentStore } = this;
+    const { compiledRules, config, templateEngine } = this;
+    const { logger, enrichmentStore } = this.deps;
     return { compiledRules, config, logger, templateEngine, enrichmentStore };
   }
 
   /** Shared pipeline dependencies. */
   private pipelineContext(): PipelineContext {
     return {
-      embeddingProvider: this.embeddingProvider,
-      vectorStore: this.vectorStore,
-      logger: this.logger,
+      embeddingProvider: this.deps.embeddingProvider,
+      vectorStore: this.deps.vectorStore,
+      logger: this.deps.logger,
       chunkSize: this.config.chunkSize,
       chunkOverlap: this.config.chunkOverlap,
-      issuesManager: this.issuesManager,
+      issuesManager: this.deps.issuesManager,
+      limits: this.limits(),
     };
   }
 
   /** File resolver bound to the current rule context. */
   private fileResolver(): FileResolver {
-    const { contentHashCache, valuesManager } = this;
+    const { contentHashCache, valuesManager } = this.deps;
     const rules = this.ruleContext();
     return new FileResolver({ ...rules, contentHashCache, valuesManager });
   }
 
   /** Dependencies of the payload-only file operations. */
   private fileOperations(): FileOperationsContext {
-    const { enrichmentStore, contentHashCache, valuesManager } = this;
+    const { enrichmentStore, contentHashCache, valuesManager } = this.deps;
     const resolver = this.fileResolver();
     const pipeline = this.pipelineContext();
     return {
@@ -140,7 +125,7 @@ export class DocumentProcessor implements WatcherProcessor {
     fn: () => Promise<T>,
     fallback: T,
   ): Promise<T> {
-    const { logger, issuesManager } = this;
+    const { logger, issuesManager } = this.deps;
     return handleFailures({ logger, issuesManager }, context, fn, { fallback });
   }
 
@@ -157,15 +142,11 @@ export class DocumentProcessor implements WatcherProcessor {
           operation: 'Failed to process file',
           issueType: UNTAGGED_ISSUE_TYPE,
         },
-        async () => {
-          const outcome = await this.fileResolver().resolve(filePath);
-          if (outcome.kind === 'document') {
-            const { document } = outcome;
-            await indexDocument(this.pipelineContext(), document);
-            // Indexed as before; the interpolation failure becomes an issue.
-            recordRuleErrors(this.issuesManager, filePath, document.ruleErrors);
-          }
-        },
+        () =>
+          indexFile(
+            { ...this.pipelineContext(), resolver: this.fileResolver() },
+            filePath,
+          ),
         undefined,
       ),
     );
@@ -176,8 +157,8 @@ export class DocumentProcessor implements WatcherProcessor {
     return new SourceOperations({
       rules: this.ruleContext(),
       pipeline: this.pipelineContext(),
-      retriever: this.sourceRetriever,
-      enrichmentStore: this.enrichmentStore,
+      retriever: this.deps.sourceRetriever,
+      enrichmentStore: this.deps.enrichmentStore,
       locks: this.locks,
     });
   }
@@ -309,6 +290,6 @@ export class DocumentProcessor implements WatcherProcessor {
     }
     const ruleNames = compiledRules.map((r) => r.rule.name);
     const rules = compiledRules.length;
-    this.logger.info({ rules, ruleNames }, 'Inference rules updated');
+    this.deps.logger.info({ rules, ruleNames }, 'Inference rules updated');
   }
 }

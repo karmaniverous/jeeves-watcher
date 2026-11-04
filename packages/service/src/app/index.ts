@@ -17,6 +17,7 @@ import type { AllHelpersIntrospection } from '../helpers';
 import { IssuesManager } from '../issues';
 import { flushLogger, logRefusal } from '../logger';
 import type { WatcherProcessor } from '../processor';
+import { resolveProcessingLimits } from '../processor/processingLimits';
 import { combinePausableQueues, type EventQueue } from '../queue';
 import type { SourceNotifyQueue } from '../queue/SourceNotifyQueue';
 import { VirtualRuleStore } from '../rules/virtualRules';
@@ -155,6 +156,8 @@ export class JeevesWatcher {
       valuesManager: this.valuesManager,
       contentHashCache: this.contentHashCache,
       sourceRetriever: createSourceRetriever(this.config),
+      // Read per document, so a reload applies to the next one (D44).
+      getProcessingLimits: () => resolveProcessingLimits(this.config),
     });
     ({ queue: this.queue, sourceQueue: this.sourceQueue } = createQueues(
       this.config,

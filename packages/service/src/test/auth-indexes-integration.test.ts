@@ -105,8 +105,11 @@ describe.skipIf(!qdrantAvailable())(
 
     it('is idempotent on restart and never drops indexes', async () => {
       await harness.vectorStore.ensureCollection();
+      await harness.vectorStore.whenSystemIndexesSettled();
       const schema = await getPayloadSchema(harness.collectionName);
+      // file_path: the system index built in the background (D154).
       expect(Object.keys(schema).sort()).toEqual([
+        'file_path',
         'source',
         'source_rule',
         'updated_at',
