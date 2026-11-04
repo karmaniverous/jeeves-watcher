@@ -15,3 +15,6 @@ docs/
 # Build artifact: content/ copied from @karmaniverous/jeeves
 packages/openclaw/content/
 commit-msg.txt
+
+# Qdrant binary marker when started from the repo root
+.qdrant-initialized
