@@ -590,7 +590,7 @@ Squash rewrites history with plumbing only: no checkout, reset or cherry-pick, s
 1. Take the root's lock (shared with batch commits, untracking and temp-file sweeps), then commit the pending batch inside that hold. If that commit fails, the squash refuses.
 2. Refuse if an in-progress git operation is present or HEAD is not on the configured branch (see [Safety Guards](#safety-guards)).
 3. List the branch's first-parent history (`git rev-list --reverse --first-parent`) and compute the retention boundary from author dates; stop if there is nothing to squash.
-4. Create a parentless `historical baseline` commit with the tree of the last commit to squash (`commit-tree`), then recreate each retained commit on top with its own tree, message bytes, author and committer identities and raw dates (timezones included). Merges along the first-parent chain become single-parent commits with the same tree.
+4. Create a parentless `historical baseline` commit with the tree of the last commit to squash (`commit-tree`), then recreate each retained commit on top with its own tree, message bytes, author and committer identities and raw dates (timezones included). Merges along the first-parent chain become single-parent commits with the same tree. `commit-tree` writes no `encoding` header, so a retained commit that carried one (a non-UTF-8 message written by another tool) is recreated without it; the watcher's own commits are UTF-8 and unaffected.
 5. Check that the rebuilt tip has the same tree as the old tip; if not, stop without moving anything.
 6. Move the **configured branch** (from `vcs.branch`) with a compare-and-swap `git update-ref -m "jeeves-watcher squash" <branch> <new> <old>`. If anyone committed to the branch meanwhile, the swap fails, nothing changes, and the squash runs again at the next cron match.
 7. Force-push if a remote is configured.
@@ -615,7 +615,7 @@ At startup each root, under its lock: removes a stale `index.lock`; sweeps git t
 
 ### Untracking
 
-Untracking (the size cap today) builds a commit on a private index (`.git/untrack.index`) read from HEAD, without the paths HEAD holds, publishes it with a compare-and-swap `update-ref` (rebuilt once if HEAD moved), then removes the paths from the real index with `git update-index --force-remove`. Unrelated staged changes are kept; the files stay on disk; with an unborn HEAD nothing is committed. A `.git/untrack.pending` marker covers the moment between the commit and the index removal: at startup and before each batch, a marker whose commit is in HEAD's history is finished, and any other is discarded with a warning.
+Untracking (the size cap today) builds a commit on a private index (`.git/untrack.index`) read from HEAD, without the paths HEAD holds, publishes it with a compare-and-swap `update-ref` (rebuilt once if HEAD moved), then removes the paths from the real index with `git update-index --force-remove`. Unrelated staged changes are kept; the files stay on disk; with an unborn HEAD nothing is committed. A `.git/untrack.pending` marker covers the moment between the commit and the index removal: at startup and before each batch, a marker whose commit is in HEAD's history is finished, and any other is discarded with a warning (its `.git/info/exclude` line, when it wrote one, is removed too). If git cannot answer (a timeout), the marker stays and the batch retries.
 
 ### "Nothing Staged" Handling
 
@@ -718,7 +718,7 @@ If a watch root contains child git repositories (nested `.git/` directories), gi
 
 **Symptom:** Commits fail with `index.lock` errors.
 
-**Cause:** Another git process (IDE, manual git command, squash) holds the lock, or a crashed process left a stale lock file behind.
+**Cause:** Another git process (IDE, manual git command) holds the lock, or a crashed process left a stale lock file behind. The watcher's squash never takes `index.lock`.
 
 **Automatic recovery:** The VCS subsystem handles lock contention automatically:
 
