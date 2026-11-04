@@ -5,7 +5,10 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { RateLimitedEmbeddingProvider } from './rateLimitedProvider';
+import {
+  MAX_STORED_BACKOFF_MS,
+  RateLimitedEmbeddingProvider,
+} from './rateLimitedProvider';
 import {
   EmbeddingRateLimitError,
   EmbeddingUnavailableError,
@@ -147,19 +150,59 @@ describe('RateLimitedEmbeddingProvider', () => {
     const call = track(limited.embed(['a']));
     await vi.advanceTimersByTimeAsync(0);
     expect(call.error).toBeInstanceOf(EmbeddingUnavailableError);
+    // The stored pause is capped at 5 minutes: the next probe (B6).
     expect((call.error as EmbeddingUnavailableError).retryAfterMs).toBe(
-      600_000,
+      MAX_STORED_BACKOFF_MS,
     );
+    expect(limited.backoffUntilMs).toBe(Date.now() + MAX_STORED_BACKOFF_MS);
 
-    // Other callers fail fast too until the provider's pause has passed.
+    // Other callers fail fast too until the stored pause has passed.
     const other = track(limited.embed(['b']));
     await vi.advanceTimersByTimeAsync(0);
     expect(other.error).toBeInstanceOf(EmbeddingUnavailableError);
     expect(embed).toHaveBeenCalledTimes(1);
 
-    await vi.advanceTimersByTimeAsync(600_000);
+    await vi.advanceTimersByTimeAsync(MAX_STORED_BACKOFF_MS - 1);
+    const early = track(limited.embed(['b2']));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(early.error).toBeInstanceOf(EmbeddingUnavailableError);
+    expect(embed).toHaveBeenCalledTimes(1);
+
+    // Five minutes on, not ten: the first call probes the provider.
+    await vi.advanceTimersByTimeAsync(1);
+    expect(limited.backoffUntilMs).toBeUndefined();
     await expect(limited.embed(['c'])).resolves.toHaveLength(1);
     expect(embed).toHaveBeenCalledTimes(2);
+  });
+
+  it('clears a stored back-off on any successful call', async () => {
+    const { inner, embed } = makeInner();
+    let release!: () => void;
+    // A call already in flight succeeds after another caller's 429.
+    embed
+      .mockImplementationOnce(
+        (texts: string[]) =>
+          new Promise((resolve) => {
+            release = () => {
+              resolve(texts.map(() => [0]));
+            };
+          }),
+      )
+      .mockRejectedValueOnce(new EmbeddingRateLimitError('429', 60_000));
+    const limited = new RateLimitedEmbeddingProvider(inner, {
+      maxBackoffMs: 2_000,
+    });
+    const inFlight = track(limited.embed(['slow']));
+    const limitedCall = track(limited.embed(['a']));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(limitedCall.error).toBeInstanceOf(EmbeddingUnavailableError);
+    expect(limited.backoffUntilMs).toBeDefined();
+
+    release();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(inFlight.error).toBeUndefined();
+    expect(limited.backoffUntilMs).toBeUndefined();
+    await expect(limited.embed(['b'])).resolves.toHaveLength(1);
   });
 
   it('honours a Retry-After up to maxBackoffMs in full', async () => {

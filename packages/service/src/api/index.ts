@@ -11,6 +11,7 @@ import {
 } from '@karmaniverous/jeeves-watcher-core';
 import Fastify, { type FastifyInstance } from 'fastify';
 
+import type { EmbeddingHealthSnapshot } from '../embedding/EmbeddingHealth';
 import { registerApiHooks } from './apiHooks';
 import type { ApiServerOptions } from './apiServerOptions';
 import { createConfigApplyCallback } from './configApplyCallback';
@@ -18,6 +19,13 @@ import { createOnRulesChanged } from './onRulesChanged';
 import { registerCatalog } from './registerCatalog';
 import { ReindexTracker } from './ReindexTracker';
 import { vcsHealthSource } from './vcsHealthSource';
+
+/** The status source's embedding-health getter, when health is tracked. */
+function embeddingHealthSource(health: ApiServerOptions['embeddingHealth']): {
+  getEmbeddingHealth?: () => EmbeddingHealthSnapshot;
+} {
+  return health ? { getEmbeddingHealth: () => health.snapshot() } : {};
+}
 
 export type { ApiServerOptions } from './apiServerOptions';
 export type { InitialScanStatus } from './InitialScanTracker';
@@ -93,6 +101,7 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
         reindexTracker,
         initialScanTracker,
         ...vcsHealthSource(vcsCoordinator),
+        ...embeddingHealthSource(options.embeddingHealth),
       },
       config: {
         getConfig,

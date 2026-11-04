@@ -105,6 +105,8 @@ export {
   apiErrorCodeSchema,
 } from './errors.js';
 export {
+  type EmbeddingHealth,
+  embeddingHealthSchema,
   type InitialScanStatus,
   initialScanStatusSchema,
   ISSUE_TYPES,

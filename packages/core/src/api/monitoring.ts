@@ -96,6 +96,53 @@ export const systemIndexesSchema = z
 export type SystemIndexes = z.infer<typeof systemIndexesSchema>;
 
 /**
+ * Embedding health in `GET /status` `health.embedding` (D86): state and
+ * timestamps with error codes only, never provider text or paths.
+ */
+export const embeddingHealthSchema = z
+  .object({
+    /** `ok`, or `failing` (3+ failures and 60 s without a success). */
+    state: z
+      .enum(['ok', 'failing'])
+      .describe(
+        'ok, or failing: at least 3 embedding failures since the last success and 60 s without one. The first success returns it to ok.',
+      ),
+    /** Last successful call. */
+    lastSuccessAt: z
+      .string()
+      .nullable()
+      .describe('Last successful embedding call (ISO), null before the first.'),
+    /** Most recent error. */
+    lastError: z
+      .object({
+        at: z.string().describe('When (ISO).'),
+        code: z
+          .string()
+          .describe(
+            'rate_limited, timeout, http_<status>, network or error (no provider text).',
+          ),
+      })
+      .nullable()
+      .describe('Most recent embedding error, null if none yet.'),
+    /** When the state turned failing. */
+    failingSince: z
+      .string()
+      .nullable()
+      .describe('When the state turned failing (ISO), null while ok.'),
+    /** End of the stored provider back-off. */
+    backoffUntil: z
+      .string()
+      .nullable()
+      .describe(
+        'End of the stored provider back-off (ISO, at most 5 minutes ahead), null if none.',
+      ),
+  })
+  .describe('Embedding provider health (D86).');
+
+/** Embedding health in `GET /status` `health.embedding`. */
+export type EmbeddingHealth = z.infer<typeof embeddingHealthSchema>;
+
+/**
  * `GET /status` `health`: collection, reindex and initial-scan state, or
  * `{ error }` when the vector store is unreachable (status `degraded`).
  * Loose and optional throughout, so new health keys pass through.
@@ -119,6 +166,8 @@ export const watcherHealthSchema = z.looseObject({
   /** Initial scan state (once the scan tracker exists). */
   initialScan: initialScanStatusSchema.optional(),
   /** VCS state (when VCS is enabled on any root). */
+  /** Embedding health (D86). */
+  embedding: embeddingHealthSchema.optional(),
   vcs: vcsHealthSchema.optional(),
   /** Why health could not be read (degraded). */
   error: z.string().optional(),

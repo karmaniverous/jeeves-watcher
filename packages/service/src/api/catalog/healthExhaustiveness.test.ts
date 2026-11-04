@@ -73,6 +73,13 @@ async function healthSamples(): Promise<Record<string, unknown>[]> {
         trippedRoots: 1,
         oldestTrippedAt: '2026-11-04T00:00:00.000Z',
       }),
+      getEmbeddingHealth: () => ({
+        state: 'failing',
+        lastSuccessAt: null,
+        lastError: { at: '2026-11-04T00:00:00.000Z', code: 'rate_limited' },
+        failingSince: '2026-11-04T00:01:00.000Z',
+        backoffUntil: '2026-11-04T00:05:00.000Z',
+      }),
     });
     samples.push((await source()).body.health);
   }

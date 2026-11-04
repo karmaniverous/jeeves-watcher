@@ -135,6 +135,75 @@
                           ],
                           "additionalProperties": false
                         },
+                        "embedding": {
+                          "type": "object",
+                          "properties": {
+                            "state": {
+                              "type": "string",
+                              "enum": [
+                                "ok",
+                                "failing"
+                              ],
+                              "description": "ok, or failing: at least 3 embedding failures since the last success and 60 s without one. The first success returns it to ok."
+                            },
+                            "lastSuccessAt": {
+                              "description": "Last successful embedding call (ISO), null before the first.",
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "lastError": {
+                              "anyOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "at": {
+                                      "type": "string",
+                                      "description": "When (ISO)."
+                                    },
+                                    "code": {
+                                      "type": "string",
+                                      "description": "rate_limited, timeout, http_<status>, network or error (no provider text)."
+                                    }
+                                  },
+                                  "required": [
+                                    "at",
+                                    "code"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ],
+                              "description": "Most recent embedding error, null if none yet."
+                            },
+                            "failingSince": {
+                              "description": "When the state turned failing (ISO), null while ok.",
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "backoffUntil": {
+                              "description": "End of the stored provider back-off (ISO, at most 5 minutes ahead), null if none.",
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "state",
+                            "lastSuccessAt",
+                            "lastError",
+                            "failingSince",
+                            "backoffUntil"
+                          ],
+                          "additionalProperties": false,
+                          "description": "Embedding provider health (D86)."
+                        },
                         "vcs": {
                           "type": "object",
                           "properties": {

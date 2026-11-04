@@ -11,6 +11,7 @@ import type pino from 'pino';
 import { InitialScanTracker } from '../api/InitialScanTracker';
 import { ContentHashCache } from '../cache';
 import type { JeevesWatcherConfig } from '../config/types';
+import { createEmbeddingAlert } from '../embedding/healthAlert';
 import { EnrichmentStore } from '../enrichment';
 import type { GitignoreFilter } from '../gitignore';
 import type { AllHelpersIntrospection } from '../helpers';
@@ -76,6 +77,7 @@ export class JeevesWatcher {
   private readonly virtualRuleStore = new VirtualRuleStore();
   private vectorStore: ApiServerOptions['vectorStore'] | undefined;
   private embeddingProvider: ApiServerOptions['embeddingProvider'] | undefined;
+  private embeddingHealth: ApiServerOptions['embeddingHealth'];
   private gitignoreFilter: GitignoreFilter | undefined;
   private enrichmentStore: EnrichmentStore | undefined;
   private contentHashCache: ContentHashCache | undefined;
@@ -107,10 +109,22 @@ export class JeevesWatcher {
   async start(): Promise<void> {
     this.logger = await this.factories.createLogger(this.config.logging);
     try {
+      // Alert URL and collection are read at each transition (reload).
+      const alert = createEmbeddingAlert({
+        getConfig: () => this.config,
+        version: this.version,
+        logger: this.logger,
+      });
       ({
         embeddingProvider: this.embeddingProvider,
+        embeddingHealth: this.embeddingHealth,
         vectorStore: this.vectorStore,
-      } = await initInfrastructure(this.config, this.factories, this.logger));
+      } = await initInfrastructure(
+        this.config,
+        this.factories,
+        this.logger,
+        alert.onTransition,
+      ));
       await this.initPipeline();
       await this.startServicesAndWatcher();
     } catch (error) {
@@ -244,6 +258,7 @@ export class JeevesWatcher {
       processor: this.processor!,
       vectorStore: this.vectorStore!,
       embeddingProvider: this.embeddingProvider!,
+      embeddingHealth: this.embeddingHealth,
       queue: combinePausableQueues(this.queue, this.sourceQueue),
       sourceQueue: this.sourceQueue,
       config: this.config,

@@ -8,6 +8,7 @@ import type pino from 'pino';
 
 import type { JeevesWatcherConfig } from '../config/types';
 import type { EmbeddingProvider } from '../embedding';
+import type { EmbeddingHealthSnapshot } from '../embedding/EmbeddingHealth';
 import type { EnrichmentStoreInterface } from '../enrichment';
 import type { GitignoreFilter } from '../gitignore';
 import type { AllHelpersIntrospection } from '../helpers';
@@ -82,4 +83,6 @@ export interface ApiServerOptions {
    * and `POST /documents/delete` (default 10 s, D118; tests only).
    */
   documentLockWaitMs?: number;
+  /** Embedding health (`GET /status` `health.embedding`, D86). */
+  embeddingHealth?: { snapshot: () => EmbeddingHealthSnapshot };
 }
