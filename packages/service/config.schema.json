@@ -1793,7 +1793,7 @@
               ]
             },
             "maxFiles": {
-              "description": "Number of rotated log files kept. Default: 14.",
+              "description": "Number of rotated log files kept in addition to the active one, so up to maxFiles + 1 files remain. Default: 14.",
               "allOf": [
                 {
                   "$ref": "#/definitions/__schema143"
