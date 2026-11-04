@@ -37,7 +37,7 @@ describe('JeevesWatcher.stop', () => {
       config as never,
       undefined,
       { name: 'watcher' } as never,
-      { createLogger: () => logger as never },
+      { createLogger: () => Promise.resolve(logger as never) },
     );
 
     // Inject the state of a started watcher.

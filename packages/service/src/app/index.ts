@@ -15,6 +15,7 @@ import { EnrichmentStore } from '../enrichment';
 import type { GitignoreFilter } from '../gitignore';
 import type { AllHelpersIntrospection } from '../helpers';
 import { IssuesManager } from '../issues';
+import { logRefusal } from '../logger';
 import type { WatcherProcessor } from '../processor';
 import { combinePausableQueues, type EventQueue } from '../queue';
 import type { SourceNotifyQueue } from '../queue/SourceNotifyQueue';
@@ -104,16 +105,20 @@ export class JeevesWatcher {
 
   /** Start the watcher, API server, and all components. */
   async start(): Promise<void> {
-    await this.initInfrastructure();
-    await this.initPipeline();
-    await this.startServicesAndWatcher();
+    this.logger = await this.factories.createLogger(this.config.logging);
+    try {
+      await this.initInfrastructure(this.logger);
+      await this.initPipeline();
+      await this.startServicesAndWatcher();
+    } catch (error) {
+      // A refused start must reach the log file and stderr (D171).
+      logRefusal(this.logger, 'jeeves-watcher refused to start', error);
+      throw error;
+    }
   }
 
-  /** Set up logger, VCS, embedding provider, and vector store. */
-  private async initInfrastructure(): Promise<void> {
-    const logger = this.factories.createLogger(this.config.logging);
-    this.logger = logger;
-
+  /** Set up VCS, embedding provider, and vector store. */
+  private async initInfrastructure(logger: pino.Logger): Promise<void> {
     await initVcs(this.config, logger);
 
     const { embeddingProvider, vectorStore } = await initEmbeddingAndStore(
@@ -173,7 +178,11 @@ export class JeevesWatcher {
       { logger, issues: this.issuesManager },
     ));
 
-    this.vcsCoordinator = new VcsCoordinator(this.config, logger);
+    this.vcsCoordinator = new VcsCoordinator(
+      this.config,
+      logger,
+      () => this.config,
+    );
   }
 
   /** Wire up watcher and VCS coordinator, then start all services. */

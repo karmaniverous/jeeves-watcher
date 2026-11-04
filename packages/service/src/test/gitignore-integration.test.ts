@@ -6,6 +6,7 @@
 import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
+import pino from 'pino';
 import {
   afterAll,
   afterEach,
@@ -18,7 +19,6 @@ import {
 
 import { createEmbeddingProvider } from '../embedding';
 import { GitignoreFilter } from '../gitignore';
-import { createLogger } from '../logger';
 import { pointId } from '../pointId';
 import { DocumentProcessor } from '../processor';
 import { compileRules } from '../rules';
@@ -44,7 +44,7 @@ describe.skipIf(!qdrantAvailable())(
     // with parallel test files, never a shared Qdrant's data.
     config.vectorStore.collectionName = uniqueCollectionName('gitignore');
     const embeddingProvider = createEmbeddingProvider(config.embedding);
-    const logger = createLogger({ level: 'silent' });
+    const logger = pino({ level: 'silent' });
 
     let vectorStore: VectorStoreClient;
     let processor: DocumentProcessor;

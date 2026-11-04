@@ -4,6 +4,7 @@
  */
 
 import Fastify from 'fastify';
+import pino from 'pino';
 import { afterAll, afterEach, beforeAll, beforeEach } from 'vitest';
 
 import { createProcessorConfig } from '../app/initialization';
@@ -11,7 +12,6 @@ import { ROOT_DEFAULTS } from '../config/defaults';
 import type { JeevesWatcherConfig } from '../config/types';
 import { createEmbeddingProvider, type EmbeddingProvider } from '../embedding';
 import { EnrichmentStore } from '../enrichment';
-import { createLogger } from '../logger';
 import { DocumentProcessor } from '../processor';
 import { compileRules } from '../rules';
 import { VectorStoreClient } from '../vectorStore';
@@ -30,7 +30,7 @@ export interface LegacyIntegration {
   /** Mock embedding provider. */
   embeddingProvider: EmbeddingProvider;
   /** Silent logger. */
-  logger: ReturnType<typeof createLogger>;
+  logger: pino.Logger;
   /** Vector store bound to the collection. */
   vectorStore: VectorStoreClient;
   /** Processor without rules. */
@@ -51,7 +51,7 @@ export function useLegacyIntegration(): LegacyIntegration {
   const fixture = {
     config,
     embeddingProvider: createEmbeddingProvider(config.embedding),
-    logger: createLogger({ level: 'silent' }),
+    logger: pino({ level: 'silent' }),
   } as LegacyIntegration;
 
   beforeAll(async () => {

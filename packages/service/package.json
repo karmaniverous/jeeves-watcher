@@ -30,6 +30,7 @@
     "package-directory": "^8.2.0",
     "picomatch": "^4.0.7",
     "pino": "*",
+    "pino-roll": "4.0.0",
     "radash": "^12.1.1",
     "rehype-parse": "^9.0.1",
     "unified": "^11.0.5",
