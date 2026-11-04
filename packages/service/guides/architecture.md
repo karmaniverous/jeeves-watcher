@@ -456,7 +456,7 @@ Structured JSON logging via [pino](https://github.com/pinojs/pino), at `logging.
 | `error` | `Failed to process file` (after retries; issue recorded), `Failed to reload config`, `Reindex failed`, `Watcher error` |
 | `debug` | `Content unchanged, skipping`, `Skipping empty document`, `File added` / `File changed` / `File removed`, `Skipping gitignored file` |
 
-**Log format:** JSON lines on stdout, or to `logging.file` when set (parseable by standard log aggregators).
+**Log format:** JSON lines on stdout, or to `logging.file` when set (parseable by standard log aggregators). A log file rotates by size and schedule through `pino-roll` (`logging.rotation`, default 10 MiB, daily, 14 files kept), written on the main thread and opened before the first line. A refused or failed start is logged as `fatal`, flushed synchronously, and repeated on stderr.
 
 ---
 
@@ -472,7 +472,7 @@ Structured JSON logging via [pino](https://github.com/pinojs/pino), at `logging.
 | Embedding client | Direct HTTPS (`node:https`, Gemini REST API) | No SDK bloat |
 | Qdrant client | `@qdrant/js-client-rest` | Official client, typed |
 | Enrichment store | `node:sqlite` | Built into Node.js, no native build |
-| Logging | `pino` | Structured JSON, low overhead |
+| Logging | `pino`, `pino-roll` | Structured JSON, low overhead; size- and schedule-based file rotation |
 
 ---
 
@@ -543,8 +543,8 @@ The VCS subsystem runs alongside the embedding pipeline as an independent data f
 
 1. **File change event** → routed to both the embedding pipeline and VCS coordinator
 2. **VCS coordinator** → maps the file to the correct watch root's `VcsManager`
-3. **VcsManager** → adds file to pending set, resets debounce timer
-4. **Debounce expires or batch full** → `commitBatch()` stages files, generates commit message, commits
+3. **VcsManager** → adds file to pending set, starts the throttle timer (not reset by later changes)
+4. **Throttle expires or batch full** → under the root lock, the batch is staged (one tracked check: `add -u` for tracked files, `check-ignore` then `add` for new ones, `rm --cached` for deletions; over-cap tracked files untracked in their own commit), a commit message generated, and the batch committed
 5. **If remote configured** → pushes to remote (non-blocking)
 6. **Squash scheduler** (cron) → periodically squashes old commits per retention rules
 
@@ -566,7 +566,7 @@ The VCS subsystem runs alongside the embedding pipeline as an independent data f
 
 ### Concurrency
 
-Each `VcsManager` serializes commits within its root (single commit in-flight). The `index.lock` retry mechanism (4 attempts, exponential backoff) handles contention with external git processes. Squash operations that encounter a held lock abort cleanly and retry on the next cron cycle.
+Each root has an in-process FIFO lock (`RootGitLock`) held by batch commits (with their push), squash, untracking and temp-file sweeps, so the watcher's own git work on a root never overlaps. Squash commits the pending batch inside its hold, then rewrites history with plumbing (`commit-tree`) and moves the branch with a compare-and-swap `update-ref`, so a foreign commit made meanwhile makes it skip, not lose data. The lock cannot exclude other processes: `index.lock` contention with external git is retried (4 attempts, exponential backoff), and every git call runs the real binary with a timeout, after which the killed child's own `index.lock` and temp files are cleaned up. Staging timeouts are bisected within a budget of three times the first timeout.
 
 See the [Version Control (VCS) Guide](./version-control.md) for full operational details.
 

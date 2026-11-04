@@ -15,8 +15,7 @@ If you’re new to the codebase, start with:
 
 ### Node.js
 
-- **Node.js 24+** is recommended for development.
-  - The package `engines` field currently allows Node 22.13+, but this repo is developed and tested with modern Node.
+- **Node.js 24.22.2 or later** is required: every package declares `engines.node >=24.22.2`, and CI runs that version and the newest Node 24.
 
 Verify:
 

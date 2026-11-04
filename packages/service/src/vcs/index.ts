@@ -5,7 +5,9 @@
 
 export { type CircuitBreakerSnapshot } from './CommitCircuitBreaker.js';
 export { CommitMessageGenerator } from './CommitMessageGenerator.js';
+export { killsLauncher } from './gitBinary.js';
 export { type ResolvedWatchRoot } from './resolveWatchRoot.js';
+export { RootGitLock } from './RootGitLock.js';
 export {
   type CommitInfo,
   SquashManager,
@@ -21,4 +23,8 @@ export {
   initRepo,
 } from './vcsBootstrap.js';
 export { VcsCoordinator } from './VcsCoordinator.js';
-export { type VcsBreakerState, VcsManager } from './VcsManager.js';
+export {
+  type VcsBreakerState,
+  VcsManager,
+  type VcsManagerOptions,
+} from './VcsManager.js';

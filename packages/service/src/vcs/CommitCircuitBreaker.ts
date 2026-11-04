@@ -22,6 +22,7 @@ export interface CircuitBreakerSnapshot {
 export class CommitCircuitBreaker {
   private failures = 0;
   private trippedAtMs: number | undefined;
+  private firstTrippedAtMs: number | undefined;
   private lastError: string | undefined;
 
   /**
@@ -60,6 +61,7 @@ export class CommitCircuitBreaker {
     this.lastError = message;
     if (this.failures < this.maxConsecutiveFailures) return false;
     this.trippedAtMs = this.now();
+    this.firstTrippedAtMs ??= this.trippedAtMs;
     return true;
   }
 
@@ -72,8 +74,19 @@ export class CommitCircuitBreaker {
     const wasTripped = this.isTripped;
     this.failures = 0;
     this.trippedAtMs = undefined;
+    this.firstTrippedAtMs = undefined;
     this.lastError = undefined;
     return wasTripped;
+  }
+
+  /**
+   * ISO time of the first trip since the last success (a failed half-open
+   * attempt re-arms the cooldown but does not move it), or null.
+   */
+  trippedSince(): string | null {
+    return this.firstTrippedAtMs === undefined
+      ? null
+      : new Date(this.firstTrippedAtMs).toISOString();
   }
 
   /** Current state for status reporting. */

@@ -1,6 +1,12 @@
 /**
  * @module vcs/SquashManager
- * Handles scheduled squash retention for git-backed VCS roots.
+ * Scheduled squash retention for one VCS root: under RootGitLock, flush the pending batch, then rewrite the branch in plumbing and move it with a compare-and-swap `update-ref` (D101, D148, D166). Force-pushes when a remote is set.
+ *
+ * No checkout, reset or cherry-pick runs, so the working tree and the index
+ * are never touched: a file untracked by `/vcs/exclude` or the size cap
+ * keeps its newest content on disk, and no clean tree is needed. Squash
+ * still refuses while a merge, rebase, cherry-pick or revert is in
+ * progress, or when HEAD is not on the configured branch (D20).
  */
 
 import type { VcsRetentionConfig } from '@karmaniverous/jeeves-watcher-core';
@@ -8,16 +14,24 @@ import type pino from 'pino';
 
 import { normalizeError } from '../util/normalizeError';
 import { cronMatchesNow } from './cronMatch';
-import { GIT_TIMEOUT_CHERRY_PICK, GIT_TIMEOUT_PUSH } from './gitExec';
+import { GIT_TIMEOUT_PUSH } from './gitExec';
 import { gitPushNonInteractive } from './gitNetwork';
 import {
   detectStaleGitOperation,
-  hasDirtyTrackedFiles,
-  indexLockExists,
-  removeIndexLock,
+  headRef,
   STALE_OPERATION_HINT,
 } from './gitRepoState';
+import type { RootGitLock } from './RootGitLock';
 import { runGit } from './runGit';
+import {
+  type CommitInfo,
+  listFirstParent,
+  rebuildHistory,
+  refTip,
+  treeOf,
+} from './squashPlumbing';
+
+export type { CommitInfo };
 
 /** Result of a squash operation. */
 export interface SquashResult {
@@ -27,63 +41,58 @@ export interface SquashResult {
   error?: string;
 }
 
-/** Commit metadata for retention calculation. */
-export interface CommitInfo {
-  hash: string;
-  date: Date;
+/** Test hooks around the reference update (not public API). @internal */
+export interface SquashHooks {
+  /** Receives the rebuilt tip; returns the tip to check and publish. */
+  rebuiltTip?: (tip: string) => Promise<string>;
+  /** Runs after the tree check, just before `update-ref`. */
+  beforeUpdateRef?: () => Promise<void>;
 }
 
 /** Options for SquashManager construction beyond the required params. */
 export interface SquashManagerOptions {
   /** Git branch name for squash operations. Default: "master". */
   branch?: string;
-  /** Called before squash to drain and pause the commit pipeline. */
-  pauseCommits?: () => Promise<void>;
-  /** Called after squash to resume the commit pipeline. */
-  resumeCommits?: () => void;
+  /** The root's lock; squash holds it for its whole run (D81). */
+  lock: RootGitLock;
+  /**
+   * Commit pending changes inside the hold through the non-locking commit
+   * path (D101). Resolves false when that commit failed (squash refuses).
+   */
+  flushInHold?: () => Promise<boolean>;
   /** Remote URL for force-push after squash. */
   remoteUrl?: string;
   /** Access token for HTTPS push authentication. */
   accessToken?: string;
+  /** Test hooks (not public API). @internal */
+  hooks?: SquashHooks;
 }
 
 const DAY_MS = 24 * 60 * 60 * 1000;
+
+/** Reflog reason of the squash's reference update (D166). */
+export const SQUASH_REFLOG_REASON = 'jeeves-watcher squash';
 
 /**
  * Manages scheduled squash retention for a single VCS root.
  *
  * Runs on a cron schedule (checked every 60s). When triggered, squashes
  * commits older than the retention boundary (the tighter of maxAgeDays
- * and maxVersions) into a single "historical baseline" orphan commit,
- * then cherry-picks retained commits on top. Force-pushes to remote
- * if configured (D13).
+ * and maxVersions) into a single "historical baseline" commit and
+ * recreates the retained commits on top of it.
  */
 export class SquashManager {
-  private readonly rootPath: string;
-  private readonly retention: VcsRetentionConfig;
   private readonly branch: string;
-  private readonly pauseCommits: (() => Promise<void>) | undefined;
-  private readonly resumeCommits: (() => void) | undefined;
-  private readonly remoteUrl: string | undefined;
-  private readonly accessToken: string | undefined;
-  private readonly logger: pino.Logger;
   private intervalTimer: ReturnType<typeof setInterval> | undefined;
   private running = false;
 
   constructor(
-    rootPath: string,
-    retention: VcsRetentionConfig,
-    logger: pino.Logger,
-    options: SquashManagerOptions = {},
+    private readonly rootPath: string,
+    private readonly retention: VcsRetentionConfig,
+    private readonly logger: pino.Logger,
+    private readonly options: SquashManagerOptions,
   ) {
-    this.rootPath = rootPath;
-    this.retention = retention;
-    this.logger = logger;
     this.branch = options.branch ?? 'master';
-    this.pauseCommits = options.pauseCommits;
-    this.resumeCommits = options.resumeCommits;
-    this.remoteUrl = options.remoteUrl;
-    this.accessToken = options.accessToken;
   }
 
   /**
@@ -119,85 +128,37 @@ export class SquashManager {
   }
 
   /**
-   * Run the squash operation. Exposed publicly for testing.
-   *
-   * Coordinates with VcsManager by calling pause/resume callbacks
-   * to drain and suspend the commit pipeline during the squash.
+   * Run the squash under the root's lock: flush, guard, rewrite, publish,
+   * force-push. Exposed publicly for testing.
    */
   async runSquash(): Promise<SquashResult> {
-    const blocked = await this.checkRepoPreconditions();
-    if (blocked !== undefined) return { squashed: false, error: blocked };
-
-    // Bug 3: Pause the commit pipeline before squash
-    try {
-      await this.pauseCommits?.();
-    } catch (error) {
-      this.logger.error(
-        { root: this.rootPath, err: normalizeError(error) },
-        'Failed to pause commit pipeline before squash',
-      );
-      // Resume in case pause partially executed (flush succeeded but flag not set)
-      this.resumeCommits?.();
-      return { squashed: false, error: normalizeError(error).message };
-    }
-
-    try {
-      // #249 guard: the squash uses `reset --hard` / `checkout -f`, which
-      // would destroy uncommitted changes to tracked files. After draining
-      // the commit pipeline the tracked tree should be clean; if it isn't,
-      // refuse rather than lose content. Untracked files don't block.
-      if (await hasDirtyTrackedFiles(this.rootPath)) {
-        const error =
-          'Squash refused: working tree has uncommitted changes to tracked files';
-        this.logger.warn({ root: this.rootPath }, error);
-        return { squashed: false, error };
+    return this.options.lock.run('squash', async () => {
+      try {
+        if (this.options.flushInHold && !(await this.options.flushInHold())) {
+          const error = 'Squash refused: the pending batch failed to commit';
+          this.logger.warn({ root: this.rootPath }, error);
+          return { squashed: false, error };
+        }
+        const blocked = await this.checkRepoPreconditions();
+        if (blocked !== undefined) return { squashed: false, error: blocked };
+        return await this.squashBranch();
+      } catch (error) {
+        this.logger.error(
+          { root: this.rootPath, err: normalizeError(error) },
+          'Squash operation failed',
+        );
+        return { squashed: false, error: normalizeError(error).message };
       }
-
-      const commits = await this.getCommitLog();
-      const boundaryIndex =
-        commits.length <= 1 ? 0 : this.calculateRetentionBoundary(commits);
-      if (boundaryIndex <= 0) return { squashed: false };
-
-      await this.performSquash(commits, boundaryIndex);
-
-      const commitsRemoved = boundaryIndex;
-      const commitsRetained = commits.length - boundaryIndex;
-      this.logger.info(
-        { root: this.rootPath, commitsRemoved, commitsRetained },
-        'Squash retention completed',
-      );
-
-      await this.forcePushIfConfigured();
-
-      return { squashed: true, commitsRemoved, commitsRetained };
-    } catch (error) {
-      this.logger.error(
-        { root: this.rootPath, err: normalizeError(error) },
-        'Squash operation failed',
-      );
-      return { squashed: false, error: normalizeError(error).message };
-    } finally {
-      // Bug 3: Always resume the commit pipeline
-      this.resumeCommits?.();
-    }
+    });
   }
 
   /**
-   * Refuse to start a multi-step history rewrite while another git
-   * operation holds the index or an abandoned cherry-pick, rebase, or merge
-   * is present (#249: report only, never auto-clear).
+   * Refuse while an abandoned cherry-pick, rebase or merge is present, or
+   * when HEAD is not on the configured branch (#249, D20: report only).
    *
    * @returns The refusal reason, or undefined if the squash may proceed.
    */
   private async checkRepoPreconditions(): Promise<string | undefined> {
-    if (await indexLockExists(this.rootPath)) {
-      this.logger.warn(
-        { root: this.rootPath },
-        'Squash aborted: index.lock exists, will retry next cycle',
-      );
-      return 'index.lock exists';
-    }
-
     const marker = await detectStaleGitOperation(this.rootPath);
     if (marker !== undefined) {
       const error = `Squash refused: in-progress git operation detected (.git/${marker})`;
@@ -208,32 +169,96 @@ export class SquashManager {
       return error;
     }
 
+    const head = (await headRef(this.rootPath)) ?? '';
+    if (head !== `refs/heads/${this.branch}`) {
+      const error = `Squash refused: HEAD is not on ${this.branch}`;
+      this.logger.warn({ root: this.rootPath, head }, error);
+      return error;
+    }
     return undefined;
   }
 
+  /** Rewrite and publish the branch (inside the hold). */
+  private async squashBranch(): Promise<SquashResult> {
+    const ref = `refs/heads/${this.branch}`;
+    const old = (await runGit(this.rootPath, ['rev-parse', ref])).stdout.trim();
+    const commits = await listFirstParent(this.rootPath, old);
+    if (commits.at(-1)?.hash !== old) {
+      const error = 'Squash skipped: first-parent list does not end at the tip';
+      this.logger.warn({ root: this.rootPath, old }, error);
+      return { squashed: false, error };
+    }
+
+    const boundaryIndex =
+      commits.length <= 1 ? 0 : this.calculateRetentionBoundary(commits);
+    if (boundaryIndex <= 0) return { squashed: false };
+
+    const rebuilt = await rebuildHistory(this.rootPath, commits, boundaryIndex);
+    const tip = (await this.options.hooks?.rebuiltTip?.(rebuilt)) ?? rebuilt;
+    if (
+      (await treeOf(this.rootPath, tip)) !== (await treeOf(this.rootPath, old))
+    ) {
+      const error = 'Squash stopped: rebuilt tree differs from the branch tip';
+      this.logger.error({ root: this.rootPath, old, tip }, error);
+      return { squashed: false, error };
+    }
+
+    await this.options.hooks?.beforeUpdateRef?.();
+    try {
+      await runGit(this.rootPath, [
+        'update-ref',
+        '-m',
+        SQUASH_REFLOG_REASON,
+        ref,
+        tip,
+        old,
+      ]);
+    } catch (error) {
+      // A failure with the ref unchanged is git's own (lock, timeout); one
+      // that left the ref at our tip (reflog write, timeout after the move)
+      // still squashed.
+      const now = await refTip(this.rootPath, ref);
+      if (now === old) throw error;
+      if (now === tip) {
+        this.logger.warn(
+          { root: this.rootPath, err: normalizeError(error) },
+          'Squash update-ref reported a failure but the branch is at the new tip',
+        );
+        return this.completed(commits.length, boundaryIndex);
+      }
+      const message = 'Squash skipped: the branch moved during the squash';
+      this.logger.warn(
+        { root: this.rootPath, err: normalizeError(error) },
+        `${message}; retrying at the next schedule`,
+      );
+      return { squashed: false, error: message };
+    }
+
+    return this.completed(commits.length, boundaryIndex);
+  }
+
+  /** Log a finished squash, force push if configured, and report it. */
+  private async completed(
+    total: number,
+    boundaryIndex: number,
+  ): Promise<SquashResult> {
+    const commitsRemoved = boundaryIndex;
+    const commitsRetained = total - boundaryIndex;
+    this.logger.info(
+      { root: this.rootPath, commitsRemoved, commitsRetained },
+      'Squash retention completed',
+    );
+    await this.forcePushIfConfigured();
+    return { squashed: true, commitsRemoved, commitsRetained };
+  }
+
   /**
-   * Get all commits in chronological order (oldest first).
+   * Get all first-parent commits of HEAD in chronological order (oldest
+   * first), or none when HEAD is unborn.
    */
   async getCommitLog(): Promise<CommitInfo[]> {
     try {
-      const { stdout } = await runGit(this.rootPath, [
-        'log',
-        '--format=%H %aI',
-        '--reverse',
-      ]);
-
-      if (!stdout.trim()) return [];
-
-      return stdout
-        .trim()
-        .split('\n')
-        .map((line) => {
-          const spaceIdx = line.indexOf(' ');
-          return {
-            hash: line.slice(0, spaceIdx),
-            date: new Date(line.slice(spaceIdx + 1)),
-          };
-        });
+      return await listFirstParent(this.rootPath, 'HEAD');
     } catch {
       return [];
     }
@@ -269,101 +294,22 @@ export class SquashManager {
   }
 
   /**
-   * Perform the squash: create orphan with baseline + cherry-pick retained commits.
-   * Uses the configured branch name instead of dynamic detection (Bug 1).
-   */
-  private async performSquash(
-    commits: CommitInfo[],
-    boundaryIndex: number,
-  ): Promise<void> {
-    const git = (...args: string[]) => runGit(this.rootPath, args);
-
-    // The commit just before boundary is the last one to squash
-    const baselineHash = commits[boundaryIndex - 1].hash;
-    const targetBranch = this.branch;
-    const orphanBranch = `__squash_orphan_${String(Date.now())}`;
-
-    try {
-      // 1-2. Orphan branch at the baseline commit's tree
-      await git('checkout', '--orphan', orphanBranch);
-      await git('reset', '--hard', baselineHash);
-
-      // 3-4. Single parentless baseline commit with that tree
-      const { stdout: treeOut } = await git(
-        'rev-parse',
-        `${baselineHash}^{tree}`,
-      );
-      const { stdout: commitOut } = await git(
-        'commit-tree',
-        treeOut.trim(),
-        '-m',
-        'historical baseline',
-      );
-      await git('reset', '--hard', commitOut.trim());
-
-      // 5. Cherry-pick the retained commits on top
-      const commitsToCherry = commits.slice(boundaryIndex).map((c) => c.hash);
-      if (commitsToCherry.length > 0) {
-        await runGit(this.rootPath, ['cherry-pick', ...commitsToCherry], {
-          timeoutMs: GIT_TIMEOUT_CHERRY_PICK,
-        });
-      }
-
-      // 6-8. Move the configured branch to the new history and clean up
-      const { stdout: newHead } = await git('rev-parse', 'HEAD');
-      await git('branch', '-f', targetBranch, newHead.trim());
-      await git('checkout', targetBranch);
-      await git('branch', '-D', orphanBranch);
-    } catch (error) {
-      await this.cleanupFailedSquash(targetBranch, orphanBranch);
-      throw error;
-    }
-  }
-
-  /**
-   * Best-effort cleanup after a failed squash. Aborts any half-finished
-   * cherry-pick first, so a failure never leaves a sequencer behind (#249),
-   * then returns to the configured branch and removes a leftover lock.
-   */
-  private async cleanupFailedSquash(
-    targetBranch: string,
-    orphanBranch: string,
-  ): Promise<void> {
-    const attempt = async (...args: string[]): Promise<void> => {
-      try {
-        await runGit(this.rootPath, args);
-      } catch {
-        // Best effort: the state may not need this step.
-      }
-    };
-
-    await attempt('cherry-pick', '--abort');
-    await attempt('checkout', '-f', targetBranch);
-    await attempt('branch', '-D', orphanBranch);
-    try {
-      await removeIndexLock(this.rootPath);
-    } catch {
-      // Best effort: the original squash error is what gets reported.
-    }
-  }
-
-  /**
    * Force push to remote after squash (history rewrite requires force).
    */
   private async forcePushIfConfigured(): Promise<void> {
-    if (!this.remoteUrl) return;
+    if (!this.options.remoteUrl) return;
 
     try {
       await gitPushNonInteractive({
         cwd: this.rootPath,
-        remoteUrl: this.remoteUrl,
-        accessToken: this.accessToken,
+        remoteUrl: this.options.remoteUrl,
+        accessToken: this.options.accessToken,
         force: true,
         timeout: GIT_TIMEOUT_PUSH,
       });
 
       this.logger.info(
-        { root: this.rootPath, remote: this.remoteUrl },
+        { root: this.rootPath, remote: this.options.remoteUrl },
         'Squash force push succeeded',
       );
     } catch (error) {

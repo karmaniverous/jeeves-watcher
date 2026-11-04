@@ -29,6 +29,7 @@ import {
   configureRepoIdentity,
   ensureGitignore,
   initRepo,
+  killsLauncher,
   validateStateDirOverlap,
 } from '../vcs';
 import { globRoot } from '../watcher/globToDir.js';
@@ -91,6 +92,28 @@ export async function initEmbeddingAndStore(
   await vectorStore.ensureCollection();
 
   return { embeddingProvider, vectorStore };
+}
+
+/**
+ * Set up VCS repositories, then the embedding provider and vector store
+ * (with the hybrid-search text index when enabled).
+ *
+ * @param config - The resolved configuration.
+ * @param factories - Component factories.
+ * @param logger - The service logger.
+ * @returns The embedding provider and the vector store.
+ */
+export async function initInfrastructure(
+  config: JeevesWatcherConfig,
+  factories: JeevesWatcherFactories,
+  logger: pino.Logger,
+) {
+  await initVcs(config, logger);
+  const stores = await initEmbeddingAndStore(config, factories, logger);
+  if (config.search?.hybrid?.enabled) {
+    await stores.vectorStore.ensureTextIndex('chunk_text');
+  }
+  return stores;
 }
 
 /**
@@ -196,6 +219,11 @@ export async function initVcs(
   if (!gitAvailable) {
     logger.warn('git not found on PATH — VCS disabled for this session');
     return false;
+  }
+  if (killsLauncher()) {
+    logger.warn(
+      "git's exec path has no git.exe; using the launcher on PATH, so a timed-out git call may keep running and hold index.lock (D79)",
+    );
   }
 
   const stateDir = config.stateDir ?? ROOT_DEFAULTS.stateDir;

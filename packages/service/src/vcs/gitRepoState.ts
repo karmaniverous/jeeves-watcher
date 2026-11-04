@@ -1,8 +1,8 @@
 /**
  * @module vcs/gitRepoState
  * Read-mostly checks of a repository's state that gate VCS operations:
- * abandoned sequencer/rebase/merge state, uncommitted tracked changes, and
- * `index.lock` presence and staleness. See #249.
+ * abandoned sequencer/rebase/merge state, the ref HEAD points at, and
+ * `index.lock` staleness. See #249.
  */
 
 import { access, rm, stat } from 'node:fs/promises';
@@ -56,34 +56,18 @@ export async function detectStaleGitOperation(
 }
 
 /**
- * Check for uncommitted changes to tracked files (staged or unstaged).
- * Untracked files are ignored.
+ * The ref HEAD points at (`git symbolic-ref -q HEAD`, e.g.
+ * `refs/heads/master`), or undefined when HEAD is detached or unreadable.
  *
  * @param rootPath - Repository root.
- * @returns true if any tracked file differs from HEAD.
+ * @returns The full ref name, or undefined.
  */
-export async function hasDirtyTrackedFiles(rootPath: string): Promise<boolean> {
-  const { stdout } = await runGit(rootPath, [
-    'status',
-    '--porcelain',
-    '-z',
-    '--untracked-files=no',
-  ]);
-  return stdout.length > 0;
-}
-
-/**
- * Check whether `.git/index.lock` exists.
- *
- * @param rootPath - Repository root.
- * @returns true if the lock file is present.
- */
-export async function indexLockExists(rootPath: string): Promise<boolean> {
+export async function headRef(rootPath: string): Promise<string | undefined> {
   try {
-    await access(indexLockPath(rootPath));
-    return true;
+    const { stdout } = await runGit(rootPath, ['symbolic-ref', '-q', 'HEAD']);
+    return stdout.trim();
   } catch {
-    return false;
+    return undefined;
   }
 }
 

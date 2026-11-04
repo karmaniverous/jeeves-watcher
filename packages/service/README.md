@@ -4,7 +4,7 @@ Filesystem watcher that keeps a [Qdrant](https://qdrant.tech/) vector store in s
 
 ## Requirements
 
-- **Node.js** ≥ 22.13
+- **Node.js** ≥ 24.22.2
 
 ## Features
 
@@ -56,7 +56,8 @@ Add a `vcs` block to your config:
 | `vcs.author.name` / `vcs.author.email` | `"jeeves-watcher"` / `"watcher@localhost"` | Git commit author identity |
 | `vcs.commitThrottleMs` | `30000` | Throttle interval (ms) for batching file changes into commits. Min: 1000 |
 | `vcs.maxBatchSize` | `1000` | Maximum files per commit batch. Flushes immediately when exceeded. Min: 1 |
-| `vcs.branch` | `"master"` | Git branch name for VCS operations. Squash retention and startup recovery target this branch |
+| `vcs.maxFileBytes` | `100000000` | Size cap for versioned files (bytes, or `k`/`m`/`g`). A new file over it is not staged; a tracked file that grows past it is untracked in its own commit. `0` disables |
+| `vcs.branch` | `"master"` | Git branch name for VCS operations. Squash retention targets this branch, and startup warns when HEAD is not on it |
 | `vcs.commitMessage.enabled` | `true` | Enable AI-generated commit messages |
 | `vcs.commitMessage.provider` | `"anthropic"` | AI provider (currently only `"anthropic"` supported) |
 | `vcs.commitMessage.model` | `"claude-haiku-4-0"` | AI model for commit message generation |
@@ -140,6 +141,7 @@ To prevent unbounded history growth, the squash retention system periodically co
 - **`maxAgeDays`** and **`maxVersions`** define retention boundaries. The tighter constraint wins — if `maxAgeDays: 30` would keep 200 commits but `maxVersions: 100` caps at 100, only 100 are retained.
 - **`squashCron`** controls when squash runs (e.g., `"0 0 * * *"` = daily at midnight). Checked every 60 seconds.
 - After squash, old commits are replaced with a single "historical baseline" commit. If a remote is configured, squash triggers a force push.
+- Squash rewrites history with git plumbing only: it never touches the working tree or the index, and moves the branch with a compare-and-swap, so a concurrent commit makes it stop without changing anything.
 
 ### API Endpoints
 
@@ -201,6 +203,8 @@ npx jeeves-watcher start --config ./config/config.json
 Full docs, guides, and API reference:
 
 **[docs.karmanivero.us/jeeves-watcher](https://docs.karmanivero.us/jeeves-watcher)**
+
+Upgrading an existing deployment? See [Upgrading](guides/upgrading.md).
 
 ## License
 

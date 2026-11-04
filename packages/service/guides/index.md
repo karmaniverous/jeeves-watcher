@@ -10,6 +10,7 @@ children:
   - ./cli-reference.md
   - ./deployment.md
   - ./version-control.md
+  - ./upgrading.md
   - ../CHANGELOG.md
 ---
 
@@ -24,4 +25,5 @@ children:
 - [CLI Reference](./cli-reference.md) — All `jeeves-watcher` commands: core standard commands and domain-specific commands.
 - [Deployment](./deployment.md) — Running as a service (NSSM/systemd/launchd), production config, state directory and backups, log management, and updates.
 - [Version Control (VCS)](./version-control.md) — Git-backed content versioning, commit batching, squash retention, remote push, and reversion.
+- [Upgrading](./upgrading.md) — What an existing deployment may need to act on, release by release.
 - [Changelog](../CHANGELOG.md) — Release history for `@karmaniverous/jeeves-watcher`.

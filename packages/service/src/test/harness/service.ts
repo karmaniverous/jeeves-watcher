@@ -10,6 +10,7 @@ import { join } from 'node:path';
 
 import type { PayloadIndexConfig } from '@karmaniverous/jeeves-watcher-core';
 import type { FastifyInstance } from 'fastify';
+import pino from 'pino';
 
 import { createApiServer } from '../../api';
 import { createProcessorConfig } from '../../app/initialization';
@@ -22,7 +23,6 @@ import {
 } from '../../embedding';
 import { EnrichmentStore } from '../../enrichment';
 import { IssuesManager } from '../../issues';
-import { createLogger } from '../../logger';
 import { DocumentProcessor } from '../../processor';
 import { EventQueue } from '../../queue';
 import type { SourceNotifyQueue } from '../../queue/SourceNotifyQueue';
@@ -157,7 +157,7 @@ async function setUp(
   const { collectionName } = config.vectorStore;
   // Harness collection name, on this run's guarded Qdrant only.
   assertTestVectorStore(config.vectorStore);
-  const logger = createLogger({ level: 'silent' });
+  const logger = pino({ level: 'silent' });
 
   const { provider: counted, counter } = countingProvider(
     createEmbeddingProvider(config.embedding),

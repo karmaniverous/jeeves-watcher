@@ -8,7 +8,10 @@ import { writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
 import type { VcsRetentionConfig } from '@karmaniverous/jeeves-watcher-core';
+import type pino from 'pino';
 
+import { RootGitLock } from '../vcs/RootGitLock';
+import { SquashManager, type SquashManagerOptions } from '../vcs/SquashManager';
 import { execFileAsync } from './git';
 
 const DAY_MS = 86_400_000;
@@ -23,6 +26,23 @@ export function makeRetention(
     squashCron: '0 0 * * *',
     ...overrides,
   };
+}
+
+/**
+ * A SquashManager with its own RootGitLock (unless one is given).
+ *
+ * @returns The manager.
+ */
+export function makeSquashManager(
+  cwd: string,
+  retention: VcsRetentionConfig,
+  logger: pino.Logger,
+  options: Partial<SquashManagerOptions> = {},
+): SquashManager {
+  return new SquashManager(cwd, retention, logger, {
+    lock: new RootGitLock(cwd, logger),
+    ...options,
+  });
 }
 
 /** Number of commits reachable from HEAD (0 for an empty repo). */

@@ -28,7 +28,7 @@ For detailed architecture documentation, see [packages/service/guides/architectu
 
 ## Prerequisites
 
-- **Node.js** >=22.13
+- **Node.js** >=24.22.2
 - **Qdrant** must be running and reachable before starting jeeves-watcher. The Qdrant collection is created automatically on first startup — no manual collection creation required.
 
 ## Quick Start

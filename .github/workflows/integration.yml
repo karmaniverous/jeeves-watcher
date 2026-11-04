@@ -39,7 +39,8 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v7
         with:
-          node-version: 22
+          # The engines floor (D188): the suite must pass on the oldest Node allowed.
+          node-version: '24.22.2'
           cache: npm
 
       - name: Install dependencies

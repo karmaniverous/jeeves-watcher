@@ -2,11 +2,12 @@
  * @module vcs/SquashManager.mechanism.test
  * Tests for the core SquashManager.runSquash mechanism: produces the
  * correct commit structure (1 baseline + N recent), is a no-op when
- * within the retention window, aborts on an index.lock collision, is a
+ * within the retention window, ignores an index.lock (plumbing only), is a
  * no-op for single-commit repos, and honors a configured branch name
  * instead of dynamic detection (Bug 1). Retention boundary math lives in
- * SquashManager.retention.test.ts; push/pause behavior lives in
- * SquashManager.pushAndPause.test.ts.
+ * SquashManager.retention.test.ts; push behavior lives in
+ * SquashManager.push.test.ts; D166 plumbing details in
+ * SquashManager.plumbing.test.ts.
  */
 
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
@@ -14,7 +15,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import pino from 'pino';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { execFileAsync } from '../test/git';
 import {
@@ -22,8 +23,9 @@ import {
   createCommit,
   initTestRepo,
   makeRetention,
+  makeSquashManager,
 } from '../test/squashRepo';
-import { SquashManager } from './SquashManager';
+import { countCalls } from '../test/vcsRepo';
 
 const silentLogger = pino({ level: 'silent' });
 
@@ -75,7 +77,7 @@ describe('SquashManager.runSquash', () => {
 
     expect(await commitCount(tempDir)).toBe(5);
 
-    const manager = new SquashManager(
+    const manager = makeSquashManager(
       tempDir,
       makeRetention({ maxAgeDays: 30, maxVersions: 100 }),
       silentLogger,
@@ -125,7 +127,7 @@ describe('SquashManager.runSquash', () => {
       new Date(now.getTime() - 1 * 86400000).toISOString(),
     );
 
-    const manager = new SquashManager(
+    const manager = makeSquashManager(
       tempDir,
       makeRetention({ maxAgeDays: 30, maxVersions: 100 }),
       silentLogger,
@@ -136,7 +138,7 @@ describe('SquashManager.runSquash', () => {
     expect(await commitCount(tempDir)).toBe(2);
   });
 
-  it('aborts on index.lock collision', async () => {
+  it('squashes while index.lock exists: plumbing never takes the index lock (D166)', async () => {
     const now = new Date();
     await createCommit(
       tempDir,
@@ -155,17 +157,14 @@ describe('SquashManager.runSquash', () => {
     const lockPath = join(tempDir, '.git', 'index.lock');
     await writeFile(lockPath, '', 'utf8');
 
-    const manager = new SquashManager(
+    const manager = makeSquashManager(
       tempDir,
       makeRetention({ maxAgeDays: 30, maxVersions: 100 }),
       silentLogger,
     );
 
     const result = await manager.runSquash();
-    expect(result.squashed).toBe(false);
-    expect(result.error).toBe('index.lock exists');
-
-    // Repo unchanged
+    expect(result.squashed).toBe(true);
     expect(await commitCount(tempDir)).toBe(2);
 
     await rm(lockPath, { force: true });
@@ -174,7 +173,7 @@ describe('SquashManager.runSquash', () => {
   it('handles single commit repo (no-op)', async () => {
     await createCommit(tempDir, 'file1.txt', 'a');
 
-    const manager = new SquashManager(
+    const manager = makeSquashManager(
       tempDir,
       makeRetention({ maxAgeDays: 1, maxVersions: 1 }),
       silentLogger,
@@ -183,6 +182,31 @@ describe('SquashManager.runSquash', () => {
     const result = await manager.runSquash();
     expect(result.squashed).toBe(false);
     expect(await commitCount(tempDir)).toBe(1);
+  });
+
+  it('logs a git failure and returns it as a refused squash; lists no commits while unborn', async () => {
+    const logger = pino({ level: 'silent' });
+    const error = vi.spyOn(logger, 'error');
+    const manager = makeSquashManager(
+      tempDir,
+      makeRetention({ maxAgeDays: 1, maxVersions: 1 }),
+      logger,
+    );
+    expect(await manager.getCommitLog()).toEqual([]);
+
+    // The configured branch has no commit yet: rev-parse fails.
+    const result = await manager.runSquash();
+    expect(result.squashed).toBe(false);
+    expect(result.error).toEqual(expect.any(String));
+    expect(countCalls(error, 'Squash operation failed')).toBe(1);
+
+    await createCommit(tempDir, 'file1.txt', 'a');
+    const { stdout: head } = await execFileAsync('git', ['rev-parse', 'HEAD'], {
+      cwd: tempDir,
+    });
+    expect((await manager.getCommitLog()).map((c) => c.hash)).toEqual([
+      head.trim(),
+    ]);
   });
 
   it('uses configured branch name instead of dynamic detection (Bug 1)', async () => {
@@ -203,7 +227,7 @@ describe('SquashManager.runSquash', () => {
     // Rename the default branch to 'main' to verify configured name is used
     await execFileAsync('git', ['branch', '-M', 'main'], { cwd: tempDir });
 
-    const manager = new SquashManager(
+    const manager = makeSquashManager(
       tempDir,
       makeRetention({ maxAgeDays: 30, maxVersions: 100 }),
       silentLogger,

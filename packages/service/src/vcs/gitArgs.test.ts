@@ -1,9 +1,9 @@
 /**
  * @module vcs/gitArgs.test
  * Every VCS git invocation carries {@link GIT_BASE_ARGS}
- * (`-c core.longpaths=true`). See #249.
+ * (`-c core.longpaths=true -c core.quotePath=false`). See #249, #252.
  *
- * `execFileAsync` is wrapped in a spy that delegates to the real
+ * `execGit` is wrapped in a spy that delegates to the real
  * implementation, so these tests run real git against temp repos while
  * recording argv.
  */
@@ -18,15 +18,17 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { execFileAsync as testExec } from '../test/git';
 import { createCommit, daysAgo, makeRetention } from '../test/squashRepo';
-import type * as GitExecModule from './gitExec';
-import { execFileAsync, GIT_BASE_ARGS } from './gitExec';
+import { GIT_BASE_ARGS } from './gitExec';
+import type * as GitProcessModule from './gitProcess';
+import { execGit } from './gitProcess';
+import { RootGitLock } from './RootGitLock';
 import { SquashManager } from './SquashManager';
 import { initRepo } from './vcsBootstrap';
 import { VcsManager } from './VcsManager';
 
-vi.mock('./gitExec', async (importOriginal) => {
-  const actual = await importOriginal<typeof GitExecModule>();
-  return { ...actual, execFileAsync: vi.fn(actual.execFileAsync) };
+vi.mock('./gitProcess', async (importOriginal) => {
+  const actual = await importOriginal<typeof GitProcessModule>();
+  return { ...actual, execGit: vi.fn(actual.execGit) };
 });
 
 const silentLogger = pino({ level: 'silent' });
@@ -41,12 +43,9 @@ const vcsConfig: VcsConfig = {
   branch: 'master',
 };
 
-/** argv of every recorded `git` call. */
+/** argv of every recorded git call. */
 function gitCalls(): string[][] {
-  return vi
-    .mocked(execFileAsync)
-    .mock.calls.filter(([file]) => file === 'git')
-    .map(([, args]) => [...(args ?? [])]);
+  return vi.mocked(execGit).mock.calls.map(([args]) => [...args]);
 }
 
 describe('VCS git argv (#249)', () => {
@@ -59,15 +58,15 @@ describe('VCS git argv (#249)', () => {
       cwd: tempDir,
     });
     await testExec('git', ['config', 'user.name', 'Test'], { cwd: tempDir });
-    vi.mocked(execFileAsync).mockClear();
+    vi.mocked(execGit).mockClear();
   });
 
   afterEach(async () => {
-    vi.mocked(execFileAsync).mockClear();
+    vi.mocked(execGit).mockClear();
     await rm(tempDir, { recursive: true, force: true });
   });
 
-  it('VcsManager and SquashManager pass core.longpaths on every git call', async () => {
+  it('VcsManager and SquashManager pass the base args on every git call', async () => {
     await createCommit(tempDir, 'old1.txt', 'a', daysAgo(60));
     await createCommit(tempDir, 'old2.txt', 'b', daysAgo(50));
 
@@ -82,26 +81,31 @@ describe('VCS git argv (#249)', () => {
     await manager.flush();
     await manager.stop();
 
-    const squash = new SquashManager(tempDir, makeRetention(), silentLogger);
+    const squash = new SquashManager(tempDir, makeRetention(), silentLogger, {
+      lock: new RootGitLock(tempDir, silentLogger),
+    });
     expect((await squash.runSquash()).squashed).toBe(true);
 
-    // The stdin add/rm helpers spawn git through execFile directly; they
-    // also build argv with gitArgs() and are covered by the long-path test.
     const calls = gitCalls();
-    const subcommands = calls.map((args) => args[GIT_BASE_ARGS.length]);
+    const subcommands = calls.map((args) =>
+      args[GIT_BASE_ARGS.length] === '--literal-pathspecs'
+        ? args[GIT_BASE_ARGS.length + 1]
+        : args[GIT_BASE_ARGS.length],
+    );
     expect(subcommands).toEqual(
       expect.arrayContaining([
         'ls-files',
+        'add',
+        'rm',
         'diff',
         'rev-parse',
         'commit',
-        'status',
-        'log',
-        'checkout',
-        'reset',
+        'symbolic-ref',
+        'for-each-ref',
+        'rev-list',
+        'cat-file',
         'commit-tree',
-        'cherry-pick',
-        'branch',
+        'update-ref',
       ]),
     );
     for (const args of calls) {

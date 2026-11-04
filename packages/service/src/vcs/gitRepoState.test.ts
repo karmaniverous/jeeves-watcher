@@ -1,7 +1,7 @@
 /**
  * @module vcs/gitRepoState.test
  * Repository state checks against real temp repos: stale operation
- * markers, dirty tracked files, and index.lock handling.
+ * markers, the ref HEAD points at, and index.lock handling.
  */
 
 import { access, mkdir, rm, utimes, writeFile } from 'node:fs/promises';
@@ -13,8 +13,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { commitAll, git, makeTempRepo } from '../test/vcsRepo';
 import {
   detectStaleGitOperation,
-  hasDirtyTrackedFiles,
-  indexLockExists,
+  headRef,
   removeIndexLock,
   removeStaleIndexLock,
   STALE_OPERATION_MARKERS,
@@ -22,6 +21,11 @@ import {
 
 let tempDir: string;
 const lockPath = () => join(tempDir, '.git', 'index.lock');
+const indexLockExists = (dir: string) =>
+  access(join(dir, '.git', 'index.lock')).then(
+    () => true,
+    () => false,
+  );
 
 beforeEach(async () => {
   tempDir = await makeTempRepo('git-repo-state-');
@@ -60,36 +64,27 @@ describe('detectStaleGitOperation', () => {
     await expect(git(tempDir, 'cherry-pick', 'side')).rejects.toThrow();
 
     expect(await detectStaleGitOperation(tempDir)).toBe('CHERRY_PICK_HEAD');
-  });
+  }, 30_000); // ~10 real git calls: over 5 s on a slow Windows runner
 });
 
-describe('hasDirtyTrackedFiles', () => {
-  beforeEach(async () => {
-    await writeFile(join(tempDir, 'tracked.txt'), 'x', 'utf8');
+describe('headRef', () => {
+  it('names the branch ref HEAD points at, unborn or committed', async () => {
+    expect(await headRef(tempDir)).toBe('refs/heads/master');
+    await writeFile(join(tempDir, 'f.txt'), 'x', 'utf8');
     await commitAll(tempDir, 'seed');
+    expect(await headRef(tempDir)).toBe('refs/heads/master');
   });
 
-  it('is false for a clean tree, even with untracked files', async () => {
-    await writeFile(join(tempDir, 'untracked.txt'), 'x', 'utf8');
-    expect(await hasDirtyTrackedFiles(tempDir)).toBe(false);
-  });
-
-  it('is true for an unstaged edit, a staged edit, or a deletion', async () => {
-    await writeFile(join(tempDir, 'tracked.txt'), 'edited', 'utf8');
-    expect(await hasDirtyTrackedFiles(tempDir)).toBe(true);
-
-    await git(tempDir, 'add', 'tracked.txt');
-    expect(await hasDirtyTrackedFiles(tempDir)).toBe(true);
-
-    await git(tempDir, 'reset', '--hard');
-    await rm(join(tempDir, 'tracked.txt'));
-    expect(await hasDirtyTrackedFiles(tempDir)).toBe(true);
+  it('is undefined when HEAD is detached', async () => {
+    await writeFile(join(tempDir, 'f.txt'), 'x', 'utf8');
+    await commitAll(tempDir, 'seed');
+    await git(tempDir, 'checkout', '-q', '--detach');
+    expect(await headRef(tempDir)).toBeUndefined();
   });
 });
 
 describe('index.lock', () => {
-  it('reports presence and removes it (missing is fine)', async () => {
-    expect(await indexLockExists(tempDir)).toBe(false);
+  it('removes it (missing is fine)', async () => {
     await writeFile(lockPath(), '', 'utf8');
     expect(await indexLockExists(tempDir)).toBe(true);
 

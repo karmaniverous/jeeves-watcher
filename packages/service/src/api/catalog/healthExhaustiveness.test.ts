@@ -38,7 +38,7 @@ function undeclared(value: unknown, schema: z.ZodType, at = ''): string[] {
   });
 }
 
-/** Health with every feature on: a running reindex and both scan states. */
+/** Health with every feature on: a running reindex, both scan states, VCS. */
 async function healthSamples(): Promise<Record<string, unknown>[]> {
   const reindexTracker = new ReindexTracker();
   reindexTracker.start('full');
@@ -63,6 +63,12 @@ async function healthSamples(): Promise<Record<string, unknown>[]> {
       version: '1.2.3',
       reindexTracker,
       initialScanTracker,
+      getVcsHealth: () => ({
+        roots: 2,
+        pending: 5,
+        trippedRoots: 1,
+        oldestTrippedAt: '2026-11-04T00:00:00.000Z',
+      }),
     });
     samples.push((await source()).body.health);
   }

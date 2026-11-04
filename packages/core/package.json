@@ -24,7 +24,7 @@
     "zod-openapi": "^6.0.2"
   },
   "engines": {
-    "node": ">=22.13"
+    "node": ">=24.22.2"
   },
   "exports": {
     ".": {

@@ -61,6 +61,12 @@ curl http://localhost:1936/status
       "filesEnqueued": 156576,
       "completedAt": "2026-03-15T01:31:12.000Z",
       "durationMs": 552000
+    },
+    "vcs": {
+      "roots": 2,
+      "pending": 0,
+      "trippedRoots": 0,
+      "oldestTrippedAt": null
     }
   }
 }
@@ -75,6 +81,7 @@ curl http://localhost:1936/status
 | `health.collection` | `object` | Qdrant collection stats: `name`, `pointCount` (total points/chunks), `dimensions`. |
 | `health.reindex` | `object` | Reindex progress. `active`; while active also `scope`, `startedAt`, `filesProcessed` and `totalFiles` (files plus source documents in the run; both stay `0` during a prune). `POST /reindex { scope: "path", source }` and `POST /documents` are not tracked here. |
 | `health.initialScan` | `object?` | Initial filesystem scan after start (absent when there is no filesystem watcher). Only `{ "active": false }` before the scan starts; then `active`, `filesMatched`, `filesEnqueued`; `startedAt` while active; `completedAt` and `durationMs` once finished. |
+| `health.vcs` | `object?` | Version control across roots (absent when no root has VCS enabled): `roots` (VCS-enabled roots), `pending` (files queued or in flight, not yet committed), `trippedRoots` (roots whose commit circuit breaker is tripped), `oldestTrippedAt` (ISO time the longest-tripped breaker tripped, or `null`). Per-root detail is in [`GET /vcs/status`](./version-control.md#get-vcsstatus). |
 
 > **v0.5.0 change:** `payloadFields` has been removed from the status response. Use [`GET /config`](#get-config) or [`GET /config/schema`](#get-configschema) to discover schema and payload field information.
 
@@ -1282,6 +1289,7 @@ Returns a JSON Schema object describing the merged config document shape:
 
 - Exactly the document's top-level keys, all required: the `PUBLIC_CONFIG_KEYS` allow-list (`description`, `watch`, `configWatch`, `search`, `schemas`, `inferenceRules`, `mapHelpers`, `templateHelpers`, `maps`, `templates`) plus `issues`. Each config key is taken from the core config schema (`jeevesWatcherConfigSchema`), so `schemas` is a record of named schemas and `search` includes `scoreThresholds` and `hybrid`.
 - Runtime-injected fields: `inferenceRules[].source` and `inferenceRules[].values`, helper `exports` under `mapHelpers` / `templateHelpers`, and `issues` (issue records as in `GET /issues`).
+- Since 0.21.0, `watch.paths[].vcs` includes `maxFileBytes`, the per-root override of `vcs.maxFileBytes`, because `watch` is public (an approved departure from 0.20.0's wire shape, D185).
 
 The schema is generated from Zod using `z.toJSONSchema()` and describes the queryable surface exposed by [`GET /config`](#get-config).
 
@@ -2024,6 +2032,8 @@ curl -X POST http://localhost:1936/vcs/revert \
 | `restored` | `number` | Number of files restored. |
 | `files` | `string[]` | Absolute paths (forward slashes) of restored files. |
 
+`existingOnly` must be a JSON boolean; anything else answers `400 invalid_request` (unreleased, D183: 0.20.0 read any truthy value, so `"false"` acted as `true`).
+
 #### Behavior
 
 1. Lists the files at the specified commit with `git ls-tree -r --name-only {commit} -- {root-relative glob}` (the whole tree when the glob is a root itself)
@@ -2088,7 +2098,7 @@ Splits the root-relative glob at its first segment containing a wildcard into a 
 
 #### Errors
 
-`400 invalid_request` without `glob` (`"Missing required body parameter: glob"`). `404 not_found` when `root` is not a VCS root (`"Root is not a VCS-enabled watch root"`), when no VCS root contains the glob (`"Glob does not match any VCS-enabled watch root"`), or, for `remove`, when the `.gitignore` does not exist (`"No .gitignore found at the expected location"`) or does not contain the pattern (`"Pattern not found in .gitignore"`).
+`400 invalid_request` without `glob` (`"Missing required body parameter: glob"`), or when `remove` is not a JSON boolean (unreleased, D183: 0.20.0 read any truthy value, so `"false"` acted as `true`). `404 not_found` when `root` is not a VCS root (`"Root is not a VCS-enabled watch root"`), when no VCS root contains the glob (`"Glob does not match any VCS-enabled watch root"`), or, for `remove`, when the `.gitignore` does not exist (`"No .gitignore found at the expected location"`) or does not contain the pattern (`"Pattern not found in .gitignore"`).
 
 ---
 
@@ -2157,7 +2167,7 @@ Since v0.20.0 every non-2xx response has this body (`apiErrorBodySchema` in `@ka
 - The catalog's response-validation failure is `500 { "error": "Response validation failed", "code": "internal_error" }` (see [Response validation](#api-reference)), which only a server bug produces.
 - A route's status is derived from its `code` through `API_ERROR_STATUS` in core (the table below), so the same code always has the same status. The single exception is `not_available` from a prune without a vector store, which keeps its 0.19 status `400`. Requests rejected by the framework before reaching a route keep the framework's status: `401` maps to `unauthorized`, `404` to `not_found` (unknown route: `{ "code": "not_found", "error": "Not Found", "message": "Route POST:/nope not found" }`), any other 4xx to `invalid_request` (with the HTTP status text as `error` and the framework's explanation as `message`), and any 5xx to the generic `internal_error` body.
 - The CLI and the plugin's own tools report an error as one line, `HTTP <status> <code>: <message>`, where `<message>` is `error` plus `: <message>` when the body has a different `message` (`formatHttpError` in core).
-- The plugin's catalog-built tools (`watcher_status`, `watcher_config`, `watcher_config_apply`, `watcher_search`, `watcher_scan`, `watcher_vcs_show`) report `HTTP <status>: <body>` with the JSON body verbatim. Every route is now a catalog route, so every error body, including the gated `/vcs/*` `404`, lists `error` before `code` (unreleased; 0.20.0 listed `code` first on the routes outside the catalog). Parse the body as JSON rather than relying on key order.
+- The plugin's catalog-built tools (`watcher_status`, `watcher_config`, `watcher_config_apply`, `watcher_search`, `watcher_scan`, `watcher_vcs_show`) report `HTTP <status>: <body>` with the JSON body verbatim. Every route is now a catalog route, so every error body, including the gated `/vcs/*` `404`, lists `error` before `code` (unreleased, D182; 0.20.0 listed `code` first on the routes outside the catalog). Parse the body as JSON rather than relying on key order.
 - A 5xx body never carries the underlying error (file paths, Qdrant or provider messages): the cause is logged and the body is the generic `internal_error` text below.
 - HTTP status changes in v0.20.0, all from `500` for what are client mistakes: invalid bodies of the rules routes and `POST /points/delete`, filters Qdrant rejects (`400`), and invalid `POST /reindex` path targets (`403` / `404` / `400`). Successful responses and every other status are unchanged.
 

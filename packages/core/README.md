@@ -13,7 +13,7 @@ This package is the single source of truth for the watcher's contracts. The serv
 - **Source documents:** the `<name>://<id>` reference schema (`sourceReferenceSchema`) and the callback record contract (`sourceDocumentSchema`).
 - **Payload:** reserved system payload fields (`RESERVED_PAYLOAD_FIELDS`, `isReservedPayloadField`).
 
-ESM only, Node.js >= 22.13. Most applications should use the SDK rather than depend on this package directly.
+ESM only, Node.js >= 24.22.2. Most applications should use the SDK rather than depend on this package directly.
 
 ## Install
 

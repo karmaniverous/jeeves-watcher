@@ -5,6 +5,8 @@
 
 import { z } from 'zod';
 
+import { byteSizeSchema } from './byteSize.js';
+
 /**
  * Commit message generation configuration.
  */
@@ -173,12 +175,22 @@ export const vcsConfigSchema = z.object({
     .describe(
       'Circuit breaker cooldown in ms before a half-open recovery attempt. Default: 300000 (5 minutes).',
     ),
-  /** Git branch name for VCS operations. SquashManager and startup recovery use this instead of dynamic detection. */
+  /** Git branch name for VCS operations. Squash and the startup branch check use this instead of dynamic detection. */
   branch: z
     .string()
     .min(1)
     .default('master')
     .describe('Git branch name for VCS operations. Default: "master".'),
+  /**
+   * Size cap for versioned files (D80). A new file over it is not staged;
+   * a tracked file that grows past it is untracked in its own commit.
+   * `0` disables the cap. Read at each staging (no restart needed).
+   */
+  maxFileBytes: byteSizeSchema
+    .optional()
+    .describe(
+      "Size cap for versioned files: bytes, or a string with a k, m or g suffix (binary units). A new file over it is not staged; a tracked file that grows past it is untracked (its history ends at its last committed version). 0 disables the cap. Default: 100000000 (100 MB, under GitHub's 100 MiB file limit).",
+    ),
 });
 
 /** Root-level VCS configuration. */

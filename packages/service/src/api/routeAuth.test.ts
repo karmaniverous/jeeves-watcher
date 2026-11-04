@@ -41,7 +41,7 @@ const options = {
   issuesManager: {},
   valuesManager: {},
   virtualRuleStore: new VirtualRuleStore(),
-  vcsCoordinator: {},
+  vcsCoordinator: { getRoots: () => [] },
 } as unknown as ApiServerOptions;
 
 /** One registered method + path. */

@@ -3,10 +3,10 @@
  * Service integration (requires Qdrant): a burst of notifications on one source reference, landing while the first retrieval is held in flight, collapses to exactly two callback retrievals and leaves one point set holding the latest stub content.
  */
 
+import pino from 'pino';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { createNotifyQueue } from '../app/sources';
-import { createLogger } from '../logger';
 import { sourcePointId } from '../pointId';
 import { qdrantAvailable } from './harness/qdrant';
 import { type ServiceHarness, startServiceHarness } from './harness/service';
@@ -85,7 +85,7 @@ describe.skipIf(!qdrantAvailable())(
       const queue = createNotifyQueue(
         harness.processor,
         2,
-        createLogger({ level: 'silent' }),
+        pino({ level: 'silent' }),
       );
       queue.start();
       const retrievals = () => stub.requests.filter((r) => r.path === PATH);

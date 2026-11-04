@@ -4,14 +4,9 @@
  * field extraction and classification, and path comparison helpers.
  */
 
-import { execFile } from 'node:child_process';
 import { resolve } from 'node:path';
-import { promisify } from 'node:util';
 
 import { normalizeSlashes } from '../util/normalizeSlashes';
-
-/** Promisified execFile for git commands. */
-export const execFileAsync = promisify(execFile);
 
 /**
  * Leading git arguments applied to every VCS-owned git invocation.
@@ -19,8 +14,20 @@ export const execFileAsync = promisify(execFile);
  * `-c core.longpaths=true` lets Windows checkouts handle paths beyond the
  * legacy MAX_PATH limit (260 chars) without requiring a machine-wide
  * `core.longpaths` git config or registry change. See #249.
+ *
+ * `-c core.quotePath=false` makes every call (history, diff, staging,
+ * check-ignore) print non-ASCII paths unescaped, instead of octal escapes
+ * in double quotes. See #252.
+ *
+ * `--literal-pathspecs` is deliberately not here: history, diff and revert
+ * take user globs (D10, D116). Path-list calls add it themselves.
  */
-export const GIT_BASE_ARGS: readonly string[] = ['-c', 'core.longpaths=true'];
+export const GIT_BASE_ARGS: readonly string[] = [
+  '-c',
+  'core.longpaths=true',
+  '-c',
+  'core.quotePath=false',
+];
 
 /**
  * Build a git argv array with {@link GIT_BASE_ARGS} prefixed.
@@ -35,11 +42,24 @@ export function gitArgs(...args: string[]): string[] {
 /** Standard timeout (ms) for most git operations. */
 export const GIT_TIMEOUT_STANDARD = 30_000;
 
-/** Extended timeout (ms) for cherry-pick operations. */
-export const GIT_TIMEOUT_CHERRY_PICK = 120_000;
-
 /** Timeout (ms) for push operations. */
 export const GIT_TIMEOUT_PUSH = 60_000;
+
+/** Ceiling (ms) of the path-list timeout. */
+const PATH_LIST_TIMEOUT_MAX = 600_000;
+
+/**
+ * Timeout for a git call given a list of paths (`add`, `add -u`,
+ * `rm --cached`, `check-ignore --stdin`,
+ * `update-index --force-remove --stdin`, one chunk of the tracked check):
+ * 30 s plus 50 ms per path, at most 600 s, so 1,000 paths get 80 s (D55).
+ *
+ * @param paths - Number of paths the call is given.
+ * @returns The timeout in milliseconds.
+ */
+export function pathListTimeoutMs(paths: number): number {
+  return Math.min(PATH_LIST_TIMEOUT_MAX, GIT_TIMEOUT_STANDARD + 50 * paths);
+}
 
 /**
  * Extract string fields from a child-process error.

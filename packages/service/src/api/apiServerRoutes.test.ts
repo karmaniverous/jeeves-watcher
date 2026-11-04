@@ -53,7 +53,7 @@ const route = (name: Parameters<typeof getEndpoint>[0]) => {
 describe('createApiServer routes', () => {
   it.each([
     ['without VCS', {}],
-    ['with VCS', { vcsCoordinator: {} }],
+    ['with VCS', { vcsCoordinator: { getRoots: () => [] } }],
   ])('registers every catalog route %s', async (_label, extra) => {
     app = createApiServer({ ...options(), ...extra } as ApiServerOptions);
     await app.ready();

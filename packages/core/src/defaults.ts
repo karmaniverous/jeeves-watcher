@@ -39,6 +39,13 @@ export const LOGGING_DEFAULTS = {
   level: 'info' as const,
 };
 
+/** Default log rotation, applied when `logging.file` is set (D171). */
+export const LOGGING_ROTATION_DEFAULTS = {
+  maxSize: '10m',
+  frequency: 'daily' as const,
+  maxFiles: 14,
+};
+
 /** Default watch configuration. */
 export const WATCH_DEFAULTS = {
   debounceMs: 300,
@@ -53,6 +60,8 @@ export const VCS_DEFAULTS = {
   enabled: false,
   commitThrottleMs: 30000,
   maxBatchSize: 1000,
+  /** 100 MB (decimal), under GitHub's 100 MiB per-file limit (D80). */
+  maxFileBytes: 100_000_000,
   commitMessage: {
     enabled: true,
     provider: 'anthropic',

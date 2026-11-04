@@ -104,6 +104,16 @@ describe('GET /vcs/history', () => {
     expect(res.json()).toEqual([]);
   });
 
+  it('returns non-ASCII paths unescaped (#252)', async () => {
+    await writeFile(join(rootA, 'résumé ü.md'), 'x', 'utf8');
+    await execFileAsync('git', ['add', '.'], { cwd: rootA });
+    await execFileAsync('git', ['commit', '-m', 'accents'], { cwd: rootA });
+
+    const res = await history({ glob: rootA + '/*.md' });
+
+    expect(res.json<HistoryEntry[]>()[0].files).toEqual(['résumé ü.md']);
+  });
+
   it('filters by until', async () => {
     const past = new Date(Date.now() - 86400000).toISOString();
 

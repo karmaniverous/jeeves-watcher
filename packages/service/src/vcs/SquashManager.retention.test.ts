@@ -11,14 +11,13 @@
 import pino from 'pino';
 import { describe, expect, it } from 'vitest';
 
-import { makeRetention } from '../test/squashRepo';
-import { SquashManager } from './SquashManager';
+import { makeRetention, makeSquashManager } from '../test/squashRepo';
 
 const silentLogger = pino({ level: 'silent' });
 
 describe('SquashManager.calculateRetentionBoundary', () => {
   it('age constraint wins when it is tighter', () => {
-    const manager = new SquashManager(
+    const manager = makeSquashManager(
       '/tmp/test',
       makeRetention({ maxAgeDays: 7, maxVersions: 100 }),
       silentLogger,
@@ -40,7 +39,7 @@ describe('SquashManager.calculateRetentionBoundary', () => {
   });
 
   it('count constraint wins when it is tighter', () => {
-    const manager = new SquashManager(
+    const manager = makeSquashManager(
       '/tmp/test',
       makeRetention({ maxAgeDays: 365, maxVersions: 2 }),
       silentLogger,
@@ -62,7 +61,7 @@ describe('SquashManager.calculateRetentionBoundary', () => {
   });
 
   it('returns 0 when all commits are within both constraints', () => {
-    const manager = new SquashManager(
+    const manager = makeSquashManager(
       '/tmp/test',
       makeRetention({ maxAgeDays: 365, maxVersions: 100 }),
       silentLogger,

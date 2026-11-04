@@ -26,14 +26,15 @@
     "js-yaml": "^5.5.0",
     "mammoth": "^1.13.0",
     "mdast-util-from-adf": "^2.3.0",
-    "mdast-util-to-markdown": "^2.2.1",
+    "mdast-util-to-markdown": "^2.2.2",
     "package-directory": "^8.2.0",
     "picomatch": "^4.0.7",
     "pino": "*",
+    "pino-roll": "4.0.0",
     "radash": "^12.1.1",
     "rehype-parse": "^9.0.1",
     "unified": "^11.0.5",
-    "unpdf": "^1.9.1",
+    "unpdf": "^2.1.0",
     "uuid": "*",
     "yaml": "2.9.1",
     "zod": "^4.6.7"
@@ -64,7 +65,7 @@
     "vitest": "^5.1.0"
   },
   "engines": {
-    "node": ">=22.13"
+    "node": ">=24.22.2"
   },
   "exports": {
     ".": {
