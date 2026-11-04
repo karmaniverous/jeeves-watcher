@@ -127,7 +127,8 @@ export function summarise(survey, ceilings) {
     documents: docs.length,
     files: docs.filter((d) => d.kind === 'file').length,
     sources: docs.filter((d) => d.kind === 'source').length,
-    maxChunks: counts.length > 0 ? Math.max(...counts) : 0,
+    // A reduce, not Math.max(...counts): a large corpus overflows the stack.
+    maxChunks: counts.reduce((max, c) => Math.max(max, c), 0),
     histogram,
     ceilings,
     over,
@@ -147,7 +148,11 @@ export function statFiles(survey, statSync = fs.statSync) {
 }
 
 /** Scroll every point of a collection into the survey (read-only). */
-export async function scrollCollection(options, survey, fetchImpl = globalThis.fetch) {
+export async function scrollCollection(
+  options,
+  survey,
+  fetchImpl = globalThis.fetch,
+) {
   let offset;
   do {
     const response = await fetchImpl(

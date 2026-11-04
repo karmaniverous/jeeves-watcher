@@ -122,6 +122,18 @@ describe('survey aggregation', () => {
     });
   });
 
+  it('handles a corpus too large to spread into Math.max', () => {
+    const survey = createSurvey();
+    for (let i = 0; i < 200_000; i++) {
+      addPoint(survey, {
+        file_path: `f${String(i)}`,
+        chunk_index: 0,
+        total_chunks: i % 7,
+      });
+    }
+    assert.equal(summarise(survey, CEILINGS).maxChunks, 6);
+  });
+
   it('reports an empty collection', () => {
     const summary = summarise(createSurvey(), CEILINGS);
     assert.equal(summary.maxChunks, 0);
