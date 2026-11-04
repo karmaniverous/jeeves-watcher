@@ -16,6 +16,7 @@
  */
 
 import {
+  type CatalogToolSelection,
   createPluginToolset,
   type JeevesComponentDescriptor,
   type PluginApi,
@@ -32,14 +33,6 @@ import { getApiKey, getApiUrl } from './helpers.js';
 
 /** A catalog entry name. */
 type EntryName = WatcherCatalog['entries'][number]['name'];
-
-/** How core's toolset builds one domain tool (`createPluginToolset` `tools`). */
-interface ToolSelection {
-  /** Tool description (default: the entry's). */
-  description?: string;
-  /** OpenClaw Tool Search visibility. */
-  catalogMode?: 'direct-only';
-}
 
 /** `watcher_exclude_vcs_path` description (D103, D137). */
 export const VCS_EXCLUDE_DESCRIPTION = `Exclude a path from version history (VCS-only: it stays in search), or remove the exclusion. Adding untracks the files the pattern matches, ending their history; more than ${String(VCS_EXCLUDE_CONFIRM_THRESHOLD)} files need confirm: true. A timeout does not cancel the exclusion: check the outcome with watcher_check_vcs_exclusion before retrying.`;
@@ -98,7 +91,7 @@ export const WATCHER_TOOL_SELECTION = {
   },
   excludeVcsPath: { description: VCS_EXCLUDE_DESCRIPTION },
   checkVcsExclusion: { description: VCS_CHECK_DESCRIPTION },
-} as const satisfies Partial<Record<EntryName, ToolSelection>>;
+} as const satisfies Partial<Record<EntryName, CatalogToolSelection>>;
 
 /** The standard tools, in their 0.17.0 registration order. */
 const STANDARD_TOOLS = [

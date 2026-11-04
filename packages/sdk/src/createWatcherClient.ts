@@ -16,12 +16,6 @@ import { createDocumentsApi, type DocumentsApi } from './documents.js';
 import { resolveClientOptions, type WatcherClientOptions } from './options.js';
 import { toWatcherError } from './toWatcherError.js';
 
-/** Catalog entries exposed only through the `documents` group (D60). */
-type GroupedEntry = 'notifyDocuments' | 'deleteDocuments';
-
-/** One method per catalog entry, as jeeves's catalog client types them. */
-type CatalogMethods = CatalogClient<WatcherCatalog>;
-
 /**
  * A watcher API client: one method per `WATCHER_CATALOG` entry, named by the
  * entry (`search`, `listIssues`, `showVcsFile`, ...), except
@@ -31,7 +25,10 @@ type CatalogMethods = CatalogClient<WatcherCatalog>;
  * keys are dropped), and throws a {@link WatcherError} on any failure. No
  * retries.
  */
-export type WatcherClient = Omit<CatalogMethods, GroupedEntry> & {
+export type WatcherClient = Omit<
+  CatalogClient<WatcherCatalog>,
+  'notifyDocuments' | 'deleteDocuments'
+> & {
   /** Source-document notify and delete. */
   documents: DocumentsApi;
 };
@@ -73,7 +70,7 @@ export function createWatcherClient(
         });
       return [name, method];
     }),
-  ) as unknown as CatalogMethods;
+  ) as unknown as CatalogClient<WatcherCatalog>;
   const { notifyDocuments, deleteDocuments, ...rest } = methods;
   return {
     ...rest,

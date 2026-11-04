@@ -44,6 +44,17 @@ describe('resolveClientOptions', () => {
     }
   });
 
+  it('refuses with invalid_options when no fetch is available', () => {
+    vi.stubGlobal('fetch', undefined);
+    try {
+      expect(() => resolveClientOptions({ baseUrl: 'https://h' })).toThrow(
+        'No fetch implementation available; pass options.fetch',
+      );
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it('hands the caller fetch the URL of a URL or Request input', async () => {
     const fetch = vi.fn<FetchLike>(() => Promise.resolve(new Response('{}')));
     const resolved = resolveClientOptions({ baseUrl: 'https://h', fetch });
