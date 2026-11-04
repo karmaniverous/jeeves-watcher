@@ -1289,6 +1289,7 @@ Returns a JSON Schema object describing the merged config document shape:
 
 - Exactly the document's top-level keys, all required: the `PUBLIC_CONFIG_KEYS` allow-list (`description`, `watch`, `configWatch`, `search`, `schemas`, `inferenceRules`, `mapHelpers`, `templateHelpers`, `maps`, `templates`) plus `issues`. Each config key is taken from the core config schema (`jeevesWatcherConfigSchema`), so `schemas` is a record of named schemas and `search` includes `scoreThresholds` and `hybrid`.
 - Runtime-injected fields: `inferenceRules[].source` and `inferenceRules[].values`, helper `exports` under `mapHelpers` / `templateHelpers`, and `issues` (issue records as in `GET /issues`).
+- Since 0.21.0, `watch.paths[].vcs` includes `maxFileBytes`, the per-root override of `vcs.maxFileBytes`, because `watch` is public (an approved departure from 0.20.0's wire shape, D185).
 
 The schema is generated from Zod using `z.toJSONSchema()` and describes the queryable surface exposed by [`GET /config`](#get-config).
 

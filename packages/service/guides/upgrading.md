@@ -26,7 +26,7 @@ What changes for an existing deployment, release by release. The [Changelog](../
 - **Startup repairs each root:** a stale `index.lock` is removed, abandoned git temp files are swept, and an untrack interrupted by a crash is finished (or discarded, with its exclude pattern line removed).
 - **`GET /vcs/history` and `GET /vcs/diff`** return non-ASCII paths unescaped (`résumé.md`, not `"r\303\251sum\303\251.md"`).
 - **`GET /status`** gains `health.vcs` when some root has VCS enabled: the VCS root count, files pending commit, roots whose breaker is tripped, and when the longest-failing one first tripped.
-- **`GET /config/schema`** shows `maxFileBytes` under `watch.paths[].vcs`, the per-root override.
+- **`GET /config/schema`** shows `maxFileBytes` under `watch.paths[].vcs`, the per-root override (an approved wire departure, D185).
 
 ### Node.js and chokidar 6
 
