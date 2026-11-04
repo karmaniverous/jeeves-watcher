@@ -734,7 +734,7 @@ On shutdown, the watcher (v0.20.0+ order):
 | `commitThrottleMs` | `number` | `30000` | Throttle interval (ms) for batching commits (min: 1000). |
 | `maxBatchSize` | `number` | `1000` | Max files per commit batch (min: 1). |
 | `maxFileBytes` | `number \| string` | `100000000` | Size cap for versioned files: bytes, or a string with a `k`, `m` or `g` suffix (binary units). A new file over it is not staged; a tracked file that grows past it is untracked in its own commit. `0` disables. Read at each staging; per root via `watch.paths[].vcs.maxFileBytes`. GitHub warns on files over 50 MB and refuses files over 100 MiB, so a root pushed there wants a lower cap. See [Version Control](./version-control.md#file-size-cap). |
-| `branch` | `string` | `"master"` | Git branch name for VCS operations. Squash retention and startup recovery target this branch. |
+| `branch` | `string` | `"master"` | Git branch name for VCS operations. Squash retention targets this branch, and startup warns when HEAD is not on it. |
 | `author.name` | `string` | `"jeeves-watcher"` | Git commit author name, written to each repository's local git config at startup. |
 | `author.email` | `string` | `"watcher@localhost"` | Git commit author email. |
 | `commitMessage.enabled` | `boolean` | `true` | Enable AI-generated commit messages. |

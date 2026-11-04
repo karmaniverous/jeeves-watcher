@@ -57,7 +57,7 @@ Add a `vcs` block to your config:
 | `vcs.commitThrottleMs` | `30000` | Throttle interval (ms) for batching file changes into commits. Min: 1000 |
 | `vcs.maxBatchSize` | `1000` | Maximum files per commit batch. Flushes immediately when exceeded. Min: 1 |
 | `vcs.maxFileBytes` | `100000000` | Size cap for versioned files (bytes, or `k`/`m`/`g`). A new file over it is not staged; a tracked file that grows past it is untracked in its own commit. `0` disables |
-| `vcs.branch` | `"master"` | Git branch name for VCS operations. Squash retention and startup recovery target this branch |
+| `vcs.branch` | `"master"` | Git branch name for VCS operations. Squash retention targets this branch, and startup warns when HEAD is not on it |
 | `vcs.commitMessage.enabled` | `true` | Enable AI-generated commit messages |
 | `vcs.commitMessage.provider` | `"anthropic"` | AI provider (currently only `"anthropic"` supported) |
 | `vcs.commitMessage.model` | `"claude-haiku-4-0"` | AI model for commit message generation |
