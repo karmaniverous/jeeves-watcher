@@ -147,6 +147,19 @@ describe('VCS tool execution', () => {
     expect(body).not.toHaveProperty('root');
   });
 
+  it('watcher_vcs_exclude passes confirm (D103)', async () => {
+    const fetchMock = mockFetch({ ok: true });
+    vi.stubGlobal('fetch', fetchMock);
+    await run(captureTools(), 'watcher_vcs_exclude', {
+      glob: '/bulk/*.dat',
+      root: '/r',
+      confirm: true,
+    });
+    const call = fetchMock.mock.calls[0] as [string, RequestInit];
+    const body = JSON.parse(call[1].body as string) as Record<string, unknown>;
+    expect(body).toEqual({ glob: '/bulk/*.dat', root: '/r', confirm: true });
+  });
+
   it('watcher_vcs_check builds query string', async () => {
     const fetchMock = mockFetch({ excluded: false });
     vi.stubGlobal('fetch', fetchMock);
