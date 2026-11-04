@@ -14,7 +14,6 @@ import {
   registerOpenApiRoute,
 } from '@karmaniverous/jeeves/fastify';
 import {
-  getEndpoint,
   WATCHER_CATALOG,
   WATCHER_OPENAPI_DOCUMENT,
 } from '@karmaniverous/jeeves-watcher-core';
@@ -102,8 +101,8 @@ export function registerCatalog(
   app: FastifyInstance,
   options: RegisterCatalogOptions,
 ): void {
-  const configApplyPath = getEndpoint('configApply').path;
-  const rebuildMetadataPath = getEndpoint('rebuildMetadata').path;
+  const configApplyPath = WATCHER_CATALOG.byName('configApply').path;
+  const rebuildMetadataPath = WATCHER_CATALOG.byName('rebuildMetadata').path;
   const disabled = disabledRoutes(WATCHER_CATALOG.entries, {
     vcs: options.handlers.vcs !== undefined,
   });

@@ -66,7 +66,7 @@ function setup(
   const app = Fastify({ logger: false });
   if (options.apiKey) registerApiKeyAuth(app, options.apiKey, logger);
   void registerCatalogEntries(app, {
-    documents: createCatalogDocumentsHandler({
+    notifyDocuments: createCatalogDocumentsHandler({
       processor,
       sourceQueue: options.queue === false ? undefined : queue,
       logger,

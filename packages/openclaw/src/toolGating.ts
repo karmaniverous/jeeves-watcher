@@ -17,10 +17,8 @@
  *   `getComponentConfigDir`); the other actions query or drive the OS
  *   service manager by service name.
  *
- * The 14 domain tools are HTTP only and never gated: `watcher_search`,
- * `watcher_scan` and `watcher_vcs_show` come from the same core toolset;
- * the rest (in `watcherTools.ts` and `vcsTools.ts`) call the service API
- * via `registerApiTool` and `requestJson`.
+ * The 14 domain tools come from the same core toolset (D38): HTTP only,
+ * never gated.
  */
 
 /** Decides, per call, whether a tool invocation reads `configRoot`. */

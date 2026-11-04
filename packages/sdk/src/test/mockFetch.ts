@@ -25,6 +25,8 @@ export interface CannedResponse {
   status?: number;
   /** JSON body, or a raw string sent as-is. */
   body?: unknown;
+  /** Response headers. */
+  headers?: Record<string, string>;
 }
 
 /** A recording fetch plus its call log. */
@@ -49,7 +51,7 @@ export function mockFetch(
     const call: RecordedCall = {
       url,
       method: init.method ?? 'GET',
-      headers: { ...(init.headers as Record<string, string>) },
+      headers: Object.fromEntries(new Headers(init.headers).entries()),
       body:
         typeof init.body === 'string'
           ? (JSON.parse(init.body) as unknown)
@@ -63,7 +65,10 @@ export function mockFetch(
         ? canned.body
         : JSON.stringify(canned.body ?? {});
     return Promise.resolve(
-      new Response(text, { status: canned.status ?? 200 }),
+      new Response(text, {
+        status: canned.status ?? 200,
+        ...(canned.headers ? { headers: canned.headers } : {}),
+      }),
     );
   };
   return { fetch, calls };

@@ -1,6 +1,6 @@
 /**
  * @module api/catalog/configMatchHandler
- * Catalog handler for `POST /config/match`: tests file paths against the inference rules and the watch scope. The request (`paths`) is validated by the catalog's `configMatch` entry schema.
+ * Catalog handler for `POST /config/match`: tests file paths against the inference rules and the watch scope. The request (`paths`) is validated by the catalog's `matchConfig` entry schema.
  */
 
 import type { CatalogHandler } from '@karmaniverous/jeeves/fastify';
@@ -51,7 +51,7 @@ function compileConfig(config: JeevesWatcherConfig): CompiledConfig {
   };
 }
 
-/** Dependencies for the catalog `configMatch` entry's handler. */
+/** Dependencies for the catalog `matchConfig` entry's handler. */
 export interface CatalogConfigMatchDeps {
   /** Live config getter. */
   getConfig: () => JeevesWatcherConfig;
@@ -69,13 +69,13 @@ export interface CatalogConfigMatchDeps {
  */
 export function createCatalogConfigMatchHandler(
   deps: CatalogConfigMatchDeps,
-): CatalogHandler<Entry<'configMatch'>> {
+): CatalogHandler<Entry<'matchConfig'>> {
   const { getConfig, logger } = deps;
 
   // Cache compiled artifacts per config reference; recompute only on hot-reload.
   let cached: CompiledConfig | undefined;
 
-  return wrapCatalogHandler<Entry<'configMatch'>>(
+  return wrapCatalogHandler<Entry<'matchConfig'>>(
     (input) => {
       const config = getConfig();
       if (cached?.config !== config) cached = compileConfig(config);

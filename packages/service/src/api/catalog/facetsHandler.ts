@@ -198,7 +198,7 @@ export function createFacetsLister(deps: FacetsDeps) {
   };
 }
 
-/** Dependencies for the catalog `searchFacets` entry's handler. */
+/** Dependencies for the catalog `listFacets` entry's handler. */
 export interface CatalogFacetsDeps extends FacetsDeps {
   /** Logger (schema errors and unexpected failures). */
   logger: pino.Logger;
@@ -212,9 +212,9 @@ export interface CatalogFacetsDeps extends FacetsDeps {
  */
 export function createCatalogFacetsHandler(
   deps: CatalogFacetsDeps,
-): CatalogHandler<Entry<'searchFacets'>> {
+): CatalogHandler<Entry<'listFacets'>> {
   const listFacets = createFacetsLister(deps);
-  return wrapCatalogHandler<Entry<'searchFacets'>>(
+  return wrapCatalogHandler<Entry<'listFacets'>>(
     () => Promise.resolve({ body: listFacets() }),
     deps.logger,
     'Facets',

@@ -34,6 +34,7 @@
   "plugin": ["typedoc-plugin-mdn-links", "typedoc-plugin-replace-text"],
   "projectDocuments": [
     "./packages/service/guides/index.md",
+    "./packages/sdk/guides/index.md",
     "./packages/openclaw/guides/index.md"
   ],
   "replaceText": {

@@ -60,13 +60,13 @@ const GATED: Array<[Method, string, (string | object)?]> = [
 describe('feature gate, VCS off', () => {
   it('gates every /vcs/* catalog entry', () => {
     expect(Object.keys(WATCHER_FEATURE_GATES).sort()).toEqual([
-      'vcsCheckExclusion',
-      'vcsDiff',
-      'vcsExclude',
-      'vcsHistory',
-      'vcsRevert',
-      'vcsShow',
-      'vcsStatus',
+      'checkVcsExclusion',
+      'diffVcs',
+      'excludeVcsPath',
+      'getVcsStatus',
+      'listVcsHistory',
+      'revertVcs',
+      'showVcsFile',
     ]);
   });
 

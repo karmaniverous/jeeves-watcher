@@ -89,7 +89,7 @@ beforeAll(async () => {
   };
   app = Fastify({ logger: false });
   await registerCatalogEntries(app, {
-    metadata: createCatalogMetadataHandler({
+    setMetadata: createCatalogMetadataHandler({
       processor: withOps,
       getConfig,
       logger,
@@ -102,7 +102,7 @@ beforeAll(async () => {
   });
   plain = Fastify({ logger: false });
   await registerCatalogEntries(plain, {
-    metadata: createCatalogMetadataHandler({
+    setMetadata: createCatalogMetadataHandler({
       processor: withoutOps,
       getConfig,
       logger,

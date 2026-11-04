@@ -64,7 +64,7 @@ const issuesManager = { clear: vi.fn() };
 const app: FastifyInstance = Fastify({ logger: false });
 beforeAll(async () => {
   await registerCatalogEntries(app, {
-    documentsDelete: createCatalogDocumentsDeleteHandler({
+    deleteDocuments: createCatalogDocumentsDeleteHandler({
       vectorStore,
       enrichmentStore,
       issuesManager,

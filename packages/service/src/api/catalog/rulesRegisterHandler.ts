@@ -33,8 +33,8 @@ export interface CatalogRuleDeps {
  */
 export function createCatalogRulesRegisterHandler(
   deps: CatalogRuleDeps,
-): CatalogHandler<Entry<'rulesRegister'>> {
-  return wrapCatalogHandler<Entry<'rulesRegister'>>(
+): CatalogHandler<Entry<'registerRules'>> {
+  return wrapCatalogHandler<Entry<'registerRules'>>(
     (input) => {
       const { source } = input.body;
       // Named rules; the store validates the rest (match compiles, unique names).

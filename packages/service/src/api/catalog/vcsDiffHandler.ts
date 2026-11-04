@@ -1,6 +1,6 @@
 /**
  * @module api/catalog/vcsDiffHandler
- * Catalog handler for `GET /vcs/diff`: diff text (`text/plain`) for a glob between commits. The query is validated by the catalog's `vcsDiff` entry schema.
+ * Catalog handler for `GET /vcs/diff`: diff text (`text/plain`) for a glob between commits. The query is validated by the catalog's `diffVcs` entry schema.
  */
 
 import type { CatalogHandler } from '@karmaniverous/jeeves/fastify';
@@ -19,8 +19,8 @@ import { wrapCatalogHandler } from './wrapCatalogHandler';
  */
 export function createCatalogVcsDiffHandler(
   deps: CatalogVcsDeps,
-): CatalogHandler<Entry<'vcsDiff'>> {
-  return wrapCatalogHandler<Entry<'vcsDiff'>>(
+): CatalogHandler<Entry<'diffVcs'>> {
+  return wrapCatalogHandler<Entry<'diffVcs'>>(
     async (input) => {
       const { glob, commit, commitEnd } = input.query;
 

@@ -46,6 +46,86 @@ What changes for an existing deployment, release by release. The [Changelog](../
   2. Remove it with the glob you used in 0.20.0 (if you sent a leading `/` together with `root`, drop the `/` or send the absolute `<root>/...` form): `POST /vcs/exclude` `{ "glob": "<glob>", "remove": true }` (it falls back to 0.20.0's `.gitignore` line, and `file` names the `.gitignore` it edited).
   3. Add it again: `POST /vcs/exclude` `{ "glob": "<glob>" }` (same glob form as step 2). Mind the anchoring: write `**/` where the old line matched at any depth. Removing the `.gitignore` line brings the files back into the watcher's index scope, so they are embedded again (a reindex cost for large folders).
 
+### Operation names
+
+- **Every operation has one verb-first name** (D77): the catalog entry, the SDK method, the OpenAPI `operationId` and (as `watcher_` plus the name in snake_case) the plugin tool. Routes and paths are unchanged, so the HTTP API itself does not change. Renamed:
+
+  | 0.20.0 entry / `operationId` | 0.21.0                    |
+  | ---------------------------- | ------------------------- |
+  | `configSchema`               | `getConfigSchema`         |
+  | `configMatch`                | `matchConfig`             |
+  | `configValidate`             | `validateConfig`          |
+  | `issues`                     | `listIssues`              |
+  | `metadata`                   | `setMetadata`             |
+  | `searchFacets`               | `listFacets`              |
+  | `documents`                  | `notifyDocuments`         |
+  | `documentsDelete`            | `deleteDocuments`         |
+  | `pointsDelete`               | `deletePoints`            |
+  | `rulesRegister`              | `registerRules`           |
+  | `rulesUnregister`            | `unregisterRules`         |
+  | `rulesUnregisterBySource`    | `unregisterRulesBySource` |
+  | `rulesReapply`               | `reapplyRules`            |
+  | `vcsStatus`                  | `getVcsStatus`            |
+  | `vcsHistory`                 | `listVcsHistory`          |
+  | `vcsShow`                    | `showVcsFile`             |
+  | `vcsDiff`                    | `diffVcs`                 |
+  | `vcsCheckExclusion`          | `checkVcsExclusion`       |
+  | `vcsExclude`                 | `excludeVcsPath`          |
+  | `vcsRevert`                  | `revertVcs`               |
+
+  `status`, `config`, `configApply`, `search`, `scan`, `reindex`, `walk`, `render` and `rebuildMetadata` keep their names. Code generated from `openapi.json` sees the new `operationId`s.
+
+### SDK 0.3.0
+
+`@karmaniverous/jeeves-watcher-sdk` 0.3.0 is built on jeeves's catalog client over `WATCHER_CATALOG` (D36). Its own fetch layer is gone; it depends on `@karmaniverous/jeeves` 0.9.0 and `@karmaniverous/jeeves-watcher-core` ^0.5.0.
+
+- **New runtime dependency:** the SDK imports `@karmaniverous/jeeves/catalog`, so jeeves's own runtime dependencies (`commander`, `@commander-js/extra-typings`, `cross-spawn`, `jsonpath-plus`, `package-directory`, `semver`, `zod`) install in every consumer, whichever sub-path is imported.
+- **Methods are named by the catalog entry**, and the client now has one per entry: `issues()` becomes `listIssues()`, `metadata()` becomes `setMetadata()`, and the new methods include `getConfigSchema`, `matchConfig`, `validateConfig`, `listFacets`, `walk`, `config`, `configApply`, the rule methods, `deletePoints` and the VCS methods. `documents.notify` and `documents.delete` stay as they were. The [SDK guide](../../sdk/guides/sdk-guide.md#methods) lists every method.
+
+  ```ts
+  // 0.2.0
+  await watcher.issues();
+  await watcher.metadata({ source, metadata: { priority: 2 } });
+  // 0.3.0
+  await watcher.listIssues();
+  await watcher.setMetadata({ source, metadata: { priority: 2 } });
+  ```
+
+- **Inputs are validated by the entry's schemas, in their wire form.** Query fields are strings: `listVcsHistory({ glob, limit: '20' })`. A condition-free delete filter is still refused before sending.
+- **Responses are parsed by the entry's schema**, which drops fields a newer service adds. A new enum value from a newer service fails validation (`invalid_response`) until the SDK is upgraded: upgrade the SDK with the service.
+- **Error codes:** a non-2xx body's `code` wins; a body without one maps to `http_<status>` (0.2.0 fell back to the body's `error` text first). Client-side failures keep their codes (`invalid_request`, `invalid_response`, `timeout`, `network_error`, `invalid_options`).
+- **`WatcherError.retryAfterMs`** carries the server's `Retry-After` in milliseconds, clamped to one hour. The SDK still never retries.
+- **`documents.notify` no longer checks references client-side.** A malformed reference is sent, and the server returns it in the `202` body's `rejected` list.
+- **Test mocks:** requests now carry lowercase `authorization` and `content-type` headers and no `accept` header, and a mocked response must be a real `Response`.
+- **Timeouts:** the default stays 10 s. Raise `timeoutMs` for `excludeVcsPath`, `revertVcs` and `documents.notify(..., { wait: true })`; a timeout does not cancel them on the server (D119).
+
+### CLI
+
+- **Every API command goes through the SDK and now times out after 60 s** (0.20.0 set no timeout). A timeout does not cancel the operation on the server (D119); long operations on large corpora can exceed it (see the [CLI Reference](./cli-reference.md#output-and-errors)). Errors print as `<code>: <message>` (a `401` adds a line on supplying the key); exit code 1 as before.
+- **New commands:** `walk <globs...>`, and `vcs status`, `vcs history`, `vcs show`, `vcs diff`, `vcs revert`, `vcs check` and `vcs exclude` (#213); `reindex --dry-run` (#257). A timed-out `vcs exclude` or `vcs revert` says it may still complete and how to check. See the [CLI Reference](./cli-reference.md).
+
+### OpenClaw plugin 0.18.0
+
+- **Every tool is built from the catalog** (D38), so the ten hand-written-tool names change:
+
+  | 0.17.0 tool           | 0.18.0 tool                   |
+  | --------------------- | ----------------------------- |
+  | `watcher_enrich`      | `watcher_set_metadata`        |
+  | `watcher_validate`    | `watcher_validate_config`     |
+  | `watcher_issues`      | `watcher_list_issues`         |
+  | `watcher_vcs_status`  | `watcher_get_vcs_status`      |
+  | `watcher_vcs_history` | `watcher_list_vcs_history`    |
+  | `watcher_vcs_show`    | `watcher_show_vcs_file`       |
+  | `watcher_vcs_diff`    | `watcher_diff_vcs`            |
+  | `watcher_vcs_revert`  | `watcher_revert_vcs`          |
+  | `watcher_vcs_exclude` | `watcher_exclude_vcs_path`    |
+  | `watcher_vcs_check`   | `watcher_check_vcs_exclusion` |
+
+  Update any tool allow-list, prompt or skill that names the old tools. The bundled skill and prompt rules already use the new names.
+
+- **Parameters come from the catalog schemas.** `watcher_reindex` without `scope` still sends `rules`, `watcher_list_vcs_history.limit` is a string, and `watcher_set_metadata` also accepts `source`.
+- **Every tool waits 120 s** (core's default), and errors read `HTTP <status>: <body>`. A `401` no longer carries key guidance: see the skill's troubleshooting section.
+
 ### Dependencies
 
 - **unpdf 2** extracts PDF text. Indexed text is unchanged. unpdf 2 declares Node.js 24 or later, which the new Node floor covers.
@@ -54,6 +134,8 @@ What changes for an existing deployment, release by release. The [Changelog](../
 ### Library API
 
 - **`createLogger` is now async** and resolves once the log file is open. Add `await`: `const logger = await createLogger(config.logging);`.
+- **`WATCHER_ENDPOINTS` is removed from watcher-core** (D41), with `getEndpoint`, `EndpointName`, `EndpointDescriptor`, `HttpMethod` and `Endpoint`. Read routes from `WATCHER_CATALOG` instead: `WATCHER_CATALOG.byName('showVcsFile')` gives the entry's `method`, `path` and `description`, and `WATCHER_CATALOG.entries` lists them all.
+- **The client fetch helpers are removed from watcher-core:** `bearerHeaders`, `tryParseJson`, `httpError`, `formatHttpError`, `HttpErrorInfo` and `unauthorizedMessage`. Use the SDK (`createWatcherClient`, `WatcherError`) or jeeves's `createCatalogClient`. `API_KEY_ENV_VAR` stays.
 
 ### Rollback to 0.20.0
 
@@ -63,4 +145,5 @@ Stop the service and reinstall 0.20.0. Before starting it:
 2. **Over-cap files.** 0.20.0 has no size cap, so its next change to a file 0.21.0 untracked for size stages and commits it; a file over 100 MiB then makes GitHub reject every later push from that root. Find such files (on disk, over `vcs.maxFileBytes`, not listed by `git ls-files`; 0.21.0's warnings name them) and either set `vcs.enabled: false` for 0.20.0 or move them out of the watched root while 0.20.0 runs.
 3. **Logs.** 0.20.0 writes `logging.file` again; the rotated files can be archived.
 4. **Config.** The new keys (`vcs.maxFileBytes`, `logging.rotation`) can stay: 0.20.0 strips unknown keys on load.
-5. **Exclusions.** Move every pattern from each root's `.git/info/exclude` back into the root `.gitignore`, or delete it. 0.20.0 has no `check-ignore` filter, so an active exclude pattern makes its batches fail again (and trips the breaker), and its `POST /vcs/exclude` `remove` looks only in `.gitignore` files. A pattern moved into a `.gitignore` also drops its files from search under 0.20.0, so delete rather than move any pattern whose files must stay searchable. Files 0.21.0 untracked stay untracked until they next change.
+5. **Clients.** Roll the SDK back to 0.2.0 and the plugin to 0.17.0 with it: plugin 0.17.0 restores the old tool names, so revert any allow-list or prompt that names the 0.18.0 tools.
+6. **Exclusions.** Move every pattern from each root's `.git/info/exclude` back into the root `.gitignore`, or delete it. 0.20.0 has no `check-ignore` filter, so an active exclude pattern makes its batches fail again (and trips the breaker), and its `POST /vcs/exclude` `remove` looks only in `.gitignore` files. A pattern moved into a `.gitignore` also drops its files from search under 0.20.0, so delete rather than move any pattern whose files must stay searchable. Files 0.21.0 untracked stay untracked until they next change.

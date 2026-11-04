@@ -1,6 +1,6 @@
 /**
  * @module api/catalog/configValidateHandler
- * Catalog handler for `POST /config/validate`: validates a candidate config (the current one merged with the submitted partial) with optional test paths. The request is validated by the catalog's `configValidate` entry schema.
+ * Catalog handler for `POST /config/validate`: validates a candidate config (the current one merged with the submitted partial) with optional test paths. The request is validated by the catalog's `validateConfig` entry schema.
  */
 
 import { existsSync, readFileSync, statSync } from 'node:fs';
@@ -36,7 +36,7 @@ interface TestResult {
   error?: string;
 }
 
-/** Dependencies for the catalog `configValidate` entry's handler. */
+/** Dependencies for the catalog `validateConfig` entry's handler. */
 export interface CatalogConfigValidateDeps {
   getConfig: () => JeevesWatcherConfig;
   logger: pino.Logger;
@@ -128,8 +128,8 @@ function validateInferenceRuleSchemas(
  */
 export function createCatalogConfigValidateHandler(
   deps: CatalogConfigValidateDeps,
-): CatalogHandler<Entry<'configValidate'>> {
-  return wrapCatalogHandler<Entry<'configValidate'>>(
+): CatalogHandler<Entry<'validateConfig'>> {
+  return wrapCatalogHandler<Entry<'validateConfig'>>(
     async (input) => {
       const { config: submittedConfig, testPaths } = input.body;
 

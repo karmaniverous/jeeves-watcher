@@ -27,8 +27,9 @@ describe('SDK packaging', () => {
     expect(Object.keys(pkg.exports['.'])).toEqual(['import']);
   });
 
-  it('depends at runtime on jeeves-watcher-core only', () => {
+  it('depends at runtime on jeeves (the catalog client) and jeeves-watcher-core only', () => {
     expect(Object.keys(pkg.dependencies ?? {})).toEqual([
+      '@karmaniverous/jeeves',
       '@karmaniverous/jeeves-watcher-core',
     ]);
     expect(pkg.peerDependencies).toBeUndefined();

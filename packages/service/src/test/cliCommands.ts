@@ -1,6 +1,6 @@
 /**
  * @module test/cliCommands
- * Shared fetch mock and helpers for the custom CLI command suites (cli/jeeves-watcher/customCommands*.test.ts): a CLI with the commands registered, canned JSON responses and first-request inspection. No I/O.
+ * Shared fetch mock and helpers for the CLI command suites (cli/jeeves-watcher/*.test.ts): a CLI with the commands registered, canned JSON and text responses and first-request inspection. No I/O.
  */
 
 import { Command } from '@commander-js/extra-typings';
@@ -23,16 +23,39 @@ export function makeCli(): Command {
 }
 
 /**
- * Make the next fetch calls answer 200 with `data` as JSON.
+ * Make the next fetch calls answer with `data` as JSON (a fresh `Response`
+ * per call).
  *
  * @param data - Response body.
+ * @param status - HTTP status (default 200).
+ * @param headers - Extra response headers.
  */
-export function mockJsonResponse(data: unknown): void {
-  mockFetch.mockResolvedValue({
-    ok: true,
-    text: () => Promise.resolve(JSON.stringify(data)),
-    json: () => Promise.resolve(data),
-  });
+export function mockJsonResponse(
+  data: unknown,
+  status = 200,
+  headers: Record<string, string> = {},
+): void {
+  mockFetch.mockImplementation(() =>
+    Promise.resolve(
+      new Response(JSON.stringify(data), {
+        status,
+        headers: { 'content-type': 'application/json', ...headers },
+      }),
+    ),
+  );
+}
+
+/**
+ * Make the next fetch calls answer 200 with `text` as `text/plain`.
+ *
+ * @param text - Response body.
+ */
+export function mockTextResponse(text: string): void {
+  mockFetch.mockImplementation(() =>
+    Promise.resolve(
+      new Response(text, { headers: { 'content-type': 'text/plain' } }),
+    ),
+  );
 }
 
 /**

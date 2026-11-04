@@ -113,6 +113,8 @@ describe('watcherDescriptor', () => {
     expect(commandNames).toContain('rebuild-metadata');
     expect(commandNames).toContain('issues');
     expect(commandNames).toContain('helpers');
-    expect(commandNames).toHaveLength(7);
+    expect(commandNames).toContain('walk');
+    expect(commandNames).toContain('vcs');
+    expect(commandNames).toHaveLength(9);
   });
 });

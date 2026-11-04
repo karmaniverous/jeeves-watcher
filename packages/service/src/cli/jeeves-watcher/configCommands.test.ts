@@ -14,26 +14,41 @@ import { API_KEY_ENV_VAR } from '@karmaniverous/jeeves-watcher-core';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { watcherDescriptor } from '../../descriptor';
-import { cliUnauthorizedMessage } from './apiClient';
+import { unauthorizedHint } from './cliClient';
 import { authenticateConfigCommands } from './configCommands';
 
 const KEY = 'config-cmd-secret';
 const BASE = 'http://127.0.0.1:1936';
 
 type FetchArgs = [string, RequestInit | undefined];
-const fetchMock = vi.fn<(...args: FetchArgs) => Promise<unknown>>();
+const fetchMock = vi.fn<(...args: FetchArgs) => Promise<Response>>();
 
 let dir: string;
 
 /** Respond to every request with `status` and a JSON body. */
 function respond(status: number, data: unknown = {}): void {
-  fetchMock.mockResolvedValue({
-    ok: status >= 200 && status < 300,
-    status,
-    text: () => Promise.resolve(JSON.stringify(data)),
-    json: () => Promise.resolve(data),
-  });
+  fetchMock.mockImplementation(() =>
+    Promise.resolve(
+      new Response(JSON.stringify(data), {
+        status,
+        headers: { 'content-type': 'application/json' },
+      }),
+    ),
+  );
 }
+
+/** The `authorization` header of the first request, if any. */
+function sentAuthorization(): string | null {
+  return new Headers(fetchMock.mock.calls[0]?.[1]?.headers).get(
+    'authorization',
+  );
+}
+
+/** The URL of the first request. */
+const sentUrl = (): string | undefined => fetchMock.mock.calls[0]?.[0];
+
+/** A successful `POST /config/apply` body. */
+const APPLIED = { applied: true, config: {} };
 
 /** Run the real service CLI; return stdout and stderr. */
 async function runCli(args: string[]): Promise<{ out: string; err: string }> {
@@ -64,26 +79,26 @@ describe('config (query)', () => {
   it('sends the --api-key value as a bearer header', async () => {
     respond(200, { result: [1], count: 1 });
     const { out } = await runCli(['config', '$.api', '--api-key', KEY]);
-    expect(fetchMock).toHaveBeenCalledWith(
+    expect(sentUrl()).toBe(
       `${BASE}/config?path=${encodeURIComponent('$.api')}`,
-      { headers: { Authorization: ['Bearer', KEY].join(' ') } },
     );
+    expect(sentAuthorization()).toBe(['Bearer', KEY].join(' '));
     expect(JSON.parse(out)).toEqual({ result: [1], count: 1 });
   });
 
-  it('sends the same request as before when no key is set', async () => {
+  it('sends no authorization header when no key is set', async () => {
     respond(200);
     await runCli(['config', '-p', '2000']);
-    expect(fetchMock).toHaveBeenCalledWith(
-      'http://127.0.0.1:2000/config',
-      undefined,
-    );
+    expect(sentUrl()).toBe('http://127.0.0.1:2000/config');
+    expect(sentAuthorization()).toBeNull();
   });
 
-  it('reports 401 with guidance and exit code 1', async () => {
-    respond(401, { error: 'Unauthorized' });
+  it('reports 401 as <code>: <message> with the key hint, and exit code 1', async () => {
+    respond(401, { error: 'Unauthorized', code: 'unauthorized' });
     const { err } = await runCli(['config']);
-    expect(err).toBe(`Config query failed: ${cliUnauthorizedMessage(false)}`);
+    expect(err).toBe(
+      `Config query failed: unauthorized: Unauthorized\n${unauthorizedHint(false)}`,
+    );
     expect(process.exitCode).toBe(1);
   });
 });
@@ -109,7 +124,7 @@ describe('config apply', () => {
     ['whitespace only', ' \n', {}],
   ])('reads %s from stdin without --file', async (_label, text, patch) => {
     feedStdin(text);
-    respond(200, { applied: true });
+    respond(200, APPLIED);
     await runCli(['config', 'apply']);
     const [url, init] = fetchMock.mock.calls[0];
     expect(url).toBe(`${BASE}/config/apply`);
@@ -120,7 +135,7 @@ describe('config apply', () => {
     vi.stubEnv(API_KEY_ENV_VAR, KEY);
     const file = join(dir, 'patch.json');
     writeFileSync(file, '{"search":{"limit":5}}');
-    respond(200, { applied: true });
+    respond(200, APPLIED);
     const { out } = await runCli([
       'config',
       'apply',
@@ -130,20 +145,18 @@ describe('config apply', () => {
     ]);
     const [url, init] = fetchMock.mock.calls[0];
     expect(url).toBe(`${BASE}/config/apply`);
-    expect(init?.headers).toMatchObject({
-      Authorization: ['Bearer', KEY].join(' '),
-    });
+    expect(sentAuthorization()).toBe(['Bearer', KEY].join(' '));
     expect(JSON.parse(init?.body as string)).toEqual({
       patch: { search: { limit: 5 } },
       replace: true,
     });
-    expect(JSON.parse(out)).toEqual({ applied: true });
+    expect(JSON.parse(out)).toEqual(APPLIED);
   });
 
   it('reports a rejected key without printing it', async () => {
     const file = join(dir, 'patch.json');
     writeFileSync(file, '{}');
-    respond(401, { error: 'Unauthorized' });
+    respond(401, { error: 'Unauthorized', code: 'unauthorized' });
     const { out, err } = await runCli([
       'config',
       'apply',
@@ -152,7 +165,9 @@ describe('config apply', () => {
       '--api-key',
       KEY,
     ]);
-    expect(err).toBe(`Config apply failed: ${cliUnauthorizedMessage(true)}`);
+    expect(err).toBe(
+      `Config apply failed: unauthorized: Unauthorized\n${unauthorizedHint(true)}`,
+    );
     expect(`${out}${err}`).not.toContain(KEY);
     expect(process.exitCode).toBe(1);
   });

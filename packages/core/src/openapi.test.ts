@@ -75,9 +75,9 @@ describe('openapi.json', () => {
     }
   });
 
-  it('serves vcsShow as text/plain', () => {
+  it('serves showVcsFile as text/plain', () => {
     expect(
-      Object.keys(operation('vcsShow').responses['200']?.content ?? {}),
+      Object.keys(operation('showVcsFile').responses['200']?.content ?? {}),
     ).toEqual(['text/plain']);
   });
 });

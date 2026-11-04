@@ -67,13 +67,22 @@ const sourceTargetsSchema = z.union([
 export const reindexRequestSchema = z
   .object({
     /** Reindex scope. Default: `issues`. */
-    scope: reindexScopeSchema.optional(),
+    scope: reindexScopeSchema
+      .optional()
+      .describe(
+        'Reindex scope: "issues" re-processes documents that failed; "rules" re-applies inference rules without re-embedding; "full" re-embeds everything; "path" reindexes the given files or directories (`path`) or source references (`source`); "prune" deletes points for files no longer in watch scope.',
+      ),
     /** File path(s) or globs for scopes `path` and `rules`. */
     path: pathTargetsSchema.optional(),
     /** Source reference(s) for scope `path`. */
     source: sourceTargetsSchema.optional(),
     /** Compute and return the plan without executing. */
-    dryRun: z.boolean().optional(),
+    dryRun: z
+      .boolean()
+      .optional()
+      .describe(
+        'Return the blast-area plan (counts by root) without running the reindex.',
+      ),
   })
   .superRefine((val, ctx) => {
     if (val.scope === 'path') {

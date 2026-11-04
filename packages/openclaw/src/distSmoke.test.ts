@@ -1,6 +1,6 @@
 /**
  * @module plugin/distSmoke.test
- * Smoke test of the built plugin (`dist/index.js`, as OpenClaw loads it): it registers the 18 tools in their 0.17.0 order from its bundled watcher-core and Zod, keeps `watcher_search` and `watcher_scan` `direct-only`, and a catalog-built tool sends the bearer key. Runs after `npm run build`; in CI (which builds before testing) a missing `dist` fails.
+ * Smoke test of the built plugin (`dist/index.js`, as OpenClaw loads it): it registers the 18 tools in their 0.17.0 order (under their D77 names) from its bundled watcher-core and Zod, keeps `watcher_search` and `watcher_scan` `direct-only`, and a catalog-built tool sends the bearer key. Runs after `npm run build`; in CI (which builds before testing) a missing `dist` fails.
  */
 
 import { existsSync, readFileSync } from 'node:fs';
@@ -8,6 +8,8 @@ import { fileURLToPath } from 'node:url';
 
 import type { PluginApi, ToolDescriptor } from '@karmaniverous/jeeves';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+
+import { renamedTool } from './test/toolRenames.js';
 
 const DIST = new URL('../dist/index.js', import.meta.url);
 const built = existsSync(fileURLToPath(DIST));
@@ -19,7 +21,7 @@ const baselineNames = (
       'utf8',
     ),
   ) as { name: string }[]
-).map((t) => t.name);
+).map((t) => renamedTool(t.name));
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -50,7 +52,7 @@ describe('built plugin', () => {
   });
 
   describe.runIf(built)('dist/index.js', () => {
-    it('registers the 18 tools in their 0.17.0 order', async () => {
+    it('registers the 18 tools in their 0.17.0 order, renamed (D77)', async () => {
       const tools = await registerDist({});
       expect([...tools.keys()]).toEqual(baselineNames);
     });

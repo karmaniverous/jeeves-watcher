@@ -1,164 +1,276 @@
 /**
  * @module createWatcherClient.test
- * Unit tests for the client methods with an injected fetch: method, path (from the core catalog), headers, request bodies and validated responses.
+ * Unit tests for the catalog-built client with an injected fetch: the method set (one per catalog entry, documents grouped), method/path/query/body/bearer per call, text replies, the timeout handed to the catalog client, and the error mapping to WatcherError.
  */
 
-import { getEndpoint } from '@karmaniverous/jeeves-watcher-core';
-import { describe, expect, it } from 'vitest';
+import { WATCHER_CATALOG } from '@karmaniverous/jeeves-watcher-core';
+import { describe, expect, expectTypeOf, it } from 'vitest';
 
-import { createWatcherClient } from './createWatcherClient';
-import { f } from './filters';
+import { createWatcherClient, type WatcherClient } from './createWatcherClient';
+import { DEFAULT_TIMEOUT_MS, type FetchLike } from './options';
 import { type CannedResponse, mockFetch } from './test/mockFetch';
-import { WatcherError } from './WatcherError';
+import { MAX_RETRY_AFTER_MS } from './toWatcherError';
+import { isWatcherError, type WatcherError } from './WatcherError';
 
 const BASE = 'http://watcher.test:1936';
-
 const STATUS = {
   name: 'watcher',
-  version: '0.20.0',
-  uptime: 12,
+  version: '0.21.0',
+  uptime: 1,
   status: 'healthy',
   health: {},
 };
-const HIT = { id: 'p1', score: 0.9, payload: { source: 'app://a/1' } };
-const RENDER = { renderAs: 'md', content: '# x', rules: ['r'], metadata: {} };
-const REINDEX = { status: 'started', scope: 'issues' };
 
-function client(respond?: CannedResponse) {
+function client(
+  respond: CannedResponse | Parameters<typeof mockFetch>[0],
+  apiKey?: string,
+) {
   const mock = mockFetch(respond);
   return {
     mock,
-    watcher: createWatcherClient({ baseUrl: `${BASE}/`, fetch: mock.fetch }),
+    watcher: createWatcherClient({
+      baseUrl: `${BASE}/`,
+      ...(apiKey === undefined ? {} : { apiKey }),
+      fetch: mock.fetch,
+    }),
   };
 }
 
-describe('createWatcherClient', () => {
-  it('status: GET /status without a body or auth header', async () => {
-    const { watcher, mock } = client({ body: STATUS });
-    await expect(watcher.status()).resolves.toEqual(STATUS);
-    expect(mock.calls[0]).toMatchObject({
-      url: `${BASE}${getEndpoint('status').path}`,
-      method: 'GET',
-      body: undefined,
-    });
-    expect(mock.calls[0]?.headers).toEqual({ accept: 'application/json' });
-  });
+/** The WatcherError a call rejects with. */
+async function failure(call: Promise<unknown>): Promise<WatcherError> {
+  try {
+    await call;
+  } catch (error) {
+    if (isWatcherError(error)) return error;
+    throw error;
+  }
+  throw new Error('expected the call to reject');
+}
 
-  it('sends Authorization: Bearer when apiKey is set', async () => {
-    const mock = mockFetch({ body: STATUS });
-    const watcher = createWatcherClient({
-      baseUrl: BASE,
-      apiKey: 'sekret',
-      fetch: mock.fetch,
-    });
-    await watcher.issues().catch(() => undefined);
-    expect(mock.calls[0]?.headers.Authorization).toBe('Bearer sekret');
-  });
+/** The catalog entries the client exposes as top-level methods. */
+type TopLevel = Exclude<
+  (typeof WATCHER_CATALOG.entries)[number]['name'],
+  'notifyDocuments' | 'deleteDocuments'
+>;
 
-  it('search: POST /search with the validated body', async () => {
-    const { watcher, mock } = client({ body: [HIT] });
-    const filter = f.eq('user_id', 'u1');
-    await expect(
-      watcher.search({ query: 'hello', limit: 8, filter }),
-    ).resolves.toEqual([HIT]);
-    expect(mock.calls[0]).toMatchObject({
-      url: `${BASE}/search`,
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: { query: 'hello', limit: 8, filter },
-    });
-  });
-
-  it('scan: accepts both the page and the countOnly response', async () => {
-    const page = client({ body: { points: [], cursor: null } });
-    await expect(
-      page.watcher.scan({ filter: f.eq('a', 1), limit: 10 }),
-    ).resolves.toEqual({ points: [], cursor: null });
-    expect(page.mock.calls[0]?.url).toBe(`${BASE}/scan`);
-
-    const count = client({ body: { count: 3 } });
-    await expect(
-      count.watcher.scan({ filter: {}, countOnly: true }),
-    ).resolves.toEqual({ count: 3 });
-  });
-
-  it.each([[{ path: 'c:/docs/a.md' }], [{ source: 'app://chat/thread/1' }]])(
-    'render: POST /render with %j',
-    async (request) => {
-      const { watcher, mock } = client({ body: RENDER });
-      await expect(watcher.render(request)).resolves.toEqual(RENDER);
-      expect(mock.calls[0]).toMatchObject({
-        url: `${BASE}/render`,
-        body: request,
-      });
-    },
-  );
-
-  it('metadata: POST /metadata', async () => {
-    const response = { ok: true, matched_rules: ['r'] };
-    const { watcher, mock } = client({ body: response });
-    const request = { source: 'app://chat/thread/1', metadata: { p: 1 } };
-    await expect(watcher.metadata(request)).resolves.toEqual(response);
-    expect(mock.calls[0]).toMatchObject({
-      url: `${BASE}/metadata`,
-      body: request,
-    });
-  });
-
-  it('reindex: POST /reindex, defaulting to an empty body', async () => {
-    const { watcher, mock } = client({ body: REINDEX });
-    await expect(watcher.reindex()).resolves.toEqual(REINDEX);
-    expect(mock.calls[0]).toMatchObject({ url: `${BASE}/reindex`, body: {} });
-
-    await watcher.reindex({ scope: 'path', source: ['app://a/1'] });
-    expect(mock.calls[1]?.body).toEqual({
-      scope: 'path',
-      source: ['app://a/1'],
-    });
-  });
-
-  it('issues: GET /issues', async () => {
-    const issues = {
-      count: 1,
-      issues: {
-        'app://a/1': [
-          { type: 'source_unavailable', message: 'down', timestamp: 1 },
-        ],
-      },
-    };
-    const { watcher, mock } = client({ body: issues });
-    await expect(watcher.issues()).resolves.toEqual(issues);
-    expect(mock.calls[0]).toMatchObject({
-      url: `${BASE}/issues`,
-      method: 'GET',
-    });
-  });
-
-  it('preserves response fields unknown to the schema', async () => {
-    const { watcher } = client({ body: { ...STATUS, extra: 'kept' } });
-    await expect(watcher.status()).resolves.toMatchObject({ extra: 'kept' });
-  });
-
-  it.each([
-    ['render with neither path nor source', (w: Client) => w.render({})],
-    [
-      'render with both path and source',
-      (w: Client) => w.render({ path: 'a', source: 'app://a/1' }),
-    ],
-    ['search with an empty query', (w: Client) => w.search({ query: '' })],
-    ['scan with limit 0', (w: Client) => w.scan({ filter: {}, limit: 0 })],
-    [
-      'reindex source outside scope path',
-      (w: Client) => w.reindex({ scope: 'full', source: 'app://a/1' }),
-    ],
-  ])('rejects %s client-side without sending', async (_, call) => {
-    const { watcher, mock } = client({ body: {} });
-    const error = await call(watcher).catch((e: unknown) => e);
-    expect(error).toBeInstanceOf(WatcherError);
-    expect(error).toMatchObject({ code: 'invalid_request' });
-    expect((error as WatcherError).details).toBeInstanceOf(Array);
-    expect(mock.calls).toHaveLength(0);
+describe('createWatcherClient method set (D36, D60)', () => {
+  it('has one method per catalog entry, named by the entry, with notifyDocuments and deleteDocuments as documents.notify and documents.delete', () => {
+    const { watcher } = client({});
+    const expected = WATCHER_CATALOG.entries
+      .map((e) => e.name)
+      .filter((n) => n !== 'notifyDocuments' && n !== 'deleteDocuments');
+    expect(Object.keys(watcher).sort()).toEqual(
+      [...expected, 'documents'].sort(),
+    );
+    expect(Object.keys(watcher.documents).sort()).toEqual(['delete', 'notify']);
+    expectTypeOf<keyof WatcherClient>().toEqualTypeOf<TopLevel | 'documents'>();
   });
 });
 
-type Client = ReturnType<typeof createWatcherClient>;
+describe('createWatcherClient requests', () => {
+  it('sends status without a key even when one is configured', async () => {
+    const { watcher, mock } = client({ body: STATUS }, 'k');
+    await expect(watcher.status()).resolves.toEqual(STATUS);
+    expect(mock.calls[0]).toMatchObject({
+      url: `${BASE}/status`,
+      method: 'GET',
+    });
+    expect(mock.calls[0]?.headers.authorization).toBeUndefined();
+  });
+
+  it('posts a validated body with the bearer key', async () => {
+    const { watcher, mock } = client({ body: [] }, 'k');
+    await watcher.search({ query: 'q', limit: 2 });
+    expect(mock.calls[0]).toMatchObject({
+      url: `${BASE}/search`,
+      method: 'POST',
+      body: { query: 'q', limit: 2 },
+      headers: { authorization: 'Bearer k' },
+    });
+  });
+
+  it('sends no authorization header without a key', async () => {
+    const { watcher, mock } = client({ body: { count: 0, issues: {} } });
+    await watcher.listIssues();
+    expect(mock.calls[0]?.url).toBe(`${BASE}/issues`);
+    expect(mock.calls[0]?.headers.authorization).toBeUndefined();
+  });
+
+  it('calls reindex with no input', async () => {
+    const { watcher, mock } = client({
+      body: { status: 'started', scope: 'issues' },
+    });
+    await watcher.reindex();
+    expect(mock.calls[0]).toMatchObject({
+      url: `${BASE}/reindex`,
+      method: 'POST',
+    });
+  });
+
+  it('puts query fields in the query string and returns text replies as strings', async () => {
+    const { watcher, mock } = client({ body: 'old content' });
+    await expect(
+      watcher.showVcsFile({ path: 'a b.md', commit: 'abc' }),
+    ).resolves.toBe('old content');
+    expect(mock.calls[0]?.url).toBe(
+      `${BASE}/vcs/show?path=a%20b.md&commit=abc`,
+    );
+  });
+
+  it('fills path parameters', async () => {
+    const { watcher, mock } = client({
+      body: { source: 'meta/x', removed: true },
+    });
+    await watcher.unregisterRulesBySource({ source: 'meta/x' });
+    expect(mock.calls[0]).toMatchObject({
+      url: `${BASE}/rules/unregister/meta%2Fx`,
+      method: 'DELETE',
+    });
+  });
+
+  it('drops unknown response keys (the entry schema strips them)', async () => {
+    const { watcher } = client({ body: { count: 0, issues: {}, extra: 1 } });
+    await expect(watcher.listIssues()).resolves.toEqual({
+      count: 0,
+      issues: {},
+    });
+  });
+
+  it('hands the catalog client a 10 s default timeout', async () => {
+    const { watcher, mock } = client({ body: STATUS });
+    const before = Date.now();
+    await watcher.status();
+    expect(mock.calls[0]?.signal).toBeInstanceOf(AbortSignal);
+    expect(DEFAULT_TIMEOUT_MS).toBe(10_000);
+    expect(Date.now() - before).toBeLessThan(DEFAULT_TIMEOUT_MS);
+  });
+});
+
+describe('createWatcherClient errors (one WatcherError mapping, D53)', () => {
+  it('keeps the server code, status, message and details of an error body', async () => {
+    const { watcher } = client({
+      status: 400,
+      body: {
+        error: 'Validation failed',
+        code: 'invalid_request',
+        details: [{ property: 'p' }],
+      },
+    });
+    const err = await failure(
+      watcher.setMetadata({ path: '/a', metadata: {} }),
+    );
+    expect(err).toMatchObject({
+      code: 'invalid_request',
+      status: 400,
+      message: 'Validation failed',
+      details: [{ property: 'p' }],
+    });
+    expect(err.retryAfterMs).toBeUndefined();
+  });
+
+  it('joins a distinct message to the error text', async () => {
+    const { watcher } = client({
+      status: 409,
+      body: { error: 'Conflict', message: 'busy', code: 'conflict' },
+    });
+    const err = await failure(watcher.reindex({ scope: 'full' }));
+    expect(err.message).toBe('Conflict: busy');
+  });
+
+  it('maps a code-less error body to http_<status>', async () => {
+    const { watcher } = client({ status: 502, body: 'Bad Gateway' });
+    const err = await failure(watcher.listIssues());
+    expect(err).toMatchObject({
+      code: 'http_502',
+      status: 502,
+      message: 'Bad Gateway',
+    });
+  });
+
+  it('falls back to HTTP <status> when the body has no error text', async () => {
+    const { watcher } = client({ status: 500, body: '' });
+    const err = await failure(watcher.listIssues());
+    expect(err).toMatchObject({ code: 'http_500', message: 'HTTP 500' });
+  });
+
+  it.each([
+    ['30', 30_000],
+    ['0', 0],
+    ['7200', MAX_RETRY_AFTER_MS],
+  ])(
+    'reports Retry-After %s as retryAfterMs %d (clamped to 1 h)',
+    async (header, ms) => {
+      const { watcher } = client({
+        status: 503,
+        body: { error: 'busy', code: 'not_available' },
+        headers: { 'retry-after': header },
+      });
+      const err = await failure(watcher.excludeVcsPath({ glob: '/data/x/**' }));
+      expect(err).toMatchObject({ code: 'not_available', retryAfterMs: ms });
+    },
+  );
+
+  it('refuses input that fails the entry schema before sending (invalid_request)', async () => {
+    const { watcher, mock } = client({ body: [] });
+    const err = await failure(watcher.search({ query: '' }));
+    expect(err.code).toBe('invalid_request');
+    expect(err.status).toBeUndefined();
+    expect(Array.isArray(err.details)).toBe(true);
+    expect(mock.calls).toHaveLength(0);
+  });
+
+  it('refuses a condition-free delete filter before sending', async () => {
+    const { watcher, mock } = client({ body: { deleted: 0 } });
+    const err = await failure(watcher.documents.delete({ filter: {} }));
+    expect(err.code).toBe('invalid_request');
+    expect(mock.calls).toHaveLength(0);
+  });
+
+  it('maps a 2xx body that fails the response schema to invalid_response', async () => {
+    const { watcher } = client({ body: { count: 'x' } });
+    const err = await failure(watcher.listIssues());
+    expect(err).toMatchObject({ code: 'invalid_response', status: 200 });
+    expect(err.message).toBe(
+      'listIssues response did not match the expected shape',
+    );
+  });
+
+  it('maps a 2xx body that is not JSON to invalid_response', async () => {
+    const { watcher } = client({ body: 'not json' });
+    const err = await failure(watcher.listIssues());
+    expect(err.code).toBe('invalid_response');
+    expect(err.message).toBe('listIssues returned a response that is not JSON');
+  });
+
+  it('maps a timeout to timeout, naming the operation and the limit', async () => {
+    const hang: FetchLike = (_url, init) =>
+      new Promise((_resolve, reject) => {
+        init.signal?.addEventListener('abort', () => {
+          reject(init.signal?.reason as Error);
+        });
+      });
+    const watcher = createWatcherClient({
+      baseUrl: BASE,
+      timeoutMs: 20,
+      fetch: hang,
+    });
+    const err = await failure(watcher.search({ query: 'q' }));
+    expect(err).toMatchObject({
+      code: 'timeout',
+      message: 'search timed out after 20 ms',
+    });
+    expect(err.status).toBeUndefined();
+  });
+
+  it('maps a rejected fetch to network_error', async () => {
+    const watcher = createWatcherClient({
+      baseUrl: BASE,
+      fetch: () => Promise.reject(new TypeError('fetch failed')),
+    });
+    const err = await failure(watcher.status());
+    expect(err).toMatchObject({
+      code: 'network_error',
+      message: 'status request failed: fetch failed',
+    });
+  });
+});

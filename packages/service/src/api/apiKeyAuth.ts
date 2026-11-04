@@ -5,7 +5,7 @@
 
 import { createHash, timingSafeEqual } from 'node:crypto';
 
-import { getEndpoint } from '@karmaniverous/jeeves-watcher-core';
+import { WATCHER_CATALOG } from '@karmaniverous/jeeves-watcher-core';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import type pino from 'pino';
 
@@ -59,7 +59,9 @@ export const OPENAPI_PATH = '/openapi.json';
 export function isPublicRoute(method: string, url: string): boolean {
   if (method !== 'GET' && method !== 'HEAD') return false;
   const path = url.split('?', 1)[0];
-  return path === getEndpoint('status').path || path === OPENAPI_PATH;
+  return (
+    path === WATCHER_CATALOG.byName('status').path || path === OPENAPI_PATH
+  );
 }
 
 /**

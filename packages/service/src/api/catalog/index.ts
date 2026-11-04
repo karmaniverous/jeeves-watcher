@@ -102,43 +102,43 @@ export interface CreateCatalogHandlersOptions {
   config: CatalogConfigDeps;
   /** `configApply` entry dependencies. */
   configApply: CatalogConfigApplyDeps;
-  /** `configMatch` entry dependencies. */
-  configMatch: CatalogConfigMatchDeps;
-  /** `configValidate` entry dependencies. */
-  configValidate: CatalogConfigValidateDeps;
+  /** `matchConfig` entry dependencies. */
+  matchConfig: CatalogConfigMatchDeps;
+  /** `validateConfig` entry dependencies. */
+  validateConfig: CatalogConfigValidateDeps;
   /** `render` entry dependencies. */
   render: CatalogRenderDeps;
   /** `search` entry dependencies. */
   search: CatalogSearchDeps;
   /** `scan` entry dependencies. */
   scan: CatalogScanDeps;
-  /** `searchFacets` entry dependencies. */
-  searchFacets: CatalogFacetsDeps;
+  /** `listFacets` entry dependencies. */
+  listFacets: CatalogFacetsDeps;
   /** `walk` entry dependencies. */
   walk: CatalogWalkDeps;
-  /** `issues` entry dependencies. */
-  issues: CatalogIssuesDeps;
-  /** `metadata` entry dependencies. */
-  metadata: CatalogMetadataDeps;
+  /** `listIssues` entry dependencies. */
+  listIssues: CatalogIssuesDeps;
+  /** `setMetadata` entry dependencies. */
+  setMetadata: CatalogMetadataDeps;
   /** `reindex` entry dependencies. */
   reindex: CatalogReindexDeps;
-  /** `documents` entry dependencies. */
-  documents: CatalogDocumentsDeps;
-  /** `documentsDelete` entry dependencies. */
-  documentsDelete: CatalogDocumentsDeleteDeps;
-  /** `pointsDelete` entry dependencies. */
-  pointsDelete: CatalogPointsDeleteDeps;
+  /** `notifyDocuments` entry dependencies. */
+  notifyDocuments: CatalogDocumentsDeps;
+  /** `deleteDocuments` entry dependencies. */
+  deleteDocuments: CatalogDocumentsDeleteDeps;
+  /** `deletePoints` entry dependencies. */
+  deletePoints: CatalogPointsDeleteDeps;
   /** `rebuildMetadata` entry dependencies. */
   rebuildMetadata: CatalogRebuildMetadataDeps;
-  /** `rulesReapply` entry dependencies. */
-  rulesReapply: CatalogRulesReapplyDeps;
-  /** Virtual-rule entries' dependencies (`rulesRegister`, `rulesUnregister`,
-   * `rulesUnregisterBySource`). */
+  /** `reapplyRules` entry dependencies. */
+  reapplyRules: CatalogRulesReapplyDeps;
+  /** Virtual-rule entries' dependencies (`registerRules`, `unregisterRules`,
+   * `unregisterRulesBySource`). */
   rules: CatalogRuleDeps;
   /** `/vcs/*` entries' dependencies; absent while version control is off. */
   vcs?: CatalogVcsDeps;
   /** Response cache TTL for the cached entries (`status`, `config`,
-   * `configSchema`, `issues`, the file-target `render`). */
+   * `getConfigSchema`, `listIssues`, the file-target `render`). */
   cacheTtlMs: number;
 }
 
@@ -153,13 +153,13 @@ type GatedHandlers = Pick<CatalogHandlers<WatcherCatalog>, GatedEntryName>;
  */
 export function createVcsCatalogHandlers(deps: CatalogVcsDeps): GatedHandlers {
   return {
-    vcsStatus: createCatalogVcsStatusHandler(deps),
-    vcsHistory: createCatalogVcsHistoryHandler(deps),
-    vcsShow: createCatalogVcsShowHandler(deps),
-    vcsDiff: createCatalogVcsDiffHandler(deps),
-    vcsCheckExclusion: createCatalogVcsCheckExclusionHandler(deps),
-    vcsRevert: createCatalogVcsRevertHandler(deps),
-    vcsExclude: createCatalogVcsExcludeHandler(deps),
+    getVcsStatus: createCatalogVcsStatusHandler(deps),
+    listVcsHistory: createCatalogVcsHistoryHandler(deps),
+    showVcsFile: createCatalogVcsShowHandler(deps),
+    diffVcs: createCatalogVcsDiffHandler(deps),
+    checkVcsExclusion: createCatalogVcsCheckExclusionHandler(deps),
+    revertVcs: createCatalogVcsRevertHandler(deps),
+    excludeVcsPath: createCatalogVcsExcludeHandler(deps),
   };
 }
 
@@ -185,13 +185,13 @@ function gatedOff() {
  */
 function vcsOffHandlers(): GatedHandlers {
   return {
-    vcsStatus: gatedOff(),
-    vcsHistory: gatedOff(),
-    vcsShow: gatedOff(),
-    vcsDiff: gatedOff(),
-    vcsCheckExclusion: gatedOff(),
-    vcsRevert: gatedOff(),
-    vcsExclude: gatedOff(),
+    getVcsStatus: gatedOff(),
+    listVcsHistory: gatedOff(),
+    showVcsFile: gatedOff(),
+    diffVcs: gatedOff(),
+    checkVcsExclusion: gatedOff(),
+    revertVcs: gatedOff(),
+    excludeVcsPath: gatedOff(),
   };
 }
 
@@ -215,13 +215,13 @@ export function createCatalogHandlers(
     status: withCatalogCache('status', ttl, standard.status),
     config: withCatalogCache('config', ttl, standard.config),
     configApply: standard.configApply,
-    configSchema: withCatalogCache(
-      'configSchema',
+    getConfigSchema: withCatalogCache(
+      'getConfigSchema',
       ttl,
       createCatalogConfigSchemaHandler(),
     ),
-    configMatch: createCatalogConfigMatchHandler(options.configMatch),
-    configValidate: createCatalogConfigValidateHandler(options.configValidate),
+    matchConfig: createCatalogConfigMatchHandler(options.matchConfig),
+    validateConfig: createCatalogConfigValidateHandler(options.validateConfig),
     // Source renders reply Cache-Control: no-cache, so they are never cached.
     render: withCatalogCache(
       'render',
@@ -230,27 +230,27 @@ export function createCatalogHandlers(
     ),
     search: createCatalogSearchHandler(options.search),
     scan: createCatalogScanHandler(options.scan),
-    searchFacets: createCatalogFacetsHandler(options.searchFacets),
+    listFacets: createCatalogFacetsHandler(options.listFacets),
     walk: createCatalogWalkHandler(options.walk),
-    issues: withCatalogCache(
-      'issues',
+    listIssues: withCatalogCache(
+      'listIssues',
       ttl,
-      createCatalogIssuesHandler(options.issues),
+      createCatalogIssuesHandler(options.listIssues),
     ),
-    metadata: createCatalogMetadataHandler(options.metadata),
+    setMetadata: createCatalogMetadataHandler(options.setMetadata),
     reindex: createCatalogReindexHandler(options.reindex),
-    documents: createCatalogDocumentsHandler(options.documents),
-    documentsDelete: createCatalogDocumentsDeleteHandler(
-      options.documentsDelete,
+    notifyDocuments: createCatalogDocumentsHandler(options.notifyDocuments),
+    deleteDocuments: createCatalogDocumentsDeleteHandler(
+      options.deleteDocuments,
     ),
-    pointsDelete: createCatalogPointsDeleteHandler(options.pointsDelete),
+    deletePoints: createCatalogPointsDeleteHandler(options.deletePoints),
     rebuildMetadata: createCatalogRebuildMetadataHandler(
       options.rebuildMetadata,
     ),
-    rulesReapply: createCatalogRulesReapplyHandler(options.rulesReapply),
-    rulesRegister: createCatalogRulesRegisterHandler(options.rules),
-    rulesUnregister: createCatalogRulesUnregisterHandler(options.rules),
-    rulesUnregisterBySource: createCatalogRulesUnregisterBySourceHandler(
+    reapplyRules: createCatalogRulesReapplyHandler(options.reapplyRules),
+    registerRules: createCatalogRulesRegisterHandler(options.rules),
+    unregisterRules: createCatalogRulesUnregisterHandler(options.rules),
+    unregisterRulesBySource: createCatalogRulesUnregisterBySourceHandler(
       options.rules,
     ),
     ...(options.vcs ? createVcsCatalogHandlers(options.vcs) : vcsOffHandlers()),

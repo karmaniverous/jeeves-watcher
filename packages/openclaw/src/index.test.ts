@@ -64,7 +64,7 @@ describe('register', () => {
       'watcher_service',
       'watcher_search',
       'watcher_scan',
-      'watcher_vcs_status',
+      'watcher_get_vcs_status',
     ]) {
       expect(tools.has(name)).toBe(true);
     }

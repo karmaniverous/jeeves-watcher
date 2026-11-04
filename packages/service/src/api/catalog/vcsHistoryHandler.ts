@@ -1,6 +1,6 @@
 /**
  * @module api/catalog/vcsHistoryHandler
- * Catalog handler for `GET /vcs/history`: commit history for a glob (a bare array, newest first). The query is validated by the catalog's `vcsHistory` entry schema.
+ * Catalog handler for `GET /vcs/history`: commit history for a glob (a bare array, newest first). The query is validated by the catalog's `listVcsHistory` entry schema.
  */
 
 import type { CatalogHandler } from '@karmaniverous/jeeves/fastify';
@@ -62,8 +62,8 @@ function parseGitLog(stdout: string): HistoryEntry[] {
  */
 export function createCatalogVcsHistoryHandler(
   deps: CatalogVcsDeps,
-): CatalogHandler<Entry<'vcsHistory'>> {
-  return wrapCatalogHandler<Entry<'vcsHistory'>>(
+): CatalogHandler<Entry<'listVcsHistory'>> {
+  return wrapCatalogHandler<Entry<'listVcsHistory'>>(
     async (input) => {
       const { glob, since, until, limit: limitStr } = input.query;
 

@@ -68,7 +68,7 @@ function build(options: {
   const server = Fastify();
   app = server;
   void registerCatalogEntries(server, {
-    metadata: createCatalogMetadataHandler({
+    setMetadata: createCatalogMetadataHandler({
       processor,
       getConfig: () => config,
       logger: pino({ level: 'silent' }),

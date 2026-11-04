@@ -42,7 +42,7 @@ afterEach(() => {
 describe('search command', () => {
   it('sends query and limit to the correct endpoint', async () => {
     const cli = makeCli();
-    const mockResults = [{ id: '1', score: 0.95 }];
+    const mockResults = [{ id: '1', score: 0.95, payload: {} }];
     mockJsonResponse(mockResults);
 
     await cli.parseAsync([
@@ -96,7 +96,9 @@ describe('search command', () => {
 
     await cli.parseAsync(['node', 'test', 'search', 'query']);
 
-    expect(consoleErrorSpy).toHaveBeenCalledWith('ECONNREFUSED');
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      'network_error: search request failed: ECONNREFUSED',
+    );
   });
 });
 

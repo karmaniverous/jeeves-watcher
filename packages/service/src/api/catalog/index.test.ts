@@ -97,18 +97,18 @@ function buildHandlers(
       } as never,
       logger,
     },
-    configMatch: unused,
-    configValidate: unused,
-    searchFacets: unused,
+    matchConfig: unused,
+    validateConfig: unused,
+    listFacets: unused,
     walk: unused,
-    issues: { issuesManager: { getAll: () => ({}) } },
-    metadata: unused,
+    listIssues: { issuesManager: { getAll: () => ({}) } },
+    setMetadata: unused,
     reindex: unused,
-    documents: unused,
-    documentsDelete: unused,
-    pointsDelete: unused,
+    notifyDocuments: unused,
+    deleteDocuments: unused,
+    deletePoints: unused,
     rebuildMetadata: unused,
-    rulesReapply: unused,
+    reapplyRules: unused,
     rules: unused,
     ...(vcs ? { vcs } : {}),
     cacheTtlMs,
@@ -154,7 +154,7 @@ describe('createCatalogHandlers', () => {
     );
     expect(scan.status).toBe(200);
 
-    const issues = await handlers.issues(input, {} as never);
+    const issues = await handlers.listIssues(input, {} as never);
     expect(issues).toEqual({ status: 200, body: { count: 0, issues: {} } });
   });
 
@@ -164,13 +164,13 @@ describe('createCatalogHandlers', () => {
     const input = { params: {}, query: {}, body: {} } as never;
 
     for (const name of [
-      'vcsStatus',
-      'vcsHistory',
-      'vcsShow',
-      'vcsDiff',
-      'vcsCheckExclusion',
-      'vcsRevert',
-      'vcsExclude',
+      'getVcsStatus',
+      'listVcsHistory',
+      'showVcsFile',
+      'diffVcs',
+      'checkVcsExclusion',
+      'revertVcs',
+      'excludeVcsPath',
     ] as const) {
       const result = await handlers[name](input, request(`/x?${name}`));
       expect(result).toEqual({
@@ -187,7 +187,7 @@ describe('createCatalogHandlers', () => {
       logger: pino({ level: 'silent' }),
     });
 
-    const status = await handlers.vcsStatus(
+    const status = await handlers.getVcsStatus(
       { params: {}, query: {}, body: {} },
       {} as never,
     );

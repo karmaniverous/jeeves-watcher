@@ -3,9 +3,9 @@
  *
  * @remarks
  * Only watcher-specific resolution logic (API URL, API key, config root)
- * lives here. Core SDK types and utilities (`PluginApi`, `ToolResult`, `ok`,
- * `connectionFail`) should be imported directly from `@karmaniverous/jeeves`;
- * watcher API requests go through `requestJson` (`./http.js`).
+ * lives here. Core SDK types and utilities should be imported directly from
+ * `@karmaniverous/jeeves`; every watcher API request goes through core's
+ * catalog toolset (`catalogTools.ts`).
  *
  * @module plugin/helpers
  */

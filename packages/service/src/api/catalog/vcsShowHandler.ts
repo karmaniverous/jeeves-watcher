@@ -50,7 +50,7 @@ function contentTypeFor(path: string): string {
  */
 export function createCatalogVcsShowHandler(
   deps: Pick<CatalogVcsDeps, 'coordinator'>,
-): CatalogHandler<Entry<'vcsShow'>> {
+): CatalogHandler<Entry<'showVcsFile'>> {
   return async (input) => {
     const { path, commit } = input.query;
     const resolved = resolveWatchRoot(deps.coordinator, path);

@@ -31,8 +31,8 @@ beforeEach(async () => {
   };
   app = Fastify({ logger: false });
   await registerCatalogEntries(app, {
-    rulesUnregister: createCatalogRulesUnregisterHandler(deps),
-    rulesUnregisterBySource: createCatalogRulesUnregisterBySourceHandler(deps),
+    unregisterRules: createCatalogRulesUnregisterHandler(deps),
+    unregisterRulesBySource: createCatalogRulesUnregisterBySourceHandler(deps),
   });
 });
 

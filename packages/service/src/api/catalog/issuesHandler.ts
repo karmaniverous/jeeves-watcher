@@ -8,7 +8,7 @@ import type { CatalogHandler } from '@karmaniverous/jeeves/fastify';
 import type { IssuesManager } from '../../issues';
 import type { Entry } from './catalogEntry';
 
-/** Dependencies for the catalog `issues` entry's handler. */
+/** Dependencies for the catalog `listIssues` entry's handler. */
 export interface CatalogIssuesDeps {
   /** The issues store. */
   issuesManager: Pick<IssuesManager, 'getAll'>;
@@ -23,7 +23,7 @@ export interface CatalogIssuesDeps {
  */
 export function createCatalogIssuesHandler(
   deps: CatalogIssuesDeps,
-): CatalogHandler<Entry<'issues'>> {
+): CatalogHandler<Entry<'listIssues'>> {
   return () => {
     const issues = deps.issuesManager.getAll();
     // A key without issues would not survive JSON serialisation anyway, so

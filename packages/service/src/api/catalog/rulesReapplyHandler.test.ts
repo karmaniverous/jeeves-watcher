@@ -24,7 +24,7 @@ async function invoke(body: unknown) {
   );
   const app = Fastify({ logger: false });
   await registerCatalogEntries(app, {
-    rulesReapply: createCatalogRulesReapplyHandler({
+    reapplyRules: createCatalogRulesReapplyHandler({
       vectorStore: { scrollPage } as never,
       processor: { processRulesUpdate } as never,
       logger: pino({ level: 'silent' }),

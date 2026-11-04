@@ -31,7 +31,7 @@ let app: FastifyInstance;
 beforeAll(async () => {
   app = Fastify({ logger: false });
   await registerCatalogEntries(app, {
-    metadata: createCatalogMetadataHandler({ processor, getConfig, logger }),
+    setMetadata: createCatalogMetadataHandler({ processor, getConfig, logger }),
     reindex: createCatalogReindexHandler({
       getConfig,
       processor,
