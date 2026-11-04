@@ -700,7 +700,7 @@ Globs are matched against slash-normalised paths, case-insensitively, dotfiles i
 
 ## POST /rebuild-metadata
 
-Rebuild the enrichment store from Qdrant file point payloads.
+Rebuild the enrichment store from Qdrant file point payloads: each file's entry is chunk 0's payload minus the reserved system fields. Each entry is written under the file's document lock, waiting as long as a run of that file takes, from chunk 0 read inside the lock, so a concurrent POST /metadata is never overwritten.
 
 ### Request
 

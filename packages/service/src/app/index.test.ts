@@ -50,7 +50,7 @@ describe('JeevesWatcher.stop', () => {
       drain: steps.sourceQueueDrain,
       stop: steps.sourceQueueStop,
     };
-    w.enrichmentStore = { close: steps.storeClose };
+    w.stores = { enrichmentStore: { close: steps.storeClose } };
     w.logger = logger;
 
     await watcher.stop();

@@ -219,9 +219,12 @@ export function wireServerOptions(
             ),
       delete: () => Promise.resolve(),
       scroll: async function* () {
-        yield { id: 'p1', payload: { file_path: 'a.md', title: 'A' } };
+        yield { id: 'p1', payload: { file_path: 'a.md', chunk_index: 0 } };
         await Promise.resolve();
       },
+      // rebuild-metadata re-reads chunk 0 under the document lock.
+      getPayload: () =>
+        Promise.resolve({ file_path: 'a.md', chunk_index: 0, title: 'A' }),
       count: () => Promise.resolve(42),
     },
     embeddingProvider: {
