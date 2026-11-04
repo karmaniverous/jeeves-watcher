@@ -15,7 +15,7 @@ import { EnrichmentStore } from '../enrichment';
 import type { GitignoreFilter } from '../gitignore';
 import type { AllHelpersIntrospection } from '../helpers';
 import { IssuesManager } from '../issues';
-import { logRefusal } from '../logger';
+import { flushLogger, logRefusal } from '../logger';
 import type { WatcherProcessor } from '../processor';
 import { combinePausableQueues, type EventQueue } from '../queue';
 import type { SourceNotifyQueue } from '../queue/SourceNotifyQueue';
@@ -232,6 +232,7 @@ export class JeevesWatcher {
       this.logger,
     );
     this.logger?.info('jeeves-watcher stopped');
+    if (this.logger) flushLogger(this.logger);
   }
 
   private apiServerOptions(): ApiServerOptions {

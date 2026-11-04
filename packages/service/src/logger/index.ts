@@ -74,9 +74,28 @@ export async function createLogger(
       ? pino.destination({ dest: config.file, mkdir: true })
       : await pinoRoll(rollOptions(config.file, config.rotation));
   await opened(stream);
+  // A roll, prune or write failure (ENOSPC) must not crash the service.
+  stream.on('error', (error: unknown) => {
+    process.stderr.write(`Log file error: ${normalizeError(error).message}\n`);
+  });
   const logger = pino({ level }, stream);
   destinations.set(logger, stream);
   return logger;
+}
+
+/**
+ * Flush a file logger's destination synchronously (before `process.exit`,
+ * which pino-roll's stream does not hook). A destination not open yet, or
+ * already closed, is skipped.
+ *
+ * @param logger - The service logger.
+ */
+export function flushLogger(logger: pino.Logger): void {
+  try {
+    destinations.get(logger)?.flushSync();
+  } catch {
+    // Not open yet, or already closed.
+  }
 }
 
 /**
@@ -95,10 +114,6 @@ export function logRefusal(
 ): void {
   const err = error === undefined ? undefined : normalizeError(error);
   logger.fatal(err ? { err } : {}, message);
-  try {
-    destinations.get(logger)?.flushSync();
-  } catch {
-    // Not open yet, or already closed: stderr below still carries it.
-  }
+  flushLogger(logger);
   process.stderr.write(`${message}${err ? `: ${err.message}` : ''}\n`);
 }
