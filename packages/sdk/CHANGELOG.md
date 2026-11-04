@@ -2,6 +2,37 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.0-1] - 2026-11-04
+
+### 🚀 Features
+
+- *(core)* Catalog entries for every route (A2)
+- *(sdk)* [**breaking**] SDK 0.3.0 on jeeves's catalog client (D36, D53, D60, D78)
+
+### 🐛 Bug Fixes
+
+- Independent review findings on the clients
+
+### 💼 Other
+
+- [281] chore: update dependencies (patch and minor) (#281)
+
+npm-check-updates --peer --target minor in the root and all four packages, then npm audit fix (non-breaking): audit 17 -> 14. One zod (4.6.7). All gates pass. Left for the owner (major): chokidar 6, unpdf 2, typescript 7 (blocked by typescript-eslint's peer range), mdast-util-from-adf 2.2 and release-it 19 (the remaining audit highs).
+- [281] chore: patch/minor deps, prettier-ignore generated baselines, squash test timeout
+- Release guard for dependents' core range (#277)
+- Patch and minor dependency updates
+- Require Node >=24.22.2 (D188)
+- Updated core
+
+### 🚜 Refactor
+
+- [**breaking**] Verb-first operation names (D77); retire WATCHER_ENDPOINTS (D41)
+- Finishing passes on the clients
+
+### 📚 Documentation
+
+- VCS-only exclusion (API reference, version-control and upgrading guides, READMEs, plugin tool descriptions)
+- Clients on the catalog (SDK guide, CLI reference, plugin guide, upgrading)
 ## [0.2.0] - 2026-10-14
 
 ### 🚀 Features
@@ -42,3 +73,4 @@ All notable changes to this project will be documented in this file.
 ### ⚙️ Miscellaneous Tasks
 
 - Ship LICENSE in every package; core README and license metadata
+- Release @karmaniverous/jeeves-watcher-sdk v0.2.0
