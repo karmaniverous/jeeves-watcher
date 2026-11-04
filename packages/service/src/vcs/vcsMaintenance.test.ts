@@ -139,6 +139,30 @@ describe('warnBranchState (D167)', () => {
       (await git(repo, 'status', '--porcelain=v2', '--branch')).split('\n')[1],
     ).toBe('# branch.head (detached)');
   });
+
+  it('warns on the configured branch when an orphan branch is left, and on another branch', async () => {
+    const logger = pino({ level: 'silent' });
+    const warn = vi.spyOn(logger, 'warn');
+
+    await git(repo, 'branch', '__squash_orphan_1700000000');
+    await warnBranchState(repo, 'master', logger);
+    expect(warn).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        head: 'master',
+        orphanBranches: ['__squash_orphan_1700000000'],
+      }),
+      expect.any(String),
+    );
+
+    await git(repo, 'branch', '-D', '-q', '__squash_orphan_1700000000');
+    await git(repo, 'checkout', '-q', '-b', 'other');
+    await warnBranchState(repo, 'master', logger);
+    expect(warn).toHaveBeenLastCalledWith(
+      expect.objectContaining({ head: 'other', orphanBranches: [] }),
+      expect.any(String),
+    );
+    expect(warn).toHaveBeenCalledTimes(2);
+  });
 });
 
 describe('runStartupMaintenance', () => {
