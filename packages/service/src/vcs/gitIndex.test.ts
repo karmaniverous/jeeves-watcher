@@ -67,6 +67,18 @@ describe('gitAdd', () => {
     expect(staged).toEqual([...names].sort());
   });
 
+  it('reads glob characters literally: [ab].txt stages that file only', async () => {
+    for (const name of ['a.txt', 'b.txt', '[ab].txt']) {
+      await writeFile(join(tempDir, name), name, 'utf8');
+    }
+
+    await gitAdd(tempDir, ['[ab].txt']);
+
+    expect((await git('diff', '--cached', '--name-only')).trim()).toBe(
+      '[ab].txt',
+    );
+  });
+
   it('fails for a tracked file under an ignored folder (why tracked files use add -u)', async () => {
     await mkdir(join(tempDir, 'docs'));
     await commitFiles(['docs/a.md']);
