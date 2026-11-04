@@ -14,7 +14,6 @@ import type { GitignoreFilter } from '../gitignore';
 import type { AllHelpersIntrospection } from '../helpers';
 import type { IssuesManager } from '../issues';
 import type { WatcherProcessor } from '../processor';
-import type { DocumentLocks } from '../processor/DocumentLocks';
 import type { PausableQueue } from '../queue';
 import type { SourceNotifyQueue } from '../queue/SourceNotifyQueue';
 import type { VirtualRuleStore } from '../rules/virtualRules';
@@ -84,11 +83,6 @@ export interface ApiServerOptions {
    * and `POST /documents/delete` (default 10 s, D118; tests only).
    */
   documentLockWaitMs?: number;
-  /**
-   * The processor's document locks, taken by `POST /rebuild-metadata` for
-   * each entry (D98); without them it writes unlocked.
-   */
-  documentLocks?: Pick<DocumentLocks, 'run'>;
   /** Embedding health (`GET /status` `health.embedding`, D88). */
   embeddingHealth?: { snapshot: () => EmbeddingHealthSnapshot };
 }

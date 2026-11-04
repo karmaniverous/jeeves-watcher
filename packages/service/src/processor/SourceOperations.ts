@@ -76,8 +76,10 @@ export interface SourceOperationsInterface {
     options?: DocumentLockOptions,
   ): Promise<Record<string, unknown> | null>;
   /**
-   * Run `work` under the document lock of `ref` (D98), e.g. a whole-document
-   * delete; `options.lockWaitMs` bounds the wait (D118).
+   * Run `work` under the processor's document lock of `ref` (D98), e.g. a
+   * whole-document delete. `ref` is any document key: a source reference,
+   * or `fileLockKey(path)` for a file (`POST /rebuild-metadata`).
+   * `options.lockWaitMs` bounds the wait (D118).
    */
   withLock<T>(
     ref: string,

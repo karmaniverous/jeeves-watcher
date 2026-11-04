@@ -1,6 +1,6 @@
 /**
  * @module api/catalog/rebuildMetadataHandler.test
- * POST /rebuild-metadata over the catalog route: it scrolls chunk 0 points only; each file's chunk 0 payload, re-read under the file's document lock (D98), becomes enrichment without any reserved system field (incl. matched_rules, dates and line ranges), so a setMetadata after the scroll is not overwritten; source points and vanished points are skipped; without locks it writes unlocked.
+ * POST /rebuild-metadata over the catalog route: it scrolls chunk 0 points only; each file's chunk 0 payload, re-read under the processor's document lock for the file (D98, via sourceOperations().withLock), becomes enrichment without any reserved system field (incl. matched_rules, dates and line ranges), so a setMetadata after the scroll is not overwritten; source points and vanished points are skipped.
  */
 
 import Fastify from 'fastify';
@@ -40,6 +40,22 @@ const sourcePoint: ScrolledPoint = {
   payload: { source: 'app://t/1', source_rule: 'chat', user_id: 'u1' },
 };
 
+/** A processor whose source operations lock through `locks`. */
+function processorOf(
+  locks: DocumentLocks,
+): CatalogRebuildMetadataDeps['processor'] {
+  return {
+    sourceOperations: () =>
+      ({
+        withLock: (
+          key: string,
+          operation: string,
+          work: () => Promise<unknown>,
+        ) => locks.run(key, operation, work),
+      }) as never,
+  };
+}
+
 async function rebuild(
   deps: Omit<CatalogRebuildMetadataDeps, 'logger' | 'vectorStore'> & {
     getPayload: CatalogRebuildMetadataDeps['vectorStore']['getPayload'];
@@ -76,7 +92,7 @@ describe('POST /rebuild-metadata', () => {
     );
     const { res, scroll } = await rebuild({
       enrichmentStore: { set } as never,
-      documentLocks: locks,
+      processor: processorOf(locks),
       getPayload,
     });
 
@@ -114,7 +130,7 @@ describe('POST /rebuild-metadata', () => {
     );
     const pending = rebuild({
       enrichmentStore: { set } as never,
-      documentLocks: locks,
+      processor: processorOf(locks),
       getPayload: (id) => Promise.resolve(id === '1' ? current : null),
     });
     await new Promise((resolve) => setTimeout(resolve, 20));
@@ -126,18 +142,6 @@ describe('POST /rebuild-metadata', () => {
       title: 'Kept',
       domain: 'notes',
       owner: 'new',
-    });
-  });
-
-  it('writes unlocked without document locks', async () => {
-    const set = vi.fn();
-    await rebuild({
-      enrichmentStore: { set } as never,
-      getPayload: (id) => Promise.resolve(id === '1' ? filePayload : null),
-    });
-    expect(set).toHaveBeenCalledExactlyOnceWith('d:/docs/a.md', {
-      title: 'Kept',
-      domain: 'notes',
     });
   });
 });

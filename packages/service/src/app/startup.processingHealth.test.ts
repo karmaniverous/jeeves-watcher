@@ -1,6 +1,6 @@
 /**
  * @module app/startup.processingHealth.test
- * Startup wiring for B5a/B6: JeevesWatcher.start() gives the processor a live processing-limits getter (a reload applies to the next document), shares the processor's document locks with the API, hands embedding health to the API, and builds the embedding alert over the live config and version.
+ * Startup wiring for B5a/B6: JeevesWatcher.start() gives the processor a live processing-limits getter (a reload applies to the next document), hands embedding health to the API, and builds the embedding alert over the live config and version.
  */
 
 import { mkdtemp, rm } from 'node:fs/promises';
@@ -91,11 +91,6 @@ describe('JeevesWatcher startup: processing limits and embedding health', () => 
         maxTextBytes: 1024,
       });
       expect(captured.apiOptions?.embeddingHealth?.snapshot().state).toBe('ok');
-      // The API takes the processor's own document locks (D98).
-      expect(captured.processorDeps?.documentLocks).toBeDefined();
-      expect(captured.apiOptions?.documentLocks).toBe(
-        captured.processorDeps?.documentLocks,
-      );
       expect(alertOptions.value?.getConfig()).toBe(config);
       expect(typeof alertOptions.value?.version).toBe('string');
     } finally {

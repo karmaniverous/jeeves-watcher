@@ -156,7 +156,7 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
       rebuildMetadata: {
         enrichmentStore: options.enrichmentStore,
         vectorStore,
-        documentLocks: options.documentLocks,
+        processor,
         logger,
       },
       reapplyRules: { processor, vectorStore, logger, lockWaitMs },

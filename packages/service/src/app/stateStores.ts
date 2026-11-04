@@ -1,6 +1,6 @@
 /**
  * @module app/stateStores
- * The service's state stores, created once per start: issues, values and enrichment under `stateDir`, the content-hash cache, and the per-document locks shared by the processor and the API (D98). Constructors only; the stores do their own I/O.
+ * The service's state stores, created once per start: issues, values and enrichment under `stateDir`, and the content-hash cache. Constructors only; the stores do their own I/O.
  */
 
 import { ROOT_DEFAULTS } from '@karmaniverous/jeeves-watcher-core';
@@ -10,7 +10,6 @@ import { ContentHashCache } from '../cache';
 import type { JeevesWatcherConfig } from '../config/types';
 import { EnrichmentStore } from '../enrichment';
 import { IssuesManager } from '../issues';
-import { DocumentLocks } from '../processor/DocumentLocks';
 import { ValuesManager } from '../values';
 
 /** The state stores of one running service. */
@@ -23,8 +22,6 @@ export interface StateStores {
   enrichmentStore: EnrichmentStore;
   /** In-memory content hashes (unchanged-file detection). */
   contentHashCache: ContentHashCache;
-  /** Per-document locks: the processor's, also taken by API handlers. */
-  documentLocks: DocumentLocks;
 }
 
 /**
@@ -44,6 +41,5 @@ export function createStateStores(
     valuesManager: new ValuesManager(stateDir, logger),
     enrichmentStore: new EnrichmentStore(stateDir, logger),
     contentHashCache: new ContentHashCache(),
-    documentLocks: new DocumentLocks(logger),
   };
 }

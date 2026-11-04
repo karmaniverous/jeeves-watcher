@@ -1,6 +1,6 @@
 /**
  * @module api/catalog/rebuildMetadataHandler
- * Catalog handler for `POST /rebuild-metadata`: rebuilds the enrichment store from file point payloads, dropping every reserved system field. Each file's entry is written under its document lock (D98, unbounded wait, D118) from chunk 0 re-read inside the lock. Qdrant scroll and reads + SQLite writes.
+ * Catalog handler for `POST /rebuild-metadata`: rebuilds the enrichment store from file point payloads, dropping every reserved system field. Each file's entry is written under the processor's document lock for the file (D98, unbounded wait, D118) from chunk 0 re-read inside the lock. Qdrant scroll and reads + SQLite writes.
  */
 
 import type { CatalogHandler } from '@karmaniverous/jeeves/fastify';
@@ -8,11 +8,12 @@ import { isReservedPayloadField } from '@karmaniverous/jeeves-watcher-core';
 import type pino from 'pino';
 
 import type { EnrichmentStoreInterface } from '../../enrichment';
-import { type DocumentLocks, fileLockKey } from '../../processor/DocumentLocks';
+import { fileLockKey } from '../../processor/DocumentLocks';
 import {
   FIELD_CHUNK_INDEX,
   FIELD_FILE_PATH,
 } from '../../processor/payloadFields';
+import type { SourceOperationsProvider } from '../../processor/SourceOperations';
 import type { VectorStore } from '../../vectorStore';
 import type { Entry } from './catalogEntry';
 import { wrapCatalogHandler } from './wrapCatalogHandler';
@@ -26,8 +27,8 @@ export interface CatalogRebuildMetadataDeps {
   enrichmentStore?: EnrichmentStoreInterface;
   /** Vector store to scroll, and to re-read chunk 0 under the lock. */
   vectorStore: Pick<VectorStore, 'scroll' | 'getPayload'>;
-  /** The processor's document locks; without them entries are unlocked. */
-  documentLocks?: Pick<DocumentLocks, 'run'>;
+  /** The processor, whose own document locks guard each entry (D98). */
+  processor: SourceOperationsProvider;
   /** Logger. */
   logger: pino.Logger;
 }
@@ -47,7 +48,7 @@ export interface CatalogRebuildMetadataDeps {
 export function createCatalogRebuildMetadataHandler(
   deps: CatalogRebuildMetadataDeps,
 ): CatalogHandler<Entry<'rebuildMetadata'>> {
-  const { enrichmentStore, vectorStore, documentLocks } = deps;
+  const { enrichmentStore, vectorStore, processor } = deps;
   const rebuildEntry = async (id: string, filePath: string) => {
     const payload = await vectorStore.getPayload(id);
     if (!payload) return;
@@ -59,15 +60,15 @@ export function createCatalogRebuildMetadataHandler(
 
   return wrapCatalogHandler<Entry<'rebuildMetadata'>>(
     async () => {
+      const sources = processor.sourceOperations();
       // Chunk 0 is each document's authoritative payload (D87).
       for await (const point of vectorStore.scroll(CHUNK_ZERO)) {
         const filePath = point.payload[FIELD_FILE_PATH];
         if (typeof filePath !== 'string' || filePath.length === 0) continue;
 
-        const work = () => rebuildEntry(point.id, filePath);
-        await (documentLocks
-          ? documentLocks.run(fileLockKey(filePath), 'rebuildMetadata', work)
-          : work());
+        await sources.withLock(fileLockKey(filePath), 'rebuildMetadata', () =>
+          rebuildEntry(point.id, filePath),
+        );
       }
 
       return { body: { ok: true } };

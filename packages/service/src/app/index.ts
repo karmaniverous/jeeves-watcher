@@ -253,7 +253,6 @@ export class JeevesWatcher {
       fileSystemWatcher: this.watcher,
       getFileSystemWatcher: () => this.watcher,
       enrichmentStore: this.stores?.enrichmentStore,
-      documentLocks: this.stores?.documentLocks,
       vcsCoordinator: this.vcsCoordinator,
     };
   }
