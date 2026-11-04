@@ -1,6 +1,6 @@
 /**
  * @module test/document-lock-integration.test
- * Per-document locks against real Qdrant and the real API (D98, D118): POST /metadata answers 503 with Retry-After: 10 while the document is locked and changes nothing, then succeeds once the lock frees; two overlapping runs of one file (20 then 8 chunks) are serialised and leave no chunk at or above the final count.
+ * Per-document locks against real Qdrant and the real API (D98, D118): POST /metadata answers 503 with Retry-After: 10 while the document is locked and changes nothing, then succeeds once the lock frees; two overlapping runs of one file (the first read 20 chunks and is held in embedding when the 8-chunk event arrives) are serialised and leave no chunk at or above the final count.
  */
 
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
@@ -9,6 +9,7 @@ import { join } from 'node:path';
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
+import type { EmbeddingProvider } from '../embedding';
 import { pointId } from '../pointId';
 import { fileLockKey } from '../processor/DocumentLocks';
 import { qdrantAvailable } from './harness/qdrant';
@@ -25,6 +26,30 @@ function deferred(): { promise: Promise<void>; resolve: () => void } {
     resolve = r;
   });
   return { promise, resolve };
+}
+
+/** The next embed call signals `reached`, then waits for `release`. */
+let embedHold:
+  | {
+      reached: ReturnType<typeof deferred>;
+      release: ReturnType<typeof deferred>;
+    }
+  | undefined;
+
+/** Hold the next embed call while {@link embedHold} is set. */
+function holdable(provider: EmbeddingProvider): EmbeddingProvider {
+  return {
+    dimensions: provider.dimensions,
+    embed: async (texts, options) => {
+      const hold = embedHold;
+      embedHold = undefined;
+      if (hold) {
+        hold.reached.resolve();
+        await hold.release.promise;
+      }
+      return provider.embed(texts, options);
+    },
+  };
 }
 
 /** Text that splits into `n` chunks of the harness's 100-character chunk size. */
@@ -48,6 +73,7 @@ describe.skipIf(!qdrantAvailable())(
       harness = await startServiceHarness({
         label: 'doc_lock',
         documentLockWaitMs: 300,
+        wrapEmbedding: holdable,
         config: {
           watch: { paths: [join(watchDir, '**/*')], ignored: [] },
           embedding: {
@@ -103,10 +129,17 @@ describe.skipIf(!qdrantAvailable())(
     it('two overlapping runs (20 then 8 chunks) are serialised and leak no chunk', async () => {
       const big = join(watchDir, 'shrink.md');
       await writeFile(big, textOfChunks(20, 'first'), 'utf8');
+      const hold = { reached: deferred(), release: deferred() };
+      embedHold = hold;
       const first = harness.processor.processFile(big);
+      // The first run has read all 20 chunks and is embedding them.
+      await hold.reached.promise;
       // The second event arrives while the first run is still processing.
       await writeFile(big, textOfChunks(8, 'second'), 'utf8');
       const second = harness.processor.processFile(big);
+      // Let the second run go as far as it can before the first resumes.
+      await new Promise((resolve) => setTimeout(resolve, 200));
+      hold.release.resolve();
       await Promise.all([first, second]);
 
       const chunk0 = await harness.vectorStore.getPayload(pointId(big, 0));
