@@ -41,7 +41,7 @@ export interface SquashResult {
   error?: string;
 }
 
-/** Test hooks around the reference update. */
+/** Test hooks around the reference update (not public API). @internal */
 export interface SquashHooks {
   /** Receives the rebuilt tip; returns the tip to check and publish. */
   rebuiltTip?: (tip: string) => Promise<string>;
@@ -64,7 +64,7 @@ export interface SquashManagerOptions {
   remoteUrl?: string;
   /** Access token for HTTPS push authentication. */
   accessToken?: string;
-  /** Test hooks. */
+  /** Test hooks (not public API). @internal */
   hooks?: SquashHooks;
 }
 

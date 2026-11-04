@@ -10,7 +10,6 @@ export { type ResolvedWatchRoot } from './resolveWatchRoot.js';
 export { RootGitLock } from './RootGitLock.js';
 export {
   type CommitInfo,
-  type SquashHooks,
   SquashManager,
   type SquashManagerOptions,
   type SquashResult,

@@ -145,7 +145,6 @@ export {
   type PendingReversion,
   type PushError,
   RootGitLock,
-  type SquashHooks,
   SquashManager,
   type SquashManagerOptions,
   type SquashResult,
