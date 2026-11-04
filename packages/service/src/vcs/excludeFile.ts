@@ -36,8 +36,15 @@ async function readText(file: string): Promise<string | undefined> {
 const linesOf = (text: string) => text.split(/\r?\n/);
 
 /**
+ * Whether a line holds `pattern`: git ignores a line's trailing spaces,
+ * while leading ones are part of the pattern.
+ */
+const holds = (line: string, pattern: string) =>
+  line.replace(/ +$/, '') === pattern;
+
+/**
  * Append `pattern` as its own line, unless a line already holds it
- * (surrounding whitespace ignored). Creates `.git/info` when missing.
+ * (trailing spaces ignored). Creates `.git/info` when missing.
  *
  * @param root - Repository root.
  * @param pattern - The gitignore pattern.
@@ -49,7 +56,7 @@ export async function addExcludeLine(
 ): Promise<boolean> {
   const file = excludeFilePath(root);
   const text = (await readText(file)) ?? '';
-  if (linesOf(text).some((line) => line.trim() === pattern)) return false;
+  if (linesOf(text).some((line) => holds(line, pattern))) return false;
   await mkdir(dirname(file), { recursive: true });
   const separator = text === '' || text.endsWith('\n') ? '' : '\n';
   await writeFile(file, `${text}${separator}${pattern}\n`, 'utf8');
@@ -57,7 +64,7 @@ export async function addExcludeLine(
 }
 
 /**
- * Remove every line holding `pattern` (surrounding whitespace ignored).
+ * Remove every line holding `pattern` (trailing spaces ignored).
  *
  * @param root - Repository root.
  * @param pattern - The gitignore pattern.
@@ -72,7 +79,7 @@ export async function removeExcludeLine(
   const text = await readText(file);
   if (text === undefined) return false;
   const lines = linesOf(text);
-  const kept = lines.filter((line) => line.trim() !== pattern);
+  const kept = lines.filter((line) => !holds(line, pattern));
   if (kept.length === lines.length) return false;
   await writeFile(file, kept.join('\n'), 'utf8');
   return true;

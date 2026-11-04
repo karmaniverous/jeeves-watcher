@@ -150,7 +150,13 @@ export function resolveExcludeTarget(
   body: { glob: string; root?: string },
 ): ExcludeTarget {
   checkSyntax(body.glob);
-  const glob = toForwardSlashes(body.glob);
+  // git drops a pattern's trailing spaces when it reads the exclude file but
+  // not in `ls-files -x`, so the stored and the matched pattern must agree.
+  const glob = toForwardSlashes(body.glob).replace(/ +$/, '');
+  // Before the root lookup, so `*` or `**` without `root` is 400, not 404.
+  if (matchesWholeRoot(posix.normalize(glob))) {
+    throw invalidRequest('The glob matches the whole root');
+  }
   const { manager, relative } = body.root
     ? withExplicitRoot(coordinator, body.root, glob)
     : withRootFromGlob(coordinator, glob);

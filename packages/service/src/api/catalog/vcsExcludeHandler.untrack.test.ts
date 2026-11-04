@@ -79,7 +79,7 @@ describe('POST /vcs/exclude untracking', { timeout: 20_000 }, () => {
 
     expect(await g('status', '--porcelain', '--untracked-files=no')).toBe('');
     expect(await g('log', '-1', '--format=%s')).toBe(
-      'Untrack 1 file matching /a.log',
+      'Untrack 1 files matching /a.log',
     );
   });
 
@@ -167,6 +167,25 @@ describe('POST /vcs/exclude untracking', { timeout: 20_000 }, () => {
     },
   );
 
+  it('untracks with a trailing-space glob and finds the line again for remove', async () => {
+    await seed({ 'a.log': 'a' });
+
+    const added = await exclude({ glob: root + '/a.log ' });
+    expect(added.json()).toMatchObject({ untracked: 1 });
+    expect(await tracked()).toEqual(['hello.txt']);
+    await exclude({ glob: root + '/a.log ' });
+    expect(
+      await readFile(join(root, '.git', 'info', 'exclude'), 'utf8'),
+    ).toMatch(/^\/a\.log$/m);
+    expect(
+      (await readFile(join(root, '.git', 'info', 'exclude'), 'utf8')).match(
+        /\/a\.log/g,
+      ),
+    ).toHaveLength(1);
+
+    const removed = await exclude({ glob: root + '/a.log ', remove: true });
+    expect(removed.statusCode).toBe(200);
+  });
   it('treats brackets as a class unless escaped (D168)', async () => {
     await seed({ 'Report [draft].docx': 'r', 'Report d.docx': 'd' });
 

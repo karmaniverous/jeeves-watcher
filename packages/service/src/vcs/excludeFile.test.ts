@@ -53,11 +53,18 @@ describe('addExcludeLine', () => {
     expect(await read()).toBe(after);
   });
 
-  it('leaves the file alone when a line already holds the pattern', async () => {
-    await seed('# c\r\n  /a.log  \r\n');
+  it('leaves the file alone when a line already holds the pattern (trailing spaces ignored)', async () => {
+    await seed('# c\r\n/a.log  \r\n');
 
     expect(await addExcludeLine(root, '/a.log')).toBe(false);
-    expect(await read()).toBe('# c\r\n  /a.log  \r\n');
+    expect(await read()).toBe('# c\r\n/a.log  \r\n');
+  });
+
+  it('treats a leading space as part of a pattern, as git does', async () => {
+    await seed(' /a.log\n');
+
+    expect(await addExcludeLine(root, '/a.log')).toBe(true);
+    expect(await read()).toBe(' /a.log\n/a.log\n');
   });
 
   it('rethrows a read failure other than a missing file', async () => {
@@ -71,7 +78,7 @@ describe('addExcludeLine', () => {
 
 describe('removeExcludeLine', () => {
   it('removes every line holding the pattern and keeps the rest (CRLF read)', async () => {
-    await seed('# c\r\n/a.log\r\n/b.log\r\n /a.log\r\n');
+    await seed('# c\r\n/a.log\r\n/b.log\r\n/a.log \r\n');
 
     expect(await removeExcludeLine(root, '/a.log')).toBe(true);
     expect(await read()).toBe('# c\n/b.log\n');

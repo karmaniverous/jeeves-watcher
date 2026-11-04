@@ -105,7 +105,7 @@ describe('resolveExcludeTarget', () => {
     });
   });
 
-  it('takes a glob relative to an explicit root, with or without a leading slash', () => {
+  it('takes a glob relative to an explicit root, or an absolute one under it', () => {
     expect(target({ glob: 'docs/', root })).toMatchObject({
       root,
       relativeGlob: 'docs/',
@@ -113,6 +113,35 @@ describe('resolveExcludeTarget', () => {
     });
     expect(target({ glob: `{root}/x.md`, root })).toMatchObject({
       pattern: '/x.md',
+    });
+  });
+
+  it.each(['*', '**', '**/*', '*/**', '/', '/**'])(
+    'refuses the whole-root pattern %j with 400, with or without root (D140)',
+    (glob) => {
+      for (const body of [{ glob }, { glob, root }]) {
+        expect(refusal(body)).toMatchObject({
+          status: 400,
+          message: 'The glob matches the whole root',
+        });
+      }
+    },
+  );
+
+  it('drops trailing spaces, as git does when it reads the exclude file', () => {
+    expect(target({ glob: '{root}/a.log  ' })).toMatchObject({
+      pattern: '/a.log',
+    });
+    expect(refusal({ glob: '   ', root })).toMatchObject({
+      status: 400,
+      message: 'The glob matches the whole root',
+    });
+  });
+
+  it('reads a leading-slash glob with root as a filesystem path: /docs outside the root is 400', () => {
+    expect(refusal({ glob: '/docs', root })).toMatchObject({
+      status: 400,
+      message: 'The glob resolves outside the root',
     });
   });
 
