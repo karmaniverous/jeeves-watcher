@@ -11,9 +11,12 @@
  * the pause backs off exponentially from `baseBackoffMs`, capped at
  * `maxBackoffMs`.
  *
- * A stored pause is capped at 5 minutes, and any successful call clears it
- * (B6, Design 8): the first call after it ends probes the provider, so a
- * long `Retry-After` never keeps the service failing until a restart.
+ * A stored pause is capped at 5 minutes, and a successful call clears any
+ * pause requested before that call started (B6, Design 8): the first call
+ * after it ends probes the provider, so a long `Retry-After` never keeps the
+ * service failing until a restart. A call already in flight when another
+ * call is rate-limited does not lift that newer pause: a 429 still pauses
+ * every caller.
  */
 
 import type pino from 'pino';
@@ -81,6 +84,8 @@ export class RateLimitedEmbeddingProvider implements EmbeddingProvider {
    * dropped below `maxBackoffMs`.
    */
   private failFastUntilMs = 0;
+  /** Number of pauses requested so far (a success clears only older ones). */
+  private pauseCount = 0;
 
   /**
    * @param inner - The provider to rate-limit.
@@ -136,11 +141,15 @@ export class RateLimitedEmbeddingProvider implements EmbeddingProvider {
     const beforeRetry = () => this.acquire(deadlineMs, lastError);
     for (let attempt = 1; attempt <= attempts; attempt++) {
       await this.acquire(deadlineMs, lastError);
+      const pausesBefore = this.pauseCount;
       try {
         const vectors = await this.inner.embed(texts, { beforeRetry });
-        // The provider answered: any stored back-off is over.
-        this.pausedUntilMs = 0;
-        this.failFastUntilMs = 0;
+        // The provider answered: a back-off requested before this call is
+        // over; one requested while it was in flight still holds.
+        if (this.pauseCount === pausesBefore) {
+          this.pausedUntilMs = 0;
+          this.failFastUntilMs = 0;
+        }
         return vectors;
       } catch (error) {
         if (!(error instanceof EmbeddingRateLimitError)) throw error;
@@ -172,6 +181,7 @@ export class RateLimitedEmbeddingProvider implements EmbeddingProvider {
       computeDelayMs(attempt, this.baseBackoffMs, this.maxBackoffMs);
     const now = Date.now();
     const storedMs = Math.min(pauseMs, MAX_STORED_BACKOFF_MS);
+    this.pauseCount++;
     this.pausedUntilMs = Math.max(this.pausedUntilMs, now + storedMs);
     if (pauseMs > this.maxBackoffMs) {
       this.failFastUntilMs = Math.max(this.failFastUntilMs, now + storedMs);
