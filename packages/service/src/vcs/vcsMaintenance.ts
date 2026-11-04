@@ -9,6 +9,7 @@ import type pino from 'pino';
 import { normalizeError } from '../util/normalizeError';
 import {
   detectStaleGitOperation,
+  headRef,
   removeStaleIndexLock,
   STALE_OPERATION_HINT,
 } from './gitRepoState';
@@ -36,9 +37,8 @@ export async function warnBranchState(
   branch: string,
   logger: pino.Logger,
 ): Promise<void> {
-  const head = await runGit(root, ['symbolic-ref', '-q', '--short', 'HEAD'])
-    .then(({ stdout }) => stdout.trim())
-    .catch(() => '(detached)');
+  const ref = await headRef(root);
+  const head = ref?.replace(/^refs\/heads\//, '') ?? '(detached)';
   const orphans = (
     await runGit(root, [
       'for-each-ref',
@@ -48,7 +48,7 @@ export async function warnBranchState(
   ).stdout
     .split('\n')
     .filter((name) => name.length > 0);
-  if (head === branch && orphans.length === 0) return;
+  if (ref === `refs/heads/${branch}` && orphans.length === 0) return;
   logger.warn(
     { root, head, expectedBranch: branch, orphanBranches: orphans },
     `VCS root is not in its expected branch state — the watcher never switches branches; check the root, then 'git checkout ${branch}' and delete any leftover ${ORPHAN_PREFIX}* branch by hand. Squash refuses until HEAD is on ${branch}.`,

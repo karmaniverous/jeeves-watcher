@@ -94,6 +94,28 @@ export async function initEmbeddingAndStore(
 }
 
 /**
+ * Set up VCS repositories, then the embedding provider and vector store
+ * (with the hybrid-search text index when enabled).
+ *
+ * @param config - The resolved configuration.
+ * @param factories - Component factories.
+ * @param logger - The service logger.
+ * @returns The embedding provider and the vector store.
+ */
+export async function initInfrastructure(
+  config: JeevesWatcherConfig,
+  factories: JeevesWatcherFactories,
+  logger: pino.Logger,
+) {
+  await initVcs(config, logger);
+  const stores = await initEmbeddingAndStore(config, factories, logger);
+  if (config.search?.hybrid?.enabled) {
+    await stores.vectorStore.ensureTextIndex('chunk_text');
+  }
+  return stores;
+}
+
+/**
  * Build template engine and custom map library.
  */
 export async function buildTemplateEngineAndCustomMapLib(

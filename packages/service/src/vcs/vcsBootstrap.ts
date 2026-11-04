@@ -6,8 +6,6 @@
 import { access, appendFile, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
-import { gitArgs } from './gitExec';
-import { execGit } from './gitProcess';
 import { runGit } from './runGit';
 
 /** Always-on .gitignore entries for VCS-managed watch roots. */
@@ -26,10 +24,7 @@ export const ALWAYS_GITIGNORE_ENTRIES = [
  */
 export async function checkGitAvailable(): Promise<boolean> {
   try {
-    await execGit(gitArgs('--version'), {
-      cwd: process.cwd(),
-      timeoutMs: 30_000,
-    });
+    await runGit(process.cwd(), ['--version']);
     return true;
   } catch {
     return false;

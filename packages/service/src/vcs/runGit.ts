@@ -10,8 +10,6 @@ import { execGit, type ExecGitResult } from './gitProcess';
 export interface RunGitOptions {
   /** Kill the child process after this many milliseconds. */
   timeoutMs?: number;
-  /** Max bytes of stdout to buffer. */
-  maxBuffer?: number;
   /** Written to the child's stdin. */
   input?: string | Buffer;
   /** Child environment (default: `process.env`). */
@@ -26,7 +24,7 @@ export interface RunGitOptions {
  * @param cwd - Repository root (working directory for git).
  * @param args - Subcommand and arguments (global options such as
  *   `--literal-pathspecs` first).
- * @param options - Timeout, buffer limit, stdin and environment.
+ * @param options - Timeout, stdin, environment and index lock path.
  * @returns The child's stdout and stderr.
  */
 export function runGit(
@@ -34,7 +32,6 @@ export function runGit(
   args: string[],
   {
     timeoutMs = GIT_TIMEOUT_STANDARD,
-    maxBuffer,
     input,
     env,
     indexLockPath,
@@ -43,7 +40,6 @@ export function runGit(
   return execGit(gitArgs(...args), {
     cwd,
     timeoutMs,
-    ...(maxBuffer === undefined ? {} : { maxBuffer }),
     ...(input === undefined ? {} : { input }),
     ...(env === undefined ? {} : { env }),
     ...(indexLockPath === undefined ? {} : { indexLockPath }),

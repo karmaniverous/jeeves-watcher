@@ -21,9 +21,6 @@ import {
 } from './gitExec';
 import { runGit, type RunGitOptions } from './runGit';
 
-/** Max stdout buffered from `git ls-files` (large corpora can list many paths). */
-const LS_FILES_MAX_BUFFER = 256 * 1024 * 1024;
-
 /** Options for a path-list call. */
 export interface PathListOptions {
   /** Timeout override (default: {@link pathListTimeoutMs} of the count). */
@@ -201,7 +198,6 @@ export async function listDeletedTrackedPaths(
 ): Promise<string[]> {
   const { stdout } = await runGit(cwd, ['ls-files', '--deleted', '-z'], {
     timeoutMs,
-    maxBuffer: LS_FILES_MAX_BUFFER,
   });
   return stdout
     .split('\0')

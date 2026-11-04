@@ -56,6 +56,22 @@ export async function detectStaleGitOperation(
 }
 
 /**
+ * The ref HEAD points at (`git symbolic-ref -q HEAD`, e.g.
+ * `refs/heads/master`), or undefined when HEAD is detached or unreadable.
+ *
+ * @param rootPath - Repository root.
+ * @returns The full ref name, or undefined.
+ */
+export async function headRef(rootPath: string): Promise<string | undefined> {
+  try {
+    const { stdout } = await runGit(rootPath, ['symbolic-ref', '-q', 'HEAD']);
+    return stdout.trim() || undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
  * Check for uncommitted changes to tracked files (staged or unstaged).
  * Untracked files are ignored.
  *

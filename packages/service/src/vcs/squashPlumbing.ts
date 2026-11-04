@@ -28,11 +28,13 @@ export async function listFirstParent(
   root: string,
   tip: string,
 ): Promise<CommitInfo[]> {
-  const { stdout } = await runGit(
-    root,
-    ['rev-list', '--reverse', '--first-parent', '--format=%aI', tip],
-    { maxBuffer: 256 * 1024 * 1024 },
-  );
+  const { stdout } = await runGit(root, [
+    'rev-list',
+    '--reverse',
+    '--first-parent',
+    '--format=%aI',
+    tip,
+  ]);
   const lines = stdout.split('\n').filter((line) => line.length > 0);
   const commits: CommitInfo[] = [];
   for (let i = 0; i + 1 < lines.length; i += 2) {

@@ -192,26 +192,26 @@ export function execGit(
     child.on('exit', () => {
       if (!timedOut) return;
       const exitedAt = Date.now();
-      settled = true;
-      clearTimeout(timer);
-      void removeOwnIndexLock(lockPath, spawnedAt, exitedAt).then((removed) => {
-        reject(
-          new GitTimeoutError(
-            command,
-            options.timeoutMs,
-            spawnedAt,
-            exitedAt,
-            removed,
-            child.pid,
-          ),
+      settle(() => {
+        void removeOwnIndexLock(lockPath, spawnedAt, exitedAt).then(
+          (removed) => {
+            reject(
+              new GitTimeoutError(
+                command,
+                options.timeoutMs,
+                spawnedAt,
+                exitedAt,
+                removed,
+                child.pid,
+              ),
+            );
+          },
         );
       });
     });
 
-    child.on('close', (code, signal) => {
-      if (settled) return;
-      settled = true;
-      clearTimeout(timer);
+    /** Resolve or reject from the closed child's exit status and output. */
+    const finish = (code: number | null, signal: NodeJS.Signals | null) => {
       const stdoutBuffer = Buffer.concat(out);
       const stdout = stdoutBuffer.toString('utf8');
       const stderr = Buffer.concat(err).toString('utf8');
@@ -232,6 +232,12 @@ export function execGit(
         return;
       }
       resolvePromise({ stdoutBuffer, stdout, stderr });
+    };
+
+    child.on('close', (code, signal) => {
+      settle(() => {
+        finish(code, signal);
+      });
     });
   });
 }

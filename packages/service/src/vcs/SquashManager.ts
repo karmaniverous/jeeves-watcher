@@ -16,7 +16,11 @@ import { normalizeError } from '../util/normalizeError';
 import { cronMatchesNow } from './cronMatch';
 import { GIT_TIMEOUT_PUSH } from './gitExec';
 import { gitPushNonInteractive } from './gitNetwork';
-import { detectStaleGitOperation, STALE_OPERATION_HINT } from './gitRepoState';
+import {
+  detectStaleGitOperation,
+  headRef,
+  STALE_OPERATION_HINT,
+} from './gitRepoState';
 import type { RootGitLock } from './RootGitLock';
 import { runGit } from './runGit';
 import {
@@ -164,9 +168,7 @@ export class SquashManager {
       return error;
     }
 
-    const head = await runGit(this.rootPath, ['symbolic-ref', '-q', 'HEAD'])
-      .then(({ stdout }) => stdout.trim())
-      .catch(() => '');
+    const head = (await headRef(this.rootPath)) ?? '';
     if (head !== `refs/heads/${this.branch}`) {
       const error = `Squash refused: HEAD is not on ${this.branch}`;
       this.logger.warn({ root: this.rootPath, head }, error);

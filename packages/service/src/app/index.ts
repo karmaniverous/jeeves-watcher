@@ -36,8 +36,7 @@ import {
   buildTemplateEngineAndCustomMapLib,
   createProcessorConfig,
   getConfigDir,
-  initEmbeddingAndStore,
-  initVcs,
+  initInfrastructure,
   introspectHelpers,
   resolveVersion,
 } from './initialization';
@@ -107,30 +106,16 @@ export class JeevesWatcher {
   async start(): Promise<void> {
     this.logger = await this.factories.createLogger(this.config.logging);
     try {
-      await this.initInfrastructure(this.logger);
+      ({
+        embeddingProvider: this.embeddingProvider,
+        vectorStore: this.vectorStore,
+      } = await initInfrastructure(this.config, this.factories, this.logger));
       await this.initPipeline();
       await this.startServicesAndWatcher();
     } catch (error) {
       // A refused start must reach the log file and stderr (D171).
       logRefusal(this.logger, 'jeeves-watcher refused to start', error);
       throw error;
-    }
-  }
-
-  /** Set up VCS, embedding provider, and vector store. */
-  private async initInfrastructure(logger: pino.Logger): Promise<void> {
-    await initVcs(this.config, logger);
-
-    const { embeddingProvider, vectorStore } = await initEmbeddingAndStore(
-      this.config,
-      this.factories,
-      logger,
-    );
-    this.embeddingProvider = embeddingProvider;
-    this.vectorStore = vectorStore;
-
-    if (this.config.search?.hybrid?.enabled) {
-      await vectorStore.ensureTextIndex('chunk_text');
     }
   }
 
