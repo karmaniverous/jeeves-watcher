@@ -17,6 +17,7 @@ import { createConfigApplyCallback } from './configApplyCallback';
 import { createOnRulesChanged } from './onRulesChanged';
 import { registerCatalog } from './registerCatalog';
 import { ReindexTracker } from './ReindexTracker';
+import { vcsHealthSource } from './vcsHealthSource';
 
 export type { ApiServerOptions } from './apiServerOptions';
 export type { InitialScanStatus } from './InitialScanTracker';
@@ -90,9 +91,7 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
         version,
         reindexTracker,
         initialScanTracker,
-        ...(vcsCoordinator
-          ? { getVcsHealth: () => vcsCoordinator.getHealth() }
-          : {}),
+        ...vcsHealthSource(vcsCoordinator),
       },
       config: {
         getConfig,
