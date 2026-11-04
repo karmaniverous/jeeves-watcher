@@ -1,58 +1,63 @@
 /**
  * @module api/catalog/vcsExcludeHandler
- * Catalog handler for `POST /vcs/exclude`: manages .gitignore exclusions
- * with locality-based placement. The body is validated by the catalog's
- * `vcsExclude` entry schema.
+ * Catalog handler for `POST /vcs/exclude` (Design 5): resolves the root and anchored pattern, then adds it to the root's `.git/info/exclude` and untracks matching files, or removes it. Answers 409 `confirm_required` and 503 `not_available` with `Retry-After: 30` (D102, D103). The body is validated by the catalog's `vcsExclude` entry schema.
+ *
+ * Written directly rather than through `wrapCatalogHandler`, because its
+ * 503 carries a header and its 409 an extra field.
  */
 
-import { appendFile, mkdir, readFile, writeFile } from 'node:fs/promises';
-import { join } from 'node:path';
+import type {
+  CatalogHandler,
+  HandlerResult,
+} from '@karmaniverous/jeeves/fastify';
+import type pino from 'pino';
 
-import type { CatalogHandler } from '@karmaniverous/jeeves/fastify';
-
-import { normalizeSlashes } from '../../util/normalizeSlashes';
-import { findRootForPath } from '../../vcs/gitExec';
-import { RequestError } from '../requestError';
+import { ConfirmRequiredError, runExclude } from '../../vcs/excludePattern';
+import { LegacyPatternNotFoundError } from '../../vcs/legacyGitignore';
+import {
+  LockWaitTimeoutError,
+  ROUTE_LOCK_WAIT_MS,
+} from '../../vcs/RootGitLock';
+import { NOT_AVAILABLE } from '../sendError';
 import type { Entry } from './catalogEntry';
+import { errorResult } from './errorResult';
+import { resolveExcludeTarget } from './excludeTarget';
 import type { CatalogVcsDeps } from './vcsDeps';
-import { wrapCatalogHandler } from './wrapCatalogHandler';
+import { catalogErrorFromThrown } from './wrapCatalogHandler';
 
-/** A `404 not_found` error (to throw). */
-const notFound = (message: string) => new RequestError('not_found', message);
+/** Seconds a busy-lock `503` asks the client to wait: the route's own wait (D102). */
+const RETRY_AFTER_S = String(ROUTE_LOCK_WAIT_MS / 1000);
+
+/** `POST /vcs/exclude`'s handler result. */
+type ExcludeResult = HandlerResult<Entry<'vcsExclude'>>;
 
 /**
- * Determine the deepest directory for .gitignore placement and the pattern
- * to add. Splits the glob at the first wildcard character.
- *
- * @param relativeGlob - Glob relative to the watch root.
- * @returns The directory (relative to root) and the pattern for .gitignore.
+ * The error result for a thrown error: the exclude-specific errors, else
+ * the generic catalog mapping.
  */
-function splitGlobForLocality(relativeGlob: string): {
-  dir: string;
-  pattern: string;
-} {
-  // Find the first path segment containing a wildcard
-  const segments = relativeGlob.split('/');
-  const dirSegments: string[] = [];
-
-  for (const segment of segments) {
-    if (/[*?[\]{}]/.test(segment)) break;
-    dirSegments.push(segment);
+function excludeErrorResult(
+  error: unknown,
+  logger: pino.Logger,
+): ExcludeResult {
+  if (error instanceof ConfirmRequiredError) {
+    logger.debug({ err: error }, 'VcsExclude needs confirm');
+    return errorResult('confirm_required', error.message, {
+      untracked: error.untracked,
+    });
   }
-
-  // Last non-wildcard segment might be a filename, not a directory.
-  // If no wildcards at all, the directory is the parent of the file.
-  if (dirSegments.length === segments.length) {
-    // No wildcards — the glob is a literal path, directory is parent
-    const dir = dirSegments.slice(0, -1).join('/') || '.';
-    const pattern = dirSegments[dirSegments.length - 1];
-    return { dir, pattern };
+  if (error instanceof LockWaitTimeoutError) {
+    logger.warn({ err: error }, 'VcsExclude gave up waiting for RootGitLock');
+    return {
+      ...errorResult('not_available', NOT_AVAILABLE, {
+        message: `Version control is busy on this root; retry after ${RETRY_AFTER_S} s`,
+      }),
+      headers: { 'Retry-After': RETRY_AFTER_S },
+    };
   }
-
-  const dir = dirSegments.join('/') || '.';
-  const patternSegments = segments.slice(dirSegments.length);
-  const pattern = patternSegments.join('/');
-  return { dir, pattern };
+  if (error instanceof LegacyPatternNotFoundError) {
+    return errorResult('not_found', error.message);
+  }
+  return catalogErrorFromThrown(error, logger, 'VcsExclude');
 }
 
 /**
@@ -64,96 +69,26 @@ function splitGlobForLocality(relativeGlob: string): {
 export function createCatalogVcsExcludeHandler(
   deps: CatalogVcsDeps,
 ): CatalogHandler<Entry<'vcsExclude'>> {
-  return wrapCatalogHandler<Entry<'vcsExclude'>>(
-    async (input) => {
-      const { glob, root: requestedRoot, remove } = input.body;
-
-      // Resolve the root
-      let root: string;
-      if (requestedRoot) {
-        const normalizedRoot = normalizeSlashes(requestedRoot);
-        const manager = deps.coordinator.getManager(normalizedRoot);
-        if (!manager) throw notFound('Root is not a VCS-enabled watch root');
-        root = normalizedRoot;
-      } else {
-        // Resolve root from the glob path
-        const normalizedGlob = normalizeSlashes(glob);
-        const basePath = normalizedGlob.replace(/[*?[\]{}].*/g, '');
-        const matchedRoot = findRootForPath(
-          deps.coordinator.getRoots(),
-          basePath,
-        );
-        if (!matchedRoot) {
-          throw notFound('Glob does not match any VCS-enabled watch root');
-        }
-        root = matchedRoot;
-      }
-
-      // Compute relative glob from root
-      const normalizedGlob = normalizeSlashes(glob);
-      let relativeGlob: string;
-      if (normalizedGlob.startsWith(root + '/')) {
-        relativeGlob = normalizedGlob.slice(root.length + 1);
-      } else {
-        // Glob is the root itself or doesn't start with root — use as-is
-        relativeGlob = normalizedGlob;
-      }
-
-      // Determine .gitignore directory and pattern using locality principle
-      const { dir, pattern } = splitGlobForLocality(relativeGlob);
-
-      const gitignoreDir =
-        dir === '.' ? root : normalizeSlashes(join(root, dir));
-      const gitignorePath = normalizeSlashes(join(gitignoreDir, '.gitignore'));
-
-      if (remove) {
-        // Remove the pattern from .gitignore
-        let content: string;
-        try {
-          content = await readFile(gitignorePath, 'utf8');
-        } catch {
-          throw notFound('No .gitignore found at the expected location');
-        }
-
-        const lines = content.split('\n');
-        const filtered = lines.filter((line) => line.trim() !== pattern);
-
-        if (filtered.length === lines.length) {
-          throw notFound('Pattern not found in .gitignore');
-        }
-
-        await writeFile(gitignorePath, filtered.join('\n'), 'utf8');
-        return { body: { ok: true, gitignorePath, action: 'removed' } };
-      }
-
-      // Add the pattern to .gitignore
-      await mkdir(gitignoreDir, { recursive: true });
-
-      let existingContent = '';
-      try {
-        existingContent = await readFile(gitignorePath, 'utf8');
-      } catch {
-        // File doesn't exist yet
-      }
-
-      // Check if pattern already exists
-      const existingLines = new Set(
-        existingContent.split('\n').map((line) => line.trim()),
+  return async (input) => {
+    try {
+      const { manager, pattern, relativeGlob } = resolveExcludeTarget(
+        deps.coordinator,
+        input.body,
       );
-      if (existingLines.has(pattern)) {
-        return { body: { ok: true, gitignorePath, action: 'added' } };
-      }
-
-      if (existingContent.length === 0) {
-        await writeFile(gitignorePath, pattern + '\n', 'utf8');
-      } else {
-        const prefix = existingContent.endsWith('\n') ? '' : '\n';
-        await appendFile(gitignorePath, prefix + pattern + '\n', 'utf8');
-      }
-
-      return { body: { ok: true, gitignorePath, action: 'added' } };
-    },
-    deps.logger,
-    'VcsExclude',
-  );
+      const outcome = await runExclude(
+        manager,
+        {
+          pattern,
+          relativeGlob,
+          remove: input.body.remove === true,
+          confirm: input.body.confirm === true,
+        },
+        deps.logger,
+        deps.lockWaitMs,
+      );
+      return { status: 200, body: { ok: true, ...outcome } };
+    } catch (error) {
+      return excludeErrorResult(error, deps.logger);
+    }
+  };
 }

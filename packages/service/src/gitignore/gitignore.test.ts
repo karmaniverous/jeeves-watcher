@@ -53,6 +53,23 @@ describe('GitignoreFilter', () => {
       expect(filter.isIgnored(join(testDir, 'error.log'))).toBe(true);
       expect(filter.isIgnored(join(testDir, 'readme.md'))).toBe(false);
     });
+
+    it('does not honour .git/info/exclude (VCS-only exclusion, D54)', () => {
+      makeRepo(testDir);
+      mkdirSync(join(testDir, '.git', 'info'), { recursive: true });
+      writeFileSync(
+        join(testDir, '.git', 'info', 'exclude'),
+        '/*.tmp\n/docs\n',
+        'utf8',
+      );
+      writeGitignore(testDir, '*.log\n');
+
+      const filter = new GitignoreFilter([testDir]);
+
+      expect(filter.isIgnored(join(testDir, 'scratch.tmp'))).toBe(false);
+      expect(filter.isIgnored(join(testDir, 'docs', 'a.md'))).toBe(false);
+      expect(filter.isIgnored(join(testDir, 'error.log'))).toBe(true);
+    });
   });
 
   describe('nested gitignore scoping', () => {

@@ -146,11 +146,20 @@ export type VcsCheckExclusionQuery = z.infer<
   typeof vcsCheckExclusionQuerySchema
 >;
 
-/** Response body of `GET /vcs/check-exclusion`. */
+/**
+ * Response body of `GET /vcs/check-exclusion` (D82): whether git ignores the
+ * path and, when it does, the matching pattern, the file holding it
+ * (`.git/info/exclude` for a VCS-only exclusion) and its line number.
+ */
 export const vcsCheckExclusionResponseSchema = z.object({
+  /** Whether git ignores the path (a tracked path never is). */
   excluded: z.boolean(),
+  /** The matching pattern. */
   rule: z.string().optional(),
+  /** The file holding the pattern, as git names it. */
   source: z.string().optional(),
+  /** The pattern's 1-based line number in `source`. */
+  line: z.number().int().positive().optional(),
 });
 
 /** Response body of `GET /vcs/check-exclusion`. */
@@ -186,17 +195,33 @@ export const vcsRevertResponseSchema = z.object({
 /** Response body of `POST /vcs/revert`. */
 export type VcsRevertResponse = z.infer<typeof vcsRevertResponseSchema>;
 
-/** Request body of `POST /vcs/exclude`. */
+/** Most files `POST /vcs/exclude` untracks without `confirm: true` (D103). */
+export const VCS_EXCLUDE_CONFIRM_THRESHOLD = 100;
+
+/** Request body of `POST /vcs/exclude` (Design 5, D81, D103). */
 export const vcsExcludeRequestSchema = z.object({
   glob: requiredString(
     'Missing required body parameter: glob',
-    'Glob to add to (or remove from) the nearest .gitignore.',
+    "One gitignore pattern, absolute (under a VCS root) or relative to `root`. It is written root-anchored (`/` + the root-relative pattern) to the root's `.git/info/exclude`. Brackets are a character class: escape them to name a file literally (`Report \\[draft\\].docx`). A newline, a leading `!` or `#`, braces, or a pattern matching the whole root is refused.",
   ),
   remove: z
     .boolean()
     .optional()
-    .describe('Remove the glob instead of adding it.'),
-  root: z.string().optional().describe('Watch root to write under.'),
+    .describe(
+      'Remove the pattern instead of adding it (from `.git/info/exclude`, else from the `.gitignore` a 0.20.0 exclude wrote). Files are not re-added; their next change is versioned again.',
+    ),
+  root: z
+    .string()
+    .optional()
+    .describe(
+      'VCS root to write under (default: the root containing the glob); a glob outside it is refused.',
+    ),
+  confirm: z
+    .boolean()
+    .optional()
+    .describe(
+      `Required (true) when adding the pattern would untrack more than ${String(VCS_EXCLUDE_CONFIRM_THRESHOLD)} files.`,
+    ),
 });
 
 /** Request body of `POST /vcs/exclude`. */
@@ -205,8 +230,11 @@ export type VcsExcludeRequest = z.infer<typeof vcsExcludeRequestSchema>;
 /** Response body of `POST /vcs/exclude`. */
 export const vcsExcludeResponseSchema = z.object({
   ok: z.literal(true),
-  gitignorePath: z.string(),
+  /** The file written: the root's `.git/info/exclude`, or the `.gitignore` a removed 0.20.0 pattern was in. */
+  file: z.string(),
   action: z.enum(['added', 'removed']),
+  /** Paths removed from the index (in HEAD or staged); 0 for `removed`. */
+  untracked: z.number().int().nonnegative(),
 });
 
 /** Response body of `POST /vcs/exclude`. */

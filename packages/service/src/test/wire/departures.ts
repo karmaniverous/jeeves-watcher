@@ -19,6 +19,11 @@ export interface WireDeparture {
    *   were stripped (at least one, or the departure is stale).
    */
   strip: (received: WireRecord) => { record: WireRecord; stripped: number };
+  /**
+   * Remove from the 0.20.0 record the keys the departure replaces (absent
+   * when it only adds).
+   */
+  retire?: (expected: WireRecord) => WireRecord;
 }
 
 type Json = unknown;
@@ -105,6 +110,29 @@ const CONFIG_KEYS: WireDeparture = {
   strip: stripNewConfigKeys,
 };
 
+/**
+ * `POST /vcs/exclude` writes `.git/info/exclude` and reports what it
+ * untracked: `file` and `untracked` replace 0.20.0's `gitignorePath` (B4,
+ * Design 2). The strip checks their values for the fixture (the root's
+ * exclude file; nothing tracked matches `tmp/*.log`).
+ */
+const EXCLUDE_RESPONSE: WireDeparture = {
+  reason:
+    'P6 B4: POST /vcs/exclude answers { ok, file, action, untracked } (D54, D71), Design 2',
+  strip: (received) => {
+    const body = received.body as Record<string, Json>;
+    if (body.file !== '{root}/.git/info/exclude' || body.untracked !== 0) {
+      return { record: received, stripped: 0 };
+    }
+    const record = withoutKey(withoutKey(body, 'file'), 'untracked');
+    return { record: { ...received, body: record }, stripped: 2 };
+  },
+  retire: (expected) => ({
+    ...expected,
+    body: withoutKey(expected.body as Record<string, Json>, 'gitignorePath'),
+  }),
+};
+
 /** Approved departures by scenario name. */
 export const WIRE_DEPARTURES: Partial<Record<string, WireDeparture>> = {
   status: {
@@ -113,4 +141,7 @@ export const WIRE_DEPARTURES: Partial<Record<string, WireDeparture>> = {
   },
   configSchema: CONFIG_KEYS,
   'configSchema unknown query': CONFIG_KEYS,
+  'vcsExclude add': EXCLUDE_RESPONSE,
+  'vcsExclude add with root': EXCLUDE_RESPONSE,
+  'vcsExclude unknown key': EXCLUDE_RESPONSE,
 };

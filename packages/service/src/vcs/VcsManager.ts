@@ -166,11 +166,8 @@ export class VcsManager {
   }
 
   /**
-   * Add a file to the pending set and start the throttle timer.
-   * If the pending set reaches maxBatchSize, commit a batch immediately.
-   *
-   * The circuit breaker is intentionally not reset here: recovery is
-   * time-based, so a busy root cannot hammer a deterministic failure.
+   * Add a file to the pending set and start the throttle timer (a full set
+   * commits at once). The breaker is not reset here: recovery is time-based.
    *
    * @param filePath - Absolute path of the changed file.
    */
@@ -178,11 +175,7 @@ export class VcsManager {
     if (this.started) this.queue.add(filePath);
   }
 
-  /**
-   * Record reversion metadata so the next commit uses a revert-prefixed message.
-   *
-   * @param reversion - The reversion metadata to record.
-   */
+  /** Record a reversion so the next commit uses a revert-prefixed message. */
   addPendingReversion(reversion: PendingReversion): void {
     this.pendingReversions.push(reversion);
   }
@@ -194,6 +187,11 @@ export class VcsManager {
    */
   handleUnlink(filePath: string): void {
     this.fileChanged(filePath);
+  }
+
+  /** Push now; the caller holds {@link lock} (`/vcs/exclude`, D71). */
+  pushInHold(): Promise<void> {
+    return this.committer.push();
   }
 
   /** Commit all pending files now, in batches of at most maxBatchSize. */

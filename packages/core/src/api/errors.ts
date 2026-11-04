@@ -20,7 +20,7 @@ import { issueTypeSchema } from './monitoring.js';
  *   or wrong.
  * - `path_not_watched` (403): the file path is outside the watched scope.
  * - `not_found` (404): no such route, file, VCS root, commit content or
- *   `.gitignore` entry.
+ *   exclude pattern.
  * - `source_not_indexed` (404): no stored point for the source reference, so
  *   no designated rule is known.
  * - `source_not_found` (404): the source callback answered `404`.
@@ -28,9 +28,13 @@ import { issueTypeSchema } from './monitoring.js';
  *   body.
  * - `pipeline_error` (422): rendering or extraction failed; for a source
  *   document `issueType` names the failing stage.
+ * - `confirm_required` (409): `POST /vcs/exclude` would untrack more than
+ *   100 files; nothing was written, and `untracked` holds the count. Repeat
+ *   with `confirm: true`.
  * - `source_unavailable` (502): the source callback failed.
  * - `not_available` (503): the feature is not available on this instance
- *   (no source support, no filesystem watcher). A prune reindex
+ *   (no source support, no filesystem watcher), or `POST /vcs/exclude`
+ *   waited 30 s for the root's git lock (`Retry-After: 30`). A prune reindex
  *   (`POST /reindex`) without a vector store keeps its 0.19 status `400`.
  * - `scan_in_progress` (503): the initial filesystem scan is still running;
  *   retry later.
@@ -47,6 +51,7 @@ export const API_ERROR_CODES = [
   'source_not_found',
   'unsupported_content_type',
   'pipeline_error',
+  'confirm_required',
   'source_unavailable',
   'not_available',
   'scan_in_progress',
@@ -76,6 +81,7 @@ export const API_ERROR_STATUS: Readonly<Record<ApiErrorCode, number>> = {
   source_not_found: 404,
   unsupported_content_type: 422,
   pipeline_error: 422,
+  confirm_required: 409,
   source_unavailable: 502,
   not_available: 503,
   scan_in_progress: 503,

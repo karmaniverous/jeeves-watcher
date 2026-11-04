@@ -1,12 +1,12 @@
 /**
  * @module api/catalog/vcsCheckExclusionHandler
- * Catalog handler for `GET /vcs/check-exclusion`: the gitignore status of a path. The query is validated by the catalog's `vcsCheckExclusion` entry schema.
+ * Catalog handler for `GET /vcs/check-exclusion`: whether git ignores a path, with the matching rule, its file and line (D82). A git failure other than "not ignored" answers `500`. The query is validated by the catalog's `vcsCheckExclusion` entry schema.
  */
 
 import type { CatalogHandler } from '@karmaniverous/jeeves/fastify';
 
+import { checkIgnore } from '../../vcs/checkIgnore';
 import { resolveWatchRoot } from '../../vcs/resolveWatchRoot';
-import { runGit } from '../../vcs/runGit';
 import { RequestError } from '../requestError';
 import type { Entry } from './catalogEntry';
 import type { CatalogVcsDeps } from './vcsDeps';
@@ -23,38 +23,16 @@ export function createCatalogVcsCheckExclusionHandler(
 ): CatalogHandler<Entry<'vcsCheckExclusion'>> {
   return wrapCatalogHandler<Entry<'vcsCheckExclusion'>>(
     async (input) => {
-      const { path } = input.query;
-
-      const resolved = resolveWatchRoot(deps.coordinator, path);
+      const resolved = resolveWatchRoot(deps.coordinator, input.query.path);
       if (!resolved) {
         throw new RequestError(
           'not_found',
           'Path does not match any VCS-enabled watch root',
         );
       }
-
-      try {
-        const { stdout } = await runGit(resolved.root, [
-          'check-ignore',
-          '-v',
-          resolved.relativePath,
-        ]);
-
-        // Output format: <source>:<linenum>:<pattern>\t<pathname>
-        const trimmed = stdout.trim();
-        const match = /^(.+):(\d+):(.+)\t/.exec(trimmed);
-
-        if (match) {
-          return {
-            body: { excluded: true, rule: match[3].trim(), source: match[1] },
-          };
-        }
-
-        return { body: { excluded: true } };
-      } catch {
-        // Exit code 1 means the path is NOT ignored
-        return { body: { excluded: false } };
-      }
+      return {
+        body: await checkIgnore(resolved.root, resolved.relativePath),
+      };
     },
     deps.logger,
     'VcsCheckExclusion',

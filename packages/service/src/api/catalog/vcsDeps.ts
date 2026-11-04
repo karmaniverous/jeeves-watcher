@@ -13,4 +13,6 @@ export interface CatalogVcsDeps {
   coordinator: VcsCoordinator;
   /** Logger. */
   logger: pino.Logger;
+  /** Longest RootGitLock wait of `/vcs/exclude` (default 30 s; tests only). */
+  lockWaitMs?: number;
 }

@@ -7,7 +7,8 @@
  * but `error` is the first issue's message and `details` lists catalog
  * issues (`slot`, `path`, `code`, `message`, `params`); and the approved
  * 0.21.0 departures (`test/wire/departures`), each stripped from the
- * received record before the comparison.
+ * received record (and, for a replaced key, retired from the baseline one)
+ * before the comparison.
  */
 
 import { readFileSync } from 'node:fs';
@@ -94,7 +95,7 @@ describe('catalog routes keep the 0.20.0 wire format', () => {
         name,
         departureApplies: true,
       });
-      expect(record).toEqual(expected);
+      expect(record).toEqual(departure?.retire?.(expected) ?? expected);
     },
   );
 });

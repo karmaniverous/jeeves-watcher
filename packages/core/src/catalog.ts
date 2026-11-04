@@ -265,7 +265,10 @@ export const WATCHER_CATALOG = defineCatalog([
   },
   {
     // D103: it untracks files, ending their history.
-    ...vcsRoute('vcsExclude'),
+    ...vcsRoute(
+      'vcsExclude',
+      "The glob is a gitignore pattern, so brackets are a character class: escape them to name a file literally (`Report \\[draft\\].docx`). Adding a pattern also untracks the tracked files it matches, in one commit (history stops for them; the files stay on disk and in search); `remove` does not restore that history. More than 100 files to untrack need `confirm: true` (else 409 `confirm_required` with `untracked`, nothing written). The route waits at most 30 s for the root's git lock, then answers 503 `not_available` with `Retry-After: 30`, nothing written. A glob outside an explicit `root` is 400; a glob under no VCS root is 404.",
+    ),
     body: vcsExcludeRequestSchema,
     response: vcsExcludeResponseSchema,
     kind: 'destructive',
