@@ -188,6 +188,19 @@ describe('POST /vcs/exclude untracking', () => {
     expect(await tracked()).toEqual(['a1.md', 'hello.txt']);
   });
 
+  it('untracks exactly 100 files without confirm (D103)', async () => {
+    await seed(
+      Object.fromEntries(
+        Array.from({ length: 100 }, (_, i) => [`bulk/f${String(i)}.dat`, 'x']),
+      ),
+    );
+
+    const res = await exclude({ glob: root + '/bulk/*.dat' });
+
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toMatchObject({ untracked: 100 });
+  }, 30_000);
+
   it('needs confirm past 100 files: 409 writes nothing, confirm untracks (D103)', async () => {
     const files = Object.fromEntries(
       Array.from({ length: 101 }, (_, i) => [`bulk/f${String(i)}.dat`, 'x']),
