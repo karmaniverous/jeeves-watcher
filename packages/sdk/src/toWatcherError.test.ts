@@ -9,6 +9,7 @@ import { describe, expect, it } from 'vitest';
 import {
   clampRetryAfter,
   MAX_RETRY_AFTER_MS,
+  MAX_UNCODED_MESSAGE_LENGTH,
   toWatcherError,
 } from './toWatcherError';
 
@@ -45,6 +46,31 @@ describe('toWatcherError', () => {
       10_000,
     );
     expect(err).toMatchObject({ code: 'http_418', message: 'teapot' });
+  });
+
+  it('truncates a long message from a body without a code, keeping the body in details', () => {
+    const page = `<!DOCTYPE html>${'x'.repeat(500)}`;
+    const err = toWatcherError(
+      new CatalogClientError('x', { status: 502, body: { error: page } }),
+      'search',
+      10_000,
+    );
+    expect(err.code).toBe('http_502');
+    expect(err.message).toBe(`${page.slice(0, MAX_UNCODED_MESSAGE_LENGTH)}...`);
+    expect(err.details).toEqual({ error: page });
+  });
+
+  it('keeps a long message from a body with a code', () => {
+    const text = 'y'.repeat(500);
+    const err = toWatcherError(
+      new CatalogClientError('x', {
+        status: 400,
+        body: { error: text, code: 'invalid_request' },
+      }),
+      'search',
+      10_000,
+    );
+    expect(err.message).toBe(text);
   });
 
   it('keeps the error text alone when the body message repeats it', () => {

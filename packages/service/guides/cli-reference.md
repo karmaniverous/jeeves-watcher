@@ -198,6 +198,7 @@ Every domain-specific command is one SDK call with a 60 s timeout, longer than a
 - A `401` adds a line: `The watcher API requires an API key. Provide it via ...` when no key was sent, or `The watcher API rejected the API key. Check ... against the service's api.apiKey.` when one was.
 - A request the SDK refuses before sending prints `invalid_request: ...`; a reply that does not match the expected shape prints `invalid_response: ...`.
 - A connection failure prints `network_error: <operation> request failed: <reason>` (for example `fetch failed`), and a timeout `timeout: <operation> timed out after 60000 ms`.
+- Long operations on large corpora can exceed 60 s: `reindex --dry-run` with `--scope prune`, `vcs history` on a large root, `vcs revert` of many files and `rebuild-metadata`. The CLI then prints `timeout: ...` while the service keeps working; run them through the HTTP API or the SDK with a larger `timeoutMs`.
 - `vcs exclude` and `vcs revert` keep running on the service after a timeout. Their timeout message adds that the operation may still complete, and how to check (`vcs check`, `vcs status` or `vcs history`), before you run it again.
 
 ### `jeeves-watcher search`

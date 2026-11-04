@@ -193,6 +193,7 @@
       "type": "object",
       "properties": {
         "scope": {
+          "description": "Reindex scope: \"issues\" re-processes documents that failed; \"rules\" re-applies inference rules without re-embedding; \"full\" re-embeds everything; \"path\" reindexes the given files or directories (`path`) or source references (`source`); \"prune\" deletes points for files no longer in watch scope.",
           "type": "string",
           "enum": [
             "issues",
@@ -200,8 +201,7 @@
             "rules",
             "path",
             "prune"
-          ],
-          "description": "Reindex scope."
+          ]
         },
         "path": {
           "anyOf": [
@@ -241,6 +241,7 @@
           ]
         },
         "dryRun": {
+          "description": "Return the blast-area plan (counts by root) without running the reindex.",
           "type": "boolean"
         }
       },

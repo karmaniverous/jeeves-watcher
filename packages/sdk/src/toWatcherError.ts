@@ -30,6 +30,9 @@ const stringField = (
   return typeof value === 'string' && value.length > 0 ? value : undefined;
 };
 
+/** Longest message kept from a body without a `code` (a proxy's error page, say); the whole body stays in `details`. */
+export const MAX_UNCODED_MESSAGE_LENGTH = 200;
+
 /**
  * Code, message and details of a non-2xx response body.
  *
@@ -49,9 +52,13 @@ function serverError(
       : extra !== undefined && extra !== error
         ? `${error}: ${extra}`
         : error;
+  const code = stringField(body, 'code');
   return {
-    code: stringField(body, 'code') ?? `http_${String(status)}`,
-    message,
+    code: code ?? `http_${String(status)}`,
+    message:
+      code === undefined && message.length > MAX_UNCODED_MESSAGE_LENGTH
+        ? `${message.slice(0, MAX_UNCODED_MESSAGE_LENGTH)}...`
+        : message,
     details: body !== undefined && 'details' in body ? body.details : body,
   };
 }
@@ -61,6 +68,11 @@ function serverError(
  *
  * @param cause - The underlying error.
  * @returns `timeout`, `invalid_response` (an unparseable 2xx body) or `network_error`.
+ *
+ * @remarks
+ * Assumes jeeves's client wraps a `SyntaxError` only from parsing a 2xx
+ * body; a caller's own `fetch` throwing one before any response would also
+ * read as `invalid_response`.
  */
 function noResponseCode(cause: unknown): string {
   if (cause instanceof Error && cause.name === 'TimeoutError') return 'timeout';

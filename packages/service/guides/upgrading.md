@@ -79,6 +79,7 @@ What changes for an existing deployment, release by release. The [Changelog](../
 
 `@karmaniverous/jeeves-watcher-sdk` 0.3.0 is built on jeeves's catalog client over `WATCHER_CATALOG` (D36). Its own fetch layer is gone; it depends on `@karmaniverous/jeeves` 0.9.0 and `@karmaniverous/jeeves-watcher-core` ^0.5.0.
 
+- **New runtime dependency:** the SDK imports `@karmaniverous/jeeves/catalog`, so jeeves's own runtime dependencies (`commander`, `@commander-js/extra-typings`, `cross-spawn`, `jsonpath-plus`, `package-directory`, `semver`, `zod`) install in every consumer, whichever sub-path is imported.
 - **Methods are named by the catalog entry**, and the client now has one per entry: `issues()` becomes `listIssues()`, `metadata()` becomes `setMetadata()`, and the new methods include `getConfigSchema`, `matchConfig`, `validateConfig`, `listFacets`, `walk`, `config`, `configApply`, the rule methods, `deletePoints` and the VCS methods. `documents.notify` and `documents.delete` stay as they were. The [SDK guide](../../sdk/guides/sdk-guide.md#methods) lists every method.
 
   ```ts
@@ -91,7 +92,7 @@ What changes for an existing deployment, release by release. The [Changelog](../
   ```
 
 - **Inputs are validated by the entry's schemas, in their wire form.** Query fields are strings: `listVcsHistory({ glob, limit: '20' })`. A condition-free delete filter is still refused before sending.
-- **Responses are parsed by the entry's schema**, which drops unknown keys.
+- **Responses are parsed by the entry's schema**, which drops fields a newer service adds. A new enum value from a newer service fails validation (`invalid_response`) until the SDK is upgraded: upgrade the SDK with the service.
 - **Error codes:** a non-2xx body's `code` wins; a body without one maps to `http_<status>` (0.2.0 fell back to the body's `error` text first). Client-side failures keep their codes (`invalid_request`, `invalid_response`, `timeout`, `network_error`, `invalid_options`).
 - **`WatcherError.retryAfterMs`** carries the server's `Retry-After` in milliseconds, clamped to one hour. The SDK still never retries.
 - **`documents.notify` no longer checks references client-side.** A malformed reference is sent, and the server returns it in the `202` body's `rejected` list.
@@ -100,7 +101,7 @@ What changes for an existing deployment, release by release. The [Changelog](../
 
 ### CLI
 
-- **Every API command goes through the SDK with a 60 s timeout** (was 10 s, D119). Errors print as `<code>: <message>` (a `401` adds a line on supplying the key); exit code 1 as before.
+- **Every API command goes through the SDK and now times out after 60 s** (0.20.0 set no timeout). A timeout does not cancel the operation on the server (D119); long operations on large corpora can exceed it (see the [CLI Reference](./cli-reference.md#output-and-errors)). Errors print as `<code>: <message>` (a `401` adds a line on supplying the key); exit code 1 as before.
 - **New commands:** `walk <globs...>`, and `vcs status`, `vcs history`, `vcs show`, `vcs diff`, `vcs revert`, `vcs check` and `vcs exclude` (#213); `reindex --dry-run` (#257). A timed-out `vcs exclude` or `vcs revert` says it may still complete and how to check. See the [CLI Reference](./cli-reference.md).
 
 ### OpenClaw plugin 0.18.0

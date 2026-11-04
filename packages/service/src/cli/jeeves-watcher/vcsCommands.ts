@@ -4,6 +4,7 @@
  */
 
 import type { Command } from '@commander-js/extra-typings';
+import { VCS_EXCLUDE_CONFIRM_THRESHOLD } from '@karmaniverous/jeeves-watcher-core';
 
 import {
   printJson,
@@ -134,7 +135,10 @@ export function registerVcsCommands(program: Command): void {
       )
       .option('--remove', 'Remove the exclusion instead of adding it')
       .option('--root <root>', 'VCS root the glob is relative to')
-      .option('--confirm', 'Allow untracking more than 100 files'),
+      .option(
+        '--confirm',
+        `Allow untracking more than ${String(VCS_EXCLUDE_CONFIRM_THRESHOLD)} files`,
+      ),
   ).action((glob, opts) =>
     runApiCommand(
       opts,

@@ -5,7 +5,7 @@ Typed TypeScript client for the [jeeves-watcher](https://www.npmjs.com/package/@
 The SDK is thin by design: it is [jeeves](https://www.npmjs.com/package/@karmaniverous/jeeves)'s catalog client over the watcher's endpoint catalog (`WATCHER_CATALOG` in [`@karmaniverous/jeeves-watcher-core`](https://www.npmjs.com/package/@karmaniverous/jeeves-watcher-core)), the same Zod schemas the service validates against, so your types cannot drift from the server. Every input is validated client-side before it is sent, and every response is parsed with the route's response schema.
 
 - ESM only, Node.js ≥ 24.22.2 (uses the global `fetch`).
-- Two runtime dependencies: `@karmaniverous/jeeves` (the catalog client) and `@karmaniverous/jeeves-watcher-core` (the catalog).
+- Two runtime dependencies: `@karmaniverous/jeeves` (the catalog client) and `@karmaniverous/jeeves-watcher-core` (the catalog), plus jeeves's own runtime dependencies.
 - One error type, `WatcherError`. No retries: the watcher owns rate limiting.
 - One method per route, named by its catalog entry (`search`, `listIssues`, `setMetadata`, `showVcsFile`, ...), plus `documents.notify` / `documents.delete`. The [SDK Guide](./guides/sdk-guide.md) lists every method.
 
@@ -101,7 +101,7 @@ Every failure is a `WatcherError` with `code`, optional `status`, optional `deta
 | `code` | When | `status` |
 | --- | --- | --- |
 | `invalid_request` | The input failed the route's request schema; nothing was sent. `details` holds the Zod issues. | — |
-| `invalid_response` | A 2xx body was not JSON or did not match the route's response schema. | 2xx |
+| `invalid_response` | A 2xx body was not JSON or did not match the route's response schema. | 2xx when the body parsed; none when it was not JSON |
 | `timeout` | No response within `timeoutMs`. | — |
 | `network_error` | `fetch` rejected (connection refused, DNS, …); see `cause`. | — |
 | `invalid_options` | `createWatcherClient` options are invalid (e.g. a `baseUrl` that is not http(s) or carries a query string or fragment). | — |

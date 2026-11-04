@@ -60,9 +60,11 @@ Request and response types are inferred from the catalog's schemas, so they alwa
 
 **Inputs are in their wire form.** Query fields are strings, as they travel: `listVcsHistory({ glob: '/data/docs/**', limit: '20' })`. Bodies are JSON values.
 
-**Responses are parsed** by the entry's response schema; unknown keys are dropped. `showVcsFile` and `diffVcs` resolve with the raw text.
+**Responses are parsed** by the entry's response schema; fields a newer service adds are dropped. A new enum value from a newer service fails validation (`invalid_response`) until the SDK is upgraded: upgrade the SDK with the service. `showVcsFile` and `diffVcs` resolve with the raw text.
 
 The VCS methods answer `not_found` while version control is off (`vcs.enabled: false`).
+
+**Types of inputs and outputs** follow from the client: `Parameters<WatcherClient['excludeVcsPath']>[0]` is the input of `excludeVcsPath`, `Awaited<ReturnType<WatcherClient['excludeVcsPath']>>` its result.
 
 ## Source documents
 
@@ -94,7 +96,7 @@ Every method throws `WatcherError` (`isWatcherError(e)` narrows):
 
 `message` is the server's `error` text (with its `message` when different) or the SDK's description; `details` carries the server's `details` or the Zod issues.
 
-**`retryAfterMs`** is the delay the server asked for (`Retry-After`, sent with `503 not_available` when a root's git lock or a document lock stays busy), in milliseconds, clamped to 0..3,600,000. The SDK never retries: wait at least that long before calling again.
+**`retryAfterMs`** is the delay the server asked for (`Retry-After`, sent with `503 not_available` when a root's git lock or a document lock stays busy), in milliseconds, clamped to 0..`MAX_RETRY_AFTER_MS` (3,600,000, exported). The SDK never retries: wait at least that long before calling again.
 
 ## Timeouts and state changes
 
