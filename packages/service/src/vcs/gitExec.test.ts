@@ -21,11 +21,15 @@ function execError(message: string, fields: Record<string, unknown>): Error {
 }
 
 describe('gitArgs', () => {
-  it('prefixes core.longpaths=true ahead of the subcommand', () => {
-    expect(GIT_BASE_ARGS).toEqual(['-c', 'core.longpaths=true']);
-    expect(gitArgs('commit', '-m', 'x')).toEqual([
+  it('prefixes core.longpaths=true and core.quotePath=false ahead of the subcommand', () => {
+    expect(GIT_BASE_ARGS).toEqual([
       '-c',
       'core.longpaths=true',
+      '-c',
+      'core.quotePath=false',
+    ]);
+    expect(gitArgs('commit', '-m', 'x')).toEqual([
+      ...GIT_BASE_ARGS,
       'commit',
       '-m',
       'x',
@@ -35,7 +39,7 @@ describe('gitArgs', () => {
   it('returns a fresh array each call', () => {
     const first = gitArgs('status');
     first.push('mutated');
-    expect(gitArgs('status')).toEqual(['-c', 'core.longpaths=true', 'status']);
+    expect(gitArgs('status')).toEqual([...GIT_BASE_ARGS, 'status']);
   });
 });
 

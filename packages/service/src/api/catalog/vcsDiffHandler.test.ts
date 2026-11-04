@@ -85,6 +85,18 @@ describe('GET /vcs/diff', () => {
     expect(res.body).toContain('changed content');
   });
 
+  it('returns non-ASCII paths unescaped (#252)', async () => {
+    const first = await head();
+    await writeFile(join(rootA, 'café.md'), 'x', 'utf8');
+    await execFileAsync('git', ['add', '.'], { cwd: rootA });
+    await execFileAsync('git', ['commit', '-m', 'accent'], { cwd: rootA });
+
+    const res = await diff({ glob: rootA, commit: first });
+
+    expect(res.body).toContain('diff --git a/café.md b/café.md');
+    expect(res.body).not.toContain('\\303');
+  });
+
   it('answers an empty diff when nothing changed', async () => {
     const res = await diff({ glob: rootA + '/hello.txt', commit: 'HEAD' });
 

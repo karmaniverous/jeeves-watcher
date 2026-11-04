@@ -19,8 +19,20 @@ export const execFileAsync = promisify(execFile);
  * `-c core.longpaths=true` lets Windows checkouts handle paths beyond the
  * legacy MAX_PATH limit (260 chars) without requiring a machine-wide
  * `core.longpaths` git config or registry change. See #249.
+ *
+ * `-c core.quotePath=false` makes every call (history, diff, staging,
+ * check-ignore) print non-ASCII paths unescaped, instead of octal escapes
+ * in double quotes. See #252.
+ *
+ * `--literal-pathspecs` is deliberately not here: history, diff and revert
+ * take user globs (D10, D116). Path-list calls add it themselves.
  */
-export const GIT_BASE_ARGS: readonly string[] = ['-c', 'core.longpaths=true'];
+export const GIT_BASE_ARGS: readonly string[] = [
+  '-c',
+  'core.longpaths=true',
+  '-c',
+  'core.quotePath=false',
+];
 
 /**
  * Build a git argv array with {@link GIT_BASE_ARGS} prefixed.
