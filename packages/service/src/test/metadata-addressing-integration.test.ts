@@ -49,6 +49,12 @@ describe.skipIf(!qdrantAvailable())(
       await rm(watchDir, { recursive: true, force: true });
     });
 
+    /**
+     * Each test starts its own harness (collection, indexes) in the test
+     * body, so it gets the hook budget (30 s, vitest config), not 5 s.
+     */
+    const HARNESS_TEST_TIMEOUT_MS = 30_000;
+
     async function harnessFor(
       label: string,
       payloadIndexes?: Array<{ field: string; type: 'text' }>,
@@ -89,41 +95,49 @@ describe.skipIf(!qdrantAvailable())(
       expect(res.statusCode).toBe(200);
     }
 
-    it('updates every chunk by filter when file_path is keyword-indexed', async () => {
-      const h = await harnessFor('meta_filter');
-      expect(h.vectorStore.keywordIndexReady('file_path')).toBe(true);
-      const file = join(watchDir, 'filter.md');
-      await writeFile(file, textOfChunks(4), 'utf8');
-      await h.processor.processFile(file);
-      await setOwner(h, file, 'ann');
-      expect(await owners(h, file, 4)).toEqual(['ann', 'ann', 'ann', 'ann']);
-    });
+    it(
+      'updates every chunk by filter when file_path is keyword-indexed',
+      async () => {
+        const h = await harnessFor('meta_filter');
+        expect(h.vectorStore.keywordIndexReady('file_path')).toBe(true);
+        const file = join(watchDir, 'filter.md');
+        await writeFile(file, textOfChunks(4), 'utf8');
+        await h.processor.processFile(file);
+        await setOwner(h, file, 'ann');
+        expect(await owners(h, file, 4)).toEqual(['ann', 'ann', 'ann', 'ann']);
+      },
+      HARNESS_TEST_TIMEOUT_MS,
+    );
 
-    it('uses existing IDs on a conflict and updates a claim-state document', async () => {
-      const h = await harnessFor('meta_ids', [
-        { field: 'file_path', type: 'text' },
-      ]);
-      expect(h.vectorStore.systemIndexStates()).toEqual({
-        file_path: 'conflict',
-      });
-      const file = join(watchDir, 'claim.md');
-      await writeFile(file, textOfChunks(5), 'utf8');
-      await h.processor.processFile(file);
-      // Simulate a streamed write that failed after window 0 of a 7-chunk
-      // run: chunk 0 claims 7 and has no content hash; IDs 5 and 6 are missing.
-      await h.vectorStore.setPayload([pointId(file, 0)], { total_chunks: 7 });
-      await h.vectorStore.deletePayload([pointId(file, 0)], ['content_hash']);
+    it(
+      'uses existing IDs on a conflict and updates a claim-state document',
+      async () => {
+        const h = await harnessFor('meta_ids', [
+          { field: 'file_path', type: 'text' },
+        ]);
+        expect(h.vectorStore.systemIndexStates()).toEqual({
+          file_path: 'conflict',
+        });
+        const file = join(watchDir, 'claim.md');
+        await writeFile(file, textOfChunks(5), 'utf8');
+        await h.processor.processFile(file);
+        // Simulate a streamed write that failed after window 0 of a 7-chunk
+        // run: chunk 0 claims 7 and has no content hash; IDs 5 and 6 are missing.
+        await h.vectorStore.setPayload([pointId(file, 0)], { total_chunks: 7 });
+        await h.vectorStore.deletePayload([pointId(file, 0)], ['content_hash']);
 
-      await setOwner(h, file, 'bob');
-      expect(await owners(h, file, 7)).toEqual([
-        'bob',
-        'bob',
-        'bob',
-        'bob',
-        'bob',
-        null,
-        null,
-      ]);
-    });
+        await setOwner(h, file, 'bob');
+        expect(await owners(h, file, 7)).toEqual([
+          'bob',
+          'bob',
+          'bob',
+          'bob',
+          'bob',
+          null,
+          null,
+        ]);
+      },
+      HARNESS_TEST_TIMEOUT_MS,
+    );
   },
 );
