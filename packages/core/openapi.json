@@ -229,7 +229,7 @@
                             "backoffUntil"
                           ],
                           "additionalProperties": false,
-                          "description": "Embedding provider health (D86)."
+                          "description": "Embedding provider health (D88, D89)."
                         },
                         "error": {
                           "type": "string"

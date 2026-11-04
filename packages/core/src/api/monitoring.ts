@@ -96,7 +96,7 @@ export const systemIndexesSchema = z
 export type SystemIndexes = z.infer<typeof systemIndexesSchema>;
 
 /**
- * Embedding health in `GET /status` `health.embedding` (D86): state and
+ * Embedding health in `GET /status` `health.embedding` (D88, D89): state and
  * timestamps with error codes only, never provider text or paths.
  */
 export const embeddingHealthSchema = z
@@ -137,7 +137,7 @@ export const embeddingHealthSchema = z
         'End of the stored provider back-off (ISO, at most 5 minutes ahead), null if none.',
       ),
   })
-  .describe('Embedding provider health (D86).');
+  .describe('Embedding provider health (D88, D89).');
 
 /** Embedding health in `GET /status` `health.embedding`. */
 export type EmbeddingHealth = z.infer<typeof embeddingHealthSchema>;
