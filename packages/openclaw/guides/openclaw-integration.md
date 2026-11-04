@@ -201,7 +201,7 @@ Exclude a path from version history while keeping it in search, or remove the ex
 
 **Parameters:**
 
-- `glob` (string, required) — one gitignore pattern, absolute under a tracked root or relative to `root`; brackets are a character class, so escape them to name a file literally (`Report \[draft\].docx`)
+- `glob` (string, required) — one gitignore pattern, absolute under a tracked root or relative to `root` (a glob starting with `/` is a filesystem path); brackets are a character class, so escape them to name a file literally (`Report \[draft\].docx`)
 - `root` (string) — tracked root to target (defaults to auto-detect); a glob outside it is refused
 - `remove` (boolean) — when true, remove the exclusion rule (untracked files are not re-added)
 - `confirm` (boolean) — required (true) when more than 100 files would be untracked; without it the tool reports `HTTP 409 confirm_required` and nothing changes
