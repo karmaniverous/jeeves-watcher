@@ -184,8 +184,17 @@ describe('POST /vcs/exclude untracking', { timeout: 20_000 }, () => {
     ).toHaveLength(1);
 
     const removed = await exclude({ glob: root + '/a.log ', remove: true });
-    expect(removed.statusCode).toBe(200);
+    expect(removed.json()).toEqual({
+      ok: true,
+      file: root + '/.git/info/exclude',
+      action: 'removed',
+      untracked: 0,
+    });
+    expect(
+      await readFile(join(root, '.git', 'info', 'exclude'), 'utf8'),
+    ).not.toMatch(/\/a\.log/);
   });
+
   it('treats brackets as a class unless escaped (D168)', async () => {
     await seed({ 'Report [draft].docx': 'r', 'Report d.docx': 'd' });
 

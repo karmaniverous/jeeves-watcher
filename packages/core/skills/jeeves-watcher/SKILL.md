@@ -1042,7 +1042,7 @@ Not all watched files need version history. For example, if Jira issues are sync
 The exclusion is VCS-only: the pattern goes to the root's `.git/info/exclude`, so the files stop being versioned but stay indexed and searchable.
 
 - **Destructive.** Adding a pattern untracks the tracked files it matches, in one commit: their history ends at their last committed version (the files stay on disk). `remove: true` deletes the pattern but does not restore history; the files are versioned again from their next change.
-- **One gitignore pattern, root-anchored.** The pattern is written as `/` plus the glob relative to the root, so `/data/tickets/*.json` (root `/data`) matches only directly under `tickets/`; use `**/` for any depth. Pass `root` to give a root-relative glob (`tickets/**/*.json`).
+- **One gitignore pattern, root-anchored.** The pattern is written as `/` plus the glob relative to the root, so `/data/tickets/*.json` (root `/data`) matches only directly under `tickets/`; use `**/` for any depth. Pass `root` to give a root-relative glob (`tickets/**/*.json`, without a leading `/`: with `root`, a glob starting with `/` is a filesystem path and must lie under the root).
 - **Brackets are a character class.** `Report [draft].docx` matches `Report d.docx`; escape them to name the file: `Report \[draft\].docx`.
 - **Refused (`400`):** a newline, a leading `!` or `#`, braces, a pattern matching the whole root (`*`, `**`, `**/*`, ...), or a glob outside the given `root`.
 - **More than 100 files** to untrack need `confirm: true`; without it the tool reports `409 confirm_required` with the count and changes nothing. Check the count with the user before confirming.

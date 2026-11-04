@@ -15,7 +15,7 @@ export const VCS_EXCLUDE_DESCRIPTION = `Exclude a path from version history (VCS
 
 /** `watcher_vcs_exclude` `glob` description (0.21.0, spec B4). */
 export const VCS_EXCLUDE_GLOB_DESCRIPTION =
-  'One gitignore pattern, absolute under a tracked root or relative to root; written root-anchored to the root .git/info/exclude. Brackets are a character class: escape them to name a file literally (Report \\[draft\\].docx).';
+  'One gitignore pattern, absolute under a tracked root or relative to root (no leading /: a glob starting with / is a filesystem path); written root-anchored to the root .git/info/exclude. Brackets are a character class: escape them to name a file literally (Report \\[draft\\].docx).';
 
 /** `watcher_vcs_exclude` `confirm` description (0.21.0, spec B4). */
 export const VCS_EXCLUDE_CONFIRM_DESCRIPTION = `Required (true) when adding the pattern would untrack more than ${String(VCS_EXCLUDE_CONFIRM_THRESHOLD)} files.`;
