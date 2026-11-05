@@ -5,7 +5,27 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { runBounded } from './boundedRun';
+import { OUT_OF_BUDGET, runBounded, withinBudget } from './boundedRun';
+
+describe('withinBudget', () => {
+  it('returns the result when it comes in time', async () => {
+    const done = withinBudget(after(50, 'x')(), 100);
+    await vi.advanceTimersByTimeAsync(50);
+    await expect(done).resolves.toBe('x');
+  });
+
+  it('gives OUT_OF_BUDGET when the budget runs out first', async () => {
+    const done = withinBudget(after(200, 'x')(), 100);
+    await vi.advanceTimersByTimeAsync(100);
+    await expect(done).resolves.toBe(OUT_OF_BUDGET);
+  });
+
+  it('treats a spent budget as none left', async () => {
+    const done = withinBudget(after(10, 'x')(), -5);
+    await vi.advanceTimersByTimeAsync(0);
+    await expect(done).resolves.toBe(OUT_OF_BUDGET);
+  });
+});
 
 beforeEach(() => {
   vi.useFakeTimers();
@@ -65,7 +85,8 @@ describe('runBounded', () => {
   });
 
   it('never gives a task less than 1 s, even with no time left on the clock', async () => {
-    const clock = [0, 0, 1_000];
+    // deadline, budget timer, loop check, then the task's timeout.
+    const clock = [0, 0, 0, 1_000];
     const timeouts: number[] = [];
     const { results } = await runBounded(
       [
@@ -81,6 +102,25 @@ describe('runBounded', () => {
     );
     expect(timeouts).toEqual([1]);
     expect(results.get('a')).toBe('a');
+  });
+
+  it('starts no task once the deadline has passed, even before the budget timer fires', async () => {
+    let t = 0;
+    const started: string[] = [];
+    const { results, pending } = await runBounded(
+      ['a', 'b'].map((key) => ({
+        key,
+        run: () => {
+          started.push(key);
+          t = 2_000;
+          return Promise.resolve(key);
+        },
+      })),
+      { concurrency: 1, budgetMs: 1_000, now: () => t },
+    );
+    expect(started).toEqual(['a']);
+    expect(results.get('a')).toBe('a');
+    expect(pending).toEqual(['b']);
   });
 
   it('starts nothing past the budget and discards late results', async () => {

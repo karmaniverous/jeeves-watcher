@@ -29,6 +29,37 @@ export interface BoundedRunResult<T> {
   pending: string[];
 }
 
+/** What {@link withinBudget} resolves to when the budget ran out first. */
+export const OUT_OF_BUDGET: unique symbol = Symbol('out of budget');
+
+/**
+ * Wait for a promise for at most `budgetMs` (its result is discarded past
+ * that).
+ *
+ * @param promise - The work.
+ * @param budgetMs - Time left, ms.
+ * @returns Its result, or {@link OUT_OF_BUDGET}.
+ */
+export async function withinBudget<T>(
+  promise: Promise<T>,
+  budgetMs: number,
+): Promise<T | typeof OUT_OF_BUDGET> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const out = new Promise<typeof OUT_OF_BUDGET>((resolve) => {
+    timer = setTimeout(
+      () => {
+        resolve(OUT_OF_BUDGET);
+      },
+      Math.max(0, budgetMs),
+    );
+  });
+  try {
+    return await Promise.race([promise, out]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 /**
  * Run tasks at most `concurrency` at a time within `budgetMs`.
  *
@@ -58,7 +89,7 @@ export async function runBounded<T>(
   });
 
   const worker = async (): Promise<void> => {
-    while (!isStopped() && next < tasks.length) {
+    while (!isStopped() && now() < deadline && next < tasks.length) {
       const task = tasks[next++];
       const timeoutS = Math.max(1, Math.ceil((deadline - now()) / 1000));
       try {

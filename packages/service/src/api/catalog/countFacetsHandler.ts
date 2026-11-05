@@ -18,7 +18,7 @@ import {
 } from '../../processor/payloadFields';
 import type { FacetStore } from '../../vectorStore';
 import { RequestError, withFilterErrors } from '../requestError';
-import { runBounded } from './boundedRun';
+import { OUT_OF_BUDGET, runBounded, withinBudget } from './boundedRun';
 import type { Entry } from './catalogEntry';
 import { countFilter, type FieldPlan, planFields } from './countFacetsPlan';
 import { requireKnownRules } from './facetRules';
@@ -75,21 +75,37 @@ function requireIndexes(store: FacetStore, fields: readonly string[]): void {
   }
 }
 
-/** The in-scope rule schemas; a schema error leaves the index types to decide. */
+/**
+ * The in-scope rule schemas that resolved. A rule whose schema failed is
+ * left out (logged), so its fields' modes come from the other rules or the
+ * index types.
+ */
 function inScopeSchemas(
-  read: () => RuleSchemas,
+  schemas: RuleSchemas,
   scope: ReadonlySet<string> | undefined,
   logger: pino.Logger,
 ): RuleSchema[] {
-  try {
-    return selectSchemas(read(), scope, 'all');
-  } catch (err) {
+  const selected = selectSchemas(schemas, scope, 'all');
+  const failed = selected.filter((s) => 'error' in s);
+  if (failed.length > 0) {
     logger.warn(
-      { err },
-      'countFacets: rule schemas failed to resolve; payload index types decide each mode',
+      { rules: failed.map((s) => s.rule), err: failed[0].error },
+      'countFacets: rule schemas failed to resolve; those rules give no uiHints',
     );
-    return [];
   }
+  return selected.filter((s) => !('error' in s));
+}
+
+/** The `503` for fields not counted within the 10 s budget. */
+function budgetExceeded(pending: readonly string[]): RequestError {
+  return new RequestError(
+    'not_available',
+    'Facet counts exceeded the time budget',
+    {
+      message: `Not counted within the request's ${String(COUNT_FACETS_BUDGET_MS / 1000)} s budget: ${pending.join(', ')}. Count fewer fields or narrow the filter.`,
+      details: { pending: [...pending] },
+    },
+  );
 }
 
 /**
@@ -120,16 +136,7 @@ async function countPlanned(
     })),
     { concurrency: COUNT_FACETS_CONCURRENCY, budgetMs },
   );
-  if (pending.length > 0) {
-    throw new RequestError(
-      'not_available',
-      'Facet counts exceeded the time budget',
-      {
-        message: `Not counted within ${String(budgetMs / 1000)} s: ${pending.join(', ')}. Count fewer fields or narrow the filter.`,
-        details: { pending },
-      },
-    );
-  }
+  if (pending.length > 0) throw budgetExceeded(pending);
   return Object.fromEntries(
     plans.map(({ field }) => [field, results.get(field) as Counts[string]]),
   );
@@ -148,6 +155,8 @@ export function createCatalogCountFacetsHandler(
   const budgetMs = deps.budgetMs ?? COUNT_FACETS_BUDGET_MS;
 
   const count = async (body: CountFacetsRequest): Promise<Counts> => {
+    // The budget covers the whole request, the index-type read included.
+    const deadline = Date.now() + budgetMs;
     const store = deps.facetStore;
     const config = deps.getConfig();
     const virtualRules = deps.getVirtualRules?.() ?? {};
@@ -160,22 +169,25 @@ export function createCatalogCountFacetsHandler(
     );
 
     const schemas = inScopeSchemas(
-      () => ruleSchemas(config, virtualRules),
+      ruleSchemas(config, virtualRules),
       rules ? new Set(rules) : undefined,
       deps.logger,
     );
-    const plans = planFields(
-      body.fields,
-      schemas,
-      await store.payloadIndexTypes(),
+    const indexTypes = await withinBudget(
+      store.payloadIndexTypes(),
+      deadline - Date.now(),
     );
+    if (indexTypes === OUT_OF_BUDGET) {
+      throw budgetExceeded([...new Set(body.fields)]);
+    }
+    const plans = planFields(body.fields, schemas, indexTypes);
     return withFilterErrors(
       countPlanned(
         store,
         plans,
         countFilter(body.filter, rules),
         body.limit ?? COUNT_FACETS_DEFAULT_LIMIT,
-        budgetMs,
+        deadline - Date.now(),
       ),
     );
   };

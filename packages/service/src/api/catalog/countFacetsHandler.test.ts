@@ -1,77 +1,13 @@
 /**
  * @module api/catalog/countFacetsHandler.test
- * `POST /search/facets/counts` against a fake facet store (spec Design 12, A8): 503 until chunk_index (and, with rules, matched_rules) is ready, 400 for unknown rules and unusable fields, counts and ranges on the nested count filter, 503 naming the fields not counted past the budget, Qdrant rejections as 400, and the slow-request log.
+ * `POST /search/facets/counts` against a fake facet store (spec Design 12, A8): 503 until chunk_index (and, with rules, matched_rules) is ready, 400 for unknown rules and unusable fields, counts and ranges on the nested count filter, Qdrant rejections as 400, and rule schemas that fail to resolve.
  */
 
-import Fastify from 'fastify';
 import pino from 'pino';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import type { InferenceRule } from '../../config/types';
-import { registerCatalogEntries } from '../../test/catalogRoutes';
+import { deps, fakeStore, post, rule } from '../../test/countFacetsDeps';
 import { makeConfig } from '../../test/facetsDeps';
-import type { FacetStore, SystemIndexState } from '../../vectorStore';
-import {
-  type CatalogCountFacetsDeps,
-  createCatalogCountFacetsHandler,
-} from './countFacetsHandler';
-
-const rule = (name: string, properties: Record<string, unknown> = {}) =>
-  ({
-    name,
-    description: name,
-    match: {},
-    schema: [{ properties }],
-  }) as InferenceRule;
-
-function fakeStore(
-  overrides: Partial<FacetStore> = {},
-  states: Record<string, SystemIndexState> = {
-    chunk_index: 'ready',
-    matched_rules: 'ready',
-  },
-) {
-  return {
-    facetCounts: vi.fn(() => Promise.resolve([{ value: 'x', count: 2 }])),
-    rangeBound: vi.fn((_read, end: string) =>
-      Promise.resolve(end === 'min' ? 1 : 9),
-    ),
-    payloadIndexTypes: vi.fn(() =>
-      Promise.resolve({ tag: 'keyword', size: 'integer', at: 'datetime' }),
-    ),
-    systemIndexState: vi.fn((field: string) => states[field]),
-    ...overrides,
-  } satisfies FacetStore;
-}
-
-function deps(
-  facetStore: FacetStore,
-  extra: Partial<CatalogCountFacetsDeps> = {},
-): CatalogCountFacetsDeps {
-  return {
-    getConfig: () =>
-      makeConfig([rule('a', { size: { type: 'integer', uiHint: 'number' } })]),
-    getVirtualRules: () => ({ plugin: [rule('v')] }),
-    configDir: '/tmp',
-    facetStore,
-    logger: pino({ level: 'silent' }),
-    ...extra,
-  };
-}
-
-async function post(d: CatalogCountFacetsDeps, body: unknown) {
-  const app = Fastify();
-  await registerCatalogEntries(app, {
-    countFacets: createCatalogCountFacetsHandler(d),
-  });
-  const res = await app.inject({
-    method: 'POST',
-    url: '/search/facets/counts',
-    payload: body as Record<string, unknown>,
-  });
-  await app.close();
-  return { status: res.statusCode, body: res.json<Record<string, unknown>>() };
-}
 
 afterEach(() => {
   vi.useRealTimers();
@@ -203,53 +139,25 @@ describe('POST /search/facets/counts', () => {
     expect(body).toMatchObject({ error: 'Invalid filter', message: 'bad key' });
   });
 
-  it('answers 503 naming the fields not counted within the budget', async () => {
-    const slow = () =>
-      new Promise<never[]>((resolve) => {
-        setTimeout(() => {
-          resolve([]);
-        }, 200);
-      });
-    const store = fakeStore({
-      facetCounts: vi.fn((read: { field: string }) =>
-        read.field === 'tag' ? Promise.resolve([]) : slow(),
-      ),
-      payloadIndexTypes: vi.fn(() =>
-        Promise.resolve({ tag: 'keyword', a: 'keyword', b: 'keyword' }),
-      ),
-    });
-    const { status, body } = await post(deps(store, { budgetMs: 50 }), {
-      fields: ['tag', 'a', 'b'],
-    });
-    expect(status).toBe(503);
-    expect(body).toMatchObject({
-      code: 'not_available',
-      error: 'Facet counts exceeded the time budget',
-      details: { pending: ['a', 'b'] },
-    });
-    expect(body.message).toContain('a, b');
-  });
-
-  it('counts at most 4 fields at a time (D96)', async () => {
-    let running = 0;
-    let peak = 0;
-    const fields = ['f1', 'f2', 'f3', 'f4', 'f5', 'f6'];
-    const store = fakeStore({
-      facetCounts: vi.fn(async () => {
-        running++;
-        peak = Math.max(peak, running);
-        await new Promise((resolve) => setTimeout(resolve, 20));
-        running--;
-        return [];
+  it('keeps the uiHints of healthy rules when another rule fails to resolve', async () => {
+    const warn = vi.fn();
+    const logger = { ...pino({ level: 'silent' }), warn } as never;
+    const store = fakeStore();
+    const { status, body } = await post(
+      deps(store, {
+        getVirtualRules: () => ({
+          plugin: [{ ...rule('v'), schema: ['missing'] }],
+        }),
+        logger,
       }),
-      payloadIndexTypes: vi.fn(() =>
-        Promise.resolve(Object.fromEntries(fields.map((f) => [f, 'keyword']))),
-      ),
-    });
-    const { status } = await post(deps(store), { fields });
+      { fields: ['size'] },
+    );
     expect(status).toBe(200);
-    expect(store.facetCounts).toHaveBeenCalledTimes(6);
-    expect(peak).toBe(4);
+    expect(body).toEqual({ counts: { size: { min: 1, max: 9 } } });
+    expect(warn).toHaveBeenCalledWith(
+      expect.objectContaining({ rules: ['v'] }),
+      expect.any(String),
+    );
   });
 
   it('falls back to index types when a rule schema fails to resolve', async () => {
@@ -268,44 +176,5 @@ describe('POST /search/facets/counts', () => {
     expect(status).toBe(200);
     expect(body).toEqual({ counts: { size: [{ value: 'x', count: 2 }] } });
     expect(warn).toHaveBeenCalledTimes(1);
-  });
-});
-
-describe('countFacets slow-request log', () => {
-  it('logs a request over 500 ms at info with its shape, no values', async () => {
-    vi.useFakeTimers();
-    const info = vi.fn();
-    const logger = { ...pino({ level: 'silent' }), info } as never;
-    const store = fakeStore({
-      facetCounts: vi.fn(
-        () =>
-          new Promise<never[]>((resolve) => {
-            setTimeout(() => {
-              resolve([]);
-            }, 600);
-          }),
-      ),
-    });
-    const handler = createCatalogCountFacetsHandler(deps(store, { logger }));
-    const pending = handler(
-      { body: { fields: ['tag'], rules: ['a'] } } as never,
-      {} as never,
-    );
-    await vi.advanceTimersByTimeAsync(600);
-    expect((await pending).status).toBe(200);
-    expect(info).toHaveBeenCalledWith(
-      { fields: 1, filter: false, rules: true, durationMs: 600 },
-      'countFacets: slow request',
-    );
-  });
-
-  it('does not log a fast request', async () => {
-    const info = vi.fn();
-    const logger = { ...pino({ level: 'silent' }), info } as never;
-    const handler = createCatalogCountFacetsHandler(
-      deps(fakeStore(), { logger }),
-    );
-    await handler({ body: { fields: ['tag'] } } as never, {} as never);
-    expect(info).not.toHaveBeenCalled();
   });
 });
