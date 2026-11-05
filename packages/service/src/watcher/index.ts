@@ -45,6 +45,8 @@ export type { FileSystemWatcherOptions } from './running';
 export class FileSystemWatcher implements ChangeSink {
   private readonly health: SystemHealth;
   private running: Running | undefined;
+  /** A stopped source left its watches live (D196). */
+  private leftWatches = false;
   private initialScanComplete = false;
 
   /**
@@ -64,12 +66,8 @@ export class FileSystemWatcher implements ChangeSink {
     private readonly options: FileSystemWatcherOptions = {},
   ) {
     const { maxRetries, maxBackoffMs, onFatalError } = options;
-    this.health = new SystemHealth({
-      maxRetries,
-      maxBackoffMs,
-      onFatalError,
-      logger,
-    } satisfies SystemHealthOptions);
+    const health = { maxRetries, maxBackoffMs, onFatalError, logger };
+    this.health = new SystemHealth(health satisfies SystemHealthOptions);
   }
 
   /**
@@ -241,11 +239,12 @@ export class FileSystemWatcher implements ChangeSink {
   }
 
   /**
-   * Whether the running source cannot stop in-process (parcel on Windows,
-   * D196), so a rebuild must exit for a restart; false when not running.
+   * Whether a rebuild must exit for a restart (D196): the running source,
+   * or one this watcher stopped (its watches stay live), cannot release
+   * its watches in-process (parcel on Windows).
    */
   get restartsToRebuild(): boolean {
-    return this.running?.source.restartsToRebuild ?? false;
+    return this.running?.source.restartsToRebuild ?? this.leftWatches;
   }
 
   /** The running watcher's inventory (D99), undefined before start. */
@@ -258,6 +257,7 @@ export class FileSystemWatcher implements ChangeSink {
     const running = this.running;
     if (!running) return;
     this.running = undefined;
+    this.leftWatches ||= running.source.restartsToRebuild;
     running.periodic.stop();
     running.reconciler.stop();
     running.ticker.stop();

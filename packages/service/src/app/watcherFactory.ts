@@ -5,8 +5,8 @@
  */
 
 import {
+  type ConfigWatchReindexScope,
   extractWatchPathStrings,
-  type ReindexScope,
   WATCH_DEFAULTS,
 } from '@karmaniverous/jeeves-watcher-core';
 import type pino from 'pino';
@@ -146,7 +146,7 @@ export async function rebuildWatcher(
   },
   oldState: WatcherState,
   wiring: WatcherWiring = {},
-  pendingReindex?: ReindexScope,
+  pendingReindex?: ConfigWatchReindexScope,
 ): Promise<WatcherState> {
   try {
     await loadSelectedChangeSource(newConfig.watch, wiring.importParcel);

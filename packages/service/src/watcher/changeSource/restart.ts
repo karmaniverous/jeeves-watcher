@@ -4,7 +4,7 @@
  */
 
 import type {
-  ReindexScope,
+  ConfigWatchReindexScope,
   RestartCause,
 } from '@karmaniverous/jeeves-watcher-core';
 import type pino from 'pino';
@@ -31,7 +31,7 @@ export interface RestartRequest {
    * A config reload's reindex scope (`configWatch.reindex`), run by the
    * restarted process instead of this one.
    */
-  reindex?: ReindexScope;
+  reindex?: ConfigWatchReindexScope;
 }
 
 /**

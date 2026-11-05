@@ -3,7 +3,7 @@
  * Recovery over the real `@parcel/watcher`: an error delivered to the real subscription resubscribes and the reconcile restores what the gap missed (D131), except on Windows, where it exits for a restart and nothing is ever unsubscribed (D196); on Linux, a root deleted and re-created is unavailable then reconciled with nothing unlinked (D109), a renewal makes a renamed directory's subtree live again (D129, D176), and an ignored directory gets no inotify watches (D126).
  */
 
-import { readdirSync, readFileSync } from 'node:fs';
+import { mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
 import {
   mkdir,
   mkdtemp,
@@ -19,6 +19,10 @@ import pino from 'pino';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
+  createProcessRestarter,
+  RESTART_RECORD_FILE,
+} from '../app/processRestarter';
+import {
   eventsOf as of,
   startWatcherHarness,
   waitFor,
@@ -30,6 +34,7 @@ import {
   type ParcelWatcherModule,
 } from './changeSource/parcelModule';
 import { ParcelSource } from './changeSource/ParcelSource';
+import { RESTART_EXIT_CODE } from './changeSource/restart';
 import type { ChangeSink, RawChangeEvent } from './changeSource/types';
 import { ChangeSourceHealthTracker } from './ChangeSourceHealthTracker';
 
@@ -89,29 +94,40 @@ describe('FileSystemWatcher (parcel) recovery, real filesystem', () => {
     async () => {
       const { parcel, tap } = await tappedParcel();
       const changeSourceHealth = new ChangeSourceHealthTracker();
-      const restart = vi.fn();
+      const stateDir = mkdtempSync(join(tmpdir(), 'jeeves-watcher-d196-'));
+      const exit = vi.fn();
+      // The app's real restarter, stopping the real watcher: the restart is
+      // requested inside the source's serial queue, which the stop awaits.
+      const restarter = createProcessRestarter({
+        stateDir,
+        logger: () => pino({ level: 'silent' }),
+        stop: () => harness!.watcher.stop(),
+        deadlineMs: 60_000,
+        exit,
+      });
       harness = await startWatcherHarness({
         files: { 'a.md': 'a' },
         watch: () => ({ changeSource: 'parcel' }),
         options: () => ({
           changeSourceHealth,
           importParcel: () => Promise.resolve(parcel),
-          restarter: { restart },
+          restarter,
         }),
       });
       expect(harness.watcher.restartsToRebuild).toBe(true);
-      const error = new Error('injected subscription error');
-      tap.callback?.(error, []);
-      await waitFor(() => restart.mock.calls.length === 1, 10_000);
-      expect(restart).toHaveBeenCalledWith(
-        expect.objectContaining({ cause: 'subscription-error', err: error }),
-      );
-      // The harness stops the watcher: on Windows that unsubscribes nothing
-      // either; the subscription ends with the test worker (D196).
+      tap.callback?.(new Error('injected subscription error'), []);
+      await waitFor(() => exit.mock.calls.length === 1, 10_000);
+      expect(exit).toHaveBeenCalledWith(RESTART_EXIT_CODE);
+      expect(
+        JSON.parse(readFileSync(join(stateDir, RESTART_RECORD_FILE), 'utf8')),
+      ).toMatchObject({ cause: 'subscription-error' });
+      // Stopped, its watches still live: a rebuild must restart too (D196).
+      expect(harness.watcher.restartsToRebuild).toBe(true);
       await harness.close();
       harness = undefined;
       expect(tap.unsubscribes).toBe(0);
       expect(changeSourceHealth.snapshot().resubscribes).toBe(0);
+      rmSync(stateDir, { recursive: true, force: true });
     },
   );
 

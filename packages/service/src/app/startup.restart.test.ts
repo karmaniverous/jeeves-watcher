@@ -1,6 +1,6 @@
 /**
  * @module app/startup.restart.test
- * The app and D196: it builds its restarter from the factory over its state dir and hands it to the watcher; a start after an exit for a restart takes the record, reports its cause in `health.changeSource` and runs the reindex the reload deferred. Stubbed factories; temp state dir.
+ * The app and D196: it builds its restarter from the factory over its state dir and hands it to the watcher; a start after an exit for a restart reads the record, reports its cause in `health.changeSource`, runs the reindex the reload deferred and clears the record, which a refused start keeps. Stubbed factories; temp state dir.
  */
 
 import { existsSync, writeFileSync } from 'node:fs';
@@ -123,6 +123,25 @@ describe('JeevesWatcher startup: exit for a restart (D196)', () => {
     expect(executeReindex).toHaveBeenCalledExactlyOnceWith(expect.anything(), {
       scope: 'rules',
     });
+  });
+
+  it('a refused start keeps the record for the next start', async () => {
+    const record = join(stateDir, RESTART_RECORD_FILE);
+    writeFileSync(
+      record,
+      JSON.stringify({
+        cause: 'root-gone',
+        at: '2026-11-05T16:00:00.000Z',
+        reindex: 'issues',
+      }),
+    );
+    createApiServer.mockImplementation(() => ({
+      listen: vi.fn().mockRejectedValue(new Error('port in use')),
+      close: vi.fn().mockResolvedValue(undefined),
+    }));
+    await expect(app!.start()).rejects.toThrow('port in use');
+    expect(existsSync(record)).toBe(true);
+    expect(executeReindex).not.toHaveBeenCalled();
   });
 
   it('a restart without a deferred reindex runs none', async () => {

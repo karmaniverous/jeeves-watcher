@@ -22,7 +22,7 @@ import type { FileSystemWatcher } from '../watcher';
 import type { ProcessRestarter } from '../watcher/changeSource/restart';
 import { ChangeSourceHealthTracker } from '../watcher/ChangeSourceHealthTracker';
 import { type ApiServerOptions, startApiServer } from './apiServer';
-import { reloadConfig, runConfigReindex } from './configReload';
+import { reloadConfig } from './configReload';
 import type { ConfigWatcher } from './configWatcher';
 import { startConfigWatch } from './configWatchWiring';
 import {
@@ -32,7 +32,7 @@ import {
 } from './factories';
 import { initInfrastructure, resolveVersion } from './initialization';
 import { buildPipeline } from './pipeline';
-import { resumeAfterRestart } from './processRestarter';
+import { completeRestart, resumeAfterRestart } from './processRestarter';
 import { shutdownComponents } from './shutdown';
 import type { StateStores } from './stateStores';
 import { createLoadedWatcher, type WatcherWiring } from './watcherFactory';
@@ -97,6 +97,8 @@ export class JeevesWatcher {
       stateDir: this.stateDir,
       logger: () => this.logger,
       stop: () => this.stop(),
+      deadlineMs:
+        3 * (config.shutdownTimeoutMs ?? ROOT_DEFAULTS.shutdownTimeoutMs),
     });
   }
 
@@ -119,20 +121,16 @@ export class JeevesWatcher {
       }));
       await this.initPipeline();
       await this.startServicesAndWatcher();
-      // A reload deferred its reindex to this restart (D196).
-      if (restart?.reindex) {
+      if (restart) {
         const { valuesManager, issuesManager } = this.stores ?? {};
-        void runConfigReindex(
-          {
-            getConfig: () => this.config,
-            processor: this.processor!,
-            logger: this.logger,
-            valuesManager,
-            issuesManager,
-            gitignoreFilter: this.gitignoreFilter,
-          },
-          restart.reindex,
-        );
+        completeRestart(this.stateDir, restart, {
+          getConfig: () => this.config,
+          processor: this.processor!,
+          logger: this.logger,
+          valuesManager,
+          issuesManager,
+          gitignoreFilter: this.gitignoreFilter,
+        });
       }
     } catch (error) {
       // A refused start must reach the log file and stderr (D171).
