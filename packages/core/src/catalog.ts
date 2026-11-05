@@ -3,7 +3,8 @@
  * The watcher's endpoint catalog (`WATCHER_CATALOG`): one Zod-described entry per route, from which the service's routes and validation, the OpenAPI document, the SDK client, the CLI and the plugin's tools are derived. No I/O.
  *
  * @remarks
- * Holds every route (29 entries; spec Design 3), each with its `kind`. Entry
+ * Holds every route (30 entries; spec Design 3, `countFacets` from Design
+ * 12), each with its `kind`, listed by kind in `catalog/`. Entry
  * names are verb-first (D77, Design 14), and each is its operation's one
  * name: catalog entry, SDK method, OpenAPI `operationId` and, through
  * `toToolName`, plugin tool name. The catalog is the only route list

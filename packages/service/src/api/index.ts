@@ -142,6 +142,13 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
         configDir,
         logger,
       },
+      countFacets: {
+        getConfig,
+        getVirtualRules,
+        configDir,
+        facetStore: vectorStore,
+        logger,
+      },
       walk: {
         getWatchPaths: () => extractWatchPathStrings(getConfig().watch.paths),
         getFileSystemWatcher,

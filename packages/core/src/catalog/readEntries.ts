@@ -6,6 +6,8 @@
 import { z } from 'zod';
 
 import {
+  countFacetsRequestSchema,
+  countFacetsResponseSchema,
   getConfigSchemaResponseSchema,
   issuesResponseSchema,
   listFacetsQuerySchema,
@@ -98,6 +100,17 @@ export const READ_ENTRIES = [
     ),
     query: listFacetsQuerySchema,
     response: listFacetsResponseSchema,
+    kind: 'read',
+  },
+  {
+    ...route(
+      'countFacets',
+      'POST',
+      '/search/facets/counts',
+      'Count the values of payload fields over the documents matching a filter (each document once, not each chunk), or give { min, max } for a numeric or date field. `rules` keeps only documents of those rules. Each field needs a payload index (else 400). Fields are counted 4 at a time within a 10 s budget; past it the route answers 503 `not_available` naming the fields not counted. It also answers 503 until the `chunk_index` system index is ready, and with `rules` until `matched_rules` is.',
+    ),
+    body: countFacetsRequestSchema,
+    response: countFacetsResponseSchema,
     kind: 'read',
   },
   {
