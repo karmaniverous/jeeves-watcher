@@ -45,7 +45,7 @@ export type SystemIndexClient = Pick<
 >;
 
 /** Payload schema as reported by Qdrant: field to its index type. */
-type PayloadSchema = Record<string, { data_type?: string } | undefined>;
+export type PayloadSchema = Record<string, { data_type?: string } | undefined>;
 
 /** Tracks the system indexes of one collection and its keyword indexes. */
 export class SystemIndexTracker {
@@ -196,8 +196,14 @@ function errorLogger(logger?: pino.Logger): {
   };
 }
 
-/** Read a collection's payload schema. */
-async function readSchema(
+/**
+ * Read a collection's payload schema (field to its index info).
+ *
+ * @param client - Qdrant client.
+ * @param collectionName - Collection.
+ * @returns The payload schema.
+ */
+export async function readSchema(
   client: Pick<SystemIndexClient, 'getCollection'>,
   collectionName: string,
 ): Promise<PayloadSchema> {
