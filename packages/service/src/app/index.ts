@@ -233,6 +233,7 @@ export class JeevesWatcher {
       initialScanTracker: this.initialScanTracker,
       contentHashCache: this.stores?.contentHashCache,
       changeSourceHealth: this.changeSourceHealth,
+      getReconcileIntervalMs: () => this.config.watch.reconcileIntervalMs,
       onVcsFileChange: (filePath, event) => {
         this.vcsCoordinator?.onFileChange(filePath, event);
       },

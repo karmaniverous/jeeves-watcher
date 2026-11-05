@@ -112,7 +112,8 @@ function stripTooLargeIssueType(value: Json, counter: { n: number }): Json {
  * override (D12) extends the whole `vcs` schema, so `maxFileBytes` appears
  * there (approved departure, D185). `logging.rotation`, `processing` and
  * `embedding.alertUrl` are not public and never appear. The merged
- * `issues[].type` enum gains `too_large` (B5a, Design 2).
+ * `issues[].type` enum gains `too_large` (B5a, Design 2), and `watch` gains
+ * `reconcileIntervalMs` (B5b, D111, Design 2).
  */
 function stripNewConfigKeys(received: WireRecord): {
   record: WireRecord;
@@ -126,9 +127,21 @@ function stripNewConfigKeys(received: WireRecord): {
     counter,
   );
   const vcsStripped = counter.n;
-  const body = stripTooLargeIssueType(withoutKeys, counter);
-  // Both departures must still happen, or one of them is stale.
-  const stripped = vcsStripped > 0 && counter.n > vcsStripped ? counter.n : 0;
+  const withoutInterval = stripSchemaProperty(
+    withoutKeys,
+    'reconcileIntervalMs',
+    (p) => 'stabilityThresholdMs' in p,
+    counter,
+  );
+  const intervalStripped = counter.n - vcsStripped;
+  const body = stripTooLargeIssueType(withoutInterval, counter);
+  // Every departure must still happen, or one of them is stale.
+  const stripped =
+    vcsStripped > 0 &&
+    intervalStripped > 0 &&
+    counter.n > vcsStripped + intervalStripped
+      ? counter.n
+      : 0;
   return { record: { ...received, body }, stripped };
 }
 
@@ -157,7 +170,7 @@ function stripNewHealthKeys(received: WireRecord): {
 
 const CONFIG_KEYS: WireDeparture = {
   reason:
-    'P5 B2: watch.paths[].vcs gains maxFileBytes (D80 via the D12 per-root override), approved departure D185; P9 B5a: issues[].type gains too_large (D44), Design 2',
+    'P5 B2: watch.paths[].vcs gains maxFileBytes (D80 via the D12 per-root override), approved departure D185; P9 B5a: issues[].type gains too_large (D44); P11 B5b: watch gains reconcileIntervalMs (D111), Design 2',
   strip: stripNewConfigKeys,
 };
 

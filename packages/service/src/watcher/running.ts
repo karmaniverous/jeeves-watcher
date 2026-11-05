@@ -3,7 +3,10 @@
  * What one `FileSystemWatcher.start` builds: the change source, filters, inventory, filtered handlers and queue actions, wired together. Pure apart from constructing the chokidar source (not started here).
  */
 
-import { extractWatchPathStrings } from '@karmaniverous/jeeves-watcher-core';
+import {
+  extractWatchPathStrings,
+  WATCH_DEFAULTS,
+} from '@karmaniverous/jeeves-watcher-core';
 import type pino from 'pino';
 
 import type { InitialScanTracker } from '../api/InitialScanTracker';
@@ -23,6 +26,10 @@ import { FilteredEvents } from './filteredEvents';
 import { ignoreMatchers, resolveWatchPaths } from './globToDir';
 import { Inventory } from './inventory/Inventory';
 import { WatchFilter } from './pathFilter';
+import {
+  PeriodicReconcile,
+  renewThenReconcile,
+} from './reconcile/PeriodicReconcile';
 import { Reconciler } from './reconcile/Reconciler';
 import { WatchRoots } from './roots';
 import { ScanStats } from './ScanStats';
@@ -52,6 +59,8 @@ export interface FileSystemWatcherOptions {
   onInitialScanComplete?: () => void | Promise<void>;
   /** `health.changeSource` counters (D133), owned by the app across rebuilds. */
   changeSourceHealth?: ChangeSourceHealthTracker;
+  /** Live `watch.reconcileIntervalMs` (D111), read at each scheduling. */
+  getReconcileIntervalMs?: () => number | undefined;
 }
 
 /** What one `start` builds; replaced on every start. */
@@ -69,6 +78,8 @@ export interface Running {
   ticker: StabilityTicker;
   /** Reconciles directories against the inventory (D90). */
   reconciler: Reconciler;
+  /** Per-root periodic reconciliation (D111). */
+  periodic: PeriodicReconcile;
   /** Roots whose initial scan has not finished. */
   pendingRoots: Set<string>;
   /** Roots marked unavailable (D109). */
@@ -176,6 +187,23 @@ export function createRunning(context: RunningContext): Running {
     logger,
     health: options.changeSourceHealth,
   });
+  const periodic = new PeriodicReconcile({
+    roots,
+    intervalMs: () =>
+      options.getReconcileIntervalMs?.() ??
+      config.reconcileIntervalMs ??
+      WATCH_DEFAULTS.reconcileIntervalMs,
+    run: (root) =>
+      renewThenReconcile(
+        {
+          renew: (r) => source.renew(r),
+          reconcile: (dir) => reconciler.reconcile(dir),
+          roots,
+          onRebuilt: () => options.changeSourceHealth?.recordRenewFailure(),
+        },
+        root,
+      ),
+  });
   return {
     source,
     roots: watchRoots,
@@ -186,6 +214,7 @@ export function createRunning(context: RunningContext): Running {
     scanStats,
     ticker,
     reconciler,
+    periodic,
     pendingRoots,
     unavailableRoots,
     deferredRoots: new Set(),

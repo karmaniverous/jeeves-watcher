@@ -152,7 +152,12 @@ describe('reloadConfig', () => {
       createFileSystemWatcher: createWatcher,
     });
 
-    const oldWatcher = { start: vi.fn(), stop: oldStop } as never;
+    const refreshReconcileSchedule = vi.fn();
+    const oldWatcher = {
+      start: vi.fn(),
+      stop: oldStop,
+      refreshReconcileSchedule,
+    } as never;
     const state = {
       config,
       watcher: oldWatcher,
@@ -171,6 +176,8 @@ describe('reloadConfig', () => {
 
     expect(oldStop).not.toHaveBeenCalled();
     expect(createWatcher).not.toHaveBeenCalled();
+    // A changed reconcileIntervalMs takes effect without a rebuild (D111).
+    expect(refreshReconcileSchedule).toHaveBeenCalledOnce();
     expect(state.watcher).toBe(oldWatcher);
     expect(state.config).toBe(newConfig);
   });

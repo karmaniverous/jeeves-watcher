@@ -54,18 +54,16 @@ export class FileSystemWatcher implements ChangeSink {
     private readonly logger: pino.Logger,
     private readonly options: FileSystemWatcherOptions = {},
   ) {
-    const healthOptions: SystemHealthOptions = {
-      maxRetries: options.maxRetries,
-      maxBackoffMs: options.maxBackoffMs,
-      onFatalError: options.onFatalError,
+    const { maxRetries, maxBackoffMs, onFatalError } = options;
+    this.health = new SystemHealth({
+      maxRetries,
+      maxBackoffMs,
+      onFatalError,
       logger,
-    };
-    this.health = new SystemHealth(healthOptions);
+    } satisfies SystemHealthOptions);
   }
 
-  /**
-   * Start watching the filesystem and processing events.
-   */
+  /** Start watching the filesystem and processing events. */
   async start(): Promise<void> {
     this.initialScanComplete = false;
     this.options.initialScanTracker?.start();
@@ -149,7 +147,7 @@ export class FileSystemWatcher implements ChangeSink {
     const signal = this.rootSignal(sourceRoot);
     if (!signal) return;
     const [running, root] = signal;
-    running.pendingRoots.delete(root);
+    if (running.pendingRoots.delete(root)) running.periodic.arm(root);
     if (running.pendingRoots.size > 0 || this.initialScanComplete) return;
     this.initialScanComplete = true;
     this.options.initialScanTracker?.complete();
@@ -258,6 +256,7 @@ export class FileSystemWatcher implements ChangeSink {
     const running = this.running;
     if (!running) return;
     this.running = undefined;
+    running.periodic.stop();
     running.ticker.stop();
     running.actions.flush();
     await running.source.stop();
@@ -269,6 +268,14 @@ export class FileSystemWatcher implements ChangeSink {
    */
   get systemHealth(): SystemHealth {
     return this.health;
+  }
+
+  /**
+   * Re-arm the periodic reconcile timers with the live interval: a reload
+   * that changed only `watch.reconcileIntervalMs` needs no rebuild (D111).
+   */
+  refreshReconcileSchedule(): void {
+    this.running?.periodic.refresh();
   }
 
   /**

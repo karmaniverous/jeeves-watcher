@@ -69,8 +69,14 @@ export class ChokidarChangeSource implements ChangeSource {
     return Promise.resolve();
   }
 
-  /** Chokidar has nothing to renew. */
-  renew(): Promise<RenewResult> {
+  /**
+   * Chokidar has nothing to renew (D129 is parcel's, Linux only).
+   *
+   * @param root - The root (unused).
+   * @returns `{ rebuilt: false }`.
+   */
+  renew(root: string): Promise<RenewResult> {
+    root;
     return Promise.resolve({ rebuilt: false });
   }
 

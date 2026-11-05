@@ -26,6 +26,7 @@ export type WatcherWiring = Pick<
   | 'onVcsFileChange'
   | 'onInitialScanComplete'
   | 'changeSourceHealth'
+  | 'getReconcileIntervalMs'
 >;
 
 /** State returned by {@link rebuildWatcher}. */

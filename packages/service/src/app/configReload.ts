@@ -105,6 +105,9 @@ export async function reloadConfig(
       );
       state.watcher = newState.watcher;
       state.gitignoreFilter = newState.gitignoreFilter;
+    } else {
+      // watch.reconcileIntervalMs takes effect without a rebuild (D111).
+      state.watcher?.refreshReconcileSchedule();
     }
 
     // Trigger reindex based on configWatch.reindex setting

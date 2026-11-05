@@ -104,6 +104,21 @@ describe('FileSystemWatcher reconciliation', () => {
     expect(health.snapshot().unavailableRoots).toBe(0);
   });
 
+  it('adds a missed file at the next periodic reconcile (D111)', async () => {
+    const health = new ChangeSourceHealthTracker();
+    harness = await startWatcherHarness({
+      files: { 'a.md': 'a' },
+      options: () => ({
+        changeSourceHealth: health,
+        getReconcileIntervalMs: () => 300,
+      }),
+    });
+    const h = harness;
+    h.watcher.inventory!.delete(join(h.root, 'a.md')); // as if never reported
+    await waitFor(() => health.snapshot().reconcileEvents === 1);
+    expect(h.seen()).toEqual(['create:a.md', 'create:a.md']);
+  });
+
   it('logs and drops a raw parcel batch (no parcel source in this build)', async () => {
     const { h } = await start();
     h.watcher.rawEvents(h.root, [
