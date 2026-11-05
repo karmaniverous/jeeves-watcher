@@ -38,7 +38,7 @@ export class ChokidarChangeSource implements ChangeSource {
    */
   constructor(private readonly options: ChokidarSourceOptions) {}
 
-  /** {@inheritDoc ChangeSource.start} */
+  /** Start watching the roots and pass chokidar events to the sink. */
   start(
     roots: string[],
     ignore: ((path: string) => boolean)[],
@@ -74,7 +74,7 @@ export class ChokidarChangeSource implements ChangeSource {
     return Promise.resolve({ rebuilt: false });
   }
 
-  /** {@inheritDoc ChangeSource.stop} */
+  /** Stop watching and close chokidar. */
   async stop(): Promise<void> {
     const watcher = this.watcher;
     this.watcher = undefined;

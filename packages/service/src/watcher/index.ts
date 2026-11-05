@@ -102,7 +102,7 @@ export class FileSystemWatcher implements ChangeSink {
     );
   }
 
-  /** {@inheritDoc ChangeSink.event} */
+  /** A classified event from the change source (chokidar). */
   event(type: ClassifiedEventType, path: string): void {
     const events = this.running?.events;
     if (!events) return;
@@ -144,7 +144,7 @@ export class FileSystemWatcher implements ChangeSink {
     );
   }
 
-  /** {@inheritDoc ChangeSink.initialScanDone} */
+  /** The source finished its initial set for a root; the scan completes when every root has. */
   initialScanDone(sourceRoot: string): void {
     const signal = this.rootSignal(sourceRoot);
     if (!signal) return;
