@@ -1,49 +1,14 @@
 /**
  * @module app/configReload.test
- * Tests for config-reload orchestration, including the D196 hand-off of a rebuild to a restart.
+ * Tests for config-reload orchestration.
  */
 
-import pino from 'pino';
+import type pino from 'pino';
 import { describe, expect, it, vi } from 'vitest';
 
-import { executeReindex } from '../api/executeReindex';
 import type { JeevesWatcherConfig } from '../config/types';
-import type { WatcherProcessor } from '../processor';
+import { makeConfig, makeDeps } from '../test/reloadHarness';
 import { reloadConfig } from './configReload';
-import type { JeevesWatcherFactories } from './factories';
-
-function makeConfig(
-  overrides: Partial<JeevesWatcherConfig['watch']> = {},
-): JeevesWatcherConfig {
-  return {
-    watch: { paths: ['**/*.md'], respectGitignore: false, ...overrides },
-    embedding: { provider: 'mock', model: 'test' },
-    vectorStore: { url: 'http://localhost', collectionName: 'test' },
-    inferenceRules: [],
-  } as unknown as JeevesWatcherConfig;
-}
-
-function makeDeps(
-  loadedConfig: JeevesWatcherConfig,
-  overrides: Partial<{
-    createFileSystemWatcher: ReturnType<typeof vi.fn>;
-  }> = {},
-) {
-  const logger = pino({ level: 'silent' });
-  const processor = {
-    updateRules: vi.fn(),
-  } as unknown as WatcherProcessor;
-
-  const factories = {
-    loadConfig: vi.fn().mockResolvedValue(loadedConfig),
-    compileRules: vi.fn().mockReturnValue([]),
-    createFileSystemWatcher:
-      overrides.createFileSystemWatcher ??
-      vi.fn().mockReturnValue({ start: vi.fn(), stop: vi.fn() }),
-  } as unknown as JeevesWatcherFactories;
-
-  return { logger, processor, factories };
-}
 
 // Partial mock: only replace buildTemplateEngineAndCustomMapLib
 vi.mock('./initialization', async () => {
@@ -59,7 +24,8 @@ vi.mock('./initialization', async () => {
 });
 
 // Mock executeReindex to avoid real reindexing
-vi.mock('../api/executeReindex', () => ({
+vi.mock('../api/executeReindex', async (importActual) => ({
+  ...(await importActual<Record<string, unknown>>()),
   executeReindex: vi.fn().mockResolvedValue(undefined),
 }));
 
@@ -227,47 +193,6 @@ describe('reloadConfig', () => {
     expect(createWatcher).not.toHaveBeenCalled();
     // A changed reconcileIntervalMs takes effect without a rebuild (D111).
     expect(refreshReconcileSchedule).toHaveBeenCalledOnce();
-    expect(state.watcher).toBe(oldWatcher);
-    expect(state.config).toBe(newConfig);
-  });
-
-  it('hands a rebuild of a source that cannot stop to a restart, deferring the reindex (D196)', async () => {
-    const oldConfig = makeConfig({ paths: ['**/*.md'] });
-    const newConfig = {
-      ...makeConfig({ paths: ['**/*.ts'] }),
-      configWatch: { reindex: 'full' },
-    } as JeevesWatcherConfig;
-    const createFileSystemWatcher = vi.fn();
-    const { logger, processor, factories } = makeDeps(newConfig, {
-      createFileSystemWatcher,
-    });
-    const oldStop = vi.fn();
-    const oldWatcher = {
-      start: vi.fn(),
-      stop: oldStop,
-      restartsToRebuild: true,
-    } as never;
-    const state = { config: oldConfig, watcher: oldWatcher };
-    const restart = vi.fn();
-    vi.mocked(executeReindex).mockClear();
-
-    await reloadConfig(state, {
-      configPath: '/path/to/config.json',
-      factories,
-      queue: {} as never,
-      processor,
-      logger,
-      runtimeOptions: {},
-      wiring: { restarter: { restart } },
-    });
-
-    expect(restart).toHaveBeenCalledExactlyOnceWith({
-      cause: 'watch-config-changed',
-      reindex: 'full',
-    });
-    expect(oldStop).not.toHaveBeenCalled();
-    expect(createFileSystemWatcher).not.toHaveBeenCalled();
-    expect(executeReindex).not.toHaveBeenCalled();
     expect(state.watcher).toBe(oldWatcher);
     expect(state.config).toBe(newConfig);
   });

@@ -20,6 +20,7 @@ import { RESTART_EXIT_CODE } from '../watcher/changeSource/restart';
 import {
   createProcessRestarter,
   RESTART_RECORD_FILE,
+  resumeAfterRestart,
   takeRestartRecord,
 } from './processRestarter';
 
@@ -149,6 +150,28 @@ describe('process restarter (D196)', () => {
     });
     expect(existsSync(join(stateDir, RESTART_RECORD_FILE))).toBe(false);
     expect(takeRestartRecord(stateDir, logger as never)).toBeUndefined();
+  });
+
+  it('a start resumes from the record: health, log, record returned', () => {
+    const record = {
+      cause: 'root-gone',
+      at: AT.toISOString(),
+      reindex: 'issues',
+    };
+    writeFileSync(join(stateDir, RESTART_RECORD_FILE), JSON.stringify(record));
+    const health = { recordRestart: vi.fn() };
+    expect(resumeAfterRestart(stateDir, logger as never, health)).toEqual(
+      record,
+    );
+    expect(health.recordRestart).toHaveBeenCalledExactlyOnceWith(record);
+    expect(logger.info).toHaveBeenCalledWith(
+      record,
+      'Started after an exit for a restart (D196)',
+    );
+    expect(
+      resumeAfterRestart(stateDir, logger as never, health),
+    ).toBeUndefined();
+    expect(health.recordRestart).toHaveBeenCalledOnce();
   });
 
   it('ignores and removes an unreadable record', () => {

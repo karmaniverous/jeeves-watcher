@@ -1,6 +1,6 @@
 /**
  * @module app/processRestarter
- * The app's exit for a service-manager restart (D196): log the cause, leave a restart record in the state directory (the restarted process reports it in `health.changeSource` and runs any deferred config reindex), stop gracefully, then exit with `RESTART_EXIT_CODE`. I/O: the record file, `process.exit`.
+ * The app's exit for a service-manager restart (D196): log the cause, leave a restart record in the state directory, stop gracefully, then exit with `RESTART_EXIT_CODE`; at the next start, take the record and report it in `health.changeSource` (the app runs any deferred config reindex). I/O: the record file, `process.exit`.
  */
 
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -19,6 +19,7 @@ import {
   type ProcessRestarter,
   RESTART_EXIT_CODE,
 } from '../watcher/changeSource/restart';
+import type { ChangeSourceHealthTracker } from '../watcher/ChangeSourceHealthTracker';
 
 /** The restart record's file name under the state directory. */
 export const RESTART_RECORD_FILE = 'restart.json';
@@ -129,4 +130,29 @@ export function takeRestartRecord(
     );
     return undefined;
   }
+}
+
+/**
+ * At start: take the record an exit for a restart left (D196), log it and
+ * report its cause in `health.changeSource`.
+ *
+ * @param stateDir - The state directory.
+ * @param logger - Where it is logged.
+ * @param health - The app's change-source health.
+ * @returns The record (its `reindex` is the caller's to run), or undefined.
+ */
+export function resumeAfterRestart(
+  stateDir: string,
+  logger: pino.Logger,
+  health: Pick<ChangeSourceHealthTracker, 'recordRestart'>,
+): RestartRecord | undefined {
+  const restart = takeRestartRecord(stateDir, logger);
+  if (restart) {
+    health.recordRestart(restart);
+    logger.info(
+      { cause: restart.cause, at: restart.at, reindex: restart.reindex },
+      'Started after an exit for a restart (D196)',
+    );
+  }
+  return restart;
 }

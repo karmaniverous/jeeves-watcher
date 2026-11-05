@@ -10,7 +10,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createMockLogger, stubParcel, stubSink } from '../../test/parcelStub';
 import { ParcelSource } from './ParcelSource';
 import { BACKOFF_INITIAL_MS, BACKOFF_MAX_MS } from './parcelSubscription';
-import { RESTART_EXIT_CODE } from './restart';
+import { RESTART_EXIT_CODE, type RestartRequest } from './restart';
 
 const R1 = join('/srv', 'r1');
 const R2 = join('/srv', 'r2');
@@ -20,7 +20,7 @@ describe('ParcelSource on Windows (D196)', () => {
   let sink: ReturnType<typeof stubSink>;
   let logger: ReturnType<typeof createMockLogger>;
   let missing: Set<string>;
-  let restart: ReturnType<typeof vi.fn>;
+  let restart: ReturnType<typeof vi.fn<(request: RestartRequest) => void>>;
 
   const lstat = (path: string) =>
     missing.has(path)
@@ -45,7 +45,7 @@ describe('ParcelSource on Windows (D196)', () => {
     sink = stubSink();
     logger = createMockLogger();
     missing = new Set();
-    restart = vi.fn();
+    restart = vi.fn<(request: RestartRequest) => void>();
   });
 
   afterEach(() => {

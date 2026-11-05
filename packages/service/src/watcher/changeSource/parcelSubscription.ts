@@ -3,17 +3,18 @@
  * One root's parcel subscription (D126, D131, D156, D179): subscribe with the explicit backend and the root's ignore list, keep the returned handle (the only way it is unsubscribed), a callback that never throws, and recovery from subscription errors: resubscribe with backoff, root gone and back, or unwatched after a non-transient `inotify_add_watch` failure; where parcel never unsubscribes (Windows, D196), a live subscription's error or a gone root exits for a restart instead, and stop drops the handle. I/O: parcel subscriptions, `lstat` of the root, one backoff timer.
  */
 
-import type pino from 'pino';
-
 import { keyWithin, normalizeDocumentKey } from '../../util/documentKey';
 import { normalizeError } from '../../util/normalizeError';
-import type {
-  ParcelBackend,
-  ParcelSubscription,
-  ParcelWatcherModule,
-} from './parcelModule';
+import type { ParcelSubscription } from './parcelModule';
 import type { ProcessRestarter } from './restart';
-import type { ChangeSink, RawChangeEvent } from './types';
+import {
+  codeOf,
+  isWatchLimitError,
+  type SubscriptionContext,
+} from './subscriptionContext';
+import type { RawChangeEvent } from './types';
+
+export type { SubscriptionContext } from './subscriptionContext';
 
 /** First resubscribe delay (D131). */
 export const BACKOFF_INITIAL_MS = 1000;
@@ -21,40 +22,8 @@ export const BACKOFF_INITIAL_MS = 1000;
 /** Longest resubscribe delay (D131). */
 export const BACKOFF_MAX_MS = 300_000;
 
-/** What every root subscription of one source shares. */
-export interface SubscriptionContext {
-  parcel: ParcelWatcherModule;
-  backend: ParcelBackend;
-  sink: ChangeSink;
-  logger: pino.Logger;
-  /** Resolves when the path exists; rejects with its error otherwise. */
-  lstat: (path: string) => Promise<unknown>;
-  /** Run work after every earlier source operation (renewals, retries). */
-  serial: <T>(work: () => Promise<T>) => Promise<T>;
-  /**
-   * Set only where parcel never unsubscribes (Windows, D196): stop drops
-   * the handle without unsubscribing, and an error on a live subscription
-   * (or its root gone) exits the process for a restart instead of
-   * unsubscribing and resubscribing. A subscribe that never succeeded has
-   * no handle to release, so it still retries with backoff.
-   */
-  restarter?: ProcessRestarter;
-}
-
 /** Where a root subscription stands. */
 type Mode = 'subscribed' | 'retrying' | 'unwatched' | 'stopped';
-
-/** An error's code (`ENOENT`, ...) or name. */
-function codeOf(error: unknown): string {
-  const code = (error as NodeJS.ErrnoException | undefined)?.code;
-  if (typeof code === 'string') return code;
-  return error instanceof Error ? error.name : 'UnknownError';
-}
-
-/** Whether a parcel error is a failed `inotify_add_watch` (D156). */
-function isWatchLimitError(error: unknown): boolean {
-  return error instanceof Error && error.message.includes('inotify_add_watch');
-}
 
 /**
  * One top root's subscription. Every method that touches parcel runs inside
