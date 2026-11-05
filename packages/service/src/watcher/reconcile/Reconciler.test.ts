@@ -154,13 +154,13 @@ describe('Reconciler', () => {
     expect(s.health.snapshot().reconcileErrors).toBe(1);
   });
 
-  it('unlinks the files of a subdirectory gone before its reconcile, with no error', async () => {
+  it('emits nothing and counts an error when a subdirectory is gone before its reconcile (Design 9 guard)', async () => {
     const s = setup();
     s.fill();
     await rm(join(root, 'a'), { recursive: true });
     await s.reconciler.reconcile(join(root, 'a', 'b'));
-    expect(s.unlinked).toEqual([join(root, 'a', 'b', 'three.md')]);
-    expect(s.health.snapshot().reconcileErrors).toBe(0);
+    expect(s.unlinked).toEqual([]);
+    expect(s.health.snapshot().reconcileErrors).toBe(1);
   });
 
   it('emits nothing once stopped, even for a reconcile already walking', async () => {

@@ -13,12 +13,6 @@ import type { WatchRoots } from '../roots';
 import { walk, type WalkOptions } from '../walk/Walker';
 import { RerunSet } from './RerunSet';
 
-/** Whether a walk error says the directory itself is absent. */
-function isAbsence(error: unknown): boolean {
-  const code = (error as NodeJS.ErrnoException | undefined)?.code;
-  return code === 'ENOENT' || code === 'ENOTDIR';
-}
-
 /** What {@link Reconciler} needs. */
 export interface ReconcilerDeps {
   roots: WatchRoots;
@@ -105,14 +99,12 @@ export class Reconciler {
     try {
       walked = await walk(dir, this.deps.walkOptions());
     } catch (error) {
-      if (!isRoot && isAbsence(error)) {
-        // A subdirectory gone before its reconcile ran (a short-lived
-        // directory) is no error: its inventory files are checked below.
-        walked = new Map();
-      } else {
-        if (!this.isStopped()) this.fail(dir, 'walk failed', error);
-        return;
-      }
+      // Any walk error, a vanished subdirectory included, emits nothing
+      // (Design 9 guard): under chokidar an unmounted volume is reported
+      // only this way, never as an unavailable root. Real unlink events
+      // and the next root reconcile cover a short-lived directory.
+      if (!this.isStopped()) this.fail(dir, 'walk failed', error);
+      return;
     }
     if (this.isStopped()) return;
     const known = inventory.entriesUnder(dir);

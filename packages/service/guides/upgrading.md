@@ -80,6 +80,7 @@ What changes for an existing deployment, release by release. The [Changelog](../
 - **A reload that changes `watch.usePolling`, `watch.pollIntervalMs` or `watch.stabilityThresholdMs` now rebuilds the watcher** (0.20.0 needed a restart for them). Values are compared after defaults, so writing a default out is no change.
 - **The service sets `UV_THREADPOOL_SIZE` to 16** unless the environment already sets it, and every walk (and the stability checks of reconciled files) shares one limit of 8 filesystem calls in flight, so walks never starve file reads.
 - **`GET /config/schema`** shows `watch.reconcileIntervalMs` (an approved wire departure), and `GET /config` and the `POST /config/apply` response include its value.
+- **Watch roots keep their case off Windows.** Earlier releases lower-cased every watch root on every platform. On Linux a root with an upper-case letter was therefore watched at a path that does not exist and silently reported nothing; from 0.21.0 it is watched, so its files are indexed for the first time. On macOS (and any other non-Windows platform) file paths, the `file_path` payload, `/walk` and VCS paths now keep the root's configured case. Point IDs never depended on case, so the same points are updated, but the index can hold both casings until a full reindex; case-sensitive rule patterns, templates and `file_path` filters see the configured case. Windows is unchanged: roots are still lower-cased.
 
 ### Facets
 

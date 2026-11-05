@@ -224,7 +224,10 @@ export async function clearCollection(name: string): Promise<void> {
  * windows-latest runner the three builds took seconds, so the first
  * writing test of a suite hit its 5 s timeout.
  *
- * @param store - Vector store bound to a harness collection.
+ * The store carries no target to check here: guard it with
+ * {@link assertTestVectorStore} before constructing it (every caller does).
+ *
+ * @param store - Vector store bound to a guarded harness collection.
  */
 export async function ensureSettledCollection(
   store: Pick<

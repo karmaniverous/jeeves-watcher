@@ -93,6 +93,20 @@ describe('PeriodicReconcile', () => {
     periodic.stop();
   });
 
+  it('a root scheduled between the config change and the refresh does not hide the others', async () => {
+    vi.setSystemTime(0);
+    const interval = { ms: 0 };
+    const { periodic, runs } = setup(['a', 'b'], interval);
+    periodic.arm('a');
+    interval.ms = 1000;
+    // b's initial scan ends after the new config is published, before refresh.
+    periodic.arm('b');
+    periodic.refresh();
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(runs).toEqual(['a@500', 'b@1000']);
+    periodic.stop();
+  });
+
   it('reports a rejected run and schedules the next', async () => {
     vi.setSystemTime(0);
     const onRunError = vi.fn();

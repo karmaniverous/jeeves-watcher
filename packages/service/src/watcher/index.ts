@@ -238,9 +238,7 @@ export class FileSystemWatcher implements ChangeSink {
     return this.running?.inventory.paths() ?? [];
   }
 
-  /**
-   * Whether the initial filesystem scan is complete.
-   */
+  /** Whether the initial filesystem scan is complete. */
   get isReady(): boolean {
     return this.options.initialScanTracker
       ? !this.options.initialScanTracker.getStatus().active
@@ -252,9 +250,7 @@ export class FileSystemWatcher implements ChangeSink {
     return this.running?.inventory;
   }
 
-  /**
-   * Stop the filesystem watcher.
-   */
+  /** Stop the filesystem watcher. */
   async stop(): Promise<void> {
     const running = this.running;
     if (!running) return;
@@ -267,9 +263,7 @@ export class FileSystemWatcher implements ChangeSink {
     this.logger.info('Filesystem watcher stopped');
   }
 
-  /**
-   * Get the system health tracker.
-   */
+  /** Get the system health tracker. */
   get systemHealth(): SystemHealth {
     return this.health;
   }

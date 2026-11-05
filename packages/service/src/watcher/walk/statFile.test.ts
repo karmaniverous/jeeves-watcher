@@ -14,10 +14,21 @@ const lstatError = vi.hoisted(() => ({
   code: undefined as string | undefined,
 }));
 
+/** `stat` calls in flight (now and the most seen), counted when `slow`. */
+const statLoad = vi.hoisted(() => ({ slow: false, active: 0, max: 0 }));
+
 vi.mock('node:fs/promises', async (importOriginal) => {
   const actual = await importOriginal<typeof FsPromises>();
   return {
     ...actual,
+    stat: async (path: string) => {
+      if (!statLoad.slow) return actual.stat(path);
+      statLoad.active++;
+      statLoad.max = Math.max(statLoad.max, statLoad.active);
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      statLoad.active--;
+      return actual.stat(path);
+    },
     lstat: (path: string) =>
       lstatError.code
         ? Promise.reject(
@@ -30,6 +41,22 @@ vi.mock('node:fs/promises', async (importOriginal) => {
 });
 
 const { isGone, statFile } = await import('./statFile');
+
+describe('statFile under the walk limiter (D170)', () => {
+  afterEach(() => {
+    statLoad.slow = false;
+  });
+
+  it('keeps at most 8 stats in flight however many are asked for at once', async () => {
+    statLoad.slow = true;
+    statLoad.max = 0;
+    const results = await Promise.all(
+      Array.from({ length: 40 }, () => statFile(join(dir, 'f.md'))),
+    );
+    expect(results.every((r) => r?.size === 3)).toBe(true);
+    expect(statLoad.max).toBe(8);
+  });
+});
 
 let dir: string;
 

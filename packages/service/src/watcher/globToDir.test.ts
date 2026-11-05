@@ -60,14 +60,20 @@ describe('deduplicateRoots', () => {
     expect(result).toEqual(['c:/config', 'c:/data', 'c:/srv']);
   });
 
-  it('compares case-insensitively but keeps each root as written', () => {
-    const result = deduplicateRoots([
-      '/tmp/Watch-Ab3',
-      '/tmp/watch-ab3/Sub',
-      '/TMP/WATCH-AB3',
-      'C:\\Data\\X',
-    ]);
-    expect(result).toEqual(['/tmp/Watch-Ab3', 'C:/Data/X']);
+  it('off Windows, compares case-insensitively but keeps each root as written', () => {
+    const result = deduplicateRoots(
+      ['/tmp/Watch-Ab3', '/tmp/watch-ab3/Sub', '/TMP/WATCH-AB3', '/srv/X'],
+      'linux',
+    );
+    expect(result).toEqual(['/srv/X', '/tmp/Watch-Ab3']);
+  });
+
+  it('on Windows, lower-cases each root as before 0.21.0', () => {
+    const result = deduplicateRoots(
+      ['C:\\Data\\X', 'c:/data/x/Sub', 'D:/Notes'],
+      'win32',
+    );
+    expect(result).toEqual(['c:/data/x', 'd:/notes']);
   });
 });
 

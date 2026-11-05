@@ -53,8 +53,8 @@ export class PeriodicReconcile {
   private readonly timers = new Map<string, ReturnType<typeof setTimeout>>();
   private readonly armed = new Set<string>();
   private stopped = false;
-  /** The interval the armed roots were last scheduled with. */
-  private interval: number | undefined;
+  /** The interval each armed root was last scheduled with. */
+  private readonly intervals = new Map<string, number>();
 
   /** @param deps - Roots, interval getter and the run callback. */
   constructor(private readonly deps: PeriodicReconcileDeps) {}
@@ -72,13 +72,17 @@ export class PeriodicReconcile {
   }
 
   /**
-   * A reload: when the interval changed, re-schedule every armed root with
-   * the new one (staggered again). An unchanged interval keeps the running
-   * timers, so frequent reloads never postpone a run.
+   * A reload: re-schedule (staggered again) each armed root whose last
+   * scheduling used another interval. A root already on the current
+   * interval keeps its timer, so frequent reloads never postpone a run,
+   * and a root that happened to be rescheduled between the config change
+   * and this call does not hide the others.
    */
   refresh(): void {
-    if (this.deps.intervalMs() === this.interval) return;
-    for (const root of this.armed) this.schedule(root, true);
+    const interval = this.deps.intervalMs();
+    for (const root of this.armed) {
+      if (this.intervals.get(root) !== interval) this.schedule(root, true);
+    }
   }
 
   /** Clear every timer; nothing runs after this. */
@@ -93,7 +97,7 @@ export class PeriodicReconcile {
     if (existing) clearTimeout(existing);
     this.timers.delete(root);
     const interval = this.deps.intervalMs();
-    this.interval = interval;
+    this.intervals.set(root, interval);
     if (this.stopped || interval <= 0) return;
     // 1-based stagger: no root reconciles right after its own initial scan.
     const i = Math.max(0, this.deps.roots.indexOf(root)) + 1;

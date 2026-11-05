@@ -51,9 +51,7 @@ export type {
 export { withoutSourceSupport } from './sources';
 export { startFromConfig } from './startFromConfig';
 
-/**
- * Main application class that wires together all components.
- */
+/** Main application class that wires together all components. */
 export class JeevesWatcher {
   private config: JeevesWatcherConfig;
   private readonly configPath?: string;
@@ -274,11 +272,8 @@ export class JeevesWatcher {
     const processor = this.processor;
     if (!logger || !processor || !this.configPath) return;
 
-    const state = {
-      config: this.config,
-      watcher: this.watcher,
-      gitignoreFilter: this.gitignoreFilter,
-    };
+    const { config, watcher, gitignoreFilter } = this;
+    const state = { config, watcher, gitignoreFilter };
 
     await reloadConfig(state, {
       configPath: this.configPath,

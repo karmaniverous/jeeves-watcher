@@ -33,18 +33,25 @@ export function globRoot(glob: string): string {
 
 /**
  * Deduplicate directory roots, removing paths that are subdirectories of others.
+ * Roots compare case-insensitively, as document keys do. On Windows each
+ * root is lower-cased, as every release before 0.21.0 did, so watched
+ * paths (and the stored `file_path`) keep their casing; elsewhere each root
+ * keeps the case it was written in, since a case-sensitive filesystem
+ * (Linux) has no lower-cased twin to watch.
  *
  * @param roots - Array of directory paths.
+ * @param platform - `process.platform` (a parameter for tests).
  * @returns Deduplicated array with subdirectories removed.
  */
-export function deduplicateRoots(roots: string[]): string[] {
-  // Compare case-insensitively, as document keys do, but keep each root's
-  // own case: the change source must watch the path as it exists, and paths
-  // are case-sensitive on Linux.
+export function deduplicateRoots(
+  roots: string[],
+  platform: NodeJS.Platform = process.platform,
+): string[] {
   const byKey = new Map<string, string>();
   for (const root of roots) {
-    const path = normalizeSlashes(root);
-    const key = path.toLowerCase();
+    const normalized = normalizeSlashes(root);
+    const key = normalized.toLowerCase();
+    const path = platform === 'win32' ? key : normalized;
     if (!byKey.has(key)) byKey.set(key, path);
   }
   const sorted = [...byKey.keys()].sort();
