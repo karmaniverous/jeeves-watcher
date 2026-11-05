@@ -67,7 +67,6 @@ export function setup(
     lstat: (path) =>
       Promise.resolve({ [ROOT]: 'dir' as const, ...disk }[path] ?? 'absent'),
     walk: (dir) => Promise.resolve(walked.get(dir) ?? new Map()),
-    rootSettleMs: 0,
     ...overrides,
   });
   return { pipeline, calls, inventory, walked };

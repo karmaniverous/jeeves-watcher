@@ -5,7 +5,6 @@
 
 import { lstat } from 'node:fs/promises';
 import { basename, dirname } from 'node:path';
-import { setTimeout as sleep } from 'node:timers/promises';
 
 import type pino from 'pino';
 
@@ -30,13 +29,6 @@ import {
   type PathState,
 } from './classifyBatch';
 
-/**
- * How long a batch that removes paths waits before its root is checked
- * again (D109): `rm -rf` of a root reports its files before the root is
- * gone, so a root removed with its contents must not unlink them.
- */
-export const ROOT_SETTLE_MS = 100;
-
 /** What the pipeline drives. */
 export interface ParcelPipelineDeps {
   roots: WatchRoots;
@@ -55,8 +47,6 @@ export interface ParcelPipelineDeps {
   platform?: NodeJS.Platform;
   /** `lstat` as a path state (tests). */
   lstat?: (path: string) => Promise<PathState>;
-  /** The root settle wait before removals apply; default {@link ROOT_SETTLE_MS} (tests). */
-  rootSettleMs?: number;
   /** The walker (tests). */
   walk?: (
     dir: string,
@@ -161,28 +151,11 @@ export class ParcelPipeline {
       inInventory: (path) => inventory.get(path) !== undefined,
       lstat: this.lstat,
     });
-    if (batch.rootGone || (await this.rootGoneAfterSettle(root, batch.paths))) {
+    if (batch.rootGone) {
       this.deps.logger.debug({ root }, 'Batch for a missing root dropped');
       return;
     }
     for (const path of batch.paths) await this.apply(path);
-  }
-
-  /**
-   * A batch that removes paths while its root is still there waits
-   * {@link ROOT_SETTLE_MS}, then checks the root again: gone means the
-   * removals were the root going with its contents (D109).
-   */
-  private async rootGoneAfterSettle(
-    root: string,
-    paths: readonly ClassifiedPath[],
-  ): Promise<boolean> {
-    const removes = paths.some(
-      ({ kind }) => kind === 'unlink' || kind === 'dirDelete',
-    );
-    if (!removes) return false;
-    await sleep(this.deps.rootSettleMs ?? ROOT_SETTLE_MS);
-    return (await this.lstat(root)) === 'absent';
   }
 
   /** Apply one classified path through the normal handlers. */
