@@ -91,7 +91,7 @@ You have access to a **semantic archive** of your human's working world. Documen
 
 **STOP and ask for a human decision before:**
 
-- **Renaming, moving, or reorganizing watched directories.** The watcher has **move detection** enabled by default (`watch.moveDetection.enabled: true`). When a file is moved, chokidar emits unlink + add events; the `MoveCorrelator` buffers the unlink, matches it with the add via content hash, and processes it as a zero-embedding move (point ID remap, metadata re-inference, enrichment migration). **No re-embedding cost for moves.** However, if a rename is blocked (e.g., by a file lock from the watcher or another service), **do NOT work around it by creating new directories and copying/moving files**. That creates duplicate embeddings at the new paths while the old paths still exist. Instead: stop the blocking service, perform the rename, restart.
+- **Renaming, moving, or reorganizing watched directories.** The watcher has **move detection** enabled by default (`watch.moveDetection.enabled: true`). When a file is moved, the change source reports an unlink and an add; the `MoveCorrelator` buffers the unlink, matches it with the add via content hash, and processes it as a zero-embedding move (point ID remap, metadata re-inference, enrichment migration). Under the default parcel source, a renamed or moved directory is paired as a whole (at least 90% of its files at the same relative path and size) and each file becomes such a move. **No re-embedding cost for moves.** However, if a rename is blocked (e.g., by a file lock from the watcher or another service), **do NOT work around it by creating new directories and copying/moving files**. That creates duplicate embeddings at the new paths while the old paths still exist. Instead: stop the blocking service, perform the rename, restart.
 - **Changing `watch.paths` to add large directory trees.** Adding a new watch root triggers initial indexing of every matching file under it.
 - **Running `scope: "full"` reindex.** Every watched file is re-extracted (a file whose text to embed changed, or that was never indexed, is re-embedded) and every indexed source document is retrieved through its callback and always re-embedded. Use `scope: "rules"` for inference rule changes (no file re-embedding; only metadata reapplication).
 - **Any bulk file operation** (mass copy, mass move, template-based file generation) under watched paths.
@@ -396,7 +396,7 @@ Service health check (`GET /status`, never needs the API key). Returns `name`, `
 
 After a service restart, the `health.initialScan` field shows scan progress:
 
-- `active: true` — filesystem walk in progress; `filesMatched` and `filesEnqueued` grow until chokidar completes
+- `active: true` — filesystem walk in progress; `filesMatched` and `filesEnqueued` grow until the initial walk (or chokidar's scan) completes
 - `active: false` with `completedAt`/`durationMs` — scan finished
 
 Use this to determine if the service is still initializing after a restart.

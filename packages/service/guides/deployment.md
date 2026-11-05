@@ -26,6 +26,22 @@ Production deployment recommendations for `jeeves-watcher`.
 node --version  # Should be v24.22.2 or higher
 ```
 
+### The change source's native binary
+
+`@parcel/watcher` (the default change source) ships prebuilt binaries as optional dependencies, one per platform (Windows x64/arm64, Linux glibc/musl x64/arm64, macOS). Install the service **without** `--omit=optional`; if the binary is missing or fails to load, the service refuses to start and logs an error naming `watch.changeSource: chokidar`, the manual switch to chokidar.
+
+**Linux:** inotify needs one watch per watched directory. Raise the limits for large trees (the service warns at start when the directories it walked exceed 90% of `max_user_watches`):
+
+```bash
+sudo sysctl -w fs.inotify.max_user_watches=1048576
+sudo sysctl -w fs.inotify.max_queued_events=1048576
+# persist: add both lines to /etc/sysctl.d/90-inotify.conf
+```
+
+A failed `inotify_add_watch` leaves the root unwatched (still reconciled each period) until a reload or restart.
+
+**Windows:** paths over 260 characters need `LongPathsEnabled` (`HKLM\SYSTEM\CurrentControlSet\Control\FileSystem`); without it their change events are lost and only the periodic reconcile finds those files.
+
 ### Git (Optional — for VCS)
 
 **Version:** Git 2.x+
@@ -746,9 +762,10 @@ See the [Version Control (VCS) Guide](./version-control.md) for full details on 
 **Check:**
 
 1. Is Qdrant running? `curl http://localhost:6333/healthz`
-2. Is config valid? `jeeves-watcher config validate -c /path/to/config.json`
-3. Are referenced environment variables set in the service's environment? (`echo $GOOGLE_API_KEY` only checks your shell)
-4. Check logs for errors
+2. Does the log say `@parcel/watcher failed to load`? Reinstall the service without `--omit=optional` (the platform binary is an optional dependency), or set `watch.changeSource: chokidar`.
+3. Is config valid? `jeeves-watcher config validate -c /path/to/config.json`
+4. Are referenced environment variables set in the service's environment? (`echo $GOOGLE_API_KEY` only checks your shell)
+5. Check logs for errors
 
 ### Files not being indexed
 
