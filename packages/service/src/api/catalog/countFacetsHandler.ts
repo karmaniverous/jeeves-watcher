@@ -96,13 +96,16 @@ function inScopeSchemas(
   return selected.filter((s) => !('error' in s));
 }
 
-/** The `503` for fields not counted within the 10 s budget. */
-function budgetExceeded(pending: readonly string[]): RequestError {
+/** The `503` for fields not counted within the request's budget (ms). */
+function budgetExceeded(
+  pending: readonly string[],
+  budgetMs: number,
+): RequestError {
   return new RequestError(
     'not_available',
     'Facet counts exceeded the time budget',
     {
-      message: `Not counted within the request's ${String(COUNT_FACETS_BUDGET_MS / 1000)} s budget: ${pending.join(', ')}. Count fewer fields or narrow the filter.`,
+      message: `Not counted within the request's ${String(budgetMs / 1000)} s budget: ${pending.join(', ')}. Count fewer fields or narrow the filter.`,
       details: { pending: [...pending] },
     },
   );
@@ -119,7 +122,7 @@ async function countPlanned(
   plans: readonly FieldPlan[],
   filter: Record<string, unknown>,
   limit: number,
-  budgetMs: number,
+  budget: { leftMs: number; totalMs: number },
 ): Promise<Counts> {
   const { results, pending } = await runBounded<Counts[string]>(
     plans.map(({ field, mode }) => ({
@@ -134,9 +137,9 @@ async function countPlanned(
         return { min, max };
       },
     })),
-    { concurrency: COUNT_FACETS_CONCURRENCY, budgetMs },
+    { concurrency: COUNT_FACETS_CONCURRENCY, budgetMs: budget.leftMs },
   );
-  if (pending.length > 0) throw budgetExceeded(pending);
+  if (pending.length > 0) throw budgetExceeded(pending, budget.totalMs);
   return Object.fromEntries(
     plans.map(({ field }) => [field, results.get(field) as Counts[string]]),
   );
@@ -178,7 +181,7 @@ export function createCatalogCountFacetsHandler(
       deadline - Date.now(),
     );
     if (indexTypes === OUT_OF_BUDGET) {
-      throw budgetExceeded([...new Set(body.fields)]);
+      throw budgetExceeded([...new Set(body.fields)], budgetMs);
     }
     const plans = planFields(body.fields, schemas, indexTypes);
     return withFilterErrors(
@@ -187,7 +190,7 @@ export function createCatalogCountFacetsHandler(
         plans,
         countFilter(body.filter, rules),
         body.limit ?? COUNT_FACETS_DEFAULT_LIMIT,
-        deadline - Date.now(),
+        { leftMs: deadline - Date.now(), totalMs: budgetMs },
       ),
     );
   };

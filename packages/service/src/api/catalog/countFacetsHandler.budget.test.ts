@@ -60,7 +60,7 @@ describe('POST /search/facets/counts budget', () => {
       error: 'Facet counts exceeded the time budget',
       details: { pending: ['a', 'b'] },
     });
-    expect(body.message).toContain('a, b');
+    expect(body.message).toContain('0.05 s budget: a, b');
   });
 
   it('counts at most 4 fields at a time (D96)', async () => {

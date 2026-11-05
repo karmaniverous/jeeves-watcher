@@ -16,6 +16,7 @@ import type { FacetStore, SystemIndexState } from '../vectorStore';
 import { registerCatalogEntries } from './catalogRoutes';
 import { makeConfig } from './facetsDeps';
 
+/** A rule with one schema of the given properties. */
 export const rule = (name: string, properties: Record<string, unknown> = {}) =>
   ({
     name,
@@ -24,6 +25,10 @@ export const rule = (name: string, properties: Record<string, unknown> = {}) =>
     schema: [{ properties }],
   }) as InferenceRule;
 
+/**
+ * A fake facet store: one count, ranges 1 to 9, `tag`/`size`/`at` indexed,
+ * system indexes ready unless `states` says otherwise.
+ */
 export function fakeStore(
   overrides: Partial<FacetStore> = {},
   states: Record<string, SystemIndexState> = {
@@ -44,6 +49,7 @@ export function fakeStore(
   } satisfies FacetStore;
 }
 
+/** Handler dependencies: configured rule `a` (`size` hinted `number`), virtual rule `v`. */
 export function deps(
   facetStore: FacetStore,
   extra: Partial<CatalogCountFacetsDeps> = {},
@@ -59,6 +65,7 @@ export function deps(
   };
 }
 
+/** POST a body to `/search/facets/counts` through the catalog route. */
 export async function post(d: CatalogCountFacetsDeps, body: unknown) {
   const app = Fastify();
   await registerCatalogEntries(app, {

@@ -100,8 +100,12 @@ export function compareCounts(
 }
 
 /**
- * Whether approximate counts stay within the gate's accuracy threshold (the\n * P10 stop condition, not a number D194 sets; D194 leaves materiality to the\n * owner): no top value missing
- * and none off by more than `maxRel` relative.
+ * Whether approximate counts stay within the gate's accuracy threshold (the
+ * P10 stop condition, not a number D194 sets; D194 leaves materiality to the
+ * owner): no top value missing and none off by more than `maxRel` relative.
+ * Only the top values decide; error in less common values is reported by
+ * {@link compareCounts} (`differingShare`, `exactOnly`, `approxOnly`) but not
+ * bounded here.
  *
  * @param fields - Per-field accuracy.
  * @param maxRel - Largest acceptable relative error (default 5%).
