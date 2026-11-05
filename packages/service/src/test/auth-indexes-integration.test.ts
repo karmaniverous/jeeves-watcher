@@ -107,9 +107,12 @@ describe.skipIf(!qdrantAvailable())(
       await harness.vectorStore.ensureCollection();
       await harness.vectorStore.whenSystemIndexesSettled();
       const schema = await getPayloadSchema(harness.collectionName);
-      // file_path: the system index built in the background (D154).
+      // chunk_index, file_path, matched_rules: the system indexes built in
+      // the background (D154, D155).
       expect(Object.keys(schema).sort()).toEqual([
+        'chunk_index',
         'file_path',
+        'matched_rules',
         'source',
         'source_rule',
         'updated_at',
