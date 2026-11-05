@@ -74,7 +74,7 @@
                                 ],
                                 "description": "System payload index state: building (background creation running), ready, conflict (the field has another index type; left alone) or failed (creation failed; retried at the next start)."
                               },
-                              "description": "System payload indexes the service creates whatever payloadIndexes says (file_path keyword), by field."
+                              "description": "System payload indexes the service creates whatever payloadIndexes says (chunk_index integer, file_path and matched_rules keyword), by field."
                             }
                           },
                           "required": [
@@ -900,10 +900,21 @@
     "/search/facets": {
       "get": {
         "operationId": "listFacets",
-        "description": "List available search facets and their values.",
+        "description": "List available search facets and their values: every field a rule schema gives a uiHint or enum, with its declared or recorded values. With `rules`, only the fields and values of those rules.",
         "security": [
           {
             "bearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "rules",
+            "schema": {
+              "description": "Comma-separated rule names (configured or registered at runtime): only fields those rules declare, with values recorded for their documents. Unknown names answer 400. Without it, every configured rule.",
+              "type": "string"
+            },
+            "description": "Comma-separated rule names (configured or registered at runtime): only fields those rules declare, with values recorded for their documents. Unknown names answer 400. Without it, every configured rule."
           }
         ],
         "responses": {

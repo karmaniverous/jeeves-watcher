@@ -74,7 +74,7 @@ export const vcsHealthSchema = z.object({
 export type VcsHealth = z.infer<typeof vcsHealthSchema>;
 
 /**
- * State of one system payload index (D74, D154): `building` until its
+ * State of one system payload index (D74, D154, D155): `building` until its
  * background creation returns, then `ready`; `conflict` when the field
  * already has another index type (left alone); `failed` when creation
  * failed (retried at the next start).
@@ -89,7 +89,7 @@ export const systemIndexStateSchema = z
 export const systemIndexesSchema = z
   .record(z.string(), systemIndexStateSchema)
   .describe(
-    'System payload indexes the service creates whatever payloadIndexes says (file_path keyword), by field.',
+    'System payload indexes the service creates whatever payloadIndexes says (chunk_index integer, file_path and matched_rules keyword), by field.',
   );
 
 /** System payload index states by field. */
@@ -157,7 +157,7 @@ export const watcherHealthSchema = z.looseObject({
       pointCount: z.number(),
       /** Vector dimensions. */
       dimensions: z.number(),
-      /** System payload index states (D74, D154). */
+      /** System payload index states (D74, D154, D155). */
       systemIndexes: systemIndexesSchema.optional(),
     })
     .optional(),

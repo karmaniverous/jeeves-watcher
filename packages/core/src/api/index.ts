@@ -1,6 +1,6 @@
 /**
  * @module api
- * Barrel for the public HTTP API request/response Zod schemas and inferred types (status and health, search, scan, render, metadata, reindex, issues, documents, vcs/show, error bodies and codes). No I/O.
+ * Barrel for the public HTTP API request/response Zod schemas and inferred types (status and health, search, scan, facets, render, metadata, reindex, issues, documents, vcs, error bodies and codes). No I/O.
  */
 
 export {
@@ -105,6 +105,23 @@ export {
   apiErrorCodeSchema,
 } from './errors.js';
 export {
+  COUNT_FACETS_DEFAULT_LIMIT,
+  COUNT_FACETS_MAX_FIELDS,
+  COUNT_FACETS_MAX_LIMIT,
+  type CountFacetsRequest,
+  countFacetsRequestSchema,
+  type CountFacetsResponse,
+  countFacetsResponseSchema,
+  type FacetRange,
+  facetRangeSchema,
+  type FacetValueCount,
+  facetValueCountSchema,
+  type ListFacetsQuery,
+  listFacetsQuerySchema,
+  type ListFacetsResponse,
+  listFacetsResponseSchema,
+} from './facets.js';
+export {
   type EmbeddingHealth,
   embeddingHealthSchema,
   type InitialScanStatus,
@@ -129,8 +146,6 @@ export {
   watcherHealthSchema,
 } from './monitoring.js';
 export {
-  type ListFacetsResponse,
-  listFacetsResponseSchema,
   SCAN_DEFAULT_LIMIT,
   SCAN_MAX_LIMIT,
   type ScanPoint,

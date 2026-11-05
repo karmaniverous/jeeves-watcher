@@ -71,6 +71,7 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
   // Auth + error handlers; api.apiKey is read once (restart to change).
   registerApiHooks(app, config.api?.apiKey, logger);
 
+  const getVirtualRules = () => virtualRuleStore.getAll();
   const cacheTtlMs = config.api?.cacheTtlMs ?? API_DEFAULTS.cacheTtlMs;
   const configDir = dirname(configPath);
 
@@ -108,7 +109,7 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
         valuesManager,
         issuesManager,
         helperIntrospection: options.helperIntrospection,
-        getVirtualRules: () => virtualRuleStore.getAll(),
+        getVirtualRules,
       },
       configApply: {
         descriptor: options.descriptor,
@@ -134,7 +135,13 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
         },
       },
       scan: { vectorStore, logger },
-      listFacets: { getConfig, valuesManager, configDir, logger },
+      listFacets: {
+        getConfig,
+        getVirtualRules,
+        valuesManager,
+        configDir,
+        logger,
+      },
       walk: {
         getWatchPaths: () => extractWatchPathStrings(getConfig().watch.paths),
         getFileSystemWatcher,

@@ -8,6 +8,7 @@ import { z } from 'zod';
 import {
   getConfigSchemaResponseSchema,
   issuesResponseSchema,
+  listFacetsQuerySchema,
   listFacetsResponseSchema,
   matchConfigRequestSchema,
   matchConfigResponseSchema,
@@ -93,8 +94,9 @@ export const READ_ENTRIES = [
       'listFacets',
       'GET',
       '/search/facets',
-      'List available search facets and their values.',
+      'List available search facets and their values: every field a rule schema gives a uiHint or enum, with its declared or recorded values. With `rules`, only the fields and values of those rules.',
     ),
+    query: listFacetsQuerySchema,
     response: listFacetsResponseSchema,
     kind: 'read',
   },

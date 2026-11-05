@@ -248,7 +248,7 @@ describe('createCatalogFacetsHandler', () => {
   it('answers 200 with the lister body', async () => {
     const handler = createCatalogFacetsHandler({ ...makeDeps(), logger });
 
-    expect(await handler({} as never, {} as never)).toEqual({
+    expect(await handler({ query: {} } as never, {} as never)).toEqual({
       status: 200,
       body: { facets: [] },
     });
@@ -264,7 +264,7 @@ describe('createCatalogFacetsHandler', () => {
       logger,
     });
 
-    const result = await handler({} as never, {} as never);
+    const result = await handler({ query: {} } as never, {} as never);
 
     expect(result.status).toBe(500);
     expect(result.body).toMatchObject({ code: 'internal_error' });
