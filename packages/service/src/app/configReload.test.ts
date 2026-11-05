@@ -63,6 +63,43 @@ vi.mock('../api/executeReindex', () => ({
 }));
 
 describe('reloadConfig', () => {
+  it.each([
+    ['usePolling', true],
+    ['pollIntervalMs', 250],
+    ['stabilityThresholdMs', 0],
+  ] as const)(
+    'rebuilds the watcher when %s changes (D100)',
+    async (key, value) => {
+      const oldConfig = makeConfig();
+      const newConfig = makeConfig({ [key]: value });
+      const oldStop = vi.fn().mockResolvedValue(undefined);
+      const newWatcher = { start: vi.fn(), stop: vi.fn() };
+      const createFileSystemWatcher = vi.fn().mockReturnValue(newWatcher);
+      const { logger, processor, factories } = makeDeps(newConfig, {
+        createFileSystemWatcher,
+      });
+      const state = {
+        config: oldConfig,
+        watcher: { start: vi.fn(), stop: oldStop } as never,
+        gitignoreFilter: undefined,
+      };
+
+      await reloadConfig(state, {
+        configPath: '/path/to/config.json',
+        factories,
+        queue: {} as never,
+        processor,
+        logger,
+        runtimeOptions: {},
+        initialScanTracker: {} as never,
+      });
+
+      expect(oldStop).toHaveBeenCalledOnce();
+      expect(createFileSystemWatcher).toHaveBeenCalledOnce();
+      expect(state.watcher).toBe(newWatcher);
+    },
+  );
+
   it('rebuilds watcher when watch paths change', async () => {
     const oldConfig = makeConfig({ paths: ['**/*.md'] });
     const newConfig = makeConfig({ paths: ['**/*.ts'] });

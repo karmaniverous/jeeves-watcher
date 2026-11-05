@@ -145,6 +145,32 @@ describe('watchConfigChanged', () => {
     } as never);
     expect(watchConfigChanged(old, next)).toBe(true);
   });
+
+  it.each([
+    ['usePolling', true],
+    ['pollIntervalMs', 250],
+    ['stabilityThresholdMs', 0],
+  ] as const)('returns true when %s changes (D100)', (key, value) => {
+    const old = makeWatchConfig();
+    const next = makeWatchConfig({ [key]: value });
+    expect(watchConfigChanged(old, next)).toBe(true);
+  });
+
+  it('compares effective values: a default spelled out is no change', () => {
+    const old = makeWatchConfig();
+    const next = makeWatchConfig({
+      usePolling: false,
+      pollIntervalMs: 1000,
+      stabilityThresholdMs: 500,
+    });
+    expect(watchConfigChanged(old, next)).toBe(false);
+  });
+
+  it('ignores reconcileIntervalMs (applied without a rebuild, D111)', () => {
+    const old = makeWatchConfig();
+    const next = makeWatchConfig({ reconcileIntervalMs: 60_000 });
+    expect(watchConfigChanged(old, next)).toBe(false);
+  });
 });
 
 vi.mock('../vcs', async (importOriginal) => ({

@@ -4,7 +4,10 @@
  * Extracted from initialization.ts to follow SRP.
  */
 
-import { extractWatchPathStrings } from '@karmaniverous/jeeves-watcher-core';
+import {
+  extractWatchPathStrings,
+  WATCH_DEFAULTS,
+} from '@karmaniverous/jeeves-watcher-core';
 import type pino from 'pino';
 
 import type { JeevesWatcherConfig } from '../config/types';
@@ -126,20 +129,36 @@ export async function rebuildWatcher(
 }
 
 /**
+ * The watch keys whose change rebuilds the watcher, compared by their
+ * effective values (`WATCH_DEFAULTS` applied, D100). `reconcileIntervalMs`
+ * is not one: a reload applies it without a rebuild (D111).
+ */
+const REBUILD_KEYS = [
+  'paths',
+  'ignored',
+  'moveDetection',
+  'respectGitignore',
+  'usePolling',
+  'pollIntervalMs',
+  'stabilityThresholdMs',
+] as const satisfies readonly (keyof JeevesWatcherConfig['watch'])[];
+
+/** `WATCH_DEFAULTS`, typed as a partial watch config for lookups. */
+const watchDefaults: Partial<JeevesWatcherConfig['watch']> = WATCH_DEFAULTS;
+
+/**
  * Check whether watch-relevant config fields changed between old and new config.
  */
 export function watchConfigChanged(
   oldConfig: JeevesWatcherConfig,
   newConfig: JeevesWatcherConfig,
 ): boolean {
-  return (
-    JSON.stringify(oldConfig.watch.paths) !==
-      JSON.stringify(newConfig.watch.paths) ||
-    JSON.stringify(oldConfig.watch.ignored) !==
-      JSON.stringify(newConfig.watch.ignored) ||
-    JSON.stringify(oldConfig.watch.moveDetection) !==
-      JSON.stringify(newConfig.watch.moveDetection) ||
-    (oldConfig.watch.respectGitignore ?? true) !==
-      (newConfig.watch.respectGitignore ?? true)
+  const effective = (
+    watch: JeevesWatcherConfig['watch'],
+    key: (typeof REBUILD_KEYS)[number],
+  ) => JSON.stringify(watch[key] ?? watchDefaults[key] ?? null);
+  return REBUILD_KEYS.some(
+    (key) =>
+      effective(oldConfig.watch, key) !== effective(newConfig.watch, key),
   );
 }
