@@ -908,6 +908,14 @@ Source-document issues always carry `rule` (the designated rule of the failed ru
 
 **Issues are self-healing:** resolved on successful re-process. The issues file always represents the current set of unresolved problems: a live todo list.
 
+### Change Source
+
+`watcher_status` reports the change source under `health.changeSource` (`@parcel/watcher` by default, chokidar on request or when polling):
+
+- **Service refuses to start, log names `@parcel/watcher failed to load`:** the platform binary is missing or broken. Reinstall without `--omit=optional`, or set `watch.changeSource: chokidar` (the manual switch; a reload rebuilds the watcher with one full initial scan).
+- **Rising `reconcileEvents`:** the source is missing events and reconciliation is finding them. **Rising `resubscribes`:** subscriptions keep failing (Linux). **Rising `renewFailures`:** a Linux renewal could not unsubscribe; restart the service.
+- **Windows, `lastRestartCause` set:** under parcel the service never unsubscribes on Windows (`@parcel/watcher` 2.6.0 crashes the process there), so a reload that rebuilds the watcher, a subscription error or a vanished watch root exits with code 75 and the service manager restarts it. `watch-config-changed`, `subscription-error` or `root-gone` says why, `lastRestartAt` when. If the service stays down after such an exit, its service manager is not restarting it on exit (NSSM: `AppExit Default Restart`).
+
 ---
 
 ## Helper Management

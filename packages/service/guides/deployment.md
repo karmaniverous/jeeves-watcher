@@ -40,7 +40,7 @@ sudo sysctl -w fs.inotify.max_queued_events=1048576
 
 A failed `inotify_add_watch` leaves the root unwatched (still reconciled each period) until a reload or restart.
 
-**Windows:** paths over 260 characters need `LongPathsEnabled` (`HKLM\SYSTEM\CurrentControlSet\Control\FileSystem`); without it their change events are lost and only the periodic reconcile finds those files.
+**Windows:** the service manager must restart the service when it exits (see [Windows (NSSM)](#windows-nssm)): parcel cannot unsubscribe on Windows, so a watcher rebuild or a subscription recovery is a restart. Paths over 260 characters need `LongPathsEnabled` (`HKLM\SYSTEM\CurrentControlSet\Control\FileSystem`); without it their change events are lost and only the periodic reconcile finds those files.
 
 ### Git (Optional — for VCS)
 
@@ -350,6 +350,16 @@ nssm set jeeves-watcher Start SERVICE_AUTO_START
 nssm set jeeves-watcher AppEnvironmentExtra "GOOGLE_API_KEY=your-key-here" "TZ=UTC"
 jeeves-watcher service start
 ```
+
+**Restart on exit (required under parcel, v0.21.0+).** On Windows `@parcel/watcher` 2.6.0 crashes the process natively (exit `0xC0000005`, access violation) whenever a subscription is unsubscribed, so the service never unsubscribes there. A reload that rebuilds the watcher (any `watch` key that rebuilds, including `watch.changeSource`), an error on a subscription, or a watch root that disappears instead makes the service log the cause, stop gracefully (requests in flight are answered) and exit with code **75**; the service manager then starts it again with the current config. The start walks and reconciles every root, so changes made in between are found, and a reload's `configWatch.reindex` runs after the restart. `GET /status` reports why under `health.changeSource.lastRestartCause` (`watch-config-changed`, `subscription-error` or `root-gone`) and when under `lastRestartAt`. NSSM restarts an application that exits by default; check it, and keep the restart immediate:
+
+```powershell
+nssm get jeeves-watcher AppExit Default      # must print Restart
+nssm set jeeves-watcher AppExit Default Restart
+nssm set jeeves-watcher AppRestartDelay 0
+```
+
+Any other service manager must restart the service when it exits with a non-zero code. Under `watch.changeSource: chokidar` the service stops and rebuilds in-process as before; Linux and macOS are unaffected.
 
 ### Linux (systemd)
 
@@ -766,6 +776,10 @@ See the [Version Control (VCS) Guide](./version-control.md) for full details on 
 3. Is config valid? `jeeves-watcher config validate -c /path/to/config.json`
 4. Are referenced environment variables set in the service's environment? (`echo $GOOGLE_API_KEY` only checks your shell)
 5. Check logs for errors
+
+### Watcher stopped after a config change or a missing root (Windows)
+
+Under parcel on Windows the service exits with code 75 instead of rebuilding its watcher or resubscribing (see [Windows (NSSM)](#windows-nssm)). The log's last lines name the cause (`Exiting for a service-manager restart (watch-config-changed)`, `subscription-error` or `root-gone`). If the service did not come back, the service manager is not restarting it on exit: `nssm set jeeves-watcher AppExit Default Restart`, then `jeeves-watcher service start`. A watch root that is still missing at start does not exit again: it is retried with backoff and reconciled when it is back.
 
 ### Files not being indexed
 
