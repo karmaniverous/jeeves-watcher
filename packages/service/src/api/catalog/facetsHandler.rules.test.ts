@@ -80,6 +80,20 @@ describe('createFacetsLister with rules', () => {
     ]);
   });
 
+  it('ignores a virtual rule whose schema fails unless it is named', () => {
+    const broken = createFacetsLister(
+      makeDeps({
+        ...deps,
+        getVirtualRules: () => ({
+          plugin: [{ ...rule('v', {}), schema: ['missing'] }],
+        }),
+      }),
+    );
+    expect(fieldsOf(broken())).toEqual(['tag', 'alpha', 'beta']);
+    expect(fieldsOf(broken(['a']))).toEqual(['tag', 'alpha']);
+    expect(broken(['v'])).toEqual({ facets: [] });
+  });
+
   it('accepts a virtual rule name', () => {
     const body = list(['v', 'b']);
     expect(fieldsOf(body)).toEqual(['tag', 'beta', 'gamma']);

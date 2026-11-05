@@ -9,8 +9,7 @@ import {
   FIELD_SOURCE_RULE,
 } from '../../processor/payloadFields';
 import { invalidRequest } from '../requestError';
-import { DEFAULT_ENUM_HINT } from './facetsHandler';
-import type { RuleSchema } from './ruleSchemas';
+import { DEFAULT_ENUM_HINT, type RuleSchema } from './ruleSchemas';
 
 /** How a field is answered: value counts, or `{ min, max }`. */
 export type FacetMode = 'counts' | 'range';

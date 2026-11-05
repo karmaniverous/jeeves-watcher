@@ -14,7 +14,9 @@ import type { Entry } from './catalogEntry';
 import { parseRuleList, requireKnownRules } from './facetRules';
 import {
   createRuleSchemas,
+  DEFAULT_ENUM_HINT,
   heldRuleNames,
+  requireResolved,
   type RuleSchema,
   selectSchemas,
 } from './ruleSchemas';
@@ -48,9 +50,6 @@ interface FacetField {
   enumValues: unknown[] | undefined;
   rules: string[];
 }
-
-/** The hint 0.20.0 gives an `enum` property without a `uiHint`. */
-export const DEFAULT_ENUM_HINT = 'dropdown';
 
 /**
  * Check whether a resolved property should be exposed as a facet.
@@ -145,10 +144,8 @@ export function createFacetsLister(deps: FacetsDeps) {
 
     let rules: RuleSchema[];
     try {
-      rules = selectSchemas(
-        ruleSchemas(config, virtualRules),
-        scope,
-        'configured',
+      rules = requireResolved(
+        selectSchemas(ruleSchemas(config, virtualRules), scope, 'configured'),
       );
     } catch (err) {
       // #159: catch schema errors gracefully.

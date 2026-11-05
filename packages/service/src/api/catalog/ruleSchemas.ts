@@ -6,12 +6,17 @@
 import type { InferenceRule, JeevesWatcherConfig } from '../../config/types';
 import { mergeSchemas, type ResolvedProperty } from '../../rules/schemaMerge';
 
+/** The hint 0.20.0 gives an `enum` property without a `uiHint`. */
+export const DEFAULT_ENUM_HINT = 'dropdown';
+
 /** One rule's resolved schema properties. */
 export interface RuleSchema {
   /** Rule name. */
   rule: string;
-  /** Resolved properties by field. */
+  /** Resolved properties by field (empty when resolution failed). */
   properties: Record<string, ResolvedProperty>;
+  /** Why the rule's schema did not resolve, when it did not. */
+  error?: unknown;
 }
 
 /** The resolved rule schemas: configured rules first, then virtual rules. */
@@ -25,7 +30,7 @@ export interface RuleSchemas {
 /** Rules as `{ name, schema }` pairs (what resolution reads). */
 type RuleList = ReadonlyArray<Pick<InferenceRule, 'name' | 'schema'>>;
 
-/** A cache key over rule names and schema references. */
+/** A cache key over rule names and schema references (named schemas apart). */
 function hashRules(rules: RuleList): string {
   return rules
     .map((r) => `${r.name}:${JSON.stringify(r.schema ?? [])}`)
@@ -33,9 +38,9 @@ function hashRules(rules: RuleList): string {
 }
 
 /**
- * Resolve each rule's schema (a rule without one has no properties).
- *
- * @throws When a schema reference cannot be resolved.
+ * Resolve each rule's schema on its own (a rule without one has no
+ * properties): a rule whose schema does not resolve carries the `error`
+ * and leaves the other rules unaffected.
  */
 function resolve(
   rules: RuleList,
@@ -43,12 +48,18 @@ function resolve(
   configDir: string,
 ): RuleSchema[] {
   const options = { globalSchemas: config.schemas, configDir };
-  return rules.map((rule) => ({
-    rule: rule.name,
-    properties: rule.schema?.length
-      ? mergeSchemas(rule.schema, options).properties
-      : {},
-  }));
+  return rules.map((rule) => {
+    try {
+      return {
+        rule: rule.name,
+        properties: rule.schema?.length
+          ? mergeSchemas(rule.schema, options).properties
+          : {},
+      };
+    } catch (error) {
+      return { rule: rule.name, properties: {}, error };
+    }
+  });
 }
 
 /**
@@ -57,7 +68,7 @@ function resolve(
  *
  * @param configDir - Config directory for resolving schema file paths.
  * @returns A reader taking the current config and virtual rules (by
- *   source); it throws when a schema cannot be resolved.
+ *   source); a rule whose schema cannot be resolved carries `error`.
  */
 export function createRuleSchemas(
   configDir: string,
@@ -69,7 +80,7 @@ export function createRuleSchemas(
   return (config, virtualRules = {}) => {
     const configured = config.inferenceRules ?? [];
     const virtual = Object.values(virtualRules).flat();
-    const key = `${hashRules(configured)}#${hashRules(virtual)}`;
+    const key = `${hashRules(configured)}#${hashRules(virtual)}#${JSON.stringify(config.schemas ?? {})}`;
     if (cached?.key !== key) {
       cached = {
         key,
@@ -100,6 +111,20 @@ export function selectSchemas(
   if (!scope && unscoped === 'configured') return schemas.configured;
   const all = [...schemas.configured, ...schemas.virtual];
   return scope ? all.filter((r) => scope.has(r.rule)) : all;
+}
+
+/**
+ * Schemas that all resolved, as `listFacets` needs them (0.20.0 answers
+ * no facets when a schema fails).
+ *
+ * @param schemas - Selected schemas.
+ * @returns The same schemas.
+ * @throws The first rule's resolution error.
+ */
+export function requireResolved(schemas: RuleSchema[]): RuleSchema[] {
+  const failed = schemas.find((s) => 'error' in s);
+  if (failed) throw failed.error;
+  return schemas;
 }
 
 /**

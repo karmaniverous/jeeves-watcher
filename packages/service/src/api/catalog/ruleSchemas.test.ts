@@ -11,7 +11,7 @@ import { makeConfig } from '../../test/facetsDeps';
 const mergeSchemas = vi.hoisted(() => vi.fn());
 vi.mock('../../rules/schemaMerge', () => ({ mergeSchemas }));
 
-const { createRuleSchemas, heldRuleNames, selectSchemas } =
+const { createRuleSchemas, heldRuleNames, requireResolved, selectSchemas } =
   await import('./ruleSchemas');
 
 const rule = (name: string, field?: string): InferenceRule => ({
@@ -72,13 +72,39 @@ describe('createRuleSchemas', () => {
     expect(heldRuleNames(config, { s: [rule('v')] })).toEqual(new Set(['v']));
   });
 
-  it('throws when a schema cannot be resolved', () => {
-    mergeSchemas.mockImplementation(() => {
-      throw new Error('missing schema');
+  it('records a schema that cannot be resolved on its rule only', () => {
+    const error = new Error('missing schema');
+    mergeSchemas.mockImplementation((schema: unknown[]) => {
+      if (JSON.stringify(schema).includes('"y"')) throw error;
+      return { properties: { x: { type: 'string' } } };
     });
-    expect(() =>
-      createRuleSchemas('/cfg')(makeConfig([rule('a', 'x')])),
-    ).toThrow('missing schema');
+    const schemas = createRuleSchemas('/cfg')(makeConfig([rule('a', 'x')]), {
+      src: [rule('v', 'y')],
+    });
+    expect(schemas.configured).toEqual([
+      { rule: 'a', properties: { x: { type: 'string' } } },
+    ]);
+    expect(schemas.virtual).toEqual([{ rule: 'v', properties: {}, error }]);
+    expect(() => requireResolved(schemas.virtual)).toThrow(error);
+    expect(requireResolved(schemas.configured)).toBe(schemas.configured);
+  });
+
+  it('re-resolves when a named schema changes', () => {
+    const read = createRuleSchemas('/cfg');
+    read({
+      ...makeConfig([rule('a', 'x')]),
+      schemas: { s: { type: 'object' } },
+    });
+    read({
+      ...makeConfig([rule('a', 'x')]),
+      schemas: { s: { type: 'object' } },
+    });
+    expect(mergeSchemas).toHaveBeenCalledTimes(1);
+    read({
+      ...makeConfig([rule('a', 'x')]),
+      schemas: { s: { type: 'object', properties: { z: { type: 'string' } } } },
+    });
+    expect(mergeSchemas).toHaveBeenCalledTimes(2);
   });
 });
 
