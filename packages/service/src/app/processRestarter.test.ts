@@ -119,6 +119,24 @@ describe('process restarter (D196)', () => {
     });
   });
 
+  it('carries the deferred reindex of a record not yet cleared into a restart during the start', () => {
+    writeFileSync(
+      recordPath(),
+      JSON.stringify({
+        cause: 'watch-config-changed',
+        at: '2026-11-05T15:00:00.000Z',
+        reindex: 'rules',
+      }),
+    );
+    const { restarter: r } = restarter(() => new Promise(() => undefined));
+    r.restart({ cause: 'root-gone' });
+    expect(onDisk()).toEqual({
+      cause: 'root-gone',
+      at: AT.toISOString(),
+      reindex: 'rules',
+    });
+  });
+
   it('exits at the deadline when the graceful stop hangs, and only once', async () => {
     vi.useFakeTimers();
     let finishStop: () => void = () => undefined;

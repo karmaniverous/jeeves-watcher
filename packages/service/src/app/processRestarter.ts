@@ -59,7 +59,10 @@ export interface ProcessRestarterDeps {
  * The app's restarter. Only the first request exits; a later request that
  * carries a deferred reindex adds it to the record. `restart` returns at
  * once; the exit follows the graceful stop, or `deadlineMs`, whichever is
- * first, also when the stop fails.
+ * first, also when the stop fails. The deadline timer holds the process
+ * open, so a stuck stop still exits with the restart code. A deferred
+ * reindex from a record not yet cleared (a restart during the start that
+ * read it) is carried into the new record.
  *
  * @param deps - State dir, logger, stop, deadline, exit.
  * @returns The restarter.
@@ -97,10 +100,13 @@ export function createProcessRestarter(
       }
       const logger = deps.logger();
       if (logger) logRestart(logger, request);
+      // A record still on disk was left by the exit this process started
+      // after and is not cleared yet: keep its deferred reindex.
+      const reindex = request.reindex ?? pendingReindex(deps.stateDir);
       record = {
         cause: request.cause,
         at: now().toISOString(),
-        ...(request.reindex === undefined ? {} : { reindex: request.reindex }),
+        ...(reindex === undefined ? {} : { reindex }),
       };
       write();
       const deadline = setTimeout(() => {
@@ -110,7 +116,6 @@ export function createProcessRestarter(
         );
         exitOnce(RESTART_EXIT_CODE);
       }, deps.deadlineMs);
-      deadline.unref();
       void deps
         .stop()
         .catch((error: unknown) => {
@@ -125,6 +130,16 @@ export function createProcessRestarter(
         });
     },
   };
+}
+
+/** The deferred reindex of a record still on disk, if any. */
+function pendingReindex(stateDir: string): RestartRecord['reindex'] {
+  try {
+    const text = readFileSync(join(stateDir, RESTART_RECORD_FILE), 'utf8');
+    return restartRecordSchema.parse(JSON.parse(text)).reindex;
+  } catch {
+    return undefined;
+  }
 }
 
 /** Wrap `exit` so only its first call goes through. */
