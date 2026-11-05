@@ -18,6 +18,14 @@ import { packageDirectorySync } from 'package-directory';
 import type pino from 'pino';
 
 import type { JeevesWatcherConfig } from '../config/types';
+import {
+  EmbeddingHealth,
+  type EmbeddingTransition,
+} from '../embedding/EmbeddingHealth';
+import {
+  createEmbeddingAlert,
+  type EmbeddingAlertOptions,
+} from '../embedding/healthAlert';
 import { RateLimitedEmbeddingProvider } from '../embedding/rateLimitedProvider';
 import { type AllHelpersIntrospection, introspectAllHelpers } from '../helpers';
 import type { ProcessorConfig } from '../processor';
@@ -65,6 +73,7 @@ export async function initEmbeddingAndStore(
   config: JeevesWatcherConfig,
   factories: JeevesWatcherFactories,
   logger: pino.Logger,
+  onTransition?: (transition: EmbeddingTransition) => void,
 ) {
   let embeddingProvider;
   try {
@@ -91,7 +100,12 @@ export async function initEmbeddingAndStore(
   );
   await vectorStore.ensureCollection();
 
-  return { embeddingProvider, vectorStore };
+  // Health wraps the shared limiter, so every consumer's calls count (D86).
+  const embeddingHealth = new EmbeddingHealth(embeddingProvider, {
+    logger,
+    onTransition,
+  });
+  return { embeddingProvider: embeddingHealth, embeddingHealth, vectorStore };
 }
 
 /**
@@ -107,9 +121,19 @@ export async function initInfrastructure(
   config: JeevesWatcherConfig,
   factories: JeevesWatcherFactories,
   logger: pino.Logger,
+  alert?: Omit<EmbeddingAlertOptions, 'logger'>,
 ) {
   await initVcs(config, logger);
-  const stores = await initEmbeddingAndStore(config, factories, logger);
+  // The alert reads its URL and the collection at each transition (reload).
+  const onTransition = alert
+    ? createEmbeddingAlert({ ...alert, logger }).onTransition
+    : undefined;
+  const stores = await initEmbeddingAndStore(
+    config,
+    factories,
+    logger,
+    onTransition,
+  );
   if (config.search?.hybrid?.enabled) {
     await stores.vectorStore.ensureTextIndex('chunk_text');
   }

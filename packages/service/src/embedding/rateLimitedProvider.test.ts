@@ -1,40 +1,16 @@
 /**
  * @module embedding/rateLimitedProvider.test
- * RateLimitedEmbeddingProvider: one shared request budget across callers, 429 Retry-After pauses every caller, fail-fast beyond maxBackoffMs, a token per internal retry, exponential backoff, retry cap and per-call wait budget.
+ * RateLimitedEmbeddingProvider: one shared request budget across callers, 429 Retry-After pauses every caller, a token per internal retry, exponential backoff, retry cap and per-call wait budget (stored back-off: rateLimitedProvider.storedBackoff.test).
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { RateLimitedEmbeddingProvider } from './rateLimitedProvider';
+import { makeInner, track } from './rateLimitedTestHelpers';
 import {
   EmbeddingRateLimitError,
   EmbeddingUnavailableError,
 } from './rateLimitError';
-import type { EmbeddingProvider, EmbedOptions } from './types';
-
-function makeInner() {
-  const embed = vi.fn<
-    (texts: string[], options?: EmbedOptions) => Promise<number[][]>
-  >((texts) => Promise.resolve(texts.map(() => [0.1, 0.2])));
-  const inner: EmbeddingProvider = { dimensions: 2, embed };
-  return { inner, embed };
-}
-
-/** Collect settled state of a promise without awaiting it. */
-function track<T>(promise: Promise<T>) {
-  const state: { done: boolean; value?: T; error?: unknown } = { done: false };
-  promise.then(
-    (value) => {
-      state.done = true;
-      state.value = value;
-    },
-    (error: unknown) => {
-      state.done = true;
-      state.error = error;
-    },
-  );
-  return state;
-}
 
 describe('RateLimitedEmbeddingProvider', () => {
   beforeEach(() => {
@@ -135,47 +111,6 @@ describe('RateLimitedEmbeddingProvider', () => {
     expect(other.done).toBe(true);
     expect(first.error).toBeUndefined();
     expect(embed).toHaveBeenCalledTimes(3);
-  });
-
-  it('fails fast when Retry-After exceeds maxBackoffMs, without early retries', async () => {
-    const { inner, embed } = makeInner();
-    embed.mockRejectedValueOnce(new EmbeddingRateLimitError('429', 600_000));
-    const limited = new RateLimitedEmbeddingProvider(inner, {
-      maxBackoffMs: 2_000,
-    });
-
-    const call = track(limited.embed(['a']));
-    await vi.advanceTimersByTimeAsync(0);
-    expect(call.error).toBeInstanceOf(EmbeddingUnavailableError);
-    expect((call.error as EmbeddingUnavailableError).retryAfterMs).toBe(
-      600_000,
-    );
-
-    // Other callers fail fast too until the provider's pause has passed.
-    const other = track(limited.embed(['b']));
-    await vi.advanceTimersByTimeAsync(0);
-    expect(other.error).toBeInstanceOf(EmbeddingUnavailableError);
-    expect(embed).toHaveBeenCalledTimes(1);
-
-    await vi.advanceTimersByTimeAsync(600_000);
-    await expect(limited.embed(['c'])).resolves.toHaveLength(1);
-    expect(embed).toHaveBeenCalledTimes(2);
-  });
-
-  it('honours a Retry-After up to maxBackoffMs in full', async () => {
-    const { inner, embed } = makeInner();
-    embed.mockRejectedValueOnce(new EmbeddingRateLimitError('429', 2_000));
-    const limited = new RateLimitedEmbeddingProvider(inner, {
-      maxBackoffMs: 2_000,
-    });
-
-    const call = track(limited.embed(['a']));
-    await vi.advanceTimersByTimeAsync(1_999);
-    expect(call.done).toBe(false);
-    await vi.advanceTimersByTimeAsync(1);
-    expect(call.done).toBe(true);
-    expect(call.error).toBeUndefined();
-    expect(embed).toHaveBeenCalledTimes(2);
   });
 
   it('makes internal provider retries take a token each (beforeRetry)', async () => {

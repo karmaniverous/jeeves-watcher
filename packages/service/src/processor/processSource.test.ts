@@ -39,7 +39,13 @@ const rules: InferenceRule[] = [
 ];
 
 type Mocks = Record<
-  'getPayload' | 'upsert' | 'delete' | 'setPayload' | 'deletePayload',
+  | 'getPayload'
+  | 'upsert'
+  | 'delete'
+  | 'setPayload'
+  | 'deletePayload'
+  | 'keywordIndexReady'
+  | 'existingIds',
   Mock
 > &
   Record<'embed' | 'record' | 'clear' | 'retrieve', Mock>;
@@ -53,6 +59,8 @@ function setup(
     upsert: vi.fn().mockResolvedValue(undefined),
     delete: vi.fn().mockResolvedValue(undefined),
     setPayload: vi.fn().mockResolvedValue(undefined),
+    keywordIndexReady: vi.fn().mockReturnValue(false),
+    existingIds: vi.fn((ids: string[]) => Promise.resolve(ids)),
     deletePayload: vi.fn().mockResolvedValue(undefined),
     embed: vi.fn((texts: string[]) => Promise.resolve(texts.map(() => [0.1]))),
     record: vi.fn(),

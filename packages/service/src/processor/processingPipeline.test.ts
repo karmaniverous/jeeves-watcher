@@ -11,12 +11,13 @@ import { embedAndUpsertDocument } from './processingPipeline';
 const TEXT = 'hello world';
 
 /** Embed and upsert {@link TEXT} as the file `filePath`. */
-function embedFile(
-  deps: unknown,
+async function embedFile(
+  deps: { splitter: { splitText: (text: string) => Promise<string[]> } },
   filePath: string,
   existing: Record<string, unknown> | null,
   hash = contentHash(TEXT),
 ): Promise<number> {
+  const chunks = await deps.splitter.splitText(TEXT);
   return embedAndUpsertDocument(
     deps as never,
     {
@@ -25,7 +26,7 @@ function embedFile(
       metadata: {},
       logLabel: 'File',
     },
-    { existing, dates: { createdAt: 1000, modifiedAt: 2000 }, hash },
+    { existing, dates: { createdAt: 1000, modifiedAt: 2000 }, hash, chunks },
   );
 }
 
@@ -52,7 +53,7 @@ describe('embedAndUpsertDocument — batched upsert (#162)', () => {
     const upsertMock = vi.fn().mockResolvedValue(undefined);
     const deps = {
       embeddingProvider: makeEmbeddingProvider(),
-      vectorStore: { upsert: upsertMock, delete: vi.fn() },
+      vectorStore: { upsert: upsertMock, delete: vi.fn(), setPayload: vi.fn() },
       splitter: makeSplitter(chunks),
       logger: { info: vi.fn() } as never,
       upsertBatchSize: 50,
@@ -70,7 +71,7 @@ describe('embedAndUpsertDocument — batched upsert (#162)', () => {
     const upsertMock = vi.fn().mockResolvedValue(undefined);
     const deps = {
       embeddingProvider: makeEmbeddingProvider(),
-      vectorStore: { upsert: upsertMock, delete: vi.fn() },
+      vectorStore: { upsert: upsertMock, delete: vi.fn(), setPayload: vi.fn() },
       splitter: makeSplitter(chunks),
       logger: { info: vi.fn() } as never,
       upsertBatchSize: batchSize,
@@ -90,7 +91,7 @@ describe('embedAndUpsertDocument — batched upsert (#162)', () => {
     const upsertMock = vi.fn().mockResolvedValue(undefined);
     const deps = {
       embeddingProvider: makeEmbeddingProvider(),
-      vectorStore: { upsert: upsertMock, delete: vi.fn() },
+      vectorStore: { upsert: upsertMock, delete: vi.fn(), setPayload: vi.fn() },
       splitter: makeSplitter(chunks),
       logger: { info: vi.fn() } as never,
       // upsertBatchSize not provided — defaults to 50
@@ -109,7 +110,11 @@ describe('embedAndUpsertDocument — batched upsert (#162)', () => {
     const deleteMock = vi.fn().mockResolvedValue(undefined);
     const deps = {
       embeddingProvider: makeEmbeddingProvider(),
-      vectorStore: { upsert: upsertMock, delete: deleteMock },
+      vectorStore: {
+        upsert: upsertMock,
+        delete: deleteMock,
+        setPayload: vi.fn(),
+      },
       splitter: makeSplitter(chunks),
       logger: { info: vi.fn() } as never,
     };
@@ -125,7 +130,7 @@ describe('embedAndUpsertDocument — batched upsert (#162)', () => {
     const upsertMock = vi.fn().mockResolvedValue(undefined);
     const deps = {
       embeddingProvider: makeEmbeddingProvider(),
-      vectorStore: { upsert: upsertMock, delete: vi.fn() },
+      vectorStore: { upsert: upsertMock, delete: vi.fn(), setPayload: vi.fn() },
       splitter: makeSplitter(chunks),
       logger: { info: vi.fn() } as never,
       upsertBatchSize: batchSize,
@@ -143,11 +148,12 @@ describe('embedAndUpsertDocument — batched upsert (#162)', () => {
 });
 
 describe('embedAndUpsertDocument — content hash', () => {
-  it('writes the caller-computed hash on every chunk without recomputing it', async () => {
+  it('writes the caller-computed hash without recomputing it (chunk 0 at finalise)', async () => {
     const upsertMock = vi.fn().mockResolvedValue(undefined);
+    const setPayload = vi.fn();
     const deps = {
       embeddingProvider: makeEmbeddingProvider(),
-      vectorStore: { upsert: upsertMock, delete: vi.fn() },
+      vectorStore: { upsert: upsertMock, delete: vi.fn(), setPayload },
       splitter: makeSplitter(2),
       logger: { info: vi.fn() } as never,
     };
@@ -157,10 +163,15 @@ describe('embedAndUpsertDocument — content hash', () => {
     const points = upsertMock.mock.calls[0][0] as Array<{
       payload: Record<string, unknown>;
     }>;
+    // Chunk 0 is written as a claim, then finalised with the hash.
     expect(points.map((pt) => pt.payload.content_hash)).toEqual([
-      'given-hash',
+      undefined,
       'given-hash',
     ]);
+    expect(setPayload).toHaveBeenCalledWith(expect.any(Array), {
+      content_hash: 'given-hash',
+      total_chunks: 2,
+    });
   });
 });
 
@@ -173,6 +184,7 @@ describe('embedAndUpsertDocument — embedding batch splitting (#186)', () => {
       vectorStore: {
         upsert: vi.fn().mockResolvedValue(undefined),
         delete: vi.fn(),
+        setPayload: vi.fn(),
       },
       splitter: makeSplitter(chunks),
       logger: { info: vi.fn() } as never,
@@ -194,6 +206,7 @@ describe('embedAndUpsertDocument — embedding batch splitting (#186)', () => {
       vectorStore: {
         upsert: vi.fn().mockResolvedValue(undefined),
         delete: vi.fn(),
+        setPayload: vi.fn(),
       },
       splitter: makeSplitter(chunks),
       logger: { info: vi.fn() } as never,
@@ -218,7 +231,7 @@ describe('embedAndUpsertDocument — embedding batch splitting (#186)', () => {
     const upsertMock = vi.fn().mockResolvedValue(undefined);
     const deps = {
       embeddingProvider,
-      vectorStore: { upsert: upsertMock, delete: vi.fn() },
+      vectorStore: { upsert: upsertMock, delete: vi.fn(), setPayload: vi.fn() },
       splitter: makeSplitter(chunks),
       logger: { info: vi.fn() } as never,
     };

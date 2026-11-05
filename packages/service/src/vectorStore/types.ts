@@ -113,6 +113,47 @@ export interface VectorStore {
   deletePayload(ids: string[], keys: string[]): Promise<void>;
 
   /**
+   * Whether `field` has a ready `keyword` payload index, so a by-filter
+   * write on it is cheap (D154). A system index counts once its background
+   * build returned; any other field when it was keyword-indexed at startup.
+   *
+   * @param field - Payload field.
+   * @returns True when by-filter writes on `field` may be used.
+   */
+  keywordIndexReady(field: string): boolean;
+
+  /**
+   * Set payload fields on every point matching a filter (D139).
+   *
+   * @param filter - Qdrant filter selecting one document's points.
+   * @param payload - Payload fields to set.
+   */
+  setPayloadWhere(
+    filter: Record<string, unknown>,
+    payload: Record<string, unknown>,
+  ): Promise<void>;
+
+  /**
+   * Remove payload keys from every point matching a filter (D139).
+   *
+   * @param filter - Qdrant filter selecting one document's points.
+   * @param keys - Payload keys to remove.
+   */
+  deletePayloadWhere(
+    filter: Record<string, unknown>,
+    keys: string[],
+  ): Promise<void>;
+
+  /**
+   * The IDs among `ids` that exist, in the given order (no payload, no
+   * vectors; needs no index, D154).
+   *
+   * @param ids - Candidate point IDs.
+   * @returns The existing IDs.
+   */
+  existingIds(ids: string[]): Promise<string[]>;
+
+  /**
    * Get the payload of a point by ID.
    *
    * @param id - The point ID.

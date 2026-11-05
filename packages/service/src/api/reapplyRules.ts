@@ -7,6 +7,10 @@ import picomatch from 'picomatch';
 import type pino from 'pino';
 
 import type { DocumentProcessorInterface } from '../processor';
+import {
+  type DocumentLockOptions,
+  DocumentLockTimeoutError,
+} from '../processor/DocumentLocks';
 import { FIELD_FILE_PATH } from '../processor/payloadFields';
 import { normalizeError } from '../util/normalizeError';
 import { normalizeSlashes } from '../util/normalizeSlashes';
@@ -58,19 +62,24 @@ async function matchingFilePaths(
 /**
  * Re-apply the current rules to every indexed file matching `globs`
  * (slashes normalised, case-insensitive, dotfiles included). A file whose
- * update throws is logged and skipped.
+ * update throws is logged and skipped, except a document-lock wait that
+ * runs out (`options.lockWaitMs`, D118): that is rethrown, so the request
+ * answers `503`; files already updated keep their update.
  *
  * @param vectorStore - The vector store.
  * @param processor - The document processor.
  * @param globs - Path globs (non-empty).
  * @param logger - Logger.
+ * @param options - Bounded wait for each document lock.
  * @returns Matched and updated file counts.
+ * @throws DocumentLockTimeoutError when a lock wait runs out.
  */
 export async function reapplyRules(
   vectorStore: Pick<VectorStore, 'scrollPage'>,
   processor: Pick<DocumentProcessorInterface, 'processRulesUpdate'>,
   globs: readonly string[],
   logger: pino.Logger,
+  options: DocumentLockOptions = {},
 ): Promise<ReapplyOutcome> {
   const normalizedGlobs = globs.map((g) => normalizeSlashes(g));
   const isMatch = picomatch(normalizedGlobs, { dot: true, nocase: true });
@@ -84,8 +93,11 @@ export async function reapplyRules(
   let updated = 0;
   for (const filePath of files) {
     try {
-      if ((await processor.processRulesUpdate(filePath)) !== null) updated++;
+      if ((await processor.processRulesUpdate(filePath, options)) !== null) {
+        updated++;
+      }
     } catch (error) {
+      if (error instanceof DocumentLockTimeoutError) throw error;
       logger.warn(
         { filePath, err: normalizeError(error) },
         'Failed to re-apply rules to file',

@@ -7,7 +7,11 @@
  */
 
 import { createStatusHandler, type StatusHandler } from '@karmaniverous/jeeves';
-import type { VcsHealth } from '@karmaniverous/jeeves-watcher-core';
+import type {
+  EmbeddingHealth,
+  SystemIndexes,
+  VcsHealth,
+} from '@karmaniverous/jeeves-watcher-core';
 
 import type { InitialScanTracker } from '../InitialScanTracker';
 import type { ReindexTracker } from '../ReindexTracker';
@@ -19,6 +23,8 @@ export interface CatalogStatusVectorStore {
     pointCount: number;
     dimensions: number;
   }>;
+  /** System payload index states (D74, D154), when the store tracks them. */
+  systemIndexStates?: () => SystemIndexes;
 }
 
 /** Dependencies for the catalog `status` entry's source handler. */
@@ -35,6 +41,42 @@ export interface CatalogStatusDeps {
   initialScanTracker?: InitialScanTracker;
   /** VCS health (`health.vcs`, D86), when any root has VCS enabled. */
   getVcsHealth?: () => VcsHealth;
+  /** Embedding health (`health.embedding`, D88, D89). */
+  getEmbeddingHealth?: () => EmbeddingHealth;
+}
+
+/**
+ * Whether a status body is `degraded` (D86): embeddings failing, or any VCS
+ * circuit breaker tripped. Pure.
+ *
+ * @param health - The status body's `health`.
+ * @returns True when the service is degraded.
+ */
+export function isDegraded(health: Record<string, unknown>): boolean {
+  const embedding = health.embedding as { state?: unknown } | undefined;
+  const vcs = health.vcs as { trippedRoots?: unknown } | undefined;
+  return (
+    embedding?.state === 'failing' ||
+    (typeof vcs?.trippedRoots === 'number' && vcs.trippedRoots > 0)
+  );
+}
+
+/**
+ * Wrap a status handler so a degraded service reports
+ * `status: 'degraded'` (D86). The HTTP status is unchanged (200).
+ *
+ * @param handler - The inner status handler.
+ * @returns The wrapped handler.
+ */
+export function withDegradedStatus(handler: StatusHandler): StatusHandler {
+  return async () => {
+    const result = await handler();
+    const { body } = result;
+    if (body.status === 'healthy' && isDegraded(body.health)) {
+      return { ...result, body: { ...body, status: 'degraded' } };
+    }
+    return result;
+  };
 }
 
 /**
@@ -46,22 +88,34 @@ export interface CatalogStatusDeps {
 export function createCatalogStatusSource(
   deps: CatalogStatusDeps,
 ): StatusHandler {
+  return withDegradedStatus(statusSource(deps));
+}
+
+/** The undecorated status handler. */
+function statusSource(deps: CatalogStatusDeps): StatusHandler {
   return createStatusHandler({
     name: 'watcher',
     version: deps.version ?? 'unknown',
     getHealth: async () => {
-      const collectionInfo = await deps.vectorStore.getCollectionInfo();
+      const { vectorStore } = deps;
+      const collectionInfo = await vectorStore.getCollectionInfo();
       return {
         collection: {
           name: deps.getConfig().vectorStore.collectionName,
           pointCount: collectionInfo.pointCount,
           dimensions: collectionInfo.dimensions,
+          ...(vectorStore.systemIndexStates
+            ? { systemIndexes: vectorStore.systemIndexStates() }
+            : {}),
         },
         reindex: deps.reindexTracker.getStatus(),
         ...(deps.initialScanTracker
           ? { initialScan: deps.initialScanTracker.getStatus() }
           : {}),
         ...(deps.getVcsHealth ? { vcs: deps.getVcsHealth() } : {}),
+        ...(deps.getEmbeddingHealth
+          ? { embedding: deps.getEmbeddingHealth() }
+          : {}),
       };
     },
   });

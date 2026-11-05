@@ -73,6 +73,10 @@ function memoryVectorStore() {
       for (const id of ids) points.delete(id);
       return Promise.resolve();
     }),
+    keywordIndexReady: vi.fn(() => false),
+    existingIds: vi.fn((ids: string[]) =>
+      Promise.resolve(ids.filter((id) => points.has(id))),
+    ),
     setPayload: vi.fn((ids: string[], payload: Record<string, unknown>) => {
       for (const id of ids) {
         const p = points.get(id);

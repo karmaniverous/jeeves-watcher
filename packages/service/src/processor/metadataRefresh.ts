@@ -1,14 +1,14 @@
 /**
  * @module processor/metadataRefresh
- * Metadata-only updates (no re-embed): diff projected metadata against the stored chunk-0 payload, write changed values with set-payload and remove keys no longer projected with delete-payload. Used for unchanged-content source documents and file rules re-apply. Qdrant I/O.
+ * Metadata-only updates (no re-embed): diff projected metadata against the stored chunk-0 payload, write changed values with set-payload and remove keys no longer projected with delete-payload, by filter or by existing IDs (D139). Used for unchanged-content source documents and file rules re-apply. Qdrant I/O.
  */
 
 import { isReservedPayloadField } from '@karmaniverous/jeeves-watcher-core';
 import { isEqual } from 'radash';
 
 import type { VectorStore } from '../vectorStore';
-import { getChunkCount } from './chunkIds';
-import { documentChunkIds, type DocumentIdentity } from './documentIdentity';
+import type { DocumentIdentity } from './documentIdentity';
+import { writeDocumentPayload } from './documentPayloadWrite';
 import { withIssueType } from './issueRecording';
 import { FIELD_MODIFIED_AT } from './payloadFields';
 import type { ResolvedDocument } from './resolvers/types';
@@ -72,11 +72,12 @@ export async function writeProjectedMetadata(
   if (!changed && removed.length === 0) return 'same';
 
   const fields = extra ? await extra() : {};
-  const ids = documentChunkIds(identity, getChunkCount(existing));
-  await withIssueType('upsert_error', async () => {
-    await vectorStore.setPayload(ids, { ...next, ...fields });
-    if (removed.length > 0) await vectorStore.deletePayload(ids, removed);
-  });
+  await withIssueType('upsert_error', () =>
+    writeDocumentPayload(vectorStore, identity, existing, {
+      set: { ...next, ...fields },
+      remove: removed,
+    }),
+  );
   return 'updated';
 }
 

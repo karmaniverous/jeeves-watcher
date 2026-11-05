@@ -107,9 +107,11 @@ describe('withoutSourceSupport', () => {
     await adapted.processFile('a.md');
     await adapted.deleteFile('b.md');
     await expect(
-      adapted.processMetadataUpdate('c.md', { x: 1 }),
+      adapted.processMetadataUpdate('c.md', { x: 1 }, { lockWaitMs: 5 }),
     ).resolves.toEqual({ a: 1 });
-    await expect(adapted.processRulesUpdate('d.md')).resolves.toEqual({ b: 2 });
+    await expect(
+      adapted.processRulesUpdate('d.md', { lockWaitMs: 6 }),
+    ).resolves.toEqual({ b: 2 });
     await expect(adapted.renderFile('e.md')).resolves.toEqual({
       renderAs: 'md',
     });
@@ -118,11 +120,24 @@ describe('withoutSourceSupport', () => {
 
     expect(inner.processFile).toHaveBeenCalledWith('a.md');
     expect(inner.deleteFile).toHaveBeenCalledWith('b.md');
-    expect(inner.processMetadataUpdate).toHaveBeenCalledWith('c.md', { x: 1 });
-    expect(inner.processRulesUpdate).toHaveBeenCalledWith('d.md');
+    expect(inner.processMetadataUpdate).toHaveBeenCalledWith(
+      'c.md',
+      { x: 1 },
+      { lockWaitMs: 5 },
+    );
+    expect(inner.processRulesUpdate).toHaveBeenCalledWith('d.md', {
+      lockWaitMs: 6,
+    });
     expect(inner.renderFile).toHaveBeenCalledWith('e.md');
     expect(inner.moveFile).toHaveBeenCalledWith('f.md', 'g.md');
     expect(inner.updateRules).toHaveBeenCalledWith(rules, undefined, undefined);
+  });
+
+  it('runs withLock work directly (no source pipeline contends)', async () => {
+    const ops = withoutSourceSupport(fileOnly()).sourceOperations();
+    await expect(
+      ops.withLock('app://a', 'deleteDocuments', () => Promise.resolve(3)),
+    ).resolves.toBe(3);
   });
 
   it('fails every other source operation with 503 not_available', async () => {

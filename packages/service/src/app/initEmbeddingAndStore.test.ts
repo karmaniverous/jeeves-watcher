@@ -7,6 +7,7 @@ import pino from 'pino';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { JeevesWatcherConfig } from '../config/types';
+import { EmbeddingHealth } from '../embedding/EmbeddingHealth';
 import { RateLimitedEmbeddingProvider } from '../embedding/rateLimitedProvider';
 import {
   EmbeddingRateLimitError,
@@ -43,7 +44,7 @@ describe('initEmbeddingAndStore', () => {
     vi.useRealTimers();
   });
 
-  it('wraps the provider once in the shared rate limiter from config', async () => {
+  it('wraps the provider once in the shared rate limiter, then embedding health', async () => {
     const embed = vi.fn((texts: string[]) =>
       Promise.resolve(texts.map(() => [0])),
     );
@@ -59,13 +60,18 @@ describe('initEmbeddingAndStore', () => {
       vectorStore: { url: 'http://localhost:6333', collectionName: 'c' },
     } as JeevesWatcherConfig;
 
-    const { embeddingProvider } = await initEmbeddingAndStore(
+    const { embeddingProvider, embeddingHealth } = await initEmbeddingAndStore(
       config,
       factories,
       pino({ level: 'silent' }),
     );
 
-    expect(embeddingProvider).toBeInstanceOf(RateLimitedEmbeddingProvider);
+    // Health wraps the shared limiter (D86): every consumer's calls count.
+    expect(embeddingProvider).toBeInstanceOf(EmbeddingHealth);
+    expect(embeddingHealth).toBe(embeddingProvider);
+    expect(
+      (embeddingProvider as unknown as { inner: unknown }).inner,
+    ).toBeInstanceOf(RateLimitedEmbeddingProvider);
     expect(createVectorStoreClient).toHaveBeenCalledWith(
       config.vectorStore,
       1,

@@ -8,6 +8,8 @@
 
 import type pino from 'pino';
 
+import { FifoLock } from '../util/FifoLock';
+
 /** A wait longer than this is logged as a warning (D102). */
 export const LOCK_WAIT_WARN_MS = 10_000;
 
@@ -40,21 +42,27 @@ export class LockWaitTimeoutError extends Error {
 
 /** FIFO mutex for one VCS root. */
 export class RootGitLock {
-  private tail: Promise<void> = Promise.resolve();
-  private holder: string | undefined;
+  private readonly lock: FifoLock;
 
   /**
    * @param root - Repository root (named in warnings).
    * @param logger - Logger for long-wait and long-hold warnings.
    */
-  constructor(
-    private readonly root: string,
-    private readonly logger: pino.Logger,
-  ) {}
+  constructor(root: string, logger: pino.Logger) {
+    this.lock = new FifoLock({
+      logger,
+      logFields: { root },
+      name: 'RootGitLock',
+      waitWarnMs: LOCK_WAIT_WARN_MS,
+      holdWarnMs: LOCK_HOLD_WARN_MS,
+      timeoutError: (operation, waitMs, heldBy) =>
+        new LockWaitTimeoutError(root, operation, waitMs, heldBy),
+    });
+  }
 
   /** The operation holding the lock, if any. */
   get heldBy(): string | undefined {
-    return this.holder;
+    return this.lock.heldBy;
   }
 
   /**
@@ -66,7 +74,7 @@ export class RootGitLock {
    * @returns What `work` returns.
    */
   run<T>(operation: string, work: () => Promise<T>): Promise<T> {
-    return this.queue(operation, work, undefined);
+    return this.lock.run(operation, work);
   }
 
   /**
@@ -85,75 +93,6 @@ export class RootGitLock {
     waitMs: number,
     work: () => Promise<T>,
   ): Promise<T> {
-    return this.queue(operation, work, waitMs);
+    return this.lock.run(operation, work, waitMs);
   }
-
-  private async queue<T>(
-    operation: string,
-    work: () => Promise<T>,
-    waitMs: number | undefined,
-  ): Promise<T> {
-    const previous = this.tail;
-    let release!: () => void;
-    this.tail = new Promise<void>((resolve) => {
-      release = resolve;
-    });
-
-    const waitTimer = setTimeout(() => {
-      this.logger.warn(
-        {
-          root: this.root,
-          operation,
-          heldBy: this.holder,
-          waitMs: LOCK_WAIT_WARN_MS,
-        },
-        'Waiting over 10 s for RootGitLock',
-      );
-    }, LOCK_WAIT_WARN_MS);
-    waitTimer.unref();
-    if (waitMs === undefined) {
-      await previous;
-    } else if (!(await acquireWithin(previous, waitMs))) {
-      clearTimeout(waitTimer);
-      const heldBy = this.holder;
-      void previous.then(release);
-      throw new LockWaitTimeoutError(this.root, operation, waitMs, heldBy);
-    }
-    clearTimeout(waitTimer);
-    this.holder = operation;
-    const holdTimer = setTimeout(() => {
-      this.logger.warn(
-        { root: this.root, operation, holdMs: LOCK_HOLD_WARN_MS },
-        'RootGitLock held over 5 minutes',
-      );
-    }, LOCK_HOLD_WARN_MS);
-    holdTimer.unref();
-    try {
-      return await work();
-    } finally {
-      clearTimeout(holdTimer);
-      this.holder = undefined;
-      release();
-    }
-  }
-}
-
-/**
- * Wait for the previous holder to release, at most `waitMs`.
- *
- * @returns true once the previous holder released; false if the wait ran out.
- */
-function acquireWithin(
-  previous: Promise<void>,
-  waitMs: number,
-): Promise<boolean> {
-  return new Promise<boolean>((resolve) => {
-    const timer = setTimeout(() => {
-      resolve(false);
-    }, waitMs);
-    void previous.then(() => {
-      clearTimeout(timer);
-      resolve(true);
-    });
-  });
 }

@@ -10,6 +10,13 @@
  * time left has dropped below `maxBackoffMs`). Without `Retry-After`,
  * the pause backs off exponentially from `baseBackoffMs`, capped at
  * `maxBackoffMs`.
+ *
+ * A stored pause is capped at 5 minutes (B6, Design 8) and then expires: the
+ * first call after it probes the provider, so a long `Retry-After` never
+ * keeps the service failing until a restart. A success never lifts a pause:
+ * a call is only sent once every earlier pause has expired, and a pause that
+ * another call's 429 set while it was in flight must still hold for every
+ * caller.
  */
 
 import type pino from 'pino';
@@ -28,6 +35,9 @@ const DEFAULT_ATTEMPTS = 5;
 
 /** Base pause after a 429 without `Retry-After` (doubles per attempt). */
 const DEFAULT_BASE_BACKOFF_MS = 1000;
+
+/** Longest stored provider pause; the first call after it is the probe. */
+export const MAX_STORED_BACKOFF_MS = 5 * 60_000;
 
 /** Options for {@link RateLimitedEmbeddingProvider}. */
 export interface RateLimitedEmbeddingProviderOptions {
@@ -97,6 +107,15 @@ export class RateLimitedEmbeddingProvider implements EmbeddingProvider {
   }
 
   /**
+   * End of the stored provider back-off (epoch ms), or `undefined` when
+   * none is in force (`GET /status` `health.embedding.backoffUntil`).
+   */
+  get backoffUntilMs(): number | undefined {
+    const until = Math.max(this.pausedUntilMs, this.failFastUntilMs);
+    return until > Date.now() ? until : undefined;
+  }
+
+  /**
    * Embed texts as one provider request, waiting for a token and retrying
    * 429s within the call's budget.
    *
@@ -151,9 +170,10 @@ export class RateLimitedEmbeddingProvider implements EmbeddingProvider {
       retryAfterMs ??
       computeDelayMs(attempt, this.baseBackoffMs, this.maxBackoffMs);
     const now = Date.now();
-    this.pausedUntilMs = Math.max(this.pausedUntilMs, now + pauseMs);
+    const storedMs = Math.min(pauseMs, MAX_STORED_BACKOFF_MS);
+    this.pausedUntilMs = Math.max(this.pausedUntilMs, now + storedMs);
     if (pauseMs > this.maxBackoffMs) {
-      this.failFastUntilMs = Math.max(this.failFastUntilMs, now + pauseMs);
+      this.failFastUntilMs = Math.max(this.failFastUntilMs, now + storedMs);
     }
 
     this.logger?.warn(
@@ -166,17 +186,24 @@ export class RateLimitedEmbeddingProvider implements EmbeddingProvider {
       },
       'Embedding provider rate-limited; pausing all embedding requests',
     );
-    if (pauseMs > this.maxBackoffMs) throw this.pauseTooLong(pauseMs, error);
+    if (pauseMs > this.maxBackoffMs) {
+      throw this.pauseTooLong(pauseMs, error, storedMs);
+    }
   }
 
-  /** The fail-fast error for a provider pause requested longer than `maxBackoffMs`. */
+  /**
+   * The fail-fast error for a provider pause requested longer than
+   * `maxBackoffMs`; `retryAfterMs` is when the next call probes (the
+   * stored, capped pause), default `waitMs`.
+   */
   private pauseTooLong(
     waitMs: number,
     cause: EmbeddingRateLimitError | undefined,
+    retryAfterMs = waitMs,
   ): EmbeddingUnavailableError {
     return new EmbeddingUnavailableError(
       `Embedding provider asked to wait ${String(waitMs)} ms, more than maxBackoffMs (${String(this.maxBackoffMs)} ms)`,
-      { cause, retryAfterMs: waitMs },
+      { cause, retryAfterMs },
     );
   }
 

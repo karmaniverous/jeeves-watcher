@@ -6,34 +6,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { RateLimitedEmbeddingProvider } from './rateLimitedProvider';
+import { makeInner, track } from './rateLimitedTestHelpers';
 import {
   EmbeddingRateLimitError,
   EmbeddingUnavailableError,
 } from './rateLimitError';
-import type { EmbeddingProvider, EmbedOptions } from './types';
-
-function makeInner() {
-  const embed = vi.fn<
-    (texts: string[], options?: EmbedOptions) => Promise<number[][]>
-  >((texts) => Promise.resolve(texts.map(() => [0.1, 0.2])));
-  const inner: EmbeddingProvider = { dimensions: 2, embed };
-  return { inner, embed };
-}
-
-/** Collect settled state of a promise without awaiting it. */
-function track<T>(promise: Promise<T>) {
-  const state: { done: boolean; error?: unknown } = { done: false };
-  promise.then(
-    () => {
-      state.done = true;
-    },
-    (error: unknown) => {
-      state.done = true;
-      state.error = error;
-    },
-  );
-  return state;
-}
 
 describe('RateLimitedEmbeddingProvider back-off', () => {
   beforeEach(() => {

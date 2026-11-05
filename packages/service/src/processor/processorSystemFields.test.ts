@@ -36,6 +36,8 @@ function setup() {
     upsert: vi.fn().mockResolvedValue(undefined),
     delete: vi.fn().mockResolvedValue(undefined),
     setPayload: vi.fn().mockResolvedValue(undefined),
+    keywordIndexReady: vi.fn().mockReturnValue(false),
+    existingIds: vi.fn((ids: string[]) => Promise.resolve(ids)),
     getPointsWithVectors: vi
       .fn()
       .mockResolvedValue([

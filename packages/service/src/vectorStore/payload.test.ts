@@ -1,12 +1,13 @@
 /**
  * @module vectorStore/payload.test
- * getPointPayload: `null` only for an empty retrieve; a failed read rejects (never "not indexed"). getPointsWithVectors drops vectorless points and makes no request for no ids. Payload set/delete are no-ops for empty input.
+ * getPointPayload: `null` only for an empty retrieve; a failed read rejects (never "not indexed"). getPointsWithVectors drops vectorless points and makes no request for no ids. Payload set/delete are no-ops for empty input. existingPointIds keeps the given order and asks for no payload or vectors.
  */
 
 import { describe, expect, it, vi } from 'vitest';
 
 import {
   deletePointsPayload,
+  existingPointIds,
   getPointPayload,
   getPointsWithVectors,
   type PayloadClient,
@@ -89,5 +90,36 @@ describe('payload writes', () => {
     await deletePointsPayload(c, 'col', [], ['a']);
     expect(c.setPayload).not.toHaveBeenCalled();
     expect(c.deletePayload).not.toHaveBeenCalled();
+  });
+});
+
+describe('existingPointIds', () => {
+  it('returns the existing ids in the given order, without payload or vectors', async () => {
+    const c = client(() =>
+      Promise.resolve([
+        { id: 'c', payload: null },
+        { id: 'a', payload: null },
+      ]),
+    );
+    await expect(existingPointIds(c, 'col', ['a', 'b', 'c'])).resolves.toEqual([
+      'a',
+      'c',
+    ]);
+    expect(c.retrieve).toHaveBeenCalledWith('col', {
+      ids: ['a', 'b', 'c'],
+      with_payload: false,
+      with_vector: false,
+    });
+  });
+
+  it('makes no request for no ids', async () => {
+    const c = client(() => Promise.resolve([]));
+    await expect(existingPointIds(c, 'col', [])).resolves.toEqual([]);
+    expect(c.retrieve).not.toHaveBeenCalled();
+  });
+
+  it('rejects when the read fails', async () => {
+    const c = client(() => Promise.reject(new Error('down')));
+    await expect(existingPointIds(c, 'col', ['a'])).rejects.toThrow('down');
   });
 });

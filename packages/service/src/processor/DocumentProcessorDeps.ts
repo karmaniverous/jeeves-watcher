@@ -14,6 +14,8 @@ import type { SourceRetriever } from '../sources';
 import type { TemplateEngine } from '../templates';
 import type { ValuesManager } from '../values';
 import type { VectorStore } from '../vectorStore';
+import type { DocumentLocks } from './DocumentLocks';
+import type { ProcessingLimits } from './processingLimits';
 import type { ProcessorConfig } from './ProcessorConfig';
 
 /**
@@ -42,4 +44,8 @@ export interface DocumentProcessorDeps {
   contentHashCache?: ContentHashCache;
   /** Optional source callback client; without it, source documents fail `source_unavailable`. */
   sourceRetriever?: SourceRetriever;
+  /** Per-document locks (D98); default: the processor's own. */
+  documentLocks?: DocumentLocks;
+  /** The processing ceilings, read per document (D44); default: every default. */
+  getProcessingLimits?: () => ProcessingLimits;
 }

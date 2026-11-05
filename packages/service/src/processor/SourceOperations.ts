@@ -17,6 +17,7 @@ import {
   type SourceRetriever,
 } from '../sources';
 import { documentPointId, storedIdentity } from './documentIdentity';
+import type { DocumentLockOptions, DocumentLocks } from './DocumentLocks';
 import { updateDocumentMetadata } from './documentMetadata';
 import type { IndexOptions, PipelineContext } from './documentPipeline';
 import { ProcessingFailure } from './issueRecording';
@@ -35,6 +36,8 @@ export interface SourceOperationsContext {
   retriever?: SourceRetriever;
   /** Enrichment store, keyed by the exact reference. */
   enrichmentStore?: EnrichmentStoreInterface;
+  /** The processor's per-document locks (D98), keyed by reference. */
+  locks: DocumentLocks;
 }
 
 /** Outcome of rendering a source document (`POST /render { source }`). */
@@ -63,11 +66,27 @@ export interface SourceOperationsInterface {
   compiledRule(name: string): CompiledRule | undefined;
   /** Retrieve and render a document without embedding or writing anything. */
   render(ref: string, rule: string): Promise<SourceRenderOutcome>;
-  /** Merge enrichment metadata into an indexed document's points; `null` if not indexed. */
+  /**
+   * Merge enrichment metadata into an indexed document's points; `null` if
+   * not indexed. `options.lockWaitMs` bounds the document-lock wait (D118).
+   */
   updateMetadata(
     ref: string,
     metadata: Record<string, unknown>,
+    options?: DocumentLockOptions,
   ): Promise<Record<string, unknown> | null>;
+  /**
+   * Run `work` under the processor's document lock of `ref` (D98), e.g. a
+   * whole-document delete. `ref` is any document key: a source reference,
+   * or `fileLockKey(path)` for a file (`POST /rebuild-metadata`).
+   * `options.lockWaitMs` bounds the wait (D118).
+   */
+  withLock<T>(
+    ref: string,
+    operation: string,
+    work: () => Promise<T>,
+    options?: DocumentLockOptions,
+  ): Promise<T>;
 }
 
 /** A processor exposing source operations (`DocumentProcessor` implements it). */
@@ -94,16 +113,28 @@ export class SourceOperations implements SourceOperationsInterface {
     options?: IndexOptions,
   ): Promise<DocumentResult> {
     const { ctx } = this;
-    return processSourceDocument(
-      {
-        pipeline: ctx.pipeline,
-        resolver: this.resolver(),
-        enrichmentStore: ctx.enrichmentStore,
-      },
-      ref,
-      rule,
-      options,
+    return ctx.locks.run(ref, 'process', () =>
+      processSourceDocument(
+        {
+          pipeline: ctx.pipeline,
+          resolver: this.resolver(),
+          enrichmentStore: ctx.enrichmentStore,
+        },
+        ref,
+        rule,
+        options,
+      ),
     );
+  }
+
+  /** {@inheritDoc SourceOperationsInterface.withLock} */
+  withLock<T>(
+    ref: string,
+    operation: string,
+    work: () => Promise<T>,
+    options?: DocumentLockOptions,
+  ): Promise<T> {
+    return this.ctx.locks.run(ref, operation, work, options);
   }
 
   /**
@@ -188,17 +219,26 @@ export class SourceOperations implements SourceOperationsInterface {
    *
    * @param ref - The exact `<name>://<id>` reference.
    * @param metadata - Enrichment metadata.
+   * @param options - Bounded lock wait (D118).
    * @returns The merged enrichment, or `null` when not indexed.
+   * @throws DocumentLockTimeoutError when a bounded lock wait runs out.
    */
   updateMetadata(
     ref: string,
     metadata: Record<string, unknown>,
+    options?: DocumentLockOptions,
   ): Promise<Record<string, unknown> | null> {
-    const { pipeline, enrichmentStore } = this.ctx;
-    return updateDocumentMetadata(
-      { ...pipeline, enrichmentStore },
-      { kind: 'source', ref },
-      metadata,
+    const { pipeline, enrichmentStore, locks } = this.ctx;
+    return locks.run(
+      ref,
+      'setMetadata',
+      () =>
+        updateDocumentMetadata(
+          { ...pipeline, enrichmentStore },
+          { kind: 'source', ref },
+          metadata,
+        ),
+      options,
     );
   }
 

@@ -1,6 +1,6 @@
 /**
  * @module vectorStore/writes.test
- * QdrantWriter: every write (upsert, delete, set-payload, delete-payload) is retried on a fresh client and gives up after the policy's attempts; empty writes make no request.
+ * QdrantWriter: every write (upsert, delete, set-payload, delete-payload, by IDs or by filter) is retried on a fresh client and gives up after the policy's attempts; empty writes make no request.
  */
 
 import pino from 'pino';
@@ -40,6 +40,8 @@ const writes: Array<[string, (w: QdrantWriter) => Promise<void>]> = [
   ['delete', (w) => w.delete(['a'])],
   ['setPayload', (w) => w.setPayload(['a'], { k: 1 })],
   ['deletePayload', (w) => w.deletePayload(['a'], ['k'])],
+  ['setPayloadWhere', (w) => w.setPayloadWhere({ must: [] }, { k: 1 })],
+  ['deletePayloadWhere', (w) => w.deletePayloadWhere({ must: [] }, ['k'])],
 ];
 
 describe('QdrantWriter', () => {
@@ -83,6 +85,7 @@ describe('QdrantWriter', () => {
     await writer.delete([]);
     await writer.setPayload([], { k: 1 });
     await writer.deletePayload(['a'], []);
+    await writer.deletePayloadWhere({ must: [] }, []);
     expect(call).not.toHaveBeenCalled();
   });
 
@@ -98,6 +101,28 @@ describe('QdrantWriter', () => {
       wait: true,
       points: ['a'],
       payload: { k: 1 },
+    });
+  });
+
+  it('sends a by-filter payload write with the filter and wait flag (D139)', async () => {
+    const { call, createClient } = makeClients(0);
+    const writer = new QdrantWriter({
+      collectionName: 'c',
+      logger,
+      createClient,
+    });
+    const filter = { must: [{ key: 'file_path', match: { value: 'a.md' } }] };
+    await writer.setPayloadWhere(filter, { k: 1 });
+    await writer.deletePayloadWhere(filter, ['x']);
+    expect(call).toHaveBeenNthCalledWith(1, 'c', {
+      payload: { k: 1 },
+      filter,
+      wait: true,
+    });
+    expect(call).toHaveBeenNthCalledWith(2, 'c', {
+      keys: ['x'],
+      filter,
+      wait: true,
     });
   });
 });

@@ -1,6 +1,6 @@
 /**
  * @module processor/processingPipeline
- * Chunk, embed and upsert pipeline, shared by file and source documents (identity decides point IDs and identity fields).
+ * Embed and upsert pipeline, shared by file and source documents (identity decides point IDs and identity fields): one window of vectors in memory, chunk 0 claimed then finalised (D87).
  */
 
 import type pino from 'pino';
@@ -26,7 +26,6 @@ import {
   FIELD_MODIFIED_AT,
   FIELD_TOTAL_CHUNKS,
 } from './payloadFields';
-import type { Splitter } from './splitter';
 import { withSystemFields } from './systemFields';
 
 /** Default number of points to upsert per batch (prevents OOM on large files). */
@@ -41,7 +40,6 @@ const EMBED_BATCH_SIZE = 100;
 interface PipelineDeps {
   embeddingProvider: EmbeddingProvider;
   vectorStore: VectorStore;
-  splitter: Splitter;
   logger: pino.Logger;
   /** Number of points per upsert batch. Defaults to {@link DEFAULT_UPSERT_BATCH_SIZE}. */
   upsertBatchSize?: number;
@@ -71,22 +69,32 @@ export interface EmbeddableDocument {
 
 /** Per-write inputs of {@link embedAndUpsertDocument}. */
 export interface EmbedWriteOptions {
-  /** Existing chunk-0 payload (for orphan cleanup), or null. */
+  /** Existing chunk-0 payload (old chunk count, possibly a claim), or null. */
   existing: Record<string, unknown> | null;
   /** Creation and modification timestamps (unix seconds). */
   dates: DocumentDates;
   /** Content hash of `document.text` (computed once by the caller). */
   hash: string;
+  /** `document.text` split into chunks (split once by the caller). */
+  chunks: string[];
 }
 
 /**
- * Embed text chunks, upsert to vector store, and clean up orphaned chunks.
+ * Embed and upsert a document one window of {@link EMBED_BATCH_SIZE} chunks
+ * at a time, so only one window of vectors is in memory (D87). The first
+ * window writes chunk 0 as a claim: `total_chunks` is the high-water mark
+ * `max(old count, new count)` and `content_hash` is absent, so a failure
+ * part-way leaves a document that is never `unchanged` and whose every
+ * written ID a delete still reaches. After the last window the IDs from the
+ * new count up to the high-water mark are deleted, then chunk 0 is
+ * finalised with the content hash and the new count.
  *
- * @param deps - Pipeline dependencies (embedding provider, vector store, splitter, logger).
+ * @param deps - Embedding provider, vector store, logger.
  * @param document - The document to write.
- * @param options - Existing chunk-0 payload, dates and content hash.
+ * @param options - Existing chunk-0 payload, dates, content hash, chunks.
  * @returns The number of chunks written.
- * @throws ProcessingFailure `embedding_error` (nothing upserted) or `upsert_error`.
+ * @throws ProcessingFailure `embedding_error` or `upsert_error`; windows
+ *   written before the failure stay, under the chunk-0 claim.
  */
 export async function embedAndUpsertDocument(
   deps: PipelineDeps,
@@ -96,68 +104,64 @@ export async function embedAndUpsertDocument(
   const {
     embeddingProvider,
     vectorStore,
-    splitter,
     logger,
     upsertBatchSize = DEFAULT_UPSERT_BATCH_SIZE,
   } = deps;
   const { identity, text, metadata, matchedRules } = document;
-  const { existing, dates, hash } = options;
+  const { existing, dates, hash, chunks } = options;
 
-  const oldTotalChunks = getChunkCount(existing);
-
-  // Chunk text
-  const chunks = await splitter.splitText(text);
-
-  // Compute line offsets
+  const total = chunks.length;
+  const highWater = Math.max(existing ? getChunkCount(existing) : 0, total);
   const offsets = computeLineOffsets(text, chunks);
-
-  // Embed chunks in batches to respect Gemini's 100-doc limit
-  const vectors = await withIssueType('embedding_error', async () => {
-    const allVectors: number[][] = [];
-    for (let start = 0; start < chunks.length; start += EMBED_BATCH_SIZE) {
-      const batch = chunks.slice(start, start + EMBED_BATCH_SIZE);
-      allVectors.push(...(await embeddingProvider.embed(batch)));
-    }
-    return allVectors;
-  });
-
-  // Build all points
   const base = withSystemFields(metadata, identity, matchedRules);
-  const points = chunks.map((chunk, i) => ({
+  const pointAt = (i: number, vector: number[]) => ({
     id: documentPointId(identity, i),
-    vector: vectors[i],
+    vector,
     payload: {
       ...base,
       [FIELD_CHUNK_INDEX]: i,
-      [FIELD_TOTAL_CHUNKS]: chunks.length,
-      [FIELD_CONTENT_HASH]: hash,
-      [FIELD_CHUNK_TEXT]: chunk,
+      // Chunk 0 is the claim: high-water count, no content hash yet.
+      [FIELD_TOTAL_CHUNKS]: i === 0 ? highWater : total,
+      ...(i === 0 ? {} : { [FIELD_CONTENT_HASH]: hash }),
+      [FIELD_CHUNK_TEXT]: chunks[i],
       [FIELD_CREATED_AT]: dates.createdAt,
       [FIELD_MODIFIED_AT]: dates.modifiedAt,
       [FIELD_LINE_START]: offsets[i]?.lineStart ?? 1,
       [FIELD_LINE_END]: offsets[i]?.lineEnd ?? 1,
     },
-  }));
+  });
+
+  const batchSize = Math.max(1, upsertBatchSize);
+  for (let start = 0; start < total; start += EMBED_BATCH_SIZE) {
+    const window = chunks.slice(start, start + EMBED_BATCH_SIZE);
+    const vectors = await withIssueType('embedding_error', () =>
+      embeddingProvider.embed(window),
+    );
+    const points = window.map((_, j) => pointAt(start + j, vectors[j]));
+    await withIssueType('upsert_error', async () => {
+      for (let b = 0; b < points.length; b += batchSize) {
+        await vectorStore.upsert(points.slice(b, b + batchSize));
+      }
+    });
+  }
 
   await withIssueType('upsert_error', async () => {
-    // Upsert in batches to avoid OOM on large files (#162)
-    const batchSize = Math.max(1, upsertBatchSize);
-    for (let start = 0; start < points.length; start += batchSize) {
-      await vectorStore.upsert(points.slice(start, start + batchSize));
-    }
-
-    // Clean up orphaned chunks
-    if (oldTotalChunks > chunks.length) {
-      const orphanIds = documentChunkIds(identity, oldTotalChunks).slice(
-        chunks.length,
+    if (highWater > total) {
+      await vectorStore.delete(
+        documentChunkIds(identity, highWater).slice(total),
       );
-      await vectorStore.delete(orphanIds);
+    }
+    if (total > 0) {
+      await vectorStore.setPayload([documentPointId(identity, 0)], {
+        [FIELD_CONTENT_HASH]: hash,
+        [FIELD_TOTAL_CHUNKS]: total,
+      });
     }
   });
 
   logger.info(
-    { ...identityLogFields(identity), chunks: chunks.length },
+    { ...identityLogFields(identity), chunks: total },
     `${document.logLabel} processed successfully`,
   );
-  return chunks.length;
+  return total;
 }

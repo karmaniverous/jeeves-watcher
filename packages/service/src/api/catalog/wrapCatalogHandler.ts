@@ -18,9 +18,14 @@ import type {
 import type { FastifyRequest } from 'fastify';
 import type pino from 'pino';
 
+import {
+  API_LOCK_RETRY_AFTER_S,
+  DocumentLockTimeoutError,
+} from '../../processor/DocumentLocks';
 import { normalizeError } from '../../util/normalizeError';
 import { RequestError } from '../requestError';
 import {
+  busyResult,
   type CatalogErrorResult,
   errorResult,
   internalErrorResult,
@@ -42,9 +47,12 @@ export interface CatalogSuccess<E extends CatalogEntry> {
 
 /**
  * Turn a thrown error into a catalog error result: a {@link RequestError}
- * (bad client input) becomes its code and text, logged at `debug`; anything
- * else is logged at `error` and becomes a generic `internal_error` (the
- * error itself is never sent).
+ * (bad client input) becomes its code and text, logged at `debug`; a
+ * {@link DocumentLockTimeoutError} (the document is being processed, D118)
+ * becomes `503 not_available` with `Retry-After: 10`, logged as a warning
+ * naming the route and the document key; anything else is logged at
+ * `error` and becomes a generic `internal_error` (the error itself is never
+ * sent).
  *
  * @param error - Anything thrown by a catalog handler function.
  * @param logger - Logger instance.
@@ -59,6 +67,16 @@ export function catalogErrorFromThrown(
   if (error instanceof RequestError) {
     logger.debug({ err: error }, `${label} rejected`);
     return errorResult(error.code, error.message, error.extras);
+  }
+  if (error instanceof DocumentLockTimeoutError) {
+    logger.warn(
+      { route: label, key: error.key, waitMs: error.waitMs },
+      `${label} gave up waiting for a document lock`,
+    );
+    return busyResult(
+      `The document is being processed; retry after ${String(API_LOCK_RETRY_AFTER_S)} s`,
+      API_LOCK_RETRY_AFTER_S,
+    );
   }
   logger.error({ err: normalizeError(error) }, `${label} failed`);
   return internalErrorResult();

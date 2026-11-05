@@ -46,7 +46,8 @@ curl http://localhost:1936/status
     "collection": {
       "name": "jeeves_archive",
       "pointCount": 10498,
-      "dimensions": 3072
+      "dimensions": 3072,
+      "systemIndexes": { "file_path": "ready" }
     },
     "reindex": {
       "active": true,
@@ -67,6 +68,13 @@ curl http://localhost:1936/status
       "pending": 0,
       "trippedRoots": 0,
       "oldestTrippedAt": null
+    },
+    "embedding": {
+      "state": "ok",
+      "lastSuccessAt": "2026-03-15T02:10:04.000Z",
+      "lastError": { "at": "2026-03-15T01:58:30.000Z", "code": "http_503" },
+      "failingSince": null,
+      "backoffUntil": null
     }
   }
 }
@@ -77,11 +85,12 @@ curl http://localhost:1936/status
 | `name` | `string` | Always `"watcher"`. |
 | `version` | `string` | Service package version. |
 | `uptime` | `number` | Whole seconds since the API server was created. |
-| `status` | `string` | `"healthy"`, or `"degraded"` when the health probe failed (for example Qdrant is unreachable); `health` then holds only `{ "error": "..." }`. |
-| `health.collection` | `object` | Qdrant collection stats: `name`, `pointCount` (total points/chunks), `dimensions`. |
+| `status` | `string` | `"healthy"`, or `"degraded"`: when the health probe failed (for example Qdrant is unreachable; `health` then holds only `{ "error": "..." }`), while embeddings are `failing`, or while a VCS circuit breaker is tripped (v0.21.0+). |
+| `health.collection` | `object` | Qdrant collection stats: `name`, `pointCount` (total points/chunks), `dimensions`; and (v0.21.0+) `systemIndexes`, the state of each [system payload index](./configuration.md#payload-indexes) by field: `building`, `ready`, `conflict` (another index type exists and is left alone) or `failed`. |
 | `health.reindex` | `object` | Reindex progress. `active`; while active also `scope`, `startedAt`, `filesProcessed` and `totalFiles` (files plus source documents in the run; both stay `0` during a prune). `POST /reindex { scope: "path", source }` and `POST /documents` are not tracked here. |
 | `health.initialScan` | `object?` | Initial filesystem scan after start (absent when there is no filesystem watcher). Only `{ "active": false }` before the scan starts; then `active`, `filesMatched`, `filesEnqueued`; `startedAt` while active; `completedAt` and `durationMs` once finished. |
 | `health.vcs` | `object?` | Version control across roots (absent when no root has VCS enabled): `roots` (VCS-enabled roots), `pending` (files queued or in flight, not yet committed), `trippedRoots` (roots whose commit circuit breaker is tripped), `oldestTrippedAt` (ISO time the longest-tripped breaker tripped, or `null`). Per-root detail is in [`GET /vcs/status`](./version-control.md#get-vcsstatus). |
+| `health.embedding` | `object?` | Embedding provider health (v0.21.0+): `state` (`ok`, or `failing` after at least 3 failures with 60 s without a success), `lastSuccessAt` (`null` before the first), `lastError` (`{ at, code }` with code `rate_limited`, `timeout`, `http_<status>`, `network` or `error`; `null` if none), `failingSince` (`null` while `ok`) and `backoffUntil` (end of a stored provider back-off, at most 5 minutes ahead, or `null`). Codes only, never provider text. See [Embedding Health](./configuration.md#embedding-health). |
 
 > **v0.5.0 change:** `payloadFields` has been removed from the status response. Use [`GET /config`](#get-config) or [`GET /config/schema`](#get-configschema) to discover schema and payload field information.
 
@@ -176,6 +185,8 @@ Schema: `metadataRequestSchema` in `@karmaniverous/jeeves-watcher-core`. Neither
 
 **Not available (503, v0.20.0+):** `not_available` for a `source` request on an instance without source-document support.
 
+**Document busy (503, v0.21.0+):** `not_available` with `Retry-After: 10` when the document is being processed (indexed, deleted, moved or updated) and its lock is not free within 10 s. Nothing is changed (the enrichment store included); retry after the delay. `message` is `"The document is being processed; retry after 10 s"`.
+
 **Error (500 Internal Server Error):** the cause is logged, never returned. Every 5xx the API produces for an unexpected failure has this body:
 
 ```json
@@ -194,7 +205,7 @@ Enrichment metadata lives in the enrichment store, a SQLite database at `<stateD
 
 1. Validates the metadata (see above).
 2. Merges it into the file's enrichment-store entry, **before** checking whether the file is indexed.
-3. Reads the file's chunk-0 point. When the file is indexed, writes the merged enrichment to every chunk with `setPayload` (no re-embedding). The stored `file_path` (casing included) and `matched_rules` are kept.
+3. Reads the file's chunk-0 point. When the file is indexed, writes the merged enrichment to every chunk with `setPayload` (no re-embedding): one write filtered on the stored `file_path` once the `file_path` system index is ready (v0.21.0+), otherwise by point ID, over the chunks that exist. The stored `file_path` (casing included) and `matched_rules` are kept.
 4. When the file is not indexed yet, nothing is written to Qdrant, but the stored enrichment is kept and merged into the payload when the file is indexed (its next filesystem event or a reindex). The response is still `200`.
 
 A failure reading or writing Qdrant does not fail the request: it is logged (a failed payload write also records an `upsert_error` issue for the file), the response is `200`, and the enrichment stays stored.
@@ -689,7 +700,7 @@ Globs are matched against slash-normalised paths, case-insensitively, dotfiles i
 
 ## POST /rebuild-metadata
 
-Rebuild the enrichment store from Qdrant file point payloads.
+Rebuild the enrichment store from Qdrant file point payloads: each file's entry is chunk 0's payload minus the reserved system fields. Each entry is written under the file's document lock, waiting as long as a run of that file takes, from chunk 0 read inside the lock, so a concurrent POST /metadata is never overwritten.
 
 ### Request
 
@@ -1116,7 +1127,9 @@ Schema: `documentsDeleteRequestSchema` in `@karmaniverous/jeeves-watcher-core`. 
 - Enrichment metadata and issues are removed for the deleted references, and, in the `sources` form, for every listed reference (so a document that only ever failed leaves no issue behind).
 - Deletion does not touch the source system. If the owner notifies the reference again (or a notification for it was still queued), it is retrieved and indexed again.
 
-**Errors:** `400 invalid_request` for an invalid body (both or neither of `sources`/`filter`, an empty `sources` array or one over 1000 references, a malformed reference, a condition-free filter, an unknown key) or a filter Qdrant rejects; `500 internal_error` (generic body) for an unexpected failure. This route does not depend on source-document support: it never answers `503`.
+Documents are deleted one at a time, each under its document lock (v0.21.0+), so a deletion never interleaves with the document being indexed.
+
+**Errors:** `400 invalid_request` for an invalid body (both or neither of `sources`/`filter`, an empty `sources` array or one over 1000 references, a malformed reference, a condition-free filter, an unknown key) or a filter Qdrant rejects; `503 not_available` with `Retry-After: 10` (v0.21.0+) when a document's lock is not free within 10 s (documents already deleted stay deleted; retry to finish); `500 internal_error` (generic body) for an unexpected failure. This route does not depend on source-document support.
 
 ---
 
@@ -1200,6 +1213,7 @@ Every issue record carries one code from a single canonical list (`ISSUE_TYPES` 
 | `no_content` | sources | The callback returned an empty JSON object, or the designated rule rendered no text. Nothing was written. |
 | `source_unavailable` | sources | The callback failed: any status other than `200`/`404` (redirects included), a timeout, a network error, a body that is not valid JSON, a body over 10 MiB (`response too large`), or no sources configured. Points untouched. |
 | `unsupported_content_type` | sources | The callback answered `200` with a content type other than `application/json`, or with JSON that is not an object. Points untouched. |
+| `too_large` | files, sources | Over a [processing ceiling](./configuration.md#-processing-ceilings) (v0.21.0+): file size, extracted text bytes or chunk count. The document's points were deleted; the message names the ceiling. Raise it and `POST /reindex { "scope": "issues" }` to bring the document back. |
 
 Issue files written by versions before 0.20.0 contain only `type_collision` and `interpolation_error` and still load unchanged.
 
@@ -1801,8 +1815,9 @@ Missing or empty `globs`, or an empty or non-string entry, is the request-valida
 ### Behavior
 
 1. Scrolls all points (`file_path` only) to find the indexed files matching the globs (slashes normalised, case-insensitive, dotfiles included); source documents never match
-2. For each matching file, re-applies current inference rules (metadata update only): changed values are written and payload keys the rules no longer project are removed
+2. For each matching file, re-applies current inference rules (metadata update only): changed values are written and payload keys the rules no longer project are removed (one filtered write once the `file_path` system index is ready, v0.21.0+)
 3. Files that fail re-processing are logged but don't abort the operation
+4. Each file is updated under its document lock (v0.21.0+). If a file's lock is not free within 10 s, the request answers `503 not_available` with `Retry-After: 10`; files already updated keep their update, so a retry finishes the rest
 
 **Use cases:**
 

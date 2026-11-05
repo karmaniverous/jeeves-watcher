@@ -58,6 +58,23 @@
                             },
                             "dimensions": {
                               "type": "number"
+                            },
+                            "systemIndexes": {
+                              "type": "object",
+                              "propertyNames": {
+                                "type": "string"
+                              },
+                              "additionalProperties": {
+                                "type": "string",
+                                "enum": [
+                                  "building",
+                                  "ready",
+                                  "conflict",
+                                  "failed"
+                                ],
+                                "description": "System payload index state: building (background creation running), ready, conflict (the field has another index type; left alone) or failed (creation failed; retried at the next start)."
+                              },
+                              "description": "System payload indexes the service creates whatever payloadIndexes says (file_path keyword), by field."
                             }
                           },
                           "required": [
@@ -144,6 +161,75 @@
                             "oldestTrippedAt"
                           ],
                           "additionalProperties": false
+                        },
+                        "embedding": {
+                          "type": "object",
+                          "properties": {
+                            "state": {
+                              "type": "string",
+                              "enum": [
+                                "ok",
+                                "failing"
+                              ],
+                              "description": "ok, or failing: at least 3 embedding failures since the last success and 60 s without one. The first success returns it to ok."
+                            },
+                            "lastSuccessAt": {
+                              "description": "Last successful embedding call (ISO), null before the first.",
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "lastError": {
+                              "anyOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "at": {
+                                      "type": "string",
+                                      "description": "When (ISO)."
+                                    },
+                                    "code": {
+                                      "type": "string",
+                                      "description": "rate_limited, timeout, http_<status>, network or error (no provider text)."
+                                    }
+                                  },
+                                  "required": [
+                                    "at",
+                                    "code"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ],
+                              "description": "Most recent embedding error, null if none yet."
+                            },
+                            "failingSince": {
+                              "description": "When the state turned failing (ISO), null while ok.",
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "backoffUntil": {
+                              "description": "End of the stored provider back-off (ISO, at most 5 minutes ahead), null if none.",
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "state",
+                            "lastSuccessAt",
+                            "lastError",
+                            "failingSince",
+                            "backoffUntil"
+                          ],
+                          "additionalProperties": false,
+                          "description": "Embedding provider health (D88, D89)."
                         },
                         "error": {
                           "type": "string"
@@ -1091,9 +1177,10 @@
                                 "rule_missing",
                                 "no_content",
                                 "source_unavailable",
-                                "unsupported_content_type"
+                                "unsupported_content_type",
+                                "too_large"
                               ],
-                              "description": "Issue code: type_collision (conflicting metadata types), interpolation_error (template rendering failure), extraction_error (reading, rule application or chunking failed), embedding_error (embedding provider failed), upsert_error (vector store write failed), match_failed (designated rule did not match), rule_missing (designated rule not found), no_content (nothing to embed), source_unavailable (source callback failed), unsupported_content_type (callback returned a non-JSON body)."
+                              "description": "Issue code: type_collision (conflicting metadata types), interpolation_error (template rendering failure), extraction_error (reading, rule application or chunking failed), embedding_error (embedding provider failed), upsert_error (vector store write failed), match_failed (designated rule did not match), rule_missing (designated rule not found), no_content (nothing to embed), source_unavailable (source callback failed), unsupported_content_type (callback returned a non-JSON body), too_large (over a processing ceiling; its points were deleted)."
                             },
                             "operation": {
                               "type": "string"
@@ -1623,7 +1710,7 @@
     "/metadata": {
       "post": {
         "operationId": "setMetadata",
-        "description": "Set or update metadata on a document by file path or source reference.",
+        "description": "Set or update metadata on a document by file path or source reference. While the document is being processed the route waits at most 10 s for its lock, then answers 503 `not_available` with `Retry-After: 10`, nothing changed (retry).",
         "security": [
           {
             "bearer": []
@@ -2028,9 +2115,10 @@
                                           "rule_missing",
                                           "no_content",
                                           "source_unavailable",
-                                          "unsupported_content_type"
+                                          "unsupported_content_type",
+                                          "too_large"
                                         ],
-                                        "description": "Issue code: type_collision (conflicting metadata types), interpolation_error (template rendering failure), extraction_error (reading, rule application or chunking failed), embedding_error (embedding provider failed), upsert_error (vector store write failed), match_failed (designated rule did not match), rule_missing (designated rule not found), no_content (nothing to embed), source_unavailable (source callback failed), unsupported_content_type (callback returned a non-JSON body)."
+                                        "description": "Issue code: type_collision (conflicting metadata types), interpolation_error (template rendering failure), extraction_error (reading, rule application or chunking failed), embedding_error (embedding provider failed), upsert_error (vector store write failed), match_failed (designated rule did not match), rule_missing (designated rule not found), no_content (nothing to embed), source_unavailable (source callback failed), unsupported_content_type (callback returned a non-JSON body), too_large (over a processing ceiling; its points were deleted)."
                                       },
                                       {
                                         "type": "string",
@@ -2179,7 +2267,7 @@
     "/rules/reapply": {
       "post": {
         "operationId": "reapplyRules",
-        "description": "Re-apply inference rules to existing vector points.",
+        "description": "Re-apply inference rules to existing vector points. The route waits at most 10 s for each document lock; if one stays busy it answers 503 `not_available` with `Retry-After: 10`, and documents already updated keep their update (retry to finish).",
         "security": [
           {
             "bearer": []
@@ -2304,7 +2392,7 @@
     "/documents/delete": {
       "post": {
         "operationId": "deleteDocuments",
-        "description": "Delete source documents by reference or by Qdrant filter (at least one condition; constrained to points carrying source and no file_path).",
+        "description": "Delete source documents by reference or by Qdrant filter (at least one condition; constrained to points carrying source and no file_path). The route waits at most 10 s for each document lock; if one stays busy it answers 503 `not_available` with `Retry-After: 10`, and documents already deleted stay deleted (retry to finish).",
         "security": [
           {
             "bearer": []

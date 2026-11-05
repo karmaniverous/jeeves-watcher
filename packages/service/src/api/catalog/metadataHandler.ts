@@ -12,6 +12,7 @@ import type pino from 'pino';
 
 import type { JeevesWatcherConfig } from '../../config/types';
 import type { WatcherProcessor } from '../../processor';
+import { API_LOCK_WAIT_MS } from '../../processor/DocumentLocks';
 import {
   validateMetadataPayload,
   validateSourceMetadataPayload,
@@ -30,6 +31,8 @@ export interface CatalogMetadataDeps {
   logger: pino.Logger;
   /** Config directory (schema file references). */
   configDir?: string;
+  /** Longest document-lock wait (default 10 s, D118; tests only). */
+  lockWaitMs?: number;
 }
 
 /** The `404 source_not_indexed` error. */
@@ -67,14 +70,19 @@ async function updateSourceMetadata(
     deps.configDir,
   );
   if (!validation.ok) throw invalid(validation);
-  if ((await ops.updateMetadata(ref, metadata)) === null) throw notIndexed();
+  const lockWaitMs = deps.lockWaitMs ?? API_LOCK_WAIT_MS;
+  if ((await ops.updateMetadata(ref, metadata, { lockWaitMs })) === null) {
+    throw notIndexed();
+  }
   return { ok: true, matched_rules: validation.matchedRules };
 }
 
 /**
  * Create the catalog handler for `POST /metadata` (`path` or `source`).
  * Values that do not match the declared property types are
- * `400 invalid_request` with per-property `details`.
+ * `400 invalid_request` with per-property `details`. A document whose lock
+ * is not free within 10 s answers `503 not_available` with
+ * `Retry-After: 10`, and nothing is changed (D118).
  *
  * @param deps - Handler dependencies.
  * @returns The catalog handler.
@@ -101,7 +109,9 @@ export function createCatalogMetadataHandler(
       );
       if (!validation.ok) throw invalid(validation);
 
-      await deps.processor.processMetadataUpdate(path, metadata);
+      await deps.processor.processMetadataUpdate(path, metadata, {
+        lockWaitMs: deps.lockWaitMs ?? API_LOCK_WAIT_MS,
+      });
       return { body: { ok: true, matched_rules: validation.matchedRules } };
     },
     deps.logger,

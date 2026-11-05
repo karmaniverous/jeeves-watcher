@@ -74,6 +74,75 @@ export const vcsHealthSchema = z.object({
 export type VcsHealth = z.infer<typeof vcsHealthSchema>;
 
 /**
+ * State of one system payload index (D74, D154): `building` until its
+ * background creation returns, then `ready`; `conflict` when the field
+ * already has another index type (left alone); `failed` when creation
+ * failed (retried at the next start).
+ */
+export const systemIndexStateSchema = z
+  .enum(['building', 'ready', 'conflict', 'failed'])
+  .describe(
+    'System payload index state: building (background creation running), ready, conflict (the field has another index type; left alone) or failed (creation failed; retried at the next start).',
+  );
+
+/** System payload index states by field, in `health.collection.systemIndexes`. */
+export const systemIndexesSchema = z
+  .record(z.string(), systemIndexStateSchema)
+  .describe(
+    'System payload indexes the service creates whatever payloadIndexes says (file_path keyword), by field.',
+  );
+
+/** System payload index states by field. */
+export type SystemIndexes = z.infer<typeof systemIndexesSchema>;
+
+/**
+ * Embedding health in `GET /status` `health.embedding` (D88, D89): state and
+ * timestamps with error codes only, never provider text or paths.
+ */
+export const embeddingHealthSchema = z
+  .object({
+    /** `ok`, or `failing` (3+ failures and 60 s without a success). */
+    state: z
+      .enum(['ok', 'failing'])
+      .describe(
+        'ok, or failing: at least 3 embedding failures since the last success and 60 s without one. The first success returns it to ok.',
+      ),
+    /** Last successful call. */
+    lastSuccessAt: z
+      .string()
+      .nullable()
+      .describe('Last successful embedding call (ISO), null before the first.'),
+    /** Most recent error. */
+    lastError: z
+      .object({
+        at: z.string().describe('When (ISO).'),
+        code: z
+          .string()
+          .describe(
+            'rate_limited, timeout, http_<status>, network or error (no provider text).',
+          ),
+      })
+      .nullable()
+      .describe('Most recent embedding error, null if none yet.'),
+    /** When the state turned failing. */
+    failingSince: z
+      .string()
+      .nullable()
+      .describe('When the state turned failing (ISO), null while ok.'),
+    /** End of the stored provider back-off. */
+    backoffUntil: z
+      .string()
+      .nullable()
+      .describe(
+        'End of the stored provider back-off (ISO, at most 5 minutes ahead), null if none.',
+      ),
+  })
+  .describe('Embedding provider health (D88, D89).');
+
+/** Embedding health in `GET /status` `health.embedding`. */
+export type EmbeddingHealth = z.infer<typeof embeddingHealthSchema>;
+
+/**
  * `GET /status` `health`: collection, reindex and initial-scan state, or
  * `{ error }` when the vector store is unreachable (status `degraded`).
  * Loose and optional throughout, so new health keys pass through.
@@ -88,6 +157,8 @@ export const watcherHealthSchema = z.looseObject({
       pointCount: z.number(),
       /** Vector dimensions. */
       dimensions: z.number(),
+      /** System payload index states (D74, D154). */
+      systemIndexes: systemIndexesSchema.optional(),
     })
     .optional(),
   /** Reindex state. */
@@ -96,6 +167,8 @@ export const watcherHealthSchema = z.looseObject({
   initialScan: initialScanStatusSchema.optional(),
   /** VCS state (when VCS is enabled on any root). */
   vcs: vcsHealthSchema.optional(),
+  /** Embedding health (D88, D89). */
+  embedding: embeddingHealthSchema.optional(),
   /** Why health could not be read (degraded). */
   error: z.string().optional(),
 });
@@ -107,7 +180,8 @@ export type WatcherHealth = z.infer<typeof watcherHealthSchema>;
  * Canonical issue codes, in one list (spec Decision 16.4).
  *
  * `type_collision` and `interpolation_error` predate 0.20.0; the rest cover
- * processing failures (#255) and source documents.
+ * processing failures (#255) and source documents; `too_large` marks a
+ * document over a `processing` ceiling (D44).
  */
 export const ISSUE_TYPES = [
   'type_collision',
@@ -120,13 +194,14 @@ export const ISSUE_TYPES = [
   'no_content',
   'source_unavailable',
   'unsupported_content_type',
+  'too_large',
 ] as const;
 
 /** Schema for the canonical issue code carried by every issue record. */
 export const issueTypeSchema = z
   .enum(ISSUE_TYPES)
   .describe(
-    'Issue code: type_collision (conflicting metadata types), interpolation_error (template rendering failure), extraction_error (reading, rule application or chunking failed), embedding_error (embedding provider failed), upsert_error (vector store write failed), match_failed (designated rule did not match), rule_missing (designated rule not found), no_content (nothing to embed), source_unavailable (source callback failed), unsupported_content_type (callback returned a non-JSON body).',
+    'Issue code: type_collision (conflicting metadata types), interpolation_error (template rendering failure), extraction_error (reading, rule application or chunking failed), embedding_error (embedding provider failed), upsert_error (vector store write failed), match_failed (designated rule did not match), rule_missing (designated rule not found), no_content (nothing to embed), source_unavailable (source callback failed), unsupported_content_type (callback returned a non-JSON body), too_large (over a processing ceiling; its points were deleted).',
   );
 
 /** Canonical issue code. */

@@ -61,6 +61,8 @@ describe('diffMetadata', () => {
 function setup(metadata: Record<string, unknown>) {
   const store = {
     setPayload: vi.fn().mockResolvedValue(undefined),
+    keywordIndexReady: vi.fn().mockReturnValue(false),
+    existingIds: vi.fn((ids: string[]) => Promise.resolve(ids)),
     deletePayload: vi.fn().mockResolvedValue(undefined),
   };
   const document = {

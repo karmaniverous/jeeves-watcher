@@ -16,7 +16,7 @@ The watcher is an HTTP API running as a background service (typically NSSM on Wi
 
 **Tool errors:** Tool error text is prefixed `Error: `. Every `watcher_*` tool is built from the watcher's endpoint catalog and reports a non-2xx response as `HTTP <status>: <body>`, with the server's JSON body verbatim: read its `code` (and `details` or `issues`) there, e.g. `HTTP 400: {"error":"Validation failed","code":"invalid_request",...}` or `HTTP 503: {"error":"Scan in progress","code":"scan_in_progress"}`. Branch on the code, not the message. The tools reject parameters that don't match their schema before sending anything. Each call waits up to 120 s; a timeout does not cancel a state change on the service, so check the outcome (e.g. `watcher_check_vcs_exclusion` after `watcher_exclude_vcs_path`) before retrying. An unreachable service reads `Service not reachable at <url>.` with a hint to set `apiUrl`. (`watcher_service` comes from the shared Jeeves core toolset and words its own errors.)
 
-**Health check:** `GET /status` returns `name`, `version`, `uptime`, `status` (`healthy`/`degraded`/`unhealthy`), and a `health` object containing `collection` (`name`, `pointCount`, `dimensions`), `reindex` progress, `initialScan` progress, and (when version tracking is on) `vcs` (`roots`, `pending`, `trippedRoots`, `oldestTrippedAt`).
+**Health check:** `GET /status` returns `name`, `version`, `uptime`, `status` (`healthy`/`degraded`/`unhealthy`), and a `health` object containing `collection` (`name`, `pointCount`, `dimensions`, `systemIndexes`), `reindex` progress, `initialScan` progress, `embedding` (provider health), and (when version tracking is on) `vcs` (`roots`, `pending`, `trippedRoots`, `oldestTrippedAt`). `status` is `degraded` (still HTTP 200) when embeddings are failing or a version-control root has tripped.
 
 **Mental model:** The `watcher_*` tools are thin HTTP wrappers. Each tool call translates to an HTTP request to the watcher API. When tools are available, use them. When they're not (e.g., different session, plugin not loaded), you can hit the API directly. Replace `<PORT>` below with the configured port (default 1936; check `plugins.entries.jeeves-watcher-openclaw.config.apiUrl` in `openclaw.json` if overridden), and add `-H "Authorization: Bearer <key>"` when the service sets `api.apiKey`:
 
@@ -387,11 +387,11 @@ Set or update metadata on a document (`POST /metadata`).
 - `path` (string, required) — file path of the document (absolute or watched path)
 - `metadata` (object, required) — key-value metadata to merge
 
-Returns `{ ok: true, matched_rules }`. The tool addresses files only; to enrich a source document, call `POST /metadata` directly with `{ "source": "<name>://<id>", "metadata": { ... } }` (exactly one of `path` or `source`).
+Returns `{ ok: true, matched_rules }`. If the document is busy (being indexed) for 10 s, the tool reports `503 not_available` with `Retry-After: 10` and changes nothing; retry after 10 s. The tool addresses files only; to enrich a source document, call `POST /metadata` directly with `{ "source": "<name>://<id>", "metadata": { ... } }` (exactly one of `path` or `source`).
 
 ### `watcher_status`
 
-Service health check (`GET /status`, never needs the API key). Returns `name`, `version`, `uptime`, `status`, and a `health` object: `collection` (`name`, `pointCount`, `dimensions`), `reindex` (`active`; while active also `scope`, `startedAt`, `filesProcessed`, `totalFiles`), `initialScan`, and `vcs` when version tracking is on: `roots`, `pending` (changes not yet committed), `trippedRoots` (roots whose commits keep failing) and `oldestTrippedAt`.
+Service health check (`GET /status`, never needs the API key). Returns `name`, `version`, `uptime`, `status`, and a `health` object: `collection` (`name`, `pointCount`, `dimensions`, and `systemIndexes`: the state of each index the service creates itself, e.g. `{ "file_path": "ready" }`; `building`, `ready`, `conflict` or `failed`), `embedding` (`state` `ok` or `failing`, `lastSuccessAt`, `lastError` `{ at, code }`, `failingSince`, `backoffUntil`; codes only, never provider text), `reindex` (`active`; while active also `scope`, `startedAt`, `filesProcessed`, `totalFiles`), `initialScan`, and `vcs` when version tracking is on: `roots`, `pending` (changes not yet committed), `trippedRoots` (roots whose commits keep failing) and `oldestTrippedAt`.
 
 After a service restart, the `health.initialScan` field shows scan progress:
 
@@ -901,6 +901,7 @@ Every issue record's `type` is one of these codes:
 - `no_content` — nothing to embed
 - `source_unavailable` — the source callback failed
 - `unsupported_content_type` — the source callback returned a non-JSON body
+- `too_large` — the document is over a `processing` ceiling (`maxFileBytes`, `maxChunksPerFile` or `maxTextBytes`); it is not embedded and its points are deleted. Raise the ceiling and run `reindex` with scope `issues` to restore it
 
 Source-document issues always carry `rule` (the designated rule of the failed run).
 
@@ -1068,6 +1069,11 @@ If a tool fails with `HTTP 401` (`unauthorized`):
 - The watcher sets `api.apiKey` and the plugin sent no key, or a different one.
 - Ask the user to set `plugins.entries.jeeves-watcher-openclaw.config.apiKey` in `openclaw.json` (or the `JEEVES_WATCHER_API_KEY` environment variable of the gateway) to the service's `api.apiKey`. The tools read it on every call, so no restart is needed.
 - Never ask for, print or guess the key. `GET /status` and `GET /openapi.json` never need it.
+
+If a tool or call fails with `HTTP 503` (`not_available`) and a `Retry-After` header:
+
+- `POST /metadata` (`watcher_set_metadata`), `POST /rules/reapply` and `POST /documents/delete` wait at most 10 s for a document that is being indexed, then answer `503` with `Retry-After: 10`. A single-document request changed nothing; a multi-document request kept the documents it already changed. All three are idempotent: retry the same request after 10 s.
+- `watcher_exclude_vcs_path` waits 30 s for a busy version-control root.
 
 If a tool fails with `HTTP 500: {"error":"Response validation failed","code":"internal_error"}`, the watcher produced a response that doesn't match its own schema: a server bug. Report it with the request you made; retrying won't help.
 

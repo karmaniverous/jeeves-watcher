@@ -38,7 +38,10 @@ function undeclared(value: unknown, schema: z.ZodType, at = ''): string[] {
   });
 }
 
-/** Health with every feature on: a running reindex, both scan states, VCS. */
+/**
+ * Health with every feature on: a running reindex, both scan states, VCS,
+ * system indexes (B5a).
+ */
 async function healthSamples(): Promise<Record<string, unknown>[]> {
   const reindexTracker = new ReindexTracker();
   reindexTracker.start('full');
@@ -58,6 +61,7 @@ async function healthSamples(): Promise<Record<string, unknown>[]> {
       vectorStore: {
         getCollectionInfo: () =>
           Promise.resolve({ pointCount: 7, dimensions: 3 }),
+        systemIndexStates: () => ({ file_path: 'building' as const }),
       },
       getConfig: () => ({ vectorStore: { collectionName: 'watcher' } }),
       version: '1.2.3',
@@ -68,6 +72,13 @@ async function healthSamples(): Promise<Record<string, unknown>[]> {
         pending: 5,
         trippedRoots: 1,
         oldestTrippedAt: '2026-11-04T00:00:00.000Z',
+      }),
+      getEmbeddingHealth: () => ({
+        state: 'failing',
+        lastSuccessAt: null,
+        lastError: { at: '2026-11-04T00:00:00.000Z', code: 'rate_limited' },
+        failingSince: '2026-11-04T00:01:00.000Z',
+        backoffUntil: '2026-11-04T00:05:00.000Z',
       }),
     });
     samples.push((await source()).body.health);

@@ -244,7 +244,7 @@ The watcher provides a REST API (default port: 1936):
 
 | Endpoint | Method | Description |
 | --- | --- | --- |
-| `/status` | GET | Health check, uptime, collection (name, point count, dimensions), reindex and initial-scan state |
+| `/status` | GET | Health check, uptime, collection (name, point count, dimensions, system index states), reindex and initial-scan state, VCS and embedding health; `degraded` while embeddings fail or a VCS breaker is tripped |
 | `/openapi.json` | GET | OpenAPI 3.1 document of the catalog routes (every route above and below); open like `/status` |
 | `/search` | POST | Semantic search (`{ query: string, limit?: number, offset?: number, filter?: object }`; unknown keys are rejected) |
 | `/render` | POST | Render a document through inference rules (`{ path }` or `{ source }`) (v0.8.0+) |
@@ -258,7 +258,7 @@ The watcher provides a REST API (default port: 1936):
 | `/config/schema` | GET | JSON Schema of merged virtual document (v0.5.0+) |
 | `/walk` | POST | Filesystem walk with glob intersection (`{ globs: string[] }`). Returns `{ paths, matchedCount, scannedRoots }`. |
 | `/config/match` | POST | Test paths against inference rules (`{ paths: string[] }`) (v0.5.0+) |
-| `/issues` | GET | Current embedding failures and processing errors (v0.5.0+) |
+| `/issues` | GET | Current embedding failures and processing errors, including documents over a `processing` ceiling (`too_large`) |
 | `/rules/register` | POST | Register virtual inference rules from an external source |
 | `/rules/unregister` | DELETE | Remove all virtual rules from a source (`{ source }`) |
 | `/rules/unregister/:source` | DELETE | Remove all virtual rules from a named source |

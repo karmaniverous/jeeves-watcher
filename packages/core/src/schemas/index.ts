@@ -46,6 +46,9 @@ export {
   type TenantIndexType,
 } from './payloadIndexes.js';
 
+// Processing schema
+export { type ProcessingConfig, processingConfigSchema } from './processing.js';
+
 // Root schema
 export {
   type JeevesWatcherConfig,

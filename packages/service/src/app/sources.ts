@@ -69,6 +69,8 @@ const unsupportedSourceOperations: SourceOperationsInterface = {
   },
   render: () => Promise.reject(sourcesNotSupported()),
   updateMetadata: () => Promise.reject(sourcesNotSupported()),
+  // No source pipeline runs, so nothing contends for a source document.
+  withLock: (_ref, _operation, work) => work(),
 };
 
 /**
@@ -91,9 +93,10 @@ export function withoutSourceSupport(
   return {
     processFile: (filePath) => processor.processFile(filePath),
     deleteFile: (filePath) => processor.deleteFile(filePath),
-    processMetadataUpdate: (filePath, metadata) =>
-      processor.processMetadataUpdate(filePath, metadata),
-    processRulesUpdate: (filePath) => processor.processRulesUpdate(filePath),
+    processMetadataUpdate: (filePath, metadata, options) =>
+      processor.processMetadataUpdate(filePath, metadata, options),
+    processRulesUpdate: (filePath, options) =>
+      processor.processRulesUpdate(filePath, options),
     renderFile: (filePath) => processor.renderFile(filePath),
     moveFile: (oldPath, newPath) => processor.moveFile(oldPath, newPath),
     updateRules: (compiledRules, templateEngine, customMapLib) => {

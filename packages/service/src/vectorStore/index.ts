@@ -14,8 +14,13 @@ import {
   ensureTextIndex as ensureTextIndexHelper,
   hybridSearch as hybridSearchHelper,
 } from './hybridSearch';
-import { getPointPayload, getPointsWithVectors } from './payload';
+import {
+  existingPointIds,
+  getPointPayload,
+  getPointsWithVectors,
+} from './payload';
 import { scrollCollection, scrollPage as scrollPageHelper } from './scroll';
+import { type SystemIndexState, SystemIndexTracker } from './systemIndexes';
 import type {
   CollectionInfo,
   ScrolledPoint,
@@ -27,6 +32,7 @@ import type {
 import { QdrantWriter } from './writes';
 
 // Re-export types for public API
+export type { SystemIndexState } from './systemIndexes';
 export type {
   CollectionInfo,
   PayloadFieldSchema,
@@ -52,6 +58,7 @@ export class VectorStoreClient implements VectorStore {
   private readonly dims: number;
   private readonly pinoLogger?: pino.Logger;
   private readonly payloadIndexes: VectorStoreConfig['payloadIndexes'];
+  private readonly systemIndexes = new SystemIndexTracker();
 
   /**
    * Create a new VectorStoreClient.
@@ -94,19 +101,15 @@ export class VectorStoreClient implements VectorStore {
     });
   }
 
-  /**
-   * Count points matching a filter.
-   *
-   * @param filter - Optional Qdrant filter.
-   * @returns The number of matching points.
-   */
+  /** {@inheritDoc VectorStore.count} */
   async count(filter?: Record<string, unknown>): Promise<number> {
     return countPoints(this.client, this.collectionName, filter);
   }
 
   /**
    * Ensure the collection exists (Cosine, configured dimensions) and create
-   * any missing payload indexes (configured plus `source`/`source_rule`).
+   * any missing payload indexes (configured plus `source`/`source_rule`),
+   * then start the background system-index builds (D74, D154; not awaited).
    */
   async ensureCollection(): Promise<void> {
     await ensureCollectionHelper(this.client, {
@@ -115,6 +118,47 @@ export class VectorStoreClient implements VectorStore {
       payloadIndexes: this.payloadIndexes,
       logger: this.pinoLogger,
     });
+    await this.systemIndexes.start(
+      this.createClient(),
+      this.collectionName,
+      this.pinoLogger,
+    );
+  }
+
+  /** @returns Each system index's state (`health.collection.systemIndexes`). */
+  systemIndexStates(): Record<string, SystemIndexState> {
+    return this.systemIndexes.snapshot();
+  }
+
+  /** @returns A promise settling once the background index builds end. */
+  whenSystemIndexesSettled(): Promise<void> {
+    return this.systemIndexes.whenSettled();
+  }
+
+  /** {@inheritDoc VectorStore.keywordIndexReady} */
+  keywordIndexReady(field: string): boolean {
+    return this.systemIndexes.keywordIndexReady(field);
+  }
+
+  /** {@inheritDoc VectorStore.setPayloadWhere} */
+  async setPayloadWhere(
+    filter: Record<string, unknown>,
+    payload: Record<string, unknown>,
+  ): Promise<void> {
+    await this.writer.setPayloadWhere(filter, payload);
+  }
+
+  /** {@inheritDoc VectorStore.deletePayloadWhere} */
+  async deletePayloadWhere(
+    filter: Record<string, unknown>,
+    keys: string[],
+  ): Promise<void> {
+    await this.writer.deletePayloadWhere(filter, keys);
+  }
+
+  /** {@inheritDoc VectorStore.existingIds} */
+  async existingIds(ids: string[]): Promise<string[]> {
+    return existingPointIds(this.client, this.collectionName, ids);
   }
 
   /** {@inheritDoc VectorStore.upsert} */
@@ -140,35 +184,17 @@ export class VectorStoreClient implements VectorStore {
     await this.writer.deletePayload(ids, keys);
   }
 
-  /**
-   * Get the payload of a point by ID.
-   *
-   * @param id - The point ID.
-   * @returns The payload, or `null` if the point doesn't exist.
-   * @throws When the read fails (never reported as a missing point).
-   */
+  /** {@inheritDoc VectorStore.getPayload} */
   async getPayload(id: string): Promise<Record<string, unknown> | null> {
     return getPointPayload(this.client, this.collectionName, id);
   }
 
-  /**
-   * Get collection info including point count, dimensions, and payload field schema.
-   *
-   * When Qdrant has payload indexes, uses `payload_schema` directly. Otherwise
-   * samples points to discover fields and infer types.
-   */
+  /** {@inheritDoc VectorStore.getCollectionInfo} */
   async getCollectionInfo(): Promise<CollectionInfo> {
     return getCollectionInfoHelper(this.client, this.collectionName);
   }
 
-  /**
-   * Search for similar vectors.
-   *
-   * @param vector - The query vector.
-   * @param limit - Maximum results to return.
-   * @param filter - Optional Qdrant filter.
-   * @returns An array of search results.
-   */
+  /** {@inheritDoc VectorStore.search} */
   async search(
     vector: number[],
     limit: number,
@@ -189,12 +215,7 @@ export class VectorStoreClient implements VectorStore {
     }));
   }
 
-  /**
-   * Create a full-text payload index on the specified field.
-   * Idempotent — skips if the field already has a text index.
-   *
-   * @param fieldName - The payload field to index.
-   */
+  /** {@inheritDoc VectorStore.ensureTextIndex} */
   async ensureTextIndex(fieldName: string): Promise<void> {
     if (!this.pinoLogger) {
       throw new Error('Logger required for ensureTextIndex');
@@ -207,17 +228,7 @@ export class VectorStoreClient implements VectorStore {
     );
   }
 
-  /**
-   * Hybrid search combining dense vector and full-text match with RRF fusion.
-   *
-   * @param vector - The query vector.
-   * @param queryText - The raw query text for full-text matching.
-   * @param limit - Maximum results to return.
-   * @param textWeight - Weight for text results in RRF (0–1).
-   * @param filter - Optional Qdrant filter.
-   * @param offset - Optional result offset for pagination.
-   * @returns An array of search results.
-   */
+  /** {@inheritDoc VectorStore.hybridSearch} */
   async hybridSearch(
     vector: number[],
     queryText: string,
@@ -238,26 +249,12 @@ export class VectorStoreClient implements VectorStore {
     );
   }
 
-  /**
-   * Retrieve points with their vectors by ID.
-   *
-   * @param ids - The point IDs to retrieve.
-   * @returns Points with vectors and payloads; missing IDs are omitted.
-   * @throws When the read fails (never reported as missing points).
-   */
+  /** {@inheritDoc VectorStore.getPointsWithVectors} */
   async getPointsWithVectors(ids: string[]): Promise<VectorPoint[]> {
     return getPointsWithVectors(this.client, this.collectionName, ids);
   }
 
-  /**
-   * Scroll one page of points matching a filter.
-   *
-   * @param filter - Optional Qdrant filter.
-   * @param limit - Page size.
-   * @param offset - Cursor offset from previous page.
-   * @param fields - Optional field projection.
-   * @returns Page of points and next cursor.
-   */
+  /** {@inheritDoc VectorStore.scrollPage} */
   async scrollPage(
     filter?: Record<string, unknown>,
     limit = 100,
@@ -274,13 +271,7 @@ export class VectorStoreClient implements VectorStore {
     );
   }
 
-  /**
-   * Scroll through all points matching a filter.
-   *
-   * @param filter - Optional Qdrant filter.
-   * @param limit - Page size for scrolling.
-   * @yields Scrolled points.
-   */
+  /** {@inheritDoc VectorStore.scroll} */
   async *scroll(
     filter?: Record<string, unknown>,
     limit = 100,

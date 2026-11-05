@@ -15,6 +15,11 @@ interface MockVectorStore {
   upsert: Mock;
   delete: Mock;
   setPayload: Mock;
+  deletePayload: Mock;
+  keywordIndexReady: Mock;
+  existingIds: Mock;
+  setPayloadWhere: Mock;
+  deletePayloadWhere: Mock;
 }
 
 /** Mock IssuesManager (vi.fn members). */
@@ -68,6 +73,12 @@ export function createMocks() {
     upsert: vi.fn().mockResolvedValue(undefined),
     delete: vi.fn().mockResolvedValue(undefined),
     setPayload: vi.fn().mockResolvedValue(undefined),
+    deletePayload: vi.fn().mockResolvedValue(undefined),
+    // ID addressing by default: every candidate ID exists.
+    keywordIndexReady: vi.fn().mockReturnValue(false),
+    existingIds: vi.fn((ids: string[]) => Promise.resolve(ids)),
+    setPayloadWhere: vi.fn().mockResolvedValue(undefined),
+    deletePayloadWhere: vi.fn().mockResolvedValue(undefined),
   };
 
   const embeddingProvider: EmbeddingProvider = {

@@ -8,6 +8,7 @@ import type pino from 'pino';
 
 import type { JeevesWatcherConfig } from '../config/types';
 import type { EmbeddingProvider } from '../embedding';
+import type { EmbeddingHealthSnapshot } from '../embedding/EmbeddingHealth';
 import type { EnrichmentStoreInterface } from '../enrichment';
 import type { GitignoreFilter } from '../gitignore';
 import type { AllHelpersIntrospection } from '../helpers';
@@ -77,4 +78,11 @@ export interface ApiServerOptions {
   /** VCS coordinator for the git-backed versioning (`/vcs/*`) routes; without
    * it they answer as unregistered (`api/featureGates`). */
   vcsCoordinator?: VcsCoordinator;
+  /**
+   * Longest document-lock wait of `POST /metadata`, `POST /rules/reapply`
+   * and `POST /documents/delete` (default 10 s, D118; tests only).
+   */
+  documentLockWaitMs?: number;
+  /** Embedding health (`GET /status` `health.embedding`, D88). */
+  embeddingHealth?: { snapshot: () => EmbeddingHealthSnapshot };
 }

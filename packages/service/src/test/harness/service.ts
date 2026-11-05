@@ -24,6 +24,8 @@ import {
 import { EnrichmentStore } from '../../enrichment';
 import { IssuesManager } from '../../issues';
 import { DocumentProcessor } from '../../processor';
+import { DocumentLocks } from '../../processor/DocumentLocks';
+import { resolveProcessingLimits } from '../../processor/processingLimits';
 import { EventQueue } from '../../queue';
 import type { SourceNotifyQueue } from '../../queue/SourceNotifyQueue';
 import { compileRules, VirtualRuleStore } from '../../rules';
@@ -54,6 +56,8 @@ export interface ServiceHarnessOptions {
    * processor, reindex and search (e.g. in the real shared rate limiter).
    */
   wrapEmbedding?: (provider: EmbeddingProvider) => EmbeddingProvider;
+  /** The API routes' document-lock wait (default 10 s, D118). */
+  documentLockWaitMs?: number;
 }
 
 /** A started harness. Call {@link ServiceHarness.close} in `afterAll`. */
@@ -68,6 +72,8 @@ export interface ServiceHarness {
   vectorStore: VectorStoreClient;
   /** Document processor wired to the collection. */
   processor: DocumentProcessor;
+  /** The processor's per-document locks (D98). */
+  documentLocks: DocumentLocks;
   /** Started source notify queue behind `POST /documents`. */
   sourceQueue: SourceNotifyQueue;
   /** Enrichment store (state dir). */
@@ -178,6 +184,7 @@ async function setUp(
   const issuesManager = new IssuesManager(stateDir, logger);
   const valuesManager = new ValuesManager(stateDir, logger);
   const inferenceRules = config.inferenceRules ?? [];
+  const documentLocks = new DocumentLocks(logger);
   const processor = new DocumentProcessor({
     config: createProcessorConfig(config, stateDir, undefined),
     embeddingProvider,
@@ -189,6 +196,8 @@ async function setUp(
     issuesManager,
     valuesManager,
     sourceRetriever: createSourceRetriever(config),
+    documentLocks,
+    getProcessingLimits: () => resolveProcessingLimits(config),
   });
 
   // Production wiring: both queues share the resolved embedding concurrency.
@@ -215,6 +224,7 @@ async function setUp(
     enrichmentStore,
     virtualRuleStore: new VirtualRuleStore(),
     configPath: join(stateDir, 'jeeves-watcher.config.json'),
+    documentLockWaitMs: options.documentLockWaitMs,
   });
   cleanup.push(() => app.close());
 
@@ -231,6 +241,7 @@ async function setUp(
     collectionName,
     vectorStore,
     processor,
+    documentLocks,
     sourceQueue,
     enrichmentStore,
     issuesManager,

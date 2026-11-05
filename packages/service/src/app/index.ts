@@ -9,18 +9,15 @@ import type { FastifyInstance } from 'fastify';
 import type pino from 'pino';
 
 import { InitialScanTracker } from '../api/InitialScanTracker';
-import { ContentHashCache } from '../cache';
 import type { JeevesWatcherConfig } from '../config/types';
-import { EnrichmentStore } from '../enrichment';
 import type { GitignoreFilter } from '../gitignore';
 import type { AllHelpersIntrospection } from '../helpers';
-import { IssuesManager } from '../issues';
 import { flushLogger, logRefusal } from '../logger';
 import type { WatcherProcessor } from '../processor';
+import { resolveProcessingLimits } from '../processor/processingLimits';
 import { combinePausableQueues, type EventQueue } from '../queue';
 import type { SourceNotifyQueue } from '../queue/SourceNotifyQueue';
 import { VirtualRuleStore } from '../rules/virtualRules';
-import { ValuesManager } from '../values';
 import { VcsCoordinator } from '../vcs/VcsCoordinator';
 import type { FileSystemWatcher } from '../watcher';
 import { type ApiServerOptions, startApiServer } from './apiServer';
@@ -43,6 +40,7 @@ import {
 import { createQueues } from './queues';
 import { shutdownComponents } from './shutdown';
 import { createSourceRetriever } from './sources';
+import { createStateStores, type StateStores } from './stateStores';
 import { createWatcher } from './watcherFactory';
 
 export type {
@@ -69,15 +67,13 @@ export class JeevesWatcher {
   private server: FastifyInstance | undefined;
   private processor: WatcherProcessor | undefined;
   private configWatcher: ConfigWatcher | undefined;
-  private issuesManager: IssuesManager | undefined;
-  private valuesManager: ValuesManager | undefined;
+  private stores: StateStores | undefined;
   private helperIntrospection: AllHelpersIntrospection | undefined;
   private readonly virtualRuleStore = new VirtualRuleStore();
   private vectorStore: ApiServerOptions['vectorStore'] | undefined;
   private embeddingProvider: ApiServerOptions['embeddingProvider'] | undefined;
+  private embeddingHealth: ApiServerOptions['embeddingHealth'];
   private gitignoreFilter: GitignoreFilter | undefined;
-  private enrichmentStore: EnrichmentStore | undefined;
-  private contentHashCache: ContentHashCache | undefined;
   private vcsCoordinator: VcsCoordinator | undefined;
   private readonly initialScanTracker = new InitialScanTracker();
   private readonly version = resolveVersion(import.meta.url);
@@ -108,8 +104,12 @@ export class JeevesWatcher {
     try {
       ({
         embeddingProvider: this.embeddingProvider,
+        embeddingHealth: this.embeddingHealth,
         vectorStore: this.vectorStore,
-      } = await initInfrastructure(this.config, this.factories, this.logger));
+      } = await initInfrastructure(this.config, this.factories, this.logger, {
+        getConfig: () => this.config,
+        version: this.version,
+      }));
       await this.initPipeline();
       await this.startServicesAndWatcher();
     } catch (error) {
@@ -137,11 +137,7 @@ export class JeevesWatcher {
       customMapLib,
     );
 
-    const stateDir = this.config.stateDir ?? ROOT_DEFAULTS.stateDir;
-    this.issuesManager = new IssuesManager(stateDir, logger);
-    this.valuesManager = new ValuesManager(stateDir, logger);
-    this.enrichmentStore = new EnrichmentStore(stateDir, logger);
-    this.contentHashCache = new ContentHashCache();
+    const stores = (this.stores = createStateStores(this.config, logger));
 
     this.processor = this.factories.createDocumentProcessor({
       config: processorConfig,
@@ -150,17 +146,16 @@ export class JeevesWatcher {
       compiledRules,
       logger,
       templateEngine,
-      enrichmentStore: this.enrichmentStore,
-      issuesManager: this.issuesManager,
-      valuesManager: this.valuesManager,
-      contentHashCache: this.contentHashCache,
+      ...stores,
       sourceRetriever: createSourceRetriever(this.config),
+      // Read per document, so a reload applies to the next one (D44).
+      getProcessingLimits: () => resolveProcessingLimits(this.config),
     });
     ({ queue: this.queue, sourceQueue: this.sourceQueue } = createQueues(
       this.config,
       this.factories,
       this.processor,
-      { logger, issues: this.issuesManager },
+      { logger, issues: stores.issuesManager },
     ));
 
     this.vcsCoordinator = new VcsCoordinator(
@@ -183,7 +178,7 @@ export class JeevesWatcher {
       logger,
       this.runtimeOptions,
       this.initialScanTracker,
-      this.contentHashCache,
+      this.stores?.contentHashCache,
       (filePath, event) => {
         vcsCoordinator.onFileChange(filePath, event);
       },
@@ -225,8 +220,8 @@ export class JeevesWatcher {
         producers: [this.vcsCoordinator, this.watcher],
         queue: this.queue,
         sourceQueue: this.sourceQueue,
-        valuesManager: this.valuesManager,
-        stores: [this.enrichmentStore],
+        valuesManager: this.stores?.valuesManager,
+        stores: [this.stores?.enrichmentStore],
       },
       this.config.shutdownTimeoutMs ?? ROOT_DEFAULTS.shutdownTimeoutMs,
       this.logger,
@@ -241,13 +236,14 @@ export class JeevesWatcher {
       processor: this.processor!,
       vectorStore: this.vectorStore!,
       embeddingProvider: this.embeddingProvider!,
+      embeddingHealth: this.embeddingHealth,
       queue: combinePausableQueues(this.queue, this.sourceQueue),
       sourceQueue: this.sourceQueue,
       config: this.config,
       getConfig: () => this.config,
       logger: this.logger!,
-      issuesManager: this.issuesManager!,
-      valuesManager: this.valuesManager!,
+      issuesManager: this.stores!.issuesManager,
+      valuesManager: this.stores!.valuesManager,
       configPath: this.configPath ?? '',
       helperIntrospection: this.helperIntrospection,
       virtualRuleStore: this.virtualRuleStore,
@@ -256,7 +252,7 @@ export class JeevesWatcher {
       initialScanTracker: this.initialScanTracker,
       fileSystemWatcher: this.watcher,
       getFileSystemWatcher: () => this.watcher,
-      enrichmentStore: this.enrichmentStore,
+      enrichmentStore: this.stores?.enrichmentStore,
       vcsCoordinator: this.vcsCoordinator,
     };
   }
@@ -280,9 +276,9 @@ export class JeevesWatcher {
       logger,
       runtimeOptions: this.runtimeOptions,
       initialScanTracker: this.initialScanTracker,
-      contentHashCache: this.contentHashCache,
-      valuesManager: this.valuesManager,
-      issuesManager: this.issuesManager,
+      contentHashCache: this.stores?.contentHashCache,
+      valuesManager: this.stores?.valuesManager,
+      issuesManager: this.stores?.issuesManager,
       onVcsFileChange: (filePath, event) =>
         this.vcsCoordinator?.onFileChange(filePath, event),
       onInitialScanComplete: () => this.vcsCoordinator?.onInitialScanComplete(),

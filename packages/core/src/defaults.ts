@@ -74,6 +74,18 @@ export const VCS_DEFAULTS = {
   },
 };
 
+/**
+ * Default processing ceilings (D44, D64): from the 2026-10-31 corpus survey,
+ * which only the single largest document exceeded.
+ */
+export const PROCESSING_DEFAULTS = {
+  /** 64 MiB, checked with `stat` before extraction. */
+  maxFileBytes: '64m',
+  maxChunksPerFile: 5000,
+  /** 8 MiB of extracted text (UTF-8 bytes). */
+  maxTextBytes: '8m',
+} as const;
+
 /** Default embedding configuration. */
 export const EMBEDDING_DEFAULTS = {
   chunkSize: 1000,

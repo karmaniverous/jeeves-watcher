@@ -59,6 +59,7 @@ interface JeevesWatcherConfig {
   search?: SearchConfig; // Score thresholds and hybrid search
   reindex?: ReindexConfig; // Completion callback and concurrency
   vcs?: VcsConfig; // Version control settings
+  processing?: ProcessingConfig; // Per-document ceilings (v0.21.0+)
   sources?: Record<string, SourceConfig>; // Named callback sources for source documents (v0.20.0+)
   logging?: LoggingConfig;
   shutdownTimeoutMs?: number;
@@ -229,6 +230,7 @@ The config-triggered reindex covers files only; source documents are re-processe
 | `dimensions` | `number` | `3072` | Vector dimensions: the size of a new collection, and the vector size requested from Gemini (`outputDimensionality`). Must match an existing collection. |
 | `rateLimitPerMinute` | `number` | `300` | Max embedding API **requests** per minute, shared by every caller. `0` disables the request-rate limit. See [Rate Limiting](#embedding-rate-limiting). |
 | `concurrency` | `number` | `5` | Max documents processed concurrently by the file event queue, and by the source-document notify queue. |
+| `alertUrl` | `string` | `undefined` | URL that receives a POST when embedding health turns failing or recovers. Read at each transition (a reload applies). See [Embedding Health](#embedding-health). |
 
 ### Embedding Rate Limiting
 
@@ -259,6 +261,35 @@ On HTTP `429` the limiter pauses **every** caller for the provider's `Retry-Afte
 ```
 
 - Retries the Gemini client makes on its own after other failures also take a token, so every HTTP request to the provider counts against `rateLimitPerMinute`.
+
+### Embedding Health
+
+**v0.21.0+**
+
+Every embedding call (watch, notify, reindex, search) counts towards one health state, shown in `GET /status` as `health.embedding`:
+
+- **`failing`** once at least 3 calls have failed since the last success **and** 60 seconds have passed without a success (since startup, when there has been none). Any error counts, including a call that fails fast during a provider back-off; a rate-limit wait that then succeeds does not.
+- **`ok`** again at the first successful call.
+- While `failing`, `GET /status` reports `status: "degraded"` (still HTTP 200).
+
+Each transition is logged (an error when failing, info on recovery) and, when `embedding.alertUrl` is set, POSTed there:
+
+```json
+{
+  "event": "embedding_failed",
+  "at": "2026-11-04T10:01:00.000Z",
+  "service": "watcher",
+  "version": "0.21.0",
+  "host": "docs-01",
+  "collection": "jeeves_archive",
+  "failingSince": "2026-11-04T10:01:00.000Z",
+  "lastError": { "at": "2026-11-04T10:01:00.000Z", "code": "http_503" }
+}
+```
+
+`event` is `embedding_failed` or `embedding_recovered` (whose `failingSince` is when the outage began). Error codes are `rate_limited`, `timeout`, `http_<status>`, `network` or `error`; provider error text goes to the log only. The body is unsigned and sent without credentials, so point `alertUrl` at a private endpoint. Delivery makes up to 3 attempts (1 s, then 2 s apart) with a 10 s timeout each; a failed delivery is logged and never affects embedding.
+
+A provider back-off (a `Retry-After` longer than `maxBackoffMs`) is stored for at most 5 minutes, then expires: the first call after it probes the provider. A success never shortens a pause, so a 429 always pauses every caller. `health.embedding.backoffUntil` shows when.
 
 ### Supported Providers
 
@@ -361,6 +392,7 @@ Behaviour:
 - Indexes are created **at startup only**, when missing. A config reload does not create them; restart after adding one.
 - Indexes are never dropped or recreated. If a field is already indexed with a different type, or with the same type but different `isTenant` / `isPrincipal` flags, the watcher logs a warning and leaves it alone (drop the index in Qdrant and restart to apply the configured one).
 - `source` and `source_rule` always get `keyword` indexes and may not be listed here: an entry for either fails config validation.
+- **System indexes** (v0.21.0+) are created whatever `payloadIndexes` says, in the background after startup (startup does not wait for them): `file_path` (`keyword`), which lets a metadata change write a document's chunks with one filtered write. `GET /status` reports each under `health.collection.systemIndexes`: `building`, `ready`, `conflict` (the field already has an index of another type, which is left alone; drop it and restart to get the system index) or `failed` (creation failed; retried at the next start). Until one is `ready`, writes address chunks by ID.
 - Each field may be listed once: a repeated `field` fails config validation.
 - Failing to create an index stops startup with an error naming the field.
 - The `chunk_text` full-text index is separate: it is managed by `search.hybrid.enabled`, not by `payloadIndexes`.
@@ -752,6 +784,38 @@ On shutdown, the watcher (v0.20.0+ order):
 Retention defaults (30 days, 100 versions, daily midnight cron) apply automatically when `vcs.enabled` is `true`, even if the `retention` block is omitted.
 
 Per-root overrides (including `remote` and `accessToken`) are configured via `watch.paths` object entries. A per-root `vcs` block takes the schema defaults for omitted keys (notably `enabled: false`), not the root-level values; see [Per-Root Overrides](./version-control.md#per-root-overrides). The root-level `vcs` block is never returned by `GET /config`. See [Version Control (VCS) Guide](./version-control.md) for full details on configuration, API endpoints, squash retention, and remote push.
+
+---
+
+## `processing` - Processing Ceilings
+
+**v0.21.0+**
+
+```json
+{
+  "processing": {
+    "maxFileBytes": "64m",
+    "maxChunksPerFile": 5000,
+    "maxTextBytes": "8m"
+  }
+}
+```
+
+| Field | Type | Default | Description |
+| --- | --- | --- | --- |
+| `maxFileBytes` | `number \| string` | `"64m"` | Largest file processed, checked with `stat` before extraction (files only; a source response keeps its 10 MiB cap). Bytes, or a string with a `k`, `m` or `g` suffix (binary units). |
+| `maxChunksPerFile` | `number` | `5000` | Most chunks one document (file or source) may split into. |
+| `maxTextBytes` | `number \| string` | `"8m"` | Largest extracted text of one document, in UTF-8 bytes. |
+
+A document over a ceiling has its points deleted and a `too_large` issue recorded (a source document answers `failed` with code `too_large`). A value equal to the ceiling is allowed. The ceilings are read for each document, so a reload applies to the next one; after raising one, `POST /reindex` with scope `issues` brings the documents back. The checks run before the unchanged-content check, so a document already indexed is deleted the next time it is processed.
+
+The defaults come from a survey of a 780,178-point collection (332,481 files), where only the single largest file, at 6,185 chunks, was over. To re-derive them, or to list the documents a set of ceilings would make `too_large` before applying them, run the read-only survey from a clone of the repository:
+
+```bash
+node scripts/corpus-survey.mjs --url http://localhost:6333 --collection <collectionName> [--api-key <key>] [--max-file-bytes 64m] [--max-chunks 5000] [--max-text-bytes 8m] [--json survey.json]
+```
+
+It prints the documents-by-chunk-count distribution and every document over a ceiling. Its text size is the sum of the stored chunks, an upper bound (chunk overlap counts twice).
 
 ---
 

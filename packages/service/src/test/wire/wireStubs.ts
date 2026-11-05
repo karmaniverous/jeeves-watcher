@@ -81,6 +81,8 @@ function sourceOperations(state: WireState) {
     compiledRule: () => ({ rule: { name: state.sourceRule ?? 'chat' } }),
     updateMetadata: () =>
       Promise.resolve(state.sourceRule === null ? null : { ok: true }),
+    withLock: <T>(_ref: string, _operation: string, work: () => Promise<T>) =>
+      work(),
     render: () => {
       if (state.sourceRender === 'ok') {
         return Promise.resolve({
@@ -217,9 +219,12 @@ export function wireServerOptions(
             ),
       delete: () => Promise.resolve(),
       scroll: async function* () {
-        yield { id: 'p1', payload: { file_path: 'a.md', title: 'A' } };
+        yield { id: 'p1', payload: { file_path: 'a.md', chunk_index: 0 } };
         await Promise.resolve();
       },
+      // rebuild-metadata re-reads chunk 0 under the document lock.
+      getPayload: () =>
+        Promise.resolve({ file_path: 'a.md', chunk_index: 0, title: 'A' }),
       count: () => Promise.resolve(42),
     },
     embeddingProvider: {

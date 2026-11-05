@@ -23,6 +23,7 @@ function makeDeps(overrides: {
     vectorStore: {
       upsert: overrides.upsert ?? vi.fn().mockResolvedValue(undefined),
       delete: overrides.del ?? vi.fn().mockResolvedValue(undefined),
+      setPayload: vi.fn().mockResolvedValue(undefined),
     },
     splitter: {
       splitText: overrides.splitText ?? vi.fn().mockResolvedValue(['a', 'b']),
@@ -35,6 +36,8 @@ async function run(
   deps: ReturnType<typeof makeDeps>,
   existing: Record<string, unknown> | null = null,
 ): Promise<unknown> {
+  const split = deps.splitter.splitText as (text: string) => Promise<string[]>;
+  const chunks = await split('text');
   return embedAndUpsertDocument(
     deps as never,
     {
@@ -43,11 +46,18 @@ async function run(
       metadata: {},
       logLabel: 'File',
     },
-    { existing, dates: { createdAt: 1, modifiedAt: 2 }, hash: 'h' },
+    { existing, dates: { createdAt: 1, modifiedAt: 2 }, hash: 'h', chunks },
   ).catch((e: unknown) => e);
 }
 
 describe('embedAndUpsertDocument issue tagging (#255)', () => {
+  it('tags a chunk-0 finalise failure as upsert_error', async () => {
+    const deps = makeDeps({});
+    deps.vectorStore.setPayload.mockRejectedValue(new Error('f'));
+    const err = await run(deps);
+    expect((err as ProcessingFailure).issueType).toBe('upsert_error');
+  });
+
   it('tags an embedding failure as embedding_error and skips upsert', async () => {
     const deps = makeDeps({ embed: vi.fn().mockRejectedValue(new Error('q')) });
     const err = await run(deps);
@@ -69,12 +79,6 @@ describe('embedAndUpsertDocument issue tagging (#255)', () => {
     const deps = makeDeps({ del: vi.fn().mockRejectedValue(new Error('d')) });
     const err = await run(deps, { total_chunks: 5 });
     expect((err as ProcessingFailure).issueType).toBe('upsert_error');
-  });
-
-  it('leaves a splitter failure untagged (caller falls back to extraction_error)', async () => {
-    const splitErr = new Error('split');
-    const deps = makeDeps({ splitText: vi.fn().mockRejectedValue(splitErr) });
-    expect(await run(deps)).toBe(splitErr);
   });
 
   it('upserts every chunk and deletes nothing for a new document', async () => {
