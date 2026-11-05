@@ -118,6 +118,8 @@ export async function startWatcherHarness(
       paths: [`${normalizeSlashes(root)}/**`],
       ignored: [],
       stabilityThresholdMs: 50,
+      // The chokidar suites; parcel suites set `changeSource: 'parcel'`.
+      changeSource: 'chokidar',
       ...options.watch?.(root),
     },
     recordingQueue(events, jobs),

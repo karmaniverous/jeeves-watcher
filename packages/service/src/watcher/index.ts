@@ -1,6 +1,6 @@
 /**
  * @module watcher
- * Filesystem watcher: drives a change source (chokidar) through the `ChangeSink` seam, filters its events, keeps the inventory and enqueues processing. I/O: watches files, enqueues processor work.
+ * Filesystem watcher: drives a change source (parcel or chokidar, D125) through the `ChangeSink` seam, filters its events, keeps the inventory and enqueues processing. I/O: watches files, enqueues processor work.
  */
 
 import type { Stats } from 'node:fs';
@@ -13,11 +13,15 @@ import { SystemHealth, type SystemHealthOptions } from '../health';
 import type { DocumentProcessorInterface } from '../processor';
 import type { EventQueue } from '../queue';
 import { normalizeError } from '../util/normalizeError';
+import { loadParcelWatcher } from './changeSource/parcelModule';
+import { selectedChangeSource } from './changeSource/selectSource';
 import type {
   ChangeSink,
   ClassifiedEventType,
   RawChangeEvent,
+  RootUnavailableOptions,
 } from './changeSource/types';
+import { walkRoots } from './initialWalk';
 import type { Inventory } from './inventory/Inventory';
 import { rebuildAfterGitignore } from './inventory/rebuildUnder';
 import {
@@ -64,11 +68,21 @@ export class FileSystemWatcher implements ChangeSink {
     } satisfies SystemHealthOptions);
   }
 
-  /** Start watching the filesystem and processing events. */
+  /**
+   * Start watching the filesystem and processing events. With parcel the
+   * roots are subscribed first, then walked in the background (D58).
+   *
+   * @throws ChangeSourceLoadError when parcel is selected and cannot load.
+   */
   async start(): Promise<void> {
     this.initialScanComplete = false;
+    const parcel =
+      selectedChangeSource(this.config) === 'parcel'
+        ? await loadParcelWatcher(this.options.importParcel)
+        : undefined;
     this.options.initialScanTracker?.start();
     const running = createRunning({
+      parcel,
       config: this.config,
       queue: this.queue,
       processor: this.processor,
@@ -92,13 +106,37 @@ export class FileSystemWatcher implements ChangeSink {
       running.source.name,
       () => running.ticker.size,
     );
+    const { pipeline } = running;
+    for (const root of running.roots.roots) pipeline?.fifo.pause(root);
     await running.source.start(running.roots.roots, running.ignore, this);
 
     this.queue.start();
     this.logger.info(
-      { paths: this.config.paths },
+      { paths: this.config.paths, changeSource: running.source.name },
       'Filesystem watcher started',
     );
+    if (pipeline) void this.walkRoots(running);
+  }
+
+  /**
+   * The walk-based initial set (D58): each root, already subscribed, is
+   * walked into the inventory; its batches wait in the FIFO until then.
+   */
+  private async walkRoots(running: Running): Promise<void> {
+    const live = () => this.running === running;
+    await walkRoots({
+      roots: running.roots.roots,
+      events: running.events,
+      filters: running.pipeline!.walkOptions(),
+      logger: this.logger,
+      live,
+      onRootDone: (root) => {
+        running.pipeline?.fifo.resume(root);
+        this.initialScanDone(root);
+      },
+    }).catch((error: unknown) => {
+      this.logger.error({ err: normalizeError(error) }, 'Initial walk failed');
+    });
   }
 
   /** A classified event from the change source (chokidar), with the stats it read, if any. */
@@ -134,14 +172,11 @@ export class FileSystemWatcher implements ChangeSink {
   }
 
   /**
-   * Raw parcel batches arrive only from the parcel source (P13, D149), which
-   * this build does not include: a batch is logged and dropped.
+   * A raw parcel batch (D149): into the FIFO, classified from the disk and
+   * applied in order.
    */
   rawEvents(root: string, events: RawChangeEvent[]): void {
-    this.logger.error(
-      { root, events: events.length },
-      'Raw change events need the parcel source; batch dropped',
-    );
+    this.running?.pipeline?.push(root, events);
   }
 
   /** The source finished its initial set for a root; the scan completes when every root has. */
@@ -179,16 +214,23 @@ export class FileSystemWatcher implements ChangeSink {
 
   /**
    * `root` is unreachable (D109): mark it (nothing is unlinked; its
-   * reconciles are skipped) and drop its pending stability waits.
+   * reconciles are skipped) and drop its pending stability waits. A root
+   * that is reachable but unwatched (D156) only counts as unavailable: it
+   * is still reconciled.
    */
-  rootUnavailable(sourceRoot: string, code: string): void {
+  rootUnavailable(
+    sourceRoot: string,
+    code: string,
+    options?: RootUnavailableOptions,
+  ): void {
     const signal = this.rootSignal(sourceRoot);
     if (!signal) return;
     const [running, root] = signal;
-    this.logger.warn({ root, code }, 'Watch root unavailable');
+    this.logger.warn({ root, code, ...options }, 'Watch root unavailable');
+    this.options.changeSourceHealth?.setUnavailable(root, true);
+    if (options?.reachable) return;
     running.unavailableRoots.add(root);
     running.ticker.dropUnder(root);
-    this.options.changeSourceHealth?.setUnavailable(root, true);
   }
 
   /** `root` is reachable again (D109): unmark and reconcile it. */
@@ -258,6 +300,7 @@ export class FileSystemWatcher implements ChangeSink {
     running.periodic.stop();
     running.reconciler.stop();
     running.ticker.stop();
+    running.pipeline?.stop();
     running.actions.flush();
     await running.source.stop();
     this.logger.info('Filesystem watcher stopped');

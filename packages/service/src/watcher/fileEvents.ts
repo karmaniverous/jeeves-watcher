@@ -52,10 +52,7 @@ export function createMoveCorrelator(
     contentHashCache,
     logger: deps.logger,
     onMove: (oldPath, newPath) => {
-      queue.enqueue(
-        { type: 'move', path: newPath, oldPath, priority: 'normal' },
-        () => wrap(() => processor.moveFile(oldPath, newPath)),
-      );
+      enqueueMove(deps, oldPath, newPath);
     },
     onDelete: (deletedPath) => {
       queue.enqueue(
@@ -70,6 +67,22 @@ export function createMoveCorrelator(
       );
     },
   });
+}
+
+/** Enqueue a move: the points are re-keyed, not re-embedded. */
+function enqueueMove(
+  {
+    queue,
+    processor,
+    wrap,
+  }: Pick<FileEventActionsDeps, 'queue' | 'processor' | 'wrap'>,
+  oldPath: string,
+  newPath: string,
+): void {
+  queue.enqueue(
+    { type: 'move', path: newPath, oldPath, priority: 'normal' },
+    () => wrap(() => processor.moveFile(oldPath, newPath)),
+  );
 }
 
 /** The actions behind filtered `add`, `change` and `unlink` events. */
@@ -118,6 +131,21 @@ export class FileEventActions {
         wrap(() => processor.deleteFile(path)),
       );
     }
+  }
+
+  /**
+   * A matched file moved as part of a paired directory move (D62): the
+   * VCS hook sees the unlink and the add; the queue gets one move, which
+   * re-keys the points without re-embedding.
+   *
+   * @param oldPath - Where it was.
+   * @param newPath - Where it is.
+   */
+  moved(oldPath: string, newPath: string): void {
+    this.deps.logger.debug({ oldPath, newPath }, 'File moved');
+    this.deps.onVcsFileChange?.(oldPath, 'unlink');
+    this.deps.onVcsFileChange?.(newPath, 'add');
+    enqueueMove(this.deps, oldPath, newPath);
   }
 
   /** Flush buffered unlinks as deletes (on stop). */

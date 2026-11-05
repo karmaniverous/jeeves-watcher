@@ -33,6 +33,8 @@ export interface WalkOptions {
   include: (path: string) => boolean;
   /** Filesystem (default: `node:fs/promises`). */
   fs?: WalkFs;
+  /** Called for each directory read (the inotify watch count, D126). */
+  onDirectory?: (dir: string) => void;
 }
 
 const defaultFs: WalkFs = {
@@ -81,6 +83,7 @@ export async function walk(
       if (top) throw error;
       return;
     }
+    options.onDirectory?.(current);
     await Promise.all(
       entries.map((entry) => {
         const path = join(current, entry.name);

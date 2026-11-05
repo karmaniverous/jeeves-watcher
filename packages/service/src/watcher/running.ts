@@ -1,10 +1,11 @@
 /**
  * @module watcher/running
- * What one `FileSystemWatcher.start` builds: the change source, filters, inventory, filtered handlers and queue actions, wired together. Pure apart from constructing the chokidar source (not started here).
+ * What one `FileSystemWatcher.start` builds: the change source (parcel or chokidar, D125), filters, inventory, filtered handlers, queue actions and, for parcel, the batch pipeline, wired together. Pure apart from constructing the source (not started here).
  */
 
 import {
   extractWatchPathStrings,
+  ROOT_DEFAULTS,
   WATCH_DEFAULTS,
 } from '@karmaniverous/jeeves-watcher-core';
 import type pino from 'pino';
@@ -16,7 +17,13 @@ import type { GitignoreFilter } from '../gitignore';
 import type { DocumentProcessorInterface } from '../processor';
 import type { EventQueue } from '../queue';
 import { normalizeError } from '../util/normalizeError';
+import { ParcelPipeline } from './batch/ParcelPipeline';
 import { ChokidarChangeSource } from './changeSource/ChokidarChangeSource';
+import type {
+  ParcelImporter,
+  ParcelWatcherModule,
+} from './changeSource/parcelModule';
+import { ParcelSource } from './changeSource/ParcelSource';
 import type { ChangeSource } from './changeSource/types';
 import type { ChangeSourceHealthTracker } from './ChangeSourceHealthTracker';
 import {
@@ -63,6 +70,10 @@ export interface FileSystemWatcherOptions {
   changeSourceHealth?: ChangeSourceHealthTracker;
   /** Live `watch.reconcileIntervalMs` (D111), read at each scheduling. */
   getReconcileIntervalMs?: () => number | undefined;
+  /** Imports `@parcel/watcher` (tests; default the real module, D125). */
+  importParcel?: ParcelImporter;
+  /** The service state directory (the parcel rebuild sentinel, D165). */
+  stateDir?: string;
 }
 
 /** What one `start` builds; replaced on every start. */
@@ -88,6 +99,8 @@ export interface Running {
   unavailableRoots: Set<string>;
   /** Roots to reconcile once their initial scan finishes (D131). */
   deferredRoots: Set<string>;
+  /** The parcel batch pipeline (D149); undefined for chokidar. */
+  pipeline?: ParcelPipeline;
 }
 
 /** What {@link createRunning} needs from `FileSystemWatcher`. */
@@ -107,6 +120,27 @@ export interface RunningContext {
   onSettled: (settled: SettledPath) => void;
   /** Called after a `.gitignore` event refreshed the gitignore filter. */
   onGitignoreChange: (path: string) => void;
+  /** The loaded `@parcel/watcher` when parcel is selected (D125). */
+  parcel?: ParcelWatcherModule;
+}
+
+/** The change source a start uses: parcel when loaded, else chokidar. */
+function createSource(context: RunningContext): ChangeSource {
+  const { config, parcel } = context;
+  if (parcel) {
+    return new ParcelSource({
+      parcel,
+      ignored: config.ignored,
+      stateDir: context.options.stateDir ?? ROOT_DEFAULTS.stateDir,
+      logger: context.logger,
+    });
+  }
+  return new ChokidarChangeSource({
+    usePolling: config.usePolling,
+    pollIntervalMs: config.pollIntervalMs,
+    stabilityThresholdMs: config.stabilityThresholdMs,
+    onError: context.onSourceError,
+  });
 }
 
 /**
@@ -130,12 +164,7 @@ export function createRunning(context: RunningContext): Running {
     logger,
     options.gitignoreFilter,
   );
-  const source: ChangeSource = new ChokidarChangeSource({
-    usePolling: config.usePolling,
-    pollIntervalMs: config.pollIntervalMs,
-    stabilityThresholdMs: config.stabilityThresholdMs,
-    onError: context.onSourceError,
-  });
+  const source = createSource(context);
   const wiring = {
     queue: context.queue,
     processor: context.processor,
@@ -212,8 +241,23 @@ export function createRunning(context: RunningContext): Running {
       );
     },
   });
+  const pipeline =
+    source.initialSet === 'walk'
+      ? new ParcelPipeline({
+          roots: watchRoots,
+          filter,
+          ignore,
+          inventory,
+          events,
+          ticker,
+          reconcile: (dir) => void reconciler.reconcile(dir),
+          moveDetection: config.moveDetection,
+          logger,
+        })
+      : undefined;
   return {
     source,
+    pipeline,
     roots: watchRoots,
     filter,
     ignore,
