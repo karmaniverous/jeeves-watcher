@@ -123,6 +123,25 @@ export class SystemHealth {
     await sleep(delay, signal);
   }
 
+  /**
+   * Run one operation with health tracking: back off, run it and record
+   * the success, or record its failure.
+   *
+   * @param fn - The operation.
+   * @returns False when the failure was fatal (the caller stops).
+   * @throws When retries are exhausted and no fatal-error callback is set.
+   */
+  async run(fn: () => Promise<void>): Promise<boolean> {
+    try {
+      await this.backoff();
+      await fn();
+      this.recordSuccess();
+      return true;
+    } catch (error) {
+      return this.recordFailure(error);
+    }
+  }
+
   /** Current consecutive failure count. */
   get failures(): number {
     return this.consecutiveFailures;

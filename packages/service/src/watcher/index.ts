@@ -33,7 +33,11 @@ import {
   type FileSystemWatcherOptions,
   type Running,
 } from './running';
-import { applySettled, onGitignoreChanged } from './runningHandlers';
+import {
+  applyClassified,
+  applySettled,
+  onGitignoreChanged,
+} from './runningHandlers';
 
 export type { FileSystemWatcherOptions } from './running';
 
@@ -135,14 +139,10 @@ export class FileSystemWatcher implements ChangeSink {
 
   /** A classified event from the change source (chokidar), with the stats it read, if any. */
   event(type: ClassifiedEventType, path: string, stats?: Stats): void {
-    const events = this.running?.events;
-    if (!events) return;
-    const fileStats = stats && { size: stats.size, mtimeMs: stats.mtimeMs };
-    if (type === 'add') events.add(path, fileStats);
-    else if (type === 'change') events.change(path, fileStats);
-    else if (type === 'unlink') events.unlink(path);
-    else if (type === 'addDir') this.directoryCreated(path);
-    // `unlinkDir`: chokidar reports each file's unlink, so nothing to pair.
+    if (!this.running) return;
+    applyClassified(this.running, { type, path, stats }, (dir) => {
+      this.directoryCreated(dir);
+    });
   }
 
   /**
@@ -286,15 +286,6 @@ export class FileSystemWatcher implements ChangeSink {
    * On failure, records the failure and applies backoff.
    */
   private async wrapProcessing(fn: () => Promise<void>): Promise<void> {
-    try {
-      await this.health.backoff();
-      await fn();
-      this.health.recordSuccess();
-    } catch (error) {
-      const shouldContinue = this.health.recordFailure(error);
-      if (!shouldContinue) {
-        await this.stop();
-      }
-    }
+    if (!(await this.health.run(fn))) await this.stop();
   }
 }

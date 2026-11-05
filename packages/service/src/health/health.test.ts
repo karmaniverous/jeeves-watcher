@@ -122,4 +122,31 @@ describe('SystemHealth', () => {
       'Sleep aborted',
     );
   });
+
+  describe('run', () => {
+    it('records a success and a failure, continuing below the limit', async () => {
+      const health = new SystemHealth({ logger, baseDelayMs: 1 });
+      await expect(
+        health.run(() => Promise.reject(new Error('x'))),
+      ).resolves.toBe(true);
+      expect(health.failures).toBe(1);
+      const fn = vi.fn(() => Promise.resolve());
+      await expect(health.run(fn)).resolves.toBe(true);
+      expect(fn).toHaveBeenCalledTimes(1);
+      expect(health.failures).toBe(0);
+    });
+
+    it('answers false on a fatal failure with a callback, and throws without one', async () => {
+      const onFatalError = vi.fn();
+      const fatal = new SystemHealth({ logger, maxRetries: 1, onFatalError });
+      await expect(
+        fatal.run(() => Promise.reject(new Error('x'))),
+      ).resolves.toBe(false);
+      expect(onFatalError).toHaveBeenCalledTimes(1);
+      const throwing = new SystemHealth({ logger, maxRetries: 1 });
+      await expect(
+        throwing.run(() => Promise.reject(new Error('boom'))),
+      ).rejects.toThrow('boom');
+    });
+  });
 });
