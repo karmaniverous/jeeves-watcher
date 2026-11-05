@@ -1,13 +1,14 @@
 /**
  * @module watcher/batch/ParcelPipeline.test
- * The parcel batch pipeline with a fake disk (D127, D149, D179): batches held during a root's walk are classified against the full inventory, each kind goes to its handler, pairing runs only with move detection. The 20K/120K scale test: ParcelPipeline.heavy.test.
+ * The parcel batch pipeline with a fake disk (D127, D149, D179): batches held during a root's walk are classified against the full inventory, each kind goes to its handler, pairing runs only with move detection, and removals wait for the root to settle (D109). The 20K/120K scale test: ParcelPipeline.heavy.test.
  */
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { ev, ROOT, setup } from '../../test/parcelPipelineHarness';
 import { normalizeDocumentKey } from '../../util/documentKey';
-import { lstatState } from './ParcelPipeline';
+import type { PathState } from './classifyBatch';
+import { lstatState, ROOT_SETTLE_MS } from './ParcelPipeline';
 
 describe('ParcelPipeline', () => {
   afterEach(() => {
@@ -110,6 +111,42 @@ describe('ParcelPipeline', () => {
     pipeline.push(ROOT, [ev('delete', '/r/a.md')]);
     await pipeline.fifo.idle();
     expect(calls).toEqual([]);
+  });
+
+  it('waits the settle time before removals, and drops them when the root went with its contents (D109)', async () => {
+    vi.useFakeTimers();
+    const disk: Record<string, PathState> = {};
+    const { pipeline, calls, inventory } = setup(disk, {
+      rootSettleMs: ROOT_SETTLE_MS,
+    });
+    inventory.set('/r/a.md', { size: 1, mtimeMs: 1 });
+    inventory.set('/r/b.md', { size: 1, mtimeMs: 1 });
+    // The root is still there when the batch is classified...
+    pipeline.push(ROOT, [ev('delete', '/r/a.md')]);
+    await vi.advanceTimersByTimeAsync(ROOT_SETTLE_MS - 1);
+    expect(calls).toEqual([]);
+    // ...and gone by the end of the settle wait.
+    disk[ROOT] = 'absent';
+    await vi.advanceTimersByTimeAsync(1);
+    await pipeline.fifo.idle();
+    expect(calls).toEqual([]);
+    // A root still there after the wait: the removal applies.
+    disk[ROOT] = 'dir';
+    pipeline.push(ROOT, [ev('delete', '/r/b.md')]);
+    await vi.advanceTimersByTimeAsync(ROOT_SETTLE_MS);
+    await pipeline.fifo.idle();
+    expect(calls).toEqual(['drop /r/b.md', 'unlink /r/b.md']);
+  });
+
+  it('applies a batch without removals at once', async () => {
+    vi.useFakeTimers();
+    const { pipeline, calls } = setup(
+      { '/r/a.md': 'file' },
+      { rootSettleMs: ROOT_SETTLE_MS },
+    );
+    pipeline.push(ROOT, [ev('create', '/r/a.md')]);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(calls).toEqual(['stability /r/a.md']);
   });
 });
 
