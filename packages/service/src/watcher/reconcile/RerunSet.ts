@@ -3,12 +3,7 @@
  * Directories waiting to be reconciled after a root's running reconcile, merged by containment (D179): a directory covered by an ancestor in the set is dropped, and a new ancestor replaces its descendants. Pure.
  */
 
-import { normalizeDocumentKey } from '../../util/documentKey';
-
-/** Whether `key` is `ancestor` or lies beneath it. */
-function within(key: string, ancestor: string): boolean {
-  return key === ancestor || key.startsWith(`${ancestor}/`);
-}
+import { keyWithin, normalizeDocumentKey } from '../../util/documentKey';
 
 /** A containment-merged set of directories. */
 export class RerunSet {
@@ -23,10 +18,10 @@ export class RerunSet {
   add(dir: string): void {
     const key = normalizeDocumentKey(dir);
     for (const existing of this.dirs.keys()) {
-      if (within(key, existing)) return;
+      if (keyWithin(key, existing)) return;
     }
     for (const existing of [...this.dirs.keys()]) {
-      if (within(existing, key)) this.dirs.delete(existing);
+      if (keyWithin(existing, key)) this.dirs.delete(existing);
     }
     this.dirs.set(key, dir);
   }

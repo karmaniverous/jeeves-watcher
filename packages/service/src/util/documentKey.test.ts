@@ -5,7 +5,11 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { isSourceReference, normalizeDocumentKey } from './documentKey';
+import {
+  isSourceReference,
+  keyWithin,
+  normalizeDocumentKey,
+} from './documentKey';
 
 describe('documentKey', () => {
   it.each([
@@ -27,5 +31,16 @@ describe('documentKey', () => {
 
   it('normalises file paths', () => {
     expect(normalizeDocumentKey('C:\\Docs\\A.md')).toBe('c:/docs/a.md');
+  });
+});
+
+describe('keyWithin', () => {
+  it.each([
+    ['c:/a', 'c:/a', true],
+    ['c:/a/b/c', 'c:/a', true],
+    ['c:/ab', 'c:/a', false],
+    ['c:/a', 'c:/a/b', false],
+  ])('%s within %s is %s', (key, ancestor, expected) => {
+    expect(keyWithin(key, ancestor)).toBe(expected);
   });
 });

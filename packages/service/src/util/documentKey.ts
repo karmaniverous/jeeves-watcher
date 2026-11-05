@@ -29,3 +29,15 @@ export function isSourceReference(key: string): boolean {
 export function normalizeDocumentKey(key: string): string {
   return isSourceReference(key) ? key : normalizePath(key);
 }
+
+/**
+ * Whether a normalized key is `ancestor` itself or lies beneath it (path
+ * segments, so `a/bc` is not within `a/b`).
+ *
+ * @param key - A normalized key.
+ * @param ancestor - A normalized directory key.
+ * @returns True at or under `ancestor`.
+ */
+export function keyWithin(key: string, ancestor: string): boolean {
+  return key === ancestor || key.startsWith(`${ancestor}/`);
+}

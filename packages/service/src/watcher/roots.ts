@@ -3,7 +3,7 @@
  * The resolved watch roots (globs' static prefixes, nested roots collapsed) and which root a path lies under. Pure.
  */
 
-import { normalizeDocumentKey } from '../util/documentKey';
+import { keyWithin, normalizeDocumentKey } from '../util/documentKey';
 
 /** The watch roots, with path-to-root lookup by normalized key. */
 export class WatchRoots {
@@ -25,7 +25,7 @@ export class WatchRoots {
   rootOf(path: string): string | undefined {
     const key = normalizeDocumentKey(path);
     for (const [rootKey, root] of this.keys) {
-      if (key === rootKey || key.startsWith(`${rootKey}/`)) return root;
+      if (keyWithin(key, rootKey)) return root;
     }
     return undefined;
   }
@@ -40,8 +40,7 @@ export class WatchRoots {
   isRootGit(path: string): boolean {
     const key = normalizeDocumentKey(path);
     for (const rootKey of this.keys.keys()) {
-      const git = `${rootKey}/.git`;
-      if (key === git || key.startsWith(`${git}/`)) return true;
+      if (keyWithin(key, `${rootKey}/.git`)) return true;
     }
     return false;
   }
