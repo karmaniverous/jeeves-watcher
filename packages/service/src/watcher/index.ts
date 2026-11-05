@@ -18,14 +18,13 @@ import type {
   RawChangeEvent,
 } from './changeSource/types';
 import type { Inventory } from './inventory/Inventory';
-import { rebuildUnder } from './inventory/rebuildUnder';
+import { rebuildAfterGitignore } from './inventory/rebuildUnder';
 import {
   createRunning,
   type FileSystemWatcherOptions,
   type Running,
 } from './running';
 import { settledEvent, type SettledPath } from './stability/StabilityTicker';
-import { walkFilters } from './walk/walkFilters';
 
 export type { FileSystemWatcherOptions } from './running';
 
@@ -110,6 +109,28 @@ export class FileSystemWatcher implements ChangeSink {
     if (type === 'add') events.add(path);
     else if (type === 'change') events.change(path);
     else if (type === 'unlink') events.unlink(path);
+    else if (type === 'addDir') this.directoryCreated(path);
+    // `unlinkDir`: chokidar reports each file's unlink, so nothing to pair.
+  }
+
+  /**
+   * The directory-create handler (D91, D120): reconcile a directory created
+   * after the initial scan, so files written into it before its watch was
+   * set up are not missed. The reconciler drops it before the scan ends.
+   */
+  private directoryCreated(dir: string): void {
+    if (!this.running?.filter.isRootGit(dir)) this.reconcile(dir);
+  }
+
+  /** The running state and the canonical form of a root a source named. */
+  private rootSignal(root: string): [Running, string] | undefined {
+    const running = this.running;
+    return running ? [running, running.roots.rootOf(root) ?? root] : undefined;
+  }
+
+  /** Start a reconcile of `dir` (every trigger is owned here, D120). */
+  private reconcile(dir: string): void {
+    void this.running?.reconciler.reconcile(dir);
   }
 
   /**
@@ -124,9 +145,10 @@ export class FileSystemWatcher implements ChangeSink {
   }
 
   /** {@inheritDoc ChangeSink.initialScanDone} */
-  initialScanDone(root: string): void {
-    const running = this.running;
-    if (!running) return;
+  initialScanDone(sourceRoot: string): void {
+    const signal = this.rootSignal(sourceRoot);
+    if (!signal) return;
+    const [running, root] = signal;
     running.pendingRoots.delete(root);
     if (running.pendingRoots.size > 0 || this.initialScanComplete) return;
     this.initialScanComplete = true;
@@ -136,21 +158,48 @@ export class FileSystemWatcher implements ChangeSink {
       'Initial scan complete',
     );
     void this.options.onInitialScanComplete?.();
+    for (const deferred of running.deferredRoots) this.reconcile(deferred);
+    running.deferredRoots.clear();
   }
 
-  /** {@inheritDoc ChangeSink.resubscribed} */
-  resubscribed(root: string): void {
+  /**
+   * The source re-created `root`'s subscription after an error (D131):
+   * events in between are lost, so reconcile the root (once its initial
+   * scan finishes, if it has not).
+   */
+  resubscribed(sourceRoot: string): void {
+    const signal = this.rootSignal(sourceRoot);
+    if (!signal) return;
+    const [running, root] = signal;
     this.logger.info({ root }, 'Change source resubscribed');
+    this.options.changeSourceHealth?.recordResubscribe();
+    if (running.pendingRoots.has(root)) running.deferredRoots.add(root);
+    else this.reconcile(root);
   }
 
-  /** {@inheritDoc ChangeSink.rootUnavailable} */
-  rootUnavailable(root: string, code: string): void {
+  /**
+   * `root` is unreachable (D109): mark it (nothing is unlinked; its
+   * reconciles are skipped) and drop its pending stability waits.
+   */
+  rootUnavailable(sourceRoot: string, code: string): void {
+    const signal = this.rootSignal(sourceRoot);
+    if (!signal) return;
+    const [running, root] = signal;
     this.logger.warn({ root, code }, 'Watch root unavailable');
+    running.unavailableRoots.add(root);
+    running.ticker.dropUnder(root);
+    this.options.changeSourceHealth?.setUnavailable(root, true);
   }
 
-  /** {@inheritDoc ChangeSink.rootAvailable} */
-  rootAvailable(root: string): void {
+  /** `root` is reachable again (D109): unmark and reconcile it. */
+  rootAvailable(sourceRoot: string): void {
+    const signal = this.rootSignal(sourceRoot);
+    if (!signal) return;
+    const [running, root] = signal;
     this.logger.info({ root }, 'Watch root available again');
+    running.unavailableRoots.delete(root);
+    this.options.changeSourceHealth?.setUnavailable(root, false);
+    this.reconcile(root);
   }
 
   /**
@@ -177,24 +226,7 @@ export class FileSystemWatcher implements ChangeSink {
     if (!running) return;
     const root = running.roots.rootOf(path);
     if (root === undefined || running.pendingRoots.has(root)) return;
-    const dir = dirname(path);
-    const { filter, inventory, ignore } = running;
-    rebuildUnder(inventory, dir, walkFilters(filter, ignore), (p) =>
-      filter.isGitignored(p),
-    ).then(
-      (result) => {
-        this.logger.info(
-          { dir, ...result },
-          'Inventory rebuilt after .gitignore change',
-        );
-      },
-      (error: unknown) => {
-        this.logger.warn(
-          { dir, err: normalizeError(error) },
-          'Inventory rebuild after .gitignore change failed',
-        );
-      },
-    );
+    void rebuildAfterGitignore(running, dirname(path), this.logger);
   }
 
   /**

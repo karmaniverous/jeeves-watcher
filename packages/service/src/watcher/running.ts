@@ -23,10 +23,12 @@ import { FilteredEvents } from './filteredEvents';
 import { ignoreMatchers, resolveWatchPaths } from './globToDir';
 import { Inventory } from './inventory/Inventory';
 import { WatchFilter } from './pathFilter';
+import { Reconciler } from './reconcile/Reconciler';
 import { WatchRoots } from './roots';
 import { ScanStats } from './ScanStats';
 import { type SettledPath, StabilityTicker } from './stability/StabilityTicker';
-import { statFile } from './walk/statFile';
+import { isGone, statFile } from './walk/statFile';
+import { walkFilters } from './walk/walkFilters';
 
 /**
  * Options for `FileSystemWatcher` beyond basic config.
@@ -65,8 +67,14 @@ export interface Running {
   scanStats: ScanStats;
   /** The shared stability ticker for synthetic events (D128). */
   ticker: StabilityTicker;
+  /** Reconciles directories against the inventory (D90). */
+  reconciler: Reconciler;
   /** Roots whose initial scan has not finished. */
   pendingRoots: Set<string>;
+  /** Roots marked unavailable (D109). */
+  unavailableRoots: Set<string>;
+  /** Roots to reconcile once their initial scan finishes (D131). */
+  deferredRoots: Set<string>;
 }
 
 /** What {@link createRunning} needs from `FileSystemWatcher`. */
@@ -133,30 +141,54 @@ export function createRunning(context: RunningContext): Running {
     stat: statFile,
     onSettled: context.onSettled,
   });
+  // chokidar v5 matches string `ignored` entries by equality: matchers.
+  // Each root's `.git` joins them whatever the config says (D152).
+  const ignore = [
+    ...ignoreMatchers(config.ignored),
+    (path: string) => watchRoots.isRootGit(path),
+  ];
+  const events = new FilteredEvents({
+    filter,
+    inventory,
+    actions,
+    scanStats,
+    logger,
+    initialScanTracker: options.initialScanTracker,
+    scanning: context.scanning,
+    onGitignoreChange: context.onGitignoreChange,
+  });
+  const pendingRoots = new Set(roots);
+  const unavailableRoots = new Set<string>();
+  const reconciler = new Reconciler({
+    roots: watchRoots,
+    inventory,
+    walkOptions: () => walkFilters(filter, ignore),
+    scanned: (root) => !pendingRoots.has(root),
+    unavailable: (root) => unavailableRoots.has(root),
+    enterStability: (key, path) => {
+      ticker.enter(key, path, true);
+    },
+    unlink: (path) => {
+      events.unlink(path);
+    },
+    isGone,
+    compareStats: source.initialSet === 'walk',
+    logger,
+    health: options.changeSourceHealth,
+  });
   return {
     source,
     roots: watchRoots,
     filter,
-    // chokidar v5 matches string `ignored` entries by equality: matchers.
-    // Each root's `.git` joins them whatever the config says (D152).
-    ignore: [
-      ...ignoreMatchers(config.ignored),
-      (path) => watchRoots.isRootGit(path),
-    ],
+    ignore,
     inventory,
     actions,
     scanStats,
     ticker,
-    pendingRoots: new Set(roots),
-    events: new FilteredEvents({
-      filter,
-      inventory,
-      actions,
-      scanStats,
-      logger,
-      initialScanTracker: options.initialScanTracker,
-      scanning: context.scanning,
-      onGitignoreChange: context.onGitignoreChange,
-    }),
+    reconciler,
+    pendingRoots,
+    unavailableRoots,
+    deferredRoots: new Set(),
+    events,
   };
 }

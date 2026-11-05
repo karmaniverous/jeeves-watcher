@@ -3,6 +3,7 @@
  * The shared stability ticker (D128): one pending set and one interval timer for every path awaiting a stable size, at most 2,000 `stat`s per tick, oldest-checked first. I/O: `stat` through the injected function; one timer while paths are pending.
  */
 
+import { normalizeDocumentKey } from '../../util/documentKey';
 import type { FileStats, InventoryEntry } from '../inventory/Inventory';
 
 /** Most `stat`s one tick makes (D128). */
@@ -109,6 +110,21 @@ export class StabilityTicker {
       () => void this.tick(),
       Math.min(MAX_TICK_MS, this.options.thresholdMs / 4),
     );
+  }
+
+  /**
+   * Drop the pending paths at or beneath a directory (its root went away,
+   * D109).
+   *
+   * @param dir - The directory.
+   */
+  dropUnder(dir: string): void {
+    const prefix = normalizeDocumentKey(dir);
+    for (const key of [...this.pending.keys()]) {
+      if (key === prefix || key.startsWith(`${prefix}/`)) {
+        this.pending.delete(key);
+      }
+    }
   }
 
   /** Drop every pending path and the timer. */
