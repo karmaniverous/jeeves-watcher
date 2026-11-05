@@ -1,6 +1,6 @@
 /**
  * @module test/harness/qdrant.test
- * Tests for the harness guards: only `jeeves_watcher_it_*` names may be created or deleted, only on the run's guarded Qdrant URL (no request otherwise); unique names carry the prefix and the run id; the sweep (real Qdrant) drops one run's collections and keeps another's.
+ * Tests for the harness guards: only `jeeves_watcher_it_*` names may be created or deleted, only on the run's guarded Qdrant URL (no request otherwise); unique names carry the prefix and the run id; the sweep (real Qdrant) drops one run's collections and keeps another's; clearCollection empties a collection and keeps it; ensureSettledCollection waits for the system-index builds.
  */
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -9,9 +9,11 @@ import { qdrantHeaders } from '../qdrant/http';
 import {
   assertTestCollection,
   assertTestQdrantUrl,
+  clearCollection,
   currentRunId,
   dropCollection,
   dropLeftoverTestCollections,
+  ensureSettledCollection,
   GUARDED_URL_ENV,
   isRunCollection,
   listTestCollections,
@@ -104,6 +106,44 @@ describe('dropCollection URL guard', () => {
     );
     expect(fetchSpy).not.toHaveBeenCalled();
   });
+
+  it('clearCollection refuses a non-test collection without sending a request', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch');
+    await expect(clearCollection('production_docs')).rejects.toThrow(
+      /Refusing to touch non-test collection/,
+    );
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+});
+
+describe('ensureSettledCollection', () => {
+  it('ensures the collection, then resolves only once the system-index builds settle', async () => {
+    const calls: string[] = [];
+    let settle = (): void => undefined;
+    const store = {
+      ensureCollection: vi.fn(() => {
+        calls.push('ensure');
+        return Promise.resolve();
+      }),
+      whenSystemIndexesSettled: vi.fn(() => {
+        calls.push('settled');
+        return new Promise<void>((resolve) => {
+          settle = resolve;
+        });
+      }),
+    };
+    let done = false;
+    const pending = ensureSettledCollection(store).then(() => {
+      done = true;
+    });
+    await vi.waitFor(() => {
+      expect(calls).toEqual(['ensure', 'settled']);
+    });
+    expect(done).toBe(false);
+    settle();
+    await pending;
+    expect(done).toBe(true);
+  });
 });
 
 /** Create a tiny collection straight through the REST API. */
@@ -117,6 +157,52 @@ async function createRawCollection(name: string): Promise<void> {
   });
   if (!res.ok) throw new Error(`PUT ${name} failed: ${String(res.status)}`);
 }
+
+describe.skipIf(!qdrantAvailable())('clearCollection (requires Qdrant)', () => {
+  const name = `${TEST_COLLECTION_PREFIX}clear_${currentRunId()}_1_c3`;
+
+  afterEach(async () => {
+    await dropCollection(name);
+  });
+
+  /** Count a collection's points straight through the REST API. */
+  async function count(): Promise<number> {
+    const res = await fetch(`${qdrantUrl()}/collections/${name}/points/count`, {
+      method: 'POST',
+      headers: { ...qdrantHeaders(), 'content-type': 'application/json' },
+      body: JSON.stringify({ exact: true }),
+    });
+    const body = (await res.json()) as { result: { count: number } };
+    return body.result.count;
+  }
+
+  it('deletes every point and keeps the collection', async () => {
+    await createRawCollection(name);
+    await fetch(`${qdrantUrl()}/collections/${name}/points?wait=true`, {
+      method: 'PUT',
+      headers: { ...qdrantHeaders(), 'content-type': 'application/json' },
+      body: JSON.stringify({
+        points: [1, 2, 3].map((id) => ({
+          id,
+          vector: [1, 0, 0, 0],
+          payload: { n: id },
+        })),
+      }),
+    });
+    expect(await count()).toBe(3);
+
+    await clearCollection(name);
+
+    expect(await count()).toBe(0);
+    expect(await listTestCollections()).toContain(name);
+  });
+
+  it('throws when Qdrant answers non-2xx (a missing collection)', async () => {
+    await expect(clearCollection(name)).rejects.toThrow(
+      `Clearing ${name} failed: 404`,
+    );
+  });
+});
 
 describe.skipIf(!qdrantAvailable())('leftover sweep (requires Qdrant)', () => {
   // Synthetic run ids: sweeping the real run id would drop collections

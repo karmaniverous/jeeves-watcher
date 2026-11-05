@@ -231,6 +231,78 @@
                           "additionalProperties": false,
                           "description": "Embedding provider health (D88, D89)."
                         },
+                        "changeSource": {
+                          "type": "object",
+                          "properties": {
+                            "source": {
+                              "type": "string",
+                              "enum": [
+                                "chokidar",
+                                "parcel"
+                              ],
+                              "description": "The running change source."
+                            },
+                            "resubscribes": {
+                              "type": "number",
+                              "description": "Subscriptions re-created after an error since start (D131); scheduled renewals are not counted. Always 0 under chokidar."
+                            },
+                            "unavailableRoots": {
+                              "type": "number",
+                              "description": "Roots currently marked unavailable (D109)."
+                            },
+                            "reconcileEvents": {
+                              "type": "number",
+                              "description": "Synthetic events reconciliation has emitted since start (D90): a rising value means the source is missing events."
+                            },
+                            "reconcileErrors": {
+                              "type": "number",
+                              "description": "Reconciles that errored (walk failure, unreachable root, empty root walk against a non-empty inventory) and emitted nothing, since start (D90)."
+                            },
+                            "lastReconcileAt": {
+                              "description": "End of the most recent reconcile (ISO), null before the first.",
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "lastReconcileDurationMs": {
+                              "description": "Duration of the most recent reconcile, walk and compare (ms), null before the first.",
+                              "type": [
+                                "number",
+                                "null"
+                              ]
+                            },
+                            "pendingStability": {
+                              "type": "number",
+                              "description": "Paths in the stability ticker's pending set (D128); a backlog that keeps growing means the ticker is falling behind."
+                            },
+                            "lastRenewDurationMs": {
+                              "description": "Duration of the most recent subscription renewal (ms, D129); null until the first, and always null under chokidar and on Windows.",
+                              "type": [
+                                "number",
+                                "null"
+                              ]
+                            },
+                            "renewFailures": {
+                              "type": "number",
+                              "description": "Renewals whose unsubscribe rejected and forced a source rebuild, plus rejections during a rebuild, since start (D165, D176). Always 0 under chokidar."
+                            }
+                          },
+                          "required": [
+                            "source",
+                            "resubscribes",
+                            "unavailableRoots",
+                            "reconcileEvents",
+                            "reconcileErrors",
+                            "lastReconcileAt",
+                            "lastReconcileDurationMs",
+                            "pendingStability",
+                            "lastRenewDurationMs",
+                            "renewFailures"
+                          ],
+                          "additionalProperties": false,
+                          "description": "Change-source health (D133, D157)."
+                        },
                         "error": {
                           "type": "string"
                         }

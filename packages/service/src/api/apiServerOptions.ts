@@ -4,6 +4,7 @@
  */
 
 import type { JeevesComponentDescriptor } from '@karmaniverous/jeeves';
+import type { ChangeSourceHealth } from '@karmaniverous/jeeves-watcher-core';
 import type pino from 'pino';
 
 import type { JeevesWatcherConfig } from '../config/types';
@@ -69,7 +70,7 @@ export interface ApiServerOptions {
   version?: string;
   /** Initial scan tracker for /status visibility. */
   initialScanTracker?: InitialScanTracker;
-  /** Filesystem watcher instance for /walk endpoint (in-memory file list). */
+  /** Filesystem watcher instance for /walk endpoint (its inventory, D83). */
   fileSystemWatcher?: FileSystemWatcher;
   /** Getter for live filesystem watcher access after hot-reload rebuilds. */
   getFileSystemWatcher?: () => FileSystemWatcher | undefined;
@@ -85,4 +86,6 @@ export interface ApiServerOptions {
   documentLockWaitMs?: number;
   /** Embedding health (`GET /status` `health.embedding`, D88). */
   embeddingHealth?: { snapshot: () => EmbeddingHealthSnapshot };
+  /** Change-source health (`GET /status` `health.changeSource`, D133). */
+  changeSourceHealth?: { snapshot: () => ChangeSourceHealth };
 }

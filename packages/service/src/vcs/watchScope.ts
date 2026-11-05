@@ -11,12 +11,10 @@ import { extractWatchPathStrings } from '@karmaniverous/jeeves-watcher-core';
 
 import type { JeevesWatcherConfig } from '../config/types';
 import { normalizeSlashes } from '../util/normalizeSlashes';
-import { resolveIgnored, resolveWatchPaths } from '../watcher/globToDir.js';
+import { ignoreMatchers, resolveWatchPaths } from '../watcher/globToDir.js';
 
 /** Predicate over normalized absolute paths (forward slashes). */
 export type WatchScope = (normalizedPath: string) => boolean;
-
-type PathMatcher = (path: string) => boolean;
 
 /**
  * Create a watch-scope predicate. A path is in scope if it matches a watch
@@ -32,11 +30,7 @@ export function createWatchScope(
   const matchesGlobs = resolveWatchPaths(
     extractWatchPathStrings(watch.paths),
   ).matches;
-  // Config `ignored` entries are strings, which resolveIgnored always turns
-  // into picomatch functions; the filter only narrows the union type.
-  const ignored = resolveIgnored(watch.ignored).filter(
-    (entry): entry is PathMatcher => typeof entry === 'function',
-  );
+  const ignored = ignoreMatchers(watch.ignored);
 
   return (normalizedPath) => {
     if (!matchesGlobs(normalizedPath)) return false;

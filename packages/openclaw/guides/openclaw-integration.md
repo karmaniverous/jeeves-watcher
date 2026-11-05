@@ -120,7 +120,7 @@ Trigger a scoped reindex (`POST /reindex`). Supports `rules`, `full`, `issues`, 
 
 ### `watcher_walk`
 
-List watched files matching globs (`POST /walk`), from the filesystem watcher's in-memory file list across all configured watch roots, with `watch.ignored` and gitignore filtering applied. Returns `{ paths, matchedCount, scannedRoots }`; `HTTP 503 scan_in_progress` until the initial scan completes.
+List watched files matching globs (`POST /walk`), from the filesystem watcher's inventory across all configured watch roots: only files that pass its filters (globs, `watch.ignored`, gitignore), sorted by path. Returns `{ paths, matchedCount, scannedRoots }`; `HTTP 503 scan_in_progress` until the initial scan completes.
 
 **Parameters:**
 

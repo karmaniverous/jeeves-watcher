@@ -5,6 +5,8 @@
 
 import { z } from 'zod';
 
+import { changeSourceHealthSchema } from './changeSource.js';
+
 /** Response body for `GET /status` (standard Jeeves component status). */
 export const statusResponseSchema = z.object({
   /** Component name (`watcher`). */
@@ -169,6 +171,8 @@ export const watcherHealthSchema = z.looseObject({
   vcs: vcsHealthSchema.optional(),
   /** Embedding health (D88, D89). */
   embedding: embeddingHealthSchema.optional(),
+  /** Change-source health (D133, D157). */
+  changeSource: changeSourceHealthSchema.optional(),
   /** Why health could not be read (degraded). */
   error: z.string().optional(),
 });

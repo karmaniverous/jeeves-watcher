@@ -28,6 +28,10 @@ export {
   rulesUnregisterResponseSchema,
 } from './admin.js';
 export {
+  type ChangeSourceHealth,
+  changeSourceHealthSchema,
+} from './changeSource.js';
+export {
   type ApiErrorResponse,
   apiErrorResponseSchema,
   type DocumentError,

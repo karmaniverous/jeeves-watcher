@@ -1,6 +1,6 @@
 /**
  * @module api/catalog/walkHandler
- * Catalog handler for `POST /walk`: enumerates watched files matching caller-provided globs using chokidar's in-memory file list (zero filesystem I/O). The request (`globs`, non-empty) is validated by the catalog's `walk` entry schema.
+ * Catalog handler for `POST /walk`: enumerates the inventory's files (matched, not ignored or gitignored; D83) that match caller-provided globs, sorted by path, with zero filesystem I/O. The request (`globs`, non-empty) is validated by the catalog's `walk` entry schema.
  */
 
 import type { CatalogHandler } from '@karmaniverous/jeeves/fastify';
@@ -58,7 +58,9 @@ export function createCatalogWalkHandler(
       const normGlobs = globs.map((g) => normalizeSlashes(g));
       const matchGlobs = picomatch(normGlobs, { dot: true, nocase: true });
 
-      const paths = watchedFiles.filter((f) => matchGlobs(normalizeSlashes(f)));
+      const paths = watchedFiles
+        .filter((f) => matchGlobs(normalizeSlashes(f)))
+        .sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
 
       const scannedRoots = getWatchRootBases(deps.getWatchPaths());
 

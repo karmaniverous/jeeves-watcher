@@ -51,6 +51,15 @@ export const watchConfigSchema = z.object({
     .describe(
       'Time in milliseconds a file must remain unchanged before processing.',
     ),
+  /** Periodic reconciliation interval (D111); 0 disables it. */
+  reconcileIntervalMs: z
+    .number()
+    .int()
+    .min(0)
+    .optional()
+    .describe(
+      'Interval in milliseconds between periodic reconciliations of each watch root against the inventory (default 900000, 15 minutes); 0 disables them. A reload changes it without rebuilding the watcher.',
+    ),
   /** Whether to respect .gitignore files when processing. */
   respectGitignore: z
     .boolean()

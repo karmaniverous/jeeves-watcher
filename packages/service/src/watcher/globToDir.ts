@@ -33,20 +33,37 @@ export function globRoot(glob: string): string {
 
 /**
  * Deduplicate directory roots, removing paths that are subdirectories of others.
+ * Roots compare case-insensitively, as document keys do. On Windows each
+ * root is lower-cased, as every release before 0.21.0 did, so watched
+ * paths (and the stored `file_path`) keep their casing; elsewhere each root
+ * keeps the case it was written in, since a case-sensitive filesystem
+ * (Linux) has no lower-cased twin to watch.
  *
  * @param roots - Array of directory paths.
+ * @param platform - `process.platform` (a parameter for tests).
  * @returns Deduplicated array with subdirectories removed.
  */
-export function deduplicateRoots(roots: string[]): string[] {
-  const normalized = roots.map((r) => normalizeSlashes(r).toLowerCase());
-  const sorted = [...new Set(normalized)].sort();
+export function deduplicateRoots(
+  roots: string[],
+  platform: NodeJS.Platform = process.platform,
+): string[] {
+  const byKey = new Map<string, string>();
+  for (const root of roots) {
+    const normalized = normalizeSlashes(root);
+    const key = normalized.toLowerCase();
+    const path = platform === 'win32' ? key : normalized;
+    if (!byKey.has(key)) byKey.set(key, path);
+  }
+  const sorted = [...byKey.keys()].sort();
 
-  return sorted.filter((root, _i, arr) => {
-    const withSlash = root.endsWith('/') ? root : root + '/';
-    return !arr.some(
-      (other) => other !== root && withSlash.startsWith(other + '/'),
-    );
-  });
+  return sorted
+    .filter((root, _i, arr) => {
+      const withSlash = root.endsWith('/') ? root : root + '/';
+      return !arr.some(
+        (other) => other !== root && withSlash.startsWith(other + '/'),
+      );
+    })
+    .flatMap((key) => byKey.get(key) ?? []);
 }
 
 /**
@@ -122,15 +139,34 @@ export function resolveWatchPaths(globs: string[]): {
 export function resolveIgnored(
   ignored: (string | RegExp | ((path: string) => boolean))[],
 ): (string | RegExp | ((path: string) => boolean))[] {
-  return ignored.map((entry) => {
-    if (typeof entry !== 'string') return entry;
-    // If the string contains glob characters, convert to a picomatch function.
-    // Literal strings (exact paths) are also converted for consistent matching.
-    const normalizedPattern = normalizeSlashes(entry);
-    const matcher = picomatch(normalizedPattern, { dot: true, nocase: true });
-    return (filePath: string) => {
-      const normalized = normalizeSlashes(filePath);
-      return matcher(normalized);
-    };
+  return ignored.map((entry) =>
+    typeof entry === 'string' ? ignoreMatcher(entry) : entry,
+  );
+}
+
+/**
+ * Convert one `watch.ignored` pattern (a glob or a literal path) to a
+ * case-insensitive picomatch matcher over slash-normalized paths.
+ *
+ * @param pattern - The pattern.
+ * @returns The matcher.
+ */
+function ignoreMatcher(pattern: string): (path: string) => boolean {
+  const matcher = picomatch(normalizeSlashes(pattern), {
+    dot: true,
+    nocase: true,
   });
+  return (filePath: string) => matcher(normalizeSlashes(filePath));
+}
+
+/**
+ * Convert config `watch.ignored` patterns (strings only) to matchers.
+ *
+ * @param patterns - The patterns.
+ * @returns One matcher per pattern.
+ */
+export function ignoreMatchers(
+  patterns: string[],
+): ((path: string) => boolean)[] {
+  return patterns.map(ignoreMatcher);
 }

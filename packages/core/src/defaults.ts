@@ -52,6 +52,8 @@ export const WATCH_DEFAULTS = {
   stabilityThresholdMs: 500,
   usePolling: false,
   pollIntervalMs: 1000,
+  /** Periodic reconciliation every 15 minutes (D111); 0 disables it. */
+  reconcileIntervalMs: 900_000,
   respectGitignore: true,
 };
 

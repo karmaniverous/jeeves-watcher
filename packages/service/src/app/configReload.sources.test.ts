@@ -47,7 +47,14 @@ describe('reloadConfig: source documents', () => {
     } as unknown as WatcherProcessor;
 
     await reloadConfig(
-      { config, watcher: { start: vi.fn(), stop: vi.fn() } as never },
+      {
+        config,
+        watcher: {
+          start: vi.fn(),
+          stop: vi.fn(),
+          refreshReconcileSchedule: vi.fn(),
+        } as never,
+      },
       {
         configPath: '/path/to/config.json',
         factories,
@@ -55,7 +62,7 @@ describe('reloadConfig: source documents', () => {
         processor,
         logger: pino({ level: 'silent' }),
         runtimeOptions: {},
-        initialScanTracker: {} as never,
+        wiring: { initialScanTracker: {} as never },
       },
     );
 

@@ -257,7 +257,7 @@ The watcher provides a REST API (default port: 1936):
 | `/rebuild-metadata` | POST | Rebuild the enrichment store from Qdrant payloads (file points only; system fields are not copied) |
 | `/config` | GET | Merged config document (public keys only: never `api`, `sources`, `embedding` or `vectorStore`) with rule values, helpers and issues; optional `?path=<jsonpath>` filter. Rules include `source` attribution. |
 | `/config/schema` | GET | JSON Schema of merged virtual document (v0.5.0+) |
-| `/walk` | POST | Filesystem walk with glob intersection (`{ globs: string[] }`). Returns `{ paths, matchedCount, scannedRoots }`. |
+| `/walk` | POST | Watched files matching globs (`{ globs: string[] }`), from the watcher's inventory: only files that pass its filters, sorted by path. Returns `{ paths, matchedCount, scannedRoots }`. |
 | `/config/match` | POST | Test paths against inference rules (`{ paths: string[] }`) (v0.5.0+) |
 | `/issues` | GET | Current embedding failures and processing errors, including documents over a `processing` ceiling (`too_large`) |
 | `/rules/register` | POST | Register virtual inference rules from an external source |

@@ -314,7 +314,7 @@ jeeves-watcher issues [-p <port>] [-H <host>]
 
 ### `jeeves-watcher walk`
 
-List the watched files matching one or more globs (`POST /walk`). Prints `{ paths, matchedCount, scannedRoots }`.
+List the watched files matching one or more globs (`POST /walk`): the watcher's inventory, so only files that pass its filters, sorted by path. Prints `{ paths, matchedCount, scannedRoots }`.
 
 ```bash
 jeeves-watcher walk <globs...> [-p <port>] [-H <host>]

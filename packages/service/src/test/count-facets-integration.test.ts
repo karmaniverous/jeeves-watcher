@@ -15,6 +15,7 @@ import { makeConfig } from './facetsDeps';
 import {
   assertTestVectorStore,
   dropCollection,
+  ensureSettledCollection,
   qdrantAvailable,
   qdrantUrl,
   uniqueCollectionName,
@@ -44,8 +45,7 @@ describe.skipIf(!qdrantAvailable())(
       };
       assertTestVectorStore(config);
       const store = new VectorStoreClient(config, 4);
-      await store.ensureCollection();
-      await store.whenSystemIndexesSettled();
+      await ensureSettledCollection(store);
       const file = (
         path: string,
         rules: string[],

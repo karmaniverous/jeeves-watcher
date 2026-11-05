@@ -63,6 +63,43 @@ vi.mock('../api/executeReindex', () => ({
 }));
 
 describe('reloadConfig', () => {
+  it.each([
+    ['usePolling', true],
+    ['pollIntervalMs', 250],
+    ['stabilityThresholdMs', 0],
+  ] as const)(
+    'rebuilds the watcher when %s changes (D100)',
+    async (key, value) => {
+      const oldConfig = makeConfig();
+      const newConfig = makeConfig({ [key]: value });
+      const oldStop = vi.fn().mockResolvedValue(undefined);
+      const newWatcher = { start: vi.fn(), stop: vi.fn() };
+      const createFileSystemWatcher = vi.fn().mockReturnValue(newWatcher);
+      const { logger, processor, factories } = makeDeps(newConfig, {
+        createFileSystemWatcher,
+      });
+      const state = {
+        config: oldConfig,
+        watcher: { start: vi.fn(), stop: oldStop } as never,
+        gitignoreFilter: undefined,
+      };
+
+      await reloadConfig(state, {
+        configPath: '/path/to/config.json',
+        factories,
+        queue: {} as never,
+        processor,
+        logger,
+        runtimeOptions: {},
+        wiring: { initialScanTracker: {} as never },
+      });
+
+      expect(oldStop).toHaveBeenCalledOnce();
+      expect(createFileSystemWatcher).toHaveBeenCalledOnce();
+      expect(state.watcher).toBe(newWatcher);
+    },
+  );
+
   it('rebuilds watcher when watch paths change', async () => {
     const oldConfig = makeConfig({ paths: ['**/*.md'] });
     const newConfig = makeConfig({ paths: ['**/*.ts'] });
@@ -88,7 +125,7 @@ describe('reloadConfig', () => {
       processor,
       logger,
       runtimeOptions: {},
-      initialScanTracker: {} as never,
+      wiring: { initialScanTracker: {} as never },
     });
 
     expect(oldStop).toHaveBeenCalledOnce();
@@ -112,6 +149,7 @@ describe('reloadConfig', () => {
 
     const onVcsFileChange = vi.fn();
     const onInitialScanComplete = vi.fn();
+    const getReconcileIntervalMs = vi.fn(() => 1000);
 
     const state = {
       config: oldConfig,
@@ -126,9 +164,12 @@ describe('reloadConfig', () => {
       processor,
       logger,
       runtimeOptions: {},
-      initialScanTracker: {} as never,
-      onVcsFileChange,
-      onInitialScanComplete,
+      wiring: {
+        initialScanTracker: {} as never,
+        onVcsFileChange,
+        onInitialScanComplete,
+        getReconcileIntervalMs,
+      },
     });
 
     // Verify the factory received the callbacks in the options object (5th arg)
@@ -139,6 +180,7 @@ describe('reloadConfig', () => {
     >;
     expect(options.onVcsFileChange).toBe(onVcsFileChange);
     expect(options.onInitialScanComplete).toBe(onInitialScanComplete);
+    expect(options.getReconcileIntervalMs).toBe(getReconcileIntervalMs);
   });
 
   it('does not rebuild watcher when watch config is unchanged', async () => {
@@ -152,7 +194,13 @@ describe('reloadConfig', () => {
       createFileSystemWatcher: createWatcher,
     });
 
-    const oldWatcher = { start: vi.fn(), stop: oldStop } as never;
+    const order: string[] = [];
+    const refreshReconcileSchedule = vi.fn(() => order.push('refresh'));
+    const oldWatcher = {
+      start: vi.fn(),
+      stop: oldStop,
+      refreshReconcileSchedule,
+    } as never;
     const state = {
       config,
       watcher: oldWatcher,
@@ -166,11 +214,18 @@ describe('reloadConfig', () => {
       processor,
       logger,
       runtimeOptions: {},
-      initialScanTracker: {} as never,
+      wiring: { initialScanTracker: {} as never },
+      onConfigLoaded: (loaded) => {
+        order.push(loaded === newConfig ? 'published' : 'stale');
+      },
     });
 
+    // The app sees the new config before the schedule reads its interval.
+    expect(order).toEqual(['published', 'refresh']);
     expect(oldStop).not.toHaveBeenCalled();
     expect(createWatcher).not.toHaveBeenCalled();
+    // A changed reconcileIntervalMs takes effect without a rebuild (D111).
+    expect(refreshReconcileSchedule).toHaveBeenCalledOnce();
     expect(state.watcher).toBe(oldWatcher);
     expect(state.config).toBe(newConfig);
   });
@@ -203,7 +258,7 @@ describe('reloadConfig', () => {
         processor,
         logger: logger as unknown as pino.Logger,
         runtimeOptions: {},
-        initialScanTracker: {} as never,
+        wiring: { initialScanTracker: {} as never },
       },
     );
 
