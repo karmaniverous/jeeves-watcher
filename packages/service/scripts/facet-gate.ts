@@ -1,6 +1,6 @@
 /**
  * @module scripts/facet-gate
- * The facet latency gate (spec D104, D144, D155, D160): a payload-only, production-sized copy of a source collection on a throwaway Qdrant, the configured and system payload indexes built through the real `VectorStoreClient`, and three workloads timed through the real `POST /search/facets/counts` route over HTTP. Exits 1 when any p95 is over its ceiling or any request fails. The source is only read (GET and scroll).
+ * The facet latency gate (spec D104, D144, D155, D160, D194): a payload-only, production-sized copy of a source collection on a throwaway Qdrant, the configured and system payload indexes built through the real `VectorStoreClient`, the accuracy of approximate counts against exact counts for every workload field (same count filter, up to 1000 values), and three workloads timed through the real `POST /search/facets/counts` route over HTTP. Exits 1 when any p95 is over its ceiling, any request fails, or approximate counts miss a top-10 value or are off by more than 5% on one. The source is only read (GET and scroll).
  *
  * Usage: `npm run facet:gate -w packages/service -- --source-collection <name> [--source-url http://127.0.0.1:6333] [--floor 864000] [--tenant-field silo] [--warmup 5] [--runs 60] [--out result.json]`
  */
@@ -8,15 +8,25 @@
 import { writeFileSync } from 'node:fs';
 import { performance } from 'node:perf_hooks';
 
-import { SYSTEM_PAYLOAD_INDEX_FIELDS } from '@karmaniverous/jeeves-watcher-core';
+import {
+  COUNT_FACETS_MAX_LIMIT,
+  SYSTEM_PAYLOAD_INDEX_FIELDS,
+} from '@karmaniverous/jeeves-watcher-core';
 import Fastify from 'fastify';
 import pino from 'pino';
 
 import { createCatalogCountFacetsHandler } from '../src/api/catalog/countFacetsHandler';
+import { countFilter } from '../src/api/catalog/countFacetsPlan';
 import type { JeevesWatcherConfig } from '../src/config/types';
 import { registerCatalogEntries } from '../src/test/catalogRoutes';
 import { provisionEphemeralQdrant } from '../src/test/qdrant/ephemeralQdrant';
 import { VectorStoreClient } from '../src/vectorStore';
+import {
+  compareCounts,
+  type CountHit,
+  type FieldAccuracy,
+  withinBound,
+} from './facetGate/accuracy';
 import { copyPayloads, sourcePointCount } from './facetGate/copy';
 import {
   gateWorkloads,
@@ -40,6 +50,28 @@ async function waitGreen(url: string): Promise<void> {
     if (result.status === 'green') return;
     await new Promise((resolve) => setTimeout(resolve, 2_000));
   }
+}
+
+/** Qdrant facet counts over the REST API, exact or approximate. */
+async function rawFacet(
+  url: string,
+  field: string,
+  filter: Record<string, unknown>,
+  exact: boolean,
+): Promise<CountHit[]> {
+  const res = await fetch(`${url}/collections/${COLLECTION}/facet`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      key: field,
+      filter,
+      limit: COUNT_FACETS_MAX_LIMIT,
+      exact,
+    }),
+  });
+  if (!res.ok) throw new Error(`facet ${field}: ${String(res.status)}`);
+  const { result } = (await res.json()) as { result: { hits: CountHit[] } };
+  return result.hits;
 }
 
 const options = parseGateArgs(process.argv.slice(2));
@@ -118,14 +150,36 @@ try {
     }),
   });
   const base = await app.listen({ host: '127.0.0.1', port: 0 });
+  const workloads = gateWorkloads(fields, options.tenantField, tenant, rules);
+
+  // Accuracy (D194): approximate against exact counts over each workload's
+  // count filter, before timing.
+  const accuracy: Array<{ workload: string; fields: FieldAccuracy[] }> = [];
+  for (const workload of workloads) {
+    const body = workload.body as {
+      fields: string[];
+      filter?: Record<string, unknown>;
+      rules?: string[];
+    };
+    const filter = countFilter(body.filter, body.rules);
+    const perField: FieldAccuracy[] = [];
+    for (const field of body.fields) {
+      const exact = await rawFacet(qdrant.url, field, filter, true);
+      const approx = await rawFacet(qdrant.url, field, filter, false);
+      perField.push(compareCounts(field, exact, approx));
+    }
+    accuracy.push({ workload: workload.name, fields: perField });
+    const worst = Math.max(...perField.map((f) => f.topMaxRelError));
+    const missing = perField.reduce((n, f) => n + f.topMissing.length, 0);
+    log(
+      `${workload.name} accuracy: worst top-10 relative error ${(worst * 100).toFixed(2)}%, top-10 values missing ${String(missing)}`,
+    );
+  }
+  const accurate = accuracy.every((a) => withinBound(a.fields));
+  Object.assign(report, { accuracy, accurate });
 
   const results = [];
-  for (const workload of gateWorkloads(
-    fields,
-    options.tenantField,
-    tenant,
-    rules,
-  )) {
+  for (const workload of workloads) {
     const samples: number[] = [];
     const errors: string[] = [];
     for (let i = 0; i < options.warmup + options.runs; i++) {
@@ -148,7 +202,7 @@ try {
       `${workload.name}: p50 ${String(summary.p50)} p95 ${String(summary.p95)} max ${String(summary.max)} ms (ceiling ${String(workload.p95Max)}) errors ${String(errors.length)} ${pass ? 'PASS' : 'FAIL'}${errors[0] ? ` first error: ${errors[0]}` : ''}`,
     );
   }
-  const passed = results.every((r) => r.pass);
+  const passed = accurate && results.every((r) => r.pass);
   process.exitCode = passed ? 0 : 1;
   Object.assign(report, {
     results,
