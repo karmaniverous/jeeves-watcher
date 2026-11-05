@@ -93,6 +93,7 @@ describe('walk concurrency (D170)', () => {
       walk('/c', options),
     ]);
     expect(results.map((r) => r.size)).toEqual([250, 250, 250]);
-    expect(state.peak).toBe(WALK_CONCURRENCY);
+    expect(WALK_CONCURRENCY).toBe(8);
+    expect(state.peak).toBe(8);
   });
 });

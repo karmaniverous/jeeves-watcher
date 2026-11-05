@@ -56,6 +56,15 @@ describe('DirectoryIndex', () => {
     expect(index.has('/r')).toBe(false);
   });
 
+  it('keeps a directory that still has a child directory', () => {
+    const index = new DirectoryIndex();
+    index.addFile('/r/a/x/1');
+    index.addFile('/r/a/y/2');
+    index.removeFile('/r/a/x/1');
+    expect(index.has('/r/a')).toBe(true);
+    expect([...index.filesUnder('/r')]).toEqual(['/r/a/y/2']);
+  });
+
   it('ignores removing a file it never held', () => {
     const index = new DirectoryIndex();
     index.addFile('/r/a/1');

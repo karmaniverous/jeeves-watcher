@@ -79,6 +79,23 @@ describe('FileSystemWatcher reconciliation', () => {
     expect(health.snapshot().reconcileEvents).toBe(1);
   });
 
+  it('reports a waiting synthetic path in pendingStability (D128)', async () => {
+    const health = new ChangeSourceHealthTracker();
+    harness = await startWatcherHarness({
+      files: { 'a.md': 'a' },
+      watch: (root) => ({
+        paths: [`${root.replace(/\\/g, '/')}/**`],
+        stabilityThresholdMs: 5000,
+      }),
+      options: () => ({ changeSourceHealth: health }),
+    });
+    const h = harness;
+    h.watcher.inventory!.delete(join(h.root, 'a.md'));
+    h.watcher.rootAvailable(h.root);
+    await waitFor(() => health.snapshot().pendingStability === 1);
+    expect(health.snapshot().reconcileEvents).toBe(0);
+  });
+
   it('unlinks a file whose unlink was missed, confirmed by lstat', async () => {
     const { h, health } = await start({ 'a.md': 'a' });
     h.watcher.inventory!.set(join(h.root, 'ghost.md'));
