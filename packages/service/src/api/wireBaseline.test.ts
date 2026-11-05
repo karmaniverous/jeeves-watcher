@@ -97,6 +97,9 @@ describe('catalog routes keep the 0.20.0 wire format', () => {
       });
       expect(record).toEqual(departure?.retire?.(expected) ?? expected);
     },
+    // The prune dry run lists the package's files from the watch globs;
+    // under full-suite load on Windows that can pass the 5 s default.
+    15_000,
   );
 });
 
