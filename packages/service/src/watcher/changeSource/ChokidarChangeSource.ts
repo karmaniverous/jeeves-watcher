@@ -44,7 +44,7 @@ export class ChokidarChangeSource implements ChangeSource {
   ): Promise<void> {
     const { usePolling, pollIntervalMs, stabilityThresholdMs } = this.options;
     const watcher = chokidar.watch(roots, {
-      ignored: ignore.length ? ignore : undefined,
+      ignored: ignore,
       usePolling,
       interval: pollIntervalMs,
       awaitWriteFinish: stabilityThresholdMs

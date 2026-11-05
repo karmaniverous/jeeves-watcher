@@ -24,6 +24,8 @@ export interface WatcherHarness {
   root: string;
   /** Every enqueued event, in order. */
   events: WatchEvent[];
+  /** The job of each enqueued event (never run by the queue), in order. */
+  jobs: (() => Promise<void>)[];
   /** Enqueued events as `type:relative/path` strings. */
   seen: () => string[];
   /** VCS hook calls as `event:relative/path`. */
@@ -46,6 +48,8 @@ export interface WatcherHarnessOptions {
   watch?: (root: string) => Partial<WatchConfig>;
   /** Extra watcher options. */
   options?: (root: string) => FileSystemWatcherOptions;
+  /** Processor the queued jobs call (default: an empty stub). */
+  processor?: DocumentProcessorInterface;
   /** Wait for the initial scan to finish (default true). */
   awaitReady?: boolean;
 }
@@ -67,11 +71,15 @@ export async function waitFor(
   }
 }
 
-/** A queue that records what is enqueued and never processes it. */
-function recordingQueue(events: WatchEvent[]): EventQueue {
+/** A queue that records what is enqueued and never runs it. */
+function recordingQueue(
+  events: WatchEvent[],
+  jobs: (() => Promise<void>)[],
+): EventQueue {
   return {
-    enqueue: (event: WatchEvent) => {
+    enqueue: (event: WatchEvent, job: () => Promise<void>) => {
       events.push(event);
+      jobs.push(job);
     },
     start: () => undefined,
   } as unknown as EventQueue;
@@ -100,6 +108,7 @@ export async function startWatcherHarness(
   }
   await options.before?.(root);
   const events: WatchEvent[] = [];
+  const jobs: (() => Promise<void>)[] = [];
   const vcs: string[] = [];
   const rel = (path: string) =>
     normalizeSlashes(path).slice(normalizeSlashes(root).length + 1);
@@ -111,8 +120,8 @@ export async function startWatcherHarness(
       stabilityThresholdMs: 50,
       ...options.watch?.(root),
     },
-    recordingQueue(events),
-    {} as DocumentProcessorInterface,
+    recordingQueue(events, jobs),
+    options.processor ?? ({} as DocumentProcessorInterface),
     pino({ level: 'silent' }),
     {
       initialScanTracker: tracker,
@@ -126,6 +135,7 @@ export async function startWatcherHarness(
     watcher,
     root,
     events,
+    jobs,
     seen: () => events.map((e) => `${e.type}:${rel(e.path)}`),
     vcs,
     tracker,

@@ -120,6 +120,20 @@ describe('Reconciler', () => {
     expect(s.entered).toEqual([]);
   });
 
+  it('does not unlink an entry a real event removed during the check', async () => {
+    const ghost = join(root, 'ghost.md');
+    const s = setup({
+      isGone: (p) => {
+        if (p === ghost) s.inventory.delete(ghost);
+        return isGone(p);
+      },
+    });
+    s.fill();
+    s.inventory.set(ghost);
+    await s.reconciler.reconcile(root);
+    expect(s.unlinked).toEqual([]);
+  });
+
   it('compares size and mtime only when the inventory tracks stats', async () => {
     const tracked = setup({ compareStats: true });
     tracked.inventory.set(join(root, 'one.md'), { size: 99, mtimeMs: 1 });

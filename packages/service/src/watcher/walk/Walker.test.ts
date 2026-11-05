@@ -3,6 +3,7 @@
  * The glob-aware walk on a temp directory: pruning, include-before-stat, stats, vanished entries, and a top-level failure.
  */
 
+import type { Dirent, Stats } from 'node:fs';
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -87,6 +88,29 @@ describe('walk', () => {
     };
     const found = await walk(root, { prune: () => false, include: isMd, fs });
     expect([...found.values()].map((f) => rel(f.path))).toEqual(['skip/d.md']);
+  });
+
+  it('skips special entries and a symlink that is not a file', async () => {
+    const dirent = (name: string, kind: 'link' | 'socket') =>
+      ({
+        name,
+        isDirectory: () => false,
+        isFile: () => false,
+        isSymbolicLink: () => kind === 'link',
+      }) as Dirent;
+    const stat = vi.fn(() => Promise.resolve({ isFile: () => false } as Stats));
+    const fs: WalkFs = {
+      readdir: () =>
+        Promise.resolve([dirent('dir-link', 'link'), dirent('sock', 'socket')]),
+      stat,
+    };
+    const found = await walk('/x', {
+      prune: () => false,
+      include: () => true,
+      fs,
+    });
+    expect(found.size).toBe(0);
+    expect(stat).toHaveBeenCalledOnce();
   });
 
   it('does not follow a symlinked directory', async () => {

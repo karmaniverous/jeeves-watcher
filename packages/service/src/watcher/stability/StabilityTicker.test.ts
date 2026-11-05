@@ -141,6 +141,45 @@ describe('StabilityTicker', () => {
     expect(ticker.size).toBe(0);
   });
 
+  it('drops the pending paths under a directory (root unavailable)', () => {
+    const fs = fakeFs();
+    const ticker = new StabilityTicker({
+      thresholdMs: 100,
+      stat: fs.stat,
+      onSettled: () => undefined,
+    });
+    for (const key of ['/r/a', '/r/sub/b', '/rx/c', '/other/d']) {
+      ticker.enter(key, key, true);
+    }
+    ticker.dropUnder('/R');
+    expect(ticker.size).toBe(2);
+    ticker.stop();
+  });
+
+  it('skips a tick while the previous one is still statting', async () => {
+    const statted: string[] = [];
+    const latch: { open?: () => void } = {};
+    const ticker = new StabilityTicker({
+      thresholdMs: 100,
+      stat: (path) => {
+        statted.push(path);
+        return new Promise((resolve) => {
+          latch.open = () => {
+            resolve({ size: 1, mtimeMs: 1 });
+          };
+        });
+      },
+      onSettled: () => undefined,
+    });
+    ticker.enter('a', 'a', true);
+    await vi.advanceTimersByTimeAsync(100);
+    expect(statted).toEqual(['a']);
+    latch.open?.();
+    await vi.advanceTimersByTimeAsync(0);
+    ticker.stop();
+    expect(statted).toEqual(['a']);
+  });
+
   it('forgets everything on stop and ignores later entries', async () => {
     const fs = fakeFs();
     const settled: string[] = [];

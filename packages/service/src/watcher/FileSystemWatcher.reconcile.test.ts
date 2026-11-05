@@ -119,6 +119,17 @@ describe('FileSystemWatcher reconciliation', () => {
     expect(h.seen()).toEqual(['create:a.md', 'create:a.md']);
   });
 
+  it('never reconciles for a directory under the root .git or a root it does not watch', async () => {
+    const { h, health } = await start({ 'a.md': 'a' });
+    h.watcher.event('addDir', join(h.root, '.git', 'objects'));
+    h.watcher.resubscribed(join(h.root, '..', 'not-a-root'));
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    expect(health.snapshot()).toMatchObject({
+      lastReconcileAt: null,
+      resubscribes: 1,
+    });
+  });
+
   it('logs and drops a raw parcel batch (no parcel source in this build)', async () => {
     const { h } = await start();
     h.watcher.rawEvents(h.root, [

@@ -93,6 +93,29 @@ describe('PeriodicReconcile', () => {
     expect(onRebuilt).toHaveBeenCalledOnce();
   });
 
+  it('does not reschedule a run that ends after stop', async () => {
+    const latch: { open?: () => void } = {};
+    let runs = 0;
+    const periodic = new PeriodicReconcile({
+      roots: ['a'],
+      intervalMs: () => 100,
+      run: () => {
+        runs++;
+        return new Promise<void>((resolve) => {
+          latch.open = resolve;
+        });
+      },
+    });
+    periodic.arm('a');
+    await vi.advanceTimersByTimeAsync(100);
+    expect(runs).toBe(1);
+    periodic.stop();
+    latch.open?.();
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(runs).toBe(1);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
   it('runs nothing after stop, nor for a later arm', async () => {
     const { periodic, runs } = setup(['a'], { ms: 100 });
     periodic.arm('a');

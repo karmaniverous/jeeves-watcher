@@ -98,6 +98,62 @@ describe('FileSystemWatcher (chokidar source, real filesystem)', () => {
     });
   });
 
+  it('drops change and unlink events the filters reject', async () => {
+    harness = await startWatcherHarness({
+      files: { '.gitignore': 'hidden.md\n' },
+      watch: (root) => ({ paths: [`${normalizeSlashes(root)}/**/*.md`] }),
+      options: (root) => ({ gitignoreFilter: new GitignoreFilter([root]) }),
+    });
+    const at = (p: string) => join(harness!.root, p);
+    harness.watcher.event('change', at('x.txt'));
+    harness.watcher.event('change', at('hidden.md'));
+    harness.watcher.event('unlink', at('x.txt'));
+    harness.watcher.event('unlink', at('hidden.md'));
+    harness.watcher.event('unlinkDir', at('gone'));
+    expect(harness.seen()).toEqual([]);
+  });
+
+  it('emits at once with a stability threshold of 0', async () => {
+    harness = await startWatcherHarness({
+      watch: () => ({ stabilityThresholdMs: 0 }),
+    });
+    await harness.write('z.md');
+    await waitFor(() => harness!.seen().includes('create:z.md'));
+    expect(harness.seen()).toEqual(['create:z.md']);
+  });
+
+  it('tracks processing health: success, failure, and stop at the retry limit', async () => {
+    const onFatalError = vi.fn();
+    const processFile = vi
+      .fn()
+      .mockResolvedValueOnce(undefined)
+      .mockRejectedValue(new Error('boom'));
+    harness = await startWatcherHarness({
+      files: { 'a.md': 'a' },
+      processor: { processFile } as never,
+      options: () => ({ maxRetries: 1, maxBackoffMs: 1, onFatalError }),
+    });
+    const [job] = harness.jobs;
+    await job();
+    expect(processFile).toHaveBeenCalledOnce();
+    await job();
+    expect(onFatalError).toHaveBeenCalledOnce();
+    expect(harness.watcher.getWatchedFiles()).toEqual([]);
+  });
+
+  it('records a change-source error as a system failure', async () => {
+    harness = await startWatcherHarness();
+    const source = (
+      harness.watcher as unknown as {
+        running: {
+          source: { watcher: { emit: (e: string, x: unknown) => void } };
+        };
+      }
+    ).running.source;
+    source.watcher.emit('error', new Error('EPERM'));
+    expect(harness.watcher.systemHealth.currentBackoffMs).toBeGreaterThan(0);
+  });
+
   it('stops watching on stop', async () => {
     harness = await startWatcherHarness({ files: { 'a.md': 'a' } });
     expect(harness.watcher.getWatchedFiles().length).toBeGreaterThan(0);
