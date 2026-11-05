@@ -158,7 +158,7 @@ describe('FileSystemWatcher (parcel) recovery, real filesystem', () => {
   );
 
   it.runIf(linux)(
-    'a deleted root is unavailable, nothing is unlinked, and it is reconciled when back (D109)',
+    'a deleted root is unavailable, nothing is unlinked while it is gone, and reconciliation unlinks only what really went when it is back (D109)',
     async () => {
       const changeSourceHealth = new ChangeSourceHealthTracker();
       harness = await startWatcherHarness({
@@ -172,14 +172,21 @@ describe('FileSystemWatcher (parcel) recovery, real filesystem', () => {
         () => changeSourceHealth.snapshot().unavailableRoots === 1,
         10_000,
       );
+      // Gone: nothing is unlinked (the D90 guard), even after a while.
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      expect(of(h, 'delete')).toEqual([]);
+      // Back with a.md, without sub/b.md, plus c.md: reconciliation unlinks
+      // only the file that really went.
       await mkdir(join(h.root, 'sub'), { recursive: true });
+      await writeFile(join(h.root, 'a.md'), 'a');
       await writeFile(join(h.root, 'c.md'), 'c');
       await waitFor(
         () => changeSourceHealth.snapshot().unavailableRoots === 0,
         15_000,
       );
       await waitFor(() => of(h, 'create').includes('c.md'), 10_000);
-      expect(of(h, 'delete')).toEqual([]);
+      await waitFor(() => of(h, 'delete').length > 0, 10_000);
+      expect(of(h, 'delete')).toEqual(['sub/b.md']);
     },
     40_000,
   );
