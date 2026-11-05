@@ -29,4 +29,20 @@ export class WatchRoots {
     }
     return undefined;
   }
+
+  /**
+   * Whether `path` is a root's own `.git` directory or lies beneath it
+   * (D152): the watcher's VCS commits there must never become events.
+   *
+   * @param path - Any path.
+   * @returns True under `<root>/.git`.
+   */
+  isRootGit(path: string): boolean {
+    const key = normalizeDocumentKey(path);
+    for (const rootKey of this.keys.keys()) {
+      const git = `${rootKey}/.git`;
+      if (key === git || key.startsWith(`${git}/`)) return true;
+    }
+    return false;
+  }
 }

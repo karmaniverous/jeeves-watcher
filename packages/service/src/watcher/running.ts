@@ -52,7 +52,7 @@ export interface Running {
   source: ChokidarChangeSource;
   roots: WatchRoots;
   filter: WatchFilter;
-  /** `watch.ignored` matchers. */
+  /** `watch.ignored` matchers plus each root's `.git` (D152). */
   ignore: ((path: string) => boolean)[];
   inventory: Inventory;
   events: FilteredEvents;
@@ -93,7 +93,13 @@ export function createRunning(context: RunningContext): Running {
     extractWatchPathStrings(config.paths),
   );
   logger.info({ roots }, 'Resolved watch roots from globs');
-  const filter = new WatchFilter(matches, logger, options.gitignoreFilter);
+  const watchRoots = new WatchRoots(roots);
+  const filter = new WatchFilter(
+    matches,
+    watchRoots,
+    logger,
+    options.gitignoreFilter,
+  );
   const source = new ChokidarChangeSource({
     usePolling: config.usePolling,
     pollIntervalMs: config.pollIntervalMs,
@@ -115,10 +121,14 @@ export function createRunning(context: RunningContext): Running {
   const scanStats = new ScanStats(roots);
   return {
     source,
-    roots: new WatchRoots(roots),
+    roots: watchRoots,
     filter,
     // chokidar v5 matches string `ignored` entries by equality: matchers.
-    ignore: ignoreMatchers(config.ignored),
+    // Each root's `.git` joins them whatever the config says (D152).
+    ignore: [
+      ...ignoreMatchers(config.ignored),
+      (path) => watchRoots.isRootGit(path),
+    ],
     inventory,
     actions,
     scanStats,

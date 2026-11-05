@@ -40,6 +40,8 @@ export interface WatcherHarness {
 export interface WatcherHarnessOptions {
   /** Files to create before the watcher starts (content by relative path). */
   files?: Record<string, string>;
+  /** Runs on the root after `files` are written, before the watcher starts. */
+  before?: (root: string) => void | Promise<void>;
   /** Watch config overrides; `paths` defaults to `<root>/**`. */
   watch?: (root: string) => Partial<WatchConfig>;
   /** Extra watcher options. */
@@ -96,6 +98,7 @@ export async function startWatcherHarness(
   for (const [relative, content] of Object.entries(options.files ?? {})) {
     await write(relative, content);
   }
+  await options.before?.(root);
   const events: WatchEvent[] = [];
   const vcs: string[] = [];
   const rel = (path: string) =>

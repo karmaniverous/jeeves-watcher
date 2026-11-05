@@ -36,6 +36,7 @@ export class FilteredEvents {
   /** A file appeared (`stats` stored only when the inventory tracks them). */
   add(path: string, stats?: FileStats): void {
     const { filter, scanStats, initialScanTracker } = this.deps;
+    if (filter.isRootGit(path)) return;
     const scanning = this.deps.scanning();
     if (scanning) {
       scanStats.total++;
@@ -63,6 +64,7 @@ export class FilteredEvents {
   /** A file changed. */
   change(path: string, stats?: FileStats): void {
     const { filter } = this.deps;
+    if (filter.isRootGit(path)) return;
     this.noteGitignore(path);
     if (!filter.globMatches(path)) {
       this.deps.logger.debug({ path }, 'File rejected by glob filter');
@@ -76,6 +78,7 @@ export class FilteredEvents {
   /** A file went away. */
   unlink(path: string): void {
     const { filter } = this.deps;
+    if (filter.isRootGit(path)) return;
     this.noteGitignore(path);
     // Gone from disk, so gone from the inventory whatever the filters say.
     this.deps.inventory.delete(path);

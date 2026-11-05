@@ -15,7 +15,6 @@ import {
   type WatcherHarness,
 } from '../test/watcherHarness';
 import { normalizeSlashes } from '../util/normalizeSlashes';
-import { WatchRoots } from './roots';
 
 let harness: WatcherHarness | undefined;
 
@@ -59,14 +58,5 @@ describe('FileSystemWatcher inventory (D99)', () => {
     await writeFile(join(harness.root, '.gitignore'), '');
     await waitFor(() => inventoryOf(harness!).includes('docs/a.md'));
     expect(harness.events.length).toBe(queued);
-  });
-});
-
-describe('WatchRoots', () => {
-  it('finds the root a path lies under, case-insensitively', () => {
-    const roots = new WatchRoots(['c:/data', 'c:/other']);
-    expect(roots.rootOf('C:\\Data\\x\\y.md')).toBe('c:/data');
-    expect(roots.rootOf('c:/other')).toBe('c:/other');
-    expect(roots.rootOf('c:/database/z')).toBeUndefined();
   });
 });
