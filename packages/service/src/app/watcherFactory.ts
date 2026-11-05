@@ -110,7 +110,7 @@ export async function rebuildWatcher(
         onVcsFileChange,
         onInitialScanComplete,
       );
-    newWatcher.start();
+    await newWatcher.start();
     logger.info('Filesystem watcher rebuilt successfully');
     return { watcher: newWatcher, gitignoreFilter: newGitignoreFilter };
   } catch (error) {
@@ -120,7 +120,7 @@ export async function rebuildWatcher(
     );
 
     try {
-      oldState.watcher.start();
+      await oldState.watcher.start();
     } catch (restartError) {
       logger.error(
         { err: normalizeError(restartError) },

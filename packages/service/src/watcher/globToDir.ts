@@ -122,15 +122,34 @@ export function resolveWatchPaths(globs: string[]): {
 export function resolveIgnored(
   ignored: (string | RegExp | ((path: string) => boolean))[],
 ): (string | RegExp | ((path: string) => boolean))[] {
-  return ignored.map((entry) => {
-    if (typeof entry !== 'string') return entry;
-    // If the string contains glob characters, convert to a picomatch function.
-    // Literal strings (exact paths) are also converted for consistent matching.
-    const normalizedPattern = normalizeSlashes(entry);
-    const matcher = picomatch(normalizedPattern, { dot: true, nocase: true });
-    return (filePath: string) => {
-      const normalized = normalizeSlashes(filePath);
-      return matcher(normalized);
-    };
+  return ignored.map((entry) =>
+    typeof entry === 'string' ? ignoreMatcher(entry) : entry,
+  );
+}
+
+/**
+ * Convert one `watch.ignored` pattern (a glob or a literal path) to a
+ * case-insensitive picomatch matcher over slash-normalized paths.
+ *
+ * @param pattern - The pattern.
+ * @returns The matcher.
+ */
+function ignoreMatcher(pattern: string): (path: string) => boolean {
+  const matcher = picomatch(normalizeSlashes(pattern), {
+    dot: true,
+    nocase: true,
   });
+  return (filePath: string) => matcher(normalizeSlashes(filePath));
+}
+
+/**
+ * Convert config `watch.ignored` patterns (strings only) to matchers.
+ *
+ * @param patterns - The patterns.
+ * @returns One matcher per pattern.
+ */
+export function ignoreMatchers(
+  patterns: string[],
+): ((path: string) => boolean)[] {
+  return patterns.map(ignoreMatcher);
 }

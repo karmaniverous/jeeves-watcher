@@ -194,7 +194,7 @@ export class JeevesWatcher {
     );
 
     await vcsCoordinator.start();
-    this.watcher.start();
+    await this.watcher.start();
     this.sourceQueue?.start();
     this.configWatcher = startConfigWatch(
       this.config,

@@ -1,11 +1,9 @@
 /**
  * @module watcher
- * Filesystem watcher wrapping chokidar. I/O: watches files/directories for add/change/unlink events, enqueues to processing queue.
+ * Filesystem watcher: drives a change source (chokidar) through the `ChangeSink` seam, filters its events and enqueues them for processing. I/O: watches files, enqueues processor work.
  */
-import { join } from 'node:path';
 
 import { extractWatchPathStrings } from '@karmaniverous/jeeves-watcher-core';
-import chokidar, { type FSWatcher } from 'chokidar';
 import type pino from 'pino';
 
 import type { InitialScanTracker } from '../api/InitialScanTracker';
@@ -16,8 +14,19 @@ import { SystemHealth, type SystemHealthOptions } from '../health';
 import type { DocumentProcessorInterface } from '../processor';
 import type { EventQueue } from '../queue';
 import { normalizeError } from '../util/normalizeError';
-import { resolveIgnored, resolveWatchPaths } from './globToDir';
-import { MoveCorrelator } from './MoveCorrelator';
+import { ChokidarChangeSource } from './changeSource/ChokidarChangeSource';
+import type {
+  ChangeSink,
+  ClassifiedEventType,
+  RawChangeEvent,
+} from './changeSource/types';
+import {
+  createMoveCorrelator,
+  FileEventActions,
+  type VcsFileChange,
+} from './fileEvents';
+import { ignoreMatchers, resolveWatchPaths } from './globToDir';
+import { WatchFilter } from './pathFilter';
 import { ScanStats } from './ScanStats';
 
 /**
@@ -37,34 +46,28 @@ export interface FileSystemWatcherOptions {
   /** Optional content hash cache for move detection. */
   contentHashCache?: ContentHashCache;
   /** Optional callback for VCS file change notifications. */
-  onVcsFileChange?: (
-    filePath: string,
-    event: 'add' | 'change' | 'unlink',
-  ) => void;
+  onVcsFileChange?: VcsFileChange;
   /** Optional callback invoked when the initial filesystem scan completes. */
   onInitialScanComplete?: () => void | Promise<void>;
 }
 
 /**
- * Filesystem watcher that maps chokidar events to the processing queue.
+ * Filesystem watcher. A change source only reports events (D120); this
+ * class filters them and maps them to the processing queue.
  */
-export class FileSystemWatcher {
+export class FileSystemWatcher implements ChangeSink {
   private readonly config: WatchConfig;
   private readonly queue: EventQueue;
   private readonly processor: DocumentProcessorInterface;
   private readonly logger: pino.Logger;
   private readonly health: SystemHealth;
-  private readonly gitignoreFilter?: GitignoreFilter;
-  private readonly initialScanTracker?: InitialScanTracker;
-  private readonly contentHashCache?: ContentHashCache;
-  private readonly onVcsFileChange?: (
-    filePath: string,
-    event: 'add' | 'change' | 'unlink',
-  ) => void;
-  private readonly onInitialScanComplete?: () => void | Promise<void>;
-  private moveCorrelator?: MoveCorrelator;
-  private globMatches: (filePath: string) => boolean;
-  private watcher: FSWatcher | undefined;
+  private readonly options: FileSystemWatcherOptions;
+  private source: ChokidarChangeSource | undefined;
+  private filter: WatchFilter | undefined;
+  private actions: FileEventActions | undefined;
+  private scanStats = new ScanStats([]);
+  private pendingRoots = new Set<string>();
+  private initialScanComplete = false;
 
   /**
    * Create a new FileSystemWatcher.
@@ -86,13 +89,7 @@ export class FileSystemWatcher {
     this.queue = queue;
     this.processor = processor;
     this.logger = logger;
-
-    this.gitignoreFilter = options.gitignoreFilter;
-    this.initialScanTracker = options.initialScanTracker;
-    this.contentHashCache = options.contentHashCache;
-    this.onVcsFileChange = options.onVcsFileChange;
-    this.onInitialScanComplete = options.onInitialScanComplete;
-    this.globMatches = () => true;
+    this.options = options;
 
     const healthOptions: SystemHealthOptions = {
       maxRetries: options.maxRetries,
@@ -106,148 +103,54 @@ export class FileSystemWatcher {
   /**
    * Start watching the filesystem and processing events.
    */
-  start(): void {
-    // Chokidar v4+ removed glob support (paulmillr/chokidar#1350).
-    // Glob patterns are silently treated as literal strings, producing zero
-    // events. We extract static directory roots for chokidar to watch, then
-    // filter emitted events against the original globs via picomatch.
+  async start(): Promise<void> {
+    // Chokidar v4+ removed glob support (paulmillr/chokidar#1350): watch the
+    // globs' static roots and filter events against the globs.
     const { roots, matches } = resolveWatchPaths(
       extractWatchPathStrings(this.config.paths),
     );
-    this.globMatches = matches;
     this.logger.info({ roots }, 'Resolved watch roots from globs');
+    this.filter = new WatchFilter(
+      matches,
+      this.logger,
+      this.options.gitignoreFilter,
+    );
 
-    // Chokidar v5's inline anymatch does exact string equality for string
-    // matchers, breaking glob-based ignored patterns. Convert to picomatch
-    // functions that chokidar passes through as-is.
-    const ignored = this.config.ignored.length
-      ? resolveIgnored(this.config.ignored)
-      : undefined;
+    // Chokidar v5 matches string `ignored` entries by equality: pass
+    // picomatch functions instead.
+    const ignore = ignoreMatchers(this.config.ignored);
 
-    // Track initial scan statistics per root for diagnostics.
-    const scanStats = new ScanStats(roots);
-    let initialScanComplete = false;
-    this.initialScanTracker?.start();
+    this.scanStats = new ScanStats(roots);
+    this.pendingRoots = new Set(roots);
+    this.initialScanComplete = false;
+    this.options.initialScanTracker?.start();
 
-    // Create move correlator if move detection is configured and cache is available.
-    const moveConfig = this.config.moveDetection;
-    if (moveConfig?.enabled && this.contentHashCache) {
-      this.moveCorrelator = new MoveCorrelator({
-        enabled: true,
-        bufferMs: moveConfig.bufferMs,
-        contentHashCache: this.contentHashCache,
-        logger: this.logger,
-        onMove: (oldPath, newPath) => {
-          this.queue.enqueue(
-            { type: 'move', path: newPath, oldPath, priority: 'normal' },
-            () =>
-              this.wrapProcessing(() =>
-                this.processor.moveFile(oldPath, newPath),
-              ),
-          );
-        },
-        onDelete: (deletedPath) => {
-          this.queue.enqueue(
-            { type: 'delete', path: deletedPath, priority: 'normal' },
-            () =>
-              this.wrapProcessing(() => this.processor.deleteFile(deletedPath)),
-          );
-        },
-        onCreate: (createdPath) => {
-          this.queue.enqueue(
-            { type: 'create', path: createdPath, priority: 'normal' },
-            () =>
-              this.wrapProcessing(() =>
-                this.processor.processFile(createdPath),
-              ),
-          );
-        },
-      });
-    }
+    const wiring = {
+      queue: this.queue,
+      processor: this.processor,
+      logger: this.logger,
+      wrap: (fn: () => Promise<void>) => this.wrapProcessing(fn),
+    };
+    this.actions = new FileEventActions({
+      ...wiring,
+      onVcsFileChange: this.options.onVcsFileChange,
+      correlator: createMoveCorrelator(
+        this.config,
+        wiring,
+        this.options.contentHashCache,
+      ),
+    });
 
-    const correlator = this.moveCorrelator;
-
-    this.watcher = chokidar.watch(roots, {
-      ignored,
+    this.source = new ChokidarChangeSource({
       usePolling: this.config.usePolling,
-      interval: this.config.pollIntervalMs,
-      awaitWriteFinish: this.config.stabilityThresholdMs
-        ? { stabilityThreshold: this.config.stabilityThresholdMs }
-        : false,
-      ignoreInitial: false,
+      pollIntervalMs: this.config.pollIntervalMs,
+      stabilityThresholdMs: this.config.stabilityThresholdMs,
+      onError: (error) => {
+        this.logger.error({ err: normalizeError(error) }, 'Watcher error');
+        this.health.recordFailure(error);
+      },
     });
-
-    this.watcher.on('add', (path: string) => {
-      if (!initialScanComplete) {
-        scanStats.total++;
-        scanStats.classifyByRoot(path);
-      }
-      this.handleGitignoreChange(path);
-      if (!this.globMatches(path)) {
-        if (!initialScanComplete) scanStats.globRejected++;
-        else this.logger.debug({ path }, 'File rejected by glob filter');
-        return;
-      }
-      if (this.isGitignored(path)) {
-        if (!initialScanComplete) scanStats.gitignored++;
-        return;
-      }
-      if (!initialScanComplete) {
-        scanStats.matched++;
-        this.initialScanTracker?.setMatched(scanStats.matched);
-        this.initialScanTracker?.incrementEnqueued();
-      }
-      this.logger.debug({ path }, 'File added');
-      this.onVcsFileChange?.(path, 'add');
-      if (correlator && initialScanComplete) {
-        void correlator.handleAdd(path);
-      } else {
-        this.queue.enqueue({ type: 'create', path, priority: 'normal' }, () =>
-          this.wrapProcessing(() => this.processor.processFile(path)),
-        );
-      }
-    });
-
-    this.watcher.on('change', (path: string) => {
-      this.handleGitignoreChange(path);
-      if (!this.globMatches(path)) {
-        this.logger.debug({ path }, 'File rejected by glob filter');
-        return;
-      }
-      if (this.isGitignored(path)) return;
-      this.logger.debug({ path }, 'File changed');
-      this.onVcsFileChange?.(path, 'change');
-      this.queue.enqueue({ type: 'modify', path, priority: 'normal' }, () =>
-        this.wrapProcessing(() => this.processor.processFile(path)),
-      );
-    });
-
-    this.watcher.on('unlink', (path: string) => {
-      this.handleGitignoreChange(path);
-      if (!this.globMatches(path)) return;
-      if (this.isGitignored(path)) return;
-      this.logger.debug({ path }, 'File removed');
-      this.onVcsFileChange?.(path, 'unlink');
-      if (correlator) {
-        correlator.handleUnlink(path);
-      } else {
-        this.queue.enqueue({ type: 'delete', path, priority: 'normal' }, () =>
-          this.wrapProcessing(() => this.processor.deleteFile(path)),
-        );
-      }
-    });
-
-    this.watcher.on('ready', () => {
-      initialScanComplete = true;
-      this.initialScanTracker?.complete();
-      this.logger.info({ scanStats }, 'Initial scan complete');
-      void this.onInitialScanComplete?.();
-    });
-
-    this.watcher.on('error', (error: unknown) => {
-      this.logger.error({ err: normalizeError(error) }, 'Watcher error');
-      this.health.recordFailure(error);
-    });
+    await this.source.start(roots, ignore, this);
 
     this.queue.start();
     this.logger.info(
@@ -256,34 +159,108 @@ export class FileSystemWatcher {
     );
   }
 
+  /** {@inheritDoc ChangeSink.event} */
+  event(type: ClassifiedEventType, path: string): void {
+    if (type === 'add') this.onAdd(path);
+    else if (type === 'change') this.onChange(path);
+    else if (type === 'unlink') this.onUnlink(path);
+  }
+
   /**
-   * Get the list of all currently watched file paths (absolute).
-   *
-   * Uses chokidar's in-memory `getWatched()` state — no filesystem I/O.
-   * Returns an empty array if the watcher hasn't been started.
+   * Raw parcel batches arrive only from the parcel source (P13, D149), which
+   * this build does not include: a batch is logged and dropped.
+   */
+  rawEvents(root: string, events: RawChangeEvent[]): void {
+    this.logger.error(
+      { root, events: events.length },
+      'Raw change events need the parcel source; batch dropped',
+    );
+  }
+
+  /** {@inheritDoc ChangeSink.initialScanDone} */
+  initialScanDone(root: string): void {
+    this.pendingRoots.delete(root);
+    if (this.pendingRoots.size > 0 || this.initialScanComplete) return;
+    this.initialScanComplete = true;
+    this.options.initialScanTracker?.complete();
+    this.logger.info({ scanStats: this.scanStats }, 'Initial scan complete');
+    void this.options.onInitialScanComplete?.();
+  }
+
+  /** {@inheritDoc ChangeSink.resubscribed} */
+  resubscribed(root: string): void {
+    this.logger.info({ root }, 'Change source resubscribed');
+  }
+
+  /** {@inheritDoc ChangeSink.rootUnavailable} */
+  rootUnavailable(root: string, code: string): void {
+    this.logger.warn({ root, code }, 'Watch root unavailable');
+  }
+
+  /** {@inheritDoc ChangeSink.rootAvailable} */
+  rootAvailable(root: string): void {
+    this.logger.info({ root }, 'Watch root available again');
+  }
+
+  private onAdd(path: string): void {
+    const filter = this.filter!;
+    const scanning = !this.initialScanComplete;
+    const stats = this.scanStats;
+    if (scanning) {
+      stats.total++;
+      stats.classifyByRoot(path);
+    }
+    filter.noteGitignoreChange(path);
+    if (!filter.globMatches(path)) {
+      if (scanning) stats.globRejected++;
+      else this.logger.debug({ path }, 'File rejected by glob filter');
+      return;
+    }
+    if (filter.isGitignored(path)) {
+      if (scanning) stats.gitignored++;
+      return;
+    }
+    if (scanning) {
+      stats.matched++;
+      this.options.initialScanTracker?.setMatched(stats.matched);
+      this.options.initialScanTracker?.incrementEnqueued();
+    }
+    this.actions!.added(path, !scanning);
+  }
+
+  private onChange(path: string): void {
+    const filter = this.filter!;
+    filter.noteGitignoreChange(path);
+    if (!filter.globMatches(path)) {
+      this.logger.debug({ path }, 'File rejected by glob filter');
+      return;
+    }
+    if (filter.isGitignored(path)) return;
+    this.actions!.changed(path);
+  }
+
+  private onUnlink(path: string): void {
+    const filter = this.filter!;
+    filter.noteGitignoreChange(path);
+    if (!filter.globMatches(path)) return;
+    if (filter.isGitignored(path)) return;
+    this.actions!.removed(path);
+  }
+
+  /**
+   * Get the list of all currently watched file paths (absolute), from the
+   * change source's in-memory state (no filesystem I/O). Empty before start.
    */
   getWatchedFiles(): string[] {
-    if (!this.watcher) return [];
-
-    const watched = this.watcher.getWatched();
-    const files: string[] = [];
-
-    for (const [dir, entries] of Object.entries(watched)) {
-      for (const entry of entries) {
-        const full = join(dir, entry);
-        files.push(full);
-      }
-    }
-
-    return files;
+    return this.source?.watchedPaths() ?? [];
   }
 
   /**
    * Whether the initial filesystem scan is complete.
    */
   get isReady(): boolean {
-    return this.initialScanTracker
-      ? !this.initialScanTracker.getStatus().active
+    return this.options.initialScanTracker
+      ? !this.options.initialScanTracker.getStatus().active
       : true;
   }
 
@@ -291,10 +268,11 @@ export class FileSystemWatcher {
    * Stop the filesystem watcher.
    */
   async stop(): Promise<void> {
-    this.moveCorrelator?.flush();
-    if (this.watcher) {
-      await this.watcher.close();
-      this.watcher = undefined;
+    this.actions?.flush();
+    if (this.source) {
+      const source = this.source;
+      this.source = undefined;
+      await source.stop();
       this.logger.info('Filesystem watcher stopped');
     }
   }
@@ -304,29 +282,6 @@ export class FileSystemWatcher {
    */
   get systemHealth(): SystemHealth {
     return this.health;
-  }
-
-  /**
-   * Check if a path is gitignored and should be skipped.
-   */
-  private isGitignored(path: string): boolean {
-    if (!this.gitignoreFilter) return false;
-    const ignored = this.gitignoreFilter.isIgnored(path);
-    if (ignored) {
-      this.logger.debug({ path }, 'Skipping gitignored file');
-    }
-    return ignored;
-  }
-
-  /**
-   * If the changed file is a `.gitignore`, invalidate the filter cache.
-   */
-  private handleGitignoreChange(path: string): void {
-    if (!this.gitignoreFilter) return;
-    if (path.endsWith('.gitignore')) {
-      this.logger.info({ path }, 'Gitignore file changed, refreshing filter');
-      this.gitignoreFilter.invalidate(path);
-    }
   }
 
   /**
