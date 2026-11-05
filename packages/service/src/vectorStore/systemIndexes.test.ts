@@ -6,9 +6,19 @@
 import pino from 'pino';
 import { describe, expect, it, vi } from 'vitest';
 
-import { type SystemIndexClient, SystemIndexTracker } from './systemIndexes';
+import {
+  SYSTEM_INDEXES,
+  type SystemIndex,
+  type SystemIndexClient,
+  SystemIndexTracker,
+} from './systemIndexes';
 
 const logger = pino({ level: 'silent' });
+
+/** One system index, so each mechanism test watches a single build. */
+const FILE_PATH_ONLY: readonly SystemIndex[] = [
+  { field: 'file_path', type: 'keyword' },
+];
 
 /** A promise with its resolver and rejecter. */
 function deferred(): {
@@ -51,7 +61,7 @@ describe('SystemIndexTracker', () => {
     const { client, createPayloadIndex } = fakeClient([
       { file_path: { data_type: 'keyword' } },
     ]);
-    const tracker = new SystemIndexTracker();
+    const tracker = new SystemIndexTracker(FILE_PATH_ONLY);
     await tracker.start(client, 'c', logger);
     await tracker.whenSettled();
     expect(createPayloadIndex).not.toHaveBeenCalled();
@@ -64,7 +74,7 @@ describe('SystemIndexTracker', () => {
     const { client, createPayloadIndex } = fakeClient([
       { file_path: { data_type: 'text' } },
     ]);
-    const tracker = new SystemIndexTracker();
+    const tracker = new SystemIndexTracker(FILE_PATH_ONLY);
     await tracker.start(client, 'c', logger);
     expect(createPayloadIndex).not.toHaveBeenCalled();
     expect(tracker.snapshot()).toEqual({ file_path: 'conflict' });
@@ -79,7 +89,7 @@ describe('SystemIndexTracker', () => {
   it('is building until the background wait=true call returns; start does not wait', async () => {
     const gate = deferred();
     const { client, createPayloadIndex } = fakeClient([{}], () => gate.promise);
-    const tracker = new SystemIndexTracker();
+    const tracker = new SystemIndexTracker(FILE_PATH_ONLY);
     await tracker.start(client, 'c', logger);
     expect(createPayloadIndex).toHaveBeenCalledWith('c', {
       field_name: 'file_path',
@@ -98,7 +108,7 @@ describe('SystemIndexTracker', () => {
     const { client } = fakeClient([{}, {}], () =>
       Promise.reject(new Error('boom')),
     );
-    const tracker = new SystemIndexTracker();
+    const tracker = new SystemIndexTracker(FILE_PATH_ONLY);
     await tracker.start(client, 'c', logger);
     await tracker.whenSettled();
     expect(tracker.snapshot()).toEqual({ file_path: 'failed' });
@@ -110,7 +120,7 @@ describe('SystemIndexTracker', () => {
       [{}, { file_path: { data_type: 'keyword' } }],
       () => Promise.reject(new Error('timeout')),
     );
-    const tracker = new SystemIndexTracker();
+    const tracker = new SystemIndexTracker(FILE_PATH_ONLY);
     await tracker.start(client, 'c', logger);
     await tracker.whenSettled();
     expect(tracker.snapshot()).toEqual({ file_path: 'ready' });
@@ -126,7 +136,7 @@ describe('SystemIndexTracker', () => {
       ),
       createPayloadIndex: vi.fn(() => Promise.reject(new Error('down'))),
     } as unknown as SystemIndexClient;
-    const tracker = new SystemIndexTracker();
+    const tracker = new SystemIndexTracker(FILE_PATH_ONLY);
     await tracker.start(client, 'c');
     await tracker.whenSettled();
     expect(tracker.snapshot()).toEqual({ file_path: 'failed' });
@@ -140,7 +150,7 @@ describe('SystemIndexTracker', () => {
         chunk_text: { data_type: 'text' },
       },
     ]);
-    const tracker = new SystemIndexTracker();
+    const tracker = new SystemIndexTracker(FILE_PATH_ONLY);
     expect(tracker.keywordIndexReady('source')).toBe(false);
     await tracker.start(client, 'c', logger);
     expect(tracker.keywordIndexReady('source')).toBe(true);
@@ -157,6 +167,59 @@ describe('SystemIndexTracker', () => {
   });
 
   it('reports nothing before start', () => {
-    expect(new SystemIndexTracker().snapshot()).toEqual({});
+    const tracker = new SystemIndexTracker();
+    expect(tracker.snapshot()).toEqual({});
+    expect(tracker.state('chunk_index')).toBeUndefined();
+  });
+
+  it('creates chunk_index (integer), file_path and matched_rules (keyword) by default (D74, D154, D155)', async () => {
+    expect(SYSTEM_INDEXES).toEqual([
+      { field: 'chunk_index', type: 'integer' },
+      { field: 'file_path', type: 'keyword' },
+      { field: 'matched_rules', type: 'keyword' },
+    ]);
+    const gate = deferred();
+    const { client, createPayloadIndex } = fakeClient([{}], () => gate.promise);
+    const tracker = new SystemIndexTracker();
+    await tracker.start(client, 'c', logger);
+    expect(tracker.snapshot()).toEqual({
+      chunk_index: 'building',
+      file_path: 'building',
+      matched_rules: 'building',
+    });
+    gate.resolve();
+    await tracker.whenSettled();
+    expect(
+      createPayloadIndex.mock.calls.map((call) => (call as unknown[])[1]),
+    ).toEqual([
+      { field_name: 'chunk_index', field_schema: 'integer', wait: true },
+      { field_name: 'file_path', field_schema: 'keyword', wait: true },
+      { field_name: 'matched_rules', field_schema: 'keyword', wait: true },
+    ]);
+    expect(tracker.state('chunk_index')).toBe('ready');
+    expect(tracker.state('matched_rules')).toBe('ready');
+  });
+
+  it('creates only the missing system indexes and reports a conflict per field', async () => {
+    const { client, createPayloadIndex } = fakeClient([
+      {
+        chunk_index: { data_type: 'keyword' },
+        file_path: { data_type: 'keyword' },
+      },
+    ]);
+    const tracker = new SystemIndexTracker();
+    await tracker.start(client, 'c', logger);
+    await tracker.whenSettled();
+    expect(createPayloadIndex).toHaveBeenCalledTimes(1);
+    expect(createPayloadIndex).toHaveBeenCalledWith('c', {
+      field_name: 'matched_rules',
+      field_schema: 'keyword',
+      wait: true,
+    });
+    expect(tracker.snapshot()).toEqual({
+      chunk_index: 'conflict',
+      file_path: 'ready',
+      matched_rules: 'ready',
+    });
   });
 });

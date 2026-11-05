@@ -1,16 +1,22 @@
 /**
  * @module vectorStore/systemIndexes
- * System payload indexes (D74, D154): created at startup by background wait=true calls (startup never waits), reported as building, ready, conflict or failed; plus keyword-index readiness for by-filter writes. Qdrant I/O.
+ * System payload indexes (D74, D154, D155): created at startup by background wait=true calls (startup never waits), reported as building, ready, conflict or failed; plus keyword-index readiness for by-filter writes. Qdrant I/O.
  *
- * B5a adds `file_path` (metadata writes by filter, D139); A8 adds
- * `chunk_index` and `matched_rules`. A field already indexed with another
- * type is left alone (`conflict`), and writes keep using ID addressing.
+ * `chunk_index` (integer) lets `countFacets` count documents, not chunks;
+ * `file_path` (keyword) serves metadata writes by filter (D139);
+ * `matched_rules` (keyword) serves rule-scoped counts (D155). A field
+ * already indexed with another type is left alone (`conflict`): writes keep
+ * using ID addressing, and `countFacets` answers 503 naming the index.
  */
 
 import type { QdrantClient } from '@qdrant/js-client-rest';
 import type pino from 'pino';
 
-import { FIELD_FILE_PATH } from '../processor/payloadFields';
+import {
+  FIELD_CHUNK_INDEX,
+  FIELD_FILE_PATH,
+  FIELD_MATCHED_RULES,
+} from '../processor/payloadFields';
 import { getLogger } from '../util/logger';
 import { normalizeError } from '../util/normalizeError';
 
@@ -27,7 +33,9 @@ export interface SystemIndex {
 
 /** The system indexes, in creation order. */
 export const SYSTEM_INDEXES: readonly SystemIndex[] = [
+  { field: FIELD_CHUNK_INDEX, type: 'integer' },
   { field: FIELD_FILE_PATH, type: 'keyword' },
+  { field: FIELD_MATCHED_RULES, type: 'keyword' },
 ];
 
 /** The subset of the Qdrant client used here. */
@@ -85,7 +93,7 @@ export class SystemIndexTracker {
             expected: index.type,
             actual: current,
           },
-          'System payload index field already has another index type; leaving it unchanged (writes use ID addressing)',
+          'System payload index field already has another index type; leaving it unchanged (what needs it stays unavailable or falls back)',
         );
       } else {
         this.states.set(index.field, 'building');
@@ -114,6 +122,15 @@ export class SystemIndexTracker {
       return state === 'ready' && this.typeOf(field) === 'keyword';
     }
     return this.keywordFields.has(field);
+  }
+
+  /**
+   * @param field - A system index field.
+   * @returns Its state, or undefined before {@link start} (or for a field
+   *   that is not a system index).
+   */
+  state(field: string): SystemIndexState | undefined {
+    return this.states.get(field);
   }
 
   /** @returns Each system index's state (empty before {@link start}). */
@@ -155,7 +172,7 @@ export class SystemIndexTracker {
         { collectionName, field: index.field, err: normalizeError(error) },
         created
           ? 'System payload index call failed, but the index exists; using it'
-          : 'System payload index creation failed; writes use ID addressing until the next start',
+          : 'System payload index creation failed; what needs it stays unavailable (or falls back) until the next start',
       );
     }
   }
