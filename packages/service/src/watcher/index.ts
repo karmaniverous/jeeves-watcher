@@ -24,6 +24,7 @@ import {
   type FileSystemWatcherOptions,
   type Running,
 } from './running';
+import { settledEvent, type SettledPath } from './stability/StabilityTicker';
 import { walkFilters } from './walk/walkFilters';
 
 export type { FileSystemWatcherOptions } from './running';
@@ -81,12 +82,18 @@ export class FileSystemWatcher implements ChangeSink {
         this.health.recordFailure(error);
       },
       scanning: () => !this.initialScanComplete,
+      onSettled: (settled) => {
+        this.settled(settled);
+      },
       onGitignoreChange: (path) => {
         this.gitignoreChanged(path);
       },
     });
     this.running = running;
-    this.options.changeSourceHealth?.attach(running.source.name, () => 0);
+    this.options.changeSourceHealth?.attach(
+      running.source.name,
+      () => running.ticker.size,
+    );
     await running.source.start(running.roots.roots, running.ignore, this);
 
     this.queue.start();
@@ -144,6 +151,20 @@ export class FileSystemWatcher implements ChangeSink {
   /** {@inheritDoc ChangeSink.rootAvailable} */
   rootAvailable(root: string): void {
     this.logger.info({ root }, 'Watch root available again');
+  }
+
+  /**
+   * A path settled in the stability ticker: emit `add` or `change` through
+   * the normal handlers unless the inventory already holds it (D142).
+   */
+  private settled({ path, stats, synthetic }: SettledPath): void {
+    const running = this.running;
+    if (!running) return;
+    const event = settledEvent(running.inventory.get(path), stats);
+    if (!event) return;
+    if (event === 'add') running.events.add(path, stats);
+    else running.events.change(path, stats);
+    if (synthetic) this.options.changeSourceHealth?.recordReconcileEvents(1);
   }
 
   /**
@@ -205,6 +226,7 @@ export class FileSystemWatcher implements ChangeSink {
     const running = this.running;
     if (!running) return;
     this.running = undefined;
+    running.ticker.stop();
     running.actions.flush();
     await running.source.stop();
     this.logger.info('Filesystem watcher stopped');

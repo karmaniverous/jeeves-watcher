@@ -25,6 +25,8 @@ import { Inventory } from './inventory/Inventory';
 import { WatchFilter } from './pathFilter';
 import { WatchRoots } from './roots';
 import { ScanStats } from './ScanStats';
+import { type SettledPath, StabilityTicker } from './stability/StabilityTicker';
+import { statFile } from './walk/statFile';
 
 /**
  * Options for `FileSystemWatcher` beyond basic config.
@@ -61,6 +63,8 @@ export interface Running {
   events: FilteredEvents;
   actions: FileEventActions;
   scanStats: ScanStats;
+  /** The shared stability ticker for synthetic events (D128). */
+  ticker: StabilityTicker;
   /** Roots whose initial scan has not finished. */
   pendingRoots: Set<string>;
 }
@@ -78,6 +82,8 @@ export interface RunningContext {
   onSourceError: (error: unknown) => void;
   /** Whether the initial scan is still running. */
   scanning: () => boolean;
+  /** Called for each path the stability ticker settles. */
+  onSettled: (settled: SettledPath) => void;
   /** Called after a `.gitignore` event refreshed the gitignore filter. */
   onGitignoreChange: (path: string) => void;
 }
@@ -122,6 +128,11 @@ export function createRunning(context: RunningContext): Running {
   });
   const inventory = new Inventory(source.initialSet === 'walk');
   const scanStats = new ScanStats(roots);
+  const ticker = new StabilityTicker({
+    thresholdMs: config.stabilityThresholdMs,
+    stat: statFile,
+    onSettled: context.onSettled,
+  });
   return {
     source,
     roots: watchRoots,
@@ -135,6 +146,7 @@ export function createRunning(context: RunningContext): Running {
     inventory,
     actions,
     scanStats,
+    ticker,
     pendingRoots: new Set(roots),
     events: new FilteredEvents({
       filter,
