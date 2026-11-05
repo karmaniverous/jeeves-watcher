@@ -400,7 +400,7 @@ For how many documents hold each value under a filter, use [`POST /search/facets
 
 ## POST /search/facets/counts
 
-Counts the values of payload fields over the documents matching a filter, or gives `{ min, max }` for a numeric or date field. Each document counts once, however many chunks it has. Counts are approximate: they come from Qdrant's default (approximate) facet counts, so treat them as sizes for a UI, not as exact totals (use [`POST /scan`](#post-scan) with `countOnly` for an exact count of one value). Ranges are exact.
+Counts the values of payload fields over the documents matching a filter, or gives `{ min, max }` for a numeric or date field. Each document counts once, however many chunks it has. Counts are approximate: they come from Qdrant's default (approximate) facet counts, so treat them as sizes for a UI, not as exact totals (for an exact count of one value use [`POST /scan`](#post-scan) with `countOnly`, adding `{ "key": "chunk_index", "match": { "value": 0 } }` to the filter so it counts documents rather than chunks, plus the rule scope if you used `rules`). Ranges are exact.
 
 **v0.21.0+**
 
