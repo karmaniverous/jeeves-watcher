@@ -1,6 +1,6 @@
 /**
  * @module test/harness/service
- * Service integration harness: real Qdrant (throwaway `jeeves_watcher_it_*` collection, startup ensureCollection incl. payload indexes) + real processor (rule templates, global schemas, production source retriever and queue wiring, counted mock embeddings) + the real Fastify API, optionally on 127.0.0.1.
+ * Service integration harness: real Qdrant (throwaway `jeeves_watcher_it_*` collection, startup ensureCollection incl. payload indexes, waiting for the system-index builds) + real processor (rule templates, global schemas, production source retriever and queue wiring, counted mock embeddings) + the real Fastify API, optionally on 127.0.0.1.
  * Setup failures roll back: the collection is dropped and state removed before the error propagates.
  */
 
@@ -34,7 +34,11 @@ import { ValuesManager } from '../../values';
 import { VectorStoreClient } from '../../vectorStore';
 import { createTestConfig } from '../helpers';
 import { countingProvider, type EmbedCounter } from './countingProvider';
-import { assertTestVectorStore, dropCollection } from './qdrant';
+import {
+  assertTestVectorStore,
+  dropCollection,
+  ensureSettledCollection,
+} from './qdrant';
 
 /** Small vector size keeps harness collections cheap. */
 export const HARNESS_DIMENSIONS = 16;
@@ -175,7 +179,7 @@ async function setUp(
     logger,
   );
   cleanup.push(() => dropCollection(collectionName));
-  await vectorStore.ensureCollection();
+  await ensureSettledCollection(vectorStore);
 
   const enrichmentStore = new EnrichmentStore(stateDir, logger);
   cleanup.push(() => {

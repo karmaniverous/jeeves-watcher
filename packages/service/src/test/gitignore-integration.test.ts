@@ -25,7 +25,9 @@ import { compileRules } from '../rules';
 import { VectorStoreClient } from '../vectorStore';
 import {
   assertTestVectorStore,
+  clearCollection,
   dropCollection,
+  ensureSettledCollection,
   qdrantAvailable,
   uniqueCollectionName,
 } from './harness/qdrant';
@@ -55,7 +57,7 @@ describe.skipIf(!qdrantAvailable())(
         config.vectorStore,
         embeddingProvider.dimensions,
       );
-      await vectorStore.ensureCollection();
+      await ensureSettledCollection(vectorStore);
 
       const compiledRules = compileRules(config.inferenceRules ?? []);
       const processorConfig = {
@@ -82,8 +84,7 @@ describe.skipIf(!qdrantAvailable())(
     });
 
     afterEach(async () => {
-      await dropCollection(config.vectorStore.collectionName);
-      await vectorStore.ensureCollection();
+      await clearCollection(config.vectorStore.collectionName);
       await cleanupWatchedDir();
     });
 

@@ -10,7 +10,7 @@ import { join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { pointId } from '../pointId';
-import { qdrantAvailable } from './harness/qdrant';
+import { qdrantAvailable, SETUP_IN_TEST_TIMEOUT_MS } from './harness/qdrant';
 import {
   HARNESS_DIMENSIONS,
   type ServiceHarness,
@@ -49,12 +49,6 @@ describe.skipIf(!qdrantAvailable())(
       await rm(watchDir, { recursive: true, force: true });
     });
 
-    /**
-     * Each test starts its own harness (collection, indexes) in the test
-     * body, so it gets the hook budget (30 s, vitest config), not 5 s.
-     */
-    const HARNESS_TEST_TIMEOUT_MS = 30_000;
-
     async function harnessFor(
       label: string,
       payloadIndexes?: Array<{ field: string; type: 'text' }>,
@@ -68,7 +62,6 @@ describe.skipIf(!qdrantAvailable())(
         },
       });
       harnesses.push(h);
-      await h.vectorStore.whenSystemIndexesSettled();
       return h;
     }
 
@@ -106,7 +99,7 @@ describe.skipIf(!qdrantAvailable())(
         await setOwner(h, file, 'ann');
         expect(await owners(h, file, 4)).toEqual(['ann', 'ann', 'ann', 'ann']);
       },
-      HARNESS_TEST_TIMEOUT_MS,
+      SETUP_IN_TEST_TIMEOUT_MS,
     );
 
     it(
@@ -137,7 +130,7 @@ describe.skipIf(!qdrantAvailable())(
           null,
         ]);
       },
-      HARNESS_TEST_TIMEOUT_MS,
+      SETUP_IN_TEST_TIMEOUT_MS,
     );
   },
 );

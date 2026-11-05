@@ -1,9 +1,10 @@
 /**
  * @module test/harness/qdrant
- * Real-Qdrant helpers for integration tests: availability flag (set by globalSetup), URL, unique run-scoped throwaway collection names, prefix and URL guards, raw drop/sweep and payload-schema reads.
+ * Real-Qdrant helpers for integration tests: availability flag (set by globalSetup), URL, unique run-scoped throwaway collection names, prefix and URL guards, raw drop/sweep, payload-schema reads, and a collection ensure that waits for the system-index builds.
  * Every create/delete goes through {@link assertTestCollection} (only `jeeves_watcher_it_*` collections) and {@link assertTestQdrantUrl} (only the run's own, guarded Qdrant).
  */
 
+import type { VectorStoreClient } from '../../vectorStore';
 import { fetchCollectionNames, qdrantHeaders } from '../qdrant/http';
 
 /** Env var: this test run's id, set by globalSetup and inherited by workers. */
@@ -180,6 +181,59 @@ export async function dropCollection(name: string): Promise<void> {
     method: 'DELETE',
     headers: qdrantHeaders(),
   });
+}
+
+/**
+ * Timeout for a test that creates a collection (or starts a service
+ * harness) in its own body: the hook budget (`hookTimeout`, vitest config)
+ * rather than the 5 s test default, since that body does setup work.
+ */
+export const SETUP_IN_TEST_TIMEOUT_MS = 30_000;
+
+/**
+ * Delete every point of a harness collection, keeping the collection and
+ * its payload indexes, on this run's guarded Qdrant. Resetting this way
+ * between tests is far cheaper than a drop and re-create, which rebuilds
+ * every payload index.
+ *
+ * @param name - Collection name; must carry {@link TEST_COLLECTION_PREFIX}.
+ * @throws When Qdrant answers non-2xx.
+ */
+export async function clearCollection(name: string): Promise<void> {
+  assertTestCollection(name);
+  assertTestQdrantUrl(qdrantUrl());
+  const res = await fetch(
+    `${qdrantUrl()}/collections/${name}/points/delete?wait=true`,
+    {
+      method: 'POST',
+      headers: { ...qdrantHeaders(), 'content-type': 'application/json' },
+      // A filter without conditions matches every point.
+      body: JSON.stringify({ filter: { must: [] } }),
+    },
+  );
+  if (!res.ok) {
+    throw new Error(`Clearing ${name} failed: ${String(res.status)}`);
+  }
+}
+
+/**
+ * Ensure a harness collection, then wait for its background system-index
+ * builds (D154, D155) to end. Call it from a hook, never a test body:
+ * `ensureCollection` only starts those `wait=true` builds, and a test's
+ * first write to the collection queues behind them on Qdrant. On a loaded
+ * windows-latest runner the three builds took seconds, so the first
+ * writing test of a suite hit its 5 s timeout.
+ *
+ * @param store - Vector store bound to a harness collection.
+ */
+export async function ensureSettledCollection(
+  store: Pick<
+    VectorStoreClient,
+    'ensureCollection' | 'whenSystemIndexesSettled'
+  >,
+): Promise<void> {
+  await store.ensureCollection();
+  await store.whenSystemIndexesSettled();
 }
 
 /** One entry of Qdrant's `payload_schema`. */

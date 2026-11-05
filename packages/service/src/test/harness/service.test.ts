@@ -11,6 +11,7 @@ import { VectorStoreClient } from '../../vectorStore';
 import {
   listTestCollections,
   qdrantAvailable,
+  SETUP_IN_TEST_TIMEOUT_MS,
   uniqueCollectionName,
 } from './qdrant';
 import { startServiceHarness } from './service';
@@ -52,41 +53,54 @@ describe.skipIf(!qdrantAvailable())(
       vi.restoreAllMocks();
     });
 
-    it('drops the collection when setup fails after creating it', async () => {
-      const ensure = vi.spyOn(VectorStoreClient.prototype, 'ensureCollection');
-      const label = 'rollback';
-      const mine = async () =>
-        (await listTestCollections()).filter((n) =>
-          n.startsWith(`jeeves_watcher_it_${label}_`),
+    it(
+      'drops the collection when setup fails after creating it',
+      async () => {
+        const ensure = vi.spyOn(
+          VectorStoreClient.prototype,
+          'ensureCollection',
         );
+        const label = 'rollback';
+        const mine = async () =>
+          (await listTestCollections()).filter((n) =>
+            n.startsWith(`jeeves_watcher_it_${label}_`),
+          );
 
-      // An invalid rule fails compileRules, after ensureCollection ran.
-      await expect(
-        startServiceHarness({
-          label,
-          config: {
-            inferenceRules: [
-              {
-                name: 'broken',
-                description: 'Invalid JSON Schema in match',
-                match: { type: 'not-a-type' },
-              },
-            ],
-          },
-        }),
-      ).rejects.toThrow(/schema is invalid/);
-      expect(ensure).toHaveBeenCalledOnce();
-      expect(await mine()).toEqual([]);
-    });
+        // An invalid rule fails compileRules, after ensureCollection ran.
+        await expect(
+          startServiceHarness({
+            label,
+            config: {
+              inferenceRules: [
+                {
+                  name: 'broken',
+                  description: 'Invalid JSON Schema in match',
+                  match: { type: 'not-a-type' },
+                },
+              ],
+            },
+          }),
+        ).rejects.toThrow(/schema is invalid/);
+        expect(ensure).toHaveBeenCalledOnce();
+        expect(await mine()).toEqual([]);
+      },
+      SETUP_IN_TEST_TIMEOUT_MS,
+    );
 
-    it('close() drops the collection, removes the state dir and stops the source queue', async () => {
-      const harness = await startServiceHarness({ label: 'close' });
-      expect(await listTestCollections()).toContain(harness.collectionName);
+    it(
+      'close() drops the collection, removes the state dir and stops the source queue',
+      async () => {
+        const harness = await startServiceHarness({ label: 'close' });
+        expect(await listTestCollections()).toContain(harness.collectionName);
 
-      await harness.close();
-      expect(await listTestCollections()).not.toContain(harness.collectionName);
-      expect(existsSync(harness.stateDir)).toBe(false);
-      expect(harness.sourceQueue.enqueue('app://t/1', 'r')).toBe(false);
-    });
+        await harness.close();
+        expect(await listTestCollections()).not.toContain(
+          harness.collectionName,
+        );
+        expect(existsSync(harness.stateDir)).toBe(false);
+        expect(harness.sourceQueue.enqueue('app://t/1', 'r')).toBe(false);
+      },
+      SETUP_IN_TEST_TIMEOUT_MS,
+    );
   },
 );

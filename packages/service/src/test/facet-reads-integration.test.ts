@@ -9,6 +9,7 @@ import { VectorStoreClient } from '../vectorStore';
 import {
   assertTestVectorStore,
   dropCollection,
+  ensureSettledCollection,
   qdrantAvailable,
   qdrantUrl,
   uniqueCollectionName,
@@ -38,8 +39,7 @@ describe.skipIf(!qdrantAvailable())(
       };
       assertTestVectorStore(config);
       store = new VectorStoreClient(config, 4);
-      await store.ensureCollection();
-      await store.whenSystemIndexesSettled();
+      await ensureSettledCollection(store);
       // Document 1: 50 chunks, tag x. Documents 2 and 3: one chunk each.
       const doc1 = Array.from({ length: 50 }, (_, i) => ({
         id: id(i + 1),

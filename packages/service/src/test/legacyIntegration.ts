@@ -1,6 +1,6 @@
 /**
  * @module test/legacyIntegration
- * Shared fixture for the pre-0.20.0 file integration suites (`integration*.test.ts`): registers vitest hooks that open a guarded harness collection on the run's Qdrant, a DocumentProcessor with mock embeddings and an EnrichmentStore, and reset the temp watch dir and collection after every test.
+ * Shared fixture for the pre-0.20.0 file integration suites (`integration*.test.ts`): registers vitest hooks that open a guarded harness collection on the run's Qdrant, a DocumentProcessor with mock embeddings and an EnrichmentStore, and reset the temp watch dir and the collection's points after every test (the collection is created once and its system-index builds awaited in `beforeAll`).
  */
 
 import Fastify from 'fastify';
@@ -15,7 +15,12 @@ import { EnrichmentStore } from '../enrichment';
 import { DocumentProcessor } from '../processor';
 import { compileRules } from '../rules';
 import { VectorStoreClient } from '../vectorStore';
-import { assertTestVectorStore, dropCollection } from './harness/qdrant';
+import {
+  assertTestVectorStore,
+  clearCollection,
+  dropCollection,
+  ensureSettledCollection,
+} from './harness/qdrant';
 import {
   cleanupTestDirs,
   cleanupWatchedDir,
@@ -72,7 +77,7 @@ export function useLegacyIntegration(): LegacyIntegration {
 
     // Use raw Qdrant HTTP to ensure clean collection
     await dropCollection(config.vectorStore.collectionName);
-    await fixture.vectorStore.ensureCollection();
+    await ensureSettledCollection(fixture.vectorStore);
 
     const stateDir = config.stateDir ?? ROOT_DEFAULTS.stateDir;
     fixture.enrichmentStore = new EnrichmentStore(stateDir);
@@ -103,9 +108,8 @@ export function useLegacyIntegration(): LegacyIntegration {
   });
 
   afterEach(async () => {
-    // Clear all points from collection
-    await dropCollection(config.vectorStore.collectionName);
-    await fixture.vectorStore.ensureCollection();
+    // Clear all points; the collection and its indexes stay.
+    await clearCollection(config.vectorStore.collectionName);
     await cleanupWatchedDir();
   });
 
