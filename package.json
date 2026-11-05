@@ -41,6 +41,7 @@
     }
   },
   "allowScripts": {
+    "@parcel/watcher": false,
     "esbuild": true,
     "fsevents": true,
     "lefthook": true

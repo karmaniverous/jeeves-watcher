@@ -12,6 +12,7 @@
     "@karmaniverous/jeeves-watcher-core": "^0.5.0-2",
     "@karmaniverous/jsonmap": "^2.1.1",
     "@langchain/textsplitters": "*",
+    "@parcel/watcher": "2.6.0",
     "@qdrant/js-client-rest": "^1.20.0",
     "ajv": "~8.20.0",
     "ajv-formats": "*",
@@ -146,6 +147,7 @@
   "scripts": {
     "build": "npm run generate:schema && rimraf dist && cross-env NO_COLOR=1 rollup --config rollup.config.ts --configPlugin \"@rollup/plugin-typescript={paths:{}}\"",
     "changelog": "git-cliff -o CHANGELOG.md",
+    "check:parcel": "tsx scripts/check-parcel-binary.ts",
     "diagrams": "cd diagrams && plantuml -tpng -o ../assets -r .",
     "facet:gate": "tsx scripts/facet-gate.ts",
     "generate:schema": "tsx src/config/generate-schema.ts",

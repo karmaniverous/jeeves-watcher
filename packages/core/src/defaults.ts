@@ -51,6 +51,8 @@ export const WATCH_DEFAULTS = {
   debounceMs: 300,
   stabilityThresholdMs: 500,
   usePolling: false,
+  /** `@parcel/watcher` unless polling or set to chokidar (D125). */
+  changeSource: 'parcel' as const,
   pollIntervalMs: 1000,
   /** Periodic reconciliation every 15 minutes (D111); 0 disables it. */
   reconcileIntervalMs: 900_000,
