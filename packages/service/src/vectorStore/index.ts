@@ -33,13 +33,7 @@ import type {
 import { QdrantWriter } from './writes';
 
 // Re-export types for public API
-export type {
-  FacetHit,
-  FacetRead,
-  FacetStore,
-  RangeBound,
-  RangeEnd,
-} from './facets';
+export type { FacetStore } from './facets';
 export type { SystemIndexState } from './systemIndexes';
 export type {
   CollectionInfo,
