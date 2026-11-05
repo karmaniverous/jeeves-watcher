@@ -10,16 +10,7 @@ import type { VectorStoreConfig } from '../config/types';
 import { getCollectionInfo as getCollectionInfoHelper } from './collectionInfo';
 import { countPoints } from './count';
 import { ensureCollection as ensureCollectionHelper } from './ensureCollection';
-import {
-  facetCounts,
-  type FacetHit,
-  type FacetRead,
-  type FacetStore,
-  payloadIndexTypes,
-  type RangeBound,
-  rangeBound,
-  type RangeEnd,
-} from './facets';
+import { type FacetStore, QdrantFacetStore } from './facets';
 import {
   ensureTextIndex as ensureTextIndexHelper,
   hybridSearch as hybridSearchHelper,
@@ -67,7 +58,9 @@ export type {
  * Writes (upsert, delete, set/delete payload) are retried, each retry on a
  * fresh client (see QdrantWriter).
  */
-export class VectorStoreClient implements VectorStore, FacetStore {
+export class VectorStoreClient implements VectorStore {
+  /** Facet reads behind `countFacets` (spec Design 12). */
+  readonly facets: FacetStore;
   private readonly client: QdrantClient;
   private readonly writer: QdrantWriter;
   private readonly clientConfig: { url: string; apiKey?: string };
@@ -100,6 +93,11 @@ export class VectorStoreClient implements VectorStore, FacetStore {
       createClient: () => this.createClient(),
       logger,
     });
+    this.facets = new QdrantFacetStore(
+      this.client,
+      this.collectionName,
+      (field) => this.systemIndexes.state(field),
+    );
   }
 
   /**
@@ -145,29 +143,6 @@ export class VectorStoreClient implements VectorStore, FacetStore {
   /** @returns Each system index's state (`health.collection.systemIndexes`). */
   systemIndexStates(): Record<string, SystemIndexState> {
     return this.systemIndexes.snapshot();
-  }
-
-  /**
-   * @param field - A system index field (`chunk_index`, `matched_rules`, ...).
-   * @returns Its state, or undefined before startup.
-   */
-  systemIndexState(field: string): SystemIndexState | undefined {
-    return this.systemIndexes.state(field);
-  }
-
-  /** {@inheritDoc FacetStore.facetCounts} */
-  async facetCounts(read: FacetRead, limit: number): Promise<FacetHit[]> {
-    return facetCounts(this.client, this.collectionName, read, limit);
-  }
-
-  /** {@inheritDoc FacetStore.rangeBound} */
-  async rangeBound(read: FacetRead, end: RangeEnd): Promise<RangeBound> {
-    return rangeBound(this.client, this.collectionName, read, end);
-  }
-
-  /** {@inheritDoc FacetStore.payloadIndexTypes} */
-  async payloadIndexTypes(): Promise<Record<string, string>> {
-    return payloadIndexTypes(this.client, this.collectionName);
   }
 
   /** @returns A promise settling once the background index builds end. */

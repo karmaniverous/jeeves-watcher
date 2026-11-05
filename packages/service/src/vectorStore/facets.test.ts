@@ -10,6 +10,7 @@ import {
   type FacetClient,
   facetCounts,
   payloadIndexTypes,
+  QdrantFacetStore,
   rangeBound,
 } from './facets';
 
@@ -125,6 +126,36 @@ describe('extremeOf', () => {
     [['x', true, null], 'min', undefined],
   ] as const)('%j %s is %j', (value, end, expected) => {
     expect(extremeOf(value, end)).toBe(expected);
+  });
+});
+
+describe('QdrantFacetStore', () => {
+  it('reads its own collection and reports index states', async () => {
+    const facet = vi.fn(() => Promise.resolve({ hits: [] }));
+    const scroll = vi.fn(() => Promise.resolve({ points: [] }));
+    const getCollection = vi.fn(() =>
+      Promise.resolve({ payload_schema: { tag: { data_type: 'keyword' } } }),
+    );
+    const client = { facet, scroll, getCollection } as unknown as FacetClient;
+    const store = new QdrantFacetStore(client, 'coll', (field) =>
+      field === 'chunk_index' ? 'ready' : undefined,
+    );
+    const read = { field: 'tag', filter, timeoutS: 3 };
+
+    await store.facetCounts(read, 5);
+    await store.rangeBound(read, 'max');
+    expect(await store.payloadIndexTypes()).toEqual({ tag: 'keyword' });
+    expect(facet.mock.calls[0]).toEqual([
+      'coll',
+      expect.objectContaining({ key: 'tag', limit: 5 }),
+    ]);
+    expect(scroll.mock.calls[0]).toEqual([
+      'coll',
+      expect.objectContaining({ order_by: { key: 'tag', direction: 'desc' } }),
+    ]);
+    expect(getCollection).toHaveBeenCalledWith('coll');
+    expect(store.systemIndexState('chunk_index')).toBe('ready');
+    expect(store.systemIndexState('matched_rules')).toBeUndefined();
   });
 });
 

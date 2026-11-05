@@ -151,9 +151,9 @@ try {
 
   const read = (field: string) => ({ field, filter: CHUNK0, timeoutS: 60 });
   const tenant = String(
-    (await store.facetCounts(read(options.tenantField), 1))[0]?.value,
+    (await store.facets.facetCounts(read(options.tenantField), 1))[0]?.value,
   );
-  const rules = (await store.facetCounts(read('matched_rules'), 20))
+  const rules = (await store.facets.facetCounts(read('matched_rules'), 20))
     .map((h) => String(h.value))
     .filter((v) => !v.startsWith('frontmatter-'))
     .slice(0, 2);
@@ -166,7 +166,7 @@ try {
           inferenceRules: rules.map((name) => ({ name, match: {} })),
         }) as unknown as JeevesWatcherConfig,
       configDir: '.',
-      facetStore: store,
+      facetStore: store.facets,
       logger: pino({ level: 'warn' }),
     }),
   });

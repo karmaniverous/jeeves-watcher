@@ -80,7 +80,7 @@ describe.skipIf(!qdrantAvailable())(
     });
 
     it('counts documents, not chunks, on chunk-0 points', async () => {
-      const hits = await store.facetCounts(
+      const hits = await store.facets.facetCounts(
         { field: 'tag', filter: chunk0, timeoutS: 10 },
         10,
       );
@@ -92,14 +92,14 @@ describe.skipIf(!qdrantAvailable())(
 
     it('reads integer, float and datetime range bounds', async () => {
       const read = (field: string) => ({ field, filter: chunk0, timeoutS: 10 });
-      expect(await store.rangeBound(read('size'), 'min')).toBe(1);
-      expect(await store.rangeBound(read('size'), 'max')).toBe(10);
-      expect(await store.rangeBound(read('score'), 'min')).toBe(0.5);
-      expect(await store.rangeBound(read('score'), 'max')).toBe(2.25);
-      expect(await store.rangeBound(read('at'), 'min')).toBe(
+      expect(await store.facets.rangeBound(read('size'), 'min')).toBe(1);
+      expect(await store.facets.rangeBound(read('size'), 'max')).toBe(10);
+      expect(await store.facets.rangeBound(read('score'), 'min')).toBe(0.5);
+      expect(await store.facets.rangeBound(read('score'), 'max')).toBe(2.25);
+      expect(await store.facets.rangeBound(read('at'), 'min')).toBe(
         '2025-06-30T12:00:00Z',
       );
-      expect(await store.rangeBound(read('at'), 'max')).toBe(
+      expect(await store.facets.rangeBound(read('at'), 'max')).toBe(
         '2026-02-01T00:00:00Z',
       );
     });
@@ -109,12 +109,15 @@ describe.skipIf(!qdrantAvailable())(
         must: [...chunk0.must, { key: 'file_path', match: { value: 'c.md' } }],
       };
       expect(
-        await store.rangeBound({ field: 'score', filter, timeoutS: 10 }, 'min'),
+        await store.facets.rangeBound(
+          { field: 'score', filter, timeoutS: 10 },
+          'min',
+        ),
       ).toBeNull();
     });
 
     it('reports the payload index types, system indexes included', async () => {
-      expect(await store.payloadIndexTypes()).toMatchObject({
+      expect(await store.facets.payloadIndexTypes()).toMatchObject({
         tag: 'keyword',
         size: 'integer',
         score: 'float',
@@ -122,7 +125,7 @@ describe.skipIf(!qdrantAvailable())(
         chunk_index: 'integer',
         matched_rules: 'keyword',
       });
-      expect(store.systemIndexState('chunk_index')).toBe('ready');
+      expect(store.facets.systemIndexState('chunk_index')).toBe('ready');
     });
   },
 );

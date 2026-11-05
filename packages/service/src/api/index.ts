@@ -146,7 +146,7 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
         getConfig,
         getVirtualRules,
         configDir,
-        facetStore: vectorStore,
+        facetStore: vectorStore.facets,
         logger,
       },
       walk: {

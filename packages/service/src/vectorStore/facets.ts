@@ -34,7 +34,7 @@ export interface FacetRead {
   timeoutS: number;
 }
 
-/** Facet reads used by `countFacets` (implemented by `VectorStoreClient`). */
+/** Facet reads used by `countFacets` (`VectorStoreClient.facets`). */
 export interface FacetStore {
   /**
    * Approximate value counts of a field, highest first (D194).
@@ -69,6 +69,42 @@ export type FacetClient = Pick<
   QdrantClient,
   'facet' | 'scroll' | 'getCollection'
 >;
+
+/** {@link FacetStore} over one Qdrant collection (`VectorStoreClient.facets`). */
+export class QdrantFacetStore implements FacetStore {
+  /**
+   * @param client - Qdrant client.
+   * @param collectionName - Collection.
+   * @param indexState - System index state by field.
+   */
+  constructor(
+    private readonly client: FacetClient,
+    private readonly collectionName: string,
+    private readonly indexState: (
+      field: string,
+    ) => SystemIndexState | undefined,
+  ) {}
+
+  /** {@inheritDoc FacetStore.facetCounts} */
+  facetCounts(read: FacetRead, limit: number): Promise<FacetHit[]> {
+    return facetCounts(this.client, this.collectionName, read, limit);
+  }
+
+  /** {@inheritDoc FacetStore.rangeBound} */
+  rangeBound(read: FacetRead, end: RangeEnd): Promise<RangeBound> {
+    return rangeBound(this.client, this.collectionName, read, end);
+  }
+
+  /** {@inheritDoc FacetStore.payloadIndexTypes} */
+  payloadIndexTypes(): Promise<Record<string, string>> {
+    return payloadIndexTypes(this.client, this.collectionName);
+  }
+
+  /** {@inheritDoc FacetStore.systemIndexState} */
+  systemIndexState(field: string): SystemIndexState | undefined {
+    return this.indexState(field);
+  }
+}
 
 /**
  * The collection's payload index types, by field.

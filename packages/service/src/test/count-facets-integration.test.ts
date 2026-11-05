@@ -95,7 +95,7 @@ describe.skipIf(!qdrantAvailable())(
               },
             ]),
           configDir: '/tmp',
-          facetStore: store,
+          facetStore: store.facets,
           logger: pino({ level: 'silent' }),
         }),
       });
