@@ -59,6 +59,16 @@ describe('deduplicateRoots', () => {
     const result = deduplicateRoots(['c:/config', 'c:/data', 'c:/srv']);
     expect(result).toEqual(['c:/config', 'c:/data', 'c:/srv']);
   });
+
+  it('compares case-insensitively but keeps each root as written', () => {
+    const result = deduplicateRoots([
+      '/tmp/Watch-Ab3',
+      '/tmp/watch-ab3/Sub',
+      '/TMP/WATCH-AB3',
+      'C:\\Data\\X',
+    ]);
+    expect(result).toEqual(['/tmp/Watch-Ab3', 'C:/Data/X']);
+  });
 });
 
 describe('buildGlobMatcher', () => {

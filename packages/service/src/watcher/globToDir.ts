@@ -38,15 +38,25 @@ export function globRoot(glob: string): string {
  * @returns Deduplicated array with subdirectories removed.
  */
 export function deduplicateRoots(roots: string[]): string[] {
-  const normalized = roots.map((r) => normalizeSlashes(r).toLowerCase());
-  const sorted = [...new Set(normalized)].sort();
+  // Compare case-insensitively, as document keys do, but keep each root's
+  // own case: the change source must watch the path as it exists, and paths
+  // are case-sensitive on Linux.
+  const byKey = new Map<string, string>();
+  for (const root of roots) {
+    const path = normalizeSlashes(root);
+    const key = path.toLowerCase();
+    if (!byKey.has(key)) byKey.set(key, path);
+  }
+  const sorted = [...byKey.keys()].sort();
 
-  return sorted.filter((root, _i, arr) => {
-    const withSlash = root.endsWith('/') ? root : root + '/';
-    return !arr.some(
-      (other) => other !== root && withSlash.startsWith(other + '/'),
-    );
-  });
+  return sorted
+    .filter((root, _i, arr) => {
+      const withSlash = root.endsWith('/') ? root : root + '/';
+      return !arr.some(
+        (other) => other !== root && withSlash.startsWith(other + '/'),
+      );
+    })
+    .flatMap((key) => byKey.get(key) ?? []);
 }
 
 /**
