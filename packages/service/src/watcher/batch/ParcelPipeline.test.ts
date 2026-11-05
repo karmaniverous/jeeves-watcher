@@ -16,7 +16,11 @@ import { WatchRoots } from '../roots';
 import type { StabilityTicker } from '../stability/StabilityTicker';
 import type { WalkedFile } from '../walk/Walker';
 import type { PathState } from './classifyBatch';
-import { lstatState, ParcelPipeline, type ParcelPipelineDeps } from './ParcelPipeline';
+import {
+  lstatState,
+  ParcelPipeline,
+  type ParcelPipelineDeps,
+} from './ParcelPipeline';
 
 const ROOT = '/r';
 
@@ -57,7 +61,12 @@ function setup(
     events,
     ticker,
     reconcile: (dir) => calls.push(`reconcile ${dir}`),
-    logger: { debug: vi.fn(), error: vi.fn(), info: vi.fn(), warn: vi.fn() } as never,
+    logger: {
+      debug: vi.fn(),
+      error: vi.fn(),
+      info: vi.fn(),
+      warn: vi.fn(),
+    } as never,
     platform: 'linux',
     lstat: (path) => Promise.resolve(disk[path] ?? 'absent'),
     walk: (dir) => Promise.resolve(walked.get(dir) ?? new Map()),
@@ -66,14 +75,17 @@ function setup(
   return { pipeline, calls, inventory, walked };
 }
 
-const ev = (type: RawChangeEvent['type'], path: string): RawChangeEvent => ({ type, path });
+const ev = (type: RawChangeEvent['type'], path: string): RawChangeEvent => ({
+  type,
+  path,
+});
 
 describe('ParcelPipeline', () => {
   afterEach(() => {
     vi.useRealTimers();
   });
 
-  it('holds a root\'s batches during its walk, then classifies them against the full inventory', async () => {
+  it("holds a root's batches during its walk, then classifies them against the full inventory", async () => {
     const { pipeline, calls, inventory } = setup();
     pipeline.fifo.pause(ROOT);
     pipeline.push(ROOT, [ev('delete', '/r/a.md')]);
@@ -131,7 +143,12 @@ describe('ParcelPipeline', () => {
     inventory.set('/r/old/a.md', { size: 1, mtimeMs: 1 });
     walked.set(
       '/r/new',
-      new Map([[normalizeDocumentKey('/r/new/a.md'), { path: '/r/new/a.md', size: 1, mtimeMs: 2 }]]),
+      new Map([
+        [
+          normalizeDocumentKey('/r/new/a.md'),
+          { path: '/r/new/a.md', size: 1, mtimeMs: 2 },
+        ],
+      ]),
     );
     pipeline.push(ROOT, [ev('delete', '/r/old'), ev('create', '/r/new')]);
     await pipeline.fifo.idle();
@@ -167,11 +184,22 @@ describe('ParcelPipeline', () => {
   });
 
   it('a 20K-file directory delete under a 120K-file inventory keeps the loop delay under 100 ms (D149)', async () => {
-    const { pipeline, inventory } = setup({}, {
-      lstat: () => new Promise((resolve) => setImmediate(() => resolve('absent'))),
-    });
+    const { pipeline, inventory } = setup(
+      {},
+      {
+        lstat: () =>
+          new Promise((resolve) =>
+            setImmediate(() => {
+              resolve('absent');
+            }),
+          ),
+      },
+    );
     for (let i = 0; i < 100_000; i++) {
-      inventory.set(`/r/keep/d${String(i % 500)}/f${String(i)}.md`, { size: 1, mtimeMs: 1 });
+      inventory.set(`/r/keep/d${String(i % 500)}/f${String(i)}.md`, {
+        size: 1,
+        mtimeMs: 1,
+      });
     }
     const batch: RawChangeEvent[] = [ev('delete', '/r/big')];
     for (let i = 0; i < 20_000; i++) {
@@ -179,7 +207,8 @@ describe('ParcelPipeline', () => {
       inventory.set(path, { size: 1, mtimeMs: 1 });
       batch.push(ev('delete', path));
     }
-    for (let d = 0; d < 200; d++) batch.push(ev('delete', `/r/big/d${String(d)}`));
+    for (let d = 0; d < 200; d++)
+      batch.push(ev('delete', `/r/big/d${String(d)}`));
     expect(inventory.size).toBe(120_000);
     const delay = monitorEventLoopDelay({ resolution: 10 });
     delay.enable();
@@ -195,7 +224,9 @@ describe('lstatState', () => {
   it('reads files, directories and absence', async () => {
     await expect(lstatState(import.meta.filename)).resolves.toBe('file');
     await expect(lstatState(import.meta.dirname)).resolves.toBe('dir');
-    await expect(lstatState(`${import.meta.dirname}/nope`)).resolves.toBe('absent');
+    await expect(lstatState(`${import.meta.dirname}/nope`)).resolves.toBe(
+      'absent',
+    );
     await expect(
       lstatState(`${import.meta.filename}/under-a-file`),
     ).resolves.toBe('absent');

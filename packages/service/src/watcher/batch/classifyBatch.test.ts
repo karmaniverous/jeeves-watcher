@@ -129,7 +129,11 @@ describe('classifyBatch', () => {
   });
 
   it('unknown 8.3 short names reconcile their parent on Windows only', async () => {
-    const batch = [del('/r/PROGRA~1'), del('/r/LONGFI~2.MD'), del('/r/plain.md')];
+    const batch = [
+      del('/r/PROGRA~1'),
+      del('/r/LONGFI~2.MD'),
+      del('/r/plain.md'),
+    ];
     await expect(
       classifyBatch(batch, context({}, {}, { platform: 'win32' })),
     ).resolves.toEqual({
@@ -161,7 +165,9 @@ describe('classifyBatch', () => {
       ),
     );
     expect(asked).toEqual(['/r/link', '/r/x.md']);
-    expect(result).toMatchObject({ paths: [{ kind: 'file', path: '/r/x.md' }] });
+    expect(result).toMatchObject({
+      paths: [{ kind: 'file', path: '/r/x.md' }],
+    });
   });
 
   it('merges repeated events for one path', async () => {
@@ -169,33 +175,50 @@ describe('classifyBatch', () => {
       [update('/r/d'), create('/r/d'), update('/r/d')],
       context({ '/r/d': 'dir' }),
     );
-    expect(result).toMatchObject({ paths: [{ kind: 'dirCreate', path: '/r/d' }] });
+    expect(result).toMatchObject({
+      paths: [{ kind: 'dirCreate', path: '/r/d' }],
+    });
   });
 
   it('a batch naming the absent root is dropped whole; a present root is skipped', async () => {
     await expect(
-      classifyBatch([del('/r'), del('/r/a.md')], context({}, { files: ['/r/a.md'] })),
+      classifyBatch(
+        [del('/r'), del('/r/a.md')],
+        context({}, { files: ['/r/a.md'] }),
+      ),
     ).resolves.toEqual({ rootGone: true });
     await expect(
-      classifyBatch([update('/r'), create('/r/a.md')], context({ '/r': 'dir', '/r/a.md': 'file' })),
-    ).resolves.toEqual({ rootGone: false, paths: [{ kind: 'file', path: '/r/a.md' }] });
+      classifyBatch(
+        [update('/r'), create('/r/a.md')],
+        context({ '/r': 'dir', '/r/a.md': 'file' }),
+      ),
+    ).resolves.toEqual({
+      rootGone: false,
+      paths: [{ kind: 'file', path: '/r/a.md' }],
+    });
   });
 
   it(`lstats at most ${String(BATCH_LSTAT_CONCURRENCY)} paths at a time`, async () => {
     let active = 0;
     let peak = 0;
-    const events = Array.from({ length: 500 }, (_, i) => update(`/r/f${String(i)}`));
+    const events = Array.from({ length: 500 }, (_, i) =>
+      update(`/r/f${String(i)}`),
+    );
     await classifyBatch(
       events,
-      context({}, {}, {
-        lstat: async () => {
-          active += 1;
-          peak = Math.max(peak, active);
-          await new Promise((resolve) => setTimeout(resolve, 1));
-          active -= 1;
-          return 'file';
+      context(
+        {},
+        {},
+        {
+          lstat: async () => {
+            active += 1;
+            peak = Math.max(peak, active);
+            await new Promise((resolve) => setTimeout(resolve, 1));
+            active -= 1;
+            return 'file';
+          },
         },
-      }),
+      ),
     );
     expect(peak).toBe(BATCH_LSTAT_CONCURRENCY);
   });

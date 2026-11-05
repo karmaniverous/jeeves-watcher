@@ -88,7 +88,8 @@ export function parcelBackend(
   throw new ChangeSourceLoadError(error);
 }
 
-const defaultImporter: ParcelImporter = async () =>
+/** Imports the real `@parcel/watcher` (the app's default factory). */
+export const importParcelWatcher: ParcelImporter = async () =>
   (await import('@parcel/watcher')).default;
 
 /**
@@ -100,7 +101,7 @@ const defaultImporter: ParcelImporter = async () =>
  * @throws ChangeSourceLoadError when it cannot load.
  */
 export async function loadParcelWatcher(
-  importer: ParcelImporter = defaultImporter,
+  importer: ParcelImporter = importParcelWatcher,
 ): Promise<ParcelWatcherModule> {
   try {
     parcelBackend();

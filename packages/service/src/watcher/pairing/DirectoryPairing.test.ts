@@ -28,7 +28,8 @@ function world() {
     },
     walk: (dir) => Promise.resolve(disk.get(dir) ?? new Map()),
     unlink: (path) => calls.push(`unlink ${path}`),
-    move: (from, to, stats) => calls.push(`move ${from} -> ${to} ${String(stats.size)}`),
+    move: (from, to, stats) =>
+      calls.push(`move ${from} -> ${to} ${String(stats.size)}`),
     enterStability: (path) => calls.push(`stability ${path}`),
     dropStability: (dir) => calls.push(`drop ${dir}`),
     reconcile: (dir) => calls.push(`reconcile ${dir}`),
@@ -99,7 +100,11 @@ describe('DirectoryPairing', () => {
   it('pairs at 90% and handles the unmatched on both sides', async () => {
     for (let i = 0; i < 8; i++) w.file(`/r/old/f${String(i)}.md`, 1);
     // 10 files under old: a, sub/b, f0..f7. 9 reappear (f7 missing); one new file.
-    const onDisk: Record<string, number> = { '/r/new/a.md': 1, '/r/new/sub/b.md': 2, '/r/new/extra.md': 5 };
+    const onDisk: Record<string, number> = {
+      '/r/new/a.md': 1,
+      '/r/new/sub/b.md': 2,
+      '/r/new/extra.md': 5,
+    };
     for (let i = 0; i < 7; i++) onDisk[`/r/new/f${String(i)}.md`] = 1;
     w.onDisk('/r/new', onDisk);
     await pairing.deleted('/r/old');
@@ -132,7 +137,9 @@ describe('DirectoryPairing', () => {
     expect(pairing.buffer('/r/elsewhere.md')).toBe(false);
     await pairing.deleted('/r/old');
     expect(w.calls.slice(-1)).toEqual(['stability /r/new/a.md']);
-    expect(w.calls.indexOf('drop /r/new')).toBeLessThan(w.calls.indexOf('stability /r/new/a.md'));
+    expect(w.calls.indexOf('drop /r/new')).toBeLessThan(
+      w.calls.indexOf('stability /r/new/a.md'),
+    );
   });
 
   it('an unpaired create is reconciled only after its hold, then its buffered events', async () => {
@@ -151,7 +158,11 @@ describe('DirectoryPairing', () => {
     await pairing.deleted('/r/old');
     await vi.advanceTimersByTimeAsync(BUFFER_MS);
     await w.drain();
-    expect(w.calls).toEqual(['drop /r/old', 'unlink /r/old/a.md', 'unlink /r/old/sub/b.md']);
+    expect(w.calls).toEqual([
+      'drop /r/old',
+      'unlink /r/old/a.md',
+      'unlink /r/old/sub/b.md',
+    ]);
   });
 
   it('ignores a repeated create of a held directory', async () => {

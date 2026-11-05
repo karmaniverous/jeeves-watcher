@@ -42,7 +42,7 @@ import { createQueues } from './queues';
 import { shutdownComponents } from './shutdown';
 import { createSourceRetriever } from './sources';
 import { createStateStores, type StateStores } from './stateStores';
-import { createWatcher, type WatcherWiring } from './watcherFactory';
+import { createLoadedWatcher, type WatcherWiring } from './watcherFactory';
 
 export type {
   JeevesWatcherFactories,
@@ -170,7 +170,7 @@ export class JeevesWatcher {
     const logger = this.logger!;
     const vcsCoordinator = this.vcsCoordinator!;
 
-    const { watcher, gitignoreFilter } = createWatcher(
+    const { watcher, gitignoreFilter } = await createLoadedWatcher(
       this.config,
       this.factories,
       this.queue!,
@@ -232,6 +232,8 @@ export class JeevesWatcher {
       contentHashCache: this.stores?.contentHashCache,
       changeSourceHealth: this.changeSourceHealth,
       getReconcileIntervalMs: () => this.config.watch.reconcileIntervalMs,
+      importParcel: this.factories.importParcel,
+      stateDir: this.config.stateDir,
       onVcsFileChange: (filePath, event) => {
         this.vcsCoordinator?.onFileChange(filePath, event);
       },

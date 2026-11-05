@@ -27,8 +27,7 @@ export type ClassifiedPath =
 
 /** A classified batch: the paths, or the whole batch dropped (root gone). */
 export type ClassifiedBatch =
-  | { rootGone: false; paths: ClassifiedPath[] }
-  | { rootGone: true };
+  { rootGone: false; paths: ClassifiedPath[] } | { rootGone: true };
 
 /**
  * What a path's `lstat` found: `absent` only for `ENOENT`/`ENOTDIR`;
@@ -72,7 +71,11 @@ export function isShortName(name: string): boolean {
 function ancestorsOf(keys: readonly string[]): Set<string> {
   const ancestors = new Set<string>();
   for (const key of keys) {
-    for (let at = key.lastIndexOf('/'); at > 0; at = key.lastIndexOf('/', at - 1)) {
+    for (
+      let at = key.lastIndexOf('/');
+      at > 0;
+      at = key.lastIndexOf('/', at - 1)
+    ) {
       const parent = key.slice(0, at);
       if (ancestors.has(parent)) break;
       ancestors.add(parent);
@@ -84,7 +87,11 @@ function ancestorsOf(keys: readonly string[]): Set<string> {
 /** Whether a proper ancestor of `key` is in `dirs`. */
 function hasAncestorIn(key: string, dirs: ReadonlySet<string>): boolean {
   if (dirs.size === 0) return false;
-  for (let at = key.lastIndexOf('/'); at > 0; at = key.lastIndexOf('/', at - 1)) {
+  for (
+    let at = key.lastIndexOf('/');
+    at > 0;
+    at = key.lastIndexOf('/', at - 1)
+  ) {
     if (dirs.has(key.slice(0, at))) return true;
   }
   return false;
@@ -104,7 +111,12 @@ function mergeByPath(events: readonly RawChangeEvent[]): BatchPath[] {
     const key = normalizeDocumentKey(event.path);
     const existing = byKey.get(key);
     if (existing) existing.created ||= event.type === 'create';
-    else byKey.set(key, { path: event.path, key, created: event.type === 'create' });
+    else
+      byKey.set(key, {
+        path: event.path,
+        key,
+        created: event.type === 'create',
+      });
   }
   return [...byKey.values()];
 }
@@ -153,7 +165,7 @@ export async function classifyBatch(
     rootGone: false,
     paths: classified
       .filter((entry) => !covered(entry.key))
-      .map(({ kind, path }) => ({ kind, path }) as ClassifiedPath),
+      .map(({ kind, path }) => ({ kind, path })),
   };
 }
 

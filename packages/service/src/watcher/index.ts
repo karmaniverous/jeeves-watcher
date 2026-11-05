@@ -4,7 +4,6 @@
  */
 
 import type { Stats } from 'node:fs';
-import { dirname } from 'node:path';
 
 import type pino from 'pino';
 
@@ -23,13 +22,18 @@ import type {
 } from './changeSource/types';
 import { walkRoots } from './initialWalk';
 import type { Inventory } from './inventory/Inventory';
-import { rebuildAfterGitignore } from './inventory/rebuildUnder';
+import {
+  onResubscribed,
+  onRootAvailable,
+  onRootUnavailable,
+  type RootSignal,
+} from './rootSignals';
 import {
   createRunning,
   type FileSystemWatcherOptions,
   type Running,
 } from './running';
-import { settledEvent, type SettledPath } from './stability/StabilityTicker';
+import { applySettled, onGitignoreChanged } from './runningHandlers';
 
 export type { FileSystemWatcherOptions } from './running';
 
@@ -95,10 +99,11 @@ export class FileSystemWatcher implements ChangeSink {
       },
       scanning: () => !this.initialScanComplete,
       onSettled: (settled) => {
-        this.settled(settled);
+        if (this.running)
+          applySettled(this.running, settled, this.options.changeSourceHealth);
       },
       onGitignoreChange: (path) => {
-        this.gitignoreChanged(path);
+        if (this.running) onGitignoreChanged(this.running, path, this.logger);
       },
     });
     this.running = running;
@@ -115,28 +120,19 @@ export class FileSystemWatcher implements ChangeSink {
       { paths: this.config.paths, changeSource: running.source.name },
       'Filesystem watcher started',
     );
-    if (pipeline) void this.walkRoots(running);
-  }
-
-  /**
-   * The walk-based initial set (D58): each root, already subscribed, is
-   * walked into the inventory; its batches wait in the FIFO until then.
-   */
-  private async walkRoots(running: Running): Promise<void> {
-    const live = () => this.running === running;
-    await walkRoots({
-      roots: running.roots.roots,
-      events: running.events,
-      filters: running.pipeline!.walkOptions(),
-      logger: this.logger,
-      live,
-      onRootDone: (root) => {
-        running.pipeline?.fifo.resume(root);
-        this.initialScanDone(root);
-      },
-    }).catch((error: unknown) => {
-      this.logger.error({ err: normalizeError(error) }, 'Initial walk failed');
-    });
+    if (pipeline) {
+      void walkRoots({
+        roots: running.roots.roots,
+        events: running.events,
+        filters: pipeline.walkOptions(),
+        logger: this.logger,
+        live: () => this.running === running,
+        onRootDone: (root) => {
+          pipeline.fifo.resume(root);
+          this.initialScanDone(root);
+        },
+      });
+    }
   }
 
   /** A classified event from the change source (chokidar), with the stats it read, if any. */
@@ -160,12 +156,6 @@ export class FileSystemWatcher implements ChangeSink {
     if (!this.running?.filter.isRootGit(dir)) this.reconcile(dir);
   }
 
-  /** The running state and the canonical form of a root a source named. */
-  private rootSignal(root: string): [Running, string] | undefined {
-    const running = this.running;
-    return running ? [running, running.roots.rootOf(root) ?? root] : undefined;
-  }
-
   /** Start a reconcile of `dir` (every trigger is owned here, D120). */
   private reconcile(dir: string): void {
     void this.running?.reconciler.reconcile(dir);
@@ -181,9 +171,9 @@ export class FileSystemWatcher implements ChangeSink {
 
   /** The source finished its initial set for a root; the scan completes when every root has. */
   initialScanDone(sourceRoot: string): void {
-    const signal = this.rootSignal(sourceRoot);
+    const signal = this.signal(sourceRoot);
     if (!signal) return;
-    const [running, root] = signal;
+    const { running, root } = signal;
     if (running.pendingRoots.delete(root)) running.periodic.arm(root);
     if (running.pendingRoots.size > 0 || this.initialScanComplete) return;
     this.initialScanComplete = true;
@@ -197,78 +187,41 @@ export class FileSystemWatcher implements ChangeSink {
     running.deferredRoots.clear();
   }
 
-  /**
-   * The source re-created `root`'s subscription after an error (D131):
-   * events in between are lost, so reconcile the root (once its initial
-   * scan finishes, if it has not).
-   */
+  /** The source re-created a root's subscription after an error (D131). */
   resubscribed(sourceRoot: string): void {
-    const signal = this.rootSignal(sourceRoot);
-    if (!signal) return;
-    const [running, root] = signal;
-    this.logger.info({ root }, 'Change source resubscribed');
-    this.options.changeSourceHealth?.recordResubscribe();
-    if (running.pendingRoots.has(root)) running.deferredRoots.add(root);
-    else this.reconcile(root);
+    const signal = this.signal(sourceRoot);
+    if (signal) onResubscribed(signal);
   }
 
-  /**
-   * `root` is unreachable (D109): mark it (nothing is unlinked; its
-   * reconciles are skipped) and drop its pending stability waits. A root
-   * that is reachable but unwatched (D156) only counts as unavailable: it
-   * is still reconciled.
-   */
+  /** A root is unreachable (D109), or reachable but unwatched (D156). */
   rootUnavailable(
     sourceRoot: string,
     code: string,
     options?: RootUnavailableOptions,
   ): void {
-    const signal = this.rootSignal(sourceRoot);
-    if (!signal) return;
-    const [running, root] = signal;
-    this.logger.warn({ root, code, ...options }, 'Watch root unavailable');
-    this.options.changeSourceHealth?.setUnavailable(root, true);
-    if (options?.reachable) return;
-    running.unavailableRoots.add(root);
-    running.ticker.dropUnder(root);
+    const signal = this.signal(sourceRoot);
+    if (signal) onRootUnavailable(signal, code, options);
   }
 
-  /** `root` is reachable again (D109): unmark and reconcile it. */
+  /** A root is reachable again (D109). */
   rootAvailable(sourceRoot: string): void {
-    const signal = this.rootSignal(sourceRoot);
-    if (!signal) return;
-    const [running, root] = signal;
-    this.logger.info({ root }, 'Watch root available again');
-    running.unavailableRoots.delete(root);
-    this.options.changeSourceHealth?.setUnavailable(root, false);
-    this.reconcile(root);
+    const signal = this.signal(sourceRoot);
+    if (signal) onRootAvailable(signal);
   }
 
-  /**
-   * A path settled in the stability ticker: emit `add` or `change` through
-   * the normal handlers unless the inventory already holds it (D142).
-   */
-  private settled({ path, stats, synthetic }: SettledPath): void {
+  /** A root signal's context (the canonical root), or undefined when not running. */
+  private signal(sourceRoot: string): RootSignal | undefined {
     const running = this.running;
-    if (!running) return;
-    const event = settledEvent(running.inventory.get(path), stats);
-    if (!event) return;
-    if (event === 'add') running.events.add(path, stats, synthetic);
-    else running.events.change(path, stats);
-    if (synthetic) this.options.changeSourceHealth?.recordReconcileEvents(1);
-  }
-
-  /**
-   * A `.gitignore` changed: once its root's initial scan is done, rebuild
-   * the inventory entries under its directory (D99). During the scan the
-   * filter already holds every `.gitignore` (read at construction).
-   */
-  private gitignoreChanged(path: string): void {
-    const running = this.running;
-    if (!running) return;
-    const root = running.roots.rootOf(path);
-    if (root === undefined || running.pendingRoots.has(root)) return;
-    void rebuildAfterGitignore(running, dirname(path), this.logger);
+    if (!running) return undefined;
+    return {
+      running,
+      root: running.roots.rootOf(sourceRoot) ?? sourceRoot,
+      logger: this.logger,
+      health: this.options.changeSourceHealth,
+      reconcile: (dir) => {
+        this.reconcile(dir);
+      },
+    };
   }
 
   /**

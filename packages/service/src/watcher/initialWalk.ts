@@ -121,11 +121,20 @@ export interface WalkRootsDeps extends InitialWalkDeps {
 
 /**
  * Walk every root in turn (each already subscribed, D58), then check the
- * Linux watch budget (D126).
+ * Linux watch budget (D126). Never rejects: a failure is logged.
  *
  * @param deps - Roots, handlers, completion callback.
  */
 export async function walkRoots(deps: WalkRootsDeps): Promise<void> {
+  try {
+    await walkEach(deps);
+  } catch (error) {
+    deps.logger.error({ err: normalizeError(error) }, 'Initial walk failed');
+  }
+}
+
+/** {@link walkRoots}' body. */
+async function walkEach(deps: WalkRootsDeps): Promise<void> {
   let dirs = 0;
   for (const root of deps.roots) {
     dirs += await initialWalk(root, deps);

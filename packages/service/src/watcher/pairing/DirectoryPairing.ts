@@ -16,7 +16,9 @@ export const PAIRING_MATCH_RATIO = 0.9;
 export interface PairingDeps {
   bufferMs: number;
   /** The inventory's files under a directory, keyed by document key (D150). */
-  entriesUnder: (dir: string) => Map<string, { path: string } & Partial<FileStats>>;
+  entriesUnder: (
+    dir: string,
+  ) => Map<string, { path: string } & Partial<FileStats>>;
   /** Drop a file from the inventory while its directory delete is held. */
   forget: (path: string) => void;
   /** Walk a created directory: matched files with their stats. */
@@ -163,21 +165,32 @@ export class DirectoryPairing {
    *
    * @returns True when paired.
    */
-  private async tryPair(deleted: HeldDelete, created: HeldCreate): Promise<boolean> {
+  private async tryPair(
+    deleted: HeldDelete,
+    created: HeldCreate,
+  ): Promise<boolean> {
     if (!this.deletes.has(deleted.key) || !this.creates.has(created.key)) {
       return false;
     }
-    const walked = await this.deps.walk(created.path).catch((error: unknown) => {
-      this.deps.logger.warn({ dir: created.path, error }, 'Pairing walk failed');
-      return new Map<string, WalkedFile>();
-    });
+    const walked = await this.deps
+      .walk(created.path)
+      .catch((error: unknown) => {
+        this.deps.logger.warn(
+          { dir: created.path, error },
+          'Pairing walk failed',
+        );
+        return new Map<string, WalkedFile>();
+      });
     const byRelative = new Map<string, WalkedFile>();
     for (const [fileKey, file] of walked) {
       byRelative.set(relativeKey(fileKey, created.key), file);
     }
     const matched = [...deleted.files].filter(([relative, entry]) => {
       const file = byRelative.get(relative);
-      return file !== undefined && (entry.size === undefined || entry.size === file.size);
+      return (
+        file !== undefined &&
+        (entry.size === undefined || entry.size === file.size)
+      );
     });
     if (matched.length < deleted.files.size * PAIRING_MATCH_RATIO) return false;
     if (!this.deletes.has(deleted.key) || !this.creates.has(created.key)) {
@@ -194,7 +207,10 @@ export class DirectoryPairing {
     for (const [relative, entry] of matched) {
       const file = byRelative.get(relative)!;
       moved.add(relative);
-      this.deps.move(entry.path, file.path, { size: file.size, mtimeMs: file.mtimeMs });
+      this.deps.move(entry.path, file.path, {
+        size: file.size,
+        mtimeMs: file.mtimeMs,
+      });
     }
     for (const [relative, entry] of deleted.files) {
       if (!moved.has(relative)) this.deps.unlink(entry.path);

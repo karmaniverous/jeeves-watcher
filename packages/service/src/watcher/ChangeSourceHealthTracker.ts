@@ -17,6 +17,7 @@ export class ChangeSourceHealthTracker {
   private reconcileErrors = 0;
   private lastReconcileAt: string | null = null;
   private lastReconcileDurationMs: number | null = null;
+  private lastRenewDurationMs: number | null = null;
   private readonly unavailable = new Set<string>();
   private pendingStability: () => number = () => 0;
 
@@ -32,9 +33,19 @@ export class ChangeSourceHealthTracker {
     this.resubscribes++;
   }
 
-  /** A renewal forced a source rebuild (D165). */
-  recordRenewFailure(): void {
-    this.renewFailures++;
+  /**
+   * A renewal forced a source rebuild (D165), or rejected inside one
+   * (D176).
+   *
+   * @param count - Failures to add (default 1).
+   */
+  recordRenewFailure(count = 1): void {
+    this.renewFailures += count;
+  }
+
+  /** A subscription renewal finished (Linux parcel, D129, D157). */
+  recordRenew(durationMs: number): void {
+    this.lastRenewDurationMs = durationMs;
   }
 
   /** Mark a root unavailable (D109) or available again. */
@@ -70,8 +81,8 @@ export class ChangeSourceHealthTracker {
       lastReconcileAt: this.lastReconcileAt,
       lastReconcileDurationMs: this.lastReconcileDurationMs,
       pendingStability: this.pendingStability(),
-      // No renewal exists under chokidar (D129, D177): parcel sets this (P13).
-      lastRenewDurationMs: null,
+      // Only Linux parcel renews (D129); chokidar and Windows stay null (D177).
+      lastRenewDurationMs: this.lastRenewDurationMs,
       renewFailures: this.renewFailures,
     };
   }

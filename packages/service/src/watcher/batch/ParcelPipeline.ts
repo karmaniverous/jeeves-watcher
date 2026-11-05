@@ -16,10 +16,18 @@ import { DirectoryPairing } from '../pairing/DirectoryPairing';
 import type { WatchFilter } from '../pathFilter';
 import type { WatchRoots } from '../roots';
 import type { StabilityTicker } from '../stability/StabilityTicker';
-import { walk as defaultWalk, type WalkedFile, type WalkOptions } from '../walk/Walker';
+import {
+  walk as defaultWalk,
+  type WalkedFile,
+  type WalkOptions,
+} from '../walk/Walker';
 import { walkFilters } from '../walk/walkFilters';
 import { BatchFifo } from './BatchFifo';
-import { classifyBatch, type ClassifiedPath, type PathState } from './classifyBatch';
+import {
+  type ClassifiedPath,
+  classifyBatch,
+  type PathState,
+} from './classifyBatch';
 
 /** What the pipeline drives. */
 export interface ParcelPipelineDeps {
@@ -40,7 +48,10 @@ export interface ParcelPipelineDeps {
   /** `lstat` as a path state (tests). */
   lstat?: (path: string) => Promise<PathState>;
   /** The walker (tests). */
-  walk?: (dir: string, options: WalkOptions) => Promise<Map<string, WalkedFile>>;
+  walk?: (
+    dir: string,
+    options: WalkOptions,
+  ) => Promise<Map<string, WalkedFile>>;
 }
 
 /**

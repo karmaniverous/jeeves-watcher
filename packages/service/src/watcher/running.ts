@@ -5,7 +5,6 @@
 
 import {
   extractWatchPathStrings,
-  ROOT_DEFAULTS,
   WATCH_DEFAULTS,
 } from '@karmaniverous/jeeves-watcher-core';
 import type pino from 'pino';
@@ -18,12 +17,10 @@ import type { DocumentProcessorInterface } from '../processor';
 import type { EventQueue } from '../queue';
 import { normalizeError } from '../util/normalizeError';
 import { ParcelPipeline } from './batch/ParcelPipeline';
-import { ChokidarChangeSource } from './changeSource/ChokidarChangeSource';
 import type {
   ParcelImporter,
   ParcelWatcherModule,
 } from './changeSource/parcelModule';
-import { ParcelSource } from './changeSource/ParcelSource';
 import type { ChangeSource } from './changeSource/types';
 import type { ChangeSourceHealthTracker } from './ChangeSourceHealthTracker';
 import {
@@ -42,6 +39,7 @@ import {
 import { Reconciler } from './reconcile/Reconciler';
 import { WatchRoots } from './roots';
 import { ScanStats } from './ScanStats';
+import { createSource, renewRecorded, warnRenewalOff } from './sourceWiring';
 import { type SettledPath, StabilityTicker } from './stability/StabilityTicker';
 import { isGone, statFile } from './walk/statFile';
 import { walkFilters } from './walk/walkFilters';
@@ -124,25 +122,6 @@ export interface RunningContext {
   parcel?: ParcelWatcherModule;
 }
 
-/** The change source a start uses: parcel when loaded, else chokidar. */
-function createSource(context: RunningContext): ChangeSource {
-  const { config, parcel } = context;
-  if (parcel) {
-    return new ParcelSource({
-      parcel,
-      ignored: config.ignored,
-      stateDir: context.options.stateDir ?? ROOT_DEFAULTS.stateDir,
-      logger: context.logger,
-    });
-  }
-  return new ChokidarChangeSource({
-    usePolling: config.usePolling,
-    pollIntervalMs: config.pollIntervalMs,
-    stabilityThresholdMs: config.stabilityThresholdMs,
-    onError: context.onSourceError,
-  });
-}
-
 /**
  * Build the running state of one start.
  *
@@ -164,7 +143,13 @@ export function createRunning(context: RunningContext): Running {
     logger,
     options.gitignoreFilter,
   );
-  const source = createSource(context);
+  const source = createSource({
+    config,
+    parcel: context.parcel,
+    stateDir: options.stateDir,
+    logger,
+    onSourceError: context.onSourceError,
+  });
   const wiring = {
     queue: context.queue,
     processor: context.processor,
@@ -218,16 +203,18 @@ export function createRunning(context: RunningContext): Running {
     logger,
     health: options.changeSourceHealth,
   });
+  const intervalMs = () =>
+    options.getReconcileIntervalMs?.() ??
+    config.reconcileIntervalMs ??
+    WATCH_DEFAULTS.reconcileIntervalMs;
+  warnRenewalOff(source, intervalMs(), logger);
   const periodic = new PeriodicReconcile({
     roots,
-    intervalMs: () =>
-      options.getReconcileIntervalMs?.() ??
-      config.reconcileIntervalMs ??
-      WATCH_DEFAULTS.reconcileIntervalMs,
+    intervalMs,
     run: (root) =>
       renewThenReconcile(
         {
-          renew: (r) => source.renew(r),
+          renew: (r) => renewRecorded(source, r, options.changeSourceHealth),
           reconcile: (dir) => reconciler.reconcile(dir),
           roots,
           onRebuilt: () => options.changeSourceHealth?.recordRenewFailure(),

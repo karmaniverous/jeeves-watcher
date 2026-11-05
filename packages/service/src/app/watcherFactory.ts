@@ -16,6 +16,11 @@ import type { DocumentProcessorInterface } from '../processor';
 import type { EventQueue } from '../queue';
 import { normalizeError } from '../util/normalizeError';
 import type { FileSystemWatcher, FileSystemWatcherOptions } from '../watcher';
+import {
+  loadParcelWatcher,
+  type ParcelImporter,
+} from '../watcher/changeSource/parcelModule';
+import { selectedChangeSource } from '../watcher/changeSource/selectSource';
 import type { JeevesWatcherFactories } from './factories';
 
 /**
@@ -30,6 +35,8 @@ export type WatcherWiring = Pick<
   | 'onInitialScanComplete'
   | 'changeSourceHealth'
   | 'getReconcileIntervalMs'
+  | 'importParcel'
+  | 'stateDir'
 >;
 
 /** State returned by {@link rebuildWatcher}. */
@@ -77,6 +84,38 @@ export function createWatcher(
 }
 
 /**
+ * Import `@parcel/watcher` when the watch config selects it (D125), so a
+ * missing or broken binary refuses a start before the API listens, or a
+ * rebuild before the running watcher stops.
+ *
+ * @param watch - The watch config.
+ * @param importParcel - The import (default the real module).
+ * @throws ChangeSourceLoadError when it cannot load.
+ */
+export async function loadSelectedChangeSource(
+  watch: JeevesWatcherConfig['watch'],
+  importParcel?: ParcelImporter,
+): Promise<void> {
+  if (selectedChangeSource(watch) === 'parcel') {
+    await loadParcelWatcher(importParcel);
+  }
+}
+
+/**
+ * Import the selected change source (D125), then create the watcher: a
+ * source that cannot load refuses the start before the API listens.
+ *
+ * @param args - As {@link createWatcher}.
+ * @returns The watcher and its gitignore filter.
+ */
+export async function createLoadedWatcher(
+  ...args: Parameters<typeof createWatcher>
+): Promise<ReturnType<typeof createWatcher>> {
+  await loadSelectedChangeSource(args[0].watch, args[6]?.importParcel);
+  return createWatcher(...args);
+}
+
+/**
  * Tear down and rebuild the filesystem watcher with new config.
  * Falls back to the old watcher if the new one fails to start.
  */
@@ -94,6 +133,16 @@ export async function rebuildWatcher(
   oldState: WatcherState,
   wiring: WatcherWiring = {},
 ): Promise<WatcherState> {
+  try {
+    await loadSelectedChangeSource(newConfig.watch, wiring.importParcel);
+  } catch (error) {
+    // Refused before the running watcher stops: it keeps running (D125).
+    logger.error(
+      { err: normalizeError(error) },
+      'Watcher rebuild refused; the running watcher stays',
+    );
+    return oldState;
+  }
   try {
     await oldState.watcher.stop();
 
@@ -141,6 +190,7 @@ const REBUILD_KEYS = [
   'usePolling',
   'pollIntervalMs',
   'stabilityThresholdMs',
+  'changeSource',
 ] as const satisfies readonly (keyof JeevesWatcherConfig['watch'])[];
 
 /** `WATCH_DEFAULTS`, typed as a partial watch config for lookups. */

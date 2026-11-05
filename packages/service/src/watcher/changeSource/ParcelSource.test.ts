@@ -1,6 +1,6 @@
 /**
  * @module watcher/changeSource/ParcelSource.test
- * The parcel source against a stub module: subscriptions per root with the explicit backend and ignore list, handle-only unsubscribe (D179), a callback that never throws (D179), resubscribe with backoff (D131), root gone and back (D109), non-transient watch errors (D156), load failure at subscribe (D156), Linux renewal and sentinel rebuild (D129, D165, D176) and no renewal on Windows (D177).
+ * The parcel source against a stub module: subscriptions per root with the explicit backend and ignore list, handle-only unsubscribe (D179), a callback that never throws (D179), resubscribe with backoff (D131), root gone and back (D109), non-transient watch errors (D156), load failure at subscribe (D156). Renewal: ParcelSource.renew.test.
  */
 
 import { mkdtempSync, rmSync } from 'node:fs';
@@ -14,74 +14,13 @@ import {
   describe,
   expect,
   it,
-  type Mock,
   vi,
 } from 'vitest';
 
-import type { ParcelCallback, ParcelWatcherModule } from './parcelModule';
+import { createMockLogger, stubParcel, stubSink } from '../../test/parcelStub';
 import { ChangeSourceLoadError } from './parcelModule';
-import { ParcelSource, SENTINEL_DIR } from './ParcelSource';
+import { ParcelSource } from './ParcelSource';
 import { BACKOFF_INITIAL_MS, BACKOFF_MAX_MS } from './parcelSubscription';
-import type { ChangeSink } from './types';
-
-/** A logger whose levels are spies. */
-function createMockLogger() {
-  return {
-    debug: vi.fn(),
-    info: vi.fn(),
-    warn: vi.fn(),
-    error: vi.fn(),
-  };
-}
-
-/** A recorded subscription. */
-interface Sub {
-  dir: string;
-  callback: ParcelCallback;
-  options: unknown;
-  unsubscribe: ReturnType<typeof vi.fn>;
-}
-
-/** A stub `@parcel/watcher` recording every call in order. */
-function stubParcel() {
-  const subs: Sub[] = [];
-  const log: string[] = [];
-  const failNext: Error[] = [];
-  const rejectUnsubscribe = new Set<string>();
-  const parcel: ParcelWatcherModule = {
-    subscribe: vi.fn((dir: string, callback: ParcelCallback, options) => {
-      log.push(`subscribe ${dir}`);
-      if (failNext.length > 0) return Promise.reject(failNext.shift()!);
-      const sub: Sub = {
-        dir,
-        callback,
-        options,
-        unsubscribe: vi.fn(() => {
-          log.push(`unsubscribe ${dir}`);
-          return rejectUnsubscribe.has(dir)
-            ? Promise.reject(new Error('Error unsubscribing'))
-            : Promise.resolve();
-        }),
-      };
-      subs.push(sub);
-      return Promise.resolve({ unsubscribe: sub.unsubscribe });
-    }) as unknown as ParcelWatcherModule['subscribe'],
-  };
-  /** The live subscription for a dir (the latest). */
-  const latest = (dir: string) => subs.filter((s) => s.dir === dir).at(-1)!;
-  return { parcel, subs, log, failNext, rejectUnsubscribe, latest };
-}
-
-function stubSink(): { [K in keyof ChangeSink]: ChangeSink[K] & Mock } {
-  return {
-    event: vi.fn(),
-    rawEvents: vi.fn(),
-    initialScanDone: vi.fn(),
-    resubscribed: vi.fn(),
-    rootUnavailable: vi.fn(),
-    rootAvailable: vi.fn(),
-  };
-}
 
 const R1 = join('/srv', 'r1');
 const R2 = join('/srv', 'r2');
@@ -307,81 +246,5 @@ describe('ParcelSource', () => {
       expect.objectContaining({ root: R1 }),
       'Parcel unsubscribe rejected',
     );
-  });
-
-  describe('renew', () => {
-    it('does nothing on Windows (D177)', async () => {
-      const parcelSource = source('win32');
-      await parcelSource.start([R1], [], sink);
-      stub.log.length = 0;
-      await expect(parcelSource.renew(R1)).resolves.toEqual({ rebuilt: false });
-      expect(stub.log).toEqual([]);
-    });
-
-    it('awaits the unsubscribe before subscribing on Linux (D129)', async () => {
-      const parcelSource = source();
-      await parcelSource.start([R1, R2], [], sink);
-      stub.log.length = 0;
-      const result = await parcelSource.renew(R1);
-      expect(stub.log).toEqual([`unsubscribe ${R1}`, `subscribe ${R1}`]);
-      expect(result.rebuilt).toBe(false);
-      expect(result.durationMs).toEqual(expect.any(Number));
-      expect(result.rebuildFailures).toBeUndefined();
-    });
-
-    it('renews nothing for a root that is not subscribed', async () => {
-      const parcelSource = source();
-      await parcelSource.start([R1], [], sink);
-      stub.latest(R1).callback(new Error('x'), []);
-      await vi.advanceTimersByTimeAsync(0);
-      stub.log.length = 0;
-      await expect(parcelSource.renew(R1)).resolves.toEqual({ rebuilt: false });
-      await expect(parcelSource.renew(R2)).resolves.toEqual({ rebuilt: false });
-      expect(stub.log).toEqual([]);
-    });
-
-    it('rebuilds through a sentinel when the unsubscribe rejects (D165)', async () => {
-      const parcelSource = source();
-      await parcelSource.start([R1, R2], [], sink);
-      stub.rejectUnsubscribe.add(R1);
-      stub.log.length = 0;
-      const result = await parcelSource.renew(R1);
-      const sentinel = join(STATE, SENTINEL_DIR);
-      expect(stub.log).toEqual([
-        `unsubscribe ${R1}`,
-        `unsubscribe ${R2}`,
-        `subscribe ${sentinel}`,
-        `unsubscribe ${sentinel}`,
-        `subscribe ${R1}`,
-        `subscribe ${R2}`,
-      ]);
-      expect(result).toMatchObject({ rebuilt: true, rebuildFailures: 0 });
-      expect(sink.resubscribed).not.toHaveBeenCalled();
-    });
-
-    it('counts rejections inside the rebuild (D165, D176)', async () => {
-      const parcelSource = source();
-      await parcelSource.start([R1, R2], [], sink);
-      stub.rejectUnsubscribe.add(R1);
-      stub.rejectUnsubscribe.add(R2);
-      stub.rejectUnsubscribe.add(join(STATE, SENTINEL_DIR));
-      const result = await parcelSource.renew(R1);
-      expect(result).toMatchObject({ rebuilt: true, rebuildFailures: 2 });
-      expect(logger.error).toHaveBeenCalledWith(
-        expect.objectContaining({ sentinel: join(STATE, SENTINEL_DIR) }),
-        expect.any(String),
-      );
-    });
-
-    it('a renewal whose subscribe fails takes the error path (D131)', async () => {
-      const parcelSource = source();
-      await parcelSource.start([R1], [], sink);
-      stub.failNext.push(new Error('Error starting watcher'));
-      await expect(parcelSource.renew(R1)).resolves.toMatchObject({
-        rebuilt: false,
-      });
-      await vi.advanceTimersByTimeAsync(BACKOFF_INITIAL_MS);
-      expect(sink.resubscribed).toHaveBeenCalledWith(R1);
-    });
   });
 });
