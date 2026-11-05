@@ -132,17 +132,27 @@ function stripNewConfigKeys(received: WireRecord): {
   return { record: { ...received, body }, stripped };
 }
 
-/** Strip `health.vcs` from a `/status` record. */
-function stripHealthVcs(received: WireRecord): {
+/** The `health` keys 0.21.0 adds to `/status`. */
+const NEW_HEALTH_KEYS = ['vcs', 'changeSource'];
+
+/**
+ * Strip `health.vcs` and `health.changeSource` from a `/status` record;
+ * both must be present, or one departure is stale.
+ */
+function stripNewHealthKeys(received: WireRecord): {
   record: WireRecord;
   stripped: number;
 } {
   const body = received.body as { health?: Record<string, Json> };
-  if (!body.health || !('vcs' in body.health)) {
+  const health = body.health;
+  if (!health || !NEW_HEALTH_KEYS.every((key) => key in health)) {
     return { record: received, stripped: 0 };
   }
-  const health = withoutKey(body.health, 'vcs');
-  return { record: { ...received, body: { ...body, health } }, stripped: 1 };
+  const rest = NEW_HEALTH_KEYS.reduce(withoutKey, health);
+  return {
+    record: { ...received, body: { ...body, health: rest } },
+    stripped: NEW_HEALTH_KEYS.length,
+  };
 }
 
 const CONFIG_KEYS: WireDeparture = {
@@ -177,8 +187,9 @@ const EXCLUDE_RESPONSE: WireDeparture = {
 /** Approved departures by scenario name. */
 export const WIRE_DEPARTURES: Partial<Record<string, WireDeparture>> = {
   status: {
-    reason: 'P5 B2: GET /status health gains vcs (D86), Design 2',
-    strip: stripHealthVcs,
+    reason:
+      'P5 B2: GET /status health gains vcs (D86); P11 B5b: health gains changeSource (D133, D157), Design 2',
+    strip: stripNewHealthKeys,
   },
   configSchema: CONFIG_KEYS,
   'configSchema unknown query': CONFIG_KEYS,

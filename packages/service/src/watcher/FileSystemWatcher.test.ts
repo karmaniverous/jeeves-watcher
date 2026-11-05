@@ -15,6 +15,7 @@ import {
   type WatcherHarness,
 } from '../test/watcherHarness';
 import { normalizeSlashes } from '../util/normalizeSlashes';
+import { ChangeSourceHealthTracker } from './ChangeSourceHealthTracker';
 
 let harness: WatcherHarness | undefined;
 
@@ -81,6 +82,20 @@ describe('FileSystemWatcher (chokidar source, real filesystem)', () => {
     await harness.write('shown.md');
     await waitFor(() => harness!.seen().includes('create:shown.md'));
     expect(harness.seen()).not.toContain('create:hidden.md');
+  });
+
+  it('reports the chokidar source to health.changeSource (D157)', async () => {
+    const changeSourceHealth = new ChangeSourceHealthTracker();
+    changeSourceHealth.setUnavailable('/stale', true);
+    harness = await startWatcherHarness({
+      options: () => ({ changeSourceHealth }),
+    });
+    expect(changeSourceHealth.snapshot()).toMatchObject({
+      source: 'chokidar',
+      unavailableRoots: 0,
+      pendingStability: 0,
+      lastRenewDurationMs: null,
+    });
   });
 
   it('stops watching on stop', async () => {

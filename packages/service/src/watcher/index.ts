@@ -86,6 +86,7 @@ export class FileSystemWatcher implements ChangeSink {
       },
     });
     this.running = running;
+    this.options.changeSourceHealth?.attach(running.source.name, () => 0);
     await running.source.start(running.roots.roots, running.ignore, this);
 
     this.queue.start();

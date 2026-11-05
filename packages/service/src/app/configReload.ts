@@ -6,8 +6,6 @@
 import type pino from 'pino';
 
 import { executeReindex, reindexDepsFrom } from '../api/executeReindex';
-import type { InitialScanTracker } from '../api/InitialScanTracker';
-import type { ContentHashCache } from '../cache';
 import type { JeevesWatcherConfig } from '../config/types';
 import type { GitignoreFilter } from '../gitignore';
 import type { IssuesManager } from '../issues';
@@ -21,7 +19,11 @@ import {
   buildTemplateEngineAndCustomMapLib,
   getConfigDir,
 } from './initialization';
-import { rebuildWatcher, watchConfigChanged } from './watcherFactory';
+import {
+  rebuildWatcher,
+  watchConfigChanged,
+  type WatcherWiring,
+} from './watcherFactory';
 
 /** Mutable state held by JeevesWatcher that reload needs to read/write. */
 interface ReloadableState {
@@ -30,8 +32,11 @@ interface ReloadableState {
   gitignoreFilter?: GitignoreFilter;
 }
 
-/** Immutable dependencies needed by the reload function. */
-interface ReloadDeps {
+/**
+ * Immutable dependencies needed by the reload function, with the watcher
+ * wiring a rebuild passes on.
+ */
+interface ReloadDeps extends WatcherWiring {
   configPath: string;
   factories: JeevesWatcherFactories;
   queue: EventQueue;
@@ -42,15 +47,8 @@ interface ReloadDeps {
     maxBackoffMs?: number;
     onFatalError?: (error: unknown) => void;
   };
-  initialScanTracker: InitialScanTracker;
-  contentHashCache?: ContentHashCache;
   valuesManager?: ValuesManager;
   issuesManager?: IssuesManager;
-  onVcsFileChange?: (
-    filePath: string,
-    event: 'add' | 'change' | 'unlink',
-  ) => void;
-  onInitialScanComplete?: () => void | Promise<void>;
 }
 
 /**
@@ -97,10 +95,13 @@ export async function reloadConfig(
         logger,
         deps.runtimeOptions,
         { watcher: state.watcher!, gitignoreFilter: state.gitignoreFilter },
-        deps.initialScanTracker,
-        deps.contentHashCache,
-        deps.onVcsFileChange,
-        deps.onInitialScanComplete,
+        {
+          initialScanTracker: deps.initialScanTracker,
+          contentHashCache: deps.contentHashCache,
+          onVcsFileChange: deps.onVcsFileChange,
+          onInitialScanComplete: deps.onInitialScanComplete,
+          changeSourceHealth: deps.changeSourceHealth,
+        },
       );
       state.watcher = newState.watcher;
       state.gitignoreFilter = newState.gitignoreFilter;

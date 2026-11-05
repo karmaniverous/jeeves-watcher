@@ -7,6 +7,7 @@ import { dirname } from 'node:path';
 
 import {
   API_DEFAULTS,
+  type ChangeSourceHealth,
   extractWatchPathStrings,
 } from '@karmaniverous/jeeves-watcher-core';
 import Fastify, { type FastifyInstance } from 'fastify';
@@ -25,6 +26,13 @@ function embeddingHealthSource(health: ApiServerOptions['embeddingHealth']): {
   getEmbeddingHealth?: () => EmbeddingHealthSnapshot;
 } {
   return health ? { getEmbeddingHealth: () => health.snapshot() } : {};
+}
+
+/** The status source's change-source health getter (D133), when tracked. */
+function changeSourceHealthSource(
+  health: ApiServerOptions['changeSourceHealth'],
+): { getChangeSourceHealth?: () => ChangeSourceHealth } {
+  return health ? { getChangeSourceHealth: () => health.snapshot() } : {};
 }
 
 export type { ApiServerOptions } from './apiServerOptions';
@@ -103,6 +111,7 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
         initialScanTracker,
         ...vcsHealthSource(vcsCoordinator),
         ...embeddingHealthSource(options.embeddingHealth),
+        ...changeSourceHealthSource(options.changeSourceHealth),
       },
       config: {
         getConfig,

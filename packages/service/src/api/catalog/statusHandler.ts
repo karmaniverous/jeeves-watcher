@@ -8,6 +8,7 @@
 
 import { createStatusHandler, type StatusHandler } from '@karmaniverous/jeeves';
 import type {
+  ChangeSourceHealth,
   EmbeddingHealth,
   SystemIndexes,
   VcsHealth,
@@ -43,6 +44,8 @@ export interface CatalogStatusDeps {
   getVcsHealth?: () => VcsHealth;
   /** Embedding health (`health.embedding`, D88, D89). */
   getEmbeddingHealth?: () => EmbeddingHealth;
+  /** Change-source health (`health.changeSource`, D133, D157). */
+  getChangeSourceHealth?: () => ChangeSourceHealth;
 }
 
 /**
@@ -115,6 +118,9 @@ function statusSource(deps: CatalogStatusDeps): StatusHandler {
         ...(deps.getVcsHealth ? { vcs: deps.getVcsHealth() } : {}),
         ...(deps.getEmbeddingHealth
           ? { embedding: deps.getEmbeddingHealth() }
+          : {}),
+        ...(deps.getChangeSourceHealth
+          ? { changeSource: deps.getChangeSourceHealth() }
           : {}),
       };
     },

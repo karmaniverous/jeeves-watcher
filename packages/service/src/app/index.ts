@@ -20,6 +20,7 @@ import type { SourceNotifyQueue } from '../queue/SourceNotifyQueue';
 import { VirtualRuleStore } from '../rules/virtualRules';
 import { VcsCoordinator } from '../vcs/VcsCoordinator';
 import type { FileSystemWatcher } from '../watcher';
+import { ChangeSourceHealthTracker } from '../watcher/ChangeSourceHealthTracker';
 import { type ApiServerOptions, startApiServer } from './apiServer';
 import { reloadConfig } from './configReload';
 import type { ConfigWatcher } from './configWatcher';
@@ -41,7 +42,7 @@ import { createQueues } from './queues';
 import { shutdownComponents } from './shutdown';
 import { createSourceRetriever } from './sources';
 import { createStateStores, type StateStores } from './stateStores';
-import { createWatcher } from './watcherFactory';
+import { createWatcher, type WatcherWiring } from './watcherFactory';
 
 export type {
   JeevesWatcherFactories,
@@ -76,6 +77,7 @@ export class JeevesWatcher {
   private gitignoreFilter: GitignoreFilter | undefined;
   private vcsCoordinator: VcsCoordinator | undefined;
   private readonly initialScanTracker = new InitialScanTracker();
+  private readonly changeSourceHealth = new ChangeSourceHealthTracker();
   private readonly version = resolveVersion(import.meta.url);
 
   /** Create a new JeevesWatcher instance. */
@@ -177,12 +179,7 @@ export class JeevesWatcher {
       this.processor!,
       logger,
       this.runtimeOptions,
-      this.initialScanTracker,
-      this.stores?.contentHashCache,
-      (filePath, event) => {
-        vcsCoordinator.onFileChange(filePath, event);
-      },
-      () => void vcsCoordinator.onInitialScanComplete(),
+      this.watcherWiring(),
     );
     this.watcher = watcher;
     this.gitignoreFilter = gitignoreFilter;
@@ -230,6 +227,19 @@ export class JeevesWatcher {
     if (this.logger) flushLogger(this.logger);
   }
 
+  /** Wiring every watcher the app builds shares, across rebuilds. */
+  private watcherWiring(): WatcherWiring {
+    return {
+      initialScanTracker: this.initialScanTracker,
+      contentHashCache: this.stores?.contentHashCache,
+      changeSourceHealth: this.changeSourceHealth,
+      onVcsFileChange: (filePath, event) => {
+        this.vcsCoordinator?.onFileChange(filePath, event);
+      },
+      onInitialScanComplete: () => this.vcsCoordinator?.onInitialScanComplete(),
+    };
+  }
+
   private apiServerOptions(): ApiServerOptions {
     return {
       descriptor: this.descriptor,
@@ -250,6 +260,7 @@ export class JeevesWatcher {
       gitignoreFilter: this.gitignoreFilter,
       version: this.version,
       initialScanTracker: this.initialScanTracker,
+      changeSourceHealth: this.changeSourceHealth,
       fileSystemWatcher: this.watcher,
       getFileSystemWatcher: () => this.watcher,
       enrichmentStore: this.stores?.enrichmentStore,
@@ -275,13 +286,9 @@ export class JeevesWatcher {
       processor,
       logger,
       runtimeOptions: this.runtimeOptions,
-      initialScanTracker: this.initialScanTracker,
-      contentHashCache: this.stores?.contentHashCache,
       valuesManager: this.stores?.valuesManager,
       issuesManager: this.stores?.issuesManager,
-      onVcsFileChange: (filePath, event) =>
-        this.vcsCoordinator?.onFileChange(filePath, event),
-      onInitialScanComplete: () => this.vcsCoordinator?.onInitialScanComplete(),
+      ...this.watcherWiring(),
     });
 
     this.config = state.config;

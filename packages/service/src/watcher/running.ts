@@ -13,6 +13,7 @@ import type { GitignoreFilter } from '../gitignore';
 import type { DocumentProcessorInterface } from '../processor';
 import type { EventQueue } from '../queue';
 import { ChokidarChangeSource } from './changeSource/ChokidarChangeSource';
+import type { ChangeSourceHealthTracker } from './ChangeSourceHealthTracker';
 import {
   createMoveCorrelator,
   FileEventActions,
@@ -45,6 +46,8 @@ export interface FileSystemWatcherOptions {
   onVcsFileChange?: VcsFileChange;
   /** Optional callback invoked when the initial filesystem scan completes. */
   onInitialScanComplete?: () => void | Promise<void>;
+  /** `health.changeSource` counters (D133), owned by the app across rebuilds. */
+  changeSourceHealth?: ChangeSourceHealthTracker;
 }
 
 /** What one `start` builds; replaced on every start. */

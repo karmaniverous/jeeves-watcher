@@ -7,15 +7,26 @@
 import { extractWatchPathStrings } from '@karmaniverous/jeeves-watcher-core';
 import type pino from 'pino';
 
-import type { InitialScanTracker } from '../api/InitialScanTracker';
-import type { ContentHashCache } from '../cache';
 import type { JeevesWatcherConfig } from '../config/types';
 import { GitignoreFilter } from '../gitignore';
 import type { DocumentProcessorInterface } from '../processor';
 import type { EventQueue } from '../queue';
 import { normalizeError } from '../util/normalizeError';
-import type { FileSystemWatcher } from '../watcher';
+import type { FileSystemWatcher, FileSystemWatcherOptions } from '../watcher';
 import type { JeevesWatcherFactories } from './factories';
+
+/**
+ * App-owned watcher wiring that survives rebuilds: trackers, caches and
+ * callbacks passed to every `FileSystemWatcher` the app builds.
+ */
+export type WatcherWiring = Pick<
+  FileSystemWatcherOptions,
+  | 'initialScanTracker'
+  | 'contentHashCache'
+  | 'onVcsFileChange'
+  | 'onInitialScanComplete'
+  | 'changeSourceHealth'
+>;
 
 /** State returned by {@link rebuildWatcher}. */
 export interface WatcherState {
@@ -37,13 +48,7 @@ export function createWatcher(
     maxBackoffMs?: number;
     onFatalError?: (error: unknown) => void;
   },
-  initialScanTracker?: InitialScanTracker,
-  contentHashCache?: ContentHashCache,
-  onVcsFileChange?: (
-    filePath: string,
-    event: 'add' | 'change' | 'unlink',
-  ) => void,
-  onInitialScanComplete?: () => void | Promise<void>,
+  wiring: WatcherWiring = {},
 ): { watcher: FileSystemWatcher; gitignoreFilter?: GitignoreFilter } {
   const respectGitignore = config.watch.respectGitignore ?? true;
   const gitignoreFilter = respectGitignore
@@ -60,10 +65,7 @@ export function createWatcher(
       maxBackoffMs: config.maxBackoffMs ?? runtimeOptions.maxBackoffMs,
       onFatalError: runtimeOptions.onFatalError,
       gitignoreFilter,
-      initialScanTracker,
-      contentHashCache,
-      onVcsFileChange,
-      onInitialScanComplete,
+      ...wiring,
     },
   );
 
@@ -86,13 +88,7 @@ export async function rebuildWatcher(
     onFatalError?: (error: unknown) => void;
   },
   oldState: WatcherState,
-  initialScanTracker?: InitialScanTracker,
-  contentHashCache?: ContentHashCache,
-  onVcsFileChange?: (
-    filePath: string,
-    event: 'add' | 'change' | 'unlink',
-  ) => void,
-  onInitialScanComplete?: () => void | Promise<void>,
+  wiring: WatcherWiring = {},
 ): Promise<WatcherState> {
   try {
     await oldState.watcher.stop();
@@ -105,10 +101,7 @@ export async function rebuildWatcher(
         processor,
         logger,
         runtimeOptions,
-        initialScanTracker,
-        contentHashCache,
-        onVcsFileChange,
-        onInitialScanComplete,
+        wiring,
       );
     await newWatcher.start();
     logger.info('Filesystem watcher rebuilt successfully');

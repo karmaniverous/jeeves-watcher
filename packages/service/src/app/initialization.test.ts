@@ -333,10 +333,7 @@ describe('rebuildWatcher', () => {
       logger,
       {},
       { watcher: { start: vi.fn(), stop: oldStop } as never },
-      undefined,
-      undefined,
-      onVcsFileChange,
-      onInitialScanComplete,
+      { onVcsFileChange, onInitialScanComplete },
     );
 
     // Verify createFileSystemWatcher received the callbacks in its options (5th arg, index 4)

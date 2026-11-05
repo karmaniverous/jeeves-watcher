@@ -122,6 +122,8 @@ export {
   listFacetsResponseSchema,
 } from './facets.js';
 export {
+  type ChangeSourceHealth,
+  changeSourceHealthSchema,
   type EmbeddingHealth,
   embeddingHealthSchema,
   type InitialScanStatus,

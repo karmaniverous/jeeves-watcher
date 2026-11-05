@@ -77,11 +77,7 @@
                               "description": "System payload indexes the service creates whatever payloadIndexes says (chunk_index integer, file_path and matched_rules keyword), by field."
                             }
                           },
-                          "required": [
-                            "name",
-                            "pointCount",
-                            "dimensions"
-                          ],
+                          "required": ["name", "pointCount", "dimensions"],
                           "additionalProperties": false
                         },
                         "reindex": {
@@ -103,9 +99,7 @@
                               "type": "number"
                             }
                           },
-                          "required": [
-                            "active"
-                          ],
+                          "required": ["active"],
                           "additionalProperties": false
                         },
                         "initialScan": {
@@ -130,9 +124,7 @@
                               "type": "number"
                             }
                           },
-                          "required": [
-                            "active"
-                          ],
+                          "required": ["active"],
                           "additionalProperties": false
                         },
                         "vcs": {
@@ -148,10 +140,7 @@
                               "type": "number"
                             },
                             "oldestTrippedAt": {
-                              "type": [
-                                "string",
-                                "null"
-                              ]
+                              "type": ["string", "null"]
                             }
                           },
                           "required": [
@@ -167,18 +156,12 @@
                           "properties": {
                             "state": {
                               "type": "string",
-                              "enum": [
-                                "ok",
-                                "failing"
-                              ],
+                              "enum": ["ok", "failing"],
                               "description": "ok, or failing: at least 3 embedding failures since the last success and 60 s without one. The first success returns it to ok."
                             },
                             "lastSuccessAt": {
                               "description": "Last successful embedding call (ISO), null before the first.",
-                              "type": [
-                                "string",
-                                "null"
-                              ]
+                              "type": ["string", "null"]
                             },
                             "lastError": {
                               "anyOf": [
@@ -194,10 +177,7 @@
                                       "description": "rate_limited, timeout, http_<status>, network or error (no provider text)."
                                     }
                                   },
-                                  "required": [
-                                    "at",
-                                    "code"
-                                  ],
+                                  "required": ["at", "code"],
                                   "additionalProperties": false
                                 },
                                 {
@@ -208,17 +188,11 @@
                             },
                             "failingSince": {
                               "description": "When the state turned failing (ISO), null while ok.",
-                              "type": [
-                                "string",
-                                "null"
-                              ]
+                              "type": ["string", "null"]
                             },
                             "backoffUntil": {
                               "description": "End of the stored provider back-off (ISO, at most 5 minutes ahead), null if none.",
-                              "type": [
-                                "string",
-                                "null"
-                              ]
+                              "type": ["string", "null"]
                             }
                           },
                           "required": [
@@ -231,6 +205,66 @@
                           "additionalProperties": false,
                           "description": "Embedding provider health (D88, D89)."
                         },
+                        "changeSource": {
+                          "type": "object",
+                          "properties": {
+                            "source": {
+                              "type": "string",
+                              "enum": ["chokidar", "parcel"],
+                              "description": "The running change source."
+                            },
+                            "resubscribes": {
+                              "type": "number",
+                              "description": "Subscriptions re-created after an error since start (D131); scheduled renewals are not counted. Always 0 under chokidar."
+                            },
+                            "unavailableRoots": {
+                              "type": "number",
+                              "description": "Roots currently marked unavailable (D109)."
+                            },
+                            "reconcileEvents": {
+                              "type": "number",
+                              "description": "Synthetic events reconciliation has emitted since start (D90): a rising value means the source is missing events."
+                            },
+                            "reconcileErrors": {
+                              "type": "number",
+                              "description": "Reconciles that errored (walk failure, unreachable root, empty root walk against a non-empty inventory) and emitted nothing, since start (D90)."
+                            },
+                            "lastReconcileAt": {
+                              "description": "End of the most recent reconcile (ISO), null before the first.",
+                              "type": ["string", "null"]
+                            },
+                            "lastReconcileDurationMs": {
+                              "description": "Duration of the most recent reconcile, walk and compare (ms), null before the first.",
+                              "type": ["number", "null"]
+                            },
+                            "pendingStability": {
+                              "type": "number",
+                              "description": "Paths in the stability ticker's pending set (D128); a backlog that keeps growing means the ticker is falling behind."
+                            },
+                            "lastRenewDurationMs": {
+                              "description": "Duration of the most recent subscription renewal (ms, D129); null until the first, and always null under chokidar and on Windows.",
+                              "type": ["number", "null"]
+                            },
+                            "renewFailures": {
+                              "type": "number",
+                              "description": "Renewals whose unsubscribe rejected and forced a source rebuild, plus rejections during a rebuild, since start (D165, D176). Always 0 under chokidar."
+                            }
+                          },
+                          "required": [
+                            "source",
+                            "resubscribes",
+                            "unavailableRoots",
+                            "reconcileEvents",
+                            "reconcileErrors",
+                            "lastReconcileAt",
+                            "lastReconcileDurationMs",
+                            "pendingStability",
+                            "lastRenewDurationMs",
+                            "renewFailures"
+                          ],
+                          "additionalProperties": false,
+                          "description": "Change-source health (D133, D157)."
+                        },
                         "error": {
                           "type": "string"
                         }
@@ -238,13 +272,7 @@
                       "additionalProperties": {}
                     }
                   },
-                  "required": [
-                    "name",
-                    "version",
-                    "uptime",
-                    "status",
-                    "health"
-                  ],
+                  "required": ["name", "version", "uptime", "status", "health"],
                   "additionalProperties": false
                 }
               }
@@ -300,10 +328,7 @@
                           "type": "number"
                         }
                       },
-                      "required": [
-                        "result",
-                        "count"
-                      ],
+                      "required": ["result", "count"],
                       "additionalProperties": {}
                     },
                     {
@@ -357,9 +382,7 @@
                     "description": "Replace the whole config instead of merging"
                   }
                 },
-                "required": [
-                  "patch"
-                ]
+                "required": ["patch"]
               }
             }
           }
@@ -385,10 +408,7 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "applied",
-                    "config"
-                  ],
+                  "required": ["applied", "config"],
                   "additionalProperties": false
                 }
               }
@@ -468,9 +488,7 @@
                     "description": "File paths to test against the watch scope and rules."
                   }
                 },
-                "required": [
-                  "paths"
-                ]
+                "required": ["paths"]
               }
             }
           }
@@ -498,17 +516,12 @@
                             "type": "boolean"
                           }
                         },
-                        "required": [
-                          "rules",
-                          "watched"
-                        ],
+                        "required": ["rules", "watched"],
                         "additionalProperties": false
                       }
                     }
                   },
-                  "required": [
-                    "matches"
-                  ],
+                  "required": ["matches"],
                   "additionalProperties": false
                 }
               }
@@ -585,10 +598,7 @@
                             "type": "string"
                           }
                         },
-                        "required": [
-                          "path",
-                          "message"
-                        ],
+                        "required": ["path", "message"],
                         "additionalProperties": false
                       }
                     },
@@ -604,10 +614,7 @@
                             "type": "string"
                           }
                         },
-                        "required": [
-                          "path",
-                          "message"
-                        ],
+                        "required": ["path", "message"],
                         "additionalProperties": false
                       }
                     },
@@ -636,18 +643,12 @@
                             "type": "string"
                           }
                         },
-                        "required": [
-                          "path",
-                          "matchedRules",
-                          "metadata"
-                        ],
+                        "required": ["path", "matchedRules", "metadata"],
                         "additionalProperties": false
                       }
                     }
                   },
-                  "required": [
-                    "valid"
-                  ],
+                  "required": ["valid"],
                   "additionalProperties": false
                 }
               }
@@ -707,9 +708,7 @@
                     "additionalProperties": {}
                   }
                 },
-                "required": [
-                  "query"
-                ],
+                "required": ["query"],
                 "additionalProperties": false
               }
             }
@@ -739,11 +738,7 @@
                         "additionalProperties": {}
                       }
                     },
-                    "required": [
-                      "id",
-                      "score",
-                      "payload"
-                    ],
+                    "required": ["id", "score", "payload"],
                     "additionalProperties": false
                   }
                 }
@@ -794,10 +789,7 @@
                   },
                   "cursor": {
                     "description": "Opaque cursor from previous response for pagination.",
-                    "type": [
-                      "string",
-                      "number"
-                    ]
+                    "type": ["string", "number"]
                   },
                   "fields": {
                     "description": "Payload fields to return (projection).",
@@ -811,9 +803,7 @@
                     "type": "boolean"
                   }
                 },
-                "required": [
-                  "filter"
-                ]
+                "required": ["filter"]
               }
             }
           }
@@ -844,25 +834,15 @@
                                 "additionalProperties": {}
                               }
                             },
-                            "required": [
-                              "id",
-                              "payload"
-                            ],
+                            "required": ["id", "payload"],
                             "additionalProperties": false
                           }
                         },
                         "cursor": {
-                          "type": [
-                            "string",
-                            "number",
-                            "null"
-                          ]
+                          "type": ["string", "number", "null"]
                         }
                       },
-                      "required": [
-                        "points",
-                        "cursor"
-                      ],
+                      "required": ["points", "cursor"],
                       "additionalProperties": false
                     },
                     {
@@ -874,9 +854,7 @@
                           "maximum": 9007199254740991
                         }
                       },
-                      "required": [
-                        "count"
-                      ],
+                      "required": ["count"],
                       "additionalProperties": false
                     }
                   ]
@@ -961,9 +939,7 @@
                       }
                     }
                   },
-                  "required": [
-                    "facets"
-                  ],
+                  "required": ["facets"],
                   "additionalProperties": false
                 }
               }
@@ -1031,9 +1007,7 @@
                     "maximum": 1000
                   }
                 },
-                "required": [
-                  "fields"
-                ],
+                "required": ["fields"],
                 "additionalProperties": false
               }
             }
@@ -1060,11 +1034,7 @@
                               "type": "object",
                               "properties": {
                                 "value": {
-                                  "type": [
-                                    "string",
-                                    "number",
-                                    "boolean"
-                                  ]
+                                  "type": ["string", "number", "boolean"]
                                 },
                                 "count": {
                                   "type": "integer",
@@ -1072,10 +1042,7 @@
                                   "maximum": 9007199254740991
                                 }
                               },
-                              "required": [
-                                "value",
-                                "count"
-                              ],
+                              "required": ["value", "count"],
                               "additionalProperties": false
                             }
                           },
@@ -1083,24 +1050,13 @@
                             "type": "object",
                             "properties": {
                               "min": {
-                                "type": [
-                                  "number",
-                                  "string",
-                                  "null"
-                                ]
+                                "type": ["number", "string", "null"]
                               },
                               "max": {
-                                "type": [
-                                  "number",
-                                  "string",
-                                  "null"
-                                ]
+                                "type": ["number", "string", "null"]
                               }
                             },
-                            "required": [
-                              "min",
-                              "max"
-                            ],
+                            "required": ["min", "max"],
                             "additionalProperties": false
                           }
                         ]
@@ -1108,9 +1064,7 @@
                       "description": "Per requested field: value counts (documents, highest first), or { min, max } for a numeric or date field."
                     }
                   },
-                  "required": [
-                    "counts"
-                  ],
+                  "required": ["counts"],
                   "additionalProperties": false
                 }
               }
@@ -1187,12 +1141,7 @@
                       "additionalProperties": {}
                     }
                   },
-                  "required": [
-                    "renderAs",
-                    "content",
-                    "rules",
-                    "metadata"
-                  ],
+                  "required": ["renderAs", "content", "rules", "metadata"],
                   "additionalProperties": false
                 }
               }
@@ -1235,9 +1184,7 @@
                     "description": "Globs matched against the watched files."
                   }
                 },
-                "required": [
-                  "globs"
-                ]
+                "required": ["globs"]
               }
             }
           }
@@ -1268,11 +1215,7 @@
                       }
                     }
                   },
-                  "required": [
-                    "paths",
-                    "matchedCount",
-                    "scannedRoots"
-                  ],
+                  "required": ["paths", "matchedCount", "scannedRoots"],
                   "additionalProperties": false
                 }
               }
@@ -1366,26 +1309,16 @@
                             },
                             "details": {},
                             "timestamp": {
-                              "type": [
-                                "number",
-                                "string"
-                              ]
+                              "type": ["number", "string"]
                             }
                           },
-                          "required": [
-                            "type",
-                            "message",
-                            "timestamp"
-                          ],
+                          "required": ["type", "message", "timestamp"],
                           "additionalProperties": false
                         }
                       }
                     }
                   },
-                  "required": [
-                    "count",
-                    "issues"
-                  ],
+                  "required": ["count", "issues"],
                   "additionalProperties": false
                 }
               }
@@ -1452,11 +1385,7 @@
                                     "type": "string"
                                   }
                                 },
-                                "required": [
-                                  "hash",
-                                  "message",
-                                  "timestamp"
-                                ],
+                                "required": ["hash", "message", "timestamp"],
                                 "additionalProperties": false
                               },
                               {
@@ -1465,16 +1394,10 @@
                             ]
                           },
                           "remoteUrl": {
-                            "type": [
-                              "string",
-                              "null"
-                            ]
+                            "type": ["string", "null"]
                           },
                           "lastPush": {
-                            "type": [
-                              "string",
-                              "null"
-                            ]
+                            "type": ["string", "null"]
                           },
                           "pushErrors": {
                             "type": "array",
@@ -1488,10 +1411,7 @@
                                   "type": "string"
                                 }
                               },
-                              "required": [
-                                "timestamp",
-                                "message"
-                              ],
+                              "required": ["timestamp", "message"],
                               "additionalProperties": false
                             }
                           },
@@ -1509,16 +1429,10 @@
                                     "type": "boolean"
                                   },
                                   "trippedAt": {
-                                    "type": [
-                                      "string",
-                                      "null"
-                                    ]
+                                    "type": ["string", "null"]
                                   },
                                   "lastError": {
-                                    "type": [
-                                      "string",
-                                      "null"
-                                    ]
+                                    "type": ["string", "null"]
                                   },
                                   "pendingCount": {
                                     "type": "integer",
@@ -1554,10 +1468,7 @@
                       }
                     }
                   },
-                  "required": [
-                    "enabled",
-                    "roots"
-                  ],
+                  "required": ["enabled", "roots"],
                   "additionalProperties": false
                 }
               }
@@ -1651,12 +1562,7 @@
                         }
                       }
                     },
-                    "required": [
-                      "commit",
-                      "message",
-                      "timestamp",
-                      "files"
-                    ],
+                    "required": ["commit", "message", "timestamp", "files"],
                     "additionalProperties": false
                   }
                 }
@@ -1844,9 +1750,7 @@
                       "maximum": 9007199254740991
                     }
                   },
-                  "required": [
-                    "excluded"
-                  ],
+                  "required": ["excluded"],
                   "additionalProperties": false
                 }
               }
@@ -1898,9 +1802,7 @@
                     "additionalProperties": {}
                   }
                 },
-                "required": [
-                  "metadata"
-                ]
+                "required": ["metadata"]
               }
             }
           }
@@ -1924,10 +1826,7 @@
                       }
                     }
                   },
-                  "required": [
-                    "ok",
-                    "matched_rules"
-                  ],
+                  "required": ["ok", "matched_rules"],
                   "additionalProperties": false
                 }
               }
@@ -1964,13 +1863,7 @@
                   "scope": {
                     "description": "Reindex scope: \"issues\" re-processes documents that failed; \"rules\" re-applies inference rules without re-embedding; \"full\" re-embeds everything; \"path\" reindexes the given files or directories (`path`) or source references (`source`); \"prune\" deletes points for files no longer in watch scope.",
                     "type": "string",
-                    "enum": [
-                      "issues",
-                      "full",
-                      "rules",
-                      "path",
-                      "prune"
-                    ]
+                    "enum": ["issues", "full", "rules", "path", "prune"]
                   },
                   "path": {
                     "anyOf": [
@@ -2028,20 +1921,11 @@
                   "properties": {
                     "status": {
                       "type": "string",
-                      "enum": [
-                        "started",
-                        "dry_run"
-                      ]
+                      "enum": ["started", "dry_run"]
                     },
                     "scope": {
                       "type": "string",
-                      "enum": [
-                        "issues",
-                        "full",
-                        "rules",
-                        "path",
-                        "prune"
-                      ],
+                      "enum": ["issues", "full", "rules", "path", "prune"],
                       "description": "Reindex scope."
                     },
                     "plan": {
@@ -2075,19 +1959,11 @@
                           "type": "boolean"
                         }
                       },
-                      "required": [
-                        "total",
-                        "toProcess",
-                        "toDelete",
-                        "byRoot"
-                      ],
+                      "required": ["total", "toProcess", "toDelete", "byRoot"],
                       "additionalProperties": false
                     }
                   },
-                  "required": [
-                    "status",
-                    "scope"
-                  ],
+                  "required": ["status", "scope"],
                   "additionalProperties": false
                 }
               }
@@ -2148,17 +2024,12 @@
                           "minLength": 1
                         }
                       },
-                      "required": [
-                        "source",
-                        "rule"
-                      ],
+                      "required": ["source", "rule"],
                       "additionalProperties": false
                     }
                   }
                 },
-                "required": [
-                  "documents"
-                ]
+                "required": ["documents"]
               }
             }
           }
@@ -2204,25 +2075,16 @@
                                     "type": "string"
                                   }
                                 },
-                                "required": [
-                                  "code",
-                                  "message"
-                                ],
+                                "required": ["code", "message"],
                                 "additionalProperties": false
                               }
                             },
-                            "required": [
-                              "source",
-                              "error"
-                            ],
+                            "required": ["source", "error"],
                             "additionalProperties": false
                           }
                         }
                       },
-                      "required": [
-                        "accepted",
-                        "rejected"
-                      ],
+                      "required": ["accepted", "rejected"],
                       "additionalProperties": false
                     },
                     {
@@ -2295,24 +2157,16 @@
                                   },
                                   "details": {}
                                 },
-                                "required": [
-                                  "code",
-                                  "message"
-                                ],
+                                "required": ["code", "message"],
                                 "additionalProperties": false
                               }
                             },
-                            "required": [
-                              "source",
-                              "status"
-                            ],
+                            "required": ["source", "status"],
                             "additionalProperties": false
                           }
                         }
                       },
-                      "required": [
-                        "results"
-                      ],
+                      "required": ["results"],
                       "additionalProperties": false
                     }
                   ]
@@ -2362,17 +2216,12 @@
                           "minLength": 1
                         }
                       },
-                      "required": [
-                        "name"
-                      ],
+                      "required": ["name"],
                       "additionalProperties": {}
                     }
                   }
                 },
-                "required": [
-                  "source",
-                  "rules"
-                ]
+                "required": ["source", "rules"]
               }
             }
           }
@@ -2399,11 +2248,7 @@
                       "maximum": 9007199254740991
                     }
                   },
-                  "required": [
-                    "source",
-                    "registered",
-                    "totalVirtualRules"
-                  ],
+                  "required": ["source", "registered", "totalVirtualRules"],
                   "additionalProperties": false
                 }
               }
@@ -2446,9 +2291,7 @@
                     }
                   }
                 },
-                "required": [
-                  "globs"
-                ]
+                "required": ["globs"]
               }
             }
           }
@@ -2472,10 +2315,7 @@
                       "maximum": 9007199254740991
                     }
                   },
-                  "required": [
-                    "matched",
-                    "updated"
-                  ],
+                  "required": ["matched", "updated"],
                   "additionalProperties": false
                 }
               }
@@ -2526,9 +2366,7 @@
                       "const": true
                     }
                   },
-                  "required": [
-                    "ok"
-                  ],
+                  "required": ["ok"],
                   "additionalProperties": false
                 }
               }
@@ -2600,9 +2438,7 @@
                       "maximum": 9007199254740991
                     }
                   },
-                  "required": [
-                    "deleted"
-                  ],
+                  "required": ["deleted"],
                   "additionalProperties": false
                 }
               }
@@ -2645,9 +2481,7 @@
                     "description": "Native Qdrant filter object."
                   }
                 },
-                "required": [
-                  "filter"
-                ]
+                "required": ["filter"]
               }
             }
           }
@@ -2666,9 +2500,7 @@
                       "maximum": 9007199254740991
                     }
                   },
-                  "required": [
-                    "deleted"
-                  ],
+                  "required": ["deleted"],
                   "additionalProperties": false
                 }
               }
@@ -2707,9 +2539,7 @@
                     "minLength": 1
                   }
                 },
-                "required": [
-                  "source"
-                ]
+                "required": ["source"]
               }
             }
           }
@@ -2729,10 +2559,7 @@
                       "type": "boolean"
                     }
                   },
-                  "required": [
-                    "source",
-                    "removed"
-                  ],
+                  "required": ["source", "removed"],
                   "additionalProperties": false
                 }
               }
@@ -2786,10 +2613,7 @@
                       "type": "boolean"
                     }
                   },
-                  "required": [
-                    "source",
-                    "removed"
-                  ],
+                  "required": ["source", "removed"],
                   "additionalProperties": false
                 }
               }
@@ -2838,10 +2662,7 @@
                     "type": "boolean"
                   }
                 },
-                "required": [
-                  "glob",
-                  "commit"
-                ]
+                "required": ["glob", "commit"]
               }
             }
           }
@@ -2866,10 +2687,7 @@
                       }
                     }
                   },
-                  "required": [
-                    "restored",
-                    "files"
-                  ],
+                  "required": ["restored", "files"],
                   "additionalProperties": false
                 }
               }
@@ -2921,9 +2739,7 @@
                     "type": "boolean"
                   }
                 },
-                "required": [
-                  "glob"
-                ]
+                "required": ["glob"]
               }
             }
           }
@@ -2945,10 +2761,7 @@
                     },
                     "action": {
                       "type": "string",
-                      "enum": [
-                        "added",
-                        "removed"
-                      ]
+                      "enum": ["added", "removed"]
                     },
                     "untracked": {
                       "type": "integer",
@@ -2956,12 +2769,7 @@
                       "maximum": 9007199254740991
                     }
                   },
-                  "required": [
-                    "ok",
-                    "file",
-                    "action",
-                    "untracked"
-                  ],
+                  "required": ["ok", "file", "action", "untracked"],
                   "additionalProperties": false
                 }
               }
@@ -2990,9 +2798,7 @@
             "type": "string"
           }
         },
-        "required": [
-          "error"
-        ],
+        "required": ["error"],
         "additionalProperties": {}
       }
     },
