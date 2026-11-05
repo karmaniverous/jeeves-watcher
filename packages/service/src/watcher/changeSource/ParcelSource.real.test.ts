@@ -1,6 +1,6 @@
 /**
  * @module watcher/changeSource/ParcelSource.real.test
- * The parcel source over the real `@parcel/watcher` on this platform (Windows and Linux CI): batches arrive for writes, the ignore list (with the root's `.git`, D152) keeps ignored paths out, and after stop nothing arrives.
+ * The parcel source over the real `@parcel/watcher` on this platform (Windows and Linux CI): batches arrive for writes, the ignore list (with the root's `.git`, D152) keeps ignored paths out, and after stop nothing arrives. On Windows stop unsubscribes nothing (D196): the callback is silenced and the subscription ends with the test worker.
  */
 
 import { mkdir, mkdtemp, realpath, rm, writeFile } from 'node:fs/promises';

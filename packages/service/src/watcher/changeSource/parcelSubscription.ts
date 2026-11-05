@@ -1,6 +1,6 @@
 /**
  * @module watcher/changeSource/parcelSubscription
- * One root's parcel subscription (D126, D131, D156, D179): subscribe with the explicit backend and the root's ignore list, keep the returned handle (the only way it is unsubscribed), a callback that never throws, and recovery from subscription errors: resubscribe with backoff, root gone and back, or unwatched after a non-transient `inotify_add_watch` failure. I/O: parcel subscriptions, `lstat` of the root, one backoff timer.
+ * One root's parcel subscription (D126, D131, D156, D179): subscribe with the explicit backend and the root's ignore list, keep the returned handle (the only way it is unsubscribed), a callback that never throws, and recovery from subscription errors: resubscribe with backoff, root gone and back, or unwatched after a non-transient `inotify_add_watch` failure; where parcel never unsubscribes (Windows, D196), a live subscription's error or a gone root exits for a restart instead, and stop drops the handle. I/O: parcel subscriptions, `lstat` of the root, one backoff timer.
  */
 
 import type pino from 'pino';
@@ -12,6 +12,7 @@ import type {
   ParcelSubscription,
   ParcelWatcherModule,
 } from './parcelModule';
+import type { ProcessRestarter } from './restart';
 import type { ChangeSink, RawChangeEvent } from './types';
 
 /** First resubscribe delay (D131). */
@@ -30,6 +31,14 @@ export interface SubscriptionContext {
   lstat: (path: string) => Promise<unknown>;
   /** Run work after every earlier source operation (renewals, retries). */
   serial: <T>(work: () => Promise<T>) => Promise<T>;
+  /**
+   * Set only where parcel never unsubscribes (Windows, D196): stop drops
+   * the handle without unsubscribing, and an error on a live subscription
+   * (or its root gone) exits the process for a restart instead of
+   * unsubscribing and resubscribing. A subscribe that never succeeded has
+   * no handle to release, so it still retries with backoff.
+   */
+  restarter?: ProcessRestarter;
 }
 
 /** Where a root subscription stands. */
@@ -127,12 +136,13 @@ export class RootSubscription {
    */
   async failed(error: unknown): Promise<void> {
     if (this.mode === 'stopped') return;
-    const { logger, sink } = this.context;
+    const { logger, sink, restarter } = this.context;
+    if (restarter && this.handle) {
+      await this.exitForRestart(restarter, error);
+      return;
+    }
     await this.unsubscribe();
-    const gone = await this.context.lstat(this.root).then(
-      () => undefined,
-      (lstatError: unknown) => codeOf(lstatError),
-    );
+    const gone = await this.goneCode();
     if (gone !== undefined) {
       logger.warn({ root: this.root, code: gone }, 'Watch root gone');
       if (this.signalled !== 'gone') sink.rootUnavailable(this.root, gone);
@@ -157,12 +167,52 @@ export class RootSubscription {
     this.retry();
   }
 
-  /** Stop: no more retries, unsubscribe. Caller holds the queue. */
+  /**
+   * Stop: no more retries, unsubscribe (on Windows, drop the handle and
+   * leave the subscription to process exit, D196). Caller holds the queue.
+   */
   async stop(): Promise<void> {
+    this.release();
+    if (!this.context.restarter) await this.unsubscribe();
+  }
+
+  /**
+   * No more retries, and callbacks are ignored. Where parcel never
+   * unsubscribes (D196) the handle is dropped here; otherwise `stop`
+   * unsubscribes it.
+   */
+  private release(): void {
     this.mode = 'stopped';
     clearTimeout(this.timer);
     this.timer = undefined;
-    await this.unsubscribe();
+    if (this.context.restarter) this.handle = undefined;
+  }
+
+  /**
+   * A live subscription failed where parcel never unsubscribes (D196):
+   * name the cause (root gone or subscription error), release the root
+   * without unsubscribing and ask for a restart; reconciliation at the next
+   * start covers the gap.
+   */
+  private async exitForRestart(
+    restarter: ProcessRestarter,
+    error: unknown,
+  ): Promise<void> {
+    const gone = await this.goneCode();
+    this.release();
+    restarter.restart({
+      cause: gone === undefined ? 'subscription-error' : 'root-gone',
+      root: this.root,
+      err: error,
+    });
+  }
+
+  /** The root's `lstat` error code, or undefined while it exists. */
+  private goneCode(): Promise<string | undefined> {
+    return this.context.lstat(this.root).then(
+      () => undefined,
+      (lstatError: unknown) => codeOf(lstatError),
+    );
   }
 
   /** Schedule the next attempt with backoff (1 s doubling to 5 min). */

@@ -1,6 +1,6 @@
 /**
  * @module watcher/FileSystemWatcher.parcel.recovery.test
- * Recovery over the real `@parcel/watcher`: an error delivered to the real subscription resubscribes and the reconcile restores what the gap missed (D131); on Linux, a root deleted and re-created is unavailable then reconciled with nothing unlinked (D109), a renewal makes a renamed directory's subtree live again (D129, D176), and an ignored directory gets no inotify watches (D126).
+ * Recovery over the real `@parcel/watcher`: an error delivered to the real subscription resubscribes and the reconcile restores what the gap missed (D131), except on Windows, where it exits for a restart and nothing is ever unsubscribed (D196); on Linux, a root deleted and re-created is unavailable then reconciled with nothing unlinked (D109), a renewal makes a renamed directory's subtree live again (D129, D176), and an ignored directory gets no inotify watches (D126).
  */
 
 import { readdirSync, readFileSync } from 'node:fs';
@@ -34,15 +34,27 @@ import type { ChangeSink, RawChangeEvent } from './changeSource/types';
 import { ChangeSourceHealthTracker } from './ChangeSourceHealthTracker';
 
 const linux = process.platform === 'linux';
+const windows = process.platform === 'win32';
 
-/** The real module, with the latest subscription callback exposed. */
+/**
+ * The real module, with the latest subscription callback exposed and its
+ * unsubscribes counted.
+ */
 async function tappedParcel() {
   const real = await loadParcelWatcher();
-  const tap: { callback?: ParcelCallback } = {};
+  const tap: { callback?: ParcelCallback; unsubscribes: number } = {
+    unsubscribes: 0,
+  };
   const parcel: ParcelWatcherModule = {
-    subscribe: (dir, callback, options) => {
+    subscribe: async (dir, callback, options) => {
       tap.callback = callback;
-      return real.subscribe(dir, callback, options);
+      const handle = await real.subscribe(dir, callback, options);
+      return {
+        unsubscribe: () => {
+          tap.unsubscribes += 1;
+          return handle.unsubscribe();
+        },
+      };
     },
   };
   return { parcel, tap };
@@ -72,28 +84,62 @@ describe('FileSystemWatcher (parcel) recovery, real filesystem', () => {
     harness = undefined;
   });
 
-  it('resubscribes after a subscription error and reconciles the gap (D131)', async () => {
-    const { parcel, tap } = await tappedParcel();
-    const changeSourceHealth = new ChangeSourceHealthTracker();
-    harness = await startWatcherHarness({
-      files: { 'a.md': 'a' },
-      watch: () => ({ changeSource: 'parcel' }),
-      options: () => ({
-        changeSourceHealth,
-        importParcel: () => Promise.resolve(parcel),
-      }),
-    });
-    const h = harness;
-    tap.callback?.(new Error('injected subscription error'), []);
-    await h.write('gap.md', 'written while unsubscribed');
-    await waitFor(
-      () => changeSourceHealth.snapshot().resubscribes === 1,
-      10_000,
-    );
-    await waitFor(() => of(h, 'create').includes('gap.md'), 10_000);
-    expect(changeSourceHealth.snapshot().unavailableRoots).toBe(0);
-    expect(of(h, 'delete')).toEqual([]);
-  });
+  it.runIf(windows)(
+    'on Windows a subscription error exits for a restart, never unsubscribing (D196)',
+    async () => {
+      const { parcel, tap } = await tappedParcel();
+      const changeSourceHealth = new ChangeSourceHealthTracker();
+      const restart = vi.fn();
+      harness = await startWatcherHarness({
+        files: { 'a.md': 'a' },
+        watch: () => ({ changeSource: 'parcel' }),
+        options: () => ({
+          changeSourceHealth,
+          importParcel: () => Promise.resolve(parcel),
+          restarter: { restart },
+        }),
+      });
+      expect(harness.watcher.restartsToRebuild).toBe(true);
+      const error = new Error('injected subscription error');
+      tap.callback?.(error, []);
+      await waitFor(() => restart.mock.calls.length === 1, 10_000);
+      expect(restart).toHaveBeenCalledWith(
+        expect.objectContaining({ cause: 'subscription-error', err: error }),
+      );
+      // The harness stops the watcher: on Windows that unsubscribes nothing
+      // either; the subscription ends with the test worker (D196).
+      await harness.close();
+      harness = undefined;
+      expect(tap.unsubscribes).toBe(0);
+      expect(changeSourceHealth.snapshot().resubscribes).toBe(0);
+    },
+  );
+
+  it.skipIf(windows)(
+    'resubscribes after a subscription error and reconciles the gap (D131)',
+    async () => {
+      const { parcel, tap } = await tappedParcel();
+      const changeSourceHealth = new ChangeSourceHealthTracker();
+      harness = await startWatcherHarness({
+        files: { 'a.md': 'a' },
+        watch: () => ({ changeSource: 'parcel' }),
+        options: () => ({
+          changeSourceHealth,
+          importParcel: () => Promise.resolve(parcel),
+        }),
+      });
+      const h = harness;
+      tap.callback?.(new Error('injected subscription error'), []);
+      await h.write('gap.md', 'written while unsubscribed');
+      await waitFor(
+        () => changeSourceHealth.snapshot().resubscribes === 1,
+        10_000,
+      );
+      await waitFor(() => of(h, 'create').includes('gap.md'), 10_000);
+      expect(changeSourceHealth.snapshot().unavailableRoots).toBe(0);
+      expect(of(h, 'delete')).toEqual([]);
+    },
+  );
 
   it.runIf(linux)(
     'a deleted root is unavailable, nothing is unlinked, and it is reconciled when back (D109)',

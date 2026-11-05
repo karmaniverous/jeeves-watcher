@@ -10,6 +10,7 @@ import type { WatchConfig } from '../config/types';
 import { ChokidarChangeSource } from './changeSource/ChokidarChangeSource';
 import type { ParcelWatcherModule } from './changeSource/parcelModule';
 import { ParcelSource } from './changeSource/ParcelSource';
+import type { ProcessRestarter } from './changeSource/restart';
 import type { ChangeSource, RenewResult } from './changeSource/types';
 import type { ChangeSourceHealthTracker } from './ChangeSourceHealthTracker';
 
@@ -23,6 +24,8 @@ export interface CreateSourceOptions {
   logger: pino.Logger;
   /** Records a chokidar error. */
   onSourceError: (error: unknown) => void;
+  /** Exits for a restart where parcel never unsubscribes (D196). */
+  restarter?: ProcessRestarter;
 }
 
 /**
@@ -39,6 +42,7 @@ export function createSource(options: CreateSourceOptions): ChangeSource {
       ignored: config.ignored,
       stateDir: options.stateDir ?? ROOT_DEFAULTS.stateDir,
       logger: options.logger,
+      restarter: options.restarter,
     });
   }
   return new ChokidarChangeSource({

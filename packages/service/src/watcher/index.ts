@@ -240,6 +240,14 @@ export class FileSystemWatcher implements ChangeSink {
       : true;
   }
 
+  /**
+   * Whether the running source cannot stop in-process (parcel on Windows,
+   * D196), so a rebuild must exit for a restart; false when not running.
+   */
+  get restartsToRebuild(): boolean {
+    return this.running?.source.restartsToRebuild ?? false;
+  }
+
   /** The running watcher's inventory (D99), undefined before start. */
   get inventory(): Inventory | undefined {
     return this.running?.inventory;

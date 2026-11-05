@@ -21,6 +21,7 @@ import type {
   ParcelImporter,
   ParcelWatcherModule,
 } from './changeSource/parcelModule';
+import type { ProcessRestarter } from './changeSource/restart';
 import type { ChangeSource } from './changeSource/types';
 import type { ChangeSourceHealthTracker } from './ChangeSourceHealthTracker';
 import {
@@ -72,6 +73,11 @@ export interface FileSystemWatcherOptions {
   importParcel?: ParcelImporter;
   /** The service state directory (the parcel rebuild sentinel, D165). */
   stateDir?: string;
+  /**
+   * Exits for a service-manager restart where parcel never unsubscribes
+   * (Windows, D196); default an immediate exit.
+   */
+  restarter?: ProcessRestarter;
 }
 
 /** What one `start` builds; replaced on every start. */
@@ -149,6 +155,7 @@ export function createRunning(context: RunningContext): Running {
     stateDir: options.stateDir,
     logger,
     onSourceError: context.onSourceError,
+    restarter: options.restarter,
   });
   const wiring = {
     queue: context.queue,

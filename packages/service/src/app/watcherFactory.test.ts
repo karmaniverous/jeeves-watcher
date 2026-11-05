@@ -8,6 +8,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { makeWatchConfig } from '../test/watchConfig';
 import type { FileSystemWatcher } from '../watcher';
+import { RESTART_EXIT_CODE } from '../watcher/changeSource/restart';
 import type { JeevesWatcherFactories } from './factories';
 import {
   loadSelectedChangeSource,
@@ -85,10 +86,14 @@ describe('watchConfigChanged', () => {
 });
 
 /** A watcher whose lifecycle calls are spies (returned beside it). */
-function fakeWatcher() {
+function fakeWatcher(restartsToRebuild = false) {
   const start = vi.fn(() => Promise.resolve());
   const stop = vi.fn(() => Promise.resolve());
-  const watcher = { start, stop } as unknown as FileSystemWatcher;
+  const watcher = {
+    start,
+    stop,
+    restartsToRebuild,
+  } as unknown as FileSystemWatcher;
   return { watcher, start, stop };
 }
 
@@ -161,5 +166,69 @@ describe('rebuildWatcher', () => {
     expect(old.stop).toHaveBeenCalledOnce();
     expect(next.start).toHaveBeenCalledOnce();
     expect(importParcel).not.toHaveBeenCalled();
+  });
+
+  it('exits for a restart instead of stopping a source that cannot stop in-process (D196)', async () => {
+    const old = fakeWatcher(true);
+    const createFileSystemWatcher = vi.fn();
+    const restart = vi.fn();
+    const state = await rebuildWatcher(
+      makeWatchConfig({ changeSource: 'chokidar' }),
+      { createFileSystemWatcher } as unknown as JeevesWatcherFactories,
+      {} as never,
+      {} as never,
+      logger,
+      {},
+      { watcher: old.watcher },
+      { restarter: { restart } },
+      'rules',
+    );
+    expect(restart).toHaveBeenCalledExactlyOnceWith({
+      cause: 'watch-config-changed',
+      reindex: 'rules',
+    });
+    expect(state).toEqual({ watcher: old.watcher, restarting: true });
+    expect(old.stop).not.toHaveBeenCalled();
+    expect(createFileSystemWatcher).not.toHaveBeenCalled();
+  });
+
+  it('refuses before any restart when the new parcel source cannot load (D125, D196)', async () => {
+    const old = fakeWatcher(true);
+    const restart = vi.fn();
+    const state = await rebuildWatcher(
+      makeWatchConfig({ changeSource: 'parcel' }),
+      {} as JeevesWatcherFactories,
+      {} as never,
+      {} as never,
+      logger,
+      {},
+      { watcher: old.watcher },
+      { importParcel: failingImport, restarter: { restart } },
+    );
+    expect(restart).not.toHaveBeenCalled();
+    expect(state.restarting).toBeUndefined();
+    expect(old.stop).not.toHaveBeenCalled();
+  });
+
+  it('without a restarter, exits at once with the restart code (D196)', async () => {
+    const exit = vi.spyOn(process, 'exit').mockImplementation(() => {
+      return undefined as never;
+    });
+    try {
+      const old = fakeWatcher(true);
+      await rebuildWatcher(
+        makeWatchConfig({ changeSource: 'chokidar' }),
+        {} as JeevesWatcherFactories,
+        {} as never,
+        {} as never,
+        logger,
+        {},
+        { watcher: old.watcher },
+      );
+      expect(exit).toHaveBeenCalledExactlyOnceWith(RESTART_EXIT_CODE);
+      expect(old.stop).not.toHaveBeenCalled();
+    } finally {
+      exit.mockRestore();
+    }
   });
 });

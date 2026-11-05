@@ -90,6 +90,8 @@ export async function reloadConfig(
 
     logger.info({ configPath, rules: compiledRules.length }, 'Config reloaded');
 
+    const reindexScope = newConfig.configWatch?.reindex ?? 'issues';
+
     // Rebuild filesystem watcher if watch config changed
     if (watchConfigChanged(oldConfig, newConfig)) {
       logger.info('Watch config changed, rebuilding filesystem watcher...');
@@ -102,7 +104,17 @@ export async function reloadConfig(
         deps.runtimeOptions,
         { watcher: state.watcher!, gitignoreFilter: state.gitignoreFilter },
         deps.wiring,
+        reindexScope,
       );
+      if (newState.restarting) {
+        // D196: the process exits for a restart; the restarted process
+        // runs the reindex with the new config.
+        logger.info(
+          { scope: reindexScope },
+          'Config watch reindex deferred to the restart',
+        );
+        return;
+      }
       state.watcher = newState.watcher;
       state.gitignoreFilter = newState.gitignoreFilter;
     } else {
@@ -112,7 +124,6 @@ export async function reloadConfig(
     }
 
     // Trigger reindex based on configWatch.reindex setting
-    const reindexScope = newConfig.configWatch?.reindex ?? 'issues';
     logger.info(
       { scope: reindexScope },
       `Config watch triggering ${reindexScope} reindex`,

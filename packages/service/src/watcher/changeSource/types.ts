@@ -87,6 +87,12 @@ export interface ChangeSource {
    */
   readonly initialSet: 'source' | 'walk';
   /**
+   * The source cannot release its watches in-process (parcel on Windows,
+   * D196): a watcher rebuild exits the process for a service-manager
+   * restart instead of stopping it.
+   */
+  readonly restartsToRebuild: boolean;
+  /**
    * Start watching.
    *
    * @param roots - Watch roots (nested roots collapsed).

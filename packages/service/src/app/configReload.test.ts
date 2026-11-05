@@ -1,11 +1,12 @@
 /**
  * @module app/configReload.test
- * Tests for config-reload orchestration.
+ * Tests for config-reload orchestration, including the D196 hand-off of a rebuild to a restart.
  */
 
 import pino from 'pino';
 import { describe, expect, it, vi } from 'vitest';
 
+import { executeReindex } from '../api/executeReindex';
 import type { JeevesWatcherConfig } from '../config/types';
 import type { WatcherProcessor } from '../processor';
 import { reloadConfig } from './configReload';
@@ -226,6 +227,47 @@ describe('reloadConfig', () => {
     expect(createWatcher).not.toHaveBeenCalled();
     // A changed reconcileIntervalMs takes effect without a rebuild (D111).
     expect(refreshReconcileSchedule).toHaveBeenCalledOnce();
+    expect(state.watcher).toBe(oldWatcher);
+    expect(state.config).toBe(newConfig);
+  });
+
+  it('hands a rebuild of a source that cannot stop to a restart, deferring the reindex (D196)', async () => {
+    const oldConfig = makeConfig({ paths: ['**/*.md'] });
+    const newConfig = {
+      ...makeConfig({ paths: ['**/*.ts'] }),
+      configWatch: { reindex: 'full' },
+    } as JeevesWatcherConfig;
+    const createFileSystemWatcher = vi.fn();
+    const { logger, processor, factories } = makeDeps(newConfig, {
+      createFileSystemWatcher,
+    });
+    const oldStop = vi.fn();
+    const oldWatcher = {
+      start: vi.fn(),
+      stop: oldStop,
+      restartsToRebuild: true,
+    } as never;
+    const state = { config: oldConfig, watcher: oldWatcher };
+    const restart = vi.fn();
+    vi.mocked(executeReindex).mockClear();
+
+    await reloadConfig(state, {
+      configPath: '/path/to/config.json',
+      factories,
+      queue: {} as never,
+      processor,
+      logger,
+      runtimeOptions: {},
+      wiring: { restarter: { restart } },
+    });
+
+    expect(restart).toHaveBeenCalledExactlyOnceWith({
+      cause: 'watch-config-changed',
+      reindex: 'full',
+    });
+    expect(oldStop).not.toHaveBeenCalled();
+    expect(createFileSystemWatcher).not.toHaveBeenCalled();
+    expect(executeReindex).not.toHaveBeenCalled();
     expect(state.watcher).toBe(oldWatcher);
     expect(state.config).toBe(newConfig);
   });

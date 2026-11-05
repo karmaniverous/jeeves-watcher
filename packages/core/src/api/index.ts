@@ -30,6 +30,8 @@ export {
 export {
   type ChangeSourceHealth,
   changeSourceHealthSchema,
+  type RestartCause,
+  restartCauseSchema,
 } from './changeSource.js';
 export {
   type ApiErrorResponse,

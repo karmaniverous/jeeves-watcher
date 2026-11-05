@@ -1,6 +1,6 @@
 /**
  * @module watcher/changeSource/ParcelSource
- * The `@parcel/watcher` change source (C2, D124): one subscription per top root, whole batches to `FileSystemWatcher` (D149), a walk-based initial set (D58), Linux renewal with a sentinel rebuild (D129, D165, D176) and none on Windows (D177). Every parcel call runs in one serial queue. I/O: parcel subscriptions, the sentinel directory.
+ * The `@parcel/watcher` change source (C2, D124): one subscription per top root, whole batches to `FileSystemWatcher` (D149), a walk-based initial set (D58), Linux renewal with a sentinel rebuild (D129, D165, D176) and none on Windows (D177), where parcel never unsubscribes: stop leaves subscriptions to process exit and a live subscription's failure exits for a restart (D196). Every parcel call runs in one serial queue. I/O: parcel subscriptions, the sentinel directory.
  */
 
 import { lstat, mkdir } from 'node:fs/promises';
@@ -20,6 +20,11 @@ import {
   RootSubscription,
   type SubscriptionContext,
 } from './parcelSubscription';
+import {
+  exitingRestarter,
+  parcelNeverUnsubscribes,
+  type ProcessRestarter,
+} from './restart';
 import type { ChangeSink, ChangeSource, RenewResult } from './types';
 
 /** {@link ParcelSource} options. */
@@ -35,6 +40,11 @@ export interface ParcelSourceOptions {
   platform?: NodeJS.Platform;
   /** `lstat` (tests). */
   lstat?: (path: string) => Promise<unknown>;
+  /**
+   * Exits for a service-manager restart where parcel never unsubscribes
+   * (Windows, D196); default {@link exitingRestarter}.
+   */
+  restarter?: ProcessRestarter;
 }
 
 /** The directory the sentinel subscription watches during a rebuild (D165). */
@@ -44,6 +54,8 @@ export const SENTINEL_DIR = 'parcel-sentinel';
 export class ParcelSource implements ChangeSource {
   readonly name = 'parcel';
   readonly initialSet = 'walk' as const;
+  /** On Windows a rebuild exits for a restart (D196). */
+  readonly restartsToRebuild: boolean;
   private readonly subscriptions = new Map<string, RootSubscription>();
   private queue: Promise<unknown> = Promise.resolve();
   private readonly platform: NodeJS.Platform;
@@ -53,6 +65,7 @@ export class ParcelSource implements ChangeSource {
   constructor(private readonly options: ParcelSourceOptions) {
     this.platform = options.platform ?? process.platform;
     this.lstat = options.lstat ?? lstat;
+    this.restartsToRebuild = parcelNeverUnsubscribes(this.platform);
   }
 
   /**
@@ -76,6 +89,9 @@ export class ParcelSource implements ChangeSource {
       logger: this.options.logger,
       lstat: this.lstat,
       serial: (work) => this.serial(work),
+      restarter: this.restartsToRebuild
+        ? (this.options.restarter ?? exitingRestarter(this.options.logger))
+        : undefined,
     };
     await this.serial(async () => {
       for (const root of roots) {
@@ -117,7 +133,10 @@ export class ParcelSource implements ChangeSource {
     });
   }
 
-  /** Unsubscribe every root and stop retrying. */
+  /**
+   * Stop retrying and unsubscribe every root; on Windows nothing is
+   * unsubscribed, and the subscriptions end with the process (D196).
+   */
   async stop(): Promise<void> {
     await this.serial(async () => {
       for (const subscription of this.subscriptions.values()) {

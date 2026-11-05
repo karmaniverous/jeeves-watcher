@@ -148,6 +148,8 @@ describe('FileSystemWatcher (parcel source, real filesystem)', () => {
       options: () => ({ importParcel }),
     });
     expect(importParcel).not.toHaveBeenCalled();
+    // Chokidar stops in-process everywhere (D196).
+    expect(harness.watcher.restartsToRebuild).toBe(false);
   });
 
   it('rejects start, naming the switch, when parcel cannot load (D125)', async () => {
@@ -172,6 +174,8 @@ describe('FileSystemWatcher (parcel source, real filesystem)', () => {
       await expect(watcher.start()).rejects.toThrow(
         'set watch.changeSource: chokidar',
       );
+      // Nothing is running, so a rebuild needs no restart.
+      expect(watcher.restartsToRebuild).toBe(false);
       await watcher.stop();
     } finally {
       await rm(root, { recursive: true, force: true });

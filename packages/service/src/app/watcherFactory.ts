@@ -6,6 +6,7 @@
 
 import {
   extractWatchPathStrings,
+  type ReindexScope,
   WATCH_DEFAULTS,
 } from '@karmaniverous/jeeves-watcher-core';
 import type pino from 'pino';
@@ -20,6 +21,7 @@ import {
   loadParcelWatcher,
   type ParcelImporter,
 } from '../watcher/changeSource/parcelModule';
+import { exitingRestarter } from '../watcher/changeSource/restart';
 import { selectedChangeSource } from '../watcher/changeSource/selectSource';
 import type { JeevesWatcherFactories } from './factories';
 
@@ -37,12 +39,18 @@ export type WatcherWiring = Pick<
   | 'getReconcileIntervalMs'
   | 'importParcel'
   | 'stateDir'
+  | 'restarter'
 >;
 
 /** State returned by {@link rebuildWatcher}. */
 export interface WatcherState {
   watcher: FileSystemWatcher;
   gitignoreFilter?: GitignoreFilter;
+  /**
+   * The rebuild was handed to a service-manager restart (D196): the
+   * running watcher stays until the process exits.
+   */
+  restarting?: boolean;
 }
 
 /**
@@ -117,7 +125,13 @@ export async function createLoadedWatcher(
 
 /**
  * Tear down and rebuild the filesystem watcher with new config.
- * Falls back to the old watcher if the new one fails to start.
+ * Falls back to the old watcher if the new one fails to start. A running
+ * source that cannot stop in-process (parcel on Windows, D196) is not
+ * stopped: once the new source loads, the process exits for a
+ * service-manager restart, which starts with the new config.
+ *
+ * @param pendingReindex - The reload's configured reindex, carried over a
+ *   restart so the restarted process runs it.
  */
 export async function rebuildWatcher(
   newConfig: JeevesWatcherConfig,
@@ -132,6 +146,7 @@ export async function rebuildWatcher(
   },
   oldState: WatcherState,
   wiring: WatcherWiring = {},
+  pendingReindex?: ReindexScope,
 ): Promise<WatcherState> {
   try {
     await loadSelectedChangeSource(newConfig.watch, wiring.importParcel);
@@ -142,6 +157,13 @@ export async function rebuildWatcher(
       'Watcher rebuild refused; the running watcher stays',
     );
     return oldState;
+  }
+  if (oldState.watcher.restartsToRebuild) {
+    (wiring.restarter ?? exitingRestarter(logger)).restart({
+      cause: 'watch-config-changed',
+      reindex: pendingReindex,
+    });
+    return { ...oldState, restarting: true };
   }
   try {
     await oldState.watcher.stop();

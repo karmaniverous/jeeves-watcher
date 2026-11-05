@@ -8,6 +8,7 @@ import { ROOT_DEFAULTS } from '@karmaniverous/jeeves-watcher-core';
 import type { FastifyInstance } from 'fastify';
 import type pino from 'pino';
 
+import { executeReindex, reindexDepsFrom } from '../api/executeReindex';
 import { InitialScanTracker } from '../api/InitialScanTracker';
 import type { JeevesWatcherConfig } from '../config/types';
 import type { GitignoreFilter } from '../gitignore';
@@ -20,6 +21,7 @@ import type { SourceNotifyQueue } from '../queue/SourceNotifyQueue';
 import { VirtualRuleStore } from '../rules/virtualRules';
 import { VcsCoordinator } from '../vcs/VcsCoordinator';
 import type { FileSystemWatcher } from '../watcher';
+import type { ProcessRestarter } from '../watcher/changeSource/restart';
 import { ChangeSourceHealthTracker } from '../watcher/ChangeSourceHealthTracker';
 import { type ApiServerOptions, startApiServer } from './apiServer';
 import { reloadConfig } from './configReload';
@@ -38,6 +40,7 @@ import {
   introspectHelpers,
   resolveVersion,
 } from './initialization';
+import { type RestartRecord, takeRestartRecord } from './processRestarter';
 import { createQueues } from './queues';
 import { shutdownComponents } from './shutdown';
 import { createSourceRetriever } from './sources';
@@ -76,6 +79,7 @@ export class JeevesWatcher {
   private vcsCoordinator: VcsCoordinator | undefined;
   private readonly initialScanTracker = new InitialScanTracker();
   private readonly changeSourceHealth = new ChangeSourceHealthTracker();
+  private readonly restarter: ProcessRestarter;
   private readonly version = resolveVersion(import.meta.url);
 
   /** Create a new JeevesWatcher instance. */
@@ -96,11 +100,22 @@ export class JeevesWatcher {
     this.descriptor = descriptor;
     this.factories = { ...defaultFactories, ...factories };
     this.runtimeOptions = runtimeOptions;
+    this.restarter = this.factories.createProcessRestarter({
+      stateDir: this.stateDir,
+      logger: () => this.logger,
+      stop: () => this.stop(),
+    });
+  }
+
+  /** The state directory (default `ROOT_DEFAULTS.stateDir`). */
+  private get stateDir(): string {
+    return this.config.stateDir ?? ROOT_DEFAULTS.stateDir;
   }
 
   /** Start the watcher, API server, and all components. */
   async start(): Promise<void> {
     this.logger = await this.factories.createLogger(this.config.logging);
+    const restart = this.takeRestart(this.logger);
     try {
       ({
         embeddingProvider: this.embeddingProvider,
@@ -112,11 +127,53 @@ export class JeevesWatcher {
       }));
       await this.initPipeline();
       await this.startServicesAndWatcher();
+      if (restart?.reindex) this.runDeferredReindex(restart.reindex);
     } catch (error) {
       // A refused start must reach the log file and stderr (D171).
       logRefusal(this.logger, 'jeeves-watcher refused to start', error);
       throw error;
     }
+  }
+
+  /**
+   * Take the record an exit for a restart left (D196) and report it in
+   * `health.changeSource`.
+   */
+  private takeRestart(logger: pino.Logger): RestartRecord | undefined {
+    const restart = takeRestartRecord(this.stateDir, logger);
+    if (restart) {
+      this.changeSourceHealth.recordRestart(restart);
+      logger.info(
+        { cause: restart.cause, at: restart.at },
+        'Started after an exit for a restart (D196)',
+      );
+    }
+    return restart;
+  }
+
+  /**
+   * Run the config reindex a reload deferred to this restart (D196), in
+   * the background like the reload would have.
+   */
+  private runDeferredReindex(
+    scope: NonNullable<RestartRecord['reindex']>,
+  ): void {
+    const logger = this.logger!;
+    logger.info(
+      { scope },
+      'Running the config reindex deferred to the restart',
+    );
+    void executeReindex(
+      reindexDepsFrom({
+        getConfig: () => this.config,
+        processor: this.processor!,
+        logger,
+        valuesManager: this.stores?.valuesManager,
+        issuesManager: this.stores?.issuesManager,
+        gitignoreFilter: this.gitignoreFilter,
+      }),
+      { scope },
+    );
   }
 
   /** Build the processing pipeline: rules, templates, processor, queue, VCS. */
@@ -234,6 +291,7 @@ export class JeevesWatcher {
       getReconcileIntervalMs: () => this.config.watch.reconcileIntervalMs,
       importParcel: this.factories.importParcel,
       stateDir: this.config.stateDir,
+      restarter: this.restarter,
       onVcsFileChange: (filePath, event) => {
         this.vcsCoordinator?.onFileChange(filePath, event);
       },
