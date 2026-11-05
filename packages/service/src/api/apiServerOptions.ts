@@ -70,7 +70,7 @@ export interface ApiServerOptions {
   version?: string;
   /** Initial scan tracker for /status visibility. */
   initialScanTracker?: InitialScanTracker;
-  /** Filesystem watcher instance for /walk endpoint (in-memory file list). */
+  /** Filesystem watcher instance for /walk endpoint (its inventory, D83). */
   fileSystemWatcher?: FileSystemWatcher;
   /** Getter for live filesystem watcher access after hot-reload rebuilds. */
   getFileSystemWatcher?: () => FileSystemWatcher | undefined;

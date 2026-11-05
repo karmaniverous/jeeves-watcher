@@ -139,6 +139,7 @@ See [Inference Rules Guide](./inference-rules.md) for merge semantics and usage 
     "stabilityThresholdMs": 500,
     "pollIntervalMs": 1000,
     "usePolling": false,
+    "reconcileIntervalMs": 900000,
     "respectGitignore": true
   }
 }
@@ -149,14 +150,17 @@ See [Inference Rules Guide](./inference-rules.md) for merge semantics and usage 
 | `paths` | `(string \| { path, vcs? })[]` | **Required** | Glob patterns for files to watch (at least one). Supports picomatch syntax. An entry may be an object with a `path` glob and per-root `vcs` overrides (see [Version Control](./version-control.md#per-root-overrides)). |
 | `ignored` | `string[]` | `["**/node_modules/**"]` | Glob patterns to exclude from watching. Setting the key replaces the default, so list `**/node_modules/**` again if you need it. |
 | `debounceMs` | `number` | `300` | Events for the same file are collapsed until this long has passed since the last one (prevents re-embedding during rapid edits). |
-| `stabilityThresholdMs` | `number` | `500` | File must be stable (no size changes) for this long before processing. |
+| `stabilityThresholdMs` | `number` | `500` | File must be stable (no size changes) for this long before processing. `0` processes at once. Files that reconciliation finds wait the same way, on one shared ticker. |
 | `pollIntervalMs` | `number` | `1000` | Polling interval if `usePolling` is enabled. |
 | `usePolling` | `boolean` | `false` | Use polling instead of native filesystem events. Enable for network drives or Docker volumes. |
+| `reconcileIntervalMs` | `integer` | `900000` | How often (ms) each watch root is walked and compared with the watcher's inventory, to recover events the change source missed; `0` turns it off. Roots are staggered across the interval. A 110,000-file root walks in about 0.6 to 2.3 s; every walk shares one limit of 8 filesystem calls in flight (the service runs with `UV_THREADPOOL_SIZE` 16 unless set). |
 | `respectGitignore` | `boolean` | `true` | Skip files ignored by `.gitignore` in git repositories. Nested `.gitignore` files are respected within their subtree. Only applies to repos with a `.git` directory. |
 | `moveDetection.enabled` | `boolean` | `true` | Treat an unlink followed by an add of the same content as a move: the points are re-keyed to the new path without re-embedding. |
 | `moveDetection.bufferMs` | `integer` | `2000` | How long (ms, min 100) an unlink is held while waiting for a matching add before it is treated as a delete. |
 
-A config reload that changes `paths`, `ignored`, `moveDetection` or `respectGitignore` rebuilds the filesystem watcher with the new `watch` settings; a change to the other keys alone does not. `debounceMs` belongs to the file event queue and is read at startup only.
+A config reload that changes `paths`, `ignored`, `moveDetection`, `respectGitignore`, `usePolling`, `pollIntervalMs` or `stabilityThresholdMs` rebuilds the filesystem watcher with the new `watch` settings (values are compared after defaults, so writing a default out is no change). A rebuild walks every root again for its initial scan. `reconcileIntervalMs` takes effect at once without a rebuild. `debounceMs` belongs to the file event queue and is read at startup only.
+
+**Reconciliation.** The watcher keeps an inventory of the files that pass its filters. A reconcile walks a directory and compares it with that inventory: a file missing from the inventory goes through the stability wait and is then added; an inventory file that `lstat` confirms gone is deleted; a file now filtered out but still on disk is left alone. A failed walk, an unreachable root, or a root walk that finds no files while the inventory holds some emits nothing, so an unmounted share never deletes its points. Reconciles run periodically (`reconcileIntervalMs`) and for every directory created after the initial scan. Events under each root's own `.git` are always dropped, whatever `ignored` says. `GET /status` reports the counts under `health.changeSource`.
 
 **Glob examples:**
 

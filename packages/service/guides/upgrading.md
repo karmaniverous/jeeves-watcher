@@ -70,6 +70,17 @@ What changes for an existing deployment, release by release. The [Changelog](../
 - **A provider back-off is now capped at 5 minutes** and then expires. A long `Retry-After` (e.g. a daily quota) used to keep every embedding call failing until it passed; now the first call after 5 minutes probes the provider. The `Retry-After` on a search `503` reflects that probe time.
 - **The reindex callback** also times out each attempt after 10 s (it shares the alert's delivery code).
 
+### Change source and reconciliation
+
+- **Periodic reconciliation (new, `watch.reconcileIntervalMs`, default 900000 = 15 minutes; `0` turns it off).** Each watch root is walked on that interval and compared with the watcher's inventory: a file whose event was missed is added through the normal stability wait, and a file the inventory holds that is confirmed gone (`ENOENT`) is deleted. Roots are staggered across the interval. A walk that fails, a root that is unreachable, or a root walk that finds nothing while the inventory holds files emits nothing (so an unmounted share never deletes its points). Measured cost: a 110,000-file root walks in about 0.6 to 2.3 s. A reload that changes only this key takes effect without rebuilding the watcher. See [Configuration](./configuration.md#watch---filesystem-watching).
+- **A directory created after the initial scan is reconciled at once**, so files written into it before its watch was set up are not missed.
+- **`POST /walk` lists the inventory**: matched files only (never directories, glob-rejected, `watch.ignored` or gitignored files), sorted by path. 0.20.0 listed chokidar's entries, which could include directories and files the watcher filters out.
+- **`GET /status` gains `health.changeSource`**: `source` (`chokidar` in 0.21.0), `resubscribes`, `unavailableRoots`, `reconcileEvents` (synthetic events reconciliation emitted: a rising value means events are being missed), `reconcileErrors`, `lastReconcileAt`, `lastReconcileDurationMs`, `pendingStability`, `lastRenewDurationMs` (always `null` under chokidar) and `renewFailures`. Counts and timestamps only, never paths.
+- **Events under each watch root's own `.git` are always dropped**, even when `watch.ignored` lacks `**/.git/**`, so the watcher's own VCS commits never become change events.
+- **A reload that changes `watch.usePolling`, `watch.pollIntervalMs` or `watch.stabilityThresholdMs` now rebuilds the watcher** (0.20.0 needed a restart for them). Values are compared after defaults, so writing a default out is no change.
+- **The service sets `UV_THREADPOOL_SIZE` to 16** unless the environment already sets it, and every walk shares one limit of 8 filesystem calls in flight, so walks never starve file reads.
+- **`GET /config/schema`** shows `watch.reconcileIntervalMs` (an approved wire departure).
+
 ### Facets
 
 - **`POST /search/facets/counts` (new, `countFacets`)** counts the values of indexed payload fields over the documents matching a filter, each document once (approximate counts, D194), or gives `{ min, max }` for numeric and date fields; `rules` keeps only documents of the named rules. Every counted field needs a payload index (else `400` naming it): add a `keyword` index under `vectorStore.payloadIndexes` for each field your UI offers as a facet, and restart. See [the route](./api-reference.md#post-searchfacetscounts).
