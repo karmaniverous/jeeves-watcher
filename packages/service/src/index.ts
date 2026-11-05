@@ -45,6 +45,11 @@ export type {
   ProviderFactory,
 } from './embedding';
 export { createEmbeddingProvider } from './embedding';
+export type {
+  EmbeddingErrorSummary,
+  EmbeddingHealthSnapshot,
+  EmbeddingHealthState,
+} from './embedding/EmbeddingHealth';
 export type { EnrichmentStoreInterface } from './enrichment';
 export { EnrichmentStore, mergeEnrichment } from './enrichment';
 export type { ExtractedText, Extractor } from './extractors';
@@ -69,7 +74,13 @@ export type {
   WatcherProcessor,
 } from './processor';
 export { DocumentProcessor } from './processor';
+export {
+  type DocumentLockOptions,
+  DocumentLocks,
+  fileLockKey,
+} from './processor/DocumentLocks';
 export type { IndexOptions } from './processor/documentPipeline';
+export type { ProcessingLimits } from './processor/processingLimits';
 export type {
   SourceOperationsInterface,
   SourceOperationsProvider,
@@ -160,6 +171,15 @@ export type {
   SearchResult,
   VectorPoint,
   VectorStore,
+} from './vectorStore';
+export type {
+  FacetHit,
+  FacetRead,
+  FacetStore,
+  FacetValue,
+  RangeBound,
+  RangeEnd,
+  SystemIndexState,
 } from './vectorStore';
 export { VectorStoreClient } from './vectorStore';
 export type { FileSystemWatcherOptions } from './watcher';
