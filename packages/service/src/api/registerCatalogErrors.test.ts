@@ -27,6 +27,7 @@ const options = {
     matchConfig: {},
     validateConfig: {},
     listFacets: {},
+    countFacets: {},
     walk: {},
     listIssues: {},
     setMetadata: {},
