@@ -17,6 +17,9 @@ import {
 
 const ROOT = '/r';
 
+/** Every context's disk holds the root unless a test removes it. */
+const WITH_ROOT: Record<string, PathState> = { '/r': 'dir' };
+
 /** A context over a fake disk and inventory. */
 function context(
   disk: Record<string, PathState>,
@@ -31,7 +34,8 @@ function context(
     ignored: (path) => path.includes('/ignored'),
     isDirectory: (path) => dirs.has(normalizeDocumentKey(path)),
     inInventory: (path) => files.has(normalizeDocumentKey(path)),
-    lstat: (path) => Promise.resolve(disk[path] ?? 'absent'),
+    lstat: (path) =>
+      Promise.resolve({ ...WITH_ROOT, ...disk }[path] ?? 'absent'),
     ...overrides,
   };
 }
@@ -184,7 +188,7 @@ describe('classifyBatch', () => {
     await expect(
       classifyBatch(
         [del('/r'), del('/r/a.md')],
-        context({}, { files: ['/r/a.md'] }),
+        context({ '/r': 'absent' }, { files: ['/r/a.md'] }),
       ),
     ).resolves.toEqual({ rootGone: true });
     await expect(
@@ -196,6 +200,15 @@ describe('classifyBatch', () => {
       rootGone: false,
       paths: [{ kind: 'file', path: '/r/a.md' }],
     });
+  });
+
+  it('drops a batch of absent files when the root itself is gone (rm -rf, D109)', async () => {
+    await expect(
+      classifyBatch(
+        [del('/r/a.md'), del('/r/sub/b.md')],
+        context({ '/r': 'absent' }, { files: ['/r/a.md', '/r/sub/b.md'] }),
+      ),
+    ).resolves.toEqual({ rootGone: true });
   });
 
   it(`lstats at most ${String(BATCH_LSTAT_CONCURRENCY)} paths at a time`, async () => {

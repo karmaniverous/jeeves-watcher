@@ -116,6 +116,7 @@ describe('walkRoots', () => {
       onRootDone: (root) => done.push(root),
       platform: 'win32',
       readMaxUserWatches: read,
+      walk: fakeWalk({ '/a': 1 }),
     });
     expect(read).not.toHaveBeenCalled();
     await walkRoots({
@@ -127,6 +128,7 @@ describe('walkRoots', () => {
       onRootDone: (root) => done.push(root),
       platform: 'linux',
       readMaxUserWatches: read,
+      walk: fakeWalk({ '/a': 1 }),
     });
     expect(done).toEqual(['/a']);
     expect(read).not.toHaveBeenCalled();

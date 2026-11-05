@@ -68,7 +68,8 @@ function setup(
       warn: vi.fn(),
     } as never,
     platform: 'linux',
-    lstat: (path) => Promise.resolve(disk[path] ?? 'absent'),
+    lstat: (path) =>
+      Promise.resolve({ [ROOT]: 'dir' as const, ...disk }[path] ?? 'absent'),
     walk: (dir) => Promise.resolve(walked.get(dir) ?? new Map()),
     ...overrides,
   });
@@ -172,7 +173,7 @@ describe('ParcelPipeline', () => {
   });
 
   it('drops a batch whose root is gone, and batches for a stopped pipeline', async () => {
-    const { pipeline, calls, inventory } = setup();
+    const { pipeline, calls, inventory } = setup({ [ROOT]: 'absent' });
     inventory.set('/r/a.md', { size: 1, mtimeMs: 1 });
     pipeline.push(ROOT, [ev('delete', ROOT), ev('delete', '/r/a.md')]);
     await pipeline.fifo.idle();
@@ -187,10 +188,10 @@ describe('ParcelPipeline', () => {
     const { pipeline, inventory } = setup(
       {},
       {
-        lstat: () =>
+        lstat: (path) =>
           new Promise((resolve) =>
             setImmediate(() => {
-              resolve('absent');
+              resolve(path === ROOT ? 'dir' : 'absent');
             }),
           ),
       },

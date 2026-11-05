@@ -145,13 +145,19 @@ export async function classifyBatch(
       .filter((event) => event.type === 'delete')
       .map((event) => normalizeDocumentKey(event.path)),
   );
+  // A root removed with its contents (`rm -rf`) reports its files first:
+  // any absence in the batch is checked against the root, and a gone root
+  // drops the batch, so nothing is unlinked (D109).
+  if (
+    states.includes('absent') &&
+    (await context.lstat(context.root)) === 'absent'
+  ) {
+    return { rootGone: true };
+  }
   const classified: (ClassifiedPath & { key: string })[] = [];
   for (const [index, entry] of paths.entries()) {
     const state = states[index];
-    if (entry.key === rootKey) {
-      if (state === 'absent') return { rootGone: true };
-      continue;
-    }
+    if (entry.key === rootKey) continue;
     const kind = classifyPath(entry, state, underDeletes, context);
     if (kind) classified.push({ kind, path: entry.path, key: entry.key });
   }
