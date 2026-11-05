@@ -137,18 +137,19 @@ export class RootSubscription {
   }
 
   /**
-   * Stop: no more retries, unsubscribe (on Windows, drop the handle and
-   * leave the subscription to process exit, D196). Caller holds the queue.
+   * Stop: no more retries, unsubscribe (on Windows the handle is already
+   * dropped, so nothing is: the subscription ends with the process, D196).
+   * Caller holds the queue.
    */
   async stop(): Promise<void> {
     this.release();
-    if (!this.context.restarter) await this.unsubscribe();
+    await this.unsubscribe();
   }
 
   /**
    * No more retries, and callbacks are ignored. Where parcel never
-   * unsubscribes (D196) the handle is dropped here; otherwise `stop`
-   * unsubscribes it.
+   * unsubscribes (D196) the handle is dropped here, which leaves
+   * `unsubscribe` nothing to call.
    */
   private release(): void {
     this.mode = 'stopped';
