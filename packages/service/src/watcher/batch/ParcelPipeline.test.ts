@@ -1,85 +1,13 @@
 /**
  * @module watcher/batch/ParcelPipeline.test
- * The parcel batch pipeline with a fake disk (D127, D149, D179): batches held during a root's walk are classified against the full inventory, each kind goes to its handler, pairing runs only with move detection, and a 20K-file directory delete under a 120K-file inventory keeps the event loop responsive.
+ * The parcel batch pipeline with a fake disk (D127, D149, D179): batches held during a root's walk are classified against the full inventory, each kind goes to its handler, pairing runs only with move detection. The 20K/120K scale test: ParcelPipeline.heavy.test.
  */
-
-import { monitorEventLoopDelay } from 'node:perf_hooks';
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import { ev, ROOT, setup } from '../../test/parcelPipelineHarness';
 import { normalizeDocumentKey } from '../../util/documentKey';
-import type { RawChangeEvent } from '../changeSource/types';
-import type { FilteredEvents } from '../filteredEvents';
-import { Inventory } from '../inventory/Inventory';
-import type { WatchFilter } from '../pathFilter';
-import { WatchRoots } from '../roots';
-import type { StabilityTicker } from '../stability/StabilityTicker';
-import type { WalkedFile } from '../walk/Walker';
-import type { PathState } from './classifyBatch';
-import {
-  lstatState,
-  ParcelPipeline,
-  type ParcelPipelineDeps,
-} from './ParcelPipeline';
-
-const ROOT = '/r';
-
-/** A pipeline over a fake disk; handler calls are recorded. */
-function setup(
-  disk: Record<string, PathState> = {},
-  overrides: Partial<ParcelPipelineDeps> = {},
-) {
-  const calls: string[] = [];
-  const inventory = new Inventory(true);
-  const filter = {
-    globMatches: (path: string) => path.endsWith('.md'),
-    isGitignored: () => false,
-    isRootGit: () => false,
-  } as unknown as WatchFilter;
-  const events = {
-    unlink: (path: string) => {
-      inventory.delete(path);
-      calls.push(`unlink ${path}`);
-    },
-    moved: (from: string, to: string) => {
-      inventory.delete(from);
-      inventory.set(to, { size: 1, mtimeMs: 1 });
-      calls.push(`move ${from} -> ${to}`);
-    },
-  } as unknown as FilteredEvents;
-  const ticker = {
-    enter: (_key: string, path: string, synthetic: boolean) =>
-      calls.push(`stability ${path}${synthetic ? ' synthetic' : ''}`),
-    dropUnder: (dir: string) => calls.push(`drop ${dir}`),
-  } as unknown as StabilityTicker;
-  const walked = new Map<string, Map<string, WalkedFile>>();
-  const pipeline = new ParcelPipeline({
-    roots: new WatchRoots([ROOT]),
-    filter,
-    ignore: [(path) => path.includes('/node_modules')],
-    inventory,
-    events,
-    ticker,
-    reconcile: (dir) => calls.push(`reconcile ${dir}`),
-    logger: {
-      debug: vi.fn(),
-      error: vi.fn(),
-      info: vi.fn(),
-      warn: vi.fn(),
-    } as never,
-    platform: 'linux',
-    lstat: (path) =>
-      Promise.resolve({ [ROOT]: 'dir' as const, ...disk }[path] ?? 'absent'),
-    walk: (dir) => Promise.resolve(walked.get(dir) ?? new Map()),
-    ...overrides,
-  });
-  return { pipeline, calls, inventory, walked };
-}
-
-const ev = (type: RawChangeEvent['type'], path: string): RawChangeEvent => ({
-  type,
-  path,
-});
+import { lstatState } from './ParcelPipeline';
 
 describe('ParcelPipeline', () => {
   afterEach(() => {
@@ -183,42 +111,6 @@ describe('ParcelPipeline', () => {
     await pipeline.fifo.idle();
     expect(calls).toEqual([]);
   });
-
-  it('a 20K-file directory delete under a 120K-file inventory keeps the loop delay under 100 ms (D149)', async () => {
-    const { pipeline, inventory } = setup(
-      {},
-      {
-        lstat: (path) =>
-          new Promise((resolve) =>
-            setImmediate(() => {
-              resolve(path === ROOT ? 'dir' : 'absent');
-            }),
-          ),
-      },
-    );
-    for (let i = 0; i < 100_000; i++) {
-      inventory.set(`/r/keep/d${String(i % 500)}/f${String(i)}.md`, {
-        size: 1,
-        mtimeMs: 1,
-      });
-    }
-    const batch: RawChangeEvent[] = [ev('delete', '/r/big')];
-    for (let i = 0; i < 20_000; i++) {
-      const path = `/r/big/d${String(i % 200)}/f${String(i)}.md`;
-      inventory.set(path, { size: 1, mtimeMs: 1 });
-      batch.push(ev('delete', path));
-    }
-    for (let d = 0; d < 200; d++)
-      batch.push(ev('delete', `/r/big/d${String(d)}`));
-    expect(inventory.size).toBe(120_000);
-    const delay = monitorEventLoopDelay({ resolution: 10 });
-    delay.enable();
-    pipeline.push(ROOT, batch);
-    await pipeline.fifo.idle();
-    delay.disable();
-    expect(inventory.size).toBe(100_000);
-    expect(delay.max / 1e6).toBeLessThan(100);
-  }, 60_000);
 });
 
 describe('lstatState', () => {

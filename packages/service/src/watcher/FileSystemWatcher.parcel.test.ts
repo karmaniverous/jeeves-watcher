@@ -3,15 +3,7 @@
  * `FileSystemWatcher` over the real `@parcel/watcher` (C2, C3) on this platform (Windows and Linux CI): the walk-based initial set (D58), add/change/unlink through the stability wait, no-op attribute changes (D142), directory renames as moves and deletes as unlinks (D62, D127), no subtree reconcile for directory attribute changes (D179), and the root's `.git` never producing events (D152).
  */
 
-import {
-  chmod,
-  mkdir,
-  mkdtemp,
-  rename,
-  rm,
-  utimes,
-  writeFile,
-} from 'node:fs/promises';
+import { chmod, mkdir, mkdtemp, rm, utimes, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -19,6 +11,8 @@ import pino from 'pino';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
+  eventsOf as of,
+  fileTree as tree,
   startWatcherHarness,
   waitFor,
   type WatcherHarness,
@@ -26,28 +20,6 @@ import {
 import { normalizeSlashes } from '../util/normalizeSlashes';
 import { ChangeSourceHealthTracker } from './ChangeSourceHealthTracker';
 import { FileSystemWatcher } from './index';
-
-/** Files in the directory-move tests (spec: 1,000). */
-const TREE = 1000;
-
-/** The relative paths of one event type, in order. */
-function of(h: WatcherHarness, type: string): string[] {
-  const prefix = `${type}:`;
-  return h
-    .seen()
-    .filter((entry) => entry.startsWith(prefix))
-    .map((entry) => entry.slice(prefix.length));
-}
-
-/** `count` files under `dir` (`f0.md` ...), nested two levels. */
-function tree(dir: string, count: number): Record<string, string> {
-  const files: Record<string, string> = {};
-  for (let i = 0; i < count; i++) {
-    files[`${dir}/d${String(i % 10)}/f${String(i)}.md`] =
-      `content ${String(i)}`;
-  }
-  return files;
-}
 
 describe('FileSystemWatcher (parcel source, real filesystem)', () => {
   let harness: WatcherHarness | undefined;
@@ -90,42 +62,6 @@ describe('FileSystemWatcher (parcel source, real filesystem)', () => {
     expect(marker).toContain('marker.md');
     expect(of(h, 'modify')).toEqual([]);
   });
-
-  it('pairs a 1,000-file directory rename as moves, both ways (D62)', async () => {
-    harness = await startWatcherHarness({
-      files: tree('zeta', TREE),
-      watch: () => ({
-        changeSource: 'parcel',
-        moveDetection: { enabled: true, bufferMs: 2000 },
-      }),
-    });
-    const h = harness;
-    const createdAtStart = of(h, 'create').length;
-    expect(createdAtStart).toBe(TREE);
-    await rename(join(h.root, 'zeta'), join(h.root, 'alpha'));
-    await waitFor(() => of(h, 'move').length >= TREE, 30_000);
-    await rename(join(h.root, 'alpha'), join(h.root, 'zeta'));
-    await waitFor(() => of(h, 'move').length >= TREE * 2, 30_000);
-    expect(of(h, 'move')).toHaveLength(TREE * 2);
-    expect(of(h, 'create')).toHaveLength(createdAtStart);
-    expect(of(h, 'delete')).toEqual([]);
-    expect(h.watcher.getWatchedFiles()).toHaveLength(TREE);
-  }, 90_000);
-
-  it('turns a 1,000-file directory delete into 1,000 unlinks (D127)', async () => {
-    harness = await startWatcherHarness({
-      files: tree('gone', TREE),
-      watch: () => ({
-        changeSource: 'parcel',
-        moveDetection: { enabled: true, bufferMs: 200 },
-      }),
-    });
-    const h = harness;
-    await rm(join(h.root, 'gone'), { recursive: true, force: true });
-    await waitFor(() => of(h, 'delete').length >= TREE, 30_000);
-    expect(of(h, 'delete')).toHaveLength(TREE);
-    expect(h.watcher.getWatchedFiles()).toEqual([]);
-  }, 60_000);
 
   it('reconciles a new directory without pairing (moveDetection off)', async () => {
     harness = await startWatcherHarness({

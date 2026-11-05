@@ -12,6 +12,7 @@ import { startWireApp, VCS_FILES, type WireApp } from '../test/wire/wireApp';
 import { injectScenario } from '../test/wire/wireRun';
 import { WIRE_KEY } from '../test/wire/wireStubs';
 import type * as CatalogModule from './catalog';
+import type * as FileScanModule from './fileScan';
 
 /** What a catalog handler resolves to, as far as these tests look. */
 interface RecordedResult {
@@ -27,6 +28,14 @@ const results = vi.hoisted(
   () => [] as Array<{ entry: string; result: RecordedResult }>,
 );
 
+// The wire fixture's watch glob is relative (`**/*.md`), so the prune dry
+// run's file listing would walk the working directory (the whole package,
+// node_modules included). The wire format does not depend on that listing
+// (prunePlan and reindexPrune tests cover it): list no files.
+vi.mock('./fileScan', async (importOriginal) => ({
+  ...(await importOriginal<typeof FileScanModule>()),
+  listFilesFromGlobs: () => Promise.resolve([]),
+}));
 vi.mock('./catalog', async (importOriginal) => {
   const actual = await importOriginal<typeof CatalogModule>();
   return {

@@ -27,6 +27,32 @@ export default defineConfig({
     // (seen in CI 2026-11-03), so hooks get 30 s; test timeouts are unchanged.
     hookTimeout: 30_000,
     exclude: ['**/node_modules/**', '**/dist/**', '**/.rollup.cache/**'],
+    projects: [
+      {
+        extends: true,
+        test: {
+          name: 'unit',
+          exclude: [
+            '**/node_modules/**',
+            '**/dist/**',
+            '**/.rollup.cache/**',
+            '**/*.heavy.test.ts',
+          ],
+        },
+      },
+      {
+        // Scale tests the spec sizes (1,000-file trees on the real parcel
+        // binary, a 20K delete under a 120K inventory): one file at a time,
+        // and `npm test` runs them after the rest, so they never compete
+        // with the other suites for CPU and disk.
+        extends: true,
+        test: {
+          name: 'heavy',
+          include: ['src/**/*.heavy.test.ts'],
+          fileParallelism: false,
+        },
+      },
+    ],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'lcov'],

@@ -155,7 +155,7 @@
     "lint:fix": "eslint --fix .",
     "release": "dotenvx run -f .env.local -- release-it",
     "release:pre": "dotenvx run -f .env.local -- release-it --no-git.requireBranch --github.preRelease --preRelease",
-    "test": "vitest run",
+    "test": "vitest run --project unit && vitest run --project heavy",
     "wire:capture": "node scripts/capture-wire-0.20.0.mjs",
     "typecheck": "tsc"
   },

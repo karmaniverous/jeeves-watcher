@@ -19,6 +19,7 @@ import pino from 'pino';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
+  eventsOf as of,
   startWatcherHarness,
   waitFor,
   type WatcherHarness,
@@ -33,15 +34,6 @@ import type { ChangeSink, RawChangeEvent } from './changeSource/types';
 import { ChangeSourceHealthTracker } from './ChangeSourceHealthTracker';
 
 const linux = process.platform === 'linux';
-
-/** The relative paths of one event type. */
-function of(h: WatcherHarness, type: string): string[] {
-  const prefix = `${type}:`;
-  return h
-    .seen()
-    .filter((entry) => entry.startsWith(prefix))
-    .map((entry) => entry.slice(prefix.length));
-}
 
 /** The real module, with the latest subscription callback exposed. */
 async function tappedParcel() {
