@@ -32,11 +32,16 @@ interface ReloadableState {
   gitignoreFilter?: GitignoreFilter;
 }
 
-/**
- * Immutable dependencies needed by the reload function, with the watcher
- * wiring a rebuild passes on.
- */
-interface ReloadDeps extends WatcherWiring {
+/** Immutable dependencies needed by the reload function. */
+interface ReloadDeps {
+  /** The app's watcher wiring, passed whole to a rebuilt watcher. */
+  wiring: WatcherWiring;
+  /**
+   * Publish the loaded config to the app before the watcher is rebuilt or
+   * its reconcile schedule refreshed, so the wiring's getters
+   * (`getReconcileIntervalMs`) read the new values.
+   */
+  onConfigLoaded?: (config: JeevesWatcherConfig) => void;
   configPath: string;
   factories: JeevesWatcherFactories;
   queue: EventQueue;
@@ -71,6 +76,7 @@ export async function reloadConfig(
       },
     });
     state.config = newConfig;
+    deps.onConfigLoaded?.(newConfig);
 
     const compiledRules = deps.factories.compileRules(
       newConfig.inferenceRules ?? [],
@@ -95,18 +101,13 @@ export async function reloadConfig(
         logger,
         deps.runtimeOptions,
         { watcher: state.watcher!, gitignoreFilter: state.gitignoreFilter },
-        {
-          initialScanTracker: deps.initialScanTracker,
-          contentHashCache: deps.contentHashCache,
-          onVcsFileChange: deps.onVcsFileChange,
-          onInitialScanComplete: deps.onInitialScanComplete,
-          changeSourceHealth: deps.changeSourceHealth,
-        },
+        deps.wiring,
       );
       state.watcher = newState.watcher;
       state.gitignoreFilter = newState.gitignoreFilter;
     } else {
-      // watch.reconcileIntervalMs takes effect without a rebuild (D111).
+      // watch.reconcileIntervalMs takes effect without a rebuild (D111);
+      // the schedule restarts only when the effective interval changed.
       state.watcher?.refreshReconcileSchedule();
     }
 

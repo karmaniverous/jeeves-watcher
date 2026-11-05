@@ -62,7 +62,7 @@ describe('reloadConfig: source documents', () => {
         processor,
         logger: pino({ level: 'silent' }),
         runtimeOptions: {},
-        initialScanTracker: {} as never,
+        wiring: { initialScanTracker: {} as never },
       },
     );
 

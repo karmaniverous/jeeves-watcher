@@ -9,14 +9,15 @@ import type { FileStats } from '../inventory/Inventory';
 import { walkLimit } from './walkLimiter';
 
 /**
- * Size and mtime of a file.
+ * Size and mtime of a file. Runs under the walk limiter, so the stability
+ * ticker's stats (one per new path at a threshold of 0) stay bounded too.
  *
  * @param path - The path.
  * @returns Its stats, or undefined when absent, unreadable or not a file.
  */
 export async function statFile(path: string): Promise<FileStats | undefined> {
   try {
-    const stats = await stat(path);
+    const stats = await walkLimit(() => stat(path));
     return stats.isFile()
       ? { size: stats.size, mtimeMs: stats.mtimeMs }
       : undefined;

@@ -26,6 +26,7 @@ function setup(roots: string[], interval: { ms: number }) {
       runs.push(`${root}@${String(Date.now())}`);
       return Promise.resolve();
     },
+    onRunError: () => undefined,
   });
   return { periodic, runs };
 }
@@ -72,6 +73,42 @@ describe('PeriodicReconcile', () => {
     periodic.stop();
   });
 
+  it('keeps the running timers when a refresh leaves the interval unchanged', async () => {
+    vi.setSystemTime(0);
+    const { periodic, runs } = setup(['a', 'b'], { ms: 1000 });
+    periodic.arm('a');
+    periodic.arm('b');
+    for (let t = 0; t < 10; t++) {
+      await vi.advanceTimersByTimeAsync(300);
+      periodic.refresh();
+    }
+    expect(runs).toEqual([
+      'a@500',
+      'b@1000',
+      'a@1500',
+      'b@2000',
+      'a@2500',
+      'b@3000',
+    ]);
+    periodic.stop();
+  });
+
+  it('reports a rejected run and schedules the next', async () => {
+    vi.setSystemTime(0);
+    const onRunError = vi.fn();
+    const periodic = new PeriodicReconcile({
+      roots: ['a'],
+      intervalMs: () => 100,
+      run: () => Promise.reject(new Error('renew failed')),
+      onRunError,
+    });
+    periodic.arm('a');
+    await vi.advanceTimersByTimeAsync(250);
+    expect(onRunError).toHaveBeenCalledTimes(2);
+    expect(onRunError).toHaveBeenCalledWith('a', expect.any(Error));
+    periodic.stop();
+  });
+
   it('renews then reconciles the root; a rebuilt source reconciles every root', async () => {
     const reconciled: string[] = [];
     let rebuilt = false;
@@ -105,6 +142,7 @@ describe('PeriodicReconcile', () => {
           latch.open = resolve;
         });
       },
+      onRunError: () => undefined,
     });
     periodic.arm('a');
     await vi.advanceTimersByTimeAsync(100);

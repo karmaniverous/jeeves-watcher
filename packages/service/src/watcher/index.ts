@@ -3,6 +3,7 @@
  * Filesystem watcher: drives a change source (chokidar) through the `ChangeSink` seam, filters its events, keeps the inventory and enqueues processing. I/O: watches files, enqueues processor work.
  */
 
+import type { Stats } from 'node:fs';
 import { dirname } from 'node:path';
 
 import type pino from 'pino';
@@ -100,12 +101,13 @@ export class FileSystemWatcher implements ChangeSink {
     );
   }
 
-  /** A classified event from the change source (chokidar). */
-  event(type: ClassifiedEventType, path: string): void {
+  /** A classified event from the change source (chokidar), with the stats it read, if any. */
+  event(type: ClassifiedEventType, path: string, stats?: Stats): void {
     const events = this.running?.events;
     if (!events) return;
-    if (type === 'add') events.add(path);
-    else if (type === 'change') events.change(path);
+    const fileStats = stats && { size: stats.size, mtimeMs: stats.mtimeMs };
+    if (type === 'add') events.add(path, fileStats);
+    else if (type === 'change') events.change(path, fileStats);
     else if (type === 'unlink') events.unlink(path);
     else if (type === 'addDir') this.directoryCreated(path);
     // `unlinkDir`: chokidar reports each file's unlink, so nothing to pair.
@@ -209,7 +211,7 @@ export class FileSystemWatcher implements ChangeSink {
     if (!running) return;
     const event = settledEvent(running.inventory.get(path), stats);
     if (!event) return;
-    if (event === 'add') running.events.add(path, stats);
+    if (event === 'add') running.events.add(path, stats, synthetic);
     else running.events.change(path, stats);
     if (synthetic) this.options.changeSourceHealth?.recordReconcileEvents(1);
   }
@@ -258,6 +260,7 @@ export class FileSystemWatcher implements ChangeSink {
     if (!running) return;
     this.running = undefined;
     running.periodic.stop();
+    running.reconciler.stop();
     running.ticker.stop();
     running.actions.flush();
     await running.source.stop();

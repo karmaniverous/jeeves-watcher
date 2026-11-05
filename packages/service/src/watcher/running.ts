@@ -15,6 +15,7 @@ import type { WatchConfig } from '../config/types';
 import type { GitignoreFilter } from '../gitignore';
 import type { DocumentProcessorInterface } from '../processor';
 import type { EventQueue } from '../queue';
+import { normalizeError } from '../util/normalizeError';
 import { ChokidarChangeSource } from './changeSource/ChokidarChangeSource';
 import type { ChangeSource } from './changeSource/types';
 import type { ChangeSourceHealthTracker } from './ChangeSourceHealthTracker';
@@ -129,7 +130,7 @@ export function createRunning(context: RunningContext): Running {
     logger,
     options.gitignoreFilter,
   );
-  const source = new ChokidarChangeSource({
+  const source: ChangeSource = new ChokidarChangeSource({
     usePolling: config.usePolling,
     pollIntervalMs: config.pollIntervalMs,
     stabilityThresholdMs: config.stabilityThresholdMs,
@@ -204,6 +205,12 @@ export function createRunning(context: RunningContext): Running {
         },
         root,
       ),
+    onRunError: (root, error) => {
+      logger.warn(
+        { root, err: normalizeError(error) },
+        'Periodic reconcile failed',
+      );
+    },
   });
   return {
     source,

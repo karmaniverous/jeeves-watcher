@@ -42,8 +42,10 @@ export interface PeriodicReconcileDeps {
   roots: string[];
   /** `watch.reconcileIntervalMs`, read at each scheduling. */
   intervalMs: () => number;
-  /** Renew then reconcile one root; never rejects. */
+  /** Renew then reconcile one root (a rejection is reported, then the next run is scheduled). */
   run: (root: string) => Promise<void>;
+  /** Report a run that rejected. */
+  onRunError: (root: string, error: unknown) => void;
 }
 
 /** Per-root periodic reconcile timers. */
@@ -51,6 +53,8 @@ export class PeriodicReconcile {
   private readonly timers = new Map<string, ReturnType<typeof setTimeout>>();
   private readonly armed = new Set<string>();
   private stopped = false;
+  /** The interval the armed roots were last scheduled with. */
+  private interval: number | undefined;
 
   /** @param deps - Roots, interval getter and the run callback. */
   constructor(private readonly deps: PeriodicReconcileDeps) {}
@@ -67,8 +71,13 @@ export class PeriodicReconcile {
     this.schedule(root, true);
   }
 
-  /** Re-schedule every armed root with the current interval (a reload). */
+  /**
+   * A reload: when the interval changed, re-schedule every armed root with
+   * the new one (staggered again). An unchanged interval keeps the running
+   * timers, so frequent reloads never postpone a run.
+   */
   refresh(): void {
+    if (this.deps.intervalMs() === this.interval) return;
     for (const root of this.armed) this.schedule(root, true);
   }
 
@@ -84,17 +93,23 @@ export class PeriodicReconcile {
     if (existing) clearTimeout(existing);
     this.timers.delete(root);
     const interval = this.deps.intervalMs();
+    this.interval = interval;
     if (this.stopped || interval <= 0) return;
     // 1-based stagger: no root reconciles right after its own initial scan.
     const i = Math.max(0, this.deps.roots.indexOf(root)) + 1;
     const delay = first ? (i * interval) / this.deps.roots.length : interval;
     const timer = setTimeout(() => {
       this.timers.delete(root);
-      void this.deps.run(root).finally(() => {
-        if (!this.stopped && !this.timers.has(root)) {
-          this.schedule(root, false);
-        }
-      });
+      void this.deps
+        .run(root)
+        .catch((error: unknown) => {
+          this.deps.onRunError(root, error);
+        })
+        .finally(() => {
+          if (!this.stopped && !this.timers.has(root)) {
+            this.schedule(root, false);
+          }
+        });
     }, delay);
     timer.unref();
     this.timers.set(root, timer);

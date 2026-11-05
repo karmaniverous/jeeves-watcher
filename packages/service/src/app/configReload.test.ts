@@ -91,7 +91,7 @@ describe('reloadConfig', () => {
         processor,
         logger,
         runtimeOptions: {},
-        initialScanTracker: {} as never,
+        wiring: { initialScanTracker: {} as never },
       });
 
       expect(oldStop).toHaveBeenCalledOnce();
@@ -125,7 +125,7 @@ describe('reloadConfig', () => {
       processor,
       logger,
       runtimeOptions: {},
-      initialScanTracker: {} as never,
+      wiring: { initialScanTracker: {} as never },
     });
 
     expect(oldStop).toHaveBeenCalledOnce();
@@ -149,6 +149,7 @@ describe('reloadConfig', () => {
 
     const onVcsFileChange = vi.fn();
     const onInitialScanComplete = vi.fn();
+    const getReconcileIntervalMs = vi.fn(() => 1000);
 
     const state = {
       config: oldConfig,
@@ -163,9 +164,12 @@ describe('reloadConfig', () => {
       processor,
       logger,
       runtimeOptions: {},
-      initialScanTracker: {} as never,
-      onVcsFileChange,
-      onInitialScanComplete,
+      wiring: {
+        initialScanTracker: {} as never,
+        onVcsFileChange,
+        onInitialScanComplete,
+        getReconcileIntervalMs,
+      },
     });
 
     // Verify the factory received the callbacks in the options object (5th arg)
@@ -176,6 +180,7 @@ describe('reloadConfig', () => {
     >;
     expect(options.onVcsFileChange).toBe(onVcsFileChange);
     expect(options.onInitialScanComplete).toBe(onInitialScanComplete);
+    expect(options.getReconcileIntervalMs).toBe(getReconcileIntervalMs);
   });
 
   it('does not rebuild watcher when watch config is unchanged', async () => {
@@ -189,7 +194,8 @@ describe('reloadConfig', () => {
       createFileSystemWatcher: createWatcher,
     });
 
-    const refreshReconcileSchedule = vi.fn();
+    const order: string[] = [];
+    const refreshReconcileSchedule = vi.fn(() => order.push('refresh'));
     const oldWatcher = {
       start: vi.fn(),
       stop: oldStop,
@@ -208,9 +214,14 @@ describe('reloadConfig', () => {
       processor,
       logger,
       runtimeOptions: {},
-      initialScanTracker: {} as never,
+      wiring: { initialScanTracker: {} as never },
+      onConfigLoaded: (loaded) => {
+        order.push(loaded === newConfig ? 'published' : 'stale');
+      },
     });
 
+    // The app sees the new config before the schedule reads its interval.
+    expect(order).toEqual(['published', 'refresh']);
     expect(oldStop).not.toHaveBeenCalled();
     expect(createWatcher).not.toHaveBeenCalled();
     // A changed reconcileIntervalMs takes effect without a rebuild (D111).
@@ -247,7 +258,7 @@ describe('reloadConfig', () => {
         processor,
         logger: logger as unknown as pino.Logger,
         runtimeOptions: {},
-        initialScanTracker: {} as never,
+        wiring: { initialScanTracker: {} as never },
       },
     );
 

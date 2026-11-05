@@ -3,6 +3,8 @@
  * The chokidar change source (spec Design 9): watches the roots with chokidar and passes its classified events to the sink. I/O: chokidar handles. Used for polling and as the manual switch.
  */
 
+import type { Stats } from 'node:fs';
+
 import chokidar, { type FSWatcher } from 'chokidar';
 
 import type { ChangeSink, ChangeSource, RenewResult } from './types';
@@ -54,8 +56,9 @@ export class ChokidarChangeSource implements ChangeSource {
     });
     this.watcher = watcher;
     for (const type of EVENTS) {
-      watcher.on(type, (path: string) => {
-        sink.event(type, path);
+      // chokidar passes the stats of its write-finish check, when it has them.
+      watcher.on(type, (path: string, stats?: Stats) => {
+        sink.event(type, path, stats);
       });
     }
     watcher.on('ready', () => {
@@ -70,11 +73,9 @@ export class ChokidarChangeSource implements ChangeSource {
   /**
    * Chokidar has nothing to renew (D129 is parcel's, Linux only).
    *
-   * @param root - The root (unused).
    * @returns `{ rebuilt: false }`.
    */
-  renew(root: string): Promise<RenewResult> {
-    root;
+  renew(): Promise<RenewResult> {
     return Promise.resolve({ rebuilt: false });
   }
 

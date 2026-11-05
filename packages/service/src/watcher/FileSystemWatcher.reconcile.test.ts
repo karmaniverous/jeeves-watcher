@@ -62,7 +62,32 @@ describe('FileSystemWatcher reconciliation', () => {
     const beforeEnd = h.seen().filter((s) => s === 'create:drop/slow.md');
     await waitFor(() => h.seen().includes('create:drop/slow.md'));
     expect(beforeEnd).toEqual([]);
-    expect(h.seen().filter((s) => s.startsWith('modify:drop'))).toEqual([]);
+    // Long enough for both chokidar's own add and the synthetic one.
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+    expect(h.seen().filter((s) => s.endsWith('drop/slow.md'))).toEqual([
+      'create:drop/slow.md',
+    ]);
+  });
+
+  it('enqueues each file written slowly into a new directory exactly once', async () => {
+    harness = await startWatcherHarness({
+      watch: (root) => ({
+        paths: [`${root.replace(/\\/g, '/')}/**`],
+        stabilityThresholdMs: 200,
+      }),
+    });
+    const h = harness;
+    await mkdir(join(h.root, 'batch'));
+    const names = Array.from({ length: 20 }, (_, i) => `f${String(i)}.md`);
+    for (const name of names) {
+      await writeFile(join(h.root, 'batch', name), name);
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    }
+    await waitFor(() => h.seen().length >= names.length);
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+    expect([...h.seen()].sort()).toEqual(
+      names.map((name) => `create:batch/${name}`).sort(),
+    );
   });
 
   it('adds a file whose event was missed, once, through the stability wait', async () => {

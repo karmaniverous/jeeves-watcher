@@ -13,6 +13,12 @@ import type { WatchRoots } from '../roots';
 import { walk, type WalkOptions } from '../walk/Walker';
 import { RerunSet } from './RerunSet';
 
+/** Whether a walk error says the directory itself is absent. */
+function isAbsence(error: unknown): boolean {
+  const code = (error as NodeJS.ErrnoException | undefined)?.code;
+  return code === 'ENOENT' || code === 'ENOTDIR';
+}
+
 /** What {@link Reconciler} needs. */
 export interface ReconcilerDeps {
   roots: WatchRoots;
@@ -45,6 +51,7 @@ export class Reconciler {
   /** Roots with a reconcile running, and what to rerun after it. */
   private readonly active = new Map<string, RerunSet>();
   private readonly now: () => number;
+  private stopped = false;
 
   /** @param deps - Inventory, walk filters, callbacks and health. */
   constructor(private readonly deps: ReconcilerDeps) {
@@ -58,6 +65,7 @@ export class Reconciler {
    * @param dir - Directory to reconcile (a root or beneath one).
    */
   async reconcile(dir: string): Promise<void> {
+    if (this.isStopped()) return;
     const root = this.deps.roots.rootOf(dir);
     if (root === undefined) return;
     if (!this.deps.scanned(root)) {
@@ -74,7 +82,10 @@ export class Reconciler {
     try {
       await this.run(root, dir);
       for (let dirs = rerun.take(); dirs.length > 0; dirs = rerun.take()) {
-        for (const next of dirs) await this.run(root, next);
+        for (const next of dirs) {
+          if (this.isStopped()) return;
+          await this.run(root, next);
+        }
       }
     } finally {
       this.active.delete(root);
@@ -89,15 +100,22 @@ export class Reconciler {
       this.fail(dir, 'root unavailable');
       return;
     }
-    let walked;
+    const isRoot = normalizeDocumentKey(dir) === normalizeDocumentKey(root);
+    let walked: Awaited<ReturnType<typeof walk>>;
     try {
       walked = await walk(dir, this.deps.walkOptions());
     } catch (error) {
-      this.fail(dir, 'walk failed', error);
-      return;
+      if (!isRoot && isAbsence(error)) {
+        // A subdirectory gone before its reconcile ran (a short-lived
+        // directory) is no error: its inventory files are checked below.
+        walked = new Map();
+      } else {
+        if (!this.isStopped()) this.fail(dir, 'walk failed', error);
+        return;
+      }
     }
+    if (this.isStopped()) return;
     const known = inventory.entriesUnder(dir);
-    const isRoot = normalizeDocumentKey(dir) === normalizeDocumentKey(root);
     if (isRoot && walked.size === 0 && known.size > 0) {
       // An absent or emptied mount never reads as "every file deleted".
       this.fail(dir, 'root walk found no files');
@@ -115,6 +133,7 @@ export class Reconciler {
     const gone = await Promise.all(
       missing.map(([, entry]) => this.deps.isGone(entry.path)),
     );
+    if (this.isStopped()) return;
     let unlinks = 0;
     missing.forEach(([, entry], i) => {
       // A real event may have removed it meanwhile.
@@ -129,6 +148,20 @@ export class Reconciler {
       { dir, walked: walked.size, unlinks, durationMs },
       'Reconcile complete',
     );
+  }
+
+  /**
+   * The watcher stopped: reconciles in progress emit nothing more (a walk
+   * already running finishes, and its result is discarded) and later
+   * triggers and reruns are dropped.
+   */
+  stop(): void {
+    this.stopped = true;
+  }
+
+  /** Read through a call: `stop()` may run while a reconcile awaits. */
+  private isStopped(): boolean {
+    return this.stopped;
   }
 
   /** A guarded failure: log, count, emit nothing. */

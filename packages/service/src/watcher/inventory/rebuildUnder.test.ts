@@ -12,8 +12,15 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { WatchFilter } from '../pathFilter';
 import { WatchRoots } from '../roots';
+import type * as StatFile from '../walk/statFile';
+import { isGone } from '../walk/statFile';
 import { Inventory } from './Inventory';
 import { rebuildAfterGitignore } from './rebuildUnder';
+
+vi.mock('../walk/statFile', async (importOriginal) => {
+  const actual = await importOriginal<typeof StatFile>();
+  return { ...actual, isGone: vi.fn(actual.isGone) };
+});
 
 let dir: string;
 
@@ -69,6 +76,23 @@ describe('rebuildAfterGitignore', () => {
       { dir, dropped: 1, added: 1 },
       'Inventory rebuilt after .gitignore change',
     );
+  });
+
+  it('does not add back a file unlinked while the walk ran', async () => {
+    const { logger } = recordingLogger();
+    const inventory = new Inventory(false);
+    inventory.set(join(dir, 'keep.md'));
+    // new.md was walked, then unlinked before the rebuild applied it.
+    vi.mocked(isGone).mockImplementation((path) =>
+      Promise.resolve(path.endsWith('new.md')),
+    );
+    await rebuildAfterGitignore(
+      { inventory, filter: filterFor([], logger), ignore: [] },
+      dir,
+      logger,
+    );
+    expect(inventory.get(join(dir, 'new.md'))).toBeUndefined();
+    expect(inventory.size).toBe(1);
   });
 
   it('logs a failed walk and leaves the inventory alone', async () => {

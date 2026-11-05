@@ -7,6 +7,7 @@ import type pino from 'pino';
 
 import { normalizeError } from '../../util/normalizeError';
 import type { WatchFilter } from '../pathFilter';
+import { isGone } from '../walk/statFile';
 import { walk, type WalkOptions } from '../walk/Walker';
 import { walkFilters } from '../walk/walkFilters';
 import type { Inventory } from './Inventory';
@@ -33,12 +34,17 @@ async function rebuildUnder(
   for (const entry of inventory.entriesUnder(dir).values()) {
     if (isFiltered(entry.path) && inventory.delete(entry.path)) dropped++;
   }
+  const candidates = [...walked.values()].filter(
+    (file) => !inventory.get(file.path),
+  );
+  // A file unlinked while the walk ran must not come back as a phantom.
+  const gone = await Promise.all(candidates.map((file) => isGone(file.path)));
   let added = 0;
-  for (const file of walked.values()) {
-    if (inventory.get(file.path)) continue;
+  candidates.forEach((file, i) => {
+    if (gone[i] || inventory.get(file.path)) return;
     inventory.set(file.path, file);
     added++;
-  }
+  });
   return { dropped, added };
 }
 

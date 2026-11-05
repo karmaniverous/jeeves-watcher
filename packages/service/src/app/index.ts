@@ -289,7 +289,10 @@ export class JeevesWatcher {
       runtimeOptions: this.runtimeOptions,
       valuesManager: this.stores?.valuesManager,
       issuesManager: this.stores?.issuesManager,
-      ...this.watcherWiring(),
+      wiring: this.watcherWiring(),
+      onConfigLoaded: (config) => {
+        this.config = config;
+      },
     });
 
     this.config = state.config;

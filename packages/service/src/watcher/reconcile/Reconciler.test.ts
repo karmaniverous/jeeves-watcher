@@ -154,6 +154,33 @@ describe('Reconciler', () => {
     expect(s.health.snapshot().reconcileErrors).toBe(1);
   });
 
+  it('unlinks the files of a subdirectory gone before its reconcile, with no error', async () => {
+    const s = setup();
+    s.fill();
+    await rm(join(root, 'a'), { recursive: true });
+    await s.reconciler.reconcile(join(root, 'a', 'b'));
+    expect(s.unlinked).toEqual([join(root, 'a', 'b', 'three.md')]);
+    expect(s.health.snapshot().reconcileErrors).toBe(0);
+  });
+
+  it('emits nothing once stopped, even for a reconcile already walking', async () => {
+    const s = setup({
+      walkOptions: () => ({
+        prune: () => false,
+        include: () => {
+          s.reconciler.stop();
+          return true;
+        },
+      }),
+    });
+    s.inventory.set(join(root, 'gone.md'));
+    await s.reconciler.reconcile(root);
+    await s.reconciler.reconcile(root);
+    expect(s.entered).toEqual([]);
+    expect(s.unlinked).toEqual([]);
+    expect(s.health.snapshot().lastReconcileAt).toBeNull();
+  });
+
   it('treats an empty root walk against a non-empty inventory as an error (unmounted root)', async () => {
     const s = setup({
       walkOptions: () => ({ prune: () => true, include: () => false }),
