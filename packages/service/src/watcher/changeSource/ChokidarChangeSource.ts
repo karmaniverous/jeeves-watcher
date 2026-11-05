@@ -31,6 +31,8 @@ const EVENTS = ['add', 'change', 'unlink', 'addDir', 'unlinkDir'] as const;
 export class ChokidarChangeSource implements ChangeSource {
   readonly name: ChangeSource['name'] = 'chokidar';
   readonly initialSet: ChangeSource['initialSet'] = 'source';
+  /** Chokidar stops in-process on every platform (D196). */
+  readonly restartsToRebuild = false;
   private watcher: FSWatcher | undefined;
 
   /**

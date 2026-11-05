@@ -13,13 +13,23 @@
 
 import { readFileSync } from 'node:fs';
 
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { captureLogger, RESPONSE_MISMATCH } from '../test/wire/captureLogger';
 import { WIRE_DEPARTURES } from '../test/wire/departures';
 import { WIRE_SCENARIOS, type WireRecord } from '../test/wire/scenarios';
 import { startWireApp, type WireApp } from '../test/wire/wireApp';
 import { runScenario } from '../test/wire/wireRun';
+import type * as FileScanModule from './fileScan';
+
+// The wire fixture's watch glob is relative (`**/*.md`), so the prune dry
+// run's file listing would walk the working directory (the whole package,
+// node_modules included). The wire format does not depend on that listing
+// (prunePlan and reindexPrune tests cover it): list no files.
+vi.mock('./fileScan', async (importOriginal) => ({
+  ...(await importOriginal<typeof FileScanModule>()),
+  listFilesFromGlobs: () => Promise.resolve([]),
+}));
 
 const baseline = JSON.parse(
   readFileSync(

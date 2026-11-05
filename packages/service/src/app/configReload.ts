@@ -3,9 +3,14 @@
  * Config-reload orchestration extracted from JeevesWatcher to follow SRP.
  */
 
+import type { ReindexScope } from '@karmaniverous/jeeves-watcher-core';
 import type pino from 'pino';
 
-import { executeReindex, reindexDepsFrom } from '../api/executeReindex';
+import {
+  executeReindex,
+  reindexDepsFrom,
+  type ReindexDepsSource,
+} from '../api/executeReindex';
 import type { JeevesWatcherConfig } from '../config/types';
 import type { GitignoreFilter } from '../gitignore';
 import type { IssuesManager } from '../issues';
@@ -57,6 +62,21 @@ interface ReloadDeps {
 }
 
 /**
+ * Run the config-triggered reindex (`configWatch.reindex`): file-only, like
+ * every config-triggered reindex (Decision 16.11).
+ *
+ * @param deps - Live config, processor, logger and stores.
+ * @param scope - The scope.
+ */
+export async function runConfigReindex(
+  deps: ReindexDepsSource,
+  scope: ReindexScope,
+): Promise<void> {
+  deps.logger.info({ scope }, `Config watch triggering ${scope} reindex`);
+  await executeReindex(reindexDepsFrom(deps), { scope });
+}
+
+/**
  * Reload config, update rules/templates, optionally rebuild watcher, and trigger reindex.
  * Mutates `state.config`, `state.watcher`, and `state.gitignoreFilter` in place.
  */
@@ -90,6 +110,8 @@ export async function reloadConfig(
 
     logger.info({ configPath, rules: compiledRules.length }, 'Config reloaded');
 
+    const reindexScope = newConfig.configWatch?.reindex ?? 'issues';
+
     // Rebuild filesystem watcher if watch config changed
     if (watchConfigChanged(oldConfig, newConfig)) {
       logger.info('Watch config changed, rebuilding filesystem watcher...');
@@ -102,7 +124,17 @@ export async function reloadConfig(
         deps.runtimeOptions,
         { watcher: state.watcher!, gitignoreFilter: state.gitignoreFilter },
         deps.wiring,
+        reindexScope,
       );
+      if (newState.restarting) {
+        // D196: the process exits for a restart; the restarted process
+        // runs the reindex with the new config.
+        logger.info(
+          { scope: reindexScope },
+          'Config watch reindex deferred to the restart',
+        );
+        return;
+      }
       state.watcher = newState.watcher;
       state.gitignoreFilter = newState.gitignoreFilter;
     } else {
@@ -111,23 +143,16 @@ export async function reloadConfig(
       state.watcher?.refreshReconcileSchedule();
     }
 
-    // Trigger reindex based on configWatch.reindex setting
-    const reindexScope = newConfig.configWatch?.reindex ?? 'issues';
-    logger.info(
-      { scope: reindexScope },
-      `Config watch triggering ${reindexScope} reindex`,
-    );
-
-    await executeReindex(
-      reindexDepsFrom({
+    await runConfigReindex(
+      {
         getConfig: () => newConfig,
         processor,
         logger,
         valuesManager: deps.valuesManager,
         issuesManager: deps.issuesManager,
         gitignoreFilter: state.gitignoreFilter,
-      }),
-      { scope: reindexScope },
+      },
+      reindexScope,
     );
   } catch (error) {
     logger.error({ err: normalizeError(error) }, 'Failed to reload config');

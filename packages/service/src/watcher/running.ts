@@ -1,6 +1,6 @@
 /**
  * @module watcher/running
- * What one `FileSystemWatcher.start` builds: the change source, filters, inventory, filtered handlers and queue actions, wired together. Pure apart from constructing the chokidar source (not started here).
+ * What one `FileSystemWatcher.start` builds: the change source (parcel or chokidar, D125), filters, inventory, filtered handlers, queue actions and, for parcel, the batch pipeline, wired together. Pure apart from constructing the source (not started here).
  */
 
 import {
@@ -16,7 +16,12 @@ import type { GitignoreFilter } from '../gitignore';
 import type { DocumentProcessorInterface } from '../processor';
 import type { EventQueue } from '../queue';
 import { normalizeError } from '../util/normalizeError';
-import { ChokidarChangeSource } from './changeSource/ChokidarChangeSource';
+import { ParcelPipeline } from './batch/ParcelPipeline';
+import type {
+  ParcelImporter,
+  ParcelWatcherModule,
+} from './changeSource/parcelModule';
+import type { ProcessRestarter } from './changeSource/restart';
 import type { ChangeSource } from './changeSource/types';
 import type { ChangeSourceHealthTracker } from './ChangeSourceHealthTracker';
 import {
@@ -35,6 +40,7 @@ import {
 import { Reconciler } from './reconcile/Reconciler';
 import { WatchRoots } from './roots';
 import { ScanStats } from './ScanStats';
+import { createSource, renewRecorded, warnRenewalOff } from './sourceWiring';
 import { type SettledPath, StabilityTicker } from './stability/StabilityTicker';
 import { isGone, statFile } from './walk/statFile';
 import { walkFilters } from './walk/walkFilters';
@@ -63,6 +69,15 @@ export interface FileSystemWatcherOptions {
   changeSourceHealth?: ChangeSourceHealthTracker;
   /** Live `watch.reconcileIntervalMs` (D111), read at each scheduling. */
   getReconcileIntervalMs?: () => number | undefined;
+  /** Imports `@parcel/watcher` (tests; default the real module, D125). */
+  importParcel?: ParcelImporter;
+  /** The service state directory (the parcel rebuild sentinel, D165). */
+  stateDir?: string;
+  /**
+   * Exits for a service-manager restart where parcel never unsubscribes
+   * (Windows, D196); default an immediate exit.
+   */
+  restarter?: ProcessRestarter;
 }
 
 /** What one `start` builds; replaced on every start. */
@@ -88,6 +103,8 @@ export interface Running {
   unavailableRoots: Set<string>;
   /** Roots to reconcile once their initial scan finishes (D131). */
   deferredRoots: Set<string>;
+  /** The parcel batch pipeline (D149); undefined for chokidar. */
+  pipeline?: ParcelPipeline;
 }
 
 /** What {@link createRunning} needs from `FileSystemWatcher`. */
@@ -107,6 +124,8 @@ export interface RunningContext {
   onSettled: (settled: SettledPath) => void;
   /** Called after a `.gitignore` event refreshed the gitignore filter. */
   onGitignoreChange: (path: string) => void;
+  /** The loaded `@parcel/watcher` when parcel is selected (D125). */
+  parcel?: ParcelWatcherModule;
 }
 
 /**
@@ -130,11 +149,13 @@ export function createRunning(context: RunningContext): Running {
     logger,
     options.gitignoreFilter,
   );
-  const source: ChangeSource = new ChokidarChangeSource({
-    usePolling: config.usePolling,
-    pollIntervalMs: config.pollIntervalMs,
-    stabilityThresholdMs: config.stabilityThresholdMs,
-    onError: context.onSourceError,
+  const source = createSource({
+    config,
+    parcel: context.parcel,
+    stateDir: options.stateDir,
+    logger,
+    onSourceError: context.onSourceError,
+    restarter: options.restarter,
   });
   const wiring = {
     queue: context.queue,
@@ -189,16 +210,18 @@ export function createRunning(context: RunningContext): Running {
     logger,
     health: options.changeSourceHealth,
   });
+  const intervalMs = () =>
+    options.getReconcileIntervalMs?.() ??
+    config.reconcileIntervalMs ??
+    WATCH_DEFAULTS.reconcileIntervalMs;
+  warnRenewalOff(source, intervalMs(), logger);
   const periodic = new PeriodicReconcile({
     roots,
-    intervalMs: () =>
-      options.getReconcileIntervalMs?.() ??
-      config.reconcileIntervalMs ??
-      WATCH_DEFAULTS.reconcileIntervalMs,
+    intervalMs,
     run: (root) =>
       renewThenReconcile(
         {
-          renew: (r) => source.renew(r),
+          renew: (r) => renewRecorded(source, r, options.changeSourceHealth),
           reconcile: (dir) => reconciler.reconcile(dir),
           roots,
           onRebuilt: () => options.changeSourceHealth?.recordRenewFailure(),
@@ -212,8 +235,23 @@ export function createRunning(context: RunningContext): Running {
       );
     },
   });
+  const pipeline =
+    source.initialSet === 'walk'
+      ? new ParcelPipeline({
+          roots: watchRoots,
+          filter,
+          ignore,
+          inventory,
+          events,
+          ticker,
+          reconcile: (dir) => void reconciler.reconcile(dir),
+          moveDetection: config.moveDetection,
+          logger,
+        })
+      : undefined;
   return {
     source,
+    pipeline,
     roots: watchRoots,
     filter,
     ignore,

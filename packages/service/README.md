@@ -8,7 +8,7 @@ Filesystem watcher that keeps a [Qdrant](https://qdrant.tech/) vector store in s
 
 ## Features
 
-- **Filesystem watching** — monitors directories for file changes via [chokidar](https://github.com/paulmillr/chokidar)
+- **Filesystem watching** — monitors directories for file changes via [@parcel/watcher](https://github.com/parcel-bundler/watcher) (one native subscription per watch root; [chokidar](https://github.com/paulmillr/chokidar) on request or when polling)
 - **Multi-format extraction** — PDF, HTML, DOCX, Markdown, JSON and plain text (other extensions are read as plain text)
 - **Configurable chunking** — character-based text splitting with overlap control
 - **Embedding providers** — Gemini (default) or mock (for testing); extensible via provider registry

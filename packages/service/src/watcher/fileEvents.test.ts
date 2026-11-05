@@ -63,6 +63,24 @@ describe('FileEventActions', () => {
     expect(vcs).toEqual(['add:/a', 'change:/a', 'unlink:/a']);
   });
 
+  it('enqueues a paired move once, with the VCS unlink and add (D62)', () => {
+    const { queue, events } = runningQueue();
+    const vcs: string[] = [];
+    const actions = new FileEventActions({
+      queue,
+      processor: processor as unknown as DocumentProcessorInterface,
+      logger,
+      wrap,
+      onVcsFileChange: (path, event) => vcs.push(`${event}:${path}`),
+    });
+    actions.moved('/old/a', '/new/a');
+    expect(events).toEqual([
+      { type: 'move', path: '/new/a', oldPath: '/old/a', priority: 'normal' },
+    ]);
+    expect(processor.moveFile).toHaveBeenCalledWith('/old/a', '/new/a');
+    expect(vcs).toEqual(['unlink:/old/a', 'add:/new/a']);
+  });
+
   it('hands adds after the scan and every unlink to the move correlator', () => {
     const { queue, events } = runningQueue();
     const correlator = {

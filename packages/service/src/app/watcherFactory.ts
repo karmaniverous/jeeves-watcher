@@ -5,6 +5,7 @@
  */
 
 import {
+  type ConfigWatchReindexScope,
   extractWatchPathStrings,
   WATCH_DEFAULTS,
 } from '@karmaniverous/jeeves-watcher-core';
@@ -16,6 +17,12 @@ import type { DocumentProcessorInterface } from '../processor';
 import type { EventQueue } from '../queue';
 import { normalizeError } from '../util/normalizeError';
 import type { FileSystemWatcher, FileSystemWatcherOptions } from '../watcher';
+import {
+  loadParcelWatcher,
+  type ParcelImporter,
+} from '../watcher/changeSource/parcelModule';
+import { exitingRestarter } from '../watcher/changeSource/restart';
+import { selectedChangeSource } from '../watcher/changeSource/selectSource';
 import type { JeevesWatcherFactories } from './factories';
 
 /**
@@ -30,12 +37,20 @@ export type WatcherWiring = Pick<
   | 'onInitialScanComplete'
   | 'changeSourceHealth'
   | 'getReconcileIntervalMs'
+  | 'importParcel'
+  | 'stateDir'
+  | 'restarter'
 >;
 
 /** State returned by {@link rebuildWatcher}. */
 export interface WatcherState {
   watcher: FileSystemWatcher;
   gitignoreFilter?: GitignoreFilter;
+  /**
+   * The rebuild was handed to a service-manager restart (D196): the
+   * running watcher stays until the process exits.
+   */
+  restarting?: boolean;
 }
 
 /**
@@ -77,8 +92,46 @@ export function createWatcher(
 }
 
 /**
+ * Import `@parcel/watcher` when the watch config selects it (D125), so a
+ * missing or broken binary refuses a start before the API listens, or a
+ * rebuild before the running watcher stops.
+ *
+ * @param watch - The watch config.
+ * @param importParcel - The import (default the real module).
+ * @throws ChangeSourceLoadError when it cannot load.
+ */
+export async function loadSelectedChangeSource(
+  watch: JeevesWatcherConfig['watch'],
+  importParcel?: ParcelImporter,
+): Promise<void> {
+  if (selectedChangeSource(watch) === 'parcel') {
+    await loadParcelWatcher(importParcel);
+  }
+}
+
+/**
+ * Import the selected change source (D125), then create the watcher: a
+ * source that cannot load refuses the start before the API listens.
+ *
+ * @param args - As {@link createWatcher}.
+ * @returns The watcher and its gitignore filter.
+ */
+export async function createLoadedWatcher(
+  ...args: Parameters<typeof createWatcher>
+): Promise<ReturnType<typeof createWatcher>> {
+  await loadSelectedChangeSource(args[0].watch, args[6]?.importParcel);
+  return createWatcher(...args);
+}
+
+/**
  * Tear down and rebuild the filesystem watcher with new config.
- * Falls back to the old watcher if the new one fails to start.
+ * Falls back to the old watcher if the new one fails to start. A running
+ * source that cannot stop in-process (parcel on Windows, D196) is not
+ * stopped: once the new source loads, the process exits for a
+ * service-manager restart, which starts with the new config.
+ *
+ * @param pendingReindex - The reload's configured reindex, carried over a
+ *   restart so the restarted process runs it.
  */
 export async function rebuildWatcher(
   newConfig: JeevesWatcherConfig,
@@ -93,7 +146,25 @@ export async function rebuildWatcher(
   },
   oldState: WatcherState,
   wiring: WatcherWiring = {},
+  pendingReindex?: ConfigWatchReindexScope,
 ): Promise<WatcherState> {
+  try {
+    await loadSelectedChangeSource(newConfig.watch, wiring.importParcel);
+  } catch (error) {
+    // Refused before the running watcher stops: it keeps running (D125).
+    logger.error(
+      { err: normalizeError(error) },
+      'Watcher rebuild refused; the running watcher stays',
+    );
+    return oldState;
+  }
+  if (oldState.watcher.restartsToRebuild) {
+    (wiring.restarter ?? exitingRestarter(logger)).restart({
+      cause: 'watch-config-changed',
+      reindex: pendingReindex,
+    });
+    return { ...oldState, restarting: true };
+  }
   try {
     await oldState.watcher.stop();
 
@@ -141,6 +212,7 @@ const REBUILD_KEYS = [
   'usePolling',
   'pollIntervalMs',
   'stabilityThresholdMs',
+  'changeSource',
 ] as const satisfies readonly (keyof JeevesWatcherConfig['watch'])[];
 
 /** `WATCH_DEFAULTS`, typed as a partial watch config for lookups. */

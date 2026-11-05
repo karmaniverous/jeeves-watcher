@@ -39,6 +39,13 @@ export const watchConfigSchema = z.object({
     .describe(
       'Use polling instead of native file system events (for network drives).',
     ),
+  /** The local change source (D125); `usePolling: true` forces chokidar. */
+  changeSource: z
+    .enum(['parcel', 'chokidar'])
+    .optional()
+    .describe(
+      'Local change source: "parcel" (@parcel/watcher, one native subscription per watch root; the default) or "chokidar" (the manual switch). usePolling: true forces chokidar. A reload that changes it rebuilds the watcher; if @parcel/watcher cannot load, the service refuses to start (or a reload refuses the rebuild) naming this switch.',
+    ),
   /** Debounce delay in milliseconds for file change events. */
   debounceMs: z
     .number()

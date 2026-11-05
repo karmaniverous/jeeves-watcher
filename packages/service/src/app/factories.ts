@@ -19,6 +19,15 @@ import { EventQueue } from '../queue';
 import { compileRules } from '../rules';
 import { VectorStoreClient } from '../vectorStore';
 import { FileSystemWatcher, type FileSystemWatcherOptions } from '../watcher';
+import {
+  importParcelWatcher,
+  type ParcelImporter,
+} from '../watcher/changeSource/parcelModule';
+import type { ProcessRestarter } from '../watcher/changeSource/restart';
+import {
+  createProcessRestarter,
+  type ProcessRestarterDeps,
+} from './processRestarter';
 
 /** Runtime options for {@link JeevesWatcher} that aren't serializable in config. */
 export interface JeevesWatcherRuntimeOptions {
@@ -65,6 +74,13 @@ export interface JeevesWatcherFactories {
   ) => FileSystemWatcher;
   /** Create the HTTP API server. */
   createApiServer: typeof createApiServer;
+  /** Import `@parcel/watcher` when it is the selected source (D125). */
+  importParcel: ParcelImporter;
+  /**
+   * The exit for a service-manager restart (D196). Tests replace it, so
+   * they never call `process.exit`.
+   */
+  createProcessRestarter: (deps: ProcessRestarterDeps) => ProcessRestarter;
 }
 
 /** Default component factories wiring real implementations. */
@@ -80,4 +96,6 @@ export const defaultFactories: JeevesWatcherFactories = {
   createFileSystemWatcher: (config, queue, processor, logger, options) =>
     new FileSystemWatcher(config, queue, processor, logger, options),
   createApiServer,
+  importParcel: importParcelWatcher,
+  createProcessRestarter,
 };

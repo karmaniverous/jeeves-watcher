@@ -1,10 +1,9 @@
 /**
  * @module watcher
- * Filesystem watcher: drives a change source (chokidar) through the `ChangeSink` seam, filters its events, keeps the inventory and enqueues processing. I/O: watches files, enqueues processor work.
+ * Filesystem watcher: drives a change source (parcel or chokidar, D125) through the `ChangeSink` seam, filters its events, keeps the inventory and enqueues processing. I/O: watches files, enqueues processor work.
  */
 
 import type { Stats } from 'node:fs';
-import { dirname } from 'node:path';
 
 import type pino from 'pino';
 
@@ -13,19 +12,28 @@ import { SystemHealth, type SystemHealthOptions } from '../health';
 import type { DocumentProcessorInterface } from '../processor';
 import type { EventQueue } from '../queue';
 import { normalizeError } from '../util/normalizeError';
+import { loadParcelWatcher } from './changeSource/parcelModule';
+import { selectedChangeSource } from './changeSource/selectSource';
 import type {
   ChangeSink,
   ClassifiedEventType,
   RawChangeEvent,
+  RootUnavailableOptions,
 } from './changeSource/types';
+import { walkRoots } from './initialWalk';
 import type { Inventory } from './inventory/Inventory';
-import { rebuildAfterGitignore } from './inventory/rebuildUnder';
+import {
+  onResubscribed,
+  onRootAvailable,
+  onRootUnavailable,
+  type RootSignal,
+} from './rootSignals';
 import {
   createRunning,
   type FileSystemWatcherOptions,
   type Running,
 } from './running';
-import { settledEvent, type SettledPath } from './stability/StabilityTicker';
+import { applySettled, onGitignoreChanged } from './runningHandlers';
 
 export type { FileSystemWatcherOptions } from './running';
 
@@ -37,6 +45,8 @@ export type { FileSystemWatcherOptions } from './running';
 export class FileSystemWatcher implements ChangeSink {
   private readonly health: SystemHealth;
   private running: Running | undefined;
+  /** A stopped source left its watches live (D196). */
+  private leftWatches = false;
   private initialScanComplete = false;
 
   /**
@@ -56,19 +66,25 @@ export class FileSystemWatcher implements ChangeSink {
     private readonly options: FileSystemWatcherOptions = {},
   ) {
     const { maxRetries, maxBackoffMs, onFatalError } = options;
-    this.health = new SystemHealth({
-      maxRetries,
-      maxBackoffMs,
-      onFatalError,
-      logger,
-    } satisfies SystemHealthOptions);
+    const health = { maxRetries, maxBackoffMs, onFatalError, logger };
+    this.health = new SystemHealth(health satisfies SystemHealthOptions);
   }
 
-  /** Start watching the filesystem and processing events. */
+  /**
+   * Start watching the filesystem and processing events. With parcel the
+   * roots are subscribed first, then walked in the background (D58).
+   *
+   * @throws ChangeSourceLoadError when parcel is selected and cannot load.
+   */
   async start(): Promise<void> {
     this.initialScanComplete = false;
+    const parcel =
+      selectedChangeSource(this.config) === 'parcel'
+        ? await loadParcelWatcher(this.options.importParcel)
+        : undefined;
     this.options.initialScanTracker?.start();
     const running = createRunning({
+      parcel,
       config: this.config,
       queue: this.queue,
       processor: this.processor,
@@ -81,10 +97,11 @@ export class FileSystemWatcher implements ChangeSink {
       },
       scanning: () => !this.initialScanComplete,
       onSettled: (settled) => {
-        this.settled(settled);
+        if (this.running)
+          applySettled(this.running, settled, this.options.changeSourceHealth);
       },
       onGitignoreChange: (path) => {
-        this.gitignoreChanged(path);
+        if (this.running) onGitignoreChanged(this.running, path, this.logger);
       },
     });
     this.running = running;
@@ -92,13 +109,28 @@ export class FileSystemWatcher implements ChangeSink {
       running.source.name,
       () => running.ticker.size,
     );
+    const { pipeline } = running;
+    for (const root of running.roots.roots) pipeline?.fifo.pause(root);
     await running.source.start(running.roots.roots, running.ignore, this);
 
     this.queue.start();
     this.logger.info(
-      { paths: this.config.paths },
+      { paths: this.config.paths, changeSource: running.source.name },
       'Filesystem watcher started',
     );
+    if (pipeline) {
+      void walkRoots({
+        roots: running.roots.roots,
+        events: running.events,
+        filters: pipeline.walkOptions(),
+        logger: this.logger,
+        live: () => this.running === running,
+        onRootDone: (root) => {
+          pipeline.fifo.resume(root);
+          this.initialScanDone(root);
+        },
+      });
+    }
   }
 
   /** A classified event from the change source (chokidar), with the stats it read, if any. */
@@ -122,33 +154,24 @@ export class FileSystemWatcher implements ChangeSink {
     if (!this.running?.filter.isRootGit(dir)) this.reconcile(dir);
   }
 
-  /** The running state and the canonical form of a root a source named. */
-  private rootSignal(root: string): [Running, string] | undefined {
-    const running = this.running;
-    return running ? [running, running.roots.rootOf(root) ?? root] : undefined;
-  }
-
   /** Start a reconcile of `dir` (every trigger is owned here, D120). */
   private reconcile(dir: string): void {
     void this.running?.reconciler.reconcile(dir);
   }
 
   /**
-   * Raw parcel batches arrive only from the parcel source (P13, D149), which
-   * this build does not include: a batch is logged and dropped.
+   * A raw parcel batch (D149): into the FIFO, classified from the disk and
+   * applied in order.
    */
   rawEvents(root: string, events: RawChangeEvent[]): void {
-    this.logger.error(
-      { root, events: events.length },
-      'Raw change events need the parcel source; batch dropped',
-    );
+    this.running?.pipeline?.push(root, events);
   }
 
   /** The source finished its initial set for a root; the scan completes when every root has. */
   initialScanDone(sourceRoot: string): void {
-    const signal = this.rootSignal(sourceRoot);
+    const signal = this.signal(sourceRoot);
     if (!signal) return;
-    const [running, root] = signal;
+    const { running, root } = signal;
     if (running.pendingRoots.delete(root)) running.periodic.arm(root);
     if (running.pendingRoots.size > 0 || this.initialScanComplete) return;
     this.initialScanComplete = true;
@@ -162,71 +185,41 @@ export class FileSystemWatcher implements ChangeSink {
     running.deferredRoots.clear();
   }
 
-  /**
-   * The source re-created `root`'s subscription after an error (D131):
-   * events in between are lost, so reconcile the root (once its initial
-   * scan finishes, if it has not).
-   */
+  /** The source re-created a root's subscription after an error (D131). */
   resubscribed(sourceRoot: string): void {
-    const signal = this.rootSignal(sourceRoot);
-    if (!signal) return;
-    const [running, root] = signal;
-    this.logger.info({ root }, 'Change source resubscribed');
-    this.options.changeSourceHealth?.recordResubscribe();
-    if (running.pendingRoots.has(root)) running.deferredRoots.add(root);
-    else this.reconcile(root);
+    const signal = this.signal(sourceRoot);
+    if (signal) onResubscribed(signal);
   }
 
-  /**
-   * `root` is unreachable (D109): mark it (nothing is unlinked; its
-   * reconciles are skipped) and drop its pending stability waits.
-   */
-  rootUnavailable(sourceRoot: string, code: string): void {
-    const signal = this.rootSignal(sourceRoot);
-    if (!signal) return;
-    const [running, root] = signal;
-    this.logger.warn({ root, code }, 'Watch root unavailable');
-    running.unavailableRoots.add(root);
-    running.ticker.dropUnder(root);
-    this.options.changeSourceHealth?.setUnavailable(root, true);
+  /** A root is unreachable (D109), or reachable but unwatched (D156). */
+  rootUnavailable(
+    sourceRoot: string,
+    code: string,
+    options?: RootUnavailableOptions,
+  ): void {
+    const signal = this.signal(sourceRoot);
+    if (signal) onRootUnavailable(signal, code, options);
   }
 
-  /** `root` is reachable again (D109): unmark and reconcile it. */
+  /** A root is reachable again (D109). */
   rootAvailable(sourceRoot: string): void {
-    const signal = this.rootSignal(sourceRoot);
-    if (!signal) return;
-    const [running, root] = signal;
-    this.logger.info({ root }, 'Watch root available again');
-    running.unavailableRoots.delete(root);
-    this.options.changeSourceHealth?.setUnavailable(root, false);
-    this.reconcile(root);
+    const signal = this.signal(sourceRoot);
+    if (signal) onRootAvailable(signal);
   }
 
-  /**
-   * A path settled in the stability ticker: emit `add` or `change` through
-   * the normal handlers unless the inventory already holds it (D142).
-   */
-  private settled({ path, stats, synthetic }: SettledPath): void {
+  /** A root signal's context (the canonical root), or undefined when not running. */
+  private signal(sourceRoot: string): RootSignal | undefined {
     const running = this.running;
-    if (!running) return;
-    const event = settledEvent(running.inventory.get(path), stats);
-    if (!event) return;
-    if (event === 'add') running.events.add(path, stats, synthetic);
-    else running.events.change(path, stats);
-    if (synthetic) this.options.changeSourceHealth?.recordReconcileEvents(1);
-  }
-
-  /**
-   * A `.gitignore` changed: once its root's initial scan is done, rebuild
-   * the inventory entries under its directory (D99). During the scan the
-   * filter already holds every `.gitignore` (read at construction).
-   */
-  private gitignoreChanged(path: string): void {
-    const running = this.running;
-    if (!running) return;
-    const root = running.roots.rootOf(path);
-    if (root === undefined || running.pendingRoots.has(root)) return;
-    void rebuildAfterGitignore(running, dirname(path), this.logger);
+    if (!running) return undefined;
+    return {
+      running,
+      root: running.roots.rootOf(sourceRoot) ?? sourceRoot,
+      logger: this.logger,
+      health: this.options.changeSourceHealth,
+      reconcile: (dir) => {
+        this.reconcile(dir);
+      },
+    };
   }
 
   /**
@@ -245,6 +238,15 @@ export class FileSystemWatcher implements ChangeSink {
       : true;
   }
 
+  /**
+   * Whether a rebuild must exit for a restart (D196): the running source,
+   * or one this watcher stopped (its watches stay live), cannot release
+   * its watches in-process (parcel on Windows).
+   */
+  get restartsToRebuild(): boolean {
+    return this.running?.source.restartsToRebuild ?? this.leftWatches;
+  }
+
   /** The running watcher's inventory (D99), undefined before start. */
   get inventory(): Inventory | undefined {
     return this.running?.inventory;
@@ -255,9 +257,11 @@ export class FileSystemWatcher implements ChangeSink {
     const running = this.running;
     if (!running) return;
     this.running = undefined;
+    this.leftWatches ||= running.source.restartsToRebuild;
     running.periodic.stop();
     running.reconciler.stop();
     running.ticker.stop();
+    running.pipeline?.stop();
     running.actions.flush();
     await running.source.stop();
     this.logger.info('Filesystem watcher stopped');

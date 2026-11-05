@@ -131,6 +131,31 @@ export class FilteredEvents {
     this.deps.actions.changed(path);
   }
 
+  /**
+   * A file moved with its directory (a paired directory move, D62). The
+   * old path has left the inventory already (held delete); a new path the
+   * filters reject is an unlink of the old one instead.
+   *
+   * @param oldPath - Where it was.
+   * @param newPath - Where it is.
+   * @param stats - Its size and mtime from the pairing walk.
+   */
+  moved(oldPath: string, newPath: string, stats: FileStats): void {
+    const { filter } = this.deps;
+    if (
+      filter.isRootGit(newPath) ||
+      !filter.globMatches(newPath) ||
+      filter.isGitignored(newPath)
+    ) {
+      this.unlink(oldPath);
+      return;
+    }
+    this.deps.inventory.delete(oldPath);
+    this.syntheticAdds.delete(normalizeDocumentKey(oldPath));
+    this.deps.inventory.set(newPath, stats);
+    this.deps.actions.moved(oldPath, newPath);
+  }
+
   /** A file went away. */
   unlink(path: string): void {
     const { filter } = this.deps;

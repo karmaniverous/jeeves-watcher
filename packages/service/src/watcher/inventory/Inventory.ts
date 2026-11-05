@@ -71,6 +71,14 @@ export class Inventory {
     return this.entries.get(normalizeDocumentKey(path));
   }
 
+  /**
+   * Whether a path is a directory the inventory holds files under (D127:
+   * an absent path is classified as a directory delete by this).
+   */
+  isDirectory(path: string): boolean {
+    return this.index.has(normalizeDocumentKey(path));
+  }
+
   /** Every file path, as the source reported it (`/walk`, D83). */
   paths(): string[] {
     return [...this.entries.values()].map((entry) => entry.path);

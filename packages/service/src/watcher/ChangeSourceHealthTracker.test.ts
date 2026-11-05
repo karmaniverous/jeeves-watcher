@@ -1,6 +1,6 @@
 /**
  * @module watcher/ChangeSourceHealthTracker.test
- * `health.changeSource` in D133's whole shape (D157): zeros and nulls at start under chokidar, counters, unavailable roots, and a fresh attach on rebuild.
+ * `health.changeSource` in D133's whole shape (D157): zeros and nulls at start under chokidar, counters, unavailable roots, a fresh attach on rebuild, and the last exit for a restart (D196).
  */
 
 import { changeSourceHealthSchema } from '@karmaniverous/jeeves-watcher-core';
@@ -22,6 +22,8 @@ describe('ChangeSourceHealthTracker', () => {
       pendingStability: 0,
       lastRenewDurationMs: null,
       renewFailures: 0,
+      lastRestartCause: null,
+      lastRestartAt: null,
     });
     expect(changeSourceHealthSchema.parse(snapshot)).toEqual(snapshot);
   });
@@ -52,7 +54,24 @@ describe('ChangeSourceHealthTracker', () => {
       pendingStability: 5,
       lastRenewDurationMs: null,
       renewFailures: 1,
+      lastRestartCause: null,
+      lastRestartAt: null,
     });
+  });
+
+  it('reports the exit for a restart this process started after, across a re-attach (D196)', () => {
+    const tracker = new ChangeSourceHealthTracker();
+    tracker.recordRestart({
+      cause: 'subscription-error',
+      at: '2026-11-05T16:00:00.000Z',
+    });
+    tracker.attach('parcel', () => 0);
+    const snapshot = tracker.snapshot();
+    expect(snapshot).toMatchObject({
+      lastRestartCause: 'subscription-error',
+      lastRestartAt: '2026-11-05T16:00:00.000Z',
+    });
+    expect(changeSourceHealthSchema.parse(snapshot)).toEqual(snapshot);
   });
 
   it('keeps counters across a re-attach but forgets unavailable roots', () => {

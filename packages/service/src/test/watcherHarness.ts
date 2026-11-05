@@ -118,6 +118,8 @@ export async function startWatcherHarness(
       paths: [`${normalizeSlashes(root)}/**`],
       ignored: [],
       stabilityThresholdMs: 50,
+      // The chokidar suites; parcel suites set `changeSource: 'parcel'`.
+      changeSource: 'chokidar',
       ...options.watch?.(root),
     },
     recordingQueue(events, jobs),
@@ -145,4 +147,35 @@ export async function startWatcherHarness(
       await rm(root, { recursive: true, force: true });
     },
   };
+}
+
+/**
+ * The relative paths of one event type the harness saw, in order.
+ *
+ * @param h - The harness.
+ * @param type - `create`, `modify`, `delete` or `move`.
+ * @returns Root-relative paths.
+ */
+export function eventsOf(h: WatcherHarness, type: string): string[] {
+  const prefix = `${type}:`;
+  return h
+    .seen()
+    .filter((entry) => entry.startsWith(prefix))
+    .map((entry) => entry.slice(prefix.length));
+}
+
+/**
+ * `count` files under `dir` (`f0.md` ...), spread over ten subdirectories.
+ *
+ * @param dir - Root-relative directory.
+ * @param count - How many files.
+ * @returns Harness `files`.
+ */
+export function fileTree(dir: string, count: number): Record<string, string> {
+  const files: Record<string, string> = {};
+  for (let i = 0; i < count; i++) {
+    files[`${dir}/d${String(i % 10)}/f${String(i)}.md`] =
+      `content ${String(i)}`;
+  }
+  return files;
 }

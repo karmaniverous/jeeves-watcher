@@ -18,6 +18,8 @@ const fresh = {
   pendingStability: 0,
   lastRenewDurationMs: null,
   renewFailures: 0,
+  lastRestartCause: null,
+  lastRestartAt: null,
 };
 
 describe('changeSourceHealthSchema', () => {
@@ -29,8 +31,31 @@ describe('changeSourceHealthSchema', () => {
       lastReconcileAt: '2026-11-05T00:00:00.000Z',
       lastReconcileDurationMs: 12,
       lastRenewDurationMs: 3,
+      lastRestartCause: 'root-gone',
+      lastRestartAt: '2026-11-05T00:00:00.000Z',
     };
     expect(changeSourceHealthSchema.parse(parcel)).toEqual(parcel);
+  });
+
+  it('accepts only the D196 restart causes', () => {
+    for (const cause of [
+      'watch-config-changed',
+      'subscription-error',
+      'root-gone',
+    ]) {
+      expect(
+        changeSourceHealthSchema.safeParse({
+          ...fresh,
+          lastRestartCause: cause,
+        }).success,
+      ).toBe(true);
+    }
+    expect(
+      changeSourceHealthSchema.safeParse({
+        ...fresh,
+        lastRestartCause: 'crash',
+      }).success,
+    ).toBe(false);
   });
 
   it('rejects an unknown source and a missing field', () => {

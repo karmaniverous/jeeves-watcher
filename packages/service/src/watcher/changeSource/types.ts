@@ -34,16 +34,44 @@ export interface ChangeSink {
   initialScanDone: (root: string) => void;
   /** The source re-created `root`'s subscription after an error (D131). */
   resubscribed: (root: string) => void;
-  /** `root` became unreachable (D109); `code` is its error code. */
-  rootUnavailable: (root: string, code: string) => void;
+  /**
+   * `root` became unreachable (D109), or is reachable but cannot be
+   * watched (`reachable`, D156: it is still reconciled); `code` is the
+   * error code.
+   */
+  rootUnavailable: (
+    root: string,
+    code: string,
+    options?: RootUnavailableOptions,
+  ) => void;
   /** `root` is reachable again (D109). */
   rootAvailable: (root: string) => void;
+}
+
+/** Details of {@link ChangeSink.rootUnavailable}. */
+export interface RootUnavailableOptions {
+  /**
+   * The root is still on disk but unwatched (a non-transient subscribe
+   * failure, D156): it counts in `unavailableRoots` and is still
+   * reconciled.
+   */
+  reachable?: boolean;
 }
 
 /** The result of {@link ChangeSource.renew}. */
 export interface RenewResult {
   /** The source rebuilt every subscription (D165); always false for chokidar. */
   rebuilt: boolean;
+  /**
+   * How long the renewal took (ms); absent when nothing was renewed
+   * (chokidar, Windows, D177).
+   */
+  durationMs?: number;
+  /**
+   * Rejections inside a rebuild or its sentinel teardown (D165, D176),
+   * each counted in `renewFailures` beside the rebuild itself.
+   */
+  rebuildFailures?: number;
 }
 
 /**
@@ -58,6 +86,12 @@ export interface ChangeSource {
    * chokidar's scan) or `FileSystemWatcher`'s walk (`walk`, parcel).
    */
   readonly initialSet: 'source' | 'walk';
+  /**
+   * The source cannot release its watches in-process (parcel on Windows,
+   * D196): a watcher rebuild exits the process for a service-manager
+   * restart instead of stopping it.
+   */
+  readonly restartsToRebuild: boolean;
   /**
    * Start watching.
    *

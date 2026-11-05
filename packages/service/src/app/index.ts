@@ -14,12 +14,12 @@ import type { GitignoreFilter } from '../gitignore';
 import type { AllHelpersIntrospection } from '../helpers';
 import { flushLogger, logRefusal } from '../logger';
 import type { WatcherProcessor } from '../processor';
-import { resolveProcessingLimits } from '../processor/processingLimits';
 import { combinePausableQueues, type EventQueue } from '../queue';
 import type { SourceNotifyQueue } from '../queue/SourceNotifyQueue';
 import { VirtualRuleStore } from '../rules/virtualRules';
-import { VcsCoordinator } from '../vcs/VcsCoordinator';
+import type { VcsCoordinator } from '../vcs/VcsCoordinator';
 import type { FileSystemWatcher } from '../watcher';
+import type { ProcessRestarter } from '../watcher/changeSource/restart';
 import { ChangeSourceHealthTracker } from '../watcher/ChangeSourceHealthTracker';
 import { type ApiServerOptions, startApiServer } from './apiServer';
 import { reloadConfig } from './configReload';
@@ -30,19 +30,12 @@ import {
   type JeevesWatcherFactories,
   type JeevesWatcherRuntimeOptions,
 } from './factories';
-import {
-  buildTemplateEngineAndCustomMapLib,
-  createProcessorConfig,
-  getConfigDir,
-  initInfrastructure,
-  introspectHelpers,
-  resolveVersion,
-} from './initialization';
-import { createQueues } from './queues';
+import { initInfrastructure, resolveVersion } from './initialization';
+import { buildPipeline } from './pipeline';
+import { completeRestart, resumeAfterRestart } from './processRestarter';
 import { shutdownComponents } from './shutdown';
-import { createSourceRetriever } from './sources';
-import { createStateStores, type StateStores } from './stateStores';
-import { createWatcher, type WatcherWiring } from './watcherFactory';
+import type { StateStores } from './stateStores';
+import { createLoadedWatcher, type WatcherWiring } from './watcherFactory';
 
 export type {
   JeevesWatcherFactories,
@@ -76,6 +69,9 @@ export class JeevesWatcher {
   private vcsCoordinator: VcsCoordinator | undefined;
   private readonly initialScanTracker = new InitialScanTracker();
   private readonly changeSourceHealth = new ChangeSourceHealthTracker();
+  private readonly restarter: ProcessRestarter;
+  /** The state directory (default `ROOT_DEFAULTS.stateDir`). */
+  private readonly stateDir: string;
   private readonly version = resolveVersion(import.meta.url);
 
   /** Create a new JeevesWatcher instance. */
@@ -96,11 +92,24 @@ export class JeevesWatcher {
     this.descriptor = descriptor;
     this.factories = { ...defaultFactories, ...factories };
     this.runtimeOptions = runtimeOptions;
+    this.stateDir = config.stateDir ?? ROOT_DEFAULTS.stateDir;
+    this.restarter = this.factories.createProcessRestarter({
+      stateDir: this.stateDir,
+      logger: () => this.logger,
+      stop: () => this.stop(),
+      deadlineMs:
+        3 * (config.shutdownTimeoutMs ?? ROOT_DEFAULTS.shutdownTimeoutMs),
+    });
   }
 
   /** Start the watcher, API server, and all components. */
   async start(): Promise<void> {
     this.logger = await this.factories.createLogger(this.config.logging);
+    const restart = resumeAfterRestart(
+      this.stateDir,
+      this.logger,
+      this.changeSourceHealth,
+    );
     try {
       ({
         embeddingProvider: this.embeddingProvider,
@@ -112,6 +121,17 @@ export class JeevesWatcher {
       }));
       await this.initPipeline();
       await this.startServicesAndWatcher();
+      if (restart) {
+        const { valuesManager, issuesManager } = this.stores ?? {};
+        completeRestart(this.stateDir, restart, {
+          getConfig: () => this.config,
+          processor: this.processor!,
+          logger: this.logger,
+          valuesManager,
+          issuesManager,
+          gitignoreFilter: this.gitignoreFilter,
+        });
+      }
     } catch (error) {
       // A refused start must reach the log file and stderr (D171).
       logRefusal(this.logger, 'jeeves-watcher refused to start', error);
@@ -121,48 +141,22 @@ export class JeevesWatcher {
 
   /** Build the processing pipeline: rules, templates, processor, queue, VCS. */
   private async initPipeline(): Promise<void> {
-    const logger = this.logger!;
-
-    const compiledRules = this.factories.compileRules(
-      this.config.inferenceRules ?? [],
-    );
-
-    const configDir = getConfigDir(this.configPath);
-    const { templateEngine, customMapLib } =
-      await buildTemplateEngineAndCustomMapLib(this.config, configDir);
-    this.helperIntrospection = await introspectHelpers(this.config, configDir);
-    const processorConfig = createProcessorConfig(
-      this.config,
-      configDir,
-      customMapLib,
-    );
-
-    const stores = (this.stores = createStateStores(this.config, logger));
-
-    this.processor = this.factories.createDocumentProcessor({
-      config: processorConfig,
+    ({
+      helperIntrospection: this.helperIntrospection,
+      stores: this.stores,
+      processor: this.processor,
+      queue: this.queue,
+      sourceQueue: this.sourceQueue,
+      vcsCoordinator: this.vcsCoordinator,
+    } = await buildPipeline({
+      config: this.config,
+      configPath: this.configPath,
+      factories: this.factories,
+      logger: this.logger!,
       embeddingProvider: this.embeddingProvider!,
       vectorStore: this.vectorStore!,
-      compiledRules,
-      logger,
-      templateEngine,
-      ...stores,
-      sourceRetriever: createSourceRetriever(this.config),
-      // Read per document, so a reload applies to the next one (D44).
-      getProcessingLimits: () => resolveProcessingLimits(this.config),
-    });
-    ({ queue: this.queue, sourceQueue: this.sourceQueue } = createQueues(
-      this.config,
-      this.factories,
-      this.processor,
-      { logger, issues: stores.issuesManager },
-    ));
-
-    this.vcsCoordinator = new VcsCoordinator(
-      this.config,
-      logger,
-      () => this.config,
-    );
+      getConfig: () => this.config,
+    }));
   }
 
   /** Wire up watcher and VCS coordinator, then start all services. */
@@ -170,7 +164,7 @@ export class JeevesWatcher {
     const logger = this.logger!;
     const vcsCoordinator = this.vcsCoordinator!;
 
-    const { watcher, gitignoreFilter } = createWatcher(
+    const { watcher, gitignoreFilter } = await createLoadedWatcher(
       this.config,
       this.factories,
       this.queue!,
@@ -232,6 +226,9 @@ export class JeevesWatcher {
       contentHashCache: this.stores?.contentHashCache,
       changeSourceHealth: this.changeSourceHealth,
       getReconcileIntervalMs: () => this.config.watch.reconcileIntervalMs,
+      importParcel: this.factories.importParcel,
+      stateDir: this.config.stateDir,
+      restarter: this.restarter,
       onVcsFileChange: (filePath, event) => {
         this.vcsCoordinator?.onFileChange(filePath, event);
       },

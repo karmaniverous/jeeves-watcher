@@ -3,46 +3,12 @@
  * Tests for config-reload orchestration.
  */
 
-import pino from 'pino';
+import type pino from 'pino';
 import { describe, expect, it, vi } from 'vitest';
 
 import type { JeevesWatcherConfig } from '../config/types';
-import type { WatcherProcessor } from '../processor';
+import { makeConfig, makeDeps } from '../test/reloadHarness';
 import { reloadConfig } from './configReload';
-import type { JeevesWatcherFactories } from './factories';
-
-function makeConfig(
-  overrides: Partial<JeevesWatcherConfig['watch']> = {},
-): JeevesWatcherConfig {
-  return {
-    watch: { paths: ['**/*.md'], respectGitignore: false, ...overrides },
-    embedding: { provider: 'mock', model: 'test' },
-    vectorStore: { url: 'http://localhost', collectionName: 'test' },
-    inferenceRules: [],
-  } as unknown as JeevesWatcherConfig;
-}
-
-function makeDeps(
-  loadedConfig: JeevesWatcherConfig,
-  overrides: Partial<{
-    createFileSystemWatcher: ReturnType<typeof vi.fn>;
-  }> = {},
-) {
-  const logger = pino({ level: 'silent' });
-  const processor = {
-    updateRules: vi.fn(),
-  } as unknown as WatcherProcessor;
-
-  const factories = {
-    loadConfig: vi.fn().mockResolvedValue(loadedConfig),
-    compileRules: vi.fn().mockReturnValue([]),
-    createFileSystemWatcher:
-      overrides.createFileSystemWatcher ??
-      vi.fn().mockReturnValue({ start: vi.fn(), stop: vi.fn() }),
-  } as unknown as JeevesWatcherFactories;
-
-  return { logger, processor, factories };
-}
 
 // Partial mock: only replace buildTemplateEngineAndCustomMapLib
 vi.mock('./initialization', async () => {
@@ -58,7 +24,8 @@ vi.mock('./initialization', async () => {
 });
 
 // Mock executeReindex to avoid real reindexing
-vi.mock('../api/executeReindex', () => ({
+vi.mock('../api/executeReindex', async (importActual) => ({
+  ...(await importActual<Record<string, unknown>>()),
   executeReindex: vi.fn().mockResolvedValue(undefined),
 }));
 

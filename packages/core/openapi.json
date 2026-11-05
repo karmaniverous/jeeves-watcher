@@ -286,6 +286,30 @@
                             "renewFailures": {
                               "type": "number",
                               "description": "Renewals whose unsubscribe rejected and forced a source rebuild, plus rejections during a rebuild, since start (D165, D176). Always 0 under chokidar."
+                            },
+                            "lastRestartCause": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "enum": [
+                                    "watch-config-changed",
+                                    "subscription-error",
+                                    "root-gone"
+                                  ],
+                                  "description": "Why the previous process exited for a service-manager restart (D196)."
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ],
+                              "description": "Why the previous process exited for a service-manager restart (D196: on Windows parcel never unsubscribes, so a watcher rebuild or a subscription recovery restarts the process); null when this process did not start after such an exit."
+                            },
+                            "lastRestartAt": {
+                              "description": "When the previous process asked for that restart (ISO); null with lastRestartCause.",
+                              "type": [
+                                "string",
+                                "null"
+                              ]
                             }
                           },
                           "required": [
@@ -298,10 +322,12 @@
                             "lastReconcileDurationMs",
                             "pendingStability",
                             "lastRenewDurationMs",
-                            "renewFailures"
+                            "renewFailures",
+                            "lastRestartCause",
+                            "lastRestartAt"
                           ],
                           "additionalProperties": false,
-                          "description": "Change-source health (D133, D157)."
+                          "description": "Change-source health (D133, D157, D196)."
                         },
                         "error": {
                           "type": "string"
