@@ -93,3 +93,48 @@ describe('FilteredEvents: an add for a known file', () => {
     ]);
   });
 });
+
+describe('FilteredEvents: a file moved with its directory (D62)', () => {
+  /** Handlers whose filter rejects `rejected` paths as gitignored. */
+  function moveSetup(rejected: string[] = []) {
+    const actions = { added: vi.fn(), removed: vi.fn(), moved: vi.fn() };
+    const inventory = new Inventory(true);
+    const filter = {
+      isRootGit: () => false,
+      globMatches: () => true,
+      isGitignored: (path: string) => rejected.includes(path),
+      noteGitignoreChange: () => false,
+    } as unknown as WatchFilter;
+    const events = new FilteredEvents({
+      filter,
+      inventory,
+      actions: actions as unknown as FileEventActions,
+      scanStats: new ScanStats(['/r']),
+      logger: pino({ level: 'silent' }),
+      scanning: () => false,
+      onGitignoreChange: () => undefined,
+    });
+    return { events, actions, inventory };
+  }
+
+  it('re-keys the inventory with the walk stats and moves', () => {
+    const { events, actions, inventory } = moveSetup();
+    inventory.set('/r/old/a.md', settled);
+    events.moved('/r/old/a.md', '/r/new/a.md', { size: 11, mtimeMs: 2 });
+    expect(inventory.get('/r/old/a.md')).toBeUndefined();
+    expect(inventory.get('/r/new/a.md')).toMatchObject({
+      size: 11,
+      mtimeMs: 2,
+    });
+    expect(actions.moved).toHaveBeenCalledWith('/r/old/a.md', '/r/new/a.md');
+  });
+
+  it('unlinks the old path when the new one is filtered out', () => {
+    const { events, actions, inventory } = moveSetup(['/r/new/a.md']);
+    inventory.set('/r/old/a.md', settled);
+    events.moved('/r/old/a.md', '/r/new/a.md', settled);
+    expect(actions.moved).not.toHaveBeenCalled();
+    expect(actions.removed).toHaveBeenCalledWith('/r/old/a.md');
+    expect(inventory.get('/r/new/a.md')).toBeUndefined();
+  });
+});
