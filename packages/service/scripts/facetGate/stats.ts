@@ -114,6 +114,45 @@ export function gateWorkloads(
   ];
 }
 
+/** CPU times of one core, ms (the shape of `os.cpus()[n].times`). */
+export interface CpuTimes {
+  user: number;
+  nice: number;
+  sys: number;
+  idle: number;
+  irq: number;
+}
+
+/**
+ * Whole-host CPU busy share between two `os.cpus()` samples.
+ *
+ * @param before - Per-core times at the start.
+ * @param after - Per-core times at the end.
+ * @returns Busy percent over all cores, rounded to 1, or null when no time passed.
+ */
+export function cpuBusyPercent(
+  before: ReadonlyArray<{ times: CpuTimes }>,
+  after: ReadonlyArray<{ times: CpuTimes }>,
+): number | null {
+  let busy = 0;
+  let total = 0;
+  after.forEach(({ times }, i) => {
+    const start = before.at(i)?.times;
+    if (!start) return;
+    const idle = times.idle - start.idle;
+    const all =
+      times.user +
+      times.nice +
+      times.sys +
+      times.irq +
+      times.idle -
+      (start.user + start.nice + start.sys + start.irq + start.idle);
+    busy += all - idle;
+    total += all;
+  });
+  return total > 0 ? Math.round((busy / total) * 100) : null;
+}
+
 /** Gate options. */
 export interface GateOptions {
   /** Source Qdrant URL (read only: GET and scroll). */
@@ -128,6 +167,8 @@ export interface GateOptions {
   warmup: number;
   /** Timed requests per workload. */
   runs: number;
+  /** Wait (up to 30 min) for host CPU at or below this percent before timing; 100 never waits. */
+  quietCpu: number;
   /** Where to write the JSON result. */
   out?: string;
 }
@@ -166,6 +207,7 @@ export function parseGateArgs(argv: readonly string[]): GateOptions {
     tenantField: args.get('tenant-field') ?? 'silo',
     warmup: num('warmup', 5),
     runs: num('runs', 60),
+    quietCpu: num('quiet-cpu', 100),
     out: args.get('out'),
   };
 }

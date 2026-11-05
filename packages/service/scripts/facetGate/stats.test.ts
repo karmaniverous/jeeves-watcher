@@ -6,11 +6,36 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  cpuBusyPercent,
   gateWorkloads,
   parseGateArgs,
   pickFacetFields,
   summarize,
 } from './stats';
+
+describe('cpuBusyPercent', () => {
+  const t = (busy: number, idle: number) => ({
+    times: { user: busy, nice: 0, sys: 0, idle, irq: 0 },
+  });
+
+  it('gives the busy share over all cores', () => {
+    expect(cpuBusyPercent([t(0, 0), t(0, 0)], [t(30, 70), t(10, 90)])).toBe(20);
+  });
+
+  it('counts nice, sys and irq as busy', () => {
+    const before = [{ times: { user: 0, nice: 0, sys: 0, idle: 0, irq: 0 } }];
+    const after = [{ times: { user: 1, nice: 1, sys: 1, idle: 6, irq: 1 } }];
+    expect(cpuBusyPercent(before, after)).toBe(40);
+  });
+
+  it('ignores cores missing from the first sample', () => {
+    expect(cpuBusyPercent([t(0, 0)], [t(50, 50), t(100, 0)])).toBe(50);
+  });
+
+  it('is null when no time passed', () => {
+    expect(cpuBusyPercent([t(5, 5)], [t(5, 5)])).toBeNull();
+  });
+});
 
 describe('summarize', () => {
   it('takes nearest-rank p50 and p95 and the max', () => {
@@ -76,6 +101,7 @@ describe('parseGateArgs', () => {
       tenantField: 'silo',
       warmup: 5,
       runs: 60,
+      quietCpu: 100,
       out: undefined,
     });
   });
@@ -95,6 +121,8 @@ describe('parseGateArgs', () => {
         '1',
         '--runs',
         '2',
+        '--quiet-cpu',
+        '40',
         '--out',
         'r.json',
       ]),
@@ -105,6 +133,7 @@ describe('parseGateArgs', () => {
       tenantField: 'org',
       warmup: 1,
       runs: 2,
+      quietCpu: 40,
       out: 'r.json',
     });
   });

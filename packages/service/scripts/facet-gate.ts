@@ -2,10 +2,11 @@
  * @module scripts/facet-gate
  * The facet latency gate (spec D104, D144, D155, D160, D194): a payload-only, production-sized copy of a source collection on a throwaway Qdrant, the configured and system payload indexes built through the real `VectorStoreClient`, the accuracy of approximate counts against exact counts for every workload field (same count filter, up to 1000 values), and three workloads timed through the real `POST /search/facets/counts` route over HTTP. Exits 1 when any p95 is over its ceiling, any request fails, or approximate counts miss a top-10 value or are off by more than 5% on one. The source is only read (GET and scroll).
  *
- * Usage: `npm run facet:gate -w packages/service -- --source-collection <name> [--source-url http://127.0.0.1:6333] [--floor 864000] [--tenant-field silo] [--warmup 5] [--runs 60] [--out result.json]`
+ * Usage: `npm run facet:gate -w packages/service -- --source-collection <name> [--source-url http://127.0.0.1:6333] [--floor 864000] [--tenant-field silo] [--warmup 5] [--runs 60] [--quiet-cpu 100] [--out result.json]`
  */
 
 import { writeFileSync } from 'node:fs';
+import { cpus } from 'node:os';
 import { performance } from 'node:perf_hooks';
 
 import {
@@ -29,6 +30,7 @@ import {
 } from './facetGate/accuracy';
 import { copyPayloads, sourcePointCount } from './facetGate/copy';
 import {
+  cpuBusyPercent,
   gateWorkloads,
   parseGateArgs,
   pickFacetFields,
@@ -72,6 +74,25 @@ async function rawFacet(
   if (!res.ok) throw new Error(`facet ${field}: ${String(res.status)}`);
   const { result } = (await res.json()) as { result: { hits: CountHit[] } };
   return result.hits;
+}
+
+/**
+ * Wait until a 10 s sample shows host CPU at or below `maxPercent` (at most
+ * 30 min).
+ *
+ * @returns The last sample, percent.
+ */
+async function waitQuiet(maxPercent: number): Promise<number | null> {
+  const deadline = Date.now() + 30 * 60_000;
+  for (;;) {
+    const before = cpus();
+    await new Promise((resolve) => setTimeout(resolve, 10_000));
+    const busy = cpuBusyPercent(before, cpus());
+    if (busy === null || busy <= maxPercent || Date.now() > deadline) {
+      return busy;
+    }
+    log(`host CPU ${String(busy)}% > ${String(maxPercent)}%; waiting`);
+  }
 }
 
 const options = parseGateArgs(process.argv.slice(2));
@@ -178,10 +199,15 @@ try {
   const accurate = accuracy.every((a) => withinBound(a.fields));
   Object.assign(report, { accuracy, accurate });
 
+  const quietCpuAtStart =
+    options.quietCpu < 100 ? await waitQuiet(options.quietCpu) : null;
+  Object.assign(report, { quietCpu: options.quietCpu, quietCpuAtStart });
+
   const results = [];
   for (const workload of workloads) {
     const samples: number[] = [];
     const errors: string[] = [];
+    const cpuBefore = cpus();
     for (let i = 0; i < options.warmup + options.runs; i++) {
       const started = performance.now();
       const res = await fetch(`${base}/search/facets/counts`, {
@@ -195,11 +221,18 @@ try {
       samples.push(ms);
       if (!res.ok) errors.push(`${String(res.status)} ${text.slice(0, 200)}`);
     }
+    const hostCpuPercent = cpuBusyPercent(cpuBefore, cpus());
     const summary = summarize(samples);
     const pass = errors.length === 0 && summary.p95 <= workload.p95Max;
-    results.push({ ...workload, ...summary, errors: errors.length, pass });
+    results.push({
+      ...workload,
+      ...summary,
+      hostCpuPercent,
+      errors: errors.length,
+      pass,
+    });
     log(
-      `${workload.name}: p50 ${String(summary.p50)} p95 ${String(summary.p95)} max ${String(summary.max)} ms (ceiling ${String(workload.p95Max)}) errors ${String(errors.length)} ${pass ? 'PASS' : 'FAIL'}${errors[0] ? ` first error: ${errors[0]}` : ''}`,
+      `${workload.name}: p50 ${String(summary.p50)} p95 ${String(summary.p95)} max ${String(summary.max)} ms (ceiling ${String(workload.p95Max)}) errors ${String(errors.length)} host CPU ${String(hostCpuPercent)}% ${pass ? 'PASS' : 'FAIL'}${errors[0] ? ` first error: ${errors[0]}` : ''}`,
     );
   }
   const passed = accurate && results.every((r) => r.pass);
