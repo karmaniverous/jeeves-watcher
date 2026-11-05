@@ -45,6 +45,31 @@ describe('FileSystemWatcher inventory (D99)', () => {
     expect(inventoryOf(harness)).toEqual(['sub/b.md', 'sub/n.md']);
   });
 
+  it('serves /walk files from the inventory: matched files only, no directories (D83)', async () => {
+    harness = await startWatcherHarness({
+      files: {
+        '.gitignore': 'hidden.md\n',
+        'a.md': 'a',
+        'hidden.md': 'h',
+        'sub/b.md': 'b',
+        'sub/c.txt': 'c',
+        'junk/d.md': 'd',
+      },
+      watch: (root) => ({
+        paths: [`${normalizeSlashes(root)}/**/*.md`],
+        ignored: ['**/junk/**'],
+      }),
+      options: (root) => ({ gitignoreFilter: new GitignoreFilter([root]) }),
+    });
+    const base = normalizeSlashes(harness.root);
+    expect(
+      harness.watcher
+        .getWatchedFiles()
+        .map((p) => normalizeSlashes(p).slice(base.length + 1))
+        .sort(),
+    ).toEqual(['a.md', 'sub/b.md']);
+  });
+
   it('drops newly gitignored files and re-adds them when the pattern goes, emitting nothing', async () => {
     harness = await startWatcherHarness({
       files: { '.gitignore': '', 'docs/a.md': 'a', 'docs/b.md': 'b' },

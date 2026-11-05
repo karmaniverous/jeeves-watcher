@@ -16,6 +16,7 @@ import type { GitignoreFilter } from '../gitignore';
 import type { DocumentProcessorInterface } from '../processor';
 import type { EventQueue } from '../queue';
 import { ChokidarChangeSource } from './changeSource/ChokidarChangeSource';
+import type { ChangeSource } from './changeSource/types';
 import type { ChangeSourceHealthTracker } from './ChangeSourceHealthTracker';
 import {
   createMoveCorrelator,
@@ -65,7 +66,7 @@ export interface FileSystemWatcherOptions {
 
 /** What one `start` builds; replaced on every start. */
 export interface Running {
-  source: ChokidarChangeSource;
+  source: ChangeSource;
   roots: WatchRoots;
   filter: WatchFilter;
   /** `watch.ignored` matchers plus each root's `.git` (D152). */

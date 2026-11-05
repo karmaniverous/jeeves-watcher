@@ -3,8 +3,6 @@
  * The chokidar change source (spec Design 9): watches the roots with chokidar and passes its classified events to the sink. I/O: chokidar handles. Used for polling and as the manual switch.
  */
 
-import { join } from 'node:path';
-
 import chokidar, { type FSWatcher } from 'chokidar';
 
 import type { ChangeSink, ChangeSource, RenewResult } from './types';
@@ -85,19 +83,5 @@ export class ChokidarChangeSource implements ChangeSource {
     const watcher = this.watcher;
     this.watcher = undefined;
     await watcher?.close();
-  }
-
-  /**
-   * Chokidar's in-memory list of watched entries (absolute paths). Used by
-   * `FileSystemWatcher.getWatchedFiles` until the inventory serves `/walk`.
-   */
-  watchedPaths(): string[] {
-    if (!this.watcher) return [];
-    const watched = this.watcher.getWatched();
-    const paths: string[] = [];
-    for (const [dir, entries] of Object.entries(watched)) {
-      for (const entry of entries) paths.push(join(dir, entry));
-    }
-    return paths;
   }
 }

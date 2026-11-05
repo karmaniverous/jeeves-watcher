@@ -228,11 +228,12 @@ export class FileSystemWatcher implements ChangeSink {
   }
 
   /**
-   * Get the list of all currently watched file paths (absolute), from the
-   * change source's in-memory state (no filesystem I/O). Empty before start.
+   * The inventory's file paths (absolute, as the source reported them):
+   * matched files only, never directories or filtered files (D83). No
+   * filesystem I/O; empty before start.
    */
   getWatchedFiles(): string[] {
-    return this.running?.source.watchedPaths() ?? [];
+    return this.running?.inventory.paths() ?? [];
   }
 
   /**

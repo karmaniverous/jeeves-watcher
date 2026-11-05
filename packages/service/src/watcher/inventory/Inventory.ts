@@ -71,6 +71,11 @@ export class Inventory {
     return this.entries.get(normalizeDocumentKey(path));
   }
 
+  /** Every file path, as the source reported it (`/walk`, D83). */
+  paths(): string[] {
+    return [...this.entries.values()].map((entry) => entry.path);
+  }
+
   /**
    * The entries beneath a directory, at any depth, keyed by document key;
    * O(subtree size), never a scan of the inventory.

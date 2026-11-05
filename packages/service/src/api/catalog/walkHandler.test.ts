@@ -58,12 +58,32 @@ describe('POST /walk', () => {
     const { status, body } = await walk({ globs: ['**/.meta/meta.json'] });
 
     expect(status).toBe(200);
+    // Sorted by path (D83), whatever order the inventory holds them in.
     expect(body.paths).toEqual([
-      'c:/data/foo/.meta/meta.json',
       'c:/data/baz/.meta/meta.json',
+      'c:/data/foo/.meta/meta.json',
     ]);
     expect(body.matchedCount).toBe(2);
     expect(Array.isArray(body.scannedRoots)).toBe(true);
+  });
+
+  it('sorts by code unit, keeping equal paths', async () => {
+    mockWatcher.getWatchedFiles.mockReturnValue([
+      'c:/data/b.md',
+      'c:/data/B.md',
+      'c:/data/a.md',
+      'c:/data/b.md',
+    ]);
+    const walk = await serve(makeDeps());
+
+    const { body } = await walk({ globs: ['**/*.md'] });
+
+    expect(body.paths).toEqual([
+      'c:/data/B.md',
+      'c:/data/a.md',
+      'c:/data/b.md',
+      'c:/data/b.md',
+    ]);
   });
 
   it('uses the current watcher instance from the getter (survives rebuild)', async () => {
