@@ -122,10 +122,10 @@ The payload write is one Qdrant write filtered on the document's `file_path` (or
 
 1. **Scope:** the caller's filter, the rule scope (`matched_rules` or `source_rule` any of the named rules) and `chunk_index = 0`, each nested under one `must`, so every document counts once and a caller's top-level `should` keeps its meaning.
 2. **Mode per field:** the `uiHint` every in-scope rule declaring the field agrees on (`number`, `date`, `range` give a range), else the payload index type (`keyword`, `bool`, `integer` counted; `float`, `datetime` ranged). The index types come from the collection's payload schema on each request.
-3. **Reads:** an exact Qdrant facet call per counted field; two one-point scrolls ordered by the field (ascending, descending) per range.
+3. **Reads:** an approximate Qdrant facet call per counted field (Qdrant's default mode; D194: exact counts failed the latency gate below); two one-point scrolls ordered by the field (ascending, descending) per range.
 4. **Bounds:** at most 4 fields at a time within a 10 s budget; each call gets the seconds left as Qdrant's `timeout`. Past the budget nothing starts, in-flight results are discarded and the route answers `503` naming the fields not counted. It also answers `503` until the `chunk_index` system index (and, for a `rules` request, `matched_rules`) is ready.
 
-The design was gated (D104) on Qdrant's facet latency over a production-sized copy: p95 at most 200 ms for 4 fields under a tenant filter (with or without `rules`) and 500 ms for 20 fields unfiltered. `npm run facet:gate -w packages/service -- --source-collection <name>` re-runs that measurement on a throwaway Qdrant (the source collection is only read).
+The design was gated (D104) on Qdrant's facet latency over a production-sized copy: p95 at most 200 ms for 4 fields under a tenant filter (with or without `rules`) and 500 ms for 20 fields unfiltered. `npm run facet:gate -w packages/service -- --source-collection <name>` re-runs that measurement on a throwaway Qdrant (the source collection is only read), after first comparing approximate with exact counts for every workload field (D194: it fails when a top-10 value is missing or off by more than 5%).
 
 ---
 

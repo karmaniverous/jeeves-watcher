@@ -400,7 +400,7 @@ For how many documents hold each value under a filter, use [`POST /search/facets
 
 ## POST /search/facets/counts
 
-Counts the values of payload fields over the documents matching a filter, or gives `{ min, max }` for a numeric or date field. Each document counts once, however many chunks it has.
+Counts the values of payload fields over the documents matching a filter, or gives `{ min, max }` for a numeric or date field. Each document counts once, however many chunks it has. Counts are approximate: they come from Qdrant's default (approximate) facet counts, so treat them as sizes for a UI, not as exact totals (use [`POST /scan`](#post-scan) with `countOnly` for an exact count of one value). Ranges are exact.
 
 **v0.21.0+**
 
@@ -445,7 +445,7 @@ Unknown body keys are rejected with `400`.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `counts` | `object` | Per requested field: an array of `{ value, count }` (documents holding the value, highest first), or `{ min, max }` for a range. A range bound is a number or the stored date string; both are `null` when no matching document holds the field. An array value counts once per element; its range uses its smallest and largest elements. |
+| `counts` | `object` | Per requested field: an array of `{ value, count }` (documents holding the value, highest first; counts are approximate, see below), or `{ min, max }` for a range. A range bound is a number or the stored date string; both are `null` when no matching document holds the field. An array value counts once per element; its range uses its smallest and largest elements. |
 
 ### Counts or range
 
@@ -463,7 +463,7 @@ Each field is answered by its `uiHint` when every rule in scope that declares it
 
 1. Checks the rule names, then that the system indexes it needs are ready, then reads the collection's payload index types and decides each field's mode.
 2. Counts on chunk-0 points only, so a document counts once: the filter is `{ must: [<your filter>, <rule scope>, chunk_index = 0] }`. Your filter is nested, never merged, so its top-level `should` keeps its meaning.
-3. Counts at most 4 fields at a time with Qdrant's exact facet counts; a range is two one-point scrolls ordered by the field. Every Qdrant call is given the seconds left in the 10 s budget as its timeout; once the budget is spent no field starts and in-flight results are discarded.
+3. Counts at most 4 fields at a time with Qdrant's approximate facet counts (its default mode; exact counts were too slow at production size, D194); a range is two one-point scrolls ordered by the field. Every Qdrant call is given the seconds left in the 10 s budget as its timeout; once the budget is spent no field starts and in-flight results are discarded.
 4. Answers from Qdrant on every request: there is no response cache.
 5. A request taking over 500 ms is logged at `info` with its field count, whether a filter or rules were given, and its duration (never values).
 

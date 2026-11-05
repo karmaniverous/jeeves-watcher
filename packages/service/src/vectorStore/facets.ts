@@ -1,6 +1,6 @@
 /**
  * @module vectorStore/facets
- * Qdrant reads behind `countFacets` (spec Design 12): exact facet counts, one-point ordered scrolls for a field's range, and the collection's payload index types. Every count and scroll passes Qdrant's `timeout` (whole seconds) so an abandoned call also stops in Qdrant. Qdrant I/O.
+ * Qdrant reads behind `countFacets` (spec Design 12): approximate facet counts (D194), one-point ordered scrolls for a field's range, and the collection's payload index types. Every count and scroll passes Qdrant's `timeout` (whole seconds) so an abandoned call also stops in Qdrant. Qdrant I/O.
  */
 
 import type { QdrantClient } from '@qdrant/js-client-rest';
@@ -37,7 +37,7 @@ export interface FacetRead {
 /** Facet reads used by `countFacets` (implemented by `VectorStoreClient`). */
 export interface FacetStore {
   /**
-   * Exact value counts of a field, highest first.
+   * Approximate value counts of a field, highest first (D194).
    *
    * @param read - Field, filter and timeout.
    * @param limit - Most values returned.
@@ -90,7 +90,8 @@ export async function payloadIndexTypes(
 }
 
 /**
- * Exact facet counts (Qdrant's default counts are approximate).
+ * Approximate facet counts: Qdrant's default mode, asked for explicitly
+ * (D194; exact counts failed the D104 latency gate).
  *
  * @param client - Qdrant client.
  * @param collectionName - Collection.
@@ -108,7 +109,7 @@ export async function facetCounts(
     key: read.field,
     filter: read.filter,
     limit,
-    exact: true,
+    exact: false,
     timeout: read.timeoutS,
   });
   return hits.map(({ value, count }) => ({ value, count }));

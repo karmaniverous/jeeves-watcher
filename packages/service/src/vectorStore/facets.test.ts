@@ -1,6 +1,6 @@
 /**
  * @module vectorStore/facets.test
- * Facet reads against a fake Qdrant client: exact counts with the caller's limit and timeout, one-point ordered scrolls for range bounds (array values, dotted keys, order_value fallback, no match), and payload index types.
+ * Facet reads against a fake Qdrant client: approximate counts (D194) with the caller's limit and timeout, one-point ordered scrolls for range bounds (array values, dotted keys, order_value fallback, no match), and payload index types.
  */
 
 import { describe, expect, it, vi } from 'vitest';
@@ -21,7 +21,7 @@ function scrollClient(points: unknown[]) {
 }
 
 describe('facetCounts', () => {
-  it('asks Qdrant for exact counts with the limit and timeout', async () => {
+  it('asks Qdrant for approximate counts with the limit and timeout', async () => {
     const facet = vi.fn(() =>
       Promise.resolve({ hits: [{ value: 'a', count: 3 }] }),
     );
@@ -37,7 +37,7 @@ describe('facetCounts', () => {
       key: 'tag',
       filter,
       limit: 50,
-      exact: true,
+      exact: false,
       timeout: 7,
     });
   });

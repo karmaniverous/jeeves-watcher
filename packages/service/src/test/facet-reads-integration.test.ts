@@ -1,6 +1,6 @@
 /**
  * @module test/facet-reads-integration.test
- * VectorStoreClient facet reads against real Qdrant (spec Design 12): exact counts over chunk-0 points (a document counts once), range bounds from one-point ordered scrolls on integer, float and datetime indexes (array values included), and the payload index types.
+ * VectorStoreClient facet reads against real Qdrant (spec Design 12): approximate counts (D194; exact at this size) over chunk-0 points (a document counts once), range bounds from one-point ordered scrolls on integer, float and datetime indexes (array values included), and the payload index types.
  */
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';

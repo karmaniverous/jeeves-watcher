@@ -1,6 +1,6 @@
 /**
  * @module api/catalog/countFacetsHandler
- * Catalog handler for `POST /search/facets/counts` (spec Design 12, A8): per-field value counts or `{ min, max }` over the documents matching a filter, each document once. Answers 503 until the system indexes it needs are ready, counts at most 4 fields at a time within a 10 s budget (503 naming the fields not counted past it), and logs slow requests. No cache. Qdrant I/O through the facet store.
+ * Catalog handler for `POST /search/facets/counts` (spec Design 12, A8): per-field approximate value counts (D194) or `{ min, max }` over the documents matching a filter, each document once. Answers 503 until the system indexes it needs are ready, counts at most 4 fields at a time within a 10 s budget (503 naming the fields not counted past it), and logs slow requests. No cache. Qdrant I/O through the facet store.
  */
 
 import type { CatalogHandler } from '@karmaniverous/jeeves/fastify';
