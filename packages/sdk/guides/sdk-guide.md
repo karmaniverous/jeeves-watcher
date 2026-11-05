@@ -34,7 +34,8 @@ The client has one method per catalog entry, named by the entry (D77): each name
 | `validateConfig({ config?, testPaths? })` | `POST /config/validate` | read |
 | `search({ query, ... })` | `POST /search` | read |
 | `scan({ filter, ... })` | `POST /scan` | read |
-| `listFacets()` | `GET /search/facets` | read |
+| `listFacets({ rules? })` | `GET /search/facets` | read |
+| `countFacets({ fields, filter?, rules?, limit? })` | `POST /search/facets/counts` | read |
 | `render({ path } \| { source })` | `POST /render` | read |
 | `walk({ globs })` | `POST /walk` | read |
 | `listIssues()` | `GET /issues` | read |

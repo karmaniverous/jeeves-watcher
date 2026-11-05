@@ -56,7 +56,8 @@ curl http://127.0.0.1:<PORT>/config
 | `/rules/reapply` | POST | Re-apply rules to indexed files matching `globs` |
 | `/points/delete` | POST | Delete points matching a Qdrant filter |
 | `/render` | POST | Render a document (file path or source reference) through its rule |
-| `/search/facets` | GET | Get search facet values |
+| `/search/facets` | GET | Get search facet definitions and values (`?rules=a,b` scopes them to those rules) |
+| `/search/facets/counts` | POST | Count values of indexed fields over a filter, each document once (`{ fields, filter?, rules?, limit? }`); `{ min, max }` for number/date fields; `503 not_available` while its system indexes build or past its 10 s budget |
 | `/rebuild-metadata` | POST | Rebuild the enrichment store from Qdrant file point payloads |
 | `/config/schema` | GET | Get config JSON schema |
 | `/config/match` | POST | Test file paths against inference rules and watch scope |
@@ -391,7 +392,7 @@ Returns `{ ok: true, matched_rules }`. If the document is busy (being indexed) f
 
 ### `watcher_status`
 
-Service health check (`GET /status`, never needs the API key). Returns `name`, `version`, `uptime`, `status`, and a `health` object: `collection` (`name`, `pointCount`, `dimensions`, and `systemIndexes`: the state of each index the service creates itself, e.g. `{ "file_path": "ready" }`; `building`, `ready`, `conflict` or `failed`), `embedding` (`state` `ok` or `failing`, `lastSuccessAt`, `lastError` `{ at, code }`, `failingSince`, `backoffUntil`; codes only, never provider text), `reindex` (`active`; while active also `scope`, `startedAt`, `filesProcessed`, `totalFiles`), `initialScan`, and `vcs` when version tracking is on: `roots`, `pending` (changes not yet committed), `trippedRoots` (roots whose commits keep failing) and `oldestTrippedAt`.
+Service health check (`GET /status`, never needs the API key). Returns `name`, `version`, `uptime`, `status`, and a `health` object: `collection` (`name`, `pointCount`, `dimensions`, and `systemIndexes`: the state of each index the service creates itself, e.g. `{ "chunk_index": "ready", "file_path": "ready", "matched_rules": "building" }`; `building`, `ready`, `conflict` or `failed`), `embedding` (`state` `ok` or `failing`, `lastSuccessAt`, `lastError` `{ at, code }`, `failingSince`, `backoffUntil`; codes only, never provider text), `reindex` (`active`; while active also `scope`, `startedAt`, `filesProcessed`, `totalFiles`), `initialScan`, and `vcs` when version tracking is on: `roots`, `pending` (changes not yet committed), `trippedRoots` (roots whose commits keep failing) and `oldestTrippedAt`.
 
 After a service restart, the `health.initialScan` field shows scan progress:
 

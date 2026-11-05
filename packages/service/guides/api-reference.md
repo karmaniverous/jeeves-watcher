@@ -47,7 +47,11 @@ curl http://localhost:1936/status
       "name": "jeeves_archive",
       "pointCount": 10498,
       "dimensions": 3072,
-      "systemIndexes": { "file_path": "ready" }
+      "systemIndexes": {
+        "chunk_index": "ready",
+        "file_path": "ready",
+        "matched_rules": "ready"
+      }
     },
     "reindex": {
       "active": true,
@@ -314,13 +318,18 @@ For a **source document**, the watcher reads the designated rule from the stored
 
 Returns schema-derived facet definitions for building search filter UIs.
 
-**v0.8.0+**
+**v0.8.0+** (`rules` v0.21.0+)
 
 ### Request
 
 ```bash
 curl http://localhost:1936/search/facets
+curl 'http://localhost:1936/search/facets?rules=jira-issue,slack-message'
 ```
+
+| Query | Type | Description |
+| --- | --- | --- |
+| `rules` | `string?` | Comma-separated rule names, configured or [registered at runtime](#post-rulesregister) (v0.21.0+). Only the fields those rules declare are listed, with only the values recorded for their documents, and `rules` on each facet names only those rules. An unknown name answers `400 invalid_request` (`error: "Unknown rule: <name>"`); a value naming no rule (`?rules=`) answers `400`. Without it, the answer is the same as before 0.21.0: every configured rule. |
 
 ### Response
 
@@ -370,7 +379,7 @@ curl http://localhost:1936/search/facets
 
 ### Behavior
 
-1. Resolves the schemas of the config `inferenceRules` via `mergeSchemas` (virtual rules registered by plugins are not included)
+1. Resolves the schemas of the config `inferenceRules` via `mergeSchemas` (virtual rules registered by plugins are included only when `rules` names them)
 2. Extracts properties that declare `uiHint` or `enum` (`object` properties never become facets; a property without `type` is reported as `"string"`)
 3. Deduplicates fields across rules (later rules override `uiHint` and `enum`)
 4. Enriches with live distinct values from the values index
@@ -384,6 +393,81 @@ If the rule schemas cannot be resolved, the error is logged and the response is 
 
 - Building dynamic search filter UIs
 - LLM agent orientation: discover filterable fields before constructing search queries
+
+For how many documents hold each value under a filter, use [`POST /search/facets/counts`](#post-searchfacetscounts).
+
+---
+
+## POST /search/facets/counts
+
+Counts the values of payload fields over the documents matching a filter, or gives `{ min, max }` for a numeric or date field. Each document counts once, however many chunks it has.
+
+**v0.21.0+**
+
+### Request
+
+```bash
+curl -X POST http://localhost:1936/search/facets/counts \
+  -H "Content-Type: application/json" \
+  -d '{
+    "filter": { "must": [{ "key": "silo", "match": { "value": "acme" } }] },
+    "rules": ["jira-issue", "slack-message"],
+    "fields": ["status", "priority", "created"],
+    "limit": 20
+  }'
+```
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `fields` | `string[]` | Yes | 1 to 20 payload fields. Each needs a [payload index](./configuration.md#payload-indexes): `keyword`, `integer` or `bool` for value counts; `integer`, `float` or `datetime` for a range. A field named twice is counted once. |
+| `filter` | `object?` | No | Qdrant filter scoping the counts, as for [`POST /search`](#post-search) (for example a tenant condition). |
+| `rules` | `string[]?` | No | Rule names, configured or registered at runtime: only documents that matched at least one of them are counted (a file document by its `matched_rules`, a source document by its `source_rule`), each once. An unknown name answers `400 invalid_request`. |
+| `limit` | `number?` | No | Most values per counted field, highest counts first (default 100, max 1000). |
+
+Unknown body keys are rejected with `400`.
+
+### Response
+
+**Success (200 OK):**
+
+```json
+{
+  "counts": {
+    "status": [
+      { "value": "Open", "count": 412 },
+      { "value": "Done", "count": 380 }
+    ],
+    "priority": [{ "value": "High", "count": 97 }],
+    "created": { "min": "2025-01-03T09:12:00Z", "max": "2026-11-04T17:40:00Z" }
+  }
+}
+```
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `counts` | `object` | Per requested field: an array of `{ value, count }` (documents holding the value, highest first), or `{ min, max }` for a range. A range bound is a number or the stored date string; both are `null` when no matching document holds the field. An array value counts once per element; its range uses its smallest and largest elements. |
+
+### Counts or range
+
+Each field is answered by its `uiHint` when every rule in scope that declares it gives the same hint (an `enum` without a hint counts as `dropdown`): `number`, `date` and `range` give `{ min, max }`, any other hint gives value counts. When no rule declares it, a declaring rule gives no hint, or the hints disagree, the payload index type decides: `keyword`, `bool` and `integer` are counted, `float` and `datetime` give a range. The rules in scope are those named in `rules`, else every configured and registered rule.
+
+### Errors
+
+| Status | `code` | When |
+| --- | --- | --- |
+| 400 | `invalid_request` | The body is invalid; a rule is unknown (`error: "Unknown rule: <name>"`, `details.unknownRules`); a field has no usable payload index (`error: "No usable payload index for field: <name>"`, `details.fields` gives each field's mode and index type, `message` points at `vectorStore.payloadIndexes`); or Qdrant rejects the filter (`error: "Invalid filter"`). |
+| 503 | `not_available` | The `chunk_index` system index is not ready yet (`error: "System index chunk_index is not ready"`, `details: { index, state }`); with `rules`, the same for `matched_rules`. Both are built in the background after the first 0.21.0 start (see [system indexes](./configuration.md#payload-indexes)). |
+| 503 | `not_available` | The counts did not finish within the 10 s budget (`error: "Facet counts exceeded the time budget"`, `details.pending` names the fields not counted). |
+
+### Behavior
+
+1. Checks the rule names, then that the system indexes it needs are ready, then reads the collection's payload index types and decides each field's mode.
+2. Counts on chunk-0 points only, so a document counts once: the filter is `{ must: [<your filter>, <rule scope>, chunk_index = 0] }`. Your filter is nested, never merged, so its top-level `should` keeps its meaning.
+3. Counts at most 4 fields at a time with Qdrant's exact facet counts; a range is two one-point scrolls ordered by the field. Every Qdrant call is given the seconds left in the 10 s budget as its timeout; once the budget is spent no field starts and in-flight results are discarded.
+4. Answers from Qdrant on every request: there is no response cache.
+5. A request taking over 500 ms is logged at `info` with its field count, whether a filter or rules were given, and its duration (never values).
+
+**Exposure:** counts reveal the values of any indexed field under the caller's filter. Callers holding the API key can already read payloads with [`POST /scan`](#post-scan); put tenant isolation in the filter the calling application sends.
 
 ---
 
@@ -2221,7 +2305,7 @@ Since v0.20.0 every non-2xx response has this body (`apiErrorBodySchema` in `@ka
 | `pipeline_error` | `422` | Rendering or extraction failed (`POST /render`); `issueType` names the failure. |
 | `confirm_required` | `409` | `POST /vcs/exclude` would untrack more than 100 files and `confirm` is not `true`; nothing was written, and `untracked` holds the count (unreleased, D103). |
 | `source_unavailable` | `502` | The source callback failed (`POST /render`). |
-| `not_available` | `503` | The feature is not available on this instance: no source-document support (`POST /documents`, and `POST /render`, `POST /metadata` and `POST /reindex` with `source`; `POST /documents/delete` works without it), or no filesystem watcher (`POST /walk`), or `POST /vcs/exclude` waited 30 s for the root's git lock (`Retry-After: 30`, unreleased, D102). A prune without a vector store keeps its 0.19 status `400`. |
+| `not_available` | `503` | The feature is not available on this instance: no source-document support (`POST /documents`, and `POST /render`, `POST /metadata` and `POST /reindex` with `source`; `POST /documents/delete` works without it), or no filesystem watcher (`POST /walk`), or `POST /vcs/exclude` waited 30 s for the root's git lock (`Retry-After: 30`, unreleased, D102), or `POST /search/facets/counts` while a system index it needs is not ready or past its 10 s budget (v0.21.0+). A prune without a vector store keeps its 0.19 status `400`. |
 | `scan_in_progress` | `503` | The initial filesystem scan is still running (`POST /walk`); retry later. |
 | `embedding_unavailable` | `503` | The embedding provider's retry budget ran out (`POST /search`); honour `Retry-After`. |
 | `internal_error` | `500` | Unexpected server-side failure (check the service log), including a Qdrant read failure on `POST /metadata` or `POST /render` with `source`. Always `{ "code": "internal_error", "error": "Internal Server Error", "message": "Internal server error" }`, never the underlying error. |

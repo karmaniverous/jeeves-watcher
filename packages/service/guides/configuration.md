@@ -392,7 +392,14 @@ Behaviour:
 - Indexes are created **at startup only**, when missing. A config reload does not create them; restart after adding one.
 - Indexes are never dropped or recreated. If a field is already indexed with a different type, or with the same type but different `isTenant` / `isPrincipal` flags, the watcher logs a warning and leaves it alone (drop the index in Qdrant and restart to apply the configured one).
 - `source` and `source_rule` always get `keyword` indexes and may not be listed here: an entry for either fails config validation.
-- **System indexes** (v0.21.0+) are created whatever `payloadIndexes` says, in the background after startup (startup does not wait for them): `file_path` (`keyword`), which lets a metadata change write a document's chunks with one filtered write. `GET /status` reports each under `health.collection.systemIndexes`: `building`, `ready`, `conflict` (the field already has an index of another type, which is left alone; drop it and restart to get the system index) or `failed` (creation failed; retried at the next start). Until one is `ready`, writes address chunks by ID.
+- **System indexes** (v0.21.0+) are created whatever `payloadIndexes` says, in the background after startup (startup does not wait for them, and a start that finds them already built creates nothing):
+  - `chunk_index` (`integer`): lets [`POST /search/facets/counts`](./api-reference.md#post-searchfacetscounts) count documents rather than chunks. Until it is `ready`, that route answers `503 not_available`.
+  - `file_path` (`keyword`): lets a metadata change write a document's chunks with one filtered write. Until it is `ready`, writes address chunks by ID.
+  - `matched_rules` (`keyword`): lets facet counts be scoped by `rules`. Until it is `ready`, a counts request with `rules` answers `503 not_available` naming it.
+
+  `GET /status` reports each under `health.collection.systemIndexes`: `building`, `ready`, `conflict` (the field already has an index of another type, which is left alone; drop it and restart to get the system index) or `failed` (creation failed; retried at the next start). A `conflict` or `failed` system index leaves what needs it unavailable (or falling back) until it is fixed.
+
+- **Facet counts** need a payload index on every field they count: `keyword`, `integer` or `bool` for value counts; `integer`, `float` or `datetime` for a range. Index each field your UI offers as a facet (a tenant field as `isTenant`), or [`POST /search/facets/counts`](./api-reference.md#post-searchfacetscounts) answers `400` naming it. Counts reveal the values of any indexed field under the caller's filter, as [`POST /scan`](./api-reference.md#post-scan) already does for whoever holds the API key.
 - Each field may be listed once: a repeated `field` fails config validation.
 - Failing to create an index stops startup with an error naming the field.
 - The `chunk_text` full-text index is separate: it is managed by `search.hybrid.enabled`, not by `payloadIndexes`.
