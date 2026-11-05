@@ -64,6 +64,25 @@ describe('runBounded', () => {
     expect(pending).toEqual(['2']);
   });
 
+  it('never gives a task less than 1 s, even with no time left on the clock', async () => {
+    const clock = [0, 0, 1_000];
+    const timeouts: number[] = [];
+    const { results } = await runBounded(
+      [
+        {
+          key: 'a',
+          run: (timeoutS: number) => {
+            timeouts.push(timeoutS);
+            return Promise.resolve('a');
+          },
+        },
+      ],
+      { concurrency: 1, budgetMs: 1_000, now: () => clock.shift() ?? 1_000 },
+    );
+    expect(timeouts).toEqual([1]);
+    expect(results.get('a')).toBe('a');
+  });
+
   it('starts nothing past the budget and discards late results', async () => {
     const started: string[] = [];
     const tasks = ['a', 'b', 'c', 'd', 'e'].map((key, i) => ({

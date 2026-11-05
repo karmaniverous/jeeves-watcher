@@ -230,6 +230,28 @@ describe('POST /search/facets/counts', () => {
     expect(body.message).toContain('a, b');
   });
 
+  it('counts at most 4 fields at a time (D96)', async () => {
+    let running = 0;
+    let peak = 0;
+    const fields = ['f1', 'f2', 'f3', 'f4', 'f5', 'f6'];
+    const store = fakeStore({
+      facetCounts: vi.fn(async () => {
+        running++;
+        peak = Math.max(peak, running);
+        await new Promise((resolve) => setTimeout(resolve, 20));
+        running--;
+        return [];
+      }),
+      payloadIndexTypes: vi.fn(() =>
+        Promise.resolve(Object.fromEntries(fields.map((f) => [f, 'keyword']))),
+      ),
+    });
+    const { status } = await post(deps(store), { fields });
+    expect(status).toBe(200);
+    expect(store.facetCounts).toHaveBeenCalledTimes(6);
+    expect(peak).toBe(4);
+  });
+
   it('falls back to index types when a rule schema fails to resolve', async () => {
     const warn = vi.fn();
     const logger = { ...pino({ level: 'silent' }), warn } as never;
