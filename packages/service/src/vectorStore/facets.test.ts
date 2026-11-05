@@ -91,14 +91,18 @@ describe('rangeBound', () => {
     ).resolves.toBe('2026-01-02T00:00:00Z');
   });
 
-  it("falls back to Qdrant's order_value when the payload holds no usable value", async () => {
-    const { client } = scrollClient([
-      { id: 1, payload: { size: 'n/a' }, order_value: 12 },
-    ]);
-    await expect(
-      rangeBound(client, 'c', { field: 'size', filter, timeoutS: 1 }, 'min'),
-    ).resolves.toBe(12);
-  });
+  it.each([
+    ['holds no usable value', { size: 'n/a' }],
+    ['is missing', null],
+  ])(
+    "falls back to Qdrant's order_value when the payload %s",
+    async (_label, payload) => {
+      const { client } = scrollClient([{ id: 1, payload, order_value: 12 }]);
+      await expect(
+        rangeBound(client, 'c', { field: 'size', filter, timeoutS: 1 }, 'min'),
+      ).resolves.toBe(12);
+    },
+  );
 
   it('is null when neither the payload nor order_value is usable', async () => {
     const { client } = scrollClient([{ id: 1, payload: {} }]);

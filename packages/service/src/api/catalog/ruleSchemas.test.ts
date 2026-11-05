@@ -63,6 +63,15 @@ describe('createRuleSchemas', () => {
     expect(mergeSchemas).toHaveBeenCalledTimes(5);
   });
 
+  it('treats a config without inferenceRules as no configured rules', () => {
+    const config = { ...makeConfig(), inferenceRules: undefined };
+    expect(createRuleSchemas('/cfg')(config)).toEqual({
+      configured: [],
+      virtual: [],
+    });
+    expect(heldRuleNames(config, { s: [rule('v')] })).toEqual(new Set(['v']));
+  });
+
   it('throws when a schema cannot be resolved', () => {
     mergeSchemas.mockImplementation(() => {
       throw new Error('missing schema');
