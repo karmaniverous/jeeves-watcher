@@ -9,6 +9,7 @@ import { join } from 'node:path';
 
 import { normalizeDocumentKey } from '../../util/documentKey';
 import type { FileStats } from '../inventory/Inventory';
+import { walkLimit } from './walkLimiter';
 
 /** A file found by a walk. */
 export interface WalkedFile extends FileStats {
@@ -24,17 +25,12 @@ export interface WalkFs {
   stat: (path: string) => Promise<Stats>;
 }
 
-/** Runs one filesystem call under a concurrency limit. */
-export type WalkLimit = <T>(call: () => Promise<T>) => Promise<T>;
-
 /** What a walk prunes and keeps. */
 export interface WalkOptions {
   /** Skip this directory and everything beneath it. */
   prune: (dir: string) => boolean;
   /** Keep this file (checked before its `stat`). */
   include: (path: string) => boolean;
-  /** Concurrency limit for every fs call (default: none). */
-  limit?: WalkLimit;
   /** Filesystem (default: `node:fs/promises`). */
   fs?: WalkFs;
 }
@@ -44,15 +40,13 @@ const defaultFs: WalkFs = {
   stat: (path) => stat(path),
 };
 
-const unlimited: WalkLimit = (call) => call();
-
 /**
  * Walk `dir`. A failure to read `dir` itself rejects (the reconcile guard
  * counts it); entries that vanish or cannot be read beneath it are skipped.
  * Symlinked directories are not followed.
  *
  * @param dir - Directory to walk.
- * @param options - Prune and include filters, limiter and fs.
+ * @param options - Prune and include filters, and fs.
  * @returns Files by document key.
  */
 export async function walk(
@@ -60,13 +54,12 @@ export async function walk(
   options: WalkOptions,
 ): Promise<Map<string, WalkedFile>> {
   const fs = options.fs ?? defaultFs;
-  const limit = options.limit ?? unlimited;
   const found = new Map<string, WalkedFile>();
 
   const visitFile = async (path: string): Promise<void> => {
     if (!options.include(path)) return;
     try {
-      const stats = await limit(() => fs.stat(path));
+      const stats = await walkLimit(() => fs.stat(path));
       if (!stats.isFile()) return;
       found.set(normalizeDocumentKey(path), {
         path,
@@ -81,7 +74,7 @@ export async function walk(
   const visitDir = async (current: string, top: boolean): Promise<void> => {
     let entries: Dirent[];
     try {
-      entries = await limit(() => fs.readdir(current));
+      entries = await walkLimit(() => fs.readdir(current));
     } catch (error) {
       // Beneath the walked directory, a vanished or unreadable directory is
       // skipped (chokidar cannot read it either).
