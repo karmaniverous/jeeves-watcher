@@ -329,6 +329,63 @@
                           "additionalProperties": false,
                           "description": "Change-source health (D133, D157, D196)."
                         },
+                        "indexCheck": {
+                          "type": "object",
+                          "properties": {
+                            "state": {
+                              "type": "string",
+                              "enum": [
+                                "pending",
+                                "running",
+                                "done",
+                                "failed",
+                                "off"
+                              ],
+                              "description": "Index check state: pending (the start walk is still running), running, done, failed (the index could not be listed; nothing was deleted) or off (watch.indexCheckOnStart is false)."
+                            },
+                            "at": {
+                              "description": "When the check ended (ISO), null until it is done or failed.",
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "durationMs": {
+                              "description": "How long the check took, listing and deletes (ms), null until it is done or failed.",
+                              "type": [
+                                "number",
+                                "null"
+                              ]
+                            },
+                            "checked": {
+                              "type": "number",
+                              "description": "Indexed file documents compared with the inventory, under the roots that were checked."
+                            },
+                            "removed": {
+                              "type": "number",
+                              "description": "Indexed file documents deleted because their file is gone (deleted or moved away while the service was down)."
+                            },
+                            "skippedRoots": {
+                              "type": "number",
+                              "description": "Watch roots not checked: unavailable, gone, unwatched, or whose start walk failed."
+                            },
+                            "capped": {
+                              "type": "number",
+                              "description": "Watch roots where more than 10% of the indexed documents, or more than 1,000, were missing from the inventory: nothing was deleted there; run reindex prune deliberately."
+                            }
+                          },
+                          "required": [
+                            "state",
+                            "at",
+                            "durationMs",
+                            "checked",
+                            "removed",
+                            "skippedRoots",
+                            "capped"
+                          ],
+                          "additionalProperties": false,
+                          "description": "Index check at start (D197)."
+                        },
                         "error": {
                           "type": "string"
                         }

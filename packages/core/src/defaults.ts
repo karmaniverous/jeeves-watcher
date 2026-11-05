@@ -56,6 +56,8 @@ export const WATCH_DEFAULTS = {
   pollIntervalMs: 1000,
   /** Periodic reconciliation every 15 minutes (D111); 0 disables it. */
   reconcileIntervalMs: 900_000,
+  /** Index check after the start walk (D197). */
+  indexCheckOnStart: true,
   respectGitignore: true,
 };
 

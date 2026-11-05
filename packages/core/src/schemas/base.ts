@@ -67,6 +67,13 @@ export const watchConfigSchema = z.object({
     .describe(
       'Interval in milliseconds between periodic reconciliations of each watch root against the inventory (default 900000, 15 minutes); 0 disables them. A reload changes it without rebuilding the watcher.',
     ),
+  /** Index check at start (D197). */
+  indexCheckOnStart: z
+    .boolean()
+    .optional()
+    .describe(
+      'After the start walk, delete the indexed file documents under each available watch root whose files are gone (deleted or moved away while the service was down). Default: true. A root where more than 10% of its indexed documents, or more than 1,000, are missing is left alone (run reindex prune deliberately). Read at start.',
+    ),
   /** Whether to respect .gitignore files when processing. */
   respectGitignore: z
     .boolean()

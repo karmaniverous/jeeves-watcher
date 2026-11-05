@@ -128,6 +128,12 @@ export {
   listFacetsResponseSchema,
 } from './facets.js';
 export {
+  type IndexCheckHealth,
+  indexCheckHealthSchema,
+  type IndexCheckState,
+  indexCheckStateSchema,
+} from './indexCheck.js';
+export {
   type EmbeddingHealth,
   embeddingHealthSchema,
   type InitialScanStatus,

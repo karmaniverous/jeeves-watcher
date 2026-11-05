@@ -6,6 +6,7 @@
 import { z } from 'zod';
 
 import { changeSourceHealthSchema } from './changeSource.js';
+import { indexCheckHealthSchema } from './indexCheck.js';
 
 /** Response body for `GET /status` (standard Jeeves component status). */
 export const statusResponseSchema = z.object({
@@ -173,6 +174,8 @@ export const watcherHealthSchema = z.looseObject({
   embedding: embeddingHealthSchema.optional(),
   /** Change-source health (D133, D157). */
   changeSource: changeSourceHealthSchema.optional(),
+  /** Index check at start (D197). */
+  indexCheck: indexCheckHealthSchema.optional(),
   /** Why health could not be read (degraded). */
   error: z.string().optional(),
 });

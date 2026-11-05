@@ -113,44 +113,49 @@ function stripTooLargeIssueType(value: Json, counter: { n: number }): Json {
  * there (approved departure, D185). `logging.rotation`, `processing` and
  * `embedding.alertUrl` are not public and never appear. The merged
  * `issues[].type` enum gains `too_large` (B5a, Design 2), and `watch` gains
- * `reconcileIntervalMs` (B5b, D111, Design 2) and `changeSource` (C2, D125,
- * Design 2).
+ * `reconcileIntervalMs` (B5b, D111, Design 2), `changeSource` (C2, D125,
+ * Design 2) and `indexCheckOnStart` (P13a, D197).
  */
 function stripNewConfigKeys(received: WireRecord): {
   record: WireRecord;
   stripped: number;
 } {
   const counter = { n: 0 };
-  const withoutKeys = stripSchemaProperty(
+  const counts: number[] = [];
+  /** Apply one strip, recording how many keys it removed. */
+  const step = (strip: (value: Json) => Json, value: Json): Json => {
+    const before = counter.n;
+    const out = strip(value);
+    counts.push(counter.n - before);
+    return out;
+  };
+  const watchKey = (key: string) => (value: Json) =>
+    stripSchemaProperty(
+      value,
+      key,
+      (p) => 'stabilityThresholdMs' in p,
+      counter,
+    );
+  let body = step(
+    (value) =>
+      stripSchemaProperty(
+        value,
+        'maxFileBytes',
+        (p) => 'maxConsecutiveFailures' in p,
+        counter,
+      ),
     received.body,
-    'maxFileBytes',
-    (p) => 'maxConsecutiveFailures' in p,
-    counter,
   );
-  const vcsStripped = counter.n;
-  const withoutInterval = stripSchemaProperty(
-    withoutKeys,
+  for (const key of [
     'reconcileIntervalMs',
-    (p) => 'stabilityThresholdMs' in p,
-    counter,
-  );
-  const intervalStripped = counter.n - vcsStripped;
-  const withoutSource = stripSchemaProperty(
-    withoutInterval,
     'changeSource',
-    (p) => 'stabilityThresholdMs' in p,
-    counter,
-  );
-  const sourceStripped = counter.n - vcsStripped - intervalStripped;
-  const body = stripTooLargeIssueType(withoutSource, counter);
+    'indexCheckOnStart',
+  ]) {
+    body = step(watchKey(key), body);
+  }
+  body = step((value) => stripTooLargeIssueType(value, counter), body);
   // Every departure must still happen, or one of them is stale.
-  const stripped =
-    vcsStripped > 0 &&
-    intervalStripped > 0 &&
-    sourceStripped > 0 &&
-    counter.n > vcsStripped + intervalStripped + sourceStripped
-      ? counter.n
-      : 0;
+  const stripped = counts.every((n) => n > 0) ? counter.n : 0;
   return { record: { ...received, body }, stripped };
 }
 
@@ -179,7 +184,7 @@ function stripNewHealthKeys(received: WireRecord): {
 
 const CONFIG_KEYS: WireDeparture = {
   reason:
-    'P5 B2: watch.paths[].vcs gains maxFileBytes (D80 via the D12 per-root override), approved departure D185; P9 B5a: issues[].type gains too_large (D44); P11 B5b: watch gains reconcileIntervalMs (D111); P13 C2: watch gains changeSource (D125), Design 2',
+    'P5 B2: watch.paths[].vcs gains maxFileBytes (D80 via the D12 per-root override), approved departure D185; P9 B5a: issues[].type gains too_large (D44); P11 B5b: watch gains reconcileIntervalMs (D111); P13 C2: watch gains changeSource (D125); P13a: watch gains indexCheckOnStart (D197), Design 2',
   strip: stripNewConfigKeys,
 };
 
