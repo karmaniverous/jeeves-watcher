@@ -20,6 +20,7 @@ import type {
   RawChangeEvent,
   RootUnavailableOptions,
 } from './changeSource/types';
+import { type IndexCheckView, indexCheckView } from './indexCheck/view';
 import { walkRoots } from './initialWalk';
 import type { Inventory } from './inventory/Inventory';
 import {
@@ -129,6 +130,7 @@ export class FileSystemWatcher implements ChangeSink {
         filters: pipeline.walkOptions(),
         logger: this.logger,
         live: () => this.running === running,
+        onRootFailed: (root) => running.walkFailedRoots.add(root),
         onRootDone: (root) => {
           pipeline.fifo.resume(root);
           this.initialScanDone(root);
@@ -250,6 +252,12 @@ export class FileSystemWatcher implements ChangeSink {
   /** The running watcher's inventory (D99), undefined before start. */
   get inventory(): Inventory | undefined {
     return this.running?.inventory;
+  }
+
+  /** What the index check at start reads (D197); undefined before start. */
+  get indexCheckView(): IndexCheckView | undefined {
+    const running = this.running;
+    return running && indexCheckView(running, () => this.running === running);
   }
 
   /** Stop the filesystem watcher. */

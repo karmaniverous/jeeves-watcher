@@ -24,6 +24,8 @@ export interface InitialWalkDeps {
   logger: pino.Logger;
   /** Whether this walk is still wanted (the watcher may have stopped). */
   live: () => boolean;
+  /** The root's walk failed: its inventory is incomplete (D197 skips it). */
+  onRootFailed?: (root: string) => void;
   /** The walker (tests). */
   walk?: typeof walk;
 }
@@ -53,6 +55,7 @@ export async function initialWalk(
       { root, err: normalizeError(error) },
       'Initial walk of the root failed; it is reconciled when it is reachable',
     );
+    deps.onRootFailed?.(root);
     return 0;
   }
   let added = 0;

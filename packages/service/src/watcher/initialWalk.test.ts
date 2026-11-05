@@ -51,18 +51,34 @@ describe('initialWalk', () => {
     expect(add).toHaveBeenCalledWith('/r/f1.md', { size: 1, mtimeMs: 10 });
   });
 
-  it('logs a root it cannot walk and reports no directories', async () => {
+  it('logs a root it cannot walk, reports it failed (D197) and no directories', async () => {
     const log = logger();
+    const onRootFailed = vi.fn();
     await expect(
       initialWalk('/missing', {
         events: { add: vi.fn() },
         filters,
         logger: log as never,
         live: () => true,
+        onRootFailed,
         walk: fakeWalk({}),
       }),
     ).resolves.toBe(0);
     expect(log.warn).toHaveBeenCalledOnce();
+    expect(onRootFailed).toHaveBeenCalledWith('/missing');
+  });
+
+  it('does not report a walked root as failed', async () => {
+    const onRootFailed = vi.fn();
+    await initialWalk('/r', {
+      events: { add: vi.fn() },
+      filters,
+      logger: logger() as never,
+      live: () => true,
+      onRootFailed,
+      walk: fakeWalk({ '/r': 0 }),
+    });
+    expect(onRootFailed).not.toHaveBeenCalled();
   });
 
   it('stops adding once the watcher stopped', async () => {

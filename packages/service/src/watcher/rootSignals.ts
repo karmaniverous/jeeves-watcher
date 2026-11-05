@@ -52,7 +52,10 @@ export function onRootUnavailable(
   const { running, root } = signal;
   signal.logger.warn({ root, code, ...options }, 'Watch root unavailable');
   signal.health?.setUnavailable(root, true);
-  if (options?.reachable) return;
+  if (options?.reachable) {
+    running.unwatchedRoots.add(root);
+    return;
+  }
   running.unavailableRoots.add(root);
   running.ticker.dropUnder(root);
 }
@@ -66,6 +69,7 @@ export function onRootAvailable(signal: RootSignal): void {
   const { running, root } = signal;
   signal.logger.info({ root }, 'Watch root available again');
   running.unavailableRoots.delete(root);
+  running.unwatchedRoots.delete(root);
   signal.health?.setUnavailable(root, false);
   signal.reconcile(root);
 }
