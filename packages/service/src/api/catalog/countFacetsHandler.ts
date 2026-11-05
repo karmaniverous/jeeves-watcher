@@ -26,6 +26,8 @@ import {
   createRuleSchemas,
   heldRuleNames,
   type RuleSchema,
+  type RuleSchemas,
+  selectSchemas,
 } from './ruleSchemas';
 import { wrapCatalogHandler } from './wrapCatalogHandler';
 
@@ -75,14 +77,12 @@ function requireIndexes(store: FacetStore, fields: readonly string[]): void {
 
 /** The in-scope rule schemas; a schema error leaves the index types to decide. */
 function inScopeSchemas(
-  read: () => { configured: RuleSchema[]; virtual: RuleSchema[] },
+  read: () => RuleSchemas,
   scope: ReadonlySet<string> | undefined,
   logger: pino.Logger,
 ): RuleSchema[] {
   try {
-    const { configured, virtual } = read();
-    const all = [...configured, ...virtual];
-    return scope ? all.filter((r) => scope.has(r.rule)) : all;
+    return selectSchemas(read(), scope, 'all');
   } catch (err) {
     logger.warn(
       { err },

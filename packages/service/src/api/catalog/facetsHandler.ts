@@ -16,6 +16,7 @@ import {
   createRuleSchemas,
   heldRuleNames,
   type RuleSchema,
+  selectSchemas,
 } from './ruleSchemas';
 import { wrapCatalogHandler } from './wrapCatalogHandler';
 
@@ -144,12 +145,11 @@ export function createFacetsLister(deps: FacetsDeps) {
 
     let rules: RuleSchema[];
     try {
-      const schemas = ruleSchemas(config, virtualRules);
-      rules = scope
-        ? [...schemas.configured, ...schemas.virtual].filter((r) =>
-            scope.has(r.rule),
-          )
-        : schemas.configured;
+      rules = selectSchemas(
+        ruleSchemas(config, virtualRules),
+        scope,
+        'configured',
+      );
     } catch (err) {
       // #159: catch schema errors gracefully.
       logger?.error(

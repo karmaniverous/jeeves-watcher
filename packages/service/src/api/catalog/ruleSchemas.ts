@@ -84,6 +84,25 @@ export function createRuleSchemas(
 }
 
 /**
+ * The schemas of the rules in scope. Pure.
+ *
+ * @param schemas - Resolved schemas.
+ * @param scope - Rule names in scope; undefined means unscoped.
+ * @param unscoped - What an unscoped request covers: configured rules only
+ *   (`listFacets`, as 0.20.0) or every rule (`countFacets`).
+ * @returns The in-scope schemas, configured rules first.
+ */
+export function selectSchemas(
+  schemas: RuleSchemas,
+  scope: ReadonlySet<string> | undefined,
+  unscoped: 'configured' | 'all',
+): RuleSchema[] {
+  if (!scope && unscoped === 'configured') return schemas.configured;
+  const all = [...schemas.configured, ...schemas.virtual];
+  return scope ? all.filter((r) => scope.has(r.rule)) : all;
+}
+
+/**
  * The names of every rule the service holds (configured and virtual),
  * without resolving any schema. Pure.
  *

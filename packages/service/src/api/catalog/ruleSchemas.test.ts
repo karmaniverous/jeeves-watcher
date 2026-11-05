@@ -11,7 +11,8 @@ import { makeConfig } from '../../test/facetsDeps';
 const mergeSchemas = vi.hoisted(() => vi.fn());
 vi.mock('../../rules/schemaMerge', () => ({ mergeSchemas }));
 
-const { createRuleSchemas, heldRuleNames } = await import('./ruleSchemas');
+const { createRuleSchemas, heldRuleNames, selectSchemas } =
+  await import('./ruleSchemas');
 
 const rule = (name: string, field?: string): InferenceRule => ({
   name,
@@ -69,6 +70,26 @@ describe('createRuleSchemas', () => {
     expect(() =>
       createRuleSchemas('/cfg')(makeConfig([rule('a', 'x')])),
     ).toThrow('missing schema');
+  });
+});
+
+describe('selectSchemas', () => {
+  const s = (name: string) => ({ rule: name, properties: {} });
+  const schemas = { configured: [s('a'), s('b')], virtual: [s('v')] };
+
+  it.each([
+    ['unscoped, configured only', undefined, 'configured', ['a', 'b']],
+    ['unscoped, every rule', undefined, 'all', ['a', 'b', 'v']],
+    ['scoped (configured only ignored)', ['v', 'a'], 'configured', ['a', 'v']],
+    ['scoped', ['b'], 'all', ['b']],
+  ] as const)('%s', (_label, scope, unscoped, expected) => {
+    expect(
+      selectSchemas(
+        schemas,
+        scope ? new Set<string>(scope) : undefined,
+        unscoped,
+      ).map((r) => r.rule),
+    ).toEqual(expected);
   });
 });
 
