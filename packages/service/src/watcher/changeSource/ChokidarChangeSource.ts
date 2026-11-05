@@ -29,8 +29,8 @@ const EVENTS = ['add', 'change', 'unlink', 'addDir', 'unlinkDir'] as const;
  * `ready` ends the scan for every root at once.
  */
 export class ChokidarChangeSource implements ChangeSource {
-  readonly name = 'chokidar';
-  readonly initialSet = 'source';
+  readonly name: ChangeSource['name'] = 'chokidar';
+  readonly initialSet: ChangeSource['initialSet'] = 'source';
   private watcher: FSWatcher | undefined;
 
   /**

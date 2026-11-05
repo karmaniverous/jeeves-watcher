@@ -38,7 +38,7 @@ export interface WatcherHarness {
 
 /** Options for {@link startWatcherHarness}. */
 export interface WatcherHarnessOptions {
-  /** Files to create before the watcher starts (relative path -> content). */
+  /** Files to create before the watcher starts (content by relative path). */
   files?: Record<string, string>;
   /** Watch config overrides; `paths` defaults to `<root>/**`. */
   watch?: (root: string) => Partial<WatchConfig>;
