@@ -10,6 +10,7 @@ import type { VectorStoreConfig } from '../config/types';
 import { getCollectionInfo as getCollectionInfoHelper } from './collectionInfo';
 import { countPoints } from './count';
 import { ensureCollection as ensureCollectionHelper } from './ensureCollection';
+import { type FacetStore, QdrantFacetStore } from './facets';
 import {
   ensureTextIndex as ensureTextIndexHelper,
   hybridSearch as hybridSearchHelper,
@@ -32,6 +33,14 @@ import type {
 import { QdrantWriter } from './writes';
 
 // Re-export types for public API
+export type {
+  FacetHit,
+  FacetRead,
+  FacetStore,
+  FacetValue,
+  RangeBound,
+  RangeEnd,
+} from './facets';
 export type { SystemIndexState } from './systemIndexes';
 export type {
   CollectionInfo,
@@ -51,6 +60,8 @@ export type {
  * fresh client (see QdrantWriter).
  */
 export class VectorStoreClient implements VectorStore {
+  /** Facet reads behind `countFacets` (spec Design 12). */
+  readonly facets: FacetStore;
   private readonly client: QdrantClient;
   private readonly writer: QdrantWriter;
   private readonly clientConfig: { url: string; apiKey?: string };
@@ -83,6 +94,11 @@ export class VectorStoreClient implements VectorStore {
       createClient: () => this.createClient(),
       logger,
     });
+    this.facets = new QdrantFacetStore(
+      this.client,
+      this.collectionName,
+      (field) => this.systemIndexes.state(field),
+    );
   }
 
   /**

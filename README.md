@@ -248,7 +248,8 @@ The watcher provides a REST API (default port: 1936):
 | `/openapi.json` | GET | OpenAPI 3.1 document of the catalog routes (every route above and below); open like `/status` |
 | `/search` | POST | Semantic search (`{ query: string, limit?: number, offset?: number, filter?: object }`; unknown keys are rejected) |
 | `/render` | POST | Render a document through inference rules (`{ path }` or `{ source }`) (v0.8.0+) |
-| `/search/facets` | GET | Schema-derived search facet definitions with live values (v0.8.0+) |
+| `/search/facets` | GET | Schema-derived search facet definitions with live values (v0.8.0+); `?rules=a,b` scopes them to those rules (v0.21.0+) |
+| `/search/facets/counts` | POST | Approximate value counts per indexed field over a filter, each document once, or `{ min, max }` for number and date fields (`{ fields, filter?, rules?, limit? }`) (v0.21.0+) |
 | `/metadata` | POST | Update document metadata with schema validation (`{ path \| source, metadata: object }`) |
 | `/documents` | POST | Notify changed source documents (`{ documents: [{ source, rule }] }`); `202`, or per-document results with `?wait=true` (v0.20.0+) |
 | `/documents/delete` | POST | Delete source documents (`{ sources }` (at most 1000) or `{ filter }`; never deletes file points) (v0.20.0+) |

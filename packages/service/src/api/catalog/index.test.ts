@@ -100,6 +100,7 @@ function buildHandlers(
     matchConfig: unused,
     validateConfig: unused,
     listFacets: unused,
+    countFacets: unused,
     walk: unused,
     listIssues: { issuesManager: { getAll: () => ({}) } },
     setMetadata: unused,

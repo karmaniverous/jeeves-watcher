@@ -1,6 +1,6 @@
 /**
  * @module api/query
- * Zod request/response schemas for the read endpoints POST /search and POST /scan. No I/O.
+ * Zod request/response schemas for the read endpoints POST /search, POST /scan and POST /walk. No I/O.
  */
 
 import { z } from 'zod';
@@ -157,19 +157,3 @@ export const walkResponseSchema = z.object({
 
 /** Response body for `POST /walk`. */
 export type WalkResponse = z.infer<typeof walkResponseSchema>;
-
-/** Response body for `GET /search/facets`: the facetable fields and their values. */
-export const listFacetsResponseSchema = z.object({
-  facets: z.array(
-    z.object({
-      field: z.string(),
-      type: z.string(),
-      uiHint: z.string(),
-      values: z.array(z.unknown()),
-      rules: z.array(z.string()),
-    }),
-  ),
-});
-
-/** Response body for `GET /search/facets`. */
-export type ListFacetsResponse = z.infer<typeof listFacetsResponseSchema>;

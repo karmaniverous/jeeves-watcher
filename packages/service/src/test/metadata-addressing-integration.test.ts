@@ -115,7 +115,7 @@ describe.skipIf(!qdrantAvailable())(
         const h = await harnessFor('meta_ids', [
           { field: 'file_path', type: 'text' },
         ]);
-        expect(h.vectorStore.systemIndexStates()).toEqual({
+        expect(h.vectorStore.systemIndexStates()).toMatchObject({
           file_path: 'conflict',
         });
         const file = join(watchDir, 'claim.md');

@@ -2,8 +2,9 @@
  * Rollup configuration for the SDK package.
  * Single entry point: ESM library output + bundled declarations.
  *
- * `@karmaniverous/jeeves-watcher-core` is external in both outputs: it is the
- * SDK's only runtime dependency, and its types are imported, not inlined.
+ * The runtime dependencies (`@karmaniverous/jeeves-watcher-core` and
+ * `@karmaniverous/jeeves`, including its subpath exports) are external in
+ * both outputs: they are imported, not inlined.
  *
  * @module rollup.config
  */
@@ -12,7 +13,11 @@ import typescriptPlugin from '@rollup/plugin-typescript';
 import type { RollupOptions } from 'rollup';
 import dtsPlugin from 'rollup-plugin-dts';
 
-const external = [/^node:/, '@karmaniverous/jeeves-watcher-core'];
+const external = [
+  /^node:/,
+  '@karmaniverous/jeeves-watcher-core',
+  /^@karmaniverous\/jeeves(\/|$)/,
+];
 
 const typescript = typescriptPlugin({
   tsconfig: './tsconfig.json',

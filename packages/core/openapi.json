@@ -74,7 +74,7 @@
                                 ],
                                 "description": "System payload index state: building (background creation running), ready, conflict (the field has another index type; left alone) or failed (creation failed; retried at the next start)."
                               },
-                              "description": "System payload indexes the service creates whatever payloadIndexes says (file_path keyword), by field."
+                              "description": "System payload indexes the service creates whatever payloadIndexes says (chunk_index integer, file_path and matched_rules keyword), by field."
                             }
                           },
                           "required": [
@@ -900,10 +900,21 @@
     "/search/facets": {
       "get": {
         "operationId": "listFacets",
-        "description": "List available search facets and their values.",
+        "description": "List available search facets and their values: every field a rule schema gives a uiHint or enum, with its declared or recorded values. With `rules`, only the fields and values of those rules.",
         "security": [
           {
             "bearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "rules",
+            "schema": {
+              "description": "Comma-separated rule names (configured or registered at runtime): only fields those rules declare, with values recorded for their documents. Unknown names answer 400. Without it, every configured rule.",
+              "type": "string"
+            },
+            "description": "Comma-separated rule names (configured or registered at runtime): only fields those rules declare, with values recorded for their documents. Unknown names answer 400. Without it, every configured rule."
           }
         ],
         "responses": {
@@ -952,6 +963,153 @@
                   },
                   "required": [
                     "facets"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/search/facets/counts": {
+      "post": {
+        "operationId": "countFacets",
+        "description": "Count the values of payload fields over the documents matching a filter (each document once, not each chunk), or give { min, max } for a numeric or date field. Counts are approximate (Qdrant facet estimates); ranges are exact. `rules` keeps only documents of those rules. Each field needs a payload index (else 400). Fields are counted 4 at a time within a 10 s budget; past it the route answers 503 `not_available` naming the fields not counted. It also answers 503 until the `chunk_index` system index is ready, and with `rules` until `matched_rules` is.",
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "filter": {
+                    "description": "Qdrant filter scoping the counts, as for search (e.g. a tenant condition).",
+                    "type": "object",
+                    "propertyNames": {
+                      "type": "string"
+                    },
+                    "additionalProperties": {}
+                  },
+                  "rules": {
+                    "description": "Rule names (configured or registered at runtime): only documents that matched at least one of them are counted, each once. Unknown names answer 400.",
+                    "minItems": 1,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  },
+                  "fields": {
+                    "minItems": 1,
+                    "maxItems": 20,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "description": "Payload fields to count (1 to 20). Each needs a payload index: keyword, integer or bool for value counts; integer, float or datetime for a range."
+                  },
+                  "limit": {
+                    "description": "Most values per counted field, highest counts first (default 100, max 1000).",
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 1000
+                  }
+                },
+                "required": [
+                  "fields"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "counts": {
+                      "type": "object",
+                      "propertyNames": {
+                        "type": "string"
+                      },
+                      "additionalProperties": {
+                        "anyOf": [
+                          {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "value": {
+                                  "type": [
+                                    "string",
+                                    "number",
+                                    "boolean"
+                                  ]
+                                },
+                                "count": {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 9007199254740991
+                                }
+                              },
+                              "required": [
+                                "value",
+                                "count"
+                              ],
+                              "additionalProperties": false
+                            }
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "min": {
+                                "type": [
+                                  "number",
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "max": {
+                                "type": [
+                                  "number",
+                                  "string",
+                                  "null"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "min",
+                              "max"
+                            ],
+                            "additionalProperties": false
+                          }
+                        ]
+                      },
+                      "description": "Per requested field: value counts (documents, highest first), or { min, max } for a numeric or date field."
+                    }
+                  },
+                  "required": [
+                    "counts"
                   ],
                   "additionalProperties": false
                 }

@@ -7,7 +7,8 @@ import { VCS_DISABLED_NOTE, WATCHER_CATALOG } from './catalog.js';
 
 /**
  * Every entry's method and path, by its verb-first name (D77, Design 14).
- * The paths are the 0.20.0 paths: renames never change a route.
+ * The paths are the 0.20.0 paths (renames never change a route), plus the
+ * new `countFacets` route (Design 12).
  */
 const ROUTES = {
   status: ['GET', '/status'],
@@ -19,6 +20,7 @@ const ROUTES = {
   search: ['POST', '/search'],
   scan: ['POST', '/scan'],
   listFacets: ['GET', '/search/facets'],
+  countFacets: ['POST', '/search/facets/counts'],
   render: ['POST', '/render'],
   walk: ['POST', '/walk'],
   listIssues: ['GET', '/issues'],
@@ -52,6 +54,7 @@ const KINDS = {
     'search',
     'scan',
     'listFacets',
+    'countFacets',
     'render',
     'walk',
     'listIssues',
@@ -83,13 +86,13 @@ const KINDS = {
 const TEXT_PLAIN = new Set(['showVcsFile', 'diffVcs']);
 
 describe('WATCHER_CATALOG', () => {
-  it('holds the 29 operations under their verb-first names, on the 0.20.0 methods and paths', () => {
+  it('holds the 30 operations under their verb-first names, on the 0.20.0 methods and paths plus countFacets', () => {
     expect(
       Object.fromEntries(
         WATCHER_CATALOG.entries.map((e) => [e.name, [e.method, e.path]]),
       ),
     ).toEqual(ROUTES);
-    expect(WATCHER_CATALOG.entries).toHaveLength(29);
+    expect(WATCHER_CATALOG.entries).toHaveLength(30);
   });
 
   it('leaves only status unauthenticated; every other entry takes the bearer key', () => {

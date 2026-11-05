@@ -1,20 +1,25 @@
 /**
  * @module api/catalog/facetsHandler
- * Catalog handler for `GET /search/facets`: schema-derived facet definitions with live values.
+ * Catalog handler for `GET /search/facets`: schema-derived facet definitions with live values, optionally scoped by `rules` (spec Design 12). Without `rules` the answer is 0.20.0's (configured rules only); with it, only the fields and recorded values of the named rules, configured or virtual.
  */
 
 import type { CatalogHandler } from '@karmaniverous/jeeves/fastify';
 import type { ListFacetsResponse } from '@karmaniverous/jeeves-watcher-core';
 import type pino from 'pino';
 
-import type { JeevesWatcherConfig } from '../../config/types';
-import type {
-  ResolvedProperty,
-  SchemaMergeOptions,
-} from '../../rules/schemaMerge';
-import { mergeSchemas } from '../../rules/schemaMerge';
+import type { InferenceRule, JeevesWatcherConfig } from '../../config/types';
+import type { ResolvedProperty } from '../../rules/schemaMerge';
 import type { ValuesManager } from '../../values';
 import type { Entry } from './catalogEntry';
+import { parseRuleList, requireKnownRules } from './facetRules';
+import {
+  createRuleSchemas,
+  DEFAULT_ENUM_HINT,
+  heldRuleNames,
+  requireResolved,
+  type RuleSchema,
+  selectSchemas,
+} from './ruleSchemas';
 import { wrapCatalogHandler } from './wrapCatalogHandler';
 
 /**
@@ -28,6 +33,8 @@ type Facet = ListFacetsResponse['facets'][number];
 export interface FacetsDeps {
   /** Config getter for current application configuration. */
   getConfig: () => JeevesWatcherConfig;
+  /** Virtual rules by source (accepted in `rules`). */
+  getVirtualRules?: () => Record<string, InferenceRule[]>;
   /** The values manager for live distinct values. */
   valuesManager: ValuesManager;
   /** Config directory for resolving schema file paths. */
@@ -42,24 +49,6 @@ interface FacetField {
   uiHint: string;
   enumValues: unknown[] | undefined;
   rules: string[];
-}
-
-/** Cached schema-derived facet structure (rebuilt on rule changes). */
-interface CachedFacetSchema {
-  /** Resolved facet fields keyed by field name. */
-  fields: Map<string, FacetField>;
-  /** Rule config hash for cache invalidation. */
-  rulesHash: string;
-}
-
-/** Compute a simple hash of rule names + schema refs for cache invalidation. */
-function computeRulesHash(
-  rules: JeevesWatcherConfig['inferenceRules'],
-): string {
-  if (!rules) return '';
-  return rules
-    .map((r) => `${r.name}:${JSON.stringify(r.schema ?? [])}`)
-    .join('|');
 }
 
 /**
@@ -78,122 +67,108 @@ const ENUMERATED_HINTS = new Set(['dropdown', 'tags', 'select', 'multiselect']);
 /**
  * Check whether a uiHint type supports value enumeration.
  * Non-enumerated hints (text, number, date, range, etc.) should not
- * aggregate live values — the client uses free-form input instead.
+ * aggregate live values: the client uses free-form input instead.
  */
 function isEnumeratedHint(uiHint: string): boolean {
   return ENUMERATED_HINTS.has(uiHint);
 }
 
 /**
- * Build the schema-derived facet structure from inference rules.
- *
- * Iterates all rules, resolves their schemas via `mergeSchemas`, and extracts
- * properties that have `uiHint` or `enum` defined. Deduplicates across rules.
+ * Collect the facetable properties of the given rules, in rule order:
+ * later rules override `enum` and `uiHint`, and every declaring rule is
+ * listed. Pure.
  */
-function buildFacetSchema(
-  rules: JeevesWatcherConfig['inferenceRules'],
-  mergeOptions: SchemaMergeOptions,
-): CachedFacetSchema {
+function collectFacetFields(rules: RuleSchema[]): Map<string, FacetField> {
   const fields = new Map<string, FacetField>();
-
-  for (const rule of rules ?? []) {
-    if (!rule.schema?.length) continue;
-
-    const resolved = mergeSchemas(rule.schema, mergeOptions);
-
-    for (const [propName, propDef] of Object.entries(resolved.properties)) {
+  for (const { rule, properties } of rules) {
+    for (const [propName, propDef] of Object.entries(properties)) {
       if (!isFacetable(propDef)) continue;
-
       const existing = fields.get(propName);
       if (existing) {
-        existing.rules.push(rule.name);
+        existing.rules.push(rule);
         if (propDef.enum) existing.enumValues = propDef.enum;
         if (propDef.uiHint) existing.uiHint = propDef.uiHint;
       } else {
         fields.set(propName, {
           type: propDef.type ?? 'string',
-          uiHint: propDef.uiHint ?? 'dropdown',
+          uiHint: propDef.uiHint ?? DEFAULT_ENUM_HINT,
           enumValues: propDef.enum,
-          rules: [rule.name],
+          rules: [rule],
         });
       }
     }
   }
+  return fields;
+}
 
-  return { fields, rulesHash: computeRulesHash(rules) };
+/** A field's values: its enum, the recorded values of its rules, or none. */
+function facetValues(
+  field: string,
+  schema: FacetField,
+  allValues: Partial<Record<string, Partial<Record<string, unknown[]>>>>,
+): unknown[] {
+  if (schema.enumValues) return schema.enumValues;
+  // Only aggregate live values for enumerated hint types (dropdown, tags, etc.)
+  if (!isEnumeratedHint(schema.uiHint)) return [];
+  const liveValues = new Set<unknown>();
+  for (const ruleName of schema.rules) {
+    for (const v of allValues[ruleName]?.[field] ?? []) liveValues.add(v);
+  }
+  return [...liveValues].sort();
 }
 
 /**
  * Create the facets lister behind `GET /search/facets`.
  *
  * Returns facet definitions derived from inference rule schemas, enriched
- * with live values from the ValuesManager. The schema-derived structure is
- * cached until the rules change.
+ * with live values from the ValuesManager. The resolved schemas are cached
+ * until the rules change.
  *
  * @param deps - Lister dependencies.
- * @returns A function computing the response body.
+ * @returns A function computing the response body, given the requested
+ *   rule names (all configured rules when absent). It throws a
+ *   `400 invalid_request` for an unknown rule name.
  */
 export function createFacetsLister(deps: FacetsDeps) {
-  const { getConfig, valuesManager, configDir, logger } = deps;
+  const { getConfig, valuesManager, logger } = deps;
+  const ruleSchemas = createRuleSchemas(deps.configDir);
 
-  let cached: CachedFacetSchema | undefined;
-
-  return (): ListFacetsResponse => {
+  return (ruleNames?: readonly string[]): ListFacetsResponse => {
     const config = getConfig();
+    const virtualRules = deps.getVirtualRules?.() ?? {};
+    const scope = ruleNames
+      ? new Set(
+          requireKnownRules(ruleNames, heldRuleNames(config, virtualRules)),
+        )
+      : undefined;
 
-    const mergeOptions: SchemaMergeOptions = {
-      globalSchemas: config.schemas,
-      configDir,
-    };
-
-    // Rebuild schema cache if rules changed (#159: catch schema errors gracefully)
-    const currentHash = computeRulesHash(config.inferenceRules);
-    if (!cached || cached.rulesHash !== currentHash) {
-      try {
-        cached = buildFacetSchema(config.inferenceRules, mergeOptions);
-      } catch (err) {
-        logger?.error(
-          { err },
-          'facets: failed to build facet schema from inference rules; returning empty facets',
-        );
-        return { facets: [] };
-      }
+    let rules: RuleSchema[];
+    try {
+      rules = requireResolved(
+        selectSchemas(ruleSchemas(config, virtualRules), scope, 'configured'),
+      );
+    } catch (err) {
+      // #159: catch schema errors gracefully.
+      logger?.error(
+        { err },
+        'facets: failed to build facet schema from inference rules; returning empty facets',
+      );
+      return { facets: [] };
     }
 
-    // Merge with live values
     const allValues: Partial<
       Record<string, Partial<Record<string, unknown[]>>>
     > = valuesManager.getAll();
     const facets: Facet[] = [];
-
-    for (const [field, schema] of cached.fields) {
-      // Only aggregate live values for enumerated hint types (dropdown, tags, etc.)
-      // Non-enumerated types (text, number, date, range) use free-form input.
-      let values: unknown[];
-      if (schema.enumValues) {
-        values = schema.enumValues;
-      } else if (isEnumeratedHint(schema.uiHint)) {
-        const liveValues = new Set<unknown>();
-        for (const ruleName of schema.rules) {
-          const fieldValues = allValues[ruleName]?.[field];
-          if (fieldValues) {
-            for (const v of fieldValues) liveValues.add(v);
-          }
-        }
-        values = [...liveValues].sort();
-      } else {
-        values = [];
-      }
-
+    for (const [field, schema] of collectFacetFields(rules)) {
       facets.push({
         field,
         type: schema.type,
         uiHint: schema.uiHint,
-        values,
+        values: facetValues(field, schema, allValues),
         rules: schema.rules,
       });
     }
-
     return { facets };
   };
 }
@@ -215,7 +190,12 @@ export function createCatalogFacetsHandler(
 ): CatalogHandler<Entry<'listFacets'>> {
   const listFacets = createFacetsLister(deps);
   return wrapCatalogHandler<Entry<'listFacets'>>(
-    () => Promise.resolve({ body: listFacets() }),
+    ({ query }) =>
+      Promise.resolve({
+        body: listFacets(
+          query.rules === undefined ? undefined : parseRuleList(query.rules),
+        ),
+      }),
     deps.logger,
     'Facets',
   );

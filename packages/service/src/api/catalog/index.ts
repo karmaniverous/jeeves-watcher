@@ -26,6 +26,10 @@ import {
   createCatalogConfigValidateHandler,
 } from './configValidateHandler';
 import {
+  type CatalogCountFacetsDeps,
+  createCatalogCountFacetsHandler,
+} from './countFacetsHandler';
+import {
   type CatalogDocumentsDeleteDeps,
   createCatalogDocumentsDeleteHandler,
 } from './documentsDeleteHandler';
@@ -114,6 +118,8 @@ export interface CreateCatalogHandlersOptions {
   scan: CatalogScanDeps;
   /** `listFacets` entry dependencies. */
   listFacets: CatalogFacetsDeps;
+  /** `countFacets` entry dependencies. */
+  countFacets: CatalogCountFacetsDeps;
   /** `walk` entry dependencies. */
   walk: CatalogWalkDeps;
   /** `listIssues` entry dependencies. */
@@ -231,6 +237,7 @@ export function createCatalogHandlers(
     search: createCatalogSearchHandler(options.search),
     scan: createCatalogScanHandler(options.scan),
     listFacets: createCatalogFacetsHandler(options.listFacets),
+    countFacets: createCatalogCountFacetsHandler(options.countFacets),
     walk: createCatalogWalkHandler(options.walk),
     listIssues: withCatalogCache(
       'listIssues',

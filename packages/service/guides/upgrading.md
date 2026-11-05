@@ -70,6 +70,13 @@ What changes for an existing deployment, release by release. The [Changelog](../
 - **A provider back-off is now capped at 5 minutes** and then expires. A long `Retry-After` (e.g. a daily quota) used to keep every embedding call failing until it passed; now the first call after 5 minutes probes the provider. The `Retry-After` on a search `503` reflects that probe time.
 - **The reindex callback** also times out each attempt after 10 s (it shares the alert's delivery code).
 
+### Facets
+
+- **`POST /search/facets/counts` (new, `countFacets`)** counts the values of indexed payload fields over the documents matching a filter, each document once (approximate counts, D194), or gives `{ min, max }` for numeric and date fields; `rules` keeps only documents of the named rules. Every counted field needs a payload index (else `400` naming it): add a `keyword` index under `vectorStore.payloadIndexes` for each field your UI offers as a facet, and restart. See [the route](./api-reference.md#post-searchfacetscounts).
+- **Two more system indexes are built at the first 0.21.0 start**, in the background like `file_path`: `chunk_index` (`integer`) and `matched_rules` (`keyword`). Until `chunk_index` is `ready` the counts route answers `503 not_available`, and until `matched_rules` is `ready` a counts request with `rules` does too; `GET /status` shows their progress under `health.collection.systemIndexes`. A field already indexed with another type is left alone (`conflict`) and the route stays `503` until you drop that index and restart.
+- **`GET /search/facets` takes `rules`** (comma-separated, configured or registered rule names): only the fields those rules declare, with only their documents' values; an unknown name answers `400`. Without it the answer is unchanged.
+- **No plugin tool or CLI command** is added for counts; the SDK has `countFacets()`.
+
 ### Operation names
 
 - **Every operation has one verb-first name** (D77): the catalog entry, the SDK method, the OpenAPI `operationId` and (as `watcher_` plus the name in snake_case) the plugin tool. Routes and paths are unchanged, so the HTTP API itself does not change. Renamed:
