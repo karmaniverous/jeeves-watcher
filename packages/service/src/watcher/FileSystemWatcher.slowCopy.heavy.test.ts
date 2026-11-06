@@ -119,12 +119,15 @@ describe.each(['parcel', 'chokidar'] as const)(
     it('enqueues each file once, as a create, and its job reads the final content', async () => {
       expect(PAUSE_MS).toBeLessThan(STABILITY_MS);
       expect(PAUSE_MS * (PARTS - 1)).toBeGreaterThan(STABILITY_MS);
-      const processed = new Map<string, string>();
+      /** Every read a job made, per file name: one read, of the final content. */
+      const processed = new Map<string, string[]>();
       const processor = {
         processFile: async (path: string) => {
           // Keyed by file name (unique here): the job's path may spell the
           // temp root differently from the harness (a Windows short name).
-          processed.set(basename(path), await readFile(path, 'utf8'));
+          const name = basename(path);
+          const content = await readFile(path, 'utf8');
+          processed.set(name, [...(processed.get(name) ?? []), content]);
         },
       } as unknown as DocumentProcessorInterface;
       harness = await startWatcherHarness({
@@ -132,10 +135,18 @@ describe.each(['parcel', 'chokidar'] as const)(
         processor,
       });
       const h = harness;
+      // Each job runs as soon as it is enqueued, while the copy goes on, so
+      // a file emitted before its last part landed is read short.
+      let ran = 0;
+      const draining = waitFor(async () => {
+        while (ran < h.jobs.length) await h.jobs[ran++]();
+        return ran >= FILES;
+      }, 180_000);
+      draining.catch(() => undefined);
       const longestGap = await slowCopy(h.root);
       // Otherwise the runner, not the watcher, broke the test's premise.
       expect(longestGap).toBeLessThan(STABILITY_MS);
-      await waitFor(() => of(h, 'create').length >= FILES, 60_000);
+      await draining;
       // Anything late (a second create or a modify) would land meanwhile.
       await sleep(STABILITY_MS * 3);
 
@@ -145,10 +156,10 @@ describe.each(['parcel', 'chokidar'] as const)(
       expect(of(h, 'modify')).toEqual([]);
       expect(of(h, 'delete')).toEqual([]);
 
-      for (const job of h.jobs) await job();
+      expect(h.jobs).toHaveLength(ran);
       expect(processed.size).toBe(FILES);
       for (let i = 0; i < FILES; i++) {
-        expect(processed.get(`f${String(i)}.md`)).toBe(finalContent(i));
+        expect(processed.get(`f${String(i)}.md`)).toEqual([finalContent(i)]);
       }
     }, 240_000);
   },

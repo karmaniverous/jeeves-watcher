@@ -22,6 +22,7 @@ import {
 } from '../test/watcherHarness';
 import { initRepo } from '../vcs/vcsBootstrap';
 import { VcsManager } from '../vcs/VcsManager';
+import { ChangeSourceHealthTracker } from './ChangeSourceHealthTracker';
 
 const execFileAsync = promisify(execFile);
 const linux = process.platform === 'linux';
@@ -77,6 +78,7 @@ describe('FileSystemWatcher (parcel) with version control', () => {
     async () => {
       outside = await mkdtemp(join(tmpdir(), 'jeeves-watcher-tree-'));
       await writeMany(join(outside, 'tree'), TREE, treeFile);
+      const changeSourceHealth = new ChangeSourceHealthTracker();
       harness = await startWatcherHarness({
         before: async (root) => {
           await initRepo(root);
@@ -84,7 +86,9 @@ describe('FileSystemWatcher (parcel) with version control', () => {
           await git(root, 'config', 'user.name', 'Test');
           manager = new VcsManager(
             root,
-            makeFastVcsConfig(),
+            // Commits only at the explicit flushes, so a rename's delete
+            // and add cannot straddle a throttled commit.
+            makeFastVcsConfig({ commitThrottleMs: 600_000 }),
             pino({ level: 'silent' }),
           );
           await manager.start();
@@ -92,6 +96,7 @@ describe('FileSystemWatcher (parcel) with version control', () => {
         },
         watch: () => ({ changeSource: 'parcel' }),
         options: () => ({
+          changeSourceHealth,
           getReconcileIntervalMs: () => 3_000,
           onVcsFileChange: (path, event) => {
             if (event === 'unlink') manager!.handleUnlink(path);
@@ -112,6 +117,7 @@ describe('FileSystemWatcher (parcel) with version control', () => {
 
       // Before the next renewal: a write into a nested folder and a rename
       // inside one. Parcel may not see either until the renewal (D129).
+      const changedAt = new Date().toISOString();
       await writeFile(join(h.root, 'moved', 'n1', 'm1', 'late.md'), 'late');
       await rename(
         join(h.root, 'moved', treeFile(2)),
@@ -131,6 +137,15 @@ describe('FileSystemWatcher (parcel) with version control', () => {
           of(h, 'move').length > 0,
         20_000,
       );
+      // A renew-and-reconcile ran after the changes (Linux renews first).
+      await waitFor(() => {
+        const s = changeSourceHealth.snapshot();
+        return (
+          s.lastRenewDurationMs !== null &&
+          s.lastReconcileAt !== null &&
+          s.lastReconcileAt > changedAt
+        );
+      }, 20_000);
       await vcs.flush();
 
       const tracked = (await git(h.root, 'ls-files')).trim().split('\n');
