@@ -1291,7 +1291,7 @@ Every issue record carries one code from a single canonical list (`ISSUE_TYPES` 
 | --- | --- | --- |
 | `type_collision` | files, sources | Matched rules declare the same property with incompatible types. |
 | `interpolation_error` | files, sources | A `set` expression, `template` or `render` could not be resolved. A **file** is still indexed (without the failed values) and the issue records the failures; a **source document** fails and nothing is written. `details` holds one entry per failed rule step. |
-| `extraction_error` | files, sources | Reading or extracting the document, applying rules, or chunking failed. Also the code for any failure no stage tagged. A **file** that has points and whose content can no longer be parsed, extracted or run through its rules has its points deleted, until it reads again; a system error reading the file (locked, gone mid-save, a dropped share) keeps them. |
+| `extraction_error` | files, sources | Reading or extracting the document, applying rules, or chunking failed. Also the code for any failure no stage tagged. A **file** that has points and whose content can no longer be parsed, extracted or run through its rules has its points deleted, until it reads again; a system error reading the file (locked, gone mid-save, a dropped share) or a Node error (an enrichment store read that fails, an extractor that does not load) keeps them. |
 | `embedding_error` | files, sources | The embedding provider failed, including a rate-limit retry budget that ran out. |
 | `upsert_error` | files, sources | Writing to or deleting from the vector store failed. |
 | `match_failed` | sources | The designated rule's `match` rejected the retrieved record. Nothing was written. |

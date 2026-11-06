@@ -30,7 +30,10 @@ type IndexFileContext = PipelineContext & {
  * store read (ERR_SQLITE_ERROR) or an extractor that does not load
  * (ERR_MODULE_NOT_FOUND, which would otherwise empty every PDF from search).
  * These say nothing about the file's content and usually pass. Parser
- * errors carry no `syscall` and no `ERR_` code.
+ * errors carry no `syscall` and no `ERR_` code. The exception is
+ * ERR_FS_FILE_TOO_LARGE (a file over 2 GiB read whole, possible when
+ * `maxFileBytes` is set that high): the file itself will not read, so it
+ * counts as content.
  *
  * @param error - The resolver's error.
  * @returns True for a system or Node error.
@@ -39,6 +42,7 @@ function isSystemError(error: unknown): boolean {
   if (!(error instanceof Error)) return false;
   const { code, syscall } = error as NodeJS.ErrnoException;
   if (typeof code !== 'string') return false;
+  if (code === 'ERR_FS_FILE_TOO_LARGE') return false;
   return typeof syscall === 'string' || code.startsWith('ERR_');
 }
 
@@ -47,7 +51,8 @@ function isSystemError(error: unknown): boolean {
  * extraction or rule error), an indexed file's points are deleted before the
  * failure is rethrown: search results from content that can no longer be read
  * are worse than none (D201). A system error reading the file (a lock, a
- * dropped share) keeps them, as before: the content may be unchanged, and
+ * dropped share) or a Node error (an enrichment store or extractor that
+ * fails) keeps them, as before: the content may be unchanged, and
  * keeping chunk 0's hash spares a full re-embed when it reads again. Only the
  * points go, as with `too_large`; the enrichment is kept for when the file
  * reads again. A failing delete is logged, and the extraction failure is

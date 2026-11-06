@@ -140,6 +140,12 @@ describe('indexFile', () => {
         'a syscall but no code',
         Object.assign(new Error('odd'), { syscall: 'open' }),
       ],
+      [
+        'a file over 2 GiB (ERR_FS_FILE_TOO_LARGE)',
+        Object.assign(new RangeError('File size is greater than 2 GiB'), {
+          code: 'ERR_FS_FILE_TOO_LARGE',
+        }),
+      ],
       ['a non-Error value', 'boom'],
     ])('deletes for %s (not the OS)', async (_, thrown) => {
       const { ctx, resolver, vectorStore } = context();
