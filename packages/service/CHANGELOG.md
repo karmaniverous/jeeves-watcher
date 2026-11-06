@@ -2,6 +2,310 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.21.0-0] - 2026-11-06
+
+### 🚀 Features
+
+- *(service)* Parse front matter with yaml (#203)
+- *(core)* Schemas for the remaining catalog routes (A1)
+- *(core)* Catalog entries for every route (A2)
+- *(service)* Serve every route from the catalog (A3)
+- *(vcs)* Staging, untracking, squash plumbing, git process layer (0.21.0 B2, B3)
+- *(logging)* Rotate log files with pino-roll and log refusals durably (D171)
+- *(vcs)* Bounded RootGitLock wait for API routes (D102)
+- *(vcs)* VCS-only exclusion through .git/info/exclude (spec B4)
+- *(sdk)* [**breaking**] SDK 0.3.0 on jeeves's catalog client (D36, D53, D60, D78)
+- *(cli)* CLI on the SDK with a 60 s timeout; vcs and walk commands (#213); reindex --dry-run (#257)
+- *(config)* Processing ceilings, embedding.alertUrl and the too_large issue type (B5a, B6; D44, D64)
+- *(processor)* Per-document FIFO locks on a lock primitive shared with RootGitLock (B5a; D98, D118)
+- *(processor)* Lock every document operation; API routes wait 10 s then 503 Retry-After: 10 (B5a; D98, D118)
+- *(vectorStore)* File_path system index built in the background, by-filter payload writes and existing-ID reads; health.collection.systemIndexes (B5a; D74, D154)
+- *(processor)* Metadata writes by filter on a ready keyword index, else by existing IDs (claim-state safe) (B5a; D139, D154)
+- *(processor)* Stream embeddings one window at a time under a chunk-0 claim, finalised after orphan cleanup (B5a; D87, #255)
+- *(processor)* Processing ceilings: stat before extraction, text bytes and chunk count; too_large deletes the document's points (B5a; D44, D64, D76)
+- *(embedding)* Embedding health with transition alerts, 5-minute back-off cap, health.embedding and status degraded (B6; D86, D88, D89)
+- *(service)* Chunk_index and matched_rules system indexes (D74, D155)
+- *(service)* Facet reads on the vector store (exact counts, range bounds, index types)
+- ListFacets rules scoping (A8, D117, D123)
+- CountFacets (POST /search/facets/counts, A8)
+- *(service)* CountFacets uses approximate facet counts (D194)
+- *(service)* Inventory with child-set directory index in FileSystemWatcher (C1, D99, D127, D150)
+- *(service)* Drop events under each root's .git (C1, D152)
+- *(service)* Process-wide walk limiter and UV_THREADPOOL_SIZE 16 (D170)
+- *(core,service)* Health.changeSource in D133's whole shape (B5b, D133, D157)
+- *(service)* Shared stability ticker for synthetic events (B5b, D128, D142)
+- *(service)* Reconciliation against the inventory (B5b, D90, D91, D179)
+- *(core,service)* Periodic reconciliation, watch.reconcileIntervalMs (B5b, D111)
+- *(service)* /walk served from the inventory (B5b, D83)
+- *(service)* WatchConfigChanged compares usePolling, pollIntervalMs, stabilityThresholdMs (B5b, D100)
+- *(service)* ParcelSource with per-root subscriptions and recovery (C2, D109, D131, D156, D179)
+- *(service)* Parcel batch pipeline, walk-based initial set and directory pairing (C2, C3, D58, D62, D126, D127, D149, D150, D179)
+- *(service)* Parcel load refusal at start and reload, changeSource rebuild key, Linux renewal health (C2, C3, D100, D125, D129, D156, D157, D165, D176, D177)
+- *(service)* On Windows parcel never unsubscribes; rebuilds and subscription recoveries exit for a service-manager restart (D196)
+- *(core)* Watch.indexCheckOnStart (default true) and the health.indexCheck schema (D197)
+- *(service)* The watcher's view for the index check: unwatched and walk-failed roots, inventory membership (D197)
+- *(service)* The index check at start: one chunk-0 listing, per-root cap, stat-confirmed deletes through the delete-event path (D197)
+- *(service)* Run the index check once after the first initial scan and report health.indexCheck on /status (D197)
+- *(service)* The index check's 10% cap applies only once more than 20 of a root's documents are missing; 1,000 unchanged (D198)
+
+### 🐛 Bug Fixes
+
+- *(vcs)* Print non-ASCII paths unescaped in every git call (#252)
+- *(vcs)* A timed-out git read is not git saying no (untrack marker recovery, HEAD read)
+- *(vcs)* Only a call that takes the index lock removes it after a timeout
+- *(vcs)* One staging budget per batch across index.lock retries (D72)
+- *(vcs)* A batch that throws keeps its files and the commit chain alive
+- *(vcs)* Count paths in git error messages; warn when only the Windows launcher is available
+- *(vcs)* Squash keeps non-UTF-8 commits byte for byte
+- *(vcs)* Health.vcs.oldestTrippedAt is the first trip, not the last re-arm
+- *(api)* Health.vcs is absent when no root has VCS enabled
+- *(logger)* A log stream error goes to stderr instead of crashing; flush the log file on stop
+- *(vcs)* A failed squash update-ref with the branch unchanged is an error, not 'the branch moved'
+- *(vcs)* A batch that throws counts as a breaker failure and is retried at the next throttle
+- *(vcs)* A squash whose update-ref fails after moving the branch to the new tip completes and pushes
+- *(vcs)* Exclude drops trailing spaces and refuses whole-root globs before the root lookup
+- *(openclaw)* Watcher_reindex keeps 0.17.0's default scope (rules)
+- Independent review findings on the clients
+- *(embedding)* A success clears only pauses requested before it started; a 429 still pauses every caller
+- *(api)* Rebuild-metadata writes each entry under the file's document lock from chunk 0 re-read inside it; state stores built in app/stateStores
+- *(embedding)* A success never lifts a stored pause; the capped back-off expires
+- *(api)* Rebuild-metadata locks through the processor's own document locks (sourceOperations().withLock)
+- *(service)* Resolve facet rule schemas per rule; cache key includes named schemas (review #1, #7, #9)
+- *(service)* CountFacets budget covers the index-type read; nothing starts past the deadline; split handler tests (review #2, #5, #8, #1)
+- *(service)* Re-review nits: accuracy TSDoc wrap and tail-error note, 503 names the budget in use, helper TSDoc
+- *(core,service)* Regenerate openapi.json as written; plain docs for the sink methods
+- *(service)* Keep each watch root's case
+- *(service)* Review fixes for the change-source seam and reconciliation
+- *(service)* Re-review fixes for the reconcile schedule, walk guard and root case
+- *(service)* Drop a batch of absences when the root itself is gone (rm -rf of a root, D109); initialWalk test never walks a real /a
+- *(service)* Review of D196: hard exit deadline, record kept until the start succeeds, later reindex merged, sticky restartsToRebuild after a release, config-watch scopes only; docs: deletes in the gap need prune
+- *(service)* A restart during start keeps the deferred reindex; the exit deadline holds the process open (D196 re-review)
+- *(service)* A batch that removes paths waits for its root to settle, so a root deleted with its contents unlinks nothing (D109; failing on Linux since 18a4a54)
+- *(service)* Restore the root settle before removals (D109): rm -rf of a root reports a file's delete while the root still exists; the spec-correct D109 test shows the unlink on Linux
+- *(service)* Index check re-reads the inventory after the stat, reports a rebuild as stale, names filtered files in the cap warning; tests for removed totals and running (review #301)
+- *(service)* An index check a watcher rebuild interrupts runs again after the new initial scan; shutdown waits for it at most shutdownTimeoutMs (review #301)
+- *(service)* The index check runs over the watcher that reported the scan; a timed-out stop keeps the stores open; stop re-checked after each stat (review #301)
+- *(service)* The scan signal always carries the view; tests reach the stop guard; producer stop typed; runIndexCheck races in their own test file (review #301)
+
+### 💼 Other
+
+- [281] test: capture 0.20.0 wire and 0.17.0 plugin-surface baselines for the catalog slice (#281)
+
+Wire scenarios for every slice route and outcome (status, config, config apply, render, search, scan, vcs/show) replayed through the real server against a recorded fixture, and the plugin's 18 tool definitions and prompt rules recorded from untouched code. Later steps list each accepted change explicitly.
+- [281] chore(deps): pin @karmaniverous/jeeves 0.8.0-1 and add catalog plumbing (#281)
+
+Exact 0.8.0-1 pin in core, service and plugin; fastify-type-provider-zod for the service's catalog routes; zod-openapi and openapi-types for core's OpenAPI writer. Rollup externals match jeeves and dependency sub-paths by prefix so no second copy of core is bundled. The plugin pin test accepts a prerelease. Core's generated status tool schema now closes additionalProperties (accepted baseline change).
+- [281] feat: prompt rules and skill live in watcher-core (#281)
+
+WATCHER_PROMPT_RULES (moved verbatim from the plugin) and WATCHER_SKILL (compiled from packages/core/skills/jeeves-watcher/SKILL.md by npm run skill, with a drift test) are exported from watcher-core and set on both descriptors. The plugin injects the descriptor's promptRules and its build writes the skill to dist/skills/jeeves-watcher, the folder its manifest lists. The injected rules stay byte-identical to 0.17.0.
+- [281] feat: WATCHER_CATALOG in watcher-core (#281)
+
+The slice catalog: core's standard status/config/configApply (status health typed by the new loose watcherHealthSchema, config routes bearer-authenticated), render, search, scan and the non-JSON vcsShow (vcsShowQuerySchema). Search and scan request fields carry descriptions for tools and OpenAPI. WATCHER_ENDPOINTS is unchanged and a test holds the catalog to it on method and path. Core's declaration build keeps jeeves sub-paths external too.
+- [281] chore(deps): re-pin @karmaniverous/jeeves to 0.8.0-4 (#281)
+
+G1/G2 already present at this pin (route logger option, Zod params on validation issues); this is the step 5 core loop-back re-pin.
+- [281] feat: service catalog handlers for every slice entry (#281)
+
+errorResult, wrapCatalogHandler/catalogErrorFromThrown, withCatalogCache (shared store, TTL and clearCache with withCache), notFoundBody, and catalog handlers for status, config, configApply, render, search, scan and vcsShow (createCatalogHandlers). Not wired into routes yet; the legacy routes still serve (route switch is step 7). Shared with the legacy handlers rather than duplicated: renderSourceDocument, SEARCH_EMBED_BUDGET/retryAfterSeconds, contentTypeFor, createCoreConfigQueryHandler, redactConfig.
+- [281] feat: serve the slice routes from the catalog in 'log' mode (#281)
+
+status, config, config apply, render, search, scan and vcs/show are now catalog routes, registered in a child plugin (createApiServer stays sync) with formatValidationError (400 invalid_request, first issue as error, issues as details), the watcher logger and responseValidation 'log'. A preValidation shim keeps POST /config/apply's deprecated { config } alias and empty body; with VCS off, GET /vcs/show still answers the unregistered-route 404 whatever its query. GET /openapi.json serves WATCHER_OPENAPI_DOCUMENT without auth. Wire baseline: only the nine request-validation 400 bodies change (wire-catalog-400.json). New tests: 400 per input slot, catalog auth per entry, serialised response equals handler result over every wire scenario, typed catalog client round trip over HTTP, zero 'log'-mode mismatches across the wire suite.
+- [281] refactor: delete the legacy slice route handlers (#281)
+
+The catalog now serves status, config, config apply, render, search, scan and vcs/show, so their Fastify factories are dead: handlers/render, renderSource, withCacheUnlessSource, search, scan, configQuery, configApply and vcs/vcsShow are deleted. What they still owned moves into the catalog modules (HybridSearchConfig, SEARCH_EMBED_BUDGET, retryAfterSeconds, the scan and config deps, the merged-document config query, redactConfig, the vcs/show content types; renderSourceDocument moves to api/catalog). Their unit tests are ported to the catalog handlers where they covered behaviour the catalog tests didn't (search plumbing and budget, scan cursor/defaults, config empty result and error propagation, config apply against a real file, render issueType tagging and public fields, render cache bypass for sources), the Qdrant search regression test now drives the catalog handler, and the slice rows of requestValidation/errorCodes move to catalogRoutes.test. New: a throwing catalog handler answers a logged, generic 500 (catalogErrors.test).
+- [281] chore: pin @karmaniverous/jeeves 0.8.0-5 (#281)
+
+0.8.0-5 adds #151 (runnable argument parser additions); nothing the watcher uses changes. One copy of jeeves and of zod; all gates pass.
+- [281] feat: validate catalog responses in 'strict' mode (#281)
+
+Before the switch, a probe on the catalog logger recorded zero 'log'-mode mismatches across the whole service suite (2053 tests, unit and Qdrant integration); a forced mismatch confirmed the probe records them. Every JSON entry's serialised body already equals its handler body (catalogRoutes.test). Now a response that doesn't match its entry's schema is never sent: the client gets 500 { error: 'Response validation failed' } and the issues are logged as an error. New responseValidation.test forces one through the real server (a string point count on /status) and fails if the mode goes back to 'log'. The wire suite now asserts no mismatch is logged in either mode.
+- [281] docs: document the catalog slice (#281)
+
+API reference: which routes are in WATCHER_CATALOG, the catalog's 400 details shape ({ slot, path, code, message, params }), response validation and its 500, the new GET /openapi.json (open, like /status), /config/apply's catalog schema with the deprecated config alias and the replace check, the /vcs/show 400 change, and the 401 wording of catalog-built tools. Root README: /openapi.json row, alias deprecated, plugin on jeeves 0.8 with catalog-built tools. watcher-core README: catalog, OpenAPI and agent-content exports. Plugin README and guide: which tools core builds from the catalog, the two error formats, generated parameter bounds, replace on config_apply, vcs_show returning text. Skill: tool errors, API key, and a troubleshooting entry for a catalog tool's 401 and the response-validation 500 (D31); WATCHER_SKILL regenerated. npm run docs has zero warnings.
+- [281] refactor: one withErrorCode for core handler error results (#281)
+
+configHandler and configApplyHandler each added a code to a core 4xx body that lacked one. Both now call withErrorCode (catalog/errorResult.ts), unit-tested for every branch: 2xx unchanged, a body with a code unchanged, a body without one gets codeForStatus first, a non-object body gets just the code. Behaviour preserved: src/api 653/653 before the new tests. Mutants (drop the code check, drop the 2xx check) both fail the tests.
+- [281] test: cover a missing file named only in the error message; give the serialisation test room (#281)
+
+renderHandler.test covers isMissingFile's message fallback (an error whose cause says 'no such file', with no errno code); dropping that check fails it. catalogRoutes.test's serialised-equals-handler test replays every wire scenario in one test and timed out at the default 5 s on a loaded host; it now has 30 s.
+- [281] chore: update dependencies (patch and minor) (#281)
+
+npm-check-updates --peer --target minor in the root and all four packages, then npm audit fix (non-breaking): audit 17 -> 14. One zod (4.6.7). All gates pass. Left for the owner (major): chokidar 6, unpdf 2, typescript 7 (blocked by typescript-eslint's peer range), mdast-util-from-adf 2.2 and release-it 19 (the remaining audit highs).
+- [281] fix: answer HEAD /vcs/show with the not-found 404 when VCS is off (#281)
+
+Independent review finding 1 (D28). The VCS-off preValidation hook matched GET only, so the HEAD route Fastify derives from it fell through to query validation: HEAD /vcs/show without a query was 400 instead of 404. The hook now matches GET and HEAD. vcsShowWithoutVcs.test covers GET and HEAD with and without a query; it failed before the fix (HEAD without a query: 400) and passes with it.
+- [281] refactor: delete sendResult and build every generic 500 once (#281)
+
+Independent review findings 3 and 4. sendResult had no callers left (its job is withErrorCode's) and is deleted with its tests. errorResult now leaves out undefined extras (renderSourceDocument's issueType: undefined no longer reaches the body). The generic 500 internal_error body was built three times in the catalog handlers (configApply, search, wrapCatalogHandler); internalErrorResult() builds it once. src/api 662/662.
+- [281] refactor: review nits on the catalog handlers (#281)
+
+Independent review findings 11, 13, 14 and 15. registerVcsRoutes' module doc had a BEL control character for a backtick. withCache: CacheEntry is module-private and the 'cache' alias of sharedResponseCache is gone. renderHandler returns errorResult directly instead of building a RequestError to convert back. withCatalogCache recognises Cache-Control: no-cache under any header-name case (new test; it fails with the old exact-case check). src/api 663/663.
+- [281] refactor: take the tracker status types from watcher-core (#281)
+
+Independent review finding 5. ReindexStatus and InitialScanStatus were hand-written copies of watcher-core's reindexStatusSchema/initialScanStatusSchema types, kept equal only by a type test. The trackers now re-export the core types; healthTypes.test keeps the run-time half (real tracker output parses unchanged).
+- [281] refactor: source renders run live through no-cache alone (#281)
+
+Independent review finding 6. render's source target replies Cache-Control: no-cache on every path, so it is never written to the cache, and the shouldBypass predicate was redundant. It is removed from withCatalogCache, with its test. The index test now renders a source successfully (200) twice and expects two live renders; dropping no-cache from the source success fails it.
+- [281] test: assert status sends no key (#281)
+
+Independent review finding 7. The spec's 'status sends none' was never asserted. catalogRoutes.test now records the Authorization header of each request a keyed catalog client makes: none for status, the bearer for config. auth.test checks watcher_status sends no header even with a key configured.
+- [281] feat: name the missing /vcs/show query parameter (#281)
+
+Independent review finding 12. vcsShowQuerySchema had no messages of its own, so a missing parameter read 'Invalid input: expected string, received undefined'. Like the admin schemas, it now says 'Missing required query parameter: path' (or commit), for a missing or an empty value. New catalog.test case; the recorded catalog 400 bodies for the two vcsShow scenarios are updated to match. OpenAPI document unchanged.
+- [281] test: lock malformed JSON and 415 on catalog routes to the legacy handler (#281)
+
+Independent review finding 16. Catalog routes now pass through core's scope error handler, so the spec's 'malformed JSON and 415 keep the existing error handler' needed a test. catalogBodyErrors.test sends malformed JSON to /search, /scan, /render and /config/apply, and an unsupported content type to /search and /config/apply, and expects exactly what POST /walk (outside the catalog) answers: 400 or 415 invalid_request.
+- [281] docs: review fixes for auth exemptions, error formats and key order (#281)
+
+Independent review findings 9 and 10. The API reference summary and the skill now say GET /openapi.json needs no key, and the skill's endpoint table lists it. The error-format line covers the catalog-built tools' HTTP <status>: <body>. Catalog error bodies list error before code, so the config-apply 400 examples in the skill and the plugin guide now match the real text. WATCHER_SKILL regenerated.
+- [281] chore: point service and plugin at watcher-core 0.5.0-0 (#281)
+
+The service imports WATCHER_CATALOG from watcher-core at run time, and ^0.4.0 resolved to the registry 0.4.0 published before the slice, so a packed service failed to load. Service and plugin now take ^0.5.0-0 (the owner's prerelease from this branch); in the workspace both link to packages/core. The SDK keeps ^0.4.0 (unchanged in the slice, D30). All gates pass.
+- [281] chore: pin jeeves 0.8.0-6; drop fastify-type-provider-zod, zod-openapi, openapi-types
+
+jeeves 0.8.0-6 makes fastify, fastify-type-provider-zod and zod-openapi its own dependencies (jeeves Decision 88), so the service and core no longer supply them.
+- [281] chore: pin jeeves 0.8.0
+- [281] chore: patch/minor deps, prettier-ignore generated baselines, squash test timeout
+- [281] refactor: wrap the search call in withFilterErrors once (#281)
+- [281] test: lock catalog error key order and kill the surviving mutants (#281)
+
+Independent review: a raw-text test holds 'error before code' on catalog error bodies (config apply, render), as the docs quote it. errorResult's undefined-extras test now checks keys (toEqual ignored them); the search 500 test compares with internalErrorResult(); withCatalogCache caches a max-age response. Mutants M3, M6, M16 now killed. New InitialScanTracker lifecycle test and withCache hashObject/error-reply tests bring both touched files to full branch coverage.
+- [281] docs: review fixes for the skill, API reference and plugin README (#281)
+
+SKILL.md: watcher_scan cursor is a string or a number (D34); WATCHER_SKILL regenerated. API reference: the /vcs/show 400 error text. Plugin README: one list. registerCatalog TSDoc: one preValidation hook, HEAD included. vcsShowHandler: say why its VCS-off guard stays.
+- [281] test: drop an unneeded cast in the error-reply cache test (#281)
+- [281] test: the client round trip decodes exactly what the handler returned (#281)
+
+Finishing pass (weak-test list): 'searches, scans and renders' asserted only an array, a cursor and a content property; it now compares each client result with the handler's recorded body.
+- [281] test,docs: second-review nits on the fix commits (#281)
+
+Fresh review of faf2fe9..e0cfae6: test names now say what they prove (hashObject, InitialScanTracker without start); errorResult keys compared in any order (M3 still KILLED); skill scan response cursor is a string, number or null (WATCHER_SKILL regenerated); catalogTools module TSDoc lists the four standard tools and registerCatalogTool.
+- [281] test: catalog registration errors surface from ready() (D29) (#281)
+- [281] test: lint fix for the D29 registration test (#281)
+- Release guard for dependents' core range (#277)
+- Pin @karmaniverous/jeeves 0.9.0-0 (D42)
+- Patch and minor dependency updates
+- *(deps)* Chokidar 6 with the backend pinned to 0.20.0's behaviour; service needs Node 22.22
+- *(deps)* Unpdf 2
+- Require Node >=24.22.2 (D188)
+- Updated core
+- Merge remote-tracking branch 'origin/main' into feature/p9-processing-at-scale
+- *(service)* Pin @parcel/watcher 2.6.0 with its loader, selection and CI binary check (C2, D125)
+- Revert "fix(service): a batch that removes paths waits for its root to settle, so a root deleted with its contents unlinks nothing (D109; failing on Linux since 18a4a54)"
+
+This reverts commit b96160f02f7b950f3e57d5bc8d436dde0fd54d37.
+- *(service)* The D72 staging-timeout test stages data git cannot finish within 1 ms, asserts no commit and commits the re-queued batch (flaky on Linux CI at 56f93de, 75c0df9)
+- *(deps)* Fastify ^5 in the service (R3, D42); undici ^7.30.2 under @qdrant/js-client-rest (npm audit)
+- Updated core
+
+### 🚜 Refactor
+
+- *(service)* DRY and file-size pass over the catalog completion
+- *(service)* Metadata handler returns core's MetadataResponse
+- *(vcs)* One HEAD-ref reader, runGit for the git check, drop duplicate buffer caps, initInfrastructure out of app (P5 SOLID/DRY)
+- *(vcs)* Remove hasDirtyTrackedFiles and indexLockExists, unused since squash dropped its preconditions; test headRef
+- *(vcs)* SquashHooks are internal, not public API
+- *(vcs)* Exclude-file module and untrack beforeWrite hook
+- *(vcs)* Exclude nits (threshold constant, remove text, commit message template, VcsManager doc)
+- [**breaking**] Verb-first operation names (D77); retire WATCHER_ENDPOINTS (D41)
+- *(util)* PostWithRetry with a 10 s timeout per attempt, shared by the reindex callback (B6; D138, D180)
+- *(service)* Facet reads as VectorStoreClient.facets (QdrantFacetStore; index.ts under 300 lines)
+- *(service)* One rule-scope selection for both facet routes (selectSchemas)
+- *(service)* ChangeSource seam with chokidar behind it (C1, D120)
+- *(service)* One keyWithin for every at-or-under key check
+- *(service)* Pipeline builder, subscription context and one config-reindex runner; split the D196 reload tests (files under 300 lines)
+- *(service)* Stop relies on release dropping the Windows handle (D196)
+- *(service)* Share the scroll page retry (prune) as vectorStore/scrollRetry for the index check (D197)
+- *(service)* SystemHealth.run and applyClassified keep FileSystemWatcher under 300 lines
+
+### 📚 Documentation
+
+- Core README describes the full catalog; walk no longer 500s without a body
+- Every error body lists error before code, including the gated 404
+- Log rotation in deployment, logging file naming and pruning, size cap per root and GitHub limits, squash encoding note, upgrade notes for 0.21.0 so far
+- *(logging)* MaxFiles keeps that many rotated files plus the active one (D184); cite D182/D183 in the API reference
+- P5 upgrade and rollback notes per Design 11; vcs.branch rows; 10 MiB
+- Cite D185 for the watch.paths[].vcs.maxFileBytes config-schema departure
+- Upgrading notes for unpdf 2 (Node 22 EBADENGINE warning) and chokidar held at 5
+- *(vcs)* RootBreaker doc comments on the right methods
+- VCS-only exclusion (API reference, version-control and upgrading guides, READMEs, plugin tool descriptions)
+- Rollback step for .git/info/exclude, absolute vs root-relative globs, core skill
+- *(vcs)* Leading-slash glob with root in the upgrade guide, tool and skill text; stronger remove test
+- Clients on the catalog (SDK guide, CLI reference, plugin guide, upgrading)
+- Processing ceilings, document locks, streamed write, system indexes and embedding health (B5a, B6)
+- Fix health doc-comment order and decision citations (D86, D87, D88)
+- Custom factories need the new VectorStore members and withLock; back-off clearing
+- Facets (countFacets, listFacets rules, chunk_index and matched_rules system indexes)
+- *(service)* Exact single-value counts need chunk_index = 0; accuracy threshold wording (review #3, #6)
+- *(service)* Export the types public signatures reference (typedoc 0 warnings)
+- Change source, inventory and reconciliation (P11: C1, B5b)
+- Parcel change source, directory pairing, switching and native binary (C2, C3)
+- Windows restart-on-exit requirement under parcel, restart record and health fields (D196)
+- The index check at start (D197): configuration, architecture, API reference, upgrading, deployment, skill
+- One 0.20.0 -> 0.21.0 upgrade guide with the full rollback (D95, D171, D173, D180), skill troubleshooting, deployment (inotify limits, NSSM restart on exit, long paths reconcile-only per D199); anchors fixed and docs build at zero warnings (R2)
+- *(upgrading)* Rollback commands run as written: PowerShell 5.1-safe over-cap listing with UTF-8 git output, .gitignore ends with a newline before patterns move in, Set-Location $root; D198 floor in First start; wider !!float finder (review 5796658844)
+- *(upgrading)* Rollback PowerShell takes the root literally and stops on a wrong one (brackets, fresh window), step 3 without Set-Location; !!float finder allows tabs and CRLF (review 5796908702)
+- *(upgrading)* Rollback PowerShell clears $root before resolving it, so a mistyped root never falls back to the last one; test comment says which walk came after the changes (review 5797110354)
+
+### 🧪 Testing
+
+- *(service)* Stabilise integration setup on Windows CI
+- *(service)* 0.20.0 wire baseline for the remaining 22 routes (A1, Design 2)
+- *(service)* Cover the catalog handlers' remaining branches
+- *(service)* Unknown-key wire scenarios for vcs/diff and vcs/check-exclusion
+- *(vcs)* Assert a timed-out git call is killed, not left to finish; skill: health.vcs
+- *(wire,logger)* Config-schema departure is watch.paths[].vcs.maxFileBytes only; maxFiles bound both ways, pino-roll count explained
+- *(vcs,logger)* Cover health.vcs trips, squash git failure and commit log, raw commit parsing, marker discard without an exclude file, default log level
+- *(vcs)* Branch-state warning on the configured branch with a leftover orphan branch, and on another branch
+- *(vcs)* GitAdd reads glob characters literally
+- *(api)* Coordinator fakes provide getRoots (vcsHealthSource)
+- *(vcs)* Give the real cherry-pick conflict test 30 s (timed out on the Windows CI runner)
+- *(vcs)* Commit and the untrack write-tree name their index lock
+- *(vcs)* Exclude untracks exactly 100 files without confirm
+- *(vcs)* 20 s timeout for the real-git exclude suites (loaded hosts)
+- *(reindex)* Count the chunk-0 finalise of a re-embedded source document
+- *(rules)* A document-lock timeout in rule reapply is rethrown after earlier files are updated
+- Cover startup wiring and indexFile; build the embedding alert in initInfrastructure
+- *(processor)* Each processing ceiling is read per document (reload applies)
+- *(locks)* Hold the first run in embedding so the overlap test fails without document locks
+- *(api)* Unit tests for deleteSourceDocuments
+- *(metadata)* Harness-in-test integration cases get the 30 s hook budget
+- *(service)* Integration expectations include the chunk_index and matched_rules system indexes
+- *(service)* CountFacets dependencies in the registerCatalog error tests
+- *(service)* Rule schemas without inferenceRules; range bound of a point without payload
+- *(service)* CountFacets counts 4 fields at a time; bounded runs never time a task under 1 s
+- *(service)* FileSystemWatcher with the real chokidar source on a temp directory
+- *(service)* Cover the change-source seam, queue actions, walk and reconcile edges
+- *(service)* Pin the walk limit at 8, a directory kept by its child, and pendingStability
+- *(service)* Build integration collections in hooks and wait for their index builds
+- *(service)* Parcel recovery on the real filesystem; paired-move handlers (D62, D109, D126, D129, D131, D176)
+- *(service)* Give the wire baseline scenarios 15 s (the prune dry run walks the package's files and passed 5 s under full-suite load)
+- *(service)* Fast wire prune scenario and a serial heavy project, instead of a timeout raise
+- *(service)* Subscription error reading (codeOf, isWatchLimitError)
+- *(service)* D109 recovery test follows the spec: nothing unlinked while the root is gone, reconciliation unlinks only what really went when it is back
+- *(service)* P13 verification leftovers: slow 1,000-file copy under parcel and chokidar (D128), VCS with parcel on Linux and the 20,000-file commit (D129, D146, D152), Windows long paths reconcile-only (D153, D199)
+- *(service)* The new watcher tests sleep through node:timers/promises (DRY)
+- *(service)* The D128 slow copy writes from a child process, 10 files at a time, and checks its gaps stayed under the window (chokidar emitted early when stats queued on the thread pool)
+- *(service)* The D129/D146 test initialises its repo before VcsManager starts (Linux CI: not in a git directory)
+- *(service)* Slow copy reads each file as its job is enqueued and expects one read of the final content; D129/D146 commits only at flushes and waits for a renew-and-reconcile after the changes (review 5796658844)
+- *(service)* D129/D146 waits for a reconcile that started after the changes (review 5796908702)
+- *(service)* The 20,000-file commit test gets 600 s (240-260 s on green Windows CI, over 300 s once)
+- *(service)* Wire replay resets git only when the repo changed, one test per scenario, and handler records scoped per test (no leakage after a timeout)
+
+### ⚙️ Miscellaneous Tasks
+
+- *(schema)* Regenerate config.schema.json for the D184 maxFiles description
+- *(service)* Regenerate config.schema.json (processing, embedding.alertUrl)
+- *(service)* Facet latency gate script (D104, D155)
+- *(service)* Facet gate measures approximate against exact counts (D194)
+- *(service)* Facet gate records host CPU and can wait for a quiet host
+- *(service)* Drop unused facet type re-exports (knip)
+- *(service)* Index-check:cost measures the index check on a throwaway copy of a live collection (D197)
+- *(service)* Index-check:cost census in its own module, under 300 lines (review #301)
+
+### ◀️ Revert
+
+- Hold chokidar at major 5 (owner ruling D186)
 ## [0.20.0] - 2026-10-14
 
 ### 🚀 Features
@@ -105,6 +409,7 @@ Closes #256. Part of #273 (S1). ([#274](https://github.com/karmaniverous/jeeves-
 - Ship LICENSE in every package; core README and license metadata
 - Service resolves the SDK from the workspace, not as a dependency
 - Tsdoc config for core; real-git reconciliation tests get the suite's 30 s budget
+- Release @karmaniverous/jeeves-watcher v0.20.0
 ## [0.19.1] - 2026-09-30
 
 ### 💼 Other
