@@ -1,108 +1,13 @@
 /**
  * @module watcher/indexCheck/runIndexCheck.test
- * The index check at start (D197), over a fake index and view: stat-confirmed deletes through the delete-event path (VCS hook, then the processor's delete), the inventory re-check, skipped roots (unavailable, unwatched, walk failed, gone), the per-root cap, source documents and points outside the roots untouched, paging, listing failure and stopping; plus the default `lstat` checks on a real directory.
+ * The index check at start (D197), over a fake index and view: stat-confirmed deletes through the delete-event path (VCS hook, then the processor's delete), the inventory re-check after the stat, removed totals, the running state, skipped roots (unavailable, unwatched, walk failed, gone), the per-root cap, source documents and points outside the roots untouched, paging, listing failure, stopping and the stale outcome of a rebuild.
  */
 
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
-
-import pino from 'pino';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { IndexCheckHealthTracker } from './IndexCheckHealthTracker';
-import {
-  CHUNK0_FILTER,
-  type IndexCheckDeps,
-  runIndexCheck,
-} from './runIndexCheck';
+import { CHUNK0_FILTER, runIndexCheck } from './runIndexCheck';
+import { file, kept, PAD, setup } from './runIndexCheck.fixtures';
 import { INDEX_CHECK_MAX_CANDIDATES } from './tally';
-import type { IndexCheckSkipReason, IndexCheckView } from './view';
-
-type Payload = Record<string, unknown>;
-
-/** A fake index answering pages of `size` from `payloads`. */
-function fakeStore(payloads: Payload[], size = 1000) {
-  return {
-    scrollPage: vi.fn(
-      (
-        _filter: Record<string, unknown> | undefined,
-        limit: number | undefined,
-        offset?: string | number,
-      ) => {
-        const pageSize = limit ?? size;
-        const start = typeof offset === 'number' ? offset : 0;
-        const points = payloads
-          .slice(start, start + pageSize)
-          .map((payload, i) => ({ id: String(start + i), payload }));
-        const next = start + pageSize;
-        return Promise.resolve({
-          points,
-          nextCursor: next < payloads.length ? next : undefined,
-        });
-      },
-    ),
-  };
-}
-
-interface Setup {
-  roots?: string[];
-  inventory?: string[];
-  gone?: string[];
-  goneRoots?: string[];
-  skip?: Record<string, IndexCheckSkipReason>;
-  payloads: Payload[];
-  pageSize?: number;
-  live?: () => boolean;
-  stopped?: () => boolean;
-}
-
-function setup(s: Setup) {
-  const inventory = new Set(s.inventory ?? []);
-  const gone = new Set(s.gone ?? []);
-  const calls: string[] = [];
-  const view: IndexCheckView = {
-    roots: s.roots ?? ['/r'],
-    skipReason: (root) => s.skip?.[root],
-    has: (path) => inventory.has(path),
-    live: s.live ?? (() => true),
-  };
-  const health = new IndexCheckHealthTracker();
-  const store = fakeStore(s.payloads);
-  const deps: IndexCheckDeps = {
-    view,
-    vectorStore: store,
-    deleteFile: vi.fn((path: string) => {
-      calls.push(`delete ${path}`);
-      return Promise.resolve();
-    }),
-    onVcsFileChange: vi.fn((path: string, event: string) => {
-      calls.push(`vcs ${event} ${path}`);
-    }),
-    health,
-    logger: pino({ level: 'silent' }),
-    stopped: s.stopped,
-    isGone: (path) => Promise.resolve(gone.has(path)),
-    rootGone: (root) => Promise.resolve((s.goneRoots ?? []).includes(root)),
-    platform: 'linux',
-    pageSize: s.pageSize,
-  };
-  return { deps, calls, health, store, inventory };
-}
-
-const file = (path: string): Payload => ({ file_path: path });
-
-/** Kept documents per root, so one candidate stays within the 10% cap. */
-const PAD = 9;
-
-/** `PAD` documents under `root` the inventory holds. */
-function kept(root: string): { paths: string[]; payloads: Payload[] } {
-  const paths = Array.from(
-    { length: PAD },
-    (_, i) => `${root}/kept${String(i)}.md`,
-  );
-  return { paths, payloads: paths.map(file) };
-}
 
 afterEach(() => {
   vi.useRealTimers();
@@ -159,6 +64,72 @@ describe('runIndexCheck', () => {
       checked: 2 * PAD + 2,
       removed: 0,
       capped: 0,
+    });
+  });
+
+  it('keeps a file an event re-adds while its own stat is in flight', async () => {
+    const pad = kept('/r');
+    const s = setup({
+      inventory: pad.paths,
+      payloads: [...pad.payloads, file('/r/back.md')],
+    });
+    s.deps.isGone = (path) => {
+      // The file is re-created and its add lands before the stat answers.
+      s.inventory.add(path);
+      return Promise.resolve(true);
+    };
+    await runIndexCheck(s.deps);
+    expect(s.calls).toEqual([]);
+    expect(s.health.snapshot()).toMatchObject({ removed: 0, capped: 0 });
+  });
+
+  it('totals removed documents across roots and within one', async () => {
+    const a = [kept('/a'), kept('/a/more')];
+    const b = kept('/b');
+    const gone = ['/a/g1.md', '/a/g2.md', '/b/g.md'];
+    const { deps, calls, health } = setup({
+      roots: ['/a', '/b'],
+      inventory: [...a.flatMap((p) => p.paths), ...b.paths],
+      gone,
+      payloads: [
+        ...a.flatMap((p) => p.payloads),
+        ...b.payloads,
+        ...gone.map(file),
+      ],
+    });
+    await runIndexCheck(deps);
+    expect(calls.filter((c) => c.startsWith('delete'))).toEqual(
+      gone.map((g) => `delete ${g}`),
+    );
+    expect(health.snapshot()).toMatchObject({
+      state: 'done',
+      checked: 3 * PAD + 3,
+      removed: 3,
+      capped: 0,
+    });
+  });
+
+  it('reports running while it works, and its duration when done', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-11-06T00:00:00.000Z'));
+    const pad = kept('/r');
+    const s = setup({
+      inventory: pad.paths,
+      gone: ['/r/gone.md'],
+      payloads: [...pad.payloads, file('/r/gone.md')],
+    });
+    let during: string | undefined;
+    s.deps.deleteFile = () => {
+      during = s.health.snapshot().state;
+      vi.setSystemTime(new Date('2026-11-06T00:00:00.250Z'));
+      return Promise.resolve();
+    };
+    expect(await runIndexCheck(s.deps)).toBe('done');
+    expect(during).toBe('running');
+    expect(s.health.snapshot()).toMatchObject({
+      state: 'done',
+      durationMs: 250,
+      at: '2026-11-06T00:00:00.250Z',
     });
   });
 
@@ -298,7 +269,8 @@ describe('runIndexCheck', () => {
       stopping = true;
       return Promise.resolve();
     });
-    await runIndexCheck(stopped.deps);
+    // The service stopping is a failure, not a rebuild.
+    expect(await runIndexCheck(stopped.deps)).toBe('failed');
     expect(stopped.deps.deleteFile).toHaveBeenCalledTimes(1);
     expect(stopped.health.snapshot()).toMatchObject({ state: 'failed' });
 
@@ -307,48 +279,10 @@ describe('runIndexCheck', () => {
       payloads: [file('/r/a.md')],
       live: () => false,
     });
-    await runIndexCheck(rebuilt.deps);
+    // A rebuild while the service runs on: the next watcher's check.
+    expect(await runIndexCheck(rebuilt.deps)).toBe('stale');
     expect(rebuilt.store.scrollPage).not.toHaveBeenCalled();
     expect(rebuilt.calls).toEqual([]);
     expect(rebuilt.health.snapshot()).toMatchObject({ state: 'failed' });
-  });
-});
-
-describe('runIndexCheck on a real directory (default lstat checks)', () => {
-  let dir: string | undefined;
-
-  afterEach(async () => {
-    if (dir) await rm(dir, { recursive: true, force: true });
-    dir = undefined;
-  });
-
-  it('deletes a file that is gone, keeps one on disk, and skips a missing root', async () => {
-    dir = await mkdtemp(join(tmpdir(), 'index-check-'));
-    await writeFile(join(dir, 'here.md'), 'x');
-    const missingRoot = `${dir}-missing`;
-    const pads = [kept(dir), kept(join(dir, 'sub'))];
-    const s = setup({
-      roots: [dir, missingRoot],
-      inventory: pads.flatMap((p) => p.paths),
-      payloads: [
-        ...pads.flatMap((p) => p.payloads),
-        file(join(dir, 'here.md')),
-        file(join(dir, 'gone.md')),
-        file(join(missingRoot, 'a.md')),
-      ],
-    });
-    delete s.deps.isGone;
-    delete s.deps.rootGone;
-    s.deps.platform = process.platform;
-    await runIndexCheck(s.deps);
-    expect(s.calls).toEqual([
-      `vcs unlink ${join(dir, 'gone.md')}`,
-      `delete ${join(dir, 'gone.md')}`,
-    ]);
-    expect(s.health.snapshot()).toMatchObject({
-      checked: 2 * PAD + 2,
-      removed: 1,
-      skippedRoots: 1,
-    });
   });
 });

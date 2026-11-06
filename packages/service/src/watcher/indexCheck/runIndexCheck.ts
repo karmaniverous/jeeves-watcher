@@ -57,6 +57,12 @@ export interface IndexCheckDeps {
   pageSize?: number;
 }
 
+/**
+ * How a run ended: `stale` when the watcher was rebuilt (or stopped)
+ * while the service runs on, so the check belongs to the next watcher.
+ */
+export type IndexCheckOutcome = 'done' | 'failed' | 'stale';
+
 /** The watcher stopped or was rebuilt, or the service is stopping. */
 class IndexCheckStopped extends Error {
   constructor() {
@@ -134,9 +140,11 @@ async function removeGone(
   let removed = 0;
   for (const path of tally.paths) {
     assertActive(deps);
-    // An event may have added it since the listing; a file still on disk
-    // but filtered (or unreadable to the walk) is prune's (Design 9).
-    if (deps.view.has(path) || !(await isGone(path))) continue;
+    // A file still on disk but filtered (or unreadable to the walk) is
+    // prune's (Design 9). The inventory is read after the stat: an event
+    // that re-created the file meanwhile wins, and nothing awaits between
+    // this read and the delete taking its place on the document lock.
+    if (!(await isGone(path)) || deps.view.has(path)) continue;
     deps.onVcsFileChange?.(path, 'unlink');
     await deps.deleteFile(path);
     removed += 1;
@@ -156,7 +164,7 @@ async function applyTally(
     counts.capped += 1;
     deps.logger.warn(
       { root, indexed, candidates },
-      'Index check: more than 10% (or 1,000) of the documents indexed under this root are missing from it; nothing deleted there. Run reindex prune deliberately (dry run first).',
+      'Index check: more than 10% (or 1,000) of the documents indexed under this root are missing from the watcher inventory (gone, or now filtered out); nothing deleted there. Run reindex prune deliberately (dry run first).',
     );
     return;
   }
@@ -175,8 +183,11 @@ async function applyTally(
  * watcher stopping, ends it `failed` (nothing is deleted after that).
  *
  * @param deps - View, index, delete path, health and logger.
+ * @returns How it ended (`stale`: the watcher went away, the service did not).
  */
-export async function runIndexCheck(deps: IndexCheckDeps): Promise<void> {
+export async function runIndexCheck(
+  deps: IndexCheckDeps,
+): Promise<IndexCheckOutcome> {
   const counts: IndexCheckCounts = {
     checked: 0,
     removed: 0,
@@ -190,11 +201,16 @@ export async function runIndexCheck(deps: IndexCheckDeps): Promise<void> {
     for (const tally of tallies) await applyTally(deps, tally, counts);
     deps.health.finish('done', counts);
     deps.logger.info({ ...counts }, 'Index check at start done');
+    return 'done';
   } catch (error) {
     deps.health.finish('failed', counts);
-    deps.logger.error(
+    const stale = error instanceof IndexCheckStopped && !deps.stopped?.();
+    deps.logger[stale ? 'warn' : 'error'](
       { err: normalizeError(error), ...counts },
-      'Index check at start failed; nothing more is deleted',
+      stale
+        ? 'Index check at start interrupted by a watcher rebuild; it runs again after the new initial scan'
+        : 'Index check at start failed; nothing more is deleted',
     );
+    return stale ? 'stale' : 'failed';
   }
 }
