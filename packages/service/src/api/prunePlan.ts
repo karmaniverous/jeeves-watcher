@@ -19,7 +19,8 @@ import {
 import { normalizeError } from '../util/normalizeError';
 import { normalizeSlashes } from '../util/normalizeSlashes';
 import { normalizePathCase } from '../vcs/gitExec';
-import type { ScrolledPoint, VectorStoreClient } from '../vectorStore';
+import type { VectorStoreClient } from '../vectorStore';
+import { scrollPageWithRetry } from '../vectorStore/scrollRetry';
 import { listFilesFromGlobs } from './fileScan';
 import { groupByRoot, type ReindexPlan } from './reindexPlan';
 
@@ -37,50 +38,6 @@ export interface PrunePlanDeps {
 
 /** Default page size for prune scroll (smaller than search to reduce connection strain). */
 const PRUNE_SCROLL_PAGE_SIZE = 500;
-
-/** Max retry attempts for scroll page failures. */
-const SCROLL_RETRY_ATTEMPTS = 5;
-
-/** Base delay for scroll retry backoff (ms). */
-const SCROLL_RETRY_BASE_DELAY_MS = 1000;
-
-/**
- * Scroll one page with retry/resume on connection failure.
- * On failure, retries with exponential backoff from the same cursor.
- */
-async function scrollPageWithRetry(
-  vectorStore: VectorStoreClient,
-  cursor: string | number | undefined,
-  logger: pino.Logger,
-): Promise<{ points: ScrolledPoint[]; nextCursor?: string | number }> {
-  let lastError: unknown;
-
-  for (let attempt = 1; attempt <= SCROLL_RETRY_ATTEMPTS; attempt++) {
-    try {
-      const page = await vectorStore.scrollPage(
-        undefined,
-        PRUNE_SCROLL_PAGE_SIZE,
-        cursor,
-        [FIELD_FILE_PATH, FIELD_SOURCE],
-      );
-      return { points: page.points, nextCursor: page.nextCursor };
-    } catch (error) {
-      lastError = error;
-      if (attempt < SCROLL_RETRY_ATTEMPTS) {
-        const delay =
-          SCROLL_RETRY_BASE_DELAY_MS * Math.pow(2, attempt - 1) +
-          Math.random() * 500;
-        logger.warn(
-          { attempt, err: normalizeError(error) },
-          `Prune scroll page failed; retrying in ${String(Math.round(delay))}ms`,
-        );
-        await new Promise((resolve) => setTimeout(resolve, delay));
-      }
-    }
-  }
-
-  throw lastError;
-}
 
 /** Concurrency limit for fs.access() disk-existence checks. */
 const FS_ACCESS_CONCURRENCY = 100;
@@ -137,7 +94,16 @@ export async function computePrunePlan(
   try {
     let hasMore = true;
     while (hasMore) {
-      const page = await scrollPageWithRetry(vectorStore, cursor, logger);
+      const page = await scrollPageWithRetry(
+        vectorStore,
+        {
+          limit: PRUNE_SCROLL_PAGE_SIZE,
+          cursor,
+          fields: [FIELD_FILE_PATH, FIELD_SOURCE],
+          label: 'Prune',
+        },
+        logger,
+      );
 
       for (const point of page.points) {
         totalPoints++;

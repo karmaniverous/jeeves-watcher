@@ -1,16 +1,42 @@
 /**
  * @module watcher/runningHandlers
- * What a running watcher does when the stability ticker settles a path (D142) or a `.gitignore` changes (D99). Pure apart from the handlers it calls.
+ * What a running watcher does with a classified chokidar event (D120), when the stability ticker settles a path (D142) or a `.gitignore` changes (D99). Pure apart from the handlers it calls.
  */
 
+import type { Stats } from 'node:fs';
 import { dirname } from 'node:path';
 
 import type pino from 'pino';
 
+import type { ClassifiedEventType } from './changeSource/types';
 import type { ChangeSourceHealthTracker } from './ChangeSourceHealthTracker';
 import { rebuildAfterGitignore } from './inventory/rebuildUnder';
 import type { Running } from './running';
 import { settledEvent, type SettledPath } from './stability/StabilityTicker';
+
+/**
+ * A classified event from the change source (chokidar), with the stats it
+ * read, if any: the filtered handlers, or the directory-create handler for
+ * `addDir`. `unlinkDir` needs nothing: chokidar reports each file's unlink,
+ * so there is nothing to pair.
+ *
+ * @param running - The running watcher.
+ * @param event - The event type, path and stats.
+ * @param directoryCreated - The directory-create handler (D91, D120).
+ */
+export function applyClassified(
+  running: Running,
+  event: { type: ClassifiedEventType; path: string; stats?: Stats },
+  directoryCreated: (dir: string) => void,
+): void {
+  const { type, path, stats } = event;
+  const { events } = running;
+  const fileStats = stats && { size: stats.size, mtimeMs: stats.mtimeMs };
+  if (type === 'add') events.add(path, fileStats);
+  else if (type === 'change') events.change(path, fileStats);
+  else if (type === 'unlink') events.unlink(path);
+  else if (type === 'addDir') directoryCreated(path);
+}
 
 /**
  * A path settled in the stability ticker: emit `add` or `change` through

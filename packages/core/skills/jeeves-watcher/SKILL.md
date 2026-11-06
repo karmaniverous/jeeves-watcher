@@ -916,6 +916,15 @@ Source-document issues always carry `rule` (the designated rule of the failed ru
 - **Rising `reconcileEvents`:** the source is missing events and reconciliation is finding them. **Rising `resubscribes`:** subscriptions keep failing (Linux). **Rising `renewFailures`:** a Linux renewal could not unsubscribe; restart the service.
 - **Windows, `lastRestartCause` set:** under parcel the service never unsubscribes on Windows (`@parcel/watcher` 2.6.0 crashes the process there), so a reload that rebuilds the watcher, a subscription error or a vanished watch root exits with code 75 and the service manager restarts it. `watch-config-changed`, `subscription-error` or `root-gone` says why, `lastRestartAt` when. If the service stays down after such an exit, its service manager is not restarting it on exit (NSSM: `AppExit Default Restart`).
 
+### Index Check at Start
+
+After the start walk the service deletes the indexed documents of files gone from disk (deleted or moved while it was down). `watcher_status` reports it under `health.indexCheck` (`state`, `at`, `durationMs`, `checked`, `removed`, `skippedRoots`, `capped`):
+
+- **`capped` above 0:** under some watch root more than 10% of the indexed documents (once more than 20 are missing) or more than 1,000 were missing from disk or filters, so nothing was deleted there; the log names the root. Run `watcher_reindex` with scope `prune` and `dryRun: true`, check the plan, then run it.
+- **`state: failed`:** the index could not be listed (Qdrant down), or the service stopped first; it runs again at the next start.
+- **`skippedRoots` above 0:** a root was unavailable, unwatched, gone, or its start walk failed; its deletions wait for the next start or a `prune`.
+- **Files that still exist but are now ignored** keep their points: that is `prune`'s job. `watch.indexCheckOnStart: false` turns the check off.
+
 ---
 
 ## Helper Management

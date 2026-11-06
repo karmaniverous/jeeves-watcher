@@ -16,6 +16,7 @@ import { ProcessingFailure } from '../../processor/issueRecording';
 import type { VirtualRuleStore } from '../../rules/virtualRules';
 import { normalizeSlashes } from '../../util/normalizeSlashes';
 import { ChangeSourceHealthTracker } from '../../watcher/ChangeSourceHealthTracker';
+import { IndexCheckHealthTracker } from '../../watcher/indexCheck/IndexCheckHealthTracker';
 
 /** Scriptable stub behaviour; tests set fields before each request. */
 export interface WireState {
@@ -244,6 +245,7 @@ export function wireServerOptions(
     virtualRuleStore: rules,
     reindexTracker: new ReindexTracker(),
     changeSourceHealth: new ChangeSourceHealthTracker(),
+    indexCheckHealth: new IndexCheckHealthTracker(),
     sourceQueue: {
       enqueue: () => true,
       processNow: (source: string) =>

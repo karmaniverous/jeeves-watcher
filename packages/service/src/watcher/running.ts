@@ -31,6 +31,7 @@ import {
 } from './fileEvents';
 import { FilteredEvents } from './filteredEvents';
 import { ignoreMatchers, resolveWatchPaths } from './globToDir';
+import type { IndexCheckView } from './indexCheck/view';
 import { Inventory } from './inventory/Inventory';
 import { WatchFilter } from './pathFilter';
 import {
@@ -63,8 +64,11 @@ export interface FileSystemWatcherOptions {
   contentHashCache?: ContentHashCache;
   /** Optional callback for VCS file change notifications. */
   onVcsFileChange?: VcsFileChange;
-  /** Optional callback invoked when the initial filesystem scan completes. */
-  onInitialScanComplete?: () => void | Promise<void>;
+  /**
+   * Optional callback invoked when the initial filesystem scan completes,
+   * with the index check's view of the watcher that completed it (D197).
+   */
+  onInitialScanComplete?: (view: IndexCheckView) => void | Promise<void>;
   /** `health.changeSource` counters (D133), owned by the app across rebuilds. */
   changeSourceHealth?: ChangeSourceHealthTracker;
   /** Live `watch.reconcileIntervalMs` (D111), read at each scheduling. */
@@ -101,6 +105,10 @@ export interface Running {
   pendingRoots: Set<string>;
   /** Roots marked unavailable (D109). */
   unavailableRoots: Set<string>;
+  /** Roots reachable but unwatched (D156); still reconciled. */
+  unwatchedRoots: Set<string>;
+  /** Roots whose initial walk failed (their inventory is incomplete). */
+  walkFailedRoots: Set<string>;
   /** Roots to reconcile once their initial scan finishes (D131). */
   deferredRoots: Set<string>;
   /** The parcel batch pipeline (D149); undefined for chokidar. */
@@ -263,6 +271,8 @@ export function createRunning(context: RunningContext): Running {
     periodic,
     pendingRoots,
     unavailableRoots,
+    unwatchedRoots: new Set(),
+    walkFailedRoots: new Set(),
     deferredRoots: new Set(),
     events,
   };

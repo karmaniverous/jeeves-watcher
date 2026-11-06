@@ -20,6 +20,7 @@ import type {
   RawChangeEvent,
   RootUnavailableOptions,
 } from './changeSource/types';
+import { type IndexCheckView, indexCheckView } from './indexCheck/view';
 import { walkRoots } from './initialWalk';
 import type { Inventory } from './inventory/Inventory';
 import {
@@ -33,7 +34,11 @@ import {
   type FileSystemWatcherOptions,
   type Running,
 } from './running';
-import { applySettled, onGitignoreChanged } from './runningHandlers';
+import {
+  applyClassified,
+  applySettled,
+  onGitignoreChanged,
+} from './runningHandlers';
 
 export type { FileSystemWatcherOptions } from './running';
 
@@ -125,6 +130,7 @@ export class FileSystemWatcher implements ChangeSink {
         filters: pipeline.walkOptions(),
         logger: this.logger,
         live: () => this.running === running,
+        onRootFailed: (root) => running.walkFailedRoots.add(root),
         onRootDone: (root) => {
           pipeline.fifo.resume(root);
           this.initialScanDone(root);
@@ -135,14 +141,10 @@ export class FileSystemWatcher implements ChangeSink {
 
   /** A classified event from the change source (chokidar), with the stats it read, if any. */
   event(type: ClassifiedEventType, path: string, stats?: Stats): void {
-    const events = this.running?.events;
-    if (!events) return;
-    const fileStats = stats && { size: stats.size, mtimeMs: stats.mtimeMs };
-    if (type === 'add') events.add(path, fileStats);
-    else if (type === 'change') events.change(path, fileStats);
-    else if (type === 'unlink') events.unlink(path);
-    else if (type === 'addDir') this.directoryCreated(path);
-    // `unlinkDir`: chokidar reports each file's unlink, so nothing to pair.
+    if (!this.running) return;
+    applyClassified(this.running, { type, path, stats }, (dir) => {
+      this.directoryCreated(dir);
+    });
   }
 
   /**
@@ -180,7 +182,8 @@ export class FileSystemWatcher implements ChangeSink {
       { scanStats: running.scanStats, inventory: running.inventory.size },
       'Initial scan complete',
     );
-    void this.options.onInitialScanComplete?.();
+    const view = indexCheckView(running, () => this.running === running);
+    void this.options.onInitialScanComplete?.(view);
     for (const deferred of running.deferredRoots) this.reconcile(deferred);
     running.deferredRoots.clear();
   }
@@ -252,6 +255,12 @@ export class FileSystemWatcher implements ChangeSink {
     return this.running?.inventory;
   }
 
+  /** What the index check at start reads (D197); undefined before start. */
+  get indexCheckView(): IndexCheckView | undefined {
+    const running = this.running;
+    return running && indexCheckView(running, () => this.running === running);
+  }
+
   /** Stop the filesystem watcher. */
   async stop(): Promise<void> {
     const running = this.running;
@@ -286,15 +295,6 @@ export class FileSystemWatcher implements ChangeSink {
    * On failure, records the failure and applies backoff.
    */
   private async wrapProcessing(fn: () => Promise<void>): Promise<void> {
-    try {
-      await this.health.backoff();
-      await fn();
-      this.health.recordSuccess();
-    } catch (error) {
-      const shouldContinue = this.health.recordFailure(error);
-      if (!shouldContinue) {
-        await this.stop();
-      }
-    }
+    if (!(await this.health.run(fn))) await this.stop();
   }
 }

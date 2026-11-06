@@ -4,7 +4,10 @@
  */
 
 import type { JeevesComponentDescriptor } from '@karmaniverous/jeeves';
-import type { ChangeSourceHealth } from '@karmaniverous/jeeves-watcher-core';
+import type {
+  ChangeSourceHealth,
+  IndexCheckHealth,
+} from '@karmaniverous/jeeves-watcher-core';
 import type pino from 'pino';
 
 import type { JeevesWatcherConfig } from '../config/types';
@@ -88,4 +91,6 @@ export interface ApiServerOptions {
   embeddingHealth?: { snapshot: () => EmbeddingHealthSnapshot };
   /** Change-source health (`GET /status` `health.changeSource`, D133). */
   changeSourceHealth?: { snapshot: () => ChangeSourceHealth };
+  /** Index check at start (`health.indexCheck`, D197). */
+  indexCheckHealth?: { snapshot: () => IndexCheckHealth };
 }
