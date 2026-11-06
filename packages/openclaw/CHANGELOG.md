@@ -2,6 +2,91 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.18.0-0] - 2026-11-06
+
+### 🚀 Features
+
+- *(openclaw)* [**breaking**] Every tool built from the catalog (D38, D137)
+
+### 🐛 Bug Fixes
+
+- *(openclaw)* Watcher_reindex keeps 0.17.0's default scope (rules)
+- Independent review findings on the clients
+
+### 💼 Other
+
+- [281] test: capture 0.20.0 wire and 0.17.0 plugin-surface baselines for the catalog slice (#281)
+
+Wire scenarios for every slice route and outcome (status, config, config apply, render, search, scan, vcs/show) replayed through the real server against a recorded fixture, and the plugin's 18 tool definitions and prompt rules recorded from untouched code. Later steps list each accepted change explicitly.
+- [281] chore(deps): pin @karmaniverous/jeeves 0.8.0-1 and add catalog plumbing (#281)
+
+Exact 0.8.0-1 pin in core, service and plugin; fastify-type-provider-zod for the service's catalog routes; zod-openapi and openapi-types for core's OpenAPI writer. Rollup externals match jeeves and dependency sub-paths by prefix so no second copy of core is bundled. The plugin pin test accepts a prerelease. Core's generated status tool schema now closes additionalProperties (accepted baseline change).
+- [281] feat: prompt rules and skill live in watcher-core (#281)
+
+WATCHER_PROMPT_RULES (moved verbatim from the plugin) and WATCHER_SKILL (compiled from packages/core/skills/jeeves-watcher/SKILL.md by npm run skill, with a drift test) are exported from watcher-core and set on both descriptors. The plugin injects the descriptor's promptRules and its build writes the skill to dist/skills/jeeves-watcher, the folder its manifest lists. The injected rules stay byte-identical to 0.17.0.
+- [281] chore(deps): re-pin @karmaniverous/jeeves to 0.8.0-4 (#281)
+
+G1/G2 already present at this pin (route logger option, Zod params on validation issues); this is the step 5 core loop-back re-pin.
+- [281] chore: pin @karmaniverous/jeeves 0.8.0-5 (#281)
+
+0.8.0-5 adds #151 (runnable argument parser additions); nothing the watcher uses changes. One copy of jeeves and of zod; all gates pass.
+- [281] feat: build the catalog plugin tools with core's toolset (#281)
+
+watcher_status, watcher_config and watcher_config_apply, plus watcher_search, watcher_scan and watcher_vcs_show, now come from createPluginToolset with WATCHER_CATALOG, the tools selection and a bearer credential resolved per call (catalogTools.ts). The plugin's own config tools are deleted, and so is its local catalogMode plumbing (core's ToolDescriptor carries it). Tool names, descriptions, catalogMode, optional registration and the 0.17.0 registration order are unchanged. Parameters are generated from the request schemas; toolBaseline.test lists every delta: closed objects, open records for filter and config, the bounds the server already enforced (search limit/offset/query, scan limit 1-1000, vcs_show non-empty path and commit), scan cursor as string or number, and replace on config_apply. Catalog-built tools report errors as core's HTTP <status>: <body> (D31); the plugin-built tools keep their key guidance. watcher_vcs_show now returns file text. New distSmoke.test registers the built dist (bundled watcher-core and Zod): 18 tools in order, search/scan direct-only, bearer sent; it must find dist in CI. Mutations checked: dropping auth fails auth.test; dropping direct-only on search fails the baseline and watcherTools tests.
+- [281] docs: document the catalog slice (#281)
+
+API reference: which routes are in WATCHER_CATALOG, the catalog's 400 details shape ({ slot, path, code, message, params }), response validation and its 500, the new GET /openapi.json (open, like /status), /config/apply's catalog schema with the deprecated config alias and the replace check, the /vcs/show 400 change, and the 401 wording of catalog-built tools. Root README: /openapi.json row, alias deprecated, plugin on jeeves 0.8 with catalog-built tools. watcher-core README: catalog, OpenAPI and agent-content exports. Plugin README and guide: which tools core builds from the catalog, the two error formats, generated parameter bounds, replace on config_apply, vcs_show returning text. Skill: tool errors, API key, and a troubleshooting entry for a catalog tool's 401 and the response-validation 500 (D31); WATCHER_SKILL regenerated. npm run docs has zero warnings.
+- [281] chore: update dependencies (patch and minor) (#281)
+
+npm-check-updates --peer --target minor in the root and all four packages, then npm audit fix (non-breaking): audit 17 -> 14. One zod (4.6.7). All gates pass. Left for the owner (major): chokidar 6, unpdf 2, typescript 7 (blocked by typescript-eslint's peer range), mdast-util-from-adf 2.2 and release-it 19 (the remaining audit highs).
+- [281] test: assert status sends no key (#281)
+
+Independent review finding 7. The spec's 'status sends none' was never asserted. catalogRoutes.test now records the Authorization header of each request a keyed catalog client makes: none for status, the bearer for config. auth.test checks watcher_status sends no header even with a key configured.
+- [281] docs: review fixes for auth exemptions, error formats and key order (#281)
+
+Independent review findings 9 and 10. The API reference summary and the skill now say GET /openapi.json needs no key, and the skill's endpoint table lists it. The error-format line covers the catalog-built tools' HTTP <status>: <body>. Catalog error bodies list error before code, so the config-apply 400 examples in the skill and the plugin guide now match the real text. WATCHER_SKILL regenerated.
+- [281] chore: point service and plugin at watcher-core 0.5.0-0 (#281)
+
+The service imports WATCHER_CATALOG from watcher-core at run time, and ^0.4.0 resolved to the registry 0.4.0 published before the slice, so a packed service failed to load. Service and plugin now take ^0.5.0-0 (the owner's prerelease from this branch); in the workspace both link to packages/core. The SDK keeps ^0.4.0 (unchanged in the slice, D30). All gates pass.
+- [281] chore: pin jeeves 0.8.0-6; drop fastify-type-provider-zod, zod-openapi, openapi-types
+
+jeeves 0.8.0-6 makes fastify, fastify-type-provider-zod and zod-openapi its own dependencies (jeeves Decision 88), so the service and core no longer supply them.
+- [281] chore: pin jeeves 0.8.0
+- [281] chore: patch/minor deps, prettier-ignore generated baselines, squash test timeout
+- [281] refactor: one registerCatalogTool for the plugin's catalog-built tools (#281)
+
+Independent review (5721988106): index.ts and watcherTools.ts each looked a catalog-built tool up, threw when it was missing and registered it as optional. registerCatalogTool in catalogTools.ts owns that now, with a test of its throw arm (uncovered before in both places).
+- [281] docs: review fixes for the skill, API reference and plugin README (#281)
+
+SKILL.md: watcher_scan cursor is a string or a number (D34); WATCHER_SKILL regenerated. API reference: the /vcs/show 400 error text. Plugin README: one list. registerCatalog TSDoc: one preValidation hook, HEAD included. vcsShowHandler: say why its VCS-off guard stays.
+- [281] test: watcher_reindex forwards path and dryRun only when set (#281)
+
+Finishing pass: the dryRun arm of the touched watcherTools.ts was uncovered (87.5% branches); now 100%.
+- [281] test,docs: second-review nits on the fix commits (#281)
+
+Fresh review of faf2fe9..e0cfae6: test names now say what they prove (hashObject, InitialScanTracker without start); errorResult keys compared in any order (M3 still KILLED); skill scan response cursor is a string, number or null (WATCHER_SKILL regenerated); catalogTools module TSDoc lists the four standard tools and registerCatalogTool.
+- Release guard for dependents' core range (#277)
+- Pin @karmaniverous/jeeves 0.9.0-0 (D42)
+- Patch and minor dependency updates
+- Require Node >=24.22.2 (D188)
+- Updated core
+- Merge remote-tracking branch 'origin/main' into feature/p9-processing-at-scale
+- Updated core
+
+### 🚜 Refactor
+
+- *(vcs)* Exclude nits (threshold constant, remove text, commit message template, VcsManager doc)
+- [**breaking**] Verb-first operation names (D77); retire WATCHER_ENDPOINTS (D41)
+- Finishing passes on the clients
+
+### 📚 Documentation
+
+- VCS-only exclusion (API reference, version-control and upgrading guides, READMEs, plugin tool descriptions)
+- Rollback step for .git/info/exclude, absolute vs root-relative globs, core skill
+- *(vcs)* Leading-slash glob with root in the upgrade guide, tool and skill text; stronger remove test
+- Clients on the catalog (SDK guide, CLI reference, plugin guide, upgrading)
+- Change source, inventory and reconciliation (P11: C1, B5b)
+- No 0.17.0 tool name or WATCHER_ENDPOINTS outside the upgrading guide and the tool-name tests (Design 14)
 ## [0.17.0] - 2026-10-14
 
 ### 🚀 Features
@@ -37,6 +122,7 @@ All notable changes to this project will be documented in this file.
 ### ⚙️ Miscellaneous Tasks
 
 - Ship LICENSE in every package; core README and license metadata
+- Release @karmaniverous/jeeves-watcher-openclaw v0.17.0
 ## [0.16.1] - 2026-09-30
 
 ### 💼 Other
