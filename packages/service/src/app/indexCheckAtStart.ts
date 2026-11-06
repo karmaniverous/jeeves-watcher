@@ -30,9 +30,6 @@ export type IndexCheckHost = Pick<
   'config' | 'vectorStore' | 'processor' | 'vcsCoordinator' | 'logger'
 >;
 
-/** Counts of a check that never listed anything. */
-const NOTHING = { checked: 0, removed: 0, skippedRoots: 0, capped: 0 };
-
 /** The index check at start, once per process. */
 export class IndexCheckAtStart {
   private readonly tracker = new IndexCheckHealthTracker();
@@ -57,27 +54,20 @@ export class IndexCheckAtStart {
   /**
    * An initial scan completed: run the check, once, unawaited.
    *
-   * @param view - The view of the watcher that completed it (`undefined`
-   *   when that watcher already stopped).
+   * @param view - The view of the watcher that completed it.
    */
-  onInitialScanComplete(view: IndexCheckView | undefined): void {
+  onInitialScanComplete(view: IndexCheckView): void {
     if (this.stopping) return;
     this.scanned = view;
     if (this.inFlight || this.decided) return;
     this.decided = true;
-    this.start();
+    this.start(view);
   }
 
   /** Start a run over the watcher that last completed its scan. */
-  private start(): void {
+  private start(view: IndexCheckView): void {
     if (!this.enabled()) {
       this.tracker.off();
-      return;
-    }
-    const view = this.scanned;
-    if (!view) {
-      // The watcher stopped before its initial scan was reported.
-      this.tracker.finish('failed', NOTHING);
       return;
     }
     const { vectorStore, processor, vcsCoordinator, logger } = this.host();
@@ -105,7 +95,7 @@ export class IndexCheckAtStart {
     this.inFlight = false;
     if (outcome !== 'stale' || this.stopping) return;
     const next = this.scanned;
-    if (next?.live()) this.start();
+    if (next?.live()) this.start(next);
     else this.decided = false;
   }
 

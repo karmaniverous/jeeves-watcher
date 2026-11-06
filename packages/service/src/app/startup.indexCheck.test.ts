@@ -27,6 +27,13 @@ interface Captured {
   view?: IndexCheckView;
 }
 
+/** The watcher reports its initial scan complete, with its view. */
+function scanDone(captured: Captured): void {
+  if (captured.view) {
+    void captured.watcherOptions?.onInitialScanComplete?.(captured.view);
+  }
+}
+
 /** Factories over a root of ten indexed documents, one gone. */
 function buildFactories(
   root: string,
@@ -127,7 +134,7 @@ describe('JeevesWatcher startup: index check at start', () => {
     try {
       const health = captured.apiOptions?.indexCheckHealth;
       expect(health?.snapshot().state).toBe('pending');
-      void captured.watcherOptions?.onInitialScanComplete?.(captured.view);
+      scanDone(captured);
       await vi.waitFor(() => {
         expect(health?.snapshot().state).toBe('done');
       });
@@ -143,7 +150,7 @@ describe('JeevesWatcher startup: index check at start', () => {
     try {
       const health = captured.apiOptions?.indexCheckHealth;
       expect(health?.snapshot().state).toBe('off');
-      void captured.watcherOptions?.onInitialScanComplete?.(captured.view);
+      scanDone(captured);
       expect(health?.snapshot().state).toBe('off');
       expect(captured.scrollPage).not.toHaveBeenCalled();
     } finally {
@@ -153,7 +160,7 @@ describe('JeevesWatcher startup: index check at start', () => {
 
   it('stops the check on shutdown', async () => {
     const app = await start();
-    void captured.watcherOptions?.onInitialScanComplete?.(captured.view);
+    scanDone(captured);
     await app.stop();
     expect(captured.deleteFile).not.toHaveBeenCalled();
     expect(captured.apiOptions?.indexCheckHealth?.snapshot().state).toBe(

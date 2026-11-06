@@ -1,6 +1,6 @@
 /**
  * @module app/indexCheckAtStart.test
- * The index check runs once per process when the first initial scan completes (D197): not again for a scan reported during a run that ends `done` (rebuild cases: `indexCheckAtStart.rebuild.test.ts`), `off` (before and after the scan) when `watch.indexCheckOnStart` is false, deletes through the processor and the VCS hook, stops on shutdown, and fails visibly when no watcher is running.
+ * The index check runs once per process when the first initial scan completes (D197): not again for a scan reported during a run that ends `done` (rebuild cases: `indexCheckAtStart.rebuild.test.ts`), `off` (before and after the scan) when `watch.indexCheckOnStart` is false, deletes through the processor and the VCS hook, and stops on shutdown.
  */
 
 import { mkdtemp, rm } from 'node:fs/promises';
@@ -15,9 +15,7 @@ import type { IndexCheckView } from '../watcher/indexCheck/view';
 import { IndexCheckAtStart, type IndexCheckHost } from './indexCheckAtStart';
 
 /** A root of ten indexed documents, one gone from disk and inventory. */
-function fixture(
-  options: { enabled?: boolean; watcher?: boolean; root?: string } = {},
-) {
+function fixture(options: { enabled?: boolean; root?: string } = {}) {
   const tmp = normalizeSlashes(
     options.root ?? join(tmpdir(), 'jeeves-watcher-no-such-root'),
   );
@@ -54,8 +52,7 @@ function fixture(
     vcsCoordinator: { onFileChange },
     logger: pino({ level: 'silent' }),
   } as unknown as IndexCheckHost;
-  const scanned = options.watcher === false ? undefined : view;
-  return { host, view: scanned, deleteFile, onFileChange, scrollPage };
+  return { host, view, deleteFile, onFileChange, scrollPage };
 }
 
 /** Wait until the check has ended. */
@@ -147,12 +144,5 @@ describe('IndexCheckAtStart', () => {
     check.onInitialScanComplete(f.view);
     expect(check.snapshot().state).toBe('pending');
     expect(f.scrollPage).not.toHaveBeenCalled();
-  });
-
-  it('fails visibly when no watcher is running at the scan', () => {
-    const f = fixture({ watcher: false });
-    const check = create(f.host);
-    check.onInitialScanComplete(f.view);
-    expect(check.snapshot()).toMatchObject({ state: 'failed', checked: 0 });
   });
 });

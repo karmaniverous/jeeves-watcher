@@ -182,7 +182,8 @@ export class FileSystemWatcher implements ChangeSink {
       { scanStats: running.scanStats, inventory: running.inventory.size },
       'Initial scan complete',
     );
-    void this.options.onInitialScanComplete?.(this.indexCheckView);
+    const view = indexCheckView(running, () => this.running === running);
+    void this.options.onInitialScanComplete?.(view);
     for (const deferred of running.deferredRoots) this.reconcile(deferred);
     running.deferredRoots.clear();
   }

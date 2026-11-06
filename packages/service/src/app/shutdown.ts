@@ -121,7 +121,9 @@ export interface ShutdownComponents extends ShutdownQueues {
   /** The API server: closed first, so no new notification is accepted. */
   server?: { close: () => Promise<unknown> };
   /** Producers stopped after the server, in order (index check, VCS, filesystem watcher; the caller stops the config watcher before shutdown). A producer whose `stop` resolves `false` may still be running (its bounded stop timed out), so stores are left open. */
-  producers?: Array<{ stop: () => Promise<unknown> } | undefined>;
+  producers?: Array<
+    { stop: () => Promise<void> } | { stop: () => Promise<boolean> } | undefined
+  >;
   /** Values index (always flushed: an in-memory snapshot write). */
   valuesManager?: { stopAutoFlush: () => void; flush: () => void };
   /** Stores closed only when no run is still in flight. */

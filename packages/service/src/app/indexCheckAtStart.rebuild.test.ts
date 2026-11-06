@@ -46,7 +46,8 @@ function rebuildable(root: string, options: { shutdownTimeoutMs?: number }) {
   });
   const deleteFile = vi.fn(() => Promise.resolve());
   const warn = vi.fn();
-  const logger = Object.assign(pino({ level: 'silent' }), { warn });
+  const error = vi.fn();
+  const logger = Object.assign(pino({ level: 'silent' }), { warn, error });
   const host = {
     config: { watch: { paths: [`${root}/**`] }, ...options },
     vectorStore: { scrollPage },
@@ -72,6 +73,7 @@ function rebuildable(root: string, options: { shutdownTimeoutMs?: number }) {
     scrollPage,
     deleteFile,
     warn,
+    error,
   };
 }
 
@@ -164,6 +166,30 @@ describe('IndexCheckAtStart across a watcher rebuild', () => {
     expect(await stopped).toBe(true);
     expect(r.scrollPage).toHaveBeenCalledTimes(1);
     expect(r.check.snapshot().state).toBe('failed');
+  });
+
+  it('does not run again when the stop lands after the run was judged stale', async () => {
+    const r = rebuildable(root, {});
+    let stopped: Promise<boolean> | undefined;
+    // The stale run logs its interruption, then hands off: stop in between.
+    r.warn.mockImplementation((_obj: unknown, msg: unknown) => {
+      if (String(msg).includes('interrupted by a watcher rebuild')) {
+        stopped = r.check.stop();
+      }
+    });
+    r.scan();
+    await r.listing();
+    r.rebuild();
+    r.scan();
+    r.releaseFirst();
+    await vi.waitFor(() => {
+      expect(stopped).toBeDefined();
+    });
+    expect(await stopped).toBe(true);
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    // No second run was started (it would end failed, logging an error).
+    expect(r.error).not.toHaveBeenCalled();
+    expect(r.scrollPage).toHaveBeenCalledTimes(1);
   });
 
   it('stops waiting for a hung check after shutdownTimeoutMs, reporting it still running', async () => {
