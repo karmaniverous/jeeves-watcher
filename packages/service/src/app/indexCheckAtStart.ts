@@ -1,16 +1,21 @@
 /**
  * @module app/indexCheckAtStart
- * Runs the index check (D197) once per process, in the background, when the first initial scan completes (the API already listens), unless `watch.indexCheckOnStart` is false; owns `health.indexCheck` and stops the check on shutdown. A later watcher rebuild (config reload) does not run it again.
+ * Runs the index check (D197) once per process, in the background, when the first initial scan completes (the API already listens), unless `watch.indexCheckOnStart` is false; owns `health.indexCheck` and stops the check on shutdown (bounded by `shutdownTimeoutMs`). A run that a watcher rebuild interrupts runs again after the rebuilt watcher's initial scan; a completed or failed run is not repeated by later rebuilds.
  */
 
 import {
   type IndexCheckHealth,
+  ROOT_DEFAULTS,
   WATCH_DEFAULTS,
 } from '@karmaniverous/jeeves-watcher-core';
 
 import type { ApiServerOptions } from '../api/apiServerOptions';
 import { IndexCheckHealthTracker } from '../watcher/indexCheck/IndexCheckHealthTracker';
-import { runIndexCheck } from '../watcher/indexCheck/runIndexCheck';
+import {
+  type IndexCheckOutcome,
+  runIndexCheck,
+} from '../watcher/indexCheck/runIndexCheck';
+import { settlesWithin } from './shutdown';
 
 /**
  * What the check reads from the app when it runs: the current config, the
@@ -35,6 +40,9 @@ export class IndexCheckAtStart {
   private readonly tracker = new IndexCheckHealthTracker();
   private decided = false;
   private stopping = false;
+  private inFlight = false;
+  /** A rebuilt watcher finished its initial scan while a run was in flight. */
+  private rescanned = false;
   private run: Promise<void> | undefined;
 
   /** @param host - Reads the app's current components. */
@@ -48,10 +56,20 @@ export class IndexCheckAtStart {
     );
   }
 
-  /** The first initial scan completed: run the check, once, unawaited. */
+  /** An initial scan completed: run the check, once, unawaited. */
   onInitialScanComplete(): void {
-    if (this.decided || this.stopping) return;
+    if (this.stopping) return;
+    if (this.inFlight) {
+      this.rescanned = true;
+      return;
+    }
+    if (this.decided) return;
     this.decided = true;
+    this.start();
+  }
+
+  /** Start a run over the current watcher. */
+  private start(): void {
     if (!this.enabled()) {
       this.tracker.off();
       return;
@@ -64,6 +82,7 @@ export class IndexCheckAtStart {
       this.tracker.finish('failed', NOTHING);
       return;
     }
+    this.inFlight = true;
     this.run = runIndexCheck({
       view,
       vectorStore,
@@ -74,7 +93,19 @@ export class IndexCheckAtStart {
       health: this.tracker,
       logger,
       stopped: () => this.stopping,
+    }).then((outcome) => {
+      this.ended(outcome);
     });
+  }
+
+  /** A run ended: a stale one belongs to the rebuilt watcher. */
+  private ended(outcome: IndexCheckOutcome): void {
+    this.inFlight = false;
+    const rescanned = this.rescanned;
+    this.rescanned = false;
+    if (outcome !== 'stale' || this.stopping) return;
+    if (rescanned) this.start();
+    else this.decided = false;
   }
 
   /** `health.indexCheck`; `off` before the decision when disabled. */
@@ -85,9 +116,22 @@ export class IndexCheckAtStart {
       : snapshot;
   }
 
-  /** Stop: no further listing or delete; resolves once the check ends. */
+  /**
+   * Stop: no further listing or delete; resolves once the check ends, or
+   * after `shutdownTimeoutMs` (a delete waiting on a document lock, or a
+   * hung Qdrant call, must not hold shutdown).
+   */
   async stop(): Promise<void> {
     this.stopping = true;
-    await this.run;
+    if (!this.run) return;
+    const { config, logger } = this.host();
+    const timeoutMs =
+      config.shutdownTimeoutMs ?? ROOT_DEFAULTS.shutdownTimeoutMs;
+    if (!(await settlesWithin(this.run, timeoutMs))) {
+      logger.warn(
+        { timeoutMs, step: 'Index check stop' },
+        'Index check stop timeout hit, forcing shutdown',
+      );
+    }
   }
 }
