@@ -218,5 +218,8 @@ describe('FileSystemWatcher (parcel) with version control', () => {
     await sleep(3_000);
     expect(h.events).toHaveLength(before);
     expect(h.seen().filter((s) => s.includes('.git/'))).toEqual([]);
-  }, 300_000);
+    // Writing, walking, staging and committing 20,000 files: 131-141 s on
+    // the Windows host, 240-260 s on green Windows CI runs, and over 300 s
+    // on one; each step has its own bound (the event wait above).
+  }, 600_000);
 });
