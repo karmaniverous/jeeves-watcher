@@ -425,7 +425,7 @@ Transient failures are retried; anything that still fails is recorded as an issu
 | Embedding provider 429 (rate limit) | Every caller pauses on the shared limiter. A `Retry-After` up to `maxBackoffMs` (default 60 s) is honoured; a longer one fails fast. Without `Retry-After`: backoff from 1 s, doubling, capped at `maxBackoffMs`. Up to 5 provider calls per embed (3 for a search query) |
 | Embedding provider network error or other non-2xx | 5 attempts, exponential backoff from 500 ms capped at 10 s (+ up to 20% jitter); each retry draws from the shared limiter |
 | Qdrant write (upsert, delete, set-payload, delete-payload) | 5 attempts, same backoff, each retry on a fresh Qdrant client |
-| Text extraction error | No retry (logged and recorded as an `extraction_error` issue) |
+| Text extraction error | No retry (logged and recorded as an `extraction_error` issue; an indexed file's points are deleted) |
 
 **Embedding health (v0.21.0+):** A tracker wraps the shared rate-limited provider. At least 3 failed calls with 60 s without a success turn it `failing` (`GET /status` reports `degraded`, an error is logged, and `embedding.alertUrl` gets `embedding_failed`); the first success turns it `ok` again (`embedding_recovered`). A stored provider back-off is capped at 5 minutes, then expires; the first call after it probes the provider. Alerts and the reindex callback share one delivery helper: 3 attempts, 1 s then 2 s apart, 10 s timeout each, never thrown. See [Embedding Health](./configuration.md#embedding-health).
 

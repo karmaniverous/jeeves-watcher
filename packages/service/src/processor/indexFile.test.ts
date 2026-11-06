@@ -1,6 +1,6 @@
 /**
  * @module processor/indexFile.test
- * indexFile (D44): a file over maxFileBytes is rejected too_large from stat, before the resolver (extraction) runs, and its points are deleted; default ceilings apply without configured limits; a gone file indexes nothing.
+ * indexFile (D44, D201): a file over maxFileBytes is rejected too_large from stat, before the resolver (extraction) runs, and its points are deleted; default ceilings apply without configured limits; a gone file indexes nothing; an extraction failure deletes an indexed file's points and rethrows (a file with no points gets no delete, and a failing delete still rethrows the extraction error).
  */
 
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
@@ -33,13 +33,15 @@ function context(limits?: { maxFileBytes: number }) {
     delete: vi.fn().mockResolvedValue(undefined),
   };
   const resolver = { resolve: vi.fn().mockResolvedValue({ kind: 'gone' }) };
+  const logger = pino({ level: 'silent' });
   return {
     vectorStore,
     resolver,
+    logger,
     ctx: {
       embeddingProvider: {} as never,
       vectorStore: vectorStore as never,
-      logger: pino({ level: 'silent' }),
+      logger,
       resolver,
       ...(limits
         ? { limits: { maxChunksPerFile: 5000, maxTextBytes: 1e6, ...limits } }
@@ -59,6 +61,49 @@ describe('indexFile', () => {
       pointId(file, 0),
       pointId(file, 1),
     ]);
+  });
+
+  describe('when extraction fails (D201)', () => {
+    const failure = new Error('front matter is not valid YAML');
+
+    it('deletes the points of an indexed file, then rethrows', async () => {
+      const { ctx, resolver, vectorStore, logger } = context();
+      resolver.resolve.mockRejectedValue(failure);
+      const warn = vi.spyOn(logger, 'warn');
+      await expect(indexFile(ctx, file)).rejects.toBe(failure);
+      expect(vectorStore.getPayload).toHaveBeenCalledWith(pointId(file, 0));
+      expect(vectorStore.delete).toHaveBeenCalledWith([
+        pointId(file, 0),
+        pointId(file, 1),
+      ]);
+      expect(warn).toHaveBeenCalledWith(
+        { filePath: file, chunks: 2 },
+        expect.stringContaining('removed from the index'),
+      );
+    });
+
+    it('deletes nothing for a file with no points', async () => {
+      const { ctx, resolver, vectorStore } = context();
+      resolver.resolve.mockRejectedValue(failure);
+      vectorStore.getPayload.mockResolvedValue(null);
+      await expect(indexFile(ctx, file)).rejects.toBe(failure);
+      expect(vectorStore.delete).not.toHaveBeenCalled();
+    });
+
+    it('logs a failing delete and still rethrows the extraction error', async () => {
+      const { ctx, resolver, vectorStore, logger } = context();
+      resolver.resolve.mockRejectedValue(failure);
+      vectorStore.delete.mockRejectedValue(new Error('qdrant down'));
+      const error = vi.spyOn(logger, 'error');
+      await expect(indexFile(ctx, file)).rejects.toBe(failure);
+      const [fields, message] = error.mock.calls[0] as unknown as [
+        { filePath: string; err: { message: string } },
+        string,
+      ];
+      expect(fields.filePath).toBe(file);
+      expect(fields.err.message).toBe('qdrant down');
+      expect(message).toContain('deleting the file from the index failed');
+    });
   });
 
   it('applies the default ceilings and indexes nothing for a gone file', async () => {

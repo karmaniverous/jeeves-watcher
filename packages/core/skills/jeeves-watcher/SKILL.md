@@ -894,7 +894,7 @@ Every issue record's `type` is one of these codes:
 
 - `type_collision` — conflicting metadata types across rules (includes `property`, `rules[]`, `types[]`)
 - `interpolation_error` — template or `set` expression rendering failed (includes `property`, `rule`; `details` holds per-step failures)
-- `extraction_error` — reading, rule application or chunking failed
+- `extraction_error` — reading, rule application or chunking failed. A file that was indexed and no longer reads (e.g. front matter with `!!float 1`, refused since 0.21.0) has its points deleted, so it is out of search until fixed; its enrichment is kept
 - `embedding_error` — the embedding provider failed
 - `upsert_error` — the vector store write failed
 - `match_failed` — a source document's designated rule did not match (`details` holds the AJV errors)
