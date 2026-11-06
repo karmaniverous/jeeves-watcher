@@ -116,7 +116,7 @@ See [Configuration](./configuration.md) for each.
 - **`!!float` on a value not written as a float is an extraction error.** `rank: !!float 1` and `rank: !!float "1"` were indexed by 0.20.0 (as `1`); 0.21.0 records an `extraction_error` issue for the file and leaves it out of search. `!!float 1.5` and `!!float 1.0` still parse. Before upgrading, find such lines and write the value as a float (`1.0`) or drop the tag:
 
   ```bash
-  grep -rnE $'!!float +["\']?[+-]?[0-9]+["\']?([] ,}]|$)' --include='*.md' <root>
+  grep -rnE $'!!float[[:space:]]+["\']?[+-]?[0-9]+["\']?([],}[:space:]]|$)' --include='*.md' <root>
   ```
 
   This is a first pass (it can also match lines outside front matter); after the upgrade, `GET /issues` lists any file it missed as an `extraction_error`.
@@ -279,10 +279,10 @@ Stop the service and reinstall 0.20.0 (`npm install -g @karmaniverous/jeeves-wat
    ```
 
    ```powershell
-   $root = (Get-Item '<root>').FullName.TrimEnd('\')
+   $root = (Get-Item -LiteralPath '<root>' -ErrorAction Stop).FullName.TrimEnd('\')
    [Console]::OutputEncoding = [Text.Encoding]::UTF8   # read git's non-ASCII paths correctly
    $tracked = @{}; git -C $root -c core.quotePath=false ls-files | ForEach-Object { $tracked[$_] = $true }
-   Get-ChildItem $root -Recurse -File -Force | Where-Object { $_.Length -gt 100000000 -and $_.FullName -notmatch '[\\/]\.git[\\/]' } |
+   Get-ChildItem -LiteralPath $root -Recurse -File -Force | Where-Object { $_.Length -gt 100000000 -and $_.FullName -notmatch '[\\/]\.git[\\/]' } |
      ForEach-Object { $_.FullName.Substring($root.Length + 1) -replace '\\', '/' } | Where-Object { -not $tracked[$_] }
    ```
 
@@ -301,11 +301,15 @@ Stop the service and reinstall 0.20.0 (`npm install -g @karmaniverous/jeeves-wat
    ```
 
    ```powershell
-   Set-Location $root   # as set in step 2
-   Get-Content .git\info\exclude | Where-Object { $_ -and -not $_.StartsWith('#') }              # review
-   if ((Test-Path .gitignore) -and (Get-Item .gitignore).Length -gt 0 -and -not (Get-Content .gitignore -Raw).EndsWith("`n")) { Add-Content .gitignore '' }  # end .gitignore with a newline
-   Get-Content .git\info\exclude | Where-Object { $_ -and -not $_.StartsWith('#') } | Add-Content .gitignore  # move (skip to delete)
-   Clear-Content .git\info\exclude
+   $root = (Get-Item -LiteralPath '<root>' -ErrorAction Stop).FullName.TrimEnd('\')
+   $exclude = Join-Path $root '.git\info\exclude'; $ignore = Join-Path $root '.gitignore'
+   $patterns = Get-Content -LiteralPath $exclude | Where-Object { $_ -and -not $_.StartsWith('#') }
+   $patterns                                                                                  # review
+   if ((Test-Path -LiteralPath $ignore) -and (Get-Item -LiteralPath $ignore).Length -gt 0 -and -not (Get-Content -LiteralPath $ignore -Raw).EndsWith("`n")) {
+     Add-Content -LiteralPath $ignore ''                                                      # end .gitignore with a newline
+   }
+   $patterns | Add-Content -LiteralPath $ignore                                               # move (skip to delete)
+   Clear-Content -LiteralPath $exclude
    ```
 
    Files 0.21.0 untracked stay untracked until they next change.
