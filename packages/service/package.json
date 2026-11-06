@@ -150,6 +150,7 @@
     "check:parcel": "tsx scripts/check-parcel-binary.ts",
     "diagrams": "cd diagrams && plantuml -tpng -o ../assets -r .",
     "facet:gate": "tsx scripts/facet-gate.ts",
+    "index-check:cost": "tsx scripts/index-check-cost.ts",
     "generate:schema": "tsx src/config/generate-schema.ts",
     "lint": "eslint .",
     "lint:fix": "eslint --fix .",
