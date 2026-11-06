@@ -1,6 +1,6 @@
 /**
  * @module processor/indexFile.test
- * indexFile (D44, D201): a file over maxFileBytes is rejected too_large from stat, before the resolver (extraction) runs, and its points are deleted; default ceilings apply without configured limits; a gone file indexes nothing; an extraction failure deletes an indexed file's points and rethrows (a file with no points gets no delete, a system error reading the file deletes nothing, and a failing delete still rethrows the extraction error).
+ * indexFile (D44, D201): a file over maxFileBytes is rejected too_large from stat, before the resolver (extraction) runs, and its points are deleted; default ceilings apply without configured limits; a gone file indexes nothing; an extraction failure deletes an indexed file's points and rethrows (a file with no points gets no delete, a system or Node error reading the file deletes nothing, also through the real FileResolver, and a failing delete still rethrows the extraction error).
  */
 
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
@@ -13,6 +13,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { pointId } from '../pointId';
 import { indexFile } from './indexFile';
 import { ProcessingFailure } from './issueRecording';
+import { FileResolver } from './resolvers/FileResolver';
 
 let dir: string;
 let file: string;
@@ -95,6 +96,37 @@ describe('indexFile', () => {
         resolver.resolve.mockRejectedValue(systemError);
         await expect(indexFile(ctx, file)).rejects.toBe(systemError);
         expect(vectorStore.getPayload).not.toHaveBeenCalled();
+        expect(vectorStore.delete).not.toHaveBeenCalled();
+      },
+    );
+
+    it.each(['ERR_SQLITE_ERROR', 'ERR_MODULE_NOT_FOUND'])(
+      'keeps the points on a Node error (%s), with no syscall',
+      async (code) => {
+        const { ctx, resolver, vectorStore } = context();
+        const nodeError = Object.assign(new Error(code), { code });
+        resolver.resolve.mockRejectedValue(nodeError);
+        await expect(indexFile(ctx, file)).rejects.toBe(nodeError);
+        expect(vectorStore.delete).not.toHaveBeenCalled();
+      },
+    );
+
+    // The real resolver, so a wrapped read error would be caught here.
+    it.each([
+      ['a missing file (ENOENT)', () => join(dir, 'missing.md')],
+      ['a directory (EISDIR)', () => dir],
+    ])(
+      'keeps the points when the real FileResolver fails to read %s',
+      async (_, path) => {
+        const { ctx, vectorStore, logger } = context();
+        const resolver = new FileResolver({
+          compiledRules: [],
+          config: {},
+          logger,
+        });
+        await expect(
+          indexFile({ ...ctx, resolver }, path()),
+        ).rejects.toHaveProperty('syscall');
         expect(vectorStore.delete).not.toHaveBeenCalled();
       },
     );

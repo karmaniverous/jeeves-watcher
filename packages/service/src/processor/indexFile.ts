@@ -26,15 +26,20 @@ type IndexFileContext = PipelineContext & {
  * Whether an error is the operating system's (a Node system error: `code`
  * and `syscall`), such as a file locked by another program (EBUSY, EPERM),
  * too many open files (EMFILE), a file gone mid-save (ENOENT) or a dropped
- * share (EIO). These say nothing about the file's content and usually pass.
+ * share (EIO); or one of Node's own (`ERR_*`), such as a failing enrichment
+ * store read (ERR_SQLITE_ERROR) or an extractor that does not load
+ * (ERR_MODULE_NOT_FOUND, which would otherwise empty every PDF from search).
+ * These say nothing about the file's content and usually pass. Parser
+ * errors carry no `syscall` and no `ERR_` code.
  *
  * @param error - The resolver's error.
- * @returns True for a system error.
+ * @returns True for a system or Node error.
  */
 function isSystemError(error: unknown): boolean {
   if (!(error instanceof Error)) return false;
   const { code, syscall } = error as NodeJS.ErrnoException;
-  return typeof code === 'string' && typeof syscall === 'string';
+  if (typeof code !== 'string') return false;
+  return typeof syscall === 'string' || code.startsWith('ERR_');
 }
 
 /**
