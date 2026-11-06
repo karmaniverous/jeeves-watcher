@@ -143,8 +143,11 @@ async function removeGone(
     // A file still on disk but filtered (or unreadable to the walk) is
     // prune's (Design 9). The inventory is read after the stat: an event
     // that re-created the file meanwhile wins, and nothing awaits between
-    // this read and the delete taking its place on the document lock.
-    if (!(await isGone(path)) || deps.view.has(path)) continue;
+    // this read and the delete taking its place on the document lock. A
+    // stop or rebuild during the stat is checked again before deleting.
+    if (!(await isGone(path))) continue;
+    assertActive(deps);
+    if (deps.view.has(path)) continue;
     deps.onVcsFileChange?.(path, 'unlink');
     await deps.deleteFile(path);
     removed += 1;

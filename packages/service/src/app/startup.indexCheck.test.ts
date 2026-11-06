@@ -1,6 +1,6 @@
 /**
  * @module app/startup.indexCheck.test
- * Startup wiring for P13a (D197): the watcher's initial-scan callback starts the index check over the app's watcher, index, processor and VCS coordinator; `/status` gets its health; `watch.indexCheckOnStart: false` reports `off` and never lists; shutdown stops it.
+ * Startup wiring for P13a (D197): the watcher's initial-scan callback starts the index check over the view it carries and the app's watcher, index, processor and VCS coordinator; `/status` gets its health; `watch.indexCheckOnStart: false` reports `off` and never lists; shutdown stops it.
  */
 
 import { mkdtemp, rm } from 'node:fs/promises';
@@ -23,6 +23,8 @@ interface Captured {
   apiOptions?: ApiServerOptions;
   deleteFile: ReturnType<typeof vi.fn>;
   scrollPage: ReturnType<typeof vi.fn>;
+  /** The view the watcher passes with its scan signal. */
+  view?: IndexCheckView;
 }
 
 /** Factories over a root of ten indexed documents, one gone. */
@@ -40,6 +42,7 @@ function buildFactories(
     has: (path) => !path.endsWith('gone.md'),
     live: () => true,
   };
+  captured.view = view;
   captured.scrollPage.mockResolvedValue({
     points: paths.map((file_path, i) => ({
       id: String(i),
@@ -69,7 +72,6 @@ function buildFactories(
       return {
         start: vi.fn(),
         stop: vi.fn().mockResolvedValue(undefined),
-        indexCheckView: view,
       } as never;
     },
     createApiServer: (options) => {
@@ -125,7 +127,7 @@ describe('JeevesWatcher startup: index check at start', () => {
     try {
       const health = captured.apiOptions?.indexCheckHealth;
       expect(health?.snapshot().state).toBe('pending');
-      void captured.watcherOptions?.onInitialScanComplete?.();
+      void captured.watcherOptions?.onInitialScanComplete?.(captured.view);
       await vi.waitFor(() => {
         expect(health?.snapshot().state).toBe('done');
       });
@@ -141,7 +143,7 @@ describe('JeevesWatcher startup: index check at start', () => {
     try {
       const health = captured.apiOptions?.indexCheckHealth;
       expect(health?.snapshot().state).toBe('off');
-      void captured.watcherOptions?.onInitialScanComplete?.();
+      void captured.watcherOptions?.onInitialScanComplete?.(captured.view);
       expect(health?.snapshot().state).toBe('off');
       expect(captured.scrollPage).not.toHaveBeenCalled();
     } finally {
@@ -151,7 +153,7 @@ describe('JeevesWatcher startup: index check at start', () => {
 
   it('stops the check on shutdown', async () => {
     const app = await start();
-    void captured.watcherOptions?.onInitialScanComplete?.();
+    void captured.watcherOptions?.onInitialScanComplete?.(captured.view);
     await app.stop();
     expect(captured.deleteFile).not.toHaveBeenCalled();
     expect(captured.apiOptions?.indexCheckHealth?.snapshot().state).toBe(

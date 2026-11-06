@@ -31,6 +31,7 @@ import {
 } from './fileEvents';
 import { FilteredEvents } from './filteredEvents';
 import { ignoreMatchers, resolveWatchPaths } from './globToDir';
+import type { IndexCheckView } from './indexCheck/view';
 import { Inventory } from './inventory/Inventory';
 import { WatchFilter } from './pathFilter';
 import {
@@ -63,8 +64,11 @@ export interface FileSystemWatcherOptions {
   contentHashCache?: ContentHashCache;
   /** Optional callback for VCS file change notifications. */
   onVcsFileChange?: VcsFileChange;
-  /** Optional callback invoked when the initial filesystem scan completes. */
-  onInitialScanComplete?: () => void | Promise<void>;
+  /**
+   * Optional callback invoked when the initial filesystem scan completes,
+   * with the index check's view of the watcher that completed it (D197).
+   */
+  onInitialScanComplete?: (view?: IndexCheckView) => void | Promise<void>;
   /** `health.changeSource` counters (D133), owned by the app across rebuilds. */
   changeSourceHealth?: ChangeSourceHealthTracker;
   /** Live `watch.reconcileIntervalMs` (D111), read at each scheduling. */

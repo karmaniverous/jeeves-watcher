@@ -232,8 +232,8 @@ export class JeevesWatcher {
       onVcsFileChange: (filePath, event) => {
         this.vcsCoordinator?.onFileChange(filePath, event);
       },
-      onInitialScanComplete: () => {
-        this.indexCheck.onInitialScanComplete();
+      onInitialScanComplete: (view) => {
+        this.indexCheck.onInitialScanComplete(view);
         return this.vcsCoordinator?.onInitialScanComplete();
       },
     };

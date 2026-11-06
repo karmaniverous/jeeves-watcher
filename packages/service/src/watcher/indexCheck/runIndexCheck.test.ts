@@ -83,6 +83,22 @@ describe('runIndexCheck', () => {
     expect(s.health.snapshot()).toMatchObject({ removed: 0, capped: 0 });
   });
 
+  it('deletes nothing once the service stops during a stat', async () => {
+    let stopping = false;
+    const pad = kept('/r');
+    const s = setup({
+      inventory: pad.paths,
+      payloads: [...pad.payloads, file('/r/gone.md')],
+      stopped: () => stopping,
+    });
+    s.deps.isGone = () => {
+      stopping = true;
+      return Promise.resolve(true);
+    };
+    expect(await runIndexCheck(s.deps)).toBe('failed');
+    expect(s.calls).toEqual([]);
+  });
+
   it('totals removed documents across roots and within one', async () => {
     const a = [kept('/a'), kept('/a/more')];
     const b = kept('/b');

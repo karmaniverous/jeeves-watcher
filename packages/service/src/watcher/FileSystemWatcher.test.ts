@@ -16,6 +16,7 @@ import {
 } from '../test/watcherHarness';
 import { normalizeSlashes } from '../util/normalizeSlashes';
 import { ChangeSourceHealthTracker } from './ChangeSourceHealthTracker';
+import type { IndexCheckView } from './indexCheck/view';
 
 let harness: WatcherHarness | undefined;
 
@@ -39,6 +40,10 @@ describe('FileSystemWatcher (chokidar source, real filesystem)', () => {
       filesEnqueued: 2,
     });
     expect(onInitialScanComplete).toHaveBeenCalledTimes(1);
+    // It carries the index check's view of this watcher (D197).
+    const [view] = onInitialScanComplete.mock.calls[0] as [IndexCheckView];
+    expect(view.live()).toBe(true);
+    expect(view.has(join(harness.root, 'a.md'))).toBe(true);
     expect(harness.vcs.sort()).toEqual(['add:a.md', 'add:sub/b.md']);
   });
 

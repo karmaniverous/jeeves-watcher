@@ -1,6 +1,6 @@
 /**
  * @module app/indexCheckAtStart.test
- * The index check runs once per process when the first initial scan completes (D197): never again after a rebuild's scan, `off` (before and after the scan) when `watch.indexCheckOnStart` is false, deletes through the processor and the VCS hook, stops on shutdown, and fails visibly when no watcher is running.
+ * The index check runs once per process when the first initial scan completes (D197): not again for a scan reported during a run that ends `done` (rebuild cases: `indexCheckAtStart.rebuild.test.ts`), `off` (before and after the scan) when `watch.indexCheckOnStart` is false, deletes through the processor and the VCS hook, stops on shutdown, and fails visibly when no watcher is running.
  */
 
 import { mkdtemp, rm } from 'node:fs/promises';
@@ -49,14 +49,13 @@ function fixture(
           : { indexCheckOnStart: options.enabled }),
       },
     },
-    getFileSystemWatcher: () =>
-      options.watcher === false ? undefined : { indexCheckView: view },
     vectorStore: { scrollPage },
     processor: { deleteFile },
     vcsCoordinator: { onFileChange },
     logger: pino({ level: 'silent' }),
   } as unknown as IndexCheckHost;
-  return { host, deleteFile, onFileChange, scrollPage };
+  const scanned = options.watcher === false ? undefined : view;
+  return { host, view: scanned, deleteFile, onFileChange, scrollPage };
 }
 
 /** Wait until the check has ended. */
@@ -79,9 +78,9 @@ describe('IndexCheckAtStart', () => {
       const gone = `${normalizeSlashes(root)}/gone.md`;
       const check = create(f.host);
       expect(check.snapshot().state).toBe('pending');
-      check.onInitialScanComplete();
-      // A rebuild's initial scan does not run it again.
-      check.onInitialScanComplete();
+      check.onInitialScanComplete(f.view);
+      // A scan reported during a run that ends done does not run it again.
+      check.onInitialScanComplete(f.view);
       await settled(check);
       expect(f.scrollPage).toHaveBeenCalledTimes(1);
       expect(f.onFileChange).toHaveBeenCalledWith(gone, 'unlink');
@@ -101,7 +100,7 @@ describe('IndexCheckAtStart', () => {
     try {
       const f = fixture({ root });
       const check = create(f.host);
-      check.onInitialScanComplete();
+      check.onInitialScanComplete(f.view);
       await check.stop();
       expect(f.deleteFile).not.toHaveBeenCalled();
       expect(check.snapshot().state).toBe('failed');
@@ -113,7 +112,7 @@ describe('IndexCheckAtStart', () => {
   it('skips a root that is gone', async () => {
     const f = fixture();
     const check = create(f.host);
-    check.onInitialScanComplete();
+    check.onInitialScanComplete(f.view);
     await settled(check);
     expect(f.scrollPage).not.toHaveBeenCalled();
     expect(check.snapshot()).toMatchObject({
@@ -126,7 +125,7 @@ describe('IndexCheckAtStart', () => {
     const f = fixture({ enabled: false });
     const check = create(f.host);
     expect(check.snapshot().state).toBe('off');
-    check.onInitialScanComplete();
+    check.onInitialScanComplete(f.view);
     await check.stop();
     expect(check.snapshot()).toMatchObject({ state: 'off', at: null });
     expect(f.scrollPage).not.toHaveBeenCalled();
@@ -136,7 +135,7 @@ describe('IndexCheckAtStart', () => {
     const f = fixture({ enabled: true });
     const check = create(f.host);
     expect(check.snapshot().state).toBe('pending');
-    check.onInitialScanComplete();
+    check.onInitialScanComplete(f.view);
     await settled(check);
     expect(check.snapshot().state).toBe('done');
   });
@@ -145,7 +144,7 @@ describe('IndexCheckAtStart', () => {
     const f = fixture();
     const check = create(f.host);
     await check.stop();
-    check.onInitialScanComplete();
+    check.onInitialScanComplete(f.view);
     expect(check.snapshot().state).toBe('pending');
     expect(f.scrollPage).not.toHaveBeenCalled();
   });
@@ -153,7 +152,7 @@ describe('IndexCheckAtStart', () => {
   it('fails visibly when no watcher is running at the scan', () => {
     const f = fixture({ watcher: false });
     const check = create(f.host);
-    check.onInitialScanComplete();
+    check.onInitialScanComplete(f.view);
     expect(check.snapshot()).toMatchObject({ state: 'failed', checked: 0 });
   });
 });

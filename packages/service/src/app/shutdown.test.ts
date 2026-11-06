@@ -1,6 +1,6 @@
 /**
  * @module app/shutdown.test
- * shutdownComponents order and safety: the API server closes before producers stop and queues drain and stop; a hung server close warns and shutdown continues; stores close only when every queue stop finished. drainQueues stops after a drain timeout and reports whether every stop finished (fake timers).
+ * shutdownComponents order and safety: the API server closes before producers stop and queues drain and stop; a hung server close warns and shutdown continues; stores close only when every queue stop finished and no producer reported a run still going. drainQueues stops after a drain timeout and reports whether every stop finished (fake timers).
  */
 
 import type pino from 'pino';
@@ -81,6 +81,25 @@ describe('shutdownComponents', () => {
     await done;
     expect(store.close).not.toHaveBeenCalled();
     expect(order.at(-1)).toBe('values flush');
+    expect(warn).toHaveBeenCalledWith(
+      'Runs still in flight after shutdown timeout; stores left open',
+    );
+  });
+
+  it('leaves stores open when a producer reports it may still be running', async () => {
+    const { order, store, parts } = components(() => Promise.resolve());
+    const { warn, logger } = warnLogger();
+    await shutdownComponents(
+      {
+        ...parts,
+        producers: [{ stop: () => Promise.resolve(false) }, ...parts.producers],
+      },
+      1000,
+      logger,
+    );
+    expect(order).toContain('watcher stop');
+    expect(order).toContain('source stop');
+    expect(store.close).not.toHaveBeenCalled();
     expect(warn).toHaveBeenCalledWith(
       'Runs still in flight after shutdown timeout; stores left open',
     );

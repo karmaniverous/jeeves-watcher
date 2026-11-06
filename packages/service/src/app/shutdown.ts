@@ -120,7 +120,7 @@ export async function drainQueues(
 export interface ShutdownComponents extends ShutdownQueues {
   /** The API server: closed first, so no new notification is accepted. */
   server?: { close: () => Promise<unknown> };
-  /** Producers stopped after the server, in order (VCS, filesystem watcher; the caller stops the config watcher before shutdown). */
+  /** Producers stopped after the server, in order (index check, VCS, filesystem watcher; the caller stops the config watcher before shutdown). A producer whose `stop` resolves `false` may still be running (its bounded stop timed out), so stores are left open. */
   producers?: Array<{ stop: () => Promise<unknown> } | undefined>;
   /** Values index (always flushed: an in-memory snapshot write). */
   valuesManager?: { stopAutoFlush: () => void; flush: () => void };
@@ -131,7 +131,7 @@ export interface ShutdownComponents extends ShutdownQueues {
 /**
  * Stop every component in a safe order: close the API server (bounded), stop
  * producers, drain and stop the queues (bounded), flush the values index, and
- * close stores. When a queue step timed out, runs may still be in flight, so
+ * close stores. When a queue step or a producer's bounded stop timed out, runs may still be in flight, so
  * stores are left open (the process exits) rather than closed under them.
  *
  * @param components - The components.
@@ -145,9 +145,13 @@ export async function shutdownComponents(
 ): Promise<void> {
   const { server, producers = [], valuesManager, stores = [] } = components;
   if (server) await step('API server close', server.close(), timeoutMs, logger);
-  for (const producer of producers) await producer?.stop();
+  let producersIdle = true;
+  for (const producer of producers) {
+    if ((await producer?.stop()) === false) producersIdle = false;
+  }
 
-  const idle = await drainQueues(components, timeoutMs, logger);
+  const queuesIdle = await drainQueues(components, timeoutMs, logger);
+  const idle = producersIdle && queuesIdle;
 
   valuesManager?.stopAutoFlush();
   valuesManager?.flush();
