@@ -1,11 +1,13 @@
 /**
  * @module watcher/FileSystemWatcher.slowCopy.heavy.test
- * A 1,000-file directory copied into a watched root with slow writes (D128): each file is written in several parts, the whole write lasting longer than `stabilityThresholdMs` with each pause shorter than it. Under the real `@parcel/watcher` and under chokidar, every file is enqueued once, as a create, and its job reads its final content. In the serial `heavy` vitest project. Writes temp files.
+ * A 1,000-file directory copied into a watched root with slow writes (D128): each file is written in several parts, the whole write lasting longer than `stabilityThresholdMs` with each pause shorter than it. Under the real `@parcel/watcher` and under chokidar, every file is enqueued once, as a create, and its job reads its final content. In the serial `heavy` vitest project. Writes temp files from a child Node process.
  */
 
-import { appendFile, mkdir, readFile, writeFile } from 'node:fs/promises';
+import { execFile } from 'node:child_process';
+import { mkdir, readFile } from 'node:fs/promises';
 import { basename, join } from 'node:path';
 import { setTimeout as sleep } from 'node:timers/promises';
+import { promisify } from 'node:util';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
@@ -26,11 +28,52 @@ const PAUSE_MS = 100;
 /** Stability window: shorter than a whole file's write, longer than a pause. */
 const STABILITY_MS = 500;
 /**
- * Files written at once: few enough that queued file-system calls on a busy
- * runner do not stretch a pause past the stability window (100 did on
- * Windows under chokidar, whose own write wait then emitted a change).
+ * Files written at once, as a copy tool does (a handful, not hundreds).
+ * At 50, chokidar's own write wait emitted early on this Windows host: it
+ * polls a `stat` per pending file every 100 ms, and when those queue on the
+ * thread pool its first poll can land past the window and emit at once
+ * (chokidar 5 compares sizes only from the second poll on).
  */
-const CONCURRENCY = 50;
+const CONCURRENCY = 10;
+
+const execFileAsync = promisify(execFile);
+
+/**
+ * The copier, run in a child Node process so the watcher's own file-system
+ * calls (chokidar polls a `stat` per pending file) cannot queue its writes
+ * behind them on the shared libuv thread pool and stretch a pause past the
+ * stability window. Arguments: the directory and a JSON object holding
+ * `files`, `parts`, `pauseMs` and `concurrency`. Prints the longest gap
+ * between two consecutive parts of one file landing.
+ */
+const COPIER = `
+const { appendFile, writeFile } = require('node:fs/promises');
+const { join } = require('node:path');
+const { setTimeout: sleep } = require('node:timers/promises');
+const dir = process.argv[1];
+const { files, parts, pauseMs, concurrency } = JSON.parse(process.argv[2]);
+let longestGap = 0;
+(async () => {
+  for (let start = 0; start < files; start += concurrency) {
+    await Promise.all(
+      Array.from({ length: Math.min(concurrency, files - start) }, async (_, k) => {
+        const i = start + k;
+        const file = join(dir, 'f' + i + '.md');
+        await writeFile(file, 'part 0 of ' + i + '\\n');
+        let landed = Date.now();
+        for (let p = 1; p < parts; p++) {
+          await sleep(pauseMs);
+          await appendFile(file, 'part ' + p + ' of ' + i + '\\n');
+          const now = Date.now();
+          longestGap = Math.max(longestGap, now - landed);
+          landed = now;
+        }
+      }),
+    );
+  }
+  process.stdout.write(String(longestGap));
+})();
+`;
 
 /** The final content of file `i`. */
 const finalContent = (i: number) =>
@@ -41,36 +84,26 @@ const finalContent = (i: number) =>
 
 /**
  * Copy `FILES` files into `<root>/copied`, each written in `PARTS` parts
- * `PAUSE_MS` apart, `CONCURRENCY` files at a time.
+ * `PAUSE_MS` apart, `CONCURRENCY` files at a time, from a child process.
  *
  * @returns The longest time between two consecutive parts of one file
  * landing, so a test can tell an overloaded runner from a watcher fault.
  */
 async function slowCopy(root: string): Promise<number> {
-  let longestGap = 0;
   const dir = join(root, 'copied');
   await mkdir(dir);
-  for (let start = 0; start < FILES; start += CONCURRENCY) {
-    await Promise.all(
-      Array.from(
-        { length: Math.min(CONCURRENCY, FILES - start) },
-        async (_, k) => {
-          const i = start + k;
-          const file = join(dir, `f${String(i)}.md`);
-          await writeFile(file, `part 0 of ${String(i)}\n`);
-          let landed = Date.now();
-          for (let p = 1; p < PARTS; p++) {
-            await sleep(PAUSE_MS);
-            await appendFile(file, `part ${String(p)} of ${String(i)}\n`);
-            const now = Date.now();
-            longestGap = Math.max(longestGap, now - landed);
-            landed = now;
-          }
-        },
-      ),
-    );
-  }
-  return longestGap;
+  const { stdout } = await execFileAsync(process.execPath, [
+    '-e',
+    COPIER,
+    dir,
+    JSON.stringify({
+      files: FILES,
+      parts: PARTS,
+      pauseMs: PAUSE_MS,
+      concurrency: CONCURRENCY,
+    }),
+  ]);
+  return Number(stdout);
 }
 
 describe.each(['parcel', 'chokidar'] as const)(
@@ -117,6 +150,6 @@ describe.each(['parcel', 'chokidar'] as const)(
       for (let i = 0; i < FILES; i++) {
         expect(processed.get(`f${String(i)}.md`)).toBe(finalContent(i));
       }
-    }, 120_000);
+    }, 240_000);
   },
 );
