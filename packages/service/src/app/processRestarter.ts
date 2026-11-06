@@ -36,7 +36,7 @@ const restartRecordSchema = z.object({
 /** The restart record (D196). */
 export type RestartRecord = z.infer<typeof restartRecordSchema>;
 
-/** What {@link createProcessRestarter} needs from the app. */
+/** What `createProcessRestarter` needs from the app. */
 export interface ProcessRestarterDeps {
   /** The state directory (the record goes there). */
   stateDir: string;

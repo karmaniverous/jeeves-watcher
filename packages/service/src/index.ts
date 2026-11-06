@@ -13,6 +13,7 @@ export {
   startFromConfig,
   withoutSourceSupport,
 } from './app';
+export type { ProcessRestarterDeps } from './app/processRestarter';
 export { ContentHashCache } from './cache';
 export type {
   ApiConfig,
@@ -184,3 +185,28 @@ export type {
 export { VectorStoreClient } from './vectorStore';
 export type { FileSystemWatcherOptions } from './watcher';
 export { FileSystemWatcher } from './watcher';
+export type {
+  ParcelImporter,
+  ParcelWatcherModule,
+} from './watcher/changeSource/parcelModule';
+export type {
+  ProcessRestarter,
+  RestartRequest,
+} from './watcher/changeSource/restart';
+export type {
+  ChangeSink,
+  ClassifiedEventType,
+  RawChangeEvent,
+  RootUnavailableOptions,
+} from './watcher/changeSource/types';
+export type { ChangeSourceHealthTracker } from './watcher/ChangeSourceHealthTracker';
+export type { VcsFileChange } from './watcher/fileEvents';
+export type {
+  IndexCheckSkipReason,
+  IndexCheckView,
+} from './watcher/indexCheck/view';
+export type {
+  FileStats,
+  Inventory,
+  InventoryEntry,
+} from './watcher/inventory/Inventory';

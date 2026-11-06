@@ -798,7 +798,7 @@ No manual intervention is needed in most cases. If the circuit breaker trips, ch
 
 ## Next Steps
 
-- [Configuration Reference](./configuration.md#-version-control): VCS config schema table
+- [Configuration Reference](./configuration.md#vcs-version-control): VCS config schema table
 - [API Reference](./api-reference.md#vcs-endpoints): full endpoint documentation
 - [Architecture Guide](./architecture.md#version-control-subsystem): VCS data flow
 - [Deployment Guide](./deployment.md#version-control-vcs): Git dependency and setup
