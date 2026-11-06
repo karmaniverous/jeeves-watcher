@@ -341,7 +341,7 @@
                                 "failed",
                                 "off"
                               ],
-                              "description": "Index check state: pending (the start walk is still running), running, done, failed (the index could not be listed; nothing was deleted) or off (watch.indexCheckOnStart is false)."
+                              "description": "Index check state: pending (the start walk is still running), running, done, failed (the index could not be listed, or the watcher stopped or was rebuilt first; nothing more is deleted) or off (watch.indexCheckOnStart is false)."
                             },
                             "at": {
                               "description": "When the check ended (ISO), null until it is done or failed.",

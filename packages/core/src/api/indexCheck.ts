@@ -8,13 +8,13 @@ import { z } from 'zod';
 /**
  * State of the index check at start (D197): `pending` until the start walk
  * completes, `running`, then `done` or `failed` (the index could not be
- * listed; nothing was deleted); `off` when `watch.indexCheckOnStart` is
- * `false`.
+ * listed, or the watcher stopped or was rebuilt first; nothing more is
+ * deleted); `off` when `watch.indexCheckOnStart` is `false`.
  */
 export const indexCheckStateSchema = z
   .enum(['pending', 'running', 'done', 'failed', 'off'])
   .describe(
-    'Index check state: pending (the start walk is still running), running, done, failed (the index could not be listed; nothing was deleted) or off (watch.indexCheckOnStart is false).',
+    'Index check state: pending (the start walk is still running), running, done, failed (the index could not be listed, or the watcher stopped or was rebuilt first; nothing more is deleted) or off (watch.indexCheckOnStart is false).',
   );
 
 /** State of the index check at start. */
