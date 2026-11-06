@@ -35,7 +35,7 @@ This enables IntelliSense in VSCode and other editors that support JSON Schema.
 
 `jeeves-watcher config validate -c <path>` checks a JSON config file against the same schema (without substituting `${ENV_VAR}` references or loading rule files). A running service validates a candidate config more deeply with [`POST /config/validate`](./api-reference.md#post-configvalidate).
 
-Top-level keys the schema does not define are dropped without an error or warning. In particular `metadataDir`, `extractors` and `slots`, documented by older versions, are not config keys: enrichment lives in the SQLite enrichment store under [`stateDir`](#-persistent-state), and extractors are built in (see [Text Extraction](./architecture.md#text-extraction)).
+Top-level keys the schema does not define are dropped without an error or warning. In particular `metadataDir`, `extractors` and `slots`, documented by older versions, are not config keys: enrichment lives in the SQLite enrichment store under [`stateDir`](#statedir-persistent-state), and extractors are built in (see [Text Extraction](./architecture.md#text-extraction)).
 
 > **Check the version before deploying new keys.** Versions before 0.20.0 silently ignore config keys they do not know. A config that uses `sources`, `api.apiKey` or `vectorStore.payloadIndexes` loads without error on an older watcher, which then runs without those features (for example, with an open API). Confirm `jeeves-watcher --version` reports 0.20.0 or later before deploying such a config.
 
@@ -70,7 +70,7 @@ interface JeevesWatcherConfig {
 
 ---
 
-## `description` - Deployment Description
+## description: Deployment Description
 
 **v0.5.0+**
 
@@ -88,7 +88,7 @@ This field provides organizational context for LLM consumers. Delivered alongsid
 
 ---
 
-## `schemas` - Global Schemas Collection
+## schemas: Global Schemas Collection
 
 **v0.5.0+**
 
@@ -128,7 +128,7 @@ See [Inference Rules Guide](./inference-rules.md) for merge semantics and usage 
 
 ---
 
-## `watch` - Filesystem Watching
+## watch: Filesystem Watching
 
 ```json
 {
@@ -150,7 +150,7 @@ See [Inference Rules Guide](./inference-rules.md) for merge semantics and usage 
 | Field | Type | Default | Description |
 | --- | --- | --- | --- |
 | `paths` | `(string \| { path, vcs? })[]` | **Required** | Glob patterns for files to watch (at least one). Supports picomatch syntax. An entry may be an object with a `path` glob and per-root `vcs` overrides (see [Version Control](./version-control.md#per-root-overrides)). |
-| `ignored` | `string[]` | `["**/node_modules/**"]` | Glob patterns to exclude from watching. Setting the key replaces the default, so list `**/node_modules/**` again if you need it. |
+| `ignored` | `string[]` | `["**/node_modules/**"]` | Glob patterns to exclude from watching. Setting the key replaces the default, so list `**/node_modules/**` again if you need it. Change events under each watch root's own `.git` folder are always dropped, whatever this key says, so the watcher's VCS commits never become events. |
 | `debounceMs` | `number` | `300` | Events for the same file are collapsed until this long has passed since the last one (prevents re-embedding during rapid edits). |
 | `stabilityThresholdMs` | `number` | `500` | File must be stable (no size changes) for this long before processing. `0` processes at once. Files that reconciliation finds wait the same way, on one shared ticker. |
 | `pollIntervalMs` | `number` | `1000` | Polling interval if `usePolling` is enabled. |
@@ -183,7 +183,7 @@ A config reload that changes `paths`, `ignored`, `moveDetection`, `respectGitign
 
 ---
 
-## `configWatch` - Config File Watching
+## configWatch: Config File Watching
 
 ```json
 {
@@ -213,7 +213,7 @@ The config-triggered reindex covers files only; source documents are re-processe
 
 ---
 
-## `embedding` - Embedding Provider
+## embedding: Embedding Provider
 
 ```json
 {
@@ -337,7 +337,7 @@ Generates deterministic embeddings from content hashes. No API calls, no cost. I
 
 ---
 
-## `vectorStore` - Qdrant Configuration
+## vectorStore: Qdrant Configuration
 
 ```json
 {
@@ -417,7 +417,7 @@ Behaviour:
 
 ---
 
-## `api` - HTTP API Server
+## api: HTTP API Server
 
 ```json
 {
@@ -441,7 +441,7 @@ When `apiKey` is set, every request except `GET /status` must send `Authorizatio
 
 ---
 
-## `inferenceRules` - Metadata Enrichment Rules
+## inferenceRules: Metadata Enrichment Rules
 
 **v0.5.0:** Inference rules now use `schema` arrays instead of `set` objects. Rules require `name` and `description` fields.
 
@@ -520,7 +520,7 @@ See the [Inference Rules Guide](./inference-rules.md) for full details on schema
 
 ---
 
-## `maps` - Named JsonMap Definitions
+## maps: Named JsonMap Definitions
 
 `maps` is an optional dictionary of reusable [JsonMap](https://github.com/karmaniverous/jsonmap) definitions.
 
@@ -550,7 +550,7 @@ Each value is an inline JsonMap, a `.json` file path (resolved relative to the c
 
 ---
 
-## `mapHelpers` - Map Helper Modules
+## mapHelpers: Map Helper Modules
 
 ```json
 {
@@ -568,7 +568,7 @@ Named object format (`Record<string, { path, description? }>`), paths relative t
 
 ---
 
-## `templateHelpers` - Template Helper Modules
+## templateHelpers: Template Helper Modules
 
 ```json
 {
@@ -586,7 +586,7 @@ Named object format (`Record<string, { path, description? }>`), paths relative t
 
 ---
 
-## `templates` - Named Template Definitions
+## templates: Named Template Definitions
 
 ```json
 {
@@ -604,7 +604,7 @@ Each value is a template string or a wrapper object `{ "template": "...", "descr
 
 ---
 
-## `search` - Search Behavior
+## search: Search Behavior
 
 ```json
 {
@@ -636,7 +636,7 @@ With `hybrid.enabled`, the watcher creates a full-text index on `chunk_text` at 
 
 ---
 
-## `stateDir` - Persistent State
+## stateDir: Persistent State
 
 ```json
 {
@@ -660,7 +660,7 @@ The enrichment store is the only file that cannot be regenerated: back it up (se
 
 ---
 
-## `reindex` - Reindex Behavior
+## reindex: Reindex Behavior
 
 ```json
 {
@@ -680,7 +680,7 @@ The callback body is `{ scope, filesProcessed, durationMs, errors, sources? }`: 
 
 ---
 
-## `logging` - Logging Configuration
+## logging: Logging Configuration
 
 ```json
 {
@@ -711,7 +711,7 @@ The file is opened before the service logs its first line, and a refused or fail
 
 ---
 
-## `shutdownTimeoutMs` - Graceful Shutdown
+## shutdownTimeoutMs: Graceful Shutdown
 
 ```json
 {
@@ -735,7 +735,7 @@ On shutdown, the watcher (v0.20.0+ order):
 
 ---
 
-## `maxRetries` / `maxBackoffMs` - Error Resilience
+## maxRetries and maxBackoffMs: Error Resilience
 
 ```json
 {
@@ -751,7 +751,7 @@ On shutdown, the watcher (v0.20.0+ order):
 
 ---
 
-## `vcs` — Version Control
+## vcs: Version Control
 
 ```json
 {
@@ -806,7 +806,7 @@ Per-root overrides (including `remote` and `accessToken`) are configured via `wa
 
 ---
 
-## `processing` - Processing Ceilings
+## processing: Processing Ceilings
 
 **v0.21.0+**
 
@@ -838,7 +838,7 @@ It prints the documents-by-chunk-count distribution and every document over a ce
 
 ---
 
-## `sources` - Source Documents
+## sources: Source Documents
 
 **v0.20.0+**
 

@@ -8,7 +8,7 @@
  * names are verb-first (D77, Design 14), and each is its operation's one
  * name: catalog entry, SDK method, OpenAPI `operationId` and, through
  * `toToolName`, plugin tool name. The catalog is the only route list
- * (`WATCHER_ENDPOINTS` is gone, D41).
+ * (D41).
  */
 
 import { defineCatalog, standardEntries } from '@karmaniverous/jeeves/catalog';

@@ -20,7 +20,7 @@
     "chokidar": "^5.0.0",
     "cosmiconfig": "*",
     "dayjs": "^1.11.23",
-    "fastify": "*",
+    "fastify": "^5",
     "handlebars": "^4.7.10",
     "hast-util-to-mdast": "^10.1.2",
     "ignore": "^7.0.14",

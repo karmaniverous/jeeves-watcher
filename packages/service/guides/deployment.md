@@ -30,17 +30,33 @@ node --version  # Should be v24.22.2 or higher
 
 `@parcel/watcher` (the default change source) ships prebuilt binaries as optional dependencies, one per platform (Windows x64/arm64, Linux glibc/musl x64/arm64, macOS). Install the service **without** `--omit=optional`; if the binary is missing or fails to load, the service refuses to start and logs an error naming `watch.changeSource: chokidar`, the manual switch to chokidar.
 
-**Linux:** inotify needs one watch per watched directory. Raise the limits for large trees (the service warns at start when the directories it walked exceed 90% of `max_user_watches`):
+**Windows:** the service manager must restart the service when it exits (see [Windows (NSSM)](#windows-nssm)): parcel cannot unsubscribe on Windows, so a watcher rebuild or a subscription recovery is a restart.
+
+### Linux inotify limits
+
+inotify needs one watch per watched directory (not per file, as chokidar did), and parcel cannot detect an inotify queue overflow: events lost to a full queue are found only by the next periodic reconcile. Set both limits **before installing** (the service warns at start when the directories it walked exceed 90% of `max_user_watches`):
 
 ```bash
 sudo sysctl -w fs.inotify.max_user_watches=1048576
 sudo sysctl -w fs.inotify.max_queued_events=1048576
-# persist: add both lines to /etc/sysctl.d/90-inotify.conf
+# persist across reboots:
+printf 'fs.inotify.max_user_watches=1048576\nfs.inotify.max_queued_events=1048576\n' | sudo tee /etc/sysctl.d/90-inotify.conf
 ```
 
 A failed `inotify_add_watch` leaves the root unwatched (still reconciled each period) until a reload or restart.
 
-**Windows:** the service manager must restart the service when it exits (see [Windows (NSSM)](#windows-nssm)): parcel cannot unsubscribe on Windows, so a watcher rebuild or a subscription recovery is a restart. Paths over 260 characters need `LongPathsEnabled` (`HKLM\SYSTEM\CurrentControlSet\Control\FileSystem`); without it their change events are lost and only the periodic reconcile finds those files.
+On Linux, changes inside folders nested in a newly created or moved-in tree, or in a directory renamed within a root, can go unseen until the root's subscription is renewed, which happens at each periodic reconcile: they are indexed up to `watch.reconcileIntervalMs` late (15 minutes by default). Renewing a large root pauses event handling for every root for the length of its walk.
+
+### Windows long paths
+
+Setting `LongPathsEnabled` to 1 is recommended on Windows hosts, because other tools (git, Node's `fs`, editors) handle long paths with it (once, from an elevated shell; processes started afterwards pick it up):
+
+```powershell
+Set-ItemProperty -Path HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem -Name LongPathsEnabled -Value 1 -Type DWord
+Get-ItemProperty -Path HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem -Name LongPathsEnabled
+```
+
+It does not change what the watcher sees: under `@parcel/watcher` 2.6.0, creating or changing a file whose path is 260 characters or more produces no change event at either setting, so the file is indexed at the next periodic reconcile, up to `watch.reconcileIntervalMs` late. Deletes still arrive live. Keep `watch.reconcileIntervalMs` above 0 on a Windows host that holds such files.
 
 ### Git (Optional — for VCS)
 
@@ -359,6 +375,8 @@ nssm set jeeves-watcher AppExit Default Restart
 nssm set jeeves-watcher AppRestartDelay 0
 ```
 
+NSSM throttles an application that exits within `AppThrottle` (1500 ms by default) of starting, delaying each further restart; a restart for a config change or a lost root comes long after start, so it is immediate.
+
 Any other service manager must restart the service when it exits with a non-zero code. Under `watch.changeSource: chokidar` the service stops and rebuilds in-process as before; Linux and macOS are unaffected.
 
 ### Linux (systemd)
@@ -571,7 +589,7 @@ pino writes numeric levels (`30` = info, `40` = warn, `50` = error). Output goes
 
 **Parse with standard tools:** jq, Splunk, ELK stack, etc.
 
-**Log rotation:** The watcher rotates `logging.file` itself (`logging.rotation`, on by default: 10 MiB, daily, 14 rotated files plus the active one). Every file, the active one included, is named `<name>.<date>.<n>.<ext>`, so tail the newest by modification time. Put the file in a folder of its own: rotation deletes older files that match the name pattern. Set `logging.rotation: false` to keep one plain file and rotate it externally (logrotate on Linux). Without `logging.file`, logs go to stdout, which NSSM can rotate on Windows. See [Configuration](./configuration.md#-logging-configuration).
+**Log rotation:** The watcher rotates `logging.file` itself (`logging.rotation`, on by default: 10 MiB, daily, 14 rotated files plus the active one). Every file, the active one included, is named `<name>.<date>.<n>.<ext>`, so tail the newest by modification time. Put the file in a folder of its own: rotation deletes older files that match the name pattern. Set `logging.rotation: false` to keep one plain file and rotate it externally (logrotate on Linux). Without `logging.file`, logs go to stdout, which NSSM can rotate on Windows. See [Configuration](./configuration.md#logging-logging-configuration).
 
 ### Alerts
 

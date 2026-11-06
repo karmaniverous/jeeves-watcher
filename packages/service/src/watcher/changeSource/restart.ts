@@ -41,7 +41,7 @@ export interface RestartRequest {
  * of a process counts. Injected, so tests never call `process.exit`.
  */
 export interface ProcessRestarter {
-  /** Log the cause, stop gracefully, then exit with {@link RESTART_EXIT_CODE}. */
+  /** Log the cause, stop gracefully, then exit with code 75 (`EX_TEMPFAIL`). */
   restart: (request: RestartRequest) => void;
 }
 

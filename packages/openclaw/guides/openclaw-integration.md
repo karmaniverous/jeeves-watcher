@@ -72,7 +72,7 @@ Registered `catalogMode: 'direct-only'` (see the README's Tool Search section).
 
 ### `watcher_set_metadata`
 
-Set or update metadata on a document by file path or source reference (`POST /metadata`; 0.17.0 `watcher_enrich`). Metadata is validated against the schemas of the rules matching the document and merged into its points without re-embedding. Returns `{ ok: true, matched_rules }`.
+Set or update metadata on a document by file path or source reference (`POST /metadata`). Metadata is validated against the schemas of the rules matching the document and merged into its points without re-embedding. Returns `{ ok: true, matched_rules }`.
 
 **Parameters:**
 

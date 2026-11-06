@@ -1,8 +1,9 @@
 /**
  * @module vcs/VcsManager.sizeCap.test
- * VcsManager end to end on real repos: a tracked file that grows past `vcs.maxFileBytes` is untracked in its own commit and stays on disk (D80, D147); a batch whose every git call times out releases RootGitLock within its budget and re-queues its files as one failure (D72, test-only timeout override).
+ * VcsManager end to end on real repos: a tracked file that grows past `vcs.maxFileBytes` is untracked in its own commit and stays on disk (D80, D147); a batch whose staging times out releases RootGitLock within its budget, commits nothing and re-queues its files as one failure, and the re-queued batch commits once git has time (D72, test-only timeout override).
  */
 
+import { randomBytes } from 'node:crypto';
 import { readFile, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
@@ -10,6 +11,7 @@ import pino from 'pino';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import {
+  commitCount,
   git,
   makeFastVcsConfig as makeConfig,
   makeTempRepo,
@@ -77,8 +79,19 @@ describe('VcsManager size cap (D80)', () => {
   });
 });
 
+/**
+ * Bytes per file in the timeout test. Hashing and compressing this much
+ * random data takes git far longer than the 1 ms timeout, so the timeout
+ * really ends the staging call. With tiny files a `git add` could finish
+ * before its timer callback ran, be reported as timed out, and leave its
+ * files staged (and then committed): the flake seen on Linux CI at
+ * 56f93de and 75c0df9.
+ */
+const SLOW_TO_STAGE_BYTES = 8 * 1024 * 1024;
+
 describe('VcsManager staging timeouts (D72)', () => {
-  it('releases the lock within the budget and re-queues the batch as one failure', async () => {
+  it('releases the lock within the budget, commits nothing, re-queues the batch as one failure, then commits it', async () => {
+    let timeoutMs: number | undefined = 1;
     const manager = new VcsManager(
       repo,
       makeConfig(),
@@ -87,15 +100,16 @@ describe('VcsManager staging timeouts (D72)', () => {
       undefined,
       undefined,
       {
-        timeoutFor: () => 1,
+        timeoutFor: () => timeoutMs ?? 60_000,
       },
     );
     await manager.start();
     manager.endBaseline();
-    const files = ['a.md', 'b.md', 'c.md', 'd.md'].map((n) => join(repo, n));
-    for (const f of files) {
-      await writeFile(f, f);
-      manager.fileChanged(f);
+    const names = ['a.bin', 'b.bin', 'c.bin', 'd.bin'];
+    for (const name of names) {
+      const file = join(repo, name);
+      await writeFile(file, randomBytes(SLOW_TO_STAGE_BYTES));
+      manager.fileChanged(file);
     }
 
     const started = Date.now();
@@ -108,7 +122,17 @@ describe('VcsManager staging timeouts (D72)', () => {
       consecutiveFailures: 1,
       pendingCount: 4,
     });
-    expect((await git(repo, 'ls-files')).trim()).toBe('');
+    expect(await commitCount(repo)).toBe(0);
+
+    // With time to stage, the re-queued batch commits, in one commit.
+    timeoutMs = undefined;
+    await manager.flush();
+    expect(manager.breakerState).toMatchObject({
+      consecutiveFailures: 0,
+      pendingCount: 0,
+    });
+    expect(await commitCount(repo)).toBe(1);
+    expect((await git(repo, 'ls-files')).trim().split('\n')).toEqual(names);
     await manager.stop().catch(() => undefined);
   }, 60_000);
 });
