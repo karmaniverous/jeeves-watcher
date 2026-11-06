@@ -1,6 +1,6 @@
 /**
  * @module watcher/FileSystemWatcher.slowCopy.heavy.test
- * A 1,000-file directory copied into a watched root with slow writes (D128): each file is written in several parts, the whole write lasting longer than `stabilityThresholdMs` with each pause shorter than it. Under the real `@parcel/watcher` and under chokidar, every file is enqueued once, as a create, and its job reads its final content. The copier measures, per file, an upper bound on each pause as the watcher could see it; a file whose pause a runner stall stretched past the window is outside D128's premise, so it must only end with its final content (spec D201). In the serial `heavy` vitest project. Writes temp files from a child Node process.
+ * A 1,000-file directory copied into a watched root with slow writes (D128): each file is written in several parts, the whole write lasting longer than `stabilityThresholdMs` with each pause shorter than it. Under the real `@parcel/watcher` and under chokidar, every file is enqueued once, as a create, and its job reads its final content. The copier measures, per file, an upper bound on each pause on the copier's side (a stall of the watcher's own process, between its stats and its clock read, is not measured); a file whose pause a stall of the copier stretched past the window is outside D128's premise, so it must only end with its final content (spec D201). In the serial `heavy` vitest project. Writes temp files from a child Node process.
  */
 
 import { execFile } from 'node:child_process';

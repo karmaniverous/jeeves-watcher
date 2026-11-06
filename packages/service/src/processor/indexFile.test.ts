@@ -1,6 +1,6 @@
 /**
  * @module processor/indexFile.test
- * indexFile (D44, D201): a file over maxFileBytes is rejected too_large from stat, before the resolver (extraction) runs, and its points are deleted; default ceilings apply without configured limits; a gone file indexes nothing; an extraction failure deletes an indexed file's points and rethrows (a file with no points gets no delete, and a failing delete still rethrows the extraction error).
+ * indexFile (D44, D201): a file over maxFileBytes is rejected too_large from stat, before the resolver (extraction) runs, and its points are deleted; default ceilings apply without configured limits; a gone file indexes nothing; an extraction failure deletes an indexed file's points and rethrows (a file with no points gets no delete, a system error reading the file deletes nothing, and a failing delete still rethrows the extraction error).
  */
 
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
@@ -71,7 +71,9 @@ describe('indexFile', () => {
       resolver.resolve.mockRejectedValue(failure);
       const warn = vi.spyOn(logger, 'warn');
       await expect(indexFile(ctx, file)).rejects.toBe(failure);
-      expect(vectorStore.getPayload).toHaveBeenCalledWith(pointId(file, 0));
+      expect(vectorStore.getPayload).toHaveBeenCalledExactlyOnceWith(
+        pointId(file, 0),
+      );
       expect(vectorStore.delete).toHaveBeenCalledWith([
         pointId(file, 0),
         pointId(file, 1),
@@ -80,6 +82,38 @@ describe('indexFile', () => {
         { filePath: file, chunks: 2 },
         expect.stringContaining('removed from the index'),
       );
+    });
+
+    it.each(['EBUSY', 'EPERM', 'EMFILE', 'ENOENT', 'EIO'])(
+      'keeps the points on a system error reading the file (%s)',
+      async (code) => {
+        const { ctx, resolver, vectorStore } = context();
+        const systemError = Object.assign(new Error(`${code}: read`), {
+          code,
+          syscall: 'open',
+        });
+        resolver.resolve.mockRejectedValue(systemError);
+        await expect(indexFile(ctx, file)).rejects.toBe(systemError);
+        expect(vectorStore.getPayload).not.toHaveBeenCalled();
+        expect(vectorStore.delete).not.toHaveBeenCalled();
+      },
+    );
+
+    it.each([
+      [
+        'a code but no syscall',
+        Object.assign(new Error('bad tag'), { code: 'TAG_RESOLVE_FAILED' }),
+      ],
+      [
+        'a syscall but no code',
+        Object.assign(new Error('odd'), { syscall: 'open' }),
+      ],
+      ['a non-Error value', 'boom'],
+    ])('deletes for %s (not the OS)', async (_, thrown) => {
+      const { ctx, resolver, vectorStore } = context();
+      resolver.resolve.mockRejectedValue(thrown);
+      await expect(indexFile(ctx, file)).rejects.toBe(thrown);
+      expect(vectorStore.delete).toHaveBeenCalledOnce();
     });
 
     it('deletes nothing for a file with no points', async () => {

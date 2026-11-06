@@ -23,9 +23,27 @@ type IndexFileContext = PipelineContext & {
 };
 
 /**
- * Resolve a file (extract, apply rules). When that fails, an indexed file's
- * points are deleted before the failure is rethrown: search results from
- * content that can no longer be read are worse than none (D201). Only the
+ * Whether an error is the operating system's (a Node system error: `code`
+ * and `syscall`), such as a file locked by another program (EBUSY, EPERM),
+ * too many open files (EMFILE), a file gone mid-save (ENOENT) or a dropped
+ * share (EIO). These say nothing about the file's content and usually pass.
+ *
+ * @param error - The resolver's error.
+ * @returns True for a system error.
+ */
+function isSystemError(error: unknown): boolean {
+  if (!(error instanceof Error)) return false;
+  const { code, syscall } = error as NodeJS.ErrnoException;
+  return typeof code === 'string' && typeof syscall === 'string';
+}
+
+/**
+ * Resolve a file (extract, apply rules). When its content fails (a parse,
+ * extraction or rule error), an indexed file's points are deleted before the
+ * failure is rethrown: search results from content that can no longer be read
+ * are worse than none (D201). A system error reading the file (a lock, a
+ * dropped share) keeps them, as before: the content may be unchanged, and
+ * keeping chunk 0's hash spares a full re-embed when it reads again. Only the
  * points go, as with `too_large`; the enrichment is kept for when the file
  * reads again. A failing delete is logged, and the extraction failure is
  * still the one rethrown (it becomes the file's issue).
@@ -42,13 +60,18 @@ async function resolveFile(
   try {
     return await ctx.resolver.resolve(filePath);
   } catch (error) {
+    if (isSystemError(error)) throw error;
     const identity: DocumentIdentity = { kind: 'file', filePath };
     try {
       const indexed = await ctx.vectorStore.getPayload(
         documentPointId(identity, 0),
       );
       if (indexed) {
-        const chunks = await deleteDocumentPoints(ctx.vectorStore, identity);
+        const chunks = await deleteDocumentPoints(
+          ctx.vectorStore,
+          identity,
+          indexed,
+        );
         ctx.logger.warn(
           { filePath, chunks },
           'Extraction failed: file removed from the index until it reads again',
