@@ -1,32 +1,31 @@
 /**
  * @module api/catalogRoutes.test
- * The catalog routes end to end, over the wire app: a request-validation failure in each input slot is a `400 invalid_request` naming that slot; every JSON response the server sends equals what the handler returned (response validation changes nothing); and the typed catalog client round-trips every entry over real HTTP with the bearer key.
+ * The catalog routes end to end, over the wire app: a request-validation failure in each input slot is a `400 invalid_request` naming that slot; every JSON response the server sends equals what the handler returned (response validation changes nothing), one test per wire scenario; and the typed catalog client round-trips every entry over real HTTP with the bearer key.
  */
 
 import { createCatalogClient } from '@karmaniverous/jeeves/catalog';
 import { WATCHER_CATALOG } from '@karmaniverous/jeeves-watcher-core';
-import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+import {
+  afterAll,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from 'vitest';
 
+import {
+  clearCaptured,
+  inScope,
+  resultsFor,
+} from '../test/wire/handlerCapture';
 import { WIRE_SCENARIOS } from '../test/wire/scenarios';
 import { startWireApp, VCS_FILES, type WireApp } from '../test/wire/wireApp';
 import { injectScenario } from '../test/wire/wireRun';
 import { WIRE_KEY } from '../test/wire/wireStubs';
 import type * as CatalogModule from './catalog';
 import type * as FileScanModule from './fileScan';
-
-/** What a catalog handler resolves to, as far as these tests look. */
-interface RecordedResult {
-  status: number;
-  body: unknown;
-}
-
-/** A catalog handler, as far as these tests call it. */
-type AnyHandler = (...call: unknown[]) => Promise<RecordedResult>;
-
-/** Every handler result, in call order (reset per scenario). */
-const results = vi.hoisted(
-  () => [] as Array<{ entry: string; result: RecordedResult }>,
-);
 
 // The wire fixture's watch glob is relative (`**/*.md`), so the prune dry
 // run's file listing would walk the working directory (the whole package,
@@ -38,23 +37,13 @@ vi.mock('./fileScan', async (importOriginal) => ({
 }));
 vi.mock('./catalog', async (importOriginal) => {
   const actual = await importOriginal<typeof CatalogModule>();
+  // The same module instance the tests read from.
+  const { captureHandlers } = await import('../test/wire/handlerCapture');
   return {
     ...actual,
     createCatalogHandlers: (
       ...args: Parameters<typeof actual.createCatalogHandlers>
-    ) =>
-      Object.fromEntries(
-        Object.entries(actual.createCatalogHandlers(...args)).map(
-          ([entry, handler]) => [
-            entry,
-            async (...call: unknown[]) => {
-              const result = await (handler as AnyHandler)(...call);
-              results.push({ entry, result });
-              return result;
-            },
-          ],
-        ),
-      ),
+    ) => captureHandlers(actual.createCatalogHandlers(...args)),
   };
 });
 
@@ -66,6 +55,11 @@ beforeAll(async () => {
 
 afterAll(async () => {
   await wire.close();
+});
+
+// Every test reads only the handler results its own requests caused.
+beforeEach(() => {
+  clearCaptured();
 });
 
 describe('request validation', () => {
@@ -84,13 +78,14 @@ describe('request validation', () => {
   ] as const)(
     'rejects a bad %s on %s %s %j with 400 invalid_request',
     async (slot, method, url, payload, issuePath) => {
-      results.length = 0;
-      const res = await wire.app.inject({
-        method,
-        url,
-        headers: { authorization: `Bearer ${WIRE_KEY}` },
-        ...(payload === undefined ? {} : { payload }),
-      });
+      const { value: res, results } = await inScope(() =>
+        wire.app.inject({
+          method,
+          url,
+          headers: { authorization: `Bearer ${WIRE_KEY}` },
+          ...(payload === undefined ? {} : { payload }),
+        }),
+      );
 
       expect(res.statusCode).toBe(400);
       const body = res.json<{
@@ -109,32 +104,38 @@ describe('request validation', () => {
 });
 
 describe('serialised response equals the handler result', () => {
-  it('holds for every scenario that reaches a JSON handler', async () => {
-    let checked = 0;
-    for (const scenario of WIRE_SCENARIOS) {
-      results.length = 0;
-      const res = await injectScenario(wire, scenario);
-      if (results.length === 0) continue;
-      expect([scenario.name, results.length]).toEqual([scenario.name, 1]);
+  /** Scenarios whose JSON reply was compared with the handler result. */
+  const checked: string[] = [];
+
+  // One test per scenario: each has its own timeout and names itself when
+  // slow. Scenarios that reach no handler, or answer without a JSON body,
+  // have nothing to compare.
+  it.each(WIRE_SCENARIOS.map((s) => [s.name, s] as const))(
+    '%s',
+    async (name, scenario) => {
+      const { value: res, results } = await inScope(() =>
+        injectScenario(wire, scenario),
+      );
+      if (results.length === 0) return;
+      expect(results).toHaveLength(1);
       const [{ result }] = results;
-      expect([scenario.name, res.statusCode]).toEqual([
-        scenario.name,
-        result.status,
-      ]);
+      expect(res.statusCode).toBe(result.status);
       // HEAD replies carry no body; raw file content (vcs/show, whatever its
       // content type) is compared byte for byte by the wire test.
       const isJson = /json/.test(String(res.headers['content-type']));
       const raw = typeof result.body === 'string';
-      if (!isJson || raw || scenario.method === 'HEAD') continue;
-      expect([scenario.name, res.json<unknown>()]).toEqual([
-        scenario.name,
+      if (!isJson || raw || scenario.method === 'HEAD') return;
+      expect(res.json<unknown>()).toEqual(
         JSON.parse(JSON.stringify(result.body)) as unknown,
-      ]);
-      checked += 1;
-    }
-    expect(checked).toBeGreaterThanOrEqual(20);
-    // Replays every wire scenario through the real server in one test.
-  }, 30_000);
+      );
+      checked.push(name);
+    },
+  );
+
+  // Runs after the scenario tests above (tests in a file run in order).
+  it('compared at least 20 JSON replies', () => {
+    expect(checked.length).toBeGreaterThanOrEqual(20);
+  });
 });
 
 describe('catalog client round trip', () => {
@@ -177,13 +178,14 @@ describe('catalog client round trip', () => {
     expect(seen).toEqual([null, `Bearer ${WIRE_KEY}`]);
   });
   it('searches, scans and renders, decoding exactly what the handler returned', async () => {
-    results.length = 0;
     const hits = await client().search({ query: 'hello' });
     const page = await client().scan({ filter: {}, limit: 1 });
     const rendered = await client().render({ path: 'docs/a.md' });
 
     expect(hits.length).toBeGreaterThan(0);
     expect(page).toMatchObject({ cursor: 'next' });
+    // Real HTTP requests run outside any test scope.
+    const results = resultsFor(undefined);
     expect(results.map(({ entry }) => entry)).toEqual([
       'search',
       'scan',
