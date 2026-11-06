@@ -31,7 +31,7 @@ The first 0.21.0 start does more than a restart:
 
 - **The start walk** of each root (parcel's initial scan) enqueues every matched file; the processor skips unchanged content, so only new or changed files are embedded.
 - **Files over a processing ceiling** have their points deleted and a `too_large` issue recorded ([Processing at scale](#processing-at-scale)).
-- **The index check** deletes the documents of files deleted while the service was down, including under earlier versions, unless more than 10% or more than 1,000 of a root's documents are missing ([Change source](#change-source-and-reconciliation)).
+- **The index check** deletes the documents of files deleted while the service was down, including under earlier versions, unless more than 10% (once more than 20 are missing) or more than 1,000 of a root's documents are missing ([Change source](#change-source-and-reconciliation)).
 - **Three system payload indexes** (`chunk_index`, `file_path`, `matched_rules`) are built in the background; until they are `ready`, metadata writes address chunks by ID and the facet counts route answers `503` ([Facets](#facets)).
 - **Each root's repair** removes a stale `index.lock`, sweeps git temp files and finishes an interrupted untrack ([Version control](#version-control)).
 
@@ -116,8 +116,10 @@ See [Configuration](./configuration.md) for each.
 - **`!!float` on a value not written as a float is an extraction error.** `rank: !!float 1` and `rank: !!float "1"` were indexed by 0.20.0 (as `1`); 0.21.0 records an `extraction_error` issue for the file and leaves it out of search. `!!float 1.5` and `!!float 1.0` still parse. Before upgrading, find such lines and write the value as a float (`1.0`) or drop the tag:
 
   ```bash
-  grep -rnE '!!float +"?[+-]?[0-9]+"?\s*$' --include='*.md' <root>
+  grep -rnE $'!!float +["\']?[+-]?[0-9]+["\']?([] ,}]|$)' --include='*.md' <root>
   ```
+
+  This is a first pass (it can also match lines outside front matter); after the upgrade, `GET /issues` lists any file it missed as an `extraction_error`.
 
 - **A `%YAML 1.1` directive** at the top of the front matter is also refused (an `extraction_error`); remove the directive line.
 
@@ -277,11 +279,14 @@ Stop the service and reinstall 0.20.0 (`npm install -g @karmaniverous/jeeves-wat
    ```
 
    ```powershell
-   $root = '<root>'
+   $root = (Get-Item '<root>').FullName.TrimEnd('\')
+   [Console]::OutputEncoding = [Text.Encoding]::UTF8   # read git's non-ASCII paths correctly
    $tracked = @{}; git -C $root -c core.quotePath=false ls-files | ForEach-Object { $tracked[$_] = $true }
    Get-ChildItem $root -Recurse -File -Force | Where-Object { $_.Length -gt 100000000 -and $_.FullName -notmatch '[\\/]\.git[\\/]' } |
-     ForEach-Object { [IO.Path]::GetRelativePath($root, $_.FullName) -replace '\\', '/' } | Where-Object { -not $tracked[$_] }
+     ForEach-Object { $_.FullName.Substring($root.Length + 1) -replace '\\', '/' } | Where-Object { -not $tracked[$_] }
    ```
+
+   (Works in Windows PowerShell 5.1 and PowerShell 7.)
 
    For each file listed (files a `.gitignore` already ignores are safe), either set `vcs.enabled: false` for 0.20.0, or move the file out of the watched root (or keep it under the cap) for as long as 0.20.0 runs.
 
@@ -290,13 +295,15 @@ Stop the service and reinstall 0.20.0 (`npm install -g @karmaniverous/jeeves-wat
    ```bash
    cd <root>
    grep -v -e '^#' -e '^$' .git/info/exclude              # review the patterns
+   [ -s .gitignore ] && [ -n "$(tail -c1 .gitignore)" ] && echo >> .gitignore  # end .gitignore with a newline
    grep -v -e '^#' -e '^$' .git/info/exclude >> .gitignore # move them (skip to delete)
    : > .git/info/exclude                                    # then empty the file
    ```
 
    ```powershell
-   Set-Location <root>
+   Set-Location $root   # as set in step 2
    Get-Content .git\info\exclude | Where-Object { $_ -and -not $_.StartsWith('#') }              # review
+   if ((Test-Path .gitignore) -and (Get-Item .gitignore).Length -gt 0 -and -not (Get-Content .gitignore -Raw).EndsWith("`n")) { Add-Content .gitignore '' }  # end .gitignore with a newline
    Get-Content .git\info\exclude | Where-Object { $_ -and -not $_.StartsWith('#') } | Add-Content .gitignore  # move (skip to delete)
    Clear-Content .git\info\exclude
    ```
