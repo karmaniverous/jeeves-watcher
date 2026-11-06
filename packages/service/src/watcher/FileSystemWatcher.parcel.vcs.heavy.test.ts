@@ -20,6 +20,7 @@ import {
   waitFor,
   type WatcherHarness,
 } from '../test/watcherHarness';
+import { initRepo } from '../vcs/vcsBootstrap';
 import { VcsManager } from '../vcs/VcsManager';
 
 const execFileAsync = promisify(execFile);
@@ -78,14 +79,15 @@ describe('FileSystemWatcher (parcel) with version control', () => {
       await writeMany(join(outside, 'tree'), TREE, treeFile);
       harness = await startWatcherHarness({
         before: async (root) => {
+          await initRepo(root);
+          await git(root, 'config', 'user.email', 'test@test.com');
+          await git(root, 'config', 'user.name', 'Test');
           manager = new VcsManager(
             root,
             makeFastVcsConfig(),
             pino({ level: 'silent' }),
           );
           await manager.start();
-          await git(root, 'config', 'user.email', 'test@test.com');
-          await git(root, 'config', 'user.name', 'Test');
           manager.endBaseline();
         },
         watch: () => ({ changeSource: 'parcel' }),
