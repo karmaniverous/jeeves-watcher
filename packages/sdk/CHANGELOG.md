@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.0-2] - 2026-11-06
+
+### 💼 Other
+
+- Merge remote-tracking branch 'origin/main' into feature/p9-processing-at-scale
+- *(sdk)* Mark @karmaniverous/jeeves external (no unresolved-dependency warning)
+- Updated core
+
+### 📚 Documentation
+
+- Facets (countFacets, listFacets rules, chunk_index and matched_rules system indexes)
 ## [0.3.0-1] - 2026-11-04
 
 ### 🚀 Features
@@ -33,6 +44,10 @@ npm-check-updates --peer --target minor in the root and all four packages, then 
 
 - VCS-only exclusion (API reference, version-control and upgrading guides, READMEs, plugin tool descriptions)
 - Clients on the catalog (SDK guide, CLI reference, plugin guide, upgrading)
+
+### ⚙️ Miscellaneous Tasks
+
+- Release @karmaniverous/jeeves-watcher-sdk v0.3.0-1
 ## [0.2.0] - 2026-10-14
 
 ### 🚀 Features
