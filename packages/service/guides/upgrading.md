@@ -279,7 +279,7 @@ Stop the service and reinstall 0.20.0 (`npm install -g @karmaniverous/jeeves-wat
    ```
 
    ```powershell
-   $root = (Get-Item -LiteralPath '<root>' -ErrorAction Stop).FullName.TrimEnd('\')
+   $root = $null; $root = (Get-Item -LiteralPath '<root>' -ErrorAction Stop).FullName.TrimEnd('\')
    [Console]::OutputEncoding = [Text.Encoding]::UTF8   # read git's non-ASCII paths correctly
    $tracked = @{}; git -C $root -c core.quotePath=false ls-files | ForEach-Object { $tracked[$_] = $true }
    Get-ChildItem -LiteralPath $root -Recurse -File -Force | Where-Object { $_.Length -gt 100000000 -and $_.FullName -notmatch '[\\/]\.git[\\/]' } |
@@ -301,7 +301,7 @@ Stop the service and reinstall 0.20.0 (`npm install -g @karmaniverous/jeeves-wat
    ```
 
    ```powershell
-   $root = (Get-Item -LiteralPath '<root>' -ErrorAction Stop).FullName.TrimEnd('\')
+   $root = $null; $root = (Get-Item -LiteralPath '<root>' -ErrorAction Stop).FullName.TrimEnd('\')
    $exclude = Join-Path $root '.git\info\exclude'; $ignore = Join-Path $root '.gitignore'
    $patterns = Get-Content -LiteralPath $exclude | Where-Object { $_ -and -not $_.StartsWith('#') }
    $patterns                                                                                  # review

@@ -139,7 +139,8 @@ describe('FileSystemWatcher (parcel) with version control', () => {
       );
       // A renew-and-reconcile started after the changes: the reconcile's
       // start (its end less its duration) is later than them, and on Linux
-      // the renewal runs just before it, so that renewal came after too.
+      // the renewal runs just before it (it may have begun before them, but
+      // the reconcile walk that finds them began after).
       await waitFor(() => {
         const s = changeSourceHealth.snapshot();
         if (
