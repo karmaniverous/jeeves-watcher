@@ -11,6 +11,7 @@ import { describe, expect, it } from 'vitest';
 import type { z } from 'zod';
 
 import { ChangeSourceHealthTracker } from '../../watcher/ChangeSourceHealthTracker';
+import { IndexCheckHealthTracker } from '../../watcher/indexCheck/IndexCheckHealthTracker';
 import { InitialScanTracker } from '../InitialScanTracker';
 import { ReindexTracker } from '../ReindexTracker';
 import { createCatalogStatusSource } from './statusHandler';
@@ -41,7 +42,7 @@ function undeclared(value: unknown, schema: z.ZodType, at = ''): string[] {
 
 /**
  * Health with every feature on: a running reindex, both scan states, VCS,
- * system indexes (B5a), change source (B5b).
+ * system indexes (B5a), change source (B5b), a finished index check (P13a).
  */
 async function healthSamples(): Promise<Record<string, unknown>[]> {
   const reindexTracker = new ReindexTracker();
@@ -62,6 +63,14 @@ async function healthSamples(): Promise<Record<string, unknown>[]> {
   changeSource.recordReconcile(12, new Date('2026-11-04T00:00:00.000Z'));
   changeSource.recordReconcileEvents(2);
   changeSource.recordReconcileError();
+
+  const indexCheck = new IndexCheckHealthTracker();
+  indexCheck.start(new Date('2026-11-05T00:00:00.000Z'));
+  indexCheck.finish(
+    'done',
+    { checked: 9, removed: 1, skippedRoots: 1, capped: 1 },
+    new Date('2026-11-05T00:00:02.000Z'),
+  );
 
   const samples: Record<string, unknown>[] = [];
   for (const initialScanTracker of [running, done]) {
@@ -89,6 +98,7 @@ async function healthSamples(): Promise<Record<string, unknown>[]> {
         backoffUntil: '2026-11-04T00:05:00.000Z',
       }),
       getChangeSourceHealth: () => changeSource.snapshot(),
+      getIndexCheckHealth: () => indexCheck.snapshot(),
     });
     samples.push((await source()).body.health);
   }

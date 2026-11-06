@@ -30,6 +30,7 @@ import {
   type JeevesWatcherFactories,
   type JeevesWatcherRuntimeOptions,
 } from './factories';
+import { IndexCheckAtStart } from './indexCheckAtStart';
 import { initInfrastructure, resolveVersion } from './initialization';
 import { buildPipeline } from './pipeline';
 import { completeRestart, resumeAfterRestart } from './processRestarter';
@@ -69,6 +70,9 @@ export class JeevesWatcher {
   private vcsCoordinator: VcsCoordinator | undefined;
   private readonly initialScanTracker = new InitialScanTracker();
   private readonly changeSourceHealth = new ChangeSourceHealthTracker();
+  private readonly indexCheck = new IndexCheckAtStart(() =>
+    this.apiServerOptions(),
+  );
   private readonly restarter: ProcessRestarter;
   /** The state directory (default `ROOT_DEFAULTS.stateDir`). */
   private readonly stateDir: string;
@@ -195,18 +199,14 @@ export class JeevesWatcher {
     logger.info('jeeves-watcher started');
   }
 
-  /**
-   * Gracefully stop all components: the API server closes first (no new
-   * notifications), then producers stop and queues drain (see
-   * shutdownComponents).
-   */
+  /** Gracefully stop: API server first (no new notifications), then producers, then queues drain (shutdownComponents). */
   async stop(): Promise<void> {
     await this.configWatcher?.stop();
     this.configWatcher = undefined;
     await shutdownComponents(
       {
         server: this.server,
-        producers: [this.vcsCoordinator, this.watcher],
+        producers: [this.indexCheck, this.vcsCoordinator, this.watcher],
         queue: this.queue,
         sourceQueue: this.sourceQueue,
         valuesManager: this.stores?.valuesManager,
@@ -232,7 +232,10 @@ export class JeevesWatcher {
       onVcsFileChange: (filePath, event) => {
         this.vcsCoordinator?.onFileChange(filePath, event);
       },
-      onInitialScanComplete: () => this.vcsCoordinator?.onInitialScanComplete(),
+      onInitialScanComplete: () => {
+        this.indexCheck.onInitialScanComplete();
+        return this.vcsCoordinator?.onInitialScanComplete();
+      },
     };
   }
 
@@ -257,6 +260,7 @@ export class JeevesWatcher {
       version: this.version,
       initialScanTracker: this.initialScanTracker,
       changeSourceHealth: this.changeSourceHealth,
+      indexCheckHealth: this.indexCheck,
       fileSystemWatcher: this.watcher,
       getFileSystemWatcher: () => this.watcher,
       enrichmentStore: this.stores?.enrichmentStore,

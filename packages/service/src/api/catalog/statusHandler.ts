@@ -10,6 +10,7 @@ import { createStatusHandler, type StatusHandler } from '@karmaniverous/jeeves';
 import type {
   ChangeSourceHealth,
   EmbeddingHealth,
+  IndexCheckHealth,
   SystemIndexes,
   VcsHealth,
 } from '@karmaniverous/jeeves-watcher-core';
@@ -46,6 +47,8 @@ export interface CatalogStatusDeps {
   getEmbeddingHealth?: () => EmbeddingHealth;
   /** Change-source health (`health.changeSource`, D133, D157). */
   getChangeSourceHealth?: () => ChangeSourceHealth;
+  /** Index check at start (`health.indexCheck`, D197). */
+  getIndexCheckHealth?: () => IndexCheckHealth;
 }
 
 /**
@@ -121,6 +124,9 @@ function statusSource(deps: CatalogStatusDeps): StatusHandler {
           : {}),
         ...(deps.getChangeSourceHealth
           ? { changeSource: deps.getChangeSourceHealth() }
+          : {}),
+        ...(deps.getIndexCheckHealth
+          ? { indexCheck: deps.getIndexCheckHealth() }
           : {}),
       };
     },

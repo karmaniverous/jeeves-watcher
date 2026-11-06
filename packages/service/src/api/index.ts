@@ -7,12 +7,10 @@ import { dirname } from 'node:path';
 
 import {
   API_DEFAULTS,
-  type ChangeSourceHealth,
   extractWatchPathStrings,
 } from '@karmaniverous/jeeves-watcher-core';
 import Fastify, { type FastifyInstance } from 'fastify';
 
-import type { EmbeddingHealthSnapshot } from '../embedding/EmbeddingHealth';
 import { registerApiHooks } from './apiHooks';
 import type { ApiServerOptions } from './apiServerOptions';
 import { createConfigApplyCallback } from './configApplyCallback';
@@ -21,18 +19,14 @@ import { registerCatalog } from './registerCatalog';
 import { ReindexTracker } from './ReindexTracker';
 import { vcsHealthSource } from './vcsHealthSource';
 
-/** The status source's embedding-health getter, when health is tracked. */
-function embeddingHealthSource(health: ApiServerOptions['embeddingHealth']): {
-  getEmbeddingHealth?: () => EmbeddingHealthSnapshot;
-} {
-  return health ? { getEmbeddingHealth: () => health.snapshot() } : {};
-}
-
-/** The status source's change-source health getter (D133), when tracked. */
-function changeSourceHealthSource(
-  health: ApiServerOptions['changeSourceHealth'],
-): { getChangeSourceHealth?: () => ChangeSourceHealth } {
-  return health ? { getChangeSourceHealth: () => health.snapshot() } : {};
+/**
+ * A status-source getter over a tracked health snapshot (embedding,
+ * change source D133, index check D197); undefined when not tracked.
+ */
+function snapshotGetter<T>(
+  health: { snapshot: () => T } | undefined,
+): (() => T) | undefined {
+  return health && (() => health.snapshot());
 }
 
 export type { ApiServerOptions } from './apiServerOptions';
@@ -110,8 +104,9 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
         reindexTracker,
         initialScanTracker,
         ...vcsHealthSource(vcsCoordinator),
-        ...embeddingHealthSource(options.embeddingHealth),
-        ...changeSourceHealthSource(options.changeSourceHealth),
+        getEmbeddingHealth: snapshotGetter(options.embeddingHealth),
+        getChangeSourceHealth: snapshotGetter(options.changeSourceHealth),
+        getIndexCheckHealth: snapshotGetter(options.indexCheckHealth),
       },
       config: {
         getConfig,

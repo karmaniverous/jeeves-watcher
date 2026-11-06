@@ -160,11 +160,11 @@ function stripNewConfigKeys(received: WireRecord): {
 }
 
 /** The `health` keys 0.21.0 adds to `/status`. */
-const NEW_HEALTH_KEYS = ['vcs', 'changeSource'];
+const NEW_HEALTH_KEYS = ['vcs', 'changeSource', 'indexCheck'];
 
 /**
- * Strip `health.vcs` and `health.changeSource` from a `/status` record;
- * both must be present, or one departure is stale.
+ * Strip `health.vcs`, `health.changeSource` and `health.indexCheck` from a
+ * `/status` record; all must be present, or one departure is stale.
  */
 function stripNewHealthKeys(received: WireRecord): {
   record: WireRecord;
@@ -215,7 +215,7 @@ const EXCLUDE_RESPONSE: WireDeparture = {
 export const WIRE_DEPARTURES: Partial<Record<string, WireDeparture>> = {
   status: {
     reason:
-      'P5 B2: GET /status health gains vcs (D86); P11 B5b: health gains changeSource (D133, D157), Design 2',
+      'P5 B2: GET /status health gains vcs (D86); P11 B5b: health gains changeSource (D133, D157); P13a: health gains indexCheck (D197), Design 2',
     strip: stripNewHealthKeys,
   },
   configSchema: CONFIG_KEYS,
