@@ -7,6 +7,7 @@ import { execFile } from 'node:child_process';
 import { mkdir, mkdtemp, rename, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { setTimeout as sleep } from 'node:timers/promises';
 import { promisify } from 'node:util';
 
 import pino from 'pino';
@@ -28,8 +29,6 @@ const linux = process.platform === 'linux';
 const TREE = 1000;
 /** Files in the watcher's own commit (spec: 20,000). */
 const COMMIT = 20_000;
-
-const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /** Relative path of tree file `i`: two levels of nested folders. */
 const treeFile = (i: number) =>

@@ -5,6 +5,7 @@
 
 import { appendFile, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { basename, join } from 'node:path';
+import { setTimeout as sleep } from 'node:timers/promises';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
@@ -30,8 +31,6 @@ const STABILITY_MS = 500;
  * Windows under chokidar, whose own write wait then emitted a change).
  */
 const CONCURRENCY = 50;
-
-const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /** The final content of file `i`. */
 const finalContent = (i: number) =>

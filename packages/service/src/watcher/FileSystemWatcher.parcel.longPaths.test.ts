@@ -6,6 +6,7 @@
 import { execFileSync } from 'node:child_process';
 import { mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
+import { setTimeout as sleep } from 'node:timers/promises';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
@@ -95,7 +96,7 @@ describe.runIf(windows)(
       const path = await h.write(`${dir}/${file}`, 'long');
       expect(path).toHaveLength(LONG_PATH);
       // Well past the stability window, before the first periodic run.
-      await new Promise((resolve) => setTimeout(resolve, 1_500));
+      await sleep(1_500);
       expect(of(h, 'create')).toEqual([]);
       await waitFor(
         () => of(h, 'create').includes(`${dir}/${file}`),
