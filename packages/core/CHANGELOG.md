@@ -2,6 +2,48 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.0-3] - 2026-11-06
+
+### 🚀 Features
+
+- *(config)* Processing ceilings, embedding.alertUrl and the too_large issue type (B5a, B6; D44, D64)
+- *(processor)* Lock every document operation; API routes wait 10 s then 503 Retry-After: 10 (B5a; D98, D118)
+- *(vectorStore)* File_path system index built in the background, by-filter payload writes and existing-ID reads; health.collection.systemIndexes (B5a; D74, D154)
+- *(embedding)* Embedding health with transition alerts, 5-minute back-off cap, health.embedding and status degraded (B6; D86, D88, D89)
+- ListFacets rules scoping (A8, D117, D123)
+- CountFacets (POST /search/facets/counts, A8)
+- *(service)* CountFacets uses approximate facet counts (D194)
+- *(core,service)* Health.changeSource in D133's whole shape (B5b, D133, D157)
+- *(core,service)* Periodic reconciliation, watch.reconcileIntervalMs (B5b, D111)
+- *(service)* On Windows parcel never unsubscribes; rebuilds and subscription recoveries exit for a service-manager restart (D196)
+- *(core)* Watch.indexCheckOnStart (default true) and the health.indexCheck schema (D197)
+- *(service)* The index check at start: one chunk-0 listing, per-root cap, stat-confirmed deletes through the delete-event path (D197)
+- *(service)* The index check's 10% cap applies only once more than 20 of a root's documents are missing; 1,000 unchanged (D198)
+
+### 🐛 Bug Fixes
+
+- *(core,service)* Regenerate openapi.json as written; plain docs for the sink methods
+- *(service)* Review fixes for the change-source seam and reconciliation
+
+### 💼 Other
+
+- Merge remote-tracking branch 'origin/main' into feature/p9-processing-at-scale
+- *(service)* Pin @parcel/watcher 2.6.0 with its loader, selection and CI binary check (C2, D125)
+
+### 🚜 Refactor
+
+- *(core)* Split the catalog entry list into catalog/ modules by kind
+
+### 📚 Documentation
+
+- Fix health doc-comment order and decision citations (D86, D87, D88)
+- *(skill)* Too_large, health.embedding, systemIndexes, degraded causes and the 10 s document-lock 503
+- Facets (countFacets, listFacets rules, chunk_index and matched_rules system indexes)
+- Parcel change source, directory pairing, switching and native binary (C2, C3)
+- Windows restart-on-exit requirement under parcel, restart record and health fields (D196)
+- The index check at start (D197): configuration, architecture, API reference, upgrading, deployment, skill
+- No 0.17.0 tool name or WATCHER_ENDPOINTS outside the upgrading guide and the tool-name tests (Design 14)
+- One 0.20.0 -> 0.21.0 upgrade guide with the full rollback (D95, D171, D173, D180), skill troubleshooting, deployment (inotify limits, NSSM restart on exit, long paths reconcile-only per D199); anchors fixed and docs build at zero warnings (R2)
 ## [0.5.0-2] - 2026-11-04
 
 ### 🚀 Features
@@ -60,6 +102,7 @@ Fresh review of faf2fe9..e0cfae6: test names now say what they prove (hashObject
 ### ⚙️ Miscellaneous Tasks
 
 - *(skills)* Trim jeeves-watcher skill description to 160 chars or less
+- Release @karmaniverous/jeeves-watcher-core v0.5.0-2
 ## [0.5.0-0] - 2026-10-30
 
 ### 💼 Other
