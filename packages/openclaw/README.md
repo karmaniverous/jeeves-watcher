@@ -11,14 +11,18 @@ A running [jeeves-watcher](https://www.npmjs.com/package/@karmaniverous/jeeves-w
 The plugin is a standard OpenClaw plugin with no installer of its own. On a Jeeves box, `jeeves install` (from [`@karmaniverous/jeeves`](https://www.npmjs.com/package/@karmaniverous/jeeves) 0.6+) installs it and writes its config:
 
 ```bash
-jeeves install watcher --config-root /srv/jeeves/config
+jeeves install --workspace /srv/jeeves/workspace --config-root /srv/jeeves/config watcher
 ```
+
+Without `--workspace`, `jeeves install` takes the current folder as the workspace and writes its platform files there.
 
 Or install it directly with the OpenClaw CLI and set the config yourself:
 
 ```bash
-openclaw plugins install npm:@karmaniverous/jeeves-watcher-openclaw@<version> --pin --accept-capabilities
+openclaw plugins install npm:@karmaniverous/jeeves-watcher-openclaw@<version> --pin --accept-capabilities --force
 ```
+
+`--force` confirms the npm source and replaces an installed version; without it a non-interactive install is cancelled.
 
 The plugin registers an always-in-context rule set through OpenClaw's `before_prompt_build` hook, so it needs `plugins.entries.jeeves-watcher-openclaw.hooks.allowConversationAccess: true`. `jeeves install` / `jeeves update` grant this automatically (the hook is declared in `package.json` under `jeeves.conversationHooks`).
 

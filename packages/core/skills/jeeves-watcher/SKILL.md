@@ -102,7 +102,7 @@ You have access to a **semantic archive** of your human's working world. Documen
 
 ## Plugin Installation
 
-The plugin is a standard OpenClaw plugin. On a Jeeves box, `jeeves install watcher --config-root <path>` installs it and writes its config; otherwise use `openclaw plugins install npm:@karmaniverous/jeeves-watcher-openclaw@<version> --pin --accept-capabilities` and set `plugins.entries.jeeves-watcher-openclaw.config` yourself. Restart the gateway to load it.
+The plugin is a standard OpenClaw plugin. On a Jeeves box, `jeeves install --workspace <workspace> --config-root <path> watcher` installs it and writes its config (without `--workspace` it takes the current folder as the workspace and writes platform files there); otherwise use `openclaw plugins install npm:@karmaniverous/jeeves-watcher-openclaw@<version> --pin --accept-capabilities --force` and set `plugins.entries.jeeves-watcher-openclaw.config` yourself. `--force` confirms the npm source and replaces an installed version; without it a non-interactive install is cancelled. To upgrade or roll back, run the same command with the other version. Restart the gateway to load it.
 
 `configRoot` has no default. Only `watcher_service` with `action: "install"` needs it; other `watcher_service` actions and all HTTP API tools work without it. If `watcher_service install` returns "configRoot not configured", set `configRoot` in the plugin config or the `JEEVES_CONFIG_ROOT` env var.
 

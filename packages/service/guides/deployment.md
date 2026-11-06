@@ -43,6 +43,13 @@ sudo sysctl -w fs.inotify.max_queued_events=1048576
 printf 'fs.inotify.max_user_watches=1048576\nfs.inotify.max_queued_events=1048576\n' | sudo tee /etc/sysctl.d/90-inotify.conf
 ```
 
+Where `sudo` allows `tee` but not `sysctl` (some managed hosts' sudoers), write the same values through `/proc` instead; the persistence line above needs only `tee`:
+
+```bash
+echo 1048576 | sudo tee /proc/sys/fs/inotify/max_user_watches
+echo 1048576 | sudo tee /proc/sys/fs/inotify/max_queued_events
+```
+
 A failed `inotify_add_watch` leaves the root unwatched (still reconciled each period) until a reload or restart.
 
 On Linux, changes inside folders nested in a newly created or moved-in tree, or in a directory renamed within a root, can go unseen until the root's subscription is renewed, which happens at each periodic reconcile: they are indexed up to `watch.reconcileIntervalMs` late (15 minutes by default). Renewing a large root pauses event handling for every root for the length of its walk.

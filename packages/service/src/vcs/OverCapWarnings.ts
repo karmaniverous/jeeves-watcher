@@ -36,7 +36,7 @@ export class OverCapWarnings {
     logger.warn(
       { root, path: rel, size },
       tracked
-        ? 'File grew past vcs.maxFileBytes: untracking it (its history ends at its last committed version)'
+        ? 'Tracked file is over vcs.maxFileBytes: untracking it (its history ends at its last committed version)'
         : 'File exceeds vcs.maxFileBytes: not staged',
     );
   }

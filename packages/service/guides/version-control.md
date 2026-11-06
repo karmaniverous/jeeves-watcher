@@ -41,7 +41,7 @@ An ignored path never fails a batch. Each batch is split by one tracked check (`
 
 ### File Size Cap
 
-`vcs.maxFileBytes` (default 100 MB, under GitHub's 100 MiB file limit; `0` disables) caps what git versions. A new file over the cap is not staged. A tracked file that grows past it is untracked in a commit of its own (`watcher: untrack N files over vcs.maxFileBytes`), made just before the batch commit: its history ends at its last committed version, and the file stays on disk. Each over-cap path is warned about once per process (again if it drops under the cap and grows back). The value is read at each staging, so a config change applies without a restart.
+`vcs.maxFileBytes` (default 100 MB, under GitHub's 100 MiB file limit; `0` disables) caps what git versions. A new file over the cap is not staged. A tracked file that grows past it is untracked in a commit of its own (`watcher: untrack N files over vcs.maxFileBytes`), made just before the batch commit: its history ends at its last committed version, and the file stays on disk. A tracked file already over the cap (from an earlier version, or after the cap is lowered) is untracked the same way the next time it is processed, at the latest at the next start, whose walk enqueues every file. Each over-cap path is warned about once per process (again if it drops under the cap and grows back). The value is read at each staging, so a config change applies without a restart.
 
 ---
 
