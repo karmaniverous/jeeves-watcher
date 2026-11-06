@@ -117,7 +117,7 @@ describe('FileSystemWatcher (parcel) with version control', () => {
 
       // Before the next renewal: a write into a nested folder and a rename
       // inside one. Parcel may not see either until the renewal (D129).
-      const changedAt = new Date().toISOString();
+      const changedAt = Date.now();
       await writeFile(join(h.root, 'moved', 'n1', 'm1', 'late.md'), 'late');
       await rename(
         join(h.root, 'moved', treeFile(2)),
@@ -137,14 +137,20 @@ describe('FileSystemWatcher (parcel) with version control', () => {
           of(h, 'move').length > 0,
         20_000,
       );
-      // A renew-and-reconcile ran after the changes (Linux renews first).
+      // A renew-and-reconcile started after the changes: the reconcile's
+      // start (its end less its duration) is later than them, and on Linux
+      // the renewal runs just before it, so that renewal came after too.
       await waitFor(() => {
         const s = changeSourceHealth.snapshot();
-        return (
-          s.lastRenewDurationMs !== null &&
-          s.lastReconcileAt !== null &&
-          s.lastReconcileAt > changedAt
-        );
+        if (
+          s.lastRenewDurationMs === null ||
+          s.lastReconcileAt === null ||
+          s.lastReconcileDurationMs === null
+        )
+          return false;
+        const reconcileStart =
+          Date.parse(s.lastReconcileAt) - s.lastReconcileDurationMs;
+        return reconcileStart > changedAt;
       }, 20_000);
       await vcs.flush();
 
