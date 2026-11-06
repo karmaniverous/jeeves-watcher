@@ -13,21 +13,18 @@ import pino from 'pino';
 
 import { DocumentLocks, fileLockKey } from '../src/processor/DocumentLocks';
 import { deleteDocumentPoints } from '../src/processor/documentPipeline';
-import { isSourcePoint } from '../src/processor/payloadFields';
 import { provisionEphemeralQdrant } from '../src/test/qdrant/ephemeralQdrant';
 import { normalizeSlashes } from '../src/util/normalizeSlashes';
-import { findRootForPath } from '../src/vcs/gitExec';
 import { VectorStoreClient } from '../src/vectorStore';
 import { resolveWatchPaths } from '../src/watcher/globToDir';
 import { IndexCheckHealthTracker } from '../src/watcher/indexCheck/IndexCheckHealthTracker';
 import {
-  CHUNK0_FILTER,
   INDEX_CHECK_PAGE_SIZE,
   runIndexCheck,
 } from '../src/watcher/indexCheck/runIndexCheck';
-import { INDEX_CHECK_MAX_SHARE } from '../src/watcher/indexCheck/tally';
 import { Inventory } from '../src/watcher/inventory/Inventory';
 import { copyPayloads, sourcePointCount } from './facetGate/copy';
+import { census, chooseMissing } from './indexCheckCost/census';
 
 const log = (message: string) => {
   console.log(`${new Date().toISOString().slice(11, 19)} ${message}`);
@@ -57,75 +54,6 @@ const { roots } = resolveWatchPaths(globs);
 const rootKeys = roots
   .map((r) => normalizeSlashes(r).replace(/\/+$/, ''))
   .sort((a, b) => b.length - a.length);
-
-/** Points by kind: file documents under the roots, outside, sources. */
-interface Census {
-  points: number;
-  chunk0UnderRoots: number;
-  chunk0Outside: number;
-  chunk0Sources: number;
-  /** Chunk-0 file paths under the roots, by root. */
-  byRoot: Map<string, string[]>;
-}
-
-/** Scroll the copy's chunk-0 points into a census (not timed). */
-async function census(store: VectorStoreClient): Promise<Census> {
-  const result: Census = {
-    points: (await store.getCollectionInfo()).pointCount,
-    chunk0UnderRoots: 0,
-    chunk0Outside: 0,
-    chunk0Sources: 0,
-    byRoot: new Map(),
-  };
-  let cursor: string | number | undefined;
-  do {
-    const page = await store.scrollPage(CHUNK0_FILTER, 2000, cursor, [
-      'file_path',
-      'source',
-    ]);
-    for (const { payload } of page.points) {
-      if (isSourcePoint(payload)) {
-        result.chunk0Sources += 1;
-        continue;
-      }
-      const filePath = payload.file_path;
-      if (typeof filePath !== 'string') continue;
-      const root = findRootForPath(
-        rootKeys,
-        normalizeSlashes(filePath),
-        process.platform,
-      );
-      if (root === undefined) {
-        result.chunk0Outside += 1;
-        continue;
-      }
-      result.chunk0UnderRoots += 1;
-      const list = result.byRoot.get(root) ?? [];
-      list.push(filePath);
-      result.byRoot.set(root, list);
-    }
-    cursor = page.nextCursor;
-  } while (cursor !== undefined);
-  return result;
-}
-
-/** Choose missing documents per root, within each root's cap. */
-function chooseMissing(before: Census): Set<string> {
-  const total = before.chunk0UnderRoots;
-  const missing = new Set<string>();
-  for (const paths of before.byRoot.values()) {
-    const share = Math.round((missingWanted * paths.length) / total);
-    const cap = Math.min(
-      1000,
-      Math.floor(paths.length * INDEX_CHECK_MAX_SHARE),
-    );
-    const n = Math.min(share, cap);
-    for (let i = 0; i < n; i++) {
-      missing.add(paths[Math.floor((i * paths.length) / n)]);
-    }
-  }
-  return missing;
-}
 
 /** Wait until the collection's optimizers are idle (status green). */
 async function waitGreen(url: string): Promise<void> {
@@ -250,8 +178,8 @@ try {
     { url: qdrant.url, collectionName: COLLECTION },
     1,
   );
-  const before = await census(store);
-  const missing = chooseMissing(before);
+  const before = await census(store, rootKeys);
+  const missing = chooseMissing(before, missingWanted);
   const inventory = new Inventory(false);
   for (const paths of before.byRoot.values()) {
     for (const path of paths) if (!missing.has(path)) inventory.set(path);
@@ -286,7 +214,7 @@ try {
     missing,
     true,
   );
-  const after = await census(store);
+  const after = await census(store, rootKeys);
   const intact =
     after.chunk0Outside === before.chunk0Outside &&
     after.chunk0Sources === before.chunk0Sources &&
