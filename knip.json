@@ -4,7 +4,7 @@
     "typedoc-plugin-mdn-links",
     "typedoc-plugin-replace-text"
   ],
-  "ignoreBinaries": ["typedoc", "plantuml"],
+  "ignoreBinaries": ["typedoc", "plantuml", "reg"],
   "ignore": [],
   "ignoreExportsUsedInFile": true,
   "workspaces": {
