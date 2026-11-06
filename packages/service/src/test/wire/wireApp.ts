@@ -1,9 +1,10 @@
 /**
  * @module test/wire/wireApp
- * The real `createApiServer` on scriptable stubs (`wireStubs`) plus a temp config file and a real git repo, for the routes' wire baseline. Writes temp files; no network.
+ * The real `createApiServer` on scriptable stubs (`wireStubs`) plus a temp config file and a real git repo, for the routes' wire baseline. `reset` runs git only when the repo differs from its last reset state. Writes temp files; no network.
  */
 
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
+import { mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -41,8 +42,13 @@ export interface WireApp {
   appWithoutSourceQueue: FastifyInstance;
   /** Stub behaviour (mutate per request; reset with {@link WireApp.reset}). */
   state: WireState;
-  /** Restore {@link DEFAULT_WIRE_STATE} and the original config file. */
+  /**
+   * Restore {@link DEFAULT_WIRE_STATE}, the original config file and rules,
+   * and (only when it differs from its last reset state) the VCS repo.
+   */
   reset: () => Promise<void>;
+  /** How many resets have restored the VCS repo with git so far. */
+  readonly gitResets: number;
   /** VCS root (forward slashes). */
   vcsRoot: string;
   /** Commit holding the VCS fixture files. */
@@ -69,6 +75,58 @@ export const WIRE_CONFIG_FILE = {
 
 /** Bearer header the wire app accepts. */
 export const WIRE_AUTH = { authorization: `Bearer ${WIRE_KEY}` };
+
+/**
+ * Read a file, or `undefined` when it does not exist.
+ *
+ * @param path - File path.
+ * @returns The bytes, or `undefined`.
+ */
+async function readIfPresent(path: string): Promise<Buffer | undefined> {
+  try {
+    return await readFile(path);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return undefined;
+    throw error;
+  }
+}
+
+/**
+ * Fingerprint everything `reset` restores in the VCS repo: every working-tree
+ * path (`.git` aside) with its bytes, and `.git/info/exclude`. Two equal
+ * fingerprints mean the reset's `git checkout`, `git clean` and exclude
+ * removal would change nothing. No git; a handful of fs calls.
+ *
+ * @param root - The VCS root.
+ * @returns A hex digest.
+ */
+async function vcsFingerprint(root: string): Promise<string> {
+  const hash = createHash('sha256');
+  const add = (label: string, bytes?: Buffer) => {
+    hash.update(
+      `${label}\0${bytes === undefined ? '-' : String(bytes.length)}\0`,
+    );
+    if (bytes) hash.update(bytes);
+  };
+  const walk = async (dir: string, rel: string): Promise<void> => {
+    const entries = await readdir(dir, { withFileTypes: true });
+    entries.sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
+    for (const entry of entries) {
+      if (rel === '' && entry.name === '.git') continue;
+      const path = join(dir, entry.name);
+      const name = `${rel}/${entry.name}`;
+      if (entry.isDirectory()) {
+        add(`dir ${name}`);
+        await walk(path, name);
+      } else {
+        add(`file ${name}`, await readFile(path));
+      }
+    }
+  };
+  await walk(root, '');
+  add('exclude', await readIfPresent(join(root, '.git', 'info', 'exclude')));
+  return hash.digest('hex');
+}
 
 /**
  * Start the wire app.
@@ -112,6 +170,10 @@ export async function startWireApp(
   await appWithoutVcs.ready();
   await appWithoutSourceQueue.ready();
 
+  // Fingerprint of the repo right after the last git reset (none yet).
+  let cleanFingerprint: string | undefined;
+  let gitResets = 0;
+
   return {
     app,
     appWithoutVcs,
@@ -122,10 +184,22 @@ export async function startWireApp(
       await writeConfig();
       for (const source of Object.keys(rules.getAll()))
         rules.unregister(source);
-      // Undo VCS writes (revert, exclude) so every scenario sees the same repo.
+      // Undo VCS writes (revert, exclude) so every scenario sees the same
+      // repo. Each git spawn costs tens of milliseconds (more on Windows), so
+      // skip them when nothing changed since the last reset.
+      if (
+        cleanFingerprint !== undefined &&
+        (await vcsFingerprint(vcsRoot)) === cleanFingerprint
+      )
+        return;
       await rm(join(vcsRoot, '.git', 'info', 'exclude'), { force: true });
       await execFileAsync('git', ['checkout', '--', '.'], { cwd: vcsRoot });
       await execFileAsync('git', ['clean', '-fdq'], { cwd: vcsRoot });
+      cleanFingerprint = await vcsFingerprint(vcsRoot);
+      gitResets += 1;
+    },
+    get gitResets() {
+      return gitResets;
     },
     vcsRoot,
     commit: stdout.trim(),
