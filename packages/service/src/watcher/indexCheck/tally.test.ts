@@ -1,6 +1,6 @@
 /**
  * @module watcher/indexCheck/tally.test
- * The index check's per-root tally and cap (D197): roots matched by path segment, case-insensitively on Windows only (D195); source documents, points without a `file_path` and points outside every root ignored; candidates are the documents the inventory does not hold, kept up to one over the cap; the cap is more than 10% or more than 1,000.
+ * The index check's per-root tally and cap (D197): roots matched by path segment, case-insensitively on Windows only (D195); source documents, points without a `file_path` and points outside every root ignored; candidates are the documents the inventory does not hold, kept up to one over the cap; the cap is more than 10% once more than 20 are candidates (D198), or more than 1,000.
  */
 
 import { describe, expect, it } from 'vitest';
@@ -14,11 +14,21 @@ describe('overCap', () => {
     // candidates, indexed, capped
     [0, 0, false],
     [1, 10, false],
-    [1, 9, true],
+    // The share applies only above the 20-document floor (D198).
+    [1, 9, false],
+    [5, 15, false],
+    [20, 20, false],
+    [20, 21, false],
+    [21, 21, true],
+    [21, 100, true],
+    [21, 210, false],
+    [21, 209, true],
     [100, 1000, false],
     [101, 1000, true],
+    // The 1,000 absolute cap has no floor and needs no share.
     [1000, 100_000, false],
     [1001, 100_000, true],
+    [1001, 1_000_000, true],
   ])(
     '%i candidates of %i indexed -> capped %s',
     (candidates, indexed, capped) => {
@@ -92,6 +102,20 @@ describe('IndexCheckTally', () => {
     const whole = new IndexCheckTally(['/'], () => false, 'linux');
     whole.add(file('/a/b.md'));
     expect(whole.results()[0]).toMatchObject({ root: '/', indexed: 1 });
+  });
+
+  it('keeps every candidate of a small root under the floor', () => {
+    const tally = new IndexCheckTally(
+      ['/r'],
+      (p) => !p.includes('gone'),
+      'linux',
+    );
+    for (let i = 0; i < 10; i++) tally.add(file(`/r/${String(i)}.md`));
+    for (let i = 0; i < 5; i++) tally.add(file(`/r/gone${String(i)}.md`));
+    const [result] = tally.results();
+    expect(result).toMatchObject({ indexed: 15, candidates: 5 });
+    expect(result.paths).toHaveLength(5);
+    expect(overCap(result.candidates, result.indexed)).toBe(false);
   });
 
   it('keeps candidate paths up to one over the cap but counts them all', () => {

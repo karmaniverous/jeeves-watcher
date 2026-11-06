@@ -114,27 +114,47 @@ describe('runIndexCheck', () => {
   });
 
   it('deletes nothing under a root over the cap, and still checks the others', async () => {
-    const capped = Array.from({ length: 10 }, (_, i) => `/r/${String(i)}.md`);
+    // 21 of 100 missing: above both the 20-document floor and 10% (D198).
+    const docs = Array.from({ length: 100 }, (_, i) => `/r/${String(i)}.md`);
+    const missing = docs.slice(79);
     const { deps, calls, health } = setup({
       roots: ['/r', '/s'],
-      inventory: capped.slice(0, 8),
-      gone: [...capped, '/s/gone.md'],
+      inventory: [
+        ...docs.slice(0, 79),
+        ...Array.from({ length: 9 }, (_, i) => `/s/${String(i)}.md`),
+      ],
+      gone: [...missing, '/s/gone.md'],
       payloads: [
-        ...capped.map(file),
+        ...docs.map(file),
         ...Array.from({ length: 9 }, (_, i) => file(`/s/${String(i)}.md`)),
         file('/s/gone.md'),
       ],
     });
-    deps.view = {
-      ...deps.view,
-      has: (path) => !path.endsWith('gone.md') && !/\/r\/[89]\.md$/.test(path),
-    };
     await runIndexCheck(deps);
     expect(calls).toEqual(['vcs unlink /s/gone.md', 'delete /s/gone.md']);
     expect(health.snapshot()).toMatchObject({
-      checked: 20,
+      checked: 110,
       removed: 1,
       capped: 1,
+    });
+  });
+
+  it('deletes up to 20 missing documents of a small root whatever their share (D198)', async () => {
+    const docs = Array.from({ length: 25 }, (_, i) => `/r/${String(i)}.md`);
+    const missing = docs.slice(5);
+    const { deps, calls, health } = setup({
+      inventory: docs.slice(0, 5),
+      gone: missing,
+      payloads: docs.map(file),
+    });
+    await runIndexCheck(deps);
+    expect(calls).toEqual(
+      missing.flatMap((p) => [`vcs unlink ${p}`, `delete ${p}`]),
+    );
+    expect(health.snapshot()).toMatchObject({
+      checked: 25,
+      removed: 20,
+      capped: 0,
     });
   });
 

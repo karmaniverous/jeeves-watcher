@@ -1,6 +1,6 @@
 /**
  * @module test/index-check-integration.test
- * Service integration (requires Qdrant): the index check at start (D197) against a real collection and the real processor. A file gone from disk loses every chunk, deleted through the processor under its document lock (it waits for a holder); a file still on disk but missing from the inventory, a file outside the root and a source document keep their points; a root over the cap keeps everything.
+ * Service integration (requires Qdrant): the index check at start (D197) against a real collection and the real processor. A file gone from disk loses every chunk, deleted through the processor under its document lock (it waits for a holder); a file still on disk but missing from the inventory, a file outside the root and a source document keep their points; a root over the cap (more than 20 missing and more than 10%, D198) keeps everything.
  */
 
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
@@ -164,7 +164,10 @@ describe.skipIf(!qdrantAvailable())(
     });
 
     it('deletes nothing under a root over the cap', async () => {
-      const gone = ['a', 'b', 'c'].map((n) => join(root, `gone-${n}.md`));
+      // 21 of 39: above both the 20-document floor and 10% (D198).
+      const gone = Array.from({ length: 21 }, (_, i) =>
+        join(root, `gone-${String(i)}.md`),
+      );
       for (const path of gone) await indexFile(path);
 
       const health = new IndexCheckHealthTracker();
@@ -174,7 +177,7 @@ describe.skipIf(!qdrantAvailable())(
         expect(await exists(pointId(path, 0))).toBe(true);
       expect(health.snapshot()).toMatchObject({
         state: 'done',
-        checked: KEPT + 3,
+        checked: KEPT + gone.length,
         removed: 0,
         capped: 1,
       });

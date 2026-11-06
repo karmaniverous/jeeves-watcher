@@ -62,7 +62,7 @@ export const indexCheckHealthSchema = z
     capped: z
       .number()
       .describe(
-        'Watch roots where more than 10% of the indexed documents, or more than 1,000, were missing from the inventory: nothing was deleted there; run reindex prune deliberately.',
+        'Watch roots where more than 10% of the indexed documents (once more than 20 are missing) or more than 1,000 were missing from the inventory: nothing was deleted there; run reindex prune deliberately.',
       ),
   })
   .describe('Index check at start (D197).');

@@ -167,7 +167,7 @@ async function applyTally(
     counts.capped += 1;
     deps.logger.warn(
       { root, indexed, candidates },
-      'Index check: more than 10% (or 1,000) of the documents indexed under this root are missing from the watcher inventory (gone, or now filtered out); nothing deleted there. Run reindex prune deliberately (dry run first).',
+      'Index check: more than 10% (once more than 20 are missing) or more than 1,000 of the documents indexed under this root are missing from the watcher inventory (gone, or now filtered out); nothing deleted there. Run reindex prune deliberately (dry run first).',
     );
     return;
   }

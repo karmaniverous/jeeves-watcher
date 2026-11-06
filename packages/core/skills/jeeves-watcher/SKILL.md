@@ -920,7 +920,7 @@ Source-document issues always carry `rule` (the designated rule of the failed ru
 
 After the start walk the service deletes the indexed documents of files gone from disk (deleted or moved while it was down). `watcher_status` reports it under `health.indexCheck` (`state`, `at`, `durationMs`, `checked`, `removed`, `skippedRoots`, `capped`):
 
-- **`capped` above 0:** under some watch root more than 10% of the indexed documents, or more than 1,000, were missing from disk or filters, so nothing was deleted there; the log names the root. Run `watcher_reindex` with scope `prune` and `dryRun: true`, check the plan, then run it.
+- **`capped` above 0:** under some watch root more than 10% of the indexed documents (once more than 20 are missing) or more than 1,000 were missing from disk or filters, so nothing was deleted there; the log names the root. Run `watcher_reindex` with scope `prune` and `dryRun: true`, check the plan, then run it.
 - **`state: failed`:** the index could not be listed (Qdrant down), or the service stopped first; it runs again at the next start.
 - **`skippedRoots` above 0:** a root was unavailable, unwatched, gone, or its start walk failed; its deletions wait for the next start or a `prune`.
 - **Files that still exist but are now ignored** keep their points: that is `prune`'s job. `watch.indexCheckOnStart: false` turns the check off.

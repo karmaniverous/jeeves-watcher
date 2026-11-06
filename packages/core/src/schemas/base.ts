@@ -72,7 +72,7 @@ export const watchConfigSchema = z.object({
     .boolean()
     .optional()
     .describe(
-      'After the start walk, delete the indexed file documents under each available watch root whose files are gone (deleted or moved away while the service was down). Default: true. A root where more than 10% of its indexed documents, or more than 1,000, are missing is left alone (run reindex prune deliberately). Read at start.',
+      'After the start walk, delete the indexed file documents under each available watch root whose files are gone (deleted or moved away while the service was down). Default: true. A root where more than 10% of its indexed documents (once more than 20 are missing) or more than 1,000 are missing is left alone (run reindex prune deliberately). Read at start.',
     ),
   /** Whether to respect .gitignore files when processing. */
   respectGitignore: z

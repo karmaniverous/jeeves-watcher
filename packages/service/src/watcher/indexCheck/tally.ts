@@ -1,6 +1,6 @@
 /**
  * @module watcher/indexCheck/tally
- * The index check's per-root tally (D197): each listed chunk-0 file document is matched to a checked watch root (case-insensitive on Windows only, D195) and counted; those the inventory does not hold are candidates, kept up to one over the cap; the cap is more than 10% of the root's indexed documents or more than 1,000. Points without a `file_path` (source documents) and points outside the roots are ignored. Pure.
+ * The index check's per-root tally (D197): each listed chunk-0 file document is matched to a checked watch root (case-insensitive on Windows only, D195) and counted; those the inventory does not hold are candidates, kept up to one over the cap; the cap is more than 10% of the root's indexed documents once more than 20 are candidates (D198), or more than 1,000. The floor sits far below the kept limit, so a root under it keeps every candidate. Points without a `file_path` (source documents) and points outside the roots are ignored. Pure.
  */
 
 import { FIELD_FILE_PATH } from '../../processor/payloadFields';
@@ -13,9 +13,13 @@ export const INDEX_CHECK_MAX_CANDIDATES = 1000;
 /** Largest share of a root's indexed documents that may be candidates. */
 export const INDEX_CHECK_MAX_SHARE = 0.1;
 
+/** Candidates a root may have whatever their share of it (D198). */
+export const INDEX_CHECK_SHARE_FLOOR = 20;
+
 /**
- * Whether a root's candidates exceed the cap (D197): more than 10% of its
- * indexed documents, or more than 1,000.
+ * Whether a root's candidates exceed the cap (D197, D198): more than 10% of
+ * its indexed documents once more than 20 are candidates, or more than 1,000.
+ * The floor applies to the share only, so a small root may lose up to 20.
  *
  * @param candidates - Documents the inventory does not hold.
  * @param indexed - Documents indexed under the root.
@@ -24,7 +28,8 @@ export const INDEX_CHECK_MAX_SHARE = 0.1;
 export function overCap(candidates: number, indexed: number): boolean {
   return (
     candidates > INDEX_CHECK_MAX_CANDIDATES ||
-    candidates > indexed * INDEX_CHECK_MAX_SHARE
+    (candidates > INDEX_CHECK_SHARE_FLOOR &&
+      candidates > indexed * INDEX_CHECK_MAX_SHARE)
   );
 }
 

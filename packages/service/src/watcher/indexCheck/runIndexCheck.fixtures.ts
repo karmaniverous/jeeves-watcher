@@ -83,7 +83,7 @@ export function setup(s: Setup) {
 
 export const file = (path: string): Payload => ({ file_path: path });
 
-/** Kept documents per root, so one candidate stays within the 10% cap. */
+/** Kept documents per root, so one candidate stays within the 10% share even without its floor. */
 export const PAD = 9;
 
 /** `PAD` documents under `root` the inventory holds. */
