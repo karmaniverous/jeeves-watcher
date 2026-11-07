@@ -47,7 +47,7 @@ describe('embedding.rateLimitPerMinute defaults', () => {
     expect(config.embedding.rateLimitPerMinute).toBe(300);
   });
 
-  it('the loaded default lets 300 texts through in a minute, then waits for the window', async () => {
+  it('the loaded default lets 270 indexing texts through in a minute (300 less the search reserve), then waits for the window', async () => {
     const config = await load({ provider: 'mock', model: 'm' });
     vi.useFakeTimers();
     vi.setSystemTime(0);
@@ -60,17 +60,20 @@ describe('embedding.rateLimitPerMinute defaults', () => {
       maxBackoffMs: 60_000,
     });
 
-    const batch = Array.from({ length: 100 }, () => 'a');
+    const batch = Array.from({ length: 90 }, () => 'a');
     await Promise.all([1, 2, 3].map(() => limited.embed(batch)));
     expect(embed).toHaveBeenCalledTimes(3);
 
-    // 300 texts are in the window: the next waits until they leave it.
+    // 270 texts are in the window: the next indexing text waits until they
+    // leave it, while a search query uses the reserve at once.
     const next = limited.embed(['b']);
+    await limited.embed(['q'], { interactive: true });
+    expect(embed).toHaveBeenCalledTimes(4);
     await vi.advanceTimersByTimeAsync(59_999);
-    expect(embed).toHaveBeenCalledTimes(3);
+    expect(embed).toHaveBeenCalledTimes(4);
     await vi.advanceTimersByTimeAsync(1);
     await next;
-    expect(embed).toHaveBeenCalledTimes(4);
+    expect(embed).toHaveBeenCalledTimes(5);
   });
 
   // That 0 disables limiting: rateLimitedProvider.test.ts.
