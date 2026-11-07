@@ -118,12 +118,34 @@ describe('postWithRetry', () => {
       // Never respond.
     });
     servers.push(target.server);
+    // Attempts are counted on the client: under load the 50 ms timeout can
+    // abort a request before it reaches the server, so server hits are only
+    // bounded. Each attempt must end in the timeout's abort.
+    const realFetch = globalThis.fetch;
+    const failures: unknown[] = [];
+    const fetchSpy = vi
+      .spyOn(globalThis, 'fetch')
+      .mockImplementation(async (...args) => {
+        try {
+          return await realFetch(...args);
+        } catch (err) {
+          failures.push(err);
+          throw err;
+        }
+      });
     const { logger, warn, error } = spyLogger();
     const started = Date.now();
     await expect(
       postWithRetry(target.url, {}, logger, { timeoutMs: 50, retry: fast }),
     ).resolves.toBe(false);
-    expect(target.hits()).toBe(3);
+    expect(fetchSpy).toHaveBeenCalledTimes(3);
+    expect(failures.map((e) => (e as Error).name)).toEqual([
+      'TimeoutError',
+      'TimeoutError',
+      'TimeoutError',
+    ]);
+    expect(target.hits()).toBeGreaterThanOrEqual(1);
+    expect(target.hits()).toBeLessThanOrEqual(3);
     expect(warn).toHaveBeenCalledTimes(2);
     expect(error).toHaveBeenCalledTimes(1);
     expect(Date.now() - started).toBeLessThan(5000);

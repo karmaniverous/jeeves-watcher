@@ -233,6 +233,12 @@ The test suite is intentionally integration-heavy.
   - each suite works in its own throwaway `jeeves_watcher_it_*` collection, dropped when the suite ends
   - temp dirs are removed after each test and at the end of the suite
 
+**Vitest projects** (`packages/service/vitest.config.ts`; `npm test` runs them in this order):
+
+- `unit`: everything not below, fully parallel.
+- `io`: every test bound by real git or a real Qdrant (`IO_TESTS`: the Qdrant integration suites, the VCS layer, the VCS API handlers, the wire app), a few files at a time, so their subprocess and HTTP calls never queue behind CPU-bound files. A new test that spawns git or uses the Qdrant harness must match `IO_TESTS`; `src/test/testProjects.test.ts` fails otherwise.
+- `heavy`: the spec-sized scale tests (`*.heavy.test.ts`), one file at a time.
+
 Start points:
 
 - `packages/service/src/test/integration.test.ts`
