@@ -29,11 +29,13 @@ export interface HybridSearchConfig {
 
 /**
  * Query-embedding budget: interactive search fails fast with 503 rather
- * than queueing behind a long rate-limit pause.
+ * than queueing behind a long rate-limit pause, and uses the rate window's
+ * interactive reserve, so indexing never starves it.
  */
 export const SEARCH_EMBED_BUDGET: EmbedOptions = {
   attempts: 3,
   maxWaitMs: 10_000,
+  interactive: true,
 };
 
 /**

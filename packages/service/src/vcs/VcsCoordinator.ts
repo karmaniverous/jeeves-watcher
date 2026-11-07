@@ -8,6 +8,7 @@ import { resolve } from 'node:path';
 
 import {
   normalizeWatchPaths,
+  VCS_DEFAULTS,
   type VcsConfig,
   type VcsHealth,
   vcsRetentionConfigSchema,
@@ -78,7 +79,7 @@ export class VcsCoordinator {
       const resolvedApiKey =
         cmConfig?.enabled !== false
           ? resolveCommitMessageApiKey(
-              cmConfig?.provider ?? 'anthropic',
+              cmConfig?.provider ?? VCS_DEFAULTS.commitMessage.provider,
               cmConfig?.apiKey,
               rootLogger,
             )
@@ -86,8 +87,8 @@ export class VcsCoordinator {
       const generator =
         cmConfig?.enabled !== false && resolvedApiKey
           ? new CommitMessageGenerator(
-              cmConfig?.provider ?? 'anthropic',
-              cmConfig?.model ?? 'claude-haiku-4-0',
+              cmConfig?.provider ?? VCS_DEFAULTS.commitMessage.provider,
+              cmConfig?.model ?? VCS_DEFAULTS.commitMessage.model,
               resolvedApiKey,
               rootLogger,
             )

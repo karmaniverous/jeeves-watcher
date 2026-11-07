@@ -264,7 +264,7 @@ Filesystem events go through one debounced, concurrent queue.
 
 **Debounce:** Events for one path (and priority) are collapsed: only the last event within `watch.debounceMs` (default: 300 ms) is processed.
 
-**Concurrency:** Up to `embedding.concurrency` (default: 5) documents are processed at once; normal-priority events run before low-priority ones. Embedding API requests from every path (watch, source-document notifications, reindex, search) draw from one shared rate limiter (`embedding.rateLimitPerMinute`, counted in requests since v0.20.0).
+**Concurrency:** Up to `embedding.concurrency` (default: 5) documents are processed at once; normal-priority events run before low-priority ones. Embedding API requests from every path (watch, source-document notifications, reindex, search) draw from one shared rate limiter (`embedding.rateLimitPerMinute`, counted in embedded items per minute after v0.21.0; in requests in v0.20.0 and v0.21.0).
 
 **Failures:** A failing document is logged and recorded in the issues file; it does not stop the queue.
 
@@ -422,8 +422,8 @@ Transient failures are retried; anything that still fails is recorded as an issu
 
 | Failure | Retry Policy |
 | --- | --- |
-| Embedding provider 429 (rate limit) | Every caller pauses on the shared limiter. A `Retry-After` up to `maxBackoffMs` (default 60 s) is honoured; a longer one fails fast. Without `Retry-After`: backoff from 1 s, doubling, capped at `maxBackoffMs`. Up to 5 provider calls per embed (3 for a search query) |
-| Embedding provider network error or other non-2xx | 5 attempts, exponential backoff from 500 ms capped at 10 s (+ up to 20% jitter); each retry draws from the shared limiter |
+| Embedding provider 429 (rate limit) | Every caller pauses on the shared limiter for the requested delay (`Retry-After` / `retryDelay`) or the backoff (from 1 s, doubling, capped at max(`maxBackoffMs`, 65 s)), whichever is longer. A delay up to max(`maxBackoffMs`, 65 s) is honoured; a longer one fails fast. Up to 7 provider calls per embed (3 for a search query) |
+| Embedding provider network error or other non-2xx | 5 attempts, exponential backoff from 500 ms capped at 10 s (+ up to 20% jitter); each retry takes its items from the shared limiter and waits out any 429 pause |
 | Qdrant write (upsert, delete, set-payload, delete-payload) | 5 attempts, same backoff, each retry on a fresh Qdrant client |
 | Text extraction error | No retry (logged and recorded as an `extraction_error` issue; an indexed file's points are deleted, unless the error is the operating system's or Node's, such as a locked file or an extractor that fails to load) |
 

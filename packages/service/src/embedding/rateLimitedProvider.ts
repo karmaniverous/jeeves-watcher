@@ -1,22 +1,29 @@
 /**
  * @module embedding/rateLimitedProvider
- * Shared token-bucket limiter wrapping an EmbeddingProvider: one token per HTTP request (internal provider retries included), 429 Retry-After pauses all callers (fail fast beyond maxBackoffMs), bounded retries. Sleeps via timers; no other I/O.
+ * Shared limiter wrapping an EmbeddingProvider: at most `rateLimitPerMinute` items (texts) in any 60 s, internal provider retries included; a 429 pauses all callers (fail fast beyond the ceiling); bounded retries. Sleeps via timers; no other I/O.
  *
- * 429 handling: a `Retry-After` within `maxBackoffMs` is honoured in full and
- * pauses every caller. A longer `Retry-After` is not waited for: the call
- * fails at once with `EmbeddingUnavailableError` (carrying `retryAfterMs`)
- * instead of retrying early and burning attempts, and every other call fails
- * the same way until the provider's pause has fully passed (even once the
- * time left has dropped below `maxBackoffMs`). Without `Retry-After`,
- * the pause backs off exponentially from `baseBackoffMs`, capped at
- * `maxBackoffMs`.
+ * Rate: every request takes one unit per text it embeds, from a sliding
+ * 60-second window ({@link ItemRateWindow}), because providers meter
+ * embedding quota per item (Gemini `batchEmbedContents` counts each
+ * content). A batch larger than a request may take is split into requests
+ * that fit. Background requests leave a reserve of the window free for
+ * interactive ones (EmbedOptions.interactive: search), so a reindex that
+ * keeps the window full never starves search.
  *
- * A stored pause is capped at 5 minutes (B6, Design 8) and then expires: the
- * first call after it probes the provider, so a long `Retry-After` never
- * keeps the service failing until a restart. A success never lifts a pause:
- * a call is only sent once every earlier pause has expired, and a pause that
- * another call's 429 set while it was in flight must still hold for every
- * caller.
+ * 429 handling: the pause is the provider's requested delay (`Retry-After`,
+ * or Google's `RetryInfo.retryDelay`) or the exponential backoff from
+ * `baseBackoffMs` (capped at `maxBackoffMs`), whichever is longer, since
+ * Gemini answers a per-minute quota with `retryDelay: "0s"`. The pause holds
+ * every caller. A requested delay over `maxBackoffMs` fails the call at once
+ * (`EmbeddingUnavailableError` with `retryAfterMs`), and every call until
+ * that pause has fully passed. The service passes
+ * {@link embeddingPauseCeilingMs} as `maxBackoffMs`, so a per-minute quota's
+ * delay (up to 65 s) is always waited for.
+ *
+ * A stored pause is capped at 5 minutes (B6, Design 8), then the next call
+ * probes the provider, so a long `Retry-After` never needs a restart. A
+ * success never lifts a pause: one that another call's 429 set while it was
+ * in flight must still hold for every caller.
  */
 
 import type pino from 'pino';
@@ -24,36 +31,58 @@ import type pino from 'pino';
 import { normalizeError } from '../util/normalizeError';
 import { computeDelayMs } from '../util/retry';
 import { sleep } from '../util/sleep';
+import { ItemRateWindow } from './itemRateWindow';
 import {
   EmbeddingRateLimitError,
   EmbeddingUnavailableError,
 } from './rateLimitError';
 import type { EmbeddingProvider, EmbedOptions } from './types';
 
-/** Default provider attempts per call when the caller sets no budget. */
-const DEFAULT_ATTEMPTS = 5;
+/**
+ * Default provider attempts per call when the caller sets no budget: the
+ * backoff between 7 attempts (1+2+4+8+16+32 s = 63 s) outlasts a
+ * per-minute quota window.
+ */
+const DEFAULT_ATTEMPTS = 7;
 
-/** Base pause after a 429 without `Retry-After` (doubles per attempt). */
+/** Base pause after a 429 (doubles per attempt). */
 const DEFAULT_BASE_BACKOFF_MS = 1000;
 
 /** Longest stored provider pause; the first call after it is the probe. */
 export const MAX_STORED_BACKOFF_MS = 5 * 60_000;
 
+/** Shortest 429 pause ceiling: a per-minute quota's delay is always waited for. */
+const MIN_PAUSE_CEILING_MS = 65_000;
+
+/**
+ * The longest 429 pause the service waits for: the root `maxBackoffMs`,
+ * but never under {@link MIN_PAUSE_CEILING_MS}. Longer delays (a daily
+ * quota) fail fast.
+ *
+ * @param maxBackoffMs - The configured root `maxBackoffMs`.
+ * @returns The ceiling in ms.
+ */
+export function embeddingPauseCeilingMs(maxBackoffMs: number): number {
+  return Math.max(maxBackoffMs, MIN_PAUSE_CEILING_MS);
+}
+
 /** Options for {@link RateLimitedEmbeddingProvider}. */
 export interface RateLimitedEmbeddingProviderOptions {
   /**
-   * Embedding requests (embed() calls) per minute; also the burst size.
-   * Unset means no request-rate limit (429 pauses still apply).
+   * Embeddings (items: texts) per minute; no 60 s span holds more, and a
+   * batch larger than one request may take (less the interactive reserve,
+   * unless interactive) is split. Unset or 0: no rate limit (429 pauses
+   * still apply).
    */
   rateLimitPerMinute?: number;
   /**
-   * Longest 429 pause waited for, in ms. A longer `Retry-After` fails the
+   * Longest 429 pause waited for, in ms. A longer requested delay fails the
    * call fast with `EmbeddingUnavailableError`; computed backoff is capped.
    */
   maxBackoffMs: number;
-  /** Default provider attempts per call. Default: 5. */
+  /** Default provider attempts per call. Default: 7. */
   attempts?: number;
-  /** Base pause after a 429 without `Retry-After`, in ms. Default: 1000. */
+  /** Base pause after a 429, in ms (doubles per attempt). Default: 1000. */
   baseBackoffMs?: number;
   /** Logger for pause warnings. */
   logger?: pino.Logger;
@@ -61,7 +90,7 @@ export interface RateLimitedEmbeddingProviderOptions {
 
 /**
  * An {@link EmbeddingProvider} decorator that draws every request from one
- * shared token bucket. Created once at startup and shared by the watch
+ * shared item budget. Created once at startup and shared by the watch
  * queue, reindex and search, so all paths spend the same budget.
  */
 export class RateLimitedEmbeddingProvider implements EmbeddingProvider {
@@ -69,20 +98,14 @@ export class RateLimitedEmbeddingProvider implements EmbeddingProvider {
   readonly dimensions: number;
 
   private readonly inner: EmbeddingProvider;
-  private readonly rateLimitPerMinute: number | undefined;
+  private readonly window: ItemRateWindow | undefined;
   private readonly maxBackoffMs: number;
   private readonly attempts: number;
   private readonly baseBackoffMs: number;
   private readonly logger: pino.Logger | undefined;
 
-  private tokens: number;
-  private lastRefillMs = Date.now();
   private pausedUntilMs = 0;
-  /**
-   * End of the latest pause that was over `maxBackoffMs` when requested.
-   * Until then every caller fails fast, even once the remaining time has
-   * dropped below `maxBackoffMs`.
-   */
+  /** End of the latest pause over `maxBackoffMs`: every caller fails fast until then. */
   private failFastUntilMs = 0;
 
   /**
@@ -95,15 +118,14 @@ export class RateLimitedEmbeddingProvider implements EmbeddingProvider {
   ) {
     this.inner = inner;
     this.dimensions = inner.dimensions;
-    this.rateLimitPerMinute =
+    this.window =
       options.rateLimitPerMinute !== undefined && options.rateLimitPerMinute > 0
-        ? options.rateLimitPerMinute
+        ? new ItemRateWindow(options.rateLimitPerMinute)
         : undefined;
     this.maxBackoffMs = Math.max(0, options.maxBackoffMs);
     this.attempts = Math.max(1, options.attempts ?? DEFAULT_ATTEMPTS);
     this.baseBackoffMs = options.baseBackoffMs ?? DEFAULT_BASE_BACKOFF_MS;
     this.logger = options.logger;
-    this.tokens = this.rateLimitPerMinute ?? Number.POSITIVE_INFINITY;
   }
 
   /**
@@ -116,12 +138,13 @@ export class RateLimitedEmbeddingProvider implements EmbeddingProvider {
   }
 
   /**
-   * Embed texts as one provider request, waiting for a token and retrying
-   * 429s within the call's budget.
+   * Embed texts, waiting for rate budget and retrying 429s within the
+   * call's budget. A batch over what one request may take is sent as
+   * several requests, in order; the budget covers them all.
    *
-   * @param texts - Texts to embed (one request, regardless of count).
+   * @param texts - Texts to embed.
    * @param options - Per-call attempt and wait budget.
-   * @returns The embedding vectors.
+   * @returns The embedding vectors, one per text, in order.
    * @throws EmbeddingUnavailableError when the budget is exhausted.
    */
   async embed(
@@ -134,31 +157,53 @@ export class RateLimitedEmbeddingProvider implements EmbeddingProvider {
         ? undefined
         : Date.now() + options.maxWaitMs;
 
+    const interactive = options.interactive ?? false;
+    const request = (slice: string[]) =>
+      this.embedRequest(slice, attempts, deadlineMs, interactive);
+    const size = this.window?.capacity(interactive) ?? texts.length;
+    if (texts.length <= size) return request(texts);
+    const vectors: number[][] = [];
+    for (let start = 0; start < texts.length; start += size) {
+      vectors.push(...(await request(texts.slice(start, start + size))));
+    }
+    return vectors;
+  }
+
+  /** One provider request (with its 429 retries) for texts that fit the window. */
+  private async embedRequest(
+    texts: string[],
+    attempts: number,
+    deadlineMs: number | undefined,
+    interactive: boolean,
+  ): Promise<number[][]> {
     let lastError: EmbeddingRateLimitError | undefined;
-    // Each internal provider retry is a request too: it takes a token.
-    const beforeRetry = () => this.acquire(deadlineMs, lastError);
-    for (let attempt = 1; attempt <= attempts; attempt++) {
-      await this.acquire(deadlineMs, lastError);
+    // Each internal provider retry is a request too: it takes its items
+    // and waits out any pause, like the first.
+    const acquire = () =>
+      this.acquire(texts.length, deadlineMs, lastError, interactive);
+    for (let attempt = 1; ; attempt++) {
+      await acquire();
       try {
-        return await this.inner.embed(texts, { beforeRetry });
+        return await this.inner.embed(texts, { beforeRetry: acquire });
       } catch (error) {
         if (!(error instanceof EmbeddingRateLimitError)) throw error;
         lastError = error;
         this.pauseFor(error, attempt, attempts);
+        if (attempt >= attempts) {
+          throw new EmbeddingUnavailableError(
+            `Embedding provider still rate-limited after ${String(attempts)} attempts: ${error.message}`,
+            { cause: error, retryAfterMs: this.pauseRemainingMs(Date.now()) },
+          );
+        }
       }
     }
-
-    throw new EmbeddingUnavailableError(
-      `Embedding provider still rate-limited after ${String(attempts)} attempts: ${lastError?.message ?? 'unknown error'}`,
-      { cause: lastError, retryAfterMs: this.pauseRemainingMs(Date.now()) },
-    );
   }
 
   /**
-   * Pause every caller after a 429: `Retry-After` in full, or exponential
-   * backoff capped at `maxBackoffMs`.
+   * Pause every caller after a 429: the requested delay or the exponential
+   * backoff (capped at `maxBackoffMs`), whichever is longer.
    *
-   * @throws EmbeddingUnavailableError when `Retry-After` exceeds `maxBackoffMs`.
+   * @throws EmbeddingUnavailableError when the requested delay exceeds `maxBackoffMs`.
    */
   private pauseFor(
     error: EmbeddingRateLimitError,
@@ -166,9 +211,10 @@ export class RateLimitedEmbeddingProvider implements EmbeddingProvider {
     attempts: number,
   ): void {
     const { retryAfterMs } = error;
-    const pauseMs =
-      retryAfterMs ??
-      computeDelayMs(attempt, this.baseBackoffMs, this.maxBackoffMs);
+    const pauseMs = Math.max(
+      retryAfterMs ?? 0,
+      computeDelayMs(attempt, this.baseBackoffMs, this.maxBackoffMs),
+    );
     const now = Date.now();
     const storedMs = Math.min(pauseMs, MAX_STORED_BACKOFF_MS);
     this.pausedUntilMs = Math.max(this.pausedUntilMs, now + storedMs);
@@ -181,7 +227,7 @@ export class RateLimitedEmbeddingProvider implements EmbeddingProvider {
         attempt,
         attempts,
         pauseMs,
-        retryAfterMs: error.retryAfterMs,
+        retryAfterMs,
         err: normalizeError(error),
       },
       'Embedding provider rate-limited; pausing all embedding requests',
@@ -212,42 +258,30 @@ export class RateLimitedEmbeddingProvider implements EmbeddingProvider {
     return Math.max(0, this.pausedUntilMs - nowMs);
   }
 
-  /** Refill the bucket for the time elapsed since the last refill. */
-  private refill(nowMs: number): void {
-    if (this.rateLimitPerMinute === undefined) return;
-    const elapsed = Math.max(0, nowMs - this.lastRefillMs);
-    this.tokens = Math.min(
-      this.rateLimitPerMinute,
-      this.tokens + (elapsed * this.rateLimitPerMinute) / 60_000,
-    );
-    this.lastRefillMs = nowMs;
-  }
-
-  /** Milliseconds until one whole token is available (0 if one is). */
-  private tokenWaitMs(): number {
-    if (this.rateLimitPerMinute === undefined || this.tokens >= 1) return 0;
-    return Math.ceil(((1 - this.tokens) * 60_000) / this.rateLimitPerMinute);
-  }
-
   /**
-   * Wait until the limiter is not paused and a token is available, then
-   * take the token. Fails fast when the wait would pass the deadline.
+   * Wait until the limiter is not paused and `count` items fit the rate
+   * window (with the reserve when interactive), then take them. Fails fast
+   * when the wait would pass the deadline.
    */
   private async acquire(
+    count: number,
     deadlineMs: number | undefined,
     cause: EmbeddingRateLimitError | undefined,
+    interactive: boolean,
   ): Promise<void> {
     for (;;) {
       const now = Date.now();
-      this.refill(now);
       const pauseMs = this.pauseRemainingMs(now);
       if (pauseMs > this.maxBackoffMs || now < this.failFastUntilMs) {
         throw this.pauseTooLong(pauseMs, cause);
       }
-      const waitMs = Math.max(pauseMs, this.tokenWaitMs());
+      const waitMs = Math.max(
+        pauseMs,
+        this.window?.waitMs(count, now, interactive) ?? 0,
+      );
 
       if (waitMs === 0) {
-        this.tokens -= 1;
+        this.window?.take(count, now);
         return;
       }
 

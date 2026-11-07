@@ -575,7 +575,7 @@ The `filter` parameter accepts a native [Qdrant filter object](https://qdrant.te
 }
 ```
 
-Returned when the query cannot be embedded within the search budget (3 provider attempts, at most 10 seconds waiting on the shared rate limiter), or at once when the provider has asked for a pause longer than the root `maxBackoffMs`. A `Retry-After` header (seconds) is set when the limiter knows when it will accept requests again. See [Rate Limiting](#rate-limiting).
+Returned when the query cannot be embedded within the search budget (3 provider attempts, at most 10 seconds waiting on the shared rate limiter), or at once when the provider has asked for a pause longer than max(root `maxBackoffMs`, 65 seconds). A `Retry-After` header (seconds) is set when the limiter knows when it will accept requests again. See [Rate Limiting](#rate-limiting).
 
 **Invalid filter (400 Bad Request, v0.20.0+):**
 
@@ -2366,15 +2366,15 @@ For TLS, or for authentication schemes other than a single shared key, put a rev
 
 The API itself has no request rate limit; add one at a reverse proxy if you need it.
 
-The **embedding provider** is rate-limited. Since v0.20.0, one shared limiter wraps the provider and every caller draws from it: file watching, source-document notifications, reindex and search. See [`embedding.rateLimitPerMinute`](./configuration.md#embedding-rate-limiting) for the semantics (and the 0.20.0 behaviour change).
+The **embedding provider** is rate-limited. Since v0.20.0, one shared limiter wraps the provider and every caller draws from it: file watching, source-document notifications, reindex and search. It admits at most `embedding.rateLimitPerMinute` embedded items (texts) in any minute. Indexing leaves a reserve of that budget (10% rounded up, at most 60 items; none at a limit of 1) free for search, so a reindex that keeps the limiter busy does not make searches wait. See [`embedding.rateLimitPerMinute`](./configuration.md#embedding-rate-limiting) for the semantics (and the behaviour changes in 0.20.0 and after 0.21.0).
 
 When the provider answers `429`, the limiter pauses **all** embedding requests:
 
-- A pause the provider asks for (`Retry-After`, or Google's `retryDelay` when there is no header) of up to the root `maxBackoffMs` is waited in full, then the request is retried. Without either, the limiter backs off exponentially, capped at `maxBackoffMs`.
-- A requested pause **longer** than `maxBackoffMs` is not shortened: the request fails at once, and every other caller fails fast until the pause has fully passed (even once less than `maxBackoffMs` of it remains), instead of retrying early and being throttled again.
-- Indexing makes up to 5 attempts per embedding request and then records an `embedding_error` issue (the document is retried on its next change, notification or reindex).
+- The pause is the delay the provider asks for (`Retry-After`, or Google's `retryDelay` when there is no header) or the exponential backoff from 1 second (capped at max(root `maxBackoffMs`, 65 seconds)), whichever is longer, so Gemini's `retryDelay: "0s"` does not spend every retry in the same quota minute. A delay of up to max(root `maxBackoffMs`, 65 seconds) is waited in full, then the request is retried.
+- A requested delay **longer** than that ceiling is not shortened: the request fails at once, and every other caller fails fast until the pause has fully passed, instead of retrying early and being throttled again.
+- Indexing makes up to 7 attempts per embedding request (63 seconds of backoff between them) and then records an `embedding_error` issue (the document is retried on its next change, notification or reindex).
 - Search makes up to 3 attempts and waits at most 10 seconds in total; when that budget runs out, or the provider's pause is too long, `POST /search` answers `503 { code: "embedding_unavailable", error, message }` with a `Retry-After` header instead of `500`.
-- Retries the Gemini client makes on its own (non-`429` failures) also take a limiter token, so every HTTP request to the provider counts against `rateLimitPerMinute`.
+- Retries the Gemini client makes on its own (non-`429` failures) also go through the limiter: each takes its items and waits out any pause, so every request to the provider counts against `rateLimitPerMinute`.
 
 ---
 

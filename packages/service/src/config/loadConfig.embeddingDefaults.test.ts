@@ -1,6 +1,6 @@
 /**
  * @module config/loadConfig.embeddingDefaults.test
- * Embedding rate-limit defaults through loadConfig: an unset `embedding.rateLimitPerMinute` loads as 300 and drives a 300-request burst in the shared limiter; an explicit `0` is kept (no limit). Writes temp config files.
+ * Embedding rate-limit defaults through loadConfig: an unset `embedding.rateLimitPerMinute` loads as 4000 and lets 3940 indexing items (texts) through per minute in the shared limiter (60 reserved for search); an explicit `0` is kept (no limit). Writes temp config files.
  */
 
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
@@ -41,13 +41,13 @@ afterEach(async () => {
 });
 
 describe('embedding.rateLimitPerMinute defaults', () => {
-  it('defaults to 300 per minute when unset', async () => {
-    expect(EMBEDDING_DEFAULTS.rateLimitPerMinute).toBe(300);
+  it('defaults to 4000 per minute when unset', async () => {
+    expect(EMBEDDING_DEFAULTS.rateLimitPerMinute).toBe(4000);
     const config = await load({ provider: 'mock', model: 'm' });
-    expect(config.embedding.rateLimitPerMinute).toBe(300);
+    expect(config.embedding.rateLimitPerMinute).toBe(4000);
   });
 
-  it('the loaded default lets 300 requests through at once, then waits for a token', async () => {
+  it('the loaded default lets 3940 indexing texts through in a minute (4000 less the search reserve of 60), then waits for the window', async () => {
     const config = await load({ provider: 'mock', model: 'm' });
     vi.useFakeTimers();
     vi.setSystemTime(0);
@@ -60,16 +60,24 @@ describe('embedding.rateLimitPerMinute defaults', () => {
       maxBackoffMs: 60_000,
     });
 
-    await Promise.all(Array.from({ length: 300 }, () => limited.embed(['a'])));
-    expect(embed).toHaveBeenCalledTimes(300);
+    const batch = Array.from({ length: 100 }, () => 'a');
+    await Promise.all(
+      Array.from({ length: 39 }, () => limited.embed(batch)).concat(
+        limited.embed(batch.slice(0, 40)),
+      ),
+    );
+    expect(embed).toHaveBeenCalledTimes(40);
 
-    // One token refills every 60 s / 300 = 200 ms.
+    // 3940 texts are in the window: the next indexing text waits until they
+    // leave it, while a search query uses the reserve at once.
     const next = limited.embed(['b']);
-    await vi.advanceTimersByTimeAsync(199);
-    expect(embed).toHaveBeenCalledTimes(300);
+    await limited.embed(['q'], { interactive: true });
+    expect(embed).toHaveBeenCalledTimes(41);
+    await vi.advanceTimersByTimeAsync(59_999);
+    expect(embed).toHaveBeenCalledTimes(41);
     await vi.advanceTimersByTimeAsync(1);
     await next;
-    expect(embed).toHaveBeenCalledTimes(301);
+    expect(embed).toHaveBeenCalledTimes(42);
   });
 
   // That 0 disables limiting: rateLimitedProvider.test.ts.

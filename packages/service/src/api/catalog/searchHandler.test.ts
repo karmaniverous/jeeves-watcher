@@ -156,12 +156,13 @@ describe('createCatalogSearchHandler', () => {
       return { handler, embed, search, hybridSearch };
     }
 
-    it('embeds the query with the bounded rate-limit budget', async () => {
+    it('embeds the query with the bounded, interactive rate-limit budget', async () => {
       const { handler, embed } = handlerWith();
       await handler(input({ query: 'q' }), {} as never);
       expect(embed).toHaveBeenCalledWith(['q'], {
         attempts: 3,
         maxWaitMs: 10_000,
+        interactive: true,
       });
     });
 

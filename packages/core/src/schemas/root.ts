@@ -205,12 +205,12 @@ export const jeevesWatcherConfigSchema = z.object({
     .describe(
       'Maximum consecutive system-level failures before triggering fatal error. Default: Infinity.',
     ),
-  /** Maximum backoff delay in milliseconds for system errors. Default: 60000. */
+  /** Maximum backoff delay in milliseconds for system errors (and embedding 429s). Default: 60000. */
   maxBackoffMs: z
     .number()
     .optional()
     .describe(
-      'Maximum backoff delay in milliseconds for system errors. Default: 60000.',
+      'Maximum backoff delay in milliseconds for system errors. Default: 60000. Embedding 429s: max(maxBackoffMs, 65000) caps the computed backoff and is the longest requested delay waited for; a longer one fails fast.',
     ),
 });
 

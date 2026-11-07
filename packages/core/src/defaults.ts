@@ -11,7 +11,7 @@ import type { JeevesWatcherConfig } from './types.js';
 export const ROOT_DEFAULTS = {
   stateDir: '.jeeves-metadata',
   shutdownTimeoutMs: 10000,
-  /** Cap on system-error backoff and on any single embedding 429 pause. */
+  /** Cap on system-error backoff; embedding 429 pauses wait up to max(this, 65 s). */
   maxBackoffMs: 60000,
 } satisfies Partial<JeevesWatcherConfig>;
 
@@ -71,7 +71,8 @@ export const VCS_DEFAULTS = {
   commitMessage: {
     enabled: true,
     provider: 'anthropic',
-    model: 'claude-haiku-4-0',
+    /** The one source of the default model: schema default and service fallback. */
+    model: 'claude-haiku-5-5',
   },
   retention: {
     maxAgeDays: 30,
@@ -97,7 +98,11 @@ export const EMBEDDING_DEFAULTS = {
   chunkSize: 1000,
   chunkOverlap: 200,
   dimensions: 3072,
-  rateLimitPerMinute: 300,
+  /**
+   * Embedded items (texts) per minute, not requests: about 80% of Gemini
+   * Tier 2's 5,000 per minute. The one source of the default.
+   */
+  rateLimitPerMinute: 4000,
   concurrency: 5,
 };
 

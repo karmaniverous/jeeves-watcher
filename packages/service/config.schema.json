@@ -246,7 +246,7 @@
       ]
     },
     "maxBackoffMs": {
-      "description": "Maximum backoff delay in milliseconds for system errors. Default: 60000.",
+      "description": "Maximum backoff delay in milliseconds for system errors. Default: 60000. Embedding 429s: max(maxBackoffMs, 65000) caps the computed backoff and is the longest requested delay waited for; a longer one fails fast.",
       "allOf": [
         {
           "$ref": "#/definitions/__schema156"
@@ -568,8 +568,8 @@
           ]
         },
         "model": {
-          "default": "claude-haiku-4-0",
-          "description": "AI model for commit message generation. Default: \"claude-haiku-4-0\".",
+          "default": "claude-haiku-5-5",
+          "description": "AI model for commit message generation. Default: \"claude-haiku-5-5\". A model the provider has retired (HTTP 404) is logged once per process; commit messages then fall back to the template.",
           "allOf": [
             {
               "$ref": "#/definitions/__schema22"
@@ -1006,7 +1006,7 @@
       "type": "string"
     },
     "__schema81": {
-      "description": "Maximum embedding API requests per minute (rate limiting).",
+      "description": "Maximum embeddings (items: texts embedded, not HTTP requests) per minute, shared by every caller; no 60 s span holds more, and a larger batch is split. Set a little under the provider's per-minute embedding quota. 0 disables the limit. Default: 4000.",
       "allOf": [
         {
           "$ref": "#/definitions/__schema82"

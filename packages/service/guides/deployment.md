@@ -295,7 +295,7 @@ Key settings for production:
     "chunkSize": 1000,
     "chunkOverlap": 200,
     "dimensions": 3072,
-    "rateLimitPerMinute": 300,
+    "rateLimitPerMinute": 4000,
     "concurrency": 5
   },
   "vectorStore": {
@@ -497,7 +497,7 @@ The watcher is designed to co-locate with other services on a single machine.
 
 **Contention:**
 
-- **Embedding API:** The watcher's requests are bounded by `embedding.rateLimitPerMinute`; other services using the same provider account share its quota
+- **Embedding API:** The watcher's embeddings are bounded by `embedding.rateLimitPerMinute` (items per minute); other services using the same provider project share its quota, so leave them room
 - **Qdrant:** Watcher writes, n8n/jeeves-server read (native concurrent access)
 - **Disk I/O:** All services write logs; stagger heavy operations
 
@@ -513,7 +513,7 @@ The watcher is designed to co-locate with other services on a single machine.
 | 10,000 files | ~10 minutes | ~$0.30 |
 | 100,000 files | ~100 minutes | ~$3.00 |
 
-**Assumptions:** Average 500 tokens per document, one embedding request per document. Documents longer than `chunkSize` (default 1000 characters) are split into several chunks, embedded up to 100 chunks per request. The default `rateLimitPerMinute` is 300.
+**Assumptions:** Average 500 tokens per document, one chunk (one embedded item) per document; time is roughly chunks / `rateLimitPerMinute` minutes. Documents longer than `chunkSize` (default 1000 characters) are split into several chunks, embedded up to 100 chunks per request. The default `rateLimitPerMinute` is 4000 (about 80% of Gemini paid Tier 2's 5,000 per minute); lower it for a lower tier.
 
 **Schedule:** For large corpora, run initial indexing during off-hours to avoid rate limit contention.
 
@@ -732,7 +732,7 @@ Operational notes for a watcher that indexes [source documents](./source-documen
 - **Secrets.** Provide `api.apiKey` and source callback credentials through environment variables (`${VAR}`). If a referenced variable is unset, the service refuses to start and names the config path.
 - **Callback availability.** Every notification triggers a callback, so the source endpoint must be reachable from the watcher host and fast. Outages do not lose data (points stay untouched and an issue is recorded); watch `GET /issues` for `source_unavailable` and re-run `POST /reindex {"scope": "issues"}` after recovery.
 - **Shutdown.** Pending notifications are held in memory. On shutdown the config watcher stops and the API server closes (no new notifications); then the file event queue and after it the notify queue are each drained and stopped, every step bounded by `shutdownTimeoutMs`. Anything left is dropped, and the enrichment store is closed only if no run is still in flight. Re-notify or reindex (`issues` scope retries failed references, even ones never indexed) if that matters.
-- **Embedding rate limits.** A provider pause (`Retry-After`) longer than the root `maxBackoffMs` fails embedding requests fast (indexing records `embedding_error`, search answers `503`) instead of retrying early; raise `maxBackoffMs` if your provider asks for long pauses and you prefer to wait.
+- **Embedding rate limits.** Set `embedding.rateLimitPerMinute` a little under the provider's per-minute embedding quota (items, not requests). A provider pause (`Retry-After` / `retryDelay`) longer than max(root `maxBackoffMs`, 65 s) fails embedding requests fast (indexing records `embedding_error`, search answers `503`) instead of retrying early; raise `maxBackoffMs` if your provider asks for long pauses and you prefer to wait.
 - **Callback size.** Callback responses over 10 MiB fail with `source_unavailable`; keep records small or split them into several references.
 - **Tenant filters.** If many users share one collection, index the tenant field with `isTenant: true` and add it to every search filter; the watcher does not enforce tenancy.
 

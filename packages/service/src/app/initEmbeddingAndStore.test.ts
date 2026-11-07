@@ -1,6 +1,6 @@
 /**
  * @module app/initEmbeddingAndStore.test
- * initEmbeddingAndStore wraps the configured embedding provider once in the shared RateLimitedEmbeddingProvider, with rate and backoff taken from config.
+ * initEmbeddingAndStore wraps the configured embedding provider once in the shared RateLimitedEmbeddingProvider, with the per-item rate from config and a 429 pause ceiling of max(maxBackoffMs, 65 s).
  */
 
 import pino from 'pino';
@@ -56,7 +56,7 @@ describe('initEmbeddingAndStore', () => {
       createVectorStoreClient,
     } as unknown as JeevesWatcherFactories;
     const config = {
-      embedding: { provider: 'mock', model: 'm', rateLimitPerMinute: 1 },
+      embedding: { provider: 'mock', model: 'm', rateLimitPerMinute: 3 },
       vectorStore: { url: 'http://localhost:6333', collectionName: 'c' },
     } as JeevesWatcherConfig;
 
@@ -78,7 +78,9 @@ describe('initEmbeddingAndStore', () => {
       expect.anything(),
     );
 
-    await embeddingProvider.embed(['a', 'b', 'c']);
+    // Two texts fill indexing's share of the minute (the rate counts items;
+    // 3 less the one-item search reserve).
+    await embeddingProvider.embed(['a', 'b']);
     let secondDone = false;
     void embeddingProvider.embed(['d']).then(() => {
       secondDone = true;
@@ -90,8 +92,8 @@ describe('initEmbeddingAndStore', () => {
     expect(embed).toHaveBeenCalledTimes(2);
   });
 
-  it('takes maxBackoffMs from config: a longer Retry-After fails fast', async () => {
-    const { embed, factories } = rateLimitedOnce(5_000);
+  it('fails fast on a Retry-After past the 65 s floor, even with a small maxBackoffMs', async () => {
+    const { embed, factories } = rateLimitedOnce(65_001);
     const { embeddingProvider } = await initEmbeddingAndStore(
       { ...BASE_CONFIG, maxBackoffMs: 2_000 },
       factories,
@@ -104,17 +106,24 @@ describe('initEmbeddingAndStore', () => {
     expect(embed).toHaveBeenCalledTimes(1);
   });
 
-  it('defaults maxBackoffMs to 60 s when config omits it', async () => {
-    const { embed, factories } = rateLimitedOnce(59_000);
-    const { embeddingProvider } = await initEmbeddingAndStore(
-      BASE_CONFIG,
-      factories,
-      pino({ level: 'silent' }),
-    );
+  it.each([
+    ['omitted (60 s)', undefined, 65_000],
+    ['2 s', 2_000, 65_000],
+    ['120 s', 120_000, 120_000],
+  ])(
+    'waits out a Retry-After up to the ceiling with maxBackoffMs %s',
+    async (_label, maxBackoffMs, ceilingMs) => {
+      const { embed, factories } = rateLimitedOnce(ceilingMs);
+      const { embeddingProvider } = await initEmbeddingAndStore(
+        { ...BASE_CONFIG, maxBackoffMs },
+        factories,
+        pino({ level: 'silent' }),
+      );
 
-    const call = embeddingProvider.embed(['a']);
-    await vi.advanceTimersByTimeAsync(59_000);
-    await expect(call).resolves.toEqual([[0]]);
-    expect(embed).toHaveBeenCalledTimes(2);
-  });
+      const call = embeddingProvider.embed(['a']);
+      await vi.advanceTimersByTimeAsync(ceilingMs);
+      await expect(call).resolves.toEqual([[0]]);
+      expect(embed).toHaveBeenCalledTimes(2);
+    },
+  );
 });

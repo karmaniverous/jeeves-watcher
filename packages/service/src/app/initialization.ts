@@ -26,7 +26,10 @@ import {
   createEmbeddingAlert,
   type EmbeddingAlertOptions,
 } from '../embedding/healthAlert';
-import { RateLimitedEmbeddingProvider } from '../embedding/rateLimitedProvider';
+import {
+  embeddingPauseCeilingMs,
+  RateLimitedEmbeddingProvider,
+} from '../embedding/rateLimitedProvider';
 import { type AllHelpersIntrospection, introspectAllHelpers } from '../helpers';
 import type { ProcessorConfig } from '../processor';
 import { loadCustomMapHelpers } from '../rules/apply';
@@ -67,7 +70,7 @@ export function resolveMapsConfig(
 /**
  * Initialize embedding provider and vector store. The provider is wrapped
  * once in the shared {@link RateLimitedEmbeddingProvider}, so every consumer
- * (watch queue, reindex, search) draws from the same request budget.
+ * (watch queue, reindex, search) draws from the same per-item budget.
  */
 export async function initEmbeddingAndStore(
   config: JeevesWatcherConfig,
@@ -81,7 +84,9 @@ export async function initEmbeddingAndStore(
       factories.createEmbeddingProvider(config.embedding, logger),
       {
         rateLimitPerMinute: config.embedding.rateLimitPerMinute,
-        maxBackoffMs: config.maxBackoffMs ?? ROOT_DEFAULTS.maxBackoffMs,
+        maxBackoffMs: embeddingPauseCeilingMs(
+          config.maxBackoffMs ?? ROOT_DEFAULTS.maxBackoffMs,
+        ),
         logger,
       },
     );
