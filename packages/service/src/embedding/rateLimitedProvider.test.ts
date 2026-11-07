@@ -38,8 +38,9 @@ describe('RateLimitedEmbeddingProvider', () => {
     });
     const batch = Array.from({ length: 100 }, (_, i) => `text ${String(i)}`);
 
+    // Background requests stop at 135: 150 less the interactive reserve.
     await limited.embed(batch);
-    await limited.embed(batch.slice(0, 50));
+    await limited.embed(batch.slice(0, 35));
     expect(embed).toHaveBeenCalledTimes(2);
 
     // The minute is full: one more text waits until the first batch's
@@ -52,7 +53,7 @@ describe('RateLimitedEmbeddingProvider', () => {
     expect(embed).toHaveBeenCalledTimes(3);
   });
 
-  it('splits a batch larger than the limit into requests that fit, in order', async () => {
+  it('splits a batch larger than a request may take into requests that fit, in order', async () => {
     const { inner, embed } = makeInner();
     embed.mockImplementation((texts) =>
       Promise.resolve(texts.map((text) => [Number(text)])),
@@ -63,14 +64,27 @@ describe('RateLimitedEmbeddingProvider', () => {
     });
     const texts = Array.from({ length: 100 }, (_, i) => String(i));
 
+    // A background request takes at most 36: 40 less the reserve of 4.
     const call = track(limited.embed(texts));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(embed.mock.calls.map(([sent]) => sent.length)).toEqual([36]);
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(embed.mock.calls.map(([sent]) => sent.length)).toEqual([36, 36]);
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(call.done).toBe(true);
+    expect(embed.mock.calls.map(([sent]) => sent.length)).toEqual([36, 36, 28]);
+
+    // An interactive call may take the whole limit per request.
+    embed.mockClear();
+    await vi.advanceTimersByTimeAsync(60_000);
+    const search = track(
+      limited.embed(texts.slice(0, 50), { interactive: true }),
+    );
     await vi.advanceTimersByTimeAsync(0);
     expect(embed.mock.calls.map(([sent]) => sent.length)).toEqual([40]);
     await vi.advanceTimersByTimeAsync(60_000);
-    expect(embed.mock.calls.map(([sent]) => sent.length)).toEqual([40, 40]);
-    await vi.advanceTimersByTimeAsync(60_000);
-    expect(call.done).toBe(true);
-    expect(embed.mock.calls.map(([sent]) => sent.length)).toEqual([40, 40, 20]);
+    expect(search.done).toBe(true);
+    expect(embed.mock.calls.map(([sent]) => sent.length)).toEqual([40, 10]);
     expect(call.value).toEqual(texts.map((text) => [Number(text)]));
   });
 

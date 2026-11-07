@@ -1,10 +1,11 @@
 /**
  * @module embedding/rateLimitedProvider.quota.test
- * RateLimitedEmbeddingProvider against a fake provider that meters a per-minute quota per item (#309): the per-item rate is never exceeded, a 429's retry delay is waited once by every caller before calls succeed, and a provider's internal retry cannot bypass the pause.
+ * RateLimitedEmbeddingProvider against a fake provider that meters a per-minute quota per item (#309): the per-item rate is never exceeded, searches still go through while indexing keeps the window full, a 429's retry delay is waited once by every caller before calls succeed, and a provider's internal retry cannot bypass the pause.
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { SEARCH_EMBED_BUDGET } from '../api/catalog/searchHandler';
 import { quotaProvider } from '../test/harness/quotaProvider';
 import { RateLimitedEmbeddingProvider } from './rateLimitedProvider';
 import { track } from './rateLimitedTestHelpers';
@@ -47,6 +48,47 @@ describe('RateLimitedEmbeddingProvider against a per-item quota', () => {
     expect(fake.requests.filter((r) => r.outcome !== 'ok')).toEqual([]);
     expect(fake.peakItemsPerMinute()).toBeLessThanOrEqual(500);
     expect(fake.requests.reduce((sum, r) => sum + r.count, 0)).toBe(2_400);
+  });
+
+  it('answers searches at once while indexing keeps the window full', async () => {
+    const fake = quotaProvider({ quotaPerMinute: 300, retryDelay: 0 });
+    const limited = new RateLimitedEmbeddingProvider(fake.provider, {
+      rateLimitPerMinute: 300,
+      maxBackoffMs: 65_000,
+    });
+
+    // Five reindex workers send batches back to back; three 90-text
+    // batches fill the background share (270 of 300) exactly.
+    const workers = Array.from({ length: 5 }, (_, w) =>
+      track(
+        (async () => {
+          for (let b = 0; b < 6; b++) {
+            await limited.embed(texts(90, `w${String(w)}b${String(b)}`));
+          }
+        })(),
+      ),
+    );
+
+    // Twenty searches, one every 3 s from 30 s in, each within its budget.
+    await vi.advanceTimersByTimeAsync(30_000);
+    const searches = [];
+    for (let s = 0; s < 20; s++) {
+      const search = track(
+        limited.embed([`query ${String(s)}`], SEARCH_EMBED_BUDGET),
+      );
+      await vi.advanceTimersByTimeAsync(0);
+      searches.push(search);
+      await vi.advanceTimersByTimeAsync(3_000);
+    }
+    expect(searches.map((s) => s.done && s.error === undefined)).toEqual(
+      searches.map(() => true),
+    );
+    expect(workers.some((w) => w.done)).toBe(false); // indexing still busy
+
+    await vi.advanceTimersByTimeAsync(15 * 60_000);
+    expect(workers.every((w) => w.done && w.error === undefined)).toBe(true);
+    expect(fake.requests.filter((r) => r.outcome !== 'ok')).toEqual([]);
+    expect(fake.peakItemsPerMinute()).toBeLessThanOrEqual(300);
   });
 
   it('waits one retry delay for all callers, then every call succeeds', async () => {

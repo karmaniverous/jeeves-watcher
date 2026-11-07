@@ -5,27 +5,25 @@
  * Rate: every request takes one unit per text it embeds, from a sliding
  * 60-second window ({@link ItemRateWindow}), because providers meter
  * embedding quota per item (Gemini `batchEmbedContents` counts each
- * content). A batch larger than the limit is split into requests that fit.
+ * content). A batch larger than a request may take is split into requests
+ * that fit. Background requests leave a reserve of the window free for
+ * interactive ones (EmbedOptions.interactive: search), so a reindex that
+ * keeps the window full never starves search.
  *
  * 429 handling: the pause is the provider's requested delay (`Retry-After`,
  * or Google's `RetryInfo.retryDelay`) or the exponential backoff from
- * `baseBackoffMs` (capped at `maxBackoffMs`), whichever is longer. A hint
- * shorter than the backoff (Gemini answers a per-minute quota with
- * `retryDelay: "0s"`) would otherwise spend every attempt within one quota
- * minute. The pause holds every caller. A requested delay over
- * `maxBackoffMs` is not waited for: the call fails at once with
- * `EmbeddingUnavailableError` (carrying `retryAfterMs`), and every other
- * call fails the same way until the pause has fully passed (even once the
- * time left has dropped below `maxBackoffMs`). The service passes
+ * `baseBackoffMs` (capped at `maxBackoffMs`), whichever is longer, since
+ * Gemini answers a per-minute quota with `retryDelay: "0s"`. The pause holds
+ * every caller. A requested delay over `maxBackoffMs` fails the call at once
+ * (`EmbeddingUnavailableError` with `retryAfterMs`), and every call until
+ * that pause has fully passed. The service passes
  * {@link embeddingPauseCeilingMs} as `maxBackoffMs`, so a per-minute quota's
  * delay (up to 65 s) is always waited for.
  *
- * A stored pause is capped at 5 minutes (B6, Design 8) and then expires: the
- * first call after it probes the provider, so a long `Retry-After` never
- * keeps the service failing until a restart. A success never lifts a pause:
- * a call is only sent once every earlier pause has expired, and a pause that
- * another call's 429 set while it was in flight must still hold for every
- * caller.
+ * A stored pause is capped at 5 minutes (B6, Design 8), then the next call
+ * probes the provider, so a long `Retry-After` never needs a restart. A
+ * success never lifts a pause: one that another call's 429 set while it was
+ * in flight must still hold for every caller.
  */
 
 import type pino from 'pino';
@@ -106,11 +104,7 @@ export class RateLimitedEmbeddingProvider implements EmbeddingProvider {
   private readonly logger: pino.Logger | undefined;
 
   private pausedUntilMs = 0;
-  /**
-   * End of the latest pause that was over `maxBackoffMs` when requested.
-   * Until then every caller fails fast, even once the remaining time has
-   * dropped below `maxBackoffMs`.
-   */
+  /** End of the latest pause over `maxBackoffMs`: every caller fails fast until then. */
   private failFastUntilMs = 0;
 
   /**
@@ -162,14 +156,14 @@ export class RateLimitedEmbeddingProvider implements EmbeddingProvider {
         ? undefined
         : Date.now() + options.maxWaitMs;
 
-    const size = this.window?.limit ?? texts.length;
-    if (texts.length <= size) {
-      return this.embedRequest(texts, attempts, deadlineMs);
-    }
+    const interactive = options.interactive ?? false;
+    const request = (slice: string[]) =>
+      this.embedRequest(slice, attempts, deadlineMs, interactive);
+    const size = this.window?.capacity(interactive) ?? texts.length;
+    if (texts.length <= size) return request(texts);
     const vectors: number[][] = [];
     for (let start = 0; start < texts.length; start += size) {
-      const slice = texts.slice(start, start + size);
-      vectors.push(...(await this.embedRequest(slice, attempts, deadlineMs)));
+      vectors.push(...(await request(texts.slice(start, start + size))));
     }
     return vectors;
   }
@@ -179,15 +173,17 @@ export class RateLimitedEmbeddingProvider implements EmbeddingProvider {
     texts: string[],
     attempts: number,
     deadlineMs: number | undefined,
+    interactive: boolean,
   ): Promise<number[][]> {
     let lastError: EmbeddingRateLimitError | undefined;
     // Each internal provider retry is a request too: it takes its items
     // and waits out any pause, like the first.
-    const beforeRetry = () => this.acquire(texts.length, deadlineMs, lastError);
+    const acquire = () =>
+      this.acquire(texts.length, deadlineMs, lastError, interactive);
     for (let attempt = 1; ; attempt++) {
-      await this.acquire(texts.length, deadlineMs, lastError);
+      await acquire();
       try {
-        return await this.inner.embed(texts, { beforeRetry });
+        return await this.inner.embed(texts, { beforeRetry: acquire });
       } catch (error) {
         if (!(error instanceof EmbeddingRateLimitError)) throw error;
         lastError = error;
@@ -263,13 +259,14 @@ export class RateLimitedEmbeddingProvider implements EmbeddingProvider {
 
   /**
    * Wait until the limiter is not paused and `count` items fit the rate
-   * window, then take them. Fails fast when the wait would pass the
+   * window (with the reserve when interactive), then take them. Fails fast when the wait would pass the
    * deadline.
    */
   private async acquire(
     count: number,
     deadlineMs: number | undefined,
     cause: EmbeddingRateLimitError | undefined,
+    interactive: boolean,
   ): Promise<void> {
     for (;;) {
       const now = Date.now();
@@ -277,7 +274,10 @@ export class RateLimitedEmbeddingProvider implements EmbeddingProvider {
       if (pauseMs > this.maxBackoffMs || now < this.failFastUntilMs) {
         throw this.pauseTooLong(pauseMs, cause);
       }
-      const waitMs = Math.max(pauseMs, this.window?.waitMs(count, now) ?? 0);
+      const waitMs = Math.max(
+        pauseMs,
+        this.window?.waitMs(count, now, interactive) ?? 0,
+      );
 
       if (waitMs === 0) {
         this.window?.take(count, now);

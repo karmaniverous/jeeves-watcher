@@ -34,6 +34,12 @@ export interface EmbedOptions {
    */
   maxWaitMs?: number;
   /**
+   * An interactive call (search): it may use the reserve of the rate window
+   * that background calls (indexing) leave free, so it does not wait behind
+   * a reindex. Default: false.
+   */
+  interactive?: boolean;
+  /**
    * Awaited by a provider before each retry it makes internally (any HTTP
    * request after the first of an `embed()` call), so every request takes
    * its items from the shared limiter and waits out any 429 pause. Supplied by the rate-limited wrapper; it may

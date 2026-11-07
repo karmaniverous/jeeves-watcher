@@ -78,8 +78,9 @@ describe('initEmbeddingAndStore', () => {
       expect.anything(),
     );
 
-    // Three texts fill the minute (the rate counts items).
-    await embeddingProvider.embed(['a', 'b', 'c']);
+    // Two texts fill indexing's share of the minute (the rate counts items;
+    // 3 less the one-item search reserve).
+    await embeddingProvider.embed(['a', 'b']);
     let secondDone = false;
     void embeddingProvider.embed(['d']).then(() => {
       secondDone = true;

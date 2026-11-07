@@ -2366,11 +2366,11 @@ For TLS, or for authentication schemes other than a single shared key, put a rev
 
 The API itself has no request rate limit; add one at a reverse proxy if you need it.
 
-The **embedding provider** is rate-limited. Since v0.20.0, one shared limiter wraps the provider and every caller draws from it: file watching, source-document notifications, reindex and search. It admits at most `embedding.rateLimitPerMinute` embedded items (texts) in any minute. See [`embedding.rateLimitPerMinute`](./configuration.md#embedding-rate-limiting) for the semantics (and the behaviour changes in 0.20.0 and after 0.21.0).
+The **embedding provider** is rate-limited. Since v0.20.0, one shared limiter wraps the provider and every caller draws from it: file watching, source-document notifications, reindex and search. It admits at most `embedding.rateLimitPerMinute` embedded items (texts) in any minute. Indexing leaves a reserve of that budget (10%, at most 60 items) free for search, so a reindex that keeps the limiter busy does not make searches wait. See [`embedding.rateLimitPerMinute`](./configuration.md#embedding-rate-limiting) for the semantics (and the behaviour changes in 0.20.0 and after 0.21.0).
 
 When the provider answers `429`, the limiter pauses **all** embedding requests:
 
-- The pause is the delay the provider asks for (`Retry-After`, or Google's `retryDelay` when there is no header) or the exponential backoff from 1 second (capped at `maxBackoffMs`), whichever is longer, so Gemini's `retryDelay: "0s"` does not spend every retry in the same quota minute. A delay of up to max(root `maxBackoffMs`, 65 seconds) is waited in full, then the request is retried.
+- The pause is the delay the provider asks for (`Retry-After`, or Google's `retryDelay` when there is no header) or the exponential backoff from 1 second (capped at max(root `maxBackoffMs`, 65 seconds)), whichever is longer, so Gemini's `retryDelay: "0s"` does not spend every retry in the same quota minute. A delay of up to max(root `maxBackoffMs`, 65 seconds) is waited in full, then the request is retried.
 - A requested delay **longer** than that ceiling is not shortened: the request fails at once, and every other caller fails fast until the pause has fully passed, instead of retrying early and being throttled again.
 - Indexing makes up to 7 attempts per embedding request (63 seconds of backoff between them) and then records an `embedding_error` issue (the document is retried on its next change, notification or reindex).
 - Search makes up to 3 attempts and waits at most 10 seconds in total; when that budget runs out, or the provider's pause is too long, `POST /search` answers `503 { code: "embedding_unavailable", error, message }` with a `Retry-After` header instead of `500`.
