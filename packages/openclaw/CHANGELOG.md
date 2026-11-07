@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.18.1] - 2026-11-07
+
+### 💼 Other
+
+- Updated core
 ## [0.18.0] - 2026-11-07
 
 ### 🐛 Bug Fixes
@@ -19,6 +24,10 @@ All notable changes to this project will be documented in this file.
 ### 🧪 Testing
 
 - *(openclaw)* Skip the dist smoke tests on a stale build (D201)
+
+### ⚙️ Miscellaneous Tasks
+
+- Release @karmaniverous/jeeves-watcher-openclaw v0.18.0
 ## [0.18.0-0] - 2026-11-06
 
 ### 🚀 Features
