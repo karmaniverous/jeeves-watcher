@@ -5,7 +5,7 @@
   },
   "dependencies": {
     "@karmaniverous/jeeves": "0.9.0",
-    "@karmaniverous/jeeves-watcher-core": "^0.5.0-3"
+    "@karmaniverous/jeeves-watcher-core": "^0.5.0"
   },
   "description": "Typed TypeScript client for the jeeves-watcher HTTP API: search, scan, render, metadata, reindex, issues and source-document notify/delete",
   "devDependencies": {
