@@ -763,7 +763,7 @@ On shutdown, the watcher (v0.20.0+ order):
     "commitMessage": {
       "enabled": true,
       "provider": "anthropic",
-      "model": "claude-haiku-4-0",
+      "model": "claude-haiku-5-5",
       "apiKey": "${ANTHROPIC_API_KEY}"
     },
     "retention": {
@@ -790,7 +790,7 @@ On shutdown, the watcher (v0.20.0+ order):
 | `author.email` | `string` | `"watcher@localhost"` | Git commit author email. |
 | `commitMessage.enabled` | `boolean` | `true` | Enable AI-generated commit messages. |
 | `commitMessage.provider` | `string` | `"anthropic"` | LLM provider. |
-| `commitMessage.model` | `string` | `"claude-haiku-4-0"` | Model name. |
+| `commitMessage.model` | `string` | `"claude-haiku-5-5"` | Model name. A model the provider answers with HTTP 404 (retired) is logged once per process, naming this key; commits then use the template message. |
 | `commitMessage.apiKey` | `string` | `undefined` | API key (`${ENV_VAR}` supported). Falls back to the provider key in the local OpenClaw config; without either, commits use a template message. |
 | `retention.maxAgeDays` | `number` | `30` | Squash commits older than this (min: 1). |
 | `retention.maxVersions` | `number` | `100` | Keep at most this many commits (min: 1). |

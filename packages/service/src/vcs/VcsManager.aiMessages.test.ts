@@ -35,7 +35,7 @@ describe('VcsManager instance', () => {
     it('uses AI-generated commit message when generator is provided', async () => {
       const generator = new CommitMessageGenerator(
         'anthropic',
-        'claude-haiku-4-0',
+        'claude-haiku-5-5',
         'test-key',
         silentLogger,
       );
@@ -67,7 +67,7 @@ describe('VcsManager instance', () => {
     it('falls back to template when generator returns null', async () => {
       const generator = new CommitMessageGenerator(
         'anthropic',
-        'claude-haiku-4-0',
+        'claude-haiku-5-5',
         'test-key',
         silentLogger,
       );
@@ -99,7 +99,7 @@ describe('VcsManager instance', () => {
     it('falls back to template when generator throws', async () => {
       const generator = new CommitMessageGenerator(
         'anthropic',
-        'claude-haiku-4-0',
+        'claude-haiku-5-5',
         'test-key',
         silentLogger,
       );
@@ -133,7 +133,7 @@ describe('VcsManager instance', () => {
     it('uses revert prefix with AI description for reversions', async () => {
       const generator = new CommitMessageGenerator(
         'anthropic',
-        'claude-haiku-4-0',
+        'claude-haiku-5-5',
         'test-key',
         silentLogger,
       );
@@ -181,7 +181,7 @@ describe('VcsManager instance', () => {
     it('uses template revert message when AI fails for reversions', async () => {
       const generator = new CommitMessageGenerator(
         'anthropic',
-        'claude-haiku-4-0',
+        'claude-haiku-5-5',
         'test-key',
         silentLogger,
       );

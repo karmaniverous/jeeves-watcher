@@ -71,7 +71,8 @@ export const VCS_DEFAULTS = {
   commitMessage: {
     enabled: true,
     provider: 'anthropic',
-    model: 'claude-haiku-4-0',
+    /** The one source of the default model: schema default and service fallback. */
+    model: 'claude-haiku-5-5',
   },
   retention: {
     maxAgeDays: 30,

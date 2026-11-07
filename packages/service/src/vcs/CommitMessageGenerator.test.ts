@@ -35,7 +35,7 @@ describe('CommitMessageGenerator', () => {
   it('generates a commit message from the AI response', async () => {
     const generator = new CommitMessageGenerator(
       'anthropic',
-      'claude-haiku-4-0',
+      'claude-haiku-5-5',
       'test-api-key',
       silentLogger,
     );
@@ -63,14 +63,14 @@ describe('CommitMessageGenerator', () => {
     ).toBe('2023-06-01');
 
     const body = JSON.parse(options?.body as string) as Record<string, unknown>;
-    expect(body.model).toBe('claude-haiku-4-0');
+    expect(body.model).toBe('claude-haiku-5-5');
     expect(body.system).toContain('commit message generator');
   });
 
   it('returns null when no API key is configured', async () => {
     const generator = new CommitMessageGenerator(
       'anthropic',
-      'claude-haiku-4-0',
+      'claude-haiku-5-5',
       undefined,
       silentLogger,
     );
@@ -93,26 +93,97 @@ describe('CommitMessageGenerator', () => {
     expect(fetch).not.toHaveBeenCalled();
   });
 
-  it('returns null on non-OK API response', async () => {
+  it('returns null and warns on every other non-OK API response', async () => {
+    const logger = pino({ level: 'silent' });
+    const warn = vi.spyOn(logger, 'warn');
     const generator = new CommitMessageGenerator(
       'anthropic',
-      'claude-haiku-4-0',
+      'claude-haiku-5-5',
       'test-api-key',
-      silentLogger,
+      logger,
     );
 
-    vi.mocked(fetch).mockResolvedValueOnce(
-      mockResponse(429, { error: { message: 'Rate limited' } }),
+    vi.mocked(fetch).mockImplementation(() =>
+      Promise.resolve(
+        mockResponse(429, { error: { message: 'Rate limited' } }),
+      ),
     );
 
-    const message = await generator.generate(files, diff);
-    expect(message).toBeNull();
+    expect(await generator.generate(files, diff)).toBeNull();
+    expect(await generator.generate(files, diff)).toBeNull();
+    expect(warn).toHaveBeenCalledTimes(2);
+    expect(warn).toHaveBeenCalledWith(
+      expect.objectContaining({ status: 429 }),
+      'Anthropic API returned non-OK status',
+    );
+  });
+
+  it('warns once per process, naming model and config key, when the model answers 404', async () => {
+    const logger = pino({ level: 'silent' });
+    const warn = vi.spyOn(logger, 'warn');
+    const debug = vi.spyOn(logger, 'debug');
+    const retired = 'claude-retired-404';
+    const first = new CommitMessageGenerator(
+      'anthropic',
+      retired,
+      'test-api-key',
+      logger,
+    );
+    // A second root's generator shares the per-process report.
+    const second = new CommitMessageGenerator(
+      'anthropic',
+      retired,
+      'test-api-key',
+      logger,
+    );
+    vi.mocked(fetch).mockImplementation(() =>
+      Promise.resolve(
+        mockResponse(404, { error: { type: 'not_found_error' } }),
+      ),
+    );
+
+    expect(await first.generate(files, diff)).toBeNull();
+    expect(await first.generate(files, diff)).toBeNull();
+    expect(await second.generate(files, diff)).toBeNull();
+
+    expect(warn).toHaveBeenCalledOnce();
+    const [fields, message] = warn.mock.calls[0] as unknown as [
+      Record<string, unknown>,
+      string,
+    ];
+    expect(fields).toMatchObject({
+      model: retired,
+      configKey: 'vcs.commitMessage.model',
+      status: 404,
+    });
+    expect(message).toContain(retired);
+    expect(message).toContain('vcs.commitMessage.model');
+    expect(debug).toHaveBeenCalledTimes(2);
+  });
+
+  it('reports a 404 separately for each model', async () => {
+    const logger = pino({ level: 'silent' });
+    const warn = vi.spyOn(logger, 'warn');
+    vi.mocked(fetch).mockImplementation(() =>
+      Promise.resolve(mockResponse(404, {})),
+    );
+
+    for (const model of ['claude-gone-a', 'claude-gone-b']) {
+      const generator = new CommitMessageGenerator(
+        'anthropic',
+        model,
+        'test-api-key',
+        logger,
+      );
+      expect(await generator.generate(files, diff)).toBeNull();
+    }
+    expect(warn).toHaveBeenCalledTimes(2);
   });
 
   it('returns null when API returns no text content', async () => {
     const generator = new CommitMessageGenerator(
       'anthropic',
-      'claude-haiku-4-0',
+      'claude-haiku-5-5',
       'test-api-key',
       silentLogger,
     );
@@ -126,7 +197,7 @@ describe('CommitMessageGenerator', () => {
   it('returns null on fetch error (timeout/network)', async () => {
     const generator = new CommitMessageGenerator(
       'anthropic',
-      'claude-haiku-4-0',
+      'claude-haiku-5-5',
       'test-api-key',
       silentLogger,
     );
@@ -142,7 +213,7 @@ describe('CommitMessageGenerator', () => {
   it('truncates messages longer than 100 characters', async () => {
     const generator = new CommitMessageGenerator(
       'anthropic',
-      'claude-haiku-4-0',
+      'claude-haiku-5-5',
       'test-api-key',
       silentLogger,
     );
@@ -161,7 +232,7 @@ describe('CommitMessageGenerator', () => {
   it('truncates diff to 4000 characters', async () => {
     const generator = new CommitMessageGenerator(
       'anthropic',
-      'claude-haiku-4-0',
+      'claude-haiku-5-5',
       'test-api-key',
       silentLogger,
     );

@@ -568,8 +568,8 @@
           ]
         },
         "model": {
-          "default": "claude-haiku-4-0",
-          "description": "AI model for commit message generation. Default: \"claude-haiku-4-0\".",
+          "default": "claude-haiku-5-5",
+          "description": "AI model for commit message generation. Default: \"claude-haiku-5-5\". A model the provider has retired (HTTP 404) is logged once per process; commit messages then fall back to the template.",
           "allOf": [
             {
               "$ref": "#/definitions/__schema22"

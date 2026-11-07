@@ -37,7 +37,7 @@ Add a `vcs` block to your config:
     "commitMessage": {
       "enabled": true,
       "provider": "anthropic",
-      "model": "claude-haiku-4-0",
+      "model": "claude-haiku-5-5",
       "apiKey": "${ANTHROPIC_API_KEY}"
     },
     "retention": {
@@ -60,7 +60,7 @@ Add a `vcs` block to your config:
 | `vcs.branch` | `"master"` | Git branch name for VCS operations. Squash retention targets this branch, and startup warns when HEAD is not on it |
 | `vcs.commitMessage.enabled` | `true` | Enable AI-generated commit messages |
 | `vcs.commitMessage.provider` | `"anthropic"` | AI provider (currently only `"anthropic"` supported) |
-| `vcs.commitMessage.model` | `"claude-haiku-4-0"` | AI model for commit message generation |
+| `vcs.commitMessage.model` | `"claude-haiku-5-5"` | AI model for commit message generation |
 | `vcs.commitMessage.apiKey` | — | API key for the commit message provider. Supports env var substitution |
 | `vcs.retention.maxAgeDays` | `30` | Commits older than this are squashed into a baseline |
 | `vcs.retention.maxVersions` | `100` | Maximum commits retained per root (older ones squashed) |

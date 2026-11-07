@@ -5,7 +5,10 @@
 
 import { z } from 'zod';
 
+import { VCS_DEFAULTS } from '../defaults.js';
 import { byteSizeSchema } from './byteSize.js';
+
+const COMMIT_MESSAGE_DEFAULTS = VCS_DEFAULTS.commitMessage;
 
 /**
  * Commit message generation configuration.
@@ -14,21 +17,23 @@ export const vcsCommitMessageConfigSchema = z.object({
   /** Whether AI-generated commit messages are enabled. */
   enabled: z
     .boolean()
-    .default(true)
-    .describe('Enable AI-generated commit messages. Default: true.'),
+    .default(COMMIT_MESSAGE_DEFAULTS.enabled)
+    .describe(
+      `Enable AI-generated commit messages. Default: ${String(COMMIT_MESSAGE_DEFAULTS.enabled)}.`,
+    ),
   /** AI provider for commit message generation. */
   provider: z
     .string()
-    .default('anthropic')
+    .default(COMMIT_MESSAGE_DEFAULTS.provider)
     .describe(
-      'AI provider for commit message generation. Default: "anthropic".',
+      `AI provider for commit message generation. Default: "${COMMIT_MESSAGE_DEFAULTS.provider}".`,
     ),
   /** AI model for commit message generation. */
   model: z
     .string()
-    .default('claude-haiku-4-0')
+    .default(COMMIT_MESSAGE_DEFAULTS.model)
     .describe(
-      'AI model for commit message generation. Default: "claude-haiku-4-0".',
+      `AI model for commit message generation. Default: "${COMMIT_MESSAGE_DEFAULTS.model}". A model the provider has retired (HTTP 404) is logged once per process; commit messages then fall back to the template.`,
     ),
   /** API key for commit message provider. Supports env var substitution. */
   apiKey: z

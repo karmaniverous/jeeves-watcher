@@ -1,6 +1,6 @@
 /**
  * @module vcs/CommitMessageGenerator
- * Generates AI-powered commit messages via the Anthropic Messages API.
+ * Generates AI-powered commit messages via the Anthropic Messages API. A model the API answers with HTTP 404 (retired or unknown) is warned about once per process, naming the model and its config key.
  */
 
 import type pino from 'pino';
@@ -19,6 +19,12 @@ const REQUEST_TIMEOUT_MS = 15000;
 /** System prompt for the commit message generator. */
 const SYSTEM_PROMPT =
   'You are a commit message generator. Given file changes, produce a single concise one-line commit message. No prefix. No punctuation at end';
+
+/** Config key that names the commit message model. */
+const MODEL_CONFIG_KEY = 'vcs.commitMessage.model';
+
+/** Models already reported as answering 404 in this process. */
+const modelsReportedMissing = new Set<string>();
 
 /**
  * Generates AI commit messages using the Anthropic Messages API.
@@ -86,6 +92,10 @@ export class CommitMessageGenerator {
 
       if (!response.ok) {
         const text = await response.text();
+        if (response.status === 404) {
+          this.reportMissingModel(text);
+          return null;
+        }
         this.logger.warn(
           { status: response.status, body: text },
           'Anthropic API returned non-OK status',
@@ -113,5 +123,25 @@ export class CommitMessageGenerator {
       );
       return null;
     }
+  }
+
+  /**
+   * Warn once per process that the configured model answered 404 (retired
+   * or unknown); later 404s for the same model log at debug. Commit
+   * messages fall back to the template either way.
+   */
+  private reportMissingModel(body: string): void {
+    if (modelsReportedMissing.has(this.model)) {
+      this.logger.debug(
+        { model: this.model, status: 404 },
+        'Commit message model not found; using template message',
+      );
+      return;
+    }
+    modelsReportedMissing.add(this.model);
+    this.logger.warn(
+      { model: this.model, configKey: MODEL_CONFIG_KEY, status: 404, body },
+      `Commit message model "${this.model}" was not found (HTTP 404; retired or unknown). Set ${MODEL_CONFIG_KEY} to a current model; until then commits use template messages. Reported once per process.`,
+    );
   }
 }

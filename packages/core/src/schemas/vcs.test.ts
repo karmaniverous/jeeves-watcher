@@ -26,7 +26,7 @@ describe('vcsConfigSchema', () => {
     const result = vcsConfigSchema.parse({ commitMessage: {} });
     expect(result.commitMessage!.enabled).toBe(true);
     expect(result.commitMessage!.provider).toBe('anthropic');
-    expect(result.commitMessage!.model).toBe('claude-haiku-4-0');
+    expect(result.commitMessage!.model).toBe('claude-haiku-5-5');
     expect(result.commitMessage!.apiKey).toBeUndefined();
   });
 

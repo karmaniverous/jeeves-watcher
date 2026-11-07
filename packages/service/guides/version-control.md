@@ -63,7 +63,7 @@ An ignored path never fails a batch. Each batch is split by one tracked check (`
     "commitMessage": {
       "enabled": true,
       "provider": "anthropic",
-      "model": "claude-haiku-4-0",
+      "model": "claude-haiku-5-5",
       "apiKey": "${ANTHROPIC_API_KEY}"
     },
     "retention": {
@@ -92,7 +92,7 @@ An ignored path never fails a batch. Each batch is split by one tracked check (`
 | `commitMessage` | `object` | See below | AI commit message generation settings. |
 | `commitMessage.enabled` | `boolean` | `true` | Enable AI-generated commit messages. Falls back to template on failure. |
 | `commitMessage.provider` | `string` | `"anthropic"` | LLM provider for commit messages. |
-| `commitMessage.model` | `string` | `"claude-haiku-4-0"` | Model name. |
+| `commitMessage.model` | `string` | `"claude-haiku-5-5"` | Model name. |
 | `commitMessage.apiKey` | `string` | `undefined` | API key. Supports `${ENV_VAR}` substitution. Falls back to the OpenClaw gateway config if omitted (see [Auth Resolution](#auth-resolution)). |
 | `retention` | `object` | See below | Squash retention settings. |
 | `retention.maxAgeDays` | `number` | `30` | Squash commits older than this (min: 1). |
@@ -504,7 +504,7 @@ When `commitMessage.enabled` is `true` (the default) and an API key resolves, th
   "vcs": {
     "commitMessage": {
       "provider": "anthropic",
-      "model": "claude-haiku-4-0",
+      "model": "claude-haiku-5-5",
       "apiKey": "${ANTHROPIC_API_KEY}"
     }
   }
@@ -525,6 +525,8 @@ If neither yields a key, a warning is logged and every commit uses the template 
 ### Fallback Behavior
 
 AI generation is skipped for baseline commits and for retry attempts of a batch. If the LLM call fails (timeout, non-OK response, unsupported provider, empty reply), the commit uses the template message (`watcher: batch <ISO timestamp> (<n> files)`). The request sends the changed file paths and the staged diff (`--stat` plus patch) cut to 4000 characters, with a 15-second timeout; the reply is trimmed to 100 characters.
+
+A non-OK response is logged as a warning on each commit, except HTTP `404`: a model the provider has retired (or never had) is reported once per process, as a warning naming the model and the `vcs.commitMessage.model` key to change, and later 404s log at debug. Set the key to a current model (the default is `"claude-haiku-5-5"`).
 
 ### Reversion Messages
 
