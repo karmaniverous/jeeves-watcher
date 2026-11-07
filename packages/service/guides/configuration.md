@@ -238,29 +238,31 @@ The config-triggered reindex covers files only; source documents are re-processe
 | `chunkSize` | `number` | `1000` | Maximum characters per chunk for text splitting. |
 | `chunkOverlap` | `number` | `200` | Overlap between consecutive chunks (helps preserve context at boundaries). |
 | `dimensions` | `number` | `3072` | Vector dimensions: the size of a new collection, and the vector size requested from Gemini (`outputDimensionality`). Must match an existing collection. |
-| `rateLimitPerMinute` | `number` | `300` | Max embedding API **requests** per minute, shared by every caller. `0` disables the request-rate limit. See [Rate Limiting](#embedding-rate-limiting). |
+| `rateLimitPerMinute` | `number` | `300` | Max embeddings (**items**: texts embedded) per minute, shared by every caller. `0` disables the rate limit. See [Rate Limiting](#embedding-rate-limiting). |
 | `concurrency` | `number` | `5` | Max documents processed concurrently by the file event queue, and by the source-document notify queue. |
 | `alertUrl` | `string` | `undefined` | URL that receives a POST when embedding health turns failing or recovers. Read at each transition (a reload applies). See [Embedding Health](#embedding-health). |
 
 ### Embedding Rate Limiting
 
-> **Behaviour change in 0.20.0.** `embedding.rateLimitPerMinute` now limits embedding API **requests**, not file-watch events. Review the value when upgrading.
+> **Behaviour change after 0.21.0.** `embedding.rateLimitPerMinute` now counts **embeddings (items) per minute**: each text sent to the provider, not each HTTP request. A value tuned for requests lets through up to 100 times more items than intended, so review it when upgrading: set it a little under your provider's per-minute embedding quota (see [Sizing](#sizing-ratelimitperminute)).
+>
+> **Behaviour change in 0.20.0.** `rateLimitPerMinute` limits embedding API calls from every path, not file-watch events.
 
-Before 0.20.0, `rateLimitPerMinute` drove a token bucket inside the file event queue that counted processed watch events, while reindex and search called the provider without any limit.
+Before 0.20.0, `rateLimitPerMinute` drove a token bucket inside the file event queue that counted processed watch events, while reindex and search called the provider without any limit. In 0.20.0 and 0.21.0 one shared limiter counted provider requests.
 
-Since 0.20.0, one token bucket wraps the embedding provider. It is created once at startup and shared by file watching, source-document notifications, reindex and search:
+One limiter wraps the embedding provider. It is created once at startup and shared by file watching, source-document notifications, reindex and search:
 
-- Each provider request costs one token. A request is a batch of up to 100 chunks of one document, or a single search query, so a large document can cost several tokens.
-- The bucket holds one minute's worth of tokens (`rateLimitPerMinute`, which is also the burst size) and refills continuously.
-- `0` disables the request-rate limit. When the key is omitted, the default of `300` applies.
+- Every text embedded counts as one item, because providers meter embedding quota per item (Gemini `batchEmbedContents` counts each content of a request). A request is a batch of up to 100 chunks of one document, or a single search query.
+- No 60-second span holds more than `rateLimitPerMinute` items (a sliding window; the value is rounded down to a whole number). A batch larger than `rateLimitPerMinute` is split into requests that fit, sent in order.
+- `0` disables the rate limit. When the key is omitted, the default of `300` applies.
 - `embedding.concurrency` is unchanged in meaning: it caps how many queued documents are processed at once.
 
-On HTTP `429` the limiter pauses **every** caller for the provider's `Retry-After` (the header, or Google's `retryDelay` in the response body; without either, 1 second doubling per attempt, capped at the root `maxBackoffMs`, default 60 seconds; see Error Resilience below), then retries:
+On HTTP `429` the limiter pauses **every** caller, then retries. The pause is the provider's requested delay (the `Retry-After` header, or Google's `retryDelay` in the response body) or the backoff (1 second, doubling per attempt, capped at the root `maxBackoffMs`), whichever is longer. Gemini answers a spent per-minute quota with `retryDelay: "0s"`; the backoff keeps those retries from all landing in the same quota minute.
 
-- A requested pause of up to `maxBackoffMs` is waited **in full** (never shortened, so the retry is not throttled again).
-- A requested pause **longer** than `maxBackoffMs` fails the request at once, and every other caller fails fast until the pause has fully passed (even once less than `maxBackoffMs` of it remains).
-- **Indexing** (watch, notify, reindex): up to 5 attempts per request, then the document gets an `embedding_error` issue.
-- **Search**: up to 3 attempts and at most 10 seconds of waiting (or at once on a pause longer than `maxBackoffMs`), then `POST /search` answers `503` with a `Retry-After` header instead of `500`:
+- A requested delay of up to **max(`maxBackoffMs`, 65 seconds)** is waited **in full** (never shortened, so the retry is not throttled again). With the default `maxBackoffMs` (60 seconds) that ceiling is 65 seconds, enough for any per-minute quota.
+- A requested delay **longer** than that ceiling (a daily quota, say) fails the request at once, and every other caller fails fast until the pause has fully passed.
+- **Indexing** (watch, notify, reindex): up to 7 attempts per request (63 seconds of backoff between them, past one quota minute), then the document gets an `embedding_error` issue.
+- **Search**: up to 3 attempts and at most 10 seconds of waiting (or at once on a delay over the ceiling), then `POST /search` answers `503` with a `Retry-After` header instead of `500`:
 
 ```json
 {
@@ -270,7 +272,11 @@ On HTTP `429` the limiter pauses **every** caller for the provider's `Retry-Afte
 }
 ```
 
-- Retries the Gemini client makes on its own after other failures also take a token, so every HTTP request to the provider counts against `rateLimitPerMinute`.
+- Retries the Gemini client makes on its own after other failures go through the limiter too: each takes its items and waits out any pause, so every request to the provider counts against `rateLimitPerMinute`.
+
+#### Sizing rateLimitPerMinute
+
+Set it a little under the provider's per-minute **embedding** quota for the project the key belongs to, minus what other services using the same project take. For Gemini (`gemini-embedding-001`) the quota is per project and model, counted per content: paid Tier 2, for example, allows 5,000 per minute (its 429 names the quota: `embed_content_paid_tier_2_requests`, limit 5000) (check your project's limits in Google AI Studio). For example, `4500` on Tier 2 leaves 10% headroom.
 
 ### Embedding Health
 
@@ -299,7 +305,7 @@ Each transition is logged (an error when failing, info on recovery) and, when `e
 
 `event` is `embedding_failed` or `embedding_recovered` (whose `failingSince` is when the outage began). Error codes are `rate_limited`, `timeout`, `http_<status>`, `network` or `error`; provider error text goes to the log only. The body is unsigned and sent without credentials, so point `alertUrl` at a private endpoint. Delivery makes up to 3 attempts (1 s, then 2 s apart) with a 10 s timeout each; a failed delivery is logged and never affects embedding.
 
-A provider back-off (a `Retry-After` longer than `maxBackoffMs`) is stored for at most 5 minutes, then expires: the first call after it probes the provider. A success never shortens a pause, so a 429 always pauses every caller. `health.embedding.backoffUntil` shows when.
+A provider back-off (a requested delay over the pause ceiling, max(`maxBackoffMs`, 65 s)) is stored for at most 5 minutes, then expires: the first call after it probes the provider. A success never shortens a pause, so a 429 always pauses every caller. `health.embedding.backoffUntil` shows when.
 
 ### Supported Providers
 
@@ -747,7 +753,7 @@ On shutdown, the watcher (v0.20.0+ order):
 | Field | Type | Default | Description |
 | --- | --- | --- | --- |
 | `maxRetries` | `number` | `Infinity` | Maximum consecutive system-level failures before triggering fatal error. |
-| `maxBackoffMs` | `number` | `60000` | Maximum backoff delay in milliseconds for system errors. |
+| `maxBackoffMs` | `number` | `60000` | Maximum backoff delay in milliseconds for system errors. Embedding 429s: the longest computed backoff, and (with a 65 s floor) the longest requested delay waited for; see [Rate Limiting](#embedding-rate-limiting). |
 
 ---
 

@@ -11,7 +11,7 @@ import type { JeevesWatcherConfig } from './types.js';
 export const ROOT_DEFAULTS = {
   stateDir: '.jeeves-metadata',
   shutdownTimeoutMs: 10000,
-  /** Cap on system-error backoff and on any single embedding 429 pause. */
+  /** Cap on system-error backoff; embedding 429 pauses wait up to max(this, 65 s). */
   maxBackoffMs: 60000,
 } satisfies Partial<JeevesWatcherConfig>;
 
@@ -98,6 +98,7 @@ export const EMBEDDING_DEFAULTS = {
   chunkSize: 1000,
   chunkOverlap: 200,
   dimensions: 3072,
+  /** Embedded items (texts) per minute, not requests. */
   rateLimitPerMinute: 300,
   concurrency: 5,
 };

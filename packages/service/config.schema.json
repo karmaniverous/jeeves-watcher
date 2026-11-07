@@ -246,7 +246,7 @@
       ]
     },
     "maxBackoffMs": {
-      "description": "Maximum backoff delay in milliseconds for system errors. Default: 60000.",
+      "description": "Maximum backoff delay in milliseconds for system errors. Default: 60000. Also caps the computed backoff after an embedding 429; a requested 429 delay up to max(maxBackoffMs, 65000) is waited for, a longer one fails fast.",
       "allOf": [
         {
           "$ref": "#/definitions/__schema156"
@@ -1006,7 +1006,7 @@
       "type": "string"
     },
     "__schema81": {
-      "description": "Maximum embedding API requests per minute (rate limiting).",
+      "description": "Maximum embeddings (items: texts embedded, not HTTP requests) per minute, shared by every caller; no 60 s span holds more, and a larger batch is split. Set a little under the provider's per-minute embedding quota. 0 disables the limit. Default: 300.",
       "allOf": [
         {
           "$ref": "#/definitions/__schema82"

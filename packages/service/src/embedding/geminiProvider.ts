@@ -5,8 +5,8 @@
  * long-running processes (avoids undici/fetch event-loop contention).
  * HTTP 429 is not retried here: it surfaces as an EmbeddingRateLimitError
  * carrying `Retry-After`, for the shared limiter to handle. Other failures
- * are retried, each retry first awaiting the limiter's `beforeRetry` (one
- * token per HTTP request).
+ * are retried, each retry first awaiting the limiter's `beforeRetry` (which
+ * takes the request's items and waits out any 429 pause).
  */
 
 import type { IncomingHttpHeaders } from 'node:http';
@@ -122,7 +122,8 @@ export function createGeminiProvider(
       const vectors = await retry(
         async (attempt) => {
           if (attempt > 1) {
-            // Each retry is another request: draw from the shared limiter.
+            // Each retry is another request: take its items from the shared
+            // limiter and wait out any 429 pause first.
             await options.beforeRetry?.();
             log.warn(
               { attempt, provider: 'gemini', model },

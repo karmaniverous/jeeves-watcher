@@ -233,7 +233,7 @@ $env:GOOGLE_API_KEY     # PowerShell
 If not set, guide the user:
 
 1. Go to https://aistudio.google.com/apikey
-2. Create an API key (free tier supports 1,000 embedding requests/minute)
+2. Create an API key (Google meters embedding quota per item embedded, per minute; check the project's limit and set `embedding.rateLimitPerMinute` a little under it)
 3. Set it as a persistent environment variable:
    - **Linux:** Add `export GOOGLE_API_KEY=<key>` to `~/.bashrc` or `~/.profile`
    - **Windows:** `setx GOOGLE_API_KEY "<key>"` (new shell sessions only) or set via System Properties → Environment Variables

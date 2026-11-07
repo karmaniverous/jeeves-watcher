@@ -45,11 +45,13 @@ export const embeddingConfigSchema = z.object({
     .describe(
       'API key for embedding provider (supports ${ENV_VAR} substitution).',
     ),
-  /** Maximum embedding requests per minute. */
+  /** Maximum embeddings (items: texts embedded) per minute. */
   rateLimitPerMinute: z
     .number()
     .optional()
-    .describe('Maximum embedding API requests per minute (rate limiting).'),
+    .describe(
+      "Maximum embeddings (items: texts embedded, not HTTP requests) per minute, shared by every caller; no 60 s span holds more, and a larger batch is split. Set a little under the provider's per-minute embedding quota. 0 disables the limit. Default: 300.",
+    ),
   /** Maximum concurrent embedding requests. */
   concurrency: z
     .number()

@@ -10,7 +10,9 @@ import type { EmbeddingConfig } from '../config/types';
 /**
  * Per-call budget for the shared rate limiter. Providers that do not
  * rate-limit ignore the budget; providers that retry internally await
- * `beforeRetry` before each retry.
+ * `beforeRetry` before each retry. When the limiter splits a call (a batch
+ * over its per-minute item limit), `attempts` applies to each request and
+ * `maxWaitMs` to the whole call.
  *
  * The budget bounds the limiter, not the provider's own network retries:
  * each of the `attempts` provider calls may itself retry a transient
@@ -33,8 +35,8 @@ export interface EmbedOptions {
   maxWaitMs?: number;
   /**
    * Awaited by a provider before each retry it makes internally (any HTTP
-   * request after the first of an `embed()` call), so every request draws
-   * from the shared limiter. Supplied by the rate-limited wrapper; it may
+   * request after the first of an `embed()` call), so every request takes
+   * its items from the shared limiter and waits out any 429 pause. Supplied by the rate-limited wrapper; it may
    * reject (e.g. `EmbeddingUnavailableError`), which the provider must
    * propagate without retrying.
    */
@@ -45,7 +47,7 @@ export interface EmbedOptions {
  * An embedding provider that converts text into vector representations.
  */
 export interface EmbeddingProvider {
-  /** Generate embedding vectors for the given texts (one provider request). */
+  /** Generate embedding vectors for the given texts, one per text, in order. */
   embed(texts: string[], options?: EmbedOptions): Promise<number[][]>;
   /** The dimensionality of the embedding vectors. */
   dimensions: number;
