@@ -1,6 +1,6 @@
 /**
  * @module config/loadConfig.embeddingDefaults.test
- * Embedding rate-limit defaults through loadConfig: an unset `embedding.rateLimitPerMinute` loads as 300 and drives a 300-request burst in the shared limiter; an explicit `0` is kept (no limit). Writes temp config files.
+ * Embedding rate-limit defaults through loadConfig: an unset `embedding.rateLimitPerMinute` loads as 300 and lets 300 items (texts) through per minute in the shared limiter; an explicit `0` is kept (no limit). Writes temp config files.
  */
 
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
@@ -47,7 +47,7 @@ describe('embedding.rateLimitPerMinute defaults', () => {
     expect(config.embedding.rateLimitPerMinute).toBe(300);
   });
 
-  it('the loaded default lets 300 requests through at once, then waits for a token', async () => {
+  it('the loaded default lets 300 texts through in a minute, then waits for the window', async () => {
     const config = await load({ provider: 'mock', model: 'm' });
     vi.useFakeTimers();
     vi.setSystemTime(0);
@@ -60,16 +60,17 @@ describe('embedding.rateLimitPerMinute defaults', () => {
       maxBackoffMs: 60_000,
     });
 
-    await Promise.all(Array.from({ length: 300 }, () => limited.embed(['a'])));
-    expect(embed).toHaveBeenCalledTimes(300);
+    const batch = Array.from({ length: 100 }, () => 'a');
+    await Promise.all([1, 2, 3].map(() => limited.embed(batch)));
+    expect(embed).toHaveBeenCalledTimes(3);
 
-    // One token refills every 60 s / 300 = 200 ms.
+    // 300 texts are in the window: the next waits until they leave it.
     const next = limited.embed(['b']);
-    await vi.advanceTimersByTimeAsync(199);
-    expect(embed).toHaveBeenCalledTimes(300);
+    await vi.advanceTimersByTimeAsync(59_999);
+    expect(embed).toHaveBeenCalledTimes(3);
     await vi.advanceTimersByTimeAsync(1);
     await next;
-    expect(embed).toHaveBeenCalledTimes(301);
+    expect(embed).toHaveBeenCalledTimes(4);
   });
 
   // That 0 disables limiting: rateLimitedProvider.test.ts.

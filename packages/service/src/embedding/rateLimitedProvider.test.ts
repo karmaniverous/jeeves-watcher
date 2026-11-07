@@ -1,6 +1,6 @@
 /**
  * @module embedding/rateLimitedProvider.test
- * RateLimitedEmbeddingProvider: one shared request budget across callers, 429 Retry-After pauses every caller, a token per internal retry, exponential backoff, retry cap and per-call wait budget (stored back-off: rateLimitedProvider.storedBackoff.test).
+ * RateLimitedEmbeddingProvider: one shared per-item budget across callers (sliding 60 s window, batches over the limit split), 429 Retry-After pauses every caller, internal retries take their items, exponential backoff, retry cap and per-call wait budget (stored back-off: rateLimitedProvider.storedBackoff.test; quota fake: rateLimitedProvider.quota.test).
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -30,25 +30,48 @@ describe('RateLimitedEmbeddingProvider', () => {
     expect(limited.dimensions).toBe(2);
   });
 
-  it('counts requests, not texts: a 100-text batch costs one token', async () => {
+  it('counts texts, not requests: a 100-text batch takes 100 of the minute', async () => {
     const { inner, embed } = makeInner();
     const limited = new RateLimitedEmbeddingProvider(inner, {
-      rateLimitPerMinute: 2,
+      rateLimitPerMinute: 150,
       maxBackoffMs: 60_000,
     });
     const batch = Array.from({ length: 100 }, (_, i) => `text ${String(i)}`);
 
     await limited.embed(batch);
-    await limited.embed(batch);
+    await limited.embed(batch.slice(0, 50));
     expect(embed).toHaveBeenCalledTimes(2);
 
-    // Third request must wait for a refilled token (60 s / 2 = 30 s).
-    const third = track(limited.embed(['x']));
-    await vi.advanceTimersByTimeAsync(29_000);
-    expect(third.done).toBe(false);
-    await vi.advanceTimersByTimeAsync(1_000);
-    expect(third.done).toBe(true);
+    // The minute is full: one more text waits until the first batch's
+    // 100 leave the window, 60 s after they were sent.
+    const next = track(limited.embed(['x']));
+    await vi.advanceTimersByTimeAsync(59_999);
+    expect(next.done).toBe(false);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(next.done).toBe(true);
     expect(embed).toHaveBeenCalledTimes(3);
+  });
+
+  it('splits a batch larger than the limit into requests that fit, in order', async () => {
+    const { inner, embed } = makeInner();
+    embed.mockImplementation((texts) =>
+      Promise.resolve(texts.map((text) => [Number(text)])),
+    );
+    const limited = new RateLimitedEmbeddingProvider(inner, {
+      rateLimitPerMinute: 40,
+      maxBackoffMs: 60_000,
+    });
+    const texts = Array.from({ length: 100 }, (_, i) => String(i));
+
+    const call = track(limited.embed(texts));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(embed.mock.calls.map(([sent]) => sent.length)).toEqual([40]);
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(embed.mock.calls.map(([sent]) => sent.length)).toEqual([40, 40]);
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(call.done).toBe(true);
+    expect(embed.mock.calls.map(([sent]) => sent.length)).toEqual([40, 40, 20]);
+    expect(call.value).toEqual(texts.map((text) => [Number(text)]));
   });
 
   it('shares one budget across callers (queue, reindex and search)', async () => {
@@ -161,14 +184,17 @@ describe('RateLimitedEmbeddingProvider', () => {
       attempts: 3,
     });
 
+    // Pauses max(1 s, backoff): 1 s, then 2 s; the third 429 ends the budget.
     const call = track(limited.embed(['a']));
-    await vi.advanceTimersByTimeAsync(2_000);
+    await vi.advanceTimersByTimeAsync(2_999);
+    expect(call.done).toBe(false);
+    await vi.advanceTimersByTimeAsync(1);
     expect(call.error).toBeInstanceOf(EmbeddingUnavailableError);
     const error = call.error as EmbeddingUnavailableError;
     expect(error.message).toContain('quota');
     expect(error.cause).toBe(quota);
-    // The last 429's pause is still running when the budget runs out.
-    expect(error.retryAfterMs).toBe(1_000);
+    // The last 429's pause (4 s backoff) is still running when the budget runs out.
+    expect(error.retryAfterMs).toBe(4_000);
     expect(embed).toHaveBeenCalledTimes(3);
   });
 
