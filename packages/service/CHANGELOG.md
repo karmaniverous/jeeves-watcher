@@ -2,6 +2,27 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.21.1] - 2026-11-07
+
+### 🐛 Bug Fixes
+
+- *(embedding)* Keep a search reserve in the item rate window so indexing cannot starve search (#309)
+- *(embedding)* Default rateLimitPerMinute is 4000 items per minute (was 300) (#309)
+
+### 💼 Other
+
+- *(vcs)* Default commit message model claude-haiku-5-5; warn once on 404
+- *(embedding)* Behaviour change: rateLimitPerMinute counts embedded items per minute; 429s wait out the quota minute
+- Embedding rate limit counts items per minute; 429 pause rules and ceiling (#309)
+- *(wire)* Approve the commitMessage.model default change as a config-schema departure (#308)
+- *(embedding)* End the 429 retry loop inside the loop
+- *(config)* The default rate limit leaves the search reserve free (#309)
+- *(embedding)* The search-reserve test fails without the reserve; internal retries keep the reserve (#309)
+- Updated core
+
+### 📚 Documentation
+
+- The embedding 429 backoff is capped at max(maxBackoffMs, 65 s); default rate limit slowdown note (#309)
 ## [0.21.0] - 2026-11-07
 
 ### 🚀 Features
@@ -26,6 +47,10 @@ All notable changes to this project will be documented in this file.
 
 - *(service)* Judge the slow-copy test only on files whose premise held (D201)
 - *(service)* Fix three desktop-load flakes and run git/Qdrant-bound tests in their own io project
+
+### ⚙️ Miscellaneous Tasks
+
+- Release @karmaniverous/jeeves-watcher v0.21.0
 ## [0.21.0-0] - 2026-11-06
 
 ### 🚀 Features
