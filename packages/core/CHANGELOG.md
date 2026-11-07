@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.1] - 2026-11-07
+
+### 🐛 Bug Fixes
+
+- *(embedding)* Default rateLimitPerMinute is 4000 items per minute (was 300) (#309)
+
+### 💼 Other
+
+- *(vcs)* Default commit message model claude-haiku-5-5; warn once on 404
+- Embedding rate limit counts items per minute; 429 pause rules and ceiling (#309)
+
+### 📚 Documentation
+
+- The embedding 429 backoff is capped at max(maxBackoffMs, 65 s); default rate limit slowdown note (#309)
 ## [0.5.0] - 2026-11-07
 
 ### 🚀 Features
@@ -16,6 +30,10 @@ All notable changes to this project will be documented in this file.
 ### 📚 Documentation
 
 - RC guide fixes F1-F4, F6, F7 and an accurate over-cap log line (D201)
+
+### ⚙️ Miscellaneous Tasks
+
+- Release @karmaniverous/jeeves-watcher-core v0.5.0
 ## [0.5.0-3] - 2026-11-06
 
 ### 🚀 Features
