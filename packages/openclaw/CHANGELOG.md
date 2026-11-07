@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.18.0] - 2026-11-07
+
+### 🐛 Bug Fixes
+
+- *(service)* Keep an indexed file's points on a system read error (D201 review)
+
+### 💼 Other
+
+- Updated core
+
+### 📚 Documentation
+
+- RC guide fixes F1-F4, F6, F7 and an accurate over-cap log line (D201)
+
+### 🧪 Testing
+
+- *(openclaw)* Skip the dist smoke tests on a stale build (D201)
 ## [0.18.0-0] - 2026-11-06
 
 ### 🚀 Features
@@ -87,6 +104,10 @@ Fresh review of faf2fe9..e0cfae6: test names now say what they prove (hashObject
 - Clients on the catalog (SDK guide, CLI reference, plugin guide, upgrading)
 - Change source, inventory and reconciliation (P11: C1, B5b)
 - No 0.17.0 tool name or WATCHER_ENDPOINTS outside the upgrading guide and the tool-name tests (Design 14)
+
+### ⚙️ Miscellaneous Tasks
+
+- Release @karmaniverous/jeeves-watcher-openclaw v0.18.0-0
 ## [0.17.0] - 2026-10-14
 
 ### 🚀 Features
