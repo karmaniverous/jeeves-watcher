@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.0] - 2026-11-07
+
+### 🚀 Features
+
+- *(service)* Delete an indexed file's points when it fails extraction (D201)
+
+### 🐛 Bug Fixes
+
+- *(service)* Keep an indexed file's points on a system read error (D201 review)
+- *(service)* A file over 2 GiB is a content failure; Node-error wording in every guide (D201 review 3)
+
+### 📚 Documentation
+
+- RC guide fixes F1-F4, F6, F7 and an accurate over-cap log line (D201)
 ## [0.5.0-3] - 2026-11-06
 
 ### 🚀 Features
@@ -44,6 +58,10 @@ All notable changes to this project will be documented in this file.
 - The index check at start (D197): configuration, architecture, API reference, upgrading, deployment, skill
 - No 0.17.0 tool name or WATCHER_ENDPOINTS outside the upgrading guide and the tool-name tests (Design 14)
 - One 0.20.0 -> 0.21.0 upgrade guide with the full rollback (D95, D171, D173, D180), skill troubleshooting, deployment (inotify limits, NSSM restart on exit, long paths reconcile-only per D199); anchors fixed and docs build at zero warnings (R2)
+
+### ⚙️ Miscellaneous Tasks
+
+- Release @karmaniverous/jeeves-watcher-core v0.5.0-3
 ## [0.5.0-2] - 2026-11-04
 
 ### 🚀 Features
