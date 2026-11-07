@@ -54,7 +54,7 @@ const DEFAULT_BASE_BACKOFF_MS = 1000;
 export const MAX_STORED_BACKOFF_MS = 5 * 60_000;
 
 /** Shortest 429 pause ceiling: a per-minute quota's delay is always waited for. */
-export const MIN_PAUSE_CEILING_MS = 65_000;
+const MIN_PAUSE_CEILING_MS = 65_000;
 
 /**
  * The longest 429 pause the service waits for: the root `maxBackoffMs`,

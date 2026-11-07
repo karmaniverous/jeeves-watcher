@@ -106,6 +106,39 @@ function stripTooLargeIssueType(value: Json, counter: { n: number }): Json {
   return out;
 }
 
+/** The 0.20.0 `vcs.commitMessage.model` default (retired by Anthropic: #308). */
+const RETIRED_COMMIT_MODEL = 'claude-haiku-4-0';
+
+/** The 0.20.0 description of `vcs.commitMessage.model`. */
+const RETIRED_COMMIT_MODEL_DESCRIPTION = `AI model for commit message generation. Default: "${RETIRED_COMMIT_MODEL}".`;
+
+/**
+ * Deep-copy `value`, restoring the 0.20.0 default and description of every
+ * `vcs.commitMessage.model` schema (one whose description starts like it
+ * and whose default is not the retired model).
+ */
+function restoreCommitMessageModel(value: Json, counter: { n: number }): Json {
+  if (Array.isArray(value)) {
+    return value.map((v) => restoreCommitMessageModel(v, counter));
+  }
+  if (typeof value !== 'object' || value === null) return value;
+  const out: Record<string, Json> = {};
+  for (const [k, v] of Object.entries(value)) {
+    out[k] = restoreCommitMessageModel(v, counter);
+  }
+  const { default: model, description } = out;
+  if (
+    typeof description === 'string' &&
+    description.startsWith('AI model for commit message generation.') &&
+    model !== RETIRED_COMMIT_MODEL
+  ) {
+    out.default = RETIRED_COMMIT_MODEL;
+    out.description = RETIRED_COMMIT_MODEL_DESCRIPTION;
+    counter.n++;
+  }
+  return out;
+}
+
 /**
  * Strip the 0.21.0 additions from a config JSON schema. `GET /config/schema`
  * serves only the public keys; `watch` is one, and its `paths[].vcs`
@@ -114,7 +147,9 @@ function stripTooLargeIssueType(value: Json, counter: { n: number }): Json {
  * `embedding.alertUrl` are not public and never appear. The merged
  * `issues[].type` enum gains `too_large` (B5a, Design 2), and `watch` gains
  * `reconcileIntervalMs` (B5b, D111, Design 2), `changeSource` (C2, D125,
- * Design 2) and `indexCheckOnStart` (P13a, D197).
+ * Design 2) and `indexCheckOnStart` (P13a, D197). After 0.21.0 the
+ * `vcs.commitMessage.model` default (and its description) changes from the
+ * retired `claude-haiku-4-0` to `claude-haiku-5-5` (#308).
  */
 function stripNewConfigKeys(received: WireRecord): {
   record: WireRecord;
@@ -154,6 +189,7 @@ function stripNewConfigKeys(received: WireRecord): {
     body = step(watchKey(key), body);
   }
   body = step((value) => stripTooLargeIssueType(value, counter), body);
+  body = step((value) => restoreCommitMessageModel(value, counter), body);
   // Every departure must still happen, or one of them is stale.
   const stripped = counts.every((n) => n > 0) ? counter.n : 0;
   return { record: { ...received, body }, stripped };
@@ -184,7 +220,7 @@ function stripNewHealthKeys(received: WireRecord): {
 
 const CONFIG_KEYS: WireDeparture = {
   reason:
-    'P5 B2: watch.paths[].vcs gains maxFileBytes (D80 via the D12 per-root override), approved departure D185; P9 B5a: issues[].type gains too_large (D44); P11 B5b: watch gains reconcileIntervalMs (D111); P13 C2: watch gains changeSource (D125); P13a: watch gains indexCheckOnStart (D197), Design 2',
+    'P5 B2: watch.paths[].vcs gains maxFileBytes (D80 via the D12 per-root override), approved departure D185; P9 B5a: issues[].type gains too_large (D44); P11 B5b: watch gains reconcileIntervalMs (D111); P13 C2: watch gains changeSource (D125); P13a: watch gains indexCheckOnStart (D197), Design 2; #308: vcs.commitMessage.model default claude-haiku-5-5 (claude-haiku-4-0 retired)',
   strip: stripNewConfigKeys,
 };
 
