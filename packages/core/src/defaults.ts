@@ -98,8 +98,11 @@ export const EMBEDDING_DEFAULTS = {
   chunkSize: 1000,
   chunkOverlap: 200,
   dimensions: 3072,
-  /** Embedded items (texts) per minute, not requests. */
-  rateLimitPerMinute: 300,
+  /**
+   * Embedded items (texts) per minute, not requests: about 80% of Gemini
+   * Tier 2's 5,000 per minute. The one source of the default.
+   */
+  rateLimitPerMinute: 4000,
   concurrency: 5,
 };
 

@@ -1006,7 +1006,7 @@
       "type": "string"
     },
     "__schema81": {
-      "description": "Maximum embeddings (items: texts embedded, not HTTP requests) per minute, shared by every caller; no 60 s span holds more, and a larger batch is split. Set a little under the provider's per-minute embedding quota. 0 disables the limit. Default: 300.",
+      "description": "Maximum embeddings (items: texts embedded, not HTTP requests) per minute, shared by every caller; no 60 s span holds more, and a larger batch is split. Set a little under the provider's per-minute embedding quota. 0 disables the limit. Default: 4000.",
       "allOf": [
         {
           "$ref": "#/definitions/__schema82"

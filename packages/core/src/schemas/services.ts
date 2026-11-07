@@ -5,6 +5,7 @@
 
 import { z } from 'zod';
 
+import { EMBEDDING_DEFAULTS } from '../defaults.js';
 import { payloadIndexesSchema } from './payloadIndexes.js';
 
 /**
@@ -50,7 +51,7 @@ export const embeddingConfigSchema = z.object({
     .number()
     .optional()
     .describe(
-      "Maximum embeddings (items: texts embedded, not HTTP requests) per minute, shared by every caller; no 60 s span holds more, and a larger batch is split. Set a little under the provider's per-minute embedding quota. 0 disables the limit. Default: 300.",
+      `Maximum embeddings (items: texts embedded, not HTTP requests) per minute, shared by every caller; no 60 s span holds more, and a larger batch is split. Set a little under the provider's per-minute embedding quota. 0 disables the limit. Default: ${String(EMBEDDING_DEFAULTS.rateLimitPerMinute)}.`,
     ),
   /** Maximum concurrent embedding requests. */
   concurrency: z

@@ -295,7 +295,7 @@ Key settings for production:
     "chunkSize": 1000,
     "chunkOverlap": 200,
     "dimensions": 3072,
-    "rateLimitPerMinute": 300,
+    "rateLimitPerMinute": 4000,
     "concurrency": 5
   },
   "vectorStore": {
@@ -513,7 +513,7 @@ The watcher is designed to co-locate with other services on a single machine.
 | 10,000 files | ~10 minutes | ~$0.30 |
 | 100,000 files | ~100 minutes | ~$3.00 |
 
-**Assumptions:** Average 500 tokens per document, one chunk (one embedded item) per document; time is roughly chunks / `rateLimitPerMinute` minutes. Documents longer than `chunkSize` (default 1000 characters) are split into several chunks, embedded up to 100 chunks per request. The default `rateLimitPerMinute` is 300.
+**Assumptions:** Average 500 tokens per document, one chunk (one embedded item) per document; time is roughly chunks / `rateLimitPerMinute` minutes. Documents longer than `chunkSize` (default 1000 characters) are split into several chunks, embedded up to 100 chunks per request. The default `rateLimitPerMinute` is 4000 (about 80% of Gemini paid Tier 2's 5,000 per minute); lower it for a lower tier.
 
 **Schedule:** For large corpora, run initial indexing during off-hours to avoid rate limit contention.
 

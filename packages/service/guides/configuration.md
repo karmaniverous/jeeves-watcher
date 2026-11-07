@@ -224,7 +224,7 @@ The config-triggered reindex covers files only; source documents are re-processe
     "chunkSize": 1000,
     "chunkOverlap": 200,
     "dimensions": 3072,
-    "rateLimitPerMinute": 300,
+    "rateLimitPerMinute": 4000,
     "concurrency": 5
   }
 }
@@ -238,13 +238,13 @@ The config-triggered reindex covers files only; source documents are re-processe
 | `chunkSize` | `number` | `1000` | Maximum characters per chunk for text splitting. |
 | `chunkOverlap` | `number` | `200` | Overlap between consecutive chunks (helps preserve context at boundaries). |
 | `dimensions` | `number` | `3072` | Vector dimensions: the size of a new collection, and the vector size requested from Gemini (`outputDimensionality`). Must match an existing collection. |
-| `rateLimitPerMinute` | `number` | `300` | Max embeddings (**items**: texts embedded) per minute, shared by every caller. `0` disables the rate limit. See [Rate Limiting](#embedding-rate-limiting). |
+| `rateLimitPerMinute` | `number` | `4000` | Max embeddings (**items**: texts embedded) per minute, shared by every caller. `0` disables the rate limit. See [Rate Limiting](#embedding-rate-limiting). |
 | `concurrency` | `number` | `5` | Max documents processed concurrently by the file event queue, and by the source-document notify queue. |
 | `alertUrl` | `string` | `undefined` | URL that receives a POST when embedding health turns failing or recovers. Read at each transition (a reload applies). See [Embedding Health](#embedding-health). |
 
 ### Embedding Rate Limiting
 
-> **Behaviour change after 0.21.0.** `embedding.rateLimitPerMinute` now counts **embeddings (items) per minute**: each text sent to the provider, not each HTTP request. A value tuned for requests lets through up to 100 times more items than intended, so review it when upgrading: set it a little under your provider's per-minute embedding quota (see [Sizing](#sizing-ratelimitperminute)). The same goes for an install left on the default `300`: indexing now embeds at most 270 texts a minute (300 less the search reserve; 0.21.0 allowed 300 requests of up to 100 texts each), so indexing can be up to 100 times slower until you raise it.
+> **Behaviour change after 0.21.0.** `embedding.rateLimitPerMinute` now counts **embeddings (items) per minute**: each text sent to the provider, not each HTTP request. Its default rises from `300` (requests) to `4000` (items), about 80% of Gemini paid Tier 2's 5,000 embeddings per minute. Review it when upgrading: a value set explicitly under request counting (`300` or `1000`, say) now caps indexing at 270 or 940 texts a minute (the limit less the search reserve), up to 100 times slower than 0.21.0, which allowed that many requests of up to 100 texts each; set it a little under your provider's per-minute embedding quota instead (see [Sizing](#sizing-ratelimitperminute)). An install left on the default gets `4000`: on a lower quota (the free tier or Tier 1) set it lower, or indexing runs into `429`s.
 >
 > **Behaviour change in 0.20.0.** `rateLimitPerMinute` limits embedding API calls from every path, not file-watch events.
 
@@ -255,7 +255,7 @@ One limiter wraps the embedding provider. It is created once at startup and shar
 - Every text embedded counts as one item, because providers meter embedding quota per item (Gemini `batchEmbedContents` counts each content of a request). A request is a batch of up to 100 chunks of one document, or a single search query.
 - No 60-second span holds more than `rateLimitPerMinute` items (a sliding window; the value is rounded down to a whole number). A batch larger than one request may take is split into requests that fit, sent in order.
 - Indexing (watch, notify, reindex) leaves a reserve free for search: 10% of `rateLimitPerMinute` rounded up, at most 60 items (so 1 item for limits 2 to 10, and none at `1`). Capacity comes back only as earlier requests leave the 60-second window, so without the reserve a reindex that keeps the window full would make every search wait past its 10-second budget. Indexing uses at most `rateLimitPerMinute` minus the reserve; search may use all of it.
-- `0` disables the rate limit. When the key is omitted, the default of `300` applies.
+- `0` disables the rate limit. When the key is omitted, the default of `4000` applies (a search reserve of 60, so indexing uses at most 3,940 a minute).
 - `embedding.concurrency` is unchanged in meaning: it caps how many queued documents are processed at once.
 
 On HTTP `429` the limiter pauses **every** caller, then retries. The pause is the provider's requested delay (the `Retry-After` header, or Google's `retryDelay` in the response body) or the backoff (1 second, doubling per attempt, capped at max(root `maxBackoffMs`, 65 seconds)), whichever is longer. Gemini answers a spent per-minute quota with `retryDelay: "0s"`; the backoff keeps those retries from all landing in the same quota minute.
@@ -277,7 +277,7 @@ On HTTP `429` the limiter pauses **every** caller, then retries. The pause is th
 
 #### Sizing rateLimitPerMinute
 
-Set it a little under the provider's per-minute **embedding** quota for the project the key belongs to, minus what other services using the same project take. For Gemini (`gemini-embedding-001`) the quota is per project and model, counted per content: paid Tier 2, for example, allows 5,000 per minute (its 429 names the quota: `embed_content_paid_tier_2_requests`, limit 5000) (check your project's limits in Google AI Studio). For example, `4500` on Tier 2 leaves 10% headroom.
+Set it a little under the provider's per-minute **embedding** quota for the project the key belongs to, minus what other services using the same project take. For Gemini (`gemini-embedding-001`) the quota is per project and model, counted per content: paid Tier 2, for example, allows 5,000 per minute (its 429 names the quota: `embed_content_paid_tier_2_requests`, limit 5000) (check your project's limits in Google AI Studio). The default `4000` is sized for Tier 2 and leaves 20% headroom for other services on the project; `4500` leaves 10%. On a lower tier, set it lower.
 
 ### Embedding Health
 
@@ -942,7 +942,7 @@ When the config is loaded (at startup and on every reload), these are replaced w
     "chunkSize": 1000,
     "chunkOverlap": 200,
     "dimensions": 3072,
-    "rateLimitPerMinute": 300,
+    "rateLimitPerMinute": 4000,
     "concurrency": 5
   },
   "vectorStore": {
