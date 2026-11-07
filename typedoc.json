@@ -27,6 +27,7 @@
     "handlebars"
   ],
   "hostedBaseUrl": "https://docs.karmanivero.us/jeeves-watcher",
+  "name": "jeeves-watcher",
   "navigationLinks": {
     "GitHub": "https://github.com/karmaniverous/jeeves-watcher"
   },
