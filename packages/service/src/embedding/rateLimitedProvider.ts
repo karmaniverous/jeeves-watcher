@@ -70,8 +70,9 @@ export function embeddingPauseCeilingMs(maxBackoffMs: number): number {
 export interface RateLimitedEmbeddingProviderOptions {
   /**
    * Embeddings (items: texts) per minute; no 60 s span holds more, and a
-   * batch larger than this is split. Unset or 0 means no rate limit (429
-   * pauses still apply).
+   * batch larger than one request may take (less the interactive reserve,
+   * unless interactive) is split. Unset or 0: no rate limit (429 pauses
+   * still apply).
    */
   rateLimitPerMinute?: number;
   /**
@@ -138,8 +139,8 @@ export class RateLimitedEmbeddingProvider implements EmbeddingProvider {
 
   /**
    * Embed texts, waiting for rate budget and retrying 429s within the
-   * call's budget. A batch over the per-minute limit is sent as several
-   * requests, in order; the budget covers them all.
+   * call's budget. A batch over what one request may take is sent as
+   * several requests, in order; the budget covers them all.
    *
    * @param texts - Texts to embed.
    * @param options - Per-call attempt and wait budget.
@@ -259,8 +260,8 @@ export class RateLimitedEmbeddingProvider implements EmbeddingProvider {
 
   /**
    * Wait until the limiter is not paused and `count` items fit the rate
-   * window (with the reserve when interactive), then take them. Fails fast when the wait would pass the
-   * deadline.
+   * window (with the reserve when interactive), then take them. Fails fast
+   * when the wait would pass the deadline.
    */
   private async acquire(
     count: number,

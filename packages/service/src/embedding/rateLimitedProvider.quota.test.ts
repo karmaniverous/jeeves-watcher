@@ -57,13 +57,14 @@ describe('RateLimitedEmbeddingProvider against a per-item quota', () => {
       maxBackoffMs: 65_000,
     });
 
-    // Five reindex workers send batches back to back; three 90-text
-    // batches fill the background share (270 of 300) exactly.
+    // Five reindex workers send 30-text batches back to back: they fill
+    // indexing's share (270 of 300) exactly, and would fill all 300
+    // without the reserve.
     const workers = Array.from({ length: 5 }, (_, w) =>
       track(
         (async () => {
-          for (let b = 0; b < 6; b++) {
-            await limited.embed(texts(90, `w${String(w)}b${String(b)}`));
+          for (let b = 0; b < 20; b++) {
+            await limited.embed(texts(30, `w${String(w)}b${String(b)}`));
           }
         })(),
       ),

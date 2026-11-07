@@ -169,6 +169,24 @@ describe('RateLimitedEmbeddingProvider', () => {
     expect(call.done).toBe(true);
   });
 
+  it('lets the internal retries of an interactive call use the reserve too', async () => {
+    const { inner, embed } = makeInner();
+    const limited = new RateLimitedEmbeddingProvider(inner, {
+      rateLimitPerMinute: 20, // indexing takes 18, the reserve is 2
+      maxBackoffMs: 60_000,
+    });
+    await limited.embed(Array.from({ length: 18 }, () => 'fill'));
+
+    // The search takes 1 of the reserve; its internal retry takes the other.
+    embed.mockImplementationOnce(async (texts, options) => {
+      await options?.beforeRetry?.();
+      return texts.map(() => [0.1, 0.2]);
+    });
+    const search = track(limited.embed(['q'], { interactive: true }));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(search.done && search.error === undefined).toBe(true);
+  });
+
   it('uses exponential backoff when no Retry-After is given', async () => {
     const { inner, embed } = makeInner();
     embed

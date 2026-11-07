@@ -244,7 +244,7 @@ The config-triggered reindex covers files only; source documents are re-processe
 
 ### Embedding Rate Limiting
 
-> **Behaviour change after 0.21.0.** `embedding.rateLimitPerMinute` now counts **embeddings (items) per minute**: each text sent to the provider, not each HTTP request. A value tuned for requests lets through up to 100 times more items than intended, so review it when upgrading: set it a little under your provider's per-minute embedding quota (see [Sizing](#sizing-ratelimitperminute)). The same goes for an install left on the default `300`: it now embeds about 300 texts a minute (0.21.0 allowed 300 requests of up to 100 texts each), so indexing can be up to 100 times slower until you raise it.
+> **Behaviour change after 0.21.0.** `embedding.rateLimitPerMinute` now counts **embeddings (items) per minute**: each text sent to the provider, not each HTTP request. A value tuned for requests lets through up to 100 times more items than intended, so review it when upgrading: set it a little under your provider's per-minute embedding quota (see [Sizing](#sizing-ratelimitperminute)). The same goes for an install left on the default `300`: indexing now embeds at most 270 texts a minute (300 less the search reserve; 0.21.0 allowed 300 requests of up to 100 texts each), so indexing can be up to 100 times slower until you raise it.
 >
 > **Behaviour change in 0.20.0.** `rateLimitPerMinute` limits embedding API calls from every path, not file-watch events.
 
@@ -254,7 +254,7 @@ One limiter wraps the embedding provider. It is created once at startup and shar
 
 - Every text embedded counts as one item, because providers meter embedding quota per item (Gemini `batchEmbedContents` counts each content of a request). A request is a batch of up to 100 chunks of one document, or a single search query.
 - No 60-second span holds more than `rateLimitPerMinute` items (a sliding window; the value is rounded down to a whole number). A batch larger than one request may take is split into requests that fit, sent in order.
-- Indexing (watch, notify, reindex) leaves a reserve free for search: 10% of `rateLimitPerMinute`, at most 60 items (none when it is `1`). Capacity comes back only as earlier requests leave the 60-second window, so without the reserve a reindex that keeps the window full would make every search wait past its 10-second budget. Indexing uses at most `rateLimitPerMinute` minus the reserve; search may use all of it.
+- Indexing (watch, notify, reindex) leaves a reserve free for search: 10% of `rateLimitPerMinute` rounded up, at most 60 items (so 1 item for limits 2 to 10, and none at `1`). Capacity comes back only as earlier requests leave the 60-second window, so without the reserve a reindex that keeps the window full would make every search wait past its 10-second budget. Indexing uses at most `rateLimitPerMinute` minus the reserve; search may use all of it.
 - `0` disables the rate limit. When the key is omitted, the default of `300` applies.
 - `embedding.concurrency` is unchanged in meaning: it caps how many queued documents are processed at once.
 

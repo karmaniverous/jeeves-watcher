@@ -2366,7 +2366,7 @@ For TLS, or for authentication schemes other than a single shared key, put a rev
 
 The API itself has no request rate limit; add one at a reverse proxy if you need it.
 
-The **embedding provider** is rate-limited. Since v0.20.0, one shared limiter wraps the provider and every caller draws from it: file watching, source-document notifications, reindex and search. It admits at most `embedding.rateLimitPerMinute` embedded items (texts) in any minute. Indexing leaves a reserve of that budget (10%, at most 60 items) free for search, so a reindex that keeps the limiter busy does not make searches wait. See [`embedding.rateLimitPerMinute`](./configuration.md#embedding-rate-limiting) for the semantics (and the behaviour changes in 0.20.0 and after 0.21.0).
+The **embedding provider** is rate-limited. Since v0.20.0, one shared limiter wraps the provider and every caller draws from it: file watching, source-document notifications, reindex and search. It admits at most `embedding.rateLimitPerMinute` embedded items (texts) in any minute. Indexing leaves a reserve of that budget (10% rounded up, at most 60 items; none at a limit of 1) free for search, so a reindex that keeps the limiter busy does not make searches wait. See [`embedding.rateLimitPerMinute`](./configuration.md#embedding-rate-limiting) for the semantics (and the behaviour changes in 0.20.0 and after 0.21.0).
 
 When the provider answers `429`, the limiter pauses **all** embedding requests:
 
