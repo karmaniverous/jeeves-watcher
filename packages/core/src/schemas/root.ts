@@ -210,7 +210,7 @@ export const jeevesWatcherConfigSchema = z.object({
     .number()
     .optional()
     .describe(
-      'Maximum backoff delay in milliseconds for system errors. Default: 60000. Also caps the computed backoff after an embedding 429; a requested 429 delay up to max(maxBackoffMs, 65000) is waited for, a longer one fails fast.',
+      'Maximum backoff delay in milliseconds for system errors. Default: 60000. Embedding 429s: max(maxBackoffMs, 65000) caps the computed backoff and is the longest requested delay waited for; a longer one fails fast.',
     ),
 });
 

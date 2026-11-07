@@ -244,7 +244,7 @@ The config-triggered reindex covers files only; source documents are re-processe
 
 ### Embedding Rate Limiting
 
-> **Behaviour change after 0.21.0.** `embedding.rateLimitPerMinute` now counts **embeddings (items) per minute**: each text sent to the provider, not each HTTP request. A value tuned for requests lets through up to 100 times more items than intended, so review it when upgrading: set it a little under your provider's per-minute embedding quota (see [Sizing](#sizing-ratelimitperminute)).
+> **Behaviour change after 0.21.0.** `embedding.rateLimitPerMinute` now counts **embeddings (items) per minute**: each text sent to the provider, not each HTTP request. A value tuned for requests lets through up to 100 times more items than intended, so review it when upgrading: set it a little under your provider's per-minute embedding quota (see [Sizing](#sizing-ratelimitperminute)). The same goes for an install left on the default `300`: it now embeds about 300 texts a minute (0.21.0 allowed 300 requests of up to 100 texts each), so indexing can be up to 100 times slower until you raise it.
 >
 > **Behaviour change in 0.20.0.** `rateLimitPerMinute` limits embedding API calls from every path, not file-watch events.
 
@@ -253,11 +253,12 @@ Before 0.20.0, `rateLimitPerMinute` drove a token bucket inside the file event q
 One limiter wraps the embedding provider. It is created once at startup and shared by file watching, source-document notifications, reindex and search:
 
 - Every text embedded counts as one item, because providers meter embedding quota per item (Gemini `batchEmbedContents` counts each content of a request). A request is a batch of up to 100 chunks of one document, or a single search query.
-- No 60-second span holds more than `rateLimitPerMinute` items (a sliding window; the value is rounded down to a whole number). A batch larger than `rateLimitPerMinute` is split into requests that fit, sent in order.
+- No 60-second span holds more than `rateLimitPerMinute` items (a sliding window; the value is rounded down to a whole number). A batch larger than one request may take is split into requests that fit, sent in order.
+- Indexing (watch, notify, reindex) leaves a reserve free for search: 10% of `rateLimitPerMinute`, at most 60 items (none when it is `1`). Capacity comes back only as earlier requests leave the 60-second window, so without the reserve a reindex that keeps the window full would make every search wait past its 10-second budget. Indexing uses at most `rateLimitPerMinute` minus the reserve; search may use all of it.
 - `0` disables the rate limit. When the key is omitted, the default of `300` applies.
 - `embedding.concurrency` is unchanged in meaning: it caps how many queued documents are processed at once.
 
-On HTTP `429` the limiter pauses **every** caller, then retries. The pause is the provider's requested delay (the `Retry-After` header, or Google's `retryDelay` in the response body) or the backoff (1 second, doubling per attempt, capped at the root `maxBackoffMs`), whichever is longer. Gemini answers a spent per-minute quota with `retryDelay: "0s"`; the backoff keeps those retries from all landing in the same quota minute.
+On HTTP `429` the limiter pauses **every** caller, then retries. The pause is the provider's requested delay (the `Retry-After` header, or Google's `retryDelay` in the response body) or the backoff (1 second, doubling per attempt, capped at max(root `maxBackoffMs`, 65 seconds)), whichever is longer. Gemini answers a spent per-minute quota with `retryDelay: "0s"`; the backoff keeps those retries from all landing in the same quota minute.
 
 - A requested delay of up to **max(`maxBackoffMs`, 65 seconds)** is waited **in full** (never shortened, so the retry is not throttled again). With the default `maxBackoffMs` (60 seconds) that ceiling is 65 seconds, enough for any per-minute quota.
 - A requested delay **longer** than that ceiling (a daily quota, say) fails the request at once, and every other caller fails fast until the pause has fully passed.
