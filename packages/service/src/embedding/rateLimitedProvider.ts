@@ -184,7 +184,7 @@ export class RateLimitedEmbeddingProvider implements EmbeddingProvider {
     // Each internal provider retry is a request too: it takes its items
     // and waits out any pause, like the first.
     const beforeRetry = () => this.acquire(texts.length, deadlineMs, lastError);
-    for (let attempt = 1; attempt <= attempts; attempt++) {
+    for (let attempt = 1; ; attempt++) {
       await this.acquire(texts.length, deadlineMs, lastError);
       try {
         return await this.inner.embed(texts, { beforeRetry });
@@ -192,13 +192,14 @@ export class RateLimitedEmbeddingProvider implements EmbeddingProvider {
         if (!(error instanceof EmbeddingRateLimitError)) throw error;
         lastError = error;
         this.pauseFor(error, attempt, attempts);
+        if (attempt >= attempts) {
+          throw new EmbeddingUnavailableError(
+            `Embedding provider still rate-limited after ${String(attempts)} attempts: ${error.message}`,
+            { cause: error, retryAfterMs: this.pauseRemainingMs(Date.now()) },
+          );
+        }
       }
     }
-
-    throw new EmbeddingUnavailableError(
-      `Embedding provider still rate-limited after ${String(attempts)} attempts: ${lastError?.message ?? 'unknown error'}`,
-      { cause: lastError, retryAfterMs: this.pauseRemainingMs(Date.now()) },
-    );
   }
 
   /**
