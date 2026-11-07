@@ -23,7 +23,19 @@ What changes for an existing deployment, release by release. The [Changelog](../
 
 1. Stop the service, install `@karmaniverous/jeeves-watcher` 0.21.0 (it brings watcher-core 0.5.0; install without `--omit=optional`, see [Dependencies](#dependencies)), and start it. The config file needs no change: every new key has a default.
 2. Upgrade anything that uses the SDK to 0.3.0 at the same time ([SDK 0.3.0](#sdk-030)).
-3. Install OpenClaw plugin 0.18.0 and update every caller of the renamed tools in the same change.
+3. Install OpenClaw plugin 0.18.0 and update every caller of the renamed tools in the same change. With the OpenClaw CLI:
+
+   ```bash
+   openclaw plugins install npm:@karmaniverous/jeeves-watcher-openclaw@0.18.0 --pin --accept-capabilities --force
+   ```
+
+   `--force` confirms the npm source and replaces the installed plugin; without it a non-interactive install is cancelled (`Install cancelled; rerun with --force after reviewing the source.`). On a Jeeves box, use `jeeves install` with the flags your deployment uses (it runs the same command with `--force` and keeps the plugin config), from any folder:
+
+   ```bash
+   jeeves install --workspace <workspace> --config-root <configRoot> watcher@0.18.0
+   ```
+
+   Without `--workspace`, `jeeves install` takes the current folder as the workspace and writes its platform files (`AGENTS.md`, `SOUL.md`, `config/`) there. Add `--managed` and `--watcher-api-url <url>` if your deployment installs with them.
 
 ### First start
 
@@ -31,9 +43,11 @@ The first 0.21.0 start does more than a restart:
 
 - **The start walk** of each root (parcel's initial scan) enqueues every matched file; the processor skips unchanged content, so only new or changed files are embedded.
 - **Files over a processing ceiling** have their points deleted and a `too_large` issue recorded ([Processing at scale](#processing-at-scale)).
+- **Files that no longer extract** (for example front matter with `!!float 1`) have their points deleted and an `extraction_error` issue recorded ([Front matter](#front-matter)).
 - **The index check** deletes the documents of files deleted while the service was down, including under earlier versions, unless more than 10% (once more than 20 are missing) or more than 1,000 of a root's documents are missing ([Change source](#change-source-and-reconciliation)).
 - **Three system payload indexes** (`chunk_index`, `file_path`, `matched_rules`) are built in the background; until they are `ready`, metadata writes address chunks by ID and the facet counts route answers `503` ([Facets](#facets)).
 - **Each root's repair** removes a stale `index.lock`, sweeps git temp files and finishes an interrupted untrack ([Version control](#version-control)).
+- **Tracked files over `vcs.maxFileBytes`** are untracked, in a commit of their own, though they did not change: the start walk enqueues them ([Version control](#version-control)).
 
 `GET /status` shows each of these: `health.indexCheck`, `health.collection.systemIndexes`, `health.changeSource` and `GET /issues` (`too_large`).
 
@@ -70,7 +84,7 @@ See [Configuration](./configuration.md) for each.
 
 ### Version control
 
-- **`vcs.maxFileBytes` (default 100,000,000 bytes) caps what git versions.** A new file over the cap is not staged. A tracked file already over it is untracked, in a commit of its own just before the batch's commit, the next time it changes: its history ends at its last committed version and the file stays on disk. Set `0` to keep the old behaviour. See [File Size Cap](./version-control.md#file-size-cap).
+- **`vcs.maxFileBytes` (default 100,000,000 bytes) caps what git versions.** A new file over the cap is not staged. A tracked file already over it is untracked, in a commit of its own just before the batch's commit, at the first 0.21.0 start (the start walk enqueues every file) or, for a file that grows past the cap later, the next time it changes: its history ends at its last committed version and the file stays on disk. The log names each one (`Tracked file is over vcs.maxFileBytes: untracking it`). Set `0` to keep the old behaviour. See [File Size Cap](./version-control.md#file-size-cap).
 - **Folder rules over tracked files no longer trip the breaker.** Tracked files are staged with `git add -u` and new files with plain `git add`, so a folder rule in a `.gitignore` or `.git/info/exclude` over files git still tracks no longer fails every batch (0.20.0 tripped the circuit breaker). Those files keep being versioned until they are untracked.
 - **Paths are passed to git literally.** 0.20.0 could stage `a1.md` when given `a[1].md`; 0.21.0 cannot. Files wrongly staged that way stay tracked until excluded.
 - **Squash rewrites history with plumbing only.** It no longer needs a clean working tree or a free `index.lock`, never checks out, resets or cherry-picks, and keeps files untracked by `/vcs/exclude` or the size cap on disk with their newest content. Retained commits keep their messages, identities and dates byte for byte; a commit recorded with a non-UTF-8 `encoding` header (`i18n.commitEncoding`) is rebuilt with `git hash-object`, so its header and message bytes survive too (its signature, like every rewritten commit's, is dropped). It still refuses while a merge, rebase, cherry-pick or revert is in progress.
@@ -102,9 +116,22 @@ See [Configuration](./configuration.md) for each.
   node scripts/corpus-survey.mjs --url http://localhost:6333 --collection <collectionName>
   ```
 
+  The survey reads the index, so it lists only files that have points. A watched file over `processing.maxFileBytes` that has none (a scanned PDF with no text, say) loses nothing from search, but it gets a `too_large` issue at the first start too. To list those as well, find the files on disk over the ceiling (64 MiB by default; use your value) under each watch root:
+
+  ```bash
+  find <root> -path '*/.git' -prune -o -type f -size +67108864c -print
+  ```
+
+  ```powershell
+  Get-ChildItem -LiteralPath '<root>' -Recurse -File -Force | Where-Object { $_.Length -gt 67108864 -and $_.FullName -notmatch '[\\/]\.git[\\/]' } | ForEach-Object FullName
+  ```
+
+  Those the watcher matches (its globs, not `watch.ignored` or gitignored) and the survey does not list are the files with no points.
+
   Add `--api-key <key>` for a secured Qdrant, `--max-chunks`, `--max-file-bytes` or `--max-text-bytes` to try other ceilings, and `--json <file>` for the full table. To keep such a file indexed, raise the ceiling in config before upgrading; after a raise, `POST /reindex` with scope `issues` brings back the documents that were too large. Source documents get the chunk and text ceilings too (their 10 MiB response cap is unchanged) and answer `failed` with code `too_large`. On the host the defaults were derived from (780,178 points, 332,481 files) only the single largest file, at 6,185 chunks, was over.
 
 - **`GET /issues` and `GET /config/schema`** can show the new issue type `too_large` (an approved wire departure).
+- **An indexed file that fails extraction leaves search.** When a file that has points can no longer be parsed, extracted or run through its rules, its points are deleted (under its document lock, like any delete) and the `extraction_error` issue is recorded; 0.20.0 kept its old points, frozen at the last content that read. A system error reading the file (locked by another program, gone mid-save, a dropped share) or a Node error (an enrichment store read that fails, an extractor that does not load) is not such a failure: the points stay, as in 0.20.0. The enrichment is kept, and the file is indexed again once it reads (its next change, or `POST /reindex` with scope `issues`).
 - **Large documents no longer hold every vector in memory.** Embeddings are written one window of 100 chunks at a time. Chunk 0 is written first as a claim that counts the highest chunk number either version reaches and has no content hash, so a document whose write fails part-way is never treated as unchanged and a delete still reaches every chunk written. Chunk 0 gets its content hash and final count only after the stale chunks are deleted.
 - **One document is processed at a time.** Every process, delete, move, ceiling deletion and metadata change of a document (including each entry POST /rebuild-metadata writes) holds an in-process lock on it, so two runs of the same file can no longer interleave and leave chunks behind. `POST /metadata`, `POST /rules/reapply` and `POST /documents/delete` wait at most 10 s for each document's lock, then answer `503 not_available` with `Retry-After: 10`. A single-document request has then changed nothing; a multi-document request keeps the documents it already changed. Retry after the delay. The CLI's timeout already allows for the wait.
 - **A `file_path` keyword index is created on every collection** in the background at startup (startup does not wait; on a large collection the build can take minutes). `GET /status` reports it under `health.collection.systemIndexes` (`building`, `ready`, `conflict` or `failed`). While it builds, or when `file_path` already has an index of another type (`conflict`: the existing index is left alone), metadata writes address each chunk by ID as before; once it is ready they are one write by filter.
@@ -112,8 +139,8 @@ See [Configuration](./configuration.md) for each.
 
 ### Front matter
 
-- **Markdown front matter is parsed with `yaml`** (js-yaml is gone). Plain values, quoted strings, dates, lists and maps parse as before, and so do the `!!str`, `!!int`, `!!bool`, `!!null`, `!!map` and `!!seq` tags.
-- **`!!float` on a value not written as a float is an extraction error.** `rank: !!float 1` and `rank: !!float "1"` were indexed by 0.20.0 (as `1`); 0.21.0 records an `extraction_error` issue for the file and leaves it out of search. `!!float 1.5` and `!!float 1.0` still parse. Before upgrading, find such lines and write the value as a float (`1.0`) or drop the tag:
+- **Markdown front matter is parsed with `yaml`** (js-yaml no longer parses it; it still writes the front matter of rendered documents). Plain values, quoted strings, dates, lists and maps parse as before, and so do the `!!str`, `!!int`, `!!bool`, `!!null`, `!!map` and `!!seq` tags.
+- **`!!float` on a value not written as a float is an extraction error.** `rank: !!float 1` and `rank: !!float "1"` were indexed by 0.20.0 (as `1`); 0.21.0 records an `extraction_error` issue for the file and leaves it out of search. A file 0.20.0 already indexed has its points deleted when 0.21.0 first processes it (at the first start, since the start walk enqueues every file), so stale content never stays searchable; fixed, it is indexed again at its next change. `!!float 1.5` and `!!float 1.0` still parse. Before upgrading, find such lines and write the value as a float (`1.0`) or drop the tag:
 
   ```bash
   grep -rnE $'!!float[[:space:]]+["\']?[+-]?[0-9]+["\']?([],}[:space:]]|$)' --include='*.md' <root>
@@ -239,7 +266,7 @@ See [Configuration](./configuration.md) for each.
 ### Dependencies
 
 - **unpdf 2** extracts PDF text. Indexed text is unchanged. unpdf 2 declares Node.js 24 or later, which the new Node floor covers.
-- **`@parcel/watcher` 2.6.0** (pinned exactly) is a new dependency with prebuilt native binaries as optional dependencies; install without `--omit=optional`. Its build-from-source install script stays off.
+- **`@parcel/watcher` 2.6.0** (pinned exactly) is a new dependency with prebuilt native binaries as optional dependencies; install without `--omit=optional`. Its build-from-source install script stays off. npm 11.19 and later warn about it on install (`install-scripts ... @parcel/watcher@2.6.0 (install: node scripts/build-from-source.js) not yet covered by allowScripts`): that is expected, and the prebuilt binary is used. Do not allow the script.
 - chokidar stays on major 5.
 - **`@karmaniverous/jeeves` 0.9.0** makes `fastify` (types) and `zod-openapi` (OpenAPI generation) optional peers and drops `fastify-type-provider-zod`. The service depends on `fastify` 5 itself, so a service install is unchanged; an SDK-only install no longer pulls in either.
 - **Front matter** is parsed by `yaml` instead of js-yaml ([Front matter](#front-matter)).
@@ -290,7 +317,7 @@ Stop the service and reinstall 0.20.0 (`npm install -g @karmaniverous/jeeves-wat
 
    For each file listed (files a `.gitignore` already ignores are safe), either set `vcs.enabled: false` for 0.20.0, or move the file out of the watched root (or keep it under the cap) for as long as 0.20.0 runs.
 
-3. **Exclude patterns.** 0.21.0 writes VCS-only exclusions to `<root>/.git/info/exclude`. 0.20.0 has no `check-ignore` filter, so an active pattern there makes its batches fail again (and trips the breaker), and its `POST /vcs/exclude` `remove` looks only in `.gitignore` files. Move each pattern into the root `.gitignore` or delete it. The lines are root-anchored, so they mean the same in the root `.gitignore`, but there they also drop their files from **search** under 0.20.0: delete rather than move any pattern whose files must stay searchable.
+3. **Exclude patterns.** 0.21.0 writes VCS-only exclusions to `<root>/.git/info/exclude`. 0.20.0 has no `check-ignore` filter, so an active pattern there makes its batches fail again (and trips the breaker), and its `POST /vcs/exclude` `remove` looks only in `.gitignore` files. Move each pattern into the root `.gitignore` or delete it. The lines are root-anchored, so they mean the same in the root `.gitignore`, but there they also drop their files from **search** under 0.20.0: delete rather than move any pattern whose files must stay searchable. 0.20.0 only stops indexing those files; their existing points stay in search until a `prune` reindex (`POST /reindex` with scope `prune`, after a `dryRun`), so run one once 0.20.0 is up if you moved any pattern.
 
    ```bash
    cd <root>
@@ -316,11 +343,12 @@ Stop the service and reinstall 0.20.0 (`npm install -g @karmaniverous/jeeves-wat
 
 4. **Logs.** 0.20.0 writes the plain `logging.file` again; archive the rotated `<name>.<yyyy-MM-dd>.<n>.<ext>` files and point log tailing back at the plain file.
 
-5. **Plugin and tool names.** Install plugin 0.17.0 with the service (`openclaw plugins install npm:@karmaniverous/jeeves-watcher-openclaw@0.17.0 --pin --accept-capabilities`, or `jeeves install watcher` pinned to it). It brings back the 0.17.0 tool names, so revert every allow-list, prompt, skill and script edit made for the [renames](#openclaw-plugin-0180).
+5. **Plugin and tool names.** Install plugin 0.17.0 with the service, the same way as in [Upgrade order](#upgrade-order) step 3: `openclaw plugins install npm:@karmaniverous/jeeves-watcher-openclaw@0.17.0 --pin --accept-capabilities --force` (without `--force` a non-interactive install is cancelled), or `jeeves install --workspace <workspace> --config-root <configRoot> watcher@0.17.0` with your deployment's flags (without `--workspace` it writes platform files into the current folder). It brings back the 0.17.0 tool names, so revert every allow-list, prompt, skill and script edit made for the [renames](#openclaw-plugin-0180).
 
 6. **Nothing else needs action.**
    - **Config:** the new keys can stay in the config file: 0.20.0 strips unknown keys on load (and watches with chokidar). A `restart.json` that a Windows exit for a restart left in the state directory is ignored by 0.20.0 and can be deleted.
    - **System indexes** (`chunk_index`, `file_path`, `matched_rules`) are harmless to 0.20.0.
    - **Documents removed as `too_large`**, and files whose write failed, are processed again by 0.20.0's initial scan.
+   - **Issues 0.21.0 recorded stay listed** in 0.20.0's `GET /issues`, `too_large` included, until their file is processed again. An entry for a file since moved out of the root (say, an over-cap file from step 2) is stale and can be ignored.
    - **The SDK** goes back to 0.2.0 with the service: SDK and service versions move together.
    - **Windows:** 0.20.0 never exits for a restart, so the NSSM restart setting needs no change.

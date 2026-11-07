@@ -153,13 +153,19 @@ export async function indexDocument(
  *
  * @param vectorStore - The vector store.
  * @param identity - The document identity.
+ * @param chunk0 - Chunk 0's payload when the caller has read it already;
+ *   read here when omitted.
  * @returns The number of point IDs deleted.
  */
 export async function deleteDocumentPoints(
   vectorStore: VectorStore,
   identity: DocumentIdentity,
+  chunk0?: Awaited<ReturnType<VectorStore['getPayload']>>,
 ): Promise<number> {
-  const existing = await vectorStore.getPayload(documentPointId(identity, 0));
+  const existing =
+    chunk0 === undefined
+      ? await vectorStore.getPayload(documentPointId(identity, 0))
+      : chunk0;
   const ids = documentChunkIds(identity, getChunkCount(existing));
   await vectorStore.delete(ids);
   return ids.length;
