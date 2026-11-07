@@ -2,6 +2,30 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.21.0] - 2026-11-07
+
+### 🚀 Features
+
+- *(service)* Delete an indexed file's points when it fails extraction (D201)
+
+### 🐛 Bug Fixes
+
+- *(service)* Keep an indexed file's points on a system read error (D201 review)
+- *(service)* Keep points on Node ERR_ errors; prove it through the real FileResolver (D201 review 2)
+- *(service)* A file over 2 GiB is a content failure; Node-error wording in every guide (D201 review 3)
+
+### 💼 Other
+
+- Updated core
+
+### 📚 Documentation
+
+- RC guide fixes F1-F4, F6, F7 and an accurate over-cap log line (D201)
+
+### 🧪 Testing
+
+- *(service)* Judge the slow-copy test only on files whose premise held (D201)
+- *(service)* Fix three desktop-load flakes and run git/Qdrant-bound tests in their own io project
 ## [0.21.0-0] - 2026-11-06
 
 ### 🚀 Features
@@ -302,6 +326,7 @@ This reverts commit b96160f02f7b950f3e57d5bc8d436dde0fd54d37.
 - *(service)* Drop unused facet type re-exports (knip)
 - *(service)* Index-check:cost measures the index check on a throwaway copy of a live collection (D197)
 - *(service)* Index-check:cost census in its own module, under 300 lines (review #301)
+- Release @karmaniverous/jeeves-watcher v0.21.0-0
 
 ### ◀️ Revert
 
