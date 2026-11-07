@@ -66,13 +66,11 @@ describe.skipIf(!qdrantAvailable())('Streamed write (requires Qdrant)', () => {
     await rm(watchDir, { recursive: true, force: true });
   });
 
+  /** Chunk indexes below `upTo` with a point, in one batched retrieve. */
   async function present(file: string, upTo: number): Promise<number[]> {
-    const payloads = await Promise.all(
-      Array.from({ length: upTo }, (_, i) =>
-        harness.vectorStore.getPayload(pointId(file, i)),
-      ),
-    );
-    return payloads.flatMap((p, i) => (p === null ? [] : [i]));
+    const ids = Array.from({ length: upTo }, (_, i) => pointId(file, i));
+    const found = new Set(await harness.vectorStore.existingIds(ids));
+    return ids.flatMap((id, i) => (found.has(id) ? [i] : []));
   }
 
   it('a new file failing mid-stream is a claim, and an unlink deletes every written point', async () => {
