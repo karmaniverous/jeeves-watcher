@@ -189,18 +189,29 @@ describe('vcs exclude', () => {
     expect(body()).toEqual({ glob: '/r/drafts/**' });
   });
 
-  it('prints the server code and message of a 409, and exits 1', async () => {
-    mockJsonResponse(
-      {
-        error: 'Confirmation required',
-        code: 'confirm_required',
-        message: '150 files would be untracked',
-      },
-      409,
-    );
+  it('exits 1 on a confirmRequired reply, telling the user to confirm (D204 (5))', async () => {
+    mockJsonResponse({ confirmRequired: true, untracked: 150 });
     await run('exclude', '/r/**');
     expect(consoleErrorSpy).toHaveBeenCalledWith(
-      'confirm_required: Confirmation required: 150 files would be untracked',
+      'Not excluded: 150 files would be untracked. Repeat with --confirm.',
+    );
+    expect(consoleLogSpy).not.toHaveBeenCalled();
+    expect(process.exitCode).toBe(1);
+  });
+
+  it('prints the server code and message of an error, and exits 1', async () => {
+    mockJsonResponse(
+      {
+        statusCode: 404,
+        code: 'WATCHER_NOT_FOUND',
+        error: 'Not Found',
+        message: 'The pattern is not excluded on this root.',
+      },
+      404,
+    );
+    await run('exclude', '/r/**', '--remove');
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      'WATCHER_NOT_FOUND: The pattern is not excluded on this root.',
     );
     expect(process.exitCode).toBe(1);
   });

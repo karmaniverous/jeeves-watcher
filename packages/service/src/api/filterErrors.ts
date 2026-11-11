@@ -1,65 +1,17 @@
 /**
- * @module api/requestError
- * Client-input errors thrown by route handlers (`RequestError`, sent by `wrapCatalogHandler` with its code and the code's status) and the mapping of Qdrant request rejections (bad filters) to `400 invalid_request`. Pure.
+ * @module api/filterErrors
+ * Maps a Qdrant rejection of a caller's filter (the REST client's `ApiError`, status 400/422 with response data) to `FilterRejected` (`400 WATCHER_INVALID_REQUEST`), keeping Qdrant's reason, capped (D204 (3)). jeeves masks any other Qdrant error as a 500, so every call a caller's filter reaches stays inside `withFilterErrors`, which logs the Qdrant error at `debug`.
  */
 
-import {
-  API_ERROR_STATUS,
-  type ApiErrorCode,
-} from '@karmaniverous/jeeves-watcher-core';
+import type pino from 'pino';
 
-import type { ApiErrorExtras } from './sendError';
-
-/**
- * An error caused by the request, not by the service: `wrapCatalogHandler` sends it
- * as `{ code, error: message, ...extras }` with the status core assigns to
- * its code (`API_ERROR_STATUS`).
- */
-export class RequestError extends Error {
-  /** HTTP status to send (from the code). */
-  readonly status: number;
-  /** Machine-readable code. */
-  readonly code: ApiErrorCode;
-  /** Optional `message` and `details` sent with the error. */
-  readonly extras: ApiErrorExtras;
-
-  /**
-   * @param code - Machine-readable code (decides the status).
-   * @param message - Human-readable text, sent as `error`.
-   * @param extras - Optional `message` and `details`.
-   */
-  constructor(
-    code: ApiErrorCode,
-    message: string,
-    extras: ApiErrorExtras = {},
-  ) {
-    super(message);
-    this.name = 'RequestError';
-    this.status = API_ERROR_STATUS[code];
-    this.code = code;
-    this.extras = extras;
-  }
-}
-
-/**
- * A `400 invalid_request` error.
- *
- * @param message - What is wrong with the request (sent as `error`).
- * @param extras - Optional `message` and `details`.
- * @returns The error (to throw).
- */
-export function invalidRequest(
-  message: string,
-  extras?: ApiErrorExtras,
-): RequestError {
-  return new RequestError('invalid_request', message, extras);
-}
+import { capArg, FilterRejected } from './errors';
 
 /** Statuses with which Qdrant rejects a malformed request (e.g. a bad filter). */
 const QDRANT_REJECTION_STATUSES = new Set([400, 422]);
 
-/** Text sent as `error` when Qdrant rejects a filter. */
-export const INVALID_FILTER = 'Invalid filter';
+/** The reason sent when Qdrant gives none. */
+export const NO_QDRANT_REASON = 'no reason given';
 
 /**
  * Qdrant's own explanation of a rejection (`status.error` of its response
@@ -96,29 +48,42 @@ export function isQdrantRejection(
 }
 
 /**
- * Map a Qdrant rejection of a caller-supplied filter to
- * `400 invalid_request` (`error: 'Invalid filter'`, Qdrant's reason as
- * `message`); any other error is returned unchanged. Pure.
+ * Map a Qdrant rejection of a caller-supplied filter to `FilterRejected`
+ * with Qdrant's reason (capped); any other error is returned unchanged.
+ * Pure.
  *
  * @param error - Anything thrown by a vector store call.
- * @returns A {@link RequestError}, or the original error.
+ * @returns A `FilterRejected`, or the original error.
  */
 export function toFilterError(error: unknown): unknown {
   if (!isQdrantRejection(error)) return error;
-  return invalidRequest(INVALID_FILTER, { message: qdrantReason(error.data) });
+  return new FilterRejected(
+    capArg(qdrantReason(error.data) ?? NO_QDRANT_REASON),
+  );
 }
+
+/** Where a rejection's Qdrant error object is logged. */
+type FilterErrorLogger = Pick<pino.Logger, 'debug'>;
 
 /**
  * Await a vector store call that uses a caller-supplied filter, turning a
- * Qdrant rejection into `400 invalid_request` (see {@link toFilterError}).
+ * Qdrant rejection into `FilterRejected` (see {@link toFilterError}); the
+ * Qdrant error object is logged at `debug` (Design 2, message rule 3).
  *
  * @param operation - The pending vector store call.
+ * @param logger - Where the rejection is logged.
  * @returns Its result.
  */
-export async function withFilterErrors<T>(operation: Promise<T>): Promise<T> {
+export async function withFilterErrors<T>(
+  operation: Promise<T>,
+  logger: FilterErrorLogger,
+): Promise<T> {
   try {
     return await operation;
   } catch (error) {
-    throw toFilterError(error);
+    const mapped = toFilterError(error);
+    if (mapped !== error)
+      logger.debug({ err: error }, 'The vector store rejected a filter');
+    throw mapped;
   }
 }

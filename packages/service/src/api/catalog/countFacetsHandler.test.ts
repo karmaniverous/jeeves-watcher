@@ -69,14 +69,16 @@ describe('POST /search/facets/counts', () => {
     );
   });
 
-  it('answers 503 not_available until chunk_index is ready', async () => {
+  it('answers 503 WATCHER_NOT_AVAILABLE until chunk_index is ready', async () => {
     const store = fakeStore({}, { chunk_index: 'building' });
     const { status, body } = await post(deps(store), { fields: ['tag'] });
     expect(status).toBe(503);
-    expect(body).toMatchObject({
-      code: 'not_available',
-      error: 'System index chunk_index is not ready',
-      details: { index: 'chunk_index', state: 'building' },
+    expect(body).toEqual({
+      statusCode: 503,
+      code: 'WATCHER_NOT_AVAILABLE',
+      error: 'Service Unavailable',
+      message:
+        'Facet counts need the chunk_index system index, which is not ready yet; retry shortly.',
     });
     expect(store.payloadIndexTypes).not.toHaveBeenCalled();
   });
@@ -89,17 +91,22 @@ describe('POST /search/facets/counts', () => {
     const scoped = await post(deps(store), { rules: ['a'], fields: ['tag'] });
     expect(scoped.status).toBe(503);
     expect(scoped.body).toMatchObject({
-      error: 'System index matched_rules is not ready',
+      message:
+        'Facet counts need the matched_rules system index, which is not ready yet; retry shortly.',
     });
     expect((await post(deps(store), { fields: ['tag'] })).status).toBe(200);
   });
 
-  it('reports an index that never started as not started', async () => {
+  it('logs the state of an index that never started', async () => {
+    const debug = vi.fn();
+    const logger = { ...pino({ level: 'silent' }), debug } as never;
     const store = fakeStore({}, {});
-    const { body } = await post(deps(store), { fields: ['tag'] });
-    expect(body).toMatchObject({
-      details: { index: 'chunk_index', state: null },
-    });
+    const { status } = await post(deps(store, { logger }), { fields: ['tag'] });
+    expect(status).toBe(503);
+    expect(debug).toHaveBeenCalledWith(
+      { index: 'chunk_index', state: null },
+      'countFacets: system index not ready',
+    );
   });
 
   it('answers 400 for an unknown rule before checking indexes', async () => {
@@ -110,8 +117,8 @@ describe('POST /search/facets/counts', () => {
     });
     expect(status).toBe(400);
     expect(body).toMatchObject({
-      code: 'invalid_request',
-      error: 'Unknown rule: ghost',
+      code: 'WATCHER_INVALID_REQUEST',
+      message: 'Unknown rule(s): ghost',
     });
   });
 
@@ -121,12 +128,12 @@ describe('POST /search/facets/counts', () => {
     });
     expect(status).toBe(400);
     expect(body).toMatchObject({
-      code: 'invalid_request',
-      error: 'No usable payload index for field: nope',
+      code: 'WATCHER_INVALID_REQUEST',
+      message: 'No usable payload index for field(s): nope',
     });
   });
 
-  it('answers 400 Invalid filter when Qdrant rejects the filter', async () => {
+  it('answers 400 FilterRejected when Qdrant rejects the filter', async () => {
     const rejection = Object.assign(new Error('Bad Request'), {
       status: 400,
       data: { status: { error: 'bad key' } },
@@ -136,7 +143,10 @@ describe('POST /search/facets/counts', () => {
     });
     const { status, body } = await post(deps(store), { fields: ['tag'] });
     expect(status).toBe(400);
-    expect(body).toMatchObject({ error: 'Invalid filter', message: 'bad key' });
+    expect(body).toMatchObject({
+      code: 'WATCHER_INVALID_REQUEST',
+      message: 'The vector store rejected the filter: bad key',
+    });
   });
 
   it('keeps the uiHints of healthy rules when another rule fails to resolve', async () => {

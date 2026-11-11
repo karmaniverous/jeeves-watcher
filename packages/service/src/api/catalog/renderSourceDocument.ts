@@ -1,78 +1,63 @@
 /**
  * @module api/catalog/renderSourceDocument
  * `POST /render { source }`, framework-free: looks up the stored designated
- * rule, retrieves the document through its callback and renders it, throwing
- * a `RequestError` for every documented failure. Used by the catalog
- * `render` handler (`api/catalog/renderHandler`), which answers every
- * source reply with `Cache-Control: no-cache`. Never writes points or
- * issues.
+ * rule, retrieves the document through its callback and renders it,
+ * throwing a `defineError` class for every documented failure and logging a
+ * render failure's message and details with the reference. Used by the
+ * catalog `render` handler (`api/catalog/renderHandler`). Never writes
+ * points or issues.
  */
 
 import {
-  type ApiErrorCode,
   issueTypeSchema,
   type RenderResponse,
 } from '@karmaniverous/jeeves-watcher-core';
+import type pino from 'pino';
 
 import type { SourceOperationsProvider } from '../../processor/SourceOperations';
-import { RequestError } from '../requestError';
-
-/**
- * Map a pipeline failure to its API code (the status follows from the
- * code). Pure.
- *
- * @param issueType - The failure's issue type.
- * @returns `source_unavailable`, `unsupported_content_type` or
- *   `pipeline_error`.
- */
-function renderFailureCode(issueType: string): ApiErrorCode {
-  if (issueType === 'source_unavailable') return 'source_unavailable';
-  if (issueType === 'unsupported_content_type') {
-    return 'unsupported_content_type';
-  }
-  return 'pipeline_error';
-}
+import {
+  renderFailureError,
+  SourceNotFound,
+  SourceNotIndexed,
+} from '../errors';
 
 /**
  * Render a source document.
  *
  * A processor without source support (adapted by `withoutSourceSupport`)
- * throws `503 not_available` from its source operations; an unexpected error
- * propagates to the caller.
+ * throws `SourcesNotSupported` from its source operations; an unexpected
+ * error propagates to the caller.
  *
- * - `404 source_not_indexed`: no stored point, so no designated rule is
- *   known.
- * - `404 source_not_found`: the callback answered 404.
- * - `502 source_unavailable`; `422 unsupported_content_type`;
- *   `422 pipeline_error` for other pipeline failures (`issueType` names the
- *   failure).
+ * - `404 WATCHER_SOURCE_NOT_INDEXED`: no stored point, so no designated
+ *   rule is known.
+ * - `404 WATCHER_SOURCE_NOT_FOUND`: the callback answered 404.
+ * - `502 WATCHER_SOURCE_UNAVAILABLE`; `422 WATCHER_UNSUPPORTED_CONTENT_TYPE`;
+ *   `422 WATCHER_PIPELINE_<TYPE>_ERROR` for other pipeline failures, by
+ *   issue type (D203 (2)). The failure's message and details are logged.
  * - Success: `{ renderAs, content, rules, metadata }`.
  *
  * @param processor - The document processor.
  * @param ref - The exact `<name>://<id>` reference.
+ * @param logger - Where a render failure is logged.
  * @returns The response body.
- * @throws {@link RequestError} for every documented failure.
  */
 export async function renderSourceDocument(
   processor: SourceOperationsProvider,
   ref: string,
+  logger: Pick<pino.Logger, 'warn'>,
 ): Promise<RenderResponse> {
   const ops = processor.sourceOperations();
   const rule = await ops.storedRule(ref);
-  if (rule === null) {
-    throw new RequestError('source_not_indexed', 'Source document not indexed');
-  }
+  if (rule === null) throw new SourceNotIndexed();
   const outcome = await ops.render(ref, rule);
-  if (outcome.kind === 'gone') {
-    throw new RequestError('source_not_found', 'Source document not found');
-  }
+  if (outcome.kind === 'gone') throw new SourceNotFound();
   if (outcome.kind === 'failed') {
     const { code: issue, message, details } = outcome.error;
-    const issueType = issueTypeSchema.safeParse(issue).data;
-    throw new RequestError(renderFailureCode(issue), message, {
-      details,
-      issueType,
-    });
+    logger.warn(
+      { source: ref, issueType: issue, message, details },
+      'Render failed',
+    );
+    throw renderFailureError(issueTypeSchema.safeParse(issue).data);
   }
   const { renderAs, content, rules, metadata } = outcome.result;
   return { renderAs, content, rules, metadata };

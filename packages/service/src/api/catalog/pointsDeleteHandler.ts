@@ -7,8 +7,8 @@ import type { CatalogHandler } from '@karmaniverous/jeeves/fastify';
 import type pino from 'pino';
 
 import type { VectorStore } from '../../vectorStore';
+import { withFilterErrors } from '../filterErrors';
 import { deletePointsByFilter } from '../pointDeletion';
-import { withFilterErrors } from '../requestError';
 import type { Entry } from './catalogEntry';
 import { wrapCatalogHandler } from './wrapCatalogHandler';
 
@@ -22,7 +22,7 @@ export interface CatalogPointsDeleteDeps {
 
 /**
  * Create the catalog handler for `POST /points/delete`. A filter Qdrant
- * rejects is `400 invalid_request`.
+ * rejects is `400 WATCHER_INVALID_REQUEST` (`FilterRejected`).
  *
  * @param deps - Handler dependencies.
  * @returns The catalog handler.
@@ -36,6 +36,7 @@ export function createCatalogPointsDeleteHandler(
 
       const deleted = await withFilterErrors(
         deletePointsByFilter(deps.vectorStore, filter),
+        deps.logger,
       );
 
       deps.logger.info(

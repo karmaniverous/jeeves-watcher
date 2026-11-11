@@ -170,17 +170,19 @@ String config values support `${ENV_VAR}` syntax, resolved at startup. A referen
 
 All VCS endpoints are prefixed with `/vcs`. See the [API Reference](./api-reference.md#vcs-endpoints) for the full endpoint documentation alongside the rest of the HTTP API.
 
-The routes are always registered. When `vcs.enabled` is `false`, `GET /vcs/status` reports `enabled: false` with no roots and every other route answers `404 not_found`. When `api.apiKey` is set they require `Authorization: Bearer <key>` like every other route except `GET /status`.
+The routes are always registered. When `vcs.enabled` is `false`, `GET /vcs/status` reports `enabled: false` with no roots and every other route answers `404 WATCHER_NOT_FOUND`. When `api.apiKey` is set they require `Authorization: Bearer <key>` like every other route except `GET /status`.
 
-Errors use the standard error body (`{ code, error }`, with the status derived from `code`):
+Errors use Fastify's standard error body (`{ statusCode, code?, error, message }`, v0.22.0+; see [Error Handling](./api-reference.md#error-handling)):
 
 | Status | `code` | When |
 | --- | --- | --- |
-| `400` | `invalid_request` | A required parameter is missing, or `/vcs/exclude` refused the pattern. |
-| `404` | `not_found` | The path or glob is outside every VCS-enabled root; `root` is not a VCS-enabled root; the file does not exist at the commit (`/vcs/show`); the pattern to remove is in neither `.git/info/exclude` nor its 0.20.0 `.gitignore` (`/vcs/exclude`). |
-| `409` | `confirm_required` | `/vcs/exclude` would untrack more than 100 files without `confirm: true`. |
-| `503` | `not_available` | `/vcs/exclude` waited 30 s for the root lock (`Retry-After: 30`). |
-| `500` | `internal_error` | An unexpected failure (logged; the response carries generic text, `message: "Internal server error"`). |
+| `400` | `FST_ERR_VALIDATION` | A required parameter is missing or has the wrong type. |
+| `400` | `WATCHER_INVALID_REQUEST` | `/vcs/exclude` refused the pattern (`The exclude glob is refused: <reason>`). |
+| `404` | `WATCHER_NOT_FOUND` | The path or glob is outside every VCS-enabled root; `root` is not a VCS-enabled root; the file does not exist at the commit (`/vcs/show`); the pattern to remove is in neither `.git/info/exclude` nor its 0.20.0 `.gitignore` (`/vcs/exclude`). |
+| `503` | `WATCHER_NOT_AVAILABLE` | `/vcs/exclude` waited 30 s for the root lock (`Retry-After: 30`; `Version control is busy on this root; retry after 30 s.`). |
+| `500` | none | An unexpected failure: the masked body, `message: "The server could not complete the request."`, the cause logged. |
+
+`/vcs/exclude` over the 100-file threshold without `confirm: true` is not an error: it answers `200 { "confirmRequired": true, "untracked": <n> }` (v0.22.0+; was `409 confirm_required`).
 
 Paths and globs are absolute. A glob is resolved to the root(s) it falls under and passed to git relative to that root as a pathspec, so git's wildcard rules apply: `*` also matches `/` (`docs/*.md` matches nested files too), while `docs/**/*.md` requires at least one subdirectory.
 
@@ -309,7 +311,7 @@ curl "http://localhost:1936/vcs/show?path=d:/documents/readme.md&commit=a1b2c3d"
 
 #### Response
 
-The file content as text, with a `Content-Type` chosen from the extension (`.txt`, `.md`, `.json`, `.xml`, `.html`, `.css`, `.js`, `.ts`, `.yaml`/`.yml`, `.csv`; anything else is `application/octet-stream`). The content is decoded as UTF-8, so binary files are not returned byte-for-byte. `404 not_found` when the file does not exist at that commit (or the commit does not exist).
+The file content as text, with a `Content-Type` chosen from the extension (`.txt`, `.md`, `.json`, `.xml`, `.html`, `.css`, `.js`, `.ts`, `.yaml`/`.yml`, `.csv`; anything else is `application/octet-stream`). The content is decoded as UTF-8, so binary files are not returned byte-for-byte. `404 WATCHER_NOT_FOUND` when the file does not exist at that commit (or the commit does not exist).
 
 ---
 
@@ -331,7 +333,7 @@ curl "http://localhost:1936/vcs/diff?glob=d:/documents/*.md&commit=a1b2c3d&commi
 
 #### Response
 
-Unified diff text (`Content-Type: text/plain`) of `git diff <commit>..<commitEnd>`, concatenated across the roots the glob covers. An unknown commit (or a range with no changes) yields an empty `200` body, not an error. A glob outside every root is `404 not_found`.
+Unified diff text (`Content-Type: text/plain`) of `git diff <commit>..<commitEnd>`, concatenated across the roots the glob covers. An unknown commit (or a range with no changes) yields an empty `200` body, not an error. A glob outside every root is `404 WATCHER_NOT_FOUND`.
 
 ---
 
@@ -435,7 +437,7 @@ curl -X POST http://localhost:1936/vcs/exclude \
 
 #### Behavior
 
-See [VCS-Only Exclusion](#vcs-only-exclusion). In short: the pattern is written root-anchored to `.git/info/exclude`, the tracked files it matches are untracked in one commit (pushed when the root has a remote), and the files stay on disk and in search. More than 100 files need `confirm: true` (else `409 confirm_required` with `untracked`, nothing written). The route waits at most 30 s for the root's git lock, then answers `503 not_available` with `Retry-After: 30`, nothing written. A newline, a leading `!` or `#`, braces and a pattern matching the whole root are `400`; so is a glob outside an explicit `root`. `remove` deletes the anchored line from `.git/info/exclude`, else the line 0.20.0 wrote in its locality `.gitignore`; untracked files are not re-added.
+See [VCS-Only Exclusion](#vcs-only-exclusion). In short: the pattern is written root-anchored to `.git/info/exclude`, the tracked files it matches are untracked in one commit (pushed when the root has a remote), and the files stay on disk and in search. More than 100 files need `confirm: true` (else `200 { confirmRequired: true, untracked }`, nothing written; v0.22.0+, was `409 confirm_required`). The route waits at most 30 s for the root's git lock, then answers `503 WATCHER_NOT_AVAILABLE` with `Retry-After: 30`, nothing written. A newline, a leading `!` or `#`, braces and a pattern matching the whole root are `400`; so is a glob outside an explicit `root`. `remove` deletes the anchored line from `.git/info/exclude`, else the line 0.20.0 wrote in its locality `.gitignore`; untracked files are not re-added.
 
 ---
 
@@ -471,7 +473,7 @@ curl "http://localhost:1936/vcs/check-exclusion?path=d:/documents/temp/scratch.t
 | `source` | `string?` | The file holding the rule, as git names it: `.git/info/exclude` for a VCS-only exclusion, or a `.gitignore` relative to the root. |
 | `line` | `number?` | The rule's 1-based line in `source` (unreleased). |
 
-A git failure other than "not ignored" answers `500 internal_error` (0.20.0 answered `excluded: false`).
+A git failure other than "not ignored" answers the masked `500` (no `code`; 0.20.0 answered `excluded: false`).
 
 ---
 

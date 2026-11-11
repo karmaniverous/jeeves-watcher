@@ -1,15 +1,16 @@
 /**
  * @module api/catalog/renderHandler.test
  * `createCatalogRenderHandler`: file renders (transformed/passthrough,
- * outside watch scope, missing, pipeline failure) and source renders
- * (success, not indexed, gone, failed) — every source reply carries
- * `Cache-Control: no-cache`.
+ * outside watch scope, missing, pipeline failure by issue type) and source
+ * renders (success with `Cache-Control: no-cache`; an error is a thrown
+ * class, with no other header).
  */
 
 import pino from 'pino';
 import { describe, expect, it, vi } from 'vitest';
 
 import { ProcessingFailure } from '../../processor/issueRecording';
+import { pipelineErrorCode } from '../errors';
 import { createCatalogRenderHandler } from './renderHandler';
 
 function input(body: Record<string, unknown>) {
@@ -78,13 +79,15 @@ describe('createCatalogRenderHandler', () => {
     const handler = createCatalogRenderHandler(deps());
 
     // 'docs/a.txt' is not matched by the watch config's '**/*.md'.
-    const result = await handler(input({ path: 'docs/a.txt' }), {} as never);
-
-    expect(result.status).toBe(403);
-    expect(result.body).toMatchObject({ code: 'path_not_watched' });
+    await expect(
+      handler(input({ path: 'docs/a.txt' }), {} as never),
+    ).rejects.toMatchObject({
+      statusCode: 403,
+      code: 'WATCHER_PATH_NOT_WATCHED',
+    });
   });
 
-  it('answers a missing file with 404 not_found', async () => {
+  it('answers a missing file with 404 WATCHER_NOT_FOUND', async () => {
     const handler = createCatalogRenderHandler(
       deps({
         renderFile: vi.fn().mockRejectedValue(
@@ -95,10 +98,13 @@ describe('createCatalogRenderHandler', () => {
       }),
     );
 
-    const result = await handler(input({ path: 'docs/a.md' }), {} as never);
-
-    expect(result.status).toBe(404);
-    expect(result.body).toMatchObject({ code: 'not_found' });
+    await expect(
+      handler(input({ path: 'docs/a.md' }), {} as never),
+    ).rejects.toMatchObject({
+      statusCode: 404,
+      code: 'WATCHER_NOT_FOUND',
+      message: 'The file or directory does not exist.',
+    });
   });
 
   it('answers a missing file reported only in the error message with 404', async () => {
@@ -112,12 +118,15 @@ describe('createCatalogRenderHandler', () => {
       }),
     );
 
-    const result = await handler(input({ path: 'docs/a.md' }), {} as never);
-
-    expect(result.status).toBe(404);
-    expect(result.body).toMatchObject({ code: 'not_found' });
+    await expect(
+      handler(input({ path: 'docs/a.md' }), {} as never),
+    ).rejects.toMatchObject({
+      statusCode: 404,
+      code: 'WATCHER_NOT_FOUND',
+      message: 'The file or directory does not exist.',
+    });
   });
-  it('answers a pipeline failure with 422 pipeline_error', async () => {
+  it('answers a pipeline failure with its 422 pipeline code, logging the failure', async () => {
     const handler = createCatalogRenderHandler(
       deps({
         renderFile: vi
@@ -128,12 +137,12 @@ describe('createCatalogRenderHandler', () => {
       }),
     );
 
-    const result = await handler(input({ path: 'docs/a.md' }), {} as never);
-
-    expect(result.status).toBe(422);
-    expect(result.body).toMatchObject({
-      code: 'pipeline_error',
-      issueType: 'extraction_error',
+    await expect(
+      handler(input({ path: 'docs/a.md' }), {} as never),
+    ).rejects.toMatchObject({
+      statusCode: 422,
+      code: 'WATCHER_PIPELINE_EXTRACTION_ERROR',
+      message: 'The document could not be extracted.',
     });
   });
 
@@ -145,16 +154,18 @@ describe('createCatalogRenderHandler', () => {
       'interpolation_error',
     ],
   ] as const)(
-    'tags a %s render failure with its issueType',
+    'sends a %s render failure as the pipeline code of %s',
     async (_label, error, issueType) => {
       const handler = createCatalogRenderHandler(
         deps({ renderFile: vi.fn().mockRejectedValue(error) }),
       );
 
-      const result = await handler(input({ path: 'docs/a.md' }), {} as never);
-
-      expect(result.status).toBe(422);
-      expect(result.body).toMatchObject({ code: 'pipeline_error', issueType });
+      await expect(
+        handler(input({ path: 'docs/a.md' }), {} as never),
+      ).rejects.toMatchObject({
+        statusCode: 422,
+        code: pipelineErrorCode(issueType),
+      });
     },
   );
 
@@ -191,7 +202,7 @@ describe('createCatalogRenderHandler', () => {
     });
   });
 
-  it('carries Cache-Control: no-cache on a source error reply too', async () => {
+  it('throws a source error as its class (no Cache-Control)', async () => {
     const handler = createCatalogRenderHandler(
       deps({
         sourceOperations: () => ({
@@ -201,13 +212,15 @@ describe('createCatalogRenderHandler', () => {
       }),
     );
 
-    const result = await handler(
+    const error = await handler(
       input({ source: 'app://chat/1' }),
       {} as never,
-    );
+    ).catch((e: unknown) => e);
 
-    expect(result.status).toBe(404);
-    expect(result.body).toMatchObject({ code: 'source_not_indexed' });
-    expect(result.headers).toEqual({ 'Cache-Control': 'no-cache' });
+    expect(error).toMatchObject({
+      statusCode: 404,
+      code: 'WATCHER_SOURCE_NOT_INDEXED',
+    });
+    expect(error).not.toHaveProperty('headers');
   });
 });

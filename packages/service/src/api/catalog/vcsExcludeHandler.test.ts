@@ -91,12 +91,9 @@ describe('POST /vcs/exclude', { timeout: 20_000 }, () => {
     expect(await readFile(join(rootA, '.gitignore'), 'utf8')).toBe('*.tmp\n');
   });
 
-  it.each([
-    [undefined, 'No .gitignore found at the expected location'],
-    ['*.tmp\n', 'Pattern not found in .gitignore'],
-  ])(
-    'answers 0.20.0 404 texts for a pattern to remove that is nowhere (.gitignore %j)',
-    async (gitignore, error) => {
+  it.each([[undefined], ['*.tmp\n']])(
+    'answers 404 ExclusionNotFound for a pattern to remove that is nowhere (.gitignore %j)',
+    async (gitignore) => {
       if (gitignore !== undefined) {
         await writeFile(join(rootA, '.gitignore'), gitignore, 'utf8');
       }
@@ -104,7 +101,12 @@ describe('POST /vcs/exclude', { timeout: 20_000 }, () => {
       const res = await exclude({ glob: rootA + '/*.log', remove: true });
 
       expect(res.statusCode).toBe(404);
-      expect(res.json()).toEqual({ code: 'not_found', error });
+      expect(res.json()).toEqual({
+        statusCode: 404,
+        code: 'WATCHER_NOT_FOUND',
+        error: 'Not Found',
+        message: 'The pattern is not excluded on this root.',
+      });
     },
   );
 
@@ -113,8 +115,10 @@ describe('POST /vcs/exclude', { timeout: 20_000 }, () => {
 
     expect(res.statusCode).toBe(400);
     expect(res.json()).toEqual({
-      code: 'invalid_request',
-      error: 'The glob matches the whole root',
+      statusCode: 400,
+      code: 'WATCHER_INVALID_REQUEST',
+      error: 'Bad Request',
+      message: 'The exclude glob is refused: The glob matches the whole root',
     });
     expect(await readExclude()).toBe('# git default\n');
   });
@@ -124,25 +128,31 @@ describe('POST /vcs/exclude', { timeout: 20_000 }, () => {
 
     expect(res.statusCode).toBe(400);
     expect(res.json()).toMatchObject({
-      code: 'invalid_request',
-      error: 'The glob resolves outside the root',
+      code: 'WATCHER_INVALID_REQUEST',
+      message:
+        'The exclude glob is refused: The glob resolves outside the root',
     });
   });
 
   it.each([
     [
       { glob: '/nonexistent/root/*.log' },
-      'Glob does not match any VCS-enabled watch root',
+      'No version-controlled watch root matches the path or glob.',
     ],
     [
       { glob: '*.log', root: '/nonexistent/root' },
-      'Root is not a VCS-enabled watch root',
+      'The named root is not a version-controlled watch root.',
     ],
-  ])('answers 404 for %j', async (payload, error) => {
+  ])('answers 404 for %j', async (payload, message) => {
     const res = await exclude(payload);
 
     expect(res.statusCode).toBe(404);
-    expect(res.json()).toEqual({ code: 'not_found', error });
+    expect(res.json()).toEqual({
+      statusCode: 404,
+      code: 'WATCHER_NOT_FOUND',
+      error: 'Not Found',
+      message,
+    });
   });
 
   it.each([
@@ -153,6 +163,6 @@ describe('POST /vcs/exclude', { timeout: 20_000 }, () => {
     const res = await exclude(payload);
 
     expect(res.statusCode).toBe(400);
-    expect(res.json()).toMatchObject({ code: 'invalid_request' });
+    expect(res.json()).toMatchObject({ code: 'FST_ERR_VALIDATION' });
   });
 });

@@ -3,13 +3,12 @@
  * Registers every `WATCHER_CATALOG` route in a child plugin, so
  * `createApiServer` stays synchronous (spec #281 D29), plus the open
  * `GET /openapi.json` route. Request validation comes from the catalog;
- * validation errors are `400 invalid_request` (`formatValidationError`). A
- * gated entry whose feature is off answers the not-found 404 an
- * unregistered route sends (`api/featureGates`).
+ * validation errors are jeeves's `400 FST_ERR_VALIDATION`. A gated entry
+ * whose feature is off throws the `RouteNotFound` an unregistered route
+ * throws (`api/featureGates`).
  */
 
 import {
-  type CatalogValidationIssue,
   registerCatalogRoutes,
   registerOpenApiRoute,
 } from '@karmaniverous/jeeves/fastify';
@@ -20,10 +19,10 @@ import {
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import type pino from 'pino';
 
+import { routeNotFound } from './apiHooks';
 import { OPENAPI_PATH } from './apiKeyAuth';
 import type { CreateCatalogHandlersOptions } from './catalog';
 import { createCatalogHandlers } from './catalog';
-import { notFoundBody } from './catalog/notFoundBody';
 import { disabledRoutes, routeKey } from './featureGates';
 
 /** Response validation mode of the catalog routes. */
@@ -37,25 +36,6 @@ export interface RegisterCatalogOptions {
   logger: pino.Logger;
   /** What a response that doesn't match its schema does. */
   responseValidation: CatalogResponseValidation;
-}
-
-/**
- * The `400 invalid_request` body for a request the catalog rejects: the
- * first issue's message as `error`, every issue as `details`. Pure.
- *
- * @param issues - Validation issues (never empty).
- * @returns The error body.
- */
-export function formatValidationError(issues: CatalogValidationIssue[]): {
-  code: 'invalid_request';
-  error: string;
-  details: CatalogValidationIssue[];
-} {
-  return {
-    code: 'invalid_request',
-    error: issues[0]?.message ?? 'Invalid request',
-    details: issues,
-  };
 }
 
 /** A `POST /config/apply` body before the catalog validates it. */
@@ -87,7 +67,7 @@ export function normalizeConfigApplyBody(body: unknown): unknown {
  * Inside the child plugin, two hooks run before a catalog handler:
  * - the feature gate (`onRequest`, after the root app's auth hook and
  *   before the body is parsed): a gated entry whose feature is off answers
- *   the exact not-found body an unregistered route sends, for any method
+ *   the exact not-found 404 an unregistered route sends, for any method
  *   and whatever the query or body (spec Design 3, D28). Version control is
  *   on exactly when the `/vcs/*` handlers have their dependencies;
  * - `preValidation`: `POST /config/apply` gets {@link normalizeConfigApplyBody},
@@ -110,13 +90,17 @@ export function registerCatalog(
   void app.register(async (child) => {
     child.addHook(
       'onRequest',
-      async (request: FastifyRequest, reply: FastifyReply) => {
+      (
+        request: FastifyRequest,
+        _reply: FastifyReply,
+        done: (error?: Error) => void,
+      ) => {
         const route = request.routeOptions.url ?? '';
-        if (disabled.has(routeKey(request.method, route))) {
-          return reply
-            .status(404)
-            .send(notFoundBody(request.method, request.url));
-        }
+        done(
+          disabled.has(routeKey(request.method, route))
+            ? routeNotFound(request)
+            : undefined,
+        );
       },
     );
     child.addHook(
@@ -137,7 +121,6 @@ export function registerCatalog(
       WATCHER_CATALOG,
       createCatalogHandlers(options.handlers),
       {
-        formatValidationError,
         responseValidation: options.responseValidation,
         logger: options.logger,
       },

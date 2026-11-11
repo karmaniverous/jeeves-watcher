@@ -3,8 +3,9 @@
  * Catalog handler for POST /render: runs a file (path) or a source document
  * (source) through the rule engine and returns rendered content. The
  * entry's body schema already guarantees exactly one of `path`/`source`.
- * Every reply for a source target carries `Cache-Control: no-cache`
- * (success and error alike).
+ * Every success for a source target carries `Cache-Control: no-cache`;
+ * errors are thrown `defineError` classes (jeeves sends no other header on
+ * an error, Design 2).
  */
 
 import type {
@@ -21,10 +22,10 @@ import type { WatchConfig } from '../../config/types';
 import type { WatcherProcessor } from '../../processor';
 import { ProcessingFailure } from '../../processor/issueRecording';
 import { isPathWatched } from '../../util/isPathWatched';
+import { PathNotFound, PathNotWatched, renderFailureError } from '../errors';
 import type { Entry } from './catalogEntry';
-import { errorResult } from './errorResult';
 import { renderSourceDocument } from './renderSourceDocument';
-import { catalogErrorFromThrown } from './wrapCatalogHandler';
+import { toCallerError } from './wrapCatalogHandler';
 
 /** Dependencies for the catalog `render` entry's handler. */
 export interface CatalogRenderDeps {
@@ -36,7 +37,7 @@ export interface CatalogRenderDeps {
   logger: pino.Logger;
 }
 
-/** Headers sent with every source-target reply (success or error). */
+/** Headers sent with every source-target success. */
 const NO_CACHE_HEADERS: ResponseHeaders = { 'Cache-Control': 'no-cache' };
 
 /** Whether an error (or its cause) is a missing-file error. */
@@ -53,11 +54,11 @@ function isMissingFile(error: unknown): boolean {
 /**
  * Create the catalog handler for `POST /render`.
  *
- * File renders: a path outside the watch scope is `403 path_not_watched`, a
- * missing file `404 not_found`, any other rendering failure
- * `422 pipeline_error` whose `issueType` names the failed stage. Failures
- * outside rendering are logged and answered with a generic
- * `500 internal_error`.
+ * File renders: a path outside the watch scope is
+ * `403 WATCHER_PATH_NOT_WATCHED`, a missing file `404 WATCHER_NOT_FOUND`,
+ * any other rendering failure `422 WATCHER_PIPELINE_<TYPE>_ERROR` by its
+ * issue type (logged with the failure). Failures outside rendering are
+ * rethrown: jeeves masks and logs them as a 500.
  *
  * @param deps - Handler dependencies.
  * @returns The catalog handler.
@@ -70,13 +71,14 @@ export function createCatalogRenderHandler(
 
     if (target.kind === 'source') {
       try {
-        const body = await renderSourceDocument(deps.processor, target.source);
+        const body = await renderSourceDocument(
+          deps.processor,
+          target.source,
+          deps.logger,
+        );
         return { status: 200, body, headers: NO_CACHE_HEADERS };
       } catch (error) {
-        return {
-          ...catalogErrorFromThrown(error, deps.logger, 'Render'),
-          headers: NO_CACHE_HEADERS,
-        };
+        throw toCallerError(error, deps.logger, 'Render');
       }
     }
 
@@ -89,7 +91,7 @@ export function createCatalogRenderHandler(
         watch.ignored,
       )
     ) {
-      return errorResult('path_not_watched', 'Path is outside watched scope');
+      throw new PathNotWatched();
     }
 
     try {
@@ -105,22 +107,19 @@ export function createCatalogRenderHandler(
         ? { status: 200, body }
         : { status: 200, body, headers: NO_CACHE_HEADERS };
     } catch (error) {
-      if (isMissingFile(error)) {
-        return errorResult('not_found', 'File not found');
-      }
+      if (isMissingFile(error)) throw new PathNotFound();
       // Everything renderFile runs is the extraction pipeline (stat,
-      // extract, rules, template): its failures are the documented
-      // `422 pipeline_error`, tagged `extraction_error` unless a stage
-      // already tagged them.
+      // extract, rules, template): its failures are the documented 422s,
+      // tagged `extraction_error` unless a stage already tagged them.
       const failure =
         error instanceof ProcessingFailure
           ? error
           : new ProcessingFailure('extraction_error', error);
-      deps.logger.warn({ filePath, err: failure }, 'Render failed');
-      return errorResult('pipeline_error', failure.message, {
-        details: failure.details,
-        issueType: failure.issueType,
-      });
+      deps.logger.warn(
+        { filePath, err: failure, details: failure.details },
+        'Render failed',
+      );
+      throw renderFailureError(failure.issueType);
     }
   };
 }

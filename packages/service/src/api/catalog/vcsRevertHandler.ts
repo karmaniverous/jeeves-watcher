@@ -28,11 +28,7 @@ export function createCatalogVcsRevertHandler(
     async (input) => {
       const { glob, commit, existingOnly } = input.body;
 
-      const resolved = requireGlobRoots(
-        deps.coordinator,
-        glob,
-        'Glob does not match any VCS-enabled watch root',
-      );
+      const resolved = requireGlobRoots(deps.coordinator, glob);
 
       const allFiles: string[] = [];
 

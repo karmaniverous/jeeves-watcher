@@ -241,14 +241,14 @@ Details:
 - `matched_rules` on a source point is always the designated rule; rule or enrichment metadata cannot override it.
 - Source documents never feed the values index behind [`GET /search/facets`](./api-reference.md#get-searchfacets) and the `values` of `GET /config`: those list values seen in files only.
 - `created_at` is kept from the existing chunk 0 when present, otherwise set to the processing time; `modified_at` is the time of the last write (a content or metadata change; an `unchanged` run leaves it alone). Business dates belong in rule metadata (as `updated_at` in the example).
-- Enrichment metadata set with `POST /metadata { source }` is validated against the stored designated rule's schema (`400 invalid_request` on a type mismatch), stored under the exact reference and merged on every later run, as for files. A reference with no stored point is `404 source_not_indexed` and nothing is stored; if Qdrant cannot be read the request fails with `500 internal_error` (never `404`).
+- Enrichment metadata set with `POST /metadata { source }` is validated against the stored designated rule's schema (`400 WATCHER_INVALID_REQUEST` on a type mismatch), stored under the exact reference and merged on every later run, as for files. A reference with no stored point is `404 WATCHER_SOURCE_NOT_INDEXED` and nothing is stored; if Qdrant cannot be read the request fails with the masked `500` (no `code`; never `404`).
 - Issues are keyed by the exact reference in `GET /issues`. A later successful run clears them.
 
 ---
 
 ## Notifications, Queuing and Coalescing
 
-`POST /documents` validates each notification synchronously and, by default, answers `202` with `accepted` and `rejected` after queuing the accepted references. A request with 0 or more than 100 documents, a missing or empty `rule`, or an unknown key fails as a whole with `400 invalid_request`; a bad reference, unconfigured source, unsafe id or unknown rule rejects only its own document (`invalid_reference`, `unknown_source`, `invalid_id`, `rule_missing`). Processing happens on an in-memory notify queue keyed by reference:
+`POST /documents` validates each notification synchronously and, by default, answers `202` with `accepted` and `rejected` after queuing the accepted references. A request with 0 or more than 100 documents, a missing or empty `rule`, or an unknown key fails as a whole with the request-validation `400 FST_ERR_VALIDATION`; a bad reference, unconfigured source, unsafe id or unknown rule rejects only its own document (`invalid_reference`, `unknown_source`, `invalid_id`, `rule_missing`). Processing happens on an in-memory notify queue keyed by reference:
 
 - A notification for a reference that is already **pending** is merged into it (the latest rule wins; the reference keeps its place in line).
 - A notification for a reference that is **in flight** marks it dirty: when the current run ends, the reference is queued (at the back) and processed exactly once more, however many notifications arrived meanwhile.
@@ -283,7 +283,7 @@ Every source run of a reindex goes through the notify queue: a reindex and a not
 
 A **config-triggered** reindex (`configWatch.reindex`) covers files only. To re-apply changed rules to source documents, call `POST /reindex` explicitly (`rules` or `full`).
 
-To remove source documents, use `POST /documents/delete` with exactly one of `sources` (1 to 1000 references; more is `400 invalid_request`) or `filter` (a Qdrant filter); other keys are rejected. The filter is always constrained to source points (non-empty `source`, no `file_path`), so it can never delete a file point, including a legacy file point carrying a rule-written `source`. A filter without any condition (`{}`, `{ "must": [] }`, ...) is rejected with `400 invalid_request` rather than deleting every source document, as is a filter Qdrant rejects. The response is `{ "deleted": <documents removed> }`. Enrichment metadata and issues are removed for the deleted references and, in the `sources` form, for every listed reference. A notification still queued for a deleted reference re-indexes it when it runs. See the [API Reference](./api-reference.md#post-documentsdelete).
+To remove source documents, use `POST /documents/delete` with exactly one of `sources` (1 to 1000 references; more is `400 FST_ERR_VALIDATION`) or `filter` (a Qdrant filter); other keys are rejected. The filter is always constrained to source points (non-empty `source`, no `file_path`), so it can never delete a file point, including a legacy file point carrying a rule-written `source`. A filter without any condition (`{}`, `{ "must": [] }`, ...) is rejected with `400 FST_ERR_VALIDATION` rather than deleting every source document, and a filter Qdrant rejects with `400 WATCHER_INVALID_REQUEST`. The response is `{ "deleted": <documents removed> }`. Enrichment metadata and issues are removed for the deleted references and, in the `sources` form, for every listed reference. A notification still queued for a deleted reference re-indexes it when it runs. See the [API Reference](./api-reference.md#post-documentsdelete).
 
 ---
 

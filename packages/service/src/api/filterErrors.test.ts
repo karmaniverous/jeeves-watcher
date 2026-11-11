@@ -1,45 +1,21 @@
 /**
- * @module api/requestError.test
- * RequestError carries status, code and extras; Qdrant 400/422 rejections (REST client ApiError shape) map to 400 invalid_request "Invalid filter" with Qdrant's reason, every other error passes through unchanged.
+ * @module api/filterErrors.test
+ * Qdrant 400/422 rejections (REST client ApiError shape) map to `FilterRejected` (`400 WATCHER_INVALID_REQUEST`) with Qdrant's reason, capped; the Qdrant error is logged at debug; every other error passes through unchanged.
  */
 
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
+import { FilterRejected, MESSAGE_ARG_MAX } from './errors';
 import {
-  INVALID_FILTER,
-  invalidRequest,
   isQdrantRejection,
-  RequestError,
+  NO_QDRANT_REASON,
   toFilterError,
   withFilterErrors,
-} from './requestError';
+} from './filterErrors';
 
 /** An error shaped like the Qdrant REST client's `ApiError`. */
 const qdrantError = (status: number, data: unknown = {}) =>
   Object.assign(new Error('Bad Request'), { status, data, url: 'u' });
-
-describe('RequestError', () => {
-  it('carries status, code, text and extras', () => {
-    const err = new RequestError('not_found', 'gone', { message: 'm' });
-    expect(err).toBeInstanceOf(Error);
-    expect(err).toMatchObject({
-      status: 404,
-      code: 'not_found',
-      message: 'gone',
-      extras: { message: 'm' },
-      name: 'RequestError',
-    });
-  });
-
-  it('invalidRequest is a 400 invalid_request', () => {
-    expect(invalidRequest('bad', { details: [1] })).toMatchObject({
-      status: 400,
-      code: 'invalid_request',
-      message: 'bad',
-      extras: { details: [1] },
-    });
-  });
-});
 
 describe('isQdrantRejection', () => {
   it.each([
@@ -60,22 +36,40 @@ describe('isQdrantRejection', () => {
 });
 
 describe('toFilterError', () => {
-  it("maps a rejection to 400 invalid_request with Qdrant's reason", () => {
+  it("maps a rejection to FilterRejected with Qdrant's reason", () => {
     const mapped = toFilterError(
       qdrantError(400, { status: { error: 'Format error in JSON body' } }),
     );
-    expect(mapped).toBeInstanceOf(RequestError);
+    expect(mapped).toBeInstanceOf(FilterRejected);
     expect(mapped).toMatchObject({
-      status: 400,
-      code: 'invalid_request',
-      message: INVALID_FILTER,
-      extras: { message: 'Format error in JSON body' },
+      statusCode: 400,
+      code: 'WATCHER_INVALID_REQUEST',
+      message:
+        'The vector store rejected the filter: Format error in JSON body',
     });
   });
 
-  it('omits the reason when Qdrant gives none', () => {
-    const mapped = toFilterError(qdrantError(400, 'not json')) as RequestError;
-    expect(mapped.extras.message).toBeUndefined();
+  it('caps a long reason', () => {
+    const mapped = toFilterError(
+      qdrantError(400, { status: { error: 'x'.repeat(1000) } }),
+    ) as Error;
+    const reason = mapped.message.replace(
+      'The vector store rejected the filter: ',
+      '',
+    );
+    expect(reason).toHaveLength(MESSAGE_ARG_MAX);
+    expect(reason.endsWith('…')).toBe(true);
+  });
+
+  it.each([
+    ['a non-object body', 'not json'],
+    ['a body without status', {}],
+    ['a status without error', { status: {} }],
+    ['an empty error', { status: { error: '' } }],
+  ])('says no reason was given for %s', (_label, data) => {
+    expect((toFilterError(qdrantError(422, data)) as Error).message).toBe(
+      `The vector store rejected the filter: ${NO_QDRANT_REASON}`,
+    );
   });
 
   it('passes any other error through', () => {
@@ -85,13 +79,32 @@ describe('toFilterError', () => {
 });
 
 describe('withFilterErrors', () => {
+  const logger = () => ({ debug: vi.fn() });
+
   it('resolves with the operation result', async () => {
-    await expect(withFilterErrors(Promise.resolve(3))).resolves.toBe(3);
+    await expect(withFilterErrors(Promise.resolve(3), logger())).resolves.toBe(
+      3,
+    );
   });
 
-  it('rejects with the mapped error', async () => {
+  it('rejects with the mapped error and logs the Qdrant error', async () => {
+    const log = logger();
+    const rejection = qdrantError(422);
     await expect(
-      withFilterErrors(Promise.reject(qdrantError(422))),
-    ).rejects.toBeInstanceOf(RequestError);
+      withFilterErrors(Promise.reject(rejection), log),
+    ).rejects.toBeInstanceOf(FilterRejected);
+    expect(log.debug).toHaveBeenCalledWith(
+      { err: rejection },
+      'The vector store rejected a filter',
+    );
+  });
+
+  it('rethrows any other error unchanged, unlogged', async () => {
+    const log = logger();
+    const other = new Error('down');
+    await expect(withFilterErrors(Promise.reject(other), log)).rejects.toBe(
+      other,
+    );
+    expect(log.debug).not.toHaveBeenCalled();
   });
 });

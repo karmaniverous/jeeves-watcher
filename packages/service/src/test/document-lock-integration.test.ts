@@ -109,7 +109,10 @@ describe.skipIf(!qdrantAvailable())(
       });
       expect(busy.statusCode).toBe(503);
       expect(busy.headers['retry-after']).toBe('10');
-      expect(busy.json()).toMatchObject({ code: 'not_available' });
+      expect(busy.json()).toMatchObject({
+        code: 'WATCHER_NOT_AVAILABLE',
+        message: 'The document is being processed; retry after 10 s.',
+      });
       const unchanged = await harness.vectorStore.getPayload(pointId(file, 0));
       expect(unchanged?.owner).toBeUndefined();
       expect(harness.enrichmentStore.get(file)).toBeNull();

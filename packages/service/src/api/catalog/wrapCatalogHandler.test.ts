@@ -1,19 +1,24 @@
 /**
  * @module api/catalog/wrapCatalogHandler.test
- * Behaviour of `wrapCatalogHandler` and `catalogErrorFromThrown`: success is
- * sent as `{status: 200, body, headers?}`; a thrown `RequestError` becomes
- * its code/status/extras (logged at `debug`); any other throw is logged at
- * `error` and becomes a generic `internal_error` (never leaking the error).
+ * Behaviour of `wrapCatalogHandler` and `toCallerError`: success is sent as
+ * `{status: 200, body, headers?}`; a lock timeout or an unavailable embedding
+ * provider becomes its `defineError` class with `Retry-After` (logged at
+ * `warn`); every other throw is rethrown unchanged, so jeeves masks it.
  */
 
 import type pino from 'pino';
 import { describe, expect, it, vi } from 'vitest';
 
-import { RequestError } from '../requestError';
+import { EmbeddingUnavailableError } from '../../embedding/rateLimitError';
+import { DocumentLockTimeoutError } from '../../processor/DocumentLocks';
+import { LockWaitTimeoutError } from '../../vcs/RootGitLock';
 import {
-  catalogErrorFromThrown,
-  wrapCatalogHandler,
-} from './wrapCatalogHandler';
+  DocumentBusy,
+  EmbeddingUnavailable,
+  ScanInProgress,
+  VcsBusy,
+} from '../errors';
+import { toCallerError, wrapCatalogHandler } from './wrapCatalogHandler';
 
 function mockLogger(): pino.Logger {
   return {
@@ -23,6 +28,8 @@ function mockLogger(): pino.Logger {
   } as unknown as pino.Logger;
 }
 
+const input = { params: {}, query: {}, body: {} };
+
 describe('wrapCatalogHandler', () => {
   it('sends a success body with status 200', async () => {
     const handler = wrapCatalogHandler(
@@ -30,11 +37,10 @@ describe('wrapCatalogHandler', () => {
       mockLogger(),
       'Test',
     );
-    const result = await handler(
-      { params: {}, query: {}, body: {} },
-      {} as never,
-    );
-    expect(result).toEqual({ status: 200, body: { ok: true } });
+    expect(await handler(input, {} as never)).toEqual({
+      status: 200,
+      body: { ok: true },
+    });
   });
 
   it('includes headers when the function returns them', async () => {
@@ -47,87 +53,101 @@ describe('wrapCatalogHandler', () => {
       mockLogger(),
       'Test',
     );
-    const result = await handler(
-      { params: {}, query: {}, body: {} },
-      {} as never,
-    );
-    expect(result).toEqual({
+    expect(await handler(input, {} as never)).toEqual({
       status: 200,
       body: { ok: true },
       headers: { 'Cache-Control': 'no-cache' },
     });
   });
 
-  it('maps a thrown RequestError to its code, status and extras', async () => {
-    const logger = mockLogger();
+  it('rethrows a thrown watcher class unchanged', async () => {
+    const error = new ScanInProgress();
     const handler = wrapCatalogHandler(
-      () => {
-        throw new RequestError('not_found', 'Nope', { message: 'detail' });
-      },
+      () => Promise.reject(error),
+      mockLogger(),
+      'Test',
+    );
+    await expect(handler(input, {} as never)).rejects.toBe(error);
+  });
+
+  it('rethrows an unexpected error unchanged, unlogged (jeeves logs it)', async () => {
+    const logger = mockLogger();
+    const error = new Error('/secret/path failed');
+    const handler = wrapCatalogHandler(
+      () => Promise.reject(error),
       logger,
       'Test',
     );
-    const result = await handler(
-      { params: {}, query: {}, body: {} },
-      {} as never,
-    );
-    expect(result).toEqual({
-      status: 404,
-      body: { code: 'not_found', error: 'Nope', message: 'detail' },
-    });
-    expect(logger.debug).toHaveBeenCalled();
+    await expect(handler(input, {} as never)).rejects.toBe(error);
     expect(logger.error).not.toHaveBeenCalled();
   });
 
-  it('maps an unexpected throw to a generic 500, logged but never sent', async () => {
-    const logger = mockLogger();
+  it('maps a document lock timeout on the way out', async () => {
     const handler = wrapCatalogHandler(
-      () => {
-        throw new Error('/secret/path failed');
-      },
-      logger,
+      () => Promise.reject(new DocumentLockTimeoutError('k', 'op', 10_000)),
+      mockLogger(),
       'Test',
     );
-    const result = await handler(
-      { params: {}, query: {}, body: {} },
-      {} as never,
+    await expect(handler(input, {} as never)).rejects.toBeInstanceOf(
+      DocumentBusy,
     );
-    expect(result).toEqual({
-      status: 500,
-      body: {
-        code: 'internal_error',
-        error: 'Internal Server Error',
-        message: 'Internal server error',
-      },
-    });
-    expect(logger.error).toHaveBeenCalled();
-    expect(JSON.stringify(result)).not.toContain('/secret/path');
   });
 });
 
-describe('catalogErrorFromThrown', () => {
-  it('reuses errorResult for a RequestError', () => {
+describe('toCallerError', () => {
+  it('maps a document lock timeout to DocumentBusy with Retry-After: 10', () => {
     const logger = mockLogger();
-    const result = catalogErrorFromThrown(
-      new RequestError('path_not_watched', 'Outside scope'),
+    const error = toCallerError(
+      new DocumentLockTimeoutError('file:a', 'render', 10_000),
       logger,
       'Render',
     );
-    expect(result).toEqual({
-      status: 403,
-      body: { code: 'path_not_watched', error: 'Outside scope' },
+    expect(error).toBeInstanceOf(DocumentBusy);
+    expect(error).toMatchObject({
+      statusCode: 503,
+      code: 'WATCHER_NOT_AVAILABLE',
+      message: 'The document is being processed; retry after 10 s.',
+      headers: { 'retry-after': '10' },
     });
+    expect(logger.warn).toHaveBeenCalledWith(
+      { route: 'Render', key: 'file:a', waitMs: 10_000 },
+      'Render gave up waiting for a document lock',
+    );
   });
 
-  it('logs unexpected errors at error level with a generic body', () => {
+  it('maps a root git lock timeout to VcsBusy with Retry-After: 30', () => {
     const logger = mockLogger();
-    const result = catalogErrorFromThrown(
-      new TypeError('boom'),
+    const error = toCallerError(
+      new LockWaitTimeoutError('/r', 'exclude', 30_000, 'commit'),
       logger,
-      'Scan',
+      'VcsExclude',
     );
-    expect(result.status).toBe(500);
-    expect(result.body['code']).toBe('internal_error');
-    expect(logger.error).toHaveBeenCalled();
+    expect(error).toBeInstanceOf(VcsBusy);
+    expect(error).toMatchObject({
+      statusCode: 503,
+      code: 'WATCHER_NOT_AVAILABLE',
+      message: 'Version control is busy on this root; retry after 30 s.',
+      headers: { 'retry-after': '30' },
+    });
+    expect(logger.warn).toHaveBeenCalled();
+  });
+
+  it('maps an unavailable embedding provider to EmbeddingUnavailable', () => {
+    const logger = mockLogger();
+    const error = toCallerError(
+      new EmbeddingUnavailableError('down', { retryAfterMs: 1500 }),
+      logger,
+      'Search',
+    );
+    expect(error).toBeInstanceOf(EmbeddingUnavailable);
+    expect(error).toMatchObject({ headers: { 'retry-after': '2' } });
+    expect(logger.warn).toHaveBeenCalled();
+  });
+
+  it('returns any other error unchanged, unlogged', () => {
+    const logger = mockLogger();
+    const error = new TypeError('boom');
+    expect(toCallerError(error, logger, 'Scan')).toBe(error);
+    expect(logger.warn).not.toHaveBeenCalled();
   });
 });

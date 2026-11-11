@@ -9,7 +9,7 @@ import { SCAN_DEFAULT_LIMIT } from '@karmaniverous/jeeves-watcher-core';
 import type pino from 'pino';
 
 import type { VectorStore } from '../../vectorStore';
-import { withFilterErrors } from '../requestError';
+import { withFilterErrors } from '../filterErrors';
 import type { Entry } from './catalogEntry';
 import { wrapCatalogHandler } from './wrapCatalogHandler';
 
@@ -23,7 +23,7 @@ export interface CatalogScanDeps {
 
 /**
  * Create the catalog handler for `POST /scan`. A filter Qdrant rejects is
- * `400 invalid_request` (`wrapCatalogHandler`).
+ * `400 WATCHER_INVALID_REQUEST` (`FilterRejected`, via `withFilterErrors`).
  *
  * @param deps - Vector store and logger.
  * @returns The catalog handler.
@@ -42,12 +42,16 @@ export function createCatalogScanHandler(
       } = input.body;
 
       if (countOnly) {
-        const count = await withFilterErrors(deps.vectorStore.count(filter));
+        const count = await withFilterErrors(
+          deps.vectorStore.count(filter),
+          deps.logger,
+        );
         return { body: { count } };
       }
 
       const result = await withFilterErrors(
         deps.vectorStore.scrollPage(filter, limit, cursor, fields),
+        deps.logger,
       );
 
       return {

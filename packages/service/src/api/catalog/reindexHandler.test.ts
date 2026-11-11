@@ -10,9 +10,9 @@ import type { JeevesWatcherConfig } from '../../config/types';
 import type { IssuesManager } from '../../issues';
 import type { DocumentProcessor } from '../../processor';
 import type { ValuesManager } from '../../values';
+import { PathNotFound, PathNotWatched } from '../errors';
 import { executeReindex, prepareReindex } from '../executeReindex';
 import { ReindexTracker } from '../ReindexTracker';
-import { RequestError } from '../requestError';
 import {
   type CatalogReindexDeps,
   createCatalogReindexHandler,
@@ -122,20 +122,23 @@ describe('createCatalogReindexHandler', () => {
     expect(mockedExecute).not.toHaveBeenCalled();
   });
 
-  it.each([
-    [
-      new RequestError('path_not_watched', 'Path is outside watch scope: x'),
-      403,
-    ],
-    [new RequestError('not_found', 'Path not found: x'), 404],
-  ])('answers an invalid path target with its 4xx', async (error, code) => {
-    mockedPrepare.mockRejectedValue(error);
-    const { status, sent } = await run(createDeps(), {
-      scope: 'path',
-      path: 'x',
+  it.each([new PathNotWatched(), new PathNotFound()])(
+    'rethrows an invalid path target (%s)',
+    async (error) => {
+      mockedPrepare.mockRejectedValue(error);
+      await expect(
+        run(createDeps(), { scope: 'path', path: 'x' }),
+      ).rejects.toBe(error);
+      expect(mockedExecute).not.toHaveBeenCalled();
+    },
+  );
+
+  it('throws 503 WATCHER_NOT_AVAILABLE for prune without a vector store', async () => {
+    await expect(run(createDeps(), { scope: 'prune' })).rejects.toMatchObject({
+      statusCode: 503,
+      code: 'WATCHER_NOT_AVAILABLE',
+      message: 'Prune needs a vector store, and none is configured.',
     });
-    expect(status).toBe(code);
-    expect(sent).toEqual({ code: error.code, error: error.message });
     expect(mockedExecute).not.toHaveBeenCalled();
   });
 

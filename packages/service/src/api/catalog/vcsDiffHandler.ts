@@ -24,11 +24,7 @@ export function createCatalogVcsDiffHandler(
     async (input) => {
       const { glob, commit, commitEnd } = input.query;
 
-      const resolved = requireGlobRoots(
-        deps.coordinator,
-        glob,
-        'No VCS-enabled watch root matches the given glob',
-      );
+      const resolved = requireGlobRoots(deps.coordinator, glob);
 
       const diffs: string[] = [];
 

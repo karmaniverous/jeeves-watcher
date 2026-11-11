@@ -9,7 +9,24 @@ import { normalizeSlashes } from '../../util/normalizeSlashes';
 import { normalizePathCase } from '../../vcs/gitExec';
 import type { VcsCoordinator } from '../../vcs/VcsCoordinator';
 import type { VcsManager } from '../../vcs/VcsManager';
-import { invalidRequest, RequestError } from '../requestError';
+import {
+  ExcludeGlobRefused,
+  VcsRootNotFound,
+  VcsRootNotVersioned,
+} from '../errors';
+
+/** Why an exclude glob is refused: the five fixed reasons (D103, D140). */
+export const EXCLUDE_REFUSALS = {
+  newline: 'The glob must be a single pattern (no newline)',
+  braces: 'Braces are not gitignore syntax',
+  negation: 'The glob must not start with ! or #',
+  outside: 'The glob resolves outside the root',
+  wholeRoot: 'The glob matches the whole root',
+} as const;
+
+/** `ExcludeGlobRefused` (400) for one of the fixed reasons. */
+const refused = (reason: keyof typeof EXCLUDE_REFUSALS) =>
+  new ExcludeGlobRefused(EXCLUDE_REFUSALS[reason]);
 
 /** Where an exclude pattern goes. */
 export interface ExcludeTarget {
@@ -66,13 +83,13 @@ function underRoot(root: string, path: string): string | undefined {
 /** Refuse what is not exactly one gitignore pattern (D103). */
 function checkSyntax(glob: string): void {
   if (/[\r\n]/.test(glob)) {
-    throw invalidRequest('The glob must be a single pattern (no newline)');
+    throw refused('newline');
   }
   if (/[{}]/.test(glob)) {
-    throw invalidRequest('Braces are not gitignore syntax');
+    throw refused('braces');
   }
   if (/^[!#]/.test(glob)) {
-    throw invalidRequest('The glob must not start with ! or #');
+    throw refused('negation');
   }
 }
 
@@ -88,9 +105,9 @@ function withExplicitRoot(
 ): { manager: VcsManager; relative: string } {
   const manager = coordinator.getManager(normalizeSlashes(requestedRoot));
   if (!manager) {
-    throw new RequestError('not_found', 'Root is not a VCS-enabled watch root');
+    throw new VcsRootNotVersioned();
   }
-  const outside = () => invalidRequest('The glob resolves outside the root');
+  const outside = () => refused('outside');
   if (isAbsolute(glob)) {
     const relative = underRoot(manager.rootPath, posix.normalize(glob));
     if (relative === undefined) throw outside();
@@ -114,10 +131,7 @@ function withRootFromGlob(
   const manager = coordinator.findManagerForPath(base);
   const relative = manager && underRoot(manager.rootPath, normalized);
   if (manager === undefined || relative === undefined) {
-    throw new RequestError(
-      'not_found',
-      'Glob does not match any VCS-enabled watch root',
-    );
+    throw new VcsRootNotFound();
   }
   return { manager, relative };
 }
@@ -142,8 +156,9 @@ export function matchesWholeRoot(relative: string): boolean {
  * @param coordinator - The VCS coordinator.
  * @param body - The request's `glob` and optional `root`.
  * @returns The target.
- * @throws RequestError `400` for a refused pattern or a glob outside an
- *   explicit `root`; `404` for an unknown root or a glob under no root.
+ * @throws `ExcludeGlobRefused` (400) for a refused pattern or a glob
+ *   outside an explicit `root`; `VcsRootNotVersioned` or
+ *   `VcsRootNotFound` (404) for an unknown root or a glob under no root.
  */
 export function resolveExcludeTarget(
   coordinator: VcsCoordinator,
@@ -155,17 +170,17 @@ export function resolveExcludeTarget(
   const glob = toForwardSlashes(body.glob).replace(/ +$/, '');
   // Before the root lookup, so `*` or `**` without `root` is 400, not 404.
   if (matchesWholeRoot(posix.normalize(glob))) {
-    throw invalidRequest('The glob matches the whole root');
+    throw refused('wholeRoot');
   }
   const { manager, relative } = body.root
     ? withExplicitRoot(coordinator, body.root, glob)
     : withRootFromGlob(coordinator, glob);
   const relativeGlob = posix.normalize(relative).replace(/^\/+/, '');
   if (/^[!#]/.test(relativeGlob)) {
-    throw invalidRequest('The glob must not start with ! or #');
+    throw refused('negation');
   }
   if (matchesWholeRoot(relativeGlob)) {
-    throw invalidRequest('The glob matches the whole root');
+    throw refused('wholeRoot');
   }
   return { manager, relativeGlob, pattern: `/${relativeGlob}` };
 }

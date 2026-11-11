@@ -1,6 +1,6 @@
 /**
  * @module api
- * Barrel for the public HTTP API request/response Zod schemas and inferred types (status and health, search, scan, facets, render, metadata, reindex, issues, documents, vcs, error bodies and codes). No I/O.
+ * Barrel for the public HTTP API request/response Zod schemas and inferred types (status and health, search, scan, facets, render, metadata, reindex, issues, documents, vcs, `WATCHER_*` error codes). No I/O.
  */
 
 export {
@@ -34,8 +34,6 @@ export {
   restartCauseSchema,
 } from './changeSource.js';
 export {
-  type ApiErrorResponse,
-  apiErrorResponseSchema,
   type DocumentError,
   documentErrorSchema,
   type DocumentTarget,
@@ -103,12 +101,9 @@ export {
   MAX_DOCUMENTS_PER_REQUEST,
 } from './documents.js';
 export {
-  API_ERROR_CODES,
-  API_ERROR_STATUS,
-  type ApiErrorBody,
-  apiErrorBodySchema,
-  type ApiErrorCode,
-  apiErrorCodeSchema,
+  WATCHER_ERROR_CODES,
+  WATCHER_ERROR_STATUS,
+  type WatcherErrorCode,
 } from './errors.js';
 export {
   COUNT_FACETS_DEFAULT_LIMIT,

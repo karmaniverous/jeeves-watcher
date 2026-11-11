@@ -1,6 +1,6 @@
 /**
  * @module api/apiKeyAuth
- * Optional Bearer API-key auth: a Fastify `onRequest` hook that rejects requests without `Authorization: Bearer <api.apiKey>` (except GET /status) with 401. Never logs the token.
+ * Optional Bearer API-key auth: a Fastify `onRequest` hook that rejects requests without `Authorization: Bearer <api.apiKey>` (except GET /status) with `401 WATCHER_UNAUTHORIZED` (no `WWW-Authenticate`, D204 (6)). Never logs the token.
  */
 
 import { createHash, timingSafeEqual } from 'node:crypto';
@@ -9,12 +9,7 @@ import { WATCHER_CATALOG } from '@karmaniverous/jeeves-watcher-core';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import type pino from 'pino';
 
-import { apiErrorBody, sendError } from './sendError';
-
-/** Body returned with every 401 response. */
-export const UNAUTHORIZED_BODY = Object.freeze(
-  apiErrorBody('unauthorized', 'Unauthorized'),
-);
+import { Unauthorized } from './errors';
 
 const BEARER_PATTERN = /^Bearer[ \t]+(\S+)[ \t]*$/i;
 
@@ -83,15 +78,23 @@ export function registerApiKeyAuth(
 
   app.addHook(
     'onRequest',
-    async (request: FastifyRequest, reply: FastifyReply) => {
-      if (isPublicRoute(request.method, request.url)) return;
-      if (isAuthorized(request.headers.authorization, expectedDigest)) return;
+    (
+      request: FastifyRequest,
+      _reply: FastifyReply,
+      done: (error?: Error) => void,
+    ) => {
+      if (
+        isPublicRoute(request.method, request.url) ||
+        isAuthorized(request.headers.authorization, expectedDigest)
+      ) {
+        done();
+        return;
+      }
       logger?.debug(
         { method: request.method, path: request.url.split('?', 1)[0] },
         'Rejected API request without a valid bearer token',
       );
-      const { code, error } = UNAUTHORIZED_BODY;
-      return sendError(reply, code, error);
+      done(new Unauthorized());
     },
   );
 }

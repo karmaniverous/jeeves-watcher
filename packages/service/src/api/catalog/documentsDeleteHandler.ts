@@ -40,8 +40,8 @@ export interface CatalogDocumentsDeleteDeps {
  * the `sources` form, for every listed reference (so a document that only
  * ever failed leaves no issue behind). A notification still queued for a
  * deleted reference re-indexes it when it runs. A filter Qdrant rejects is
- * `400 invalid_request` (nothing is deleted). A document whose lock is not
- * free within 10 s ends the request with `503 not_available` and
+ * `400 WATCHER_INVALID_REQUEST` (nothing is deleted). A document whose lock
+ * is not free within 10 s ends the request with `503 WATCHER_NOT_AVAILABLE` and
  * `Retry-After: 10`; documents already deleted stay deleted (D118).
  *
  * @param deps - Handler dependencies.
@@ -61,6 +61,7 @@ export function createCatalogDocumentsDeleteHandler(
           sources: deps.processor.sourceOperations(),
           enrichmentStore: deps.enrichmentStore,
           issuesManager: deps.issuesManager,
+          logger: deps.logger,
         },
         body,
         deps.lockWaitMs ?? API_LOCK_WAIT_MS,

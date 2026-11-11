@@ -29,7 +29,7 @@ export interface CatalogRulesReapplyDeps {
  * Create the catalog handler for `POST /rules/reapply`: re-applies current
  * inference rules to indexed files matching `globs` without re-embedding.
  * A file whose lock is not free within 10 s ends the request with
- * `503 not_available` and `Retry-After: 10`; files already updated keep
+ * `503 WATCHER_NOT_AVAILABLE` and `Retry-After: 10`; files already updated keep
  * their update (D118).
  *
  * @param deps - Handler dependencies.

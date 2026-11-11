@@ -1,15 +1,14 @@
 /**
  * @module api/catalog/configApplyHandler.test
- * `createCatalogConfigApplySource`: redacts the echoed config on success,
- * adds a `code` to a merge-validation 400 (keeping core's `issues`), and
- * logs + genericizes a 5xx.
+ * `createCatalogConfigApplySource`: redacts the echoed config on success
+ * and passes core's own errors through (`400 JEEVES_CONFIG_INVALID`,
+ * `500 JEEVES_CONFIG_READ_FAILED`, the path logged only).
  */
 
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import pino from 'pino';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { watcherDescriptor } from '../../descriptor';
@@ -41,7 +40,6 @@ describe('createCatalogConfigApplySource', () => {
         descriptor: watcherDescriptor,
         configPath,
         onConfigApply,
-        logger: pino({ level: 'silent' }),
       }),
       onConfigApply,
     };
@@ -58,40 +56,33 @@ describe('createCatalogConfigApplySource', () => {
     expect(body.config).toMatchObject({ watch: { debounceMs: 500 } });
   });
 
-  it('keeps issues and adds a code for a merge-validation 400', async () => {
+  it("passes core's 400 JEEVES_CONFIG_INVALID through", async () => {
     const { source } = build();
     const result = await source({
       patch: { embedding: { dimensions: 'three' } },
     });
 
     expect(result.status).toBe(400);
-    const body = result.body as Record<string, unknown>;
-    expect(body['code']).toBe('invalid_request');
-    expect(Array.isArray(body['issues'])).toBe(true);
+    expect(result.body).toMatchObject({
+      statusCode: 400,
+      code: 'JEEVES_CONFIG_INVALID',
+    });
   });
 
-  it('logs and genericizes a 5xx without leaking the file path', async () => {
+  it("passes core's 500 JEEVES_CONFIG_READ_FAILED through, logging the path", async () => {
     rmSync(configPath);
     writeFileSync(configPath, '{ invalid json');
-    const logger = { error: vi.fn() } as never;
-    const source = createCatalogConfigApplySource({
-      descriptor: watcherDescriptor,
-      configPath,
-      onConfigApply: vi.fn().mockResolvedValue(undefined),
-      logger,
-    });
+    const logger = { error: vi.fn() };
+    const { source } = build();
 
-    const result = await source({ patch: {} });
+    const result = await source({ patch: {} }, logger);
 
     expect(result.status).toBe(500);
-    expect(result.body).toEqual({
-      code: 'internal_error',
-      error: 'Internal Server Error',
-      message: 'Internal server error',
+    expect(result.body).toMatchObject({
+      statusCode: 500,
+      code: 'JEEVES_CONFIG_READ_FAILED',
     });
-    expect(
-      (logger as { error: ReturnType<typeof vi.fn> }).error,
-    ).toHaveBeenCalled();
+    expect(logger.error).toHaveBeenCalled();
     expect(JSON.stringify(result)).not.toContain('custom-name.json');
   });
 

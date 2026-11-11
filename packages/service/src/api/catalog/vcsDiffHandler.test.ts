@@ -108,14 +108,19 @@ describe('GET /vcs/diff', () => {
     const res = await diff({ glob: rootA + '/hello.txt' });
 
     expect(res.statusCode).toBe(400);
-    expect(res.json()).toMatchObject({ code: 'invalid_request' });
+    expect(res.json()).toMatchObject({ code: 'FST_ERR_VALIDATION' });
   });
 
   it('returns 404 not_found for a glob outside every VCS root', async () => {
     const res = await diff({ glob: '/nonexistent/**', commit: 'HEAD' });
 
     expect(res.statusCode).toBe(404);
-    expect(res.json()).toMatchObject({ code: 'not_found' });
+    expect(res.json()).toEqual({
+      statusCode: 404,
+      code: 'WATCHER_NOT_FOUND',
+      error: 'Not Found',
+      message: 'No version-controlled watch root matches the path or glob.',
+    });
   });
 
   it('skips a root whose commit is unknown and answers an empty diff', async () => {

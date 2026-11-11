@@ -147,34 +147,39 @@ describe('createWatcherClient requests', () => {
 });
 
 describe('createWatcherClient errors (one WatcherError mapping, D53)', () => {
-  it('keeps the server code, status, message and details of an error body', async () => {
-    const { watcher } = client({
-      status: 400,
-      body: {
-        error: 'Validation failed',
-        code: 'invalid_request',
-        details: [{ property: 'p' }],
-      },
-    });
+  it('keeps the server code, status and message, with the whole body as details', async () => {
+    const body = {
+      statusCode: 400,
+      code: 'WATCHER_INVALID_REQUEST',
+      error: 'Bad Request',
+      message:
+        "The metadata does not match the matched rules' schemas: p: expected string, received integer",
+    };
+    const { watcher } = client({ status: 400, body });
     const err = await failure(
       watcher.setMetadata({ path: '/a', metadata: {} }),
     );
     expect(err).toMatchObject({
-      code: 'invalid_request',
+      code: 'WATCHER_INVALID_REQUEST',
       status: 400,
-      message: 'Validation failed',
-      details: [{ property: 'p' }],
+      message: body.message,
+      details: body,
     });
     expect(err.retryAfterMs).toBeUndefined();
   });
 
-  it('joins a distinct message to the error text', async () => {
+  it("uses the body's message, not its error text", async () => {
     const { watcher } = client({
-      status: 409,
-      body: { error: 'Conflict', message: 'busy', code: 'conflict' },
+      status: 503,
+      body: {
+        statusCode: 503,
+        code: 'WATCHER_SCAN_IN_PROGRESS',
+        error: 'Service Unavailable',
+        message: 'busy',
+      },
     });
     const err = await failure(watcher.reindex({ scope: 'full' }));
-    expect(err.message).toBe('Conflict: busy');
+    expect(err.message).toBe('busy');
   });
 
   it('maps a code-less error body to http_<status>', async () => {
@@ -202,11 +207,19 @@ describe('createWatcherClient errors (one WatcherError mapping, D53)', () => {
     async (header, ms) => {
       const { watcher } = client({
         status: 503,
-        body: { error: 'busy', code: 'not_available' },
+        body: {
+          statusCode: 503,
+          code: 'WATCHER_NOT_AVAILABLE',
+          error: 'Service Unavailable',
+          message: 'Version control is busy on this root; retry after 30 s.',
+        },
         headers: { 'retry-after': header },
       });
       const err = await failure(watcher.excludeVcsPath({ glob: '/data/x/**' }));
-      expect(err).toMatchObject({ code: 'not_available', retryAfterMs: ms });
+      expect(err).toMatchObject({
+        code: 'WATCHER_NOT_AVAILABLE',
+        retryAfterMs: ms,
+      });
     },
   );
 

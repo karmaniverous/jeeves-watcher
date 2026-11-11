@@ -7,7 +7,6 @@ import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 
 import {
-  apiErrorResponseSchema,
   documentErrorSchema,
   documentTarget,
   documentTargetShape,
@@ -17,7 +16,6 @@ import {
   qdrantFilterSchema,
   requireExactlyOneTarget,
 } from './common';
-import { apiErrorBodySchema } from './errors';
 
 const target = z
   .object(documentTargetShape)
@@ -45,25 +43,11 @@ describe('shared schemas', () => {
     expect(qdrantFilterSchema.safeParse([]).success).toBe(false);
   });
 
-  it('validates error bodies', () => {
-    expect(
-      apiErrorResponseSchema.safeParse({ error: 'x', details: [] }).success,
-    ).toBe(true);
-    expect(apiErrorResponseSchema.safeParse({}).success).toBe(false);
+  it('validates per-document error entries', () => {
     expect(
       documentErrorSchema.safeParse({ code: 'c', message: 'm' }).success,
     ).toBe(true);
     expect(documentErrorSchema.safeParse({ code: 'c' }).success).toBe(false);
-  });
-
-  it('apiErrorBodySchema extends apiErrorResponseSchema with code', () => {
-    expect(Object.keys(apiErrorBodySchema.shape).sort()).toEqual(
-      [
-        ...Object.keys(apiErrorResponseSchema.shape),
-        'code',
-        'issueType',
-      ].sort(),
-    );
   });
 });
 

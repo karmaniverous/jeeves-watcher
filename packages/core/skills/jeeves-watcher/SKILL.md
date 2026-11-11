@@ -12,9 +12,9 @@ The watcher is an HTTP API running as a background service (typically NSSM on Wi
 
 **Default port:** 1936 (configurable via `api.port` in watcher config) **Non-default port:** If the watcher runs on a different port, the user must set `plugins.entries.jeeves-watcher-openclaw.config.apiUrl` in `openclaw.json`. The plugin cannot auto-discover a non-default port.
 
-**API key:** If the watcher sets `api.apiKey`, every route except `GET /status` and `GET /openapi.json` needs `Authorization: Bearer <key>`. The tools send it from `plugins.entries.jeeves-watcher-openclaw.config.apiKey` (or the `JEEVES_WATCHER_API_KEY` env var). From `watcher_config`, `watcher_config_apply`, `watcher_search`, `watcher_scan` and `watcher_show_vcs_file`, a missing or wrong key comes back as `HTTP 401: {"error":"Unauthorized","code":"unauthorized"}` (see [Error Handling](#error-handling) for the fix). From the other tools it reads `HTTP 401 unauthorized: the watcher API requires an API key. Provide it via plugins.entries.jeeves-watcher-openclaw.config.apiKey or the JEEVES_WATCHER_API_KEY env var.` (or, when a key was sent, `... rejected the API key. Check ... against the service's api.apiKey.`). When calling the API directly, add the header yourself. Never echo the key.
+**API key:** If the watcher sets `api.apiKey`, every route except `GET /status` and `GET /openapi.json` needs `Authorization: Bearer <key>`. The tools send it from `plugins.entries.jeeves-watcher-openclaw.config.apiKey` (or the `JEEVES_WATCHER_API_KEY` env var). A missing or wrong key comes back from every tool as `HTTP 401: {"statusCode":401,"code":"WATCHER_UNAUTHORIZED","error":"Unauthorized","message":"A valid API key is required: send Authorization: Bearer <key>."}` (see [Error Handling](#error-handling) for the fix). When calling the API directly, add the header yourself. Never echo the key.
 
-**Tool errors:** Tool error text is prefixed `Error: `. Every `watcher_*` tool is built from the watcher's endpoint catalog and reports a non-2xx response as `HTTP <status>: <body>`, with the server's JSON body verbatim: read its `code` (and `details` or `issues`) there, e.g. `HTTP 400: {"error":"Validation failed","code":"invalid_request",...}` or `HTTP 503: {"error":"Scan in progress","code":"scan_in_progress"}`. Branch on the code, not the message. The tools reject parameters that don't match their schema before sending anything. Each call waits up to 120 s; a timeout does not cancel a state change on the service, so check the outcome (e.g. `watcher_check_vcs_exclusion` after `watcher_exclude_vcs_path`) before retrying. An unreachable service reads `Service not reachable at <url>.` with a hint to set `apiUrl`. (`watcher_service` comes from the shared Jeeves core toolset and words its own errors.)
+**Tool errors:** Tool error text is prefixed `Error: `. Every `watcher_*` tool is built from the watcher's endpoint catalog and reports a non-2xx response as `HTTP <status>: <body>`, with the server's JSON body verbatim: Fastify's standard error body `{ statusCode, code?, error, message }`, e.g. `HTTP 503: {"statusCode":503,"code":"WATCHER_SCAN_IN_PROGRESS","error":"Service Unavailable","message":"The initial filesystem scan is still running; retry when it finishes."}`. Branch on `code`, not the message: `WATCHER_*` (the watcher's own), `FST_ERR_VALIDATION` (a request its schema rejects), `JEEVES_CONFIG_*` (config routes). A `500` with no `code` is an unexpected server failure (`The server could not complete the request.`; the cause is in the service log). The message is written for you: it says what to fix or how long to wait. The tools reject parameters that don't match their schema before sending anything. Each call waits up to 120 s; a timeout does not cancel a state change on the service, so check the outcome (e.g. `watcher_check_vcs_exclusion` after `watcher_exclude_vcs_path`) before retrying. An unreachable service reads `Service not reachable at <url>.` with a hint to set `apiUrl`. (`watcher_service` comes from the shared Jeeves core toolset and words its own errors.)
 
 **Health check:** `GET /status` returns `name`, `version`, `uptime`, `status` (`healthy`/`degraded`/`unhealthy`), and a `health` object containing `collection` (`name`, `pointCount`, `dimensions`, `systemIndexes`), `reindex` progress, `initialScan` progress, `embedding` (provider health), and (when version tracking is on) `vcs` (`roots`, `pending`, `trippedRoots`, `oldestTrippedAt`). `status` is `degraded` (still HTTP 200) when embeddings are failing or a version-control root has tripped.
 
@@ -57,7 +57,7 @@ curl http://127.0.0.1:<PORT>/config
 | `/points/delete` | POST | Delete points matching a Qdrant filter |
 | `/render` | POST | Render a document (file path or source reference) through its rule |
 | `/search/facets` | GET | Get search facet definitions and values (`?rules=a,b` scopes them to those rules) |
-| `/search/facets/counts` | POST | Count values of indexed fields over a filter, each document once; counts are approximate (`{ fields, filter?, rules?, limit? }`); `{ min, max }` for number/date fields; `503 not_available` while its system indexes build or past its 10 s budget |
+| `/search/facets/counts` | POST | Count values of indexed fields over a filter, each document once; counts are approximate (`{ fields, filter?, rules?, limit? }`); `{ min, max }` for number/date fields; `503 WATCHER_NOT_AVAILABLE` while its system indexes build or past its 10 s budget |
 | `/rebuild-metadata` | POST | Rebuild the enrichment store from Qdrant file point payloads |
 | `/config/schema` | GET | Get config JSON schema |
 | `/config/match` | POST | Test file paths against inference rules and watch scope |
@@ -379,7 +379,7 @@ Semantic search over indexed documents (`POST /search`).
 - `offset` (number, optional) — skip N results for pagination (non-negative integer)
 - `filter` (object, optional) — Qdrant filter for metadata filtering
 
-Returns an array of `{ id, score, payload }` ordered by score (see [Search Result Shape](#search-result-shape)). A filter Qdrant rejects is `400 invalid_request`; an exhausted embedding budget is `503 embedding_unavailable`.
+Returns an array of `{ id, score, payload }` ordered by score (see [Search Result Shape](#search-result-shape)). A filter Qdrant rejects is `400 WATCHER_INVALID_REQUEST` (Qdrant's reason in the message: fix the filter); an exhausted embedding budget is `503 WATCHER_EMBEDDING_UNAVAILABLE`.
 
 ### `watcher_set_metadata`
 
@@ -388,7 +388,7 @@ Set or update metadata on a document (`POST /metadata`).
 - `path` (string, required) — file path of the document (absolute or watched path)
 - `metadata` (object, required) — key-value metadata to merge
 
-Returns `{ ok: true, matched_rules }`. If the document is busy (being indexed) for 10 s, the tool reports `503 not_available` with `Retry-After: 10` and changes nothing; retry after 10 s. The tool addresses files only; to enrich a source document, call `POST /metadata` directly with `{ "source": "<name>://<id>", "metadata": { ... } }` (exactly one of `path` or `source`).
+Returns `{ ok: true, matched_rules }`. If the document is busy (being indexed) for 10 s, the tool reports `503 WATCHER_NOT_AVAILABLE` (`The document is being processed; retry after 10 s.`) and changes nothing; retry after 10 s. The tool addresses files only; to enrich a source document, call `POST /metadata` directly with `{ "source": "<name>://<id>", "metadata": { ... } }` (exactly one of `path` or `source`).
 
 ### `watcher_status`
 
@@ -407,7 +407,7 @@ Query the effective runtime config via JSONPath (`GET /config`). Returns the ful
 
 - `path` (string, optional) — JSONPath expression
 
-The document holds only the allow-listed keys `description`, `watch`, `configWatch`, `search`, `schemas`, `inferenceRules`, `mapHelpers`, `templateHelpers`, `maps`, `templates`, plus `issues` (the current issues). `api`, `sources`, `embedding`, `vectorStore` (and their keys) are never included. Each rule carries `source` (`config`, or the registering source of a virtual rule) and `values` (the runtime values index). File references (`map`, `maps`, `templates`) and named schema references are always resolved. An invalid JSONPath is `400 invalid_request`.
+The document holds only the allow-listed keys `description`, `watch`, `configWatch`, `search`, `schemas`, `inferenceRules`, `mapHelpers`, `templateHelpers`, `maps`, `templates`, plus `issues` (the current issues). `api`, `sources`, `embedding`, `vectorStore` (and their keys) are never included. Each rule carries `source` (`config`, or the registering source of a virtual rule) and `values` (the runtime values index). File references (`map`, `maps`, `templates`) and named schema references are always resolved. An invalid JSONPath is `400 JEEVES_CONFIG_QUERY_INVALID`.
 
 ### `watcher_validate_config`
 
@@ -427,7 +427,7 @@ Apply config changes (`POST /config/apply`, sent as `{ patch: config }`).
 
 Partial configs are deep-merged into the config file the service runs from (objects recursively, arrays replaced, `inferenceRules` by rule name), so `{}` or a single key is valid. The merged result is validated and written to disk, then the `configWatch.reindex` scope (default `issues`) runs; that reindex covers files only. With `configWatch.enabled` (default `true`) the service picks up the written file without a restart, including new/removed watch paths (the filesystem watcher is rebuilt), inference rule changes, move detection settings, and gitignore filter updates.
 
-Returns `{ applied: true, config }`. `config` is redacted through the same allow-list as `GET /config`: `api`, `sources` and provider keys are never echoed. When the file was written but the post-write apply step failed, the body also carries `warning` (a string describing the failure). An invalid merged config is a tool error reading `HTTP 400: {"error":"Config validation failed","code":"invalid_request","issues":[...]}`, so run `watcher_validate_config` first. A config file the service cannot read or write is `HTTP 500` with the generic `internal_error` body, the cause in the service log.
+Returns `{ applied: true, config }`. `config` is redacted through the same allow-list as `GET /config`: `api`, `sources` and provider keys are never echoed. When the file was written but the post-write apply step failed, the body also carries `warning` (a string describing the failure). An invalid merged config is a tool error reading `HTTP 400: {"statusCode":400,"code":"JEEVES_CONFIG_INVALID","error":"Bad Request","message":"Config validation failed: ..."}`, so run `watcher_validate_config` first (it lists each problem). A config file the service cannot read or write is `HTTP 500` with `JEEVES_CONFIG_READ_FAILED` or `JEEVES_CONFIG_WRITE_FAILED`, the cause in the service log.
 
 ### `watcher_reindex`
 
@@ -439,7 +439,7 @@ Trigger a reindex operation (`POST /reindex`). Non-prune scopes return a `plan` 
   - `"rules"` — Re-apply inference rules to every watched file (no re-embedding; changed values written, keys the rules no longer project removed). With `path`, only files matching those globs. Without `path`, every indexed source document is also retrieved through its callback and its stored rule re-applied: unchanged content gets a metadata-only update, and a document is re-embedded only if its rendered text changed.
   - `"full"` — Re-extract and re-process every watched file (a file is re-embedded when the text to embed changed or it was never indexed), and retrieve and always re-embed every indexed source document. Clears the runtime values index first.
   - `"issues"` — Re-process the documents in `watcher_list_issues`: failed files, and failed source references (with their stored rule, or the `rule` recorded on the issue when the document was never indexed).
-  - `"path"` — Re-process a specific file or all files under a directory. Requires `path`. Each target must be watched and not gitignored (`403 path_not_watched`) and must exist (`404 not_found`). Files only.
+  - `"path"` — Re-process a specific file or all files under a directory. Requires `path`. Each target must be watched and not gitignored (`403 WATCHER_PATH_NOT_WATCHED`) and must exist (`404 WATCHER_NOT_FOUND`). Files only.
   - `"prune"` — Delete Qdrant points for files no longer in watch scope (removed paths, gitignored files, deleted files). No re-embedding. Pure cleanup. Never selects source points (`source` set, no `file_path`).
 - `path` (string | string[], optional) — Target file(s) or directories for `"path"` (required there), or globs narrowing `"rules"`. Ignored by other scopes.
 - `dryRun` (boolean, optional) — When `true`, compute and return the plan without executing.
@@ -577,7 +577,7 @@ List watched files matching globs (`POST /walk`). Returns matching file paths fr
 **Key differences from `watcher_scan`:**
 
 - Lists the files the filesystem watcher tracks, not the Qdrant index
-- No embedding or indexing required, but the initial filesystem scan must be complete: until then the tool returns `HTTP 503 scan_in_progress` (check `health.initialScan` in `watcher_status`)
+- No embedding or indexing required, but the initial filesystem scan must be complete: until then the tool returns `HTTP 503` with `WATCHER_SCAN_IN_PROGRESS` (check `health.initialScan` in `watcher_status`)
 - Returns file paths only (no metadata, no vectors)
 - Applies `watch.ignored` and gitignore filtering automatically
 
@@ -977,21 +977,14 @@ Use `watcher_set_metadata` to tag documents after analysis (e.g., `reviewed: tru
 
 **Enrichments are durable.** Stored in a SQLite database (`<stateDir>/enrichments.sqlite`, default `stateDir` `.jeeves-metadata`), enrichments survive full reindexes. Enriching a file that is not indexed yet stores the enrichment, which applies once the file is indexed. When the watcher re-processes a file, enrichments are merged with inference rule output using composable semantics: scalar fields overwrite, array fields union+deduplicate.
 
-**Metadata is validated against the file's matched rule schemas** (for a source document, its designated rule's schema). Only declared property types are checked; unknown properties and `null` values pass. The tool reports a failure as `HTTP 400 invalid_request: Validation failed`; the structured `details` are in the HTTP response body:
+**Metadata is validated against the file's matched rule schemas** (for a source document, its designated rule's schema). Only declared property types are checked; unknown properties and `null` values pass. The tool reports a failure as `HTTP 400` with `WATCHER_INVALID_REQUEST`, naming each failing property in the message:
 
 ```json
 {
-  "code": "invalid_request",
-  "error": "Validation failed",
-  "details": [
-    {
-      "property": "priority",
-      "expected": "string",
-      "received": "number",
-      "rule": "jira-issue",
-      "message": "Property 'priority' is declared as string in jira-issue schema, received number"
-    }
-  ]
+  "statusCode": 400,
+  "code": "WATCHER_INVALID_REQUEST",
+  "error": "Bad Request",
+  "message": "The metadata does not match the matched rules' schemas: priority: expected string, received number"
 }
 ```
 
@@ -1067,8 +1060,8 @@ The exclusion is VCS-only: the pattern goes to the root's `.git/info/exclude`, s
 - **One gitignore pattern, root-anchored.** The pattern is written as `/` plus the glob relative to the root, so `/data/tickets/*.json` (root `/data`) matches only directly under `tickets/`; use `**/` for any depth. Pass `root` to give a root-relative glob (`tickets/**/*.json`, without a leading `/`: with `root`, a glob starting with `/` is a filesystem path and must lie under the root).
 - **Brackets are a character class.** `Report [draft].docx` matches `Report d.docx`; escape them to name the file: `Report \[draft\].docx`.
 - **Refused (`400`):** a newline, a leading `!` or `#`, braces, a pattern matching the whole root (`*`, `**`, `**/*`, ...), or a glob outside the given `root`.
-- **More than 100 files** to untrack need `confirm: true`; without it the tool reports `409 confirm_required` with the count and changes nothing. Check the count with the user before confirming.
-- **Busy root.** If version control is busy on the root for 30 s the tool reports `503 not_available`; retry after 30 s.
+- **More than 100 files** to untrack need `confirm: true`; without it the tool changes nothing and returns `{ "confirmRequired": true, "untracked": <n> }` (a result, not an error). Read `confirmRequired`, check the count with the user, then repeat with `confirm: true`.
+- **Busy root.** If version control is busy on the root for 30 s the tool reports `503 WATCHER_NOT_AVAILABLE` (`Version control is busy on this root; retry after 30 s.`); retry after 30 s.
 - `watcher_check_vcs_exclusion` reports `excluded: false` for a tracked file even when a human `.gitignore` matches it (git never reports tracked paths as ignored); exclude it to untrack it.
 
 ### Score Interpretation
@@ -1085,18 +1078,18 @@ If the watcher is unreachable:
 - Fall back to direct `read` for known file paths
 - Do not retry silently in a loop
 
-If a tool fails with `HTTP 401` (`unauthorized`):
+If a tool fails with `HTTP 401` (`WATCHER_UNAUTHORIZED`):
 
 - The watcher sets `api.apiKey` and the plugin sent no key, or a different one.
 - Ask the user to set `plugins.entries.jeeves-watcher-openclaw.config.apiKey` in `openclaw.json` (or the `JEEVES_WATCHER_API_KEY` environment variable of the gateway) to the service's `api.apiKey`. The tools read it on every call, so no restart is needed.
 - Never ask for, print or guess the key. `GET /status` and `GET /openapi.json` never need it.
 
-If a tool or call fails with `HTTP 503` (`not_available`) and a `Retry-After` header:
+If a tool or call fails with `HTTP 503` (`WATCHER_NOT_AVAILABLE`) and the message says to retry after a delay (the tools pass only the body; a direct call also gets a `Retry-After` header):
 
-- `POST /metadata` (`watcher_set_metadata`), `POST /rules/reapply` and `POST /documents/delete` wait at most 10 s for a document that is being indexed, then answer `503` with `Retry-After: 10`. A single-document request changed nothing; a multi-document request kept the documents it already changed. All three are idempotent: retry the same request after 10 s.
+- `POST /metadata` (`watcher_set_metadata`), `POST /rules/reapply` and `POST /documents/delete` wait at most 10 s for a document that is being indexed, then answer `503` with `Retry-After: 10` (`The document is being processed; retry after 10 s.`). A single-document request changed nothing; a multi-document request kept the documents it already changed. All three are idempotent: retry the same request after 10 s.
 - `watcher_exclude_vcs_path` waits 30 s for a busy version-control root.
 
-If a tool fails with `HTTP 500: {"error":"Response validation failed","code":"internal_error"}`, the watcher produced a response that doesn't match its own schema: a server bug. Report it with the request you made; retrying won't help.
+If a tool fails with `HTTP 500` and `"code":"JEEVES_RESPONSE_VALIDATION"`, the watcher produced a response that doesn't match its own schema: a server bug. Report it with the request you made; retrying won't help. An `HTTP 500` with no `code` (`The server could not complete the request.`) is an unexpected failure: the cause is in the service log; report it rather than retrying in a loop.
 
 If tools are unavailable (plugin not loaded in this session):
 

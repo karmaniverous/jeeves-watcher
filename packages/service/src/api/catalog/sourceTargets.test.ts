@@ -155,9 +155,12 @@ describe('POST /metadata { source }', () => {
     });
     expect(status).toBe(400);
     expect(body).toMatchObject({
-      error: 'Validation failed',
-      details: [{ property: 'priority', rule: 'chat' }],
+      statusCode: 400,
+      code: 'WATCHER_INVALID_REQUEST',
     });
+    expect((body as { message: string }).message).toMatch(
+      /^The metadata does not match the matched rules' schemas: priority: /,
+    );
     expect(ops.updateMetadata).not.toHaveBeenCalled();
   });
 
@@ -244,6 +247,9 @@ describe('POST /reindex { scope: path, source }', () => {
       source: ['app://chat/1'],
     });
     expect(status).toBe(503);
-    expect(body).toMatchObject({ error: 'Not available' });
+    expect(body).toMatchObject({
+      code: 'WATCHER_NOT_AVAILABLE',
+      message: 'Source documents are not available on this instance.',
+    });
   });
 });

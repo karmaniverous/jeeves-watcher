@@ -1,89 +1,74 @@
 /**
  * @module api/errors.test
- * Tests for the canonical API error code list, its status table and the error body schema.
+ * Tests for the `WATCHER_*` error code list and its status table.
  */
 
 import { describe, expect, it } from 'vitest';
 
-import {
-  API_ERROR_CODES,
-  API_ERROR_STATUS,
-  apiErrorBodySchema,
-  apiErrorCodeSchema,
-} from './errors';
+import { WATCHER_ERROR_CODES, WATCHER_ERROR_STATUS } from './errors';
+import { ISSUE_TYPES } from './monitoring';
 
-describe('apiErrorCodeSchema', () => {
-  it('lists the canonical codes in order', () => {
-    expect(apiErrorCodeSchema.options).toEqual([...API_ERROR_CODES]);
-    expect(API_ERROR_CODES).toEqual([
-      'invalid_request',
-      'unauthorized',
-      'path_not_watched',
-      'not_found',
-      'source_not_indexed',
-      'source_not_found',
-      'unsupported_content_type',
-      'pipeline_error',
-      'confirm_required',
-      'source_unavailable',
-      'not_available',
-      'scan_in_progress',
-      'embedding_unavailable',
-      'internal_error',
-    ]);
+/** Issue types that have their own code rather than a pipeline code. */
+const NON_PIPELINE_ISSUE_TYPES = new Set([
+  'source_unavailable',
+  'unsupported_content_type',
+]);
+
+describe('WATCHER_ERROR_CODES', () => {
+  it.each(WATCHER_ERROR_CODES)(
+    '%s is upper case and WATCHER_-prefixed',
+    (c) => {
+      expect(c).toMatch(/^WATCHER_[A-Z]+(_[A-Z]+)*$/);
+    },
+  );
+
+  it('has no duplicates', () => {
+    expect(new Set(WATCHER_ERROR_CODES).size).toBe(WATCHER_ERROR_CODES.length);
   });
 
-  it.each(API_ERROR_CODES)('%s is snake_case', (c) => {
-    expect(c).toMatch(/^[a-z]+(_[a-z]+)*$/);
+  it('has one pipeline code per issue type, derived from ISSUE_TYPES', () => {
+    const derived = ISSUE_TYPES.filter(
+      (type) => !NON_PIPELINE_ISSUE_TYPES.has(type),
+    ).map(
+      (type) =>
+        `WATCHER_PIPELINE_${type.replace(/_error$/, '').toUpperCase()}_ERROR`,
+    );
+    expect(derived).toHaveLength(9);
+    expect(
+      WATCHER_ERROR_CODES.filter((c) => c.startsWith('WATCHER_PIPELINE_')),
+    ).toEqual(derived);
   });
 
-  it('assigns each code its documented status', () => {
-    expect(API_ERROR_STATUS).toEqual({
-      invalid_request: 400,
-      unauthorized: 401,
-      path_not_watched: 403,
-      not_found: 404,
-      source_not_indexed: 404,
-      source_not_found: 404,
-      unsupported_content_type: 422,
-      pipeline_error: 422,
-      confirm_required: 409,
-      source_unavailable: 502,
-      not_available: 503,
-      scan_in_progress: 503,
-      embedding_unavailable: 503,
-      internal_error: 500,
-    });
-  });
-
-  it('rejects human text', () => {
-    expect(apiErrorCodeSchema.safeParse('Unauthorized').success).toBe(false);
+  it('keeps own codes for the two non-pipeline issue types', () => {
+    expect(WATCHER_ERROR_CODES).toContain('WATCHER_SOURCE_UNAVAILABLE');
+    expect(WATCHER_ERROR_CODES).toContain('WATCHER_UNSUPPORTED_CONTENT_TYPE');
   });
 });
 
-describe('apiErrorBodySchema', () => {
-  it('accepts a minimal body and optional fields', () => {
-    expect(
-      apiErrorBodySchema.safeParse({ code: 'unauthorized', error: 'x' })
-        .success,
-    ).toBe(true);
-    expect(
-      apiErrorBodySchema.safeParse({
-        code: 'pipeline_error',
-        error: 'boom',
-        message: 'more',
-        details: [{ x: 1 }],
-        issueType: 'match_failed',
-      }).success,
-    ).toBe(true);
+describe('WATCHER_ERROR_STATUS', () => {
+  it('has exactly the listed codes', () => {
+    expect(Object.keys(WATCHER_ERROR_STATUS)).toEqual([...WATCHER_ERROR_CODES]);
   });
 
-  it.each([
-    [{ error: 'Unauthorized' }],
-    [{ code: 'Unauthorized', error: 'x' }],
-    [{ code: 'not_found' }],
-    [{ code: 'pipeline_error', error: 'x', issueType: 'nope' }],
-  ])('rejects %j', (body) => {
-    expect(apiErrorBodySchema.safeParse(body).success).toBe(false);
+  it('assigns each code its status from the code table', () => {
+    const pipeline = Object.fromEntries(
+      WATCHER_ERROR_CODES.filter((c) => c.startsWith('WATCHER_PIPELINE_')).map(
+        (c) => [c, 422],
+      ),
+    );
+    expect(WATCHER_ERROR_STATUS).toEqual({
+      WATCHER_INVALID_REQUEST: 400,
+      WATCHER_UNAUTHORIZED: 401,
+      WATCHER_PATH_NOT_WATCHED: 403,
+      WATCHER_NOT_FOUND: 404,
+      WATCHER_SOURCE_NOT_INDEXED: 404,
+      WATCHER_SOURCE_NOT_FOUND: 404,
+      WATCHER_UNSUPPORTED_CONTENT_TYPE: 422,
+      ...pipeline,
+      WATCHER_SOURCE_UNAVAILABLE: 502,
+      WATCHER_NOT_AVAILABLE: 503,
+      WATCHER_SCAN_IN_PROGRESS: 503,
+      WATCHER_EMBEDDING_UNAVAILABLE: 503,
+    });
   });
 });

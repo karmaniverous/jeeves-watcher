@@ -70,8 +70,8 @@ function record(
 }
 
 /**
- * Run one scenario (authenticated) from a reset state and return the raw
- * reply.
+ * Run one scenario (authenticated unless it says otherwise) from a reset
+ * state and return the raw reply.
  *
  * @param wire - The wire app.
  * @param scenario - The scenario.
@@ -83,6 +83,7 @@ export async function injectScenario(
 ): Promise<LightMyRequestResponse> {
   await wire.reset();
   Object.assign(wire.state, scenario.state);
+  await scenario.setup?.(wire.vcsRoot);
   const fill = (text: string) =>
     text.split('{root}').join(wire.vcsRoot).split('{commit}').join(wire.commit);
   const url = fill(scenario.url);
@@ -95,10 +96,16 @@ export async function injectScenario(
     : scenario.withoutSourceQueue
       ? wire.appWithoutSourceQueue
       : wire.app;
+  const headers =
+    scenario.auth === 'none'
+      ? {}
+      : scenario.auth === 'wrong'
+        ? { authorization: 'Bearer not-the-key' }
+        : WIRE_AUTH;
   return app.inject({
     method: scenario.method,
     url,
-    headers: WIRE_AUTH,
+    headers,
     ...(payload === undefined ? {} : { payload: payload as object }),
   });
 }

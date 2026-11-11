@@ -1,12 +1,14 @@
 /**
  * @module api/catalog/renderSourceDocument.test
- * `renderSourceDocument`: success body, `source_not_indexed`/`source_not_found`
- * and the three failed-pipeline codes, each thrown as a `RequestError`.
+ * `renderSourceDocument`: success body, `WATCHER_SOURCE_NOT_INDEXED` /
+ * `WATCHER_SOURCE_NOT_FOUND`, and each render failure thrown as its class by
+ * issue type (D203 (2)), with the failure's message and details logged.
  */
 
+import { ISSUE_TYPES } from '@karmaniverous/jeeves-watcher-core';
 import { describe, expect, it, vi } from 'vitest';
 
-import { RequestError } from '../requestError';
+import { pipelineErrorCode } from '../errors';
 import { renderSourceDocument } from './renderSourceDocument';
 
 function processorWith(ops: {
@@ -15,6 +17,8 @@ function processorWith(ops: {
 }) {
   return { sourceOperations: () => ops } as never;
 }
+
+const logger = () => ({ warn: vi.fn() });
 
 describe('renderSourceDocument', () => {
   it('returns the rendered body on success', async () => {
@@ -32,7 +36,11 @@ describe('renderSourceDocument', () => {
         }),
     });
 
-    const body = await renderSourceDocument(processor, 'app://chat/1');
+    const body = await renderSourceDocument(
+      processor,
+      'app://chat/1',
+      logger(),
+    );
 
     expect(body).toEqual({
       renderAs: 'md',
@@ -42,54 +50,78 @@ describe('renderSourceDocument', () => {
     });
   });
 
-  it('throws source_not_indexed when no stored rule exists', async () => {
+  it('throws 404 WATCHER_SOURCE_NOT_INDEXED when no stored rule exists', async () => {
     const processor = processorWith({
       storedRule: () => Promise.resolve(null),
       render: vi.fn(),
     });
 
     await expect(
-      renderSourceDocument(processor, 'app://chat/1'),
-    ).rejects.toMatchObject({ code: 'source_not_indexed' });
+      renderSourceDocument(processor, 'app://chat/1', logger()),
+    ).rejects.toMatchObject({
+      statusCode: 404,
+      code: 'WATCHER_SOURCE_NOT_INDEXED',
+    });
   });
 
-  it('throws source_not_found when the callback answers gone', async () => {
+  it('throws 404 WATCHER_SOURCE_NOT_FOUND when the callback answers gone', async () => {
     const processor = processorWith({
       storedRule: () => Promise.resolve('chat'),
       render: () => Promise.resolve({ kind: 'gone' }),
     });
 
     await expect(
-      renderSourceDocument(processor, 'app://chat/1'),
-    ).rejects.toMatchObject({ code: 'source_not_found' });
-  });
-
-  it.each([
-    ['source_unavailable', 'source_unavailable'],
-    ['unsupported_content_type', 'unsupported_content_type'],
-    ['rule_missing', 'pipeline_error'],
-  ])('maps failure %s to %s', async (issue, expectedCode) => {
-    const details = { stage: issue };
-    const processor = processorWith({
-      storedRule: () => Promise.resolve('chat'),
-      render: () =>
-        Promise.resolve({
-          kind: 'failed',
-          error: { code: issue, message: `${issue} happened`, details },
-        }),
+      renderSourceDocument(processor, 'app://chat/1', logger()),
+    ).rejects.toMatchObject({
+      statusCode: 404,
+      code: 'WATCHER_SOURCE_NOT_FOUND',
     });
-
-    const error = (await renderSourceDocument(processor, 'app://chat/1').catch(
-      (e: unknown) => e,
-    )) as RequestError;
-
-    expect(error).toBeInstanceOf(RequestError);
-    expect(error.code).toBe(expectedCode);
-    expect(error.message).toBe(`${issue} happened`);
-    expect(error.extras).toEqual({ details, issueType: issue });
   });
 
-  it('omits issueType when the failure code is not a known issue type', async () => {
+  /** Every issue type with the code and status its failure is sent with. */
+  const cases = ISSUE_TYPES.map((issue): [string, string, number] =>
+    issue === 'source_unavailable'
+      ? [issue, 'WATCHER_SOURCE_UNAVAILABLE', 502]
+      : issue === 'unsupported_content_type'
+        ? [issue, 'WATCHER_UNSUPPORTED_CONTENT_TYPE', 422]
+        : [issue, pipelineErrorCode(issue), 422],
+  );
+
+  it.each(cases)(
+    'maps failure %s to %s (%i), logging message and details',
+    async (issue, code, statusCode) => {
+      const details = { stage: issue };
+      const log = logger();
+      const processor = processorWith({
+        storedRule: () => Promise.resolve('chat'),
+        render: () =>
+          Promise.resolve({
+            kind: 'failed',
+            error: { code: issue, message: `${issue} happened`, details },
+          }),
+      });
+
+      const error = (await renderSourceDocument(
+        processor,
+        'app://chat/1',
+        log,
+      ).catch((e: unknown) => e)) as Error;
+
+      expect(error).toMatchObject({ statusCode, code });
+      expect(error.message).not.toContain('happened');
+      expect(log.warn).toHaveBeenCalledWith(
+        {
+          source: 'app://chat/1',
+          issueType: issue,
+          message: `${issue} happened`,
+          details,
+        },
+        'Render failed',
+      );
+    },
+  );
+
+  it('maps an unknown failure code to an extraction error', async () => {
     const processor = processorWith({
       storedRule: () => Promise.resolve('chat'),
       render: () =>
@@ -99,11 +131,11 @@ describe('renderSourceDocument', () => {
         }),
     });
 
-    const error = (await renderSourceDocument(processor, 'app://chat/1').catch(
-      (e: unknown) => e,
-    )) as RequestError;
-
-    expect(error.code).toBe('pipeline_error');
-    expect(error.extras).toEqual({ details: {}, issueType: undefined });
+    await expect(
+      renderSourceDocument(processor, 'app://chat/1', logger()),
+    ).rejects.toMatchObject({
+      statusCode: 422,
+      code: 'WATCHER_PIPELINE_EXTRACTION_ERROR',
+    });
   });
 });

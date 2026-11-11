@@ -9,12 +9,15 @@ import Fastify, { type FastifyInstance } from 'fastify';
 import type pino from 'pino';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import {
-  isAuthorized,
-  isPublicRoute,
-  registerApiKeyAuth,
-  UNAUTHORIZED_BODY,
-} from './apiKeyAuth';
+import { isAuthorized, isPublicRoute, registerApiKeyAuth } from './apiKeyAuth';
+
+/** The 401 body: Fastify's standard error body, no other header (D204 (6)). */
+const UNAUTHORIZED_BODY = {
+  statusCode: 401,
+  code: 'WATCHER_UNAUTHORIZED',
+  error: 'Unauthorized',
+  message: 'A valid API key is required: send Authorization: Bearer <key>.',
+};
 
 vi.mock('node:crypto', async (importOriginal) => {
   const actual = await importOriginal<typeof crypto>();
@@ -107,6 +110,7 @@ describe('registerApiKeyAuth', () => {
       });
       expect(res.statusCode).toBe(401);
       expect(res.json()).toEqual(UNAUTHORIZED_BODY);
+      expect(res.headers['www-authenticate']).toBeUndefined();
     }
   });
 

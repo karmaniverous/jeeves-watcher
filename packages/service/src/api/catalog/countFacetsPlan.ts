@@ -8,7 +8,7 @@ import {
   FIELD_MATCHED_RULES,
   FIELD_SOURCE_RULE,
 } from '../../processor/payloadFields';
-import { invalidRequest } from '../requestError';
+import { capArg, FacetFieldNotIndexed } from '../errors';
 import { DEFAULT_ENUM_HINT, type RuleSchema } from './ruleSchemas';
 
 /** How a field is answered: value counts, or `{ min, max }`. */
@@ -30,12 +30,6 @@ const COUNT_INDEX_TYPES = new Set(['keyword', 'integer', 'bool']);
 
 /** Payload index types an ordered scroll can read a range from. */
 const RANGE_INDEX_TYPES = new Set(['integer', 'float', 'datetime']);
-
-/** Index types each mode needs, as listed in the 400. */
-const NEEDED: Record<FacetMode, string> = {
-  counts: 'keyword, integer or bool',
-  range: 'integer, float or datetime',
-};
 
 /**
  * The hint every rule declaring `field` gives it (`enum` without a uiHint
@@ -68,7 +62,7 @@ export function agreedHint(
  * @param rules - In-scope rule schemas (for uiHints).
  * @param indexTypes - Payload index type by field.
  * @returns The plan, in request order.
- * @throws A `400 invalid_request` naming every field without a usable index.
+ * @throws `FacetFieldNotIndexed` (400) naming every field without a usable index.
  */
 export function planFields(
   fields: readonly string[],
@@ -76,8 +70,7 @@ export function planFields(
   indexTypes: Readonly<Record<string, string>>,
 ): FieldPlan[] {
   const plans: FieldPlan[] = [];
-  const unusable: Record<string, { mode: FacetMode; index: string | null }> =
-    {};
+  const unusable: string[] = [];
   for (const field of new Set(fields)) {
     const index = (indexTypes[field] as string | undefined) ?? null;
     const hint = agreedHint(field, rules);
@@ -95,17 +88,10 @@ export function planFields(
       index !== null &&
       (mode === 'range' ? RANGE_INDEX_TYPES : COUNT_INDEX_TYPES).has(index);
     if (usable) plans.push({ field, mode });
-    else unusable[field] = { mode, index };
+    else unusable.push(field);
   }
-  const names = Object.keys(unusable);
-  if (names.length > 0) {
-    throw invalidRequest(
-      `No usable payload index for field${names.length === 1 ? '' : 's'}: ${names.join(', ')}`,
-      {
-        message: `Value counts need a ${NEEDED.counts} payload index; a range needs ${NEEDED.range}. Configure them in vectorStore.payloadIndexes.`,
-        details: { fields: unusable },
-      },
-    );
+  if (unusable.length > 0) {
+    throw new FacetFieldNotIndexed(capArg(unusable.join(', ')));
   }
   return plans;
 }

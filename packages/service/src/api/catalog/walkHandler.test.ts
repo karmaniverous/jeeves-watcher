@@ -123,24 +123,27 @@ describe('POST /walk', () => {
     const { status, body } = await walk(payload);
 
     expect(status).toBe(400);
-    expect(body).toMatchObject({ code: 'invalid_request' });
+    expect(body).toMatchObject({ code: 'FST_ERR_VALIDATION' });
     expect(mockWatcher.getWatchedFiles).not.toHaveBeenCalled();
   });
 
-  it('returns 503 scan_in_progress while the initial scan runs', async () => {
+  it('returns 503 WATCHER_SCAN_IN_PROGRESS while the initial scan runs', async () => {
     mockWatcher.isReady = false;
     const walk = await serve(makeDeps());
 
     const { status, body } = await walk({ globs: ['**/*.md'] });
 
     expect(status).toBe(503);
-    expect(body).toMatchObject({
-      code: 'scan_in_progress',
-      error: 'Scan in progress',
+    expect(body).toEqual({
+      statusCode: 503,
+      code: 'WATCHER_SCAN_IN_PROGRESS',
+      error: 'Service Unavailable',
+      message:
+        'The initial filesystem scan is still running; retry when it finishes.',
     });
   });
 
-  it('returns 503 not_available when the watcher is not available', async () => {
+  it('returns 503 WATCHER_NOT_AVAILABLE when the watcher is not available', async () => {
     const walk = await serve({
       getWatchPaths: () => ['c:/data/**/*.md'],
       logger: {
@@ -154,6 +157,9 @@ describe('POST /walk', () => {
     const { status, body } = await walk({ globs: ['**/*.md'] });
 
     expect(status).toBe(503);
-    expect(body).toMatchObject({ code: 'not_available' });
+    expect(body).toMatchObject({
+      code: 'WATCHER_NOT_AVAILABLE',
+      message: 'The filesystem watcher is not initialized.',
+    });
   });
 });

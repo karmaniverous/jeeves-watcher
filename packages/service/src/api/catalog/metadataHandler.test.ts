@@ -1,8 +1,9 @@
 /**
  * @module api/catalog/metadataHandler.test
- * POST /metadata through the catalog route: file paths validate against matched rules; source references need a stored point (404 source_not_indexed; a failed read is 500, not 404), validate against the designated rule resolved by the processor's own lookup (config or virtual rule); 503 without source support.
+ * POST /metadata through the catalog route: file paths validate against matched rules; source references need a stored point (404 WATCHER_SOURCE_NOT_INDEXED; a failed read is a masked 500, not 404), validate against the designated rule resolved by the processor's own lookup (config or virtual rule); 503 without source support.
  */
 
+import { SERVER_ERROR_MESSAGE } from '@karmaniverous/jeeves/fastify';
 import Fastify, { type FastifyInstance } from 'fastify';
 import pino from 'pino';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -102,14 +103,22 @@ describe('POST /metadata', () => {
     build({});
     const res = await post({ path: 'a.md', metadata: { priority: 'high' } });
     expect(res.status).toBe(400);
-    expect(res.body).toMatchObject({ code: 'invalid_request' });
+    expect(res.body).toMatchObject({ code: 'WATCHER_INVALID_REQUEST' });
+    expect((res.body as { message: string }).message).toMatch(
+      /^The metadata does not match the matched rules' schemas: priority: /,
+    );
   });
 
-  it('answers 404 source_not_indexed for an unindexed reference', async () => {
+  it('answers 404 WATCHER_SOURCE_NOT_INDEXED for an unindexed reference', async () => {
     const { ops } = build({ storedRule: null });
     const res = await post({ source: REF, metadata: { priority: 1 } });
     expect(res.status).toBe(404);
-    expect(res.body).toMatchObject({ code: 'source_not_indexed' });
+    expect(res.body).toEqual({
+      statusCode: 404,
+      code: 'WATCHER_SOURCE_NOT_INDEXED',
+      error: 'Not Found',
+      message: 'The source document is not indexed.',
+    });
     expect(ops.updateMetadata).not.toHaveBeenCalled();
   });
 
@@ -118,7 +127,11 @@ describe('POST /metadata', () => {
     ops.storedRule.mockRejectedValueOnce(new Error('qdrant down'));
     const res = await post({ source: REF, metadata: { priority: 1 } });
     expect(res.status).toBe(500);
-    expect(res.body).toMatchObject({ code: 'internal_error' });
+    expect(res.body).toEqual({
+      statusCode: 500,
+      error: 'Internal Server Error',
+      message: SERVER_ERROR_MESSAGE,
+    });
     expect(ops.updateMetadata).not.toHaveBeenCalled();
   });
 
@@ -138,10 +151,10 @@ describe('POST /metadata', () => {
     });
     const bad = await post({ source: REF, metadata: { priority: 'x' } });
     expect(bad.status).toBe(400);
-    expect(bad.body).toMatchObject({
-      code: 'invalid_request',
-      details: [expect.objectContaining({ rule: 'plugin-chat' })],
-    });
+    expect(bad.body).toMatchObject({ code: 'WATCHER_INVALID_REQUEST' });
+    expect((bad.body as { message: string }).message).toMatch(
+      /schemas: priority: /,
+    );
     const ok = await post({ source: REF, metadata: { priority: 3 } });
     expect(ok.body).toEqual({ ok: true, matched_rules: ['plugin-chat'] });
     expect(ops.updateMetadata).toHaveBeenCalledTimes(1);
@@ -153,10 +166,10 @@ describe('POST /metadata', () => {
     expect(res.body).toEqual({ ok: true, matched_rules: [] });
   });
 
-  it('answers 503 not_available without source support', async () => {
+  it('answers 503 WATCHER_NOT_AVAILABLE without source support', async () => {
     build({ sources: false });
     const res = await post({ source: REF, metadata: {} });
     expect(res.status).toBe(503);
-    expect(res.body).toMatchObject({ code: 'not_available' });
+    expect(res.body).toMatchObject({ code: 'WATCHER_NOT_AVAILABLE' });
   });
 });

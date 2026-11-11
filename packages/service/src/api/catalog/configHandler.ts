@@ -2,8 +2,8 @@
  * @module api/catalog/configHandler
  * `ConfigQueryHandler` source for the catalog `config` entry: core's generic
  * `createConfigQueryHandler` over the watcher's merged document (globals,
- * virtual rules, helper introspection), with a `code` added to any error
- * result that core didn't already give one (fitted to the catalog by
+ * virtual rules, helper introspection); an invalid JSONPath is core's own
+ * `400 JEEVES_CONFIG_QUERY_INVALID` (fitted to the catalog by
  * `standardHandlers`, `api/catalog/index`).
  */
 
@@ -17,7 +17,6 @@ import type { AllHelpersIntrospection } from '../../helpers';
 import type { IssuesManager } from '../../issues';
 import type { ValuesManager } from '../../values';
 import { buildMergedDocument } from '../mergedDocument';
-import { withErrorCode } from './errorResult';
 
 /** Dependencies for the catalog `config` entry's source handler. */
 export interface CatalogConfigDeps {
@@ -53,5 +52,7 @@ export function createCatalogConfigSource(
     }),
   );
 
-  return async (query) => withErrorCode(await coreHandler(query));
+  // Async, so a failure building the merged document (thrown synchronously
+  // by core's handler) rejects and reaches jeeves as a masked 500.
+  return async (query) => coreHandler(query);
 }

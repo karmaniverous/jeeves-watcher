@@ -1,6 +1,6 @@
 /**
  * @module api/catalog/rulesRegisterHandler.test
- * POST /rules/register over the catalog route: registers rules and fires onRulesChanged; a missing source, non-array rules or unnamed rules (the catalog's validation), duplicate names and uncompilable match schemas (the handler's) are 400 invalid_request with nothing registered.
+ * POST /rules/register over the catalog route: registers rules and fires onRulesChanged; a missing source, non-array rules or unnamed rules (the catalog's validation), duplicate names and uncompilable match schemas (the handler's `RulesInvalid`) are 400 (`FST_ERR_VALIDATION` and `WATCHER_INVALID_REQUEST` respectively) with nothing registered.
  */
 
 import Fastify from 'fastify';
@@ -67,22 +67,35 @@ describe('POST /rules/register', () => {
   });
 
   it.each([
-    ['missing source', { rules: [] }],
-    ['no body', undefined],
-    ['non-array rules', { source: 'p', rules: 'x' }],
-    ['an unnamed rule', { source: 'p', rules: [{ match: {} }] }],
-    ['duplicate names', { source: 'p', rules: [rule('a'), rule('a')] }],
+    ['missing source', { rules: [] }, 'FST_ERR_VALIDATION'],
+    ['no body', undefined, 'FST_ERR_VALIDATION'],
+    ['non-array rules', { source: 'p', rules: 'x' }, 'FST_ERR_VALIDATION'],
+    [
+      'an unnamed rule',
+      { source: 'p', rules: [{ match: {} }] },
+      'FST_ERR_VALIDATION',
+    ],
+    [
+      'duplicate names',
+      { source: 'p', rules: [rule('a'), rule('a')] },
+      'WATCHER_INVALID_REQUEST',
+    ],
     [
       'a match schema that does not compile',
       { source: 'p', rules: [rule('a', { type: 'no-such-type' })] },
+      'WATCHER_INVALID_REQUEST',
     ],
-  ])('rejects %s with 400 invalid_request', async (_label, body) => {
+  ])('rejects %s with 400 %s', async (_label, body, code) => {
     const deps = makeDeps();
 
     const res = await invoke(deps, body);
 
     expect(res.status).toBe(400);
-    expect(res.body).toMatchObject({ code: 'invalid_request' });
+    expect(res.body).toMatchObject({ code });
+    const { message } = res.body as { message: string };
+    expect(message.startsWith('The rules are not valid: ')).toBe(
+      code === 'WATCHER_INVALID_REQUEST',
+    );
     expect(deps.virtualRuleStore.size).toBe(0);
     expect(deps.onRulesChanged).not.toHaveBeenCalled();
   });

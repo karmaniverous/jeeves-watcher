@@ -932,8 +932,8 @@ Besides the config file, rules can be registered at runtime (for example by a pl
 | `DELETE /rules/unregister/:source` | none (source in the path) | `{ source, removed }` |
 | `POST /rules/reapply` | `{ "globs": ["<non-empty string>", ...] }` (at least one) | `{ matched, updated }` |
 
-- A body that does not match its schema is `400 invalid_request` (`error` is the first problem, for example `Missing required field: source`, `Missing required field: rules (array)`, `Every rule must be an object with a name` or `Missing required field: globs (non-empty string array)`; `details` lists every Zod issue).
-- `POST /rules/register` also returns `400 invalid_request` (`error: "Invalid rules"`) when the rules have duplicate names or a `match` schema does not compile; nothing is registered. Registering again under the same `source` replaces that source's rules.
+- A body that does not match its schema is the request-validation `400 FST_ERR_VALIDATION`, whose `message` lists every problem (for example `body/source Missing required field: source` or `body/globs Missing required field: globs (non-empty string array)`).
+- `POST /rules/register` also returns `400 WATCHER_INVALID_REQUEST` (`The rules are not valid: <the compiler's explanation>`) when the rules have duplicate names or a `match` schema does not compile; nothing is registered. Registering again under the same `source` replaces that source's rules.
 - After a register, or an unregister that removed rules, the rules are recompiled. When any registered rule has a `match.properties.file.properties.path.glob` string, a `rules` reindex runs for those globs (files only).
 - `POST /rules/reapply` re-applies the current rules, without re-embedding, to every indexed file whose path matches a glob (case-insensitive, dotfiles included), removing payload keys the rules no longer project. Source documents are never matched. A file that fails is logged and skipped.
 

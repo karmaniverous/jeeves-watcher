@@ -60,14 +60,17 @@ describe('createCatalogConfigSource', () => {
     });
   });
 
-  it('adds a code to an invalid JSONPath 400', async () => {
+  it("answers an invalid JSONPath with core's 400 JEEVES_CONFIG_QUERY_INVALID", async () => {
     mockedBuild.mockReturnValue({ inferenceRules: [] });
 
     const source = createCatalogConfigSource(deps());
     const result = await source({ path: '$[?(@.x ==' });
 
     expect(result.status).toBe(400);
-    expect(result.body).toMatchObject({ code: 'invalid_request' });
+    expect(result.body).toMatchObject({
+      statusCode: 400,
+      code: 'JEEVES_CONFIG_QUERY_INVALID',
+    });
   });
 
   it('returns an empty result set for a path that matches nothing', async () => {

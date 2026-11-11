@@ -75,8 +75,8 @@ export function isDegraded(health: Record<string, unknown>): boolean {
  * @returns The wrapped handler.
  */
 export function withDegradedStatus(handler: StatusHandler): StatusHandler {
-  return async () => {
-    const result = await handler();
+  return async (logger) => {
+    const result = await handler(logger);
     const { body } = result;
     if (body.status === 'healthy' && isDegraded(body.health)) {
       return { ...result, body: { ...body, status: 'degraded' } };

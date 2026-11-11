@@ -1,6 +1,6 @@
 /**
  * @module api/catalog/rulesUnregisterHandler.test
- * DELETE /rules/unregister (body) and /rules/unregister/:source (param) over the catalog routes: removal answers `removed: true` and fires onRulesChanged once; an unknown source answers `removed: false` without firing it; a missing or empty body source is the catalog's 400 invalid_request.
+ * DELETE /rules/unregister (body) and /rules/unregister/:source (param) over the catalog routes: removal answers `removed: true` and fires onRulesChanged once; an unknown source answers `removed: false` without firing it; a missing or empty body source is the catalog's 400 FST_ERR_VALIDATION.
  */
 
 import Fastify, { type FastifyInstance } from 'fastify';
@@ -79,7 +79,7 @@ describe.each(variants)('rules unregister (%s)', (_label, unregister) => {
 
 describe('rules unregister (body) validation', () => {
   it.each([[{}], [{ source: '' }]])(
-    'rejects %j with 400 invalid_request',
+    'rejects %j with 400 FST_ERR_VALIDATION',
     async (payload) => {
       const res = await app.inject({
         method: 'DELETE',
@@ -87,7 +87,7 @@ describe('rules unregister (body) validation', () => {
         payload,
       });
       expect(res.statusCode).toBe(400);
-      expect(res.json()).toMatchObject({ code: 'invalid_request' });
+      expect(res.json()).toMatchObject({ code: 'FST_ERR_VALIDATION' });
       expect(store.size).toBe(1);
       expect(onRulesChanged).not.toHaveBeenCalled();
     },

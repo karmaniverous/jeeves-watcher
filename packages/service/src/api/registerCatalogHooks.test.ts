@@ -1,6 +1,6 @@
 /**
  * @module api/registerCatalogHooks.test
- * The hooks `registerCatalog` puts in front of the catalog handlers, on the real server. The feature gate: with VCS off, every `/vcs/*` route answers the exact not-found 404 an unregistered route sends (`notFoundBody`, url with its query string) for `GET`, the derived `HEAD`, and `POST`, before the query or body is validated or even parsed (spec Design 3, D28, D50); with VCS on, the routes run and validate normally, and ungated routes are unaffected. The body normalisation: a bodyless `POST /rebuild-metadata` still succeeds, as in 0.20.0.
+ * The hooks `registerCatalog` puts in front of the catalog handlers, on the real server. The feature gate: with VCS off, every `/vcs/*` route answers the exact not-found 404 an unregistered route sends (`RouteNotFound`, url with its query string) for `GET`, the derived `HEAD`, and `POST`, before the query or body is validated or even parsed (spec Design 3, D28, D50); with VCS on, the routes run and validate normally, and ungated routes are unaffected. The body normalisation: a bodyless `POST /rebuild-metadata` still succeeds, as in 0.20.0.
  */
 
 import type { FastifyInstance } from 'fastify';
@@ -8,8 +8,15 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { captureLogger } from '../test/wire/captureLogger';
 import { startWireApp, WIRE_AUTH, type WireApp } from '../test/wire/wireApp';
-import { notFoundBody } from './catalog/notFoundBody';
 import { WATCHER_FEATURE_GATES } from './featureGates';
+
+/** The not-found body an unregistered route sends (`RouteNotFound`). */
+const notFoundBody = (method: string, url: string) => ({
+  statusCode: 404,
+  code: 'WATCHER_NOT_FOUND',
+  error: 'Not Found',
+  message: `Route ${method}:${url} not found`,
+});
 
 let wire: WireApp;
 const captured = captureLogger();
@@ -119,7 +126,7 @@ describe('feature gate, VCS on', () => {
     const res = await send(wire.app, 'GET', '/vcs/history');
 
     expect(res.statusCode).toBe(400);
-    expect(res.json()).toMatchObject({ code: 'invalid_request' });
+    expect(res.json()).toMatchObject({ code: 'FST_ERR_VALIDATION' });
   });
 
   it('answers HEAD on a gated GET route', async () => {
@@ -145,7 +152,7 @@ describe('body normalisation', () => {
       const res = await send(wire.app, 'POST', url);
 
       expect(res.statusCode).toBe(400);
-      expect(res.json()).toMatchObject({ code: 'invalid_request' });
+      expect(res.json()).toMatchObject({ code: 'FST_ERR_VALIDATION' });
     },
   );
 });

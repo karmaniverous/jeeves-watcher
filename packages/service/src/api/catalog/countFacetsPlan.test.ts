@@ -5,7 +5,7 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { RequestError } from '../requestError';
+import { FacetFieldNotIndexed, MESSAGE_ARG_MAX } from '../errors';
 import { agreedHint, countFilter, planFields } from './countFacetsPlan';
 import type { RuleSchema } from './ruleSchemas';
 
@@ -104,26 +104,18 @@ describe('planFields', () => {
     } catch (err) {
       error = err;
     }
-    expect(error).toBeInstanceOf(RequestError);
-    const { status, message, extras } = error as RequestError;
-    expect(status).toBe(400);
-    expect(message).toBe(
-      'No usable payload index for fields: missing, body, tag, at',
-    );
-    expect(extras.message).toContain('vectorStore.payloadIndexes');
-    expect(extras.details).toEqual({
-      fields: {
-        missing: { mode: 'counts', index: null },
-        body: { mode: 'counts', index: 'text' },
-        tag: { mode: 'range', index: 'keyword' },
-        at: { mode: 'counts', index: 'datetime' },
-      },
+    expect(error).toBeInstanceOf(FacetFieldNotIndexed);
+    expect(error).toMatchObject({
+      statusCode: 400,
+      code: 'WATCHER_INVALID_REQUEST',
+      message: 'No usable payload index for field(s): missing, body, tag, at',
     });
   });
 
-  it('names a single field in the singular', () => {
-    expect(() => planFields(['missing'], [], indexes)).toThrow(
-      'No usable payload index for field: missing',
+  it('caps a long field list', () => {
+    const fields = Array.from({ length: 100 }, (_, i) => `missing${String(i)}`);
+    expect(() => planFields(fields, [], indexes)).toThrow(
+      `No usable payload index for field(s): ${fields.join(', ').slice(0, MESSAGE_ARG_MAX - 1)}…`,
     );
   });
 });

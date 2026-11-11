@@ -1,6 +1,6 @@
 /**
  * @module api/reindexPathFiles.test
- * collectPathFiles on a real temp tree: files and directories (expanded to watched files, deduped) resolve; unwatched or gitignored targets are 403 path_not_watched, missing ones (ENOENT, ENOTDIR) 404 not_found, neither-file-nor-directory 400 invalid_request (RequestError); other stat errors propagate; a directory never expands into a sibling sharing its prefix.
+ * collectPathFiles on a real temp tree: files and directories (expanded to watched files, deduped) resolve; unwatched or gitignored targets are `PathNotWatched` (403), missing ones (ENOENT, ENOTDIR) `PathNotFound` (404), neither-file-nor-directory `PathNotFileOrDirectory` (400); other stat errors propagate; a directory never expands into a sibling sharing its prefix.
  */
 
 import type { Stats } from 'node:fs';
@@ -14,8 +14,11 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { JeevesWatcherConfig } from '../config/types';
 import type { GitignoreFilter } from '../gitignore';
 import { normalizeSlashes } from '../util/normalizeSlashes';
+import { PathNotFileOrDirectory, PathNotFound, PathNotWatched } from './errors';
 import { collectPathFiles } from './reindexPathFiles';
-import { RequestError } from './requestError';
+
+/** Every class a bad reindex target throws. */
+const TARGET_ERRORS = [PathNotWatched, PathNotFound, PathNotFileOrDirectory];
 
 vi.mock('node:fs/promises', async (importOriginal) => {
   const original = await importOriginal<typeof FsPromises>();
@@ -65,8 +68,12 @@ describe('collectPathFiles', () => {
     const error = await failure(
       collectPathFiles([`${root}/other.md`], config, undefined),
     );
-    expect(error).toBeInstanceOf(RequestError);
-    expect(error).toMatchObject({ status: 403, code: 'path_not_watched' });
+    expect(error).toBeInstanceOf(PathNotWatched);
+    expect(error).toMatchObject({
+      statusCode: 403,
+      code: 'WATCHER_PATH_NOT_WATCHED',
+      message: 'The path is outside the watched scope or is gitignored.',
+    });
   });
 
   it('rejects a gitignored path with 403 path_not_watched', async () => {
@@ -74,16 +81,20 @@ describe('collectPathFiles', () => {
     const error = await failure(
       collectPathFiles([`${root}/docs/a.md`], config, gitignore),
     );
-    expect(error).toBeInstanceOf(RequestError);
-    expect(error).toMatchObject({ status: 403, code: 'path_not_watched' });
+    expect(error).toBeInstanceOf(PathNotWatched);
+    expect(error).toMatchObject({
+      statusCode: 403,
+      code: 'WATCHER_PATH_NOT_WATCHED',
+      message: 'The path is outside the watched scope or is gitignored.',
+    });
   });
 
   it('rejects a missing path with 404 not_found', async () => {
     const error = await failure(
       collectPathFiles([`${root}/docs/missing.md`], config, undefined),
     );
-    expect(error).toBeInstanceOf(RequestError);
-    expect(error).toMatchObject({ status: 404, code: 'not_found' });
+    expect(error).toBeInstanceOf(PathNotFound);
+    expect(error).toMatchObject({ statusCode: 404, code: 'WATCHER_NOT_FOUND' });
   });
 
   /** Make the next stat reject with an fs error code. */
@@ -97,7 +108,7 @@ describe('collectPathFiles', () => {
     const error = await failure(
       collectPathFiles([`${root}/docs/a.md`], config, undefined),
     );
-    expect(error).toMatchObject({ status: 404, code: 'not_found' });
+    expect(error).toMatchObject({ statusCode: 404, code: 'WATCHER_NOT_FOUND' });
   });
 
   it('rethrows any other stat error unchanged', async () => {
@@ -105,7 +116,7 @@ describe('collectPathFiles', () => {
     const error = await failure(
       collectPathFiles([`${root}/docs/a.md`], config, undefined),
     );
-    expect(error).not.toBeInstanceOf(RequestError);
+    for (const cls of TARGET_ERRORS) expect(error).not.toBeInstanceOf(cls);
     expect(error).toMatchObject({ code: 'EACCES' });
   });
 
@@ -117,7 +128,10 @@ describe('collectPathFiles', () => {
     const error = await failure(
       collectPathFiles([`${root}/docs/a.md`], config, undefined),
     );
-    expect(error).toBeInstanceOf(RequestError);
-    expect(error).toMatchObject({ status: 400, code: 'invalid_request' });
+    expect(error).toBeInstanceOf(PathNotFileOrDirectory);
+    expect(error).toMatchObject({
+      statusCode: 400,
+      code: 'WATCHER_INVALID_REQUEST',
+    });
   });
 });

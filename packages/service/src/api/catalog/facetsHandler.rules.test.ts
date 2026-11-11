@@ -105,7 +105,7 @@ describe('createFacetsLister with rules', () => {
   });
 
   it('rejects an unknown rule name', () => {
-    expect(() => list(['a', 'nope'])).toThrow('Unknown rule: nope');
+    expect(() => list(['a', 'nope'])).toThrow('Unknown rule(s): nope');
   });
 });
 
@@ -132,19 +132,24 @@ describe('GET /search/facets?rules= route', () => {
     expect(fieldsOf(body as never)).toEqual(['tag', 'beta', 'gamma']);
   });
 
-  it('answers 400 invalid_request for an unknown rule', async () => {
+  it('answers 400 WATCHER_INVALID_REQUEST for an unknown rule', async () => {
     const { status, body } = await inject('/search/facets?rules=a,ghost');
     expect(status).toBe(400);
-    expect(body).toMatchObject({
-      code: 'invalid_request',
-      error: 'Unknown rule: ghost',
+    expect(body).toEqual({
+      statusCode: 400,
+      code: 'WATCHER_INVALID_REQUEST',
+      error: 'Bad Request',
+      message: 'Unknown rule(s): ghost',
     });
   });
 
   it('answers 400 when rules names no rule', async () => {
     const { status, body } = await inject('/search/facets?rules=');
     expect(status).toBe(400);
-    expect(body).toMatchObject({ code: 'invalid_request' });
+    expect(body).toMatchObject({
+      code: 'WATCHER_INVALID_REQUEST',
+      message: 'rules must name at least one rule',
+    });
   });
 
   it('ignores other query keys, as 0.20.0 did', async () => {

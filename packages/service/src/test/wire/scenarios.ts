@@ -30,6 +30,10 @@ export interface WireScenario {
   withoutVcs?: boolean;
   /** Use the server without a source notify queue. */
   withoutSourceQueue?: boolean;
+  /** Send no bearer key (`none`) or a wrong one (`wrong`); default the right one. */
+  auth?: 'none' | 'wrong';
+  /** Prepare the VCS root (after the reset, before the request). */
+  setup?: (vcsRoot: string) => Promise<void>;
   /** HTTP method. */
   method: 'GET' | 'HEAD' | 'POST' | 'DELETE';
   /** URL; `{root}` and `{commit}` are filled from the wire app. */

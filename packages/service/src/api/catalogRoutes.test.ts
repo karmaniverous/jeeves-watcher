@@ -1,6 +1,6 @@
 /**
  * @module api/catalogRoutes.test
- * The catalog routes end to end, over the wire app: a request-validation failure in each input slot is a `400 invalid_request` naming that slot; every JSON response the server sends equals what the handler returned (response validation changes nothing), one test per wire scenario; and the typed catalog client round-trips every entry over real HTTP with the bearer key.
+ * The catalog routes end to end, over the wire app: a request-validation failure in each input slot is jeeves's `400 FST_ERR_VALIDATION` naming that slot; every JSON response the server sends equals what the handler returned (response validation changes nothing), one test per wire scenario; and the typed catalog client round-trips every entry over real HTTP with the bearer key.
  */
 
 import { createCatalogClient } from '@karmaniverous/jeeves/catalog';
@@ -76,7 +76,7 @@ describe('request validation', () => {
     ['body', 'POST', '/scan', { filter: {}, fields: 'file_path' }, ['fields']],
     ['body', 'POST', '/config/apply', { patch: 'nope' }, ['patch']],
   ] as const)(
-    'rejects a bad %s on %s %s %j with 400 invalid_request',
+    'rejects a bad %s on %s %s %j with 400 FST_ERR_VALIDATION',
     async (slot, method, url, payload, issuePath) => {
       const { value: res, results } = await inScope(() =>
         wire.app.inject({
@@ -89,15 +89,20 @@ describe('request validation', () => {
 
       expect(res.statusCode).toBe(400);
       const body = res.json<{
+        statusCode: number;
         code: string;
         error: string;
-        details: Array<{ slot: string; path: unknown[]; message: string }>;
+        message: string;
       }>();
-      expect(body.code).toBe('invalid_request');
-      expect(body.details.length).toBeGreaterThan(0);
-      expect(body.details.every((d) => d.slot === slot)).toBe(true);
-      expect(body.error).toBe(body.details[0].message);
-      expect(body.details[0].path).toEqual(issuePath);
+      expect(body).toMatchObject({
+        statusCode: 400,
+        code: 'FST_ERR_VALIDATION',
+        error: 'Bad Request',
+      });
+      // Fastify names the slot (`querystring` for the query) and the path.
+      const named = slot === 'query' ? 'querystring' : slot;
+      const where = [named, ...issuePath.map(String)].join('/');
+      expect(body.message.startsWith(where)).toBe(true);
       expect(results).toEqual([]);
     },
   );

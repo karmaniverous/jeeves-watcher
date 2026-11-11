@@ -1,21 +1,21 @@
 /**
  * @module api/apiHooks.test
- * Fastify inject tests for the server-wide hooks (the 401 itself is covered by apiKeyAuth.test and routeAuth.test): authorized requests pass through, 404 not_found for unknown routes, framework 4xx as invalid_request and uncaught errors as 500 internal_error without leaking the message.
+ * Fastify inject tests for the server-wide hooks (the 401 itself is covered by apiKeyAuth.test and routeAuth.test): authorized requests pass through, `404 WATCHER_NOT_FOUND` for unknown routes, Fastify's own 4xx kept with their `FST_ERR_*` code, a thrown watcher class sent as written, and any other error a masked 500 logged through the watcher's logger.
  */
 
+import { SERVER_ERROR_MESSAGE } from '@karmaniverous/jeeves/fastify';
 import Fastify, { type FastifyInstance } from 'fastify';
 import pino from 'pino';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { registerApiHooks, statusOfError } from './apiHooks';
-import { INTERNAL_ERROR_MESSAGE } from './sendError';
+import { registerApiHooks, routeNotFound } from './apiHooks';
+import { MESSAGE_ARG_MAX, ScanInProgress } from './errors';
 
-const logger = pino({ level: 'silent' });
 const KEY = 'test-key';
 
 let app: FastifyInstance | undefined;
 
-function build(apiKey?: string): FastifyInstance {
+function build(apiKey?: string, logger = pino({ level: 'silent' })) {
   const instance = Fastify({ logger: false });
   app = instance;
   registerApiHooks(instance, apiKey, logger);
@@ -26,6 +26,9 @@ function build(apiKey?: string): FastifyInstance {
   instance.get('/teapot', () => {
     throw Object.assign(new Error('short and stout'), { statusCode: 418 });
   });
+  instance.get('/scan', () => {
+    throw new ScanInProgress();
+  });
   return instance;
 }
 
@@ -34,26 +37,31 @@ afterEach(async () => {
   app = undefined;
 });
 
-describe('statusOfError', () => {
-  it.each([
-    [Object.assign(new Error('x'), { statusCode: 400 }), 400],
-    [Object.assign(new Error('x'), { statusCode: 503 }), 503],
-    [Object.assign(new Error('x'), { statusCode: 302 }), 500],
-    [Object.assign(new Error('x'), { statusCode: '400' }), 500],
-    [new Error('x'), 500],
-    ['text', 500],
-    [null, 500],
-  ])('%o -> %i', (error, status) => {
-    expect(statusOfError(error)).toBe(status);
+describe('routeNotFound', () => {
+  it('names the method and URL', () => {
+    expect(routeNotFound({ method: 'GET', url: '/x?y=1' })).toMatchObject({
+      statusCode: 404,
+      code: 'WATCHER_NOT_FOUND',
+      message: 'Route GET:/x?y=1 not found',
+    });
+  });
+
+  it('caps a long URL', () => {
+    const url = `/${'a'.repeat(1000)}`;
+    const { message } = routeNotFound({ method: 'GET', url });
+    expect(message).toBe(
+      `Route GET:${url.slice(0, MESSAGE_ARG_MAX - 1)}… not found`,
+    );
   });
 });
 
 describe('registerApiHooks', () => {
-  it('answers unknown routes with 404 not_found', async () => {
+  it('answers unknown routes with 404 WATCHER_NOT_FOUND', async () => {
     const res = await build().inject({ method: 'GET', url: '/nope?x=1' });
     expect(res.statusCode).toBe(404);
     expect(res.json()).toEqual({
-      code: 'not_found',
+      statusCode: 404,
+      code: 'WATCHER_NOT_FOUND',
       error: 'Not Found',
       message: 'Route GET:/nope?x=1 not found',
     });
@@ -66,10 +74,10 @@ describe('registerApiHooks', () => {
       headers: { authorization: `Bearer ${KEY}` },
     });
     expect(res.statusCode).toBe(404);
-    expect(res.json()).toMatchObject({ code: 'not_found' });
+    expect(res.json()).toMatchObject({ code: 'WATCHER_NOT_FOUND' });
   });
 
-  it('maps malformed JSON to 400 invalid_request', async () => {
+  it("keeps Fastify's own code on malformed JSON", async () => {
     const res = await build().inject({
       method: 'POST',
       url: '/echo',
@@ -78,12 +86,13 @@ describe('registerApiHooks', () => {
     });
     expect(res.statusCode).toBe(400);
     expect(res.json()).toMatchObject({
-      code: 'invalid_request',
+      statusCode: 400,
+      code: 'FST_ERR_CTP_INVALID_JSON_BODY',
       error: 'Bad Request',
     });
   });
 
-  it('maps an unsupported media type to 415 invalid_request', async () => {
+  it("keeps Fastify's own code on an unsupported media type", async () => {
     const res = await build().inject({
       method: 'POST',
       url: '/echo',
@@ -91,27 +100,47 @@ describe('registerApiHooks', () => {
       payload: 'x',
     });
     expect(res.statusCode).toBe(415);
-    expect(res.json()).toMatchObject({ code: 'invalid_request' });
-  });
-
-  it('keeps the status and message of a thrown 4xx', async () => {
-    const res = await build().inject({ method: 'GET', url: '/teapot' });
-    expect(res.statusCode).toBe(418);
-    expect(res.json()).toEqual({
-      code: 'invalid_request',
-      error: "I'm a Teapot",
-      message: 'short and stout',
+    expect(res.json()).toMatchObject({
+      code: 'FST_ERR_CTP_INVALID_MEDIA_TYPE',
     });
   });
 
-  it('maps an uncaught error to 500 internal_error without leaking it', async () => {
-    const res = await build().inject({ method: 'GET', url: '/boom' });
+  it('sends a thrown watcher class as written', async () => {
+    const res = await build().inject({ method: 'GET', url: '/scan' });
+    expect(res.statusCode).toBe(503);
+    expect(res.json()).toEqual({
+      statusCode: 503,
+      code: 'WATCHER_SCAN_IN_PROGRESS',
+      error: 'Service Unavailable',
+      message:
+        'The initial filesystem scan is still running; retry when it finishes.',
+    });
+  });
+
+  it('masks a plain status-bearing error as a 500', async () => {
+    const res = await build().inject({ method: 'GET', url: '/teapot' });
     expect(res.statusCode).toBe(500);
     expect(res.json()).toEqual({
-      code: 'internal_error',
+      statusCode: 500,
       error: 'Internal Server Error',
-      message: INTERNAL_ERROR_MESSAGE,
+      message: SERVER_ERROR_MESSAGE,
+    });
+  });
+
+  it('masks an uncaught error and logs it through the watcher logger', async () => {
+    const logger = pino({ level: 'silent' });
+    const error = vi.spyOn(logger, 'error');
+    const res = await build(undefined, logger).inject({
+      method: 'GET',
+      url: '/boom',
+    });
+    expect(res.statusCode).toBe(500);
+    expect(res.json()).toEqual({
+      statusCode: 500,
+      error: 'Internal Server Error',
+      message: SERVER_ERROR_MESSAGE,
     });
     expect(res.body).not.toContain('secret');
+    expect(error).toHaveBeenCalled();
   });
 });

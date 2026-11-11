@@ -143,14 +143,21 @@ export function registerVcsCommands(program: Command): void {
     runApiCommand(
       opts,
       async (client) => {
-        printJson(
-          await client.excludeVcsPath({
-            glob,
-            root: opts.root,
-            ...(opts.remove ? { remove: true } : {}),
-            ...(opts.confirm ? { confirm: true } : {}),
-          }),
-        );
+        const result = await client.excludeVcsPath({
+          glob,
+          root: opts.root,
+          ...(opts.remove ? { remove: true } : {}),
+          ...(opts.confirm ? { confirm: true } : {}),
+        });
+        if ('confirmRequired' in result) {
+          // Nothing was excluded: not a success for a script (D204 (5)).
+          console.error(
+            `Not excluded: ${String(result.untracked)} files would be untracked. Repeat with --confirm.`,
+          );
+          process.exitCode = 1;
+          return;
+        }
+        printJson(result);
       },
       CHECK_EXCLUDE,
     ),

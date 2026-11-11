@@ -47,12 +47,12 @@ const target = (body: { glob: string; root?: string }) => {
   return { root: manager.rootPath, relativeGlob, pattern };
 };
 
-/** The RequestError a body is refused with. */
+/** The error a body is refused with. */
 const refusal = (body: { glob: string; root?: string }) => {
   try {
     resolveExcludeTarget(coordinator, fill(body));
   } catch (error) {
-    return error as { status: number; code: string; message: string };
+    return error as { statusCode: number; code: string; message: string };
   }
   throw new Error('not refused');
 };
@@ -121,8 +121,9 @@ describe('resolveExcludeTarget', () => {
     (glob) => {
       for (const body of [{ glob }, { glob, root }]) {
         expect(refusal(body)).toMatchObject({
-          status: 400,
-          message: 'The glob matches the whole root',
+          statusCode: 400,
+          message:
+            'The exclude glob is refused: The glob matches the whole root',
         });
       }
     },
@@ -133,15 +134,16 @@ describe('resolveExcludeTarget', () => {
       pattern: '/a.log',
     });
     expect(refusal({ glob: '   ', root })).toMatchObject({
-      status: 400,
-      message: 'The glob matches the whole root',
+      statusCode: 400,
+      message: 'The exclude glob is refused: The glob matches the whole root',
     });
   });
 
   it('reads a leading-slash glob with root as a filesystem path: /docs outside the root is 400', () => {
     expect(refusal({ glob: '/docs', root })).toMatchObject({
-      status: 400,
-      message: 'The glob resolves outside the root',
+      statusCode: 400,
+      message:
+        'The exclude glob is refused: The glob resolves outside the root',
     });
   });
 
@@ -182,9 +184,9 @@ describe('resolveExcludeTarget', () => {
     expect(
       refusal({ glob, root: glob.startsWith('{root}') ? undefined : root }),
     ).toMatchObject({
-      status: 400,
-      code: 'invalid_request',
-      message,
+      statusCode: 400,
+      code: 'WATCHER_INVALID_REQUEST',
+      message: `The exclude glob is refused: ${message}`,
     });
   });
 
@@ -194,16 +196,17 @@ describe('resolveExcludeTarget', () => {
     ['a relative glob that is the parent', '..'],
   ])('refuses %s outside an explicit root with 400', (_name, glob) => {
     expect(refusal({ glob, root })).toMatchObject({
-      status: 400,
-      message: 'The glob resolves outside the root',
+      statusCode: 400,
+      message:
+        'The exclude glob is refused: The glob resolves outside the root',
     });
   });
 
   it('answers 404 for an explicit root that is not a VCS root', () => {
     expect(refusal({ glob: 'a.md', root: '/elsewhere' })).toMatchObject({
-      status: 404,
-      code: 'not_found',
-      message: 'Root is not a VCS-enabled watch root',
+      statusCode: 404,
+      code: 'WATCHER_NOT_FOUND',
+      message: 'The named root is not a version-controlled watch root.',
     });
   });
 
@@ -213,8 +216,8 @@ describe('resolveExcludeTarget', () => {
     ['a sibling sharing the prefix', `{root}*/a.md`],
   ])('answers 404 for a glob %s', (_name, glob) => {
     expect(refusal({ glob })).toMatchObject({
-      status: 404,
-      message: 'Glob does not match any VCS-enabled watch root',
+      statusCode: 404,
+      message: 'No version-controlled watch root matches the path or glob.',
     });
   });
 });

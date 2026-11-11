@@ -1,11 +1,12 @@
 /**
  * @module api/catalog/vcsExcludeHandler.errors.test
- * POST /vcs/exclude error answers (D102): 503 `not_available` with `Retry-After: 30` and nothing written when RootGitLock stays busy past the wait (shortened here), and 500 `internal_error` when git fails. Real git.
+ * POST /vcs/exclude error answers (D102): 503 `WATCHER_NOT_AVAILABLE` with `Retry-After: 30` and nothing written when RootGitLock stays busy past the wait (shortened here), and a masked 500 when git fails. Real git.
  */
 
 import { readFile, rename, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
+import { SERVER_ERROR_MESSAGE } from '@karmaniverous/jeeves/fastify';
 import type { FastifyInstance } from 'fastify';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
@@ -51,21 +52,26 @@ describe('POST /vcs/exclude errors', { timeout: 20_000 }, () => {
     expect(res.statusCode).toBe(503);
     expect(res.headers['retry-after']).toBe('30');
     expect(res.json()).toEqual({
-      code: 'not_available',
-      error: 'Not available',
-      message: 'Version control is busy on this root; retry after 30 s',
+      statusCode: 503,
+      code: 'WATCHER_NOT_AVAILABLE',
+      error: 'Service Unavailable',
+      message: 'Version control is busy on this root; retry after 30 s.',
     });
     expect(await readFile(excludeFile(), 'utf8')).toBe('');
     release();
     await held;
   });
 
-  it('answers 500 when git fails', async () => {
+  it('answers a masked 500 when git fails', async () => {
     await rename(join(root, '.git', 'HEAD'), join(root, '.git', 'HEAD.bak'));
 
     const res = await exclude({ glob: root + '/hello.txt' });
 
     expect(res.statusCode).toBe(500);
-    expect(res.json()).toMatchObject({ code: 'internal_error' });
+    expect(res.json()).toEqual({
+      statusCode: 500,
+      error: 'Internal Server Error',
+      message: SERVER_ERROR_MESSAGE,
+    });
   });
 });

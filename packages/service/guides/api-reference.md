@@ -12,13 +12,13 @@ The watcher exposes a lightweight HTTP API for search, metadata enrichment, and 
 
 **Endpoint catalog (unreleased):** every route below except `GET /openapi.json` is described once, as an entry of `WATCHER_CATALOG` in `@karmaniverous/jeeves-watcher-core`. Its route, request validation, response validation, the [OpenAPI document](#get-openapijson) and the plugin tools are all built from it.
 
-**Request validation:** every route's body, query string and path parameters are validated against its catalog entry's schemas (the Zod schemas exported by `@karmaniverous/jeeves-watcher-core`). An invalid request returns `400 { code: "invalid_request", error, details }`, where `error` is the first issue's message and `details` lists one entry per issue: `{ slot, path, code, message, params }`, where `slot` is `body`, `query` or `params` and `params` holds the issue's own fields (for example `{ "keys": ["collapse"] }` or `{ "origin": "number", "maximum": 1000, "inclusive": true }`). Unless a section says the schema is strict, unknown keys are dropped silently. Unreleased: before, the routes outside the catalog answered with their own `error` text (quoted in their sections as "before"), `details` was the Zod issue list, and the routes without a schema (`POST /walk`, `/config/match`, `/config/validate`, the VCS routes other than `GET /vcs/show`) sent no `details`; a missing body, which those routes answered with the generic `500`, is now this `400` too. Checks a schema cannot express (a rule that does not compile, metadata that does not match its rule, a filter Qdrant rejects) keep the `400` bodies their sections describe.
+**Request validation:** every route's body, query string and path parameters are validated against its catalog entry's schemas (the Zod schemas exported by `@karmaniverous/jeeves-watcher-core`). An invalid request returns jeeves's `400` with code `FST_ERR_VALIDATION` (v0.22.0+), whose `message` joins one `<slot>/<path> <issue message>` per failure with `, `, for example `{ "statusCode": 400, "code": "FST_ERR_VALIDATION", "error": "Bad Request", "message": "querystring/path Missing required query parameter: path, querystring/commit Missing required query parameter: commit" }` (the slot is `body`, `querystring` or `params`). There is no `details` field. Unless a section says the schema is strict, unknown keys are dropped silently. Before v0.22.0 this was `400 { code: "invalid_request", error, details }`; earlier still, the routes outside the catalog answered with their own `error` text (quoted in their sections as "before"), and a missing body, which those routes answered with the generic `500`, became this `400` in 0.21.0. Checks a schema cannot express (a rule that does not compile, metadata that does not match its rule, a filter Qdrant rejects) answer `400 WATCHER_INVALID_REQUEST`, as their sections describe.
 
-**Gated routes (unreleased):** the `/vcs/*` routes need version control. A server built without a VCS coordinator (`createApiServer` without `vcsCoordinator`; the service always builds one) answers every `/vcs/*` request, whatever its method, query or body, with the `404` body of an unregistered route (the same fields and values; as on every catalog route, `error` comes before `code`): `{ "code": "not_found", "error": "Not Found", "message": "Route GET:/vcs/show?path=a.md&commit=abc not found" }` (the URL as sent, query string included). Nothing is validated first, so not even a malformed body gets a `400`.
+**Gated routes (unreleased):** the `/vcs/*` routes need version control. A server built without a VCS coordinator (`createApiServer` without `vcsCoordinator`; the service always builds one) answers every `/vcs/*` request, whatever its method, query or body, with the `404` body of an unregistered route (byte-identical): `{ "statusCode": 404, "code": "WATCHER_NOT_FOUND", "error": "Not Found", "message": "Route GET:/vcs/show?path=a.md&commit=abc not found" }` (the URL as sent, query string included). Nothing is validated first, so not even a malformed body gets a `400`.
 
-**Response validation (unreleased):** each catalog route's response is checked against its entry's schema before it is sent. A response that doesn't match is never sent: the client gets `500 { "error": "Response validation failed", "code": "internal_error" }` and the mismatch is logged as an error with its issues. This indicates a server bug; report it.
+**Response validation (unreleased):** each catalog route's response is checked against its entry's schema before it is sent. A response that doesn't match is never sent: the client gets `500` with code `JEEVES_RESPONSE_VALIDATION` and the message `The server could not complete the request.` (v0.22.0+; before, `{ "error": "Response validation failed", "code": "internal_error" }`), and the mismatch is logged as an error with its issues. This indicates a server bug; report it.
 
-**Errors (v0.20.0+):** every non-2xx response carries a machine-readable `code`; see [Error Handling](#error-handling).
+**Errors (v0.22.0+):** every non-2xx response is Fastify's standard error body `{ statusCode, code?, error, message }`; see [Error Handling](#error-handling).
 
 **Source documents (v0.20.0+):** besides files, the watcher indexes records retrieved from other systems by callback. See [`POST /documents`](#post-documents), [`POST /documents/delete`](#post-documentsdelete) and the [Source Documents guide](./source-documents.md).
 
@@ -152,7 +152,7 @@ curl -X POST http://localhost:1936/metadata \
 // Exactly one of path or source is required.
 ```
 
-Schema: `metadataRequestSchema` in `@karmaniverous/jeeves-watcher-core`. Neither or both of `path` / `source`, a malformed reference, or a missing or non-object `metadata` is the request-validation `400 invalid_request` (unreleased; before, a missing `metadata` read `error: "Missing required field: metadata (object)"`).
+Schema: `metadataRequestSchema` in `@karmaniverous/jeeves-watcher-core`. Neither or both of `path` / `source`, a malformed reference, or a missing or non-object `metadata` is the request-validation `400 FST_ERR_VALIDATION` (v0.22.0+; 0.21.0 sent `invalid_request`, and before that a missing `metadata` read `error: "Missing required field: metadata (object)"`).
 
 ### Response
 
@@ -167,39 +167,34 @@ Schema: `metadataRequestSchema` in `@karmaniverous/jeeves-watcher-core`. Neither
 
 `matched_rules` lists the rules the metadata was validated against. For a file these are the config `inferenceRules` (virtual rules are not consulted) whose `match` accepts the path alone: they are tested against synthetic attributes built from the path (no file is read, so rules that match on content or JSON fields do not apply). For a source document it is the designated rule.
 
-**Validation error (400 Bad Request):**
+**Validation error (400 Bad Request):** `WATCHER_INVALID_REQUEST`, with a property-level summary of the failures (`<property>: expected <type>, received <type>`, joined with `; `, capped at 300 characters) in `message`:
 
 ```json
 {
-  "code": "invalid_request",
-  "error": "Validation failed",
-  "details": [
-    {
-      "property": "priority",
-      "expected": "integer",
-      "received": "string",
-      "rule": "project-docs",
-      "message": "Property 'priority' is declared as integer in project-docs schema, received string"
-    }
-  ]
+  "statusCode": 400,
+  "code": "WATCHER_INVALID_REQUEST",
+  "error": "Bad Request",
+  "message": "The metadata does not match the matched rules' schemas: priority: expected integer, received string"
 }
 ```
 
+Before v0.22.0 this was `{ "code": "invalid_request", "error": "Validation failed", "details": [...] }` with one `{ property, expected, received, rule, message }` entry per failure.
+
 > **v0.5.0:** Metadata is validated against the merged schema of the matched rules. Only the declared `type` of each property is checked; properties the schema does not declare, and `null` values, are accepted.
 
-**Source not indexed (404, v0.20.0+):** `{ "code": "source_not_indexed", "error": "Source document not indexed" }`.
+**Source not indexed (404, v0.20.0+):** `WATCHER_SOURCE_NOT_INDEXED`, message `The source document is not indexed.`
 
-**Not available (503, v0.20.0+):** `not_available` for a `source` request on an instance without source-document support.
+**Not available (503, v0.20.0+):** `WATCHER_NOT_AVAILABLE` (`Source documents are not available on this instance.`) for a `source` request on an instance without source-document support.
 
-**Document busy (503, v0.21.0+):** `not_available` with `Retry-After: 10` when the document is being processed (indexed, deleted, moved or updated) and its lock is not free within 10 s. Nothing is changed (the enrichment store included); retry after the delay. `message` is `"The document is being processed; retry after 10 s"`.
+**Document busy (503, v0.21.0+):** `WATCHER_NOT_AVAILABLE` with `Retry-After: 10` when the document is being processed (indexed, deleted, moved or updated) and its lock is not free within 10 s. Nothing is changed (the enrichment store included); retry after the delay. `message` is `"The document is being processed; retry after 10 s."`.
 
-**Error (500 Internal Server Error):** the cause is logged, never returned. Every 5xx the API produces for an unexpected failure has this body:
+**Error (500 Internal Server Error):** the cause is logged, never returned. Every 5xx the API produces for an unexpected failure is the masked body, with no `code` (v0.22.0+):
 
 ```json
 {
-  "code": "internal_error",
+  "statusCode": 500,
   "error": "Internal Server Error",
-  "message": "Internal server error"
+  "message": "The server could not complete the request."
 }
 ```
 
@@ -218,10 +213,10 @@ A failure reading or writing Qdrant does not fail the request: it is logged (a f
 
 **Source documents (`source`):**
 
-- The document must be indexed: its designated rule is read from the stored `source_rule`. Otherwise the response is `404 source_not_indexed` and nothing is stored.
-- When Qdrant cannot be read, the response is `500 internal_error` (v0.20.0+), never `404`: a failed read is not taken to mean "not indexed". A failed payload write is also `500`.
+- The document must be indexed: its designated rule is read from the stored `source_rule`. Otherwise the response is `404 WATCHER_SOURCE_NOT_INDEXED` and nothing is stored.
+- When Qdrant cannot be read, the response is the masked `500` (v0.20.0+), never `404`: a failed read is not taken to mean "not indexed". A failed payload write is also `500`.
 - The metadata is validated against the designated rule's schema (`400` on failure). The rule is looked up by name among the config rules, then the [virtual rules](#post-rulesregister) registered by plugins, so a document whose designated rule is virtual is validated too. A designated rule that no longer exists validates nothing (`matched_rules: []`).
-- Without source support on the instance, a `source` request is `503 not_available`.
+- Without source support on the instance, a `source` request is `503 WATCHER_NOT_AVAILABLE`.
 - It is stored in the enrichment store under the exact reference, written to every chunk with `setPayload` (no re-embedding, no callback), and merged again whenever the document is re-processed.
 
 For both kinds, reserved system fields (`file_path`, `source`, `source_rule`, `chunk_*`, `total_chunks`, `content_hash`, `matched_rules`, `line_start`, `line_end`, `created_at`, `modified_at`) are dropped before any payload write, so metadata can never overwrite them. When a document is (re)indexed, its enrichment is merged over the rule metadata: scalars replace the rule value, arrays are unioned without duplicates.
@@ -285,19 +280,22 @@ Schema: `renderRequestSchema` in `@karmaniverous/jeeves-watcher-core`.
 - **Transformed responses** (template or render ran): cached with the configured TTL (`api.cacheTtlMs`).
 - **Passthrough responses** (no transform): `Cache-Control: no-cache` header set; bypasses the cache.
 - **Source documents** (`source`): never cached (no cache read, no cache write) and always sent with `Cache-Control: no-cache`, because the record behind the callback can change at any time.
+- **Errors** carry no `Cache-Control` header (v0.22.0+).
 
 ### Error Codes
 
 | Code | Condition |
 | --- | --- |
 | `200` | Success |
-| `400` | `invalid_request`: invalid body (neither or both of `path` / `source`, empty `path`, malformed reference) |
-| `403` | `path_not_watched` (`error: "Path is outside watched scope"`): the path does not match `watch.paths` or matches `watch.ignored` |
-| `404` | `not_found` (`error: "File not found"`); or `source_not_indexed` (`"Source document not indexed"`: no stored point, so no designated rule is known); or `source_not_found` (`"Source document not found"`: the callback answered `404`; points are left alone) |
-| `422` | `pipeline_error`: rendering or extraction failed. `error` is the failure message and `issueType` the [issue code](#issue-codes): for a file `extraction_error` unless a pipeline stage tagged the failure with another code; for a source document `match_failed`, `rule_missing`, `no_content`, ... with `details` holding any AJV errors. `unsupported_content_type` (`issueType` of the same name) when the callback returned a non-JSON body |
-| `502` | `source_unavailable`: the source callback failed (`issueType: "source_unavailable"`) |
-| `503` | `not_available`: source render on an instance without source-document support |
-| `500` | `internal_error`: unexpected failure, including a Qdrant read failure while looking up a source document's designated rule (generic body; the cause is only logged) |
+| `400` | `FST_ERR_VALIDATION`: invalid body (neither or both of `path` / `source`, empty `path`, malformed reference) |
+| `403` | `WATCHER_PATH_NOT_WATCHED` (`The path is outside the watched scope or is gitignored.`): the path does not match `watch.paths` or matches `watch.ignored` |
+| `404` | `WATCHER_NOT_FOUND` (`The file or directory does not exist.`); or `WATCHER_SOURCE_NOT_INDEXED` (`The source document is not indexed.`: no stored point, so no designated rule is known); or `WATCHER_SOURCE_NOT_FOUND` (`The source reports that the document does not exist.`: the callback answered `404`; points are left alone) |
+| `422` | `WATCHER_PIPELINE_<TYPE>_ERROR`: rendering or extraction failed at the stage the [issue code](#issue-codes) names: for a file `WATCHER_PIPELINE_EXTRACTION_ERROR` (`The document could not be extracted.`); for a source document `WATCHER_PIPELINE_RULE_MISSING_ERROR`, `WATCHER_PIPELINE_MATCH_FAILED_ERROR`, `WATCHER_PIPELINE_NO_CONTENT_ERROR`, `WATCHER_PIPELINE_INTERPOLATION_ERROR`, or `WATCHER_PIPELINE_EXTRACTION_ERROR` for an untagged failure. The failure's own message and `details` (AJV errors, say) go to the service log only. `WATCHER_UNSUPPORTED_CONTENT_TYPE` (`The source returned a body that is not a JSON object.`) when the callback returned a non-JSON body |
+| `502` | `WATCHER_SOURCE_UNAVAILABLE` (`The source could not be reached or answered with an error.`): the source callback failed; its status and error are logged |
+| `503` | `WATCHER_NOT_AVAILABLE` (`Source documents are not available on this instance.`): source render on an instance without source-document support |
+| `500` | Masked (no `code`): unexpected failure, including a Qdrant read failure while looking up a source document's designated rule (the cause is only logged) |
+
+Before v0.22.0 every `422` was `pipeline_error` with the failure message as `error`, the issue code as `issueType` and any AJV errors in `details`; no message names the path, the callback or the library error any more.
 
 ### Behavior
 
@@ -331,7 +329,7 @@ curl 'http://localhost:1936/search/facets?rules=jira-issue,slack-message'
 
 | Query | Type | Description |
 | --- | --- | --- |
-| `rules` | `string?` | Comma-separated rule names, configured or [registered at runtime](#post-rulesregister) (v0.21.0+). Only the fields those rules declare are listed, with only the values recorded for their documents, and `rules` on each facet names only those rules. An unknown name answers `400 invalid_request` (`error: "Unknown rule: <name>"`); a value naming no rule (`?rules=`) answers `400`. Without it, the answer is the same as before 0.21.0: every configured rule. |
+| `rules` | `string?` | Comma-separated rule names, configured or [registered at runtime](#post-rulesregister) (v0.21.0+). Only the fields those rules declare are listed, with only the values recorded for their documents, and `rules` on each facet names only those rules. An unknown name answers `400 WATCHER_INVALID_REQUEST` (`message: "Unknown rule(s): <names>"`); a value naming no rule (`?rules=`) answers `400 WATCHER_INVALID_REQUEST` (`rules must name at least one rule`). Without it, the answer is the same as before 0.21.0: every configured rule. |
 
 ### Response
 
@@ -423,7 +421,7 @@ curl -X POST http://localhost:1936/search/facets/counts \
 | --- | --- | --- | --- |
 | `fields` | `string[]` | Yes | 1 to 20 payload fields. Each needs a [payload index](./configuration.md#payload-indexes): `keyword`, `integer` or `bool` for value counts; `integer`, `float` or `datetime` for a range. A field named twice is counted once. |
 | `filter` | `object?` | No | Qdrant filter scoping the counts, as for [`POST /search`](#post-search) (for example a tenant condition). |
-| `rules` | `string[]?` | No | Rule names, configured or registered at runtime: only documents that matched at least one of them are counted (a file document by its `matched_rules`, a source document by its `source_rule`), each once. An unknown name answers `400 invalid_request`. |
+| `rules` | `string[]?` | No | Rule names, configured or registered at runtime: only documents that matched at least one of them are counted (a file document by its `matched_rules`, a source document by its `source_rule`), each once. An unknown name answers `400 WATCHER_INVALID_REQUEST`. |
 | `limit` | `number?` | No | Most values per counted field, highest counts first (default 100, max 1000). |
 
 Unknown body keys are rejected with `400`.
@@ -457,9 +455,12 @@ Each field is answered by its `uiHint` when every rule in scope that declares it
 
 | Status | `code` | When |
 | --- | --- | --- |
-| 400 | `invalid_request` | The body is invalid; a rule is unknown (`error: "Unknown rule: <name>"`, `details.unknownRules`); a field has no usable payload index (`error: "No usable payload index for field: <name>"`, `details.fields` gives each field's mode and index type, `message` points at `vectorStore.payloadIndexes`); or Qdrant rejects the filter (`error: "Invalid filter"`). |
-| 503 | `not_available` | The `chunk_index` system index is not ready yet (`error: "System index chunk_index is not ready"`, `details: { index, state }`); with `rules`, the same for `matched_rules`. Both are built in the background after the first 0.21.0 start (see [system indexes](./configuration.md#payload-indexes)). |
-| 503 | `not_available` | The counts did not finish within the 10 s budget (`error: "Facet counts exceeded the time budget"`, `details.pending` names the fields not counted). |
+| 400 | `FST_ERR_VALIDATION` | The body is invalid. |
+| 400 | `WATCHER_INVALID_REQUEST` | A rule is unknown (`Unknown rule(s): <names>`) or `rules` is empty (`rules must name at least one rule`); a field has no usable payload index (`No usable payload index for field(s): <names>`; see `vectorStore.payloadIndexes`); or Qdrant rejects the filter (`The vector store rejected the filter: <Qdrant's reason>`). |
+| 503 | `WATCHER_NOT_AVAILABLE` | The `chunk_index` system index is not ready yet (`Facet counts need the chunk_index system index, which is not ready yet; retry shortly.`); with `rules`, the same for `matched_rules`. Both are built in the background after the first 0.21.0 start (see [system indexes](./configuration.md#payload-indexes)). The index state is logged. |
+| 503 | `WATCHER_NOT_AVAILABLE` | The counts did not finish within the 10 s budget (`Facet counts exceeded the time budget; not counted: <fields>. Count fewer fields or narrow the filter.`). |
+
+Before v0.22.0 these were `invalid_request` and `not_available` with `details` (`unknownRules`, `fields`, `{ index, state }`, `pending`); the names they held are now in `message`, capped at 300 characters.
 
 ### Behavior
 
@@ -499,7 +500,7 @@ curl -X POST http://localhost:1936/search \
 }
 ```
 
-Schema: `searchRequestSchema` in `@karmaniverous/jeeves-watcher-core`; the default limit is `SEARCH_DEFAULT_LIMIT` (10). The schema is strict (v0.20.0+): an unknown key such as `collapse` is a `400 invalid_request` instead of being silently ignored.
+Schema: `searchRequestSchema` in `@karmaniverous/jeeves-watcher-core`; the default limit is `SEARCH_DEFAULT_LIMIT` (10). The schema is strict (v0.20.0+): an unknown key such as `collapse` is a `400 FST_ERR_VALIDATION` (`body/ Unrecognized key: "collapse"`) instead of being silently ignored.
 
 **Filtered search example:**
 
@@ -527,7 +528,7 @@ curl -X POST http://localhost:1936/search \
   }'
 ```
 
-The `filter` parameter accepts a native [Qdrant filter object](https://qdrant.tech/documentation/concepts/filtering/). A filter Qdrant rejects (malformed condition, unknown match variant) is a `400 invalid_request` with `error: "Invalid filter"` and Qdrant's explanation as `message` (v0.20.0+). Use [`GET /config`](#get-config) or [`GET /config/schema`](#get-configschema) to discover available payload fields and their types, then construct filters accordingly. Common patterns:
+The `filter` parameter accepts a native [Qdrant filter object](https://qdrant.tech/documentation/concepts/filtering/). A filter Qdrant rejects (malformed condition, unknown match variant) is a `400 WATCHER_INVALID_REQUEST` with Qdrant's reason in `message` (`The vector store rejected the filter: <reason>`, capped at 300 characters; v0.22.0+, before which it was `invalid_request` with `error: "Invalid filter"`). Use [`GET /config`](#get-config) or [`GET /config/schema`](#get-configschema) to discover available payload fields and their types, then construct filters accordingly. Common patterns:
 
 - **Exact match:** `{ "must": [{ "key": "domain", "match": { "value": "email" } }] }`
 - **Negation:** `{ "must_not": [{ "key": "domain", "match": { "value": "codebase" } }] }`
@@ -569,25 +570,27 @@ The `filter` parameter accepts a native [Qdrant filter object](https://qdrant.te
 
 ```json
 {
-  "code": "embedding_unavailable",
-  "error": "EmbeddingUnavailableError",
-  "message": "Embedding provider still rate-limited after 3 attempts: ..."
+  "statusCode": 503,
+  "code": "WATCHER_EMBEDDING_UNAVAILABLE",
+  "error": "Service Unavailable",
+  "message": "The embedding provider is unavailable; retry later."
 }
 ```
 
-Returned when the query cannot be embedded within the search budget (3 provider attempts, at most 10 seconds waiting on the shared rate limiter), or at once when the provider has asked for a pause longer than max(root `maxBackoffMs`, 65 seconds). A `Retry-After` header (seconds) is set when the limiter knows when it will accept requests again. See [Rate Limiting](#rate-limiting).
+Returned when the query cannot be embedded within the search budget (3 provider attempts, at most 10 seconds waiting on the shared rate limiter), or at once when the provider has asked for a pause longer than max(root `maxBackoffMs`, 65 seconds). A `Retry-After` header (seconds) is set when the limiter knows when it will accept requests again. The provider's error is logged, never sent. See [Rate Limiting](#rate-limiting).
 
 **Invalid filter (400 Bad Request, v0.20.0+):**
 
 ```json
 {
-  "code": "invalid_request",
-  "error": "Invalid filter",
-  "message": "Format error in JSON body: ..."
+  "statusCode": 400,
+  "code": "WATCHER_INVALID_REQUEST",
+  "error": "Bad Request",
+  "message": "The vector store rejected the filter: Wrong filter"
 }
 ```
 
-**Error (500 Internal Server Error):** generic body (`internal_error`), see [Error Handling](#error-handling).
+**Error (500 Internal Server Error):** the masked body (no `code`), see [Error Handling](#error-handling).
 
 ### Response Schema
 
@@ -709,8 +712,8 @@ Schema: `scanRequestSchema` in `@karmaniverous/jeeves-watcher-core`; the default
 | Code | Condition |
 | --- | --- |
 | `200` | Success |
-| `400` | `invalid_request`: missing or non-object `filter` (request validation), a `limit` outside 1 to 1000 (`"limit must be between 1 and 1000"`) or not an integer (`"limit must be an integer"`), or a filter Qdrant rejects (`error: "Invalid filter"`, Qdrant's reason as `message`) |
-| `500` | `internal_error`: unexpected failure (generic body) |
+| `400` | `FST_ERR_VALIDATION`: missing or non-object `filter`, a `limit` outside 1 to 1000 (`body/limit limit must be between 1 and 1000`) or not an integer (`limit must be an integer`). `WATCHER_INVALID_REQUEST`: a filter Qdrant rejects (`The vector store rejected the filter: <Qdrant's reason>`) |
+| `500` | Masked (no `code`): unexpected failure |
 
 ### Behavior
 
@@ -778,9 +781,9 @@ Globs are matched against slash-normalised paths, case-insensitively, dotfiles i
 
 | Code | Condition |
 | --- | --- |
-| `400` | `invalid_request` (request validation): `globs` is missing, not an array, empty, or has a non-string entry (unreleased; before, `error: "Missing globs"` without `details`, and the entries' types were not checked) |
-| `503` | `not_available` (`"Watcher unavailable"`): the instance has no filesystem watcher; `scan_in_progress` (`"Scan in progress"`): the initial filesystem scan is still running, retry later |
-| `500` | `internal_error`: unexpected failure (generic body; unreleased: before, also a request without a JSON body) |
+| `400` | `FST_ERR_VALIDATION`: `globs` is missing, not an array, empty, or has a non-string entry (0.21.0: `invalid_request`; before, `error: "Missing globs"` without `details`, and the entries' types were not checked) |
+| `503` | `WATCHER_NOT_AVAILABLE` (`The filesystem watcher is not initialized.`): the instance has no filesystem watcher; `WATCHER_SCAN_IN_PROGRESS` (`The initial filesystem scan is still running; retry when it finishes.`): retry later |
+| `500` | Masked (no `code`): unexpected failure (before 0.21.0, also a request without a JSON body) |
 
 ---
 
@@ -804,7 +807,7 @@ curl -X POST http://localhost:1936/rebuild-metadata
 }
 ```
 
-**Error (500 Internal Server Error):** generic body (`internal_error`), see [Error Handling](#error-handling).
+**Error (500 Internal Server Error):** the masked body (no `code`), see [Error Handling](#error-handling).
 
 No request body is needed.
 
@@ -944,18 +947,20 @@ curl -X POST http://localhost:1936/reindex \
 
 The reindex runs **asynchronously**: the API returns immediately with the plan. Use `GET /status` to track progress.
 
-The plan is computed once per request, before the response: the files listed and the source documents discovered for it are the ones the run then processes (no second listing or Qdrant scroll). An invalid `path` target is therefore an HTTP error (see below), and so is a failure while planning (for example Qdrant unreachable during source discovery: `500 internal_error`). Once the run has started, failures are logged and reported to the [completion callback](#completion-callback), never as an HTTP error.
+The plan is computed once per request, before the response: the files listed and the source documents discovered for it are the ones the run then processes (no second listing or Qdrant scroll). An invalid `path` target is therefore an HTTP error (see below), and so is a failure while planning (for example Qdrant unreachable during source discovery: the masked `500`). Once the run has started, failures are logged and reported to the [completion callback](#completion-callback), never as an HTTP error.
 
 **Error codes:**
 
 | Code | Condition |
 | --- | --- |
 | `200` | Success (started or dry_run) |
-| `400` | `invalid_request`: invalid body (unknown scope, missing `path`/`source` for scope `path`, both given, `source` outside scope `path`, empty path or array, malformed reference, more than 1000 references), or a scope-`path` target that is neither a file nor a directory (`"Path is neither a file nor a directory: <path>"`). `not_available` (`message: "Prune scope requires vectorStore to be configured."`): prune without a vector store, the one code whose status does not follow the [code table](#error-handling) (`400` kept from 0.19) |
-| `403` | `path_not_watched`: a scope-`path` target is outside the watch scope (`error: "Path is outside watch scope: <path>"`) or gitignored (`"Path is gitignored: <path>"`) (v0.20.0+; was `500`) |
-| `404` | `not_found`: a scope-`path` target does not exist (`"Path not found: <path>"`) (v0.20.0+; was `500`) |
-| `503` | `not_available`: `source` on an instance without source-document support (v0.20.0+) |
-| `500` | `internal_error`: unexpected failure, including a planning failure (generic body) |
+| `400` | `FST_ERR_VALIDATION`: invalid body (unknown scope, missing `path`/`source` for scope `path`, both given, `source` outside scope `path`, empty path or array, malformed reference, more than 1000 references). `WATCHER_INVALID_REQUEST`: a scope-`path` target that is neither a file nor a directory (`The path is neither a file nor a directory.`) |
+| `403` | `WATCHER_PATH_NOT_WATCHED` (`The path is outside the watched scope or is gitignored.`): a scope-`path` target is outside the watch scope or gitignored (v0.20.0+; was `500`) |
+| `404` | `WATCHER_NOT_FOUND` (`The file or directory does not exist.`): a scope-`path` target does not exist (v0.20.0+; was `500`) |
+| `503` | `WATCHER_NOT_AVAILABLE`: `source` on an instance without source-document support (`Source documents are not available on this instance.`, v0.20.0+); a prune without a vector store (`Prune needs a vector store, and none is configured.`; v0.22.0+, was `400 not_available`) |
+| `500` | Masked (no `code`): unexpected failure, including a planning failure |
+
+No message names the target path (v0.22.0+; before, `Path not found: <path>` and the like).
 
 ### Scopes
 
@@ -975,7 +980,7 @@ Re-processes every watched file through the full pipeline (extract, apply rules,
 
 #### `path`
 
-With `path`: re-processes a specific file or all watched files under a directory (globs are not expanded here), with the same unchanged-content skip as `full`. Each target must match `watch.paths` and not `watch.ignored` (a directory target must itself match, e.g. with a `/**` watch glob) and must not be gitignored (`403 path_not_watched`); it must exist (`404 not_found`). Directory containment is separator-aware: `/docs` covers `/docs/a.md`, never `/docs2/a.md`. A file named directly and found again by expanding its directory is processed once. Use for targeted re-embedding without a full reindex.
+With `path`: re-processes a specific file or all watched files under a directory (globs are not expanded here), with the same unchanged-content skip as `full`. Each target must match `watch.paths` and not `watch.ignored` (a directory target must itself match, e.g. with a `/**` watch glob) and must not be gitignored (`403 WATCHER_PATH_NOT_WATCHED`); it must exist (`404 WATCHER_NOT_FOUND`). Directory containment is separator-aware: `/docs` covers `/docs/a.md`, never `/docs2/a.md`. A file named directly and found again by expanding its directory is processed once. Use for targeted re-embedding without a full reindex.
 
 With `source` (v0.20.0+): looks up each distinct reference's stored designated rule (up to `reindex.concurrency` lookups in flight, default `50`) and **enqueues** the indexed ones on the notify queue, exactly as `POST /documents` does: they coalesce with concurrent notifications and failures land in `GET /issues`. References that are not indexed are skipped: they count in `total` but not in `toProcess`. This form is not a tracked run: `GET /status` does not show it and no completion callback is sent. `plan.byRoot` counts the enqueued references by source name.
 
@@ -1154,10 +1159,10 @@ A designated rule whose `match` rejects the record is never an HTTP error: async
 
 | Code | Condition |
 | --- | --- |
-| `400` | `invalid_request`: `documents` missing, empty or over 100 entries; missing or empty `source`/`rule`; unknown keys in a document; invalid `wait` (the query and body are validated before source support is checked) |
-| `401` | `unauthorized`: `api.apiKey` is set and the bearer token is missing or wrong |
-| `503` | `not_available`: the instance's document processor does not support source documents |
-| `500` | `internal_error`: unexpected failure, including an unexpected processing error with `?wait=true` (a stopping queue is reported per document as `queue_stopped` instead) |
+| `400` | `FST_ERR_VALIDATION`: `documents` missing, empty or over 100 entries; missing or empty `source`/`rule`; unknown keys in a document; invalid `wait` (the query and body are validated before source support is checked) |
+| `401` | `WATCHER_UNAUTHORIZED`: `api.apiKey` is set and the bearer token is missing or wrong |
+| `503` | `WATCHER_NOT_AVAILABLE` (`Source documents are not available on this instance.`): the instance's document processor does not support source documents |
+| `500` | Masked (no `code`): unexpected failure, including an unexpected processing error with `?wait=true` (a stopping queue is reported per document as `queue_stopped` instead) |
 
 ### Behavior
 
@@ -1207,15 +1212,15 @@ Schema: `documentsDeleteRequestSchema` in `@karmaniverous/jeeves-watcher-core`. 
 ### Behavior
 
 - The filter is always constrained to source points: the caller's filter is nested inside a condition that requires a non-empty `source` **and** an empty `file_path`. A filter can never delete a file point, whatever it names (even a legacy file point whose rule wrote a `source` field). The `sources` form carries the same `file_path` guard.
-- A filter without any condition is rejected with `400 invalid_request` (v0.20.0+): `{}`, `{ "must": [] }` and filters whose clauses are all empty, at any depth. To remove every source document, name a condition explicitly (for example `{ "must": [{ "key": "source_rule", "match": { "any": [...] } }] }`). The SDK refuses such filters before sending them.
-- A filter Qdrant rejects is `400 invalid_request` (`error: "Invalid filter"`); nothing is deleted.
+- A filter without any condition is rejected with the request-validation `400 FST_ERR_VALIDATION` (v0.20.0+; `invalid_request` before 0.22.0): `{}`, `{ "must": [] }` and filters whose clauses are all empty, at any depth. To remove every source document, name a condition explicitly (for example `{ "must": [{ "key": "source_rule", "match": { "any": [...] } }] }`). The SDK refuses such filters before sending them.
+- A filter Qdrant rejects is `400 WATCHER_INVALID_REQUEST` (`The vector store rejected the filter: <reason>`); nothing is deleted.
 - Every chunk of each matching document is deleted.
 - Enrichment metadata and issues are removed for the deleted references, and, in the `sources` form, for every listed reference (so a document that only ever failed leaves no issue behind).
 - Deletion does not touch the source system. If the owner notifies the reference again (or a notification for it was still queued), it is retrieved and indexed again.
 
 Documents are deleted one at a time, each under its document lock (v0.21.0+), so a deletion never interleaves with the document being indexed.
 
-**Errors:** `400 invalid_request` for an invalid body (both or neither of `sources`/`filter`, an empty `sources` array or one over 1000 references, a malformed reference, a condition-free filter, an unknown key) or a filter Qdrant rejects; `503 not_available` with `Retry-After: 10` (v0.21.0+) when a document's lock is not free within 10 s (documents already deleted stay deleted; retry to finish); `500 internal_error` (generic body) for an unexpected failure. This route does not depend on source-document support.
+**Errors:** `400 FST_ERR_VALIDATION` for an invalid body (both or neither of `sources`/`filter`, an empty `sources` array or one over 1000 references, a malformed reference, a condition-free filter, an unknown key); `400 WATCHER_INVALID_REQUEST` for a filter Qdrant rejects; `503 WATCHER_NOT_AVAILABLE` with `Retry-After: 10` (v0.21.0+; `The document is being processed; retry after 10 s.`) when a document's lock is not free within 10 s (documents already deleted stay deleted; retry to finish); the masked `500` (no `code`) for an unexpected failure. This route does not depend on source-document support.
 
 ---
 
@@ -1352,7 +1357,7 @@ curl "http://localhost:1936/config?path=%24.inferenceRules%5B*%5D.name"
 }
 ```
 
-An invalid JSONPath expression is `400 { "code": "invalid_request", "error": "<parser message>" }`. A failure building the document is logged and answered with the generic `500 internal_error` body. Responses are cached for `api.cacheTtlMs` (default 30 seconds).
+An invalid JSONPath expression is jeeves's `400 JEEVES_CONFIG_QUERY_INVALID` with the parser's message, for example `{ "statusCode": 400, "code": "JEEVES_CONFIG_QUERY_INVALID", "error": "Bad Request", "message": "Unclosed ( at character 2" }` (v0.22.0+; before, `invalid_request`). A failure building the document is logged and answered with the masked `500` (no `code`). Responses are cached for `api.cacheTtlMs` (default 30 seconds).
 
 ### Merged Document Shape
 
@@ -1462,7 +1467,7 @@ curl -X POST http://localhost:1936/config/match \
 }
 ```
 
-A missing body, or one whose `paths` is not an array of strings, is the request-validation `400 invalid_request` (unreleased; before, `error: "Request body must include \"paths\" array"` without `details`, and a request without a JSON body failed with the generic `500`).
+A missing body, or one whose `paths` is not an array of strings, is the request-validation `400 FST_ERR_VALIDATION` (`body/paths Request body must include "paths" array`; 0.21.0 sent `invalid_request`, and before that a request without a JSON body failed with the generic `500`).
 
 ### Response
 
@@ -1565,7 +1570,7 @@ curl -X POST http://localhost:1936/config/validate \
 }
 ```
 
-**Invalid (also 200 OK):** an invalid config is a successful validation with a negative result, not an HTTP error. The route has no `400` of its own: only a request its schema rejects (malformed JSON, a missing body, a non-object `config`, a non-array `testPaths`) is a `400 invalid_request` (unreleased; before, a request without a JSON body failed with the generic `500`).
+**Invalid (also 200 OK):** an invalid config is a successful validation with a negative result, not an HTTP error. The route has no `400` of its own: only a request its schema rejects (malformed JSON, a missing body, a non-object `config`, a non-array `testPaths`) is a `400`: `FST_ERR_VALIDATION`, or Fastify's own `FST_ERR_CTP_*` code for malformed JSON (v0.22.0+; 0.21.0 sent `invalid_request`, and before that a request without a JSON body failed with the generic `500`).
 
 ```json
 {
@@ -1635,7 +1640,7 @@ curl -X POST http://localhost:1936/config/apply \
 }
 ```
 
-Schema: the `configApply` entry of `WATCHER_CATALOG` (core's `configApplyBodySchema`). Other keys are ignored. Before validation, a body without `patch` gets `patch: {}`, and a body with `config` but no `patch` uses `config` as the patch. **Deprecated:** send `patch`; the `config` alias will be removed. A `patch` that is not an object, or a `replace` that is not a boolean, is a request-validation `400` (`details` lists the issues; unreleased, before which a non-object `patch` was answered with `issues: [{ "path": ["patch"], "message": "patch must be an object" }]`).
+Schema: the `configApply` entry of `WATCHER_CATALOG` (core's `configApplyBodySchema`). Other keys are ignored. Before validation, a body without `patch` gets `patch: {}`, and a body with `config` but no `patch` uses `config` as the patch. **Deprecated:** send `patch`; the `config` alias will be removed. A `patch` that is not an object, or a `replace` that is not a boolean, is a request-validation `400 FST_ERR_VALIDATION` (for example `body/patch Invalid input: expected record, received array`; 0.21.0 sent `invalid_request` with `details`, and before that a non-object `patch` was answered with `issues: [{ "path": ["patch"], "message": "patch must be an object" }]`).
 
 ### Response
 
@@ -1664,26 +1669,20 @@ Schema: the `configApply` entry of `WATCHER_CATALOG` (core's `configApplyBodySch
 | --- | --- | --- |
 | `applied` | `true` | The file was written. |
 | `config` | `object` | The validated config, reduced to the same allow-list as [`GET /config`](#get-config) (`PUBLIC_CONFIG_KEYS`: `description`, `watch`, `configWatch`, `search`, `schemas`, `inferenceRules`, `mapHelpers`, `templateHelpers`, `maps`, `templates`; only the keys present). `api`, `sources`, `embedding`, `vectorStore` and every other key, so every secret, is never echoed (v0.20.0+). |
-| `warning` | `string?` | Present when the file was written but the post-write step that triggers the reindex failed: `"Config written but callback failed: <message>"`. The status is still `200`. |
+| `warning` | `string?` | Present when the file was written but the post-write step that triggers the reindex failed: `"The config was written but could not be applied."` (v0.22.0+, jeeves 0.11; the cause is logged; before, `"Config written but callback failed: <message>"`). The status is still `200`. |
 
-**Validation failure (400 Bad Request):** `issues` holds the Zod issues of the merged config (there is no `details`):
+**Validation failure (400 Bad Request):** jeeves's `JEEVES_CONFIG_INVALID`, with the merged config's Zod issues folded into `message` (v0.22.0+; before, `invalid_request` with an `issues` array):
 
 ```json
 {
-  "code": "invalid_request",
-  "error": "Config validation failed",
-  "issues": [
-    {
-      "expected": "number",
-      "code": "invalid_type",
-      "path": ["embedding", "dimensions"],
-      "message": "Invalid input: expected number, received string"
-    }
-  ]
+  "statusCode": 400,
+  "code": "JEEVES_CONFIG_INVALID",
+  "error": "Bad Request",
+  "message": "Config validation failed: watch: Invalid input: expected object, received number"
 }
 ```
 
-**Server failure (500, v0.20.0+):** when the config file cannot be read (or does not hold a JSON object) or cannot be written, the cause (which names the file) is logged and the response is the generic `internal_error` body. An unreadable file is left untouched.
+**Server failure (500, v0.20.0+):** when the config file cannot be read (or does not hold a JSON object) the response is `500 JEEVES_CONFIG_READ_FAILED` (`The config file could not be read.`), and when it cannot be written `500 JEEVES_CONFIG_WRITE_FAILED` (`The config file could not be written.`) (v0.22.0+; before, the generic `internal_error` body). The cause, which names the file, is logged only. An unreadable file is left untouched.
 
 ### Behavior
 
@@ -1750,7 +1749,7 @@ Registering replaces the source's previous rules, rebuilds the processor's rule 
 
 Virtual rules live in memory: a restart loses them and they must be registered again. A config reload rebuilds the processor's rule set from the config rules alone: registered virtual rules stay in the store (and in `GET /config`) but stop applying to processing until the next register or unregister call.
 
-**Errors (v0.20.0+; these were `500` before):** `400 invalid_request` when `source` is missing or empty, `rules` is not an array or a rule is not an object with a `name` (request validation; unreleased, before which these read `"Missing required field: source"`, `"Missing required field: rules (array)"` and `"Every rule must be an object with a name"`), or the rules do not compile, for example two rules share a name or a `match` schema is invalid (`error: "Invalid rules"`, the compiler's explanation in `message`). Nothing is registered then.
+**Errors (v0.20.0+; these were `500` before):** `400 FST_ERR_VALIDATION` when `source` is missing or empty, `rules` is not an array or a rule is not an object with a `name` (request validation; 0.21.0 sent `invalid_request`, and before that these read `"Missing required field: source"`, `"Missing required field: rules (array)"` and `"Every rule must be an object with a name"`); `400 WATCHER_INVALID_REQUEST` when the rules do not compile, for example two rules share a name or a `match` schema is invalid (`The rules are not valid: <the compiler's explanation>`, capped at 300 characters; before 0.22.0, `error: "Invalid rules"`). Nothing is registered then.
 
 ---
 
@@ -1785,7 +1784,7 @@ curl -X DELETE http://localhost:1936/rules/unregister \
 }
 ```
 
-`removed` is `false` when the source had no rules. When rules were removed, the processor's rule set is rebuilt and, if the remaining virtual rules match on `file.path` globs, a file-only `rules` reindex runs as for registration. A missing or empty `source` is the request-validation `400 invalid_request` (schema `rulesUnregisterRequestSchema`; v0.20.0+, was `500`; unreleased, before which it read `error: "Missing required field: source"`).
+`removed` is `false` when the source had no rules. When rules were removed, the processor's rule set is rebuilt and, if the remaining virtual rules match on `file.path` globs, a file-only `rules` reindex runs as for registration. A missing or empty `source` is the request-validation `400 FST_ERR_VALIDATION` (schema `rulesUnregisterRequestSchema`; v0.20.0+, was `500`; 0.21.0 sent `invalid_request`, and before that it read `error: "Missing required field: source"`).
 
 ---
 
@@ -1852,7 +1851,7 @@ Schema: `pointsDeleteRequestSchema` in `@karmaniverous/jeeves-watcher-core` (v0.
 
 `deleted` counts points. Unlike [`POST /documents/delete`](#post-documentsdelete), this route applies the filter as given, to file and source points alike, and does not refuse a condition-free filter: `{ "filter": {} }` deletes every point. Matching points are collected first, then deleted in batches.
 
-**Errors (v0.20.0+; these were `500` before):** `400 invalid_request` when `filter` is missing or not an object (request validation; unreleased, before which it read `error: "Missing required field: filter (object)"`), or when Qdrant rejects it (`error: "Invalid filter"`). Nothing is deleted then.
+**Errors (v0.20.0+; these were `500` before):** `400 FST_ERR_VALIDATION` when `filter` is missing or not an object (request validation; 0.21.0 sent `invalid_request`, and before that it read `error: "Missing required field: filter (object)"`); `400 WATCHER_INVALID_REQUEST` when Qdrant rejects it (`The vector store rejected the filter: <reason>`). Nothing is deleted then.
 
 ---
 
@@ -1878,7 +1877,7 @@ curl -X POST http://localhost:1936/rules/reapply \
 }
 ```
 
-Missing or empty `globs`, or an empty or non-string entry, is the request-validation `400 invalid_request` (schema `rulesReapplyRequestSchema`; v0.20.0+, was `500`; unreleased, before which it read `error: "Missing required field: globs (non-empty string array)"`).
+Missing or empty `globs`, or an empty or non-string entry, is the request-validation `400 FST_ERR_VALIDATION` (schema `rulesReapplyRequestSchema`; v0.20.0+, was `500`; 0.21.0 sent `invalid_request`, and before that it read `error: "Missing required field: globs (non-empty string array)"`).
 
 ### Response
 
@@ -1903,7 +1902,7 @@ Missing or empty `globs`, or an empty or non-string entry, is the request-valida
 1. Scrolls all points (`file_path` only) to find the indexed files matching the globs (slashes normalised, case-insensitive, dotfiles included); source documents never match
 2. For each matching file, re-applies current inference rules (metadata update only): changed values are written and payload keys the rules no longer project are removed (one filtered write once the `file_path` system index is ready, v0.21.0+)
 3. Files that fail re-processing are logged but don't abort the operation
-4. Each file is updated under its document lock (v0.21.0+). If a file's lock is not free within 10 s, the request answers `503 not_available` with `Retry-After: 10`; files already updated keep their update, so a retry finishes the rest
+4. Each file is updated under its document lock (v0.21.0+). If a file's lock is not free within 10 s, the request answers `503 WATCHER_NOT_AVAILABLE` with `Retry-After: 10` (`The document is being processed; retry after 10 s.`); files already updated keep their update, so a retry finishes the rest
 
 **Use cases:**
 
@@ -1914,7 +1913,7 @@ Missing or empty `globs`, or an empty or non-string entry, is the request-valida
 
 ## VCS Endpoints
 
-Version control endpoints for git-backed content history. Requires `vcs.enabled: true` in config: without it there are no VCS roots, so `GET /vcs/status` answers `{ "enabled": false, "roots": [] }` and the other VCS routes answer `404 not_found` (no matching watch root). A server embedded without a VCS coordinator answers every VCS route as unregistered (see [Gated routes](#api-reference)). Every VCS route's query or body is validated by its catalog entry: a missing parameter is the request-validation `400` (unreleased; the `error` texts quoted below are the earlier ones, sent without `details`). See the [Version Control (VCS) Guide](./version-control.md) for architectural context, configuration, and operational details.
+Version control endpoints for git-backed content history. Requires `vcs.enabled: true` in config: without it there are no VCS roots, so `GET /vcs/status` answers `{ "enabled": false, "roots": [] }` and the other VCS routes answer `404 WATCHER_NOT_FOUND` (no matching watch root). A server embedded without a VCS coordinator answers every VCS route as unregistered (see [Gated routes](#api-reference)). Every VCS route's query or body is validated by its catalog entry: a missing parameter is the request-validation `400 FST_ERR_VALIDATION`, whose `message` names each missing parameter (for example `querystring/glob Missing required query parameter: glob`). See the [Version Control (VCS) Guide](./version-control.md) for architectural context, configuration, and operational details.
 
 ---
 
@@ -2020,7 +2019,7 @@ Runs `git log` (with `--since` / `--until` when given) in every VCS root the glo
 
 #### Errors
 
-`400 invalid_request` without `glob` (`error: "Missing required query parameter: glob"`); `404 not_found` when no VCS root matches (`"No VCS-enabled watch root matches the given glob"`).
+`400 FST_ERR_VALIDATION` without `glob` (`querystring/glob Missing required query parameter: glob`); `404 WATCHER_NOT_FOUND` when no VCS root matches (`No version-controlled watch root matches the path or glob.`).
 
 ---
 
@@ -2051,7 +2050,7 @@ Resolves the watch root for the path, computes the relative path, and runs `git 
 
 #### Errors
 
-`400 invalid_request` when `path` or `commit` is missing or empty, with `error` naming the first missing one (`"Missing required query parameter: path"`) and one `details` entry (slot `query`) per parameter (unreleased; before, `"Missing required query parameters: path, commit"` without `details`); `404 not_found` when no VCS root contains the path (`"Path does not match any VCS-enabled watch root"`) or `git show` fails, for example an unknown commit or a file absent at that commit (`"File not found at the specified commit"`).
+`400 FST_ERR_VALIDATION` when `path` or `commit` is missing or empty, its `message` naming each missing one (`querystring/path Missing required query parameter: path, querystring/commit Missing required query parameter: commit`); `404 WATCHER_NOT_FOUND` when no VCS root contains the path (`No version-controlled watch root matches the path or glob.`) or `git show` fails, for example an unknown commit or a file absent at that commit (`The file does not exist at that commit.`).
 
 ---
 
@@ -2083,7 +2082,7 @@ Resolves matching watch roots and runs `git diff {commit}..{commitEnd}` (or `..H
 
 #### Errors
 
-`400 invalid_request` when `glob` or `commit` is missing (`"Missing required query parameters: glob, commit"`); `404 not_found` when no VCS root matches (`"No VCS-enabled watch root matches the given glob"`).
+`400 FST_ERR_VALIDATION` when `glob` or `commit` is missing (`querystring/commit Missing required query parameter: commit`); `404 WATCHER_NOT_FOUND` when no VCS root matches (`No version-controlled watch root matches the path or glob.`).
 
 ---
 
@@ -2133,7 +2132,7 @@ curl -X POST http://localhost:1936/vcs/revert \
 | `restored` | `number` | Number of files restored. |
 | `files` | `string[]` | Absolute paths (forward slashes) of restored files. |
 
-`existingOnly` must be a JSON boolean; anything else answers `400 invalid_request` (unreleased, D183: 0.20.0 read any truthy value, so `"false"` acted as `true`).
+`existingOnly` must be a JSON boolean; anything else answers `400 FST_ERR_VALIDATION` (0.21.0, D183: 0.20.0 read any truthy value, so `"false"` acted as `true`).
 
 #### Behavior
 
@@ -2146,7 +2145,7 @@ A root whose listing fails (for example an unknown commit) restores nothing, so 
 
 #### Errors
 
-`400 invalid_request` when `glob` or `commit` is missing (`"Missing required body parameters: glob, commit"`); `404 not_found` when no VCS root matches (`"Glob does not match any VCS-enabled watch root"`).
+`400 FST_ERR_VALIDATION` when `glob` or `commit` is missing (`body/commit Missing required body parameters: glob, commit`); `404 WATCHER_NOT_FOUND` when no VCS root matches (`No version-controlled watch root matches the path or glob.`).
 
 ---
 
@@ -2197,13 +2196,21 @@ The glob is a gitignore pattern, so `*`, `?`, `**` and brackets keep their gitig
 | `action` | `string` | `"added"` or `"removed"`. |
 | `untracked` | `number` | Paths removed from the index (committed in HEAD or only staged); `0` for `removed`. |
 
+**Confirmation needed (200 OK, v0.22.0+):** when more than 100 files would be untracked and `confirm` is not `true`, nothing is written and the reply is
+
+```json
+{ "confirmRequired": true, "untracked": 101 }
+```
+
+The response schema is the union of the two shapes (`vcsExcludeResponseSchema` in core); tell them apart by `confirmRequired`. Check the count with whoever asked, then repeat with `confirm: true`. Before v0.22.0 this was `409 { "code": "confirm_required", "error": "Excluding <pattern> would untrack <n> files; repeat with confirm: true", "untracked": <n> }`.
+
 0.20.0 answered `{ ok, gitignorePath, action }`; `file` and `untracked` replace `gitignorePath` (an approved wire departure, spec Design 2).
 
 #### Behavior
 
 - **Anchoring.** The pattern is written root-anchored: `/` followed by the glob relative to the root (D81). The written patterns `/docs` and `/docs/` (from the glob `<root>/docs`, or `docs` with `root`) name the root's `docs` folder and everything under it; `**/build/` names every `build` folder. With `root`, a glob starting with `/` (or a drive) is a filesystem path, so `/docs` there means the folder `/docs` on disk and is `400` unless it lies under the root; give root-relative globs without the leading `/`. Trailing spaces are dropped (git ignores them in the exclude file). 0.20.0 wrote un-anchored lines into a `.gitignore` near the glob, so `*.log` there matched at every depth; 0.21.0's `/*.log` matches only at the root. Write `**/*.log` for every depth.
 - **Adding** runs in one hold of the root's git lock, waited for at most 30 s: the tracked files the pattern matches are listed (`git ls-files -c -i -x <pattern>`, in HEAD and in the index), the line is appended to `.git/info/exclude` (once: a pattern already there is not duplicated), the files are removed from HEAD in one commit `Untrack <n> files matching <pattern>` and from the index, and the commit is pushed when the root has a remote. Files stay on disk and in search. Other staged changes are kept. A file a failed batch staged but never committed is untracked too and counted. With an unborn HEAD nothing is committed; staged matches are unstaged.
-- **More than 100 files** to untrack need `confirm: true`. Without it the route answers `409` and writes nothing.
+- **More than 100 files** to untrack need `confirm: true`. Without it the route answers `200 { confirmRequired: true, untracked }` and writes nothing (v0.22.0+; was `409`).
 - **Removing** deletes the anchored line from `.git/info/exclude`; if it is not there, the line 0.20.0 wrote for the same glob in its locality `.gitignore` (the deepest literal directory of the glob). Untracked files are not re-added: their next change is versioned again.
 - **Queued batches** that hold an excluded path drop it, because git now reports it ignored.
 - **Refused patterns** (`400`): a newline, a leading `!` or `#`, braces (`{a,b}` is not gitignore syntax), and a pattern matching the whole root (a path part that is empty or only `*`, `**` and `/`: `*`, `**`, `/`, `/**`, `**/*`, `*/**`). `docs/*` and `**/*.tmp` are accepted.
@@ -2212,11 +2219,13 @@ The glob is a gitignore pattern, so `*`, `?`, `**` and brackets keep their gitig
 
 | Status | `code` | When |
 | --- | --- | --- |
-| `400` | `invalid_request` | `glob` missing (`"Missing required body parameter: glob"`), `remove` or `confirm` not a JSON boolean (D183), a refused pattern (`"The glob must be a single pattern (no newline)"`, `"The glob must not start with ! or #"`, `"Braces are not gitignore syntax"`, `"The glob matches the whole root"`), or a glob outside an explicit `root` (`"The glob resolves outside the root"`; with `root`, an absolute glob must lie under it and a relative one may not climb out with `..`). |
-| `404` | `not_found` | `root` is not a VCS root (`"Root is not a VCS-enabled watch root"`), no VCS root contains the glob (`"Glob does not match any VCS-enabled watch root"`), or, for `remove`, the pattern is in neither file (`"No .gitignore found at the expected location"`, `"Pattern not found in .gitignore"`, 0.20.0's texts). |
-| `409` | `confirm_required` | More than 100 files would be untracked and `confirm` is not `true`. Nothing is written. The body adds the count: `{ "error": "Excluding /bulk/*.dat would untrack 101 files; repeat with confirm: true", "code": "confirm_required", "untracked": 101 }`. |
-| `503` | `not_available` | The root's git lock stayed busy (a long batch commit or squash) for 30 s. Nothing is written. `Retry-After: 30`; `message` is `"Version control is busy on this root; retry after 30 s"`. |
-| `500` | `internal_error` | git failed, including an untrack commit beaten twice by commits from elsewhere (the appended line is removed again). |
+| `400` | `FST_ERR_VALIDATION` | `glob` missing (`body/glob Missing required body parameter: glob`), `remove` or `confirm` not a JSON boolean (D183). |
+| `400` | `WATCHER_INVALID_REQUEST` | A refused pattern: `The exclude glob is refused: <reason>`, the reason one of `The glob must be a single pattern (no newline)`, `The glob must not start with ! or #`, `Braces are not gitignore syntax`, `The glob matches the whole root`, or `The glob resolves outside the root` (a glob outside an explicit `root`: with `root`, an absolute glob must lie under it and a relative one may not climb out with `..`). |
+| `404` | `WATCHER_NOT_FOUND` | `root` is not a VCS root (`The named root is not a version-controlled watch root.`), no VCS root contains the glob (`No version-controlled watch root matches the path or glob.`), or, for `remove`, the pattern is in neither file (`The pattern is not excluded on this root.`). |
+| `503` | `WATCHER_NOT_AVAILABLE` | The root's git lock stayed busy (a long batch commit or squash) for 30 s. Nothing is written. `Retry-After: 30`; `message` is `"Version control is busy on this root; retry after 30 s."`. |
+| `500` | Masked (no `code`) | git failed, including an untrack commit beaten twice by commits from elsewhere (the appended line is removed again). |
+
+Over the threshold without `confirm` is not an error (the `200` confirmation under Response above); it was `409 confirm_required` before v0.22.0.
 
 ---
 
@@ -2262,63 +2271,114 @@ Runs `git check-ignore -v` in the watch root (unreleased, D82):
 
 - A tracked path is never reported ignored, even when a rule matches it: `excluded: false`. So a file a human `.gitignore` covers but git still tracks answers `excluded: false`; exclude it through `POST /vcs/exclude` to untrack it.
 - A path a negated rule (`!pattern`) re-includes answers `excluded: false`.
-- git's "not ignored" exit answers `excluded: false`; any other git failure answers `500 internal_error`. (0.20.0 answered `excluded: false` for every git failure, and `excluded: true` without `rule` for output it could not parse.)
+- git's "not ignored" exit answers `excluded: false`; any other git failure answers the masked `500`. (0.20.0 answered `excluded: false` for every git failure, and `excluded: true` without `rule` for output it could not parse.)
 
 #### Errors
 
-`400 invalid_request` without `path` (`"Missing required query parameter: path"`); `404 not_found` when no VCS root contains the path (`"Path does not match any VCS-enabled watch root"`); `500 internal_error` when git fails.
+`400 FST_ERR_VALIDATION` without `path` (`querystring/path Missing required query parameter: path`); `404 WATCHER_NOT_FOUND` when no VCS root contains the path (`No version-controlled watch root matches the path or glob.`); the masked `500` when git fails.
 
 ---
 
 ## Error Handling
 
-Since v0.20.0 every non-2xx response has this body (`apiErrorBodySchema` in `@karmaniverous/jeeves-watcher-core`):
+Since v0.22.0 every non-2xx response is Fastify's standard error body, `errorBodySchema` in `@karmaniverous/jeeves/catalog` (on jeeves `0.11.0`):
 
 ```json
 {
-  "code": "invalid_request",
-  "error": "Human-readable text",
-  "message": "Optional longer explanation",
-  "details": []
+  "statusCode": 503,
+  "code": "WATCHER_SCAN_IN_PROGRESS",
+  "error": "Service Unavailable",
+  "message": "The initial filesystem scan is still running; retry when it finishes."
 }
 ```
 
-- `code` is machine-readable and stable: branch on it. The list is `API_ERROR_CODES` in core (type `ApiErrorCode`); codes may be added, never repurposed.
-- `error` is the human-readable text earlier versions sent, unchanged, so older clients keep working. Do not parse it.
-- `message` (optional) adds detail; `details` (optional) holds structured data such as the validation issues of a `400`.
-- `issueType` (optional) names the [issue code](#issue-codes) behind a failed render.
-- Some endpoints add fields of their own (`issues` on `POST /config/apply`).
-- The catalog's response-validation failure is `500 { "error": "Response validation failed", "code": "internal_error" }` (see [Response validation](#api-reference)), which only a server bug produces.
-- A route's status is derived from its `code` through `API_ERROR_STATUS` in core (the table below), so the same code always has the same status. The single exception is `not_available` from a prune without a vector store, which keeps its 0.19 status `400`. Requests rejected by the framework before reaching a route keep the framework's status: `401` maps to `unauthorized`, `404` to `not_found` (unknown route: `{ "code": "not_found", "error": "Not Found", "message": "Route POST:/nope not found" }`), any other 4xx to `invalid_request` (with the HTTP status text as `error` and the framework's explanation as `message`), and any 5xx to the generic `internal_error` body.
-- The SDK copies `code` to `WatcherError.code` (a body without one maps to `http_<status>`) and `Retry-After` to `retryAfterMs`. The CLI prints `<code>: <message>`, where `<message>` is `error` plus `: <message>` when the body has a different `message`.
-- The plugin's tools (all catalog-built) report `HTTP <status>: <body>` with the JSON body verbatim. Every route is now a catalog route, so every error body, including the gated `/vcs/*` `404`, lists `error` before `code` (unreleased, D182; 0.20.0 listed `code` first on the routes outside the catalog). Parse the body as JSON rather than relying on key order.
-- A 5xx body never carries the underlying error (file paths, Qdrant or provider messages): the cause is logged and the body is the generic `internal_error` text below.
-- HTTP status changes in v0.20.0, all from `500` for what are client mistakes: invalid bodies of the rules routes and `POST /points/delete`, filters Qdrant rejects (`400`), and invalid `POST /reindex` path targets (`403` / `404` / `400`). Successful responses and every other status are unchanged.
+- `statusCode` repeats the HTTP status; `error` is its standard reason phrase (`Bad Request`, `Not Found`, ...).
+- `code` is machine-readable and stable in meaning: branch on it, never on `message`. It is a `WATCHER_*` code (the table below; the list is `WATCHER_ERROR_CODES` in `@karmaniverous/jeeves-watcher-core`, type `WatcherErrorCode`, with each code's status in `WATCHER_ERROR_STATUS`), a jeeves `JEEVES_*` code or a Fastify `FST_ERR_*` code. An unexpected failure has no `code` at all.
+- `message` is a fixed sentence written for the caller. It never carries a filesystem path, host, source callback URL, credential, stack or library error text; where a message names something (a field, a rule, the filter Qdrant rejected, the caller's own method and URL), that part comes from the request and is capped at 300 characters. What a message leaves out (the callback's status and error, the extraction or rule error and its `details`, the Qdrant error, the embedding error) goes to the service log.
+- There are no other fields: no `details`, no `issueType`, no `issues`, no `untracked`. The body is strict.
+- Headers: `Retry-After` (seconds) is sent only with `DocumentBusy` (`10`), `VcsBusy` (`30`) and `WATCHER_EMBEDDING_UNAVAILABLE` (when the provider's back-off is known), and the message says the wait in words too. A `401` carries no `WWW-Authenticate`. Error replies carry no `Cache-Control`.
+- The SDK copies `code` to `WatcherError.code` (`http_<status>` when the body has none), `message` to `WatcherError.message`, the whole body to `details`, and `Retry-After` to `retryAfterMs`. The CLI prints `<code>: <message>`. The plugin's tools report `HTTP <status>: <body>` with the JSON body verbatim. Parse the body as JSON rather than relying on key order.
 
-| `code` | Status | Meaning |
+### `WATCHER_*` codes
+
+One code can be sent by several errors, each with its own fixed message (`%s` marks the part taken from the request).
+
+| Status | `code` | Meaning | Message |
+| --- | --- | --- | --- |
+| `400` | `WATCHER_INVALID_REQUEST` | Qdrant rejected the filter (`POST /search`, `/scan`, `/search/facets/counts`, `/points/delete`, `/documents/delete`) | `The vector store rejected the filter: %s` (Qdrant's reason) |
+| `400` | `WATCHER_INVALID_REQUEST` | A facet field has no usable payload index (`POST /search/facets/counts`) | `No usable payload index for field(s): %s` |
+| `400` | `WATCHER_INVALID_REQUEST` | `rules` names no rule (`GET /search/facets`, `POST /search/facets/counts`) | `rules must name at least one rule` |
+| `400` | `WATCHER_INVALID_REQUEST` | `rules` names an unknown rule | `Unknown rule(s): %s` |
+| `400` | `WATCHER_INVALID_REQUEST` | Metadata fails the matched rules' schemas (`POST /metadata`) | `The metadata does not match the matched rules' schemas: %s` |
+| `400` | `WATCHER_INVALID_REQUEST` | The rules do not compile (`POST /rules/register`) | `The rules are not valid: %s` |
+| `400` | `WATCHER_INVALID_REQUEST` | A scope-`path` target is neither a file nor a directory (`POST /reindex`) | `The path is neither a file nor a directory.` |
+| `400` | `WATCHER_INVALID_REQUEST` | `POST /vcs/exclude` refused the glob | `The exclude glob is refused: %s` (one of five fixed reasons) |
+| `401` | `WATCHER_UNAUTHORIZED` | `api.apiKey` is set and the bearer key is missing or wrong | `A valid API key is required: send Authorization: Bearer <key>.` |
+| `403` | `WATCHER_PATH_NOT_WATCHED` | The path is outside the watched scope or gitignored (`POST /render`, `POST /reindex` scope `path`) | `The path is outside the watched scope or is gitignored.` |
+| `404` | `WATCHER_NOT_FOUND` | No such route, or a gated `/vcs/*` route (byte-identical) | `Route %s:%s not found` (the caller's method and URL) |
+| `404` | `WATCHER_NOT_FOUND` | The file or directory does not exist (`POST /render`, `POST /reindex` scope `path`) | `The file or directory does not exist.` |
+| `404` | `WATCHER_NOT_FOUND` | No VCS-enabled root matches the path or glob | `No version-controlled watch root matches the path or glob.` |
+| `404` | `WATCHER_NOT_FOUND` | The named `root` is not VCS-enabled | `The named root is not a version-controlled watch root.` |
+| `404` | `WATCHER_NOT_FOUND` | The file is not at that commit (`GET /vcs/show`) | `The file does not exist at that commit.` |
+| `404` | `WATCHER_NOT_FOUND` | The pattern to remove is not excluded (`POST /vcs/exclude` with `remove`) | `The pattern is not excluded on this root.` |
+| `404` | `WATCHER_SOURCE_NOT_INDEXED` | No stored point for the source reference, so no designated rule is known (`POST /render`, `POST /metadata`) | `The source document is not indexed.` |
+| `404` | `WATCHER_SOURCE_NOT_FOUND` | The source callback answered `404` (`POST /render`) | `The source reports that the document does not exist.` |
+| `422` | `WATCHER_UNSUPPORTED_CONTENT_TYPE` | The source callback's body is not a JSON object (`POST /render`) | `The source returned a body that is not a JSON object.` |
+| `422` | `WATCHER_PIPELINE_EXTRACTION_ERROR` | Extraction failed (`POST /render`; also an untagged source failure) | `The document could not be extracted.` |
+| `422` | `WATCHER_PIPELINE_RULE_MISSING_ERROR` | The designated rule does not exist (`POST /render` with `source`) | `The designated rule does not exist.` |
+| `422` | `WATCHER_PIPELINE_MATCH_FAILED_ERROR` | The record does not match its designated rule | `The document does not match its designated rule.` |
+| `422` | `WATCHER_PIPELINE_NO_CONTENT_ERROR` | Nothing to render | `The document has no content to render.` |
+| `422` | `WATCHER_PIPELINE_INTERPOLATION_ERROR` | A rule's template or `set` expression failed | `A rule's template or set expression failed for this document.` |
+| `422` | `WATCHER_PIPELINE_TYPE_COLLISION_ERROR` | Defined, not raised by any route today | `The document's metadata types conflict with each other.` |
+| `422` | `WATCHER_PIPELINE_EMBEDDING_ERROR` | Defined, not raised by any route today | `The document could not be embedded.` |
+| `422` | `WATCHER_PIPELINE_UPSERT_ERROR` | Defined, not raised by any route today | `The document could not be written to the vector store.` |
+| `422` | `WATCHER_PIPELINE_TOO_LARGE_ERROR` | Defined, not raised by any route today | `The document is over a processing size limit.` |
+| `502` | `WATCHER_SOURCE_UNAVAILABLE` | The source callback failed (network error, timeout, non-404 HTTP error) (`POST /render`) | `The source could not be reached or answered with an error.` |
+| `503` | `WATCHER_NOT_AVAILABLE` | No source-document support (`POST /documents`, and `POST /render`, `POST /metadata` and `POST /reindex` with `source`; `POST /documents/delete` works without it) | `Source documents are not available on this instance.` |
+| `503` | `WATCHER_NOT_AVAILABLE` | No filesystem watcher (`POST /walk`) | `The filesystem watcher is not initialized.` |
+| `503` | `WATCHER_NOT_AVAILABLE` | A system index the counts need is not ready (`POST /search/facets/counts`) | `Facet counts need the %s system index, which is not ready yet; retry shortly.` (the index name) |
+| `503` | `WATCHER_NOT_AVAILABLE` | The counts exceeded their 10 s budget | `Facet counts exceeded the time budget; not counted: %s. Count fewer fields or narrow the filter.` |
+| `503` | `WATCHER_NOT_AVAILABLE` | A document lock stayed busy for 10 s (`POST /metadata`, `/rules/reapply`, `/documents/delete`); `Retry-After: 10` | `The document is being processed; retry after 10 s.` |
+| `503` | `WATCHER_NOT_AVAILABLE` | A root's git lock stayed busy for 30 s (`POST /vcs/exclude`); `Retry-After: 30` | `Version control is busy on this root; retry after 30 s.` |
+| `503` | `WATCHER_NOT_AVAILABLE` | A prune without a vector store (`POST /reindex`) | `Prune needs a vector store, and none is configured.` |
+| `503` | `WATCHER_SCAN_IN_PROGRESS` | The initial filesystem scan is still running (`POST /walk`) | `The initial filesystem scan is still running; retry when it finishes.` |
+| `503` | `WATCHER_EMBEDDING_UNAVAILABLE` | The embedding provider is in back-off or failing (`POST /search`); `Retry-After` when the back-off is known | `The embedding provider is unavailable; retry later.` |
+
+`<TYPE>` in `WATCHER_PIPELINE_<TYPE>_ERROR` is the [issue code](#issue-codes) in upper case with a trailing `_error` dropped. The four pipeline codes no route raises today exist so that a future route reporting a processing failure has its code ready.
+
+### Codes from jeeves and Fastify
+
+| Status | `code` | When |
 | --- | --- | --- |
-| `invalid_request` | `400` | The body, query or parameters failed validation, a filter was rejected by Qdrant (`error: "Invalid filter"`) or has no condition (`POST /documents/delete`), an invalid JSONPath (`GET /config`), a `POST /reindex` path target that is neither file nor directory, or the request was rejected before reaching a route (malformed JSON, unsupported media type: the framework's status is kept, e.g. `415`). |
-| `unauthorized` | `401` | `api.apiKey` is set and the bearer token is missing or wrong. |
-| `path_not_watched` | `403` | The file path is outside the watched scope (`POST /render`), or a `POST /reindex` path target is outside it or gitignored. |
-| `not_found` | `404` | No such route, file (including a `POST /reindex` path target), VCS watch root, file at a commit, or exclude pattern to remove (`POST /vcs/exclude`). |
-| `source_not_indexed` | `404` | No stored point for the source reference, so no designated rule is known (`POST /render`, `POST /metadata`). |
-| `source_not_found` | `404` | The source callback answered `404` (`POST /render`). |
-| `unsupported_content_type` | `422` | The source callback returned a non-JSON body (`POST /render`). |
-| `pipeline_error` | `422` | Rendering or extraction failed (`POST /render`); `issueType` names the failure. |
-| `confirm_required` | `409` | `POST /vcs/exclude` would untrack more than 100 files and `confirm` is not `true`; nothing was written, and `untracked` holds the count (unreleased, D103). |
-| `source_unavailable` | `502` | The source callback failed (`POST /render`). |
-| `not_available` | `503` | The feature is not available on this instance: no source-document support (`POST /documents`, and `POST /render`, `POST /metadata` and `POST /reindex` with `source`; `POST /documents/delete` works without it), or no filesystem watcher (`POST /walk`), or `POST /vcs/exclude` waited 30 s for the root's git lock (`Retry-After: 30`, unreleased, D102), or `POST /search/facets/counts` while a system index it needs is not ready or past its 10 s budget (v0.21.0+). A prune without a vector store keeps its 0.19 status `400`. |
-| `scan_in_progress` | `503` | The initial filesystem scan is still running (`POST /walk`); retry later. |
-| `embedding_unavailable` | `503` | The embedding provider's retry budget ran out (`POST /search`); honour `Retry-After`. |
-| `internal_error` | `500` | Unexpected server-side failure (check the service log), including a Qdrant read failure on `POST /metadata` or `POST /render` with `source`. Always `{ "code": "internal_error", "error": "Internal Server Error", "message": "Internal server error" }`, never the underlying error. |
+| `400` | `FST_ERR_VALIDATION` | The body, query string or path parameters fail the route's catalog schema. `message` joins `<slot>/<path> <issue>` per failure, e.g. `body/query query must be a non-empty string`. |
+| `400`, `413`, `415` | `FST_ERR_CTP_*` | Fastify rejected the request before validation: malformed or empty JSON body, body too large, unsupported media type. |
+| `400` | `JEEVES_CONFIG_QUERY_INVALID` | `GET /config`: the JSONPath does not parse (the parser's message). |
+| `400` | `JEEVES_CONFIG_INVALID` | `POST /config/apply`: the merged config fails the schema (the issues folded into `message`). |
+| `500` | `JEEVES_CONFIG_READ_FAILED` | `POST /config/apply`: the config file can't be read (`The config file could not be read.`). |
+| `500` | `JEEVES_CONFIG_WRITE_FAILED` | `POST /config/apply`: the config file can't be written (`The config file could not be written.`). |
+| `500` | `JEEVES_RESPONSE_VALIDATION` | A catalog route's response failed its schema: a server bug (`The server could not complete the request.`; the issues are logged). |
+
+**Unexpected failures** are masked: `500` with no `code` and a fixed message, the cause logged once by the service (`Error reply masked`). A thrown error's own status, message and headers never reach the client:
+
+```json
+{
+  "statusCode": 500,
+  "error": "Internal Server Error",
+  "message": "The server could not complete the request."
+}
+```
+
+This includes a Qdrant read failure on `POST /metadata` or `POST /render` with `source`, a git failure in `GET /vcs/check-exclusion` other than "not ignored", and any Qdrant error outside the filter checks. Before v0.22.0 the body was `{ "code": "internal_error", "error": "Internal Server Error", "message": "Internal server error" }`.
 
 Per-document outcomes are not HTTP errors and use their own codes: `rejected[].error.code` of `POST /documents` (rejection codes) and `error.code` of `failed` results ([issue codes](#issue-codes)).
 
+For the 0.21 codes (`invalid_request`, `not_available`, `pipeline_error`, ...) and their successors, see [Upgrading to 0.22.0](./upgrading.md#0220).
+
 **Status codes:**
 
-- `200 OK`: success
+- `200 OK`: success (including `POST /vcs/exclude`'s `{ confirmRequired: true, untracked }`)
 - `202 Accepted`: notifications queued (`POST /documents`)
-- `400 Bad Request`, `401 Unauthorized`, `403 Forbidden`, `404 Not Found`, `409 Conflict`, `422 Unprocessable Entity`, `500 Internal Server Error`, `502 Bad Gateway`, `503 Service Unavailable`: see the table above
+- `400 Bad Request`, `401 Unauthorized`, `403 Forbidden`, `404 Not Found`, `413 Payload Too Large`, `415 Unsupported Media Type`, `422 Unprocessable Entity`, `500 Internal Server Error`, `502 Bad Gateway`, `503 Service Unavailable`: see the tables above
 
 ---
 
@@ -2346,7 +2406,7 @@ curl -X POST http://watcher.internal.example:1936/search \
 ```
 
 - Every route requires `Authorization: Bearer <apiKey>` (the `Bearer` scheme name is case-insensitive) — including unknown routes, the config, rules and VCS endpoints — **except `GET /status`** (and `HEAD /status`), which stays open for health checks, and `GET /openapi.json` (unreleased).
-- A missing, malformed or wrong token gets `401 { "code": "unauthorized", "error": "Unauthorized" }`. The presented token is never logged; rejections log only the method and path at `debug` level.
+- A missing, malformed or wrong token gets `401 { "statusCode": 401, "code": "WATCHER_UNAUTHORIZED", "error": "Unauthorized", "message": "A valid API key is required: send Authorization: Bearer <key>." }`, with no `WWW-Authenticate` header (v0.22.0+; before, `{ "code": "unauthorized", "error": "Unauthorized" }`). The presented token is never logged; rejections log only the method and path at `debug` level.
 - The comparison is constant-time.
 - `apiKey` must be non-empty: `""` (or a variable that substitutes to `""`) is a config validation error, so the service does not start. Omit the key to run without authentication. (Should an empty key ever reach the server, it still fails closed: no token matches.)
 - If `apiKey` still contains an unresolved `${...}` after environment-variable substitution, loading the config fails and the service does not start.
@@ -2373,7 +2433,7 @@ When the provider answers `429`, the limiter pauses **all** embedding requests:
 - The pause is the delay the provider asks for (`Retry-After`, or Google's `retryDelay` when there is no header) or the exponential backoff from 1 second (capped at max(root `maxBackoffMs`, 65 seconds)), whichever is longer, so Gemini's `retryDelay: "0s"` does not spend every retry in the same quota minute. A delay of up to max(root `maxBackoffMs`, 65 seconds) is waited in full, then the request is retried.
 - A requested delay **longer** than that ceiling is not shortened: the request fails at once, and every other caller fails fast until the pause has fully passed, instead of retrying early and being throttled again.
 - Indexing makes up to 7 attempts per embedding request (63 seconds of backoff between them) and then records an `embedding_error` issue (the document is retried on its next change, notification or reindex).
-- Search makes up to 3 attempts and waits at most 10 seconds in total; when that budget runs out, or the provider's pause is too long, `POST /search` answers `503 { code: "embedding_unavailable", error, message }` with a `Retry-After` header instead of `500`.
+- Search makes up to 3 attempts and waits at most 10 seconds in total; when that budget runs out, or the provider's pause is too long, `POST /search` answers `503 WATCHER_EMBEDDING_UNAVAILABLE` (`The embedding provider is unavailable; retry later.`) with a `Retry-After` header when the back-off is known, instead of `500`.
 - Retries the Gemini client makes on its own (non-`429` failures) also go through the limiter: each takes its items and waits out any pause, so every request to the provider counts against `rateLimitPerMinute`.
 
 ---

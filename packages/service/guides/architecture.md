@@ -110,7 +110,7 @@ The core processing flow transforms file changes into searchable vectors. The fi
 
 The enrichment API allows external callers to add metadata without re-embedding:
 
-1. **POST /metadata** with a file `path` (or a source reference `source`) and `metadata`; values that do not match the matching rules' declared property types are rejected with `400 invalid_request`
+1. **POST /metadata** with a file `path` (or a source reference `source`) and `metadata`; values that do not match the matching rules' declared property types are rejected with `400 WATCHER_INVALID_REQUEST`
 2. **Store** — The metadata is merged into the document's entry in the enrichment store (top-level keys replace existing ones). For a file, the entry is stored even when the file is not indexed yet, so it applies once it is
 3. **Update Qdrant payloads** — If the document is indexed, the stored enrichment is written to the payload of every chunk (reserved system fields are dropped; the stored identity and `matched_rules` are kept)
 
@@ -268,7 +268,7 @@ Filesystem events go through one debounced, concurrent queue.
 
 **Failures:** A failing document is logged and recorded in the issues file; it does not stop the queue.
 
-**Document locks (v0.21.0+):** Every process, delete, move, ceiling deletion and metadata change (`POST /metadata`, rule re-application) of one document runs under an in-process FIFO lock keyed by the normalised file path (the point-ID normalisation) or the source reference. Different documents still run concurrently; two runs of one document never interleave. A move takes both paths' locks in sorted order. Background work waits as long as it takes; `POST /metadata`, `POST /rules/reapply` and `POST /documents/delete` wait at most 10 s per document, then answer `503 not_available` with `Retry-After: 10`. A lock held over 5 minutes is logged as a warning.
+**Document locks (v0.21.0+):** Every process, delete, move, ceiling deletion and metadata change (`POST /metadata`, rule re-application) of one document runs under an in-process FIFO lock keyed by the normalised file path (the point-ID normalisation) or the source reference. Different documents still run concurrently; two runs of one document never interleave. A move takes both paths' locks in sorted order. Background work waits as long as it takes; `POST /metadata`, `POST /rules/reapply` and `POST /documents/delete` wait at most 10 s per document, then answer `503 WATCHER_NOT_AVAILABLE` with `Retry-After: 10`. A lock held over 5 minutes is logged as a warning.
 
 ### Source Notify Queue
 
@@ -430,6 +430,8 @@ Transient failures are retried; anything that still fails is recorded as an issu
 **Embedding health (v0.21.0+):** A tracker wraps the shared rate-limited provider. At least 3 failed calls with 60 s without a success turn it `failing` (`GET /status` reports `degraded`, an error is logged, and `embedding.alertUrl` gets `embedding_failed`); the first success turns it `ok` again (`embedding_recovered`). A stored provider back-off is capped at 5 minutes, then expires; the first call after it probes the provider. Alerts and the reindex callback share one delivery helper: 3 attempts, 1 s then 2 s apart, 10 s timeout each, never thrown. See [Embedding Health](./configuration.md#embedding-health).
 
 **Issues file:** Documents that fail are recorded in the issues file (persisted to `{stateDir}/issues.json`) with a canonical issue code (`embedding_error`, `upsert_error`, `extraction_error`, ...). Surfaced via `GET /issues`; re-processed by an `issues` reindex (the default on config reload).
+
+**API errors (v0.22.0+):** every error a caller is meant to see is a jeeves `defineError` class in `src/api/errors.ts` (a `WATCHER_*` code, a fixed caller-facing message and a status; core's `WATCHER_ERROR_STATUS` holds the same table, and a test keeps the two equal). Handlers and the helpers below them throw these classes, and jeeves's catalog scope (plus `registerErrorHandlers` for the routes outside the catalog) sends them as Fastify's standard error body. At the boundary `wrapCatalogHandler` maps the internal lock and embedding errors to `DocumentBusy`, `VcsBusy` and `EmbeddingUnavailable` (each with its `Retry-After`), `withFilterErrors` maps a Qdrant filter rejection to `FilterRejected`, and the render paths map a processing failure by issue type to its pipeline class. Anything else thrown is masked by jeeves: a `500` with no code and a fixed message, logged once through the watcher's logger. See [Error Handling](./api-reference.md#error-handling).
 
 ---
 

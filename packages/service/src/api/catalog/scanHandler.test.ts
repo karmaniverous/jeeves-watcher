@@ -1,7 +1,7 @@
 /**
  * @module api/catalog/scanHandler.test
  * `createCatalogScanHandler`: points+cursor or count, and a Qdrant filter
- * rejection becomes `400 invalid_request`.
+ * rejection becomes `FilterRejected` (`400 WATCHER_INVALID_REQUEST`).
  */
 
 import pino from 'pino';
@@ -49,7 +49,7 @@ describe('createCatalogScanHandler', () => {
     expect(result).toEqual({ status: 200, body: { count: 42 } });
   });
 
-  it('maps a Qdrant filter rejection to 400 invalid_request', async () => {
+  it('maps a Qdrant filter rejection to FilterRejected', async () => {
     const rejection = Object.assign(new Error('Bad Request'), {
       status: 400,
       data: { status: { error: 'Wrong filter' } },
@@ -60,10 +60,13 @@ describe('createCatalogScanHandler', () => {
       logger,
     });
 
-    const result = await handler(input({ filter: {} }), {} as never);
-
-    expect(result.status).toBe(400);
-    expect(result.body).toMatchObject({ code: 'invalid_request' });
+    await expect(
+      handler(input({ filter: {} }), {} as never),
+    ).rejects.toMatchObject({
+      statusCode: 400,
+      code: 'WATCHER_INVALID_REQUEST',
+      message: 'The vector store rejected the filter: Wrong filter',
+    });
   });
 
   it('passes filter, limit, cursor and fields through and answers a last page with a null cursor', async () => {

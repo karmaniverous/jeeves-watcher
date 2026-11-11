@@ -199,8 +199,8 @@ describe.skipIf(!qdrantAvailable())(
       const { status, body } = await post({ fields: ['tag', 'file_path_x'] });
       expect(status).toBe(400);
       expect(body).toMatchObject({
-        code: 'invalid_request',
-        error: 'No usable payload index for field: file_path_x',
+        code: 'WATCHER_INVALID_REQUEST',
+        message: 'No usable payload index for field(s): file_path_x',
       });
     });
 
@@ -210,7 +210,10 @@ describe.skipIf(!qdrantAvailable())(
         fields: ['tag'],
       });
       expect(status).toBe(400);
-      expect(body).toMatchObject({ error: 'Unknown rule: ghost' });
+      expect(body).toMatchObject({
+        code: 'WATCHER_INVALID_REQUEST',
+        message: 'Unknown rule(s): ghost',
+      });
     });
   },
 );

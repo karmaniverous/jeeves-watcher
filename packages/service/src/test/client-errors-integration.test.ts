@@ -1,6 +1,6 @@
 /**
  * @module test/client-errors-integration.test
- * Service integration (requires Qdrant): filters a real Qdrant rejects are 400 invalid_request on /search, /scan and /documents/delete (nothing deleted), and invalid /reindex path targets are 4xx, never 500.
+ * Service integration (requires Qdrant): filters a real Qdrant rejects are 400 WATCHER_INVALID_REQUEST on /search, /scan and /documents/delete (nothing deleted), and invalid /reindex path targets are 4xx, never 500.
  */
 
 import { mkdtemp, rm } from 'node:fs/promises';
@@ -51,8 +51,12 @@ describe.skipIf(!qdrantAvailable())(
       const { status, body } = await post(url, payload);
       expect(status).toBe(400);
       expect(body).toMatchObject({
-        code: 'invalid_request',
-        error: 'Invalid filter',
+        statusCode: 400,
+        code: 'WATCHER_INVALID_REQUEST',
+        error: 'Bad Request',
+        message: expect.stringMatching(
+          /^The vector store rejected the filter: /,
+        ) as unknown,
       });
     });
 
@@ -62,14 +66,14 @@ describe.skipIf(!qdrantAvailable())(
         path: '/definitely/not/watched.md',
       });
       expect(res.status).toBe(403);
-      expect(res.body).toMatchObject({ code: 'path_not_watched' });
+      expect(res.body).toMatchObject({ code: 'WATCHER_PATH_NOT_WATCHED' });
     });
 
     it('/reindex with a watched path that does not exist -> 404', async () => {
       const path = `${watchDir}/no-such-file.md`;
       const res = await post('/reindex', { scope: 'path', path });
       expect(res.status).toBe(404);
-      expect(res.body).toMatchObject({ code: 'not_found' });
+      expect(res.body).toMatchObject({ code: 'WATCHER_NOT_FOUND' });
     });
   },
 );

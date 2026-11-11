@@ -117,7 +117,13 @@ describe('api.apiKey covers every registered route', () => {
         route,
         route.method === 'HEAD'
           ? undefined
-          : { code: 'unauthorized', error: 'Unauthorized' },
+          : {
+              statusCode: 401,
+              code: 'WATCHER_UNAUTHORIZED',
+              error: 'Unauthorized',
+              message:
+                'A valid API key is required: send Authorization: Bearer <key>.',
+            },
       ]);
     }
   });

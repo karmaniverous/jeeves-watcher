@@ -28,7 +28,7 @@ export function route<
  * not-found 404 an unregistered route sends.
  */
 export const VCS_DISABLED_NOTE =
-  'Answers 404 `not_found` when version control is disabled (`vcs.enabled: false`).';
+  'Answers 404 `WATCHER_NOT_FOUND` when version control is disabled (`vcs.enabled: false`).';
 
 /**
  * {@link route} for a version-control entry: its description ends with

@@ -1,0 +1,849 @@
+{
+  "config invalid jsonpath": {
+    "status": 400,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "statusCode": 400,
+      "code": "JEEVES_CONFIG_QUERY_INVALID",
+      "error": "Bad Request",
+      "message": "Unclosed ( at character 2"
+    }
+  },
+  "configApply non-object patch": {
+    "status": 400,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "statusCode": 400,
+      "code": "FST_ERR_VALIDATION",
+      "error": "Bad Request",
+      "message": "body/patch Invalid input: expected record, received array"
+    }
+  },
+  "configApply invalid config": {
+    "status": 400,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "statusCode": 400,
+      "code": "JEEVES_CONFIG_INVALID",
+      "error": "Bad Request",
+      "message": "Config validation failed: watch: Invalid input: expected object, received number"
+    }
+  },
+  "render not watched": {
+    "status": 403,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "statusCode": 403,
+      "code": "WATCHER_PATH_NOT_WATCHED",
+      "error": "Forbidden",
+      "message": "The path is outside the watched scope or is gitignored."
+    }
+  },
+  "render missing": {
+    "status": 404,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "statusCode": 404,
+      "code": "WATCHER_NOT_FOUND",
+      "error": "Not Found",
+      "message": "The file or directory does not exist."
+    }
+  },
+  "render pipeline error": {
+    "status": 422,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "statusCode": 422,
+      "code": "WATCHER_PIPELINE_EXTRACTION_ERROR",
+      "error": "Unprocessable Entity",
+      "message": "The document could not be extracted."
+    }
+  },
+  "render crash": {
+    "status": 422,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "statusCode": 422,
+      "code": "WATCHER_PIPELINE_EXTRACTION_ERROR",
+      "error": "Unprocessable Entity",
+      "message": "The document could not be extracted."
+    }
+  },
+  "render neither target": {
+    "status": 400,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "statusCode": 400,
+      "code": "FST_ERR_VALIDATION",
+      "error": "Bad Request",
+      "message": "body/path Exactly one of path or source is required"
+    }
+  },
+  "render both targets": {
+    "status": 400,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "statusCode": 400,
+      "code": "FST_ERR_VALIDATION",
+      "error": "Bad Request",
+      "message": "body/ Exactly one of path or source is required"
+    }
+  },
+  "render source not indexed": {
+    "status": 404,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "statusCode": 404,
+      "code": "WATCHER_SOURCE_NOT_INDEXED",
+      "error": "Not Found",
+      "message": "The source document is not indexed."
+    }
+  },
+  "render source gone": {
+    "status": 404,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "statusCode": 404,
+      "code": "WATCHER_SOURCE_NOT_FOUND",
+      "error": "Not Found",
+      "message": "The source reports that the document does not exist."
+    }
+  },
+  "render source unavailable": {
+    "status": 502,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "statusCode": 502,
+      "code": "WATCHER_SOURCE_UNAVAILABLE",
+      "error": "Bad Gateway",
+      "message": "The source could not be reached or answered with an error."
+    }
+  },
+  "render source unsupported content type": {
+    "status": 422,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "statusCode": 422,
+      "code": "WATCHER_UNSUPPORTED_CONTENT_TYPE",
+      "error": "Unprocessable Entity",
+      "message": "The source returned a body that is not a JSON object."
+    }
+  },
+  "render source pipeline error": {
+    "status": 422,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "statusCode": 422,
+      "code": "WATCHER_PIPELINE_RULE_MISSING_ERROR",
+      "error": "Unprocessable Entity",
+      "message": "The designated rule does not exist."
+    }
+  },
+  "search unknown key": {
+    "status": 400,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "statusCode": 400,
+      "code": "FST_ERR_VALIDATION",
+      "error": "Bad Request",
+      "message": "body/ Unrecognized key: \"collapse\""
+    }
+  },
+  "search empty query": {
+    "status": 400,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "statusCode": 400,
+      "code": "FST_ERR_VALIDATION",
+      "error": "Bad Request",
+      "message": "body/query query must be a non-empty string"
+    }
+  },
+  "search embedding unavailable": {
+    "status": 503,
+    "contentType": "application/json; charset=utf-8",
+    "retryAfter": "3",
+    "body": {
+      "statusCode": 503,
+      "code": "WATCHER_EMBEDDING_UNAVAILABLE",
+      "error": "Service Unavailable",
+      "message": "The embedding provider is unavailable; retry later."
+    }
+  },
+  "search filter rejected": {
+    "status": 400,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "statusCode": 400,
+      "code": "WATCHER_INVALID_REQUEST",
+      "error": "Bad Request",
+      "message": "The vector store rejected the filter: Wrong filter"
+    }
+  },
+  "scan missing filter": {
+    "status": 400,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "statusCode": 400,
+      "code": "FST_ERR_VALIDATION",
+      "error": "Bad Request",
+      "message": "body/filter Missing required field: filter (object)"
+    }
+  },
+  "scan limit out of range": {
+    "status": 400,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "statusCode": 400,
+      "code": "FST_ERR_VALIDATION",
+      "error": "Bad Request",
+      "message": "body/limit limit must be between 1 and 1000"
+    }
+  },
+  "scan filter rejected": {
+    "status": 400,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "statusCode": 400,
+      "code": "WATCHER_INVALID_REQUEST",
+      "error": "Bad Request",
+      "message": "The vector store rejected the filter: Wrong filter"
+    }
+  },
+  "vcsShow missing params": {
+    "status": 400,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "statusCode": 400,
+      "code": "FST_ERR_VALIDATION",
+      "error": "Bad Request",
+      "message": "querystring/path Missing required query parameter: path, querystring/commit Missing required query parameter: commit"
+    }
+  },
+  "vcsShow missing commit": {
+    "status": 400,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "statusCode": 400,
+      "code": "FST_ERR_VALIDATION",
+      "error": "Bad Request",
+      "message": "querystring/commit Missing required query parameter: commit"
+    }
+  },
+  "vcsShow unknown root": {
+    "status": 404,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "statusCode": 404,
+      "code": "WATCHER_NOT_FOUND",
+      "error": "Not Found",
+      "message": "No version-controlled watch root matches the path or glob."
+    }
+  },
+  "vcsShow bad commit": {
+    "status": 404,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "statusCode": 404,
+      "code": "WATCHER_NOT_FOUND",
+      "error": "Not Found",
+      "message": "The file does not exist at that commit."
+    }
+  },
+  "vcsShow missing file": {
+    "status": 404,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "statusCode": 404,
+      "code": "WATCHER_NOT_FOUND",
+      "error": "Not Found",
+      "message": "The file does not exist at that commit."
+    }
+  },
+  "vcsShow without vcs": {
+    "status": 404,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "statusCode": 404,
+      "code": "WATCHER_NOT_FOUND",
+      "error": "Not Found",
+      "message": "Route GET:/vcs/show?path={root}/notes.md&commit={commit} not found"
+    }
+  },
+  "vcsShow without vcs, missing params": {
+    "status": 404,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "statusCode": 404,
+      "code": "WATCHER_NOT_FOUND",
+      "error": "Not Found",
+      "message": "Route GET:/vcs/show not found"
+    }
+  },
+  "configMatch missing paths": {
+    "status": 400,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "statusCode": 400,
+      "code": "FST_ERR_VALIDATION",
+      "error": "Bad Request",
+      "message": "body/paths Request body must include \"paths\" array"
+    }
+  },
+  "configMatch paths not array": {
+    "status": 400,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "statusCode": 400,
+      "code": "FST_ERR_VALIDATION",
+      "error": "Bad Request",
+      "message": "body/paths Request body must include \"paths\" array"
+    }
+  },
+  "reindex unknown scope": {
+    "status": 400,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "statusCode": 400,
+      "code": "FST_ERR_VALIDATION",
+      "error": "Bad Request",
+      "message": "body/scope Scope must be one of: issues, full, rules, path, prune"
+    }
+  },
+  "reindex source without queue": {
+    "status": 503,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "statusCode": 503,
+      "code": "WATCHER_NOT_AVAILABLE",
+      "error": "Service Unavailable",
+      "message": "Source documents are not available on this instance."
+    }
+  },
+  "metadata source not indexed": {
+    "status": 404,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "statusCode": 404,
+      "code": "WATCHER_SOURCE_NOT_INDEXED",
+      "error": "Not Found",
+      "message": "The source document is not indexed."
+    }
+  },
+  "metadata neither target": {
+    "status": 400,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "statusCode": 400,
+      "code": "FST_ERR_VALIDATION",
+      "error": "Bad Request",
+      "message": "body/path Exactly one of path or source is required"
+    }
+  },
+  "metadata missing metadata": {
+    "status": 400,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "statusCode": 400,
+      "code": "FST_ERR_VALIDATION",
+      "error": "Bad Request",
+      "message": "body/metadata Missing required field: metadata (object)"
+    }
+  },
+  "walk missing globs": {
+    "status": 400,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "statusCode": 400,
+      "code": "FST_ERR_VALIDATION",
+      "error": "Bad Request",
+      "message": "body/globs Invalid input: expected array, received undefined"
+    }
+  },
+  "walk scanning": {
+    "status": 503,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "statusCode": 503,
+      "code": "WATCHER_SCAN_IN_PROGRESS",
+      "error": "Service Unavailable",
+      "message": "The initial filesystem scan is still running; retry when it finishes."
+    }
+  },
+  "walk no watcher": {
+    "status": 503,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "statusCode": 503,
+      "code": "WATCHER_NOT_AVAILABLE",
+      "error": "Service Unavailable",
+      "message": "The filesystem watcher is not initialized."
+    }
+  },
+  "documents without queue": {
+    "status": 503,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "statusCode": 503,
+      "code": "WATCHER_NOT_AVAILABLE",
+      "error": "Service Unavailable",
+      "message": "Source documents are not available on this instance."
+    }
+  },
+  "documents empty body": {
+    "status": 400,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "statusCode": 400,
+      "code": "FST_ERR_VALIDATION",
+      "error": "Bad Request",
+      "message": "body/documents Invalid input: expected array, received undefined"
+    }
+  },
+  "documentsDelete empty body": {
+    "status": 400,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "statusCode": 400,
+      "code": "FST_ERR_VALIDATION",
+      "error": "Bad Request",
+      "message": "body/ Exactly one of sources or filter is required"
+    }
+  },
+  "documentsDelete both selectors": {
+    "status": 400,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "statusCode": 400,
+      "code": "FST_ERR_VALIDATION",
+      "error": "Bad Request",
+      "message": "body/ Exactly one of sources or filter is required"
+    }
+  },
+  "documentsDelete filter rejected": {
+    "status": 400,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "statusCode": 400,
+      "code": "WATCHER_INVALID_REQUEST",
+      "error": "Bad Request",
+      "message": "The vector store rejected the filter: Wrong filter"
+    }
+  },
+  "documentsDelete unknown key": {
+    "status": 400,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "statusCode": 400,
+      "code": "FST_ERR_VALIDATION",
+      "error": "Bad Request",
+      "message": "body/ Unrecognized key: \"extra\""
+    }
+  },
+  "pointsDelete missing filter": {
+    "status": 400,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "statusCode": 400,
+      "code": "FST_ERR_VALIDATION",
+      "error": "Bad Request",
+      "message": "body/filter Missing required field: filter (object)"
+    }
+  },
+  "pointsDelete filter rejected": {
+    "status": 400,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "statusCode": 400,
+      "code": "WATCHER_INVALID_REQUEST",
+      "error": "Bad Request",
+      "message": "The vector store rejected the filter: Wrong filter"
+    }
+  },
+  "rulesRegister missing source": {
+    "status": 400,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "statusCode": 400,
+      "code": "FST_ERR_VALIDATION",
+      "error": "Bad Request",
+      "message": "body/source Missing required field: source"
+    }
+  },
+  "rulesUnregister missing source": {
+    "status": 400,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "statusCode": 400,
+      "code": "FST_ERR_VALIDATION",
+      "error": "Bad Request",
+      "message": "body/source Missing required field: source"
+    }
+  },
+  "rulesReapply missing globs": {
+    "status": 400,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "statusCode": 400,
+      "code": "FST_ERR_VALIDATION",
+      "error": "Bad Request",
+      "message": "body/globs Missing required field: globs (non-empty string array)"
+    }
+  },
+  "vcsHistory missing glob": {
+    "status": 400,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "statusCode": 400,
+      "code": "FST_ERR_VALIDATION",
+      "error": "Bad Request",
+      "message": "querystring/glob Missing required query parameter: glob"
+    }
+  },
+  "vcsHistory unknown root": {
+    "status": 404,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "statusCode": 404,
+      "code": "WATCHER_NOT_FOUND",
+      "error": "Not Found",
+      "message": "No version-controlled watch root matches the path or glob."
+    }
+  },
+  "vcsDiff missing commit": {
+    "status": 400,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "statusCode": 400,
+      "code": "FST_ERR_VALIDATION",
+      "error": "Bad Request",
+      "message": "querystring/commit Missing required query parameter: commit"
+    }
+  },
+  "vcsDiff unknown root": {
+    "status": 404,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "statusCode": 404,
+      "code": "WATCHER_NOT_FOUND",
+      "error": "Not Found",
+      "message": "No version-controlled watch root matches the path or glob."
+    }
+  },
+  "vcsCheckExclusion missing path": {
+    "status": 400,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "statusCode": 400,
+      "code": "FST_ERR_VALIDATION",
+      "error": "Bad Request",
+      "message": "querystring/path Missing required query parameter: path"
+    }
+  },
+  "vcsCheckExclusion unknown root": {
+    "status": 404,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "statusCode": 404,
+      "code": "WATCHER_NOT_FOUND",
+      "error": "Not Found",
+      "message": "No version-controlled watch root matches the path or glob."
+    }
+  },
+  "vcsRevert missing commit": {
+    "status": 400,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "statusCode": 400,
+      "code": "FST_ERR_VALIDATION",
+      "error": "Bad Request",
+      "message": "body/commit Missing required body parameters: glob, commit"
+    }
+  },
+  "vcsRevert unknown root": {
+    "status": 404,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "statusCode": 404,
+      "code": "WATCHER_NOT_FOUND",
+      "error": "Not Found",
+      "message": "No version-controlled watch root matches the path or glob."
+    }
+  },
+  "vcsExclude remove absent": {
+    "status": 404,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "statusCode": 404,
+      "code": "WATCHER_NOT_FOUND",
+      "error": "Not Found",
+      "message": "The pattern is not excluded on this root."
+    }
+  },
+  "vcsExclude missing glob": {
+    "status": 400,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "statusCode": 400,
+      "code": "FST_ERR_VALIDATION",
+      "error": "Bad Request",
+      "message": "body/glob Missing required body parameter: glob"
+    }
+  },
+  "vcsExclude unknown root": {
+    "status": 404,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "statusCode": 404,
+      "code": "WATCHER_NOT_FOUND",
+      "error": "Not Found",
+      "message": "No version-controlled watch root matches the path or glob."
+    }
+  },
+  "vcsExclude root not vcs": {
+    "status": 404,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "statusCode": 404,
+      "code": "WATCHER_NOT_FOUND",
+      "error": "Not Found",
+      "message": "The named root is not a version-controlled watch root."
+    }
+  },
+  "vcsStatus without vcs": {
+    "status": 404,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "statusCode": 404,
+      "code": "WATCHER_NOT_FOUND",
+      "error": "Not Found",
+      "message": "Route GET:/vcs/status not found"
+    }
+  },
+  "vcsHistory without vcs": {
+    "status": 404,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "statusCode": 404,
+      "code": "WATCHER_NOT_FOUND",
+      "error": "Not Found",
+      "message": "Route GET:/vcs/history?glob={root}/** not found"
+    }
+  },
+  "vcsDiff without vcs": {
+    "status": 404,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "statusCode": 404,
+      "code": "WATCHER_NOT_FOUND",
+      "error": "Not Found",
+      "message": "Route GET:/vcs/diff?glob={root}/**&commit={commit} not found"
+    }
+  },
+  "vcsCheckExclusion without vcs": {
+    "status": 404,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "statusCode": 404,
+      "code": "WATCHER_NOT_FOUND",
+      "error": "Not Found",
+      "message": "Route GET:/vcs/check-exclusion?path={root}/notes.md not found"
+    }
+  },
+  "vcsRevert without vcs": {
+    "status": 404,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "statusCode": 404,
+      "code": "WATCHER_NOT_FOUND",
+      "error": "Not Found",
+      "message": "Route POST:/vcs/revert not found"
+    }
+  },
+  "vcsExclude without vcs": {
+    "status": 404,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "statusCode": 404,
+      "code": "WATCHER_NOT_FOUND",
+      "error": "Not Found",
+      "message": "Route POST:/vcs/exclude not found"
+    }
+  },
+  "unauthorized without key": {
+    "status": 401,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "statusCode": 401,
+      "code": "WATCHER_UNAUTHORIZED",
+      "error": "Unauthorized",
+      "message": "A valid API key is required: send Authorization: Bearer <key>."
+    }
+  },
+  "unauthorized wrong key": {
+    "status": 401,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "statusCode": 401,
+      "code": "WATCHER_UNAUTHORIZED",
+      "error": "Unauthorized",
+      "message": "A valid API key is required: send Authorization: Bearer <key>."
+    }
+  },
+  "unknown route": {
+    "status": 404,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "statusCode": 404,
+      "code": "WATCHER_NOT_FOUND",
+      "error": "Not Found",
+      "message": "Route GET:/vcs/nope?x=1 not found"
+    }
+  },
+  "gated route": {
+    "status": 404,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "statusCode": 404,
+      "code": "WATCHER_NOT_FOUND",
+      "error": "Not Found",
+      "message": "Route GET:/vcs/status?x=1 not found"
+    }
+  },
+  "vcsExclude confirm required": {
+    "status": 200,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "confirmRequired": true,
+      "untracked": 101
+    }
+  },
+  "metadata source busy": {
+    "status": 503,
+    "contentType": "application/json; charset=utf-8",
+    "retryAfter": "10",
+    "body": {
+      "statusCode": 503,
+      "code": "WATCHER_NOT_AVAILABLE",
+      "error": "Service Unavailable",
+      "message": "The document is being processed; retry after 10 s."
+    }
+  },
+  "render source type_collision": {
+    "status": 422,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "statusCode": 422,
+      "code": "WATCHER_PIPELINE_TYPE_COLLISION_ERROR",
+      "error": "Unprocessable Entity",
+      "message": "The document's metadata types conflict with each other."
+    }
+  },
+  "render source interpolation_error": {
+    "status": 422,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "statusCode": 422,
+      "code": "WATCHER_PIPELINE_INTERPOLATION_ERROR",
+      "error": "Unprocessable Entity",
+      "message": "A rule's template or set expression failed for this document."
+    }
+  },
+  "render source extraction_error": {
+    "status": 422,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "statusCode": 422,
+      "code": "WATCHER_PIPELINE_EXTRACTION_ERROR",
+      "error": "Unprocessable Entity",
+      "message": "The document could not be extracted."
+    }
+  },
+  "render source embedding_error": {
+    "status": 422,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "statusCode": 422,
+      "code": "WATCHER_PIPELINE_EMBEDDING_ERROR",
+      "error": "Unprocessable Entity",
+      "message": "The document could not be embedded."
+    }
+  },
+  "render source upsert_error": {
+    "status": 422,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "statusCode": 422,
+      "code": "WATCHER_PIPELINE_UPSERT_ERROR",
+      "error": "Unprocessable Entity",
+      "message": "The document could not be written to the vector store."
+    }
+  },
+  "render source match_failed": {
+    "status": 422,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "statusCode": 422,
+      "code": "WATCHER_PIPELINE_MATCH_FAILED_ERROR",
+      "error": "Unprocessable Entity",
+      "message": "The document does not match its designated rule."
+    }
+  },
+  "render source rule_missing": {
+    "status": 422,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "statusCode": 422,
+      "code": "WATCHER_PIPELINE_RULE_MISSING_ERROR",
+      "error": "Unprocessable Entity",
+      "message": "The designated rule does not exist."
+    }
+  },
+  "render source no_content": {
+    "status": 422,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "statusCode": 422,
+      "code": "WATCHER_PIPELINE_NO_CONTENT_ERROR",
+      "error": "Unprocessable Entity",
+      "message": "The document has no content to render."
+    }
+  },
+  "render source too_large": {
+    "status": 422,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "statusCode": 422,
+      "code": "WATCHER_PIPELINE_TOO_LARGE_ERROR",
+      "error": "Unprocessable Entity",
+      "message": "The document is over a processing size limit."
+    }
+  },
+  "search masked plain error": {
+    "status": 500,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "statusCode": 500,
+      "error": "Internal Server Error",
+      "message": "The server could not complete the request."
+    }
+  },
+  "search masked qdrant error": {
+    "status": 500,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "statusCode": 500,
+      "error": "Internal Server Error",
+      "message": "The server could not complete the request."
+    }
+  },
+  "search masked status and headers": {
+    "status": 500,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "statusCode": 500,
+      "error": "Internal Server Error",
+      "message": "The server could not complete the request."
+    }
+  }
+}

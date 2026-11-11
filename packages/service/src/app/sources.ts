@@ -5,8 +5,7 @@
 
 import type pino from 'pino';
 
-import { RequestError } from '../api/requestError';
-import { NOT_AVAILABLE, SOURCES_NOT_SUPPORTED } from '../api/sendError';
+import { SourcesNotSupported } from '../api/errors';
 import type { JeevesWatcherConfig } from '../config/types';
 import type {
   SourceOperationsInterface,
@@ -39,14 +38,12 @@ export function createSourceRetriever(
 
 /**
  * The error an API source route answers with on a processor without source
- * support (`503 not_available`).
+ * support (`503 WATCHER_NOT_AVAILABLE`).
  *
  * @returns The error (to throw or reject with).
  */
-function sourcesNotSupported(): RequestError {
-  return new RequestError('not_available', NOT_AVAILABLE, {
-    message: SOURCES_NOT_SUPPORTED,
-  });
+function sourcesNotSupported(): Error {
+  return new SourcesNotSupported();
 }
 
 /** Source operations of a processor without source support. */
@@ -78,7 +75,7 @@ const unsupportedSourceOperations: SourceOperationsInterface = {
  * service runs on. File operations are forwarded unchanged. Its source
  * operations fail: every notify-queue run returns a `failed` result with
  * `source_unavailable` (the run's issue, as for a failing callback), and
- * every other source operation throws the API's `503 not_available`, so
+ * every other source operation throws the API's `503 WATCHER_NOT_AVAILABLE`, so
  * `POST /documents`, `POST /metadata { source }`, `POST /render { source }`
  * and `POST /reindex { source }` answer as before source support existed.
  * Use it in a custom `createDocumentProcessor` factory; never wrap a

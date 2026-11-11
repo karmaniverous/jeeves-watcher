@@ -1,6 +1,6 @@
 /**
  * @module api/catalog/rulesReapplyHandler.test
- * POST /rules/reapply over the catalog route: missing or malformed globs are the catalog's 400 invalid_request with nothing scrolled; a valid request answers reapplyRules' matched/updated counts.
+ * POST /rules/reapply over the catalog route: missing or malformed globs are the catalog's 400 FST_ERR_VALIDATION with nothing scrolled; a valid request answers reapplyRules' matched/updated counts.
  */
 
 import Fastify from 'fastify';
@@ -58,10 +58,10 @@ describe('POST /rules/reapply', () => {
     ['empty globs', { globs: [] }],
     ['an empty glob', { globs: [''] }],
     ['a non-array', { globs: 'docs/**' }],
-  ])('rejects %s with 400 invalid_request', async (_label, body) => {
+  ])('rejects %s with 400 FST_ERR_VALIDATION', async (_label, body) => {
     const res = await invoke(body);
     expect(res.status).toBe(400);
-    expect(res.body).toMatchObject({ code: 'invalid_request' });
+    expect(res.body).toMatchObject({ code: 'FST_ERR_VALIDATION' });
     expect(res.scrollPage).not.toHaveBeenCalled();
   });
 });

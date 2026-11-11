@@ -1,6 +1,6 @@
 /**
  * @module api/catalog/errorCodes.test
- * Fastify inject tests asserting the machine-readable `code` (and unchanged status and `error` text) of catalog error responses not covered elsewhere: walk, reindex, documents, metadata and config match routes, served by their catalog handlers. Every route's full wire shape is pinned by the wire baseline.
+ * The error contract over HTTP for catalog routes not covered elsewhere (walk, reindex, documents, metadata, config match), served by their catalog handlers: each reply is Fastify's standard error body with its `WATCHER_*` code and fixed message, or jeeves's `400 FST_ERR_VALIDATION` for a request the catalog rejects. Every route's full wire shape is pinned by the wire baseline and its 0.22.0 overlay.
  */
 
 import Fastify, { type FastifyInstance } from 'fastify';
@@ -32,6 +32,21 @@ const storedRule = vi.fn<() => Promise<string | null>>();
 const render = vi.fn();
 
 let app: FastifyInstance;
+
+/** Fastify's standard error body. */
+const body = (
+  statusCode: number,
+  error: string,
+  code: string,
+  message: string,
+) => ({ statusCode, code, error, message });
+
+const SOURCES_NOT_SUPPORTED = body(
+  503,
+  'Service Unavailable',
+  'WATCHER_NOT_AVAILABLE',
+  'Source documents are not available on this instance.',
+);
 
 async function build(sources: boolean): Promise<FastifyInstance> {
   const processor = sources
@@ -79,94 +94,110 @@ const post = async (url: string, payload: object, sources = true) =>
   (await build(sources)).inject({ method: 'POST', url, payload });
 
 describe('handler error codes', () => {
-  it('walk: missing globs -> 400 invalid_request', async () => {
+  it('walk: missing globs -> 400 FST_ERR_VALIDATION', async () => {
     const res = await post('/walk', {});
     expect(res.statusCode).toBe(400);
-    expect(res.json()).toMatchObject({ code: 'invalid_request' });
+    expect(res.json()).toMatchObject({
+      statusCode: 400,
+      code: 'FST_ERR_VALIDATION',
+      error: 'Bad Request',
+    });
   });
 
-  it('walk: no watcher -> 503 not_available', async () => {
+  it('walk: no watcher -> 503 WATCHER_NOT_AVAILABLE', async () => {
     watcherPresent = false;
     const res = await post('/walk', { globs: ['**'] });
     expect(res.statusCode).toBe(503);
-    expect(res.json()).toMatchObject({
-      code: 'not_available',
-      error: 'Watcher unavailable',
-    });
+    expect(res.json()).toEqual(
+      body(
+        503,
+        'Service Unavailable',
+        'WATCHER_NOT_AVAILABLE',
+        'The filesystem watcher is not initialized.',
+      ),
+    );
   });
 
-  it('walk: scan running -> 503 scan_in_progress', async () => {
+  it('walk: scan running -> 503 WATCHER_SCAN_IN_PROGRESS', async () => {
     watcher.isReady = false;
     const res = await post('/walk', { globs: ['**'] });
     expect(res.statusCode).toBe(503);
-    expect(res.json()).toMatchObject({
-      code: 'scan_in_progress',
-      error: 'Scan in progress',
-    });
+    expect(res.json()).toEqual(
+      body(
+        503,
+        'Service Unavailable',
+        'WATCHER_SCAN_IN_PROGRESS',
+        'The initial filesystem scan is still running; retry when it finishes.',
+      ),
+    );
   });
 
-  it('reindex: invalid body -> 400 invalid_request with details', async () => {
+  it('reindex: invalid body -> 400 FST_ERR_VALIDATION naming the field', async () => {
     const res = await post('/reindex', { scope: 'nope' });
     expect(res.statusCode).toBe(400);
-    const body = res.json<{ code: string; details: unknown[] }>();
-    expect(body.code).toBe('invalid_request');
-    expect(body.details.length).toBeGreaterThan(0);
+    const sent = res.json<{ code: string; message: string }>();
+    expect(sent.code).toBe('FST_ERR_VALIDATION');
+    expect(sent.message).toContain('body/scope');
   });
 
-  it.each([
-    [
-      { scope: 'prune' },
-      400, // 0.19 status, kept
-      'Prune scope requires vectorStore to be configured.',
-    ],
-    [
-      { scope: 'path', source: REF },
-      503,
-      'Source documents are not supported by this instance.',
-    ],
-  ])(
-    'reindex %j without support -> %i not_available',
-    async (body, status, message) => {
-      const res = await post('/reindex', body, false);
-      expect(res.statusCode).toBe(status);
-      expect(res.json()).toEqual({
-        code: 'not_available',
-        error: 'Not available',
-        message,
-      });
-    },
-  );
+  it('reindex: prune without a vector store -> 503 WATCHER_NOT_AVAILABLE (was 400)', async () => {
+    const res = await post('/reindex', { scope: 'prune' }, false);
+    expect(res.statusCode).toBe(503);
+    expect(res.json()).toEqual(
+      body(
+        503,
+        'Service Unavailable',
+        'WATCHER_NOT_AVAILABLE',
+        'Prune needs a vector store, and none is configured.',
+      ),
+    );
+  });
 
-  it('documents: no source support -> 503 not_available', async () => {
+  it('reindex: a source without source support -> 503 WATCHER_NOT_AVAILABLE', async () => {
+    const res = await post('/reindex', { scope: 'path', source: REF }, false);
+    expect(res.statusCode).toBe(503);
+    expect(res.json()).toEqual(SOURCES_NOT_SUPPORTED);
+  });
+
+  it('documents: no source support -> 503 WATCHER_NOT_AVAILABLE', async () => {
     const res = await post('/documents', {
       documents: [{ source: REF, rule: 'r' }],
     });
     expect(res.statusCode).toBe(503);
-    expect(res.json()).toMatchObject({
-      code: 'not_available',
-      error: 'Not available',
-    });
+    expect(res.json()).toEqual(SOURCES_NOT_SUPPORTED);
   });
 
-  it('metadata: no source support -> 503 not_available', async () => {
+  it('metadata: no source support -> 503 WATCHER_NOT_AVAILABLE', async () => {
     const res = await post('/metadata', { source: REF, metadata: {} }, false);
     expect(res.statusCode).toBe(503);
-    expect(res.json()).toMatchObject({ code: 'not_available' });
+    expect(res.json()).toEqual(SOURCES_NOT_SUPPORTED);
   });
 
-  it('metadata: not indexed -> 404 source_not_indexed', async () => {
+  it('metadata: not indexed -> 404 WATCHER_SOURCE_NOT_INDEXED', async () => {
     storedRule.mockResolvedValue(null);
     const res = await post('/metadata', { source: REF, metadata: {} });
     expect(res.statusCode).toBe(404);
-    expect(res.json()).toEqual({
-      code: 'source_not_indexed',
-      error: 'Source document not indexed',
-    });
+    expect(res.json()).toEqual(
+      body(
+        404,
+        'Not Found',
+        'WATCHER_SOURCE_NOT_INDEXED',
+        'The source document is not indexed.',
+      ),
+    );
   });
 
-  it('config/match: no paths -> 400 invalid_request', async () => {
+  it('config/match: no paths -> 400 FST_ERR_VALIDATION', async () => {
     const res = await post('/config/match', {});
     expect(res.statusCode).toBe(400);
-    expect(res.json()).toMatchObject({ code: 'invalid_request' });
+    expect(res.json()).toMatchObject({ code: 'FST_ERR_VALIDATION' });
+  });
+
+  it('sends no header but Retry-After on an error (none here)', async () => {
+    watcherPresent = false;
+    const res = await post('/walk', { globs: ['**'] });
+    expect(res.headers['retry-after']).toBeUndefined();
+    expect(res.headers['cache-control']).toBeUndefined();
+    expect(res.headers['www-authenticate']).toBeUndefined();
   });
 });

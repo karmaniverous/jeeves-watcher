@@ -254,7 +254,7 @@ describe('createCatalogFacetsHandler', () => {
     });
   });
 
-  it('answers 500 internal_error when the lister throws', async () => {
+  it('rethrows a lister failure for jeeves to mask', async () => {
     const handler = createCatalogFacetsHandler({
       ...makeDeps({
         getConfig: () => {
@@ -264,9 +264,8 @@ describe('createCatalogFacetsHandler', () => {
       logger,
     });
 
-    const result = await handler({ query: {} } as never, {} as never);
-
-    expect(result.status).toBe(500);
-    expect(result.body).toMatchObject({ code: 'internal_error' });
+    await expect(handler({ query: {} } as never, {} as never)).rejects.toThrow(
+      'boom',
+    );
   });
 });

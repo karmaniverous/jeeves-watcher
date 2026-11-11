@@ -227,8 +227,8 @@ export const vcsExcludeRequestSchema = z.object({
 /** Request body of `POST /vcs/exclude`. */
 export type VcsExcludeRequest = z.infer<typeof vcsExcludeRequestSchema>;
 
-/** Response body of `POST /vcs/exclude`. */
-export const vcsExcludeResponseSchema = z.object({
+/** `POST /vcs/exclude` reply when the exclusion was written. */
+const vcsExcludeDoneResponseSchema = z.object({
   ok: z.literal(true),
   /** The file written: the root's `.git/info/exclude`, or the `.gitignore` a removed 0.20.0 pattern was in. */
   file: z.string(),
@@ -236,6 +236,26 @@ export const vcsExcludeResponseSchema = z.object({
   /** Paths removed from the index (in HEAD or staged); 0 for `removed`. */
   untracked: z.number().int().nonnegative(),
 });
+
+/**
+ * `POST /vcs/exclude` reply when adding the pattern would untrack more than
+ * {@link VCS_EXCLUDE_CONFIRM_THRESHOLD} files and `confirm` is not `true`:
+ * nothing was written; repeat with `confirm: true` (D203).
+ */
+const vcsExcludeConfirmResponseSchema = z.object({
+  confirmRequired: z.literal(true),
+  /** Files the exclusion would untrack. */
+  untracked: z.number().int().nonnegative(),
+});
+
+/**
+ * Response body of `POST /vcs/exclude`: the written exclusion, or the
+ * confirmation request (tell them apart by `confirmRequired`).
+ */
+export const vcsExcludeResponseSchema = z.union([
+  vcsExcludeDoneResponseSchema,
+  vcsExcludeConfirmResponseSchema,
+]);
 
 /** Response body of `POST /vcs/exclude`. */
 export type VcsExcludeResponse = z.infer<typeof vcsExcludeResponseSchema>;
