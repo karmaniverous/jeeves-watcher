@@ -240,9 +240,20 @@ describe('DocumentProcessor.moveFile', () => {
     expect(newPoints[0].payload['category']).toBe('docs');
   });
 
-  it('handles no existing points gracefully', async () => {
-    const { vectorStore, embeddingProvider, config, logger } = createMocks();
+  it('indexes the new path as a create when the old path has no points, dropping its issue (#305)', async () => {
+    const {
+      vectorStore,
+      enrichmentStore,
+      issuesManager,
+      embeddingProvider,
+      config,
+      logger,
+    } = createMocks();
+    // A file rejected or failed at the old path: no points, an issue.
+    vectorStore.getPayload.mockResolvedValue(null);
     vectorStore.getPointsWithVectors.mockResolvedValue([]);
+    const embed = vi.fn().mockResolvedValue([[0.7, 0.8, 0.9]]);
+    embeddingProvider.embed = embed;
 
     const processor = new DocumentProcessor({
       config,
@@ -250,11 +261,25 @@ describe('DocumentProcessor.moveFile', () => {
       vectorStore: vectorStore as unknown as VectorStoreClient,
       compiledRules: [],
       logger,
+      enrichmentStore,
+      issuesManager: issuesManager as unknown as IssuesManager,
     });
     await processor.moveFile('/old.txt', '/new.txt');
 
-    expect(vectorStore.upsert).not.toHaveBeenCalled();
-    expect(vectorStore.delete).not.toHaveBeenCalled();
+    expect(issuesManager.clear).toHaveBeenCalledWith('/old.txt');
+    expect(enrichmentStore.move).toHaveBeenCalledWith('/old.txt', '/new.txt');
+    expect(embed).toHaveBeenCalled();
+    expect(vectorStore.upsert).toHaveBeenCalledOnce();
+    const created = vectorStore.upsert.mock.calls[0][0] as Array<{
+      payload: Record<string, unknown>;
+      vector: number[];
+    }>;
+    expect(created[0].payload['file_path']).toBe('/new.txt');
+    expect(created[0].vector).toEqual([0.7, 0.8, 0.9]);
+    // Nothing at the old path was deleted: there was nothing there.
+    expect(vectorStore.delete).not.toHaveBeenCalledWith(
+      expect.arrayContaining(['old-id-0']),
+    );
   });
 
   it('updates content hash cache on move', async () => {

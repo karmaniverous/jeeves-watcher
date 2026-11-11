@@ -142,25 +142,32 @@ export async function reapplyFileRules(
  * Move a file's points to a new path without re-embedding, re-applying the
  * rules against the new path (keys the rules no longer project are dropped;
  * the enrichment moves first, so it is kept); migrates enrichment, issues
- * and the hash cache.
+ * and the hash cache. A file with no points (never indexed, rejected
+ * `too_large`, failed extraction) moves nothing: its enrichment follows it,
+ * and the caller indexes the new path as a create (#305).
  *
  * @param ctx - File operation dependencies.
  * @param oldPath - The original path.
  * @param newPath - The new path.
+ * @returns Whether points were moved (false: the old path had none).
  */
 export async function moveFilePoints(
   ctx: FileOperationsContext,
   oldPath: string,
   newPath: string,
-): Promise<void> {
+): Promise<boolean> {
   const { vectorStore, logger } = ctx;
   const oldFile: DocumentIdentity = { kind: 'file', filePath: oldPath };
   const existing = await vectorStore.getPayload(documentPointId(oldFile, 0));
   const oldIds = documentChunkIds(oldFile, getChunkCount(existing));
   const oldPoints = await vectorStore.getPointsWithVectors(oldIds);
   if (oldPoints.length === 0) {
-    logger.warn({ oldPath, newPath }, 'No points found for move');
-    return;
+    ctx.enrichmentStore?.move(oldPath, newPath);
+    logger.debug(
+      { oldPath, newPath },
+      'No points to move; indexing the new path',
+    );
+    return false;
   }
 
   // Enrichment follows the file, so the new path's rules merge it.
@@ -199,4 +206,5 @@ export async function moveFilePoints(
     { oldPath, newPath, chunks: oldPoints.length },
     'File moved in index',
   );
+  return true;
 }
