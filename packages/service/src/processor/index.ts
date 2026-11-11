@@ -280,9 +280,7 @@ export class DocumentProcessor implements WatcherProcessor {
         () => moveFilePoints(this.fileOperations(), oldPath, newPath),
         true,
       );
-      if (moved) return;
-      this.deps.issuesManager?.clear(oldPath);
-      await this.indexFileUnlocked(newPath);
+      if (!moved) await this.indexFileUnlocked(newPath);
     });
   }
 

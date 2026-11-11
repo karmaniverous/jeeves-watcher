@@ -57,9 +57,13 @@ const CODE_TABLE: Record<string, readonly string[]> = {
   '400 invalid_request': [
     '400 WATCHER_INVALID_REQUEST',
     '400 FST_ERR_VALIDATION',
+    '400 FST_ERR_CTP_INVALID_JSON_BODY',
+    '400 FST_ERR_CTP_EMPTY_JSON_BODY',
     '400 JEEVES_CONFIG_INVALID',
     '400 JEEVES_CONFIG_QUERY_INVALID',
   ],
+  '415 invalid_request': ['415 FST_ERR_CTP_INVALID_MEDIA_TYPE'],
+  '400 not_available': ['503 WATCHER_NOT_AVAILABLE'],
   '401 unauthorized': ['401 WATCHER_UNAUTHORIZED'],
   '403 path_not_watched': ['403 WATCHER_PATH_NOT_WATCHED'],
   '404 not_found': ['404 WATCHER_NOT_FOUND'],
@@ -74,7 +78,30 @@ const CODE_TABLE: Record<string, readonly string[]> = {
   '503 scan_in_progress': ['503 WATCHER_SCAN_IN_PROGRESS'],
   '503 embedding_unavailable': ['503 WATCHER_EMBEDDING_UNAVAILABLE'],
   '409 confirm_required': ['200 confirmRequired'],
-  '500 internal_error': ['500 (no code)'],
+  '500 internal_error': [
+    '500 (no code)',
+    '500 JEEVES_RESPONSE_VALIDATION',
+    '500 JEEVES_CONFIG_READ_FAILED',
+  ],
+};
+
+/**
+ * Code-table outcomes no wire scenario can produce (the wire app has a
+ * vector store, valid JSON bodies, a valid response schema, a readable
+ * config), with the test that proves each over HTTP instead. (A config
+ * write failure, `500 JEEVES_CONFIG_WRITE_FAILED`, is jeeves's own and
+ * proved there.) Design 5's
+ * countFacets 400/503s and the `VcsBusy` 503 share codes the overlay already
+ * covers; their messages and `Retry-After: 30` are proved in
+ * `countFacetsHandler.test`, `countFacetsHandler.budget.test` and
+ * `vcsExcludeHandler.errors.test`.
+ */
+const COVERED_ELSEWHERE: Record<string, string> = {
+  '400 FST_ERR_CTP_INVALID_JSON_BODY': 'catalogBodyErrors.test',
+  '400 FST_ERR_CTP_EMPTY_JSON_BODY': 'catalogBodyErrors.test',
+  '415 FST_ERR_CTP_INVALID_MEDIA_TYPE': 'catalogBodyErrors.test',
+  '500 JEEVES_RESPONSE_VALIDATION': 'responseValidation.test',
+  '500 JEEVES_CONFIG_READ_FAILED': 'configApplyHandler.files.test',
 };
 
 /** `status code` of a record (`(no code)` for a body without one). */
@@ -167,6 +194,18 @@ describe('the 0.22.0 error overlay', () => {
       expect(record.status).toBe(documented);
     },
   );
+
+  it('covers every code-table outcome, here or in a named test', () => {
+    const recorded = new Set(Object.values(overlay).map(statusCode));
+    const outcomes = [...new Set(Object.values(CODE_TABLE).flat())];
+    expect(
+      outcomes.filter((o) => !recorded.has(o) && !(o in COVERED_ELSEWHERE)),
+    ).toEqual([]);
+    // An outcome the overlay records needs no exemption.
+    expect(
+      Object.keys(COVERED_ELSEWHERE).filter((o) => recorded.has(o)),
+    ).toEqual([]);
+  });
 
   it('covers every WATCHER_* code', () => {
     const codes = new Set(

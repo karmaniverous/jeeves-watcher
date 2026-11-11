@@ -144,7 +144,8 @@ export async function reapplyFileRules(
  * the enrichment moves first, so it is kept); migrates enrichment, issues
  * and the hash cache. A file with no points (never indexed, rejected
  * `too_large`, failed extraction) moves nothing: its enrichment follows it,
- * and the caller indexes the new path as a create (#305).
+ * its issue and hash cache entry are dropped, and the caller indexes the new
+ * path as a create (#305).
  *
  * @param ctx - File operation dependencies.
  * @param oldPath - The original path.
@@ -161,17 +162,21 @@ export async function moveFilePoints(
   const existing = await vectorStore.getPayload(documentPointId(oldFile, 0));
   const oldIds = documentChunkIds(oldFile, getChunkCount(existing));
   const oldPoints = await vectorStore.getPointsWithVectors(oldIds);
+
+  // Enrichment follows the file, so the new path's rules merge it.
+  ctx.enrichmentStore?.move(oldPath, newPath);
+
   if (oldPoints.length === 0) {
-    ctx.enrichmentStore?.move(oldPath, newPath);
+    // Nothing indexed at the old path: drop what it left behind; the
+    // caller indexes the new path (#305).
+    ctx.issuesManager?.clear(oldPath);
+    ctx.contentHashCache?.delete(oldPath);
     logger.debug(
       { oldPath, newPath },
       'No points to move; indexing the new path',
     );
     return false;
   }
-
-  // Enrichment follows the file, so the new path's rules merge it.
-  ctx.enrichmentStore?.move(oldPath, newPath);
 
   // New points: rule metadata for the new path, system fields re-asserted,
   // keys the rules no longer project dropped.

@@ -66,6 +66,17 @@ describe('body errors on catalog routes', () => {
       expect(result).toEqual(reference);
     },
   );
+
+  it('answers an empty JSON body with 400 FST_ERR_CTP_EMPTY_JSON_BODY', async () => {
+    const result = await rawPost('/search', 'application/json', '');
+
+    expect(result.status).toBe(400);
+    expect(result.body).toMatchObject({
+      statusCode: 400,
+      code: 'FST_ERR_CTP_EMPTY_JSON_BODY',
+      error: 'Bad Request',
+    });
+  });
 });
 
 describe('catalog error body key order', () => {

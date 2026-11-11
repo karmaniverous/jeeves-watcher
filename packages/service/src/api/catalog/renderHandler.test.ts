@@ -126,24 +126,32 @@ describe('createCatalogRenderHandler', () => {
       message: 'The file or directory does not exist.',
     });
   });
-  it('answers a pipeline failure with its 422 pipeline code, logging the failure', async () => {
-    const handler = createCatalogRenderHandler(
-      deps({
-        renderFile: vi
-          .fn()
-          .mockRejectedValue(
-            new ProcessingFailure('extraction_error', new Error('bad bytes')),
-          ),
-      }),
+  it('answers a pipeline failure with its 422 pipeline code, logging the failure but never its text', async () => {
+    const failure = new ProcessingFailure(
+      'extraction_error',
+      new Error('EACCES: /secret/x.pdf'),
     );
+    const warn = vi.fn();
+    const handler = createCatalogRenderHandler({
+      ...deps({ renderFile: vi.fn().mockRejectedValue(failure) }),
+      logger: { warn } as never,
+    });
 
-    await expect(
-      handler(input({ path: 'docs/a.md' }), {} as never),
-    ).rejects.toMatchObject({
+    const error = await handler(
+      input({ path: 'docs/a.md' }),
+      {} as never,
+    ).catch((e: unknown) => e);
+
+    expect(error).toMatchObject({
       statusCode: 422,
       code: 'WATCHER_PIPELINE_EXTRACTION_ERROR',
       message: 'The document could not be extracted.',
     });
+    expect(JSON.stringify(error)).not.toContain('/secret/');
+    expect(warn).toHaveBeenCalledWith(
+      { filePath: 'docs/a.md', err: failure, details: failure.details },
+      'Render failed',
+    );
   });
 
   it.each([

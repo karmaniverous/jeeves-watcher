@@ -53,7 +53,7 @@ describe('createCatalogVcsShowHandler', () => {
     });
   });
 
-  it('returns 404 not_found for a nonexistent file at the commit', async () => {
+  it('throws 404 WATCHER_NOT_FOUND for a nonexistent file at the commit', async () => {
     const { stdout } = await execFileAsync('git', ['rev-parse', 'HEAD'], {
       cwd: rootA,
     });

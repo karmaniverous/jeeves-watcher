@@ -89,7 +89,7 @@ describe('collectPathFiles', () => {
     });
   });
 
-  it('rejects a missing path with 404 not_found', async () => {
+  it('rejects a missing path with 404 WATCHER_NOT_FOUND', async () => {
     const error = await failure(
       collectPathFiles([`${root}/docs/missing.md`], config, undefined),
     );
@@ -103,7 +103,7 @@ describe('collectPathFiles', () => {
       .mocked(stat)
       .mockRejectedValueOnce(Object.assign(new Error(code), { code }));
 
-  it('answers ENOTDIR with 404 not_found', async () => {
+  it('answers ENOTDIR with 404 WATCHER_NOT_FOUND', async () => {
     statFails('ENOTDIR');
     const error = await failure(
       collectPathFiles([`${root}/docs/a.md`], config, undefined),
@@ -120,7 +120,7 @@ describe('collectPathFiles', () => {
     expect(error).toMatchObject({ code: 'EACCES' });
   });
 
-  it('rejects a target that is neither file nor directory with 400 invalid_request', async () => {
+  it('rejects a target that is neither file nor directory with 400 WATCHER_INVALID_REQUEST', async () => {
     vi.mocked(stat).mockResolvedValueOnce({
       isFile: () => false,
       isDirectory: () => false,

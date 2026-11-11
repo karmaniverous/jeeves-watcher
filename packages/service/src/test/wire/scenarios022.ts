@@ -29,7 +29,12 @@ async function stageBulkFiles(vcsRoot: string): Promise<void> {
   await execFileAsync('git', ['add', 'bulk'], { cwd: vcsRoot });
 }
 
-/** The source-render scenario of each pipeline issue type. */
+/**
+ * The source-render scenario of each pipeline issue type. The stub source
+ * answers with any issue type; `type_collision`, `embedding_error`,
+ * `upsert_error` and `too_large` are stub-only here (no render raises them
+ * today), recorded so every pipeline code's body is pinned.
+ */
 const PIPELINE_RENDERS: WireScenario[] = ISSUE_TYPES.filter(
   (type) =>
     type !== 'source_unavailable' && type !== 'unsupported_content_type',

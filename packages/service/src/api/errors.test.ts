@@ -60,9 +60,95 @@ describe('defineError classes', () => {
     expect([...covered].sort()).toEqual([...WATCHER_ERROR_CODES].sort());
   });
 
-  it.each(classes)('%s has a non-empty fixed message', (_name, Cls) => {
-    expect(new Cls('a', 'b').message.length).toBeGreaterThan(0);
+  /** Each class's message (spec 0.22.0 Design 2), `x`/`y` its arguments. */
+  const MESSAGES: Record<string, [string[], string]> = {
+    Unauthorized: [
+      [],
+      'A valid API key is required: send Authorization: Bearer <key>.',
+    ],
+    PathNotWatched: [
+      [],
+      'The path is outside the watched scope or is gitignored.',
+    ],
+    RouteNotFound: [['GET', '/x'], 'Route GET:/x not found'],
+    PathNotFound: [[], 'The file or directory does not exist.'],
+    VcsRootNotFound: [
+      [],
+      'No version-controlled watch root matches the path or glob.',
+    ],
+    VcsRootNotVersioned: [
+      [],
+      'The named root is not a version-controlled watch root.',
+    ],
+    VcsFileNotFound: [[], 'The file does not exist at that commit.'],
+    ExclusionNotFound: [[], 'The pattern is not excluded on this root.'],
+    SourceNotIndexed: [[], 'The source document is not indexed.'],
+    SourceNotFound: [
+      [],
+      'The source reports that the document does not exist.',
+    ],
+    UnsupportedContentType: [
+      [],
+      'The source returned a body that is not a JSON object.',
+    ],
+    SourceUnavailable: [
+      [],
+      'The source could not be reached or answered with an error.',
+    ],
+    SourcesNotSupported: [
+      [],
+      'Source documents are not available on this instance.',
+    ],
+    WatcherNotReady: [[], 'The filesystem watcher is not initialized.'],
+    FacetIndexNotReady: [
+      ['x'],
+      'Facet counts need the x system index, which is not ready yet; retry shortly.',
+    ],
+    FacetBudgetExceeded: [
+      ['x'],
+      'Facet counts exceeded the time budget; not counted: x. Count fewer fields or narrow the filter.',
+    ],
+    DocumentBusy: [[], 'The document is being processed; retry after 10 s.'],
+    VcsBusy: [[], 'Version control is busy on this root; retry after 30 s.'],
+    PruneNotAvailable: [
+      [],
+      'Prune needs a vector store, and none is configured.',
+    ],
+    ScanInProgress: [
+      [],
+      'The initial filesystem scan is still running; retry when it finishes.',
+    ],
+    EmbeddingUnavailable: [
+      [],
+      'The embedding provider is unavailable; retry later.',
+    ],
+    FilterRejected: [['x'], 'The vector store rejected the filter: x'],
+    FacetFieldNotIndexed: [['x'], 'No usable payload index for field(s): x'],
+    EmptyRuleList: [[], 'rules must name at least one rule'],
+    UnknownRules: [['x'], 'Unknown rule(s): x'],
+    MetadataInvalid: [
+      ['x'],
+      "The metadata does not match the matched rules' schemas: x",
+    ],
+    RulesInvalid: [['x'], 'The rules are not valid: x'],
+    PathNotFileOrDirectory: [[], 'The path is neither a file nor a directory.'],
+    ExcludeGlobRefused: [['x'], 'The exclude glob is refused: x'],
+  };
+
+  it('pins the message of every class (and no other)', () => {
+    const named = classes
+      .map(([name]) => name)
+      .filter((name) => !(name in PIPELINE_ERRORS));
+    expect(named.sort()).toEqual(Object.keys(MESSAGES).sort());
   });
+
+  it.each(Object.entries(MESSAGES))(
+    '%s sends its fixed message',
+    (name, [args, message]) => {
+      const Cls = classes.find(([n]) => n === name)?.[1];
+      expect(Cls && new Cls(...args).message).toBe(message);
+    },
+  );
 });
 
 describe('capArg', () => {

@@ -193,6 +193,33 @@ describe('handler error codes', () => {
     expect(res.json()).toMatchObject({ code: 'FST_ERR_VALIDATION' });
   });
 
+  it('sends the Retry-After of a handler result (not only of a thrown error)', async () => {
+    const sent = body(
+      503,
+      'Service Unavailable',
+      'WATCHER_NOT_AVAILABLE',
+      'Version control is busy on this root; retry after 30 s.',
+    );
+    app = Fastify({ logger: false });
+    registerApiHooks(app, undefined, logger);
+    await registerCatalogEntries(app, {
+      walk: () =>
+        Promise.resolve({
+          status: 503,
+          body: sent,
+          headers: { 'Retry-After': '7' },
+        }) as never,
+    });
+    const res = await app.inject({
+      method: 'POST',
+      url: '/walk',
+      payload: { globs: ['**'] },
+    });
+    expect(res.statusCode).toBe(503);
+    expect(res.headers['retry-after']).toBe('7');
+    expect(res.json()).toEqual(sent);
+  });
+
   it('sends no header but Retry-After on an error (none here)', async () => {
     watcherPresent = false;
     const res = await post('/walk', { globs: ['**'] });

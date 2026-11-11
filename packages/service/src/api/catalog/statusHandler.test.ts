@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @module api/catalog/statusHandler.test
  * `createCatalogStatusSource` builds a `StatusHandler` with the same health
  * shape `GET /status` already returns, including `initialScan` when a

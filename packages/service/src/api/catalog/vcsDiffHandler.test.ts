@@ -2,7 +2,7 @@
  * @module api/catalog/vcsDiffHandler.test
  * GET /vcs/diff over the catalog route: a diff between a commit and HEAD,
  * a diff between two specific commits, the catalog's 400 for a missing
- * parameter, 404 not_found for a glob outside every VCS root, and an empty
+ * parameter, 404 WATCHER_NOT_FOUND for a glob outside every VCS root, and an empty
  * diff for an unknown commit.
  */
 
@@ -111,7 +111,7 @@ describe('GET /vcs/diff', () => {
     expect(res.json()).toMatchObject({ code: 'FST_ERR_VALIDATION' });
   });
 
-  it('returns 404 not_found for a glob outside every VCS root', async () => {
+  it('returns 404 WATCHER_NOT_FOUND for a glob outside every VCS root', async () => {
     const res = await diff({ glob: '/nonexistent/**', commit: 'HEAD' });
 
     expect(res.statusCode).toBe(404);
