@@ -155,10 +155,12 @@ export class StabilityTicker {
       this.pending.delete(key);
       this.pending.set(key, item);
     }
+    // The clock is read before the stats (#306): a stall between a `stat`
+    // and its continuation then only delays settling, never hastens it.
+    const now = this.now();
     const stats = await Promise.all(
       batch.map(([, item]) => this.options.stat(item.path)),
     );
-    const now = this.now();
     const threshold = this.options.thresholdMs ?? 0;
     batch.forEach(([key, item], i) => {
       const current = stats[i];

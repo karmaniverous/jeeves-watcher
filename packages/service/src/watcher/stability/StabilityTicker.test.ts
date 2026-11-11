@@ -197,6 +197,44 @@ describe('StabilityTicker', () => {
     expect(ticker.size).toBe(0);
     expect(vi.getTimerCount()).toBe(0);
   });
+
+  it('cannot settle a path early when the watcher stalls between a stat and its continuation (#306)', async () => {
+    let clock = 0;
+    let release: (() => void) | undefined;
+    let stall = false;
+    const settled: string[] = [];
+    const stats: FileStats = { size: 1, mtimeMs: 1 };
+    const ticker = new StabilityTicker({
+      thresholdMs: 1000,
+      now: () => clock,
+      stat: () =>
+        stall
+          ? new Promise((resolve) => {
+              release = () => {
+                resolve(stats);
+              };
+            })
+          : Promise.resolve(stats),
+      onSettled: (s) => settled.push(s.path),
+    });
+    ticker.enter('a', 'a', false);
+    // First tick at 250: the size is first seen, so it holds from 250.
+    clock = 250;
+    await vi.advanceTimersByTimeAsync(250);
+    // Second tick at 500 stats the same size, but the watcher stalls
+    // before the stat's continuation runs, until well past the threshold.
+    stall = true;
+    clock = 500;
+    await vi.advanceTimersByTimeAsync(250);
+    expect(release).toBeDefined();
+    clock = 10_000;
+    release?.();
+    await vi.advanceTimersByTimeAsync(0);
+    // Only 250 ms of stability were observed: not settled.
+    expect(settled).toEqual([]);
+    expect(ticker.size).toBe(1);
+    ticker.stop();
+  });
 });
 
 describe('settledEvent (D142)', () => {
