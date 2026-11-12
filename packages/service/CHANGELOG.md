@@ -2,6 +2,31 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.22.0] - 2026-11-12
+
+### 💼 Other
+
+- [0-22] fix(service): read the stability clock before the stats (#306)
+
+A stall between a stat and its continuation can now only delay a file settling, never settle it early.
+
+Fixes #306
+- [0-22] fix(service): index a moved file that had no points at its new path (#305)
+
+A file never indexed, rejected or failed, moved alone or with its folder, used to log 'No points found for move' and stay unindexed. Its new path is now processed as a create, its enrichment moves with it, and the old path's issue is dropped.
+
+Fixes #305
+- [0-22] feat!: adopt Fastify's standard error body with WATCHER_* codes (#312)
+
+Every watcher error is a jeeves defineError class answered by jeeves 0.11's catalog error handler: { statusCode, code, error, message }, fixed messages, no details. Unexpected failures are masked 500s. POST /vcs/exclude over the threshold without confirm is now 200 { confirmRequired, untracked }; prune without a vector store is 503. watcher-core drops API_ERROR_* for WATCHER_ERROR_CODES/STATUS; SDK WatcherError carries the body's code and message. Wire overlay wire-errors-0.22.0.json pins every error reply.
+
+BREAKING CHANGE: error codes and bodies change; see guides/upgrading.md#0220.
+
+Fixes #312
+- [0-22] fix: address review of the 0.22.0 error contract (#312, #305, #306)
+
+StabilityTicker measures a size changed during a stall from after the stat; a moved file with no points drops its issue and hash entry in one place; the plugin's exclude tool explains confirmRequired; tests pin every class message, a handler-result Retry-After, an empty JSON body, the render log without the error text, and every code-table outcome.
+- Updated core
 ## [0.21.1] - 2026-11-07
 
 ### 🐛 Bug Fixes
@@ -23,6 +48,10 @@ All notable changes to this project will be documented in this file.
 ### 📚 Documentation
 
 - The embedding 429 backoff is capped at max(maxBackoffMs, 65 s); default rate limit slowdown note (#309)
+
+### ⚙️ Miscellaneous Tasks
+
+- Release @karmaniverous/jeeves-watcher v0.21.1
 ## [0.21.0] - 2026-11-07
 
 ### 🚀 Features
