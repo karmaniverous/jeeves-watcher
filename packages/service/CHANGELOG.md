@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.22.1] - 2026-11-12
+
+### 🐛 Bug Fixes
+
+- *(service)* Depend on the SDK instead of bundling it (D205)
+
+### 💼 Other
+
+- Updated dependencies
+- Updated core
+- Updated sdk
+
+### 📚 Documentation
+
+- The SDK as a dependency of the service and the plugin (D205)
+- Correct the 0.22.1 plugin differences, jeeves 0.11, the status timeout
 ## [0.22.0] - 2026-11-12
 
 ### 💼 Other
@@ -27,6 +43,10 @@ Fixes #312
 
 StabilityTicker measures a size changed during a stall from after the stat; a moved file with no points drops its issue and hash entry in one place; the plugin's exclude tool explains confirmRequired; tests pin every class message, a handler-result Retry-After, an empty JSON body, the render log without the error text, and every code-table outcome.
 - Updated core
+
+### ⚙️ Miscellaneous Tasks
+
+- Release @karmaniverous/jeeves-watcher v0.22.0
 ## [0.21.1] - 2026-11-07
 
 ### 🐛 Bug Fixes
