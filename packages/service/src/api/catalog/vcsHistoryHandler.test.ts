@@ -86,14 +86,19 @@ describe('GET /vcs/history', () => {
     const res = await history({});
 
     expect(res.statusCode).toBe(400);
-    expect(res.json()).toMatchObject({ code: 'invalid_request' });
+    expect(res.json()).toMatchObject({ code: 'FST_ERR_VALIDATION' });
   });
 
   it('returns 404 for glob outside any root', async () => {
     const res = await history({ glob: '/nonexistent/path/*.txt' });
 
     expect(res.statusCode).toBe(404);
-    expect(res.json()).toMatchObject({ code: 'not_found' });
+    expect(res.json()).toEqual({
+      statusCode: 404,
+      code: 'WATCHER_NOT_FOUND',
+      error: 'Not Found',
+      message: 'No version-controlled watch root matches the path or glob.',
+    });
   });
 
   it('filters by since', async () => {

@@ -16,7 +16,6 @@ import {
   createCatalogHandlers,
   type CreateCatalogHandlersOptions,
 } from './index';
-import { notFoundBody } from './notFoundBody';
 
 vi.mock('./renderSourceDocument', () => ({
   renderSourceDocument: vi.fn().mockResolvedValue({
@@ -48,6 +47,7 @@ function buildHandlers(
   const logger = pino({ level: 'silent' });
   const unused = {} as never;
   return createCatalogHandlers({
+    logger,
     status: {
       vectorStore: {
         getCollectionInfo: () =>
@@ -68,7 +68,6 @@ function buildHandlers(
       descriptor: watcherDescriptor,
       configPath: '',
       onConfigApply: () => Promise.resolve(),
-      logger,
     },
     render: {
       processor: {
@@ -159,7 +158,7 @@ describe('createCatalogHandlers', () => {
     expect(issues).toEqual({ status: 200, body: { count: 0, issues: {} } });
   });
 
-  it('answers every gated entry with the not-found body while VCS is off', async () => {
+  it('answers every gated entry with the not-found 404 while VCS is off', async () => {
     const handlers = buildHandlers();
     const request = (url: string) => ({ method: 'GET', url }) as never;
     const input = { params: {}, query: {}, body: {} } as never;
@@ -173,10 +172,12 @@ describe('createCatalogHandlers', () => {
       'revertVcs',
       'excludeVcsPath',
     ] as const) {
-      const result = await handlers[name](input, request(`/x?${name}`));
-      expect(result).toEqual({
-        status: 404,
-        body: notFoundBody('GET', `/x?${name}`),
+      await expect(
+        handlers[name](input, request(`/x?${name}`)),
+      ).rejects.toMatchObject({
+        statusCode: 404,
+        code: 'WATCHER_NOT_FOUND',
+        message: `Route GET:/x?${name} not found`,
       });
     }
   });

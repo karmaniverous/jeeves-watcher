@@ -472,7 +472,7 @@
   },
   {
     "name": "watcher_exclude_vcs_path",
-    "description": "Exclude a path from version history (VCS-only: it stays in search), or remove the exclusion. Adding untracks the files the pattern matches, ending their history; more than 100 files need confirm: true. A timeout does not cancel the exclusion: check the outcome with watcher_check_vcs_exclusion before retrying.",
+    "description": "Exclude a path from version history (VCS-only: it stays in search), or remove the exclusion. Adding untracks the files the pattern matches, ending their history. Without confirm: true, more than 100 files return { confirmRequired: true, untracked } and change nothing: check the count with the user, then repeat with confirm: true. A timeout does not cancel the exclusion: check the outcome with watcher_check_vcs_exclusion before retrying.",
     "parameters": {
       "type": "object",
       "properties": {

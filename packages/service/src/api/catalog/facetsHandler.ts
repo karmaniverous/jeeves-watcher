@@ -127,7 +127,8 @@ function facetValues(
  * @param deps - Lister dependencies.
  * @returns A function computing the response body, given the requested
  *   rule names (all configured rules when absent). It throws a
- *   `400 invalid_request` for an unknown rule name.
+ *   `400 WATCHER_INVALID_REQUEST` (`UnknownRules`) for an unknown rule
+ *   name.
  */
 export function createFacetsLister(deps: FacetsDeps) {
   const { getConfig, valuesManager, logger } = deps;

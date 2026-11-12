@@ -53,36 +53,36 @@ describe('createCatalogVcsShowHandler', () => {
     });
   });
 
-  it('returns 404 not_found for a nonexistent file at the commit', async () => {
+  it('throws 404 WATCHER_NOT_FOUND for a nonexistent file at the commit', async () => {
     const { stdout } = await execFileAsync('git', ['rev-parse', 'HEAD'], {
       cwd: rootA,
     });
     const handler = createCatalogVcsShowHandler({ coordinator });
 
-    const result = await handler(
-      input({ path: rootA + '/nonexistent.txt', commit: stdout.trim() }),
-      request('GET', '/vcs/show'),
-    );
-
-    expect(result.status).toBe(404);
-    expect(result.body).toMatchObject({
-      code: 'not_found',
-      error: 'File not found at the specified commit',
+    await expect(
+      handler(
+        input({ path: rootA + '/nonexistent.txt', commit: stdout.trim() }),
+        request('GET', '/vcs/show'),
+      ),
+    ).rejects.toMatchObject({
+      statusCode: 404,
+      code: 'WATCHER_NOT_FOUND',
+      message: 'The file does not exist at that commit.',
     });
   });
 
-  it('returns 404 not_found for a path outside any root', async () => {
+  it('throws 404 WATCHER_NOT_FOUND for a path outside any root', async () => {
     const handler = createCatalogVcsShowHandler({ coordinator });
 
-    const result = await handler(
-      input({ path: '/nonexistent/file.txt', commit: 'HEAD' }),
-      request('GET', '/vcs/show'),
-    );
-
-    expect(result.status).toBe(404);
-    expect(result.body).toMatchObject({
-      code: 'not_found',
-      error: 'Path does not match any VCS-enabled watch root',
+    await expect(
+      handler(
+        input({ path: '/nonexistent/file.txt', commit: 'HEAD' }),
+        request('GET', '/vcs/show'),
+      ),
+    ).rejects.toMatchObject({
+      statusCode: 404,
+      code: 'WATCHER_NOT_FOUND',
+      message: 'No version-controlled watch root matches the path or glob.',
     });
   });
 });

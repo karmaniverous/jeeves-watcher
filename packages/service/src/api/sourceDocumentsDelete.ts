@@ -7,6 +7,7 @@ import type {
   DocumentsDeleteRequest,
   QdrantFilter,
 } from '@karmaniverous/jeeves-watcher-core';
+import type pino from 'pino';
 
 import type { EnrichmentStoreInterface } from '../enrichment';
 import type { IssuesManager } from '../issues';
@@ -17,7 +18,7 @@ import {
 } from '../processor/payloadFields';
 import type { SourceOperationsInterface } from '../processor/SourceOperations';
 import type { VectorStore } from '../vectorStore';
-import { withFilterErrors } from './requestError';
+import { withFilterErrors } from './filterErrors';
 import {
   constrainToSources,
   deleteSourcePoints,
@@ -37,6 +38,8 @@ export interface SourceDocumentsDeleteDeps {
   enrichmentStore?: Pick<EnrichmentStoreInterface, 'delete'>;
   /** Issues store (issues keyed by reference are cleared). */
   issuesManager?: Pick<IssuesManager, 'clear'>;
+  /** Where a filter Qdrant rejects is logged. */
+  logger: Pick<pino.Logger, 'debug'>;
 }
 
 /** Outcome of {@link deleteSourceDocuments}. */
@@ -82,7 +85,8 @@ async function collectReferences(
  * issues are cleared even when it has no points); in the `filter` form the
  * references are those of the matching source points, and only matching
  * points are deleted, as in 0.20.0. A filter Qdrant rejects is
- * `400 invalid_request` before anything is deleted. A lock wait that runs
+ * `400 WATCHER_INVALID_REQUEST` (`FilterRejected`) before anything is
+ * deleted. A lock wait that runs
  * out throws; documents already deleted stay deleted (D118).
  *
  * @param deps - Vector store, source operations and stores.
@@ -99,7 +103,10 @@ export async function deleteSourceDocuments(
   const listed = body.sources !== undefined;
   const base = listed ? undefined : constrainToSources(body.filter);
   const refs = base
-    ? await withFilterErrors(collectReferences(deps.vectorStore, base))
+    ? await withFilterErrors(
+        collectReferences(deps.vectorStore, base),
+        deps.logger,
+      )
     : [...new Set(body.sources)];
 
   const deleted: string[] = [];
@@ -114,6 +121,7 @@ export async function deleteSourceDocuments(
       async () => {
         const result = await withFilterErrors(
           deleteSourcePoints(deps.vectorStore, filter),
+          deps.logger,
         );
         points += result.points;
         if (result.points > 0) deleted.push(ref);

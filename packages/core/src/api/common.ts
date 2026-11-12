@@ -1,6 +1,6 @@
 /**
  * @module api/common
- * Shared Zod building blocks for API request/response schemas: Qdrant filters, error bodies and path-or-source document targets. No I/O.
+ * Shared Zod building blocks for API request/response schemas: Qdrant filters, per-document error entries and path-or-source document targets. No I/O.
  */
 
 import { z } from 'zod';
@@ -99,24 +99,6 @@ export const nonEmptyQdrantFilterSchema = qdrantFilterSchema.refine(
   hasFilterCondition,
   { message: 'filter must contain at least one condition' },
 );
-
-/**
- * Error body shape common to every watcher version: `error` plus optional
- * `message` and `details`, no `code`. Responses from 0.20.0+ also carry a
- * machine-readable `code`; `apiErrorBodySchema` (module `api/errors`)
- * extends this schema with it.
- */
-export const apiErrorResponseSchema = z.object({
-  /** Short error description. */
-  error: z.string(),
-  /** Optional longer explanation. */
-  message: z.string().optional(),
-  /** Optional structured details (e.g. Zod issues for a 400). */
-  details: z.unknown().optional(),
-});
-
-/** Error body returned by the API. */
-export type ApiErrorResponse = z.infer<typeof apiErrorResponseSchema>;
 
 /**
  * Error detail attached to a per-document result or rejection (`code` is a

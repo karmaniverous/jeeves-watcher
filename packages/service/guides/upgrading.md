@@ -6,6 +6,100 @@ title: Upgrading
 
 What changes for an existing deployment, release by release. The [Changelog](../CHANGELOG.md) lists every commit; this page lists what you may need to act on.
 
+## 0.22.0
+
+0.22.0 ships with watcher-core 0.6.0, SDK 0.4.0 and OpenClaw plugin 0.19.0, all on `@karmaniverous/jeeves` 0.11.0 (pinned exactly). It changes one contract: every error the watcher sends is now Fastify's standard error body with an upper-case code. Successful responses are unchanged except `POST /vcs/exclude`'s confirmation, which is now a `200`. The CHANGELOGs are generated at release, so the table of old and new codes lives here.
+
+### Install order
+
+1. Stop the service, install `@karmaniverous/jeeves-watcher` 0.22.0 (it brings watcher-core 0.6.0) and start it. The config file needs no change.
+2. At the same time, upgrade anything that uses the SDK to 0.4.0 and update every client that branches on an error `code`, reads `details` or `issueType` from an error body, or treats `409` from `POST /vcs/exclude` as "confirm needed" ([Clients](#clients)).
+3. Install OpenClaw plugin 0.19.0 the same way as in 0.21.0's [Upgrade order](#upgrade-order) step 3, with `@0.19.0`. Its tools are unchanged; its bundled skill and prompt rules describe the new codes.
+
+### The error body
+
+Every non-2xx response is `{ statusCode, code?, error, message }` (`errorBodySchema` in `@karmaniverous/jeeves/catalog`):
+
+```json
+{
+  "statusCode": 404,
+  "code": "WATCHER_SOURCE_NOT_INDEXED",
+  "error": "Not Found",
+  "message": "The source document is not indexed."
+}
+```
+
+- **`error` is now the HTTP reason phrase** (`Not Found`), not the watcher's text. The watcher's own explanation is in `message`, a fixed sentence written for the caller.
+- **`details`, `issueType`, `issues` and `untracked` are gone** from error bodies. What they carried is folded into `message` where the caller needs it (the unknown rule names, the fields without a payload index, the failing metadata properties, the rule compiler's explanation, Qdrant's reason for rejecting a filter; each capped at 300 characters), and otherwise goes to the service log (the source callback's status and error, the extraction or rule error of a failed render and its issue type and `details`, the Qdrant error object, the embedding error).
+- **No message names a filesystem path, host or library error.** `Path not found: <path>`, `Path is neither a file nor a directory: <path>` and `Excluding <pattern> would untrack <n> files` lose the path.
+- **Codes are upper case.** A watcher code is `WATCHER_*`; request validation and Fastify's body errors carry Fastify's `FST_ERR_*` codes; `GET /config` and `POST /config/apply` errors carry jeeves's `JEEVES_*` codes.
+- **An unexpected failure has no code.** It is a masked `500` with the message `The server could not complete the request.` (0.21: `{ "code": "internal_error", "error": "Internal Server Error", "message": "Internal server error" }`); branch on the status. The cause is logged once.
+- **Headers:** `Retry-After` only on a busy document lock (`10`), a busy root git lock (`30`) and an unavailable embedding provider (when the back-off is known), and the message says the wait too. No `WWW-Authenticate` on `401`, no `Cache-Control` on an error.
+- **Response validation:** a response that fails its schema is `500 JEEVES_RESPONSE_VALIDATION` (0.21: `500 internal_error`, `error: "Response validation failed"`).
+
+### Old and new codes
+
+One row per 0.21 code. Where an old code was sent in several cases, the new code can depend on the case; see [Error Handling](./api-reference.md#error-handling) for every message.
+
+| 0.21 status and code | 0.22 status and code |
+| --- | --- |
+| `400 invalid_request` | `400 FST_ERR_VALIDATION`: the body, query or path parameters fail the route's schema (`details` gone; `message` joins the failures). Fastify's own `FST_ERR_CTP_*` code and status (`400`, `413`, `415`): malformed or empty JSON body, body too large, unsupported media type. `400 JEEVES_CONFIG_QUERY_INVALID`: `GET /config` with an invalid JSONPath. `400 JEEVES_CONFIG_INVALID`: `POST /config/apply` whose merged config fails the schema (`issues` folded into `message`). `400 WATCHER_INVALID_REQUEST`: Qdrant rejects a filter (`search`, `scan`, `countFacets`, `deletePoints`, `deleteDocuments`); a facet field without a usable payload index; an empty or unknown `rules` list; metadata that fails the matched rules' schemas; rules that do not compile; a `reindex` path that is neither file nor directory; a refused `excludeVcsPath` glob. |
+| `401 unauthorized` | `401 WATCHER_UNAUTHORIZED` |
+| `403 path_not_watched` | `403 WATCHER_PATH_NOT_WATCHED` |
+| `404 not_found` | `404 WATCHER_NOT_FOUND` (unknown or gated route, missing file or path, no VCS root, file not at the commit, pattern not excluded) |
+| `404 source_not_indexed` | `404 WATCHER_SOURCE_NOT_INDEXED` |
+| `404 source_not_found` | `404 WATCHER_SOURCE_NOT_FOUND` |
+| `409 confirm_required` | none: `200 { "confirmRequired": true, "untracked": <n> }` ([VCS exclude](#vcs-exclude-confirmation)) |
+| `422 unsupported_content_type` | `422 WATCHER_UNSUPPORTED_CONTENT_TYPE` |
+| `422 pipeline_error` | One code per issue type, `422 WATCHER_PIPELINE_<TYPE>_ERROR`: `WATCHER_PIPELINE_EXTRACTION_ERROR` (a file's extraction, or an untagged source failure), `WATCHER_PIPELINE_RULE_MISSING_ERROR`, `WATCHER_PIPELINE_MATCH_FAILED_ERROR`, `WATCHER_PIPELINE_NO_CONTENT_ERROR`, `WATCHER_PIPELINE_INTERPOLATION_ERROR`. `issueType` and `details` leave the body. |
+| `502 source_unavailable` | `502 WATCHER_SOURCE_UNAVAILABLE` |
+| `503 not_available` | `503 WATCHER_NOT_AVAILABLE` (no source support, no filesystem watcher, a system index not ready, the facet count budget, a busy document lock with `Retry-After: 10`, a busy root git lock with `Retry-After: 30`) |
+| `400 not_available` (`reindex` scope `prune` without a vector store) | `503 WATCHER_NOT_AVAILABLE` ([Status changes](#status-changes)) |
+| `503 scan_in_progress` | `503 WATCHER_SCAN_IN_PROGRESS` |
+| `503 embedding_unavailable` | `503 WATCHER_EMBEDDING_UNAVAILABLE` |
+| `500 internal_error` | No code: the masked `500` for any unexpected failure (including `checkVcsExclusion`'s git failure). `500 JEEVES_RESPONSE_VALIDATION`: a response that fails its schema. `500 JEEVES_CONFIG_READ_FAILED` / `500 JEEVES_CONFIG_WRITE_FAILED`: `POST /config/apply` cannot read or write the config file. |
+
+`<TYPE>` is the issue type in upper case with a trailing `_error` dropped. Four more pipeline codes are defined but no route raises them today: `WATCHER_PIPELINE_TYPE_COLLISION_ERROR`, `WATCHER_PIPELINE_EMBEDDING_ERROR`, `WATCHER_PIPELINE_UPSERT_ERROR` and `WATCHER_PIPELINE_TOO_LARGE_ERROR`.
+
+### Status changes
+
+- **`POST /vcs/exclude` over the threshold:** `409` becomes `200` ([below](#vcs-exclude-confirmation)).
+- **`POST /reindex` scope `prune` without a vector store:** `400 not_available` becomes `503 WATCHER_NOT_AVAILABLE` (`Prune needs a vector store, and none is configured.`), so every `WATCHER_NOT_AVAILABLE` is a `503`.
+
+Every other status is unchanged (Fastify's own body errors keep Fastify's status, as before).
+
+### VCS exclude confirmation
+
+Without `confirm: true`, an exclusion that would untrack more than 100 files changes nothing and answers `200 { "confirmRequired": true, "untracked": <n> }`. The response is a union with the usual `{ ok, file, action, untracked }`; tell them apart by `confirmRequired`, check the count with whoever asked, then repeat with `confirm: true`.
+
+### Clients
+
+- **watcher-core 0.6.0:** `API_ERROR_CODES`, `API_ERROR_STATUS`, `ApiErrorCode`, `apiErrorCodeSchema`, `apiErrorBodySchema`, `apiErrorResponseSchema` and the types `ApiErrorBody` and `ApiErrorResponse` are removed, with no deprecation period. New: `WATCHER_ERROR_CODES` (every `WATCHER_*` code), `WATCHER_ERROR_STATUS` (each code's status) and the type `WatcherErrorCode`. Parse error bodies with jeeves's `errorBodySchema`. `vcsExcludeResponseSchema` is now the union above.
+- **SDK 0.4.0:** `WatcherError.code` is the body's `code` (`WATCHER_*`, `FST_ERR_*` or `JEEVES_*`), or `http_<status>` when the body has none (a masked `500`, a proxy's page); `WatcherError.message` is the body's `message` (0.3: `<error>: <message>`); `details` is the whole body (the server sends no `details` field any more). `retryAfterMs` is unchanged. The SDK's own codes stay lower case (`invalid_options`, `invalid_request`, `invalid_response`, `timeout`, `network_error`), so a client-side `invalid_request` can no longer be confused with a server code. The `API_ERROR_CODES` and `ApiErrorCode` re-exports are replaced by `WATCHER_ERROR_CODES` and `WatcherErrorCode`. `excludeVcsPath` returns the union: check `'confirmRequired' in result`.
+
+  ```ts
+  // 0.3.x
+  if (err.code === 'not_available') retryLater(err.retryAfterMs);
+  // 0.4.0
+  if (err.code === 'WATCHER_NOT_AVAILABLE') retryLater(err.retryAfterMs);
+  ```
+
+- **CLI:** errors still print `<code>: <message>`, now with the new codes and messages. `vcs exclude` without `--confirm` over the threshold prints `Not excluded: <n> files would be untracked. Repeat with --confirm.` to stderr and exits `1` (0.21: `confirm_required: ...`, also exit `1`).
+- **OpenClaw plugin 0.19.0:** no tool changes; tool errors still read `HTTP <status>: <body>` with the new body verbatim. Prompts or skills of your own that name an old code need the new one.
+
+### jeeves 0.11.0
+
+- **`@karmaniverous/jeeves` 0.11.0** (was 0.9.0), pinned exactly in all four packages. Its catalog scope answers every error and masks anything that is not a deliberate one.
+
+### Other fixes
+
+- **A moved file that had no points is indexed at its new path** (#305). A file never indexed, rejected `too_large` or failing extraction, moved by itself or with its folder (a paired directory move), used to log `No points found for move` and stay unindexed; now its new path is processed as a create (its enrichment moves with it) and the old path's issue is dropped.
+- **The stability check reads the clock before the file stats** (#306), so a stall in the watcher between a `stat` and its continuation can only delay a file settling, never settle it early.
+
+### Rollback to 0.21.1
+
+Reinstall service 0.21.1, SDK 0.3.x and plugin 0.18.x together, and revert client changes made for the new codes. Nothing on disk changes between the versions.
+
 ## 0.21.0
 
 0.21.0 ships with watcher-core 0.5.0, SDK 0.3.0 and OpenClaw plugin 0.18.0, all on `@karmaniverous/jeeves` 0.9.0. The sections below the first three follow the feature areas; the [rollback](#rollback-to-0200) closes the page.

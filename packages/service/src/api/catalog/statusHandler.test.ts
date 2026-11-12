@@ -65,6 +65,6 @@ describe('createCatalogStatusSource', () => {
     const result = await source();
 
     expect(result.body.status).toBe('degraded');
-    expect(result.body.health['error']).toBe('qdrant down');
+    expect(result.body.health['error']).toBe('The health check failed.');
   });
 });

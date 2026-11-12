@@ -197,6 +197,102 @@ describe('StabilityTicker', () => {
     expect(ticker.size).toBe(0);
     expect(vi.getTimerCount()).toBe(0);
   });
+
+  it('cannot settle a path early when the watcher stalls between a stat and its continuation (#306)', async () => {
+    let clock = 0;
+    let release: (() => void) | undefined;
+    let stall = false;
+    const settled: string[] = [];
+    const stats: FileStats = { size: 1, mtimeMs: 1 };
+    const ticker = new StabilityTicker({
+      thresholdMs: 1000,
+      now: () => clock,
+      stat: () =>
+        stall
+          ? new Promise((resolve) => {
+              release = () => {
+                resolve(stats);
+              };
+            })
+          : Promise.resolve(stats),
+      onSettled: (s) => settled.push(s.path),
+    });
+    ticker.enter('a', 'a', false);
+    // First tick at 250: the size is first seen, so it holds from 250.
+    clock = 250;
+    await vi.advanceTimersByTimeAsync(250);
+    // Second tick at 500 stats the same size, but the watcher stalls
+    // before the stat's continuation runs, until well past the threshold.
+    stall = true;
+    clock = 500;
+    await vi.advanceTimersByTimeAsync(250);
+    expect(release).toBeDefined();
+    clock = 10_000;
+    release?.();
+    await vi.advanceTimersByTimeAsync(0);
+    // Only 250 ms of stability were observed: not settled.
+    expect(settled).toEqual([]);
+    expect(ticker.size).toBe(1);
+    ticker.stop();
+  });
+
+  it('settles at once with threshold 0 even when the clock moves during the stat', async () => {
+    let clock = 0;
+    const settled: string[] = [];
+    const ticker = new StabilityTicker({
+      thresholdMs: 0,
+      now: () => (clock += 5),
+      stat: () => Promise.resolve({ size: 1, mtimeMs: 1 }),
+      onSettled: (s) => settled.push(s.path),
+    });
+    ticker.enter('a', 'a', false);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(settled).toEqual(['a']);
+    ticker.stop();
+  });
+
+  it('measures a size that changed during a stall from after the stat (#306)', async () => {
+    let clock = 0;
+    let size = 1;
+    let release: (() => void) | undefined;
+    let stall = false;
+    const settled: string[] = [];
+    const ticker = new StabilityTicker({
+      thresholdMs: 1000,
+      now: () => clock,
+      stat: () =>
+        stall
+          ? new Promise((resolve) => {
+              release = () => {
+                resolve({ size, mtimeMs: size });
+              };
+            })
+          : Promise.resolve({ size, mtimeMs: size }),
+      onSettled: (s) => settled.push(s.path),
+    });
+    ticker.enter('a', 'a', false);
+    clock = 250;
+    await vi.advanceTimersByTimeAsync(250);
+    // The tick at 500 stalls; the file is written at 1,500, and the stat
+    // returns at 2,000 with the new size.
+    stall = true;
+    clock = 500;
+    await vi.advanceTimersByTimeAsync(250);
+    size = 5;
+    clock = 2000;
+    release?.();
+    await vi.advanceTimersByTimeAsync(0);
+    // The next tick, 750 ms after the write: not yet stable for 1,000 ms.
+    stall = false;
+    clock = 2250;
+    await vi.advanceTimersByTimeAsync(250);
+    expect(settled).toEqual([]);
+    // Stable for the threshold, counted from the stat's return.
+    clock = 3000;
+    await vi.advanceTimersByTimeAsync(250);
+    expect(settled).toEqual(['a']);
+    ticker.stop();
+  });
 });
 
 describe('settledEvent (D142)', () => {

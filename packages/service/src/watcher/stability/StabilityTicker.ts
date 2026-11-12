@@ -155,10 +155,16 @@ export class StabilityTicker {
       this.pending.delete(key);
       this.pending.set(key, item);
     }
+    // The clock is read on both sides of the stats (#306): a size held since
+    // a change is measured from `before` (the latest time it can have been
+    // seen unchanged), a new size from `after` (the latest time it can have
+    // been written). A stall between a `stat` and its continuation then
+    // only delays settling, never hastens it.
+    const before = this.now();
     const stats = await Promise.all(
       batch.map(([, item]) => this.options.stat(item.path)),
     );
-    const now = this.now();
+    const after = this.now();
     const threshold = this.options.thresholdMs ?? 0;
     batch.forEach(([key, item], i) => {
       const current = stats[i];
@@ -169,10 +175,10 @@ export class StabilityTicker {
       }
       if (item.size !== current.size) {
         item.size = current.size;
-        item.sizeSince = now;
+        item.sizeSince = after;
         if (threshold > 0) return;
       }
-      if (now - item.sizeSince < threshold) return;
+      if (threshold > 0 && before - item.sizeSince < threshold) return;
       this.pending.delete(key);
       this.options.onSettled({
         path: item.path,

@@ -20,9 +20,9 @@ import {
   type SourceNotifyQueue,
   SourceNotifyQueueStoppedError,
 } from '../../queue/SourceNotifyQueue';
+import { SourcesNotSupported } from '../errors';
 import type { Entry } from './catalogEntry';
-import { sourcesNotAvailableResult } from './errorResult';
-import { catalogErrorFromThrown } from './wrapCatalogHandler';
+import { toCallerError } from './wrapCatalogHandler';
 
 /** Dependencies for the catalog `notifyDocuments` entry's handler. */
 export interface CatalogDocumentsDeps {
@@ -79,7 +79,8 @@ function check(
  *   and documents the stopping queue refused are `failed` with
  *   `queue_stopped`.
  * @throws Any other rejection of `processNow` (an unexpected failure; the
- *   request then fails with `500 internal_error`).
+ *   request then fails with jeeves's masked `500`, which carries no
+ *   `code`).
  */
 async function processAll(
   queue: Pick<SourceNotifyQueue, 'processNow'>,
@@ -114,7 +115,7 @@ export function createCatalogDocumentsHandler(
   return async (input) => {
     try {
       const { processor, sourceQueue } = deps;
-      if (!sourceQueue) return sourcesNotAvailableResult();
+      if (!sourceQueue) throw new SourcesNotSupported();
       const ops = processor.sourceOperations();
       const checked = input.body.documents.map((d) =>
         check(ops, d.source, d.rule),
@@ -146,7 +147,7 @@ export function createCatalogDocumentsHandler(
       }
       return { status: 202, body: { accepted, rejected } };
     } catch (error) {
-      return catalogErrorFromThrown(error, deps.logger, 'Documents notify');
+      throw toCallerError(error, deps.logger, 'Documents notify');
     }
   };
 }

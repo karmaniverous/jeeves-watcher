@@ -1,6 +1,6 @@
 /**
  * @module api/catalogBodyErrors.test
- * Malformed JSON and an unsupported content type on a catalog route keep the service's existing error handler (spec #281): the same status and body as on a route outside the catalog (`POST /walk`). A catalog route's own error body is serialised `error` first, then `code`, as the API reference and the skill quote it.
+ * Malformed JSON and an unsupported content type on a catalog route answer as on any other catalog route (`POST /walk`), with Fastify's own code (`FST_ERR_CTP_*`). Every error body is Fastify's standard body, serialised `statusCode`, `code`, `error`, `message` in that order, as the API reference and the skill quote it.
  */
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -46,7 +46,9 @@ describe('body errors on catalog routes', () => {
       const result = await rawPost(url, 'application/json', '{ not json');
 
       expect(reference.status).toBe(400);
-      expect(reference.body).toMatchObject({ code: 'invalid_request' });
+      expect(reference.body).toMatchObject({
+        code: 'FST_ERR_CTP_INVALID_JSON_BODY',
+      });
       expect(result).toEqual(reference);
     },
   );
@@ -58,10 +60,23 @@ describe('body errors on catalog routes', () => {
       const result = await rawPost(url, 'application/x-nope', 'x');
 
       expect(reference.status).toBe(415);
-      expect(reference.body).toMatchObject({ code: 'invalid_request' });
+      expect(reference.body).toMatchObject({
+        code: 'FST_ERR_CTP_INVALID_MEDIA_TYPE',
+      });
       expect(result).toEqual(reference);
     },
   );
+
+  it('answers an empty JSON body with 400 FST_ERR_CTP_EMPTY_JSON_BODY', async () => {
+    const result = await rawPost('/search', 'application/json', '');
+
+    expect(result.status).toBe(400);
+    expect(result.body).toMatchObject({
+      statusCode: 400,
+      code: 'FST_ERR_CTP_EMPTY_JSON_BODY',
+      error: 'Bad Request',
+    });
+  });
 });
 
 describe('catalog error body key order', () => {
@@ -70,16 +85,16 @@ describe('catalog error body key order', () => {
       '/config/apply',
       { patch: { watch: 5 } },
       400,
-      '{"error":"Config validation failed","code":"invalid_request","issues":[',
+      '{"statusCode":400,"code":"JEEVES_CONFIG_INVALID","error":"Bad Request","message":',
     ],
     [
       '/render',
       { path: 'docs/a.txt' },
       403,
-      '{"error":"Path is outside watched scope","code":"path_not_watched"}',
+      '{"statusCode":403,"code":"WATCHER_PATH_NOT_WATCHED","error":"Forbidden","message":"The path is outside the watched scope or is gitignored."}',
     ],
   ] as const)(
-    '%s sends error before code',
+    '%s sends statusCode, code, error, message in order',
     async (url, body, status, start) => {
       const res = await wire.app.inject({
         method: 'POST',

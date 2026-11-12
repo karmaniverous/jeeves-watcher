@@ -17,7 +17,8 @@ import {
   FIELD_MATCHED_RULES,
 } from '../../processor/payloadFields';
 import type { FacetStore } from '../../vectorStore';
-import { RequestError, withFilterErrors } from '../requestError';
+import { capArg, FacetBudgetExceeded, FacetIndexNotReady } from '../errors';
+import { withFilterErrors } from '../filterErrors';
 import { OUT_OF_BUDGET, runBounded, withinBudget } from './boundedRun';
 import type { Entry } from './catalogEntry';
 import { countFilter, type FieldPlan, planFields } from './countFacetsPlan';
@@ -58,19 +59,23 @@ export interface CatalogCountFacetsDeps {
 
 type Counts = CountFacetsResponse['counts'];
 
-/** `503 not_available` unless every needed system index is ready. */
-function requireIndexes(store: FacetStore, fields: readonly string[]): void {
+/**
+ * `FacetIndexNotReady` (503) unless every needed system index is ready; the
+ * index's state goes to the log.
+ */
+function requireIndexes(
+  store: FacetStore,
+  fields: readonly string[],
+  logger: pino.Logger,
+): void {
   for (const field of fields) {
     const state = store.systemIndexState(field);
     if (state !== 'ready') {
-      throw new RequestError(
-        'not_available',
-        `System index ${field} is not ready`,
-        {
-          message: `Facet counts need the ${field} payload index, which is ${state ?? 'not started'}.`,
-          details: { index: field, state: state ?? null },
-        },
+      logger.debug(
+        { index: field, state: state ?? null },
+        'countFacets: system index not ready',
       );
+      throw new FacetIndexNotReady(field);
     }
   }
 }
@@ -96,33 +101,23 @@ function inScopeSchemas(
   return selected.filter((s) => !('error' in s));
 }
 
-/** The `503` for fields not counted within the request's budget (ms). */
-function budgetExceeded(
-  pending: readonly string[],
-  budgetMs: number,
-): RequestError {
-  return new RequestError(
-    'not_available',
-    'Facet counts exceeded the time budget',
-    {
-      message: `Not counted within the request's ${String(budgetMs / 1000)} s budget: ${pending.join(', ')}. Count fewer fields or narrow the filter.`,
-      details: { pending: [...pending] },
-    },
-  );
+/** The `FacetBudgetExceeded` (503) naming the fields not counted in time. */
+function budgetExceeded(pending: readonly string[]): Error {
+  return new FacetBudgetExceeded(capArg(pending.join(', ')));
 }
 
 /**
  * Count the planned fields within the budget.
  *
  * @returns The counts, by field in plan order.
- * @throws `503 not_available` naming the fields not counted in time.
+ * @throws `FacetBudgetExceeded` naming the fields not counted in time.
  */
 async function countPlanned(
   store: FacetStore,
   plans: readonly FieldPlan[],
   filter: Record<string, unknown>,
   limit: number,
-  budget: { leftMs: number; totalMs: number },
+  budgetLeftMs: number,
 ): Promise<Counts> {
   const { results, pending } = await runBounded<Counts[string]>(
     plans.map(({ field, mode }) => ({
@@ -137,9 +132,9 @@ async function countPlanned(
         return { min, max };
       },
     })),
-    { concurrency: COUNT_FACETS_CONCURRENCY, budgetMs: budget.leftMs },
+    { concurrency: COUNT_FACETS_CONCURRENCY, budgetMs: budgetLeftMs },
   );
-  if (pending.length > 0) throw budgetExceeded(pending, budget.totalMs);
+  if (pending.length > 0) throw budgetExceeded(pending);
   return Object.fromEntries(
     plans.map(({ field }) => [field, results.get(field) as Counts[string]]),
   );
@@ -169,6 +164,7 @@ export function createCatalogCountFacetsHandler(
     requireIndexes(
       store,
       rules ? [FIELD_CHUNK_INDEX, FIELD_MATCHED_RULES] : [FIELD_CHUNK_INDEX],
+      deps.logger,
     );
 
     const schemas = inScopeSchemas(
@@ -181,7 +177,7 @@ export function createCatalogCountFacetsHandler(
       deadline - Date.now(),
     );
     if (indexTypes === OUT_OF_BUDGET) {
-      throw budgetExceeded([...new Set(body.fields)], budgetMs);
+      throw budgetExceeded([...new Set(body.fields)]);
     }
     const plans = planFields(body.fields, schemas, indexTypes);
     return withFilterErrors(
@@ -190,8 +186,9 @@ export function createCatalogCountFacetsHandler(
         plans,
         countFilter(body.filter, rules),
         body.limit ?? COUNT_FACETS_DEFAULT_LIMIT,
-        { leftMs: deadline - Date.now(), totalMs: budgetMs },
+        deadline - Date.now(),
       ),
+      deps.logger,
     );
   };
 

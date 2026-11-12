@@ -1,8 +1,9 @@
 /**
  * @module api/catalogErrors.test
- * A catalog handler that throws unexpectedly reaches the server error handler: a logged, generic `500 internal_error` that never carries the error text.
+ * A catalog handler that throws unexpectedly reaches the server error handler: a logged, masked `500` (jeeves's generic message, no `code`) that never carries the error text.
  */
 
+import { SERVER_ERROR_MESSAGE } from '@karmaniverous/jeeves/fastify';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import type { JeevesWatcherConfig } from '../config/types';
@@ -54,7 +55,11 @@ describe('unexpected catalog handler failure', () => {
     const res = await app.inject({ method: 'GET', url: '/config' });
 
     expect(res.statusCode).toBe(500);
-    expect(res.json()).toMatchObject({ code: 'internal_error' });
+    expect(res.json()).toEqual({
+      statusCode: 500,
+      error: 'Internal Server Error',
+      message: SERVER_ERROR_MESSAGE,
+    });
     expect(res.body).not.toContain('/secret/path');
     expect(
       captured.records.some(

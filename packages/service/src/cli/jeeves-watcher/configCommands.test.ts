@@ -17,6 +17,14 @@ import { watcherDescriptor } from '../../descriptor';
 import { unauthorizedHint } from './cliClient';
 import { authenticateConfigCommands } from './configCommands';
 
+/** The watcher's 401 body (0.22.0). */
+const UNAUTHORIZED_BODY = {
+  statusCode: 401,
+  code: 'WATCHER_UNAUTHORIZED',
+  error: 'Unauthorized',
+  message: 'A valid API key is required: send Authorization: Bearer <key>.',
+};
+
 const KEY = 'config-cmd-secret';
 const BASE = 'http://127.0.0.1:1936';
 
@@ -94,10 +102,10 @@ describe('config (query)', () => {
   });
 
   it('reports 401 as <code>: <message> with the key hint, and exit code 1', async () => {
-    respond(401, { error: 'Unauthorized', code: 'unauthorized' });
+    respond(401, UNAUTHORIZED_BODY);
     const { err } = await runCli(['config']);
     expect(err).toBe(
-      `Config query failed: unauthorized: Unauthorized\n${unauthorizedHint(false)}`,
+      `Config query failed: WATCHER_UNAUTHORIZED: A valid API key is required: send Authorization: Bearer <key>.\n${unauthorizedHint(false)}`,
     );
     expect(process.exitCode).toBe(1);
   });
@@ -156,7 +164,7 @@ describe('config apply', () => {
   it('reports a rejected key without printing it', async () => {
     const file = join(dir, 'patch.json');
     writeFileSync(file, '{}');
-    respond(401, { error: 'Unauthorized', code: 'unauthorized' });
+    respond(401, UNAUTHORIZED_BODY);
     const { out, err } = await runCli([
       'config',
       'apply',
@@ -166,7 +174,7 @@ describe('config apply', () => {
       KEY,
     ]);
     expect(err).toBe(
-      `Config apply failed: unauthorized: Unauthorized\n${unauthorizedHint(true)}`,
+      `Config apply failed: WATCHER_UNAUTHORIZED: A valid API key is required: send Authorization: Bearer <key>.\n${unauthorizedHint(true)}`,
     );
     expect(`${out}${err}`).not.toContain(KEY);
     expect(process.exitCode).toBe(1);

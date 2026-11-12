@@ -5,6 +5,7 @@
 
 import { join } from 'node:path';
 
+import type { IssueType } from '@karmaniverous/jeeves-watcher-core';
 import type pino from 'pino';
 
 import type { ApiServerOptions } from '../../api/apiServerOptions';
@@ -12,6 +13,7 @@ import { ReindexTracker } from '../../api/ReindexTracker';
 import type { JeevesWatcherConfig } from '../../config/types';
 import { watcherDescriptor } from '../../descriptor';
 import { EmbeddingUnavailableError } from '../../embedding/rateLimitError';
+import { DocumentLockTimeoutError } from '../../processor/DocumentLocks';
 import { ProcessingFailure } from '../../processor/issueRecording';
 import type { VirtualRuleStore } from '../../rules/virtualRules';
 import { normalizeSlashes } from '../../util/normalizeSlashes';
@@ -36,13 +38,16 @@ export interface WireState {
   walk: 'ready' | 'scanning' | 'absent';
   /** Deletion scrolls also return a source-document point. */
   sourcePoint: boolean;
-  /** What a source render does. */
-  sourceRender:
-    | 'ok'
-    | 'gone'
-    | 'source_unavailable'
-    | 'unsupported_content_type'
-    | 'rule_missing';
+  /** What a source render does: succeed, answer gone, or fail by issue type. */
+  sourceRender: 'ok' | 'gone' | IssueType;
+  /** A source metadata update finds its document lock busy (503, D118). */
+  documentBusy: boolean;
+  /**
+   * The query embedding fails with an error the watcher doesn't map (a
+   * masked 500): a plain `Error`, a Qdrant `ApiError` outside
+   * `withFilterErrors`, or an `Error` carrying `statusCode` and `headers`.
+   */
+  embedFailure?: 'plain' | 'qdrant' | 'statusHeaders';
 }
 
 /** Default stub behaviour. */
@@ -56,7 +61,20 @@ export const DEFAULT_WIRE_STATE: WireState = {
   sourceRender: 'ok',
   walk: 'ready',
   sourcePoint: false,
+  documentBusy: false,
+  embedFailure: undefined,
 };
+
+/** The query-embedding failure of {@link WireState.embedFailure}. */
+function embedFailure(kind: NonNullable<WireState['embedFailure']>): Error {
+  if (kind === 'qdrant') return qdrantRejection();
+  if (kind === 'statusHeaders')
+    return Object.assign(new Error('upstream said no'), {
+      statusCode: 503,
+      headers: { 'retry-after': '5' },
+    });
+  return new Error('secret provider detail');
+}
 
 /** API key of the wire app. */
 export const WIRE_KEY = 'wire-key';
@@ -82,7 +100,11 @@ function sourceOperations(state: WireState) {
     validate: () => undefined,
     compiledRule: () => ({ rule: { name: state.sourceRule ?? 'chat' } }),
     updateMetadata: () =>
-      Promise.resolve(state.sourceRule === null ? null : { ok: true }),
+      state.documentBusy
+        ? Promise.reject(
+            new DocumentLockTimeoutError('app://chat/1', 'metadata', 10_000),
+          )
+        : Promise.resolve(state.sourceRule === null ? null : { ok: true }),
     withLock: <T>(_ref: string, _operation: string, work: () => Promise<T>) =>
       work(),
     render: () => {
@@ -232,13 +254,15 @@ export function wireServerOptions(
     embeddingProvider: {
       dimensions: 3,
       embed: () =>
-        state.embedUnavailable
-          ? Promise.reject(
-              new EmbeddingUnavailableError('budget exhausted', {
-                retryAfterMs: 2500,
-              }),
-            )
-          : Promise.resolve([[0.1, 0.2, 0.3]]),
+        state.embedFailure
+          ? Promise.reject(embedFailure(state.embedFailure))
+          : state.embedUnavailable
+            ? Promise.reject(
+                new EmbeddingUnavailableError('budget exhausted', {
+                  retryAfterMs: 2500,
+                }),
+              )
+            : Promise.resolve([[0.1, 0.2, 0.3]]),
     },
     issuesManager: { getAll: () => ({}), clear: () => undefined },
     enrichmentStore: { set: () => undefined, delete: () => undefined },

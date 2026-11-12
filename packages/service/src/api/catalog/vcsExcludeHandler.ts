@@ -1,61 +1,17 @@
 /**
  * @module api/catalog/vcsExcludeHandler
- * Catalog handler for `POST /vcs/exclude` (Design 5): resolves the root and anchored pattern, then adds it to the root's `.git/info/exclude` and untracks matching files, or removes it. Answers 409 `confirm_required` and 503 `not_available` with `Retry-After: 30` (D102, D103). The body is validated by the catalog's `excludeVcsPath` entry schema.
- *
- * Written directly rather than through `wrapCatalogHandler`, because its
- * 503 carries a header and its 409 an extra field.
+ * Catalog handler for `POST /vcs/exclude` (Design 5): resolves the root and anchored pattern, then adds it to the root's `.git/info/exclude` and untracks matching files, or removes it. Over the untrack threshold without `confirm` it changes nothing and answers `200 { confirmRequired: true, untracked }` (D203 (1)); a busy root lock is `503 WATCHER_NOT_AVAILABLE` with `Retry-After: 30` (D102). The body is validated by the catalog's `excludeVcsPath` entry schema.
  */
 
-import type {
-  CatalogHandler,
-  HandlerResult,
-} from '@karmaniverous/jeeves/fastify';
-import type pino from 'pino';
+import type { CatalogHandler } from '@karmaniverous/jeeves/fastify';
 
 import { ConfirmRequiredError, runExclude } from '../../vcs/excludePattern';
 import { LegacyPatternNotFoundError } from '../../vcs/legacyGitignore';
-import {
-  LockWaitTimeoutError,
-  ROUTE_LOCK_WAIT_MS,
-} from '../../vcs/RootGitLock';
+import { ExclusionNotFound } from '../errors';
 import type { Entry } from './catalogEntry';
-import { busyResult, errorResult } from './errorResult';
 import { resolveExcludeTarget } from './excludeTarget';
 import type { CatalogVcsDeps } from './vcsDeps';
-import { catalogErrorFromThrown } from './wrapCatalogHandler';
-
-/** Seconds a busy-lock `503` asks the client to wait: the route's own wait (D102). */
-const RETRY_AFTER_S = ROUTE_LOCK_WAIT_MS / 1000;
-
-/** `POST /vcs/exclude`'s handler result. */
-type ExcludeResult = HandlerResult<Entry<'excludeVcsPath'>>;
-
-/**
- * The error result for a thrown error: the exclude-specific errors, else
- * the generic catalog mapping.
- */
-function excludeErrorResult(
-  error: unknown,
-  logger: pino.Logger,
-): ExcludeResult {
-  if (error instanceof ConfirmRequiredError) {
-    logger.debug({ err: error }, 'VcsExclude needs confirm');
-    return errorResult('confirm_required', error.message, {
-      untracked: error.untracked,
-    });
-  }
-  if (error instanceof LockWaitTimeoutError) {
-    logger.warn({ err: error }, 'VcsExclude gave up waiting for RootGitLock');
-    return busyResult(
-      `Version control is busy on this root; retry after ${String(RETRY_AFTER_S)} s`,
-      RETRY_AFTER_S,
-    );
-  }
-  if (error instanceof LegacyPatternNotFoundError) {
-    return errorResult('not_found', error.message);
-  }
-  return catalogErrorFromThrown(error, logger, 'VcsExclude');
-}
+import { wrapCatalogHandler } from './wrapCatalogHandler';
 
 /**
  * Create the catalog handler for `POST /vcs/exclude`.
@@ -66,26 +22,39 @@ function excludeErrorResult(
 export function createCatalogVcsExcludeHandler(
   deps: CatalogVcsDeps,
 ): CatalogHandler<Entry<'excludeVcsPath'>> {
-  return async (input) => {
-    try {
+  return wrapCatalogHandler<Entry<'excludeVcsPath'>>(
+    async (input) => {
       const { manager, pattern, relativeGlob } = resolveExcludeTarget(
         deps.coordinator,
         input.body,
       );
-      const outcome = await runExclude(
-        manager,
-        {
-          pattern,
-          relativeGlob,
-          remove: input.body.remove === true,
-          confirm: input.body.confirm === true,
-        },
-        deps.logger,
-        deps.lockWaitMs,
-      );
-      return { status: 200, body: { ok: true, ...outcome } };
-    } catch (error) {
-      return excludeErrorResult(error, deps.logger);
-    }
-  };
+      try {
+        const outcome = await runExclude(
+          manager,
+          {
+            pattern,
+            relativeGlob,
+            remove: input.body.remove === true,
+            confirm: input.body.confirm === true,
+          },
+          deps.logger,
+          deps.lockWaitMs,
+        );
+        return { body: { ok: true, ...outcome } };
+      } catch (error) {
+        if (error instanceof ConfirmRequiredError) {
+          deps.logger.debug({ err: error }, 'VcsExclude needs confirm');
+          return {
+            body: { confirmRequired: true, untracked: error.untracked },
+          };
+        }
+        if (error instanceof LegacyPatternNotFoundError) {
+          throw new ExclusionNotFound();
+        }
+        throw error;
+      }
+    },
+    deps.logger,
+    'VcsExclude',
+  );
 }

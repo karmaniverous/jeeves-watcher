@@ -4,9 +4,11 @@
  */
 
 /**
- * Codes the SDK assigns itself. Errors from a non-2xx response carry the
- * server's code instead: the body's `code` (an `ApiErrorCode`, core
- * `API_ERROR_CODES`), else `http_<status>`.
+ * Codes the SDK assigns itself (lower case, so they never collide with a
+ * server code). Errors from a non-2xx response carry the server's code
+ * instead: the body's `code` (a `WatcherErrorCode` from core
+ * `WATCHER_ERROR_CODES`, a jeeves `JEEVES_*` code or a Fastify
+ * `FST_ERR_*` code), else `http_<status>` (a masked 500 has no code).
  *
  * - `invalid_options`: {@link createWatcherClient} options are invalid.
  * - `invalid_request`: the input failed the catalog entry's request schema; nothing was sent.
@@ -29,7 +31,7 @@ export interface WatcherErrorInit {
   message: string;
   /** HTTP status, when a response was received. */
   status?: number;
-  /** Structured details (Zod issues, server `details`, or the raw body). */
+  /** Structured details (Zod issues, or the server's whole error body). */
   details?: unknown;
   /** Delay the server asked for (`Retry-After`), in ms, clamped to 0..3,600,000. */
   retryAfterMs?: number;
@@ -46,7 +48,7 @@ export class WatcherError extends Error {
   readonly code: string;
   /** HTTP status, when a response was received. */
   readonly status?: number;
-  /** Structured details (Zod issues, server `details`, or the raw body). */
+  /** Structured details (Zod issues, or the server's whole error body). */
   readonly details?: unknown;
   /**
    * Delay the server asked for before a retry (`Retry-After` on a `503` or

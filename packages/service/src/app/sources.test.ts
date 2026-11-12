@@ -7,7 +7,7 @@ import pino from 'pino';
 import { describe, expect, expectTypeOf, it, vi } from 'vitest';
 
 import type { ApiServerOptions } from '../api';
-import { RequestError } from '../api/requestError';
+import { SourcesNotSupported } from '../api/errors';
 import type {
   DocumentProcessor,
   DocumentProcessorInterface,
@@ -140,15 +140,12 @@ describe('withoutSourceSupport', () => {
     ).resolves.toBe(3);
   });
 
-  it('fails every other source operation with 503 not_available', async () => {
+  it('fails every other source operation with 503 WATCHER_NOT_AVAILABLE', async () => {
     const ops = withoutSourceSupport(fileOnly()).sourceOperations();
     const notAvailable = {
-      code: 'not_available',
-      status: 503,
-      message: 'Not available',
-      extras: {
-        message: 'Source documents are not supported by this instance.',
-      },
+      code: 'WATCHER_NOT_AVAILABLE',
+      statusCode: 503,
+      message: 'Source documents are not available on this instance.',
     };
     const sync = [
       () => ops.validate('app://a', 'r'),
@@ -161,7 +158,7 @@ describe('withoutSourceSupport', () => {
       } catch (error) {
         thrown = error;
       }
-      expect(thrown).toBeInstanceOf(RequestError);
+      expect(thrown).toBeInstanceOf(SourcesNotSupported);
       expect(thrown).toMatchObject(notAvailable);
     }
     for (const pending of [

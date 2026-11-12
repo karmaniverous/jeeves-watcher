@@ -7,8 +7,8 @@
     "url": "https://github.com/karmaniverous/jeeves-watcher/issues"
   },
   "dependencies": {
-    "@commander-js/extra-typings": "^15.0.0",
-    "@karmaniverous/jeeves": "0.9.0",
+    "@commander-js/extra-typings": "^15.1.0",
+    "@karmaniverous/jeeves": "0.11.0",
     "@karmaniverous/jeeves-watcher-core": "^0.5.1",
     "@karmaniverous/jsonmap": "^2.1.1",
     "@langchain/textsplitters": "*",

@@ -11,8 +11,8 @@ import type { CatalogHandler } from '@karmaniverous/jeeves/fastify';
 
 import { resolveWatchRoot } from '../../vcs/resolveWatchRoot';
 import { runGit } from '../../vcs/runGit';
+import { VcsFileNotFound, VcsRootNotFound } from '../errors';
 import type { Entry } from './catalogEntry';
-import { errorResult } from './errorResult';
 import type { CatalogVcsDeps } from './vcsDeps';
 
 const CONTENT_TYPES: Readonly<Record<string, string>> = {
@@ -54,12 +54,7 @@ export function createCatalogVcsShowHandler(
   return async (input) => {
     const { path, commit } = input.query;
     const resolved = resolveWatchRoot(deps.coordinator, path);
-    if (!resolved) {
-      return errorResult(
-        'not_found',
-        'Path does not match any VCS-enabled watch root',
-      );
-    }
+    if (!resolved) throw new VcsRootNotFound();
 
     try {
       const { stdout } = await runGit(resolved.root, [
@@ -72,7 +67,7 @@ export function createCatalogVcsShowHandler(
         headers: { 'content-type': contentTypeFor(path) },
       };
     } catch {
-      return errorResult('not_found', 'File not found at the specified commit');
+      throw new VcsFileNotFound();
     }
   };
 }

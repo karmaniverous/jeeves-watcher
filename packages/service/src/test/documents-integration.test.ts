@@ -238,7 +238,7 @@ describe.skipIf(!qdrantAvailable())(
       const res = await post('/documents/delete', { filter });
       expect(res).toMatchObject({
         status: 400,
-        body: { code: 'invalid_request' },
+        body: { code: 'FST_ERR_VALIDATION' },
       });
       expect(await harness.vectorStore.count()).toBe(before);
       expect(await harness.vectorStore.count(bySource(A))).not.toBe(0);

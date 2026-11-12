@@ -129,7 +129,7 @@ describe('POST /documents/delete', () => {
   ])('returns 400 for %s', async (_label, payload) => {
     const { status, body } = await post(payload);
     expect(status).toBe(400);
-    expect(body).toMatchObject({ code: 'invalid_request' });
+    expect(body).toMatchObject({ code: 'FST_ERR_VALIDATION' });
     expect(vectorStore.delete).not.toHaveBeenCalled();
   });
 
@@ -156,7 +156,12 @@ describe('POST /documents/delete', () => {
     });
     expect(res.statusCode).toBe(503);
     expect(res.headers['retry-after']).toBe('10');
-    expect(res.json()).toMatchObject({ code: 'not_available' });
+    expect(res.json()).toEqual({
+      statusCode: 503,
+      code: 'WATCHER_NOT_AVAILABLE',
+      error: 'Service Unavailable',
+      message: 'The document is being processed; retry after 10 s.',
+    });
     // app://a was deleted before app://b's wait ran out.
     expect([...points.keys()]).toEqual(['b0', 'f0']);
     expect(issuesManager.clear.mock.calls).toEqual([['app://a']]);

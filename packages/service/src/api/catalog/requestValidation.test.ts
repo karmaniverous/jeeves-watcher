@@ -50,7 +50,6 @@ interface ErrorBody {
   code: string;
   error: string;
   message?: string;
-  details?: { path: (string | number)[]; message: string }[];
 }
 
 async function post(url: string, payload?: unknown) {
@@ -62,21 +61,49 @@ async function post(url: string, payload?: unknown) {
   return { status: res.statusCode, body: res.json<ErrorBody>() };
 }
 
-describe('invalid request bodies return the catalog 400 with details', () => {
+describe('invalid request bodies return the catalog 400', () => {
   it.each([
-    ['/metadata', { path: 'a.md' }, ['metadata']],
-    ['/metadata', { metadata: {} }, ['path']],
-    ['/reindex', { scope: 'everything' }, ['scope']],
-    ['/reindex', { scope: 'path' }, ['path']],
-    ['/reindex', { scope: 'path', path: [] }, ['path']],
-    ['/reindex', { scope: 'full', source: 'app://1' }, ['source']],
-    ['/reindex', { dryRun: 'yes' }, ['dryRun']],
-  ])('%s %j', async (url, payload, issuePath) => {
+    [
+      '/metadata',
+      { path: 'a.md' },
+      'body/metadata Missing required field: metadata (object)',
+    ],
+    [
+      '/metadata',
+      { metadata: {} },
+      'body/path Exactly one of path or source is required',
+    ],
+    [
+      '/reindex',
+      { scope: 'everything' },
+      'body/scope Scope must be one of: issues, full, rules, path, prune',
+    ],
+    [
+      '/reindex',
+      { scope: 'path' },
+      'body/path Exactly one of path or source is required when scope is "path"',
+    ],
+    [
+      '/reindex',
+      { scope: 'path', path: [] },
+      'body/path path must not be an empty array',
+    ],
+    [
+      '/reindex',
+      { scope: 'full', source: 'app://1' },
+      'body/source source is only valid when scope is "path"',
+    ],
+    [
+      '/reindex',
+      { dryRun: 'yes' },
+      'body/dryRun Invalid input: expected boolean, received string',
+    ],
+  ])('%s %j', async (url, payload, message) => {
     const { status, body } = await post(url, payload);
     expect(status).toBe(400);
-    expect(body.code).toBe('invalid_request');
-    expect(typeof body.error).toBe('string');
-    expect(body.details?.[0]?.path).toEqual(issuePath);
+    expect(body.code).toBe('FST_ERR_VALIDATION');
+    expect(body.error).toBe('Bad Request');
+    expect(body.message).toBe(message);
   });
 });
 
@@ -90,7 +117,6 @@ describe('valid source targets reach the source path', () => {
   ])('%s', async (url, payload, status) => {
     const res = await post(url, payload);
     expect(res.status).toBe(status);
-    expect(res.body).toMatchObject({ error: 'Not available' });
-    expect(res.body.details).toBeUndefined();
+    expect(res.body).toMatchObject({ error: 'Service Unavailable' });
   });
 });

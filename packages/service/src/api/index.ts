@@ -96,6 +96,7 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
     logger,
     responseValidation: 'strict',
     handlers: {
+      logger,
       cacheTtlMs,
       status: {
         vectorStore,
@@ -118,7 +119,6 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
       configApply: {
         descriptor: options.descriptor,
         configPath,
-        logger,
         onConfigApply: createConfigApplyCallback(options, {
           getConfig,
           reindexTracker,

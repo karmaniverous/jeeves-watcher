@@ -34,24 +34,24 @@ const stringField = (
 export const MAX_UNCODED_MESSAGE_LENGTH = 200;
 
 /**
- * Code, message and details of a non-2xx response body.
+ * Code, message and details of a non-2xx response body: Fastify's standard
+ * error body `{ statusCode, code?, error, message }` (0.22.0). The code is
+ * the body's (`WATCHER_*`, `JEEVES_*`, `FST_ERR_*`), else
+ * `http_<status>` (a masked 500, a body that isn't Fastify's); the message
+ * is the body's `message`; the details are the whole body.
  *
  * @param status - HTTP status.
- * @param body - jeeves's parsed error body (`{ error, ... }`).
+ * @param body - jeeves's parsed error body.
  * @returns The mapped parts.
  */
 function serverError(
   status: number,
   body: Record<string, unknown> | undefined,
 ): { code: string; message: string; details: unknown } {
-  const error = stringField(body, 'error');
-  const extra = stringField(body, 'message');
   const message =
-    error === undefined
-      ? (extra ?? `HTTP ${String(status)}`)
-      : extra !== undefined && extra !== error
-        ? `${error}: ${extra}`
-        : error;
+    stringField(body, 'message') ??
+    stringField(body, 'error') ??
+    `HTTP ${String(status)}`;
   const code = stringField(body, 'code');
   return {
     code: code ?? `http_${String(status)}`,
@@ -59,7 +59,7 @@ function serverError(
       code === undefined && message.length > MAX_UNCODED_MESSAGE_LENGTH
         ? `${message.slice(0, MAX_UNCODED_MESSAGE_LENGTH)}...`
         : message,
-    details: body !== undefined && 'details' in body ? body.details : body,
+    details: body,
   };
 }
 

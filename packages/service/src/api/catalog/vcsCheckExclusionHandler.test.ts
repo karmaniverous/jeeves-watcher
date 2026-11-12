@@ -11,6 +11,7 @@
 import { rename, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
+import { SERVER_ERROR_MESSAGE } from '@karmaniverous/jeeves/fastify';
 import type { FastifyInstance } from 'fastify';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
@@ -98,26 +99,33 @@ describe('GET /vcs/check-exclusion', () => {
     expect(res.json()).toEqual({ excluded: false });
   });
 
-  it('answers 500 when git fails for another reason than "not ignored"', async () => {
+  it('answers a masked 500 when git fails for another reason than "not ignored"', async () => {
     await rename(join(rootA, '.git'), join(rootA, 'not-git'));
 
     const res = await check({ path: rootA + '/hello.txt' });
 
     expect(res.statusCode).toBe(500);
-    expect(res.json()).toMatchObject({ code: 'internal_error' });
+    expect(res.json()).toEqual({
+      statusCode: 500,
+      error: 'Internal Server Error',
+      message: SERVER_ERROR_MESSAGE,
+    });
   });
 
   it('answers the catalog 400 for a missing path', async () => {
     const res = await check({});
 
     expect(res.statusCode).toBe(400);
-    expect(res.json()).toMatchObject({ code: 'invalid_request' });
+    expect(res.json()).toMatchObject({ code: 'FST_ERR_VALIDATION' });
   });
 
   it('returns 404 for a path outside any root', async () => {
     const res = await check({ path: '/nonexistent/file.txt' });
 
     expect(res.statusCode).toBe(404);
-    expect(res.json()).toMatchObject({ code: 'not_found' });
+    expect(res.json()).toMatchObject({
+      code: 'WATCHER_NOT_FOUND',
+      message: 'No version-controlled watch root matches the path or glob.',
+    });
   });
 });

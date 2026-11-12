@@ -80,6 +80,16 @@ await watcher.listVcsHistory({ glob: '/data/docs/**', limit: '20' }); // query f
 
 Every other route is a method too (`config`, `walk`, `registerRules`, `getVcsStatus`, `excludeVcsPath`, ...): see the [SDK Guide](./guides/sdk-guide.md#methods).
 
+`excludeVcsPath` asks for confirmation in a successful reply (service 0.22.0+): when more than 100 files would be untracked and `confirm` is not `true`, nothing is written and the result is `{ confirmRequired: true, untracked }`.
+
+```ts
+const result = await watcher.excludeVcsPath({ glob: '/data/docs/bulk/**' });
+if ('confirmRequired' in result) {
+  // nothing excluded: check result.untracked with the user, then
+  await watcher.excludeVcsPath({ glob: '/data/docs/bulk/**', confirm: true });
+}
+```
+
 ### Filter helpers
 
 `f` builds native Qdrant filter objects; you can always pass a raw Qdrant filter instead.
@@ -105,9 +115,9 @@ Every failure is a `WatcherError` with `code`, optional `status`, optional `deta
 | `timeout` | No response within `timeoutMs`. | — |
 | `network_error` | `fetch` rejected (connection refused, DNS, …); see `cause`. | — |
 | `invalid_options` | `createWatcherClient` options are invalid (e.g. a `baseUrl` that is not http(s) or carries a query string or fragment). | — |
-| server code | A non-2xx response: the body's `code`, an `ApiErrorCode` (below); a body without one (an older service, a proxy) maps to `http_<status>`. `details` is `body.details` or the body. | 4xx / 5xx |
+| server code | A non-2xx response: the body's `code` (upper case, below); a body without one (a masked `500`, a proxy) maps to `http_<status>`. `details` is the whole body. | 4xx / 5xx |
 
-A 0.20.0+ service answers every non-2xx with `{ code, error, message?, details? }`. `code` is one of `API_ERROR_CODES` (exported, with the `ApiErrorCode` type): `invalid_request`, `unauthorized`, `path_not_watched`, `not_found`, `source_not_indexed`, `source_not_found`, `unsupported_content_type`, `pipeline_error`, `confirm_required`, `source_unavailable`, `not_available`, `scan_in_progress`, `embedding_unavailable`, `internal_error`. The SDK copies it to `err.code`; `err.message` is the body's `error` text, with `: <message>` appended when the body's `message` is present and different. Branch on `code`, never on the message. A filter the server's Qdrant rejects comes back as `invalid_request` with `error` `Invalid filter` (Qdrant's reason in `message`); a `5xx` body never carries the server's internal error, only generic text, so check the service log. Per-document `error.code` values of `documents.notify` results are typed by core's `documentFailureCodeSchema` (rejection codes plus issue types). The server's `invalid_request` (a `400`, `status` set) shares its name with the SDK's client-side `invalid_request` (nothing sent, no `status`). See the service API reference for what each code means.
+A 0.22.0+ service answers every non-2xx with Fastify's standard error body, `{ statusCode, code?, error, message }`. `code` is a `WATCHER_*` code (`WATCHER_ERROR_CODES`, exported with the `WatcherErrorCode` type: `WATCHER_INVALID_REQUEST`, `WATCHER_UNAUTHORIZED`, `WATCHER_PATH_NOT_WATCHED`, `WATCHER_NOT_FOUND`, `WATCHER_SOURCE_NOT_INDEXED`, `WATCHER_SOURCE_NOT_FOUND`, `WATCHER_UNSUPPORTED_CONTENT_TYPE`, `WATCHER_PIPELINE_<TYPE>_ERROR`, `WATCHER_SOURCE_UNAVAILABLE`, `WATCHER_NOT_AVAILABLE`, `WATCHER_SCAN_IN_PROGRESS`, `WATCHER_EMBEDDING_UNAVAILABLE`), a Fastify code (`FST_ERR_VALIDATION` for a request the server's schema rejects, `FST_ERR_CTP_*` for a malformed body) or a jeeves code (`JEEVES_CONFIG_*`, `JEEVES_RESPONSE_VALIDATION`). An unexpected server failure has no code, so it arrives as `http_500` with the message `The server could not complete the request.`; check the service log. The SDK copies the code to `err.code` and the body's `message`, a fixed sentence written for the caller, to `err.message`. Branch on `code`, never on the message. A filter the server's Qdrant rejects comes back as `WATCHER_INVALID_REQUEST` with Qdrant's reason in the message. Per-document `error.code` values of `documents.notify` results are typed by core's `documentFailureCodeSchema` (rejection codes plus issue types). The SDK's own codes are lower case, so they never collide with a server code. See the service API reference's Error Handling section for what each code means, and its upgrading guide for the codes a 0.21 service sent.
 
 ```ts
 import { isWatcherError } from '@karmaniverous/jeeves-watcher-sdk';
@@ -115,14 +125,14 @@ import { isWatcherError } from '@karmaniverous/jeeves-watcher-sdk';
 try {
   await watcher.search({ query, filter });
 } catch (err) {
-  if (isWatcherError(err) && err.code === 'embedding_unavailable') {
+  if (isWatcherError(err) && err.code === 'WATCHER_EMBEDDING_UNAVAILABLE') {
     // embedding provider exhausted its retry budget: back off and retry later
   }
   throw err;
 }
 ```
 
-The SDK never retries. Retry `timeout`, `network_error` and `503` at your own discretion; a notification is idempotent, so re-sending one is always safe. A `503` carries `retryAfterMs` (the server's `Retry-After`, clamped to one hour): wait at least that long. A timeout does not cancel the operation on the server, so a timed-out `excludeVcsPath` or `revertVcs` may still complete: check (`checkVcsExclusion`, `listVcsHistory`) before retrying, and raise `timeoutMs` for those calls (they wait up to 30 s for the root's git lock).
+The SDK never retries. Retry `timeout`, `network_error` and `503` at your own discretion; a notification is idempotent, so re-sending one is always safe. A `503` from a busy lock or an embedding back-off carries `retryAfterMs` (the server's `Retry-After`, clamped to one hour): wait at least that long. A timeout does not cancel the operation on the server, so a timed-out `excludeVcsPath` or `revertVcs` may still complete: check (`checkVcsExclusion`, `listVcsHistory`) before retrying, and raise `timeoutMs` for those calls (they wait up to 30 s for the root's git lock).
 
 ## Implementing the callback side
 

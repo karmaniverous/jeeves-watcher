@@ -1,13 +1,14 @@
 /**
- * Vitest config for recording the wire baseline: runs only `src/test/wire/wireRecord.record.ts`, which writes every scenario's answer to the file named by `WIRE_RECORD`. Used by `scripts/capture-wire-0.20.0.mjs`; not part of `npm test`.
+ * Vitest config for recording wire records: runs one `src/test/wire/*.record.ts` suite, which writes its records to the file named by `WIRE_RECORD`. The suite is `wireRecord` (every scenario; used by `scripts/capture-wire-0.20.0.mjs`) unless `WIRE_RECORD_SUITE` names another (`wireErrors`: the 0.22.0 error overlay). Not part of `npm test`.
  */
-import { defineConfig, mergeConfig } from 'vitest/config';
-
 import base from './vitest.config';
 
-export default mergeConfig(
-  base,
-  defineConfig({
-    test: { include: ['src/test/wire/wireRecord.record.ts'] },
-  }),
-);
+const suite = process.env.WIRE_RECORD_SUITE ?? 'wireRecord';
+
+// The base config's test projects would run the whole suite; record only.
+const { projects: _projects, ...test } = base.test ?? {};
+
+export default {
+  ...base,
+  test: { ...test, include: [`src/test/wire/${suite}.record.ts`] },
+};

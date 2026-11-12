@@ -13,7 +13,6 @@ import {
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import pino from 'pino';
 import {
   afterEach,
   beforeEach,
@@ -70,7 +69,6 @@ describe('createCatalogConfigApplySource over a real file', () => {
       descriptor: watcherDescriptor,
       configPath,
       onConfigApply,
-      logger: pino({ level: 'silent' }),
     });
   });
 
@@ -118,15 +116,15 @@ describe('createCatalogConfigApplySource over a real file', () => {
     expect(onConfigApply).not.toHaveBeenCalled();
   });
 
-  it('answers an unreadable config file with a generic 500 (no path)', async () => {
+  it("answers an unreadable config file with core's 500 JEEVES_CONFIG_READ_FAILED (no path)", async () => {
     rmSync(configPath);
     mkdirSync(configPath); // reading a directory fails (EISDIR)
     const res = await post({ patch: {} });
     expect(res.statusCode).toBe(500);
-    expect(res.json()).toEqual({
-      code: 'internal_error',
+    expect(res.json()).toMatchObject({
+      statusCode: 500,
+      code: 'JEEVES_CONFIG_READ_FAILED',
       error: 'Internal Server Error',
-      message: 'Internal server error',
     });
     expect(res.body).not.toContain('custom-name.json');
     expect(onConfigApply).not.toHaveBeenCalled();
@@ -170,7 +168,11 @@ describe('createCatalogConfigApplySource over a real file', () => {
     const res = await post({ patch: {} });
     expect(res.statusCode).toBe(200);
     const body = res.json() as { warning: string; config: object };
-    expect(body.warning).toContain('reload failed');
+    // jeeves 0.11 sends a fixed warning; the error text goes to the log.
+    expect(body.warning).toBe(
+      'The config was written but could not be applied.',
+    );
+    expect(res.body).not.toContain('reload failed');
     expect(body.config).not.toHaveProperty('api');
     expect(res.body).not.toContain('api-secret');
   });

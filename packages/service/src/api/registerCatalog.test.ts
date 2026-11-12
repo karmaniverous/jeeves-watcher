@@ -1,42 +1,11 @@
 /**
  * @module api/registerCatalog.test
- * The pure parts of the catalog registration: the validation-error body and the `POST /config/apply` body normalisation (deprecated `{ config }` alias, absent body or patch).
+ * The pure parts of the catalog registration: the `POST /config/apply` body normalisation (deprecated `{ config }` alias, absent body or patch).
  */
 
-import type { CatalogValidationIssue } from '@karmaniverous/jeeves/fastify';
 import { describe, expect, it } from 'vitest';
 
-import {
-  formatValidationError,
-  normalizeConfigApplyBody,
-} from './registerCatalog';
-
-const issue = (message: string): CatalogValidationIssue => ({
-  slot: 'body',
-  path: ['patch'],
-  code: 'invalid_type',
-  message,
-  params: { expected: 'record' },
-});
-
-describe('formatValidationError', () => {
-  it('uses the first issue as the error and lists them all', () => {
-    const issues = [issue('first'), issue('second')];
-    expect(formatValidationError(issues)).toEqual({
-      code: 'invalid_request',
-      error: 'first',
-      details: issues,
-    });
-  });
-
-  it('falls back to a generic message for an empty issue list', () => {
-    expect(formatValidationError([])).toEqual({
-      code: 'invalid_request',
-      error: 'Invalid request',
-      details: [],
-    });
-  });
-});
+import { normalizeConfigApplyBody } from './registerCatalog';
 
 describe('normalizeConfigApplyBody', () => {
   it.each([

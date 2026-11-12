@@ -1,108 +1,90 @@
 /**
  * @module api/errors
- * Canonical machine-readable API error codes (`apiErrorCodeSchema`) and the error body every non-2xx watcher response carries (`apiErrorBodySchema`). No I/O.
+ * The client's half of the watcher error contract (0.22.0): every `WATCHER_*` code a watcher error body can carry (`WATCHER_ERROR_CODES`) and the status each is sent with (`WATCHER_ERROR_STATUS`). The body itself is Fastify's standard error body (`errorBodySchema` from `@karmaniverous/jeeves/catalog`). No I/O.
  */
-
-import { z } from 'zod';
-
-import { apiErrorResponseSchema } from './common.js';
-import { issueTypeSchema } from './monitoring.js';
 
 /**
- * Every machine-readable code a non-2xx response can carry, in one list.
- * Codes are stable: new codes may be added, existing ones never change
- * meaning. The usual HTTP status is in {@link API_ERROR_STATUS}.
+ * Every `WATCHER_*` code a non-2xx watcher response can carry, in one list.
+ * The body is Fastify's standard error body,
+ * `{ statusCode, code?, error, message }`; other codes come from jeeves
+ * (`JEEVES_*`) and Fastify (`FST_ERR_*`), and an unexpected failure is a
+ * 500 with no `code` at all. Codes are stable in meaning; the status of
+ * each is in {@link WATCHER_ERROR_STATUS}.
  *
- * - `invalid_request` (400): the body, query or parameters failed validation
- *   (`details` holds the Zod issues when available), or the framework rejected
- *   the request (malformed JSON, unsupported media type, body too large).
- * - `unauthorized` (401): `api.apiKey` is set and the bearer token is missing
- *   or wrong.
- * - `path_not_watched` (403): the file path is outside the watched scope.
- * - `not_found` (404): no such route, file, VCS root, commit content or
- *   exclude pattern.
- * - `source_not_indexed` (404): no stored point for the source reference, so
- *   no designated rule is known.
- * - `source_not_found` (404): the source callback answered `404`.
- * - `unsupported_content_type` (422): the source callback returned a non-JSON
- *   body.
- * - `pipeline_error` (422): rendering or extraction failed; for a source
- *   document `issueType` names the failing stage.
- * - `confirm_required` (409): `POST /vcs/exclude` would untrack more than
- *   100 files; nothing was written, and `untracked` holds the count. Repeat
- *   with `confirm: true`.
- * - `source_unavailable` (502): the source callback failed.
- * - `not_available` (503): the feature is not available on this instance
- *   (no source support, no filesystem watcher), or `POST /vcs/exclude`
- *   waited 30 s for the root's git lock (`Retry-After: 30`). A prune reindex
- *   (`POST /reindex`) without a vector store keeps its 0.19 status `400`.
- * - `scan_in_progress` (503): the initial filesystem scan is still running;
- *   retry later.
- * - `embedding_unavailable` (503): the embedding provider's retry budget ran
- *   out; honour `Retry-After`.
- * - `internal_error` (500): an unexpected server-side failure.
+ * - `WATCHER_INVALID_REQUEST` (400): the request is well formed but the
+ *   watcher can't act on it (the vector store rejected the filter, a facet
+ *   field has no payload index, unknown or empty rules, metadata or rules
+ *   that fail validation, a path that is neither file nor directory, a
+ *   refused exclude glob).
+ * - `WATCHER_UNAUTHORIZED` (401): `api.apiKey` is set and the bearer key is
+ *   missing or wrong.
+ * - `WATCHER_PATH_NOT_WATCHED` (403): the path is outside the watched scope
+ *   or gitignored.
+ * - `WATCHER_NOT_FOUND` (404): no such route, file, version-controlled root,
+ *   commit content or exclude pattern.
+ * - `WATCHER_SOURCE_NOT_INDEXED` (404): the source reference has no points.
+ * - `WATCHER_SOURCE_NOT_FOUND` (404): the source callback answered 404.
+ * - `WATCHER_UNSUPPORTED_CONTENT_TYPE` (422): the source callback's body is
+ *   not a JSON object.
+ * - `WATCHER_PIPELINE_<TYPE>_ERROR` (422): rendering failed at the stage the
+ *   issue type names (`<TYPE>` is the issue type in upper case, a trailing
+ *   `_error` dropped).
+ * - `WATCHER_SOURCE_UNAVAILABLE` (502): the source callback failed.
+ * - `WATCHER_NOT_AVAILABLE` (503): the feature is not available on this
+ *   instance, or a lock stayed busy (`Retry-After`), or a facet count could
+ *   not finish.
+ * - `WATCHER_SCAN_IN_PROGRESS` (503): the initial filesystem scan is still
+ *   running.
+ * - `WATCHER_EMBEDDING_UNAVAILABLE` (503): the embedding provider is
+ *   unavailable (`Retry-After` when the back-off is known).
  */
-export const API_ERROR_CODES = [
-  'invalid_request',
-  'unauthorized',
-  'path_not_watched',
-  'not_found',
-  'source_not_indexed',
-  'source_not_found',
-  'unsupported_content_type',
-  'pipeline_error',
-  'confirm_required',
-  'source_unavailable',
-  'not_available',
-  'scan_in_progress',
-  'embedding_unavailable',
-  'internal_error',
+export const WATCHER_ERROR_CODES = [
+  'WATCHER_INVALID_REQUEST',
+  'WATCHER_UNAUTHORIZED',
+  'WATCHER_PATH_NOT_WATCHED',
+  'WATCHER_NOT_FOUND',
+  'WATCHER_SOURCE_NOT_INDEXED',
+  'WATCHER_SOURCE_NOT_FOUND',
+  'WATCHER_UNSUPPORTED_CONTENT_TYPE',
+  'WATCHER_PIPELINE_TYPE_COLLISION_ERROR',
+  'WATCHER_PIPELINE_INTERPOLATION_ERROR',
+  'WATCHER_PIPELINE_EXTRACTION_ERROR',
+  'WATCHER_PIPELINE_EMBEDDING_ERROR',
+  'WATCHER_PIPELINE_UPSERT_ERROR',
+  'WATCHER_PIPELINE_MATCH_FAILED_ERROR',
+  'WATCHER_PIPELINE_RULE_MISSING_ERROR',
+  'WATCHER_PIPELINE_NO_CONTENT_ERROR',
+  'WATCHER_PIPELINE_TOO_LARGE_ERROR',
+  'WATCHER_SOURCE_UNAVAILABLE',
+  'WATCHER_NOT_AVAILABLE',
+  'WATCHER_SCAN_IN_PROGRESS',
+  'WATCHER_EMBEDDING_UNAVAILABLE',
 ] as const;
 
-/** Schema for the machine-readable code of an API error response. */
-export const apiErrorCodeSchema = z
-  .enum(API_ERROR_CODES)
-  .describe('Machine-readable API error code.');
+/** A `WATCHER_*` error code. */
+export type WatcherErrorCode = (typeof WATCHER_ERROR_CODES)[number];
 
-/** Machine-readable code of an API error response. */
-export type ApiErrorCode = z.infer<typeof apiErrorCodeSchema>;
-
-/**
- * The HTTP status each code is normally sent with. `not_available` is the
- * one code also sent with another status (`400` for a prune without a
- * vector store, unchanged from 0.19).
- */
-export const API_ERROR_STATUS: Readonly<Record<ApiErrorCode, number>> = {
-  invalid_request: 400,
-  unauthorized: 401,
-  path_not_watched: 403,
-  not_found: 404,
-  source_not_indexed: 404,
-  source_not_found: 404,
-  unsupported_content_type: 422,
-  pipeline_error: 422,
-  confirm_required: 409,
-  source_unavailable: 502,
-  not_available: 503,
-  scan_in_progress: 503,
-  embedding_unavailable: 503,
-  internal_error: 500,
-};
-
-/**
- * Body of every non-2xx watcher response (0.20.0+): the version-independent
- * `apiErrorResponseSchema` (`error`, `message`, `details`) extended with
- * `code` and `issueType`. `error` is the human-readable text earlier
- * versions sent, kept unchanged for backward compatibility; branch on
- * `code`, never on `error`. Endpoints may add further fields (e.g. `issues`
- * on `POST /config/apply`).
- */
-export const apiErrorBodySchema = apiErrorResponseSchema.extend({
-  /** Machine-readable error code. */
-  code: apiErrorCodeSchema,
-  /** Issue type of the pipeline failure behind a source render error. */
-  issueType: issueTypeSchema.optional(),
-});
-
-/** Body of every non-2xx watcher response. */
-export type ApiErrorBody = z.infer<typeof apiErrorBodySchema>;
+/** The HTTP status each `WATCHER_*` code is sent with (one per code). */
+export const WATCHER_ERROR_STATUS: Readonly<Record<WatcherErrorCode, number>> =
+  {
+    WATCHER_INVALID_REQUEST: 400,
+    WATCHER_UNAUTHORIZED: 401,
+    WATCHER_PATH_NOT_WATCHED: 403,
+    WATCHER_NOT_FOUND: 404,
+    WATCHER_SOURCE_NOT_INDEXED: 404,
+    WATCHER_SOURCE_NOT_FOUND: 404,
+    WATCHER_UNSUPPORTED_CONTENT_TYPE: 422,
+    WATCHER_PIPELINE_TYPE_COLLISION_ERROR: 422,
+    WATCHER_PIPELINE_INTERPOLATION_ERROR: 422,
+    WATCHER_PIPELINE_EXTRACTION_ERROR: 422,
+    WATCHER_PIPELINE_EMBEDDING_ERROR: 422,
+    WATCHER_PIPELINE_UPSERT_ERROR: 422,
+    WATCHER_PIPELINE_MATCH_FAILED_ERROR: 422,
+    WATCHER_PIPELINE_RULE_MISSING_ERROR: 422,
+    WATCHER_PIPELINE_NO_CONTENT_ERROR: 422,
+    WATCHER_PIPELINE_TOO_LARGE_ERROR: 422,
+    WATCHER_SOURCE_UNAVAILABLE: 502,
+    WATCHER_NOT_AVAILABLE: 503,
+    WATCHER_SCAN_IN_PROGRESS: 503,
+    WATCHER_EMBEDDING_UNAVAILABLE: 503,
+  };

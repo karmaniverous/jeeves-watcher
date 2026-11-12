@@ -3,6 +3,10 @@
  * The served API validates catalog responses in `'strict'` mode: a handler body that doesn't match its entry's response schema is never sent. The client gets a `500` and the mismatch is logged as an error with its Zod issues.
  */
 
+import {
+  JEEVES_RESPONSE_VALIDATION,
+  SERVER_ERROR_MESSAGE,
+} from '@karmaniverous/jeeves/fastify';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import type { JeevesWatcherConfig } from '../config/types';
@@ -52,8 +56,10 @@ describe("'strict' response validation", () => {
 
     expect(res.statusCode).toBe(500);
     expect(res.json()).toEqual({
-      error: 'Response validation failed',
-      code: 'internal_error',
+      statusCode: 500,
+      code: JEEVES_RESPONSE_VALIDATION,
+      error: 'Internal Server Error',
+      message: SERVER_ERROR_MESSAGE,
     });
     expect(res.body).not.toContain('"7"');
 

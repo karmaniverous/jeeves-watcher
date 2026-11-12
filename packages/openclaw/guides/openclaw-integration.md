@@ -54,7 +54,7 @@ The plugin registers 18 tools (`contracts.tools` in `openclaw.plugin.json`), all
 
 A non-2xx response from the watcher API becomes a tool error (prefixed `Error: `):
 
-- Every tool reports core's `HTTP <status>: <body>`, with the server's JSON body verbatim, e.g. `HTTP 400: {"error":"Config validation failed","code":"invalid_request","issues":[...]}`. A `401` is `HTTP 401: {"error":"Unauthorized","code":"unauthorized"}`; the skill's troubleshooting section says how to supply or fix the key. Parameters that fail the tool's own schema are rejected before any request is sent.
+- Every tool reports core's `HTTP <status>: <body>`, with the server's JSON body verbatim: Fastify's standard error body `{ statusCode, code?, error, message }` (watcher 0.22.0+), e.g. `HTTP 503: {"statusCode":503,"code":"WATCHER_SCAN_IN_PROGRESS","error":"Service Unavailable","message":"The initial filesystem scan is still running; retry when it finishes."}`. Branch on `code` (`WATCHER_*`, `JEEVES_*` or `FST_ERR_*`); an unexpected failure is a `500` with no `code`. A `401` is `HTTP 401: {"statusCode":401,"code":"WATCHER_UNAUTHORIZED","error":"Unauthorized","message":"A valid API key is required: send Authorization: Bearer <key>."}`; the skill's troubleshooting section says how to supply or fix the key. The tool passes the body only, not headers, so a message that comes with `Retry-After` states the wait itself. Parameters that fail the tool's own schema are rejected before any request is sent.
 - A refused or unresolvable connection reads `Service not reachable at <apiUrl>.` with a hint to set `apiUrl`.
 
 ### `watcher_status`
@@ -109,7 +109,7 @@ Apply a config patch to the running watcher service (`POST /config/apply`, body 
 - `config` (object, required) — config patch to apply
 - `replace` (boolean) — replace the whole config with the patch instead of merging
 
-Returns `{ applied: true, config }`. The echoed `config` is redacted through the same allow-list as `GET /config` (`api`, `sources` and provider keys are never echoed). When the config was written but the post-write apply step failed, the response also carries `warning` (a string). An invalid merged config is an `HTTP 400` whose body has `"error":"Config validation failed"` and the `issues`; use `watcher_validate_config` to see the individual errors. A server-side failure (config file unreadable or unwritable) comes back as a generic `internal_error`, with the cause in the service log.
+Returns `{ applied: true, config }`. The echoed `config` is redacted through the same allow-list as `GET /config` (`api`, `sources` and provider keys are never echoed). When the config was written but the post-write apply step failed, the response also carries `warning` (a string). An invalid merged config is an `HTTP 400` with code `JEEVES_CONFIG_INVALID` and the issues folded into its `message`; use `watcher_validate_config` to see the individual errors. A config file the service cannot read or write is `HTTP 500` with `JEEVES_CONFIG_READ_FAILED` or `JEEVES_CONFIG_WRITE_FAILED`, with the cause in the service log.
 
 ### `watcher_reindex`
 
@@ -124,7 +124,7 @@ Trigger a scoped reindex (`POST /reindex`). Supports `rules`, `full`, `issues`, 
 
 ### `watcher_walk`
 
-List watched files matching globs (`POST /walk`), from the filesystem watcher's inventory across all configured watch roots: only files that pass its filters (globs, `watch.ignored`, gitignore), sorted by path. Returns `{ paths, matchedCount, scannedRoots }`; `HTTP 503 scan_in_progress` until the initial scan completes.
+List watched files matching globs (`POST /walk`), from the filesystem watcher's inventory across all configured watch roots: only files that pass its filters (globs, `watch.ignored`, gitignore), sorted by path. Returns `{ paths, matchedCount, scannedRoots }`; `HTTP 503` with `WATCHER_SCAN_IN_PROGRESS` until the initial scan completes.
 
 **Parameters:**
 
@@ -209,7 +209,7 @@ Exclude a path from version history while keeping it in search, or remove the ex
 - `glob` (string, required) — one gitignore pattern, absolute under a tracked root or relative to `root` (a glob starting with `/` is a filesystem path); brackets are a character class, so escape them to name a file literally (`Report \[draft\].docx`)
 - `root` (string) — tracked root to target (defaults to auto-detect); a glob outside it is refused
 - `remove` (boolean) — when true, remove the exclusion rule (untracked files are not re-added)
-- `confirm` (boolean) — required (true) when more than 100 files would be untracked; without it the tool reports `HTTP 409 confirm_required` and nothing changes
+- `confirm` (boolean) — required (true) when more than 100 files would be untracked; without it nothing changes and the tool returns `{ "confirmRequired": true, "untracked": <n> }` (not an error): check the count with the user, then repeat with `confirm: true`
 
 #### `watcher_check_vcs_exclusion`
 

@@ -20,7 +20,7 @@ import { unauthorizedHint } from '../cli/jeeves-watcher/cliClient';
 
 /** What the CLI prints after a 401 (`<code>: <message>`, then the key hint). */
 const denied401 = (keySent: boolean) =>
-  `unauthorized: Unauthorized\n${unauthorizedHint(keySent)}`;
+  `WATCHER_UNAUTHORIZED: A valid API key is required: send Authorization: Bearer <key>.\n${unauthorizedHint(keySent)}`;
 import { watcherDescriptor } from '../descriptor';
 import { qdrantAvailable } from './harness/qdrant';
 import { type ServiceHarness, startServiceHarness } from './harness/service';

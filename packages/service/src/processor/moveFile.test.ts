@@ -10,6 +10,7 @@ import type { EmbeddingProvider } from '../embedding';
 import type { IssuesManager } from '../issues';
 import type { ValuesManager } from '../values';
 import type { VectorStoreClient } from '../vectorStore';
+import { documentChunkIds } from './documentIdentity';
 import { DocumentProcessor, type ProcessorConfig } from './index';
 
 // Mock buildMergedMetadata so we don't touch the filesystem
@@ -240,9 +241,25 @@ describe('DocumentProcessor.moveFile', () => {
     expect(newPoints[0].payload['category']).toBe('docs');
   });
 
-  it('handles no existing points gracefully', async () => {
-    const { vectorStore, embeddingProvider, config, logger } = createMocks();
+  it('indexes the new path as a create when the old path has no points, dropping its issue (#305)', async () => {
+    const {
+      vectorStore,
+      enrichmentStore,
+      issuesManager,
+      embeddingProvider,
+      config,
+      logger,
+    } = createMocks();
+    // A file rejected or failed at the old path: no points, an issue.
+    vectorStore.getPayload.mockResolvedValue(null);
     vectorStore.getPointsWithVectors.mockResolvedValue([]);
+    const embed = vi.fn().mockResolvedValue([[0.7, 0.8, 0.9]]);
+    embeddingProvider.embed = embed;
+    const contentHashCache = {
+      get: vi.fn(),
+      set: vi.fn(),
+      delete: vi.fn(),
+    };
 
     const processor = new DocumentProcessor({
       config,
@@ -250,11 +267,55 @@ describe('DocumentProcessor.moveFile', () => {
       vectorStore: vectorStore as unknown as VectorStoreClient,
       compiledRules: [],
       logger,
+      enrichmentStore,
+      issuesManager: issuesManager as unknown as IssuesManager,
+      contentHashCache: contentHashCache as never,
     });
     await processor.moveFile('/old.txt', '/new.txt');
 
+    expect(issuesManager.clear).toHaveBeenCalledWith('/old.txt');
+    expect(contentHashCache.delete).toHaveBeenCalledWith('/old.txt');
+    expect(enrichmentStore.move).toHaveBeenCalledWith('/old.txt', '/new.txt');
+    expect(embed).toHaveBeenCalled();
+    expect(vectorStore.upsert).toHaveBeenCalledOnce();
+    const created = vectorStore.upsert.mock.calls[0][0] as Array<{
+      payload: Record<string, unknown>;
+      vector: number[];
+    }>;
+    expect(created[0].payload['file_path']).toBe('/new.txt');
+    expect(created[0].vector).toEqual([0.7, 0.8, 0.9]);
+    // Nothing at the old path was deleted: there was nothing there.
+    const [oldChunk] = documentChunkIds(
+      { kind: 'file', filePath: '/old.txt' },
+      1,
+    );
+    const deleted = vectorStore.delete.mock.calls.flat(2);
+    expect(deleted).not.toContain(oldChunk);
+  });
+
+  it('records a failed create at the new path, not the old (#305)', async () => {
+    const { vectorStore, issuesManager, embeddingProvider, config, logger } =
+      createMocks();
+    vectorStore.getPayload.mockResolvedValue(null);
+    vectorStore.getPointsWithVectors.mockResolvedValue([]);
+    embeddingProvider.embed = vi.fn().mockRejectedValue(new Error('down'));
+
+    const processor = new DocumentProcessor({
+      config,
+      embeddingProvider,
+      vectorStore: vectorStore as unknown as VectorStoreClient,
+      compiledRules: [],
+      logger,
+      issuesManager: issuesManager as unknown as IssuesManager,
+    });
+    await processor.moveFile('/old.txt', '/new.txt');
+
+    expect(issuesManager.clear).toHaveBeenCalledWith('/old.txt');
+    const recorded = (issuesManager.record.mock.calls as unknown[][]).map(
+      (call) => call[0],
+    );
+    expect(recorded).toEqual(['/new.txt']);
     expect(vectorStore.upsert).not.toHaveBeenCalled();
-    expect(vectorStore.delete).not.toHaveBeenCalled();
   });
 
   it('updates content hash cache on move', async () => {

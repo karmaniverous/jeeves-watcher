@@ -109,9 +109,9 @@ describe.skipIf(!qdrantAvailable())(
       await expect(watcher.listFacets()).resolves.toMatchObject({
         facets: expect.any(Array) as unknown,
       });
-      // The harness runs no filesystem watcher: walk answers 503 not_available.
+      // The harness runs no filesystem watcher: walk answers 503 WATCHER_NOT_AVAILABLE.
       await expect(watcher.walk({ globs: ['**/*.md'] })).rejects.toMatchObject({
-        code: 'not_available',
+        code: 'WATCHER_NOT_AVAILABLE',
         status: 503,
       });
       await expect(
@@ -131,8 +131,9 @@ describe.skipIf(!qdrantAvailable())(
       expect(error).toBeInstanceOf(WatcherError);
       expect(error).toMatchObject({
         status: 401,
-        code: 'unauthorized',
-        message: 'Unauthorized',
+        code: 'WATCHER_UNAUTHORIZED',
+        message:
+          'A valid API key is required: send Authorization: Bearer <key>.',
       });
     });
 
@@ -205,8 +206,8 @@ describe.skipIf(!qdrantAvailable())(
       );
       expect(error).toMatchObject({
         status: 404,
-        code: 'source_not_indexed',
-        message: 'Source document not indexed',
+        code: 'WATCHER_SOURCE_NOT_INDEXED',
+        message: 'The source document is not indexed.',
       });
     });
 

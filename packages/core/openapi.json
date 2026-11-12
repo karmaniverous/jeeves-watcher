@@ -1140,7 +1140,7 @@
     "/search/facets/counts": {
       "post": {
         "operationId": "countFacets",
-        "description": "Count the values of payload fields over the documents matching a filter (each document once, not each chunk), or give { min, max } for a numeric or date field. Counts are approximate (Qdrant facet estimates); ranges are exact. `rules` keeps only documents of those rules. Each field needs a payload index (else 400). Fields are counted 4 at a time within a 10 s budget; past it the route answers 503 `not_available` naming the fields not counted. It also answers 503 until the `chunk_index` system index is ready, and with `rules` until `matched_rules` is.",
+        "description": "Count the values of payload fields over the documents matching a filter (each document once, not each chunk), or give { min, max } for a numeric or date field. Counts are approximate (Qdrant facet estimates); ranges are exact. `rules` keeps only documents of those rules. Each field needs a payload index (else 400). Fields are counted 4 at a time within a 10 s budget; past it the route answers 503 `WATCHER_NOT_AVAILABLE` naming the fields not counted. It also answers 503 until the `chunk_index` system index is ready, and with `rules` until `matched_rules` is.",
         "security": [
           {
             "bearer": []
@@ -1562,7 +1562,7 @@
     "/vcs/status": {
       "get": {
         "operationId": "getVcsStatus",
-        "description": "VCS state for all roots: enabled state, tracked files, last commit, remote status, commit circuit breaker state. Answers 404 `not_found` when version control is disabled (`vcs.enabled: false`).",
+        "description": "VCS state for all roots: enabled state, tracked files, last commit, remote status, commit circuit breaker state. Answers 404 `WATCHER_NOT_FOUND` when version control is disabled (`vcs.enabled: false`).",
         "security": [
           {
             "bearer": []
@@ -1734,7 +1734,7 @@
     "/vcs/history": {
       "get": {
         "operationId": "listVcsHistory",
-        "description": "Query change history by path or glob with optional date range. Answers 404 `not_found` when version control is disabled (`vcs.enabled: false`).",
+        "description": "Query change history by path or glob with optional date range. Answers 404 `WATCHER_NOT_FOUND` when version control is disabled (`vcs.enabled: false`).",
         "security": [
           {
             "bearer": []
@@ -1834,7 +1834,7 @@
     "/vcs/show": {
       "get": {
         "operationId": "showVcsFile",
-        "description": "Retrieve file content at a specific version. The reply is the raw file content; its content-type follows the file extension. Answers 404 `not_found` when version control is disabled (`vcs.enabled: false`).",
+        "description": "Retrieve file content at a specific version. The reply is the raw file content; its content-type follows the file extension. Answers 404 `WATCHER_NOT_FOUND` when version control is disabled (`vcs.enabled: false`).",
         "security": [
           {
             "bearer": []
@@ -1891,7 +1891,7 @@
     "/vcs/diff": {
       "get": {
         "operationId": "diffVcs",
-        "description": "Show what changed between two versions, or between a version and current. The reply is a unified diff. Answers 404 `not_found` when version control is disabled (`vcs.enabled: false`).",
+        "description": "Show what changed between two versions, or between a version and current. The reply is a unified diff. Answers 404 `WATCHER_NOT_FOUND` when version control is disabled (`vcs.enabled: false`).",
         "security": [
           {
             "bearer": []
@@ -1957,7 +1957,7 @@
     "/vcs/check-exclusion": {
       "get": {
         "operationId": "checkVcsExclusion",
-        "description": "Check whether a path is excluded from version tracking and why. Answers 404 `not_found` when version control is disabled (`vcs.enabled: false`).",
+        "description": "Check whether a path is excluded from version tracking and why. Answers 404 `WATCHER_NOT_FOUND` when version control is disabled (`vcs.enabled: false`).",
         "security": [
           {
             "bearer": []
@@ -2023,7 +2023,7 @@
     "/metadata": {
       "post": {
         "operationId": "setMetadata",
-        "description": "Set or update metadata on a document by file path or source reference. While the document is being processed the route waits at most 10 s for its lock, then answers 503 `not_available` with `Retry-After: 10`, nothing changed (retry).",
+        "description": "Set or update metadata on a document by file path or source reference. While the document is being processed the route waits at most 10 s for its lock, then answers 503 `WATCHER_NOT_AVAILABLE` with `Retry-After: 10`, nothing changed (retry).",
         "security": [
           {
             "bearer": []
@@ -2580,7 +2580,7 @@
     "/rules/reapply": {
       "post": {
         "operationId": "reapplyRules",
-        "description": "Re-apply inference rules to existing vector points. The route waits at most 10 s for each document lock; if one stays busy it answers 503 `not_available` with `Retry-After: 10`, and documents already updated keep their update (retry to finish).",
+        "description": "Re-apply inference rules to existing vector points. The route waits at most 10 s for each document lock; if one stays busy it answers 503 `WATCHER_NOT_AVAILABLE` with `Retry-After: 10`, and documents already updated keep their update (retry to finish).",
         "security": [
           {
             "bearer": []
@@ -2705,7 +2705,7 @@
     "/documents/delete": {
       "post": {
         "operationId": "deleteDocuments",
-        "description": "Delete source documents by reference or by Qdrant filter (at least one condition; constrained to points carrying source and no file_path). The route waits at most 10 s for each document lock; if one stays busy it answers 503 `not_available` with `Retry-After: 10`, and documents already deleted stay deleted (retry to finish).",
+        "description": "Delete source documents by reference or by Qdrant filter (at least one condition; constrained to points carrying source and no file_path). The route waits at most 10 s for each document lock; if one stays busy it answers 503 `WATCHER_NOT_AVAILABLE` with `Retry-After: 10`, and documents already deleted stay deleted (retry to finish).",
         "security": [
           {
             "bearer": []
@@ -2966,7 +2966,7 @@
     "/vcs/revert": {
       "post": {
         "operationId": "revertVcs",
-        "description": "Restore files from a historical commit (forward-only reversion). Answers 404 `not_found` when version control is disabled (`vcs.enabled: false`).",
+        "description": "Restore files from a historical commit (forward-only reversion). Answers 404 `WATCHER_NOT_FOUND` when version control is disabled (`vcs.enabled: false`).",
         "security": [
           {
             "bearer": []
@@ -3046,7 +3046,7 @@
     "/vcs/exclude": {
       "post": {
         "operationId": "excludeVcsPath",
-        "description": "Exclude a path from version history (VCS-only: it stays in search) or remove the exclusion. The glob is a gitignore pattern, so brackets are a character class: escape them to name a file literally (`Report \\[draft\\].docx`). Adding a pattern also untracks the tracked files it matches, in one commit (history stops for them; the files stay on disk and in search); `remove` does not restore that history. More than 100 files to untrack need `confirm: true` (else 409 `confirm_required` with `untracked`, nothing written). The route waits at most 30 s for the root's git lock, then answers 503 `not_available` with `Retry-After: 30`, nothing written. A glob outside an explicit `root` is 400; a glob under no VCS root is 404. Answers 404 `not_found` when version control is disabled (`vcs.enabled: false`).",
+        "description": "Exclude a path from version history (VCS-only: it stays in search) or remove the exclusion. The glob is a gitignore pattern, so brackets are a character class: escape them to name a file literally (`Report \\[draft\\].docx`). Adding a pattern also untracks the tracked files it matches, in one commit (history stops for them; the files stay on disk and in search); `remove` does not restore that history. More than 100 files to untrack need `confirm: true` (else 200 `{ confirmRequired: true, untracked }`, nothing written). The route waits at most 30 s for the root's git lock, then answers 503 `WATCHER_NOT_AVAILABLE` with `Retry-After: 30`, nothing written. A glob outside an explicit `root` is 400; a glob under no VCS root is 404. Answers 404 `WATCHER_NOT_FOUND` when version control is disabled (`vcs.enabled: false`).",
         "security": [
           {
             "bearer": []
@@ -3089,35 +3089,58 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "ok": {
-                      "type": "boolean",
-                      "const": true
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "ok": {
+                          "type": "boolean",
+                          "const": true
+                        },
+                        "file": {
+                          "type": "string"
+                        },
+                        "action": {
+                          "type": "string",
+                          "enum": [
+                            "added",
+                            "removed"
+                          ]
+                        },
+                        "untracked": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991
+                        }
+                      },
+                      "required": [
+                        "ok",
+                        "file",
+                        "action",
+                        "untracked"
+                      ],
+                      "additionalProperties": false
                     },
-                    "file": {
-                      "type": "string"
-                    },
-                    "action": {
-                      "type": "string",
-                      "enum": [
-                        "added",
-                        "removed"
-                      ]
-                    },
-                    "untracked": {
-                      "type": "integer",
-                      "minimum": 0,
-                      "maximum": 9007199254740991
+                    {
+                      "type": "object",
+                      "properties": {
+                        "confirmRequired": {
+                          "type": "boolean",
+                          "const": true
+                        },
+                        "untracked": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991
+                        }
+                      },
+                      "required": [
+                        "confirmRequired",
+                        "untracked"
+                      ],
+                      "additionalProperties": false
                     }
-                  },
-                  "required": [
-                    "ok",
-                    "file",
-                    "action",
-                    "untracked"
-                  ],
-                  "additionalProperties": false
+                  ]
                 }
               }
             }
@@ -3141,14 +3164,27 @@
       "ErrorBody": {
         "type": "object",
         "properties": {
+          "statusCode": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "code": {
+            "type": "string"
+          },
           "error": {
+            "type": "string"
+          },
+          "message": {
             "type": "string"
           }
         },
         "required": [
-          "error"
+          "statusCode",
+          "error",
+          "message"
         ],
-        "additionalProperties": {}
+        "additionalProperties": false
       }
     },
     "securitySchemes": {

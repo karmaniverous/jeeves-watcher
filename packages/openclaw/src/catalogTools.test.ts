@@ -22,6 +22,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   createCatalogTools,
   registerCatalogTool,
+  VCS_EXCLUDE_DESCRIPTION,
   WATCHER_TOOL_NAMES,
   WATCHER_TOOL_SELECTION,
 } from './catalogTools.js';
@@ -259,16 +260,24 @@ describe('tool behaviour', () => {
   it('reports an error reply as HTTP <status>: <body> (D31)', async () => {
     vi.stubGlobal('fetch', fetchMock);
     const body = {
-      error: 'Confirmation required',
-      code: 'confirm_required',
-      untracked: 150,
+      statusCode: 404,
+      code: 'WATCHER_NOT_FOUND',
+      error: 'Not Found',
+      message: 'The pattern is not excluded on this root.',
     };
-    respond(409, body);
+    respond(404, body);
     const result = await tool('watcher_exclude_vcs_path').execute('id', {
       glob: '/r/**',
+      remove: true,
     });
-    expect(JSON.stringify(result)).toContain('HTTP 409');
-    expect(JSON.stringify(result)).toContain('confirm_required');
+    expect(JSON.stringify(result)).toContain('HTTP 404');
+    expect(JSON.stringify(result)).toContain('WATCHER_NOT_FOUND');
+  });
+
+  it('tells the agent a confirmRequired reply changed nothing (0.22.0)', () => {
+    expect(VCS_EXCLUDE_DESCRIPTION).toContain(
+      'return { confirmRequired: true, untracked } and change nothing',
+    );
   });
 });
 

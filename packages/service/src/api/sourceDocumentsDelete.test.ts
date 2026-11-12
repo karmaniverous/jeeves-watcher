@@ -7,7 +7,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { DocumentLockTimeoutError } from '../processor/DocumentLocks';
 import type { ScrollPageResult } from '../vectorStore';
-import { RequestError } from './requestError';
+import { FilterRejected } from './errors';
 import { constrainToSources, sourcesFilter } from './sourceDeletion';
 import { deleteSourceDocuments } from './sourceDocumentsDelete';
 
@@ -83,6 +83,7 @@ function deps(points: FakePoint[]) {
       sources: { withLock } as never,
       enrichmentStore,
       issuesManager,
+      logger: { debug: vi.fn() },
     },
   };
 }
@@ -170,8 +171,8 @@ describe('deleteSourceDocuments', () => {
       { filter: { must: [{ key: 'k', match: { value: 1 } }] } },
       50,
     ).catch((e: unknown) => e);
-    expect(error).toBeInstanceOf(RequestError);
-    expect((error as RequestError).status).toBe(400);
+    expect(error).toBeInstanceOf(FilterRejected);
+    expect(error).toMatchObject({ statusCode: 400 });
     expect(t.withLock).not.toHaveBeenCalled();
     expect(t.vectorStore.delete).not.toHaveBeenCalled();
   });

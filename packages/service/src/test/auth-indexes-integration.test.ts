@@ -43,8 +43,11 @@ describe.skipIf(!qdrantAvailable())(
       const res = await call('/issues');
       expect(res.status).toBe(401);
       expect(await res.json()).toEqual({
-        code: 'unauthorized',
+        statusCode: 401,
+        code: 'WATCHER_UNAUTHORIZED',
         error: 'Unauthorized',
+        message:
+          'A valid API key is required: send Authorization: Bearer <key>.',
       });
     });
 

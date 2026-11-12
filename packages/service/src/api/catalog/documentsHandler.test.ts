@@ -3,6 +3,7 @@
  * Fastify inject tests for POST /documents: envelope 400s, per-document rejections (invalid_reference, unknown_source, rule_missing), 202 enqueue vs ?wait=true results, 503 without source support, and API key auth.
  */
 
+import { SERVER_ERROR_MESSAGE } from '@karmaniverous/jeeves/fastify';
 import type {
   DocumentRejectionError,
   DocumentResult,
@@ -120,7 +121,7 @@ describe('POST /documents: request validation', () => {
     const ctx = setup();
     const { status, body } = await post(ctx, payload);
     expect(status).toBe(400);
-    expect(body.details).toBeDefined();
+    expect(body.code).toBe('FST_ERR_VALIDATION');
     expect(ctx.queue.enqueue).not.toHaveBeenCalled();
   });
 
@@ -260,14 +261,18 @@ describe('POST /documents?wait=true', () => {
     });
   });
 
-  it('answers an unexpected processNow rejection with a generic 500', async () => {
+  it('answers an unexpected processNow rejection with a masked 500', async () => {
     const { status, body } = await post(
       setup({ processNow: () => Promise.reject(new Error('secret detail')) }),
       { documents: [doc(OK)] },
       '/documents?wait=true',
     );
     expect(status).toBe(500);
-    expect(body).toMatchObject({ code: 'internal_error' });
+    expect(body).toEqual({
+      statusCode: 500,
+      error: 'Internal Server Error',
+      message: SERVER_ERROR_MESSAGE,
+    });
     expect(JSON.stringify(body)).not.toContain('secret detail');
   });
 });
@@ -276,10 +281,13 @@ describe('POST /documents: availability and auth', () => {
   it.each([
     ['no notify queue', { queue: false }],
     ['a file-only processor (adapted)', { ops: false }],
-  ])('returns 503 not_available with %s', async (_label, options) => {
+  ])('returns 503 WATCHER_NOT_AVAILABLE with %s', async (_label, options) => {
     const res = await post(setup(options), { documents: [doc(OK)] });
     expect(res.status).toBe(503);
-    expect(res.body).toMatchObject({ code: 'not_available' });
+    expect(res.body).toMatchObject({
+      code: 'WATCHER_NOT_AVAILABLE',
+      message: 'Source documents are not available on this instance.',
+    });
   });
 
   it('requires the API key when one is configured', async () => {

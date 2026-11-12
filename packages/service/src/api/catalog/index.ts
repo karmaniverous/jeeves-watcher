@@ -6,7 +6,9 @@
 import type { CatalogHandlers } from '@karmaniverous/jeeves/fastify';
 import { standardHandlers } from '@karmaniverous/jeeves/fastify';
 import type { WatcherCatalog } from '@karmaniverous/jeeves-watcher-core';
+import type pino from 'pino';
 
+import { routeNotFound } from '../apiHooks';
 import type { GatedEntryName } from '../featureGates';
 import {
   type CatalogConfigApplyDeps,
@@ -49,7 +51,6 @@ import {
   type CatalogMetadataDeps,
   createCatalogMetadataHandler,
 } from './metadataHandler';
-import { notFoundBody } from './notFoundBody';
 import {
   type CatalogPointsDeleteDeps,
   createCatalogPointsDeleteHandler,
@@ -100,6 +101,11 @@ import { withCatalogCache } from './withCatalogCache';
 
 /** Dependencies for every catalog entry's handler. */
 export interface CreateCatalogHandlersOptions {
+  /**
+   * Where the standard `status` and `configApply` handlers log their
+   * failures (the app's Fastify runs with `logger: false`).
+   */
+  logger: Pick<pino.Logger, 'error'>;
   /** `status` entry dependencies. */
   status: CatalogStatusDeps;
   /** `config` entry dependencies. */
@@ -170,18 +176,18 @@ export function createVcsCatalogHandlers(deps: CatalogVcsDeps): GatedHandlers {
 }
 
 /**
- * The stub of a gated entry while its feature is off: the not-found 404 an
- * unregistered route sends. The feature gate answers every such request
- * before the route runs, so the stub only keeps the handler map total.
+ * The stub of a gated entry while its feature is off: `RouteNotFound`, the
+ * not-found 404 an unregistered route sends. The feature gate answers every
+ * such request before the route runs, so the stub only keeps the handler map
+ * total.
  *
  * @returns The stub handler.
  */
 function gatedOff() {
-  return (_input: unknown, request: { method: string; url: string }) =>
-    Promise.resolve({
-      status: 404 as const,
-      body: notFoundBody(request.method, request.url),
-    });
+  return (
+    _input: unknown,
+    request: { method: string; url: string },
+  ): Promise<never> => Promise.reject(routeNotFound(request));
 }
 
 /**
@@ -211,11 +217,14 @@ export function createCatalogHandlers(
   options: CreateCatalogHandlersOptions,
 ): CatalogHandlers<WatcherCatalog> {
   const ttl = options.cacheTtlMs;
-  const standard = standardHandlers({
-    status: createCatalogStatusSource(options.status),
-    config: createCatalogConfigSource(options.config),
-    configApply: createCatalogConfigApplySource(options.configApply),
-  });
+  const standard = standardHandlers(
+    {
+      status: createCatalogStatusSource(options.status),
+      config: createCatalogConfigSource(options.config),
+      configApply: createCatalogConfigApplySource(options.configApply),
+    },
+    { logger: options.logger },
+  );
 
   return {
     status: withCatalogCache('status', ttl, standard.status),

@@ -1,6 +1,6 @@
 /**
  * @module test/wire/departures
- * Approved 0.21.0 wire departures (spec Design 2), by scenario: each removes from a received record exactly what its spec item added, so the rest must still match the 0.20.0 baseline. Pure.
+ * Approved 0.21.0 wire departures (spec Design 2) and the 0.22.0 health-error text, by scenario: each removes from a received record exactly what its spec item added, so the rest must still match the 0.20.0 baseline. Pure.
  *
  * A departure fails when the key it strips is absent, so a departure that
  * no longer happens is noticed and removed.
@@ -247,8 +247,36 @@ const EXCLUDE_RESPONSE: WireDeparture = {
   }),
 };
 
+/** What jeeves 0.11 sends as `health.error` when the health check throws. */
+const HEALTH_CHECK_FAILED = 'The health check failed.';
+
+/** What the 0.20.0 health check sent instead: the stub's own error text. */
+const STUB_HEALTH_ERROR = 'qdrant down';
+
+/**
+ * A failed health check: jeeves 0.11 sends a fixed `health.error` and logs
+ * the error (spec 0.22.0 Design 5; the baseline recorded the error text).
+ */
+const HEALTH_ERROR_TEXT: WireDeparture = {
+  reason:
+    '0.22.0 (jeeves 0.11, spec 5d.3): a failed health check sends health.error "The health check failed.", never the error text',
+  strip: (received) => {
+    const body = received.body as { health?: { error?: Json } };
+    if (body.health?.error !== HEALTH_CHECK_FAILED)
+      return { record: received, stripped: 0 };
+    return {
+      record: {
+        ...received,
+        body: { ...body, health: { error: STUB_HEALTH_ERROR } },
+      },
+      stripped: 1,
+    };
+  },
+};
+
 /** Approved departures by scenario name. */
 export const WIRE_DEPARTURES: Partial<Record<string, WireDeparture>> = {
+  'status degraded': HEALTH_ERROR_TEXT,
   status: {
     reason:
       'P5 B2: GET /status health gains vcs (D86); P11 B5b: health gains changeSource (D133, D157); P13a: health gains indexCheck (D197), Design 2',

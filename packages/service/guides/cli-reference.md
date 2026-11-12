@@ -71,7 +71,7 @@ jeeves-watcher config [jsonpath] [-p <port>]
 
 Always addresses `127.0.0.1` (there is no `--host` option).
 
-**Output:** the JSON response of `GET /config` (`{ "result": [...], "count": <n> }`). On failure prints `Config query failed: <code>: <message>` (for example `Config query failed: invalid_request: ...`; see [Output and Errors](#output-and-errors)) and exits with code `1`.
+**Output:** the JSON response of `GET /config` (`{ "result": [...], "count": <n> }`). On failure prints `Config query failed: <code>: <message>` (for example `Config query failed: JEEVES_CONFIG_QUERY_INVALID: Unclosed ( at character 2`; see [Output and Errors](#output-and-errors)) and exits with code `1`.
 
 **Examples:**
 
@@ -194,7 +194,7 @@ All commands in this section accept `--api-key <key>` (see [Authentication](#aut
 
 Every domain-specific command is one SDK call with a 60 s timeout, longer than any wait inside the service (the root git lock waits 30 s, a document lock 10 s), so a busy service answers `503` before the CLI gives up. It prints the JSON response body, pretty-printed, on stdout (`helpers` prints text; `vcs show` and `vcs diff` print the raw file or diff). Errors go to stderr as `<code>: <message>` and set exit code `1`:
 
-- An HTTP error prints the server's error code and message (for example `invalid_request: Validation failed: Exactly one of path or source is required when scope is "path"`). A body without a code (an older server, a proxy) prints `http_<status>`.
+- An HTTP error prints the server's error code and message (for example `WATCHER_NOT_FOUND: The file or directory does not exist.` for `reindex --scope path` with a missing path). A body without a code (an unexpected server failure, a proxy) prints `http_<status>`, e.g. `http_500: The server could not complete the request.`
 - A `401` adds a line: `The watcher API requires an API key. Provide it via ...` when no key was sent, or `The watcher API rejected the API key. Check ... against the service's api.apiKey.` when one was.
 - A request the SDK refuses before sending prints `invalid_request: ...`; a reply that does not match the expected shape prints `invalid_response: ...`.
 - A connection failure prints `network_error: <operation> request failed: <reason>` (for example `fetch failed`), and a timeout `timeout: <operation> timed out after 60000 ms`.
@@ -340,7 +340,7 @@ Version history of the watched files (`/vcs/*`). Every subcommand takes `-p, --p
 | `vcs check <path>` | `GET /vcs/check-exclusion` | none | JSON |
 | `vcs exclude <glob>` | `POST /vcs/exclude` | `--remove`, `--root <root>`, `--confirm` | JSON |
 
-`vcs exclude` takes one gitignore pattern: escape brackets to name a file literally (`"Report \\[draft\\].docx"`). Adding a pattern untracks the files it matches, ending their history; more than 100 files need `--confirm` (else `confirm_required: ...`, nothing written). A busy root answers `not_available: ...` after 30 s: run the command again later.
+`vcs exclude` takes one gitignore pattern: escape brackets to name a file literally (`"Report \\[draft\\].docx"`). Adding a pattern untracks the files it matches, ending their history; more than 100 files need `--confirm`: without it nothing is written, the command prints `Not excluded: <n> files would be untracked. Repeat with --confirm.` to stderr and exits with code `1`. A busy root answers `WATCHER_NOT_AVAILABLE: Version control is busy on this root; retry after 30 s.` after 30 s: run the command again later.
 
 ```bash
 jeeves-watcher vcs history "docs/**" --since 2026-10-01 --limit 5
@@ -365,7 +365,7 @@ jeeves-watcher helpers [-p <port>] [-H <host>]
 | Code | Meaning |
 | --- | --- |
 | `0` | Success |
-| `1` | Error (invalid config, connection failure, HTTP error, invalid arguments) |
+| `1` | Error (invalid config, connection failure, HTTP error, invalid arguments), or `vcs exclude` asked for `--confirm` and wrote nothing |
 
 ---
 

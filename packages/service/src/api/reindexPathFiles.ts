@@ -1,6 +1,6 @@
 /**
  * @module api/reindexPathFiles
- * Resolves the file list of a path-scoped reindex: each target must be watched and not gitignored; directories expand to their watched files. Bad targets throw RequestError (403/404/400). fs I/O (stat, glob).
+ * Resolves the file list of a path-scoped reindex: each target must be watched and not gitignored; directories expand to their watched files. Bad targets throw `PathNotWatched` (403), `PathNotFound` (404) or `PathNotFileOrDirectory` (400). fs I/O (stat, glob).
  */
 
 import type { Stats } from 'node:fs';
@@ -14,8 +14,8 @@ import { createIsGitignored, type GitignoreFilter } from '../gitignore';
 import { isPathWatched } from '../util/isPathWatched';
 import { isPathWithin } from '../util/isPathWithin';
 import { normalizeSlashes } from '../util/normalizeSlashes';
+import { PathNotFileOrDirectory, PathNotFound, PathNotWatched } from './errors';
 import { listFilesFromGlobs } from './fileScan';
-import { invalidRequest, RequestError } from './requestError';
 
 /**
  * Collect and deduplicate files for a path-scoped reindex.
@@ -27,9 +27,10 @@ import { invalidRequest, RequestError } from './requestError';
  * @param config - Service config (watch paths and ignores).
  * @param gitignoreFilter - Gitignore filter, if any.
  * @returns Distinct files to reindex.
- * @throws {@link RequestError}: `403 path_not_watched` when a target is
- *   outside watch scope or gitignored, `404 not_found` when it does not
- *   exist, `400 invalid_request` when it is neither a file nor a directory.
+ * @throws `PathNotWatched` (403) when a target is outside watch scope or
+ *   gitignored, `PathNotFound` (404) when it does not exist,
+ *   `PathNotFileOrDirectory` (400) when it is neither a file nor a
+ *   directory.
  */
 export async function collectPathFiles(
   pathArray: string[],
@@ -63,10 +64,10 @@ async function getPathFileList(
     config.watch.ignored,
   );
   if (!watched) {
-    throw notWatched(`Path is outside watch scope: ${targetPath}`);
+    throw new PathNotWatched();
   }
   if (gitignoreFilter?.isIgnored(targetPath)) {
-    throw notWatched(`Path is gitignored: ${targetPath}`);
+    throw new PathNotWatched();
   }
 
   const stats = await statTarget(targetPath);
@@ -85,15 +86,11 @@ async function getPathFileList(
     );
   }
 
-  throw invalidRequest(`Path is neither a file nor a directory: ${targetPath}`);
+  throw new PathNotFileOrDirectory();
 }
 
-/** A `403 path_not_watched` error. */
-const notWatched = (message: string): RequestError =>
-  new RequestError('path_not_watched', message);
-
 /**
- * Stat a reindex target; a missing one is `404 not_found`.
+ * Stat a reindex target; a missing one is `PathNotFound` (404).
  *
  * @param targetPath - The requested path.
  * @returns Its stats.
@@ -104,7 +101,7 @@ async function statTarget(targetPath: string): Promise<Stats> {
   } catch (error) {
     const { code } = error as { code?: unknown };
     if (code === 'ENOENT' || code === 'ENOTDIR') {
-      throw new RequestError('not_found', `Path not found: ${targetPath}`);
+      throw new PathNotFound();
     }
     throw error;
   }

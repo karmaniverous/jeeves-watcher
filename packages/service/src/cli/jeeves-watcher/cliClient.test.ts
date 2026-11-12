@@ -16,6 +16,14 @@ import {
 } from './cliClient';
 import { registerCustomCommands } from './customCommands';
 
+/** The watcher's 401 body (0.22.0). */
+const UNAUTHORIZED_BODY = {
+  statusCode: 401,
+  code: 'WATCHER_UNAUTHORIZED',
+  error: 'Unauthorized',
+  message: 'A valid API key is required: send Authorization: Bearer <key>.',
+};
+
 const SECRET = 'unit-test-secret-key';
 
 const fetchMock =
@@ -132,20 +140,20 @@ describe('CLI commands', () => {
   });
 
   it('prints <code>: <message> and the rejected-key hint on 401, exits 1, never prints the key', async () => {
-    respond(401, { error: 'Unauthorized', code: 'unauthorized' });
+    respond(401, UNAUTHORIZED_BODY);
     const output = await runCli(['scan', '--api-key', SECRET]);
     expect(output).toBe(
-      `unauthorized: Unauthorized\n${unauthorizedHint(true)}`,
+      `WATCHER_UNAUTHORIZED: A valid API key is required: send Authorization: Bearer <key>.\n${unauthorizedHint(true)}`,
     );
     expect(output).not.toContain(SECRET);
     expect(process.exitCode).toBe(1);
   });
 
   it('prints the missing-key hint on 401 without a key', async () => {
-    respond(401, { error: 'Unauthorized', code: 'unauthorized' });
+    respond(401, UNAUTHORIZED_BODY);
     const output = await runCli(['issues']);
     expect(output).toBe(
-      `unauthorized: Unauthorized\n${unauthorizedHint(false)}`,
+      `WATCHER_UNAUTHORIZED: A valid API key is required: send Authorization: Bearer <key>.\n${unauthorizedHint(false)}`,
     );
   });
 

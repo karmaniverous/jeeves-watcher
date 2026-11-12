@@ -13,11 +13,11 @@ import type pino from 'pino';
 import type { JeevesWatcherConfig } from '../../config/types';
 import type { WatcherProcessor } from '../../processor';
 import { API_LOCK_WAIT_MS } from '../../processor/DocumentLocks';
+import { capArg, MetadataInvalid, SourceNotIndexed } from '../errors';
 import {
   validateMetadataPayload,
   validateSourceMetadataPayload,
 } from '../handlers/metadataValidation';
-import { invalidRequest, RequestError } from '../requestError';
 import type { Entry } from './catalogEntry';
 import { wrapCatalogHandler } from './wrapCatalogHandler';
 
@@ -35,13 +35,26 @@ export interface CatalogMetadataDeps {
   lockWaitMs?: number;
 }
 
-/** The `404 source_not_indexed` error. */
-const notIndexed = () =>
-  new RequestError('source_not_indexed', 'Source document not indexed');
+/** The `404 WATCHER_SOURCE_NOT_INDEXED` error. */
+const notIndexed = () => new SourceNotIndexed();
 
-/** The `400 invalid_request` error for failed metadata validation. */
-const invalid = (validation: { error: string; details?: unknown }) =>
-  invalidRequest(validation.error, { details: validation.details });
+/**
+ * The `MetadataInvalid` (400) error: the property-level summary of the
+ * caller's metadata, capped, in its message (D204 (4)).
+ */
+const invalid = (validation: {
+  details: readonly { property: string; expected: string; received: string }[];
+}) =>
+  new MetadataInvalid(
+    capArg(
+      validation.details
+        .map(
+          (d) =>
+            `${d.property}: expected ${d.expected}, received ${d.received}`,
+        )
+        .join('; '),
+    ),
+  );
 
 /**
  * Enrich a source document. The designated rule comes from the stored
@@ -53,7 +66,7 @@ const invalid = (validation: { error: string; details?: unknown }) =>
  * @param ref - The exact `<name>://<id>` reference.
  * @param metadata - Enrichment metadata.
  * @returns The response body.
- * @throws RequestError `404 source_not_indexed` or `400 invalid_request`.
+ * @throws `SourceNotIndexed` (404) or `MetadataInvalid` (400).
  */
 async function updateSourceMetadata(
   deps: CatalogMetadataDeps,
@@ -80,8 +93,9 @@ async function updateSourceMetadata(
 /**
  * Create the catalog handler for `POST /metadata` (`path` or `source`).
  * Values that do not match the declared property types are
- * `400 invalid_request` with per-property `details`. A document whose lock
- * is not free within 10 s answers `503 not_available` with
+ * `400 WATCHER_INVALID_REQUEST`, the failing properties in the message. A
+ * document whose lock is not free within 10 s answers
+ * `503 WATCHER_NOT_AVAILABLE` with
  * `Retry-After: 10`, and nothing is changed (D118).
  *
  * @param deps - Handler dependencies.

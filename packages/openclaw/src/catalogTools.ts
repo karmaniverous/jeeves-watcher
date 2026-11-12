@@ -35,7 +35,7 @@ import { getApiKey, getApiUrl } from './helpers.js';
 type EntryName = WatcherCatalog['entries'][number]['name'];
 
 /** `watcher_exclude_vcs_path` description (D103, D137). */
-export const VCS_EXCLUDE_DESCRIPTION = `Exclude a path from version history (VCS-only: it stays in search), or remove the exclusion. Adding untracks the files the pattern matches, ending their history; more than ${String(VCS_EXCLUDE_CONFIRM_THRESHOLD)} files need confirm: true. A timeout does not cancel the exclusion: check the outcome with watcher_check_vcs_exclusion before retrying.`;
+export const VCS_EXCLUDE_DESCRIPTION = `Exclude a path from version history (VCS-only: it stays in search), or remove the exclusion. Adding untracks the files the pattern matches, ending their history. Without confirm: true, more than ${String(VCS_EXCLUDE_CONFIRM_THRESHOLD)} files return { confirmRequired: true, untracked } and change nothing: check the count with the user, then repeat with confirm: true. A timeout does not cancel the exclusion: check the outcome with watcher_check_vcs_exclusion before retrying.`;
 
 /** `watcher_check_vcs_exclusion` description (0.21.0, spec B4). */
 export const VCS_CHECK_DESCRIPTION =

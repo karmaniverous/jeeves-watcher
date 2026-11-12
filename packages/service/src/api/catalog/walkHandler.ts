@@ -9,8 +9,8 @@ import type pino from 'pino';
 
 import { normalizeSlashes } from '../../util/normalizeSlashes';
 import type { FileSystemWatcher } from '../../watcher';
+import { ScanInProgress, WatcherNotReady } from '../errors';
 import { getWatchRootBases } from '../fileScan';
-import { RequestError } from '../requestError';
 import type { Entry } from './catalogEntry';
 import { wrapCatalogHandler } from './wrapCatalogHandler';
 
@@ -26,8 +26,8 @@ export interface CatalogWalkDeps {
 
 /**
  * Create the catalog handler for `POST /walk`. Without a filesystem watcher
- * it answers `503 not_available`; during the initial scan,
- * `503 scan_in_progress`.
+ * it answers `503 WATCHER_NOT_AVAILABLE`; during the initial scan,
+ * `503 WATCHER_SCAN_IN_PROGRESS`.
  *
  * @param deps - Handler dependencies.
  * @returns The catalog handler.
@@ -41,16 +41,11 @@ export function createCatalogWalkHandler(
       const fileSystemWatcher = deps.getFileSystemWatcher?.();
 
       if (!fileSystemWatcher) {
-        throw new RequestError('not_available', 'Watcher unavailable', {
-          message: 'Filesystem watcher is not initialized.',
-        });
+        throw new WatcherNotReady();
       }
 
       if (!fileSystemWatcher.isReady) {
-        throw new RequestError('scan_in_progress', 'Scan in progress', {
-          message:
-            'Initial filesystem scan is still active. Try again after scan completes.',
-        });
+        throw new ScanInProgress();
       }
 
       const watchedFiles = fileSystemWatcher.getWatchedFiles();

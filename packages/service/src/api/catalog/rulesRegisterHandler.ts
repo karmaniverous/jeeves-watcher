@@ -9,7 +9,7 @@ import type pino from 'pino';
 import type { InferenceRule } from '../../config/types';
 import type { VirtualRuleStore } from '../../rules/virtualRules';
 import { normalizeError } from '../../util/normalizeError';
-import { invalidRequest } from '../requestError';
+import { capArg, RulesInvalid } from '../errors';
 import type { Entry } from './catalogEntry';
 import { wrapCatalogHandler } from './wrapCatalogHandler';
 
@@ -25,8 +25,9 @@ export interface CatalogRuleDeps {
 
 /**
  * Create the catalog handler for `POST /rules/register`. Duplicate names or
- * a `match` schema that does not compile are `400 invalid_request` (nothing
- * is registered).
+ * a `match` schema that does not compile are `RulesInvalid`
+ * (`400 WATCHER_INVALID_REQUEST`, the validation summary in the message,
+ * capped; D204 (4)); nothing is registered.
  *
  * @param deps - Handler dependencies.
  * @returns The catalog handler.
@@ -43,9 +44,7 @@ export function createCatalogRulesRegisterHandler(
       try {
         deps.virtualRuleStore.register(source, rules);
       } catch (error) {
-        throw invalidRequest('Invalid rules', {
-          message: normalizeError(error).message,
-        });
+        throw new RulesInvalid(capArg(normalizeError(error).message));
       }
       deps.onRulesChanged();
 

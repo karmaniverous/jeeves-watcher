@@ -270,7 +270,7 @@ The watcher provides a REST API (default port: 1936):
 | `/points/delete` | POST | Delete points matching a Qdrant filter (`{ filter }`) |
 | `/vcs/*` | GET/POST | Version control: `status`, `history`, `show`, `diff`, `check-exclusion`, `revert`, `exclude` (see the [Version Control guide](packages/service/guides/version-control.md)) |
 
-Errors carry `{ error, code, message?, details? }`; the HTTP status follows from `code`, with one exception: a `prune` reindex without a vector store answers `400 not_available` (see [Error Handling](packages/service/guides/api-reference.md#error-handling)). Every route is an entry of the endpoint catalog (`WATCHER_CATALOG` in watcher-core), which validates its request (an invalid one is `400 invalid_request` with one `details` entry per issue) and its response: a response that doesn't match its schema is a `500` that only a server bug produces.
+Errors are Fastify's standard error body, `{ statusCode, code?, error, message }`: `code` is a `WATCHER_*` code (`WATCHER_ERROR_CODES` in watcher-core, each with one status), a jeeves `JEEVES_*` code or a Fastify `FST_ERR_*` code, and an unexpected failure is a `500` with no `code` and a fixed message (see [Error Handling](packages/service/guides/api-reference.md#error-handling); 0.21 codes and their successors are in [Upgrading](packages/service/guides/upgrading.md#0220)). Every route is an entry of the endpoint catalog (`WATCHER_CATALOG` in watcher-core), which validates its request (an invalid one is `400 FST_ERR_VALIDATION`, its `message` listing the failures) and its response: a response that doesn't match its schema is a `500 JEEVES_RESPONSE_VALIDATION` that only a server bug produces.
 
 ### Example: Search
 

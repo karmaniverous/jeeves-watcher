@@ -263,13 +263,14 @@ On HTTP `429` the limiter pauses **every** caller, then retries. The pause is th
 - A requested delay of up to **max(`maxBackoffMs`, 65 seconds)** is waited **in full** (never shortened, so the retry is not throttled again). With the default `maxBackoffMs` (60 seconds) that ceiling is 65 seconds, enough for any per-minute quota.
 - A requested delay **longer** than that ceiling (a daily quota, say) fails the request at once, and every other caller fails fast until the pause has fully passed.
 - **Indexing** (watch, notify, reindex): up to 7 attempts per request (63 seconds of backoff between them, past one quota minute), then the document gets an `embedding_error` issue.
-- **Search**: up to 3 attempts and at most 10 seconds of waiting (or at once on a delay over the ceiling), then `POST /search` answers `503` with a `Retry-After` header instead of `500`:
+- **Search**: up to 3 attempts and at most 10 seconds of waiting (or at once on a delay over the ceiling), then `POST /search` answers `503` (with a `Retry-After` header when the back-off is known) instead of `500`; the provider's error is logged:
 
 ```json
 {
-  "code": "embedding_unavailable",
-  "error": "EmbeddingUnavailableError",
-  "message": "Embedding provider still rate-limited after 3 attempts: ..."
+  "statusCode": 503,
+  "code": "WATCHER_EMBEDDING_UNAVAILABLE",
+  "error": "Service Unavailable",
+  "message": "The embedding provider is unavailable; retry later."
 }
 ```
 
@@ -410,9 +411,9 @@ Behaviour:
 - Indexes are never dropped or recreated. If a field is already indexed with a different type, or with the same type but different `isTenant` / `isPrincipal` flags, the watcher logs a warning and leaves it alone (drop the index in Qdrant and restart to apply the configured one).
 - `source` and `source_rule` always get `keyword` indexes and may not be listed here: an entry for either fails config validation.
 - **System indexes** (v0.21.0+) are created whatever `payloadIndexes` says, in the background after startup (startup does not wait for them, and a start that finds them already built creates nothing):
-  - `chunk_index` (`integer`): lets [`POST /search/facets/counts`](./api-reference.md#post-searchfacetscounts) count documents rather than chunks. Until it is `ready`, that route answers `503 not_available`.
+  - `chunk_index` (`integer`): lets [`POST /search/facets/counts`](./api-reference.md#post-searchfacetscounts) count documents rather than chunks. Until it is `ready`, that route answers `503 WATCHER_NOT_AVAILABLE`.
   - `file_path` (`keyword`): lets a metadata change write a document's chunks with one filtered write. Until it is `ready`, writes address chunks by ID.
-  - `matched_rules` (`keyword`): lets facet counts be scoped by `rules`. Until it is `ready`, a counts request with `rules` answers `503 not_available` naming it.
+  - `matched_rules` (`keyword`): lets facet counts be scoped by `rules`. Until it is `ready`, a counts request with `rules` answers `503 WATCHER_NOT_AVAILABLE` naming it.
 
   `GET /status` reports each under `health.collection.systemIndexes`: `building`, `ready`, `conflict` (the field already has an index of another type, which is left alone; drop it and restart to get the system index) or `failed` (creation failed; retried at the next start). A `conflict` or `failed` system index leaves what needs it unavailable (or falling back) until it is fixed.
 

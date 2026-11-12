@@ -68,11 +68,7 @@ export function createCatalogVcsHistoryHandler(
       const { glob, since, until, limit: limitStr } = input.query;
 
       const limit = limitStr ? parseInt(limitStr, 10) : 20;
-      const resolved = requireGlobRoots(
-        deps.coordinator,
-        glob,
-        'No VCS-enabled watch root matches the given glob',
-      );
+      const resolved = requireGlobRoots(deps.coordinator, glob);
 
       const allEntries: HistoryEntry[] = [];
 

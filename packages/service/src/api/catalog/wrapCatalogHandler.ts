@@ -1,10 +1,6 @@
 /**
  * @module api/catalog/wrapCatalogHandler
- * Generic error-handling wrapper for catalog handlers (`CatalogHandler<E>`
- * from `@karmaniverous/jeeves/fastify`): a thrown `RequestError` becomes its
- * `errorResult` (code and status); anything else is logged and answered
- * with a generic `internal_error`. The wrapped function returns its body
- * instead of sending a Fastify reply.
+ * Boundary mapping for catalog handlers (0.22.0, Design 2): the internal errors a caller should see become their `defineError` classes (`toCallerError`); every other error is rethrown unchanged, so the jeeves catalog scope masks and logs it. `wrapCatalogHandler` adds the 200 status to a handler function's body.
  */
 
 import type { CatalogEntry } from '@karmaniverous/jeeves/catalog';
@@ -18,18 +14,10 @@ import type {
 import type { FastifyRequest } from 'fastify';
 import type pino from 'pino';
 
-import {
-  API_LOCK_RETRY_AFTER_S,
-  DocumentLockTimeoutError,
-} from '../../processor/DocumentLocks';
-import { normalizeError } from '../../util/normalizeError';
-import { RequestError } from '../requestError';
-import {
-  busyResult,
-  type CatalogErrorResult,
-  errorResult,
-  internalErrorResult,
-} from './errorResult';
+import { EmbeddingUnavailableError } from '../../embedding/rateLimitError';
+import { DocumentLockTimeoutError } from '../../processor/DocumentLocks';
+import { LockWaitTimeoutError } from '../../vcs/RootGitLock';
+import { documentBusy, embeddingUnavailable, vcsBusy } from '../errors';
 
 /** Extract a catalog entry's success body type from its `HandlerResult`. */
 type SuccessBody<E extends CatalogEntry> = Extract<
@@ -46,55 +34,52 @@ export interface CatalogSuccess<E extends CatalogEntry> {
 }
 
 /**
- * Turn a thrown error into a catalog error result: a {@link RequestError}
- * (bad client input) becomes its code and text, logged at `debug`; a
- * {@link DocumentLockTimeoutError} (the document is being processed, D118)
- * becomes `503 not_available` with `Retry-After: 10`, logged as a warning
- * naming the route and the document key; anything else is logged at
- * `error` and becomes a generic `internal_error` (the error itself is never
- * sent).
+ * Map an internal error a caller should see to its `defineError` class,
+ * logging it at `warn` with the route label: a
+ * {@link DocumentLockTimeoutError} (D118) to `DocumentBusy`
+ * (`Retry-After: 10`), a {@link LockWaitTimeoutError} (D102) to `VcsBusy`
+ * (`Retry-After: 30`), an {@link EmbeddingUnavailableError} to
+ * `EmbeddingUnavailable` (`Retry-After` when the back-off is known). Any
+ * other error is returned unchanged (jeeves masks and logs it).
  *
- * @param error - Anything thrown by a catalog handler function.
+ * @param error - Anything thrown by a catalog handler.
  * @param logger - Logger instance.
- * @param label - Label for the log message.
- * @returns The error result.
+ * @param label - Route label for the log line.
+ * @returns The error to throw.
  */
-export function catalogErrorFromThrown(
+export function toCallerError(
   error: unknown,
   logger: pino.Logger,
   label: string,
-): CatalogErrorResult {
-  if (error instanceof RequestError) {
-    logger.debug({ err: error }, `${label} rejected`);
-    return errorResult(error.code, error.message, error.extras);
-  }
+): unknown {
   if (error instanceof DocumentLockTimeoutError) {
     logger.warn(
       { route: label, key: error.key, waitMs: error.waitMs },
       `${label} gave up waiting for a document lock`,
     );
-    return busyResult(
-      `The document is being processed; retry after ${String(API_LOCK_RETRY_AFTER_S)} s`,
-      API_LOCK_RETRY_AFTER_S,
-    );
+    return documentBusy();
   }
-  logger.error({ err: normalizeError(error) }, `${label} failed`);
-  return internalErrorResult();
+  if (error instanceof LockWaitTimeoutError) {
+    logger.warn({ err: error }, `${label} gave up waiting for RootGitLock`);
+    return vcsBusy();
+  }
+  if (error instanceof EmbeddingUnavailableError) {
+    logger.warn({ err: error }, `${label}: embedding unavailable`);
+    return embeddingUnavailable(error.retryAfterMs);
+  }
+  return error;
 }
 
 /**
- * Wrap a catalog handler function with standardised error handling. Every
- * success is sent with status 200 (every entry handled this way in the
- * #281 catalog slice succeeds with 200); a handler whose success carries a
- * different status, or whose error path needs its own headers, is written
- * directly instead (e.g. `render`'s source branch, always
- * `Cache-Control: no-cache`) and may reuse {@link catalogErrorFromThrown}.
+ * Wrap a catalog handler function: its body is sent with status 200, and
+ * a thrown error goes through {@link toCallerError} and is rethrown for
+ * the jeeves catalog scope to answer.
  *
- * @param fn - The handler function; throw a {@link RequestError} for a
- *   client-input error.
+ * @param fn - The handler function; throw a `defineError` class for an
+ *   error the caller should see.
  * @param logger - Logger instance.
- * @param label - Label for error log messages.
- * @returns A `CatalogHandler` that never throws.
+ * @param label - Label for log lines.
+ * @returns A `CatalogHandler`.
  */
 export function wrapCatalogHandler<E extends CatalogEntry>(
   fn: (
@@ -113,7 +98,7 @@ export function wrapCatalogHandler<E extends CatalogEntry>(
         ...(headers ? { headers } : {}),
       };
     } catch (error) {
-      return catalogErrorFromThrown(error, logger, label);
+      throw toCallerError(error, logger, label);
     }
   };
 }

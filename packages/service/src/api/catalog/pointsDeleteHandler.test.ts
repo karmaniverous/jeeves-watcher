@@ -1,6 +1,6 @@
 /**
  * @module api/catalog/pointsDeleteHandler.test
- * POST /points/delete over the catalog route: deletes the points a filter matches; a missing or non-object filter (the catalog's validation), or one Qdrant rejects, is 400 invalid_request with nothing deleted.
+ * POST /points/delete over the catalog route: deletes the points a filter matches; a missing or non-object filter (the catalog's validation), or one Qdrant rejects (`FilterRejected`), is 400 with nothing deleted.
  */
 
 import Fastify from 'fastify';
@@ -78,21 +78,23 @@ describe('POST /points/delete', () => {
     ['no body', undefined],
     ['a non-object filter', { filter: 'x' }],
     ['an array filter', { filter: [] }],
-  ])('rejects %s with 400 invalid_request', async (_label, body) => {
+  ])('rejects %s with 400 FST_ERR_VALIDATION', async (_label, body) => {
     const res = await invoke(page(['p1']), body);
     expect(res.status).toBe(400);
-    expect(res.body).toMatchObject({ code: 'invalid_request' });
+    expect(res.body).toMatchObject({ code: 'FST_ERR_VALIDATION' });
     expect(res.scrollMock).not.toHaveBeenCalled();
     expect(res.deleteMock).not.toHaveBeenCalled();
   });
 
-  it('maps a Qdrant filter rejection to 400 invalid_request', async () => {
+  it('maps a Qdrant filter rejection to 400 WATCHER_INVALID_REQUEST', async () => {
     const res = await invoke(rejected, { filter: { must: 'nope' } });
     expect(res.status).toBe(400);
     expect(res.body).toEqual({
-      code: 'invalid_request',
-      error: 'Invalid filter',
-      message: 'Format error in JSON body',
+      statusCode: 400,
+      code: 'WATCHER_INVALID_REQUEST',
+      error: 'Bad Request',
+      message:
+        'The vector store rejected the filter: Format error in JSON body',
     });
     expect(res.deleteMock).not.toHaveBeenCalled();
   });

@@ -229,7 +229,7 @@ describe('POST /vcs/exclude untracking', { timeout: 20_000 }, () => {
     expect(res.json()).toMatchObject({ untracked: 100 });
   }, 30_000);
 
-  it('needs confirm past 100 files: 409 writes nothing, confirm untracks (D103)', async () => {
+  it('needs confirm past 100 files: 200 confirmRequired writes nothing, confirm untracks (D103, D203)', async () => {
     const files = Object.fromEntries(
       Array.from({ length: 101 }, (_, i) => [`bulk/f${String(i)}.dat`, 'x']),
     );
@@ -240,13 +240,8 @@ describe('POST /vcs/exclude untracking', { timeout: 20_000 }, () => {
 
     const refused = await exclude({ glob: root + '/bulk/*.dat' });
 
-    expect(refused.statusCode).toBe(409);
-    expect(refused.json()).toEqual({
-      code: 'confirm_required',
-      error:
-        'Excluding /bulk/*.dat would untrack 101 files; repeat with confirm: true',
-      untracked: 101,
-    });
+    expect(refused.statusCode).toBe(200);
+    expect(refused.json()).toEqual({ confirmRequired: true, untracked: 101 });
     expect(await g('rev-parse', 'HEAD')).toBe(head);
     expect(await readFile(excludeFile, 'utf8')).toBe(before);
     expect(await tracked()).toHaveLength(102);

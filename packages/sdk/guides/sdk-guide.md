@@ -63,7 +63,9 @@ Request and response types are inferred from the catalog's schemas, so they alwa
 
 **Responses are parsed** by the entry's response schema; fields a newer service adds are dropped. A new enum value from a newer service fails validation (`invalid_response`) until the SDK is upgraded: upgrade the SDK with the service. `showVcsFile` and `diffVcs` resolve with the raw text.
 
-The VCS methods answer `not_found` while version control is off (`vcs.enabled: false`).
+The VCS methods answer `WATCHER_NOT_FOUND` while version control is off (`vcs.enabled: false`).
+
+`excludeVcsPath` resolves with one of two shapes (service 0.22.0+): the written exclusion `{ ok, file, action, untracked }`, or, when more than 100 files would be untracked and `confirm` is not `true`, `{ confirmRequired: true, untracked }` with nothing written. Check `'confirmRequired' in result`, confirm the count with the user, then call again with `confirm: true`.
 
 **Types of inputs and outputs** follow from the client: `Parameters<WatcherClient['excludeVcsPath']>[0]` is the input of `excludeVcsPath`, `Awaited<ReturnType<WatcherClient['excludeVcsPath']>>` its result.
 
@@ -87,17 +89,17 @@ Every method throws `WatcherError` (`isWatcherError(e)` narrows):
 
 | `code` | When | `status` |
 | --- | --- | --- |
-| the server's `code` (`invalid_request`, `not_found`, `conflict`, `confirm_required`, `not_available`, `unauthorized`, ...) | a non-2xx reply carrying one | the HTTP status |
-| `http_<status>` | a non-2xx reply without a code (an older server, a proxy) | the HTTP status |
+| the server's `code` (`WATCHER_INVALID_REQUEST`, `WATCHER_NOT_FOUND`, `WATCHER_NOT_AVAILABLE`, `WATCHER_UNAUTHORIZED`, ..., `FST_ERR_VALIDATION`, `JEEVES_CONFIG_INVALID`, ...) | a non-2xx reply carrying one | the HTTP status |
+| `http_<status>` | a non-2xx reply without a code (a masked `500`, a proxy) | the HTTP status |
 | `invalid_request` | the input failed the entry's request schema; nothing was sent | none |
 | `invalid_response` | a 2xx reply that is not JSON or fails the response schema | the HTTP status when parsed |
 | `timeout` | no reply within `timeoutMs` | none |
 | `network_error` | the request could not be sent or the connection failed | none |
 | `invalid_options` | `createWatcherClient` options are invalid | none |
 
-`message` is the server's `error` text (with its `message` when different) or the SDK's description; `details` carries the server's `details` or the Zod issues.
+A 0.22.0+ server answers every error with Fastify's standard body `{ statusCode, code?, error, message }`; `WATCHER_ERROR_CODES` (exported, type `WatcherErrorCode`) lists the watcher's own codes. `message` is the server's `message` or the SDK's description; `details` carries the whole server body or the Zod issues. The SDK's own codes are lower case, so they never collide with a server code.
 
-**`retryAfterMs`** is the delay the server asked for (`Retry-After`, sent with `503 not_available` when a root's git lock or a document lock stays busy), in milliseconds, clamped to 0..`MAX_RETRY_AFTER_MS` (3,600,000, exported). The SDK never retries: wait at least that long before calling again.
+**`retryAfterMs`** is the delay the server asked for (`Retry-After`, sent with `503 WATCHER_NOT_AVAILABLE` when a root's git lock or a document lock stays busy, and with `503 WATCHER_EMBEDDING_UNAVAILABLE` when the provider's back-off is known), in milliseconds, clamped to 0..`MAX_RETRY_AFTER_MS` (3,600,000, exported). The SDK never retries: wait at least that long before calling again.
 
 ## Timeouts and state changes
 

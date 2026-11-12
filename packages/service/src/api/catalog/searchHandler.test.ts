@@ -1,16 +1,17 @@
 /**
  * @module api/catalog/searchHandler.test
  * `createCatalogSearchHandler`: plain and hybrid search, an embedding-budget
- * exhaustion (`503` with `Retry-After`) and a Qdrant filter rejection
- * (`400`).
+ * exhaustion (`503 WATCHER_EMBEDDING_UNAVAILABLE` with `Retry-After`), a
+ * Qdrant filter rejection (`400 WATCHER_INVALID_REQUEST`) and any other
+ * failure rethrown for jeeves to mask.
  */
 
 import pino from 'pino';
 import { describe, expect, it, vi } from 'vitest';
 
 import { EmbeddingUnavailableError } from '../../embedding/rateLimitError';
-import { internalErrorResult } from './errorResult';
-import { createCatalogSearchHandler, retryAfterSeconds } from './searchHandler';
+import { EmbeddingUnavailable, FilterRejected } from '../errors';
+import { createCatalogSearchHandler } from './searchHandler';
 
 function input(body: Record<string, unknown>) {
   return { params: {}, query: {}, body } as never;
@@ -66,7 +67,7 @@ describe('createCatalogSearchHandler', () => {
     );
   });
 
-  it('answers an exhausted embedding budget with 503 and Retry-After', async () => {
+  it('throws EmbeddingUnavailable with Retry-After for an exhausted budget', async () => {
     const handler = createCatalogSearchHandler({
       embeddingProvider: {
         embed: vi.fn().mockRejectedValue(
@@ -79,14 +80,19 @@ describe('createCatalogSearchHandler', () => {
       logger,
     });
 
-    const result = await handler(input({ query: 'hello' }), {} as never);
+    const error = await handler(input({ query: 'hello' }), {} as never).catch(
+      (e: unknown) => e,
+    );
 
-    expect(result.status).toBe(503);
-    expect(result.body).toMatchObject({ code: 'embedding_unavailable' });
-    expect(result.headers).toEqual({ 'Retry-After': '3' });
+    expect(error).toBeInstanceOf(EmbeddingUnavailable);
+    expect(error).toMatchObject({
+      statusCode: 503,
+      code: 'WATCHER_EMBEDDING_UNAVAILABLE',
+      headers: { 'retry-after': '3' },
+    });
   });
 
-  it('maps a Qdrant filter rejection to 400 invalid_request', async () => {
+  it('throws FilterRejected for a Qdrant filter rejection', async () => {
     const rejection = Object.assign(new Error('Bad Request'), {
       status: 400,
       data: { status: { error: 'Wrong filter' } },
@@ -100,13 +106,12 @@ describe('createCatalogSearchHandler', () => {
       logger,
     });
 
-    const result = await handler(input({ query: 'hello' }), {} as never);
-
-    expect(result.status).toBe(400);
-    expect(result.body).toMatchObject({ code: 'invalid_request' });
+    await expect(
+      handler(input({ query: 'hello' }), {} as never),
+    ).rejects.toBeInstanceOf(FilterRejected);
   });
 
-  it('answers an exhausted budget without a known delay with 503 and no Retry-After', async () => {
+  it('throws EmbeddingUnavailable without Retry-After when the delay is unknown', async () => {
     const handler = createCatalogSearchHandler({
       embeddingProvider: {
         embed: vi
@@ -117,27 +122,27 @@ describe('createCatalogSearchHandler', () => {
       logger,
     });
 
-    const result = await handler(input({ query: 'hello' }), {} as never);
+    const error = await handler(input({ query: 'hello' }), {} as never).catch(
+      (e: unknown) => e,
+    );
 
-    expect(result.status).toBe(503);
-    expect(result).not.toHaveProperty('headers');
+    expect(error).toBeInstanceOf(EmbeddingUnavailable);
+    expect(error).not.toHaveProperty('headers');
   });
 
-  it('answers any other embedding failure with a generic 500, never the error text', async () => {
-    const error = vi.fn();
+  it('rethrows any other embedding failure unchanged (jeeves masks it)', async () => {
+    const failure = new Error('secret provider detail');
     const handler = createCatalogSearchHandler({
       embeddingProvider: {
-        embed: vi.fn().mockRejectedValue(new Error('secret provider detail')),
+        embed: vi.fn().mockRejectedValue(failure),
       } as never,
       vectorStore: { search: vi.fn(), hybridSearch: vi.fn() } as never,
-      logger: { error, warn: vi.fn() } as never,
+      logger,
     });
 
-    const result = await handler(input({ query: 'hello' }), {} as never);
-
-    expect(result).toEqual(internalErrorResult());
-    expect(JSON.stringify(result.body)).not.toContain('secret provider detail');
-    expect(error).toHaveBeenCalledTimes(1);
+    await expect(handler(input({ query: 'hello' }), {} as never)).rejects.toBe(
+      failure,
+    );
   });
 
   describe('query plumbing', () => {
@@ -209,14 +214,5 @@ describe('createCatalogSearchHandler', () => {
       );
       expect(hybridSearch).not.toHaveBeenCalled();
     });
-  });
-
-  it.each([
-    [1, '1'],
-    [1000, '1'],
-    [1001, '2'],
-    [2500, '3'],
-  ])('rounds a %ims retry delay up to Retry-After %s', (ms, header) => {
-    expect(retryAfterSeconds(ms)).toBe(header);
   });
 });

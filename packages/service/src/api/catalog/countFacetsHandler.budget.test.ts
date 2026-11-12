@@ -30,8 +30,9 @@ describe('POST /search/facets/counts budget', () => {
     });
     expect(status).toBe(503);
     expect(body).toMatchObject({
-      code: 'not_available',
-      details: { pending: ['tag', 'size'] },
+      code: 'WATCHER_NOT_AVAILABLE',
+      message:
+        'Facet counts exceeded the time budget; not counted: tag, size. Count fewer fields or narrow the filter.',
     });
     expect(store.facetCounts).not.toHaveBeenCalled();
   });
@@ -55,12 +56,13 @@ describe('POST /search/facets/counts budget', () => {
       fields: ['tag', 'a', 'b'],
     });
     expect(status).toBe(503);
-    expect(body).toMatchObject({
-      code: 'not_available',
-      error: 'Facet counts exceeded the time budget',
-      details: { pending: ['a', 'b'] },
+    expect(body).toEqual({
+      statusCode: 503,
+      code: 'WATCHER_NOT_AVAILABLE',
+      error: 'Service Unavailable',
+      message:
+        'Facet counts exceeded the time budget; not counted: a, b. Count fewer fields or narrow the filter.',
     });
-    expect(body.message).toContain('0.05 s budget: a, b');
   });
 
   it('counts at most 4 fields at a time (D96)', async () => {

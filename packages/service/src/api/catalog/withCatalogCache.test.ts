@@ -54,7 +54,12 @@ describe('withCatalogCache', () => {
       calls++;
       return Promise.resolve({
         status: 404,
-        body: { code: 'not_found', error: 'Nope' },
+        body: {
+          statusCode: 404,
+          code: 'WATCHER_NOT_FOUND',
+          error: 'Not Found',
+          message: 'Nope',
+        },
       });
     });
     const cached = withCatalogCache('test', 60_000, handler as never);

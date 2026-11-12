@@ -193,6 +193,8 @@ export async function startWireApp(
       )
         return;
       await rm(join(vcsRoot, '.git', 'info', 'exclude'), { force: true });
+      // Unstage what a scenario's setup staged, then restore the tree.
+      await execFileAsync('git', ['reset', '-q'], { cwd: vcsRoot });
       await execFileAsync('git', ['checkout', '--', '.'], { cwd: vcsRoot });
       await execFileAsync('git', ['clean', '-fdq'], { cwd: vcsRoot });
       cleanFingerprint = await vcsFingerprint(vcsRoot);

@@ -136,19 +136,29 @@ export class DocumentProcessor implements WatcherProcessor {
    */
   async processFile(filePath: string): Promise<void> {
     await this.locks.run(fileLockKey(filePath), 'process', () =>
-      this.withFailureHandling(
-        {
-          key: filePath,
-          operation: 'Failed to process file',
-          issueType: UNTAGGED_ISSUE_TYPE,
-        },
-        () =>
-          indexFile(
-            { ...this.pipelineContext(), resolver: this.fileResolver() },
-            filePath,
-          ),
-        undefined,
-      ),
+      this.indexFileUnlocked(filePath),
+    );
+  }
+
+  /**
+   * Run the full pipeline on a file whose lock the caller holds, recording a
+   * failure as an issue.
+   *
+   * @param filePath - The file to index.
+   */
+  private indexFileUnlocked(filePath: string): Promise<void> {
+    return this.withFailureHandling(
+      {
+        key: filePath,
+        operation: 'Failed to process file',
+        issueType: UNTAGGED_ISSUE_TYPE,
+      },
+      () =>
+        indexFile(
+          { ...this.pipelineContext(), resolver: this.fileResolver() },
+          filePath,
+        ),
+      undefined,
     );
   }
 
@@ -251,24 +261,27 @@ export class DocumentProcessor implements WatcherProcessor {
 
   /**
    * Move a file's vector points from old path to new path without re-embedding.
-   * Re-applies inference rules against the new path.
+   * Re-applies inference rules against the new path. A file with no points
+   * (never indexed, rejected, failed) is indexed at the new path as a create,
+   * and the old path's issue is dropped (#305).
    *
    * @param oldPath - The original file path.
    * @param newPath - The new file path.
    */
   async moveFile(oldPath: string, newPath: string): Promise<void> {
     const keys = [fileLockKey(oldPath), fileLockKey(newPath)];
-    await this.locks.runAll(keys, 'move', () =>
-      this.withFailureHandling(
+    await this.locks.runAll(keys, 'move', async () => {
+      const moved = await this.withFailureHandling(
         {
           key: newPath,
           operation: 'Failed to move file',
           issueType: UNTAGGED_ISSUE_TYPE,
         },
         () => moveFilePoints(this.fileOperations(), oldPath, newPath),
-        undefined,
-      ),
-    );
+        true,
+      );
+      if (!moved) await this.indexFileUnlocked(newPath);
+    });
   }
 
   /**
