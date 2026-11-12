@@ -275,6 +275,20 @@ describe('SDK tools match 0.19.0 (D205 (3))', () => {
       recorded('search masked status and headers'),
     ],
     [
+      'a 3xx reply fetch does not follow',
+      'watcher_search',
+      { query: 'q' },
+      {
+        status: 300,
+        contentType: 'application/json',
+        body: {
+          statusCode: 300,
+          error: 'Multiple Choices',
+          message: 'Pick one.',
+        },
+      },
+    ],
+    [
       'a non-Fastify body',
       'watcher_search',
       { query: 'q' },

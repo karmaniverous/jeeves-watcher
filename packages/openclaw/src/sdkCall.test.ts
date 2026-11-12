@@ -17,6 +17,7 @@ import { createWatcherComponent } from './watcherComponent.js';
 afterEach(() => {
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
+  vi.unstubAllEnvs();
 });
 
 const api = (pluginConfig: Record<string, unknown>): PluginApi => ({
@@ -86,6 +87,11 @@ describe('resolveBaseUrl', () => {
     [{}, DEFAULT_API_URL],
   ])('%j resolves to %s', (pluginConfig, url) => {
     expect(resolveBaseUrl(api(pluginConfig))).toBe(url);
+  });
+
+  it('falls back to the default for a blank JEEVES_WATCHER_URL', () => {
+    vi.stubEnv('JEEVES_WATCHER_URL', '   ');
+    expect(resolveBaseUrl(api({}))).toBe(DEFAULT_API_URL);
   });
 
   it('calls the resolved URL', async () => {
