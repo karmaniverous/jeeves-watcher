@@ -6,6 +6,18 @@ title: Upgrading
 
 What changes for an existing deployment, release by release. The [Changelog](../CHANGELOG.md) lists every commit; this page lists what you may need to act on.
 
+## 0.22.1
+
+0.22.1 ships with OpenClaw plugin 0.20.0, on watcher-core 0.6.0 and SDK 0.4.0 (both unchanged) and `@karmaniverous/jeeves` 0.11.0. Nothing changes on the wire, in the config or in the tools' names and parameters; what changes is how the packages are installed (spec D205).
+
+- **The service depends on the SDK.** `@karmaniverous/jeeves-watcher-sdk` `^0.4.0` is a runtime dependency that npm installs with the service; the CLI used to carry its own copy. A `WatcherError` the CLI sees is now the class the installed SDK exports.
+- **The plugin depends on watcher-core and the SDK, and calls the watcher through the SDK.** `openclaw plugins install` installs both (`^0.6.0`, `^0.4.0`); 0.19.0 bundled watcher-core and called the API through jeeves's toolset. Every result reads as in 0.19.0 except two cases: a reply that does not match the SDK's response schema (watcher-core 0.6.0's, which service 0.22.x sends) now reads `Error: <entry> response did not match the expected shape`, and a field the schema does not declare is dropped; a malformed `apiUrl` (no `http://` or `https://`, or a query string) reads `Error: baseUrl must be an http(s) URL, got "<apiUrl>"` instead of `fetch`'s error.
+
+### Install order
+
+1. Install `@karmaniverous/jeeves-watcher` 0.22.1 as for 0.22.0 ([Install order](#install-order-1) step 1).
+2. Install OpenClaw plugin 0.20.0 the same way as in 0.21.0's [Upgrade order](#upgrade-order) step 3, with `@0.20.0`. Use it with service 0.22.0 or later; the service and the plugin can go in either order.
+
 ## 0.22.0
 
 0.22.0 ships with watcher-core 0.6.0, SDK 0.4.0 and OpenClaw plugin 0.19.0, all on `@karmaniverous/jeeves` 0.11.0 (pinned exactly). It changes one contract: every error the watcher sends is now Fastify's standard error body with an upper-case code. Successful responses are unchanged except `POST /vcs/exclude`'s confirmation, which is now a `200`. The CHANGELOGs are generated at release, so the table of old and new codes lives here.
