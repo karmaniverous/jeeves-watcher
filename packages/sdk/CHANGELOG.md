@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.1] - 2026-11-12
+
+### 💼 Other
+
+- Updated dependencies
+- Updated core
 ## [0.4.0] - 2026-11-12
 
 ### 💼 Other
@@ -14,6 +20,10 @@ BREAKING CHANGE: error codes and bodies change; see guides/upgrading.md#0220.
 
 Fixes #312
 - Updated core
+
+### ⚙️ Miscellaneous Tasks
+
+- Release @karmaniverous/jeeves-watcher-sdk v0.4.0
 ## [0.3.1] - 2026-11-07
 
 ### 💼 Other
