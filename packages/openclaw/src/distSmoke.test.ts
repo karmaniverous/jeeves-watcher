@@ -25,7 +25,7 @@ const LINKED = ['core', 'sdk'].map((pkg) => ({
   dist: fileURLToPath(new URL(`../../${pkg}/dist/index.js`, import.meta.url)),
   src: fileURLToPath(new URL(`../../${pkg}/src/`, import.meta.url)),
 }));
-/** Build configuration: a newer manifest or rollup config also makes `dist` stale. */
+/** Build configuration: a newer manifest, rollup config or tsconfig (package or root) also makes `dist` stale. */
 const CONFIG_FILES = [
   '../package.json',
   '../rollup.config.ts',
