@@ -14,10 +14,7 @@
         "src/cli/jeeves-watcher/index.ts",
         "vitest.wire-record.config.mts"
       ],
-      "ignoreDependencies": [
-        "@rollup/plugin-typescript={paths:{}}",
-        "@karmaniverous/jeeves-watcher-sdk"
-      ]
+      "ignoreDependencies": ["@rollup/plugin-typescript={paths:{}}"]
     },
     "packages/openclaw": {},
     "packages/sdk": {}
