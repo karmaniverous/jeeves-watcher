@@ -1,6 +1,6 @@
 /**
  * @module plugin/sdkEquivalence.test
- * Result parity with 0.19.0 (D205 (3)): every HTTP tool runs through 0.19.0's call path (core's toolset, which 0.19.0 runs) and through the SDK against one local server replaying recorded watcher replies byte for byte (the service's 0.20.0 wire baseline and 0.22.0 error overlay), and the results must be equal: a success and an error per tool, plus a non-Fastify body, a masked 500, `Retry-After`, a 401, an unreachable service and invalid input. The two differences by construction (a reply the response schema does not accept, a field it does not declare) are pinned as differences.
+ * Result parity with 0.19.0 (D205 (3)): every HTTP tool runs through 0.19.0's call path (core's toolset, which 0.19.0 runs) and through the SDK against one local server replaying recorded watcher replies (the service's 0.20.0 wire baseline and 0.22.0 error overlay, serialised compactly as the watcher sends them; a string body is sent byte for byte), and both the requests the server receives and the results must be equal: a success and an error per tool, plus non-Fastify and non-compact bodies, a masked 500, `Retry-After`, a 401, an unreachable service and invalid input. The differences by construction (a reply the response schema does not accept, a field it does not declare, keys out of schema order) are pinned as differences.
  */
 
 import { once } from 'node:events';
@@ -49,14 +49,26 @@ const recorded = (scenario: string): Reply => {
 };
 
 let reply: Reply = recorded('status');
+/** What the server received since the last reset: method, URL, headers, body. */
+let received: string[] = [];
 let server: Server;
 let base = '';
 let closedBase = '';
 
 beforeAll(async () => {
   server = createServer((req, res) => {
-    req.resume();
+    let data = '';
+    req.on('data', (chunk: Buffer) => (data += chunk.toString()));
     req.on('end', () => {
+      received.push(
+        [
+          req.method,
+          req.url,
+          req.headers.authorization ?? '-',
+          req.headers['content-type'] ?? '-',
+          data,
+        ].join(' '),
+      );
       res.writeHead(reply.status, {
         'content-type': reply.contentType,
         ...(reply.retryAfter === undefined
@@ -100,17 +112,20 @@ function toolsets(pluginConfig: Record<string, unknown>): {
   };
 }
 
-/** Run a tool through both paths. */
+/** Run a tool through both paths; both must send the same requests. */
 async function both(
   pluginConfig: Record<string, unknown>,
   name: string,
   params: Record<string, unknown>,
 ): Promise<[ToolResult, ToolResult]> {
   const { old, sdk } = toolsets(pluginConfig);
-  return [
-    await old.get(name)!.execute('old', params),
-    await sdk.get(name)!.execute('sdk', params),
-  ];
+  received = [];
+  const oldResult = await old.get(name)!.execute('old', params);
+  const oldRequests = received;
+  received = [];
+  const sdkResult = await sdk.get(name)!.execute('sdk', params);
+  expect(received).toEqual(oldRequests);
+  return [oldResult, sdkResult];
 }
 
 const config = () => ({ apiUrl: base, apiKey: 'equivalence-key' });
@@ -309,6 +324,26 @@ describe('SDK tools match 0.19.0 (D205 (3))', () => {
       },
     ],
     [
+      'a Fastify body that is not compact, with an extra field and an escape',
+      'watcher_search',
+      { query: 'q' },
+      {
+        status: 503,
+        contentType: 'application/json',
+        body: '{ "code": "X", "statusCode": 503, "error": "Service Unavailable",\n  "message": "caf\\u00e9", "extra": [1] }',
+      },
+    ],
+    [
+      'a JSON body whose error is HTTP <status>',
+      'watcher_search',
+      { query: 'q' },
+      {
+        status: 502,
+        contentType: 'application/json',
+        body: '{"statusCode":502,"error":"HTTP 502","message":"m"}',
+      },
+    ],
+    [
       'a 2xx body that is not JSON',
       'watcher_search',
       { query: 'q' },
@@ -345,6 +380,25 @@ describe('differences by construction (listed for the owner)', () => {
     });
     expect(old.content[0]?.text).toContain('"extra": 1');
     expect(sdk.content[0]?.text).not.toContain('extra');
+  });
+
+  it('prints a reply in the response schema key order', async () => {
+    reply = {
+      status: 200,
+      contentType: 'application/json',
+      body: '[{"payload":{"file_path":"a.md"},"score":0.9,"id":"p1"}]',
+    };
+    const [old, sdk] = await both(config(), 'watcher_search', { query: 'q' });
+    const [oldText, sdkText] = [old, sdk].map(
+      (result) => result.content[0]?.text,
+    );
+    expect(oldText).not.toBe(sdkText);
+    expect(JSON.parse(sdkText)).toEqual(JSON.parse(oldText));
+    expect(Object.keys((JSON.parse(sdkText) as object[])[0])).toEqual([
+      'id',
+      'score',
+      'payload',
+    ]);
   });
 
   it('answers an error for a reply the response schema rejects', async () => {

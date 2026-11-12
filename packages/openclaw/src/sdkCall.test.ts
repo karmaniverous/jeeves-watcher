@@ -3,15 +3,18 @@
  * Tests for the SDK call path (D205): the client timeouts (5 s for `watcher_status`, 120 s otherwise, D137), the base URL as jeeves's toolset resolves it, a timeout and a non-SDK error read as in 0.19.0, and a malformed `apiUrl` (a listed difference: the SDK's option check answers it).
  */
 
-import {
-  DEFAULT_FETCH_TIMEOUT_MS,
-  type PluginApi,
-} from '@karmaniverous/jeeves';
+import type { PluginApi } from '@karmaniverous/jeeves';
+import { WatcherError } from '@karmaniverous/jeeves-watcher-sdk';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { createCatalogTools, createCoreToolset } from './catalogTools.js';
+import {
+  createCatalogTools,
+  createCoreToolset,
+  SDK_CALLS,
+  WATCHER_TOOL_SELECTION,
+} from './catalogTools.js';
 import { DEFAULT_API_URL } from './constants.js';
-import { resolveBaseUrl, STATUS_TIMEOUT_MS, toolError } from './sdkCall.js';
+import { resolveBaseUrl, toolError } from './sdkCall.js';
 import { createWatcherComponent } from './watcherComponent.js';
 
 afterEach(() => {
@@ -56,10 +59,10 @@ describe('client timeouts', () => {
           reindex: { active: false },
         },
       },
-      STATUS_TIMEOUT_MS,
+      5_000,
     ],
-    ['watcher_search', { query: 'q' }, [], DEFAULT_FETCH_TIMEOUT_MS],
-    ['watcher_config', {}, {}, DEFAULT_FETCH_TIMEOUT_MS],
+    ['watcher_search', { query: 'q' }, [], 120_000],
+    ['watcher_config', {}, {}, 120_000],
   ])(
     '%s times out after its 0.19.0 timeout',
     async (name, params, body, ms) => {
@@ -73,9 +76,25 @@ describe('client timeouts', () => {
       expect(timeout).toHaveBeenCalledWith(ms);
     },
   );
+});
 
-  it('keeps the status probe at 5 s', () => {
-    expect(STATUS_TIMEOUT_MS).toBe(5_000);
+describe('SDK_CALLS', () => {
+  it('carries the parameter aliases of each domain selection', () => {
+    for (const [entry, selection] of Object.entries(
+      WATCHER_TOOL_SELECTION as Record<
+        string,
+        { inputAliases?: Record<string, string> }
+      >,
+    )) {
+      const call = [...SDK_CALLS.values()].find((c) => c.entry === entry);
+      expect(call?.aliases).toEqual(selection.inputAliases);
+    }
+  });
+
+  it('maps config_apply config back to patch', () => {
+    expect(SDK_CALLS.get('watcher_config_apply')?.aliases).toEqual({
+      patch: 'config',
+    });
   });
 });
 
@@ -132,6 +151,27 @@ describe('errors as 0.19.0 read them', () => {
       'Error: The operation was aborted due to timeout',
     );
     expect(result).toEqual(expected);
+  });
+
+  it('serialises the parsed body of a non-2xx reply when no raw body was kept', () => {
+    const error = new WatcherError({
+      code: 'X',
+      message: 'm',
+      status: 503,
+      details: { statusCode: 503, error: 'Service Unavailable', message: 'm' },
+    });
+    expect(toolError(error, DEFAULT_API_URL)).toEqual({
+      content: [
+        {
+          type: 'text',
+          text: 'Error: HTTP 503: {"statusCode":503,"error":"Service Unavailable","message":"m"}',
+        },
+      ],
+      isError: true,
+    });
+    expect(toolError(error, DEFAULT_API_URL, 'raw body').content[0]?.text).toBe(
+      'Error: HTTP 503: raw body',
+    );
   });
 
   it('reads a non-SDK error as Error: <message>', () => {

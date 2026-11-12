@@ -72,22 +72,31 @@ export function resolveBaseUrl(api: PluginApi): string {
   return (value === '' ? DEFAULT_API_URL : value).replace(/\/+$/, '');
 }
 
+/** A `fetch` that keeps the raw text of the last non-2xx reply it saw. */
+interface RecordingFetch {
+  /** The `fetch` to hand the SDK. */
+  fetch: (input: string, init: RequestInit) => Promise<Response>;
+  /** The raw body of the last non-2xx reply, if any. */
+  errorBody: () => string | undefined;
+}
+
 /**
- * The text of a non-2xx body: jeeves's parsed Fastify body, serialised
- * compactly (its keys in the order the watcher sends them), or the raw text
- * of a body that is not Fastify's, which jeeves keeps as the `message` of a
- * body whose `error` is `HTTP <status>`.
+ * A `fetch` over the global one (read per call) that copies the raw body of
+ * a non-2xx reply before the SDK parses it, so the tool can report the
+ * server's body byte for byte, as 0.19.0 did.
  *
- * @param error - A WatcherError from a non-2xx reply.
- * @param status - Its status.
- * @returns The body text.
+ * @returns The fetch and a reader for the recorded body.
  */
-function bodyText(error: WatcherError, status: number): string {
-  const body = error.details as { error?: unknown; message?: unknown };
-  return body.error === `HTTP ${String(status)}` &&
-    typeof body.message === 'string'
-    ? body.message
-    : JSON.stringify(body);
+function recordingFetch(): RecordingFetch {
+  let body: string | undefined;
+  return {
+    fetch: async (input, init) => {
+      const res = await globalThis.fetch(input, init);
+      if (res.status >= 300) body = await res.clone().text();
+      return res;
+    },
+    errorBody: () => body,
+  };
 }
 
 /**
@@ -108,16 +117,22 @@ function underlying(error: WatcherError): unknown {
  *
  * @param error - What the SDK call threw.
  * @param baseUrl - The URL the call used.
+ * @param body - The raw body of a non-2xx reply; without it, the body the
+ *   SDK parsed, serialised.
  * @returns `HTTP <status>: <body>` for a non-2xx reply; the `apiUrl`
  *   guidance (or `Error: <message>`) when no usable reply arrived;
  *   `Error: <message>` otherwise (invalid input, invalid options, a 2xx
  *   reply that fails the entry's response schema).
  */
-export function toolError(error: unknown, baseUrl: string): ToolResult {
+export function toolError(
+  error: unknown,
+  baseUrl: string,
+  body?: string,
+): ToolResult {
   if (!isWatcherError(error)) return fail(error);
   if (error.status !== undefined && error.status >= 300)
     return fail(
-      `HTTP ${String(error.status)}: ${bodyText(error, error.status)}`,
+      `HTTP ${String(error.status)}: ${body ?? JSON.stringify(error.details)}`,
     );
   const inner = underlying(error);
   return inner === undefined
@@ -174,19 +189,21 @@ export function withSdkCall(
         if (params[alias] === undefined || params[alias] === null)
           return fail(`Missing required parameter: ${alias}`);
       const baseUrl = resolveBaseUrl(api);
+      const recorder = recordingFetch();
       try {
         const apiKey = getApiKey(api);
         const client = createWatcherClient({
           baseUrl,
           ...(apiKey === undefined ? {} : { apiKey }),
           timeoutMs: call.timeoutMs,
+          fetch: recorder.fetch,
         });
         const method = client[call.entry] as (
           input: unknown,
         ) => Promise<unknown>;
         return ok(await method(toInput(params, aliases)));
       } catch (error) {
-        return toolError(error, baseUrl);
+        return toolError(error, baseUrl, recorder.errorBody());
       }
     },
   };
