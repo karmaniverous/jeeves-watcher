@@ -1,6 +1,6 @@
 /**
  * @module plugin/distSmoke.test
- * Smoke test of the built plugin (`dist/index.js`, as OpenClaw loads it): it imports watcher-core and the SDK rather than bundling them (D205), registers the 18 tools in their 0.17.0 order (under their D77 names) with both resolved from `node_modules`, keeps `watcher_search` and `watcher_scan` `direct-only`, and a catalog-built tool sends the bearer key through the SDK. Runs after `npm run build`; in CI (which builds before testing) a missing `dist` fails. A `dist` older than the plugin's source is skipped with a rebuild message instead of tested (spec D201); in CI it fails.
+ * Smoke test of the built plugin (`dist/index.js`, as OpenClaw loads it): it imports watcher-core and the SDK rather than bundling them (D205), registers the 18 tools in their 0.17.0 order (under their D77 names) with both resolved from `node_modules`, keeps `watcher_search` and `watcher_scan` `direct-only`, and a catalog-built tool sends the bearer key through the SDK. Runs after `npm run build`; in CI (which builds before testing) a missing `dist` fails. A `dist` older than the plugin's source, or a missing or out-of-date watcher-core or SDK build, is skipped with a rebuild message instead of tested (spec D201); in CI it fails.
  */
 
 import { existsSync, readFileSync } from 'node:fs';
@@ -17,8 +17,22 @@ const built = existsSync(fileURLToPath(DIST));
 
 /** What `dist/index.js` is built from: this package's source only (D205). */
 const INPUTS = [fileURLToPath(new URL('./', import.meta.url))];
-const STALE = 'dist is older than src; run npm run build';
-const stale = built && isOlderThanInputs(fileURLToPath(DIST), INPUTS);
+/**
+ * The workspace builds it imports at run time (watcher-core and the SDK,
+ * linked into `node_modules`): each must exist and be newer than its source.
+ */
+const LINKED = ['core', 'sdk'].map((pkg) => ({
+  dist: fileURLToPath(new URL(`../../${pkg}/dist/index.js`, import.meta.url)),
+  src: fileURLToPath(new URL(`../../${pkg}/src/`, import.meta.url)),
+}));
+const STALE =
+  'dist (or a watcher-core or SDK build) is missing or older than its src; run npm run build';
+const stale =
+  built &&
+  (isOlderThanInputs(fileURLToPath(DIST), INPUTS) ||
+    LINKED.some(
+      ({ dist, src }) => !existsSync(dist) || isOlderThanInputs(dist, [src]),
+    ));
 if (stale) console.warn(`distSmoke: ${STALE}`);
 
 const baselineNames = (
