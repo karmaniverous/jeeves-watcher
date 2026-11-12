@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.6.0] - 2026-11-12
+
+### 💼 Other
+
+- [0-22] feat!: adopt Fastify's standard error body with WATCHER_* codes (#312)
+
+Every watcher error is a jeeves defineError class answered by jeeves 0.11's catalog error handler: { statusCode, code, error, message }, fixed messages, no details. Unexpected failures are masked 500s. POST /vcs/exclude over the threshold without confirm is now 200 { confirmRequired, untracked }; prune without a vector store is 503. watcher-core drops API_ERROR_* for WATCHER_ERROR_CODES/STATUS; SDK WatcherError carries the body's code and message. Wire overlay wire-errors-0.22.0.json pins every error reply.
+
+BREAKING CHANGE: error codes and bodies change; see guides/upgrading.md#0220.
+
+Fixes #312
 ## [0.5.1] - 2026-11-07
 
 ### 🐛 Bug Fixes
@@ -16,6 +27,10 @@ All notable changes to this project will be documented in this file.
 ### 📚 Documentation
 
 - The embedding 429 backoff is capped at max(maxBackoffMs, 65 s); default rate limit slowdown note (#309)
+
+### ⚙️ Miscellaneous Tasks
+
+- Release @karmaniverous/jeeves-watcher-core v0.5.1
 ## [0.5.0] - 2026-11-07
 
 ### 🚀 Features
