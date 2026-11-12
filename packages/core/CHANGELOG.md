@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.6.1] - 2026-11-12
+
+### 💼 Other
+
+- Updated dependencies
 ## [0.6.0] - 2026-11-12
 
 ### 💼 Other
@@ -13,6 +18,10 @@ Every watcher error is a jeeves defineError class answered by jeeves 0.11's cata
 BREAKING CHANGE: error codes and bodies change; see guides/upgrading.md#0220.
 
 Fixes #312
+
+### ⚙️ Miscellaneous Tasks
+
+- Release @karmaniverous/jeeves-watcher-core v0.6.0
 ## [0.5.1] - 2026-11-07
 
 ### 🐛 Bug Fixes
