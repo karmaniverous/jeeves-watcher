@@ -141,24 +141,27 @@ describe('errors as 0.19.0 read them', () => {
     });
   });
 
-  it('reports a malformed apiUrl through the SDK option check (a listed difference)', async () => {
-    const tools = createCatalogTools(
-      api({ apiUrl: 'localhost:1936' }),
-      component,
-    );
+  it.each([
+    ['localhost:1936', 'baseUrl must be an http(s) URL, got "localhost:1936"'],
+    [
+      'http://host:1/?x=1',
+      'baseUrl must not contain a query string or fragment, got "http://host:1/?x=1"',
+    ],
+  ])(
+    'reports apiUrl %s through the SDK option check (a listed difference)',
+    async (apiUrl, message) => {
+      const fetchMock = stubFetch([]);
+      const tools = createCatalogTools(api({ apiUrl }), component);
 
-    const result = await tools
-      .get('watcher_search')!
-      .execute('1', { query: 'q' });
+      const result = await tools
+        .get('watcher_search')!
+        .execute('1', { query: 'q' });
 
-    expect(result).toEqual({
-      content: [
-        {
-          type: 'text',
-          text: 'Error: baseUrl must be an http(s) URL, got "localhost:1936"',
-        },
-      ],
-      isError: true,
-    });
-  });
+      expect(result).toEqual({
+        content: [{ type: 'text', text: `Error: ${message}` }],
+        isError: true,
+      });
+      expect(fetchMock).not.toHaveBeenCalled();
+    },
+  );
 });
