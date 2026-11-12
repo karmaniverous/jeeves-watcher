@@ -2,7 +2,8 @@
   "extends": "../../tsconfig.json",
   "compilerOptions": {
     "paths": {
-      "@karmaniverous/jeeves-watcher-core": ["../core/src/index.ts"]
+      "@karmaniverous/jeeves-watcher-core": ["../core/src/index.ts"],
+      "@karmaniverous/jeeves-watcher-sdk": ["../sdk/src/index.ts"]
     },
     "types": ["node"]
   },

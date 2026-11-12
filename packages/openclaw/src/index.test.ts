@@ -91,7 +91,13 @@ describe('register', () => {
   });
 
   it('runs an HTTP-only tool without configRoot', async () => {
-    const fetchMock = stubStatusFetch();
+    // An empty result list: a reply the search response schema accepts.
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve([]),
+      text: () => Promise.resolve('[]'),
+    });
+    vi.stubGlobal('fetch', fetchMock);
     const { tools } = harness();
     const result = await tools.get('watcher_search')!.execute('1', {
       query: 'x',

@@ -9,6 +9,9 @@ export default defineConfig({
       '@karmaniverous/jeeves-watcher-core': fileURLToPath(
         new URL('../core/src/index.ts', import.meta.url),
       ),
+      '@karmaniverous/jeeves-watcher-sdk': fileURLToPath(
+        new URL('../sdk/src/index.ts', import.meta.url),
+      ),
     },
   },
   test: {

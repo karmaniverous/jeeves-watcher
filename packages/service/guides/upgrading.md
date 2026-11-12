@@ -6,6 +6,21 @@ title: Upgrading
 
 What changes for an existing deployment, release by release. The [Changelog](../CHANGELOG.md) lists every commit; this page lists what you may need to act on.
 
+## 0.22.1
+
+0.22.1 ships with OpenClaw plugin 0.20.0, on watcher-core 0.6.0 and SDK 0.4.0 (both unchanged) and `@karmaniverous/jeeves` 0.11.0. Nothing changes on the wire, in the config or in the tools' names and parameters; what changes is how the packages are installed (spec D205).
+
+- **The service depends on the SDK.** `@karmaniverous/jeeves-watcher-sdk` `^0.4.0` is a runtime dependency that npm installs with the service; the CLI used to carry its own copy. A `WatcherError` the CLI sees is now the class the installed SDK exports.
+- **The plugin depends on watcher-core and the SDK, and calls the watcher through the SDK.** `openclaw plugins install` installs both (`^0.6.0`, `^0.4.0`); 0.19.0 bundled watcher-core and called the API through jeeves's toolset. Every result reads as in 0.19.0, error bodies included (the server's body verbatim), except in these cases:
+  - A successful reply is parsed with the SDK's response schema (watcher-core 0.6.0's, which service 0.22.x follows). A reply the schema rejects reads `Error: <entry> response did not match the expected shape`; a field the schema does not declare is dropped; an object's keys print in schema order. Service 0.22.x sends none of these, so they show only against another server or a proxy.
+  - An `apiUrl` without `http://` or `https://` reads `Error: baseUrl must be an http(s) URL, got "<apiUrl>"` (0.19.0: `fetch`'s `Error: fetch failed`).
+  - An `apiUrl` with a query string or fragment reads `Error: baseUrl must not contain a query string or fragment, got "<apiUrl>"` and sends nothing (0.19.0 sent the request to a garbled path such as `/?x=1/search`).
+
+### Install order
+
+1. Install `@karmaniverous/jeeves-watcher` 0.22.1 as for 0.22.0 ([Install order](#install-order-1) step 1).
+2. Install OpenClaw plugin 0.20.0 the same way as in 0.21.0's [Upgrade order](#upgrade-order) step 3, with `@0.20.0`. Use it with service 0.22.0 or later; the service and the plugin can go in either order.
+
 ## 0.22.0
 
 0.22.0 ships with watcher-core 0.6.0, SDK 0.4.0 and OpenClaw plugin 0.19.0, all on `@karmaniverous/jeeves` 0.11.0 (pinned exactly). It changes one contract: every error the watcher sends is now Fastify's standard error body with an upper-case code. Successful responses are unchanged except `POST /vcs/exclude`'s confirmation, which is now a `200`. The CHANGELOGs are generated at release, so the table of old and new codes lives here.

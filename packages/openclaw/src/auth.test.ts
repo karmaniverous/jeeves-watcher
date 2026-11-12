@@ -53,12 +53,17 @@ function setUp(overrides: Partial<PluginApi> = {}) {
 }
 
 function stubFetch(status = 200) {
-  const fetchMock = vi.fn().mockResolvedValue({
-    ok: status === 200,
-    status,
-    json: () => Promise.resolve({}),
-    text: () => Promise.resolve('{"error":"Unauthorized"}'),
-  });
+  // A fresh Response per call: the SDK path clones and reads it.
+  const fetchMock = vi.fn<
+    (url: string, init?: RequestInit) => Promise<Response>
+  >(() =>
+    Promise.resolve(
+      new Response(status === 200 ? '{}' : '{"error":"Unauthorized"}', {
+        status,
+        headers: { 'content-type': 'application/json' },
+      }),
+    ),
+  );
   vi.stubGlobal('fetch', fetchMock);
   return fetchMock;
 }
@@ -66,7 +71,7 @@ function stubFetch(status = 200) {
 /** Authorization header (any case) of every fetch call, in order. */
 function authHeaders(fetchMock: ReturnType<typeof stubFetch>) {
   return fetchMock.mock.calls.map(([, init]) => {
-    const headers = (init as RequestInit | undefined)?.headers;
+    const headers = init?.headers;
     return Object.entries(
       (headers as Record<string, string> | undefined) ?? {},
     ).find(([name]) => name.toLowerCase() === 'authorization')?.[1];
