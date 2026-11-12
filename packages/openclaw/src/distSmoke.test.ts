@@ -3,7 +3,7 @@
  * Smoke test of the built plugin (`dist/index.js`, as OpenClaw loads it): it imports watcher-core and the SDK rather than bundling them (D205), registers the 18 tools in their 0.17.0 order (under their D77 names) with both resolved from `node_modules`, keeps `watcher_search` and `watcher_scan` `direct-only`, and a catalog-built tool sends the bearer key through the SDK. Runs after `npm run build`; in CI (which builds before testing) a missing `dist` fails. A `dist` older than the plugin's source, or a missing or out-of-date watcher-core or SDK build, is skipped with a rebuild message instead of tested (spec D201); in CI it fails.
  */
 
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, statSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 import type { PluginApi, ToolDescriptor } from '@karmaniverous/jeeves';
@@ -25,11 +25,18 @@ const LINKED = ['core', 'sdk'].map((pkg) => ({
   dist: fileURLToPath(new URL(`../../${pkg}/dist/index.js`, import.meta.url)),
   src: fileURLToPath(new URL(`../../${pkg}/src/`, import.meta.url)),
 }));
+/** Build configuration: a newer manifest or rollup config also makes `dist` stale. */
+const CONFIG_FILES = ['../package.json', '../rollup.config.ts'].map((path) =>
+  fileURLToPath(new URL(path, import.meta.url)),
+);
 const STALE =
-  'dist (or a watcher-core or SDK build) is missing or older than its src; run npm run build';
+  'dist (or a watcher-core or SDK build) is missing or older than its src or build config; run npm run build';
 const stale =
   built &&
   (isOlderThanInputs(fileURLToPath(DIST), INPUTS) ||
+    CONFIG_FILES.some(
+      (file) => statSync(file).mtimeMs > statSync(DIST).mtimeMs,
+    ) ||
     LINKED.some(
       ({ dist, src }) => !existsSync(dist) || isOlderThanInputs(dist, [src]),
     ));
@@ -72,7 +79,7 @@ describe('built plugin', () => {
     expect(built).toBe(true);
   });
 
-  it.runIf(Boolean(process.env.CI))('is not older than src in CI', () => {
+  it.runIf(Boolean(process.env.CI))('is not stale in CI', () => {
     expect(stale).toBe(false);
   });
 

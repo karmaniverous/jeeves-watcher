@@ -87,6 +87,7 @@ describe('SDK_CALLS', () => {
       >,
     )) {
       const call = [...SDK_CALLS.values()].find((c) => c.entry === entry);
+      expect(call?.entry).toBe(entry);
       expect(call?.aliases).toEqual(selection.inputAliases);
     }
   });
