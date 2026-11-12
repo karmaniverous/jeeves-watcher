@@ -2,6 +2,35 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.19.1] - 2026-11-12
+
+### 🚀 Features
+
+- *(openclaw)* Call every HTTP tool through the SDK (D205)
+
+### 🐛 Bug Fixes
+
+- *(openclaw)* Report a non-2xx body verbatim, as 0.19.0 did
+- *(openclaw)* Carry domain selection aliases into the SDK call
+
+### 💼 Other
+
+- Updated dependencies
+- Updated core
+- Updated sdk
+
+### 📚 Documentation
+
+- Correct the 0.22.1 plugin differences, jeeves 0.11, the status timeout
+
+### 🧪 Testing
+
+- *(openclaw)* Pin a 3xx reply and a blank JEEVES_WATCHER_URL on the SDK path
+- *(openclaw)* Pin a query-string apiUrl as a listed difference
+- *(openclaw)* Treat a missing or stale watcher-core or SDK build as a stale dist
+- *(openclaw)* Re-review nits: alias test asserts the call, distSmoke build-config staleness, README status timeout
+- *(openclaw)* Tsconfig in distSmoke staleness; document the build-config inputs
+- *(openclaw)* Name the tsconfigs in the distSmoke config comment
 ## [0.19.0] - 2026-11-12
 
 ### 💼 Other
@@ -17,6 +46,10 @@ Fixes #312
 
 StabilityTicker measures a size changed during a stall from after the stat; a moved file with no points drops its issue and hash entry in one place; the plugin's exclude tool explains confirmRequired; tests pin every class message, a handler-result Retry-After, an empty JSON body, the render log without the error text, and every code-table outcome.
 - Updated core
+
+### ⚙️ Miscellaneous Tasks
+
+- Release @karmaniverous/jeeves-watcher-openclaw v0.19.0
 ## [0.18.1] - 2026-11-07
 
 ### 💼 Other
