@@ -128,9 +128,17 @@ export const WATCHER_TOOL_NAMES: readonly string[] = [
  */
 export const SDK_CALLS: ReadonlyMap<string, SdkCall> = new Map([
   ...Object.entries(STANDARD_CALLS),
-  ...Object.keys(WATCHER_TOOL_SELECTION).map((entry): [string, SdkCall] => [
+  ...Object.entries(
+    WATCHER_TOOL_SELECTION as Readonly<Record<string, CatalogToolSelection>>,
+  ).map(([entry, selection]): [string, SdkCall] => [
     toToolName('watcher', entry),
-    { entry: entry as SdkEntry, timeoutMs: DEFAULT_FETCH_TIMEOUT_MS },
+    {
+      entry: entry as SdkEntry,
+      // The selection's parameter aliases, so the SDK input maps back to
+      // entry fields as jeeves's toolset does.
+      ...(selection.inputAliases ? { aliases: selection.inputAliases } : {}),
+      timeoutMs: DEFAULT_FETCH_TIMEOUT_MS,
+    },
   ]),
 ]);
 
