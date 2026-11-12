@@ -1,6 +1,6 @@
 /**
  * @module plugin/distSmoke.test
- * Smoke test of the built plugin (`dist/index.js`, as OpenClaw loads it): it registers the 18 tools in their 0.17.0 order (under their D77 names) from its bundled watcher-core and Zod, keeps `watcher_search` and `watcher_scan` `direct-only`, and a catalog-built tool sends the bearer key. Runs after `npm run build`; in CI (which builds before testing) a missing `dist` fails. A `dist` older than its inputs (the plugin's and watcher-core's source, and watcher-core's build), or bundling a watcher-core build older than watcher-core's source, is skipped with a rebuild message instead of tested (spec D201); in CI it fails.
+ * Smoke test of the built plugin (`dist/index.js`, as OpenClaw loads it): it imports watcher-core and the SDK rather than bundling them (D205), registers the 18 tools in their 0.17.0 order (under their D77 names) with both resolved from `node_modules`, keeps `watcher_search` and `watcher_scan` `direct-only`, and a catalog-built tool sends the bearer key through the SDK. Runs after `npm run build`; in CI (which builds before testing) a missing `dist` fails. A `dist` older than the plugin's source is skipped with a rebuild message instead of tested (spec D201); in CI it fails.
  */
 
 import { existsSync, readFileSync } from 'node:fs';
@@ -15,18 +15,10 @@ import { renamedTool } from './test/toolRenames.js';
 const DIST = new URL('../dist/index.js', import.meta.url);
 const built = existsSync(fileURLToPath(DIST));
 
-/** What `dist/index.js` is built from: this package and the core it bundles. */
-const here = (path: string) => fileURLToPath(new URL(path, import.meta.url));
-const CORE_SRC = here('../../core/src/');
-const INPUTS = [here('./'), CORE_SRC, here('../../core/dist/')];
-const CORE_DIST = here('../../core/dist/index.js');
+/** What `dist/index.js` is built from: this package's source only (D205). */
+const INPUTS = [fileURLToPath(new URL('./', import.meta.url))];
 const STALE = 'dist is older than src; run npm run build';
-// The plugin bundles core's build, so a core build older than core's
-// source is stale too, even when only the plugin was rebuilt.
-const stale =
-  built &&
-  (isOlderThanInputs(fileURLToPath(DIST), INPUTS) ||
-    (existsSync(CORE_DIST) && isOlderThanInputs(CORE_DIST, [CORE_SRC])));
+const stale = built && isOlderThanInputs(fileURLToPath(DIST), INPUTS);
 if (stale) console.warn(`distSmoke: ${STALE}`);
 
 const baselineNames = (
@@ -72,6 +64,20 @@ describe('built plugin', () => {
 
   // Skipped, with the rebuild message above, when dist is stale.
   describe.runIf(built && !stale)('dist/index.js', () => {
+    it('imports watcher-core and the SDK, bundling neither (D205)', () => {
+      const code = readFileSync(DIST, 'utf8');
+      const imported = [...code.matchAll(/^import .* from '([^']+)';$/gm)].map(
+        ([, from]) => from,
+      );
+      expect(imported).toEqual(
+        expect.arrayContaining([
+          '@karmaniverous/jeeves-watcher-core',
+          '@karmaniverous/jeeves-watcher-sdk',
+        ]),
+      );
+      expect(code).not.toMatch(/class WatcherError|WATCHER_CATALOG =/);
+    });
+
     it('registers the 18 tools in their 0.17.0 order, renamed (D77)', async () => {
       const tools = await registerDist({});
       expect([...tools.keys()]).toEqual(baselineNames);

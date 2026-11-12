@@ -18,6 +18,7 @@
 import {
   type CatalogToolSelection,
   createPluginToolset,
+  DEFAULT_FETCH_TIMEOUT_MS,
   type JeevesComponentDescriptor,
   type PluginApi,
   type ToolDescriptor,
@@ -30,6 +31,12 @@ import {
 } from '@karmaniverous/jeeves-watcher-core';
 
 import { getApiKey, getApiUrl } from './helpers.js';
+import {
+  type SdkCall,
+  type SdkEntry,
+  STANDARD_CALLS,
+  withSdkCall,
+} from './sdkCall.js';
 
 /** A catalog entry name. */
 type EntryName = WatcherCatalog['entries'][number]['name'];
@@ -116,9 +123,44 @@ export const WATCHER_TOOL_NAMES: readonly string[] = [
 ];
 
 /**
+ * The SDK call of every HTTP tool, by tool name: the three standard HTTP
+ * tools and the 14 domain tools (`watcher_service` calls no watcher API).
+ */
+export const SDK_CALLS: ReadonlyMap<string, SdkCall> = new Map([
+  ...Object.entries(STANDARD_CALLS),
+  ...Object.keys(WATCHER_TOOL_SELECTION).map((entry): [string, SdkCall] => [
+    toToolName('watcher', entry),
+    { entry: entry as SdkEntry, timeoutMs: DEFAULT_FETCH_TIMEOUT_MS },
+  ]),
+]);
+
+/**
  * Core's toolset for the watcher: the four standard tools and the 14 domain
- * tools. The base URL and the bearer key are resolved from `api` on every
- * call.
+ * tools as jeeves builds them (D38), each calling through jeeves's catalog
+ * client, as in 0.19.0. The base URL and the bearer key are resolved from
+ * `api` on every call.
+ *
+ * @param api - Plugin API (config source).
+ * @param component - Plugin-side component descriptor.
+ * @returns The tools, in registration order.
+ */
+export function createCoreToolset(
+  api: PluginApi,
+  component: JeevesComponentDescriptor,
+): ToolDescriptor[] {
+  const auth: ClientAuth = { bearer: () => getApiKey(api) };
+  return createPluginToolset(component, {
+    apiUrl: () => getApiUrl(api),
+    catalog: WATCHER_CATALOG,
+    auth,
+    tools: WATCHER_TOOL_SELECTION,
+  });
+}
+
+/**
+ * The watcher's tools: core's toolset's definitions
+ * ({@link createCoreToolset}), with every HTTP tool calling the watcher
+ * through one SDK method (D205).
  *
  * @param api - Plugin API (config source).
  * @param component - Plugin-side component descriptor.
@@ -128,18 +170,15 @@ export function createCatalogTools(
   api: PluginApi,
   component: JeevesComponentDescriptor,
 ): Map<string, ToolDescriptor> {
-  const auth: ClientAuth = { bearer: () => getApiKey(api) };
-  const tools = createPluginToolset(component, {
-    apiUrl: () => getApiUrl(api),
-    catalog: WATCHER_CATALOG,
-    auth,
-    tools: WATCHER_TOOL_SELECTION,
-  });
   return new Map(
-    tools.map((tool) => [
-      tool.name,
-      tool.name === 'watcher_reindex' ? withDefaultScope(tool) : tool,
-    ]),
+    createCoreToolset(api, component).map((built) => {
+      const call = SDK_CALLS.get(built.name);
+      const tool = call ? withSdkCall(built, api, call) : built;
+      return [
+        tool.name,
+        tool.name === 'watcher_reindex' ? withDefaultScope(tool) : tool,
+      ];
+    }),
   );
 }
 

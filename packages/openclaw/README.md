@@ -54,7 +54,7 @@ Plugin config lives in `openclaw.json` under `plugins.entries.jeeves-watcher-ope
 
 The plugin builds on [`@karmaniverous/jeeves`](https://www.npmjs.com/package/@karmaniverous/jeeves) 0.8 (static-content core since 0.6). It writes **no** workspace files and starts no timers:
 
-- **Tools from the endpoint catalog**: core's toolset builds every tool from `WATCHER_CATALOG` in watcher-core (0.18.0 renamed ten of them; see the [upgrading guide](../service/guides/upgrading.md#openclaw-plugin-0180)), so their parameters follow the service's request schemas. Each call waits up to 120 s; errors read `HTTP <status>: <body>`; see the [OpenClaw Integration guide](guides/openclaw-integration.md#errors).
+- **Tools from the endpoint catalog**: core's toolset builds every tool from `WATCHER_CATALOG` in watcher-core (0.18.0 renamed ten of them; see the [upgrading guide](../service/guides/upgrading.md#openclaw-plugin-0180)), so their parameters follow the service's request schemas. Every tool that calls the watcher makes one call through the [SDK](../sdk/README.md) (`@karmaniverous/jeeves-watcher-sdk`); the SDK and watcher-core are runtime dependencies, not bundled. Each call waits up to 120 s; errors read `HTTP <status>: <body>`; see the [OpenClaw Integration guide](guides/openclaw-integration.md#errors).
 - **Always-in-context rules**: the watcher escalation, scan-first and search-first rules and score guidance are injected on every turn via `before_prompt_build` (`registerPromptContext`). They replace the v0.x TOOLS.md `## Watcher` section.
 - **Live state**: served by tools (`watcher_status`, `watcher_config`) rather than a refreshed file.
 - **Skill**: `jeeves-watcher` ships in the package and is declared in `openclaw.plugin.json` (`skills`).

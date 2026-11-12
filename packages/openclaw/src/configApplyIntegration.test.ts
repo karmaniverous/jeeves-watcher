@@ -45,7 +45,8 @@ afterEach(() => {
 
 describe('watcher_config_apply { patch } envelope round-trip', () => {
   it('sends config inside a { patch } envelope to /config/apply', async () => {
-    const responsePayload = { applied: true, merged: { x: 1, y: 2 } };
+    // A reply the configApply response schema accepts: the SDK parses it.
+    const responsePayload = { applied: true, config: { x: 1, y: 2 } };
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
       json: () => Promise.resolve(responsePayload),

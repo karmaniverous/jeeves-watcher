@@ -2,40 +2,39 @@
  * Rollup configuration for the OpenClaw plugin package.
  * Single entry point: the plugin (ESM + declarations).
  *
- * `@karmaniverous/jeeves` is externalized: it is a runtime dependency that
- * `openclaw plugins install` installs alongside the plugin.
+ * Every runtime dependency (`@karmaniverous/jeeves`,
+ * `@karmaniverous/jeeves-watcher-core`, `@karmaniverous/jeeves-watcher-sdk`)
+ * and its sub-paths is external: `openclaw plugins install` installs them
+ * alongside the plugin, so `dist` holds the plugin's own code only (D205).
  *
  * @module rollup.config
  */
+
+import { readFileSync } from 'node:fs';
 
 import commonjs from '@rollup/plugin-commonjs';
 import json from '@rollup/plugin-json';
 import resolve from '@rollup/plugin-node-resolve';
 import typescriptPlugin from '@rollup/plugin-typescript';
-import type { RollupLog, RollupOptions } from 'rollup';
+import type { RollupOptions } from 'rollup';
 
-const external: (string | RegExp)[] = [
+const pkg = JSON.parse(
+  readFileSync(new URL('./package.json', import.meta.url), 'utf-8'),
+) as { dependencies?: Record<string, string> };
+
+/** Escape a package name for use in a regular expression. */
+const escapeRegExp = (text: string): string =>
+  text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+/** Node built-ins, and each runtime dependency with its sub-paths. */
+export const external: RegExp[] = [
   /^node:/,
-  // The jeeves core and its sub-paths (`/catalog`, ...): one shared copy.
-  /^@karmaniverous\/jeeves(?:\/|$)/,
+  ...Object.keys(pkg.dependencies ?? {}).map(
+    (name) => new RegExp(`^${escapeRegExp(name)}(?:/|$)`),
+  ),
 ];
 
-/**
- * Third-party noise from bundled dependencies (zod): comment annotations
- * Rollup cannot place, and zod's internal core ↔ util import cycle. Only
- * these codes, and only for modules under `node_modules`, are dropped; every
- * other warning is still reported.
- */
-const isBundledDependencyNoise = (log: RollupLog): boolean =>
-  (log.code === 'INVALID_ANNOTATION' &&
-    (log.id ?? '').includes('node_modules')) ||
-  (log.code === 'CIRCULAR_DEPENDENCY' &&
-    (log.ids ?? []).every((id) => id.includes('node_modules')));
-
 const pluginConfig: RollupOptions = {
-  onwarn: (log, warn) => {
-    if (!isBundledDependencyNoise(log)) warn(log);
-  },
   input: 'src/index.ts',
   output: { dir: 'dist', format: 'esm' },
   external,
