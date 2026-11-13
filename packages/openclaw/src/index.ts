@@ -36,7 +36,8 @@ export default function register(api: PluginApi): void {
   const component = createWatcherComponent(PLUGIN_VERSION);
 
   // Every tool comes from core's toolset over WATCHER_CATALOG (D38): the 4
-  // standard tools and the 14 domain tools, in their 0.17.0 order. Each
+  // standard tools and the 18 domain tools: the 14 in their 0.17.0 order,
+  // then the four of D206. Each
   // resolves the base URL (and, where its entry requires it, the bearer key)
   // on every call.
   const catalogTools = createCatalogTools(api, component);

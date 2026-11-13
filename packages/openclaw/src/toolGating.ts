@@ -17,7 +17,7 @@
  *   `getComponentConfigDir`); the other actions query or drive the OS
  *   service manager by service name.
  *
- * The 14 domain tools come from the same core toolset (D38): HTTP only,
+ * The 18 domain tools come from the same core toolset (D38): HTTP only,
  * never gated.
  */
 

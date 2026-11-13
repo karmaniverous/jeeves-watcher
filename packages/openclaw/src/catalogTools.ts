@@ -60,11 +60,11 @@ export const LIST_FACETS_DESCRIPTION =
 
 /** `watcher_count_facets` description (D206 (1), D194). */
 export const COUNT_FACETS_DESCRIPTION =
-  'Count documents per value of facet fields under an optional Qdrant filter (each document once; counts are approximate), or { min, max } for number, date and range fields. Each field needs a payload index (400 names the ones without); 503 while the system indexes build: retry later. Use it for "how many per value" questions and for tenant-scoped value lists.';
+  'Count documents per value of facet fields under an optional Qdrant filter (each document once; counts are approximate), or { min, max } for number, date and range fields. Each field needs a payload index (400 names the ones without); 503 while the system indexes build (retry later) or past the time budget (count fewer fields or narrow the filter). Use it for "how many per value" questions and for tenant-scoped value lists.';
 
 /** `watcher_render` description (D206 (1)). */
 export const RENDER_DESCRIPTION =
-  'Render a document through the inference rules it matches: its rendered content, output format, matching rules and resulting metadata. Takes a file path, or a source reference (fetched through its callback).';
+  'Render a document through the inference rules it matches: its rendered content, output format, matching rules and resulting metadata. Takes exactly one of a file path (the whole file is read) or a source reference (fetched through its callback).';
 
 /** `watcher_match_config` description (D206 (1)). */
 export const MATCH_CONFIG_DESCRIPTION =
