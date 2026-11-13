@@ -2,6 +2,30 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.22.2] - 2026-11-13
+
+### 🚀 Features
+
+- One exported uiHint vocabulary; warn on unknown uiHints and unindexed facet fields (D206)
+
+### 🐛 Bug Fixes
+
+- Read no payload indexes when no rule has a facet field; test the merged hint both ways
+
+### 💼 Other
+
+- Updated dependencies
+- Updated core
+
+### 📚 Documentation
+
+- Facets guide, links into it, skill hint table and the four tools (D206)
+- Text filter without an index, pick the fields to count, when the warnings fire, watcher_render for source documents
+
+### 🧪 Testing
+
+- Cover a facet config check without inference rules
+- Catch a hint-set literal spread over several lines
 ## [0.22.1] - 2026-11-12
 
 ### 🐛 Bug Fixes
@@ -18,6 +42,10 @@ All notable changes to this project will be documented in this file.
 
 - The SDK as a dependency of the service and the plugin (D205)
 - Correct the 0.22.1 plugin differences, jeeves 0.11, the status timeout
+
+### ⚙️ Miscellaneous Tasks
+
+- Release @karmaniverous/jeeves-watcher v0.22.1
 ## [0.22.0] - 2026-11-12
 
 ### 💼 Other
