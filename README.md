@@ -294,6 +294,10 @@ curl -X POST http://localhost:1936/search \
   }'
 ```
 
+### Facets
+
+A rule schema property with a `uiHint` (or an `enum`) is a search facet: `GET /search/facets` lists the facets with their known values, and `POST /search/facets/counts` counts documents per value (or gives `{ min, max }`) under a filter, such as a tenant's. Each counted field needs a payload index; the service warns at startup about an unknown `uiHint` and about a facet field without one. The [Facets guide](packages/service/guides/facets.md) covers the whole path, from rule to filter, with the one `uiHint` table, date conventions and multi-tenant use.
+
 ### Example: Update Metadata
 
 ```bash
@@ -332,6 +336,10 @@ This repo includes an OpenClaw plugin (`packages/openclaw`) that exposes the jee
 | `watcher_revert_vcs` | Restore files from a historical version |
 | `watcher_exclude_vcs_path` | Exclude or re-include paths from version tracking |
 | `watcher_check_vcs_exclusion` | Whether a path is excluded from version tracking, and why |
+| `watcher_list_facets` | Search facets: fields, hints and known values |
+| `watcher_count_facets` | Document counts per facet value, or a range, under a filter |
+| `watcher_render` | Render a document through its inference rules |
+| `watcher_match_config` | Test file paths against the inference rules and watch scope |
 
 The plugin is a standard OpenClaw plugin on [`@karmaniverous/jeeves`](https://www.npmjs.com/package/@karmaniverous/jeeves) 0.11 core, installed by `jeeves install`. Every tool is built from the watcher's endpoint catalog by core's toolset and named `watcher_` plus its catalog entry in snake_case; every tool that calls the watcher does so through the [SDK](packages/sdk/README.md), which the plugin installs as a dependency with watcher-core. It writes no workspace files; its always-in-context watcher rules are injected via the `before_prompt_build` hook. See the [OpenClaw Integration Guide](packages/openclaw/guides/openclaw-integration.md) for details.
 

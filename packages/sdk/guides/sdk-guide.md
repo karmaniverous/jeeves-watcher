@@ -118,3 +118,30 @@ await watcher.scan({
   filter: f.and(f.eq('type', 'chat_thread'), f.eq('user_id', userId)),
 });
 ```
+
+## Facets
+
+`listFacets` gives the facet fields of the rules (a property with a `uiHint` or `enum`), `countFacets` their document counts under a filter, and `f` the filter for the user's choices. A multi-tenant application fills its value lists from `countFacets` under the tenant filter, because `listFacets` values are recorded per rule, never per tenant:
+
+```ts
+const tenant = f.eq('tenant', tenantId);
+
+const { facets } = await watcher.listFacets({ rules: 'ticket' });
+const { counts } = await watcher.countFacets({
+  fields: facets.map((facet) => facet.field),
+  filter: tenant,
+  rules: ['ticket'],
+});
+// counts.status: [{ value: 'Open', count: 41 }, ...]; counts.created: { min, max }
+
+const results = await watcher.search({
+  query: 'refund not received',
+  filter: f.and(
+    tenant,
+    f.eq('status', 'Open'),
+    f.range('created', { gte: 1769904000 }),
+  ),
+});
+```
+
+Each counted field needs a payload index. The [Facets guide](../../service/guides/facets.md) has the `uiHint` table (which hints count values and which give a range, and the filter for each), the date conventions and the rest.
