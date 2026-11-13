@@ -193,6 +193,19 @@ describe('checkFacetConfig', () => {
     ]);
   });
 
+  it('checks a config without inference rules quietly', async () => {
+    const { logger, warn } = spyLogger();
+    const payloadIndexTypes = vi.fn(() => Promise.resolve({}));
+    await checkFacetConfig({
+      config: { ...config, inferenceRules: undefined },
+      configDir: '/tmp',
+      facetStore: { payloadIndexTypes },
+      logger,
+    });
+    expect(payloadIndexTypes).toHaveBeenCalledOnce();
+    expect(warn).not.toHaveBeenCalled();
+  });
+
   it('checks hints only without a facet store', async () => {
     const { logger, warn } = spyLogger();
     await checkFacetConfig({ config, configDir: '/tmp', logger });
