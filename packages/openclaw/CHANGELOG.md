@@ -2,6 +2,28 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.20.0] - 2026-11-13
+
+### 🚀 Features
+
+- *(openclaw)* Deferred tools for listFacets, countFacets, render and matchConfig (D206)
+
+### 🐛 Bug Fixes
+
+- *(openclaw)* Count_facets says when a 503 needs a smaller call; render takes exactly one of path or source; 18 domain tools in comments
+
+### 💼 Other
+
+- Updated dependencies
+- Updated core
+
+### 📚 Documentation
+
+- *(openclaw)* Architecture diagram says 18 domain tools
+
+### 🧪 Testing
+
+- *(openclaw)* Dist smoke expects the four D206 tools after the 0.17.0 set
 ## [0.19.1] - 2026-11-12
 
 ### 🚀 Features
@@ -31,6 +53,10 @@ All notable changes to this project will be documented in this file.
 - *(openclaw)* Re-review nits: alias test asserts the call, distSmoke build-config staleness, README status timeout
 - *(openclaw)* Tsconfig in distSmoke staleness; document the build-config inputs
 - *(openclaw)* Name the tsconfigs in the distSmoke config comment
+
+### ⚙️ Miscellaneous Tasks
+
+- Release @karmaniverous/jeeves-watcher-openclaw v0.19.1
 ## [0.19.0] - 2026-11-12
 
 ### 💼 Other
