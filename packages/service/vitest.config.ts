@@ -36,6 +36,7 @@ export const IO_TESTS = [
   'src/api/catalogBodyErrors.test.ts',
   'src/api/catalogRoutes.test.ts',
   'src/api/registerCatalogHooks.test.ts',
+  'src/api/rulesRegisterFacetWarnings.test.ts',
   'src/api/wireBaseline.test.ts',
   'src/test/wire/*.test.ts',
   // git: a real repository at a watched root.

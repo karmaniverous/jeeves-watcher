@@ -82,6 +82,10 @@ The plugin builds on [`@karmaniverous/jeeves`](https://www.npmjs.com/package/@ka
 | `watcher_revert_vcs` | Undo changes by restoring files to a specific version |
 | `watcher_exclude_vcs_path` | Exclude or re-include paths from version tracking |
 | `watcher_check_vcs_exclusion` | Check whether a path is excluded from version tracking and why |
+| `watcher_list_facets` | Search facets: fields, hints and known values (per rule, never per tenant) |
+| `watcher_count_facets` | Document counts per facet value, or `{ min, max }`, under a filter |
+| `watcher_render` | Render a document through the inference rules it matches |
+| `watcher_match_config` | Test file paths against the inference rules and watch scope |
 
 ### Direct tools under OpenClaw Tool Search
 

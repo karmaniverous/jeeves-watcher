@@ -263,18 +263,9 @@ If `json.current.fields.created` is the string `"1735689600"`, coercion converts
 
 ## The `uiHint` Keyword
 
-The `uiHint` keyword tells consuming UIs how to render a property for search filtering:
+The `uiHint` keyword tells consuming UIs how to render a property for search filtering, and makes the property a facet. The hints (`dropdown`, `tags`, `select`, `multiselect`, `number`, `date`, `range`, `text`, `check`), what `GET /search/facets` and `POST /search/facets/counts` answer for each, and the filter each takes are in one table in the [Facets guide](./facets.md#what-makes-a-field-a-facet); an `enum` without a `uiHint` is a `dropdown`. An unknown hint still loads, and the service logs a warning naming the rule, the property and the hint.
 
-| Value | Renders as | Use with |
-| --- | --- | --- |
-| `text` | Free text input | Text fields, substring search |
-| `number` | Numeric input / range slider | Numeric fields with range queries |
-| `date` | Date picker / date range | Integer timestamps (unix seconds) |
-| `select` | Single-value dropdown | Enum fields, known values |
-| `multiselect` | Multi-value dropdown | Array fields with enum-like values |
-| `check` | Boolean toggle / checkbox | Boolean fields |
-
-**Properties without `uiHint` are not displayed in the UI.** This is an explicit opt-in: removing a `uiHint` hides the field; adding one exposes it.
+**Properties without `uiHint` (or `enum`) are not displayed in the UI.** This is an explicit opt-in: removing a `uiHint` hides the field; adding one exposes it.
 
 **`uiHint` also serves as intent metadata for LLM consumers.** It augments the property description by signaling how the property is meant to be used in queries.
 
@@ -532,7 +523,7 @@ Every embedded point includes a `matched_rules` field: an array of the names of 
 
 The watcher maintains a **values index** (`values.v8` in `stateDir`, a V8-serialized file) tracking distinct values per rule. For each rule that matched a document, the distinct values of the document's metadata fields are recorded under that rule's name. Only trackable primitives (string, number, boolean) are indexed; arrays contribute their primitive elements.
 
-**Purpose:** Populate dropdowns for `select` and `multiselect` fields when no `enum` is declared in the schema.
+**Purpose:** Populate dropdowns for the list hints (`dropdown`, `tags`, `select`, `multiselect`) when no `enum` is declared in the schema. Values are kept per rule, never per tenant: a UI serving several tenants fills its lists from `POST /search/facets/counts` under the tenant filter instead (see [Facets](./facets.md#several-tenants)).
 
 **Shape** (as returned per rule in `GET /config`):
 
@@ -988,7 +979,7 @@ curl -X POST http://localhost:1936/config/match \
 5. **Test type coercion** — Verify integer/number fields parse correctly (check logs)
 6. **Order rules intentionally** — Later rules override earlier ones on conflict
 7. **Monitor issues file** — `GET /issues` surfaces problems before they become mysteries
-8. **Use values index for dropdowns** — Pair `uiHint: "select"` with runtime values for dynamic enums
+8. **Use values index for dropdowns** — Pair a list hint (`dropdown`, `tags`, `select`, `multiselect`) with runtime values for dynamic enums (per rule, never per tenant: see [Facets](./facets.md#several-tenants))
 9. **Avoid reserved names** — Never name a property after a system payload field
 
 ---

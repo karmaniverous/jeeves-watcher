@@ -48,7 +48,7 @@ Plugin config lives in `openclaw.json` under `plugins.entries.jeeves-watcher-ope
 
 ## Available Tools
 
-The plugin registers 18 tools (`contracts.tools` in `openclaw.plugin.json`), all as optional tools. Core's toolset (`createPluginToolset` in `@karmaniverous/jeeves`) builds all of them: `watcher_service`, plus 17 from the watcher's endpoint catalog (`WATCHER_CATALOG` in `@karmaniverous/jeeves-watcher-core`), each named `watcher_` plus its catalog entry in snake_case (`showVcsFile` becomes `watcher_show_vcs_file`). Their parameters are generated from the catalog's request schemas, so they reject unknown parameters and carry the server's bounds. Since 0.20.0 each of those 17 calls the watcher through one method of the SDK (`@karmaniverous/jeeves-watcher-sdk`, the method named by the catalog entry), which checks a successful reply against the entry's response schema: a field the schema does not declare is dropped, an object's keys print in schema order, and a reply the schema rejects reads `Error: <entry> response did not match the expected shape`. An error reply still reads `HTTP <status>: <body>` with the server's body verbatim. The SDK and watcher-core are runtime dependencies that `openclaw plugins install` installs; the plugin bundles neither. Every call waits up to 120 s (core's default; `watcher_status` waits 5 s); a timeout does not cancel the operation on the service, so check the outcome (for example with `watcher_check_vcs_exclusion`) before retrying a state change. Every HTTP tool reads `apiUrl` and the API key on each call and sends the key when one is configured (`watcher_status` never needs it).
+The plugin registers 22 tools (`contracts.tools` in `openclaw.plugin.json`), all as optional tools. Core's toolset (`createPluginToolset` in `@karmaniverous/jeeves`) builds all of them: `watcher_service`, plus 21 from the watcher's endpoint catalog (`WATCHER_CATALOG` in `@karmaniverous/jeeves-watcher-core`), each named `watcher_` plus its catalog entry in snake_case (`showVcsFile` becomes `watcher_show_vcs_file`). Their parameters are generated from the catalog's request schemas, so they reject unknown parameters and carry the server's bounds. Each of those 21 calls the watcher through one method of the SDK (`@karmaniverous/jeeves-watcher-sdk`, the method named by the catalog entry), which checks a successful reply against the entry's response schema: a field the schema does not declare is dropped, an object's keys print in schema order, and a reply the schema rejects reads `Error: <entry> response did not match the expected shape`. An error reply still reads `HTTP <status>: <body>` with the server's body verbatim. The SDK and watcher-core are runtime dependencies that `openclaw plugins install` installs; the plugin bundles neither. Every call waits up to 120 s (core's default; `watcher_status` waits 5 s); a timeout does not cancel the operation on the service, so check the outcome (for example with `watcher_check_vcs_exclusion`) before retrying a state change. Every HTTP tool reads `apiUrl` and the API key on each call and sends the key when one is configured (`watcher_status` never needs it).
 
 ### Errors
 
@@ -218,6 +218,45 @@ Check whether git ignores a path and why: the rule, the file holding it (`.git/i
 **Parameters:**
 
 - `path` (string, required) — file path to check exclusion status for
+
+### Facet and Rule Tools
+
+Four read tools over existing endpoints (D206). Like every tool but `watcher_search` and `watcher_scan`, they are deferred: OpenClaw Tool Search lists them in one line and loads a schema when the agent looks for it. The [Facets guide](../../service/guides/facets.md) explains facets end to end.
+
+#### `watcher_list_facets`
+
+List the search facets (`GET /search/facets`): every field a rule schema gives a `uiHint` or `enum`, with its type, hint, rules and values (the declared `enum`, else the values recorded per rule for the list hints `dropdown`, `tags`, `select`, `multiselect`). Values are per rule, never per tenant.
+
+**Parameters:**
+
+- `rules` (string) — comma-separated rule names: only those rules' fields and values
+
+#### `watcher_count_facets`
+
+Count documents per value of facet fields under an optional filter, or give `{ min, max }` for `number`, `date` and `range` fields (`POST /search/facets/counts`). Each document counts once; counts are approximate. A field without a payload index answers `HTTP 400`; the route answers `HTTP 503` while its system indexes build or past its 10 s budget.
+
+**Parameters:**
+
+- `fields` (string[], required, 1 to 20) — payload fields to count
+- `filter` (object) — Qdrant filter scoping the counts (e.g. a tenant condition)
+- `rules` (string[]) — only documents of these rules
+- `limit` (integer, 1 to 1000) — most values per field (default 100)
+
+#### `watcher_render`
+
+Render a document through the inference rules it matches (`POST /render`): `{ renderAs, content, rules, metadata }`. It reads the whole file, whatever its size.
+
+**Parameters:**
+
+- `path` (string) or `source` (string): exactly one; the file path, or a source reference fetched through its callback
+
+#### `watcher_match_config`
+
+Test file paths against the inference rules and watch scope without reading the files (`POST /config/match`): per path, `{ rules, watched }`.
+
+**Parameters:**
+
+- `paths` (string[], required) — file paths to test
 
 ## Architecture
 

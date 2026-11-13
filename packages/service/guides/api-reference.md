@@ -316,7 +316,7 @@ For a **source document**, the watcher reads the designated rule from the stored
 
 ## GET /search/facets
 
-Returns schema-derived facet definitions for building search filter UIs.
+Returns schema-derived facet definitions for building search filter UIs. The [Facets guide](./facets.md) covers the whole path: declaring facet fields, the `uiHint` table, indexes, counts and filters.
 
 **v0.8.0+** (`rules` v0.21.0+)
 
@@ -373,7 +373,7 @@ curl 'http://localhost:1936/search/facets?rules=jira-issue,slack-message'
 | --- | --- | --- |
 | `field` | `string` | Metadata field name. |
 | `type` | `string` | JSON Schema type (e.g. `"string"`, `"number"`, `"boolean"`). |
-| `uiHint` | `string` | UI rendering hint (e.g. `"dropdown"`, `"tags"`, `"date"`); `"dropdown"` when only `enum` is declared. |
+| `uiHint` | `string` | UI rendering hint (e.g. `"dropdown"`, `"tags"`, `"date"`; all hints in the [Facets guide](./facets.md#what-makes-a-field-a-facet)); `"dropdown"` when only `enum` is declared. |
 | `values` | `unknown[]` | Known values: the `enum` values if declared; otherwise, for the enumerated hints `dropdown`, `tags`, `select` and `multiselect`, the sorted live values from the values index; otherwise `[]`. |
 | `rules` | `string[]` | Which inference rules define this field. |
 
@@ -400,7 +400,7 @@ For how many documents hold each value under a filter, use [`POST /search/facets
 
 ## POST /search/facets/counts
 
-Counts the values of payload fields over the documents matching a filter, or gives `{ min, max }` for a numeric or date field. Each document counts once, however many chunks it has. Counts are approximate: they come from Qdrant's default (approximate) facet counts, so treat them as sizes for a UI, not as exact totals (for an exact count of one value use [`POST /scan`](#post-scan) with `countOnly`, adding `{ "key": "chunk_index", "match": { "value": 0 } }` to the filter so it counts documents rather than chunks, plus the rule scope if you used `rules`). Ranges are exact.
+Counts the values of payload fields over the documents matching a filter, or gives `{ min, max }` for a numeric or date field (see the [Facets guide](./facets.md) for building a filter UI on it, dates and several tenants). Each document counts once, however many chunks it has. Counts are approximate: they come from Qdrant's default (approximate) facet counts, so treat them as sizes for a UI, not as exact totals (for an exact count of one value use [`POST /scan`](#post-scan) with `countOnly`, adding `{ "key": "chunk_index", "match": { "value": 0 } }` to the filter so it counts documents rather than chunks, plus the rule scope if you used `rules`). Ranges are exact.
 
 **v0.21.0+**
 

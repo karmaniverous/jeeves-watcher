@@ -111,7 +111,7 @@ The plugin is a standard OpenClaw plugin. On a Jeeves box, `jeeves install --wor
 If the watcher service is already running and healthy:
 
 1. **Search** — use `watcher_search` with a natural language query and optional metadata filters
-2. **Read source** — use `read` (standard file read) with `file_path` from search results for full document content. Source documents (points carrying `source`, such as `app://chat/thread/42`, and no `file_path`) are not files: their content comes from the source's callback (`POST /render` with `{ "source": "<ref>" }`).
+2. **Read source** — use `read` (standard file read) with `file_path` from search results for full document content. Source documents (points carrying `source`, such as `app://chat/thread/42`, and no `file_path`) are not files: their content comes from the source's callback: `watcher_render` with `source: "<ref>"` (over HTTP, `POST /render` with `{ "source": "<ref>" }`).
 
 ## Bootstrap (First-Time Setup)
 
@@ -368,7 +368,7 @@ On sessions after bootstrap is complete:
 
 ## Tools
 
-The plugin registers 18 tools: `watcher_status`, `watcher_config`, `watcher_config_apply`, `watcher_service`, `watcher_search`, `watcher_set_metadata`, `watcher_validate_config`, `watcher_reindex`, `watcher_scan`, `watcher_list_issues`, `watcher_walk`, and the seven version-control tools (see [Version Tracking](#version-tracking)).
+The plugin registers 22 tools: `watcher_status`, `watcher_config`, `watcher_config_apply`, `watcher_service`, `watcher_search`, `watcher_set_metadata`, `watcher_validate_config`, `watcher_reindex`, `watcher_scan`, `watcher_list_issues`, `watcher_walk`, `watcher_list_facets`, `watcher_count_facets`, `watcher_render`, `watcher_match_config`, and the seven version-control tools (see [Version Tracking](#version-tracking)). Only `watcher_search` and `watcher_scan` are direct; the rest are deferred, so find them with `tool_search` when Tool Search is on.
 
 ### `watcher_search`
 
@@ -581,6 +581,39 @@ List watched files matching globs (`POST /walk`). Returns matching file paths fr
 - Returns file paths only (no metadata, no vectors)
 - Applies `watch.ignored` and gitignore filtering automatically
 
+### `watcher_list_facets`
+
+List the search facets (`GET /search/facets`): every field a rule schema gives a `uiHint` or `enum`, with `type`, `uiHint`, `rules` and `values`.
+
+- `rules` (string, optional) — comma-separated rule names: only those rules' fields and values (an unknown name is `400`)
+
+`values` is the declared `enum`, else (for `dropdown`, `tags`, `select`, `multiselect`) the values recorded for the rule's documents, else `[]`. Recorded values are per rule, **never per tenant**, and are not removed when documents go: for one tenant's values, use `watcher_count_facets` under the tenant filter.
+
+### `watcher_count_facets`
+
+Count documents per value of facet fields under a filter (`POST /search/facets/counts`), each document once; or `{ min, max }` for `number`, `date` and `range` fields.
+
+- `fields` (string[], required) — 1 to 20 payload fields; each needs a payload index (else `400` naming it)
+- `filter` (object, optional) — Qdrant filter, e.g. a tenant condition
+- `rules` (string[], optional) — only documents of these rules
+- `limit` (number, optional) — most values per field (default 100)
+
+Counts are approximate (sizes, not totals; for an exact count use `watcher_scan` with `countOnly` and `chunk_index = 0` in the filter). `503 WATCHER_NOT_AVAILABLE` while its system indexes build or past its 10 s budget: retry later or count fewer fields. Use it for "how many per status" questions and to see which values exist under a filter before filtering on them.
+
+### `watcher_render`
+
+Render a document through the inference rules it matches (`POST /render`): `{ renderAs, content, rules, metadata }`. Use it to see the text a document is embedded from, or to check a template change.
+
+- `path` (string) or `source` (string) — exactly one: a file path, or a source reference (fetched through its callback)
+
+It reads the whole file, so do not point it at large binaries.
+
+### `watcher_match_config`
+
+Test file paths against the inference rules and watch scope without reading the files (`POST /config/match`); see [Path Testing](#path-testing).
+
+- `paths` (string[], required) — file paths to test
+
 ## Query Planning: Scan vs Search
 
 **Decision rule:** If the query has no semantic/natural-language dimension, use `watcher_scan`. If you need meaning-based similarity, use `watcher_search`.
@@ -718,13 +751,13 @@ watcher_config: path="$.inferenceRules[?(@.name=='jira-issue')].schema"
 
 Returns the rule's schema array with named schema references and file references already resolved: properties, types, `set` expressions, `uiHint`, `enum`, etc.
 
-**For select/multiselect fields without `enum` in schema:**
+**For list fields (`dropdown`, `tags`, `select`, `multiselect`) without `enum` in schema** (or `watcher_list_facets`, which gives every facet with its values):
 
 ```
 watcher_config: path="$.inferenceRules[?(@.name=='jira-issue')].values.status"
 ```
 
-Retrieves valid filter values from the runtime values index (distinct values accumulated during embedding).
+Retrieves valid filter values from the runtime values index (distinct values accumulated during embedding, per rule: never per tenant, and not removed when documents go). In a multi-tenant archive, take one tenant's values from `watcher_count_facets` with the tenant filter instead.
 
 **When search results span multiple rules** (indicated by `matched_rules` on results): query each unique rule's schema separately and merge mentally. Most result sets share the same rule combination, so this is typically one or two queries, not one per result.
 
@@ -734,17 +767,26 @@ Retrieves valid filter values from the runtime values index (distinct values acc
 
 Use `uiHint` to determine filter construction strategy. **This table is explicit, not intuited:**
 
+<!-- ui-hints:start -->
+
 | `uiHint` | Qdrant filter | Notes |
 | --- | --- | --- |
-| `text` | `{ "key": "<field>", "match": { "text": "<value>" } }` | Substring/keyword match |
+| `dropdown` | `{ "key": "<field>", "match": { "value": "<enum_value>" } }` | Exact match; the hint of an `enum` without one. Use `enum` values from schema or runtime values index |
+| `tags` | `{ "key": "<field>", "match": { "any": ["<value>", ...] } }` | Array field (labels); matches a document holding any listed value. Use `enum` or runtime values index |
 | `select` | `{ "key": "<field>", "match": { "value": "<enum_value>" } }` | Exact match; use `enum` values from schema or runtime values index |
-| `multiselect` | `{ "key": "<field>", "match": { "value": "<enum_value>" } }` | Any-element match on array field; use `enum` or runtime values index |
-| `date` | `{ "key": "<field>", "range": { "gte": <unix_ts>, "lt": <unix_ts> } }` | Range filter against integer fields holding Unix timestamps (seconds). Source dates should be normalized in config via `{{toUnix ...}}` in `set` expressions. Either bound optional for open-ended ranges (e.g., "after January" → `gte` only) |
+| `multiselect` | `{ "key": "<field>", "match": { "any": ["<value>", ...] } }` | Several values, or any element of an array field; use `enum` or runtime values index |
 | `number` | `{ "key": "<field>", "range": { "gte": <n>, "lte": <n> } }` | Either bound optional for open-ended ranges |
+| `date` | `{ "key": "<field>", "range": { "gte": <unix_ts>, "lt": <unix_ts> } }` | Unix seconds on an `integer` field (set via `{{toUnix ...}}`), or ISO 8601 strings on a `datetime`-indexed field: `{ "range": { "gte": "2026-01-01T00:00:00Z" } }`. Check which with `watcher_count_facets` (its `{ min, max }` shows the stored form). Either bound optional ("after January" → `gte` only) |
+| `range` | `{ "key": "<field>", "range": { "gte": <n>, "lt": <n> } }` | Any ordered field shown as a slider; either bound optional |
+| `text` | `{ "key": "<field>", "match": { "text": "<value>" } }` | Word match with a `text` payload index, substring match without one. Counting it with `watcher_count_facets` needs a `keyword` index instead (a field takes one index) |
 | `check` | `{ "key": "<field>", "match": { "value": true } }` | Boolean match |
 | _(absent)_ | Do not use in filters | Internal bookkeeping field, not intended for search |
 
-**Fallback:** If a `select`/`multiselect` field has neither `enum` in schema nor values in the index, treat it as `text` (substring match instead of exact match).
+<!-- ui-hints:end -->
+
+**Fallback:** If a list field (`dropdown`, `tags`, `select`, `multiselect`) has neither `enum` in schema nor values in the index, treat it as `text` (substring match instead of exact match). Any other hint is not one the service knows (it logs a warning at start, at each config reload and when a rule is registered): treat the field as `text`.
+
+**Several tenants:** recorded values (`watcher_list_facets`, `$.inferenceRules[...].values`) mix every tenant's values. When the archive serves several tenants, get the values that exist for one from `watcher_count_facets` with the tenant condition in `filter`.
 
 ---
 
@@ -815,7 +857,7 @@ watcher_config: path="$.inferenceRules[?(@.name=='jira-issue')].schema"
 
 ### Full Context
 
-Search gives you chunks; use `read` with `file_path` for the complete document. A source document has no file: render it with `POST /render` and `{ "source": "<ref>" }`, which retrieves it through its callback.
+Search gives you chunks; use `read` with `file_path` for the complete document. A source document has no file: render it with `watcher_render` and `source: "<ref>"` (over HTTP, `POST /render` with `{ "source": "<ref>" }`), which retrieves it through its callback.
 
 ---
 
@@ -827,7 +869,7 @@ When uncertain whether a file would be indexed, test it against the rules. `watc
 watcher_validate_config: testPaths=["/data/tickets/PROJ-123.json"]
 ```
 
-Or call `POST /config/match` directly with `{ "paths": [...] }`. It returns `{ matches: [{ rules, watched }] }`, one entry per path, without reading the files:
+Or use `watcher_match_config` (`POST /config/match`) with `{ "paths": [...] }`. It returns `{ matches: [{ rules, watched }] }`, one entry per path, without reading the files:
 
 - `rules` lists the matching rule names; an empty array means no inference rules match
 - `watched: false` means the path falls outside watch paths or is excluded by ignore patterns

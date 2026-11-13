@@ -4,18 +4,21 @@
  */
 
 import type { CatalogHandler } from '@karmaniverous/jeeves/fastify';
-import type { ListFacetsResponse } from '@karmaniverous/jeeves-watcher-core';
+import {
+  DEFAULT_ENUM_UI_HINT,
+  isEnumeratedUiHint,
+  type ListFacetsResponse,
+} from '@karmaniverous/jeeves-watcher-core';
 import type pino from 'pino';
 
 import type { InferenceRule, JeevesWatcherConfig } from '../../config/types';
-import type { ResolvedProperty } from '../../rules/schemaMerge';
 import type { ValuesManager } from '../../values';
 import type { Entry } from './catalogEntry';
 import { parseRuleList, requireKnownRules } from './facetRules';
 import {
   createRuleSchemas,
-  DEFAULT_ENUM_HINT,
   heldRuleNames,
+  isFacetProperty,
   requireResolved,
   type RuleSchema,
   selectSchemas,
@@ -52,28 +55,6 @@ interface FacetField {
 }
 
 /**
- * Check whether a resolved property should be exposed as a facet.
- * A property is facetable if it declares `uiHint` or `enum`.
- */
-function isFacetable(prop: ResolvedProperty): boolean {
-  // Reject non-primitive types that can never produce trackable values.
-  if (prop.type === 'object') return false;
-  return prop.uiHint !== undefined || prop.enum !== undefined;
-}
-
-/** uiHint types that represent enumerated value selection. */
-const ENUMERATED_HINTS = new Set(['dropdown', 'tags', 'select', 'multiselect']);
-
-/**
- * Check whether a uiHint type supports value enumeration.
- * Non-enumerated hints (text, number, date, range, etc.) should not
- * aggregate live values: the client uses free-form input instead.
- */
-function isEnumeratedHint(uiHint: string): boolean {
-  return ENUMERATED_HINTS.has(uiHint);
-}
-
-/**
  * Collect the facetable properties of the given rules, in rule order:
  * later rules override `enum` and `uiHint`, and every declaring rule is
  * listed. Pure.
@@ -82,7 +63,7 @@ function collectFacetFields(rules: RuleSchema[]): Map<string, FacetField> {
   const fields = new Map<string, FacetField>();
   for (const { rule, properties } of rules) {
     for (const [propName, propDef] of Object.entries(properties)) {
-      if (!isFacetable(propDef)) continue;
+      if (!isFacetProperty(propDef)) continue;
       const existing = fields.get(propName);
       if (existing) {
         existing.rules.push(rule);
@@ -91,7 +72,7 @@ function collectFacetFields(rules: RuleSchema[]): Map<string, FacetField> {
       } else {
         fields.set(propName, {
           type: propDef.type ?? 'string',
-          uiHint: propDef.uiHint ?? DEFAULT_ENUM_HINT,
+          uiHint: propDef.uiHint ?? DEFAULT_ENUM_UI_HINT,
           enumValues: propDef.enum,
           rules: [rule],
         });
@@ -108,8 +89,9 @@ function facetValues(
   allValues: Partial<Record<string, Partial<Record<string, unknown[]>>>>,
 ): unknown[] {
   if (schema.enumValues) return schema.enumValues;
-  // Only aggregate live values for enumerated hint types (dropdown, tags, etc.)
-  if (!isEnumeratedHint(schema.uiHint)) return [];
+  // Only enumerated hints get recorded values (core ENUMERATED_UI_HINTS);
+  // the others take free-form input.
+  if (!isEnumeratedUiHint(schema.uiHint)) return [];
   const liveValues = new Set<unknown>();
   for (const ruleName of schema.rules) {
     for (const v of allValues[ruleName]?.[field] ?? []) liveValues.add(v);

@@ -88,9 +88,49 @@ afterEach(() => {
 });
 
 describe('createCatalogTools', () => {
-  it('builds the 4 standard tools and the 14 domain tools', () => {
+  it('builds the 4 standard tools and the 18 domain tools', () => {
     expect([...tools.keys()].sort()).toEqual([...WATCHER_TOOL_NAMES].sort());
-    expect(WATCHER_TOOL_NAMES).toHaveLength(18);
+    expect(WATCHER_TOOL_NAMES).toHaveLength(22);
+  });
+
+  it('gives the four D206 read tools no catalogMode (deferred) and leaves nine entries untooled', () => {
+    const selections = new Map<string, object>(
+      Object.entries(WATCHER_TOOL_SELECTION),
+    );
+    for (const entry of [
+      'listFacets',
+      'countFacets',
+      'render',
+      'matchConfig',
+    ]) {
+      const selection = selections.get(entry);
+      expect(selection).toBeDefined();
+      expect(selection && 'catalogMode' in selection).toBe(false);
+    }
+    const tooled = new Set([
+      'status',
+      'config',
+      'configApply',
+      ...Object.keys(WATCHER_TOOL_SELECTION),
+    ]);
+    expect(
+      WATCHER_CATALOG.entries
+        .map((entry) => entry.name)
+        .filter((name) => !tooled.has(name))
+        .sort(),
+    ).toEqual(
+      [
+        'getConfigSchema',
+        'notifyDocuments',
+        'registerRules',
+        'reapplyRules',
+        'rebuildMetadata',
+        'deleteDocuments',
+        'deletePoints',
+        'unregisterRules',
+        'unregisterRulesBySource',
+      ].sort(),
+    );
   });
 
   it('names every domain tool watcher_ + its entry name in snake_case (D77)', () => {
@@ -102,7 +142,7 @@ describe('createCatalogTools', () => {
     for (const name of WATCHER_TOOL_NAMES) expect(name).toMatch(/^watcher_/);
   });
 
-  it('registers in the 0.17.0 order under the D77 names', () => {
+  it('registers in the 0.17.0 order, then the D206 tools, under the D77 names', () => {
     expect(WATCHER_TOOL_NAMES).toEqual(
       [
         'watcher_status',
@@ -123,7 +163,14 @@ describe('createCatalogTools', () => {
         'watcher_vcs_revert',
         'watcher_vcs_exclude',
         'watcher_vcs_check',
-      ].map(renamedTool),
+      ]
+        .map(renamedTool)
+        .concat([
+          'watcher_list_facets',
+          'watcher_count_facets',
+          'watcher_render',
+          'watcher_match_config',
+        ]),
     );
   });
 });
@@ -212,6 +259,38 @@ describe('domain tools send their entry request with the bearer key', () => {
       '/vcs/check-exclusion',
       { path: '/r/a.md' },
       undefined,
+    ],
+    [
+      'watcher_list_facets',
+      { rules: 'a,b' },
+      'GET',
+      '/search/facets',
+      { rules: 'a,b' },
+      undefined,
+    ],
+    [
+      'watcher_count_facets',
+      { fields: ['status'], filter: { must: [] } },
+      'POST',
+      '/search/facets/counts',
+      {},
+      { fields: ['status'], filter: { must: [] } },
+    ],
+    [
+      'watcher_render',
+      { path: '/r/a.md' },
+      'POST',
+      '/render',
+      {},
+      { path: '/r/a.md' },
+    ],
+    [
+      'watcher_match_config',
+      { paths: ['/r/a.md'] },
+      'POST',
+      '/config/match',
+      {},
+      { paths: ['/r/a.md'] },
     ],
   ])('%s', async (name, params, method, path, query, body) => {
     vi.stubGlobal('fetch', fetchMock);

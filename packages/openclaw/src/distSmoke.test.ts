@@ -1,6 +1,6 @@
 /**
  * @module plugin/distSmoke.test
- * Smoke test of the built plugin (`dist/index.js`, as OpenClaw loads it): it imports watcher-core and the SDK rather than bundling them (D205), registers the 18 tools in their 0.17.0 order (under their D77 names) with both resolved from `node_modules`, keeps `watcher_search` and `watcher_scan` `direct-only`, and a catalog-built tool sends the bearer key through the SDK. Runs after `npm run build`; in CI (which builds before testing) a missing `dist` fails. A `dist` older than the plugin's source or its build config (`package.json`, `rollup.config.ts`, `tsconfig.json` and the root `tsconfig.json` it extends), or a missing or out-of-date watcher-core or SDK build, is skipped with a rebuild message instead of tested (spec D201); in CI it fails.
+ * Smoke test of the built plugin (`dist/index.js`, as OpenClaw loads it): it imports watcher-core and the SDK rather than bundling them (D205), registers the 18 tools in their 0.17.0 order (under their D77 names), then the four D206 read tools, with watcher-core and the SDK resolved from `node_modules`, keeps `watcher_search` and `watcher_scan` `direct-only`, and a catalog-built tool sends the bearer key through the SDK. Runs after `npm run build`; in CI (which builds before testing) a missing `dist` fails. A `dist` older than the plugin's source or its build config (`package.json`, `rollup.config.ts`, `tsconfig.json` and the root `tsconfig.json` it extends), or a missing or out-of-date watcher-core or SDK build, is skipped with a rebuild message instead of tested (spec D201); in CI it fails.
  */
 
 import { existsSync, readFileSync, statSync } from 'node:fs';
@@ -54,6 +54,14 @@ const baselineNames = (
   ) as { name: string }[]
 ).map((t) => renamedTool(t.name));
 
+/** The four read tools D206 adds after the 0.17.0 set. */
+const D206_TOOLS = [
+  'watcher_list_facets',
+  'watcher_count_facets',
+  'watcher_render',
+  'watcher_match_config',
+];
+
 afterEach(() => {
   vi.unstubAllGlobals();
 });
@@ -102,9 +110,9 @@ describe('built plugin', () => {
       expect(code).not.toMatch(/class WatcherError|WATCHER_CATALOG =/);
     });
 
-    it('registers the 18 tools in their 0.17.0 order, renamed (D77)', async () => {
+    it('registers the 18 tools in their 0.17.0 order, renamed (D77), then the D206 four', async () => {
       const tools = await registerDist({});
-      expect([...tools.keys()]).toEqual(baselineNames);
+      expect([...tools.keys()]).toEqual([...baselineNames, ...D206_TOOLS]);
     });
 
     it('keeps watcher_search and watcher_scan direct-only', async () => {

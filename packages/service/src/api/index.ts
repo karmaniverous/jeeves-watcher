@@ -13,6 +13,8 @@ import Fastify, { type FastifyInstance } from 'fastify';
 
 import { registerApiHooks } from './apiHooks';
 import type { ApiServerOptions } from './apiServerOptions';
+import { warnUnknownUiHints } from './catalog/facetWarnings';
+import { resolveRuleSchemas } from './catalog/ruleSchemas';
 import { createConfigApplyCallback } from './configApplyCallback';
 import { createOnRulesChanged } from './onRulesChanged';
 import { registerCatalog } from './registerCatalog';
@@ -178,7 +180,18 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
         logger,
       },
       reapplyRules: { processor, vectorStore, logger, lockWaitMs },
-      rules: { virtualRuleStore, logger, onRulesChanged },
+      rules: {
+        virtualRuleStore,
+        logger,
+        onRulesChanged,
+        // Unknown uiHints of the registered rules only (D206 (3)).
+        warnRules: (rules) => {
+          warnUnknownUiHints(
+            resolveRuleSchemas(rules, getConfig(), configDir),
+            logger,
+          );
+        },
+      },
       ...(options.vcsCoordinator
         ? { vcs: { coordinator: options.vcsCoordinator, logger } }
         : {}),
