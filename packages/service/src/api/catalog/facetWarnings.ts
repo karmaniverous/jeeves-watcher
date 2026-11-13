@@ -102,7 +102,8 @@ export function warnUnknownUiHints(
 
 /**
  * Log one `warn` per facet field with no payload index, or one `warn` when
- * the indexes cannot be read. Never throws; creates nothing.
+ * the indexes cannot be read. Reads nothing when no schema has a facet
+ * field. Never throws; creates nothing.
  *
  * @param schemas - Resolved rule schemas.
  * @param facetStore - Reads the collection's payload index types.
@@ -113,6 +114,10 @@ export async function warnUnindexedFacetFields(
   facetStore: Pick<FacetStore, 'payloadIndexTypes'>,
   logger: pino.Logger,
 ): Promise<void> {
+  const hasFacetField = schemas.some(({ properties }) =>
+    Object.values(properties).some(isFacetProperty),
+  );
+  if (!hasFacetField) return;
   let indexTypes: Record<string, string>;
   try {
     indexTypes = await facetStore.payloadIndexTypes();

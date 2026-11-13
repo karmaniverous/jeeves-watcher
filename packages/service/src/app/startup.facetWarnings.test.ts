@@ -143,7 +143,8 @@ describe('JeevesWatcher: facet warnings', () => {
     await writeFile(configPath, JSON.stringify(configWith([RULE])), 'utf8');
     expect(onChanges).toHaveLength(1);
     await onChanges[0]?.();
-    expect(payloadIndexTypes).toHaveBeenCalledTimes(2);
+    // The start had no facet field to check, so only the reload read them.
+    expect(payloadIndexTypes).toHaveBeenCalledOnce();
     expect(warned()).toContainEqual({ field: 'odd', rules: ['r'] });
   });
 });

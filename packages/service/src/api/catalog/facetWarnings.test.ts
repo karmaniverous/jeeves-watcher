@@ -164,6 +164,18 @@ describe('warnUnindexedFacetFields', () => {
       'Could not read the payload indexes to check the facet fields',
     );
   });
+
+  it('reads no indexes when no schema has a facet field', async () => {
+    const { logger, warn } = spyLogger();
+    const payloadIndexTypes = vi.fn(() => Promise.reject(new Error('down')));
+    await warnUnindexedFacetFields(
+      [schema('a', { title: { type: 'string' } }), schema('b', {})],
+      { payloadIndexTypes },
+      logger,
+    );
+    expect(payloadIndexTypes).not.toHaveBeenCalled();
+    expect(warn).not.toHaveBeenCalled();
+  });
 });
 
 describe('checkFacetConfig', () => {
@@ -202,7 +214,7 @@ describe('checkFacetConfig', () => {
       facetStore: { payloadIndexTypes },
       logger,
     });
-    expect(payloadIndexTypes).toHaveBeenCalledOnce();
+    expect(payloadIndexTypes).not.toHaveBeenCalled();
     expect(warn).not.toHaveBeenCalled();
   });
 
@@ -212,21 +224,38 @@ describe('checkFacetConfig', () => {
     expect(warn).toHaveBeenCalledTimes(1);
   });
 
-  it('merges a hint declared by two schema references into one warning', async () => {
-    const { logger, warn } = spyLogger();
-    const twice = makeConfig([
+  /** A rule whose two schema references give `f` the hints `first`, `second`. */
+  const merged = (first: string, second: string) =>
+    makeConfig([
       {
         ...rule('m'),
         schema: [
-          { properties: { f: { type: 'string', uiHint: 'selct' } } },
-          { properties: { f: { uiHint: 'selct' } } },
+          { properties: { f: { type: 'string', uiHint: first } } },
+          { properties: { f: { uiHint: second } } },
         ],
       },
     ]);
+
+  it('checks the merged hint of two schema references, once', async () => {
+    const fixed = merged('selct', 'select');
     expect(
-      resolveRuleSchemas(twice.inferenceRules ?? [], twice, '/tmp'),
+      resolveRuleSchemas(fixed.inferenceRules ?? [], fixed, '/tmp'),
     ).toHaveLength(1);
-    await checkFacetConfig({ config: twice, configDir: '/tmp', logger });
-    expect(warn).toHaveBeenCalledTimes(1);
+    const quiet = spyLogger();
+    await checkFacetConfig({
+      config: fixed,
+      configDir: '/tmp',
+      logger: quiet.logger,
+    });
+    expect(quiet.warn).not.toHaveBeenCalled();
+
+    const broken = spyLogger();
+    await checkFacetConfig({
+      config: merged('select', 'selct'),
+      configDir: '/tmp',
+      logger: broken.logger,
+    });
+    expect(broken.warn).toHaveBeenCalledTimes(1);
+    expect(broken.warn.mock.calls[0]?.[0]).toMatchObject({ uiHint: 'selct' });
   });
 });
