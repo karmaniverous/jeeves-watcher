@@ -111,7 +111,7 @@ The plugin is a standard OpenClaw plugin. On a Jeeves box, `jeeves install --wor
 If the watcher service is already running and healthy:
 
 1. **Search** — use `watcher_search` with a natural language query and optional metadata filters
-2. **Read source** — use `read` (standard file read) with `file_path` from search results for full document content. Source documents (points carrying `source`, such as `app://chat/thread/42`, and no `file_path`) are not files: their content comes from the source's callback (`POST /render` with `{ "source": "<ref>" }`).
+2. **Read source** — use `read` (standard file read) with `file_path` from search results for full document content. Source documents (points carrying `source`, such as `app://chat/thread/42`, and no `file_path`) are not files: their content comes from the source's callback: `watcher_render` with `source: "<ref>"` (over HTTP, `POST /render` with `{ "source": "<ref>" }`).
 
 ## Bootstrap (First-Time Setup)
 
@@ -778,13 +778,13 @@ Use `uiHint` to determine filter construction strategy. **This table is explicit
 | `number` | `{ "key": "<field>", "range": { "gte": <n>, "lte": <n> } }` | Either bound optional for open-ended ranges |
 | `date` | `{ "key": "<field>", "range": { "gte": <unix_ts>, "lt": <unix_ts> } }` | Unix seconds on an `integer` field (set via `{{toUnix ...}}`), or ISO 8601 strings on a `datetime`-indexed field: `{ "range": { "gte": "2026-01-01T00:00:00Z" } }`. Check which with `watcher_count_facets` (its `{ min, max }` shows the stored form). Either bound optional ("after January" → `gte` only) |
 | `range` | `{ "key": "<field>", "range": { "gte": <n>, "lt": <n> } }` | Any ordered field shown as a slider; either bound optional |
-| `text` | `{ "key": "<field>", "match": { "text": "<value>" } }` | Substring/keyword match (needs a `text` payload index) |
+| `text` | `{ "key": "<field>", "match": { "text": "<value>" } }` | Word match with a `text` payload index, substring match without one. Counting it with `watcher_count_facets` needs a `keyword` index instead (a field takes one index) |
 | `check` | `{ "key": "<field>", "match": { "value": true } }` | Boolean match |
 | _(absent)_ | Do not use in filters | Internal bookkeeping field, not intended for search |
 
 <!-- ui-hints:end -->
 
-**Fallback:** If a list field (`dropdown`, `tags`, `select`, `multiselect`) has neither `enum` in schema nor values in the index, treat it as `text` (substring match instead of exact match). Any other hint is not one the service knows (it logs a warning at startup): treat the field as `text`.
+**Fallback:** If a list field (`dropdown`, `tags`, `select`, `multiselect`) has neither `enum` in schema nor values in the index, treat it as `text` (substring match instead of exact match). Any other hint is not one the service knows (it logs a warning at start, at each config reload and when a rule is registered): treat the field as `text`.
 
 **Several tenants:** recorded values (`watcher_list_facets`, `$.inferenceRules[...].values`) mix every tenant's values. When the archive serves several tenants, get the values that exist for one from `watcher_count_facets` with the tenant condition in `filter`.
 
@@ -857,7 +857,7 @@ watcher_config: path="$.inferenceRules[?(@.name=='jira-issue')].schema"
 
 ### Full Context
 
-Search gives you chunks; use `read` with `file_path` for the complete document. A source document has no file: render it with `POST /render` and `{ "source": "<ref>" }`, which retrieves it through its callback.
+Search gives you chunks; use `read` with `file_path` for the complete document. A source document has no file: render it with `watcher_render` and `source: "<ref>"` (over HTTP, `POST /render` with `{ "source": "<ref>" }`), which retrieves it through its callback.
 
 ---
 

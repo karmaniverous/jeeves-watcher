@@ -23,13 +23,13 @@ The hint says how the field is offered and answered. These are the hints the ser
 | `number` | `enum`, else none | `{ min, max }` | `{ "key": "<field>", "range": { "gte": 1, "lte": 9 } }` | Numbers: sizes, scores |
 | `date` | `enum`, else none | `{ min, max }` | `{ "key": "<field>", "range": { "gte": 1767225600 } }` (seconds), or ISO bounds on a `datetime` index | Dates (see [Dates](#dates)) |
 | `range` | `enum`, else none | `{ min, max }` | `{ "key": "<field>", "range": { "gte": 1, "lt": 10 } }` | Any ordered field shown as a slider |
-| `text` | `enum`, else none | value counts | `{ "key": "<field>", "match": { "text": "<words>" } }` (needs a `text` index) | Free text |
+| `text` | `enum`, else none | value counts | `{ "key": "<field>", "match": { "text": "<words>" } }` (a word match with a `text` index, else a substring match; counting needs a `keyword` index instead, and a field takes one index) | Free text |
 | `check` | `enum`, else none | value counts | `{ "key": "<field>", "match": { "value": true } }` | Booleans |
 
 <!-- ui-hints:end -->
 
 - **`listFacets` values**: the `enum` when the property declares one; otherwise, for the four list hints, the values recorded for the rule's documents (the [values index](#the-values-index)); otherwise `[]`.
-- **`countFacets` answer**: when every rule in scope that declares the field gives the same hint. When they disagree, or no rule gives one, the field's payload index type decides (`keyword`, `bool`, `integer` are counted; `float`, `datetime` give a range).
+- **`countFacets` answer**: when every rule in scope that declares the field gives the same hint, that hint decides. When they disagree, or no rule gives one, the field's payload index type decides (`keyword`, `bool`, `integer` are counted; `float`, `datetime` give a range).
 - **Any other hint** still loads, and is answered like `text`: no recorded values, value counts. The service logs a warning naming the rule, the property and the hint at start, at each config reload and when a rule is registered, so a typo such as `selct` is found.
 
 ## End to end
@@ -201,6 +201,6 @@ The values `listFacets` returns for a list hint without an `enum` are recorded a
 | --- | --- | --- |
 | `Rule "<rule>" property "<property>" has an unknown uiHint ...` | Start, config reload (configured rules), rule registration (the registered rules) | Use one of the hints above |
 | `Facet field "<field>" has no payload index ...` | Start and config reload (configured rules) | Add it to `vectorStore.payloadIndexes` and restart |
-| `Could not read the payload indexes to check the facet fields` | The vector store could not be read at a reload | None needed; the check runs again at the next start or reload |
+| `Could not read the payload indexes to check the facet fields` | The vector store could not be read at start or at a reload | None needed; the check runs again at the next start or reload |
 
 The warnings never stop a start or a reload, and the service never adds an index itself.

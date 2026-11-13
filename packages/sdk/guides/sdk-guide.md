@@ -126,9 +126,13 @@ await watcher.scan({
 ```ts
 const tenant = f.eq('tenant', tenantId);
 
+// The facet fields, their hints and declared values (for the UI controls).
 const { facets } = await watcher.listFacets({ rules: 'ticket' });
+
+// Count the fields that have a counting payload index: 1 to 20 per call, and
+// one field without an index fails the whole call with 400.
 const { counts } = await watcher.countFacets({
-  fields: facets.map((facet) => facet.field),
+  fields: ['status', 'created'],
   filter: tenant,
   rules: ['ticket'],
 });
@@ -144,4 +148,4 @@ const results = await watcher.search({
 });
 ```
 
-Each counted field needs a payload index. The [Facets guide](../../service/guides/facets.md) has the `uiHint` table (which hints count values and which give a range, and the filter for each), the date conventions and the rest.
+Each counted field needs a payload index (`keyword`, `bool` or `integer` for value counts; `float`, `datetime` or `integer` for a range), so pick the fields to count rather than passing every facet. The [Facets guide](../../service/guides/facets.md) has the `uiHint` table (which hints count values and which give a range, and the filter for each), the date conventions and the rest.

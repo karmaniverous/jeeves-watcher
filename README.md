@@ -296,7 +296,7 @@ curl -X POST http://localhost:1936/search \
 
 ### Facets
 
-A rule schema property with a `uiHint` (or an `enum`) is a search facet: `GET /search/facets` lists the facets with their known values, and `POST /search/facets/counts` counts documents per value (or gives `{ min, max }`) under a filter, such as a tenant's. Each counted field needs a payload index; the service warns at startup about an unknown `uiHint` and about a facet field without one. The [Facets guide](packages/service/guides/facets.md) covers the whole path, from rule to filter, with the one `uiHint` table, date conventions and multi-tenant use.
+A rule schema property with a `uiHint` (or an `enum`) is a search facet: `GET /search/facets` lists the facets with their known values, and `POST /search/facets/counts` counts documents per value (or gives `{ min, max }`) under a filter, such as a tenant's. Each counted field needs a payload index; the service warns about an unknown `uiHint` (at start, at each config reload and when rules are registered) and about a facet field without one (at start and at each config reload). The [Facets guide](packages/service/guides/facets.md) covers the whole path, from rule to filter, with the one `uiHint` table, date conventions and multi-tenant use.
 
 ### Example: Update Metadata
 
