@@ -17,7 +17,7 @@ rectangle "OpenClaw Gateway" as gateway #e3f2fd {
       card "getConfigRoot()\npluginConfig → plugins.entries\n→ JEEVES_CONFIG_ROOT (no default)" as cfgroot
     }
     rectangle "4 standard tools\nwatcher_status, watcher_config,\nwatcher_config_apply, watcher_service" as stdtools #e8f5e9
-    rectangle "14 domain tools\n(search, enrich, scan, vcs, ...)\nnever gated" as domtools #e8f5e9
+    rectangle "18 domain tools\n(search, enrich, scan, vcs, facets, ...)\nnever gated" as domtools #e8f5e9
     rectangle "registerWatcherPromptContext()\nstatic ## Watcher rules" as prompt #e8f5e9
   }
   rectangle "before_prompt_build hook\n(declared in package.json\njeeves.conversationHooks)" as hook #e3f2fd
