@@ -31,17 +31,31 @@ function sources(dir: string): string[] {
 /** A quoted hint name, its quote captured as group `group`. */
 const hint = (group: number) =>
   `(['"])(?:${UI_HINTS.join('|')})\\${String(group)}`;
-/** An array literal holding two hint names in a row. */
-const HINT_SET = new RegExp(`\\[\\s*${hint(1)}\\s*,\\s*${hint(2)}`);
+/**
+ * An array literal holding two hint names in a row, on one line or spread
+ * over several (`\s` spans line breaks).
+ */
+const HINT_SET = new RegExp(`\\[\\s*${hint(1)}\\s*,\\s*${hint(2)}`, 'g');
 /** The two hint names no other identifier shares. */
-const UNIQUE_HINT = /(['"])(?:dropdown|multiselect)\1/;
+const UNIQUE_HINT = /(['"])(?:dropdown|multiselect)\1/g;
 
-/** Offending lines of one file. */
+/** Whether `text` holds a hint-set literal or a unique hint literal. */
+function offends(text: string): boolean {
+  return [HINT_SET, UNIQUE_HINT].some((pattern) => {
+    pattern.lastIndex = 0;
+    return pattern.test(text);
+  });
+}
+
+/** Offences in one file's whole text, each with its 1-based line. */
 function offences(file: string): string[] {
-  return readFileSync(file, 'utf8')
-    .split(/\r?\n/)
-    .filter((line) => HINT_SET.test(line) || UNIQUE_HINT.test(line))
-    .map((line) => `${relative(PACKAGES, file)}: ${line.trim()}`);
+  const text = readFileSync(file, 'utf8');
+  return [HINT_SET, UNIQUE_HINT].flatMap((pattern) =>
+    [...text.matchAll(pattern)].map((match) => {
+      const line = text.slice(0, match.index).split(/\r?\n/).length;
+      return `${relative(PACKAGES, file)}:${String(line)}: ${match[0].replace(/\s+/g, ' ')}`;
+    }),
+  );
 }
 
 describe('uiHint vocabulary', () => {
@@ -52,10 +66,14 @@ describe('uiHint vocabulary', () => {
   });
 
   it('detects a duplicated hint set', () => {
-    expect(HINT_SET.test(`const S = new Set(['number', 'date']);`)).toBe(true);
-    expect(HINT_SET.test(`const S = ["tags","select"];`)).toBe(true);
-    expect(UNIQUE_HINT.test(`uiHint: 'dropdown',`)).toBe(true);
-    expect(HINT_SET.test(`const S = ['number', 'other'];`)).toBe(false);
+    expect(offends(`const S = new Set(['number', 'date']);`)).toBe(true);
+    expect(offends(`const S = ["tags","select"];`)).toBe(true);
+    expect(
+      offends(`const S = [\r\n  'number',\r\n  'date',\r\n  'range',\r\n];`),
+    ).toBe(true);
+    expect(offends(`uiHint: 'dropdown',`)).toBe(true);
+    expect(offends(`const S = ['number', 'other'];`)).toBe(false);
+    expect(offends(`const S = [\n  'number',\n  'other',\n];`)).toBe(false);
   });
 
   it('has no hint-set literal outside watcher-core', () => {
