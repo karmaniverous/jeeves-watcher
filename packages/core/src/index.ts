@@ -111,3 +111,15 @@ export {
   watchPathVcsConfigSchema,
 } from './schemas.js';
 export { WATCHER_SKILL } from './skill.generated.js';
+export {
+  DEFAULT_ENUM_UI_HINT,
+  ENUMERATED_UI_HINTS,
+  type EnumeratedUiHint,
+  isEnumeratedUiHint,
+  isRangeUiHint,
+  isUiHint,
+  OTHER_UI_HINTS,
+  RANGE_UI_HINTS,
+  UI_HINTS,
+  type UiHint,
+} from './uiHints.js';

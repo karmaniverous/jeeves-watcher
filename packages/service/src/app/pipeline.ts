@@ -1,10 +1,14 @@
 /**
  * @module app/pipeline
- * Builds the processing pipeline of one start: compiled rules, templates, helper introspection, state stores, the document processor, the queues and the VCS coordinator. Extracted from `JeevesWatcher` (SRP). I/O: reads templates and helpers, opens the state stores.
+ * Builds the processing pipeline of one start: compiled rules, templates, helper introspection, state stores, the document processor, the queues and the VCS coordinator, and logs the configured rules' facet warnings. Extracted from `JeevesWatcher` (SRP). I/O: reads templates and helpers, opens the state stores, reads the payload indexes.
  */
 
 import type pino from 'pino';
 
+import {
+  checkFacetConfig,
+  type FacetConfigCheckDeps,
+} from '../api/catalog/facetWarnings';
 import type { JeevesWatcherConfig } from '../config/types';
 import type { AllHelpersIntrospection } from '../helpers';
 import type { WatcherProcessor } from '../processor';
@@ -38,6 +42,8 @@ export interface PipelineInputs {
   vectorStore: ProcessorOptions['vectorStore'];
   /** The live config (read per document and by the VCS coordinator). */
   getConfig: () => JeevesWatcherConfig;
+  /** Reads the payload indexes for the facet field check (D206 (4)). */
+  facetStore?: FacetConfigCheckDeps['facetStore'];
 }
 
 /** The pipeline of one start. */
@@ -75,6 +81,13 @@ export async function buildPipeline(inputs: PipelineInputs): Promise<Pipeline> {
     sourceRetriever: createSourceRetriever(config),
     // Read per document, so a reload applies to the next one (D44).
     getProcessingLimits: () => resolveProcessingLimits(getConfig()),
+  });
+  // Facet config warnings of the configured rules (D206 (3), (4)).
+  await checkFacetConfig({
+    config,
+    configDir,
+    facetStore: inputs.facetStore,
+    logger,
   });
   const { queue, sourceQueue } = createQueues(config, factories, processor, {
     logger,

@@ -7,6 +7,10 @@ import type { ReindexScope } from '@karmaniverous/jeeves-watcher-core';
 import type pino from 'pino';
 
 import {
+  checkFacetConfig,
+  type FacetConfigCheckDeps,
+} from '../api/catalog/facetWarnings';
+import {
   executeReindex,
   reindexDepsFrom,
   type ReindexDepsSource,
@@ -59,6 +63,8 @@ interface ReloadDeps {
   };
   valuesManager?: ValuesManager;
   issuesManager?: IssuesManager;
+  /** Reads the payload indexes for the facet field check (D206 (4)). */
+  facetStore?: FacetConfigCheckDeps['facetStore'];
 }
 
 /**
@@ -109,6 +115,14 @@ export async function reloadConfig(
     processor.updateRules(compiledRules, newTemplateEngine, newCustomMapLib);
 
     logger.info({ configPath, rules: compiledRules.length }, 'Config reloaded');
+
+    // Facet config warnings of the reloaded rules (D206 (3), (4)).
+    await checkFacetConfig({
+      config: newConfig,
+      configDir: reloadConfigDir,
+      facetStore: deps.facetStore,
+      logger,
+    });
 
     const reindexScope = newConfig.configWatch?.reindex ?? 'issues';
 

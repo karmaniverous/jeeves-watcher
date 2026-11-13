@@ -4,12 +4,17 @@
  */
 
 import {
+  DEFAULT_ENUM_UI_HINT,
+  isRangeUiHint,
+} from '@karmaniverous/jeeves-watcher-core';
+
+import {
   FIELD_CHUNK_INDEX,
   FIELD_MATCHED_RULES,
   FIELD_SOURCE_RULE,
 } from '../../processor/payloadFields';
 import { capArg, FacetFieldNotIndexed } from '../errors';
-import { DEFAULT_ENUM_HINT, type RuleSchema } from './ruleSchemas';
+import type { RuleSchema } from './ruleSchemas';
 
 /** How a field is answered: value counts, or `{ min, max }`. */
 export type FacetMode = 'counts' | 'range';
@@ -21,9 +26,6 @@ export interface FieldPlan {
   /** Value counts or a range. */
   mode: FacetMode;
 }
-
-/** uiHints answered with a range (all other hints get value counts). */
-const RANGE_HINTS = new Set(['number', 'date', 'range']);
 
 /** Payload index types Qdrant can count values on. */
 const COUNT_INDEX_TYPES = new Set(['keyword', 'integer', 'bool']);
@@ -49,7 +51,8 @@ export function agreedHint(
     const prop = properties[field] as (typeof properties)[string] | undefined;
     if (!prop) continue;
     hints.add(
-      prop.uiHint ?? (prop.enum !== undefined ? DEFAULT_ENUM_HINT : undefined),
+      prop.uiHint ??
+        (prop.enum !== undefined ? DEFAULT_ENUM_UI_HINT : undefined),
     );
   }
   return hints.size === 1 ? [...hints][0] : undefined;
@@ -76,7 +79,7 @@ export function planFields(
     const hint = agreedHint(field, rules);
     const mode: FacetMode =
       hint !== undefined
-        ? RANGE_HINTS.has(hint)
+        ? isRangeUiHint(hint)
           ? 'range'
           : 'counts'
         : index !== null &&

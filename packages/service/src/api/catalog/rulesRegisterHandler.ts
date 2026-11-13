@@ -21,6 +21,11 @@ export interface CatalogRuleDeps {
   logger: pino.Logger;
   /** Callback invoked after rules change so the processor can update. */
   onRulesChanged: () => void;
+  /**
+   * Logs the facet warnings of newly registered rules (an unknown
+   * `uiHint`, D206 (3)); never throws.
+   */
+  warnRules?: (rules: InferenceRule[]) => void;
 }
 
 /**
@@ -47,6 +52,7 @@ export function createCatalogRulesRegisterHandler(
         throw new RulesInvalid(capArg(normalizeError(error).message));
       }
       deps.onRulesChanged();
+      deps.warnRules?.(rules);
 
       deps.logger.info(
         { source, ruleCount: rules.length },

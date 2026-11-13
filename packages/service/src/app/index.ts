@@ -160,6 +160,7 @@ export class JeevesWatcher {
       embeddingProvider: this.embeddingProvider!,
       vectorStore: this.vectorStore!,
       getConfig: () => this.config,
+      facetStore: this.vectorStore?.facets,
     }));
   }
 
@@ -285,6 +286,7 @@ export class JeevesWatcher {
       runtimeOptions: this.runtimeOptions,
       valuesManager: this.stores?.valuesManager,
       issuesManager: this.stores?.issuesManager,
+      facetStore: this.vectorStore?.facets,
       wiring: this.watcherWiring(),
       onConfigLoaded: (config) => {
         this.config = config;

@@ -1,13 +1,23 @@
 /**
  * @module api/catalog/ruleSchemas
- * Resolved schema properties of every rule the service holds (configured and virtual), in rule order, cached until the rules change. Shared by `listFacets` (definitions) and `countFacets` (mode per field). Reads schema files through `mergeSchemas`.
+ * Resolved schema properties of every rule the service holds (configured and virtual), in rule order, cached until the rules change, and which properties are facet fields. Shared by `listFacets` (definitions), `countFacets` (mode per field) and the facet config warnings. Reads schema files through `mergeSchemas`.
  */
 
 import type { InferenceRule, JeevesWatcherConfig } from '../../config/types';
 import { mergeSchemas, type ResolvedProperty } from '../../rules/schemaMerge';
 
-/** The hint 0.20.0 gives an `enum` property without a `uiHint`. */
-export const DEFAULT_ENUM_HINT = 'dropdown';
+/**
+ * Whether a resolved property is a facet field: it declares a `uiHint` or
+ * an `enum`, and its type is not `object` (which never produces a
+ * trackable value). Pure.
+ *
+ * @param prop - Resolved property.
+ * @returns True for a facet field.
+ */
+export function isFacetProperty(prop: ResolvedProperty): boolean {
+  if (prop.type === 'object') return false;
+  return prop.uiHint !== undefined || prop.enum !== undefined;
+}
 
 /** One rule's resolved schema properties. */
 export interface RuleSchema {
@@ -41,8 +51,13 @@ function hashRules(rules: RuleList): string {
  * Resolve each rule's schema on its own (a rule without one has no
  * properties): a rule whose schema does not resolve carries the `error`
  * and leaves the other rules unaffected.
+ *
+ * @param rules - Rules to resolve.
+ * @param config - Config (its named `schemas`).
+ * @param configDir - Config directory for resolving schema file paths.
+ * @returns One {@link RuleSchema} per rule, in order.
  */
-function resolve(
+export function resolveRuleSchemas(
   rules: RuleList,
   config: JeevesWatcherConfig,
   configDir: string,
@@ -85,8 +100,8 @@ export function createRuleSchemas(
       cached = {
         key,
         schemas: {
-          configured: resolve(configured, config, configDir),
-          virtual: resolve(virtual, config, configDir),
+          configured: resolveRuleSchemas(configured, config, configDir),
+          virtual: resolveRuleSchemas(virtual, config, configDir),
         },
       };
     }
