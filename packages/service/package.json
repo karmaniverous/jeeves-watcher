@@ -58,7 +58,7 @@
     "happy-dom": "^21.0.4",
     "knip": "^6.45.1",
     "release-it": "^21.1.2",
-    "rollup": "^4.68.2",
+    "rollup": "^4.68.3",
     "rollup-plugin-dts": "^6.5.1",
     "tslib": "^2.9.1",
     "typedoc": "^0.28.20",
