@@ -41,9 +41,54 @@ const wire = (file: string): Partial<Record<string, Reply>> =>
 const BASELINE = wire('wire-0.20.0.json');
 const ERRORS = wire('wire-errors-0.22.0.json');
 
+/** `application/json` as the watcher sends it. */
+const JSON_TYPE = 'application/json; charset=utf-8';
+
+/**
+ * `countFacets` replies (0.21.0+, so in neither wire record), as the
+ * service's handler tests pin them (`countFacetsHandler.test.ts`).
+ */
+const COUNT_FACETS: Partial<Record<string, Reply>> = {
+  'countFacets counts': {
+    status: 200,
+    contentType: JSON_TYPE,
+    body: {
+      counts: {
+        status: [
+          { value: 'open', count: 3 },
+          { value: 'closed', count: 1 },
+        ],
+        size: { min: 1, max: 9 },
+      },
+    },
+  },
+  'countFacets field not indexed': {
+    status: 400,
+    contentType: JSON_TYPE,
+    body: {
+      statusCode: 400,
+      code: 'WATCHER_INVALID_REQUEST',
+      error: 'Bad Request',
+      message: 'No usable payload index for field(s): status',
+    },
+  },
+  'countFacets index not ready': {
+    status: 503,
+    contentType: JSON_TYPE,
+    body: {
+      statusCode: 503,
+      code: 'WATCHER_NOT_AVAILABLE',
+      error: 'Service Unavailable',
+      message:
+        'Facet counts need the chunk_index system index, which is not ready yet; retry shortly.',
+    },
+  },
+};
+
 /** A recorded reply by scenario (the 0.22.0 overlay first). */
 const recorded = (scenario: string): Reply => {
-  const reply = ERRORS[scenario] ?? BASELINE[scenario];
+  const reply =
+    COUNT_FACETS[scenario] ?? ERRORS[scenario] ?? BASELINE[scenario];
   if (!reply) throw new Error(`no recorded reply: ${scenario}`);
   return reply;
 };
@@ -232,6 +277,31 @@ const CASES: [string, Record<string, unknown>, Reply, string[]][] = [
       },
     },
     ['vcsExclude unknown root', 'vcsExclude without vcs'],
+  ],
+  // D206's four read tools.
+  [
+    'watcher_list_facets',
+    {},
+    recorded('facets'),
+    ['search masked plain error'],
+  ],
+  [
+    'watcher_count_facets',
+    { fields: ['status', 'size'] },
+    recorded('countFacets counts'),
+    ['countFacets field not indexed', 'countFacets index not ready'],
+  ],
+  [
+    'watcher_render',
+    { path: '/r/a.md' },
+    recorded('render file'),
+    ['render missing', 'render not watched', 'render pipeline error'],
+  ],
+  [
+    'watcher_match_config',
+    { paths: ['/r/a.md'] },
+    recorded('configMatch'),
+    ['configMatch missing paths'],
   ],
 ];
 

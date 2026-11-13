@@ -101,9 +101,13 @@ describe('plugin agent-facing surface', async () => {
     await expect(report).toMatchFileSnapshot('./test/surface-0.18.0/deltas.md');
   });
 
-  it('renames no tool outside the D77 list and drops none', () => {
-    expect(tools.map((t) => t.name)).toEqual(
-      baselineTools.map((t) => renamedTool(t.name)),
-    );
+  it('renames no tool outside the D77 list, drops none, and adds only the D206 four', () => {
+    expect(tools.map((t) => t.name)).toEqual([
+      ...baselineTools.map((t) => renamedTool(t.name)),
+      'watcher_list_facets',
+      'watcher_count_facets',
+      'watcher_render',
+      'watcher_match_config',
+    ]);
   });
 });

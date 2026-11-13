@@ -42,7 +42,11 @@
       "watcher_diff_vcs",
       "watcher_revert_vcs",
       "watcher_exclude_vcs_path",
-      "watcher_check_vcs_exclusion"
+      "watcher_check_vcs_exclusion",
+      "watcher_list_facets",
+      "watcher_count_facets",
+      "watcher_render",
+      "watcher_match_config"
     ]
   },
   "uiHints": {

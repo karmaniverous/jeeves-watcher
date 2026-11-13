@@ -54,9 +54,9 @@ function stubStatusFetch() {
 }
 
 describe('register', () => {
-  it('registers 18 watcher tools (4 factory + 14 domain)', () => {
+  it('registers 22 watcher tools (4 factory + 18 domain)', () => {
     const { tools } = harness();
-    expect(tools.size).toBe(18);
+    expect(tools.size).toBe(22);
     for (const name of [
       'watcher_status',
       'watcher_config',
@@ -65,6 +65,10 @@ describe('register', () => {
       'watcher_search',
       'watcher_scan',
       'watcher_get_vcs_status',
+      'watcher_list_facets',
+      'watcher_count_facets',
+      'watcher_render',
+      'watcher_match_config',
     ]) {
       expect(tools.has(name)).toBe(true);
     }
@@ -81,7 +85,7 @@ describe('register', () => {
 
   it('succeeds with no config and warns exactly once', () => {
     const { tools, warn } = harness();
-    expect(tools.size).toBe(18);
+    expect(tools.size).toBe(22);
     expect(warn).toHaveBeenCalledTimes(1);
     expect(warn.mock.calls[0][0]).toContain('configRoot not configured');
   });
@@ -112,7 +116,7 @@ describe('register', () => {
     const httpOnly = [...tools.values()].filter(
       (tool) => !(tool.name in CONFIG_ROOT_READERS),
     );
-    expect(httpOnly).toHaveLength(17);
+    expect(httpOnly).toHaveLength(21);
     for (const tool of httpOnly) {
       const result = await tool.execute('1', {});
       expect(result.content[0]?.text ?? '').not.toContain(

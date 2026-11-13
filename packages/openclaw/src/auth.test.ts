@@ -29,6 +29,9 @@ const PARAMS: Partial<Record<string, Record<string, unknown>>> = {
   watcher_revert_vcs: { glob: '*.md', commit: 'abc' },
   watcher_exclude_vcs_path: { glob: '*.md' },
   watcher_check_vcs_exclusion: { path: 'a.md' },
+  watcher_count_facets: { fields: ['f'] },
+  watcher_render: { path: 'a.md' },
+  watcher_match_config: { paths: ['a.md'] },
 };
 
 const paramsFor = (name: string) => PARAMS[name] ?? {};
