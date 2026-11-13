@@ -2,11 +2,29 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.6.2] - 2026-11-13
+
+### 🚀 Features
+
+- One exported uiHint vocabulary; warn on unknown uiHints and unindexed facet fields (D206)
+
+### 💼 Other
+
+- Updated dependencies
+
+### 📚 Documentation
+
+- Facets guide, links into it, skill hint table and the four tools (D206)
+- Text filter without an index, pick the fields to count, when the warnings fire, watcher_render for source documents
 ## [0.6.1] - 2026-11-12
 
 ### 💼 Other
 
 - Updated dependencies
+
+### ⚙️ Miscellaneous Tasks
+
+- Release @karmaniverous/jeeves-watcher-core v0.6.1
 ## [0.6.0] - 2026-11-12
 
 ### 💼 Other
