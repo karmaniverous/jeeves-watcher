@@ -11,7 +11,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { makeTempRepo } from '../test/vcsRepo';
 import { BatchCommitter, type CommitContext } from './BatchCommitter';
-import type { CommitMessageBuilder } from './CommitMessageBuilder';
+import { CommitMessageBuilder } from './CommitMessageBuilder';
 import { OverCapWarnings } from './OverCapWarnings';
 
 let repo: string;
@@ -29,7 +29,7 @@ const makeCommitter = () =>
   new BatchCommitter({
     rootPath: repo,
     logger: pino({ level: 'silent' }),
-    messageBuilder: {} as CommitMessageBuilder,
+    messageBuilder: new CommitMessageBuilder(repo, pino({ level: 'silent' })),
     staleLockThresholdMs: 60_000,
     getMaxFileBytes: () => 0,
     warnings: new OverCapWarnings(),

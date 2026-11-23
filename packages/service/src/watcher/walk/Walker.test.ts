@@ -3,7 +3,6 @@
  * The glob-aware walk on a temp directory: pruning, include-before-stat, stats, vanished entries, and a top-level failure.
  */
 
-import type { Dirent, Stats } from 'node:fs';
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -12,7 +11,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { normalizeDocumentKey } from '../../util/documentKey';
 import { normalizeSlashes } from '../../util/normalizeSlashes';
-import { walk, type WalkFs } from './Walker';
+import { walk, type WalkDirent, type WalkFs, type WalkStats } from './Walker';
 
 let root: string;
 
@@ -97,8 +96,10 @@ describe('walk', () => {
         isDirectory: () => false,
         isFile: () => false,
         isSymbolicLink: () => kind === 'link',
-      }) as Dirent;
-    const stat = vi.fn(() => Promise.resolve({ isFile: () => false } as Stats));
+      }) satisfies WalkDirent;
+    const stat = vi.fn(() =>
+      Promise.resolve<WalkStats>({ isFile: () => false, size: 0, mtimeMs: 0 }),
+    );
     const fs: WalkFs = {
       readdir: () =>
         Promise.resolve([dirent('dir-link', 'link'), dirent('sock', 'socket')]),

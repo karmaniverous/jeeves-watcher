@@ -6,7 +6,7 @@
 import pino from 'pino';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type { ContentHashCache } from '../cache';
+import { ContentHashCache } from '../cache';
 import type { WatchConfig } from '../config/types';
 import type { DocumentProcessorInterface } from '../processor';
 import type { EventQueue, WatchEvent } from '../queue';
@@ -112,7 +112,7 @@ describe('createMoveCorrelator', () => {
       paths: ['**'],
       moveDetection: { enabled, bufferMs: 100 },
     }) as WatchConfig;
-  const cache = {} as ContentHashCache;
+  const cache = new ContentHashCache();
 
   it('is off without move detection or a content hash cache', () => {
     const { queue } = runningQueue();

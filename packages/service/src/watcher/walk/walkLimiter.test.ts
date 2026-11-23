@@ -3,11 +3,9 @@
  * The walk limiter (D170): never more than its maximum in flight, FIFO, slots released on failure; and concurrent walks share the process-wide 8.
  */
 
-import type { Dirent, Stats } from 'node:fs';
-
 import { describe, expect, it } from 'vitest';
 
-import { walk, type WalkFs } from './Walker';
+import { walk, type WalkDirent, type WalkFs, type WalkStats } from './Walker';
 import { createLimiter, WALK_CONCURRENCY } from './walkLimiter';
 
 /** A call that resolves after `turns` event-loop turns, tracking in-flight calls. */
@@ -70,7 +68,7 @@ describe('walk concurrency (D170)', () => {
         isDirectory: () => dir,
         isFile: () => !dir,
         isSymbolicLink: () => false,
-      }) as Dirent;
+      }) satisfies WalkDirent;
     const fs: WalkFs = {
       readdir: async (dir) => {
         await call();
@@ -83,7 +81,7 @@ describe('walk concurrency (D170)', () => {
       },
       stat: async () => {
         await call();
-        return { isFile: () => true, size: 1, mtimeMs: 1 } as Stats;
+        return { isFile: () => true, size: 1, mtimeMs: 1 } satisfies WalkStats;
       },
     };
     const options = { prune: () => false, include: () => true, fs };
