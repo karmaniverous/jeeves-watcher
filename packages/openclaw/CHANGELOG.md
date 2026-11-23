@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.20.1] - 2026-11-23
+
+### 💼 Other
+
+- Updated dependencies
+- Updated core
+- Updated sdk
 ## [0.20.0] - 2026-11-13
 
 ### 🚀 Features
@@ -24,6 +31,10 @@ All notable changes to this project will be documented in this file.
 ### 🧪 Testing
 
 - *(openclaw)* Dist smoke expects the four D206 tools after the 0.17.0 set
+
+### ⚙️ Miscellaneous Tasks
+
+- Release @karmaniverous/jeeves-watcher-openclaw v0.20.0
 ## [0.19.1] - 2026-11-12
 
 ### 🚀 Features
