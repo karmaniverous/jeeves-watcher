@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.6.3] - 2026-11-23
+
+### 💼 Other
+
+- Updated dependencies
 ## [0.6.2] - 2026-11-13
 
 ### 🚀 Features
@@ -16,6 +21,10 @@ All notable changes to this project will be documented in this file.
 
 - Facets guide, links into it, skill hint table and the four tools (D206)
 - Text filter without an index, pick the fields to count, when the warnings fire, watcher_render for source documents
+
+### ⚙️ Miscellaneous Tasks
+
+- Release @karmaniverous/jeeves-watcher-core v0.6.2
 ## [0.6.1] - 2026-11-12
 
 ### 💼 Other
