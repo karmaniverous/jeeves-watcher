@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.22.3] - 2026-11-23
+
+### 💼 Other
+
+- Updated dependencies
+- Updated core
+- Updated sdk
+
+### 🧪 Testing
+
+- *(service)* Satisfy typescript-eslint 8.73 no-unsafe-class-instance-assignment
 ## [0.22.2] - 2026-11-13
 
 ### 🚀 Features
@@ -26,6 +37,10 @@ All notable changes to this project will be documented in this file.
 
 - Cover a facet config check without inference rules
 - Catch a hint-set literal spread over several lines
+
+### ⚙️ Miscellaneous Tasks
+
+- Release @karmaniverous/jeeves-watcher v0.22.2
 ## [0.22.1] - 2026-11-12
 
 ### 🐛 Bug Fixes
