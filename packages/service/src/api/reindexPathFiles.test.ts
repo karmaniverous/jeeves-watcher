@@ -3,7 +3,6 @@
  * collectPathFiles on a real temp tree: files and directories (expanded to watched files, deduped) resolve; unwatched or gitignored targets are `PathNotWatched` (403), missing ones (ENOENT, ENOTDIR) `PathNotFound` (404), neither-file-nor-directory `PathNotFileOrDirectory` (400); other stat errors propagate; a directory never expands into a sibling sharing its prefix.
  */
 
-import type { Stats } from 'node:fs';
 import type * as FsPromises from 'node:fs/promises';
 import { mkdir, mkdtemp, rm, stat, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -121,10 +120,11 @@ describe('collectPathFiles', () => {
   });
 
   it('rejects a target that is neither file nor directory with 400 WATCHER_INVALID_REQUEST', async () => {
-    vi.mocked(stat).mockResolvedValueOnce({
+    const special = Object.assign(await stat(root), {
       isFile: () => false,
       isDirectory: () => false,
-    } as Stats);
+    });
+    vi.mocked(stat).mockResolvedValueOnce(special);
     const error = await failure(
       collectPathFiles([`${root}/docs/a.md`], config, undefined),
     );

@@ -10,14 +10,9 @@ import { CommitMessageGenerator } from './CommitMessageGenerator';
 
 const silentLogger = pino({ level: 'silent' });
 
-/** Helper to create a mock Response. */
+/** Helper to create a JSON Response. */
 function mockResponse(status: number, body: unknown): Response {
-  return {
-    ok: status >= 200 && status < 300,
-    status,
-    text: () => Promise.resolve(JSON.stringify(body)),
-    json: () => Promise.resolve(body),
-  } as Response;
+  return new Response(JSON.stringify(body), { status });
 }
 
 describe('CommitMessageGenerator', () => {

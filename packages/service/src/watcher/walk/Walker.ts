@@ -17,12 +17,21 @@ export interface WalkedFile extends FileStats {
   path: string;
 }
 
+/** The `Dirent` members a walk reads. */
+export type WalkDirent = Pick<
+  Dirent,
+  'name' | 'isDirectory' | 'isFile' | 'isSymbolicLink'
+>;
+
+/** The `Stats` members a walk reads. */
+export type WalkStats = Pick<Stats, 'isFile' | 'size' | 'mtimeMs'>;
+
 /** Filesystem calls a walk makes (injectable for tests). */
 export interface WalkFs {
   /** `readdir` with file types. */
-  readdir: (dir: string) => Promise<Dirent[]>;
+  readdir: (dir: string) => Promise<WalkDirent[]>;
   /** `stat` (follows symlinks). */
-  stat: (path: string) => Promise<Stats>;
+  stat: (path: string) => Promise<WalkStats>;
 }
 
 /** What a walk prunes and keeps. */
@@ -74,7 +83,7 @@ export async function walk(
   };
 
   const visitDir = async (current: string, top: boolean): Promise<void> => {
-    let entries: Dirent[];
+    let entries: WalkDirent[];
     try {
       entries = await walkLimit(() => fs.readdir(current));
     } catch (error) {
