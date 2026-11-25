@@ -10,7 +10,7 @@ The watcher exposes a lightweight HTTP API for search, metadata enrichment, and 
 
 **Authentication:** none by default. When `api.apiKey` is set, every route except `GET /status` and `GET /openapi.json` requires `Authorization: Bearer <key>`; see [Authentication](#authentication). The examples below omit the header.
 
-**Endpoint catalog (unreleased):** every route below except `GET /openapi.json` is described once, as an entry of `WATCHER_CATALOG` in `@karmaniverous/jeeves-watcher-core`. Its route, request validation, response validation, the [OpenAPI document](#get-openapijson) and the plugin tools are all built from it.
+**Endpoint catalog (unreleased):** every route below except `GET /openapi.json` and `POST /mcp` is described once, as an entry of `WATCHER_CATALOG` in `@karmaniverous/jeeves-watcher-core`. Its route, request validation, response validation, the [OpenAPI document](#get-openapijson) and the plugin tools are all built from it.
 
 **Request validation:** every route's body, query string and path parameters are validated against its catalog entry's schemas (the Zod schemas exported by `@karmaniverous/jeeves-watcher-core`). An invalid request returns jeeves's `400` with code `FST_ERR_VALIDATION` (v0.22.0+), whose `message` joins one `<slot>/<path> <issue message>` per failure with `, `, for example `{ "statusCode": 400, "code": "FST_ERR_VALIDATION", "error": "Bad Request", "message": "querystring/path Missing required query parameter: path, querystring/commit Missing required query parameter: commit" }` (the slot is `body`, `querystring` or `params`). There is no `details` field. Unless a section says the schema is strict, unknown keys are dropped silently. Before v0.22.0 this was `400 { code: "invalid_request", error, details }`; earlier still, the routes outside the catalog answered with their own `error` text (quoted in their sections as "before"), and a missing body, which those routes answered with the generic `500`, became this `400` in 0.21.0. Checks a schema cannot express (a rule that does not compile, metadata that does not match its rule, a filter Qdrant rejects) answer `400 WATCHER_INVALID_REQUEST`, as their sections describe.
 
@@ -119,6 +119,19 @@ curl http://localhost:1936/openapi.json
 ```
 
 Like `GET /status`, it is open even when `api.apiKey` is set. The same document ships in `@karmaniverous/jeeves-watcher-core` as `WATCHER_OPENAPI_DOCUMENT` and as the `@karmaniverous/jeeves-watcher-core/openapi.json` file; `info.version` is the watcher-core version.
+
+---
+
+## POST /mcp
+
+**Unreleased.** The MCP endpoint (Streamable HTTP, stateless): the catalog routes as MCP tools for any MCP client, with the watcher's always-on rules as `instructions` and its skill as a resource. It is not a catalog route, so it is not in the OpenAPI document. Guarded by `api.apiKey` like every other route; each tool call runs through the route it names, with the caller's key. `GET` and `DELETE /mcp` answer `405`. A refused key is the standard `401 WATCHER_UNAUTHORIZED` body, as on every route; a body that is not JSON and an unexpected failure are the standard `400` and masked `500` too. Past those, `/mcp` speaks MCP: the `405` and a malformed MCP message are JSON-RPC error objects, and a failed tool call is a tool result with `isError`. See the [MCP guide](./mcp.md).
+
+```bash
+curl -X POST http://localhost:1936/mcp \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json, text/event-stream" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
+```
 
 ---
 

@@ -8,6 +8,7 @@ children:
   - ./facets.md
   - ./source-documents.md
   - ./api-reference.md
+  - ./mcp.md
   - ./cli-reference.md
   - ./deployment.md
   - ./version-control.md
@@ -24,6 +25,7 @@ children:
 - [Facets](./facets.md) — Search facets end to end: declaring facet fields, the one `uiHint` table, payload indexes, listing and counting, filters, date conventions, several tenants, the values index, and the warnings.
 - [Source Documents](./source-documents.md) — Indexing records from other systems by callback: `sources` config, the callback contract, designated rules, notify and coalescing, reindex, and the SDK.
 - [API Reference](./api-reference.md) — HTTP endpoint reference for search, documents, config, reindex, scan, metadata, authentication, rate limiting, and diagnostics.
+- [MCP](./mcp.md) — The `/mcp` endpoint for MCP clients and agent harnesses: connecting, authentication, the tools and their hints, instructions and skill, results and errors.
 - [CLI Reference](./cli-reference.md) — All `jeeves-watcher` commands: core standard commands and domain-specific commands.
 - [Deployment](./deployment.md) — Running as a service (NSSM/systemd/launchd), production config, state directory and backups, log management, and updates.
 - [Version Control (VCS)](./version-control.md) — Git-backed content versioning, commit batching, squash retention, remote push, and reversion.

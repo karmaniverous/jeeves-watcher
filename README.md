@@ -245,7 +245,7 @@ The watcher provides a REST API (default port: 1936):
 | Endpoint | Method | Description |
 | --- | --- | --- |
 | `/status` | GET | Health check, uptime, collection (name, point count, dimensions, system index states), reindex and initial-scan state, VCS and embedding health; `degraded` while embeddings fail or a VCS breaker is tripped |
-| `/openapi.json` | GET | OpenAPI 3.1 document of the catalog routes (every route above and below); open like `/status` |
+| `/openapi.json` | GET | OpenAPI 3.1 document of the catalog routes (every route above and below but `/mcp`); open like `/status` |
 | `/search` | POST | Semantic search (`{ query: string, limit?: number, offset?: number, filter?: object }`; unknown keys are rejected) |
 | `/render` | POST | Render a document through inference rules (`{ path }` or `{ source }`) (v0.8.0+) |
 | `/search/facets` | GET | Schema-derived search facet definitions with live values (v0.8.0+); `?rules=a,b` scopes them to those rules (v0.21.0+) |
@@ -269,8 +269,9 @@ The watcher provides a REST API (default port: 1936):
 | `/rules/reapply` | POST | Re-apply inference rules to files matching globs (`{ globs }`) |
 | `/points/delete` | POST | Delete points matching a Qdrant filter (`{ filter }`) |
 | `/vcs/*` | GET/POST | Version control: `status`, `history`, `show`, `diff`, `check-exclusion`, `revert`, `exclude` (see the [Version Control guide](packages/service/guides/version-control.md)) |
+| `/mcp` | POST | MCP endpoint (Streamable HTTP) for MCP clients and agent harnesses: the catalog routes as tools, behind `api.apiKey` like every route (see the [MCP guide](packages/service/guides/mcp.md)) |
 
-Errors are Fastify's standard error body, `{ statusCode, code?, error, message }`: `code` is a `WATCHER_*` code (`WATCHER_ERROR_CODES` in watcher-core, each with one status), a jeeves `JEEVES_*` code or a Fastify `FST_ERR_*` code, and an unexpected failure is a `500` with no `code` and a fixed message (see [Error Handling](packages/service/guides/api-reference.md#error-handling); 0.21 codes and their successors are in [Upgrading](packages/service/guides/upgrading.md#0220)). Every route is an entry of the endpoint catalog (`WATCHER_CATALOG` in watcher-core), which validates its request (an invalid one is `400 FST_ERR_VALIDATION`, its `message` listing the failures) and its response: a response that doesn't match its schema is a `500 JEEVES_RESPONSE_VALIDATION` that only a server bug produces.
+Errors are Fastify's standard error body, `{ statusCode, code?, error, message }` (`/mcp` answers MCP-level errors in MCP's JSON-RPC instead): `code` is a `WATCHER_*` code (`WATCHER_ERROR_CODES` in watcher-core, each with one status), a jeeves `JEEVES_*` code or a Fastify `FST_ERR_*` code, and an unexpected failure is a `500` with no `code` and a fixed message (see [Error Handling](packages/service/guides/api-reference.md#error-handling); 0.21 codes and their successors are in [Upgrading](packages/service/guides/upgrading.md#0220)). Every route but `/mcp` is an entry of the endpoint catalog (`WATCHER_CATALOG` in watcher-core), which validates its request (an invalid one is `400 FST_ERR_VALIDATION`, its `message` listing the failures) and its response: a response that doesn't match its schema is a `500 JEEVES_RESPONSE_VALIDATION` that only a server bug produces.
 
 ### Example: Search
 
@@ -344,6 +345,16 @@ This repo includes an OpenClaw plugin (`packages/openclaw`) that exposes the jee
 The plugin is a standard OpenClaw plugin on [`@karmaniverous/jeeves`](https://www.npmjs.com/package/@karmaniverous/jeeves) 0.11 core, installed by `jeeves install`. Every tool is built from the watcher's endpoint catalog by core's toolset and named `watcher_` plus its catalog entry in snake_case; every tool that calls the watcher does so through the [SDK](packages/sdk/README.md), which the plugin installs as a dependency with watcher-core. It writes no workspace files; its always-in-context watcher rules are injected via the `before_prompt_build` hook. See the [OpenClaw Integration Guide](packages/openclaw/guides/openclaw-integration.md) for details.
 
 Plugin configuration supports `apiUrl` (defaults to `http://127.0.0.1:1936`), an optional `apiKey` (sent as a bearer token when the service sets `api.apiKey`; env fallback `JEEVES_WATCHER_API_KEY`) and `configRoot` (no default: set it in plugin config or via `JEEVES_CONFIG_ROOT`; resolved lazily, so the plugin registers before it is set).
+
+## MCP Server
+
+The watcher also serves its tools to any MCP client or agent harness (Claude Code, OpenCode, Codex, Cursor and others) at `POST /mcp` on its own port, over Streamable HTTP: 21 `watcher_*` tools generated from the endpoint catalog, the always-on rules as MCP `instructions` and the skill as the resource `skill://jeeves-watcher/SKILL.md`. `/mcp` is guarded by `api.apiKey` like every other route, and each tool call runs through the watcher's own route with the caller's key.
+
+```bash
+claude mcp add --transport http jeeves-watcher http://127.0.0.1:1936/mcp --header "Authorization: Bearer <api.apiKey>"
+```
+
+See the [MCP guide](packages/service/guides/mcp.md).
 
 ## Supported File Formats
 
