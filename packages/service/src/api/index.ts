@@ -1,6 +1,6 @@
 /**
  * @module api
- * Fastify API server factory. Registers every `WATCHER_CATALOG` route (plus `GET /openapi.json`) from the catalog, and returns an unstarted server instance.
+ * Fastify API server factory. Registers every `WATCHER_CATALOG` route (plus `GET /openapi.json`) from the catalog and the MCP endpoint (`POST /mcp`) over them, and returns an unstarted server instance.
  */
 
 import { dirname } from 'node:path';
@@ -11,6 +11,7 @@ import {
 } from '@karmaniverous/jeeves-watcher-core';
 import Fastify, { type FastifyInstance } from 'fastify';
 
+import { registerMcpRoute } from '../mcp/registerMcpRoute';
 import { registerApiHooks } from './apiHooks';
 import type { ApiServerOptions } from './apiServerOptions';
 import { warnUnknownUiHints } from './catalog/facetWarnings';
@@ -197,6 +198,9 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
         : {}),
     },
   });
+
+  // MCP over the same routes, behind the same auth hook (#282).
+  registerMcpRoute(app, { version: version ?? 'unknown' });
 
   return app;
 }
