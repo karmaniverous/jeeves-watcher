@@ -1,6 +1,6 @@
 /**
  * @module api/apiKeyAuth
- * Optional Bearer API-key auth: a Fastify `onRequest` hook that rejects requests without `Authorization: Bearer <api.apiKey>` (except GET /status) with `401 WATCHER_UNAUTHORIZED` (no `WWW-Authenticate`, D204 (6)). Never logs the token.
+ * Optional Bearer API-key auth: a Fastify `onRequest` hook that rejects requests without `Authorization: Bearer <key>` for one of the configured keys (except GET /status) with `401 WATCHER_UNAUTHORIZED` (no `WWW-Authenticate`, D204 (6)). Never logs the token.
  */
 
 import { createHash, timingSafeEqual } from 'node:crypto';
@@ -22,21 +22,25 @@ function digest(value: string): Buffer {
 }
 
 /**
- * Check an `Authorization` header value against the expected key digest in
- * constant time. Pure.
+ * Check an `Authorization` header value against the configured key digests
+ * in constant time: every digest is compared, whichever one matches. Pure.
  *
  * @param header - Raw `Authorization` header value, if any.
- * @param expectedDigest - SHA-256 digest of the configured API key.
- * @returns `true` only for `Bearer <key>` with the exact key.
+ * @param expectedDigests - SHA-256 digests of the configured API keys.
+ * @returns `true` only for `Bearer <key>` with one of the exact keys.
  */
 export function isAuthorized(
   header: string | undefined,
-  expectedDigest: Buffer,
+  expectedDigests: readonly Buffer[],
 ): boolean {
   const token = header ? BEARER_PATTERN.exec(header)?.[1] : undefined;
-  // Always run one comparison so missing and malformed headers cost the same.
+  // Compare against every key, so missing and malformed headers, and a match
+  // on any key, cost the same.
   const presented = digest(token ?? '');
-  return timingSafeEqual(presented, expectedDigest) && token !== undefined;
+  let matched = false;
+  for (const expected of expectedDigests)
+    matched = timingSafeEqual(presented, expected) || matched;
+  return matched && token !== undefined;
 }
 
 /** Path of the open OpenAPI document (served by `api/registerCatalog`). */
@@ -60,21 +64,22 @@ export function isPublicRoute(method: string, url: string): boolean {
 }
 
 /**
- * Register the API-key `onRequest` hook. No-op when `apiKey` is undefined
+ * Register the API-key `onRequest` hook. No-op when `apiKeys` is undefined
  * (unauthenticated, the pre-0.20.0 behaviour). Must be called before routes
- * are registered. The key is read once here; changing it needs a restart.
+ * are registered. The keys are read once here; changing them needs a
+ * restart.
  *
  * @param app - Fastify instance.
- * @param apiKey - Configured `api.apiKey`, or undefined to disable auth.
+ * @param apiKeys - The configured API keys, or undefined to disable auth.
  * @param logger - Optional logger; rejections log method and path only.
  */
 export function registerApiKeyAuth(
   app: FastifyInstance,
-  apiKey: string | undefined,
+  apiKeys: readonly string[] | undefined,
   logger?: pino.Logger,
 ): void {
-  if (apiKey === undefined) return;
-  const expectedDigest = digest(apiKey);
+  if (apiKeys === undefined) return;
+  const expectedDigests = apiKeys.map(digest);
 
   app.addHook(
     'onRequest',
@@ -85,7 +90,7 @@ export function registerApiKeyAuth(
     ) => {
       if (
         isPublicRoute(request.method, request.url) ||
-        isAuthorized(request.headers.authorization, expectedDigest)
+        isAuthorized(request.headers.authorization, expectedDigests)
       ) {
         done();
         return;

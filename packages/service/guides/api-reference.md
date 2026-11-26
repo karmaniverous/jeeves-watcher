@@ -2411,6 +2411,21 @@ Set `api.apiKey` (usually through an environment variable) to require a bearer t
 }
 ```
 
+**Unreleased: one key per person.** `apiKey` may instead name its keys, one per person or client; a request with any one of them is accepted:
+
+```json
+{
+  "api": {
+    "apiKey": {
+      "alice": "${ALICE_WATCHER_KEY}",
+      "bob": "${BOB_WATCHER_KEY}"
+    }
+  }
+}
+```
+
+A client still sends one key, as `Authorization: Bearer <key>`. Removing a person's line (and restarting) revokes only their key. The single-string form keeps working unchanged.
+
 ```bash
 curl -X POST http://watcher.internal.example:1936/search \
   -H "Authorization: Bearer $WATCHER_API_KEY" \
@@ -2420,10 +2435,10 @@ curl -X POST http://watcher.internal.example:1936/search \
 
 - Every route requires `Authorization: Bearer <apiKey>` (the `Bearer` scheme name is case-insensitive) — including unknown routes, the config, rules and VCS endpoints — **except `GET /status`** (and `HEAD /status`), which stays open for health checks, and `GET /openapi.json` (unreleased).
 - A missing, malformed or wrong token gets `401 { "statusCode": 401, "code": "WATCHER_UNAUTHORIZED", "error": "Unauthorized", "message": "A valid API key is required: send Authorization: Bearer <key>." }`, with no `WWW-Authenticate` header (v0.22.0+; before, `{ "code": "unauthorized", "error": "Unauthorized" }`). The presented token is never logged; rejections log only the method and path at `debug` level.
-- The comparison is constant-time.
-- `apiKey` must be non-empty: `""` (or a variable that substitutes to `""`) is a config validation error, so the service does not start. Omit the key to run without authentication. (Should an empty key ever reach the server, it still fails closed: no token matches.)
-- If `apiKey` still contains an unresolved `${...}` after environment-variable substitution, loading the config fails and the service does not start.
-- The key is read **at startup only**. Rotating it means changing the config (or the environment variable) and restarting the watcher, then updating every client.
+- The comparison is constant-time: the token is compared with every configured key, whichever one matches.
+- `apiKey` must be non-empty: `""` (or a variable that substitutes to `""`) is a config validation error, so the service does not start. With named keys, each key and name must be non-empty and there must be at least one (`{}` is an error); an empty key is reported by its name (`api.apiKey.alice`). Omit `apiKey` to run without authentication. (Should an empty key ever reach the server, it still fails closed: no token matches.)
+- If `apiKey` (or any named key) still contains an unresolved `${...}` after environment-variable substitution, loading the config fails, naming the key (`api.apiKey` or `api.apiKey.<name>`), and the service does not start.
+- The keys are read **at startup only**. Rotating one means changing the config (or the environment variable) and restarting the watcher, then updating the clients that use it.
 - Clients send the key as follows:
   - **CLI** (`config`, `config apply`, `search`, `enrich`, `scan`, `reindex`, `rebuild-metadata`, `issues`, `helpers`): the `--api-key <key>` flag, else the `JEEVES_WATCHER_API_KEY` environment variable. These commands do not read the config file. Prefer the environment variable: a flag value is visible in the process list. See [CLI Reference](./cli-reference.md#authentication).
   - **OpenClaw plugin**: `plugins.entries.jeeves-watcher-openclaw.config.apiKey`, else `JEEVES_WATCHER_API_KEY`; sent on every tool request.

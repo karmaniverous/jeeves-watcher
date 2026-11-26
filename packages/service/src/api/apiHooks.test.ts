@@ -18,7 +18,11 @@ let app: FastifyInstance | undefined;
 function build(apiKey?: string, logger = pino({ level: 'silent' })) {
   const instance = Fastify({ logger: false });
   app = instance;
-  registerApiHooks(instance, apiKey, logger);
+  registerApiHooks(
+    instance,
+    apiKey === undefined ? undefined : [apiKey],
+    logger,
+  );
   instance.post('/echo', (request) => request.body);
   instance.get('/boom', () => {
     throw new Error('secret connection string');

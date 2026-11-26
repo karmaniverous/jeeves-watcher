@@ -1,8 +1,9 @@
 /**
  * @module api/mcp/registerWatcherMcp.test
- * `/mcp` on the real API server (`createApiServer`, stub dependencies, no Qdrant): the watcher's auth hook guards it, tool calls reach the watcher's own routes with the caller's key, and the MCP handshake carries the instructions and skill. Without `@modelcontextprotocol/server` the endpoint is skipped with one log line; any other import failure fails the boot.
+ * `/mcp` on the real API server (`createApiServer`, stub dependencies, no Qdrant): the watcher's auth hook guards it (one key or named keys), tool calls reach the watcher's own routes with the caller's key, and the MCP handshake carries the instructions and skill. Without `@modelcontextprotocol/server` the endpoint is skipped with one log line; any other import failure fails the boot.
  */
 
+import type { ApiConfig } from '@karmaniverous/jeeves-watcher-core';
 import Fastify, { type FastifyInstance } from 'fastify';
 import pino from 'pino';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -20,8 +21,8 @@ const ISSUES = {
   '/data/a.md': [{ type: 'no_content', message: 'empty', timestamp: 1 }],
 };
 
-/** A server over stubs, with or without `api.apiKey`. */
-function server(apiKey?: string): FastifyInstance {
+/** A server over stubs, with or without `api.apiKey` (one key or named keys). */
+function server(apiKey?: ApiConfig['apiKey']): FastifyInstance {
   const config = {
     watch: { paths: ['**/*.md'], ignored: [] },
     embedding: { provider: 'mock', model: 'test', dimensions: 3 },
@@ -112,6 +113,23 @@ describe('POST /mcp', () => {
       count: 1,
       issues: ISSUES,
     });
+  });
+
+  it('accepts each named key on /mcp and on a REST route, and refuses any other', async () => {
+    app = server({ alice: 'alice-key', bob: 'bob-key' });
+
+    for (const key of ['alice-key', 'bob-key']) {
+      expect((await rpc('tools/list', {}, key)).statusCode).toBe(200);
+      const rest = await app.inject({
+        method: 'GET',
+        url: '/issues',
+        headers: { authorization: `Bearer ${key}` },
+      });
+      expect(rest.statusCode).toBe(200);
+    }
+    for (const key of [KEY, 'alice']) {
+      expect((await rpc('tools/list', {}, key)).statusCode).toBe(401);
+    }
   });
 
   it('is open, as the watcher is, when no key is configured', async () => {

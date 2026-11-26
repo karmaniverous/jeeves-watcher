@@ -1,6 +1,6 @@
 /**
  * @module schemas/root.test
- * Tests for the 0.20.0 additions to the root config schema (api.apiKey, sources, payloadIndexes).
+ * Tests for the 0.20.0 additions to the root config schema (api.apiKey, sources, payloadIndexes) and named api.apiKey keys.
  */
 
 import { describe, expect, it } from 'vitest';
@@ -61,6 +61,44 @@ describe('jeevesWatcherConfigSchema 0.20.0 additions', () => {
       path: ['api', 'apiKey'],
       message: expect.stringContaining('non-empty') as unknown,
     });
+  });
+
+  it('accepts named api.apiKey keys, one per person', () => {
+    const parsed = jeevesWatcherConfigSchema.parse({
+      ...minimal,
+      api: { apiKey: { alice: '${ALICE_KEY}', bob: 'literal' } },
+    });
+    expect(parsed.api?.apiKey).toEqual({
+      alice: '${ALICE_KEY}',
+      bob: 'literal',
+    });
+  });
+
+  it.each([
+    ['no keys', {}, [], 'must name at least one key'],
+    ['an empty key', { alice: '' }, ['alice'], 'keys must be non-empty'],
+  ])(
+    'rejects named api.apiKey keys with %s',
+    (_label, apiKey, path, message) => {
+      const result = jeevesWatcherConfigSchema.safeParse({
+        ...minimal,
+        api: { apiKey },
+      });
+      expect(result.success).toBe(false);
+      expect(result.error?.issues[0]).toMatchObject({
+        path: ['api', 'apiKey', ...path],
+        message: expect.stringContaining(message) as unknown,
+      });
+    },
+  );
+
+  it('rejects an empty api.apiKey name', () => {
+    const result = jeevesWatcherConfigSchema.safeParse({
+      ...minimal,
+      api: { apiKey: { '': 'k' } },
+    });
+    expect(result.success).toBe(false);
+    expect(result.error?.issues[0].path).toEqual(['api', 'apiKey']);
   });
 
   it('rejects an invalid source name with a path into sources', () => {

@@ -73,8 +73,14 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
 
   const reindexTracker = options.reindexTracker ?? new ReindexTracker();
   const app = Fastify({ logger: false });
-  // Auth + error handlers; api.apiKey is read once (restart to change).
-  registerApiHooks(app, config.api?.apiKey, logger);
+  // Auth + error handlers; api.apiKey (one key or keys by name) is read once
+  // (restart to change).
+  const apiKey = config.api?.apiKey;
+  registerApiHooks(
+    app,
+    typeof apiKey === 'string' ? [apiKey] : apiKey && Object.values(apiKey),
+    logger,
+  );
 
   const getVirtualRules = () => virtualRuleStore.getAll();
   const cacheTtlMs = config.api?.cacheTtlMs ?? API_DEFAULTS.cacheTtlMs;

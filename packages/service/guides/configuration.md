@@ -441,7 +441,7 @@ Behaviour:
 | `host` | `string` | `"127.0.0.1"` | Host to bind to. Use `"0.0.0.0"` to accept external connections. |
 | `port` | `number` | `1936` | Port to listen on. |
 | `cacheTtlMs` | `number` | `30000` | TTL in milliseconds for caching read-heavy endpoints. |
-| `apiKey` | `string` | `undefined` | Bearer API key required on every route except `GET /status` (v0.20.0+). Supports `${ENV_VAR}`. Read at startup only. |
+| `apiKey` | `string` \| `Record<string, string>` | `undefined` | Bearer API key required on every route except `GET /status` (v0.20.0+): one key, or (unreleased) keys by name, one per person or client, any one accepted (see [Authentication](./api-reference.md#authentication)). Supports `${ENV_VAR}`. Read at startup only. |
 
 The API provides endpoints for search, metadata enrichment, reindexing, and status. See [API Reference](./api-reference.md).
 
