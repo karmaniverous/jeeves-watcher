@@ -11,12 +11,12 @@ import {
 } from '@karmaniverous/jeeves-watcher-core';
 import Fastify, { type FastifyInstance } from 'fastify';
 
-import { registerMcpRoute } from '../mcp/registerMcpRoute';
 import { registerApiHooks } from './apiHooks';
 import type { ApiServerOptions } from './apiServerOptions';
 import { warnUnknownUiHints } from './catalog/facetWarnings';
 import { resolveRuleSchemas } from './catalog/ruleSchemas';
 import { createConfigApplyCallback } from './configApplyCallback';
+import { registerWatcherMcp } from './mcp/registerWatcherMcp';
 import { createOnRulesChanged } from './onRulesChanged';
 import { registerCatalog } from './registerCatalog';
 import { ReindexTracker } from './ReindexTracker';
@@ -200,7 +200,7 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
   });
 
   // MCP over the same routes, behind the same auth hook (#282).
-  registerMcpRoute(app, { version: version ?? 'unknown' });
+  registerWatcherMcp(app, { version: version ?? 'unknown', logger });
 
   return app;
 }

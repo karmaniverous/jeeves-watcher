@@ -1,5 +1,5 @@
 /**
- * @module mcp/mcpContent.test
+ * @module api/mcp/mcpContent.test
  * The skill preface goes after the skill's front matter, or first when there is none.
  */
 

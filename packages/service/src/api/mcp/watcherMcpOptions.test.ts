@@ -1,23 +1,27 @@
 /**
- * @module mcp/watcherMcpServer.test
- * The watcher's MCP server over a stub transport: its tool set and hints, descriptions without harness wording, the `config` alias and `rules` reindex default the skill documents and the status probe timeout, and instructions and skill written for any agent.
+ * @module api/mcp/watcherMcpOptions.test
+ * The watcher's endpoint options, served by jeeves's `createCatalogMcpServer` over a stub transport: its tool set and hints, the catalog descriptions without harness wording, the `config` alias and `rules` reindex default the skill documents and the status probe timeout, and instructions and skill written for any agent.
  */
 
 import { DEFAULT_FETCH_TIMEOUT_MS } from '@karmaniverous/jeeves';
-import type {
-  CatalogResponse,
-  CatalogTransport,
+import {
+  type CatalogResponse,
+  type CatalogTransport,
+  toToolName,
 } from '@karmaniverous/jeeves/catalog';
-import { WATCHER_SKILL } from '@karmaniverous/jeeves-watcher-core';
-import { Client } from '@modelcontextprotocol/sdk/client/index.js';
-import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
+import { createCatalogMcpServer } from '@karmaniverous/jeeves/mcp';
+import {
+  WATCHER_CATALOG,
+  WATCHER_SKILL,
+} from '@karmaniverous/jeeves-watcher-core';
+import { Client, InMemoryTransport } from '@modelcontextprotocol/client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
-  createWatcherMcpServer,
   SKILL_URI,
   STATUS_TIMEOUT_MS,
-} from './watcherMcpServer';
+  watcherMcpOptions,
+} from './registerWatcherMcp';
 
 type TransportMock = ReturnType<typeof vi.fn<CatalogTransport>>;
 
@@ -32,7 +36,11 @@ async function connect(
     .fn<CatalogTransport>()
     .mockImplementation(() => Promise.resolve(reply(200, {}))),
 ) {
-  const server = createWatcherMcpServer({ version: '0.0.0-test', transport });
+  const server = createCatalogMcpServer({
+    ...watcherMcpOptions('0.0.0-test'),
+    timeoutMs: DEFAULT_FETCH_TIMEOUT_MS,
+    transport,
+  });
   const [clientSide, serverSide] = InMemoryTransport.createLinkedPair();
   const client = new Client({ name: 'test', version: '0' });
   await Promise.all([server.connect(serverSide), client.connect(clientSide)]);
@@ -41,11 +49,18 @@ async function connect(
 
 const sent = (transport: TransportMock) => transport.mock.calls.at(-1)?.[0];
 
+/** The text of a tool result's first content block. */
+function textOf(result: Awaited<ReturnType<Client['callTool']>>): string {
+  const [block] = result.content;
+  if (block.type !== 'text') throw new Error('no text content');
+  return block.text;
+}
+
 afterEach(() => {
   vi.restoreAllMocks();
 });
 
-describe('createWatcherMcpServer', () => {
+describe('watcherMcpOptions', () => {
   it('lists 21 tools with hints from the catalog and no destructive housekeeping', async () => {
     const { client } = await connect();
 
@@ -66,16 +81,18 @@ describe('createWatcherMcpServer', () => {
       expect(byName.has(absent)).toBe(false);
   });
 
-  it('describes when to use each tool, without harness-specific wording', async () => {
+  it('describes each tool with its catalog entry, without harness-specific wording', async () => {
     const { client } = await connect();
 
     const { tools } = await client.listTools();
 
-    expect(tools.find((t) => t.name === 'watcher_scan')?.description).toContain(
-      'Use for structural queries',
-    );
-    for (const tool of tools)
+    for (const tool of tools) {
+      const entry = WATCHER_CATALOG.entries.find(
+        (e) => toToolName('watcher', e.name) === tool.name,
+      );
+      expect(tool.description).toBe(entry?.description);
       expect(tool.description).not.toMatch(/tool_call|OpenClaw|plugin/);
+    }
   });
 
   it('takes the config patch as config and sends it as patch', async () => {
@@ -133,9 +150,7 @@ describe('createWatcherMcpServer', () => {
     });
 
     expect(result.isError).toBe(true);
-    expect((result.content as [{ text: string }])[0].text).toContain(
-      'WATCHER_EMBEDDING_UNAVAILABLE',
-    );
+    expect(textOf(result)).toContain('WATCHER_EMBEDDING_UNAVAILABLE');
   });
 
   it('writes instructions for any agent that name the skill resource', async () => {
@@ -153,7 +168,8 @@ describe('createWatcherMcpServer', () => {
     const { client } = await connect();
 
     const { contents } = await client.readResource({ uri: SKILL_URI });
-    const text = (contents[0] as { text: string }).text;
+    const [content] = contents;
+    const text = 'text' in content ? content.text : '';
     const body = WATCHER_SKILL.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n/, '');
 
     expect(text).toContain('Using this skill over MCP');
@@ -172,9 +188,7 @@ describe('invalid input', () => {
     });
 
     expect(result.isError).toBe(true);
-    expect((result.content as [{ text: string }])[0].text).toMatch(
-      /^Error: Invalid input for "search"/,
-    );
+    expect(textOf(result)).toMatch(/^Input validation error: /);
     expect(transport).not.toHaveBeenCalled();
   });
 });

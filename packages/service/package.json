@@ -13,7 +13,6 @@
     "@karmaniverous/jeeves-watcher-sdk": "^0.4.2",
     "@karmaniverous/jsonmap": "^2.1.1",
     "@langchain/textsplitters": "*",
-    "@modelcontextprotocol/sdk": "^1.32.2",
     "@parcel/watcher": "2.6.0",
     "@qdrant/js-client-rest": "^1.20.0",
     "ajv": "~8.20.0",
@@ -45,6 +44,8 @@
   "description": "Filesystem watcher that keeps a Qdrant vector store in sync with document changes",
   "devDependencies": {
     "@dotenvx/dotenvx": "^2.38.2",
+    "@modelcontextprotocol/client": "^2.4.0",
+    "@modelcontextprotocol/server": "^2.4.0",
     "@rollup/plugin-alias": "^6.0.1",
     "@rollup/plugin-commonjs": "^29.0.3",
     "@rollup/plugin-json": "^6.1.0",
@@ -98,6 +99,14 @@
   "license": "BSD-3-Clause",
   "module": "dist/index.js",
   "name": "@karmaniverous/jeeves-watcher",
+  "peerDependencies": {
+    "@modelcontextprotocol/server": "^2.4.0"
+  },
+  "peerDependenciesMeta": {
+    "@modelcontextprotocol/server": {
+      "optional": true
+    }
+  },
   "publishConfig": {
     "access": "public"
   },

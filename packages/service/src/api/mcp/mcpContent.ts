@@ -1,5 +1,5 @@
 /**
- * @module mcp/mcpContent
+ * @module api/mcp/mcpContent
  * What an MCP client's model reads besides the tools: the server instructions (the watcher's always-on rules, written for any agent harness) and a preface for the skill resource. Pure.
  *
  * @remarks
@@ -48,7 +48,7 @@ export function skillPreface({ toolCount }: McpContentOptions): string {
       ' of them), so its guidance on search, filters, config, reindexing and diagnostics applies as written. Skip the parts about the OpenClaw plugin:',
     "> - Plugin installation and `openclaw.json` settings (`plugins.entries.jeeves-watcher-openclaw.config.*`). Here the MCP endpoint is the watcher's own `/mcp`, and the API key (the watcher's `api.apiKey`) is the `Authorization: Bearer` header in the MCP client config.",
     '> - `watcher_service`: not a tool here. The user manages the service with the `jeeves-watcher service` CLI.',
-    '> - Error text: a failed call starts with `Error: `; an unreachable watcher reads `Error: service not reachable: <reason>`.',
+    '> - Error text: a failed call is an error result; a watcher error starts with `Error: ` and carries its code, an unreachable watcher reads `Error: service not reachable: <reason>`, and arguments that break the tool schema read `Input validation error: `.',
   ].join('\n');
 }
 

@@ -1,18 +1,19 @@
 /**
- * @module mcp/registerMcpRoute.test
- * `POST /mcp` on the real API server (`createApiServer`, stub dependencies, no Qdrant): the watcher's auth hook guards it, tool calls reach the watcher's own routes with the caller's key, and the MCP handshake carries the instructions and skill.
+ * @module api/mcp/registerWatcherMcp.test
+ * `/mcp` on the real API server (`createApiServer`, stub dependencies, no Qdrant): the watcher's auth hook guards it, tool calls reach the watcher's own routes with the caller's key, and the MCP handshake carries the instructions and skill. Without `@modelcontextprotocol/server` the endpoint is skipped with one log line; any other import failure fails the boot.
  */
 
-import type { FastifyInstance } from 'fastify';
+import Fastify, { type FastifyInstance } from 'fastify';
 import pino from 'pino';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import type { ApiServerOptions } from '../api/apiServerOptions';
-import { createApiServer } from '../api/index';
-import type { JeevesWatcherConfig } from '../config/types';
-import { VirtualRuleStore } from '../rules/virtualRules';
-import { MCP_PATH } from './registerMcpRoute';
-import { SKILL_URI } from './watcherMcpServer';
+import type { JeevesWatcherConfig } from '../../config/types';
+import { VirtualRuleStore } from '../../rules/virtualRules';
+import type { ApiServerOptions } from '../apiServerOptions';
+import { createApiServer } from '../index';
+import { MCP_PEER, registerWatcherMcp, SKILL_URI } from './registerWatcherMcp';
+
+const MCP_PATH = '/mcp';
 
 const KEY = 'test-api-key';
 const ISSUES = {
@@ -66,9 +67,12 @@ async function rpc(
   });
 }
 
-/** The JSON-RPC result of a reply. */
-const resultOf = (res: { json: () => unknown }): unknown =>
-  (res.json() as { result: unknown }).result;
+/** The JSON-RPC result of a reply: one SSE `message` event (2025-era stateless serving). */
+function resultOf(res: { body: string }): unknown {
+  const data = /^data: (.*)$/m.exec(res.body);
+  if (!data) throw new Error(`no SSE data: ${res.body}`);
+  return (JSON.parse(data[1]) as { result: unknown }).result;
+}
 
 describe('POST /mcp', () => {
   it('answers 401 WATCHER_UNAUTHORIZED without a valid key, as every guarded route does', async () => {
@@ -150,7 +154,50 @@ describe('POST /mcp', () => {
     for (const method of ['GET', 'DELETE'] as const) {
       const res = await app.inject({ method, url: MCP_PATH });
       expect(res.statusCode).toBe(405);
-      expect(res.headers.allow).toBe('POST');
     }
+  });
+});
+
+describe('registerWatcherMcp loading', () => {
+  it(`skips /mcp with one log line when ${MCP_PEER} is not installed`, async () => {
+    const logger = { info: vi.fn() };
+    app = Fastify();
+    registerWatcherMcp(app, {
+      version: '0',
+      logger,
+      load: () =>
+        Promise.reject(
+          Object.assign(
+            new Error(`Cannot find package '${MCP_PEER}' imported from x`),
+            { code: 'ERR_MODULE_NOT_FOUND' },
+          ),
+        ),
+    });
+
+    const res = await app.inject({ method: 'POST', url: MCP_PATH });
+
+    expect(res.statusCode).toBe(404);
+    expect(logger.info).toHaveBeenCalledExactlyOnceWith(
+      `MCP endpoint disabled: install ${MCP_PEER} to serve /mcp`,
+    );
+  });
+
+  it.each([
+    ['another missing package', { code: 'ERR_MODULE_NOT_FOUND' }, 'zod'],
+    ['an error that is not a missing package', {}, MCP_PEER],
+  ])('fails the boot on %s', async (_label, extra, name) => {
+    const logger = { info: vi.fn() };
+    app = Fastify();
+    registerWatcherMcp(app, {
+      version: '0',
+      logger,
+      load: () =>
+        Promise.reject(
+          Object.assign(new Error(`Cannot find package '${name}'`), extra),
+        ),
+    });
+
+    await expect(app.ready()).rejects.toThrow(`Cannot find package '${name}'`);
+    expect(logger.info).not.toHaveBeenCalled();
   });
 });
