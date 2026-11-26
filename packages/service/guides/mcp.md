@@ -28,14 +28,24 @@ Or in a project `.mcp.json`:
 
 ## How it works
 
-Every tool is generated from the endpoint catalog (`WATCHER_CATALOG`), as the [SDK](../../sdk/guides/sdk-guide.md)'s methods are, and every tool call runs through the watcher's own routes:
+Every tool is generated from the endpoint catalog (`WATCHER_CATALOG`), as the [SDK](../../sdk/guides/sdk-guide.md)'s methods are, by jeeves's `registerMcpEndpoint` (`@karmaniverous/jeeves/mcp`), and every tool call runs through the watcher's own routes in-process (Fastify `inject`), so it passes the auth hook, validation, handlers, caching and error mapping exactly as an HTTP request does.
 
-| Module (`src/mcp/`) | Role |
+| Module (`src/api/mcp/`) | Role |
 | --- | --- |
-| `catalogMcpServer.ts` | Any catalog to an MCP server: one tool per selected entry, defined by jeeves's `catalogToolDefinition` (name `<prefix>_<snake_case entry>`, input schema from the entry's Zod schemas, hints from its `kind`). A call is built with `toolInputToRequest`, the credential attached, sent through a `CatalogTransport` and mapped with `toolResultFromResponse`. Nothing in it is watcher-specific. |
-| `injectTransport.ts` | The `CatalogTransport`: jeeves's `httpTransport` (which builds every request) over a `fetch` answered by Fastify `inject` into the watcher's own app, so a tool call passes the auth hook, validation, handlers, caching and error mapping exactly as an HTTP request does. |
-| `watcherMcpServer.ts`, `toolDescriptions.ts`, `mcpContent.ts` | The watcher's tool selection and descriptions, instructions and skill. |
-| `registerMcpRoute.ts` | `POST /mcp`: one stateless MCP server per request. `GET` and `DELETE /mcp` answer `405`. |
+| `registerWatcherMcp.ts` | The watcher's tool selection and endpoint options, and `/mcp` on the API server: imports `@karmaniverous/jeeves/mcp` when the server boots. |
+| `mcpContent.ts` | The instructions and the skill preface. |
+
+The endpoint is stateless: it serves the 2026-07-28 MCP revision and, for 2025-era clients, the stateless fallback.
+
+### Optional dependency
+
+`/mcp` needs `@modelcontextprotocol/server` (an optional peer: two packages, no web framework). Install it beside the watcher to serve `/mcp`:
+
+```bash
+npm install -g @modelcontextprotocol/server
+```
+
+Without it the watcher starts as usual, skips `/mcp` and logs `MCP endpoint disabled: install @modelcontextprotocol/server to serve /mcp`.
 
 ## Authentication
 
@@ -77,7 +87,7 @@ As the skill documents:
 - `watcher_reindex` sends scope `rules` when none is given (the HTTP API's own default is `issues`).
 - `watcher_status` stops waiting after 5 s; every other tool after 120 s (jeeves's `DEFAULT_FETCH_TIMEOUT_MS`). The route keeps running: a timeout never cancels work the watcher has started.
 
-Descriptions say what each tool is for and when to prefer it (`toolDescriptions.ts`), beyond the catalog's one-line entry descriptions. The same text is in the OpenClaw plugin; moving it into watcher-core's catalog would let both generate it from one copy.
+Descriptions are the catalog entries' own (watcher-core), the same text the OpenAPI document carries.
 
 ## Instructions and skill
 
@@ -91,8 +101,9 @@ Descriptions say what each tool is for and when to prefer it (`toolDescriptions.
 | 2xx JSON | The JSON, pretty-printed |
 | 2xx text (`watcher_show_vcs_file`, `watcher_diff_vcs`) | The text |
 | Non-2xx | `isError`, `Error: HTTP <status>: <body>` with the watcher's error body (branch on its `code`) |
-| Invalid input | `isError`, `Error: Invalid input for "<entry>": ...`; nothing is sent |
+| Arguments that break the tool schema | `isError`, `Input validation error: ...`; nothing is sent |
+| Input the entry's schema refuses | `isError`, `Error: Invalid input for "<entry>": ...`; nothing is sent |
 | Timed out | `isError`, `Error: service not reachable: <reason>` |
-| Unknown tool | `isError`, `Error: unknown tool: <name>` |
+| Unknown tool | JSON-RPC error `Tool <name> not found` |
 
-At the HTTP level `/mcp` answers `401 WATCHER_UNAUTHORIZED` without a valid key (when `api.apiKey` is set), `405` for `GET` and `DELETE`, and the watcher's own `400` for a body that is not JSON and masked `500` (cause logged) when setting up the request fails. Past setup, the MCP SDK answers malformed MCP messages with JSON-RPC errors.
+At the HTTP level `/mcp` answers `401 WATCHER_UNAUTHORIZED` without a valid key (when `api.apiKey` is set), `403` for a browser `Origin` that is not localhost (DNS rebinding; clients that send no `Origin` pass), `405` for `GET` and `DELETE`, and the watcher's own `400` for a body that is not JSON. The MCP SDK answers malformed MCP messages with JSON-RPC errors. 2025-era requests are answered as a one-event SSE stream, 2026-07-28 ones as JSON.
