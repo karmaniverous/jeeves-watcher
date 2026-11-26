@@ -28,15 +28,15 @@ export function routeNotFound(request: Pick<FastifyRequest, 'method' | 'url'>) {
  * routes.
  *
  * @param app - Fastify instance.
- * @param apiKey - Configured `api.apiKey`, or undefined to disable auth.
+ * @param apiKeys - The configured API keys, or undefined to disable auth.
  * @param logger - The watcher's logger (Fastify runs with `logger: false`).
  */
 export function registerApiHooks(
   app: FastifyInstance,
-  apiKey: string | undefined,
+  apiKeys: readonly string[] | undefined,
   logger: pino.Logger,
 ): void {
-  registerApiKeyAuth(app, apiKey, logger);
+  registerApiKeyAuth(app, apiKeys, logger);
   registerErrorHandlers(app, { logger });
   app.setNotFoundHandler((request) => {
     throw routeNotFound(request);

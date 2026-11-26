@@ -265,6 +265,7 @@ Start points:
   - `vectorStore/` — Qdrant wrapper
   - `vcs/` — git-backed version control
   - `api/` — Fastify API server routes
+  - `mcp/` — MCP endpoint (`POST /mcp`): catalog-built tools over the API routes
 
 For deeper detail, see:
 

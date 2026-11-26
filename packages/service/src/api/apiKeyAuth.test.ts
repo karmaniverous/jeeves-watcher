@@ -1,6 +1,6 @@
 /**
  * @module api/apiKeyAuth.test
- * Unit tests for the Bearer API-key hook: header parsing, timing-safe comparison (incl. length mismatch), the GET /status exemption and token-free logging.
+ * Unit tests for the Bearer API-key hook: header parsing, timing-safe comparison (incl. length mismatch) against one key or every named key, the GET /status exemption and token-free logging.
  */
 
 import * as crypto from 'node:crypto';
@@ -25,7 +25,11 @@ vi.mock('node:crypto', async (importOriginal) => {
 });
 
 const KEY = 'test-key-0123456789';
-const keyDigest = crypto.createHash('sha256').update(KEY).digest();
+const ALICE = 'alice-key-0123456789';
+const BOB = 'bob-key-0123456789';
+const digestOf = (key: string) =>
+  crypto.createHash('sha256').update(key).digest();
+const keyDigest = [digestOf(KEY)];
 
 describe('isAuthorized', () => {
   it.each([
@@ -61,6 +65,26 @@ describe('isAuthorized', () => {
     isAuthorized(undefined, keyDigest);
     expect(spy).toHaveBeenCalledTimes(1);
   });
+
+  it.each([
+    ['the first key', ALICE, true],
+    ['the last key', BOB, true],
+    ['no key', KEY, false],
+  ])(
+    'compares against every named key when the token matches %s',
+    (_label, token, expected) => {
+      const spy = vi.mocked(crypto.timingSafeEqual);
+      spy.mockClear();
+      expect(
+        isAuthorized(`Bearer ${token}`, [digestOf(ALICE), digestOf(BOB)]),
+      ).toBe(expected);
+      expect(spy).toHaveBeenCalledTimes(2);
+    },
+  );
+
+  it('refuses every token when no key is configured', () => {
+    expect(isAuthorized(`Bearer ${KEY}`, [])).toBe(false);
+  });
 });
 
 describe('isPublicRoute', () => {
@@ -85,9 +109,9 @@ describe('registerApiKeyAuth', () => {
     app = undefined;
   });
 
-  function build(apiKey: string | undefined, logger?: pino.Logger) {
+  function build(apiKeys: readonly string[] | undefined, logger?: pino.Logger) {
     app = Fastify({ logger: false });
-    registerApiKeyAuth(app, apiKey, logger);
+    registerApiKeyAuth(app, apiKeys, logger);
     app.get('/status', () => ({ ok: true }));
     app.get('/config', () => ({ config: true }));
     app.post('/search', () => ({ results: [] }));
@@ -101,7 +125,7 @@ describe('registerApiKeyAuth', () => {
   });
 
   it('rejects requests without a valid token with 401 and a fixed body', async () => {
-    const server = build(KEY);
+    const server = build([KEY]);
     for (const authorization of [undefined, 'Bearer wrong']) {
       const res = await server.inject({
         method: 'POST',
@@ -115,7 +139,7 @@ describe('registerApiKeyAuth', () => {
   });
 
   it('accepts the configured key', async () => {
-    const server = build(KEY);
+    const server = build([KEY]);
     const res = await server.inject({
       method: 'GET',
       url: '/config',
@@ -125,20 +149,37 @@ describe('registerApiKeyAuth', () => {
     expect(res.json()).toEqual({ config: true });
   });
 
+  it('accepts each of several keys and rejects any other', async () => {
+    const server = build([ALICE, BOB]);
+    const status = async (key: string) =>
+      (
+        await server.inject({
+          method: 'GET',
+          url: '/config',
+          headers: { authorization: `Bearer ${key}` },
+        })
+      ).statusCode;
+
+    expect(await status(ALICE)).toBe(200);
+    expect(await status(BOB)).toBe(200);
+    expect(await status(KEY)).toBe(401);
+    expect(await status('alice')).toBe(401);
+  });
+
   it('leaves GET /status open', async () => {
-    const server = build(KEY);
+    const server = build([KEY]);
     const res = await server.inject({ method: 'GET', url: '/status' });
     expect(res.statusCode).toBe(200);
   });
 
   it('requires auth for unknown routes too', async () => {
-    const server = build(KEY);
+    const server = build([KEY]);
     const res = await server.inject({ method: 'GET', url: '/nope' });
     expect(res.statusCode).toBe(401);
   });
 
   it('fails closed for an empty configured key', async () => {
-    const server = build('');
+    const server = build(['']);
     const res = await server.inject({
       method: 'GET',
       url: '/config',
@@ -160,7 +201,7 @@ describe('registerApiKeyAuth', () => {
       error: record,
       fatal: record,
     } as unknown as pino.Logger;
-    const server = build(KEY, logger);
+    const server = build([KEY], logger);
     const presented = 'presented-secret-token-value';
 
     const res = await server.inject({

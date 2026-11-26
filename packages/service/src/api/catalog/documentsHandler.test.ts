@@ -65,7 +65,7 @@ function setup(
     ),
   };
   const app = Fastify({ logger: false });
-  if (options.apiKey) registerApiKeyAuth(app, options.apiKey, logger);
+  if (options.apiKey) registerApiKeyAuth(app, [options.apiKey], logger);
   void registerCatalogEntries(app, {
     notifyDocuments: createCatalogDocumentsHandler({
       processor,

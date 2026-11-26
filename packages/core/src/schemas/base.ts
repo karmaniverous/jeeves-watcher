@@ -151,16 +151,36 @@ export const apiConfigSchema = z.object({
     .describe(
       'TTL in milliseconds for caching read-heavy endpoints (e.g., /status, /config). Default: 30000.',
     ),
-  /** Bearer API key required on every route except GET /status. */
+  /**
+   * Bearer API key required on every route except GET /status: one key, or
+   * keys by name (one per person or client), any one accepted.
+   */
   apiKey: z
-    .string()
-    .min(
-      1,
-      'api.apiKey must be a non-empty string (remove it to disable authentication)',
-    )
+    .union([
+      z
+        .string()
+        .min(
+          1,
+          'api.apiKey must be a non-empty string (remove it to disable authentication)',
+        ),
+      z
+        .record(
+          z.string().min(1, 'api.apiKey names must be non-empty'),
+          z
+            .string()
+            .min(
+              1,
+              'api.apiKey keys must be non-empty strings (remove api.apiKey to disable authentication)',
+            ),
+        )
+        .refine((keys) => Object.keys(keys).length > 0, {
+          message:
+            'api.apiKey must name at least one key (remove it to disable authentication)',
+        }),
+    ])
     .optional()
     .describe(
-      'Bearer API key required on every route except GET /status (supports ${ENV_VAR} substitution). Must be non-empty. Unset: no authentication. Read at startup only.',
+      'Bearer API key required on every route except GET /status: one key, or keys by name, one per person or client (e.g. { "alice": "${ALICE_KEY}", "bob": "${BOB_KEY}" }); any one is accepted. Values support ${ENV_VAR} substitution and must be non-empty. Unset: no authentication. Read at startup only.',
     ),
 });
 

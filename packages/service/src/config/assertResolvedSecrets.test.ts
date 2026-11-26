@@ -1,6 +1,6 @@
 /**
  * @module config/assertResolvedSecrets.test
- * Tests for the startup secret checks (unresolved env references in api.apiKey and sources, empty api.apiKey) and the load-time warnings (unknown source keys, reserved rule field names), unit and through loadConfig.
+ * Tests for the startup secret checks (unresolved env references in api.apiKey, or its named keys, and sources; empty API keys) and the load-time warnings (unknown source keys, reserved rule field names), unit and through loadConfig.
  */
 
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
@@ -58,6 +58,13 @@ describe('findUnresolvedSecrets', () => {
       'sources.app.headers.Authorization',
     ]);
   });
+
+  it('reports each unresolved named key by its name', () => {
+    const config = asConfig({
+      api: { apiKey: { alice: 'k', bob: ref('BOB_KEY') } },
+    });
+    expect(findUnresolvedSecrets(config)).toEqual(['api.apiKey.bob']);
+  });
 });
 
 describe('assertResolvedSecrets', () => {
@@ -65,6 +72,17 @@ describe('assertResolvedSecrets', () => {
     expect(() => {
       assertResolvedSecrets(asConfig({ api: { apiKey: 'k' } }));
     }).not.toThrow();
+  });
+
+  it('names every empty named key', () => {
+    const config = asConfig({
+      api: { apiKey: { alice: '', bob: 'k', carol: '' } },
+    });
+    expect(() => {
+      assertResolvedSecrets(config);
+    }).toThrow(
+      'api.apiKey.alice, api.apiKey.carol are empty after environment variable substitution.',
+    );
   });
 
   it('throws naming the path but not the value', () => {
@@ -144,6 +162,38 @@ describe('loadConfig secret check', () => {
     await expect(loadConfig(cfgPath)).rejects.toThrow(
       /api\.apiKey is empty after environment variable substitution/,
     );
+  });
+
+  it('loads named keys, each resolved from its variable', async () => {
+    vi.stubEnv(envName, 'resolved-key');
+    const cfgPath = await writeConfig({
+      ...base,
+      api: { apiKey: { alice: ref(envName), bob: 'literal-key' } },
+    });
+    const config = await loadConfig(cfgPath);
+    expect(config.api?.apiKey).toEqual({
+      alice: 'resolved-key',
+      bob: 'literal-key',
+    });
+  });
+
+  it('names the named key that resolves to an empty string', async () => {
+    vi.stubEnv(envName, '');
+    const cfgPath = await writeConfig({
+      ...base,
+      api: { apiKey: { alice: ref(envName), bob: 'k' } },
+    });
+    await expect(loadConfig(cfgPath)).rejects.toThrow(
+      /^api\.apiKey\.alice is empty after environment variable substitution/,
+    );
+  });
+
+  it.each([
+    [{}, /api\.apiKey must name at least one key/],
+    [{ alice: '' }, /api\.apiKey keys must be non-empty strings/],
+  ])('fails at validation for api.apiKey %j', async (apiKey, message) => {
+    const cfgPath = await writeConfig({ ...base, api: { apiKey } });
+    await expect(loadConfig(cfgPath)).rejects.toThrow(message);
   });
 
   it('fails at validation when api.apiKey is written empty', async () => {

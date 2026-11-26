@@ -1,6 +1,6 @@
 /**
  * @module api
- * Fastify API server factory. Registers every `WATCHER_CATALOG` route (plus `GET /openapi.json`) from the catalog, and returns an unstarted server instance.
+ * Fastify API server factory. Registers every `WATCHER_CATALOG` route (plus `GET /openapi.json`) from the catalog and the MCP endpoint (`POST /mcp`) over them, and returns an unstarted server instance.
  */
 
 import { dirname } from 'node:path';
@@ -16,6 +16,7 @@ import type { ApiServerOptions } from './apiServerOptions';
 import { warnUnknownUiHints } from './catalog/facetWarnings';
 import { resolveRuleSchemas } from './catalog/ruleSchemas';
 import { createConfigApplyCallback } from './configApplyCallback';
+import { registerWatcherMcp } from './mcp/registerWatcherMcp';
 import { createOnRulesChanged } from './onRulesChanged';
 import { registerCatalog } from './registerCatalog';
 import { ReindexTracker } from './ReindexTracker';
@@ -72,8 +73,14 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
 
   const reindexTracker = options.reindexTracker ?? new ReindexTracker();
   const app = Fastify({ logger: false });
-  // Auth + error handlers; api.apiKey is read once (restart to change).
-  registerApiHooks(app, config.api?.apiKey, logger);
+  // Auth + error handlers; api.apiKey (one key or keys by name) is read once
+  // (restart to change).
+  const apiKey = config.api?.apiKey;
+  registerApiHooks(
+    app,
+    typeof apiKey === 'string' ? [apiKey] : apiKey && Object.values(apiKey),
+    logger,
+  );
 
   const getVirtualRules = () => virtualRuleStore.getAll();
   const cacheTtlMs = config.api?.cacheTtlMs ?? API_DEFAULTS.cacheTtlMs;
@@ -197,6 +204,9 @@ export function createApiServer(options: ApiServerOptions): FastifyInstance {
         : {}),
     },
   });
+
+  // MCP over the same routes, behind the same auth hook (#282).
+  registerWatcherMcp(app, { version: version ?? 'unknown', logger });
 
   return app;
 }

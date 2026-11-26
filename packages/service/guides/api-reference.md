@@ -10,7 +10,7 @@ The watcher exposes a lightweight HTTP API for search, metadata enrichment, and 
 
 **Authentication:** none by default. When `api.apiKey` is set, every route except `GET /status` and `GET /openapi.json` requires `Authorization: Bearer <key>`; see [Authentication](#authentication). The examples below omit the header.
 
-**Endpoint catalog (unreleased):** every route below except `GET /openapi.json` is described once, as an entry of `WATCHER_CATALOG` in `@karmaniverous/jeeves-watcher-core`. Its route, request validation, response validation, the [OpenAPI document](#get-openapijson) and the plugin tools are all built from it.
+**Endpoint catalog (unreleased):** every route below except `GET /openapi.json` and `POST /mcp` is described once, as an entry of `WATCHER_CATALOG` in `@karmaniverous/jeeves-watcher-core`. Its route, request validation, response validation, the [OpenAPI document](#get-openapijson) and the plugin tools are all built from it.
 
 **Request validation:** every route's body, query string and path parameters are validated against its catalog entry's schemas (the Zod schemas exported by `@karmaniverous/jeeves-watcher-core`). An invalid request returns jeeves's `400` with code `FST_ERR_VALIDATION` (v0.22.0+), whose `message` joins one `<slot>/<path> <issue message>` per failure with `, `, for example `{ "statusCode": 400, "code": "FST_ERR_VALIDATION", "error": "Bad Request", "message": "querystring/path Missing required query parameter: path, querystring/commit Missing required query parameter: commit" }` (the slot is `body`, `querystring` or `params`). There is no `details` field. Unless a section says the schema is strict, unknown keys are dropped silently. Before v0.22.0 this was `400 { code: "invalid_request", error, details }`; earlier still, the routes outside the catalog answered with their own `error` text (quoted in their sections as "before"), and a missing body, which those routes answered with the generic `500`, became this `400` in 0.21.0. Checks a schema cannot express (a rule that does not compile, metadata that does not match its rule, a filter Qdrant rejects) answer `400 WATCHER_INVALID_REQUEST`, as their sections describe.
 
@@ -119,6 +119,19 @@ curl http://localhost:1936/openapi.json
 ```
 
 Like `GET /status`, it is open even when `api.apiKey` is set. The same document ships in `@karmaniverous/jeeves-watcher-core` as `WATCHER_OPENAPI_DOCUMENT` and as the `@karmaniverous/jeeves-watcher-core/openapi.json` file; `info.version` is the watcher-core version.
+
+---
+
+## POST /mcp
+
+**Unreleased.** The MCP endpoint (Streamable HTTP, stateless): the catalog routes as MCP tools for any MCP client, with the watcher's always-on rules as `instructions` and its skill as a resource. It is not a catalog route, so it is not in the OpenAPI document. Guarded by `api.apiKey` like every other route; each tool call runs through the route it names, with the caller's key. `GET` and `DELETE /mcp` answer `405`. A refused key is the standard `401 WATCHER_UNAUTHORIZED` body, as on every route; a body that is not JSON and an unexpected failure are the standard `400` and masked `500` too. Past those, `/mcp` speaks MCP: the `405` and a malformed MCP message are JSON-RPC error objects, and a failed tool call is a tool result with `isError`. See the [MCP guide](./mcp.md).
+
+```bash
+curl -X POST http://localhost:1936/mcp \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json, text/event-stream" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
+```
 
 ---
 
@@ -2398,6 +2411,21 @@ Set `api.apiKey` (usually through an environment variable) to require a bearer t
 }
 ```
 
+**Unreleased: one key per person.** `apiKey` may instead name its keys, one per person or client; a request with any one of them is accepted:
+
+```json
+{
+  "api": {
+    "apiKey": {
+      "alice": "${ALICE_WATCHER_KEY}",
+      "bob": "${BOB_WATCHER_KEY}"
+    }
+  }
+}
+```
+
+A client still sends one key, as `Authorization: Bearer <key>`. Removing a person's line (and restarting) revokes only their key. The single-string form keeps working unchanged.
+
 ```bash
 curl -X POST http://watcher.internal.example:1936/search \
   -H "Authorization: Bearer $WATCHER_API_KEY" \
@@ -2407,10 +2435,10 @@ curl -X POST http://watcher.internal.example:1936/search \
 
 - Every route requires `Authorization: Bearer <apiKey>` (the `Bearer` scheme name is case-insensitive) — including unknown routes, the config, rules and VCS endpoints — **except `GET /status`** (and `HEAD /status`), which stays open for health checks, and `GET /openapi.json` (unreleased).
 - A missing, malformed or wrong token gets `401 { "statusCode": 401, "code": "WATCHER_UNAUTHORIZED", "error": "Unauthorized", "message": "A valid API key is required: send Authorization: Bearer <key>." }`, with no `WWW-Authenticate` header (v0.22.0+; before, `{ "code": "unauthorized", "error": "Unauthorized" }`). The presented token is never logged; rejections log only the method and path at `debug` level.
-- The comparison is constant-time.
-- `apiKey` must be non-empty: `""` (or a variable that substitutes to `""`) is a config validation error, so the service does not start. Omit the key to run without authentication. (Should an empty key ever reach the server, it still fails closed: no token matches.)
-- If `apiKey` still contains an unresolved `${...}` after environment-variable substitution, loading the config fails and the service does not start.
-- The key is read **at startup only**. Rotating it means changing the config (or the environment variable) and restarting the watcher, then updating every client.
+- The comparison is constant-time: the token is compared with every configured key, whichever one matches.
+- `apiKey` must be non-empty: `""` (or a variable that substitutes to `""`) is a config validation error, so the service does not start. With named keys, each key and name must be non-empty and there must be at least one (`{}` is an error); an empty key is reported by its name (`api.apiKey.alice`). Omit `apiKey` to run without authentication. (Should an empty key ever reach the server, it still fails closed: no token matches.)
+- If `apiKey` (or any named key) still contains an unresolved `${...}` after environment-variable substitution, loading the config fails, naming the key (`api.apiKey` or `api.apiKey.<name>`), and the service does not start.
+- The keys are read **at startup only**. Rotating one means changing the config (or the environment variable) and restarting the watcher, then updating the clients that use it.
 - Clients send the key as follows:
   - **CLI** (`config`, `config apply`, `search`, `enrich`, `scan`, `reindex`, `rebuild-metadata`, `issues`, `helpers`): the `--api-key <key>` flag, else the `JEEVES_WATCHER_API_KEY` environment variable. These commands do not read the config file. Prefer the environment variable: a flag value is visible in the process list. See [CLI Reference](./cli-reference.md#authentication).
   - **OpenClaw plugin**: `plugins.entries.jeeves-watcher-openclaw.config.apiKey`, else `JEEVES_WATCHER_API_KEY`; sent on every tool request.

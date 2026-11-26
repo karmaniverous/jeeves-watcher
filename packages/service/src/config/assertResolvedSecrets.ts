@@ -1,6 +1,6 @@
 /**
  * @module config/assertResolvedSecrets
- * Fail-fast check that secret-bearing config values (api.apiKey, sources.*.url and headers) contain no unresolved `${VAR}` after env substitution, and that api.apiKey is not empty. Pure; throws.
+ * Fail-fast check that secret-bearing config values (api.apiKey, or each named api.apiKey.<name>, sources.*.url and headers) contain no unresolved `${VAR}` after env substitution, and that no API key is empty. Pure; throws.
  */
 
 import type { JeevesWatcherConfig } from './types';
@@ -20,7 +20,11 @@ export function findUnresolvedSecrets(config: JeevesWatcherConfig): string[] {
     if (value !== undefined && UNRESOLVED_PATTERN.test(value)) paths.push(path);
   };
 
-  check('api.apiKey', config.api?.apiKey);
+  const apiKey = config.api?.apiKey;
+  if (typeof apiKey === 'string') check('api.apiKey', apiKey);
+  else
+    for (const [name, key] of Object.entries(apiKey ?? {}))
+      check(`api.apiKey.${name}`, key);
 
   for (const [name, source] of Object.entries(config.sources ?? {})) {
     check(`sources.${name}.url`, source.url);
@@ -34,7 +38,7 @@ export function findUnresolvedSecrets(config: JeevesWatcherConfig): string[] {
 
 /**
  * Throw when any secret-bearing value still contains an unresolved `${…}`,
- * or when `api.apiKey` is empty after substitution (e.g. its variable is set
+ * or when an API key is empty after substitution (e.g. its variable is set
  * to an empty string). Errors name config paths only, never values.
  *
  * @param config - Config after environment-variable substitution.
@@ -47,9 +51,18 @@ export function assertResolvedSecrets(config: JeevesWatcherConfig): void {
       `Unresolved environment variable reference in: ${paths.join(', ')}. Set the referenced environment variables before starting jeeves-watcher.`,
     );
   }
-  if (config.api?.apiKey === '') {
+  const apiKey = config.api?.apiKey;
+  const empty =
+    typeof apiKey === 'string'
+      ? apiKey === ''
+        ? ['api.apiKey']
+        : []
+      : Object.entries(apiKey ?? {})
+          .filter(([, key]) => key === '')
+          .map(([name]) => `api.apiKey.${name}`);
+  if (empty.length > 0) {
     throw new Error(
-      'api.apiKey is empty after environment variable substitution. Set a non-empty key, or remove api.apiKey to disable authentication.',
+      `${empty.join(', ')} ${empty.length > 1 ? 'are' : 'is'} empty after environment variable substitution. Set a non-empty key, or remove api.apiKey to disable authentication.`,
     );
   }
 }
